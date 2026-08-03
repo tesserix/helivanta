@@ -8,7 +8,7 @@ dev-down:
 	docker compose -f docker-compose.dev.yml down
 
 dev-api:
-	cd backend && go run ./cmd/api
+	cd backend && FIREBASE_AUTH_EMULATOR_HOST=$${FIREBASE_AUTH_EMULATOR_HOST:-localhost:9099} go run ./cmd/api
 
 dev-web:
 	pnpm turbo dev

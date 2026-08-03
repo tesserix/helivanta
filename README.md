@@ -18,4 +18,8 @@ Set `NODE_AUTH_TOKEN` to a GitHub token with `read:packages` (e.g. `export NODE_
     make seed       # dev tenant + test user (test@hms.dev / password123)
     open http://localhost:4301
 
+`make dev` points the API at the local GIP emulator automatically
+(`FIREBASE_AUTH_EMULATOR_HOST=localhost:9099`); override the variable to
+target a real GIP project.
+
 Deployment lives in `tesserix-k8s` (charts/apps/hms-*), not here.

@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
@@ -21,7 +23,8 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, db.Migrate(context.Background(), events.Migrations()))
 
-	bus, err := events.NewBus(testutil.StartNATS(t))
+	natsURL := testutil.StartNATS(t)
+	bus, err := events.NewBus(natsURL)
 	require.NoError(t, err)
 	defer bus.Close()
 
@@ -39,12 +42,17 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 	}}))
 	go bus.RunDispatcher(ctx, db)
 
+	// Fix event id/timestamp up front so the direct-republish below sends
+	// byte-identical JSON with the same event_id.
+	evt := events.Event{
+		ID: uuid.NewString(), Type: "ReferencePinged", Version: 1,
+		OccurredAt: time.Now().UTC(), TenantID: "t-1",
+		Data: json.RawMessage(`{"ping_id":"p-1"}`),
+	}
+
 	// Publish inside a transaction — commits to outbox, not to NATS.
 	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
-		return bus.Publish(tx, "hms.in.reference.pinged.v1", events.Event{
-			Type: "ReferencePinged", Version: 1, TenantID: "t-1",
-			Data: json.RawMessage(`{"ping_id":"p-1"}`),
-		})
+		return bus.Publish(tx, "hms.in.reference.pinged.v1", evt)
 	}))
 
 	require.Eventually(t, func() bool { return handled.Load() == 1 },
@@ -52,4 +60,32 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 
 	// Redelivery of the same event id is a no-op (idempotency table).
 	require.Never(t, func() bool { return handled.Load() > 1 }, 2*time.Second, 200*time.Millisecond)
+
+	// Force a genuine duplicate delivery: connect directly to NATS and
+	// publish the identical envelope WITHOUT a MsgId header, so JetStream's
+	// server-side dedup can't intervene — only the (consumer, event_id)
+	// claim in processed_events should stop the handler from re-running.
+	directNC, err := nats.Connect(natsURL)
+	require.NoError(t, err)
+	defer directNC.Close()
+	directJS, err := directNC.JetStream()
+	require.NoError(t, err)
+
+	payload, err := json.Marshal(evt)
+	require.NoError(t, err)
+	_, err = directJS.Publish("hms.in.reference.pinged.v1", payload)
+	require.NoError(t, err)
+
+	require.Never(t, func() bool { return handled.Load() > 1 }, 3*time.Second, 200*time.Millisecond,
+		"duplicate delivery of the same event_id must be claimed and skipped, not re-handled")
+
+	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Raw(`SELECT count(*) FROM processed_events WHERE consumer = ? AND event_id = ?`,
+			"test-consumer", evt.ID).Scan(&count).Error; err != nil {
+			return err
+		}
+		require.Equal(t, int64(1), count, "exactly one processed_events row for the consumer/event pair")
+		return nil
+	}))
 }

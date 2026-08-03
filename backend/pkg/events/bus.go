@@ -17,6 +17,11 @@ import (
 
 const StreamName = "HMS"
 
+// maxDeliver is the redelivery ceiling for durable consumers. Once a
+// message has been delivered this many times without a successful Ack,
+// handleMsg dead-letters it instead of Nak'ing it forever.
+const maxDeliver = 5
+
 // OutboxStore is the slice of tenantdb the bus needs (system tables only).
 type OutboxStore interface {
 	WithSystem(ctx context.Context, fn func(tx *gorm.DB) error) error
@@ -46,6 +51,12 @@ func Migrations() []tenantdb.Migration {
 type Bus struct {
 	nc *nats.Conn
 	js nats.JetStreamContext
+
+	// stopCtx/stop give Close() a way to unwind consumeLoop/RunDispatcher
+	// goroutines even when the caller's ctx is long-lived (e.g. request
+	// scoped or background.TODO()).
+	stopCtx context.Context
+	stop    context.CancelFunc
 }
 
 func NewBus(natsURL string) (*Bus, error) {
@@ -66,7 +77,8 @@ func NewBus(natsURL string) (*Bus, error) {
 	if err != nil && !errors.Is(err, nats.ErrStreamNameAlreadyInUse) {
 		return nil, fmt.Errorf("ensure stream: %w", err)
 	}
-	return &Bus{nc: nc, js: js}, nil
+	stopCtx, stop := context.WithCancel(context.Background())
+	return &Bus{nc: nc, js: js, stopCtx: stopCtx, stop: stop}, nil
 }
 
 func (b *Bus) Ping(ctx context.Context) error {
@@ -76,7 +88,26 @@ func (b *Bus) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (b *Bus) Close() { b.nc.Drain() }
+// Close stops all consumeLoop/RunDispatcher goroutines derived from this
+// Bus (even if their caller ctx is still live) and drains the connection.
+func (b *Bus) Close() {
+	b.stop()
+	b.nc.Drain()
+}
+
+// deriveCtx returns a ctx that is Done when either the caller's ctx ends
+// or the Bus is Close()'d — whichever comes first.
+func (b *Bus) deriveCtx(ctx context.Context) (context.Context, context.CancelFunc) {
+	derived, cancel := context.WithCancel(ctx)
+	go func() {
+		select {
+		case <-b.stopCtx.Done():
+			cancel()
+		case <-derived.Done():
+		}
+	}()
+	return derived, cancel
+}
 
 type outboxRow struct {
 	ID          uuid.UUID
@@ -91,8 +122,16 @@ func (outboxRow) TableName() string { return "outbox_events" }
 // Delivery happens asynchronously via RunDispatcher — at-least-once,
 // never lost with the business write (issue #2).
 func (b *Bus) Publish(tx *gorm.DB, subject string, evt Event) error {
+	var id uuid.UUID
 	if evt.ID == "" {
-		evt.ID = uuid.NewString()
+		id = uuid.New()
+		evt.ID = id.String()
+	} else {
+		parsed, err := uuid.Parse(evt.ID)
+		if err != nil {
+			return fmt.Errorf("events: event id must be a uuid: %w", err)
+		}
+		id = parsed
 	}
 	if evt.OccurredAt.IsZero() {
 		evt.OccurredAt = time.Now().UTC()
@@ -101,19 +140,22 @@ func (b *Bus) Publish(tx *gorm.DB, subject string, evt Event) error {
 	if err != nil {
 		return err
 	}
-	return tx.Create(&outboxRow{ID: uuid.MustParse(evt.ID), Subject: subject, Payload: payload}).Error
+	return tx.Create(&outboxRow{ID: id, Subject: subject, Payload: payload}).Error
 }
 
-// RunDispatcher drains the outbox into JetStream until ctx ends.
+// RunDispatcher drains the outbox into JetStream until ctx ends or the
+// Bus is Close()'d.
 func (b *Bus) RunDispatcher(ctx context.Context, db OutboxStore) {
+	loopCtx, cancel := b.deriveCtx(ctx)
+	defer cancel()
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 	for {
 		select {
-		case <-ctx.Done():
+		case <-loopCtx.Done():
 			return
 		case <-ticker.C:
-			if err := b.drainOnce(ctx, db); err != nil {
+			if err := b.drainOnce(loopCtx, db); err != nil {
 				slog.Error("outbox dispatch", "err", err)
 			}
 		}
@@ -131,7 +173,11 @@ func (b *Bus) drainOnce(ctx context.Context, db OutboxStore) error {
 		for _, r := range rows {
 			// MsgId gives JetStream server-side dedup on redelivery.
 			if _, err := b.js.Publish(r.Subject, r.Payload, nats.MsgId(r.ID.String())); err != nil {
-				return err
+				// A single row's publish failure must not block the rest
+				// of the batch (head-of-line blocking) — log and retry
+				// this row on the next drain tick instead of aborting.
+				slog.Error("outbox publish", "id", r.ID, "subject", r.Subject, "err", err)
+				continue
 			}
 			if err := tx.Exec(`UPDATE outbox_events SET published_at = now() WHERE id = ?`, r.ID).Error; err != nil {
 				return err
@@ -143,22 +189,37 @@ func (b *Bus) drainOnce(ctx context.Context, db OutboxStore) error {
 
 // StartConsumers creates a durable pull subscription per consumer and
 // processes messages with idempotency keyed on (consumer, event_id).
+// Each consumer's loop stops when ctx ends or the Bus is Close()'d.
 func (b *Bus) StartConsumers(ctx context.Context, db OutboxStore, consumers []Consumer) error {
 	for _, c := range consumers {
-		sub, err := b.js.PullSubscribe(c.Subject, c.Name, nats.AckExplicit(), nats.MaxDeliver(5))
+		sub, err := b.js.PullSubscribe(c.Subject, c.Name, nats.AckExplicit(), nats.MaxDeliver(maxDeliver))
 		if err != nil {
 			return fmt.Errorf("subscribe %s: %w", c.Name, err)
 		}
-		go b.consumeLoop(ctx, db, c, sub)
+		loopCtx, cancel := b.deriveCtx(ctx)
+		go func() {
+			defer cancel()
+			b.consumeLoop(loopCtx, db, c, sub)
+		}()
 	}
 	return nil
 }
+
+// fetchRetryBackoff is how long consumeLoop pauses after a non-timeout
+// Fetch error before retrying, so a persistently unhealthy NATS
+// connection doesn't spin the loop hot.
+const fetchRetryBackoff = 500 * time.Millisecond
 
 func (b *Bus) consumeLoop(ctx context.Context, db OutboxStore, c Consumer, sub *nats.Subscription) {
 	for ctx.Err() == nil {
 		msgs, err := sub.Fetch(10, nats.Context(ctx))
 		if err != nil {
-			continue // timeout/ctx — poll again
+			if !errors.Is(err, nats.ErrTimeout) &&
+				!errors.Is(err, context.DeadlineExceeded) &&
+				!errors.Is(err, context.Canceled) {
+				time.Sleep(fetchRetryBackoff)
+			}
+			continue // timeout/ctx/backoff — poll again
 		}
 		for _, msg := range msgs {
 			b.handleMsg(ctx, db, c, msg)
@@ -188,6 +249,16 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 	})
 	if err != nil {
 		slog.Error("consumer handle", "consumer", c.Name, "event", evt.ID, "err", err)
+		if meta, mErr := msg.Metadata(); mErr == nil && meta.NumDelivered >= maxDeliver {
+			dlqSubject := "hms.dlq." + c.Name
+			if _, pErr := b.js.Publish(dlqSubject, msg.Data); pErr != nil {
+				slog.Error("consumer dlq publish failed", "consumer", c.Name, "event", evt.ID, "err", pErr)
+			}
+			slog.Error("consumer dead-lettered event", "consumer", c.Name, "event", evt.ID,
+				"num_delivered", meta.NumDelivered, "dlq_subject", dlqSubject)
+			_ = msg.Term()
+			return
+		}
 		_ = msg.Nak()
 		return
 	}

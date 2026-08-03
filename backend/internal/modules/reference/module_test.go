@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/hms/internal/modules/reference"
@@ -58,7 +59,7 @@ func setup(t *testing.T) (*gin.Engine, *tenantdb.DB, context.Context) {
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	api := r.Group("/v1", authn.Middleware(staticVerifier{"tokA": tenantA, "tokB": tenantB}))
+	api := r.Group("/v1", authn.Middleware(staticVerifier{"tokA": tenantA, "tokB": tenantB, "tokBad": "not-a-uuid"}))
 	mod.Routes(api, deps)
 	return r, db, ctx
 }
@@ -91,7 +92,11 @@ func TestPingFullWiring(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, do(r, "GET", "/v1/reference/pings/"+resp.ID, "tokB", "").Code)
 	require.Equal(t, http.StatusOK, do(r, "GET", "/v1/reference/pings/"+resp.ID, "tokA", "").Code)
 
-	// Event flows outbox → JetStream → consumer → receipt row.
+	// A random (but valid) uuid that was never created also 404s.
+	require.Equal(t, http.StatusNotFound, do(r, "GET", "/v1/reference/pings/"+uuid.NewString(), "tokA", "").Code)
+
+	// Event flows outbox → JetStream → consumer → receipt row, and the
+	// receipt records the same ping id that was created above.
 	require.Eventually(t, func() bool {
 		var n int64
 		_ = db.WithSystem(ctx, func(tx *gorm.DB) error {
@@ -99,10 +104,23 @@ func TestPingFullWiring(t *testing.T) {
 		})
 		return n == 1
 	}, 20*time.Second, 200*time.Millisecond)
+
+	var pingID string
+	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT ping_id FROM reference_ping_receipts LIMIT 1`).Scan(&pingID).Error
+	}))
+	require.Equal(t, resp.ID, pingID)
 }
 
 func TestPingValidation(t *testing.T) {
 	r, _, _ := setup(t)
 	require.Equal(t, http.StatusBadRequest, do(r, "POST", "/v1/reference/ping", "tokA", `{}`).Code)
 	require.Equal(t, http.StatusUnauthorized, do(r, "POST", "/v1/reference/ping", "nope", `{"message":"x"}`).Code)
+}
+
+func TestPingInvalidTenantClaim(t *testing.T) {
+	r, _, _ := setup(t)
+	w := do(r, "POST", "/v1/reference/ping", "tokBad", `{"message":"x"}`)
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+	require.Contains(t, w.Body.String(), "error")
 }

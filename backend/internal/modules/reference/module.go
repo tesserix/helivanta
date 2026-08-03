@@ -73,9 +73,10 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 	g := r.Group("/reference")
 
 	g.POST("/ping", func(c *gin.Context) {
-		p, ok := authn.PrincipalFrom(c)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "no principal"})
+		p, _ := authn.PrincipalFrom(c)
+		tenantUUID, err := uuid.Parse(p.TenantID)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "invalid tenant"})
 			return
 		}
 		var req pingRequest
@@ -83,12 +84,15 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_request", "message": err.Error()})
 			return
 		}
-		row := ping{TenantID: uuid.MustParse(p.TenantID), Message: req.Message}
-		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+		row := ping{TenantID: tenantUUID, Message: req.Message}
+		err = deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
 			if err := tx.Create(&row).Error; err != nil {
 				return err
 			}
-			data, _ := json.Marshal(pingedData{PingID: row.ID.String()})
+			data, err := json.Marshal(pingedData{PingID: row.ID.String()})
+			if err != nil {
+				return err
+			}
 			return deps.Bus.Publish(tx, SubjectPinged, events.Event{
 				Type: "ReferencePinged", Version: 1, TenantID: p.TenantID, Data: data,
 			})

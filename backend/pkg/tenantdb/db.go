@@ -91,6 +91,14 @@ func (d *DB) WithTenant(ctx context.Context, tenantID string, fn func(tx *gorm.D
 	})
 }
 
+// WithSystem runs fn in a transaction on the app pool WITHOUT a tenant
+// GUC. Only for platform tables that have no tenant_id column (outbox,
+// idempotency); RLS still hides every tenant-scoped table because the
+// GUC is unset.
+func (d *DB) WithSystem(ctx context.Context, fn func(tx *gorm.DB) error) error {
+	return d.app.WithContext(ctx).Transaction(fn)
+}
+
 // LintRLS returns tables carrying tenant_id without forced RLS + a policy.
 func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
 	var bad []string

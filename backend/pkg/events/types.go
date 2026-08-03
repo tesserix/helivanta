@@ -22,6 +22,3 @@ type Consumer struct {
 	Subject string
 	Handle  func(ctx context.Context, evt Event) error
 }
-
-// Bus placeholder until Task 6 implements bus.go.
-type Bus struct{}

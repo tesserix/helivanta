@@ -8,6 +8,12 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
   if (!req.cookies.get("hms_session")?.value) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "unauthenticated", message: "missing credentials" },
+        { status: 401 }
+      );
+    }
     const login = new URL("/login", req.url);
     return NextResponse.redirect(login);
   }

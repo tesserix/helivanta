@@ -22,4 +22,4 @@ func (r *Registry) Register(m Module) error {
 	return nil
 }
 
-func (r *Registry) All() []Module { return r.ordered }
+func (r *Registry) All() []Module { return append([]Module(nil), r.ordered...) }

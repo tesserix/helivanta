@@ -21,3 +21,18 @@ jobs:
       - run: go vet ./...
       - run: go build ./...
       - run: go test -race ./...
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
+      - run: pnpm turbo type-check build
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}

@@ -8,7 +8,15 @@ const nextConfig: NextConfig = {
   async rewrites() {
     // Only used when hitting :4302 directly; via the shell the same
     // /api/* path is rewritten by the shell itself.
-    return [{ source: "/api/:path*", destination: `${API_URL}/:path*` }];
+    // basePath: false keeps Next from auto-prefixing the source with
+    // basePath — without it this rewrite mis-mounts at /medicore/api/*.
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${API_URL}/:path*`,
+        basePath: false,
+      },
+    ];
   },
 };
 

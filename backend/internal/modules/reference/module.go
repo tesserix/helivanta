@@ -145,15 +145,13 @@ func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 	return []events.Consumer{{
 		Name:    "reference-receipts",
 		Subject: SubjectPinged,
-		Handle: func(ctx_ context.Context, evt events.Event) error {
+		Handle: func(ctx_ context.Context, tx *gorm.DB, evt events.Event) error {
 			var d pingedData
 			if err := json.Unmarshal(evt.Data, &d); err != nil {
 				return err
 			}
-			return deps.DB.WithSystem(ctx_, func(tx *gorm.DB) error {
-				return tx.Exec(`INSERT INTO reference_ping_receipts (event_id, ping_id) VALUES (?, ?)
-					ON CONFLICT DO NOTHING`, evt.ID, d.PingID).Error
-			})
+			return tx.Exec(`INSERT INTO reference_ping_receipts (event_id, ping_id) VALUES (?, ?)
+				ON CONFLICT DO NOTHING`, evt.ID, d.PingID).Error
 		},
 	}}
 }

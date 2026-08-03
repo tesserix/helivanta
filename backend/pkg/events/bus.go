@@ -249,9 +249,10 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 		if res.RowsAffected == 0 {
 			return nil // duplicate delivery — no-op (idempotency)
 		}
-		// Handler runs in the same tx as the idempotency claim, so a
-		// failed handler rolls the claim back and redelivery retries.
-		return c.Handle(ctx, evt)
+		// Handler runs in the SAME tx as the idempotency claim — do not
+		// open your own transaction; rollback of the claim implies
+		// rollback of handler effects.
+		return c.Handle(ctx, tx, evt)
 	})
 	if err != nil {
 		slog.Error("consumer handle", "consumer", c.Name, "event", evt.ID, "err", err)

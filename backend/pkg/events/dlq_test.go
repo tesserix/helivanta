@@ -46,7 +46,7 @@ func TestHandleMsgDeadLettersAfterMaxDeliver(t *testing.T) {
 	require.NoError(t, bus.StartConsumers(ctx, db, []Consumer{{
 		Name:    consumerName,
 		Subject: subject,
-		Handle: func(ctx context.Context, evt Event) error {
+		Handle: func(ctx context.Context, tx *gorm.DB, evt Event) error {
 			attempts.Add(1)
 			return errors.New("boom: handler always fails")
 		},

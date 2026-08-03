@@ -35,7 +35,7 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 	require.NoError(t, bus.StartConsumers(ctx, db, []events.Consumer{{
 		Name:    "test-consumer",
 		Subject: "hms.in.reference.pinged.v1",
-		Handle: func(ctx context.Context, evt events.Event) error {
+		Handle: func(ctx context.Context, tx *gorm.DB, evt events.Event) error {
 			handled.Add(1)
 			return nil
 		},

@@ -12,6 +12,8 @@ Hospital Management System platform — multi-zone monorepo.
 
 Requires Docker, Go 1.26, Node 22 (`corepack enable`).
 
+Set `NODE_AUTH_TOKEN` to a GitHub token with `read:packages` (e.g. `export NODE_AUTH_TOKEN=$(gh auth token)`) — required for `@tesserix/web` from GitHub Packages.
+
     make dev        # infra (Postgres, NATS, Redis, OpenFGA, GIP emulator) + API + web
     make seed       # dev tenant + test user (test@hms.dev / password123)
     open http://localhost:4301

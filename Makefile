@@ -1,4 +1,4 @@
-.PHONY: dev dev-infra dev-down dev-api dev-web seed test test-go test-web
+.PHONY: dev dev-infra dev-down dev-api dev-web seed test test-go test-web e2e
 
 dev-infra:
 	docker compose -f docker-compose.dev.yml up -d --wait postgres nats redis openfga
@@ -26,4 +26,7 @@ test-go:
 	cd backend && go test -race ./...
 
 test-web:
-	pnpm turbo lint type-check test build
+	pnpm turbo type-check test build
+
+e2e:
+	pnpm --filter @hms/e2e run test:e2e

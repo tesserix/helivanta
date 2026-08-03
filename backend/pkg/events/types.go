@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // Event is the platform envelope (issue #2).
@@ -17,8 +19,12 @@ type Event struct {
 }
 
 // Consumer is a durable, idempotent subscription owned by a module.
+//
+// Handle runs in the SAME tx as the idempotency claim — do not open your
+// own transaction; rollback of the claim implies rollback of handler
+// effects.
 type Consumer struct {
 	Name    string
 	Subject string
-	Handle  func(ctx context.Context, evt Event) error
+	Handle  func(ctx context.Context, tx *gorm.DB, evt Event) error
 }

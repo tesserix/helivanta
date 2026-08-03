@@ -17,7 +17,7 @@ export function HmsShell({ active, children }: { active: string; children: React
     <div className="flex min-h-screen">
       <aside className="w-56 shrink-0 border-r bg-sidebar text-sidebar-foreground">
         <div className="px-4 py-5 text-lg font-semibold">HMS</div>
-        <nav className="flex flex-col gap-1 px-2">
+        <nav aria-label="Primary" className="flex flex-col gap-1 px-2">
           {NAV.map((item) => (
             <a
               key={item.href}

@@ -12,6 +12,43 @@ importers:
         specifier: ^2.8.10
         version: 2.10.8
 
+  apps/medicore:
+    dependencies:
+      '@tesserix/web':
+        specifier: ^1.8.1
+        version: 1.8.1(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
+      framer-motion:
+        specifier: ^12.0.0
+        version: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      next:
+        specifier: ^16.0.0
+        version: 16.2.12(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.8(react@19.2.8)
+    devDependencies:
+      '@hms/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@tailwindcss/postcss':
+        specifier: ^4.1.0
+        version: 4.3.3
+      '@types/node':
+        specifier: ^22
+        version: 22.20.1
+      '@types/react':
+        specifier: ^19
+        version: 19.2.18
+      tailwindcss:
+        specifier: ^4.1.0
+        version: 4.3.3
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   apps/shell:
     dependencies:
       '@tesserix/web':
@@ -1061,15 +1098,15 @@ packages:
     resolution: {integrity: sha512-JTSZZGQi1AyKirbLN3azmjVzef92tcX7h+iSqPdaeStyFpGpDlKvvpxeOE8njhbUanbRwr3z8DyzhICWnMtQeg==}
 
   '@tesserix/hooks@1.0.0':
-    resolution: {integrity: sha512-1MxiKUtiI7NPfmh41GYn5Bfrziwv8gcKt3v5161jXmqJ/Qbwh/T+oEKV8hWvKzMp0XJqEV8W6gS5uLp7eLA2Kg==, tarball: https://npm.pkg.github.com/download/@tesserix/hooks/1.0.0/60c67e981047356fc504bcf1378154d843a6e44d}
+    resolution: {integrity: sha512-wddwrjuDkR0yu93DbhkqyZwhVcUZkJ03PNQYjGRi3jok5FjMh6SaLooIY1q+tyV0JvCxPOPkGdTSNaeqj597aQ==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
 
   '@tesserix/tokens@1.0.0':
-    resolution: {integrity: sha512-grimAfdmmFAo5f0+rTyZ06PrtNCUkgaTGQ7lRR4E5dsbBhhthIKpw/d7mm8X42cOCVke6FIoHu0vG6JDJHBsiw==, tarball: https://npm.pkg.github.com/download/@tesserix/tokens/1.0.0/8d0661040a60420abea18bdd61a2701d166a9f17}
+    resolution: {integrity: sha512-d28KWQxt/QnNRiWzrkqxC1row+A3Oq1OYrt++0rDQFyJVhZ3+Vv9sDmtyxySyP0OLrS7zlpUgs6blJUpgzN2Mg==}
 
   '@tesserix/utils@1.0.0':
-    resolution: {integrity: sha512-9adoLCg82aWWGnMEDXT+a/1aYk5k9D5HuCYHNID9CJl4m/DXxSu0g603GwkKC7/TomWsRYlU5N3yDVIHvnOL/A==, tarball: https://npm.pkg.github.com/download/@tesserix/utils/1.0.0/a3b6095d050faff9a1a2c11e259cbee82c6e4009}
+    resolution: {integrity: sha512-kKxY38ClYLulU/MGIkuBJbnfn9Ra09CR3mdC8NgTPSEx9qa9e8i2v5QJ1rHNHtaqRdjHyGiR/iPDRzxYObwYmg==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
 
@@ -1080,6 +1117,20 @@ packages:
       react: ^19.0.0
       react-dom: ^19.0.0
       tailwindcss: ^4.1.0
+    peerDependenciesMeta:
+      framer-motion:
+        optional: true
+
+  '@tesserix/web@1.8.1':
+    resolution: {integrity: sha512-15g+i/0kfdhtRnpvegQX9v4mjGcIZtQcSurdKrcRr9DZ+7cOsSHBk5u8nxfoKoofcwccWFJgjqWH1odT03l+ug==}
+    peerDependencies:
+      framer-motion: ^11.0.0 || ^12.0.0
+      react: ^19.0.0
+      react-dom: ^19.0.0
+      tailwindcss: ^4.1.0
+    peerDependenciesMeta:
+      framer-motion:
+        optional: true
 
   '@turbo/darwin-64@2.10.8':
     resolution: {integrity: sha512-po+7rfJfUnFXjWlcoN2RwhErgzCdRtBc1T26vYPcywHlggmCQiQe1uWaE4j+BibI2uY9/2pDoFzMN0rmSaPFOw==}
@@ -2577,12 +2628,45 @@ snapshots:
       class-variance-authority: 0.7.1
       clsx: 2.1.1
       date-fns: 4.4.0
-      framer-motion: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react: 19.2.8
       react-day-picker: 9.14.0(react@19.2.8)
       react-dom: 19.2.8(react@19.2.8)
       tailwind-merge: 3.6.0
       tailwindcss: 4.3.3
+    optionalDependencies:
+      framer-motion: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+
+  '@tesserix/web@1.8.1(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)':
+    dependencies:
+      '@radix-ui/react-avatar': 1.2.6(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-checkbox': 1.3.11(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-dropdown-menu': 2.1.24(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-menubar': 1.1.24(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-navigation-menu': 1.2.22(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-progress': 1.1.16(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-radio-group': 1.4.7(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-scroll-area': 1.2.18(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-select': 2.3.7(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-slider': 1.4.7(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-slot': 1.3.3(@types/react@19.2.18)(react@19.2.8)
+      '@radix-ui/react-switch': 1.3.7(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-tooltip': 1.2.16(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@tesserix/hooks': 1.0.0(react@19.2.8)
+      '@tesserix/tokens': 1.0.0
+      '@tesserix/utils': 1.0.0(react@19.2.8)
+      class-variance-authority: 0.7.1
+      clsx: 2.1.1
+      date-fns: 4.4.0
+      react: 19.2.8
+      react-day-picker: 9.14.0(react@19.2.8)
+      react-dom: 19.2.8(react@19.2.8)
+      tailwind-merge: 3.6.0
+      tailwindcss: 4.3.3
+    optionalDependencies:
+      framer-motion: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
     transitivePeerDependencies:
       - '@types/react'
       - '@types/react-dom'

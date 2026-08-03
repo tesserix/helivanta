@@ -1,0 +1,38 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+      - name: Reject MedCora alias
+        working-directory: .
+        run: "! grep -rn --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=docs --exclude-dir=.superpowers --exclude=ci.yml 'MedCora' . || (echo 'MedCora is a rejected alias (issue 12) - use MediCore' && exit 1)"
+      - run: go vet ./...
+      - run: go build ./...
+      - run: go test -race ./...
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
+      - run: pnpm turbo type-check build
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}

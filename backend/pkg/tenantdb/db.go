@@ -94,6 +94,8 @@ func (d *DB) WithTenant(ctx context.Context, tenantID string, fn func(tx *gorm.D
 // LintRLS returns tables carrying tenant_id without forced RLS + a policy.
 func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
 	var bad []string
+	// Platform convention: policies must carry both USING and WITH CHECK
+	// explicitly, so a policy with only one clause is deliberately flagged.
 	err := d.admin.WithContext(ctx).Raw(`
 		SELECT c.relname
 		FROM pg_class c
@@ -107,7 +109,8 @@ func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
 		  AND NOT (
 		    c.relrowsecurity AND c.relforcerowsecurity
 		    AND EXISTS (SELECT 1 FROM pg_policies p
-		                WHERE p.schemaname = 'public' AND p.tablename = c.relname))
+		                WHERE p.schemaname = 'public' AND p.tablename = c.relname
+		                  AND p.qual IS NOT NULL AND p.with_check IS NOT NULL))
 		ORDER BY c.relname`).Scan(&bad).Error
 	return bad, err
 }

@@ -83,10 +83,40 @@ func TestLintRLSFlagsUnprotectedTable(t *testing.T) {
 	db := openMigrated(t)
 	ctx := context.Background()
 	require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{
-		ID:  "0002_bad_table",
-		SQL: `CREATE TABLE naughty (id uuid PRIMARY KEY, tenant_id uuid NOT NULL);`,
+		ID: "0002_bad_tables",
+		SQL: `
+			-- No RLS at all.
+			CREATE TABLE naughty_none (id uuid PRIMARY KEY, tenant_id uuid NOT NULL);
+
+			-- Full policy (USING + WITH CHECK) but RLS is not forced.
+			CREATE TABLE naughty_not_forced (id uuid PRIMARY KEY, tenant_id uuid NOT NULL);
+			ALTER TABLE naughty_not_forced ENABLE ROW LEVEL SECURITY;
+			CREATE POLICY p ON naughty_not_forced
+			  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+
+			-- Enabled + forced, but policy only carries USING (no WITH CHECK).
+			CREATE TABLE naughty_using_only (id uuid PRIMARY KEY, tenant_id uuid NOT NULL);
+			ALTER TABLE naughty_using_only ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE naughty_using_only FORCE ROW LEVEL SECURITY;
+			CREATE POLICY p ON naughty_using_only
+			  USING (tenant_id = current_setting('app.tenant_id', true)::uuid);
+
+			-- Enabled + forced, but policy only carries WITH CHECK (INSERT-only;
+			-- pg_policies shows qual NULL for INSERT-only policies).
+			CREATE TABLE naughty_check_only (id uuid PRIMARY KEY, tenant_id uuid NOT NULL);
+			ALTER TABLE naughty_check_only ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE naughty_check_only FORCE ROW LEVEL SECURITY;
+			CREATE POLICY p ON naughty_check_only
+			  FOR INSERT WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`,
 	}}))
 	bad, err := db.LintRLS(ctx)
 	require.NoError(t, err)
-	require.Equal(t, []string{"naughty"}, bad)
+	require.Equal(t, []string{
+		"naughty_check_only",
+		"naughty_none",
+		"naughty_not_forced",
+		"naughty_using_only",
+	}, bad)
+	require.NotContains(t, bad, "widgets")
 }

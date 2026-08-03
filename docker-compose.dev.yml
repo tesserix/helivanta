@@ -21,10 +21,20 @@ services:
     command: ["-js", "-sd", "/data"]
     ports: ["4222:4222", "8222:8222"]
     volumes: [natsdata:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'PING' | nc localhost 4222 | grep -q PONG"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
 
   redis:
     image: redis:7-alpine
     ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
 
   openfga:
     image: openfga/openfga:v1.8.4
@@ -32,6 +42,11 @@ services:
     environment:
       OPENFGA_DATASTORE_ENGINE: memory
     ports: ["8090:8080"]
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/grpc_health_probe", "-addr=localhost:8081"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
 
   firebase-auth:
     image: node:22-alpine

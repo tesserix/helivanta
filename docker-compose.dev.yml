@@ -1,0 +1,46 @@
+name: hms-dev
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hms
+      POSTGRES_PASSWORD: hms
+      POSTGRES_DB: hms
+    ports: ["5432:5432"]
+    volumes:
+      - ./dev/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hms -d hms"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-sd", "/data"]
+    ports: ["4222:4222", "8222:8222"]
+    volumes: [natsdata:/data]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  openfga:
+    image: openfga/openfga:v1.8.4
+    command: ["run"]
+    environment:
+      OPENFGA_DATASTORE_ENGINE: memory
+    ports: ["8090:8080"]
+
+  firebase-auth:
+    image: node:22-alpine
+    working_dir: /workspace
+    command: sh -c "npx -y firebase-tools@13 emulators:start --only auth --project demo-hms"
+    volumes:
+      - ./dev/firebase:/workspace
+    ports: ["9099:9099"]
+
+volumes:
+  pgdata:
+  natsdata:

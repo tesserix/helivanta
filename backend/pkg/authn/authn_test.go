@@ -13,7 +13,10 @@ import (
 	"github.com/tesserix/hms/pkg/authn"
 )
 
-type fakeVerifier struct{ p authn.Principal; err error }
+type fakeVerifier struct {
+	p   authn.Principal
+	err error
+}
 
 func (f fakeVerifier) Verify(ctx context.Context, raw string) (authn.Principal, error) {
 	if raw == "good" {
@@ -56,6 +59,7 @@ func TestMiddlewareRejectsMissingAndBadTokens(t *testing.T) {
 	for _, tc := range []func(*http.Request){
 		func(req *http.Request) {},
 		func(req *http.Request) { req.Header.Set("Authorization", "Bearer evil") },
+		func(req *http.Request) { req.AddCookie(&http.Cookie{Name: authn.SessionCookie, Value: "evil"}) },
 	} {
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/p", nil)

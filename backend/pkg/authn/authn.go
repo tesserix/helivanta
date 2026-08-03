@@ -2,6 +2,7 @@ package authn
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -38,6 +39,7 @@ func Middleware(v TokenVerifier) gin.HandlerFunc {
 		}
 		p, err := v.Verify(c.Request.Context(), raw)
 		if err != nil {
+			slog.Warn("auth verification failed", "err", err, "path", c.Request.URL.Path)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "invalid credentials"})
 			return
 		}

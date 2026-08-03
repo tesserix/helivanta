@@ -32,8 +32,14 @@ func (g *gipVerifier) Verify(ctx context.Context, raw string) (Principal, error)
 	if err != nil {
 		return Principal{}, err
 	}
-	tenantID, _ := tok.Claims["tenant_id"].(string)
-	if tenantID == "" {
+	return principalFromToken(tok)
+}
+
+// principalFromToken maps a verified GIP/Firebase token to a Principal,
+// enforcing that a tenant_id claim is present and is a string.
+func principalFromToken(tok *auth.Token) (Principal, error) {
+	tenantID, ok := tok.Claims["tenant_id"].(string)
+	if !ok || tenantID == "" {
 		return Principal{}, ErrNoTenantClaim
 	}
 	return Principal{Subject: tok.UID, TenantID: tenantID}, nil

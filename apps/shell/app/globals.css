@@ -1,0 +1,5 @@
+@import "tailwindcss";
+@import "@tesserix/web/styles";
+
+/* Tailwind v4 must scan the design system for emitted class names. */
+@source "../../../node_modules/@tesserix/web/dist";

@@ -1,0 +1,155 @@
+// Package reference is the trivial module proving the platform wiring:
+// authn → tenantdb (RLS) → outbox → JetStream → consumer (issue #2).
+package reference
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/hms/pkg/tenantdb"
+)
+
+const SubjectPinged = "hms.in.reference.pinged.v1"
+
+type Module struct{}
+
+func New() *Module { return &Module{} }
+
+func (m *Module) Name() string { return "reference" }
+
+func (m *Module) Migrations() []tenantdb.Migration {
+	return []tenantdb.Migration{{
+		ID: "0001_reference",
+		SQL: `
+			CREATE TABLE reference_pings (
+			  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+			  tenant_id uuid NOT NULL,
+			  message text NOT NULL,
+			  created_at timestamptz NOT NULL DEFAULT now()
+			);
+			ALTER TABLE reference_pings ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE reference_pings FORCE ROW LEVEL SECURITY;
+			CREATE POLICY tenant_isolation ON reference_pings
+			  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+			CREATE INDEX ON reference_pings (tenant_id, created_at DESC);
+
+			CREATE TABLE reference_ping_receipts (
+			  event_id uuid PRIMARY KEY,
+			  ping_id uuid NOT NULL,
+			  processed_at timestamptz NOT NULL DEFAULT now()
+			);`,
+	}}
+}
+
+type ping struct {
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
+	TenantID  uuid.UUID `json:"-"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (ping) TableName() string { return "reference_pings" }
+
+type pingRequest struct {
+	Message string `json:"message" binding:"required,max=500"`
+}
+
+type pingedData struct {
+	PingID string `json:"ping_id"`
+}
+
+func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
+	g := r.Group("/reference")
+
+	g.POST("/ping", func(c *gin.Context) {
+		p, ok := authn.PrincipalFrom(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "no principal"})
+			return
+		}
+		var req pingRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_request", "message": err.Error()})
+			return
+		}
+		row := ping{TenantID: uuid.MustParse(p.TenantID), Message: req.Message}
+		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+			if err := tx.Create(&row).Error; err != nil {
+				return err
+			}
+			data, _ := json.Marshal(pingedData{PingID: row.ID.String()})
+			return deps.Bus.Publish(tx, SubjectPinged, events.Event{
+				Type: "ReferencePinged", Version: 1, TenantID: p.TenantID, Data: data,
+			})
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal", "message": "could not record ping"})
+			return
+		}
+		c.JSON(http.StatusAccepted, gin.H{"id": row.ID.String()})
+	})
+
+	g.GET("/pings", func(c *gin.Context) {
+		p, _ := authn.PrincipalFrom(c)
+		var rows []ping
+		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+			return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal", "message": "could not list pings"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": rows})
+	})
+
+	g.GET("/pings/:id", func(c *gin.Context) {
+		p, _ := authn.PrincipalFrom(c)
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not_found", "message": "ping not found"})
+			return
+		}
+		var row ping
+		err = deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+			return tx.First(&row, "id = ?", id).Error
+		})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// RLS filters cross-tenant rows → identical 404 (issue #2).
+			c.JSON(http.StatusNotFound, gin.H{"error": "not_found", "message": "ping not found"})
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal", "message": "could not load ping"})
+			return
+		}
+		c.JSON(http.StatusOK, row)
+	})
+}
+
+func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
+	return []events.Consumer{{
+		Name:    "reference-receipts",
+		Subject: SubjectPinged,
+		Handle: func(ctx_ context.Context, evt events.Event) error {
+			var d pingedData
+			if err := json.Unmarshal(evt.Data, &d); err != nil {
+				return err
+			}
+			return deps.DB.WithSystem(ctx_, func(tx *gorm.DB) error {
+				return tx.Exec(`INSERT INTO reference_ping_receipts (event_id, ping_id) VALUES (?, ?)
+					ON CONFLICT DO NOTHING`, evt.ID, d.PingID).Error
+			})
+		},
+	}}
+}

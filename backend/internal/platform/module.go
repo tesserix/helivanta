@@ -18,5 +18,5 @@ type Module interface {
 	Name() string
 	Migrations() []tenantdb.Migration
 	Routes(r *gin.RouterGroup, deps Deps)
-	Consumers() []events.Consumer
+	Consumers(deps Deps) []events.Consumer
 }

@@ -10,10 +10,10 @@ import (
 
 type fakeModule struct{ name string }
 
-func (f fakeModule) Name() string                         { return f.name }
-func (f fakeModule) Migrations() []tenantdb.Migration     { return nil }
-func (f fakeModule) Routes(r *gin.RouterGroup, deps Deps) {}
-func (f fakeModule) Consumers() []events.Consumer         { return nil }
+func (f fakeModule) Name() string                          { return f.name }
+func (f fakeModule) Migrations() []tenantdb.Migration      { return nil }
+func (f fakeModule) Routes(r *gin.RouterGroup, deps Deps)  {}
+func (f fakeModule) Consumers(deps Deps) []events.Consumer { return nil }
 
 func TestRegistryRejectsDuplicateNames(t *testing.T) {
 	r := NewRegistry()

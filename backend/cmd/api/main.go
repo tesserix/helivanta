@@ -13,6 +13,7 @@ import (
 	"github.com/tesserix/hms/internal/config"
 	"github.com/tesserix/hms/internal/httpserver"
 	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
 func main() {
@@ -30,7 +31,14 @@ func run() error {
 	registry := platform.NewRegistry()
 	// Modules are registered here (Task 7 adds reference).
 
-	srv := httpserver.New(nil)
+	db, err := tenantdb.Open(cfg.AppDatabaseURL, cfg.AdminDatabaseURL)
+	if err != nil {
+		return err
+	}
+
+	srv := httpserver.New([]httpserver.ReadyCheck{
+		{Name: "postgres", Check: db.PingContext},
+	})
 	_ = registry // used from Task 4 onward
 
 	httpSrv := &http.Server{Addr: ":" + cfg.Port, Handler: srv.Engine}

@@ -4,6 +4,15 @@ const SESSION_COOKIE = "hms_session";
 const MAX_AGE_SECONDS = 60 * 60; // GIP ID tokens live 1h
 
 export async function POST(req: NextRequest) {
+  const contentType = req.headers.get("content-type") ?? "";
+  const fetchSite = req.headers.get("sec-fetch-site");
+  if (
+    !contentType.toLowerCase().startsWith("application/json") ||
+    (fetchSite && fetchSite !== "same-origin")
+  ) {
+    return NextResponse.json({ error: "invalid_request" }, { status: 403 });
+  }
+
   let idToken: unknown;
   try {
     ({ idToken } = await req.json());

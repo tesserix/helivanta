@@ -22,6 +22,12 @@ const StreamName = "HMS"
 // handleMsg dead-letters it instead of Nak'ing it forever.
 const maxDeliver = 5
 
+// ackWait is the JetStream AckWait for durable pull consumers — how long
+// the server waits for an Ack/Nak/Term before redelivering. It is a var
+// (not const) so white-box tests in this package can shrink it to make
+// the maxDeliver-exhaustion/DLQ path fast to exercise.
+var ackWait = 30 * time.Second
+
 // OutboxStore is the slice of tenantdb the bus needs (system tables only).
 type OutboxStore interface {
 	WithSystem(ctx context.Context, fn func(tx *gorm.DB) error) error
@@ -192,7 +198,7 @@ func (b *Bus) drainOnce(ctx context.Context, db OutboxStore) error {
 // Each consumer's loop stops when ctx ends or the Bus is Close()'d.
 func (b *Bus) StartConsumers(ctx context.Context, db OutboxStore, consumers []Consumer) error {
 	for _, c := range consumers {
-		sub, err := b.js.PullSubscribe(c.Subject, c.Name, nats.AckExplicit(), nats.MaxDeliver(maxDeliver))
+		sub, err := b.js.PullSubscribe(c.Subject, c.Name, nats.AckExplicit(), nats.MaxDeliver(maxDeliver), nats.AckWait(ackWait))
 		if err != nil {
 			return fmt.Errorf("subscribe %s: %w", c.Name, err)
 		}
@@ -252,7 +258,14 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 		if meta, mErr := msg.Metadata(); mErr == nil && meta.NumDelivered >= maxDeliver {
 			dlqSubject := "hms.dlq." + c.Name
 			if _, pErr := b.js.Publish(dlqSubject, msg.Data); pErr != nil {
-				slog.Error("consumer dlq publish failed", "consumer", c.Name, "event", evt.ID, "err", pErr)
+				// DLQ publish failed — the event would vanish from both
+				// the live stream and the DLQ if we Term()'d here, so
+				// Nak instead and let the next redelivery retry the
+				// dead-letter attempt.
+				slog.Error("consumer dlq publish failed", "consumer", c.Name, "event", evt.ID,
+					"dlq_subject", dlqSubject, "err", pErr)
+				_ = msg.Nak()
+				return
 			}
 			slog.Error("consumer dead-lettered event", "consumer", c.Name, "event", evt.ID,
 				"num_delivered", meta.NumDelivered, "dlq_subject", dlqSubject)

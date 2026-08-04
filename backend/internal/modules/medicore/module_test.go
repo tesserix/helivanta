@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/modules/medicore"
+	"github.com/tesserix/hms/internal/modules/medicore" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testutil"
 	"github.com/tesserix/hms/pkg/authn"

@@ -18,7 +18,10 @@ jobs:
       - name: Reject MedCora alias
         working-directory: .
         run: "! grep -rn --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=docs --exclude-dir=.superpowers --exclude=ci.yml 'MedCora' . || (echo 'MedCora is a rejected alias (issue 12) - use MediCore' && exit 1)"
-      - run: go vet ./...
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          working-directory: backend
       - run: go build ./...
       - run: go test -race ./...
   web:

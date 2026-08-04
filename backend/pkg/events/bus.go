@@ -98,7 +98,9 @@ func (b *Bus) Ping(ctx context.Context) error {
 // Bus (even if their caller ctx is still live) and drains the connection.
 func (b *Bus) Close() {
 	b.stop()
-	b.nc.Drain()
+	if err := b.nc.Drain(); err != nil {
+		slog.Error("nats drain", "err", err)
+	}
 }
 
 // deriveCtx returns a ctx that is Done when either the caller's ctx ends

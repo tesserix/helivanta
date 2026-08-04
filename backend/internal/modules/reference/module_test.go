@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/modules/reference"
+	"github.com/tesserix/hms/internal/modules/reference" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testutil"
 	"github.com/tesserix/hms/pkg/authn"

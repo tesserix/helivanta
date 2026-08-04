@@ -1,0 +1,43 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - revive
+    - gosec
+    - sqlclosecheck
+    - misspell
+    - unconvert
+    - depguard
+  settings:
+    misspell:
+      ignore-rules:
+        - medicore
+    depguard:
+      rules:
+        module-isolation:
+          files:
+            - "**/internal/modules/**"
+          deny:
+            - pkg: "github.com/tesserix/hms/internal/modules"
+              desc: "modules must not import other modules — cross-module data flows only via events (spec D3)"
+        no-logrus:
+          deny:
+            - pkg: "github.com/sirupsen/logrus"
+              desc: "slog only (spec D6)"
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck
+
+run:
+  timeout: 5m

@@ -85,7 +85,7 @@ func run() error {
 	}
 	go bus.RunDispatcher(ctx, db)
 
-	httpSrv := &http.Server{Addr: ":" + cfg.Port, Handler: srv.Engine}
+	httpSrv := &http.Server{Addr: ":" + cfg.Port, Handler: srv.Engine, ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)
 	go func() { errCh <- httpSrv.ListenAndServe() }()
 	slog.Info("api listening", "port", cfg.Port)

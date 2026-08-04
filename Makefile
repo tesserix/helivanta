@@ -1,4 +1,4 @@
-.PHONY: dev dev-infra dev-down dev-api dev-web seed test test-go test-web e2e
+.PHONY: dev dev-infra dev-down dev-api dev-web seed test test-go test-web e2e lint-go
 
 dev-infra:
 	docker compose -f docker-compose.dev.yml up -d --wait postgres nats redis openfga
@@ -24,6 +24,9 @@ test: test-go test-web
 
 test-go:
 	cd backend && go test -race ./...
+
+lint-go:
+	cd backend && golangci-lint run ./...
 
 test-web:
 	pnpm turbo type-check test build

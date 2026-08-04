@@ -1,0 +1,13 @@
+/* HMS sidebar tokens — tesserix-home dark-slate rail on light content.
+   Layer AFTER @tesserix/web/styles so these win. */
+:root,
+[data-theme="default"] {
+  --sidebar: #0f172a;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #0f172a;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #f1f5f9;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #ffffff;
+}

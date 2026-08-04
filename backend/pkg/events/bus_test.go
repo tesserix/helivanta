@@ -89,3 +89,69 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 		return nil
 	}))
 }
+
+func TestConsumerTenantScopedWrite(t *testing.T) {
+	appDSN, adminDSN := testutil.StartPostgres(t)
+	db, err := tenantdb.Open(appDSN, adminDSN)
+	require.NoError(t, err)
+
+	migs := append(events.Migrations(), tenantdb.Migration{
+		ID: "0002_consumer_widgets",
+		SQL: `
+			CREATE TABLE consumer_widgets (
+			  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+			  tenant_id uuid NOT NULL,
+			  note text NOT NULL,
+			  created_at timestamptz NOT NULL DEFAULT now()
+			);
+			ALTER TABLE consumer_widgets ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE consumer_widgets FORCE ROW LEVEL SECURITY;
+			CREATE POLICY tenant_isolation ON consumer_widgets
+			  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`,
+	})
+	require.NoError(t, db.Migrate(context.Background(), migs))
+
+	bus, err := events.NewBus(testutil.StartNATS(t))
+	require.NoError(t, err)
+	defer bus.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	tenantA, tenantB := "11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"
+
+	require.NoError(t, bus.StartConsumers(ctx, db, []events.Consumer{{
+		Name:    "tenant-write-consumer",
+		Subject: "hms.in.test.tenantwrite.v1",
+		Handle: func(ctx context.Context, tx *gorm.DB, evt events.Event) error {
+			// Relies on the bus having set app.tenant_id from evt.TenantID.
+			return tx.Exec(`INSERT INTO consumer_widgets (tenant_id, note) VALUES (?, 'from-consumer')`,
+				evt.TenantID).Error
+		},
+	}}))
+	go bus.RunDispatcher(ctx, db)
+
+	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
+		return bus.Publish(tx, "hms.in.test.tenantwrite.v1", events.Event{
+			Type: "TenantWrite", Version: 1, TenantID: tenantA,
+			Data: json.RawMessage(`{}`),
+		})
+	}))
+
+	// Row lands for tenant A…
+	require.Eventually(t, func() bool {
+		var n int64
+		_ = db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT count(*) FROM consumer_widgets`).Scan(&n).Error
+		})
+		return n == 1
+	}, 15*time.Second, 100*time.Millisecond)
+
+	// …and tenant B sees nothing (RLS held inside the consumer).
+	var nB int64
+	require.NoError(t, db.WithTenant(ctx, tenantB, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT count(*) FROM consumer_widgets`).Scan(&nB).Error
+	}))
+	require.Zero(t, nB)
+}

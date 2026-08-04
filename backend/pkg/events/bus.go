@@ -241,6 +241,15 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 		return
 	}
 	err := db.WithSystem(ctx, func(tx *gorm.DB) error {
+		// Scope the whole consumer tx (claim + handler) to the event's
+		// tenant so handlers can write RLS-forced rows (phase 2 D4).
+		// Invalid/empty tenant → GUC stays unset → tenant tables read
+		// as empty and reject writes, same as before.
+		if _, err := uuid.Parse(evt.TenantID); err == nil {
+			if err := tx.Exec(`SELECT set_config('app.tenant_id', ?, true)`, evt.TenantID).Error; err != nil {
+				return err
+			}
+		}
 		res := tx.Exec(`INSERT INTO processed_events (consumer, event_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
 			c.Name, evt.ID)
 		if res.Error != nil {

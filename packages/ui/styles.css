@@ -1,0 +1,20 @@
+/* HMS sidebar tokens — tesserix-home dark-slate rail on light content.
+   Layer AFTER @tesserix/web/styles so these win. @tesserix/web's own light
+   theme rule includes a `:not(.dark):not(.light)` fallback branch, whose
+   two :not() pseudo-classes each add a class-level specificity point —
+   (0,3,0,0) total — which beats a plain `:root[data-theme="default"]`
+   (0,2,0,0) override regardless of source order. `!important` sidesteps
+   that (and any future @tesserix/web selector changes) for this small,
+   deliberate token override. */
+:root,
+:root[data-theme="default"],
+[data-theme="default"] {
+  --sidebar: #0f172a !important;
+  --sidebar-foreground: #e2e8f0 !important;
+  --sidebar-primary: #ffffff !important;
+  --sidebar-primary-foreground: #0f172a !important;
+  --sidebar-accent: #1e293b !important;
+  --sidebar-accent-foreground: #f1f5f9 !important;
+  --sidebar-border: #1e293b !important;
+  --sidebar-ring: #ffffff !important;
+}

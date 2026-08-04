@@ -13,6 +13,9 @@ import (
 
 	"github.com/tesserix/hms/internal/config"
 	"github.com/tesserix/hms/internal/httpserver"
+	"github.com/tesserix/hms/internal/modules/lab"
+	"github.com/tesserix/hms/internal/modules/medicore"
+	"github.com/tesserix/hms/internal/modules/pharmacy"
 	"github.com/tesserix/hms/internal/modules/reference"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/pkg/authn"
@@ -38,8 +41,10 @@ func run() error {
 	}
 
 	registry := platform.NewRegistry()
-	if err := registry.Register(reference.New()); err != nil {
-		return err
+	for _, mod := range []platform.Module{reference.New(), medicore.New(), pharmacy.New(), lab.New()} {
+		if err := registry.Register(mod); err != nil {
+			return err
+		}
 	}
 
 	migs := events.Migrations()

@@ -1,0 +1,23 @@
+{
+  "name": "@hms/ui",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./styles.css"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lucide-react": "^0.469.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@hms/config": "workspace:*",
+    "@types/react": "^19",
+    "typescript": "^5.7.0"
+  }
+}

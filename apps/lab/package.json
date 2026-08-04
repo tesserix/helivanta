@@ -1,21 +1,19 @@
 {
-  "name": "@hms/shell",
+  "name": "@hms/lab",
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 4301",
+    "dev": "next dev -p 4304",
     "build": "next build",
-    "start": "next start -p 4301",
+    "start": "next start -p 4304",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@hms/ui": "workspace:*",
     "@tesserix/web": "^1.8.0",
-    "firebase": "^11.0.0",
     "next": "^16.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "framer-motion": "^12.0.0"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@hms/config": "workspace:*",

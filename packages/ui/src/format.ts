@@ -7,9 +7,13 @@ const dateTime = new Intl.DateTimeFormat(undefined, {
 });
 
 export function formatTime(iso: string): string {
-  return time.format(new Date(iso));
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return time.format(d);
 }
 
 export function formatDateTime(iso: string): string {
-  return dateTime.format(new Date(iso));
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return dateTime.format(d);
 }

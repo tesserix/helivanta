@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
@@ -116,64 +117,71 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 	g := r.Group("/pharmacy")
 
 	g.POST("/medications", func(c *gin.Context) {
-		p, _ := authn.PrincipalFrom(c)
-		tenantUUID, err := uuid.Parse(p.TenantID)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "invalid tenant"})
+		p, tenantUUID, ok := authn.TenantPrincipal(c)
+		if !ok {
 			return
 		}
 		var req createMedicationRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_request", "message": err.Error()})
+			respond.BadRequest(c, err)
 			return
 		}
 		row := medication{TenantID: tenantUUID, Name: req.Name, Strength: req.Strength}
-		err = deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
 			return tx.Create(&row).Error
 		})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal", "message": "could not create medication"})
+			respond.Internal(c, "could not create medication")
 			return
 		}
-		c.JSON(http.StatusCreated, gin.H{"id": row.ID.String()})
+		respond.Created(c, gin.H{"id": row.ID.String()})
 	})
 
 	g.GET("/medications", func(c *gin.Context) {
-		p, _ := authn.PrincipalFrom(c)
+		p, _, ok := authn.TenantPrincipal(c)
+		if !ok {
+			return
+		}
 		var rows []medication
 		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
 			return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
 		})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal", "message": "could not list medications"})
+			respond.Internal(c, "could not list medications")
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"data": rows})
+		respond.OK(c, gin.H{"data": rows})
 	})
 
 	g.GET("/dispenses", func(c *gin.Context) {
-		p, _ := authn.PrincipalFrom(c)
+		p, _, ok := authn.TenantPrincipal(c)
+		if !ok {
+			return
+		}
 		var rows []dispense
 		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
 			return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
 		})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal", "message": "could not list dispenses"})
+			respond.Internal(c, "could not list dispenses")
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"data": rows})
+		respond.OK(c, gin.H{"data": rows})
 	})
 
 	g.POST("/dispenses/:id/dispense", func(c *gin.Context) {
-		p, _ := authn.PrincipalFrom(c)
+		p, _, ok := authn.TenantPrincipal(c)
+		if !ok {
+			return
+		}
 		id, err := uuid.Parse(c.Param("id"))
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "not_found", "message": "dispense not found"})
+			respond.NotFound(c, "dispense")
 			return
 		}
 		var req dispenseRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_request", "message": err.Error()})
+			respond.BadRequest(c, err)
 			return
 		}
 		var status int
@@ -207,18 +215,18 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 			})
 		})
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "not_found", "message": "dispense not found"})
+			respond.NotFound(c, "dispense")
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal", "message": "could not dispense"})
+			respond.Internal(c, "could not dispense")
 			return
 		}
 		if status == http.StatusConflict {
-			c.JSON(http.StatusConflict, gin.H{"error": "conflict", "message": "already dispensed"})
+			respond.Conflict(c, "already dispensed")
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"id": id.String(), "status": "dispensed"})
+		respond.OK(c, gin.H{"id": id.String(), "status": "dispensed"})
 	})
 }
 

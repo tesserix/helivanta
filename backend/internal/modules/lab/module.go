@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
@@ -87,28 +88,34 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 	g := r.Group("/lab")
 
 	g.GET("/orders", func(c *gin.Context) {
-		p, _ := authn.PrincipalFrom(c)
+		p, _, ok := authn.TenantPrincipal(c)
+		if !ok {
+			return
+		}
 		var rows []order
 		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
 			return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
 		})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal", "message": "could not list orders"})
+			respond.Internal(c, "could not list orders")
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"data": rows})
+		respond.OK(c, gin.H{"data": rows})
 	})
 
 	g.POST("/orders/:id/result", func(c *gin.Context) {
-		p, _ := authn.PrincipalFrom(c)
+		p, _, ok := authn.TenantPrincipal(c)
+		if !ok {
+			return
+		}
 		id, err := uuid.Parse(c.Param("id"))
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "not_found", "message": "order not found"})
+			respond.NotFound(c, "order")
 			return
 		}
 		var req resultRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_request", "message": err.Error()})
+			respond.BadRequest(c, err)
 			return
 		}
 		var status int
@@ -142,18 +149,18 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 			})
 		})
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "not_found", "message": "order not found"})
+			respond.NotFound(c, "order")
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal", "message": "could not record result"})
+			respond.Internal(c, "could not record result")
 			return
 		}
 		if status == http.StatusConflict {
-			c.JSON(http.StatusConflict, gin.H{"error": "conflict", "message": "result already recorded"})
+			respond.Conflict(c, "result already recorded")
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"id": id.String(), "status": "completed"})
+		respond.OK(c, gin.H{"id": id.String(), "status": "completed"})
 	})
 }
 

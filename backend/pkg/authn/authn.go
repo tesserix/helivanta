@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 const SessionCookie = "hms_session"
@@ -55,4 +56,21 @@ func PrincipalFrom(c *gin.Context) (Principal, bool) {
 	}
 	p, ok := v.(Principal)
 	return p, ok
+}
+
+// TenantPrincipal extracts the authenticated principal and its tenant
+// UUID. On a missing principal or malformed tenant claim it writes the
+// 401 envelope, aborts, and returns ok=false — callers just return.
+func TenantPrincipal(c *gin.Context) (Principal, uuid.UUID, bool) {
+	p, ok := PrincipalFrom(c)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "missing principal"})
+		return Principal{}, uuid.Nil, false
+	}
+	tenantID, err := uuid.Parse(p.TenantID)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "invalid tenant"})
+		return Principal{}, uuid.Nil, false
+	}
+	return p, tenantID, true
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "@tesserix/web";
 
 type Ping = { id: string; message: string; created_at: string };
 
@@ -43,25 +44,33 @@ export function PingPanel({ department }: { department: string }) {
   }
 
   return (
-    <section className="max-w-xl space-y-4">
-      <button
-        onClick={ping}
-        disabled={busy}
-        className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
-      >
-        {busy ? "Pinging…" : `Ping from ${department}`}
-      </button>
+    <section className="max-w-2xl rounded-lg border bg-card">
+      <div className="flex items-center justify-between border-b px-5 py-4">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Platform check</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Round-trips the event pipeline end to end.
+          </p>
+        </div>
+        <Button variant="outline" onClick={ping} disabled={busy}>
+          {busy ? "Pinging…" : `Ping from ${department}`}
+        </Button>
+      </div>
       {error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="border-b px-5 py-3 text-sm text-destructive">
           {error}
         </p>
       )}
-      <ul className="divide-y rounded-md border text-sm">
-        {pings.length === 0 && <li className="p-3 text-muted-foreground">No activity yet.</li>}
+      <ul className="divide-y text-sm">
+        {pings.length === 0 && (
+          <li className="px-5 py-8 text-center text-muted-foreground">No activity yet.</li>
+        )}
         {pings.map((p) => (
-          <li key={p.id} className="flex justify-between p-3">
-            <span>{p.message}</span>
-            <time className="text-muted-foreground">{new Date(p.created_at).toLocaleTimeString()}</time>
+          <li key={p.id} className="flex items-center justify-between gap-4 px-5 py-3">
+            <span className="truncate text-foreground">{p.message}</span>
+            <time className="shrink-0 tabular-nums text-muted-foreground">
+              {new Date(p.created_at).toLocaleTimeString()}
+            </time>
           </li>
         ))}
       </ul>

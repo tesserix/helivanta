@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Badge, Button, Input } from "@tesserix/web";
 
 type Order = {
   id: string;
@@ -54,22 +55,37 @@ export function OrderList() {
     }
   }
 
+  const pending = rows.filter((o) => o.status === "pending").length;
+
   return (
-    <section className="max-w-3xl space-y-4">
+    <section className="max-w-3xl rounded-lg border bg-card">
+      <div className="border-b px-5 py-4">
+        <h2 className="text-sm font-semibold text-foreground">Order queue</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          {pending === 0 ? "Nothing waiting right now." : `${pending} order${pending === 1 ? "" : "s"} awaiting results.`}
+        </p>
+      </div>
       {error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="border-b px-5 py-3 text-sm text-destructive">
           {error}
         </p>
       )}
-      <ul className="divide-y rounded-md border text-sm">
-        {rows.length === 0 && <li className="p-3 text-muted-foreground">No lab orders yet.</li>}
+      <ul className="divide-y text-sm">
+        {rows.length === 0 && (
+          <li className="px-5 py-8 text-center text-muted-foreground">
+            No lab orders yet. They appear here when a visit is created in MediCore.
+          </li>
+        )}
         {rows.map((o) => (
-          <li key={o.id} className="flex items-center justify-between gap-4 p-3">
+          <li key={o.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-3">
             <div className="min-w-0">
-              <div className="font-medium">
-                {o.patient_name} — {o.test_name}
+              <div className="flex items-center gap-3">
+                <span className="truncate font-medium text-foreground">{o.patient_name}</span>
+                <Badge variant={o.status === "pending" ? "secondary" : "outline"}>
+                  {o.test_name}
+                </Badge>
               </div>
-              <div className="text-muted-foreground">
+              <div className="mt-0.5 text-muted-foreground">
                 {o.status === "completed" ? `Result: ${o.result_value}` : "Awaiting result"}
               </div>
             </div>
@@ -78,23 +94,24 @@ export function OrderList() {
                 <label className="sr-only" htmlFor={`result-${o.id}`}>
                   Result for {o.patient_name}
                 </label>
-                <input
+                <Input
                   id={`result-${o.id}`}
                   value={drafts[o.id] ?? ""}
                   onChange={(e) => setDrafts((d) => ({ ...d, [o.id]: e.target.value }))}
                   placeholder="e.g. WBC 6.1"
-                  className="w-40 rounded-md border px-3 py-2"
+                  className="w-44"
                 />
-                <button
+                <Button
                   onClick={() => saveResult(o.id)}
                   disabled={busyID === o.id || !(drafts[o.id] ?? "").trim()}
-                  className="rounded-md bg-primary px-3 py-2 text-primary-foreground disabled:opacity-50"
                 >
                   {busyID === o.id ? "Saving…" : "Save result"}
-                </button>
+                </Button>
               </div>
             ) : (
-              <span className="text-muted-foreground">Completed</span>
+              <time className="shrink-0 tabular-nums text-muted-foreground">
+                {o.resulted_at ? new Date(o.resulted_at).toLocaleTimeString() : ""}
+              </time>
             )}
           </li>
         ))}

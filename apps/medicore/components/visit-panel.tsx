@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Badge, Button, Input } from "@tesserix/web";
 
 type Visit = {
   id: string;
@@ -52,39 +53,48 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
   }
 
   return (
-    <section className="max-w-xl space-y-4">
-      <form onSubmit={createVisit} className="flex items-end gap-3">
-        <label className="flex flex-col gap-1 text-sm">
+    <section className="max-w-2xl rounded-lg border bg-card">
+      <div className="border-b px-5 py-4">
+        <h2 className="text-sm font-semibold text-foreground">Visits</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          New visits open a pending dispense in Pharmacy and a pending order in Lab.
+        </p>
+      </div>
+      <form onSubmit={createVisit} className="flex flex-wrap items-end gap-3 border-b px-5 py-4">
+        <label className="flex min-w-56 flex-1 flex-col gap-1.5 text-sm font-medium">
           Patient name
-          <input
+          <Input
             value={patientName}
             onChange={(e) => setPatientName(e.target.value)}
             required
             maxLength={200}
-            className="rounded-md border px-3 py-2"
+            placeholder="e.g. Asha Rao"
           />
         </label>
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
-        >
+        <Button type="submit" disabled={busy}>
           {busy ? "Creating…" : "Create visit"}
-        </button>
+        </Button>
       </form>
       {error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="border-b px-5 py-3 text-sm text-destructive">
           {error}
         </p>
       )}
-      <ul className="divide-y rounded-md border text-sm">
-        {visits.length === 0 && <li className="p-3 text-muted-foreground">No visits yet.</li>}
+      <ul className="divide-y text-sm">
+        {visits.length === 0 && (
+          <li className="px-5 py-8 text-center text-muted-foreground">
+            No visits yet. Create the first one above.
+          </li>
+        )}
         {visits.map((v) => (
-          <li key={v.id} className="flex justify-between p-3">
-            <span>
-              {v.patient_name} <span className="text-muted-foreground">({v.department})</span>
-            </span>
-            <time className="text-muted-foreground">{new Date(v.created_at).toLocaleTimeString()}</time>
+          <li key={v.id} className="flex items-center justify-between gap-4 px-5 py-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="truncate font-medium text-foreground">{v.patient_name}</span>
+              <Badge variant="secondary">{v.department}</Badge>
+            </div>
+            <time className="shrink-0 tabular-nums text-muted-foreground">
+              {new Date(v.created_at).toLocaleTimeString()}
+            </time>
           </li>
         ))}
       </ul>

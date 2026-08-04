@@ -5,8 +5,7 @@ import { VisitPanel } from "@/components/visit-panel";
 export default function OpdPage() {
   return (
     <HmsShell active="/medicore/opd">
-      <h1 className="mb-6 text-2xl font-semibold">OPD — Outpatients</h1>
-      <div className="space-y-10">
+      <div className="space-y-6">
         <VisitPanel department="OPD" />
         <PingPanel department="OPD" />
       </div>

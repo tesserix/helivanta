@@ -8,6 +8,7 @@
     "start": "next start -p 4303",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
+    "format:check": "prettier --check . --ignore-path ../../.prettierignore",
     "test": "vitest run"
   },
   "dependencies": {
@@ -33,5 +34,6 @@
     "tailwindcss": "^4.1.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
-  }
+  },
+  "prettier": "@hms/config/prettier"
 }

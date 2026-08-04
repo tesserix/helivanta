@@ -4,7 +4,13 @@
 // apps/<name>, mirroring the shape of apps/pharmacy (package.json, next.config,
 // tsconfig, eslint/vitest configs, AppProviders layout, boundary files, and a
 // minimal example panel + test).
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 
 const root = join(import.meta.dirname, "..");
@@ -57,6 +63,7 @@ function packageJson(name, port) {
     "start": "next start -p ${port}",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
+    "format:check": "prettier --check . --ignore-path ../../.prettierignore",
     "test": "vitest run"
   },
   "dependencies": {
@@ -82,7 +89,8 @@ function packageJson(name, port) {
     "tailwindcss": "^4.1.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
-  }
+  },
+  "prettier": "@hms/config/prettier"
 }
 `;
 }
@@ -354,8 +362,14 @@ function main() {
   writeFile(join(appDir, "app/not-found.tsx"), notFoundTsx());
   writeFile(join(appDir, "app/page.tsx"), pageTsx(name));
 
-  writeFile(join(appDir, "components/example-panel.tsx"), examplePanelTsx(name));
-  writeFile(join(appDir, "components/example-panel.test.tsx"), examplePanelTestTsx());
+  writeFile(
+    join(appDir, "components/example-panel.tsx"),
+    examplePanelTsx(name),
+  );
+  writeFile(
+    join(appDir, "components/example-panel.test.tsx"),
+    examplePanelTestTsx(),
+  );
 
   printFollowUps(name, port);
 }

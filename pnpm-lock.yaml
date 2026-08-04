@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      prettier:
+        specifier: ^3.4.2
+        version: 3.9.6
       turbo:
         specifier: ^2.8.10
         version: 2.10.8
@@ -46,7 +49,7 @@ importers:
         specifier: ^4.1.0
         version: 4.3.3
       '@testing-library/jest-dom':
-        specifier: ^6.10.0
+        specifier: ^6.6.3
         version: 6.10.0(@testing-library/dom@10.4.1)
       '@testing-library/react':
         specifier: ^16.1.0
@@ -113,7 +116,7 @@ importers:
         specifier: ^4.1.0
         version: 4.3.3
       '@testing-library/jest-dom':
-        specifier: ^6.10.0
+        specifier: ^6.6.3
         version: 6.10.0(@testing-library/dom@10.4.1)
       '@testing-library/react':
         specifier: ^16.1.0
@@ -177,7 +180,7 @@ importers:
         specifier: ^4.1.0
         version: 4.3.3
       '@testing-library/jest-dom':
-        specifier: ^6.10.0
+        specifier: ^6.6.3
         version: 6.10.0(@testing-library/dom@10.4.1)
       '@testing-library/react':
         specifier: ^16.1.0
@@ -244,7 +247,7 @@ importers:
         specifier: ^4.1.0
         version: 4.3.3
       '@testing-library/jest-dom':
-        specifier: ^6.10.0
+        specifier: ^6.6.3
         version: 6.10.0(@testing-library/dom@10.4.1)
       '@testing-library/react':
         specifier: ^16.1.0
@@ -299,7 +302,7 @@ importers:
         specifier: workspace:*
         version: link:../config
       '@testing-library/jest-dom':
-        specifier: ^6.10.0
+        specifier: ^6.6.3
         version: 6.10.0(@testing-library/dom@10.4.1)
       '@testing-library/react':
         specifier: ^16.1.0
@@ -352,6 +355,9 @@ importers:
       jsdom:
         specifier: ^26.0.0
         version: 26.1.0
+      prettier:
+        specifier: ^3.4.2
+        version: 3.9.6
       typescript-eslint:
         specifier: ^8.20.0
         version: 8.66.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
@@ -384,7 +390,7 @@ importers:
         specifier: ^1.8.0
         version: 1.8.0(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
       '@testing-library/jest-dom':
-        specifier: ^6.10.0
+        specifier: ^6.6.3
         version: 6.10.0(@testing-library/dom@10.4.1)
       '@testing-library/react':
         specifier: ^16.1.0
@@ -392,9 +398,6 @@ importers:
       '@testing-library/user-event':
         specifier: ^14.5.2
         version: 14.6.3(@testing-library/dom@10.4.1)
-      '@types/dompurify':
-        specifier: ^3.0.5
-        version: 3.2.0
       '@types/react':
         specifier: ^19
         version: 19.2.18
@@ -2041,10 +2044,6 @@ packages:
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
 
-  '@types/dompurify@3.2.0':
-    resolution: {integrity: sha512-Fgg31wv9QbLDA0SpTOXO3MaxySc4DKGLi8sna4/Utjo4r3ZRPdCt4UQee8BWr+Q5z21yifghREPJGYaEOEIACg==}
-    deprecated: This is a stub types definition. dompurify provides its own type definitions, so you do not need this installed.
-
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
 
@@ -3207,6 +3206,11 @@ packages:
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
+
+  prettier@3.9.6:
+    resolution: {integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==}
+    engines: {node: '>=14'}
+    hasBin: true
 
   pretty-format@27.5.1:
     resolution: {integrity: sha512-Qb1gy5OrP5+zDf2Bvnzdl3jsTf1qXVMazbvCoKhtKqVs4/YK4ozX4gKQJJVyNe+cajNPn0KoC0MC3FUmaHWEmQ==}
@@ -5359,10 +5363,6 @@ snapshots:
 
   '@types/deep-eql@4.0.2': {}
 
-  '@types/dompurify@3.2.0':
-    dependencies:
-      dompurify: 3.4.13
-
   '@types/estree@1.0.9': {}
 
   '@types/json-schema@7.0.15': {}
@@ -6680,6 +6680,8 @@ snapshots:
       source-map-js: 1.2.1
 
   prelude-ls@1.2.1: {}
+
+  prettier@3.9.6: {}
 
   pretty-format@27.5.1:
     dependencies:

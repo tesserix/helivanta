@@ -2,5 +2,8 @@
 @import "@tesserix/web/styles";
 @import "@hms/ui/styles.css";
 
+/* Tailwind v4 must scan the design system for emitted class names. */
+@source "../node_modules/@tesserix/web/dist";
+
 /* Scan the shared UI package for emitted class names. */
 @source "../../../packages/ui/src";

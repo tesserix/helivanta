@@ -12,5 +12,5 @@ export default defineConfig({
       "@": resolve(__dirname, "./"),
     },
   },
-  test: config.test,
+  ...config,
 });

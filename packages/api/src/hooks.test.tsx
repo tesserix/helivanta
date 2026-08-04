@@ -1,6 +1,3 @@
-/// <reference types="vitest/globals" />
-/// <reference types="@testing-library/jest-dom" />
-
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useApiMutation, useApiQuery } from "./hooks";

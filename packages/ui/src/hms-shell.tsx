@@ -39,7 +39,7 @@ export function HmsShell({ active, children }: { active: string; children: React
           one step darker than the page panel, faint border between the
           rails, none against the content. */}
       <aside
-        className={`flex shrink-0 flex-col border-r border-sidebar-border bg-(--sidebar-rail) transition-[width] duration-200 ease-out motion-reduce:transition-none ${
+        className={`hms-sidebar-border flex shrink-0 flex-col border-r bg-(--sidebar-rail) transition-[width] duration-200 ease-out motion-reduce:transition-none ${
           railExpanded ? "w-56" : "w-16"
         }`}
       >
@@ -53,7 +53,7 @@ export function HmsShell({ active, children }: { active: string; children: React
             {railExpanded && <span className="text-sm font-semibold tracking-wide">HMS</span>}
           </a>
         </div>
-        <div className="mx-2 border-t border-sidebar-border" />
+        <div className="hms-sidebar-border mx-2 border-t" />
         <nav
           aria-label="Zones"
           className={`flex flex-1 flex-col gap-1 py-4 ${railExpanded ? "px-3" : "items-center px-0"}`}
@@ -139,7 +139,7 @@ export function HmsShell({ active, children }: { active: string; children: React
             <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-        <div className="border-t border-sidebar-border" />
+        <div className="hms-sidebar-border border-t" />
         <nav aria-label={zone.label} className="flex w-56 flex-col gap-1 px-3 py-4">
           {zone.pages.map((pageLink) => {
             const isActive = active === pageLink.href;

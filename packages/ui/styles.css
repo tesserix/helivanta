@@ -52,3 +52,12 @@
      the tesserix admin. */
   --sidebar-rail: #0b1220;
 }
+
+/* @tesserix/web ships an UNLAYERED base rule that forces
+   border-color: var(--border) on every element; unlayered CSS beats
+   Tailwind's layered `border-sidebar-border` utility regardless of
+   specificity, so sidebar seams rendered light #e2e8f0. This unlayered
+   class + !important wins over both. */
+.hms-sidebar-border {
+  border-color: var(--sidebar-border) !important;
+}

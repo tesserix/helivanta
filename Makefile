@@ -1,4 +1,4 @@
-.PHONY: dev dev-infra dev-down dev-api dev-web seed test test-go coverage-go test-web e2e lint-go
+.PHONY: dev dev-infra dev-down dev-api dev-web seed test test-go coverage-go test-web e2e lint-go new-module
 
 dev-infra:
 	docker compose -f docker-compose.dev.yml up -d --wait postgres nats redis openfga
@@ -36,3 +36,6 @@ test-web:
 
 e2e:
 	pnpm --filter @hms/e2e run test:e2e
+
+new-module:
+	cd backend && ./scripts/new-module.sh $(NAME)

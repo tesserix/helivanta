@@ -15,6 +15,7 @@
   --sidebar-primary-foreground: #0f172a !important;
   --sidebar-accent: #1e293b !important;
   --sidebar-accent-foreground: #f1f5f9 !important;
-  --sidebar-border: #1e293b !important;
+  /* Softer than tesserix-home's #1e293b — hairline at 8% foreground. */
+  --sidebar-border: rgb(226 232 240 / 0.08) !important;
   --sidebar-ring: #ffffff !important;
 }

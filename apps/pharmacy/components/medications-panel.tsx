@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Button, Input } from "@tesserix/web";
 
 type Medication = { id: string; name: string; strength: string; created_at: string };
 
@@ -48,44 +49,41 @@ export function MedicationsPanel() {
   }
 
   return (
-    <section className="max-w-xl space-y-4">
-      <form onSubmit={add} className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-sm">
+    <section className="max-w-2xl rounded-lg border bg-card">
+      <div className="border-b px-5 py-4">
+        <h2 className="text-sm font-semibold text-foreground">Formulary</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Medications available for dispensing in this store.
+        </p>
+      </div>
+      <form onSubmit={add} className="flex flex-wrap items-end gap-3 border-b px-5 py-4">
+        <label className="flex min-w-48 flex-1 flex-col gap-1.5 text-sm font-medium">
           Name
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="rounded-md border px-3 py-2"
-          />
+          <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Paracetamol" />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex w-36 flex-col gap-1.5 text-sm font-medium">
           Strength
-          <input
-            value={strength}
-            onChange={(e) => setStrength(e.target.value)}
-            className="rounded-md border px-3 py-2"
-          />
+          <Input value={strength} onChange={(e) => setStrength(e.target.value)} placeholder="500mg" />
         </label>
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
-        >
+        <Button type="submit" disabled={busy}>
           {busy ? "Adding…" : "Add medication"}
-        </button>
+        </Button>
       </form>
       {error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="border-b px-5 py-3 text-sm text-destructive">
           {error}
         </p>
       )}
-      <ul className="divide-y rounded-md border text-sm">
-        {rows.length === 0 && <li className="p-3 text-muted-foreground">No medications yet.</li>}
+      <ul className="divide-y text-sm">
+        {rows.length === 0 && (
+          <li className="px-5 py-8 text-center text-muted-foreground">
+            No medications yet. Add the first one above.
+          </li>
+        )}
         {rows.map((m) => (
-          <li key={m.id} className="flex justify-between p-3">
-            <span>{m.name}</span>
-            <span className="text-muted-foreground">{m.strength}</span>
+          <li key={m.id} className="flex items-center justify-between gap-4 px-5 py-3">
+            <span className="truncate font-medium text-foreground">{m.name}</span>
+            <span className="shrink-0 text-muted-foreground">{m.strength}</span>
           </li>
         ))}
       </ul>

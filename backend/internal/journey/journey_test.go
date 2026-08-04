@@ -3,78 +3,28 @@
 package journey
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/hms/internal/modules/lab"
 	"github.com/tesserix/hms/internal/modules/medicore"
 	"github.com/tesserix/hms/internal/modules/pharmacy"
-	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
-type staticVerifier map[string]string
-
-func (s staticVerifier) Verify(ctx context.Context, raw string) (authn.Principal, error) {
-	if t, ok := s[raw]; ok {
-		return authn.Principal{Subject: "user-" + raw, TenantID: t}, nil
-	}
-	return authn.Principal{}, context.DeadlineExceeded
-}
-
-const (
-	tenantA = "11111111-1111-1111-1111-111111111111"
-	tenantB = "22222222-2222-2222-2222-222222222222"
+var (
+	do = testutil.Do
 )
-
-func do(r *gin.Engine, method, path, token, body string) *httptest.ResponseRecorder {
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(method, path, strings.NewReader(body))
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	r.ServeHTTP(w, req)
-	return w
-}
 
 func TestVisitFansOutToPharmacyAndLab(t *testing.T) {
-	appDSN, adminDSN := testutil.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
-	require.NoError(t, err)
-
-	mods := []platform.Module{medicore.New(), pharmacy.New(), lab.New()}
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	t.Cleanup(cancel)
-
-	migs := events.Migrations()
-	for _, m := range mods {
-		migs = append(migs, m.Migrations()...)
-	}
-	require.NoError(t, db.Migrate(ctx, migs))
-
-	bus, err := events.NewBus(testutil.StartNATS(t))
-	require.NoError(t, err)
-	t.Cleanup(bus.Close)
-
-	deps := platform.Deps{DB: db, Bus: bus}
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	api := r.Group("/v1", authn.Middleware(staticVerifier{"tokA": tenantA, "tokB": tenantB}))
-	for _, m := range mods {
-		m.Routes(api, deps)
-		require.NoError(t, bus.StartConsumers(ctx, db, m.Consumers(deps)))
-	}
-	go bus.RunDispatcher(ctx, db)
+	r, _, _, _ := testutil.ModuleHarness(t,
+		map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB},
+		medicore.New(), pharmacy.New(), lab.New())
 
 	// Create a visit as tenant A.
 	w := do(r, "POST", "/v1/medicore/visits", "tokA", `{"patient_name":"Asha Rao","department":"OPD"}`)

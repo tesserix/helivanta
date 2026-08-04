@@ -12,18 +12,18 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/testutil"
+	"github.com/tesserix/hms/internal/containerhelpers"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
 func TestOutboxPublishDispatchConsume(t *testing.T) {
-	appDSN, adminDSN := testutil.StartPostgres(t)
+	appDSN, adminDSN := containerhelpers.StartPostgres(t)
 	db, err := tenantdb.Open(appDSN, adminDSN)
 	require.NoError(t, err)
 	require.NoError(t, db.Migrate(context.Background(), events.Migrations()))
 
-	natsURL := testutil.StartNATS(t)
+	natsURL := containerhelpers.StartNATS(t)
 	bus, err := events.NewBus(natsURL)
 	require.NoError(t, err)
 	defer bus.Close()
@@ -91,7 +91,7 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 }
 
 func TestConsumerTenantScopedWrite(t *testing.T) {
-	appDSN, adminDSN := testutil.StartPostgres(t)
+	appDSN, adminDSN := containerhelpers.StartPostgres(t)
 	db, err := tenantdb.Open(appDSN, adminDSN)
 	require.NoError(t, err)
 
@@ -112,7 +112,7 @@ func TestConsumerTenantScopedWrite(t *testing.T) {
 	})
 	require.NoError(t, db.Migrate(context.Background(), migs))
 
-	bus, err := events.NewBus(testutil.StartNATS(t))
+	bus, err := events.NewBus(containerhelpers.StartNATS(t))
 	require.NoError(t, err)
 	defer bus.Close()
 

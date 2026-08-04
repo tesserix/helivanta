@@ -4,73 +4,28 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/tesserix/hms/internal/modules/reference" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
-	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
-	"gorm.io/gorm"
 )
 
-// staticVerifier maps token string → tenant id.
-type staticVerifier map[string]string
-
-func (s staticVerifier) Verify(ctx context.Context, raw string) (authn.Principal, error) {
-	if t, ok := s[raw]; ok {
-		return authn.Principal{Subject: "user-" + raw, TenantID: t}, nil
-	}
-	return authn.Principal{}, context.DeadlineExceeded
-}
-
-const (
-	tenantA = "11111111-1111-1111-1111-111111111111"
-	tenantB = "22222222-2222-2222-2222-222222222222"
+var (
+	do = testutil.Do
 )
 
 func setup(t *testing.T) (*gin.Engine, *tenantdb.DB, context.Context) {
-	appDSN, adminDSN := testutil.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
-	require.NoError(t, err)
-
-	mod := reference.New()
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	t.Cleanup(cancel)
-
-	migs := append(events.Migrations(), mod.Migrations()...)
-	require.NoError(t, db.Migrate(ctx, migs))
-
-	bus, err := events.NewBus(testutil.StartNATS(t))
-	require.NoError(t, err)
-	t.Cleanup(bus.Close)
-
-	deps := platform.Deps{DB: db, Bus: bus}
-	require.NoError(t, bus.StartConsumers(ctx, db, mod.Consumers(deps)))
-	go bus.RunDispatcher(ctx, db)
-
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	api := r.Group("/v1", authn.Middleware(staticVerifier{"tokA": tenantA, "tokB": tenantB, "tokBad": "not-a-uuid"}))
-	mod.Routes(api, deps)
+	r, db, _, ctx := testutil.ModuleHarness(t,
+		map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB, "tokBad": "not-a-uuid"},
+		reference.New())
 	return r, db, ctx
-}
-
-func do(r *gin.Engine, method, path, token, body string) *httptest.ResponseRecorder {
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(method, path, strings.NewReader(body))
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	r.ServeHTTP(w, req)
-	return w
 }
 
 func TestPingFullWiring(t *testing.T) {

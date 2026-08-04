@@ -51,9 +51,10 @@ export default function LoginPage() {
             Hospital Management System
           </p>
         </div>
-        <label className="block text-sm font-medium">
+        <label htmlFor="login-email" className="block text-sm font-medium">
           Email
           <Input
+            id="login-email"
             type="email"
             required
             value={email}
@@ -61,9 +62,10 @@ export default function LoginPage() {
             className="mt-1.5"
           />
         </label>
-        <label className="block text-sm font-medium">
+        <label htmlFor="login-password" className="block text-sm font-medium">
           Password
           <Input
+            id="login-password"
             type="password"
             required
             value={password}

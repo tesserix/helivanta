@@ -57,13 +57,24 @@ export function MedicationsPanel() {
         </p>
       </div>
       <form onSubmit={add} className="flex flex-wrap items-end gap-3 border-b px-5 py-4">
-        <label className="flex min-w-48 flex-1 flex-col gap-1.5 text-sm font-medium">
+        <label htmlFor="medication-name" className="flex min-w-48 flex-1 flex-col gap-1.5 text-sm font-medium">
           Name
-          <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Paracetamol" />
+          <Input
+            id="medication-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            placeholder="e.g. Paracetamol"
+          />
         </label>
-        <label className="flex w-36 flex-col gap-1.5 text-sm font-medium">
+        <label htmlFor="medication-strength" className="flex w-36 flex-col gap-1.5 text-sm font-medium">
           Strength
-          <Input value={strength} onChange={(e) => setStrength(e.target.value)} placeholder="500mg" />
+          <Input
+            id="medication-strength"
+            value={strength}
+            onChange={(e) => setStrength(e.target.value)}
+            placeholder="500mg"
+          />
         </label>
         <Button type="submit" disabled={busy}>
           {busy ? "Adding…" : "Add medication"}

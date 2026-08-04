@@ -61,9 +61,13 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
         </p>
       </div>
       <form onSubmit={createVisit} className="flex flex-wrap items-end gap-3 border-b px-5 py-4">
-        <label className="flex min-w-56 flex-1 flex-col gap-1.5 text-sm font-medium">
+        <label
+          htmlFor="visit-patient-name"
+          className="flex min-w-56 flex-1 flex-col gap-1.5 text-sm font-medium"
+        >
           Patient name
           <Input
+            id="visit-patient-name"
             value={patientName}
             onChange={(e) => setPatientName(e.target.value)}
             required

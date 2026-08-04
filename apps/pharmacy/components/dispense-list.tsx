@@ -65,9 +65,10 @@ export function DispenseList() {
             {pending === 0 ? "Nothing waiting right now." : `${pending} pending dispense${pending === 1 ? "" : "s"}.`}
           </p>
         </div>
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
+        <label htmlFor="dispense-medication-filter" className="flex flex-col gap-1.5 text-sm font-medium">
           Medication
           <Input
+            id="dispense-medication-filter"
             value={medication}
             onChange={(e) => setMedication(e.target.value)}
             className="w-56"

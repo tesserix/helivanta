@@ -35,10 +35,11 @@ export function HmsShell({ active, children }: { active: string; children: React
 
   return (
     <div className="flex min-h-screen">
-      {/* Zone rail: icons-only or icons+labels. No border against the page
-          panel — the two rails read as one seamless surface. */}
+      {/* Zone rail: icons-only or icons+labels. Same treatment as
+          tesserix-home's AdminSidebar: shared bg, border only between
+          the rails, none against the content. */}
       <aside
-        className={`flex shrink-0 flex-col bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
+        className={`flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
           railExpanded ? "w-56" : "w-16"
         }`}
       >
@@ -52,6 +53,7 @@ export function HmsShell({ active, children }: { active: string; children: React
             {railExpanded && <span className="text-sm font-semibold tracking-wide">HMS</span>}
           </a>
         </div>
+        <div className="mx-2 border-t border-sidebar-border" />
         <nav
           aria-label="Zones"
           className={`flex flex-1 flex-col gap-1 py-4 ${railExpanded ? "px-3" : "items-center px-0"}`}
@@ -119,8 +121,8 @@ export function HmsShell({ active, children }: { active: string; children: React
 
       {/* Page panel: open or hidden */}
       <aside
-        className={`flex shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
-          panelOpen ? "w-56" : "w-0 border-r-0"
+        className={`flex shrink-0 flex-col overflow-hidden bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
+          panelOpen ? "w-56" : "w-0"
         }`}
         aria-hidden={!panelOpen}
       >
@@ -137,6 +139,7 @@ export function HmsShell({ active, children }: { active: string; children: React
             <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
+        <div className="border-t border-sidebar-border" />
         <nav aria-label={zone.label} className="flex w-56 flex-col gap-1 px-3 py-4">
           {zone.pages.map((pageLink) => {
             const isActive = active === pageLink.href;

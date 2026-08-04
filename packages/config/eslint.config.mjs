@@ -20,10 +20,13 @@ export function hmsEslint(rootDir) {
         "no-alert": "error",
         "no-console": ["error", { allow: ["warn", "error"] }],
         "@typescript-eslint/no-explicit-any": "error",
+        // Plain <a> cross-zone links are repo policy (standards doc section 6).
+        "@next/next/no-html-link-for-pages": "off",
         "no-restricted-syntax": [
           "error",
           {
-            selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+            selector:
+              "JSXAttribute[name.name='dangerouslySetInnerHTML']:not([value.expression.callee.name='sanitizeHtml'])",
             message: "Use sanitizeHtml from @hms/ui instead of raw dangerouslySetInnerHTML.",
           },
         ],

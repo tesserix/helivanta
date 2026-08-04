@@ -10,7 +10,14 @@
 set -euo pipefail
 
 NAME="${1:?usage: new-module.sh <name>}"
-[[ "$NAME" =~ ^[a-z][a-z0-9]*$ ]] || { echo "name must be lowercase alphanumeric, starting with a letter"; exit 1; }
+[[ "$NAME" =~ ^[a-z]+$ ]] || { echo "name must be lowercase letters only (a-z)"; exit 1; }
+
+case "$NAME" in
+  package|select|type|func|range|map|chan|go|if|else|for|return|var|const|import|interface|struct|switch|defer|break|continue|fallthrough|goto|default)
+    echo "name must not be a Go keyword: $NAME"
+    exit 1
+    ;;
+esac
 
 DIR="internal/modules/$NAME"
 [[ -e "$DIR" ]] && { echo "module $NAME already exists"; exit 1; }

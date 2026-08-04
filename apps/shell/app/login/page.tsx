@@ -3,12 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { Button, Input } from "@tesserix/web";
 import { firebaseAuth } from "@/lib/firebase";
+
+// Dev-only prefill: NODE_ENV is inlined at build time, so the seeded
+// credentials are dead-code-eliminated from production bundles.
+const DEV_EMAIL = process.env.NODE_ENV !== "production" ? "test@hms.dev" : "";
+const DEV_PASSWORD = process.env.NODE_ENV !== "production" ? "password123" : "";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(DEV_EMAIL);
+  const [password, setPassword] = useState(DEV_PASSWORD);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -34,27 +40,35 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-lg border p-6">
-        <h1 className="text-xl font-semibold">Sign in to HMS</h1>
-        <label className="block text-sm">
+    <main className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-sm space-y-4 rounded-lg border bg-card p-6 shadow-sm"
+      >
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Sign in to HMS</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Hospital Management System
+          </p>
+        </div>
+        <label className="block text-sm font-medium">
           Email
-          <input
+          <Input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-md border px-3 py-2"
+            className="mt-1.5"
           />
         </label>
-        <label className="block text-sm">
+        <label className="block text-sm font-medium">
           Password
-          <input
+          <Input
             type="password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-md border px-3 py-2"
+            className="mt-1.5"
           />
         </label>
         {error && (
@@ -62,13 +76,9 @@ export default function LoginPage() {
             {error}
           </p>
         )}
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded-md bg-primary px-3 py-2 text-primary-foreground disabled:opacity-50"
-        >
+        <Button type="submit" disabled={busy} className="w-full">
           {busy ? "Signing in…" : "Sign in"}
-        </button>
+        </Button>
       </form>
     </main>
   );

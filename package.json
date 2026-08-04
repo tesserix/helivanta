@@ -8,7 +8,8 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "new-zone": "node scripts/new-zone.mjs"
   },
   "devDependencies": {
     "turbo": "^2.8.10"

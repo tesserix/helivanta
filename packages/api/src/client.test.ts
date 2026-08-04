@@ -32,6 +32,25 @@ describe("apiFetch", () => {
     expect(new Headers(init.headers).get("Content-Type")).toBe("application/json");
   });
 
+  it("preserves custom headers when passed as Headers instance", async () => {
+    const fn = mockFetch(200, { id: "1" });
+    const customHeaders = new Headers({ "X-Custom": "1" });
+    await apiFetch("/medicore/visits", { headers: customHeaders });
+    const init = fn.mock.calls[0][1] as RequestInit;
+    const outgoingHeaders = new Headers(init.headers);
+    expect(outgoingHeaders.get("X-Custom")).toBe("1");
+    expect(outgoingHeaders.get("Content-Type")).toBe("application/json");
+  });
+
+  it("does not overwrite caller-provided Content-Type", async () => {
+    const fn = mockFetch(200, { id: "1" });
+    await apiFetch("/medicore/visits", {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+    const init = fn.mock.calls[0][1] as RequestInit;
+    expect(new Headers(init.headers).get("Content-Type")).toBe("application/x-www-form-urlencoded");
+  });
+
   it("throws a typed ApiError from the platform envelope", async () => {
     mockFetch(409, { error: "conflict", message: "already dispensed" });
     const err = await apiFetch("/x").catch((e: unknown) => e);

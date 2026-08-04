@@ -1,12 +1,13 @@
 import { initializeApp, getApps } from "firebase/app";
 import { connectAuthEmulator, getAuth } from "firebase/auth";
+import { env } from "./env";
 
 export function firebaseAuth() {
   const app =
     getApps()[0] ??
     initializeApp({
-      apiKey: process.env.NEXT_PUBLIC_GIP_API_KEY ?? "demo-key",
-      projectId: process.env.NEXT_PUBLIC_GIP_PROJECT_ID ?? "demo-hms",
+      apiKey: env.NEXT_PUBLIC_GIP_API_KEY,
+      projectId: env.NEXT_PUBLIC_GIP_PROJECT_ID,
     });
   const auth = getAuth(app);
   const emulator =

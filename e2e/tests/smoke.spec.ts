@@ -10,7 +10,9 @@ test("login, OPD visit, pharmacy dispense, lab result", async ({ page }) => {
   await page.getByLabel("Email").fill("test@hms.dev");
   await page.getByLabel("Password").fill("password123");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Departments" }),
+  ).toBeVisible();
 
   // Shell → medicore (hard navigation across the zone boundary).
   // The department card's accessible name includes its description text
@@ -32,16 +34,22 @@ test("login, OPD visit, pharmacy dispense, lab result", async ({ page }) => {
   // Pharmacy zone: visit_created fans out asynchronously; the page
   // polls every 3s, so just wait for the patient to appear.
   await page.goto("/pharmacy");
-  await expect(page.getByText(patient).first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(patient).first()).toBeVisible({
+    timeout: 30_000,
+  });
   await page
     .locator("li", { hasText: patient })
     .getByRole("button", { name: "Dispense" })
     .click();
-  await expect(page.locator("li", { hasText: patient }).getByText(/Dispensed/)).toBeVisible();
+  await expect(
+    page.locator("li", { hasText: patient }).getByText(/Dispensed/),
+  ).toBeVisible();
 
   // Lab zone: pending order for the same visit; record a result.
   await page.goto("/lab");
-  await expect(page.getByText(patient).first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(patient).first()).toBeVisible({
+    timeout: 30_000,
+  });
   const orderRow = page.locator("li", { hasText: patient });
   await orderRow.getByLabel(`Result for ${patient}`).fill("WBC 6.1");
   await orderRow.getByRole("button", { name: "Save result" }).click();

@@ -61,7 +61,7 @@ Migration IDs are globally unique (`0001_medicore`, `0001_pharmacy`,
 
 - Table `medicore_visits`: `id uuid PK`, `tenant_id uuid`,
   `patient_name text`, `department text CHECK (department IN
-  ('OPD','IPD'))`, `status text DEFAULT 'open'`, `created_at`.
+('OPD','IPD'))`, `status text DEFAULT 'open'`, `created_at`.
 - `POST /medicore/visits` `{patient_name, department}` → creates the
   visit and publishes `hms.in.medicore.visit_created.v1`
   (`VisitCreated` v1, data: `{visit_id, patient_name, department}`) in
@@ -76,7 +76,7 @@ Migration IDs are globally unique (`0001_medicore`, `0001_pharmacy`,
   `GET /pharmacy/medications`.
 - Table `pharmacy_dispenses`: `id`, `tenant_id`, `visit_id uuid`,
   `patient_name text`, `medication text DEFAULT ''`, `status text
-  CHECK (status IN ('pending','dispensed')) DEFAULT 'pending'`,
+CHECK (status IN ('pending','dispensed')) DEFAULT 'pending'`,
   `dispensed_at timestamptz`, `created_at`.
 - Consumer `pharmacy-visit-intake` on
   `hms.in.medicore.visit_created.v1`: inserts a pending dispense for
@@ -92,7 +92,7 @@ Migration IDs are globally unique (`0001_medicore`, `0001_pharmacy`,
 
 - Table `lab_orders`: `id`, `tenant_id`, `visit_id uuid`,
   `patient_name text`, `test_name text DEFAULT 'CBC'`, `status text
-  CHECK (status IN ('pending','completed')) DEFAULT 'pending'`,
+CHECK (status IN ('pending','completed')) DEFAULT 'pending'`,
   `result_value text`, `resulted_at timestamptz`, `created_at`.
   Result value is embedded — no separate results table this phase.
 - Consumer `lab-visit-intake` on `hms.in.medicore.visit_created.v1`:
@@ -134,9 +134,9 @@ New workspace package `packages/ui`:
 - `styles.css` — tesserix-home sidebar tokens layered after
   `@tesserix/web/styles`:
   `--sidebar:#0f172a; --sidebar-foreground:#e2e8f0;
-  --sidebar-primary:#ffffff; --sidebar-primary-foreground:#0f172a;
-  --sidebar-accent:#1e293b; --sidebar-accent-foreground:#f1f5f9;
-  --sidebar-border:#1e293b; --sidebar-ring:#ffffff;` (light theme;
+--sidebar-primary:#ffffff; --sidebar-primary-foreground:#0f172a;
+--sidebar-accent:#1e293b; --sidebar-accent-foreground:#f1f5f9;
+--sidebar-border:#1e293b; --sidebar-ring:#ffffff;` (light theme;
   HMS is light-only for now, matching phase 1).
 - Consumed as a source package (`"@hms/ui": "workspace:*"`, apps'
   Tailwind `@source` includes `../../packages/ui/src`) — no build step,

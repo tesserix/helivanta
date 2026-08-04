@@ -34,7 +34,7 @@ export function HmsShell({ active, children }: { active: string; children: React
   const activePage = zone.pages.find((p) => p.href === active);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       {/* Zone rail: icons-only or icons+labels. Matches tesserix admin:
           one step darker than the page panel, faint border between the
           rails, none against the content. */}
@@ -56,7 +56,7 @@ export function HmsShell({ active, children }: { active: string; children: React
         <div className="hms-sidebar-border mx-2 border-t" />
         <nav
           aria-label="Zones"
-          className={`flex flex-1 flex-col gap-1 py-4 ${railExpanded ? "px-3" : "items-center px-0"}`}
+          className={`flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto py-4 ${railExpanded ? "px-3" : "items-center px-0"}`}
         >
           {ZONES.map((z) => {
             const isActive = z.key === zone.key;
@@ -81,11 +81,7 @@ export function HmsShell({ active, children }: { active: string; children: React
             );
           })}
         </nav>
-        <div
-          className={`flex flex-col gap-1 py-3 ${
-            railExpanded ? "px-3" : "items-center px-0"
-          }`}
-        >
+        <div className={`flex flex-col gap-1 py-3 ${railExpanded ? "px-3" : "items-center px-0"}`}>
           <a
             href="/logout"
             title={railExpanded ? undefined : "Sign out"}
@@ -140,7 +136,10 @@ export function HmsShell({ active, children }: { active: string; children: React
           </button>
         </div>
         <div className="hms-sidebar-border border-t" />
-        <nav aria-label={zone.label} className="flex w-56 flex-col gap-1 px-3 py-4">
+        <nav
+          aria-label={zone.label}
+          className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"
+        >
           {zone.pages.map((pageLink) => {
             const isActive = active === pageLink.href;
             return (
@@ -164,7 +163,7 @@ export function HmsShell({ active, children }: { active: string; children: React
       </aside>
 
       {/* Content */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex h-16 items-center justify-between px-6">
             <div className="flex items-center gap-2">

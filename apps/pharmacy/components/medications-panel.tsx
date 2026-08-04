@@ -1,52 +1,34 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
+import { ClipboardList } from "lucide-react";
+import { apiFetch, useApiMutation, useApiQuery } from "@hms/api";
+import { EmptyState, Field, useZodForm } from "@hms/ui";
 
 type Medication = { id: string; name: string; strength: string; created_at: string };
 
+const medicationSchema = z.object({
+  name: z.string().min(1, "Name is required").max(200),
+  strength: z.string().max(100),
+});
+
 export function MedicationsPanel() {
-  const [rows, setRows] = useState<Medication[]>([]);
-  const [name, setName] = useState("");
-  const [strength, setStrength] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const medications = useApiQuery<{ data: Medication[] }>(["medications"], "/pharmacy/medications");
+  const form = useZodForm(medicationSchema, { name: "", strength: "" });
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/v1/pharmacy/medications");
-      if (!res.ok) throw new Error(String(res.status));
-      const body = await res.json();
-      setRows(body.data ?? []);
-      setError(null);
-    } catch {
-      setError("Could not load medications. Is the API running?");
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      const res = await fetch("/api/v1/pharmacy/medications", {
+  const addMedication = useApiMutation(
+    (values: z.infer<typeof medicationSchema>) =>
+      apiFetch("/pharmacy/medications", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, strength }),
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      setName("");
-      setStrength("");
-      await load();
-    } catch {
-      setError("Could not add medication.");
-    } finally {
-      setBusy(false);
-    }
-  }
+        body: JSON.stringify(values),
+      }),
+    {
+      successToast: "Medication added",
+      invalidate: [["medications"]],
+      onSuccess: () => form.reset(),
+    },
+  );
 
   return (
     <section className="max-w-2xl rounded-lg border bg-card">
@@ -56,31 +38,36 @@ export function MedicationsPanel() {
           Medications available for dispensing in this store.
         </p>
       </div>
-      <form onSubmit={add} className="flex flex-wrap items-end gap-3 border-b px-5 py-4">
-        <label className="flex min-w-48 flex-1 flex-col gap-1.5 text-sm font-medium">
-          Name
-          <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Paracetamol" />
-        </label>
-        <label className="flex w-36 flex-col gap-1.5 text-sm font-medium">
-          Strength
-          <Input value={strength} onChange={(e) => setStrength(e.target.value)} placeholder="500mg" />
-        </label>
-        <Button type="submit" disabled={busy}>
-          {busy ? "Adding…" : "Add medication"}
+      <form
+        noValidate
+        onSubmit={form.handleSubmit((values) => addMedication.mutate(values))}
+        className="flex flex-wrap items-end gap-3 border-b px-5 py-4"
+      >
+        <div className="min-w-48 flex-1">
+          <Field id="name" label="Name" error={form.formState.errors.name?.message}>
+            <Input id="name" placeholder="e.g. Paracetamol" {...form.register("name")} />
+          </Field>
+        </div>
+        <div className="w-36">
+          <Field id="strength" label="Strength" error={form.formState.errors.strength?.message}>
+            <Input id="strength" placeholder="500mg" {...form.register("strength")} />
+          </Field>
+        </div>
+        <Button type="submit" disabled={addMedication.isPending}>
+          {addMedication.isPending ? "Adding…" : "Add medication"}
         </Button>
       </form>
-      {error && (
-        <p role="alert" className="border-b px-5 py-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
       <ul className="divide-y text-sm">
-        {rows.length === 0 && (
-          <li className="px-5 py-8 text-center text-muted-foreground">
-            No medications yet. Add the first one above.
+        {medications.data?.data.length === 0 && (
+          <li>
+            <EmptyState
+              icon={ClipboardList}
+              title="No medications yet"
+              hint="Add the first one above."
+            />
           </li>
         )}
-        {rows.map((m) => (
+        {medications.data?.data.map((m) => (
           <li key={m.id} className="flex items-center justify-between gap-4 px-5 py-3">
             <span className="truncate font-medium text-foreground">{m.name}</span>
             <span className="shrink-0 text-muted-foreground">{m.strength}</span>

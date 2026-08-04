@@ -33,6 +33,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
-      - run: pnpm turbo type-check build
+      - run: pnpm turbo lint format:check type-check test build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
+          # Firebase web config is not secret (client-visible by design); CI only
+          # needs a syntactically valid value to satisfy defineEnv during the
+          # shell's static build — real deployments inject the real project config.
+          NEXT_PUBLIC_GIP_API_KEY: ci-build-key
+          NEXT_PUBLIC_GIP_PROJECT_ID: ci-build-project

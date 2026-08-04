@@ -18,7 +18,14 @@ const cards = ZONES.filter((zone) => zone.key !== "dashboard").flatMap((zone) =>
         desc: DESCRIPTIONS[page.href] ?? "",
         icon: zone.icon,
       }))
-    : [{ href: zone.href, title: zone.label, desc: DESCRIPTIONS[zone.href] ?? "", icon: zone.icon }],
+    : [
+        {
+          href: zone.href,
+          title: zone.label,
+          desc: DESCRIPTIONS[zone.href] ?? "",
+          icon: zone.icon,
+        },
+      ],
 );
 
 export default function Dashboard() {

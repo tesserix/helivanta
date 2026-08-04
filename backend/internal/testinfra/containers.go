@@ -1,6 +1,5 @@
-// Package containerhelpers provides test container initialization helpers
-// that don't import other internal packages (avoiding import cycles).
-package containerhelpers
+// Package testinfra provides test infrastructure helpers.
+package testinfra
 
 import (
 	"context"

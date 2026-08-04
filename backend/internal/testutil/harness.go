@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/containerhelpers"
+	"github.com/tesserix/hms/internal/testinfra"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/events"
@@ -37,7 +37,7 @@ func (s StaticVerifier) Verify(ctx context.Context, raw string) (authn.Principal
 // setup() previously copy-pasted per module test package.
 func ModuleHarness(t *testing.T, tokens map[string]string, mods ...platform.Module) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
-	appDSN, adminDSN := containerhelpers.StartPostgres(t)
+	appDSN, adminDSN := testinfra.StartPostgres(t)
 	db, err := tenantdb.Open(appDSN, adminDSN)
 	require.NoError(t, err)
 
@@ -53,7 +53,7 @@ func ModuleHarness(t *testing.T, tokens map[string]string, mods ...platform.Modu
 	require.NoError(t, err)
 	require.Empty(t, bad, "tenant tables must carry forced RLS")
 
-	bus, err := events.NewBus(containerhelpers.StartNATS(t))
+	bus, err := events.NewBus(testinfra.StartNATS(t))
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 

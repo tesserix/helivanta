@@ -17,9 +17,12 @@ type Server struct {
 	Engine *gin.Engine
 }
 
-func New(readyChecks []ReadyCheck) *Server {
+func New(readyChecks []ReadyCheck, middlewares ...gin.HandlerFunc) *Server {
 	e := gin.New()
 	e.Use(gin.Recovery())
+	for _, mw := range middlewares {
+		e.Use(mw)
+	}
 	e.GET("/healthz", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 	e.GET("/readyz", func(c *gin.Context) {
 		for _, rc := range readyChecks {

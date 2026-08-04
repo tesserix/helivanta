@@ -18,6 +18,7 @@ import (
 	"github.com/tesserix/hms/internal/modules/pharmacy"
 	"github.com/tesserix/hms/internal/modules/reference"
 	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/hms/internal/platform/requestid"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
@@ -71,10 +72,13 @@ func run() error {
 		return err
 	}
 
-	srv := httpserver.New([]httpserver.ReadyCheck{
-		{Name: "postgres", Check: db.PingContext},
-		{Name: "nats", Check: bus.Ping},
-	})
+	srv := httpserver.New(
+		[]httpserver.ReadyCheck{
+			{Name: "postgres", Check: db.PingContext},
+			{Name: "nats", Check: bus.Ping},
+		},
+		requestid.Middleware(),
+	)
 	deps := platform.Deps{DB: db, Bus: bus}
 	api := srv.Engine.Group("/v1", authn.Middleware(verifier))
 	for _, m := range registry.All() {

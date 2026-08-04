@@ -266,7 +266,7 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 		return c.Handle(ctx, tx, evt)
 	})
 	if err != nil {
-		slog.Error("consumer handle", "consumer", c.Name, "event", evt.ID, "err", err)
+		slog.Error("consumer handle", "consumer", c.Name, "event_id", evt.ID, "tenant_id", evt.TenantID, "err", err)
 		if meta, mErr := msg.Metadata(); mErr == nil && meta.NumDelivered >= maxDeliver {
 			dlqSubject := "hms.dlq." + c.Name
 			if _, pErr := b.js.Publish(dlqSubject, msg.Data); pErr != nil {
@@ -274,13 +274,13 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 				// the live stream and the DLQ if we Term()'d here, so
 				// Nak instead and let the next redelivery retry the
 				// dead-letter attempt.
-				slog.Error("consumer dlq publish failed", "consumer", c.Name, "event", evt.ID,
-					"dlq_subject", dlqSubject, "err", pErr)
+				slog.Error("consumer dlq publish failed", "consumer", c.Name, "event_id", evt.ID,
+					"tenant_id", evt.TenantID, "dlq_subject", dlqSubject, "err", pErr)
 				_ = msg.Nak()
 				return
 			}
-			slog.Error("consumer dead-lettered event", "consumer", c.Name, "event", evt.ID,
-				"num_delivered", meta.NumDelivered, "dlq_subject", dlqSubject)
+			slog.Error("consumer dead-lettered event", "consumer", c.Name, "event_id", evt.ID,
+				"tenant_id", evt.TenantID, "num_delivered", meta.NumDelivered, "dlq_subject", dlqSubject)
 			_ = msg.Term()
 			return
 		}

@@ -122,9 +122,16 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 				return nil
 			}
 			now := time.Now().UTC()
-			if err := tx.Model(&order{}).Where("id = ?", id).
-				Updates(map[string]any{"status": "completed", "result_value": req.ResultValue, "resulted_at": now}).Error; err != nil {
-				return err
+			result := tx.Model(&order{}).Where("id = ? AND status = 'pending'", id).
+				Updates(map[string]any{"status": "completed", "result_value": req.ResultValue, "resulted_at": now})
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				// Lost the race to a concurrent result submission between
+				// the pre-check above and this guarded UPDATE.
+				status = http.StatusConflict
+				return nil
 			}
 			data, err := json.Marshal(resultReadyData{OrderID: row.ID.String(), VisitID: row.VisitID.String()})
 			if err != nil {

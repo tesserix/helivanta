@@ -51,8 +51,8 @@ export const ZONES: Zone[] = [
 ];
 
 export function activeZone(path: string): Zone {
-  if (path.startsWith("/medicore")) return ZONES[1];
-  if (path.startsWith("/pharmacy")) return ZONES[2];
-  if (path.startsWith("/lab")) return ZONES[3];
-  return ZONES[0];
+  const match = ZONES.find(
+    (z) => z.key !== "dashboard" && (path === "/" + z.key || path.startsWith("/" + z.key + "/") || path.startsWith("/" + z.key)),
+  );
+  return match ?? ZONES[0];
 }

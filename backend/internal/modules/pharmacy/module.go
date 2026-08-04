@@ -187,9 +187,16 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 				return nil
 			}
 			now := time.Now().UTC()
-			if err := tx.Model(&dispense{}).Where("id = ?", id).
-				Updates(map[string]any{"status": "dispensed", "medication": req.Medication, "dispensed_at": now}).Error; err != nil {
-				return err
+			result := tx.Model(&dispense{}).Where("id = ? AND status = 'pending'", id).
+				Updates(map[string]any{"status": "dispensed", "medication": req.Medication, "dispensed_at": now})
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				// Lost the race to a concurrent dispense between the
+				// pre-check above and this guarded UPDATE.
+				status = http.StatusConflict
+				return nil
 			}
 			data, err := json.Marshal(dispenseRecordedData{DispenseID: row.ID.String(), VisitID: row.VisitID.String()})
 			if err != nil {

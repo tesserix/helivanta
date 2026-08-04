@@ -9,6 +9,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@hms/ui": "workspace:*",
     "@tesserix/web": "^1.8.0",
     "firebase": "^11.0.0",
     "next": "^16.0.0",

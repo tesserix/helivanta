@@ -1,4 +1,4 @@
-import { HmsShell } from "@/components/hms-shell";
+import { HmsShell } from "@hms/ui";
 
 const ZONES = [
   { href: "/medicore/opd", title: "OPD", desc: "Outpatient registration & appointments" },

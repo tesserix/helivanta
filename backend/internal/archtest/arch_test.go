@@ -5,6 +5,7 @@
 package archtest
 
 import (
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -28,16 +29,26 @@ func allModules() []platform.Module {
 	return []platform.Module{reference.New(), medicore.New(), pharmacy.New(), lab.New()}
 }
 
+// moduleOf maps a package path to its owning module name. Under
+// packages.Config{Tests: true}, a module's own external test package and
+// synthetic test-binary package get distinct PkgPaths built from the
+// module's directory name: "<module>_test" (the external "_test" package)
+// and "<module>.test" (the generated test-main package). Both belong to
+// the same module as far as the cross-module-import rule is concerned, so
+// strip those suffixes before comparing.
 func moduleOf(pkgPath string) string {
 	rest := strings.TrimPrefix(pkgPath, modulesPrefix)
 	if rest == pkgPath {
 		return ""
 	}
-	return strings.SplitN(rest, "/", 2)[0]
+	name := strings.SplitN(rest, "/", 2)[0]
+	name = strings.TrimSuffix(name, ".test")
+	name = strings.TrimSuffix(name, "_test")
+	return name
 }
 
 func TestModulesDoNotImportEachOther(t *testing.T) {
-	pkgs, err := packages.Load(&packages.Config{Mode: packages.NeedName | packages.NeedImports}, modulesPrefix+"...")
+	pkgs, err := packages.Load(&packages.Config{Mode: packages.NeedName | packages.NeedImports, Tests: true}, modulesPrefix+"...")
 	if err != nil {
 		t.Fatalf("load packages: %v", err)
 	}
@@ -98,6 +109,56 @@ func TestPublishedSubjectConstants(t *testing.T) {
 	} {
 		if !subjectRe.MatchString(s) {
 			t.Errorf("%s = %q must match %s", name, s, subjectRe)
+		}
+	}
+}
+
+// moduleLiteralRe finds the `[]platform.Module{...}` literal in main.go's
+// registry loop.
+var moduleLiteralRe = regexp.MustCompile(`\[\]platform\.Module\{([^}]*)\}`)
+
+// moduleCtorRe pulls out `<pkg>.New()` constructor calls from inside the
+// literal.
+var moduleCtorRe = regexp.MustCompile(`(\w+)\.New\(\)`)
+
+// TestMainRegistersExactlyAllModules guards registry parity: every module
+// constructor registered in cmd/api/main.go's `[]platform.Module{...}`
+// literal must also appear in allModules(), and vice versa. Without this,
+// a module added to one but forgotten in the other silently skips either
+// production registration or the arch/coverage checks that walk
+// allModules().
+func TestMainRegistersExactlyAllModules(t *testing.T) {
+	src, err := os.ReadFile("../../cmd/api/main.go")
+	if err != nil {
+		t.Fatalf("read cmd/api/main.go: %v", err)
+	}
+
+	lit := moduleLiteralRe.FindSubmatch(src)
+	if lit == nil {
+		t.Fatalf("could not find []platform.Module{...} literal in cmd/api/main.go")
+	}
+
+	registered := map[string]bool{}
+	for _, m := range moduleCtorRe.FindAllSubmatch(lit[1], -1) {
+		registered[string(m[1])] = true
+	}
+	if len(registered) == 0 {
+		t.Fatalf("found []platform.Module{...} literal but no <pkg>.New() constructors inside it")
+	}
+
+	expected := map[string]bool{}
+	for _, mod := range allModules() {
+		expected[mod.Name()] = true
+	}
+
+	for name := range registered {
+		if !expected[name] {
+			t.Errorf("cmd/api/main.go registers module %q but allModules() in arch_test.go does not include it", name)
+		}
+	}
+	for name := range expected {
+		if !registered[name] {
+			t.Errorf("allModules() in arch_test.go includes module %q but cmd/api/main.go does not register it", name)
 		}
 	}
 }

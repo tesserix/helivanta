@@ -1,0 +1,634 @@
+# HMS backend standards
+
+Binding rules for every module under `backend/internal/modules/*` and the
+shared platform packages (`backend/internal/platform/*`, `backend/pkg/*`).
+"Binding" means: code that doesn't follow these rules should not pass
+review, and where a rule can be machine-enforced it is (golangci-lint,
+`go vet`, arch tests, the coverage gate). Every section below points at a
+real file in this repo — read that file before writing new code in the
+same area.
+
+## 1. Module anatomy
+
+A module is a single Go package at `internal/modules/<name>/module.go`
+implementing `platform.Module` (`backend/internal/platform/module.go`):
+
+```go
+type Module interface {
+	Name() string
+	Migrations() []tenantdb.Migration
+	Routes(r *gin.RouterGroup, deps Deps)
+	Consumers(deps Deps) []events.Consumer
+}
+```
+
+`platform.Deps` (same file) is the only thing a module may depend on —
+`*tenantdb.DB` and `*events.Bus`. There is no other way to reach a
+database connection or the message bus from inside a module.
+
+A module lives entirely in one package: `module.go` (routes, migrations,
+consumers), row structs, request/response types, and `module_test.go`
+all sit at `internal/modules/<name>/` with no sub-packages. See
+`backend/internal/modules/pharmacy/module.go` and
+`backend/internal/modules/medicore/module.go` for the shape.
+
+Registering a module means adding it in **two** places, or its routes
+never mount and its migrations never run:
+
+1. `backend/cmd/api/main.go` — the runtime registry loop:
+   ```go
+   registry := platform.NewRegistry()
+   for _, mod := range []platform.Module{reference.New(), medicore.New(), pharmacy.New(), lab.New()} {
+       if err := registry.Register(mod); err != nil {
+           return err
+       }
+   }
+   ```
+2. `backend/internal/archtest/arch_test.go`'s `allModules()` — the test
+   registry that arch tests (isolation, migration-ID uniqueness, consumer
+   contracts, RLS lint) iterate over. It is deliberately a second literal
+   list, not a shared import of `main.go`'s, so a module wired into one
+   but not the other fails CI instead of silently running unchecked.
+
+Never hand-write a new module from scratch. Run
+`make new-module NAME=<name>` (`backend/scripts/new-module.sh`) — it
+scaffolds `internal/modules/<name>/module.go` and `module_test.go` from
+the pharmacy/medicore template (forced-RLS migration with a status
+`CHECK`, `respond`-helper routes, a published event constant, a consumer
+stub, and `testutil.ModuleHarness`-based tests), `gofmt`s the result, and
+prints the two registration follow-ups above plus a reminder to rename
+the placeholder `item` domain nouns.
+
+## 2. Isolation rules
+
+Modules never import each other. Cross-module data flows only via
+events (section 6) — never a direct function call, never a shared
+repository, never reaching into another module's tables. This is
+enforced twice, for different failure modes:
+
+- **Lint (fast, every save):** `backend/.golangci.yml`'s `depguard`
+  `module-isolation` rule denies any import of
+  `github.com/tesserix/hms/internal/modules` from files under
+  `**/internal/modules/**`:
+  ```yaml
+  depguard:
+    rules:
+      module-isolation:
+        files:
+          - "**/internal/modules/**"
+        deny:
+          - pkg: "github.com/tesserix/hms/internal/modules"
+            desc: "modules must not import other modules — cross-module data flows only via events (spec D3)"
+  ```
+  A module's own `_test.go` package importing itself (e.g.
+  `pharmacy_test` importing `pharmacy`) is a self-import, not
+  cross-module coupling, and carries an explicit
+  `//nolint:depguard // external test package importing the module under
+test (self-import), not cross-module coupling` comment — see the top of
+  `backend/internal/modules/pharmacy/module_test.go`.
+- **Arch test (structural, CI):** `TestModulesDoNotImportEachOther` in
+  `backend/internal/archtest/arch_test.go` loads the real package graph
+  with `golang.org/x/tools/go/packages` and fails if any module package
+  imports a different module's package path, catching transitive imports
+  depguard's glob can miss.
+
+When one module needs to react to another module's write, it consumes
+that module's published event. Pharmacy needs a medicore visit's ID and
+patient name to open a pending dispense — it does not import medicore.
+Instead it repeats medicore's subject string by value and consumes it:
+
+```go
+const (
+	// SubjectVisitCreated is medicore's subject, repeated by value —
+	// modules must not import each other (spec D6 / phase 1).
+	subjectVisitCreated     = "hms.in.medicore.visit_created.v1"
+	SubjectDispenseRecorded = "hms.in.pharmacy.dispense_recorded.v1"
+)
+```
+
+(`backend/internal/modules/pharmacy/module.go`)
+
+## 3. Data access
+
+`*tenantdb.DB` (`backend/pkg/tenantdb/db.go`) is the only database
+handle a module ever sees, and it never exposes a raw `*gorm.DB` field —
+every access goes through one of two methods, each opening its own
+transaction:
+
+- **`WithTenant(ctx, tenantID, fn)`** — the path for every tenant-scoped
+  table. It validates `tenantID` is a UUID, opens a transaction on the
+  app pool (a non-`BYPASSRLS` role), and sets the tenant GUC
+  transaction-local before calling `fn`:
+  ```go
+  func (d *DB) WithTenant(ctx context.Context, tenantID string, fn func(tx *gorm.DB) error) error {
+  	if _, err := uuid.Parse(tenantID); err != nil {
+  		return ErrInvalidTenant
+  	}
+  	return d.app.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+  		if err := tx.Exec(`SELECT set_config('app.tenant_id', ?, true)`, tenantID).Error; err != nil {
+  			return err
+  		}
+  		return fn(tx)
+  	})
+  }
+  ```
+  `set_config(..., true)` (transaction-local, not session-local) matters:
+  an unset GUC makes every RLS policy evaluate to `NULL`, which reads as
+  zero rows rather than an error — a silent data-loss bug, not a crash,
+  if the GUC scoping were session-local and leaked across pooled
+  connections.
+- **`WithSystem(ctx, fn)`** — for platform tables that have no
+  `tenant_id` column at all (the outbox, `processed_events`). It opens a
+  transaction on the same app pool with **no** tenant GUC set, so every
+  RLS-protected tenant table reads as empty inside it — `WithSystem` is
+  not an escape hatch for tenant data, it is the mechanism used to touch
+  the platform tables that predate tenancy.
+
+Every tenant table gets forced RLS in the migration that creates it —
+`ENABLE ROW LEVEL SECURITY` alone is not enough, because a table owner
+(which the migration role effectively is) bypasses ordinary RLS by
+default; `FORCE ROW LEVEL SECURITY` closes that hole. The checklist,
+taken from `backend/internal/modules/pharmacy/module.go`'s
+`pharmacy_medications` migration:
+
+```sql
+CREATE TABLE pharmacy_medications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL,
+  name text NOT NULL,
+  strength text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE pharmacy_medications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pharmacy_medications FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON pharmacy_medications
+  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+CREATE INDEX ON pharmacy_medications (tenant_id, created_at DESC);
+```
+
+Checklist for any new tenant table:
+
+1. `tenant_id uuid NOT NULL` column.
+2. `ENABLE ROW LEVEL SECURITY` **and** `FORCE ROW LEVEL SECURITY`.
+3. A policy with **both** `USING` and `WITH CHECK` clauses scoped to
+   `current_setting('app.tenant_id', true)::uuid` — a policy with only
+   one clause is deliberately flagged by the linter below.
+4. A `(tenant_id, created_at DESC)` index if the table is ever listed
+   (section 4's newest-first-LIMIT-100 rule needs it).
+
+This is not just convention — it's linted twice. `DB.LintRLS`
+(`backend/pkg/tenantdb/db.go`) queries `pg_class`/`pg_policies` for any
+table with a `tenant_id` column that is missing forced RLS or a policy
+carrying both clauses, and `TestAllMigrationsPassRLSLint`
+(`backend/internal/archtest/rls_test.go`) applies every module's
+migrations to a fresh database and runs that lint in CI. Every module
+test built on `testutil.ModuleHarness` (section 9) runs the same lint at
+harness setup, so a missing `FORCE ROW LEVEL SECURITY` fails the very
+first test in the package, not just the dedicated arch test.
+
+## 4. HTTP semantics
+
+Every response goes through `respond` (`backend/internal/platform/respond/respond.go`)
+— handlers never call `c.JSON`/`c.AbortWithStatusJSON` directly:
+
+| Helper                            | Status | Envelope                                            | Use                                                |
+| --------------------------------- | ------ | --------------------------------------------------- | -------------------------------------------------- |
+| `respond.OK(c, data)`             | 200    | `data` unchanged                                    | reads, and successful state transitions            |
+| `respond.Created(c, data)`        | 201    | `data` unchanged                                    | synchronous creates                                |
+| `respond.Accepted(c, data)`       | 202    | `data` unchanged                                    | async creates (section 6 — write lands via outbox) |
+| `respond.NotFound(c, res)`        | 404    | `{"error":"not_found","message":"<res> not found"}` | missing **or cross-tenant** resource               |
+| `respond.Conflict(c, msg)`        | 409    | `{"error":"conflict","message":msg}`                | guarded-UPDATE lost race / bad transition          |
+| `respond.BadRequest(c, err)`      | 400    | `{"error":"invalid_request","message":err.Error()}` | binding/validation failure                         |
+| `respond.Internal(c, msg)`        | 500    | `{"error":"internal","message":msg}`                | unexpected DB/bus error                            |
+| `respond.Unauthenticated(c, msg)` | 401    | `{"error":"unauthenticated","message":msg}`         | missing/invalid credentials (used by `authn`)      |
+
+Error envelope shape (`{"error", "message"}`) and success envelope shape
+(`{"data": [...]}` for lists, raw object for single resources) are
+frozen — a handler must not invent a new response shape.
+
+**404, never 403, for cross-tenant access.** Every read is
+`WithTenant`-scoped (section 3), so a row belonging to another tenant is
+invisible to the query in the first place — the handler cannot even
+distinguish "doesn't exist" from "exists, wrong tenant," and must not try
+to (returning 403 there would leak the row's existence to a
+non-authorized caller). Pharmacy's dispense lookup is the canonical
+example: a cross-tenant `POST .../dispense` fails at
+`tx.First(&row, "id = ?", id)` with `gorm.ErrRecordNotFound` because the
+RLS-scoped transaction never sees the other tenant's row, and the
+handler maps that straight to `respond.NotFound`:
+
+```go
+if errors.Is(err, gorm.ErrRecordNotFound) {
+	respond.NotFound(c, "dispense")
+	return
+}
+```
+
+**409 via a guarded UPDATE**, not a read-then-write race. A
+`SELECT ... FOR UPDATE` followed by a separate `UPDATE` still races
+against a concurrent request between the two statements unless you take
+a row lock and hold the transaction, which this codebase avoids in favor
+of a single conditional `UPDATE ... WHERE status = '<precondition>'` and
+checking `RowsAffected`. From
+`backend/internal/modules/pharmacy/module.go`'s dispense transition:
+
+```go
+err = deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+	var row dispense
+	if err := tx.First(&row, "id = ?", id).Error; err != nil {
+		return err
+	}
+	if row.Status != "pending" {
+		status = http.StatusConflict
+		return nil
+	}
+	now := time.Now().UTC()
+	result := tx.Model(&dispense{}).Where("id = ? AND status = 'pending'", id).
+		Updates(map[string]any{"status": "dispensed", "medication": req.Medication, "dispensed_at": now})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		// Lost the race to a concurrent dispense between the
+		// pre-check above and this guarded UPDATE.
+		status = http.StatusConflict
+		return nil
+	}
+	data, err := json.Marshal(dispenseRecordedData{DispenseID: row.ID.String(), VisitID: row.VisitID.String()})
+	if err != nil {
+		return err
+	}
+	return deps.Bus.Publish(tx, SubjectDispenseRecorded, events.Event{
+		Type: "DispenseRecorded", Version: 1, TenantID: p.TenantID, Data: data,
+	})
+})
+```
+
+The initial `row.Status != "pending"` check is a fast path for the
+common case (already dispensed); the `RowsAffected == 0` check after the
+`WHERE status = 'pending'` UPDATE is what actually closes the race — a
+second concurrent request that passes the fast-path check but loses the
+`UPDATE` still gets `RowsAffected == 0` and 409s correctly. Publishing
+the event happens only after `RowsAffected > 0` confirms this request
+won the transition, and it happens in the same transaction (section 6).
+
+**202 for async creates.** A create whose downstream effects run through
+the outbox/consumer pipeline (section 6) rather than completing
+synchronously in the request returns `respond.Accepted`, not `Created` —
+medicore's visit creation is the reference: the visit row and the
+`visit_created` outbox row commit together, but pharmacy's consumption
+of that event (opening a pending dispense) happens asynchronously, so
+the caller only gets confirmation the write was accepted, not that every
+downstream module has reacted.
+
+**Lists are newest-first, `LIMIT 100`.** Every list handler orders
+`created_at DESC` and caps at 100 rows — there is no pagination yet, so
+an unbounded list query is a footgun the moment a tenant accumulates
+more rows than fits comfortably in one response:
+
+```go
+err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+	return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
+})
+```
+
+(`backend/internal/modules/pharmacy/module.go`'s medication/dispense
+list handlers; the `(tenant_id, created_at DESC)` index from section 3
+is what keeps this cheap.)
+
+## 5. Auth
+
+`authn.TenantPrincipal(c)` (`backend/pkg/authn/authn.go`) is how every
+handler gets the caller's identity — it is never read off the context by
+hand. It extracts the principal set by the auth middleware, parses its
+tenant claim as a UUID, and on failure writes the 401 envelope, aborts
+the request, and returns `ok = false` so the handler's only job is to
+check the bool and return:
+
+```go
+func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
+	g := r.Group("/pharmacy")
+
+	g.POST("/medications", func(c *gin.Context) {
+		p, tenantUUID, ok := authn.TenantPrincipal(c)
+		if !ok {
+			return
+		}
+		// ... p.TenantID / tenantUUID drive every WithTenant call below
+```
+
+`p` is the `authn.Principal{Subject, TenantID}`; `tenantUUID` is the
+already-parsed `uuid.UUID` form, so handlers that need the string form
+(`WithTenant`'s signature) use `p.TenantID` and handlers that need the
+typed form (row structs) use `tenantUUID` — both are returned so neither
+call site re-parses.
+
+**Middleware chain**, wired once in `backend/cmd/api/main.go`:
+
+```go
+srv := httpserver.New(
+	[]httpserver.ReadyCheck{
+		{Name: "postgres", Check: db.PingContext},
+		{Name: "nats", Check: bus.Ping},
+	},
+	requestid.Middleware(),
+)
+api := srv.Engine.Group("/v1", authn.Middleware(verifier))
+```
+
+`requestid.Middleware()` (section 8) runs first, on every route,
+stamping a request ID before auth even runs, so a 401 log line is still
+correlated. `authn.Middleware(verifier)` (`backend/pkg/authn/authn.go`)
+wraps the `/v1` group only — it reads a `Bearer` header or the
+`hms_session` cookie, verifies it via the injected `TokenVerifier`
+(`authn.NewGIPVerifier` in production, `testutil.StaticVerifier` in
+tests), and sets the `authn.Principal` on the Gin context for
+`TenantPrincipal` to read later; a missing or invalid credential aborts
+with 401 before any module handler runs.
+
+## 6. Events
+
+All cross-module data flows through NATS JetStream via
+`*events.Bus` (`backend/pkg/events/bus.go`), never a direct call.
+
+**Subjects** must match
+`^hms\.[a-z]+\.[a-z]+\.[a-z_]+\.v\d+$` (`archtest`'s `subjectRe`) —
+direction, module, event name, version:
+`hms.in.pharmacy.dispense_recorded.v1`. **Consumer names** must match
+`^[a-z]+-[a-z-]+$` (`consumerRe`) — module prefix, purpose:
+`pharmacy-visit-intake`. Both are checked in CI by
+`TestConsumerContracts` and `TestPublishedSubjectConstants` in
+`backend/internal/archtest/arch_test.go`, against every module's
+`Consumers(deps)` and every module's exported `Subject*` constant.
+
+**Versioning is additive, never in-place.** A breaking payload change
+gets a new subject (`...v2`) and a new consumer — the old `v1` consumer
+keeps running against the old subject until every publisher and consumer
+of it is retired. There is no in-place schema migration of an event
+payload; `Event.Data` is `json.RawMessage`
+(`backend/pkg/events/types.go`) precisely so each version's consumer
+decodes only the shape it declares.
+
+**Idempotency is platform-provided, not per-handler.** Every consumer
+message is claimed via an `INSERT ... ON CONFLICT DO NOTHING` into
+`processed_events` keyed on `(consumer, event_id)` before the handler
+runs, inside `Bus.handleMsg`:
+
+```go
+err := db.WithSystem(ctx, func(tx *gorm.DB) error {
+	if _, err := uuid.Parse(evt.TenantID); err == nil {
+		if err := tx.Exec(`SELECT set_config('app.tenant_id', ?, true)`, evt.TenantID).Error; err != nil {
+			return err
+		}
+	}
+	res := tx.Exec(`INSERT INTO processed_events (consumer, event_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
+		c.Name, evt.ID)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return nil // duplicate delivery — no-op (idempotency)
+	}
+	// Handler runs in the SAME tx as the idempotency claim — do not
+	// open your own transaction; rollback of the claim implies
+	// rollback of handler effects.
+	return c.Handle(ctx, tx, evt)
+})
+```
+
+A module's `Consumer.Handle` never opens its own transaction and never
+inserts into `processed_events` itself — both are handled by the bus.
+The tx handed to `Handle` is also tenant-scoped from `evt.TenantID`
+before the handler runs, which is what lets a consumer make
+RLS-forced writes without re-deriving the tenant itself; pharmacy's
+visit-intake consumer relies on exactly this:
+
+```go
+func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
+	return []events.Consumer{{
+		Name:    "pharmacy-visit-intake",
+		Subject: subjectVisitCreated,
+		Handle: func(ctx context.Context, tx *gorm.DB, evt events.Event) error {
+			var d visitCreatedData
+			if err := json.Unmarshal(evt.Data, &d); err != nil {
+				return err
+			}
+			// The bus scoped this tx to evt.TenantID (Task 1), so this
+			// RLS-forced insert lands under the visit's tenant.
+			return tx.Exec(`INSERT INTO pharmacy_dispenses (tenant_id, visit_id, patient_name)
+				VALUES (?, ?, ?)`, evt.TenantID, d.VisitID, d.PatientName).Error
+		},
+	}}
+}
+```
+
+**DLQ behavior:** a message is redelivered up to `maxDeliver` (5) times
+on handler failure (`Nak`); once `NumDelivered >= maxDeliver`, `handleMsg`
+publishes the raw payload to `hms.dlq.<consumer>` and `Term`s the
+original instead of Nak-ing it forever. If the DLQ publish itself fails,
+the message is `Nak`'d (not `Term`'d) so the next redelivery gets another
+chance to dead-letter it — the alternative (`Term` unconditionally) would
+silently drop the event from both the live stream and the DLQ.
+
+**Outbox publishing happens inside the business transaction**, never
+after it commits. `Bus.Publish(tx, subject, evt)` is just an `INSERT`
+into `outbox_events` on the caller's `tx` — it does not touch the
+network:
+
+```go
+func (b *Bus) Publish(tx *gorm.DB, subject string, evt Event) error {
+	// ...
+	return tx.Create(&outboxRow{ID: id, Subject: subject, Payload: payload}).Error
+}
+```
+
+A background `RunDispatcher` loop (started once in `main.go` via
+`go bus.RunDispatcher(ctx, db)`) drains unpublished outbox rows into
+JetStream every 500ms using `FOR UPDATE SKIP LOCKED`. This is what makes
+the write atomic with the "I published this" fact — a crash between the
+business write and a naive direct-publish would either lose the event or
+duplicate the write; committing the outbox row in the same transaction
+as the row it describes means the event is guaranteed to eventually
+publish if and only if the transaction committed. Every module route
+that publishes does so from inside its `WithTenant`/`WithSystem` closure,
+on the same `tx` as the row create — see pharmacy's dispense handler and
+the generated `new-module.sh` template's `items` create handler for the
+pattern.
+
+## 7. Migrations
+
+Every module's `Migrations()` returns `[]tenantdb.Migration{{ID, SQL}}`
+with IDs of the form `NNNN_<module>` — a 4-digit sequence number plus the
+owning module name, e.g. `0001_pharmacy`
+(`backend/internal/modules/pharmacy/module.go`), `0001_events_outbox`
+for the platform-owned events package
+(`backend/pkg/events/bus.go`). `tenantdb.DB.Migrate`
+(`backend/pkg/tenantdb/db.go`) applies each migration's SQL exactly once,
+recording the ID in a `schema_migrations` table with
+`INSERT ... ON CONFLICT DO NOTHING` — the same ID always resolves to the
+same SQL, so migrations are **append-only**: never edit a migration that
+has already shipped, only add a new one with the next sequence number.
+Editing an applied migration's SQL changes nothing on any database that
+already ran it (the `ON CONFLICT DO NOTHING` skips it), so the
+in-repo SQL and the live schema silently diverge.
+
+IDs must be globally unique across every module and the platform-owned
+`events` migrations — two modules independently picking `0001_<name>`
+is fine (the module name makes the full ID unique) but two migrations
+reusing the exact same ID string is not.
+`TestMigrationIDsAreGloballyUnique` in
+`backend/internal/archtest/arch_test.go` collects every module's and
+`events.Migrations()`'s IDs into one map and fails on the first
+collision.
+
+## 8. Logging
+
+`slog` is the only logging package — `logrus` is a hard `depguard` error
+repo-wide (`backend/.golangci.yml`'s `no-logrus` rule, not scoped to
+modules like `module-isolation` is):
+
+```yaml
+no-logrus:
+  deny:
+    - pkg: "github.com/sirupsen/logrus"
+      desc: "slog only (spec D6)"
+```
+
+Inside a request handler, get the **request-scoped** logger via
+`requestid.Logger(c)` (`backend/internal/platform/requestid/requestid.go`)
+rather than `slog.Default()` — it's the default logger pre-bound with
+`request_id`, set once by `requestid.Middleware()`:
+
+```go
+func Middleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.GetHeader("X-Request-ID")
+		if id == "" {
+			id = uuid.NewString()
+		}
+		c.Set(Key, id)
+		c.Set(loggerKey, slog.Default().With("request_id", id))
+		c.Header("X-Request-ID", id)
+		c.Next()
+	}
+}
+```
+
+Standard fields across the codebase: `request_id` (every request-scoped
+log line, via `requestid.Logger`), `module` / `consumer` (which module or
+consumer emitted the line — see the bus's
+`slog.Error("consumer handle", "consumer", c.Name, "event_id", evt.ID, "tenant_id", evt.TenantID, "err", err)`
+in `backend/pkg/events/bus.go`), `event_id` and `tenant_id` (any event
+processing path), and `err` (always the wrapped error value, not
+`err.Error()` — `slog`'s handler renders an `error` value correctly on
+its own).
+
+Wrap errors with `%w`, not `%v` or string concatenation, whenever an
+error crosses a function boundary and the caller might need
+`errors.Is`/`errors.As` on it — `tenantdb.Open` is the pattern:
+
+```go
+app, err := open(appDSN)
+if err != nil {
+	return nil, fmt.Errorf("open app pool: %w", err)
+}
+```
+
+`panic`/`log.Fatal` never appear outside `main.go` — a module or platform
+package returns an `error` and lets the caller decide whether that's
+fatal. `main.go`'s `run()` returns an `error` all the way up to `main()`,
+which is the only place that turns a startup failure into a
+`slog.Error` + `os.Exit(1)`.
+
+## 9. Testing
+
+`testutil.ModuleHarness(t, tokens, mods...)`
+(`backend/internal/testutil/harness.go`) boots the full stack for a
+module test package in one call — ephemeral Postgres, migrations for
+every passed module plus the platform `events` migrations, an RLS lint
+assertion, an ephemeral NATS/JetStream instance, a Gin router with the
+`/v1` group and `authn.Middleware(StaticVerifier(tokens))` wired,
+`Routes`/`Consumers` registered for every module, and the outbox
+dispatcher running in the background:
+
+```go
+func setup(t *testing.T) (*gin.Engine, *tenantdb.DB, context.Context) {
+	r, db, _, ctx := testutil.ModuleHarness(t,
+		map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB},
+		medicore.New())
+	return r, db, ctx
+}
+```
+
+(`backend/internal/modules/medicore/module_test.go`) — `testutil.TenantA`
+/ `testutil.TenantB` are fixed UUID constants, and `StaticVerifier` maps
+a bearer token string straight to a tenant ID so tests never touch a
+real GIP token. `testutil.Do(r, method, path, token, body)` issues an
+authenticated JSON request against the harness router and returns the
+`httptest.ResponseRecorder`.
+
+Every module's test package covers, at minimum, the five cases the
+generator's stub already demonstrates
+(`backend/internal/modules/pharmacy/module_test.go` is the fullest
+real example):
+
+1. **CRUD happy path** — create then list, asserting the created row
+   appears (`TestMedicationsCrud`).
+2. **Tenant isolation** — the same list call under a second token does
+   not see the first tenant's row (`require.NotContains` in
+   `TestMedicationsCrud` / `TestVisitIntakeCreatesPendingDispense`).
+3. **Cross-tenant 404** — a mutating call against another tenant's
+   resource ID returns 404, not 403 (section 4):
+   ```go
+   require.Equal(t, http.StatusNotFound,
+   	do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokB", `{"medication":"Paracetamol 500mg"}`).Code)
+   ```
+4. **Transition 409** — the guarded-UPDATE case: dispensing once
+   succeeds, dispensing again 409s (`TestDispenseFlow`).
+5. **Outbox assertion** — the published event actually landed and was
+   marked published, via `require.Eventually` polling `outbox_events`
+   directly (both `TestCreateAndListVisits` and `TestDispenseFlow`
+   assert this by subject string).
+
+**Arch tests** (`backend/internal/archtest/`) run once for the whole
+repo, not per module: isolation (section 2), migration ID uniqueness
+(section 7), consumer/subject naming (section 6), and the RLS lint
+against every module's migrations applied together (section 3).
+
+**Coverage gate:** `./scripts/coverage-gate.sh`
+(`backend/scripts/coverage-gate.sh`) runs `go test -race -cover ./...`
+and fails if any package under `internal/modules/*`, `pkg/*`,
+`internal/platform`, or `internal/platform/*` reports below
+`COVERAGE_FLOOR` (default 70%). It is not a repo-wide floor — packages
+outside that list (e.g. `cmd/api`) are not gated.
+
+Commands, all run from `backend/` unless using the `make` wrapper from
+repo root:
+
+```bash
+make lint-go          # golangci-lint run ./...
+make coverage-go       # ./scripts/coverage-gate.sh (70% floor)
+go test -race ./...    # full suite, from backend/
+```
+
+## 10. Checklist for a new module
+
+1. `make new-module NAME=<name>` from repo root.
+2. Register `<name>.New()` in `backend/cmd/api/main.go`'s registry loop.
+3. Add `<name>.New()` to `allModules()` in
+   `backend/internal/archtest/arch_test.go`.
+4. Rename the generated `item` domain nouns (table, struct, subjects,
+   routes) to your real ones.
+5. Keep the forced-RLS migration boilerplate (section 3) intact for
+   every tenant table you add.
+6. Every mutating handler starts with `authn.TenantPrincipal(c)`
+   (section 5) and responds only through `respond.*` (section 4).
+7. Guard every status transition with a conditional `UPDATE` +
+   `RowsAffected` check, never read-then-write (section 4).
+8. Publish events on the same `tx` as the row they describe, inside
+   `WithTenant`/`WithSystem` (section 6).
+9. Write the five required test cases against
+   `testutil.ModuleHarness` (section 9).
+10. `make lint-go`, `make coverage-go`, and `go test -race ./...` all
+    green before calling it done.

@@ -6,6 +6,11 @@ export function hmsVitest() {
       globals: true,
       setupFiles: ["@hms/config/vitest-setup"],
       passWithNoTests: true,
+      server: {
+        deps: {
+          inline: ["@tesserix/web"],
+        },
+      },
     },
   };
 }

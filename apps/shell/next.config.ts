@@ -7,7 +7,7 @@ const API_URL = process.env.API_URL ?? "http://localhost:8080";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  transpilePackages: ["@hms/ui"],
+  transpilePackages: ["@hms/ui", "@hms/api"],
   async rewrites() {
     return [
       // Zone stitching (spec D2): shell owns "/" and forwards zone paths.

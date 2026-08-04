@@ -6,7 +6,7 @@ echo "$out"
 fail=0
 while read -r pkg pct; do
   case "$pkg" in
-    github.com/tesserix/hms/internal/modules/*|github.com/tesserix/hms/pkg/*|github.com/tesserix/hms/internal/platform/*) ;;
+    github.com/tesserix/hms/internal/modules/*|github.com/tesserix/hms/pkg/*|github.com/tesserix/hms/internal/platform|github.com/tesserix/hms/internal/platform/*) ;;
     *) continue ;;
   esac
   p="${pct%\%}"

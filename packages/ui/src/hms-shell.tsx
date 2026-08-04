@@ -35,9 +35,10 @@ export function HmsShell({ active, children }: { active: string; children: React
 
   return (
     <div className="flex min-h-screen">
-      {/* Zone rail: icons-only or icons+labels */}
+      {/* Zone rail: icons-only or icons+labels. No border against the page
+          panel — the two rails read as one seamless surface. */}
       <aside
-        className={`flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
+        className={`flex shrink-0 flex-col bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
           railExpanded ? "w-56" : "w-16"
         }`}
       >

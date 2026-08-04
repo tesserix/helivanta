@@ -1,6 +1,15 @@
-import { FlaskConical, HeartPulse, LayoutDashboard, Pill, type LucideIcon } from "lucide-react";
+import {
+  BedDouble,
+  ClipboardList,
+  FlaskConical,
+  HeartPulse,
+  LayoutDashboard,
+  Pill,
+  Stethoscope,
+  type LucideIcon,
+} from "lucide-react";
 
-export type ZonePage = { label: string; href: string };
+export type ZonePage = { label: string; href: string; icon: LucideIcon };
 
 export type Zone = {
   key: string;
@@ -19,7 +28,7 @@ export const ZONES: Zone[] = [
     label: "Dashboard",
     icon: LayoutDashboard,
     href: "/",
-    pages: [{ label: "Departments", href: "/" }],
+    pages: [{ label: "Departments", href: "/", icon: LayoutDashboard }],
   },
   {
     key: "medicore",
@@ -27,8 +36,8 @@ export const ZONES: Zone[] = [
     icon: HeartPulse,
     href: "/medicore/opd",
     pages: [
-      { label: "OPD", href: "/medicore/opd" },
-      { label: "IPD", href: "/medicore/ipd" },
+      { label: "OPD", href: "/medicore/opd", icon: Stethoscope },
+      { label: "IPD", href: "/medicore/ipd", icon: BedDouble },
     ],
   },
   {
@@ -37,8 +46,8 @@ export const ZONES: Zone[] = [
     icon: Pill,
     href: "/pharmacy",
     pages: [
-      { label: "Dispenses", href: "/pharmacy" },
-      { label: "Medications", href: "/pharmacy/medications" },
+      { label: "Dispenses", href: "/pharmacy", icon: Pill },
+      { label: "Medications", href: "/pharmacy/medications", icon: ClipboardList },
     ],
   },
   {
@@ -46,7 +55,7 @@ export const ZONES: Zone[] = [
     label: "Lab",
     icon: FlaskConical,
     href: "/lab",
-    pages: [{ label: "Orders", href: "/lab" }],
+    pages: [{ label: "Orders", href: "/lab", icon: FlaskConical }],
   },
 ];
 

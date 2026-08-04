@@ -51,7 +51,6 @@ export function HmsShell({ active, children }: { active: string; children: React
             {railExpanded && <span className="text-sm font-semibold tracking-wide">HMS</span>}
           </a>
         </div>
-        <div className="border-t border-sidebar-border" />
         <nav
           aria-label="Zones"
           className={`flex flex-1 flex-col gap-1 py-4 ${railExpanded ? "px-3" : "items-center px-0"}`}
@@ -80,7 +79,7 @@ export function HmsShell({ active, children }: { active: string; children: React
           })}
         </nav>
         <div
-          className={`flex flex-col gap-1 border-t border-sidebar-border py-3 ${
+          className={`flex flex-col gap-1 py-3 ${
             railExpanded ? "px-3" : "items-center px-0"
           }`}
         >
@@ -137,7 +136,6 @@ export function HmsShell({ active, children }: { active: string; children: React
             <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-        <div className="border-t border-sidebar-border" />
         <nav aria-label={zone.label} className="flex w-56 flex-col gap-1 px-3 py-4">
           {zone.pages.map((pageLink) => {
             const isActive = active === pageLink.href;
@@ -147,12 +145,13 @@ export function HmsShell({ active, children }: { active: string; children: React
                 href={pageLink.href}
                 aria-current={isActive ? "page" : undefined}
                 tabIndex={panelOpen ? 0 : -1}
-                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-sidebar-accent text-sidebar-foreground"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                 }`}
               >
+                <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                 {pageLink.label}
               </a>
             );

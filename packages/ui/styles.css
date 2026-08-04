@@ -15,7 +15,9 @@
   --sidebar-primary-foreground: #0f172a !important;
   --sidebar-accent: #1e293b !important;
   --sidebar-accent-foreground: #f1f5f9 !important;
-  /* Softer than tesserix-home's #1e293b — hairline at 8% foreground. */
-  --sidebar-border: rgb(226 232 240 / 0.08) !important;
+  /* Dark-on-dark like tesserix admin — reads as a barely-there seam.
+     (Light low-alpha values render full-strength here: the theme
+     pipeline drops the alpha channel.) */
+  --sidebar-border: #1e293b !important;
   --sidebar-ring: #ffffff !important;
 }

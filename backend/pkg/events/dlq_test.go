@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/testutil"
+	"github.com/tesserix/hms/internal/testinfra"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -26,12 +26,12 @@ func TestHandleMsgDeadLettersAfterMaxDeliver(t *testing.T) {
 	ackWait = 200 * time.Millisecond
 	defer func() { ackWait = prevAckWait }()
 
-	appDSN, adminDSN := testutil.StartPostgres(t)
+	appDSN, adminDSN := testinfra.StartPostgres(t)
 	db, err := tenantdb.Open(appDSN, adminDSN)
 	require.NoError(t, err)
 	require.NoError(t, db.Migrate(context.Background(), Migrations()))
 
-	natsURL := testutil.StartNATS(t)
+	natsURL := testinfra.StartNATS(t)
 	bus, err := NewBus(natsURL)
 	require.NoError(t, err)
 	defer bus.Close()

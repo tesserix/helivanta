@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
@@ -73,19 +73,17 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 	g := r.Group("/reference")
 
 	g.POST("/ping", func(c *gin.Context) {
-		p, _ := authn.PrincipalFrom(c)
-		tenantUUID, err := uuid.Parse(p.TenantID)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "invalid tenant"})
+		p, tenantUUID, ok := authn.TenantPrincipal(c)
+		if !ok {
 			return
 		}
 		var req pingRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_request", "message": err.Error()})
+			respond.BadRequest(c, err)
 			return
 		}
 		row := ping{TenantID: tenantUUID, Message: req.Message}
-		err = deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
 			if err := tx.Create(&row).Error; err != nil {
 				return err
 			}
@@ -98,30 +96,36 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 			})
 		})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal", "message": "could not record ping"})
+			respond.Internal(c, "could not record ping")
 			return
 		}
-		c.JSON(http.StatusAccepted, gin.H{"id": row.ID.String()})
+		respond.Accepted(c, gin.H{"id": row.ID.String()})
 	})
 
 	g.GET("/pings", func(c *gin.Context) {
-		p, _ := authn.PrincipalFrom(c)
+		p, _, ok := authn.TenantPrincipal(c)
+		if !ok {
+			return
+		}
 		var rows []ping
 		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
 			return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
 		})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal", "message": "could not list pings"})
+			respond.Internal(c, "could not list pings")
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"data": rows})
+		respond.OK(c, gin.H{"data": rows})
 	})
 
 	g.GET("/pings/:id", func(c *gin.Context) {
-		p, _ := authn.PrincipalFrom(c)
+		p, _, ok := authn.TenantPrincipal(c)
+		if !ok {
+			return
+		}
 		id, err := uuid.Parse(c.Param("id"))
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "not_found", "message": "ping not found"})
+			respond.NotFound(c, "ping")
 			return
 		}
 		var row ping
@@ -130,14 +134,14 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 		})
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// RLS filters cross-tenant rows → identical 404 (issue #2).
-			c.JSON(http.StatusNotFound, gin.H{"error": "not_found", "message": "ping not found"})
+			respond.NotFound(c, "ping")
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal", "message": "could not load ping"})
+			respond.Internal(c, "could not load ping")
 			return
 		}
-		c.JSON(http.StatusOK, row)
+		respond.OK(c, row)
 	})
 }
 

@@ -5,7 +5,6 @@ package medicore
 
 import (
 	"encoding/json"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
@@ -74,19 +74,17 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 	g := r.Group("/medicore")
 
 	g.POST("/visits", func(c *gin.Context) {
-		p, _ := authn.PrincipalFrom(c)
-		tenantUUID, err := uuid.Parse(p.TenantID)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "invalid tenant"})
+		p, tenantUUID, ok := authn.TenantPrincipal(c)
+		if !ok {
 			return
 		}
 		var req createVisitRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_request", "message": err.Error()})
+			respond.BadRequest(c, err)
 			return
 		}
 		row := visit{TenantID: tenantUUID, PatientName: req.PatientName, Department: req.Department}
-		err = deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
 			if err := tx.Create(&row).Error; err != nil {
 				return err
 			}
@@ -101,23 +99,26 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 			})
 		})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal", "message": "could not create visit"})
+			respond.Internal(c, "could not create visit")
 			return
 		}
-		c.JSON(http.StatusAccepted, gin.H{"id": row.ID.String()})
+		respond.Accepted(c, gin.H{"id": row.ID.String()})
 	})
 
 	g.GET("/visits", func(c *gin.Context) {
-		p, _ := authn.PrincipalFrom(c)
+		p, _, ok := authn.TenantPrincipal(c)
+		if !ok {
+			return
+		}
 		var rows []visit
 		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
 			return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
 		})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal", "message": "could not list visits"})
+			respond.Internal(c, "could not list visits")
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"data": rows})
+		respond.OK(c, gin.H{"data": rows})
 	})
 }
 

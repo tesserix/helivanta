@@ -1,4 +1,4 @@
-.PHONY: dev dev-infra dev-down dev-api dev-web seed test test-go test-web e2e
+.PHONY: dev dev-infra dev-down dev-api dev-web seed test test-go coverage-go test-web e2e lint-go new-module
 
 dev-infra:
 	docker compose -f docker-compose.dev.yml up -d --wait postgres nats redis openfga
@@ -25,8 +25,17 @@ test: test-go test-web
 test-go:
 	cd backend && go test -race ./...
 
+lint-go:
+	cd backend && golangci-lint run ./...
+
+coverage-go:
+	cd backend && ./scripts/coverage-gate.sh
+
 test-web:
 	pnpm turbo type-check test build
 
 e2e:
 	pnpm --filter @hms/e2e run test:e2e
+
+new-module:
+	cd backend && ./scripts/new-module.sh $(NAME)

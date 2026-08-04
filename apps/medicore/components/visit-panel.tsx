@@ -1,7 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { z } from "zod";
 import { Badge, Button, Input } from "@tesserix/web";
+import { CalendarPlus } from "lucide-react";
+import { apiFetch, useApiMutation, useApiQuery } from "@hms/api";
+import { EmptyState, Field, formatTime, useZodForm } from "@hms/ui";
 
 type Visit = {
   id: string;
@@ -11,46 +14,26 @@ type Visit = {
   created_at: string;
 };
 
+const visitSchema = z.object({
+  patient_name: z.string().min(1, "Patient name is required").max(200),
+});
+
 export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
-  const [visits, setVisits] = useState<Visit[]>([]);
-  const [patientName, setPatientName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const visits = useApiQuery<{ data: Visit[] }>(["visits"], "/medicore/visits");
+  const form = useZodForm(visitSchema, { patient_name: "" });
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/v1/medicore/visits");
-      if (!res.ok) throw new Error(String(res.status));
-      const body = await res.json();
-      setVisits(body.data ?? []);
-      setError(null);
-    } catch {
-      setError("Could not load visits. Is the API running?");
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function createVisit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      const res = await fetch("/api/v1/medicore/visits", {
+  const createVisit = useApiMutation(
+    (values: z.infer<typeof visitSchema>) =>
+      apiFetch<{ id: string }>("/medicore/visits", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ patient_name: patientName, department }),
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      setPatientName("");
-      await load();
-    } catch {
-      setError("Could not create visit.");
-    } finally {
-      setBusy(false);
-    }
-  }
+        body: JSON.stringify({ ...values, department }),
+      }),
+    {
+      successToast: "Visit created",
+      invalidate: [["visits"]],
+      onSuccess: () => form.reset(),
+    },
+  );
 
   return (
     <section className="max-w-2xl rounded-lg border bg-card">
@@ -60,44 +43,42 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
           New visits open a pending dispense in Pharmacy and a pending order in Lab.
         </p>
       </div>
-      <form onSubmit={createVisit} className="flex flex-wrap items-end gap-3 border-b px-5 py-4">
-        <label
-          htmlFor="visit-patient-name"
-          className="flex min-w-56 flex-1 flex-col gap-1.5 text-sm font-medium"
-        >
-          Patient name
-          <Input
-            id="visit-patient-name"
-            value={patientName}
-            onChange={(e) => setPatientName(e.target.value)}
-            required
-            maxLength={200}
-            placeholder="e.g. Asha Rao"
-          />
-        </label>
-        <Button type="submit" disabled={busy}>
-          {busy ? "Creating…" : "Create visit"}
+      <form
+        noValidate
+        onSubmit={form.handleSubmit((values) => createVisit.mutate(values))}
+        className="flex flex-wrap items-end gap-3 border-b px-5 py-4"
+      >
+        <div className="min-w-56 flex-1">
+          <Field
+            id="patient_name"
+            label="Patient name"
+            error={form.formState.errors.patient_name?.message}
+          >
+            <Input id="patient_name" placeholder="e.g. Asha Rao" {...form.register("patient_name")} />
+          </Field>
+        </div>
+        <Button type="submit" disabled={createVisit.isPending}>
+          {createVisit.isPending ? "Creating…" : "Create visit"}
         </Button>
       </form>
-      {error && (
-        <p role="alert" className="border-b px-5 py-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
       <ul className="divide-y text-sm">
-        {visits.length === 0 && (
-          <li className="px-5 py-8 text-center text-muted-foreground">
-            No visits yet. Create the first one above.
+        {visits.data?.data.length === 0 && (
+          <li>
+            <EmptyState
+              icon={CalendarPlus}
+              title="No visits yet"
+              hint="Create the first one above."
+            />
           </li>
         )}
-        {visits.map((v) => (
+        {visits.data?.data.map((v) => (
           <li key={v.id} className="flex items-center justify-between gap-4 px-5 py-3">
             <div className="flex min-w-0 items-center gap-3">
               <span className="truncate font-medium text-foreground">{v.patient_name}</span>
               <Badge variant="secondary">{v.department}</Badge>
             </div>
             <time className="shrink-0 tabular-nums text-muted-foreground">
-              {new Date(v.created_at).toLocaleTimeString()}
+              {formatTime(v.created_at)}
             </time>
           </li>
         ))}

@@ -14,14 +14,17 @@
     "@hms/api": "workspace:*",
     "@hms/ui": "workspace:*",
     "@tesserix/web": "^1.8.0",
+    "framer-motion": "^12.0.0",
+    "lucide-react": "^0.469.0",
     "next": "^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "framer-motion": "^12.0.0"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@hms/config": "workspace:*",
     "@tailwindcss/postcss": "^4.1.0",
+    "@testing-library/jest-dom": "^6.10.0",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
     "@types/node": "^22",

@@ -30,7 +30,14 @@ describe("DispenseList", () => {
       .mockResolvedValueOnce(jsonResponse(200, { id: "d-1", status: "dispensed" }))
       .mockResolvedValue(
         jsonResponse(200, {
-          data: [{ ...pendingRow, status: "dispensed", medication: "Paracetamol 500mg", dispensed_at: "2026-08-04T04:01:00Z" }],
+          data: [
+            {
+              ...pendingRow,
+              status: "dispensed",
+              medication: "Paracetamol 500mg",
+              dispensed_at: "2026-08-04T04:01:00Z",
+            },
+          ],
         }),
       );
     vi.stubGlobal("fetch", fetchMock);

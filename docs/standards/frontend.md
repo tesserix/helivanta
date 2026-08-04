@@ -13,13 +13,13 @@ HMS is a set of independent Next.js apps ("zones") stitched together by
 the shell at the HTTP layer, not by a monorepo import graph. Each zone
 owns a port, a `basePath`, and its own build.
 
-| App | Port | basePath |
-|---|---|---|
-| `apps/shell` | 4301 | none (owns `/`) |
-| `apps/medicore` | 4302 | `/medicore` |
-| `apps/pharmacy` | 4303 | `/pharmacy` |
-| `apps/lab` | 4304 | `/lab` |
-| next zone | 4305+ | `/<name>` |
+| App             | Port  | basePath        |
+| --------------- | ----- | --------------- |
+| `apps/shell`    | 4301  | none (owns `/`) |
+| `apps/medicore` | 4302  | `/medicore`     |
+| `apps/pharmacy` | 4303  | `/pharmacy`     |
+| `apps/lab`      | 4304  | `/lab`          |
+| next zone       | 4305+ | `/<name>`       |
 
 Every app's `next.config.ts` sets `output: "standalone"` (each zone
 builds and deploys as its own self-contained server) and
@@ -151,11 +151,18 @@ browser's native "Please fill out this field" popup.
 ```tsx
 const form = useZodForm(visitSchema, { patient_name: "" });
 // ...
-<form noValidate onSubmit={form.handleSubmit((values) => createVisit.mutate(values))}>
-  <Field id="patient_name" label="Patient name" error={form.formState.errors.patient_name?.message}>
+<form
+  noValidate
+  onSubmit={form.handleSubmit((values) => createVisit.mutate(values))}
+>
+  <Field
+    id="patient_name"
+    label="Patient name"
+    error={form.formState.errors.patient_name?.message}
+  >
     <Input id="patient_name" {...form.register("patient_name")} />
   </Field>
-</form>
+</form>;
 ```
 
 `Field` renders the error paragraph with `role="alert"` so assistive
@@ -273,7 +280,11 @@ Every zone's root layout wraps `children` in `AppProviders` from
 the `<Toaster />` that sections 3 and 5 depend on. `apps/pharmacy/app/layout.tsx`:
 
 ```tsx
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" data-theme="default">
       <body>

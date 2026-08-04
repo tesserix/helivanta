@@ -18,7 +18,9 @@ type Dispense = {
 
 export function DispenseList() {
   const [medication, setMedication] = useState("Paracetamol 500mg");
-  const dispenses = useApiQuery<{ data: Dispense[] }>(["dispenses"], "/pharmacy/dispenses", { poll: true });
+  const dispenses = useApiQuery<{ data: Dispense[] }>(["dispenses"], "/pharmacy/dispenses", {
+    poll: true,
+  });
 
   const dispenseRow = useApiMutation(
     (id: string) =>
@@ -40,10 +42,15 @@ export function DispenseList() {
         <div>
           <h2 className="text-sm font-semibold text-foreground">Dispense queue</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {pending === 0 ? "Nothing waiting right now." : `${pending} pending dispense${pending === 1 ? "" : "s"}.`}
+            {pending === 0
+              ? "Nothing waiting right now."
+              : `${pending} pending dispense${pending === 1 ? "" : "s"}.`}
           </p>
         </div>
-        <label htmlFor="dispense-medication-filter" className="flex flex-col gap-1.5 text-sm font-medium">
+        <label
+          htmlFor="dispense-medication-filter"
+          className="flex flex-col gap-1.5 text-sm font-medium"
+        >
           Medication
           <Input
             id="dispense-medication-filter"
@@ -81,7 +88,9 @@ export function DispenseList() {
                 onClick={() => dispenseRow.mutate(d.id)}
                 disabled={dispenseRow.isPending && dispenseRow.variables === d.id}
               >
-                {dispenseRow.isPending && dispenseRow.variables === d.id ? "Dispensing…" : "Dispense"}
+                {dispenseRow.isPending && dispenseRow.variables === d.id
+                  ? "Dispensing…"
+                  : "Dispense"}
               </Button>
             ) : (
               <time className="shrink-0 tabular-nums text-muted-foreground">

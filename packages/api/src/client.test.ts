@@ -61,10 +61,7 @@ describe("apiFetch", () => {
   });
 
   it("falls back to a generic error when the body is not the envelope", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(new Response("boom", { status: 500 })),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("boom", { status: 500 })));
     const err = await apiFetch("/x").catch((e: unknown) => e);
     expect((err as ApiError).code).toBe("internal");
   });

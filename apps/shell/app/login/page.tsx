@@ -47,15 +47,9 @@ export default function LoginPage() {
       >
         <div>
           <h1 className="text-xl font-semibold text-foreground">Sign in to HMS</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Hospital Management System
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Hospital Management System</p>
         </div>
-        <Field
-          id="email"
-          label="Email"
-          error={form.formState.errors.email?.message}
-        >
+        <Field id="email" label="Email" error={form.formState.errors.email?.message}>
           <Input
             id="email"
             type="email"
@@ -64,11 +58,7 @@ export default function LoginPage() {
             className="mt-1.5"
           />
         </Field>
-        <Field
-          id="password"
-          label="Password"
-          error={form.formState.errors.password?.message}
-        >
+        <Field id="password" label="Password" error={form.formState.errors.password?.message}>
           <Input
             id="password"
             type="password"

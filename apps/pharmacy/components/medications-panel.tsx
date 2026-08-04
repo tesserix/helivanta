@@ -44,20 +44,12 @@ export function MedicationsPanel() {
         className="flex flex-wrap items-end gap-3 border-b px-5 py-4"
       >
         <div className="min-w-48 flex-1">
-          <Field
-            id="name"
-            label="Name"
-            error={form.formState.errors.name?.message}
-          >
+          <Field id="name" label="Name" error={form.formState.errors.name?.message}>
             <Input id="name" placeholder="e.g. Paracetamol" {...form.register("name")} />
           </Field>
         </div>
         <div className="w-36">
-          <Field
-            id="strength"
-            label="Strength"
-            error={form.formState.errors.strength?.message}
-          >
+          <Field id="strength" label="Strength" error={form.formState.errors.strength?.message}>
             <Input id="strength" placeholder="500mg" {...form.register("strength")} />
           </Field>
         </div>

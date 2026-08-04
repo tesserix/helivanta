@@ -29,10 +29,12 @@
 ### Task 1: events — tenant GUC inside consumer transactions
 
 **Files:**
+
 - Modify: `backend/pkg/events/bus.go` (function `handleMsg`)
 - Test: `backend/pkg/events/bus_test.go` (append one test)
 
 **Interfaces:**
+
 - Consumes: existing `handleMsg(ctx, db, c, msg)` which runs the idempotency claim and `c.Handle(ctx, tx, evt)` in one `WithSystem` transaction.
 - Produces: inside that same transaction, when `evt.TenantID` parses as a UUID, the GUC `app.tenant_id` is set transaction-locally before `Handle` runs — so consumer handlers can INSERT/SELECT tenant-scoped (RLS-forced) rows for the event's tenant. Invalid/empty tenant → GUC stays unset (RLS yields zero rows), unchanged behavior.
 
@@ -148,10 +150,12 @@ git commit -m "feat: scope consumer transactions to the event tenant for rls wri
 ### Task 2: medicore backend module — visits + visit_created event
 
 **Files:**
+
 - Create: `backend/internal/modules/medicore/module.go`
 - Test: `backend/internal/modules/medicore/module_test.go`
 
 **Interfaces:**
+
 - Consumes: `platform.Module`/`platform.Deps` (`Deps{DB *tenantdb.DB, Bus *events.Bus}`), `authn.PrincipalFrom(c) (authn.Principal, bool)` where `Principal{Subject, TenantID string}`, `deps.DB.WithTenant(ctx, tenantID, fn)`, `deps.Bus.Publish(tx, subject, events.Event{Type, Version, TenantID, Data})`.
 - Produces:
   - `medicore.New() *Module` implementing `platform.Module` with `Name() == "medicore"`.
@@ -429,10 +433,12 @@ git commit -m "feat: medicore module with visits and visit_created event"
 ### Task 3: pharmacy backend module — medications, dispenses, visit intake
 
 **Files:**
+
 - Create: `backend/internal/modules/pharmacy/module.go`
 - Test: `backend/internal/modules/pharmacy/module_test.go`
 
 **Interfaces:**
+
 - Consumes: same platform/authn/events surfaces as Task 2. Consumes the event subject string `"hms.in.medicore.visit_created.v1"` with data `{"visit_id","patient_name","department"}` (repeated literal — no import of medicore).
 - Produces:
   - `pharmacy.New() *Module`, `Name() == "pharmacy"`.
@@ -796,10 +802,12 @@ git commit -m "feat: pharmacy module with medications, dispenses and visit intak
 ### Task 4: lab backend module — orders, results, visit intake
 
 **Files:**
+
 - Create: `backend/internal/modules/lab/module.go`
 - Test: `backend/internal/modules/lab/module_test.go`
 
 **Interfaces:**
+
 - Consumes: same surfaces as Task 3; event subject literal `"hms.in.medicore.visit_created.v1"`.
 - Produces:
   - `lab.New() *Module`, `Name() == "lab"`.
@@ -1082,10 +1090,12 @@ git commit -m "feat: lab module with orders, results and visit intake"
 ### Task 5: Register modules + cross-module journey integration test
 
 **Files:**
+
 - Modify: `backend/cmd/api/main.go` (registration block)
 - Create: `backend/internal/journey/journey_test.go` (test-only package)
 
 **Interfaces:**
+
 - Consumes: `medicore.New()`, `pharmacy.New()`, `lab.New()` (Tasks 2–4), the registry/migration/consumer wiring already in `run()`.
 - Produces: the running API serves all four modules; the journey test proves visit → pending dispense AND pending lab order for the right tenant only.
 
@@ -1249,9 +1259,11 @@ git commit -m "feat: register phase 2 modules and add cross-module journey test"
 ### Task 6: `packages/ui` — @hms/ui with two-rail sidebar, zone registry, tokens
 
 **Files:**
+
 - Create: `packages/ui/package.json`, `packages/ui/tsconfig.json`, `packages/ui/src/index.ts`, `packages/ui/src/zones.ts`, `packages/ui/src/hms-shell.tsx`, `packages/ui/styles.css`
 
 **Interfaces:**
+
 - Produces (consumed by Tasks 7–9):
   - `import { HmsShell } from "@hms/ui"` — props `{ active: string; children: React.ReactNode }` where `active` is the current absolute path (e.g. `/medicore/opd`). Server-component-safe (no hooks). Renders icon rail + secondary panel + header + `<main>`.
   - `import { ZONES, activeZone } from "@hms/ui"` — `Zone = { key, label, icon, href, pages: {label, href}[] }`; `activeZone(path: string): Zone`.
@@ -1308,7 +1320,13 @@ git commit -m "feat: register phase 2 modules and add cross-module journey test"
 `packages/ui/src/zones.ts`:
 
 ```ts
-import { FlaskConical, HeartPulse, LayoutDashboard, Pill, type LucideIcon } from "lucide-react";
+import {
+  FlaskConical,
+  HeartPulse,
+  LayoutDashboard,
+  Pill,
+  type LucideIcon,
+} from "lucide-react";
 
 export type ZonePage = { label: string; href: string };
 
@@ -1381,7 +1399,13 @@ import { ZONES, activeZone } from "./zones";
 // rail switching zones + a 14rem panel listing the active zone's pages.
 // No hooks — active state comes in as a prop, so this stays a server
 // component and works identically in every zone app.
-export function HmsShell({ active, children }: { active: string; children: ReactNode }) {
+export function HmsShell({
+  active,
+  children,
+}: {
+  active: string;
+  children: ReactNode;
+}) {
   const zone = activeZone(active);
 
   return (
@@ -1397,7 +1421,10 @@ export function HmsShell({ active, children }: { active: string; children: React
             H
           </a>
         </div>
-        <nav aria-label="Zones" className="flex flex-1 flex-col items-center gap-2 py-4">
+        <nav
+          aria-label="Zones"
+          className="flex flex-1 flex-col items-center gap-2 py-4"
+        >
           {ZONES.map((z) => {
             const isActive = z.key === zone.key;
             return (
@@ -1433,7 +1460,9 @@ export function HmsShell({ active, children }: { active: string; children: React
       {/* Secondary panel: active zone's pages */}
       <aside className="flex w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
         <div className="flex h-16 items-center px-5">
-          <h2 className="text-sm font-semibold text-sidebar-foreground">{zone.label}</h2>
+          <h2 className="text-sm font-semibold text-sidebar-foreground">
+            {zone.label}
+          </h2>
         </div>
         <div className="border-t border-sidebar-border" />
         <nav aria-label={zone.label} className="flex flex-col gap-1 px-3 py-4">
@@ -1460,8 +1489,13 @@ export function HmsShell({ active, children }: { active: string; children: React
       {/* Content */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center justify-between border-b px-6">
-          <span className="text-sm text-muted-foreground">Hospital Management System</span>
-          <a href="/logout" className="text-sm underline-offset-4 hover:underline">
+          <span className="text-sm text-muted-foreground">
+            Hospital Management System
+          </span>
+          <a
+            href="/logout"
+            className="text-sm underline-offset-4 hover:underline"
+          >
             Sign out
           </a>
         </header>
@@ -1516,10 +1550,12 @@ git commit -m "feat: hms ui package with two-rail sidebar and zone registry"
 ### Task 7: Migrate shell + medicore apps to @hms/ui
 
 **Files:**
+
 - Delete: `apps/shell/components/hms-shell.tsx`, `apps/medicore/components/hms-shell.tsx`
 - Modify: `apps/shell/package.json`, `apps/medicore/package.json` (add `"@hms/ui": "workspace:*"` to dependencies), `apps/shell/next.config.ts`, `apps/medicore/next.config.ts` (add `transpilePackages: ["@hms/ui"]`), `apps/shell/app/globals.css`, `apps/medicore/app/globals.css`, `apps/shell/app/page.tsx`, `apps/medicore/app/opd/page.tsx`, `apps/medicore/app/ipd/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `HmsShell` from `@hms/ui` (Task 6).
 - Produces: both apps render the shared two-rail chrome; no local `hms-shell.tsx` copies remain in the repo.
 
@@ -1577,10 +1613,12 @@ git commit -m "refactor: shell and medicore consume shared two-rail chrome from 
 ### Task 8: apps/pharmacy zone app + shell rewrite
 
 **Files:**
+
 - Create: `apps/pharmacy/package.json`, `apps/pharmacy/next.config.ts`, `apps/pharmacy/tsconfig.json`, `apps/pharmacy/postcss.config.mjs`, `apps/pharmacy/next-env.d.ts` (generated), `apps/pharmacy/app/layout.tsx`, `apps/pharmacy/app/globals.css`, `apps/pharmacy/app/page.tsx`, `apps/pharmacy/app/medications/page.tsx`, `apps/pharmacy/components/dispense-list.tsx`, `apps/pharmacy/components/medications-panel.tsx`
 - Modify: `apps/shell/next.config.ts` (pharmacy rewrite)
 
 **Interfaces:**
+
 - Consumes: `HmsShell` from `@hms/ui`; API routes `GET /api/v1/pharmacy/dispenses`, `POST /api/v1/pharmacy/dispenses/:id/dispense`, `GET/POST /api/v1/pharmacy/medications` (same-origin fetches; session cookie flows automatically).
 - Produces: pharmacy zone at `/pharmacy` (port 4303) with Dispenses and Medications pages; shell stitches `/pharmacy/*`.
 
@@ -1754,13 +1792,20 @@ export function DispenseList() {
         </p>
       )}
       <ul className="divide-y rounded-md border text-sm">
-        {rows.length === 0 && <li className="p-3 text-muted-foreground">No dispense tasks yet.</li>}
+        {rows.length === 0 && (
+          <li className="p-3 text-muted-foreground">No dispense tasks yet.</li>
+        )}
         {rows.map((d) => (
-          <li key={d.id} className="flex items-center justify-between gap-4 p-3">
+          <li
+            key={d.id}
+            className="flex items-center justify-between gap-4 p-3"
+          >
             <div className="min-w-0">
               <div className="font-medium">{d.patient_name}</div>
               <div className="text-muted-foreground">
-                {d.status === "dispensed" ? `Dispensed ${d.medication}` : "Pending dispense"}
+                {d.status === "dispensed"
+                  ? `Dispensed ${d.medication}`
+                  : "Pending dispense"}
               </div>
             </div>
             {d.status === "pending" ? (
@@ -1789,7 +1834,12 @@ export function DispenseList() {
 
 import { useCallback, useEffect, useState } from "react";
 
-type Medication = { id: string; name: string; strength: string; created_at: string };
+type Medication = {
+  id: string;
+  name: string;
+  strength: string;
+  created_at: string;
+};
 
 export function MedicationsPanel() {
   const [rows, setRows] = useState<Medication[]>([]);
@@ -1868,7 +1918,9 @@ export function MedicationsPanel() {
         </p>
       )}
       <ul className="divide-y rounded-md border text-sm">
-        {rows.length === 0 && <li className="p-3 text-muted-foreground">No medications yet.</li>}
+        {rows.length === 0 && (
+          <li className="p-3 text-muted-foreground">No medications yet.</li>
+        )}
         {rows.map((m) => (
           <li key={m.id} className="flex justify-between p-3">
             <span>{m.name}</span>
@@ -1913,10 +1965,12 @@ git commit -m "feat: pharmacy zone app with dispenses and medications pages"
 ### Task 9: apps/lab zone app + shell rewrite
 
 **Files:**
+
 - Create: `apps/lab/package.json`, `apps/lab/next.config.ts`, `apps/lab/tsconfig.json`, `apps/lab/postcss.config.mjs`, `apps/lab/app/layout.tsx`, `apps/lab/app/globals.css`, `apps/lab/app/page.tsx`, `apps/lab/components/order-list.tsx`
 - Modify: `apps/shell/next.config.ts` (lab rewrite)
 
 **Interfaces:**
+
 - Consumes: `HmsShell` from `@hms/ui`; API routes `GET /api/v1/lab/orders`, `POST /api/v1/lab/orders/:id/result`.
 - Produces: lab zone at `/lab` (port 4304) with the Orders page; shell stitches `/lab/*`.
 
@@ -2023,15 +2077,22 @@ export function OrderList() {
         </p>
       )}
       <ul className="divide-y rounded-md border text-sm">
-        {rows.length === 0 && <li className="p-3 text-muted-foreground">No lab orders yet.</li>}
+        {rows.length === 0 && (
+          <li className="p-3 text-muted-foreground">No lab orders yet.</li>
+        )}
         {rows.map((o) => (
-          <li key={o.id} className="flex items-center justify-between gap-4 p-3">
+          <li
+            key={o.id}
+            className="flex items-center justify-between gap-4 p-3"
+          >
             <div className="min-w-0">
               <div className="font-medium">
                 {o.patient_name} — {o.test_name}
               </div>
               <div className="text-muted-foreground">
-                {o.status === "completed" ? `Result: ${o.result_value}` : "Awaiting result"}
+                {o.status === "completed"
+                  ? `Result: ${o.result_value}`
+                  : "Awaiting result"}
               </div>
             </div>
             {o.status === "pending" ? (
@@ -2042,7 +2103,9 @@ export function OrderList() {
                 <input
                   id={`result-${o.id}`}
                   value={drafts[o.id] ?? ""}
-                  onChange={(e) => setDrafts((d) => ({ ...d, [o.id]: e.target.value }))}
+                  onChange={(e) =>
+                    setDrafts((d) => ({ ...d, [o.id]: e.target.value }))
+                  }
                   placeholder="e.g. WBC 6.1"
                   className="w-40 rounded-md border px-3 py-2"
                 />
@@ -2097,10 +2160,12 @@ git commit -m "feat: lab zone app with orders and results page"
 ### Task 10: medicore OPD — new visit form + visit list
 
 **Files:**
+
 - Create: `apps/medicore/components/visit-panel.tsx`
 - Modify: `apps/medicore/app/opd/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `POST /api/v1/medicore/visits` `{"patient_name","department"}` → `202 {"id"}`; `GET /api/v1/medicore/visits` → `{"data":[{id, patient_name, department, status, created_at}]}` (Task 2).
 - Produces: OPD page where the E2E test creates a visit by filling "Patient name" and clicking "Create visit", then sees the patient in the visit list.
 
@@ -2189,13 +2254,18 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
         </p>
       )}
       <ul className="divide-y rounded-md border text-sm">
-        {visits.length === 0 && <li className="p-3 text-muted-foreground">No visits yet.</li>}
+        {visits.length === 0 && (
+          <li className="p-3 text-muted-foreground">No visits yet.</li>
+        )}
         {visits.map((v) => (
           <li key={v.id} className="flex justify-between p-3">
             <span>
-              {v.patient_name} <span className="text-muted-foreground">({v.department})</span>
+              {v.patient_name}{" "}
+              <span className="text-muted-foreground">({v.department})</span>
             </span>
-            <time className="text-muted-foreground">{new Date(v.created_at).toLocaleTimeString()}</time>
+            <time className="text-muted-foreground">
+              {new Date(v.created_at).toLocaleTimeString()}
+            </time>
           </li>
         ))}
       </ul>
@@ -2243,9 +2313,11 @@ git commit -m "feat: opd visit creation form and visit list"
 ### Task 11: E2E — extend Playwright smoke to the full journey
 
 **Files:**
+
 - Modify: `e2e/tests/smoke.spec.ts`
 
 **Interfaces:**
+
 - Consumes: UI from Tasks 7–10 running behind the shell at `http://localhost:4301` (config unchanged); seeded user `test@hms.dev` / `password123`.
 - Produces: one spec covering login → OPD visit → pharmacy dispense → lab result. Event propagation is async — assertions use Playwright auto-retrying `expect` with generous timeouts, and the zone pages self-refresh every 3s.
 
@@ -2266,7 +2338,9 @@ test("login, OPD visit, pharmacy dispense, lab result", async ({ page }) => {
   await page.getByLabel("Email").fill("test@hms.dev");
   await page.getByLabel("Password").fill("password123");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Departments" }),
+  ).toBeVisible();
 
   // Shell → medicore (hard navigation across the zone boundary).
   await page.getByRole("link", { name: "OPD", exact: true }).first().click();
@@ -2280,16 +2354,22 @@ test("login, OPD visit, pharmacy dispense, lab result", async ({ page }) => {
   // Pharmacy zone: visit_created fans out asynchronously; the page
   // polls every 3s, so just wait for the patient to appear.
   await page.goto("/pharmacy");
-  await expect(page.getByText(patient).first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(patient).first()).toBeVisible({
+    timeout: 30_000,
+  });
   await page
     .locator("li", { hasText: patient })
     .getByRole("button", { name: "Dispense" })
     .click();
-  await expect(page.locator("li", { hasText: patient }).getByText(/Dispensed/)).toBeVisible();
+  await expect(
+    page.locator("li", { hasText: patient }).getByText(/Dispensed/),
+  ).toBeVisible();
 
   // Lab zone: pending order for the same visit; record a result.
   await page.goto("/lab");
-  await expect(page.getByText(patient).first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(patient).first()).toBeVisible({
+    timeout: 30_000,
+  });
   const orderRow = page.locator("li", { hasText: patient });
   await orderRow.getByLabel(`Result for ${patient}`).fill("WBC 6.1");
   await orderRow.getByRole("button", { name: "Save result" }).click();

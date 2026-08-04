@@ -81,11 +81,7 @@ export function HmsShell({ active, children }: { active: string; children: React
             );
           })}
         </nav>
-        <div
-          className={`flex flex-col gap-1 py-3 ${
-            railExpanded ? "px-3" : "items-center px-0"
-          }`}
-        >
+        <div className={`flex flex-col gap-1 py-3 ${railExpanded ? "px-3" : "items-center px-0"}`}>
           <a
             href="/logout"
             title={railExpanded ? undefined : "Sign out"}
@@ -140,7 +136,10 @@ export function HmsShell({ active, children }: { active: string; children: React
           </button>
         </div>
         <div className="hms-sidebar-border border-t" />
-        <nav aria-label={zone.label} className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+        <nav
+          aria-label={zone.label}
+          className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"
+        >
           {zone.pages.map((pageLink) => {
             const isActive = active === pageLink.href;
             return (

@@ -28,11 +28,13 @@
 ### Task 1: `@hms/config` — ESLint, Prettier, Vitest presets wired into every app
 
 **Files:**
+
 - Create: `packages/config/eslint.config.mjs`, `packages/config/prettier.config.mjs`, `packages/config/vitest-preset.mjs`, `packages/config/vitest.setup.ts`
 - Modify: `packages/config/package.json`, `turbo.json`, `.github/workflows/ci.yml`, every `apps/*/package.json` (lint/test scripts + devDeps), `apps/*/eslint.config.mjs` (create per app), `packages/ui/package.json`
 - Test: running `pnpm turbo lint` across the repo
 
 **Interfaces:**
+
 - Produces: `@hms/config/eslint` (flat-config array factory `hmsEslint(dirname)`), `@hms/config/prettier`, `@hms/config/vitest` (vitest `defineProject`-compatible preset object factory `hmsVitest(dirname)`), setup file registering jest-dom matchers. Apps consume via 3-line config files. Turbo gains `lint` and keeps `test`; CI web job runs `pnpm turbo lint type-check test build`.
 
 - [ ] **Step 1: Update `packages/config/package.json`**
@@ -92,7 +94,8 @@ export function hmsEslint(rootDir) {
           "error",
           {
             selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
-            message: "Use sanitizeHtml from @hms/ui instead of raw dangerouslySetInnerHTML.",
+            message:
+              "Use sanitizeHtml from @hms/ui instead of raw dangerouslySetInnerHTML.",
           },
         ],
       },
@@ -191,7 +194,7 @@ In `turbo.json` tasks add:
 (`test` already exists.) In `.github/workflows/ci.yml` web job change the turbo line to:
 
 ```yaml
-      - run: pnpm turbo lint type-check test build
+- run: pnpm turbo lint type-check test build
 ```
 
 - [ ] **Step 7: Install, lint, fix violations**
@@ -214,10 +217,12 @@ git commit -m "feat: shared eslint, prettier and vitest configs wired into all a
 ### Task 2: `@hms/api` — typed client, envelope, poll constant, env helper
 
 **Files:**
+
 - Create: `packages/api/package.json`, `packages/api/tsconfig.json`, `packages/api/eslint.config.mjs`, `packages/api/vitest.config.mts`, `packages/api/src/index.ts`, `packages/api/src/client.ts`, `packages/api/src/env.ts`
 - Test: `packages/api/src/client.test.ts`, `packages/api/src/env.test.ts`
 
 **Interfaces:**
+
 - Produces (consumed by Tasks 3, 6–8):
   - `apiFetch<T>(path: string, init?: RequestInit): Promise<T>` — prefixes `/api/v1`, sends/parses JSON, throws `ApiError` on non-2xx.
   - `class ApiError extends Error { code: string; status: number }` — `code` from the envelope's `error` field (fallback `"internal"`), `message` from `message` (fallback generic).
@@ -292,7 +297,10 @@ describe("apiFetch", () => {
   it("prefixes /api/v1 and returns parsed JSON", async () => {
     const fn = mockFetch(200, { data: [{ id: "1" }] });
     const body = await apiFetch<{ data: { id: string }[] }>("/medicore/visits");
-    expect(fn).toHaveBeenCalledWith("/api/v1/medicore/visits", expect.any(Object));
+    expect(fn).toHaveBeenCalledWith(
+      "/api/v1/medicore/visits",
+      expect.any(Object),
+    );
     expect(body.data[0].id).toBe("1");
   });
 
@@ -303,7 +311,9 @@ describe("apiFetch", () => {
       body: JSON.stringify({ patient_name: "X" }),
     });
     const init = fn.mock.calls[0][1] as RequestInit;
-    expect(new Headers(init.headers).get("Content-Type")).toBe("application/json");
+    expect(new Headers(init.headers).get("Content-Type")).toBe(
+      "application/json",
+    );
   });
 
   it("throws a typed ApiError from the platform envelope", async () => {
@@ -339,7 +349,10 @@ import { defineEnv } from "./env";
 
 describe("defineEnv", () => {
   it("returns parsed values", () => {
-    const env = defineEnv({ API_URL: z.string().url() }, { API_URL: "http://localhost:8080" });
+    const env = defineEnv(
+      { API_URL: z.string().url() },
+      { API_URL: "http://localhost:8080" },
+    );
     expect(env.API_URL).toBe("http://localhost:8080");
   });
 
@@ -381,7 +394,10 @@ type Envelope = { error?: string; message?: string };
 
 // Same-origin client for the Go API. Every zone reaches the backend
 // through its /api rewrite, so the session cookie flows automatically.
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function apiFetch<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
   const res = await fetch(`${API_PREFIX}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...init.headers },
@@ -416,7 +432,9 @@ export function defineEnv<S extends z.ZodRawShape>(
 ): z.infer<z.ZodObject<S>> {
   const parsed = z.object(shape).safeParse(values);
   if (!parsed.success) {
-    const lines = parsed.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`);
+    const lines = parsed.error.issues.map(
+      (i) => `  ${i.path.join(".")}: ${i.message}`,
+    );
     throw new Error(`Invalid environment:\n${lines.join("\n")}`);
   }
   return parsed.data;
@@ -447,11 +465,13 @@ git commit -m "feat: hms api package with typed client, envelope errors and env 
 ### Task 3: `@hms/api` — AppProviders, query/mutation hooks, testing utils
 
 **Files:**
+
 - Create: `packages/api/src/providers.tsx`, `packages/api/src/hooks.ts`, `packages/api/src/testing.tsx`
 - Modify: `packages/api/src/index.ts`
 - Test: `packages/api/src/hooks.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `apiFetch`, `ApiError`, `POLL_INTERVAL_MS` (Task 2).
 - Produces (consumed by Tasks 5–8):
   - `<AppProviders>{children}</AppProviders>` — client component mounting `QueryClientProvider` (staleTime 5s, retry 1) and sonner `<Toaster richColors position="top-right" />`.
@@ -606,7 +626,9 @@ import type { ReactElement } from "react";
 // Component-test harness: fresh query client (no retries), toast outlet,
 // and a wired-up user-event instance.
 export function renderWithProviders(ui: ReactElement) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   const user = userEvent.setup();
   const result = render(
     <QueryClientProvider client={client}>
@@ -644,11 +666,13 @@ git commit -m "feat: app providers with react query and sonner plus typed hooks"
 ### Task 4: `@hms/ui` UX kit — ConfirmDialog, form primitives, EmptyState, formatters, sanitizeHtml
 
 **Files:**
+
 - Create: `packages/ui/src/confirm-dialog.tsx`, `packages/ui/src/form.tsx`, `packages/ui/src/empty-state.tsx`, `packages/ui/src/format.ts`, `packages/ui/src/sanitize.ts`
 - Modify: `packages/ui/src/index.ts`, `packages/ui/package.json`
 - Test: `packages/ui/src/confirm-dialog.test.tsx`, `packages/ui/src/form.test.tsx`, `packages/ui/src/format.test.ts`
 
 **Interfaces:**
+
 - Consumes: `@tesserix/web` `Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Button, Input, Label`; `react-hook-form`; `zod`; `dompurify`.
 - Produces (consumed by Tasks 6–8 and the generator):
   - `<ConfirmDialog open onOpenChange title description confirmLabel onConfirm busy? />` — destructive-styled confirm button; the ONLY sanctioned confirmation UI.
@@ -738,7 +762,9 @@ describe("useZodForm + Field", () => {
     const onValid = vi.fn();
     render(<Probe onValid={onValid} />);
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Name is required");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Name is required",
+    );
     expect(onValid).not.toHaveBeenCalled();
     await user.type(screen.getByLabelText("Name"), "Asha");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -812,7 +838,11 @@ export function ConfirmDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={busy}
+          >
             Cancel
           </Button>
           <Button variant="destructive" onClick={onConfirm} disabled={busy}>
@@ -957,11 +987,13 @@ git commit -m "feat: ux kit with confirm dialog, zod forms, empty state and form
 ### Task 5: App Router conventions — providers, error/loading/not-found, .env.example
 
 **Files:**
+
 - Modify: `apps/{shell,medicore,pharmacy,lab}/app/layout.tsx`, `apps/{shell,medicore,pharmacy,lab}/package.json` (add `"@hms/api": "workspace:*"`, extend `transpilePackages` in next.config.ts to `["@hms/ui", "@hms/api"]`)
 - Create per app: `app/error.tsx`, `app/loading.tsx`, `app/not-found.tsx`, `.env.example`
 - Create: `apps/shell/lib/env.ts` (typed env for the firebase vars)
 
 **Interfaces:**
+
 - Consumes: `AppProviders` (Task 3), `defineEnv` (Task 2), `@tesserix/web` `ListSkeleton` (or `Skeleton`).
 - Produces: every zone renders inside `AppProviders`; every zone has friendly error/loading/not-found; `.env.example` documents each app's vars.
 
@@ -976,7 +1008,11 @@ import "./globals.css";
 
 export const metadata: Metadata = { title: "HMS" };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" data-theme="default">
       <body>
@@ -1007,7 +1043,9 @@ export default function ErrorBoundary({
 }) {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-      <h1 className="text-xl font-semibold text-foreground">Something went wrong</h1>
+      <h1 className="text-xl font-semibold text-foreground">
+        Something went wrong
+      </h1>
       <p className="max-w-md text-sm text-muted-foreground">
         {error.message || "An unexpected error occurred."}
       </p>
@@ -1041,7 +1079,11 @@ export default function NotFound() {
     <main className="flex min-h-screen flex-col items-center justify-center gap-2 p-6 text-center">
       <h1 className="text-xl font-semibold text-foreground">Page not found</h1>
       <p className="text-sm text-muted-foreground">
-        Check the address, or head back to the <a className="underline underline-offset-4" href="/">dashboard</a>.
+        Check the address, or head back to the{" "}
+        <a className="underline underline-offset-4" href="/">
+          dashboard
+        </a>
+        .
       </p>
     </main>
   );
@@ -1110,10 +1152,12 @@ git commit -m "feat: app providers, error and loading boundaries, typed env exam
 ### Task 6: Migrate medicore panels (visits + pings) to the standard stack
 
 **Files:**
+
 - Modify: `apps/medicore/components/visit-panel.tsx`, `apps/medicore/components/ping-panel.tsx`, `apps/medicore/package.json` (add `"@hms/api": "workspace:*"` if Task 5 didn't, plus test devDeps already present)
 - Test: `apps/medicore/components/visit-panel.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `useApiQuery`, `useApiMutation`, `apiFetch` (`@hms/api`); `Field`, `useZodForm`, `EmptyState`, `formatTime` (`@hms/ui`); `Badge`, `Button`, `Input` (`@tesserix/web`); `renderWithProviders` (`@hms/api/testing`).
 - Produces: the reference form + list implementation the standards doc links to. E2E strings preserved: label "Patient name", button "Create visit".
 
@@ -1166,7 +1210,9 @@ describe("VisitPanel", () => {
     await user.type(screen.getByLabelText("Patient name"), "Asha Rao");
     await user.click(screen.getByRole("button", { name: "Create visit" }));
 
-    await waitFor(() => expect(screen.getByText("Asha Rao")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Asha Rao")).toBeInTheDocument(),
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/medicore/visits",
       expect.objectContaining({ method: "POST" }),
@@ -1174,9 +1220,14 @@ describe("VisitPanel", () => {
   });
 
   it("shows an inline error when the name is empty", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, { data: [] })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse(200, { data: [] })),
+    );
     const { user } = renderWithProviders(<VisitPanel department="OPD" />);
-    await user.click(await screen.findByRole("button", { name: "Create visit" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Create visit" }),
+    );
     expect(await screen.findByRole("alert")).toHaveTextContent(/required/i);
   });
 });
@@ -1232,7 +1283,8 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
       <div className="border-b px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">Visits</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          New visits open a pending dispense in Pharmacy and a pending order in Lab.
+          New visits open a pending dispense in Pharmacy and a pending order in
+          Lab.
         </p>
       </div>
       <form
@@ -1246,7 +1298,11 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
             label="Patient name"
             error={form.formState.errors.patient_name?.message}
           >
-            <Input id="patient_name" placeholder="e.g. Asha Rao" {...form.register("patient_name")} />
+            <Input
+              id="patient_name"
+              placeholder="e.g. Asha Rao"
+              {...form.register("patient_name")}
+            />
           </Field>
         </div>
         <Button type="submit" disabled={createVisit.isPending}>
@@ -1264,9 +1320,14 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
           </li>
         )}
         {visits.data?.data.map((v) => (
-          <li key={v.id} className="flex items-center justify-between gap-4 px-5 py-3">
+          <li
+            key={v.id}
+            className="flex items-center justify-between gap-4 px-5 py-3"
+          >
             <div className="flex min-w-0 items-center gap-3">
-              <span className="truncate font-medium text-foreground">{v.patient_name}</span>
+              <span className="truncate font-medium text-foreground">
+                {v.patient_name}
+              </span>
               <Badge variant="secondary">{v.department}</Badge>
             </div>
             <time className="shrink-0 tabular-nums text-muted-foreground">
@@ -1282,7 +1343,7 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
 
 - [ ] **Step 4: Rewrite `ping-panel.tsx` the same way**
 
-Query `["pings"]` → `/reference/pings` (no polling), mutation POST `/reference/ping` with body `{ message: \`${department} ping\` }`, `successToast: "Ping sent"`, `invalidate: [["pings"]]`. Keep the card layout, `Button variant="outline"` labelled `` `Ping from ${department}` ``, `EmptyState` (icon `Activity` from lucide-react, title "No activity yet"), `formatTime` for timestamps. No form (single button) — no zod needed.
+Query `["pings"]` → `/reference/pings` (no polling), mutation POST `/reference/ping` with body `{ message: \`${department} ping\` }`, `successToast: "Ping sent"`, `invalidate: [["pings"]]`. Keep the card layout, `Button variant="outline"` labelled `` `Ping from ${department}` ``, `EmptyState`(icon`Activity`from lucide-react, title "No activity yet"),`formatTime` for timestamps. No form (single button) — no zod needed.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -1301,10 +1362,12 @@ git commit -m "refactor: medicore panels on react query, zod forms and toasts"
 ### Task 7: Migrate pharmacy + lab panels
 
 **Files:**
+
 - Modify: `apps/pharmacy/components/dispense-list.tsx`, `apps/pharmacy/components/medications-panel.tsx`, `apps/lab/components/order-list.tsx`
 - Test: `apps/pharmacy/components/dispense-list.test.tsx`, `apps/lab/components/order-list.test.tsx`
 
 **Interfaces:**
+
 - Consumes: same `@hms/api` + `@hms/ui` surfaces as Task 6.
 - Produces: queue reference implementations. E2E strings preserved: button "Dispense", text "Dispensed", label `Result for {patient}`, button "Save result", text `Result: WBC 6.1`.
 
@@ -1342,17 +1405,28 @@ describe("DispenseList", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse(200, { data: [pendingRow] }))
-      .mockResolvedValueOnce(jsonResponse(200, { id: "d-1", status: "dispensed" }))
+      .mockResolvedValueOnce(
+        jsonResponse(200, { id: "d-1", status: "dispensed" }),
+      )
       .mockResolvedValue(
         jsonResponse(200, {
-          data: [{ ...pendingRow, status: "dispensed", medication: "Paracetamol 500mg", dispensed_at: "2026-08-04T04:01:00Z" }],
+          data: [
+            {
+              ...pendingRow,
+              status: "dispensed",
+              medication: "Paracetamol 500mg",
+              dispensed_at: "2026-08-04T04:01:00Z",
+            },
+          ],
         }),
       );
     vi.stubGlobal("fetch", fetchMock);
 
     const { user } = renderWithProviders(<DispenseList />);
     await user.click(await screen.findByRole("button", { name: "Dispense" }));
-    await waitFor(() => expect(screen.getByText("Dispensed")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Dispensed")).toBeInTheDocument(),
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/pharmacy/dispenses/d-1/dispense",
       expect.objectContaining({ method: "POST" }),
@@ -1360,9 +1434,14 @@ describe("DispenseList", () => {
   });
 
   it("shows the empty state", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, { data: [] })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse(200, { data: [] })),
+    );
     renderWithProviders(<DispenseList />);
-    expect(await screen.findByText(/No dispense tasks yet/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/No dispense tasks yet/),
+    ).toBeInTheDocument();
   });
 });
 ```
@@ -1400,18 +1479,32 @@ describe("OrderList", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse(200, { data: [pendingOrder] }))
-      .mockResolvedValueOnce(jsonResponse(200, { id: "o-1", status: "completed" }))
+      .mockResolvedValueOnce(
+        jsonResponse(200, { id: "o-1", status: "completed" }),
+      )
       .mockResolvedValue(
         jsonResponse(200, {
-          data: [{ ...pendingOrder, status: "completed", result_value: "WBC 6.1", resulted_at: "2026-08-04T04:01:00Z" }],
+          data: [
+            {
+              ...pendingOrder,
+              status: "completed",
+              result_value: "WBC 6.1",
+              resulted_at: "2026-08-04T04:01:00Z",
+            },
+          ],
         }),
       );
     vi.stubGlobal("fetch", fetchMock);
 
     const { user } = renderWithProviders(<OrderList />);
-    await user.type(await screen.findByLabelText("Result for Asha Rao"), "WBC 6.1");
+    await user.type(
+      await screen.findByLabelText("Result for Asha Rao"),
+      "WBC 6.1",
+    );
     await user.click(screen.getByRole("button", { name: "Save result" }));
-    await waitFor(() => expect(screen.getByText("Result: WBC 6.1")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Result: WBC 6.1")).toBeInTheDocument(),
+    );
   });
 });
 ```
@@ -1423,11 +1516,11 @@ Expected: FAIL (old implementations don't invalidate/refetch through React Query
 
 - [ ] **Step 3: Rewrite the three components**
 
-`dispense-list.tsx`: `useApiQuery<{data: Dispense[]}>(["dispenses"], "/pharmacy/dispenses", { poll: true })`; medication input stays a plain `Input` + `useState` (it's a parameter, not a validated form); mutation `(id: string) => apiFetch(\`/pharmacy/dispenses/${id}/dispense\`, { method: "POST", body: JSON.stringify({ medication }) })` with `successToast: "Dispensed"`, `invalidate: [["dispenses"]]`; per-row busy via `createVisit.isPending && variables === id` pattern — use `mutation.isPending && mutation.variables === d.id`. Keep card layout, `Badge` status, pending-count subtitle, `EmptyState` (icon `Pill`, title "No dispense tasks yet", hint "They appear here when a visit is created in MediCore."), `formatTime` for dispensed_at.
+`dispense-list.tsx`: `useApiQuery<{data: Dispense[]}>(["dispenses"], "/pharmacy/dispenses", { poll: true })`; medication input stays a plain `Input` + `useState` (it's a parameter, not a validated form); mutation `(id: string) => apiFetch(\`/pharmacy/dispenses/${id}/dispense\`, { method: "POST", body: JSON.stringify({ medication }) })`with`successToast: "Dispensed"`, `invalidate: [["dispenses"]]`; per-row busy via `createVisit.isPending && variables === id`pattern — use`mutation.isPending && mutation.variables === d.id`. Keep card layout, `Badge`status, pending-count subtitle,`EmptyState`(icon`Pill`, title "No dispense tasks yet", hint "They appear here when a visit is created in MediCore."), `formatTime` for dispensed_at.
 
 `medications-panel.tsx`: query `["medications"]` → `/pharmacy/medications` (no poll); zod schema `{ name: z.string().min(1, "Name is required").max(200), strength: z.string().max(100) }` with `useZodForm` + `Field` (ids `name`, `strength`); mutation POST `/pharmacy/medications`, `successToast: "Medication added"`, `invalidate: [["medications"]]`, reset on success; `EmptyState` icon `ClipboardList`.
 
-`order-list.tsx`: query `["orders"]` → `/lab/orders`, `{ poll: true }`; drafts stay `useState<Record<string,string>>` (per-row inputs, not a form); mutation `({ id, value }: { id: string; value: string }) => apiFetch(\`/lab/orders/${id}/result\`, { method: "POST", body: JSON.stringify({ result_value: value }) })` with `successToast: "Result saved"`, `invalidate: [["orders"]]`; keep sr-only label `Result for {patient_name}`, Save disabled while pending-for-that-row or draft empty; `EmptyState` icon `FlaskConical`; `formatTime` for resulted_at.
+`order-list.tsx`: query `["orders"]` → `/lab/orders`, `{ poll: true }`; drafts stay `useState<Record<string,string>>` (per-row inputs, not a form); mutation `({ id, value }: { id: string; value: string }) => apiFetch(\`/lab/orders/${id}/result\`, { method: "POST", body: JSON.stringify({ result_value: value }) })`with`successToast: "Result saved"`, `invalidate: [["orders"]]`; keep sr-only label `Result for {patient_name}`, Save disabled while pending-for-that-row or draft empty; `EmptyState`icon`FlaskConical`; `formatTime` for resulted_at.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -1446,10 +1539,12 @@ git commit -m "refactor: pharmacy and lab panels on react query with toasts and 
 ### Task 8: Migrate the shell login page to RHF + zod
 
 **Files:**
+
 - Modify: `apps/shell/app/login/page.tsx`
 - Test: `apps/shell/app/login/login.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `useZodForm`, `Field` (`@hms/ui`); `Button`, `Input` (`@tesserix/web`). Firebase sign-in flow unchanged (`signInWithEmailAndPassword` + POST `/api/session`).
 - Produces: E2E strings preserved: labels "Email"/"Password", button "Sign in". Dev prefill stays via `defaultValues` gated on `NODE_ENV !== "production"`.
 
@@ -1524,9 +1619,11 @@ git commit -m "refactor: login form on react-hook-form and zod with inline error
 ### Task 9: Standards doc, CLAUDE.md, repo skill
 
 **Files:**
+
 - Create: `docs/standards/frontend.md`, `CLAUDE.md` (hms repo root), `.claude/skills/hms-frontend/SKILL.md`
 
 **Interfaces:**
+
 - Consumes: everything shipped in Tasks 1–8 (the doc links to the migrated panels as reference implementations).
 - Produces: the written standards; agent enforcement files.
 
@@ -1577,16 +1674,16 @@ description: Use when writing or modifying any HMS frontend code (apps/*, packag
 
 Read `docs/standards/frontend.md` for the full rules. The short version and where to copy from:
 
-| Concern | Rule | Reference |
-|---|---|---|
-| Data | useApiQuery/useApiMutation from @hms/api | apps/medicore/components/visit-panel.tsx |
-| Forms | useZodForm + Field, noValidate, inline errors | apps/shell/app/login/page.tsx |
-| Feedback | sonner toasts; ConfirmDialog for destructive only | packages/ui/src/confirm-dialog.tsx |
-| Empty/loading | EmptyState + app/loading.tsx skeletons | apps/pharmacy/components/dispense-list.tsx |
-| Nav | plain <a>; registry packages/ui/src/zones.ts | packages/ui/src/hms-shell.tsx |
-| Tokens | no hardcoded colors; read styles.css pitfalls | packages/ui/styles.css |
-| New zone | pnpm new-zone <name> | scripts/new-zone.mjs |
-| Tests | renderWithProviders per panel | apps/medicore/components/visit-panel.test.tsx |
+| Concern       | Rule                                              | Reference                                     |
+| ------------- | ------------------------------------------------- | --------------------------------------------- |
+| Data          | useApiQuery/useApiMutation from @hms/api          | apps/medicore/components/visit-panel.tsx      |
+| Forms         | useZodForm + Field, noValidate, inline errors     | apps/shell/app/login/page.tsx                 |
+| Feedback      | sonner toasts; ConfirmDialog for destructive only | packages/ui/src/confirm-dialog.tsx            |
+| Empty/loading | EmptyState + app/loading.tsx skeletons            | apps/pharmacy/components/dispense-list.tsx    |
+| Nav           | plain <a>; registry packages/ui/src/zones.ts      | packages/ui/src/hms-shell.tsx                 |
+| Tokens        | no hardcoded colors; read styles.css pitfalls     | packages/ui/styles.css                        |
+| New zone      | pnpm new-zone <name>                              | scripts/new-zone.mjs                          |
+| Tests         | renderWithProviders per panel                     | apps/medicore/components/visit-panel.test.tsx |
 
 Never: alert/confirm/prompt, native form validation, raw fetch in components, next/link for cross-zone hops, hex colors in classNames.
 ```
@@ -1603,10 +1700,12 @@ git commit -m "docs: frontend standards, agent rules and hms-frontend skill"
 ### Task 10: `pnpm new-zone` generator
 
 **Files:**
+
 - Create: `scripts/new-zone.mjs`
 - Modify: root `package.json` (add `"new-zone": "node scripts/new-zone.mjs"` to scripts)
 
 **Interfaces:**
+
 - Consumes: the final-state file shapes from Tasks 1, 5 (an app's package.json, next.config.ts, tsconfig, postcss, globals.css, layout with AppProviders, error/loading/not-found, eslint.config.mjs, vitest.config.mts, .env.example).
 - Produces: `pnpm new-zone <name>` creates `apps/<name>` ready to `pnpm install && pnpm turbo build --filter=@hms/<name>`, and prints follow-ups.
 

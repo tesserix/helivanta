@@ -11,7 +11,7 @@ export function middleware(req: NextRequest) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: "unauthenticated", message: "missing credentials" },
-        { status: 401 }
+        { status: 401 },
       );
     }
     const login = new URL("/login", req.url);

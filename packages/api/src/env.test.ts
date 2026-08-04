@@ -9,8 +9,8 @@ describe("defineEnv", () => {
   });
 
   it("throws naming every bad key", () => {
-    expect(() =>
-      defineEnv({ A: z.string().min(1), B: z.string().min(1) }, { A: "" }),
-    ).toThrowError(/A[\s\S]*B/);
+    expect(() => defineEnv({ A: z.string().min(1), B: z.string().min(1) }, { A: "" })).toThrowError(
+      /A[\s\S]*B/,
+    );
   });
 });

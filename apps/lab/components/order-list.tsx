@@ -40,7 +40,9 @@ export function OrderList() {
       <div className="border-b px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">Order queue</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          {pending === 0 ? "Nothing waiting right now." : `${pending} order${pending === 1 ? "" : "s"} awaiting results.`}
+          {pending === 0
+            ? "Nothing waiting right now."
+            : `${pending} order${pending === 1 ? "" : "s"} awaiting results.`}
         </p>
       </div>
       <ul className="divide-y text-sm">
@@ -81,10 +83,13 @@ export function OrderList() {
                 <Button
                   onClick={() => saveResult.mutate({ id: o.id, value: drafts[o.id] ?? "" })}
                   disabled={
-                    (saveResult.isPending && saveResult.variables?.id === o.id) || !(drafts[o.id] ?? "").trim()
+                    (saveResult.isPending && saveResult.variables?.id === o.id) ||
+                    !(drafts[o.id] ?? "").trim()
                   }
                 >
-                  {saveResult.isPending && saveResult.variables?.id === o.id ? "Saving…" : "Save result"}
+                  {saveResult.isPending && saveResult.variables?.id === o.id
+                    ? "Saving…"
+                    : "Save result"}
                 </Button>
               </div>
             ) : (

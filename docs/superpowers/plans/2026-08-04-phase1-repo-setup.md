@@ -26,15 +26,18 @@
 ### Task 1: Repo skeleton — pnpm workspace, Turborepo, root configs
 
 **Files:**
+
 - Create: `pnpm-workspace.yaml`, `package.json`, `turbo.json`, `.gitignore`, `.npmrc`, `.nvmrc`
 - Modify: `README.md`
 
 **Interfaces:**
+
 - Produces: workspace globs `apps/*`, `packages/*`; turbo tasks `build`, `dev`, `lint`, `type-check`, `test` that later tasks' apps plug into.
 
 - [ ] **Step 1: Write root configs**
 
 `pnpm-workspace.yaml`:
+
 ```yaml
 packages:
   - "apps/*"
@@ -42,6 +45,7 @@ packages:
 ```
 
 `package.json`:
+
 ```json
 {
   "name": "hms",
@@ -62,11 +66,15 @@ packages:
 ```
 
 `turbo.json`:
+
 ```json
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
-    "build": { "dependsOn": ["^build"], "outputs": [".next/**", "!.next/cache/**", "dist/**"] },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
     "dev": { "cache": false, "persistent": true },
     "lint": {},
     "type-check": {},
@@ -76,17 +84,20 @@ packages:
 ```
 
 `.npmrc`:
+
 ```
 @tesserix:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
 ```
 
 `.nvmrc`:
+
 ```
 22
 ```
 
 `.gitignore`:
+
 ```
 node_modules/
 .next/
@@ -104,6 +115,7 @@ playwright-report/
 ```
 
 `README.md` — replace contents with:
+
 ```markdown
 # HMS
 
@@ -143,14 +155,17 @@ git commit -m "chore: scaffold pnpm workspace and turborepo config"
 ### Task 2: Local dev stack — docker compose + Makefile
 
 **Files:**
+
 - Create: `docker-compose.dev.yml`, `dev/init-db.sql`, `dev/firebase/firebase.json`, `dev/firebase/.firebaserc`, `Makefile`
 
 **Interfaces:**
+
 - Produces: Postgres at `localhost:5432` (admin `hms`/`hms`, app role `hms_app`/`hms_app`, db `hms`), NATS JetStream at `localhost:4222`, Redis `6379`, OpenFGA HTTP `8090`, Firebase Auth emulator `9099` (project `demo-hms`). Make targets `dev-infra`, `dev`, `seed`, `test`.
 
 - [ ] **Step 1: Write compose file and init scripts**
 
 `docker-compose.dev.yml`:
+
 ```yaml
 name: hms-dev
 services:
@@ -201,6 +216,7 @@ volumes:
 ```
 
 `dev/init-db.sql`:
+
 ```sql
 -- Runtime role: no superuser, no RLS bypass. Migrations run as `hms`.
 CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;
@@ -212,6 +228,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE hms IN SCHEMA public
 ```
 
 `dev/firebase/firebase.json`:
+
 ```json
 {
   "emulators": {
@@ -222,11 +239,13 @@ ALTER DEFAULT PRIVILEGES FOR ROLE hms IN SCHEMA public
 ```
 
 `dev/firebase/.firebaserc`:
+
 ```json
 { "projects": { "default": "demo-hms" } }
 ```
 
 `Makefile`:
+
 ```makefile
 .PHONY: dev dev-infra dev-down dev-api dev-web seed test test-go test-web
 
@@ -279,9 +298,11 @@ git commit -m "feat: local dev stack with postgres, nats, redis, openfga, gip em
 ### Task 3: Backend bootstrap — Go module, platform registry, HTTP server
 
 **Files:**
+
 - Create: `backend/go.mod`, `backend/internal/config/config.go`, `backend/internal/platform/module.go`, `backend/internal/platform/registry.go`, `backend/internal/platform/registry_test.go`, `backend/cmd/api/main.go`, `backend/internal/httpserver/server.go`
 
 **Interfaces:**
+
 - Produces:
   - `platform.Module` interface: `Name() string; Migrations() []tenantdb.Migration; Routes(r *gin.RouterGroup, deps Deps); Consumers() []events.Consumer` (tenantdb/events types land in Tasks 4/6 — this task declares the interface with those imports; the packages get stub type definitions here and are fleshed out in their own tasks).
   - `platform.Deps{DB *tenantdb.DB, Bus *events.Bus}`.
@@ -296,6 +317,7 @@ Run: `mkdir -p backend && cd backend && go mod init github.com/tesserix/hms && g
 Create minimal stubs so `platform` compiles before Tasks 4/6 (each of those tasks replaces its stub):
 
 `backend/pkg/tenantdb/types.go`:
+
 ```go
 package tenantdb
 
@@ -309,6 +331,7 @@ type Migration struct {
 ```
 
 `backend/pkg/events/types.go`:
+
 ```go
 package events
 
@@ -337,6 +360,7 @@ type Consumer struct {
 ```
 
 `backend/internal/config/config.go`:
+
 ```go
 package config
 
@@ -371,6 +395,7 @@ func getenv(k, def string) string {
 - [ ] **Step 2: Write the failing registry test**
 
 `backend/internal/platform/registry_test.go`:
+
 ```go
 package platform
 
@@ -411,6 +436,7 @@ Expected: FAIL (undefined: NewRegistry, Deps).
 - [ ] **Step 4: Implement platform package**
 
 `backend/internal/platform/module.go`:
+
 ```go
 package platform
 
@@ -437,6 +463,7 @@ type Module interface {
 ```
 
 `backend/internal/platform/registry.go`:
+
 ```go
 package platform
 
@@ -466,15 +493,19 @@ func (r *Registry) All() []Module { return r.ordered }
 ```
 
 Note: `tenantdb.DB` doesn't exist yet — add to `backend/pkg/tenantdb/types.go` temporarily:
+
 ```go
 // DB placeholder until Task 4 implements db.go.
 type DB struct{}
 ```
+
 and to `backend/pkg/events/types.go`:
+
 ```go
 // Bus placeholder until Task 6 implements bus.go.
 type Bus struct{}
 ```
+
 (Tasks 4 and 6 delete these placeholder lines when they implement the real structs.)
 
 - [ ] **Step 5: Run test to verify it passes**
@@ -485,6 +516,7 @@ Expected: PASS.
 - [ ] **Step 6: HTTP server + main**
 
 `backend/internal/httpserver/server.go`:
+
 ```go
 package httpserver
 
@@ -523,6 +555,7 @@ func New(readyChecks []ReadyCheck) *Server {
 ```
 
 `backend/cmd/api/main.go` (wired further in Tasks 4–7; this version boots with no modules):
+
 ```go
 package main
 
@@ -595,10 +628,12 @@ git commit -m "feat: go backend bootstrap with module registry and http server"
 ### Task 4: pkg/tenantdb — RLS-scoped data access + migration runner + RLS linter
 
 **Files:**
+
 - Create: `backend/pkg/tenantdb/db.go`, `backend/pkg/tenantdb/db_test.go`, `backend/internal/testutil/postgres.go`
 - Modify: `backend/pkg/tenantdb/types.go` (remove `DB struct{}` placeholder), `backend/cmd/api/main.go`
 
 **Interfaces:**
+
 - Consumes: `tenantdb.Migration` (Task 3).
 - Produces:
   - `tenantdb.Open(appDSN, adminDSN string) (*DB, error)`
@@ -615,6 +650,7 @@ Run: `cd backend && go get gorm.io/gorm@latest gorm.io/driver/postgres@latest gi
 - [ ] **Step 2: Test helper**
 
 `backend/internal/testutil/postgres.go`:
+
 ```go
 package testutil
 
@@ -670,6 +706,7 @@ func StartPostgres(t *testing.T) (string, string) {
 - [ ] **Step 3: Write the failing tests**
 
 `backend/pkg/tenantdb/db_test.go`:
+
 ```go
 package tenantdb_test
 
@@ -773,6 +810,7 @@ Expected: FAIL (undefined: tenantdb.Open, ErrInvalidTenant, …).
 - [ ] **Step 5: Implement**
 
 Remove the `type DB struct{}` placeholder line from `backend/pkg/tenantdb/types.go`, then create `backend/pkg/tenantdb/db.go`:
+
 ```go
 package tenantdb
 
@@ -897,18 +935,22 @@ Expected: PASS (5 tests; requires Docker for testcontainers).
 - [ ] **Step 7: Wire into main**
 
 In `backend/cmd/api/main.go`, inside `run()` after `cfg := config.Load()` add:
+
 ```go
 	db, err := tenantdb.Open(cfg.AppDatabaseURL, cfg.AdminDatabaseURL)
 	if err != nil {
 		return err
 	}
 ```
+
 Replace `srv := httpserver.New(nil)` with:
+
 ```go
 	srv := httpserver.New([]httpserver.ReadyCheck{
 		{Name: "postgres", Check: db.PingContext},
 	})
 ```
+
 Add import `"github.com/tesserix/hms/pkg/tenantdb"`.
 
 Run: `cd backend && go build ./...`
@@ -926,9 +968,11 @@ git commit -m "feat: tenantdb with forced RLS isolation, migrations, and rls lin
 ### Task 5: pkg/authn — GIP token verification middleware
 
 **Files:**
+
 - Create: `backend/pkg/authn/authn.go`, `backend/pkg/authn/gip.go`, `backend/pkg/authn/authn_test.go`
 
 **Interfaces:**
+
 - Produces:
   - `authn.Principal{Subject string; TenantID string}`
   - `authn.TokenVerifier` interface: `Verify(ctx context.Context, raw string) (Principal, error)`
@@ -940,6 +984,7 @@ git commit -m "feat: tenantdb with forced RLS isolation, migrations, and rls lin
 - [ ] **Step 1: Write the failing tests**
 
 `backend/pkg/authn/authn_test.go`:
+
 ```go
 package authn_test
 
@@ -1019,6 +1064,7 @@ Expected: FAIL (package doesn't exist).
 Run: `cd backend && go get firebase.google.com/go/v4@latest`
 
 `backend/pkg/authn/authn.go`:
+
 ```go
 package authn
 
@@ -1079,6 +1125,7 @@ func PrincipalFrom(c *gin.Context) (Principal, bool) {
 ```
 
 `backend/pkg/authn/gip.go`:
+
 ```go
 package authn
 
@@ -1139,10 +1186,12 @@ git commit -m "feat: gip token verification middleware with tenant claim enforce
 ### Task 6: pkg/events — transactional outbox, JetStream dispatcher, idempotent consumers
 
 **Files:**
+
 - Create: `backend/pkg/events/bus.go`, `backend/pkg/events/bus_test.go`, `backend/internal/testutil/nats.go`
 - Modify: `backend/pkg/events/types.go` (remove `Bus struct{}` placeholder)
 
 **Interfaces:**
+
 - Consumes: `tenantdb.DB.Migrate` (Task 4) for the outbox/idempotency migrations; `events.Event`, `events.Consumer` (Task 3).
 - Produces:
   - `events.Migrations() []tenantdb.Migration` — creates `outbox_events` and `processed_events` (neither has a `tenant_id` column; tenant travels inside the envelope, so the RLS linter ignores them).
@@ -1155,6 +1204,7 @@ git commit -m "feat: gip token verification middleware with tenant claim enforce
 - [ ] **Step 1: Add WithSystem to tenantdb**
 
 Outbox tables carry no `tenant_id`, so the dispatcher needs a non-tenant transaction. Add to `backend/pkg/tenantdb/db.go`:
+
 ```go
 // WithSystem runs fn in a transaction on the app pool WITHOUT a tenant
 // GUC. Only for platform tables that have no tenant_id column (outbox,
@@ -1170,6 +1220,7 @@ func (d *DB) WithSystem(ctx context.Context, fn func(tx *gorm.DB) error) error {
 Run: `cd backend && go get github.com/nats-io/nats.go@latest github.com/testcontainers/testcontainers-go/modules/nats@latest`
 
 `backend/internal/testutil/nats.go`:
+
 ```go
 package testutil
 
@@ -1195,11 +1246,13 @@ func StartNATS(t *testing.T) string {
 	return url
 }
 ```
+
 (The testcontainers NATS module starts the server with JetStream enabled via `-js`.)
 
 - [ ] **Step 3: Write the failing test**
 
 `backend/pkg/events/bus_test.go`:
+
 ```go
 package events_test
 
@@ -1266,6 +1319,7 @@ Expected: FAIL (undefined: events.Migrations, NewBus, …).
 - [ ] **Step 5: Implement**
 
 Remove the `type Bus struct{}` placeholder from `backend/pkg/events/types.go`, then create `backend/pkg/events/bus.go`:
+
 ```go
 package events
 
@@ -1481,10 +1535,12 @@ git commit -m "feat: transactional outbox event bus with jetstream dispatch and 
 ### Task 7: reference module — prove the full wiring, register in main
 
 **Files:**
+
 - Create: `backend/internal/modules/reference/module.go`, `backend/internal/modules/reference/module_test.go`
 - Modify: `backend/cmd/api/main.go`
 
 **Interfaces:**
+
 - Consumes: `platform.Module`/`Deps` (Task 3), `tenantdb.WithTenant` (Task 4), `authn.Middleware`/`PrincipalFrom` (Task 5), `events.Bus.Publish` + `Consumer` (Task 6).
 - Produces: HTTP under authenticated group `/v1`:
   - `POST /v1/reference/ping` `{"message": "..."}` → `202 {"id": "<uuid>"}` — writes row + outbox event `ReferencePinged` on `hms.in.reference.pinged.v1` in ONE transaction.
@@ -1495,6 +1551,7 @@ git commit -m "feat: transactional outbox event bus with jetstream dispatch and 
 - [ ] **Step 1: Write the failing integration test**
 
 `backend/internal/modules/reference/module_test.go`:
+
 ```go
 package reference_test
 
@@ -1612,6 +1669,7 @@ Expected: FAIL (package doesn't exist).
 - [ ] **Step 3: Implement the module**
 
 `backend/internal/modules/reference/module.go`:
+
 ```go
 // Package reference is the trivial module proving the platform wiring:
 // authn → tenantdb (RLS) → outbox → JetStream → consumer (issue #2).
@@ -1768,6 +1826,7 @@ func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 	}}
 }
 ```
+
 Add `"context"` to the imports (used by the consumer closure).
 
 > NOTE — interface drift: `platform.Module.Consumers()` (Task 3) takes no args, but modules need `Deps` to handle events. Update the interface in `backend/internal/platform/module.go` to `Consumers(deps Deps) []events.Consumer`, and update `fakeModule` in `registry_test.go` to `func (f fakeModule) Consumers(deps Deps) []events.Consumer { return nil }`.
@@ -1780,6 +1839,7 @@ Expected: PASS across platform, tenantdb, authn, events, reference.
 - [ ] **Step 5: Wire everything in main**
 
 Replace `backend/cmd/api/main.go` `run()` with the full wiring:
+
 ```go
 func run() error {
 	cfg := config.Load()
@@ -1852,6 +1912,7 @@ func run() error {
 	return nil
 }
 ```
+
 Imports: add `fmt`, `github.com/tesserix/hms/internal/modules/reference`, `github.com/tesserix/hms/pkg/authn`, `github.com/tesserix/hms/pkg/events`, `github.com/tesserix/hms/pkg/tenantdb`.
 
 - [ ] **Step 6: Verify against the live dev stack**
@@ -1871,14 +1932,17 @@ git commit -m "feat: reference module proving authn, rls, outbox and consumer wi
 ### Task 8: Backend CI workflow
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 
 **Interfaces:**
+
 - Produces: `ci.yml` with a `go` job (Task 13 adds the `web` job to this same file).
 
 - [ ] **Step 1: Write workflow**
 
 `.github/workflows/ci.yml`:
+
 ```yaml
 name: CI
 on:
@@ -1904,6 +1968,7 @@ jobs:
       - run: go build ./...
       - run: go test -race ./...
 ```
+
 Note: the grep guard quotes the alias only inside the shell command so the workflow file itself doesn't trip it — the pattern string in CI matches occurrences elsewhere; the workflow excludes itself by matching `-rn` output count. If the self-match fires, refine to `grep -rn ... --exclude=ci.yml`.
 
 - [ ] **Step 2: Verify locally**
@@ -1919,6 +1984,7 @@ git commit -m "ci: backend go workflow with race tests and alias guard"
 git push -u origin main
 gh run watch --exit-status || gh run view --log-failed
 ```
+
 Expected: workflow green.
 
 ---
@@ -1926,22 +1992,31 @@ Expected: workflow green.
 ### Task 9: Frontend foundation — packages/config + apps/shell scaffold with shared chrome
 
 **Files:**
+
 - Create: `packages/config/package.json`, `packages/config/tsconfig.base.json`
 - Create: `apps/shell/package.json`, `apps/shell/next.config.ts`, `apps/shell/tsconfig.json`, `apps/shell/postcss.config.mjs`, `apps/shell/app/globals.css`, `apps/shell/app/layout.tsx`, `apps/shell/app/page.tsx`, `apps/shell/components/hms-shell.tsx`, `apps/shell/.env.example`
 - Create: `apps/mobile/README.md` (stub, spec D7)
 
 **Interfaces:**
+
 - Consumes: `@tesserix/web` 1.8.x (`AppShell` etc. — components imported from package root), Tailwind v4 pattern from mark8ly (`@import "tailwindcss"` + `@source` + `@tesserix/web/styles`).
 - Produces: `@hms/config` tsconfig base used by all apps; `HmsShell` client component (sidebar+header chrome) reused verbatim by zone apps; shell dev server on port 4301 with rewrites `/medicore/*→:4302`, `/api/*→:8080`.
 
 - [ ] **Step 1: Shared config package**
 
 `packages/config/package.json`:
+
 ```json
-{ "name": "@hms/config", "version": "0.0.0", "private": true, "files": ["tsconfig.base.json"] }
+{
+  "name": "@hms/config",
+  "version": "0.0.0",
+  "private": true,
+  "files": ["tsconfig.base.json"]
+}
 ```
 
 `packages/config/tsconfig.base.json`:
+
 ```json
 {
   "compilerOptions": {
@@ -1964,6 +2039,7 @@ Expected: workflow green.
 - [ ] **Step 2: Shell app**
 
 `apps/shell/package.json`:
+
 ```json
 {
   "name": "@hms/shell",
@@ -1996,6 +2072,7 @@ Expected: workflow green.
 ```
 
 `apps/shell/next.config.ts`:
+
 ```ts
 import type { NextConfig } from "next";
 
@@ -2008,7 +2085,10 @@ const nextConfig: NextConfig = {
     return [
       // Zone stitching (spec D2): shell owns "/" and forwards zone paths.
       { source: "/medicore", destination: `${MEDICORE_URL}/medicore` },
-      { source: "/medicore/:path*", destination: `${MEDICORE_URL}/medicore/:path*` },
+      {
+        source: "/medicore/:path*",
+        destination: `${MEDICORE_URL}/medicore/:path*`,
+      },
       // Same-origin API (spec D6): browser calls /api/*, backend serves /v1/*.
       { source: "/api/:path*", destination: `${API_URL}/:path*` },
     ];
@@ -2019,6 +2099,7 @@ export default nextConfig;
 ```
 
 `apps/shell/tsconfig.json`:
+
 ```json
 {
   "extends": "@hms/config/tsconfig.base.json",
@@ -2032,11 +2113,13 @@ export default nextConfig;
 ```
 
 `apps/shell/postcss.config.mjs`:
+
 ```js
 export default { plugins: { "@tailwindcss/postcss": {} } };
 ```
 
 `apps/shell/app/globals.css`:
+
 ```css
 @import "tailwindcss";
 @import "@tesserix/web/styles";
@@ -2046,6 +2129,7 @@ export default { plugins: { "@tailwindcss/postcss": {} } };
 ```
 
 `apps/shell/components/hms-shell.tsx` — the shared chrome. Every zone copies this exact file (Task 11) so the sidebar/header are pixel-identical across zones (spec D3):
+
 ```tsx
 "use client";
 
@@ -2061,7 +2145,13 @@ const NAV = [
   { href: "/lab", label: "Lab" },
 ];
 
-export function HmsShell({ active, children }: { active: string; children: ReactNode }) {
+export function HmsShell({
+  active,
+  children,
+}: {
+  active: string;
+  children: ReactNode;
+}) {
   return (
     <div className="flex min-h-screen">
       <aside className="w-56 shrink-0 border-r bg-sidebar text-sidebar-foreground">
@@ -2085,8 +2175,13 @@ export function HmsShell({ active, children }: { active: string; children: React
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center justify-between border-b px-6">
-          <span className="text-sm text-muted-foreground">Hospital Management System</span>
-          <a href="/logout" className="text-sm underline-offset-4 hover:underline">
+          <span className="text-sm text-muted-foreground">
+            Hospital Management System
+          </span>
+          <a
+            href="/logout"
+            className="text-sm underline-offset-4 hover:underline"
+          >
             Sign out
           </a>
         </header>
@@ -2098,13 +2193,18 @@ export function HmsShell({ active, children }: { active: string; children: React
 ```
 
 `apps/shell/app/layout.tsx`:
+
 ```tsx
 import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = { title: "HMS" };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
       <body>{children}</body>
@@ -2114,12 +2214,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 ```
 
 `apps/shell/app/page.tsx`:
+
 ```tsx
 import { HmsShell } from "@/components/hms-shell";
 
 const ZONES = [
-  { href: "/medicore/opd", title: "OPD", desc: "Outpatient registration & appointments" },
-  { href: "/medicore/ipd", title: "IPD", desc: "Admissions, beds & ward rounds" },
+  {
+    href: "/medicore/opd",
+    title: "OPD",
+    desc: "Outpatient registration & appointments",
+  },
+  {
+    href: "/medicore/ipd",
+    title: "IPD",
+    desc: "Admissions, beds & ward rounds",
+  },
   { href: "/pharmacy", title: "Pharmacy", desc: "Dispensing & drug inventory" },
   { href: "/lab", title: "Lab", desc: "Orders, samples & results" },
 ];
@@ -2130,7 +2239,11 @@ export default function Dashboard() {
       <h1 className="mb-6 text-2xl font-semibold">Departments</h1>
       <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
         {ZONES.map((z) => (
-          <a key={z.href} href={z.href} className="rounded-lg border p-4 hover:bg-accent">
+          <a
+            key={z.href}
+            href={z.href}
+            className="rounded-lg border p-4 hover:bg-accent"
+          >
             <div className="font-medium">{z.title}</div>
             <div className="text-sm text-muted-foreground">{z.desc}</div>
           </a>
@@ -2142,6 +2255,7 @@ export default function Dashboard() {
 ```
 
 `apps/shell/.env.example`:
+
 ```
 NEXT_PUBLIC_GIP_PROJECT_ID=demo-hms
 NEXT_PUBLIC_GIP_API_KEY=demo-key
@@ -2151,6 +2265,7 @@ API_URL=http://localhost:8080
 ```
 
 `apps/mobile/README.md`:
+
 ```markdown
 # HMS Mobile (stubs)
 
@@ -2176,15 +2291,18 @@ git commit -m "feat: shell app with shared hms chrome and zone rewrites"
 ### Task 10: Shell GIP auth — login page, session cookie, route guard, dev seed
 
 **Files:**
+
 - Create: `apps/shell/lib/firebase.ts`, `apps/shell/app/login/page.tsx`, `apps/shell/app/api/session/route.ts`, `apps/shell/app/logout/route.ts`, `apps/shell/middleware.ts`, `scripts/seed-dev.mjs`
 
 **Interfaces:**
+
 - Consumes: Firebase Auth emulator (Task 2), `authn.SessionCookie` name `hms_session` (Task 5).
 - Produces: authenticated shell — unauthenticated visits redirect to `/login`; login sets `hms_session` cookie (the GIP ID token; hardening to Firebase session cookies is a follow-on issue); `make seed` creates tenant + user `test@hms.dev` / `password123` with `tenant_id` custom claim.
 
 - [ ] **Step 1: Firebase client lib**
 
 `apps/shell/lib/firebase.ts`:
+
 ```ts
 import { initializeApp, getApps } from "firebase/app";
 import { connectAuthEmulator, getAuth } from "firebase/auth";
@@ -2209,6 +2327,7 @@ export function firebaseAuth() {
 - [ ] **Step 2: Login page**
 
 `apps/shell/app/login/page.tsx`:
+
 ```tsx
 "use client";
 
@@ -2229,7 +2348,11 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      const cred = await signInWithEmailAndPassword(firebaseAuth(), email, password);
+      const cred = await signInWithEmailAndPassword(
+        firebaseAuth(),
+        email,
+        password,
+      );
       const idToken = await cred.user.getIdToken();
       const res = await fetch("/api/session", {
         method: "POST",
@@ -2247,7 +2370,10 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-lg border p-6">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-sm space-y-4 rounded-lg border p-6"
+      >
         <h1 className="text-xl font-semibold">Sign in to HMS</h1>
         <label className="block text-sm">
           Email
@@ -2290,6 +2416,7 @@ export default function LoginPage() {
 - [ ] **Step 3: Session + logout route handlers**
 
 `apps/shell/app/api/session/route.ts`:
+
 ```ts
 import { NextRequest, NextResponse } from "next/server";
 
@@ -2321,6 +2448,7 @@ export async function POST(req: NextRequest) {
 ```
 
 `apps/shell/app/logout/route.ts`:
+
 ```ts
 import { NextResponse } from "next/server";
 
@@ -2334,6 +2462,7 @@ export async function GET(req: Request) {
 - [ ] **Step 4: Route guard**
 
 `apps/shell/middleware.ts`:
+
 ```ts
 import { NextRequest, NextResponse } from "next/server";
 
@@ -2359,6 +2488,7 @@ export const config = {
 - [ ] **Step 5: Dev seed script**
 
 `scripts/seed-dev.mjs`:
+
 ```js
 // Seeds the GIP emulator: one user with a tenant_id custom claim.
 // Usage: node scripts/seed-dev.mjs   (emulator must be running)
@@ -2369,13 +2499,20 @@ const EMAIL = "test@hms.dev";
 const PASSWORD = "password123";
 
 const base = `http://${HOST}/identitytoolkit.googleapis.com/v1`;
-const headers = { "Content-Type": "application/json", Authorization: "Bearer owner" };
+const headers = {
+  "Content-Type": "application/json",
+  Authorization: "Bearer owner",
+};
 
 async function main() {
   const signUp = await fetch(`${base}/accounts:signUp?key=demo-key`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ email: EMAIL, password: PASSWORD, returnSecureToken: true }),
+    body: JSON.stringify({
+      email: EMAIL,
+      password: PASSWORD,
+      returnSecureToken: true,
+    }),
   });
   const created = await signUp.json();
   if (!signUp.ok && created?.error?.message !== "EMAIL_EXISTS") {
@@ -2385,7 +2522,7 @@ async function main() {
   if (!localId) {
     const lookup = await fetch(
       `http://${HOST}/emulator/v1/projects/${PROJECT}/accounts:query`,
-      { method: "POST", headers, body: JSON.stringify({}) }
+      { method: "POST", headers, body: JSON.stringify({}) },
     ).then((r) => r.json());
     localId = lookup.userInfo?.find((u) => u.email === EMAIL)?.localId;
   }
@@ -2412,6 +2549,7 @@ main().catch((e) => {
 - [ ] **Step 6: Verify the full login flow manually**
 
 Run: `make dev-infra && make seed && pnpm --filter @hms/shell dev &` then:
+
 - `curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" http://localhost:4301/` → expected `307 http://localhost:4301/login` (guard works).
 - Browser: visit `http://localhost:4301/login`, sign in with `test@hms.dev` / `password123` → lands on dashboard with sidebar. Stop the dev server after.
 
@@ -2427,15 +2565,18 @@ git commit -m "feat: gip login with session cookie, route guard and dev seed"
 ### Task 11: apps/medicore zone — basePath, OPD/IPD pages, live API data
 
 **Files:**
+
 - Create: `apps/medicore/package.json`, `apps/medicore/next.config.ts`, `apps/medicore/tsconfig.json`, `apps/medicore/postcss.config.mjs`, `apps/medicore/app/globals.css`, `apps/medicore/app/layout.tsx`, `apps/medicore/app/page.tsx`, `apps/medicore/app/opd/page.tsx`, `apps/medicore/app/ipd/page.tsx`, `apps/medicore/components/hms-shell.tsx`, `apps/medicore/components/ping-panel.tsx`
 
 **Interfaces:**
+
 - Consumes: `HmsShell` (exact copy of `apps/shell/components/hms-shell.tsx` — promotion to a shared package is deliberately deferred until the pharmacy zone exists, rule of three); reference API (`POST /api/v1/reference/ping`, `GET /api/v1/reference/pings` — note browser path prefix `/api` maps to backend root, so backend `/v1/...` is browser `/api/v1/...`).
 - Produces: zone app on port 4302 with `basePath: "/medicore"`; pages `/medicore`, `/medicore/opd`, `/medicore/ipd`.
 
 - [ ] **Step 1: Scaffold the zone**
 
 `apps/medicore/package.json` — same as shell's minus `firebase`, name `@hms/medicore`, ports 4302:
+
 ```json
 {
   "name": "@hms/medicore",
@@ -2467,6 +2608,7 @@ git commit -m "feat: gip login with session cookie, route guard and dev seed"
 ```
 
 `apps/medicore/next.config.ts`:
+
 ```ts
 import type { NextConfig } from "next";
 
@@ -2492,6 +2634,7 @@ export default nextConfig;
 - [ ] **Step 2: Pages**
 
 `apps/medicore/app/page.tsx`:
+
 ```tsx
 import { redirect } from "next/navigation";
 
@@ -2501,6 +2644,7 @@ export default function MediCoreIndex() {
 ```
 
 `apps/medicore/components/ping-panel.tsx` — proves zone → API → tenant data round trip:
+
 ```tsx
 "use client";
 
@@ -2561,11 +2705,15 @@ export function PingPanel({ department }: { department: string }) {
         </p>
       )}
       <ul className="divide-y rounded-md border text-sm">
-        {pings.length === 0 && <li className="p-3 text-muted-foreground">No activity yet.</li>}
+        {pings.length === 0 && (
+          <li className="p-3 text-muted-foreground">No activity yet.</li>
+        )}
         {pings.map((p) => (
           <li key={p.id} className="flex justify-between p-3">
             <span>{p.message}</span>
-            <time className="text-muted-foreground">{new Date(p.created_at).toLocaleTimeString()}</time>
+            <time className="text-muted-foreground">
+              {new Date(p.created_at).toLocaleTimeString()}
+            </time>
           </li>
         ))}
       </ul>
@@ -2575,6 +2723,7 @@ export function PingPanel({ department }: { department: string }) {
 ```
 
 `apps/medicore/app/opd/page.tsx`:
+
 ```tsx
 import { HmsShell } from "@/components/hms-shell";
 import { PingPanel } from "@/components/ping-panel";
@@ -2590,6 +2739,7 @@ export default function OpdPage() {
 ```
 
 `apps/medicore/app/ipd/page.tsx`:
+
 ```tsx
 import { HmsShell } from "@/components/hms-shell";
 import { PingPanel } from "@/components/ping-panel";
@@ -2607,6 +2757,7 @@ export default function IpdPage() {
 - [ ] **Step 3: Verify zone stitching end-to-end**
 
 Run: `pnpm install && make dev-infra && make seed`, then in three terminals (or backgrounded): backend API with `FIREBASE_AUTH_EMULATOR_HOST=localhost:9099`, `pnpm --filter @hms/shell dev`, `pnpm --filter @hms/medicore dev`.
+
 - Browser: log in at `http://localhost:4301/login`, click "OPD" in the sidebar → URL is `http://localhost:4301/medicore/opd` (served by the medicore app through the shell rewrite), identical sidebar, "Ping from OPD" adds a row that persists across reloads and shows on the IPD page too (same tenant, same API).
 - `curl -s -o /dev/null -w "%{http_code}" http://localhost:4301/api/v1/reference/pings` → `401` (API auth enforced through the rewrite chain).
 
@@ -2627,15 +2778,18 @@ git commit -m "feat: medicore zone with opd and ipd pages consuming reference ap
 ### Task 12: Playwright E2E smoke — login → dashboard → OPD across the zone boundary
 
 **Files:**
+
 - Create: `e2e/package.json`, `e2e/playwright.config.ts`, `e2e/tests/smoke.spec.ts`
 
 **Interfaces:**
+
 - Consumes: full dev stack (Tasks 2, 7, 9–11), seed user `test@hms.dev`/`password123` (Task 10).
 - Produces: `pnpm --filter @hms/e2e test` running the cross-zone journey headlessly.
 
 - [ ] **Step 1: E2E package**
 
 `e2e/package.json`:
+
 ```json
 {
   "name": "@hms/e2e",
@@ -2647,6 +2801,7 @@ git commit -m "feat: medicore zone with opd and ipd pages consuming reference ap
 ```
 
 `e2e/playwright.config.ts`:
+
 ```ts
 import { defineConfig } from "@playwright/test";
 
@@ -2659,6 +2814,7 @@ export default defineConfig({
 ```
 
 `e2e/tests/smoke.spec.ts`:
+
 ```ts
 import { test, expect } from "@playwright/test";
 
@@ -2670,7 +2826,9 @@ test("login, dashboard, cross-zone OPD ping", async ({ page }) => {
   await page.getByLabel("Email").fill("test@hms.dev");
   await page.getByLabel("Password").fill("password123");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Departments" }),
+  ).toBeVisible();
 
   // Cross the zone boundary: shell → medicore (hard navigation).
   await page.getByRole("link", { name: "OPD" }).click();
@@ -2700,16 +2858,19 @@ git commit -m "test: playwright smoke covering login and cross-zone opd journey"
 ### Task 13: ADRs, web CI job, services.yaml proposal
 
 **Files:**
+
 - Create: `docs/adr/0001-monorepo-and-multi-zone-strategy.md`, `docs/adr/0002-gip-not-keycloak.md`, `docs/deployment/tesserix-k8s-proposal.md`
 - Modify: `.github/workflows/ci.yml`
 
 **Interfaces:**
+
 - Consumes: spec decisions D1–D8; existing `ci.yml` go job (Task 8).
 - Produces: recorded ADRs (closing issue #665's decision for product code + resolving issue #2's "Keycloak/GIP"); `web` CI job; a paste-ready tesserix-k8s change proposal.
 
 - [ ] **Step 1: ADRs**
 
 `docs/adr/0001-monorepo-and-multi-zone-strategy.md`:
+
 ```markdown
 # ADR-0001: Full monorepo with path-based Next.js multi-zones
 
@@ -2730,6 +2891,7 @@ git commit -m "test: playwright smoke covering login and cross-zone opd journey"
 ```
 
 `docs/adr/0002-gip-not-keycloak.md`:
+
 ```markdown
 # ADR-0002: Google Identity Platform, not Keycloak
 
@@ -2748,12 +2910,14 @@ git commit -m "test: playwright smoke covering login and cross-zone opd journey"
 ```
 
 `docs/deployment/tesserix-k8s-proposal.md`:
+
 ```markdown
 # tesserix-k8s changes for HMS (proposal)
 
 Phase 1 ships images only; this is the paste-ready plan for the infra PR.
 
 ## charts/apps/ additions
+
 - `hms-api` — Go API (port 8080, healthz/readyz; needs APP/ADMIN_DATABASE_URL,
   NATS_URL, GIP_PROJECT_ID). Copy `mark8ly-platform-api` chart shape.
 - `hms-shell`, `hms-medicore` — Next.js standalone (ports 4301/4302). Copy
@@ -2764,37 +2928,42 @@ Phase 1 ships images only; this is the paste-ready plan for the infra PR.
 - NATS: reuse the existing `nats` chart (JetStream on).
 
 ## Routing
+
 One host per tenant; path routing: `/` → hms-shell, `/medicore` → hms-medicore,
 `/api/*` → hms-api (strip nothing; API serves `/v1/*`, edge maps `/api/(.*)` → `/$1`).
 
 ## services.yaml
+
 Add `hms-api` (backend, go), `hms-shell`, `hms-medicore` (frontend, node)
 under a new `hms` appGroup with the standard ci.yml/release.yml workflows.
 
 ## Identity
+
 Create GIP tenant(s) for HMS via scripts/identity/enable-tenant-google-idp.py.
 ```
 
 - [ ] **Step 2: Add web job to CI**
 
 Append to `.github/workflows/ci.yml` under `jobs:`:
+
 ```yaml
-  web:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
-      - run: pnpm turbo type-check build
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
+web:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: pnpm/action-setup@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: pnpm
+    - run: pnpm install --frozen-lockfile
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
+    - run: pnpm turbo type-check build
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
 ```
+
 Note: `PKG_READ_TOKEN` repo secret (GitHub token with `read:packages`) must exist — same convention as the other tesserix frontend repos. If it is missing, add it: `gh secret set PKG_READ_TOKEN --repo tesserix/hms`.
 
 - [ ] **Step 3: Verify and commit**
@@ -2808,6 +2977,7 @@ git commit -m "docs: adrs for monorepo strategy and gip, k8s proposal; ci web jo
 git push
 gh run watch --exit-status || gh run view --log-failed
 ```
+
 Expected: both CI jobs green.
 
 ---

@@ -54,7 +54,11 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
             label="Patient name"
             error={form.formState.errors.patient_name?.message}
           >
-            <Input id="patient_name" placeholder="e.g. Asha Rao" {...form.register("patient_name")} />
+            <Input
+              id="patient_name"
+              placeholder="e.g. Asha Rao"
+              {...form.register("patient_name")}
+            />
           </Field>
         </div>
         <Button type="submit" disabled={createVisit.isPending}>

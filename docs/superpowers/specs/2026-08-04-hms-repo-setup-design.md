@@ -90,7 +90,7 @@ ADR-0002). The org already standardizes on GIP per-product tenants on
 ### D5. Deployment lives in tesserix-k8s
 
 `hms` ships images; `tesserix-k8s` deploys them, following existing precedent
-(mark8ly-*, fanzone-*, devai-*):
+(mark8ly-_, fanzone-_, devai-*):
 
 - Helm charts: `charts/apps/hms-api`, `hms-shell`, `hms-medicore`,
   `hms-pharmacy`, `hms-lab`, `hms-postgres`, `hms-openfga` (copy the
@@ -130,7 +130,7 @@ offline-first sync, barcode scanning, and biometric login.
 - **pnpm workspaces + Turborepo** for JS (aligns with Web SDK issue #696 and
   the design-system repo; deviation from mark8ly's npm recorded in ADR-0001).
 - **One Go module** for the backend; golangci-lint + the RLS migration linter
-  + module-boundary linter in CI.
+  - module-boundary linter in CI.
 - CI (GitHub Actions): affected-only builds per workspace, Go test with
   `-race`, Playwright E2E, image build/push consumed by tesserix-k8s.
 

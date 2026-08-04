@@ -7,13 +7,20 @@ const EMAIL = "test@hms.dev";
 const PASSWORD = "password123";
 
 const base = `http://${HOST}/identitytoolkit.googleapis.com/v1`;
-const headers = { "Content-Type": "application/json", Authorization: "Bearer owner" };
+const headers = {
+  "Content-Type": "application/json",
+  Authorization: "Bearer owner",
+};
 
 async function main() {
   const signUp = await fetch(`${base}/accounts:signUp?key=demo-key`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ email: EMAIL, password: PASSWORD, returnSecureToken: true }),
+    body: JSON.stringify({
+      email: EMAIL,
+      password: PASSWORD,
+      returnSecureToken: true,
+    }),
   });
   const created = await signUp.json();
   if (!signUp.ok && created?.error?.message !== "EMAIL_EXISTS") {
@@ -23,7 +30,7 @@ async function main() {
   if (!localId) {
     const lookup = await fetch(
       `http://${HOST}/emulator/v1/projects/${PROJECT}/accounts:query`,
-      { method: "POST", headers, body: JSON.stringify({}) }
+      { method: "POST", headers, body: JSON.stringify({}) },
     ).then((r) => r.json());
     localId = lookup.userInfo?.find((u) => u.email === EMAIL)?.localId;
   }

@@ -31,21 +31,14 @@ export function PingPanel({ department }: { department: string }) {
             Round-trips the event pipeline end to end.
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => sendPing.mutate()}
-          disabled={sendPing.isPending}
-        >
+        <Button variant="outline" onClick={() => sendPing.mutate()} disabled={sendPing.isPending}>
           {sendPing.isPending ? "Pinging…" : `Ping from ${department}`}
         </Button>
       </div>
       <ul className="divide-y text-sm">
         {pings.data?.data.length === 0 && (
           <li>
-            <EmptyState
-              icon={Activity}
-              title="No activity yet"
-            />
+            <EmptyState icon={Activity} title="No activity yet" />
           </li>
         )}
         {pings.data?.data.map((p) => (

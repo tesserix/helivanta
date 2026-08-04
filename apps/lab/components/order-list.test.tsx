@@ -31,7 +31,14 @@ describe("OrderList", () => {
       .mockResolvedValueOnce(jsonResponse(200, { id: "o-1", status: "completed" }))
       .mockResolvedValue(
         jsonResponse(200, {
-          data: [{ ...pendingOrder, status: "completed", result_value: "WBC 6.1", resulted_at: "2026-08-04T04:01:00Z" }],
+          data: [
+            {
+              ...pendingOrder,
+              status: "completed",
+              result_value: "WBC 6.1",
+              resulted_at: "2026-08-04T04:01:00Z",
+            },
+          ],
         }),
       );
     vi.stubGlobal("fetch", fetchMock);

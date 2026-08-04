@@ -117,7 +117,10 @@ around the typed `apiFetch<T>` client (`packages/api/src/client.ts`).
 Raw `fetch`, `useState` + manual loading flags, or a hand-rolled
 `setInterval` for polling are not used in application components —
 `useApiQuery`, `useApiMutation`, and the shared `POLL_INTERVAL_MS`
-constant cover every case those patterns used to.
+constant cover every case those patterns used to. The sole sanctioned
+exception is the shell login's `POST /api/session`
+(`apps/shell/app/login/page.tsx`) — it's an auth route outside the
+`/api/v1` envelope, so it uses raw `fetch` directly.
 
 `useApiQuery<T>(key, path, opts?)` takes a TanStack query key, the
 API path (appended to the fixed `/api/v1` prefix), and an optional
@@ -324,15 +327,21 @@ WCAG basics apply to every screen, not just the ones a designer flagged:
 
 ## 11. Testing
 
-Every panel component gets a Vitest + Testing Library test covering the
-happy path, the empty state, and at least one validation or error case.
-Tests render through `renderWithProviders` (`packages/api/src/testing.tsx`),
+Every panel component gets at least one Vitest + Testing Library test
+covering its primary happy path; add the empty state and a validation
+or error case as separate `it` blocks where the component has
+meaningful behavior to cover — not every panel needs all three. Tests
+render through `renderWithProviders` (`packages/api/src/testing.tsx`),
 which wraps the component in a fresh `QueryClientProvider` (retries
 disabled) and a `<Toaster />`, and returns a wired-up `user-event`
 instance alongside the normal Testing Library queries. See
-`apps/medicore/components/visit-panel.test.tsx` for the pattern —
-mocked `fetch`, empty-list assertion, then a create flow asserting the
-success toast and list update.
+`apps/medicore/components/visit-panel.test.tsx` for the fullest
+example in the repo — mocked `fetch`, an empty-list assertion, a create
+flow that asserts the list updates, and a second test asserting the
+inline validation error. `apps/lab/components/order-list.test.tsx` is a
+narrower, happy-path-only example (save-result flow, list update); no
+current test asserts on toast text — treat the toast copy in section 5
+as the source of truth for what a mutation shows, not the tests.
 
 Every zone user journey is additionally covered by the Playwright smoke
 test at `e2e/tests/smoke.spec.ts`, which drives a real login through all

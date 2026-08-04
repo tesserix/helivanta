@@ -35,11 +35,11 @@ export function HmsShell({ active, children }: { active: string; children: React
 
   return (
     <div className="flex min-h-screen">
-      {/* Zone rail: icons-only or icons+labels. Same treatment as
-          tesserix-home's AdminSidebar: shared bg, border only between
-          the rails, none against the content. */}
+      {/* Zone rail: icons-only or icons+labels. Matches tesserix admin:
+          one step darker than the page panel, faint border between the
+          rails, none against the content. */}
       <aside
-        className={`flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
+        className={`flex shrink-0 flex-col border-r border-sidebar-border bg-(--sidebar-rail) transition-[width] duration-200 ease-out motion-reduce:transition-none ${
           railExpanded ? "w-56" : "w-16"
         }`}
       >

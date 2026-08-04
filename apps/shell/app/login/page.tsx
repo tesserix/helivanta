@@ -3,27 +3,28 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
+import { Field, useZodForm } from "@hms/ui";
 import { firebaseAuth } from "@/lib/firebase";
 
-// Dev-only prefill: NODE_ENV is inlined at build time, so the seeded
-// credentials are dead-code-eliminated from production bundles.
-const DEV_EMAIL = process.env.NODE_ENV !== "production" ? "test@hms.dev" : "";
-const DEV_PASSWORD = process.env.NODE_ENV !== "production" ? "password123" : "";
+const loginSchema = z.object({
+  email: z.string().email("Enter a valid email"),
+  password: z.string().min(1, "Password is required"),
+});
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState(DEV_EMAIL);
-  const [password, setPassword] = useState(DEV_PASSWORD);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
+  const form = useZodForm(loginSchema, {
+    email: process.env.NODE_ENV !== "production" ? "test@hms.dev" : "",
+    password: process.env.NODE_ENV !== "production" ? "password123" : "",
+  });
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
+  async function onSubmit(values: z.infer<typeof loginSchema>) {
+    setSignInError(null);
     try {
-      const cred = await signInWithEmailAndPassword(firebaseAuth(), email, password);
+      const cred = await signInWithEmailAndPassword(firebaseAuth(), values.email, values.password);
       const idToken = await cred.user.getIdToken();
       const res = await fetch("/api/session", {
         method: "POST",
@@ -33,16 +34,15 @@ export default function LoginPage() {
       if (!res.ok) throw new Error("session");
       router.replace("/");
     } catch {
-      setError("Sign-in failed. Check your email and password.");
-    } finally {
-      setBusy(false);
+      setSignInError("Sign-in failed. Check your email and password.");
     }
   }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <form
-        onSubmit={onSubmit}
+        noValidate
+        onSubmit={form.handleSubmit(onSubmit)}
         className="w-full max-w-sm space-y-4 rounded-lg border bg-card p-6 shadow-sm"
       >
         <div>
@@ -51,35 +51,39 @@ export default function LoginPage() {
             Hospital Management System
           </p>
         </div>
-        <label htmlFor="login-email" className="block text-sm font-medium">
-          Email
+        <Field
+          id="email"
+          label="Email"
+          error={form.formState.errors.email?.message}
+        >
           <Input
-            id="login-email"
+            id="email"
             type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            placeholder="user@example.com"
+            {...form.register("email")}
             className="mt-1.5"
           />
-        </label>
-        <label htmlFor="login-password" className="block text-sm font-medium">
-          Password
+        </Field>
+        <Field
+          id="password"
+          label="Password"
+          error={form.formState.errors.password?.message}
+        >
           <Input
-            id="login-password"
+            id="password"
             type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            {...form.register("password")}
             className="mt-1.5"
           />
-        </label>
-        {error && (
+        </Field>
+        {signInError && (
           <p role="alert" className="text-sm text-destructive">
-            {error}
+            {signInError}
           </p>
         )}
-        <Button type="submit" disabled={busy} className="w-full">
-          {busy ? "Signing in…" : "Sign in"}
+        <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
+          {form.formState.isSubmitting ? "Signing in…" : "Sign in"}
         </Button>
       </form>
     </main>

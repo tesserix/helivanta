@@ -199,13 +199,7 @@ function errorTsx() {
 
 import { Button } from "@tesserix/web";
 
-export default function ErrorBoundary({
-  error,
-  reset,
-}: {
-  error: Error;
-  reset: () => void;
-}) {
+export default function ErrorBoundary({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
       <h1 className="text-xl font-semibold text-foreground">Something went wrong</h1>
@@ -240,7 +234,11 @@ function notFoundTsx() {
     <main className="flex min-h-screen flex-col items-center justify-center gap-2 p-6 text-center">
       <h1 className="text-xl font-semibold text-foreground">Page not found</h1>
       <p className="text-sm text-muted-foreground">
-        Check the address, or head back to the <a className="underline underline-offset-4" href="/">dashboard</a>.
+        Check the address, or head back to the{" "}
+        <a className="underline underline-offset-4" href="/">
+          dashboard
+        </a>
+        .
       </p>
     </main>
   );
@@ -278,12 +276,18 @@ export function ExamplePanel() {
     <section className="max-w-2xl rounded-lg border bg-card">
       <div className="border-b px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">${pascalCase(name)}</h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">Replace this example panel with real content.</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Replace this example panel with real content.
+        </p>
       </div>
       <ul className="divide-y text-sm">
         {items.data?.data.length === 0 && (
           <li>
-            <EmptyState icon={Inbox} title="Nothing here yet" hint="Data will appear here once available." />
+            <EmptyState
+              icon={Inbox}
+              title="Nothing here yet"
+              hint="Data will appear here once available."
+            />
           </li>
         )}
         {items.data?.data.map((item) => (

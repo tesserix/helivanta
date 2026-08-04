@@ -23,7 +23,7 @@ jobs:
         with:
           working-directory: backend
       - run: go build ./...
-      - run: go test -race ./...
+      - run: ./scripts/coverage-gate.sh
   web:
     runs-on: ubuntu-latest
     steps:

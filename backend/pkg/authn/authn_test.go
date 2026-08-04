@@ -98,3 +98,52 @@ func TestTenantPrincipal(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, w.Code)
 	require.Contains(t, w.Body.String(), "unauthenticated")
 }
+
+func TestPrincipalFromWhenKeyNotInContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.GET("/p", func(c *gin.Context) {
+		p, ok := authn.PrincipalFrom(c)
+		require.False(t, ok)
+		require.Equal(t, authn.Principal{}, p)
+		c.JSON(http.StatusOK, gin.H{})
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/p", nil)
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestPrincipalFromWhenWrongType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.GET("/p", func(c *gin.Context) {
+		c.Set("authn.principal", "not a principal")
+		p, ok := authn.PrincipalFrom(c)
+		require.False(t, ok)
+		require.Equal(t, authn.Principal{}, p)
+		c.JSON(http.StatusOK, gin.H{})
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/p", nil)
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestTenantPrincipalWhenMissing(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.GET("/p", func(c *gin.Context) {
+		_, _, ok := authn.TenantPrincipal(c)
+		require.False(t, ok)
+		c.JSON(http.StatusOK, gin.H{})
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/p", nil)
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+	require.Contains(t, w.Body.String(), "missing principal")
+}

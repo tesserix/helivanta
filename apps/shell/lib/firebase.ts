@@ -9,7 +9,9 @@ export function firebaseAuth() {
       projectId: process.env.NEXT_PUBLIC_GIP_PROJECT_ID ?? "demo-hms",
     });
   const auth = getAuth(app);
-  const emulator = process.env.NEXT_PUBLIC_AUTH_EMULATOR_HOST;
+  const emulator =
+    process.env.NEXT_PUBLIC_AUTH_EMULATOR_HOST ??
+    (process.env.NODE_ENV !== "production" ? "localhost:9099" : undefined);
   // avoids double-connect in fast refresh
   if (emulator && !auth.emulatorConfig) {
     connectAuthEmulator(auth, `http://${emulator}`, { disableWarnings: true });

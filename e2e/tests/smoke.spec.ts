@@ -13,8 +13,16 @@ test("login, OPD visit, pharmacy dispense, lab result", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
 
   // Shell → medicore (hard navigation across the zone boundary).
-  await page.getByRole("link", { name: "OPD", exact: true }).first().click();
+  // The department card's accessible name includes its description text
+  // ("OPD Outpatient registration & appointments"), so match by href instead
+  // of an exact "OPD" name.
+  await page.locator('a[href="/medicore/opd"]').first().click();
   await expect(page).toHaveURL(/\/medicore\/opd$/);
+  // The medicore zone is a separate Next.js app reached via a hard
+  // navigation; wait for its JS to finish loading/hydrating before
+  // interacting, otherwise a click can race hydration and fall back to a
+  // native (unhandled) form submit with stale/empty state.
+  await page.waitForLoadState("networkidle");
 
   // Create the OPD visit.
   await page.getByLabel("Patient name").fill(patient);

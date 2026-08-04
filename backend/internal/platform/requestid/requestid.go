@@ -3,6 +3,7 @@ package requestid
 
 import (
 	"log/slog"
+	"regexp"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -12,10 +13,14 @@ const Key = "request_id"
 
 const loggerKey = "request_logger"
 
+// validRequestID bounds inbound X-Request-ID values to a safe charset and
+// length before they are echoed back or used in log correlation.
+var validRequestID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
+
 func Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.GetHeader("X-Request-ID")
-		if id == "" {
+		if id == "" || !validRequestID.MatchString(id) {
 			id = uuid.NewString()
 		}
 		c.Set(Key, id)

@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@hms/api/testing";
 import { DispenseList } from "./dispense-list";
@@ -37,7 +37,9 @@ describe("DispenseList", () => {
 
     const { user } = renderWithProviders(<DispenseList />);
     await user.click(await screen.findByRole("button", { name: "Dispense" }));
-    await waitFor(() => expect(screen.getByText("Dispensed")).toBeInTheDocument());
+    const lists = screen.getAllByRole("list");
+    const dispensesList = lists[0];
+    await waitFor(() => expect(within(dispensesList).getAllByText("Dispensed")).toHaveLength(1));
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/pharmacy/dispenses/d-1/dispense",
       expect.objectContaining({ method: "POST" }),

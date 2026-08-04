@@ -27,6 +27,7 @@ export function DispenseList() {
         body: JSON.stringify({ medication }),
       }),
     {
+      successToast: "Dispensed",
       invalidate: [["dispenses"]],
     },
   );

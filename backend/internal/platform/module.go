@@ -23,6 +23,9 @@ type Deps struct {
 	DB    *tenantdb.DB
 	Bus   *events.Bus
 	Authz TupleWriter
+	// Reconcile ensures a tenant's permission tuples match the registry.
+	// Set by main.go; nil in tests that do not exercise it.
+	Reconcile func(ctx context.Context, tenantID string) error
 }
 
 // Module is the registration contract from issue #2.

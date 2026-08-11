@@ -1,0 +1,174 @@
+package platform_test
+
+import (
+	"context"
+	"sort"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+
+	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/hms/internal/testinfra"
+	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/hms/pkg/tenantdb"
+)
+
+type grantingModule struct{ name string }
+
+func (g grantingModule) Name() string                     { return g.name }
+func (g grantingModule) Migrations() []tenantdb.Migration { return nil }
+func (g grantingModule) Permissions() []authz.Grant {
+	return []authz.Grant{
+		{Permission: "x.thing.read", Roles: []authz.Role{authz.RoleNurse}},
+		{Permission: "x.thing.write", Roles: []authz.Role{authz.RoleDoctor}},
+	}
+}
+func (g grantingModule) Routes(*platform.Router, platform.Deps)    {}
+func (g grantingModule) Consumers(platform.Deps) []events.Consumer { return nil }
+
+// capturingWriter records both permission grants (module -> role) and
+// role grants (tenant member -> role), so it can stand in for the real
+// OpenFGA client across both reconciliation paths.
+type capturingWriter struct {
+	pairs []string // "<permission>@<role>"
+	roles []string // "<tenantID>|<subject>|<role>"
+}
+
+func (c *capturingWriter) GrantRole(_ context.Context, tenantID, subject string, r authz.Role) error {
+	c.roles = append(c.roles, tenantID+"|"+subject+"|"+string(r))
+	return nil
+}
+
+func (c *capturingWriter) RevokeRole(context.Context, string, string, authz.Role) error { return nil }
+
+func (c *capturingWriter) GrantPermission(_ context.Context, tenantID string, p authz.Permission, r authz.Role) error {
+	c.pairs = append(c.pairs, string(p)+"@"+string(r))
+	return nil
+}
+
+func TestTenantAdminReceivesEveryDeclaredPermission(t *testing.T) {
+	reg := platform.NewRegistry()
+	require.NoError(t, reg.Register(grantingModule{"x"}))
+	w := &capturingWriter{}
+
+	require.NoError(t, platform.ReconcileTenant(context.Background(), reg, w, "tenant-1"))
+
+	sort.Strings(w.pairs)
+	require.Equal(t, []string{
+		"x.thing.read@nurse",
+		"x.thing.read@tenant_admin",
+		"x.thing.write@doctor",
+		"x.thing.write@tenant_admin",
+	}, w.pairs)
+}
+
+func TestReconcileIsIdempotent(t *testing.T) {
+	reg := platform.NewRegistry()
+	require.NoError(t, reg.Register(grantingModule{"x"}))
+	w := &capturingWriter{}
+
+	require.NoError(t, platform.ReconcileTenant(context.Background(), reg, w, "tenant-1"))
+	first := len(w.pairs)
+	require.NoError(t, platform.ReconcileTenant(context.Background(), reg, w, "tenant-1"))
+
+	// Writes repeat, but GrantPermission is idempotent at the client, so
+	// the operation stays safe to run on every boot.
+	require.Equal(t, first*2, len(w.pairs))
+}
+
+// membersMigration creates a table shaped exactly like iam's iam_members
+// (tenant_id, subject, role_key), without importing the iam module —
+// platform cannot import iam (iam imports platform), so this test proves
+// Reconcile's raw-SQL read against that schema using its own fixture,
+// the same way reconcile.go itself never references iam's Go types.
+var membersMigration = []tenantdb.Migration{{
+	ID: "0001_test_iam_members",
+	SQL: `
+		CREATE TABLE iam_members (
+		  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+		  tenant_id uuid NOT NULL,
+		  subject text NOT NULL,
+		  role_key text NOT NULL,
+		  created_at timestamptz NOT NULL DEFAULT now()
+		);
+		ALTER TABLE iam_members ENABLE ROW LEVEL SECURITY;
+		ALTER TABLE iam_members FORCE ROW LEVEL SECURITY;
+		CREATE POLICY tenant_isolation ON iam_members
+		  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+		  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`,
+}}
+
+const (
+	tenantA = "11111111-1111-1111-1111-111111111111"
+	tenantB = "22222222-2222-2222-2222-222222222222"
+)
+
+func openMigratedDB(t *testing.T) *tenantdb.DB {
+	t.Helper()
+	appDSN, adminDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.Open(appDSN, adminDSN)
+	require.NoError(t, err)
+	require.NoError(t, db.Migrate(context.Background(), membersMigration))
+	return db
+}
+
+func seedMember(t *testing.T, db *tenantdb.DB, tenantID, subject, roleKey string) {
+	t.Helper()
+	err := db.WithTenant(context.Background(), tenantID, func(tx *gorm.DB) error {
+		return tx.Exec(
+			`INSERT INTO iam_members (tenant_id, subject, role_key) VALUES (?, ?, ?)`,
+			tenantID, subject, roleKey,
+		).Error
+	})
+	require.NoError(t, err)
+}
+
+// TestReconcileReappliesEveryMembership is the amendment to the brief:
+// Reconcile must re-apply member->role tuples (GrantRole), not just
+// permission->role tuples (GrantPermission). Without this, wiping
+// OpenFGA's tuples (routine in dev, which runs an in-memory store) and
+// restarting would restore every permission grant but leave no user
+// belonging to any role.
+func TestReconcileReappliesEveryMembership(t *testing.T) {
+	db := openMigratedDB(t)
+	seedMember(t, db, tenantA, "dr-jane", "doctor")
+	seedMember(t, db, tenantA, "nurse-amy", "nurse")
+	seedMember(t, db, tenantB, "dr-bob", "doctor")
+
+	reg := platform.NewRegistry()
+	require.NoError(t, reg.Register(grantingModule{"x"}))
+	w := &capturingWriter{}
+
+	require.NoError(t, platform.Reconcile(context.Background(), reg, db, w))
+
+	sort.Strings(w.roles)
+	require.Equal(t, []string{
+		tenantA + "|dr-jane|doctor",
+		tenantA + "|nurse-amy|nurse",
+		tenantB + "|dr-bob|doctor",
+	}, w.roles)
+}
+
+// TestReconcileAlsoReappliesPermissionsPerTenant proves the two passes
+// compose: every tenant discovered via iam_members still gets its
+// permission tuples reconciled, not only its membership tuples.
+func TestReconcileAlsoReappliesPermissionsPerTenant(t *testing.T) {
+	db := openMigratedDB(t)
+	seedMember(t, db, tenantA, "dr-jane", "doctor")
+	seedMember(t, db, tenantB, "dr-bob", "doctor")
+
+	reg := platform.NewRegistry()
+	require.NoError(t, reg.Register(grantingModule{"x"}))
+	w := &capturingWriter{}
+
+	require.NoError(t, platform.Reconcile(context.Background(), reg, db, w))
+
+	// Each of the 2 tenants gets 4 permission tuples (2 perms x
+	// nurse/doctor role, plus tenant_admin appended to each) reconciled
+	// exactly once.
+	require.Len(t, w.pairs, 8)
+	require.Contains(t, w.pairs, "x.thing.read@nurse")
+	require.Contains(t, w.pairs, "x.thing.write@doctor")
+}

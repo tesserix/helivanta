@@ -94,9 +94,28 @@ func (d *DB) WithTenant(ctx context.Context, tenantID string, fn func(tx *gorm.D
 // WithSystem runs fn in a transaction on the app pool WITHOUT a tenant
 // GUC. Only for platform tables that have no tenant_id column (outbox,
 // idempotency); RLS still hides every tenant-scoped table because the
-// GUC is unset.
+// GUC is unset. WithSystem is deliberately not an escape hatch for
+// tenant data — see WithAdmin for the narrow, explicitly-privileged
+// alternative when a whole-system read genuinely needs to cross tenant
+// boundaries.
 func (d *DB) WithSystem(ctx context.Context, fn func(tx *gorm.DB) error) error {
 	return d.app.WithContext(ctx).Transaction(fn)
+}
+
+// WithAdmin runs fn in a transaction on the admin pool, which connects
+// as the migration role and therefore bypasses RLS entirely — it sees
+// every tenant's rows in every table. This is the same privileged class
+// of operation Migrate and LintRLS already are (both also run on the
+// admin pool outside WithTenant/WithSystem); WithAdmin exists so a third
+// kind of whole-system, boot-time operation — enumerating tenants and
+// memberships across the fleet, which by definition cannot be scoped to
+// one tenant's GUC — doesn't have to either weaken WithSystem's
+// documented guarantee or reach around DB entirely. It is for
+// process-startup/ops code (the reconciler), never for request-path
+// handlers; nothing in the type system enforces that boundary, the same
+// as Migrate and LintRLS today.
+func (d *DB) WithAdmin(ctx context.Context, fn func(tx *gorm.DB) error) error {
+	return d.admin.WithContext(ctx).Transaction(fn)
 }
 
 // LintRLS returns tables carrying tenant_id without forced RLS + a policy.

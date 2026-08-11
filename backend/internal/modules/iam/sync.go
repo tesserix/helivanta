@@ -26,6 +26,11 @@ func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 			}
 			role := authz.Role(data.RoleKey)
 			if grant {
+				if deps.Reconcile != nil {
+					if err := deps.Reconcile(ctx, evt.TenantID); err != nil {
+						return fmt.Errorf("reconcile tenant: %w", err)
+					}
+				}
 				return deps.Authz.GrantRole(ctx, evt.TenantID, data.Subject, role)
 			}
 			return deps.Authz.RevokeRole(ctx, evt.TenantID, data.Subject, role)

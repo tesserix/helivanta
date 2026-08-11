@@ -85,6 +85,8 @@ func TestResolverErrorFailsClosedEvenOnPublicRoutes(t *testing.T) {
 	require.Equal(t, http.StatusServiceUnavailable, get(guarded(t, r, authz.Public)).Code)
 }
 
+// TestHandlerNeverRunsWithoutResolvedSet verifies the Middleware guard:
+// when no principal is found, Middleware aborts before Require is invoked.
 func TestHandlerNeverRunsWithoutResolvedSet(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
@@ -95,4 +97,21 @@ func TestHandlerNeverRunsWithoutResolvedSet(t *testing.T) {
 
 	require.Equal(t, http.StatusUnauthorized, get(e).Code)
 	require.False(t, ran, "handler must not run without a resolved permission set")
+}
+
+// TestRequireWithoutMiddlewareDeniesAndDoesNotRunHandler verifies the Require guard:
+// when Middleware was not mounted (permissions never initialized on context),
+// Require returns 500 "internal" and the handler does not run.
+func TestRequireWithoutMiddlewareDeniesAndDoesNotRunHandler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	e := gin.New()
+	ran := false
+	// Mount principal but NOT Middleware: Require must catch the missing permissions.
+	g := e.Group("/v1", principalStub(tenantA))
+	g.GET("/thing", authz.Require("medicore.visit.read"), func(c *gin.Context) { ran = true })
+
+	w := get(e)
+	require.Equal(t, http.StatusInternalServerError, w.Code)
+	require.Contains(t, w.Body.String(), `"internal"`)
+	require.False(t, ran, "handler must not run if authorization was not initialized")
 }

@@ -46,6 +46,26 @@ async function main() {
   });
   if (!update.ok) throw new Error(`set claims failed: ${await update.text()}`);
   console.log(`Seeded ${EMAIL} / ${PASSWORD} with tenant_id=${TENANT_ID}`);
+
+  // Bootstrap: the first tenant_admin cannot be granted through a route
+  // that requires iam.member.manage, so the seed writes the membership row
+  // directly. The API's reconciler turns it into tuples on next boot; the
+  // iam-fga-sync consumer does it immediately for later grants.
+  const { Client } = await import("pg");
+  const pg = new Client({
+    connectionString:
+      process.env.ADMIN_DATABASE_URL ??
+      "postgres://hms:hms@localhost:5432/hms?sslmode=disable",
+  });
+  await pg.connect();
+  await pg.query(
+    `INSERT INTO iam_members (tenant_id, subject, role_key)
+     VALUES ($1, $2, 'tenant_admin')
+     ON CONFLICT (tenant_id, subject, role_key) DO NOTHING`,
+    [TENANT_ID, localId],
+  );
+  await pg.end();
+  console.log(`Granted tenant_admin to ${EMAIL} in tenant ${TENANT_ID}`);
 }
 
 main().catch((e) => {

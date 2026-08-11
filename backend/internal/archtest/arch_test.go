@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/tools/go/packages"
 
+	"github.com/tesserix/hms/internal/modules/iam"
 	"github.com/tesserix/hms/internal/modules/lab"
 	"github.com/tesserix/hms/internal/modules/medicore"
 	"github.com/tesserix/hms/internal/modules/pharmacy"
@@ -30,7 +31,7 @@ const modulesPrefix = "github.com/tesserix/hms/internal/modules/"
 // runtime source of truth; keep them in sync (the generator prints a
 // reminder).
 func allModules() []platform.Module {
-	return []platform.Module{reference.New(), medicore.New(), pharmacy.New(), lab.New()}
+	return []platform.Module{iam.New(), reference.New(), medicore.New(), pharmacy.New(), lab.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under

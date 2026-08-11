@@ -13,6 +13,7 @@ import (
 
 	"github.com/tesserix/hms/internal/config"
 	"github.com/tesserix/hms/internal/httpserver"
+	"github.com/tesserix/hms/internal/modules/iam"
 	"github.com/tesserix/hms/internal/modules/lab"
 	"github.com/tesserix/hms/internal/modules/medicore"
 	"github.com/tesserix/hms/internal/modules/pharmacy"
@@ -20,6 +21,7 @@ import (
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/requestid"
 	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
@@ -42,7 +44,9 @@ func run() error {
 	}
 
 	registry := platform.NewRegistry()
-	for _, mod := range []platform.Module{reference.New(), medicore.New(), pharmacy.New(), lab.New()} {
+	for _, mod := range []platform.Module{
+		iam.New(), reference.New(), medicore.New(), pharmacy.New(), lab.New(),
+	} {
 		if err := registry.Register(mod); err != nil {
 			return err
 		}
@@ -72,15 +76,35 @@ func run() error {
 		return err
 	}
 
+	fga, err := authz.NewClient(ctx, cfg.OpenFGAURL, cfg.OpenFGAStore)
+	if err != nil {
+		return err
+	}
+	if err := platform.Reconcile(ctx, registry, db, fga); err != nil {
+		return err
+	}
+
 	srv := httpserver.New(
 		[]httpserver.ReadyCheck{
 			{Name: "postgres", Check: db.PingContext},
 			{Name: "nats", Check: bus.Ping},
+			{Name: "openfga", Check: fga.Ping},
 		},
 		requestid.Middleware(),
 	)
-	deps := platform.Deps{DB: db, Bus: bus}
-	api := platform.NewRouter(srv.Engine.Group("/v1", authn.Middleware(verifier)))
+	deps := platform.Deps{
+		DB:    db,
+		Bus:   bus,
+		Authz: fga,
+		Roles: fga,
+		Reconcile: func(ctx context.Context, tenantID string) error {
+			return platform.ReconcileTenant(ctx, registry, fga, tenantID)
+		},
+	}
+	api := platform.NewRouter(srv.Engine.Group("/v1",
+		authn.Middleware(verifier),
+		authz.Middleware(fga),
+	))
 	for _, m := range registry.All() {
 		m.Routes(api, deps)
 		if err := bus.StartConsumers(ctx, db, m.Consumers(deps)); err != nil {

@@ -43,12 +43,31 @@ function stubFetch(
   return fetchMock;
 }
 
+// mockCred builds the signInWithCustomToken resolution: an
+// getIdTokenResult() carrying whatever tenant_id claim the test wants to
+// simulate, matching the real firebase.User shape closely enough for
+// tenant-picker.tsx to read `.claims.tenant_id` and `.token` off it.
+function mockCred(claimTenantId: string) {
+  return {
+    user: {
+      getIdToken: async () => "fresh-id-token",
+      getIdTokenResult: async () => ({
+        token: "fresh-id-token",
+        claims: { tenant_id: claimTenantId },
+      }),
+    },
+  };
+}
+
 beforeEach(() => {
   calls.length = 0;
   signInWithCustomToken.mockReset();
   signInWithCustomToken.mockImplementation(async () => {
     calls.push("signInWithCustomToken");
-    return { user: { getIdToken: async () => "fresh-id-token" } };
+    // Default: the minted token carries the tenant the picker asked to
+    // switch to. Individual tests override this to simulate GIP handing
+    // back a token for the wrong tenant.
+    return mockCred("t2");
   });
   vi.stubGlobal("location", { reload: vi.fn() });
 });
@@ -141,6 +160,35 @@ describe("TenantPicker", () => {
     await waitFor(() => expect(calls).toContain("POST /api/v1/iam/me/tenant"));
     const switchCall = calls.find((c) => c.includes("/iam/me/tenant"));
     expect(switchCall).toBeDefined();
+  });
+
+  // The disclosed production-only risk this control cannot rule out in
+  // this environment: real GIP might let a persisted
+  // `customAttributes.tenant_id` on the account win over the custom
+  // token's developer claim, silently minting a token for the OLD
+  // tenant. This test cannot reproduce GIP's actual precedence behavior,
+  // but it proves the client-side guard that makes a mismatch loud
+  // instead of silent — the exact regression of the bug this control was
+  // built to fix, just one layer down.
+  it("reports failure and never POSTs the session when the minted token's tenant claim does not match the target", async () => {
+    stubFetch();
+    // Simulate GIP handing back a token still carrying t1 (the tenant
+    // being switched FROM) even though the picker asked to switch to t2.
+    signInWithCustomToken.mockImplementation(async () => {
+      calls.push("signInWithCustomToken");
+      return mockCred("t1");
+    });
+    const { user } = renderWithProviders(<TenantPicker />);
+    await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
+
+    await user.selectOptions(screen.getByRole("combobox"), "t2");
+
+    await waitFor(() =>
+      expect(screen.getByText(/did not carry the expected hospital/)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText("Switched hospital")).not.toBeInTheDocument();
+    expect(calls).not.toContain("POST /api/session");
+    expect(window.location.reload).not.toHaveBeenCalled();
   });
 
   it("keeps the old session and does not reload when the exchange fails", async () => {

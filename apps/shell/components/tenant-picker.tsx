@@ -26,7 +26,18 @@ type SwitchResponse = { tenant_id: string; custom_token: string };
  *     token carrying the new `tenant_id` claim.
  *  2. `signInWithCustomToken` — exchanges it for a fresh ID token. The
  *     tenant a request runs in comes from that token's claim and nowhere
- *     else, so this is the step that actually moves the user.
+ *     else, so this is the step that actually moves the user. Before
+ *     trusting the result, `getIdTokenResult()` is checked against the
+ *     `tenant_id` we asked to switch to: this environment cannot verify
+ *     that Google Identity Platform's custom-token claim always wins over
+ *     a persisted `customAttributes.tenant_id` on the account (see
+ *     `scripts/seed-dev.mjs`, and production provisioning likely sets the
+ *     same attribute) rather than being overridden by it. If GIP ever let
+ *     the persisted attribute win, this step would silently mint a token
+ *     for the OLD tenant — the exact bug this control replaces, just
+ *     reintroduced one layer down. A mismatch here throws instead of
+ *     proceeding, so that failure mode is loud (an error toast, no
+ *     session POST, no reload) instead of a silent no-op switch.
  *  3. `POST /api/session` — replaces the `hms_session` cookie with the new
  *     ID token, the same handler `app/login/page.tsx` posts to after
  *     sign-in. Raw `fetch` here is the sanctioned session-route exception
@@ -47,11 +58,16 @@ export function TenantPicker() {
         body: JSON.stringify({ tenant_id: tenantId }),
       });
       const cred = await signInWithCustomToken(firebaseAuth(), custom_token);
-      const idToken = await cred.user.getIdToken();
+      const idTokenResult = await cred.user.getIdTokenResult();
+      if (idTokenResult.claims.tenant_id !== tenantId) {
+        throw new Error(
+          "Hospital switch failed: the new session did not carry the expected hospital. Please try again.",
+        );
+      }
       const res = await fetch("/api/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify({ idToken: idTokenResult.token }),
       });
       if (!res.ok) throw new Error("Could not start a session for that hospital.");
       return tenantId;

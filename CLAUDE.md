@@ -1,5 +1,27 @@
 # HMS — agent rules
 
+## Before starting any work (all agents)
+
+Every piece of work is tracked by a GitHub issue. Before writing code:
+
+1. **Search first — this repo has 750+ issues, so the work is usually already filed.**
+   `gh issue list --state all --search "<keywords> in:title"`. Try the feature
+   name, the component, and the technology (e.g. `OpenFGA`, `authorization`,
+   `consent`). Read near-misses before concluding nothing exists.
+2. **If an issue exists, assign it** — `gh issue edit <n> --add-assignee @me`
+   — and reference it in the branch name and PR body. Never open a duplicate.
+3. **Only if genuinely nothing matches, create one** — `gh issue create` —
+   using the repo's existing label taxonomy: `type:*`, `product:*`, `team:*`,
+   `epic:*`, and `area:*` where it applies. Match the labelling of a
+   comparable issue rather than inventing labels.
+4. **Link the work back:** PR bodies close their issue (`Closes #<n>`), and
+   design specs record the issue they resolve in their header.
+
+The `gh` CLI must be authenticated as the personal account `mahesh-sangawar`
+for this repo.
+
+## Frontend rules
+
 Binding rules for all frontend work. Full document: docs/standards/frontend.md
 
 - Data fetching: `useApiQuery`/`useApiMutation` from `@hms/api` only. Never raw fetch/useState/setInterval in components (sole exception: shell login session POST — see standards doc).

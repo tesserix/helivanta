@@ -55,6 +55,25 @@ describe("Dashboard", () => {
     expect(screen.queryByText("Lab")).not.toBeInTheDocument();
   });
 
+  it("tints each department's icon chip by the zone's hue", async () => {
+    mockPermissions([
+      "medicore.visit.read",
+      "pharmacy.dispense.read",
+      "pharmacy.medication.read",
+      "lab.order.read",
+    ]);
+    renderWithProviders(<Dashboard />);
+
+    const opdCard = (await screen.findByText("OPD")).closest("a");
+    const labCard = (await screen.findByText("Lab")).closest("a");
+
+    expect(opdCard?.querySelector("span")).toHaveClass("bg-(--hms-rose-tint)", "text-(--hms-rose)");
+    expect(labCard?.querySelector("span")).toHaveClass(
+      "bg-(--hms-violet-tint)",
+      "text-(--hms-violet)",
+    );
+  });
+
   it("shows no zone cards while permissions are still loading", () => {
     // A fetch that never resolves keeps usePermissions().isLoading true —
     // can() denies while loading, so cards must not flash before the

@@ -89,15 +89,20 @@ func TestResolveFailsWhenStoreUnreachable(t *testing.T) {
 	require.Error(t, err, "an unreachable store must surface an error so the middleware can fail closed")
 }
 
-// TestConcurrentBootConvergesOnSameStore covers the split-brain finding
-// from review: OpenFGA does not enforce store-name uniqueness, so two
-// replicas racing to boot for the first time can each create a
-// same-named store. Here we simulate that race directly by creating a
-// duplicate store before either authz.Client boots, then assert both
-// independently constructed clients resolve to the same store (a grant
-// written through one is visible to Resolve through the other) rather
-// than silently splitting into two stores that each look like "no
-// permissions" from the other's point of view.
+// TestConcurrentBootConvergesOnSameStore is an integration smoke test
+// for the split-brain scenario, not a discriminating test of the
+// selection rule: it seeds two stores under the same name and then
+// calls authz.NewClient twice sequentially, with no writes in between.
+// OpenFGA's ListStores happens to return a stable order across both
+// reads, and OpenFGA store IDs are ULIDs (monotonic with creation
+// time), so the min-ID store here is also the first-created and
+// first-listed store — meaning even the pre-fix "first name match in
+// list order" logic would pass this test too. This test only proves
+// that end-to-end, two clients booted against a pre-existing duplicate
+// land on a usable, shared store; it does NOT prove min-ID selection is
+// what got them there. That property is covered by the pure-function
+// unit test TestSmallestStoreID in store_selection_test.go, which feeds
+// input ordered so the first match is deliberately not the min-ID one.
 func TestConcurrentBootConvergesOnSameStore(t *testing.T) {
 	ctx := context.Background()
 	url := testinfra.StartOpenFGA(t)

@@ -98,17 +98,30 @@ func (c *Client) ensureStore(ctx context.Context, name string) (string, error) {
 }
 
 // selectStore returns the deterministic winner among every store named
-// name: the lexicographically smallest store ID. OpenFGA store IDs are
-// ULIDs, which sort lexicographically in creation order, so this always
-// picks the oldest store and therefore the same store on every replica
-// and every subsequent call, regardless of how many same-named
-// duplicates a creation race left behind.
-func (c *Client) selectStore(ctx context.Context, name string) (id string, ok bool, err error) {
+// name, fetched fresh from the API. The selection rule itself lives in
+// smallestStoreID so it can be unit-tested without a running OpenFGA
+// container.
+func (c *Client) selectStore(ctx context.Context, name string) (string, bool, error) {
 	stores, err := c.api.ListStores(ctx).Execute()
 	if err != nil {
 		return "", false, fmt.Errorf("list stores: %w", err)
 	}
-	for _, s := range stores.GetStores() {
+	id, ok := smallestStoreID(stores.GetStores(), name)
+	return id, ok, nil
+}
+
+// smallestStoreID returns the lexicographically smallest ID among the
+// stores named name, or ok=false if none match. OpenFGA store IDs are
+// ULIDs, which sort lexicographically in creation order, so this always
+// picks the oldest store and therefore the same store on every replica
+// and every call, regardless of how many same-named duplicates a
+// creation race left behind and regardless of the order the API
+// happened to return them in. Kept as a pure function, independent of
+// *Client, so the selection rule can be exercised directly against
+// hand-built input rather than only through an integration test whose
+// ListStores order can coincidentally match the rule under test.
+func smallestStoreID(stores []openfga.Store, name string) (id string, ok bool) {
+	for _, s := range stores {
 		if s.GetName() != name {
 			continue
 		}
@@ -116,7 +129,7 @@ func (c *Client) selectStore(ctx context.Context, name string) (id string, ok bo
 			id, ok = s.GetId(), true
 		}
 	}
-	return id, ok, nil
+	return id, ok
 }
 
 // ensureModel writes modelJSON unless a model already exists. The model

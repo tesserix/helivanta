@@ -4,7 +4,7 @@ import { signInWithCustomToken } from "firebase/auth";
 import { useApiMutation, useApiQuery, apiFetch } from "@hms/api";
 import { firebaseAuth } from "@/lib/firebase";
 
-type Membership = { tenant_id: string; roles: string[] };
+type Membership = { tenant_id: string; roles: string[]; current: boolean };
 
 type SwitchResponse = { tenant_id: string; custom_token: string };
 
@@ -66,13 +66,23 @@ export function TenantPicker() {
 
   if (memberships.length < 2) return null;
 
+  // The backend marks the one membership matching the caller's tenant_id
+  // token claim `current: true` (see groupByTenant in
+  // backend/internal/modules/iam/me.go) — that, not array order, is the
+  // tenant the caller is actually in. `memberships[0]` is a last-resort
+  // fallback for the render before the query settles, not a substitute:
+  // trusting array order here was the bug (a picker that kept showing
+  // the pre-switch tenant after a reload, and that couldn't fire a
+  // change event to switch back to it because the DOM already matched).
+  const currentTenantId = memberships.find((m) => m.current)?.tenant_id ?? memberships[0].tenant_id;
+
   return (
     <label className="flex flex-col gap-1 px-3 py-2 text-xs">
       <span className="text-muted-foreground">Hospital</span>
       <select
         className="rounded-md border bg-transparent px-2 py-1 text-sm"
         onChange={(e) => switchTenant.mutate(e.target.value)}
-        defaultValue={memberships[0].tenant_id}
+        value={currentTenantId}
       >
         {memberships.map((m) => (
           <option key={m.tenant_id} value={m.tenant_id}>

@@ -13,7 +13,10 @@ vi.mock("@/lib/firebase", () => ({ firebaseAuth: () => ({ name: "test-auth" }) }
 // only meaningful together with "after the custom token came back".
 const calls: string[] = [];
 
-function stubFetch(switchBody: unknown = { tenant_id: "t2", custom_token: "custom-abc" }) {
+function stubFetch(
+  switchBody: unknown = { tenant_id: "t2", custom_token: "custom-abc" },
+  currentTenantId = "t1",
+) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     calls.push(`${init?.method ?? "GET"} ${url}`);
     if (url.endsWith("/iam/me/tenants")) {
@@ -22,8 +25,8 @@ function stubFetch(switchBody: unknown = { tenant_id: "t2", custom_token: "custo
         status: 200,
         json: async () => ({
           data: [
-            { tenant_id: "t1", roles: ["doctor"] },
-            { tenant_id: "t2", roles: ["nurse"] },
+            { tenant_id: "t1", roles: ["doctor"], current: currentTenantId === "t1" },
+            { tenant_id: "t2", roles: ["nurse"], current: currentTenantId === "t2" },
           ],
         }),
       };
@@ -108,6 +111,36 @@ describe("TenantPicker", () => {
     // Reload last, and only after the cookie was replaced — reloading
     // first would just re-render the old tenant's data.
     await waitFor(() => expect(window.location.reload).toHaveBeenCalled());
+  });
+
+  // Regresses the one-way-door bug: the picker used to derive "current"
+  // from array order (`defaultValue={memberships[0].tenant_id}`), which
+  // is computed once at first mount and never changes. After switching
+  // from t1 to t2 and reloading, the sorted array order is unchanged, so
+  // the old picker kept showing t1 selected even though the caller was
+  // now in t2 — and since the DOM already visually matched t1, selecting
+  // t1 again fired no change event, so returning to it was impossible
+  // without a fresh login. The backend now marks the caller's actual
+  // tenant `current: true` (derived from the token claim, not array
+  // position), and the picker must be a controlled component driven by
+  // that flag.
+  it("reflects the caller's actual current tenant after a switch, and allows switching back", async () => {
+    stubFetch(undefined, "t2");
+    const { user } = renderWithProviders(<TenantPicker />);
+
+    await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
+
+    // Simulates the post-switch, post-reload state: the server now
+    // reports t2 as current, even though t1 sorts first in the array.
+    expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe("t2");
+
+    // Switching back to t1 (the tenant the picker is NOT currently
+    // showing) must fire a real change event and the switch mutation.
+    await user.selectOptions(screen.getByRole("combobox"), "t1");
+
+    await waitFor(() => expect(calls).toContain("POST /api/v1/iam/me/tenant"));
+    const switchCall = calls.find((c) => c.includes("/iam/me/tenant"));
+    expect(switchCall).toBeDefined();
   });
 
   it("keeps the old session and does not reload when the exchange fails", async () => {

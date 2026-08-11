@@ -111,6 +111,49 @@ func TestMeTenantsListsEveryMembership(t *testing.T) {
 	require.Len(t, body.Data, 2, "a clinician working at two hospitals must see both")
 }
 
+// TestMeTenantsMarksCallersActualTenantCurrent guards the fix for the
+// one-way-door bug: the shell picker used to guess the "current" tenant
+// from array order (sorted by tenant id), which drifted from reality
+// after any switch. The response must instead mark the entry matching
+// the caller's tenant_id token claim, regardless of where it falls in
+// the sorted list.
+func TestMeTenantsMarksCallersActualTenantCurrent(t *testing.T) {
+	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{
+		// user-jane is the subject StaticVerifier derives from token "jane".
+		"user-jane": {
+			{TenantID: testutil.TenantA, Role: authz.RoleDoctor},
+			{TenantID: testutil.TenantB, Role: authz.RoleNurse},
+		},
+	}}
+	// jane's token claims TenantB even though TenantA sorts first — this
+	// is what the switch flow produces: the caller has already switched
+	// into TenantB, and the picker must reflect that, not TenantA.
+	r, _, _, _ := testutil.ModuleHarnessWithRoles(t,
+		map[string]string{"jane": testutil.TenantB},
+		map[string][]authz.Permission{"jane": {}},
+		&recordingWriter{}, roles, iam.New())
+
+	res := testutil.Do(r, "GET", "/v1/iam/me/tenants", "jane", "")
+	require.Equal(t, http.StatusOK, res.Code)
+
+	var body struct {
+		Data []struct {
+			TenantID string   `json:"tenant_id"`
+			Roles    []string `json:"roles"`
+			Current  bool     `json:"current"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &body))
+	require.Len(t, body.Data, 2)
+
+	byID := map[string]bool{}
+	for _, m := range body.Data {
+		byID[m.TenantID] = m.Current
+	}
+	require.True(t, byID[testutil.TenantB], "the tenant in the caller's token claim must be marked current")
+	require.False(t, byID[testutil.TenantA], "exactly one membership must be marked current")
+}
+
 func TestMeTenantsIsEmptyArrayNotNullForNonMember(t *testing.T) {
 	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{}}
 	r, _, _, _ := testutil.ModuleHarnessWithRoles(t,

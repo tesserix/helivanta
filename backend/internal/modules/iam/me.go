@@ -17,6 +17,14 @@ import (
 type tenantMembership struct {
 	TenantID string   `json:"tenant_id"`
 	Roles    []string `json:"roles"`
+	// Current is true for the one membership matching the caller's
+	// tenant_id token claim (authn.Principal.TenantID) — the tenant the
+	// request actually ran in, not whichever entry happens to sort
+	// first. The picker in apps/shell needs this to select and display
+	// the real current tenant instead of guessing from array order,
+	// which is what let the control silently drift out of sync with the
+	// session after a switch (see groupByTenant).
+	Current bool `json:"current"`
 }
 
 type switchRequest struct {
@@ -60,7 +68,7 @@ func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
 			respondRolesUnavailable(c, err)
 			return
 		}
-		respond.OK(c, gin.H{"data": groupByTenant(bindings)})
+		respond.OK(c, gin.H{"data": groupByTenant(bindings, p.TenantID)})
 	})
 
 	g.POST("/me/tenant", authz.Public, func(c *gin.Context) {
@@ -132,7 +140,14 @@ func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
 // over the (already tenant-then-role sorted) input keeps the result
 // deterministic. Returns a non-nil empty slice when bindings is empty so
 // the JSON array is never null.
-func groupByTenant(bindings []authz.RoleBinding) []tenantMembership {
+//
+// currentTenantID is the caller's tenant_id token claim (already
+// canonical, same as every binding's TenantID — see above), compared
+// raw for the same reason. It marks exactly one entry Current: true, the
+// tenant the request actually ran in. Without this the shell picker had
+// no way to know which membership was current and fell back to guessing
+// from array order, which drifted from reality after every switch.
+func groupByTenant(bindings []authz.RoleBinding, currentTenantID string) []tenantMembership {
 	byTenant := map[string][]string{}
 	var order []string
 	for _, b := range bindings {
@@ -145,7 +160,7 @@ func groupByTenant(bindings []authz.RoleBinding) []tenantMembership {
 	for _, id := range order {
 		roles := byTenant[id]
 		sort.Strings(roles)
-		out = append(out, tenantMembership{TenantID: id, Roles: roles})
+		out = append(out, tenantMembership{TenantID: id, Roles: roles, Current: id == currentTenantID})
 	}
 	return out
 }

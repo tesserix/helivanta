@@ -3,8 +3,10 @@ package iam
 import (
 	"net/http"
 	"sort"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/requestid"
@@ -73,49 +75,85 @@ func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
 			respond.BadRequest(c, err)
 			return
 		}
+		// Normalize before comparing and before echoing back: UUIDs are
+		// routinely rendered in either case by different clients, and
+		// binding:"required,uuid" validates the shape without
+		// normalizing it. Comparing raw strings would let a request
+		// that differs only in casing from the FGA-derived binding
+		// (or from what a previous grant happened to write) be refused
+		// with a 403 that looks like a deliberate denial of a real
+		// member.
+		target := normalizeTenantID(req.TenantID)
 		bindings, err := deps.Roles.ListRoles(c.Request.Context(), p.Subject)
 		if err != nil {
 			respondRolesUnavailable(c, err)
 			return
 		}
-		if !hasBindingForTenant(bindings, req.TenantID) {
+		if !hasBindingForTenant(bindings, target) {
 			respond.Forbidden(c, "not a member of that tenant")
 			return
 		}
 		// The session is re-minted by the shell, which exchanges this
 		// confirmation for a token carrying the new tenant_id claim.
-		respond.OK(c, gin.H{"tenant_id": req.TenantID})
+		respond.OK(c, gin.H{"tenant_id": target})
 	})
 }
 
 // groupByTenant turns FGA role bindings into the response shape, one
-// entry per tenant listing every role key held there. bindings is
-// already sorted by tenant then role (authz.Client.ListRoles's
-// contract), so the grouping preserves that order and the result is
-// deterministic. Returns a non-nil empty slice when bindings is empty
-// so the JSON array is never null.
+// entry per tenant listing every role key held there. Tenant ids are
+// normalized before grouping, not compared raw: two bindings for the
+// same tenant can carry differently-cased ids if they were granted at
+// different times, and without normalization those would split into
+// two separate (and non-adjacent, since sorting is on the raw string)
+// entries for what is really one hospital. Grouping by first-appearance
+// order over the (already tenant-then-role sorted) input keeps the
+// result deterministic. Returns a non-nil empty slice when bindings is
+// empty so the JSON array is never null.
 func groupByTenant(bindings []authz.RoleBinding) []tenantMembership {
-	out := make([]tenantMembership, 0, len(bindings))
+	byTenant := map[string][]string{}
+	var order []string
 	for _, b := range bindings {
-		if n := len(out); n > 0 && out[n-1].TenantID == b.TenantID {
-			out[n-1].Roles = append(out[n-1].Roles, string(b.Role))
-			continue
+		id := normalizeTenantID(b.TenantID)
+		if _, seen := byTenant[id]; !seen {
+			order = append(order, id)
 		}
-		out = append(out, tenantMembership{TenantID: b.TenantID, Roles: []string{string(b.Role)}})
+		byTenant[id] = append(byTenant[id], string(b.Role))
 	}
-	for i := range out {
-		sort.Strings(out[i].Roles)
+	out := make([]tenantMembership, 0, len(order))
+	for _, id := range order {
+		roles := byTenant[id]
+		sort.Strings(roles)
+		out = append(out, tenantMembership{TenantID: id, Roles: roles})
 	}
 	return out
 }
 
+// hasBindingForTenant reports whether any binding is for tenantID.
+// tenantID must already be normalized (normalizeTenantID); each
+// binding's tenant id is normalized before the comparison so casing
+// differences never cause a real member to be treated as a stranger to
+// their own tenant.
 func hasBindingForTenant(bindings []authz.RoleBinding, tenantID string) bool {
 	for _, b := range bindings {
-		if b.TenantID == tenantID {
+		if normalizeTenantID(b.TenantID) == tenantID {
 			return true
 		}
 	}
 	return false
+}
+
+// normalizeTenantID canonicalizes a tenant id to uuid.UUID's lowercase
+// string form, so casing differences between what a caller sends, what
+// a previous grant wrote to OpenFGA, and what gets echoed back in a
+// response never diverge. Falls back to a lowercased copy of the input
+// when it doesn't parse as a UUID, so a malformed value still degrades
+// to a case-insensitive comparison rather than being silently dropped
+// from consideration.
+func normalizeTenantID(id string) string {
+	if parsed, err := uuid.Parse(id); err == nil {
+		return parsed.String()
+	}
+	return strings.ToLower(id)
 }
 
 // respondRolesUnavailable fails closed on a ListRoles error: an error

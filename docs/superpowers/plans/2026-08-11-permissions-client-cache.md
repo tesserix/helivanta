@@ -582,8 +582,10 @@ Leave the `Can` component below unchanged.
 In `packages/api/src/index.ts`, add:
 
 ```ts
-export { clearPermissionsCache } from "./permissions-cache";
+export { PERMISSIONS_CACHE_KEY, clearPermissionsCache } from "./permissions-cache";
 ```
+
+`PERMISSIONS_CACHE_KEY` is exported so consumer tests assert against the constant instead of re-typing the literal key.
 
 - [ ] **Step 6: Run tests to verify they pass**
 
@@ -614,7 +616,7 @@ git commit -m "feat(api): paint nav from cached permissions while revalidating (
 - Modify: `apps/shell/app/login/page.tsx:24-39`
 
 **Interfaces:**
-- Consumes: `clearPermissionsCache` exported from `@hms/api` in Task 3; `PERMISSIONS_CACHE_KEY` for test assertions (import from `@hms/api` is not exported — tests assert via `window.localStorage.getItem("hms.permissions.v1")`).
+- Consumes: `clearPermissionsCache` and `PERMISSIONS_CACHE_KEY`, both exported from `@hms/api` in Task 3. Tests assert against the exported constant — never a re-typed `"hms.permissions.v1"` literal.
 - Produces: nothing downstream.
 
 - [ ] **Step 1: Write the failing shell test**
@@ -625,13 +627,12 @@ Create `packages/ui/src/hms-shell.test.tsx`:
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@hms/api/testing";
+import { PERMISSIONS_CACHE_KEY } from "@hms/api";
 import { HmsShell } from "./hms-shell";
-
-const CACHE_KEY = "hms.permissions.v1";
 
 function seedCache(permissions: string[]) {
   window.localStorage.setItem(
-    CACHE_KEY,
+    PERMISSIONS_CACHE_KEY,
     JSON.stringify({
       subject: "doc",
       tenantId: "tenant-a",
@@ -671,7 +672,7 @@ describe("HmsShell", () => {
 
     await user.click(screen.getByLabelText("Sign out"));
 
-    expect(window.localStorage.getItem(CACHE_KEY)).toBeNull();
+    expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull();
   });
 });
 ```
@@ -715,7 +716,7 @@ Append to the existing `describe` in `apps/shell/components/tenant-picker.test.t
   // must not survive the reload that follows.
   it("clears the cached permissions when switching tenants", async () => {
     window.localStorage.setItem(
-      "hms.permissions.v1",
+      PERMISSIONS_CACHE_KEY,
       JSON.stringify({
         subject: "doc",
         tenantId: "t1",
@@ -732,11 +733,11 @@ Append to the existing `describe` in `apps/shell/components/tenant-picker.test.t
     await waitFor(() => expect(screen.getByTitle("Hospital")).toBeInTheDocument());
     await user.selectOptions(screen.getByTitle("Hospital"), "t2");
 
-    await waitFor(() =>
-      expect(window.localStorage.getItem("hms.permissions.v1")).toBeNull(),
-    );
+    await waitFor(() => expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull());
   });
 ```
+
+Add `PERMISSIONS_CACHE_KEY` to the file's existing `@hms/api` import (the test file already imports `renderWithProviders` from `@hms/api/testing`; the constant comes from `@hms/api`).
 
 - [ ] **Step 6: Run test to verify it fails**
 

@@ -56,7 +56,7 @@ func GrantsFor(reg *Registry) ([]authz.Grant, error) {
 func ReconcileTenant(ctx context.Context, reg *Registry, w TupleWriter, tenantID string) error {
 	grants, err := GrantsFor(reg)
 	if err != nil {
-		return err
+		return fmt.Errorf("reconcile tenant %s: %w", tenantID, err)
 	}
 	for _, g := range grants {
 		for _, role := range g.Roles {

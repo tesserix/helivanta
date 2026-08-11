@@ -13,10 +13,24 @@ import (
 // GrantsFor returns every module's declared grants with RoleTenantAdmin
 // appended to each, which is why modules never list tenant_admin
 // themselves.
-func GrantsFor(reg *Registry) []authz.Grant {
+//
+// It fails loudly — matching how Registry.Register treats a duplicate
+// module name — if two different modules declare a Grant for the same
+// Permission. Without this check the second declaration would silently
+// shadow the first wherever callers build a map keyed by Permission (as
+// the approved-matrix oracle test does), so a copy-pasted permission
+// name would ship with a role set nobody reviewed.
+func GrantsFor(reg *Registry) ([]authz.Grant, error) {
 	var out []authz.Grant
+	declaredBy := map[authz.Permission]string{}
 	for _, m := range reg.All() {
 		for _, g := range m.Permissions() {
+			if owner, dup := declaredBy[g.Permission]; dup {
+				return nil, fmt.Errorf("permission %q declared by both module %q and module %q",
+					g.Permission, owner, m.Name())
+			}
+			declaredBy[g.Permission] = m.Name()
+
 			// Copy before appending: g.Roles is the module's own slice,
 			// returned fresh on every Permissions() call but potentially
 			// backed by a shared array if a module ever memoizes it.
@@ -27,7 +41,7 @@ func GrantsFor(reg *Registry) []authz.Grant {
 			out = append(out, authz.Grant{Permission: g.Permission, Roles: roles})
 		}
 	}
-	return out
+	return out, nil
 }
 
 // ReconcileTenant makes the tenant's perm objects and system-role grants
@@ -39,7 +53,11 @@ func GrantsFor(reg *Registry) []authz.Grant {
 // transaction already in flight (see iam/sync.go), and must not open a
 // second one.
 func ReconcileTenant(ctx context.Context, reg *Registry, w TupleWriter, tenantID string) error {
-	for _, g := range GrantsFor(reg) {
+	grants, err := GrantsFor(reg)
+	if err != nil {
+		return err
+	}
+	for _, g := range grants {
 		for _, role := range g.Roles {
 			if err := w.GrantPermission(ctx, tenantID, g.Permission, role); err != nil {
 				return fmt.Errorf("grant %s to %s in %s: %w", g.Permission, role, tenantID, err)

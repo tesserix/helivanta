@@ -48,6 +48,41 @@ func (c *capturingWriter) GrantPermission(_ context.Context, tenantID string, p 
 	return nil
 }
 
+// TestGrantsForRejectsDuplicatePermission is the fix for the bug the
+// approved-matrix oracle test in archtest/matrix_test.go could not see:
+// two modules declaring a Grant for the same Permission used to produce
+// two entries in GrantsFor's output, and any caller that folds that
+// slice into a map keyed by Permission (as the oracle test's `actual`
+// map does) would silently keep only the last one. GrantsFor must fail
+// loudly instead, the same way Registry.Register fails loudly on a
+// duplicate module name.
+func TestGrantsForRejectsDuplicatePermission(t *testing.T) {
+	reg := platform.NewRegistry()
+	require.NoError(t, reg.Register(grantingModule{"x"}))
+	require.NoError(t, reg.Register(duplicatingModule{"y"}))
+
+	_, err := platform.GrantsFor(reg)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "x.thing.read")
+	require.ErrorContains(t, err, `"x"`)
+	require.ErrorContains(t, err, `"y"`)
+}
+
+// duplicatingModule declares a Grant for a permission grantingModule
+// already declares ("x.thing.read"), simulating a copy-paste mistake
+// across two different modules.
+type duplicatingModule struct{ name string }
+
+func (d duplicatingModule) Name() string                     { return d.name }
+func (d duplicatingModule) Migrations() []tenantdb.Migration { return nil }
+func (d duplicatingModule) Permissions() []authz.Grant {
+	return []authz.Grant{
+		{Permission: "x.thing.read", Roles: []authz.Role{authz.RolePharmacist}},
+	}
+}
+func (d duplicatingModule) Routes(*platform.Router, platform.Deps)    {}
+func (d duplicatingModule) Consumers(platform.Deps) []events.Consumer { return nil }
+
 func TestTenantAdminReceivesEveryDeclaredPermission(t *testing.T) {
 	reg := platform.NewRegistry()
 	require.NoError(t, reg.Register(grantingModule{"x"}))

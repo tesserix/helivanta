@@ -30,9 +30,12 @@ func allRoles() []authz.Role {
 
 // expectedPermissions is the ground truth derived from module
 // declarations: which permissions a role should hold after reconcile.
-func expectedPermissions(reg *platform.Registry, role authz.Role) authz.PermissionSet {
+// Takes the already-computed grants rather than the registry so callers
+// that iterate over multiple roles only pay GrantsFor's duplicate check
+// once.
+func expectedPermissions(grants []authz.Grant, role authz.Role) authz.PermissionSet {
 	set := authz.PermissionSet{}
-	for _, g := range platform.GrantsFor(reg) {
+	for _, g := range grants {
 		for _, r := range g.Roles {
 			if r == role {
 				set[g.Permission] = struct{}{}
@@ -69,8 +72,10 @@ func TestPermissionMatrix(t *testing.T) {
 		require.NoError(t, client.GrantRole(ctx, tenantA, "user-"+string(role), role))
 	}
 
+	grants, err := platform.GrantsFor(reg)
+	require.NoError(t, err)
 	allPerms := map[authz.Permission]struct{}{}
-	for _, g := range platform.GrantsFor(reg) {
+	for _, g := range grants {
 		allPerms[g.Permission] = struct{}{}
 	}
 
@@ -79,7 +84,7 @@ func TestPermissionMatrix(t *testing.T) {
 		t.Run(string(role), func(t *testing.T) {
 			got, err := client.Resolve(ctx, "user-"+string(role), tenantA)
 			require.NoError(t, err)
-			want := expectedPermissions(reg, role)
+			want := expectedPermissions(grants, role)
 
 			for perm := range allPerms {
 				if want.Has(perm) {
@@ -124,8 +129,10 @@ func TestCrossTenantDenial(t *testing.T) {
 func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	reg := registry(t)
+	grants, err := platform.GrantsFor(reg)
+	require.NoError(t, err)
 	holders := map[authz.Permission]int{}
-	for _, g := range platform.GrantsFor(reg) {
+	for _, g := range grants {
 		holders[g.Permission] = len(g.Roles)
 	}
 
@@ -189,8 +196,10 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 // code under test.
 func TestDeclaredPermissionsMatchTheApprovedMatrix(t *testing.T) {
 	reg := registry(t)
+	grants, err := platform.GrantsFor(reg)
+	require.NoError(t, err)
 	actual := map[authz.Permission][]authz.Role{}
-	for _, g := range platform.GrantsFor(reg) {
+	for _, g := range grants {
 		actual[g.Permission] = g.Roles
 	}
 

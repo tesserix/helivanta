@@ -1,13 +1,95 @@
 package testinfra
 
 import (
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
+
+func openDSN(t *testing.T, dsn string) *gorm.DB {
+	t.Helper()
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if sqlDB, err := db.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+	})
+	return db
+}
+
+func hostPortAndDatabase(t *testing.T, dsn string) (hostPort, database string) {
+	t.Helper()
+	u, err := url.Parse(dsn)
+	require.NoError(t, err)
+	return u.Host, u.Path
+}
+
+// The point of sharing: two callers land on the same server, so a package
+// boots Postgres once rather than once per test (#765).
+func TestStartPostgresReusesOneServer(t *testing.T) {
+	_, adminA := StartPostgres(t)
+	_, adminB := StartPostgres(t)
+
+	hostA, dbA := hostPortAndDatabase(t, adminA)
+	hostB, dbB := hostPortAndDatabase(t, adminB)
+
+	require.Equal(t, hostA, hostB, "callers should share one server")
+	require.NotEqual(t, dbA, dbB, "callers should not share a database")
+}
+
+// Sharing a server must not mean sharing state: a row written by one
+// caller has to be invisible to another, or tests would contaminate each
+// other in ways that only show up as ordering-dependent failures.
+func TestStartPostgresIsolatesCallers(t *testing.T) {
+	_, adminA := StartPostgres(t)
+	_, adminB := StartPostgres(t)
+
+	dbA := openDSN(t, adminA)
+	dbB := openDSN(t, adminB)
+
+	require.NoError(t, dbA.Exec(`CREATE TABLE only_in_a (id int)`).Error)
+	require.NoError(t, dbA.Exec(`INSERT INTO only_in_a VALUES (1)`).Error)
+
+	var count int64
+	err := dbB.Raw(`SELECT count(*) FROM information_schema.tables WHERE table_name = 'only_in_a'`).Scan(&count).Error
+	require.NoError(t, err)
+	require.Zero(t, count, "table created by one caller leaked into another's database")
+}
+
+// hms_app is the role the application connects as, and forced-RLS policies
+// only mean anything if it cannot bypass them. Creating it once per server
+// rather than once per database must not change that.
+func TestAppRoleCannotBypassRLS(t *testing.T) {
+	_, adminDSN := StartPostgres(t)
+	admin := openDSN(t, adminDSN)
+
+	var bypassRLS bool
+	require.NoError(t, admin.Raw(`SELECT rolbypassrls FROM pg_roles WHERE rolname = 'hms_app'`).Scan(&bypassRLS).Error)
+	require.False(t, bypassRLS, "hms_app must not be able to bypass row-level security")
+}
+
+// The app role needs its privileges in every database, not just the one
+// that happened to be created first — those grants are per database even
+// though the role itself is cluster-wide.
+func TestAppRoleCanUseANewDatabase(t *testing.T) {
+	appDSN, adminDSN := StartPostgres(t)
+	admin := openDSN(t, adminDSN)
+	require.NoError(t, admin.Exec(`CREATE TABLE widgets (id int)`).Error)
+	require.NoError(t, admin.Exec(`INSERT INTO widgets VALUES (1)`).Error)
+
+	app := openDSN(t, appDSN)
+	var got int64
+	require.NoError(t, app.Raw(`SELECT count(*) FROM widgets`).Scan(&got).Error)
+	require.Equal(t, int64(1), got)
+}
 
 func TestParseStartupTimeoutDefaultsWhenUnset(t *testing.T) {
 	d, err := parseStartupTimeout("")

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePermissions } from "@hms/api";
-import { HmsShell, visibleZones, type Zone } from "@hms/ui";
+import { HmsShell, visibleZones, type Zone, type ZoneHue } from "@hms/ui";
 import { TenantPicker } from "@/components/tenant-picker";
 
 // Per-page descriptions, keyed by href — the registry (packages/ui/src/zones.ts)
@@ -12,6 +12,14 @@ const DESCRIPTIONS: Record<string, string> = {
   "/pharmacy": "Dispensing & drug inventory",
   "/pharmacy/medications": "Formulary & stock reference",
   "/lab": "Orders, samples & results",
+};
+
+// Static class map keyed by hue, full class strings so Tailwind's scanner
+// can see them (string interpolation would hide the classes at build time).
+const TINT_CLASSES: Record<ZoneHue, string> = {
+  rose: "bg-(--hms-rose-tint) text-(--hms-rose)",
+  amber: "bg-(--hms-amber-tint) text-(--hms-amber)",
+  violet: "bg-(--hms-violet-tint) text-(--hms-violet)",
 };
 
 // Cards must show only doors that will open (zones.ts's own contract) —
@@ -29,6 +37,7 @@ function cardsFor(zones: Zone[]) {
             title: page.label,
             desc: DESCRIPTIONS[page.href] ?? "",
             icon: zone.icon,
+            hue: zone.hue,
           }))
         : [
             {
@@ -36,6 +45,7 @@ function cardsFor(zones: Zone[]) {
               title: zone.label,
               desc: DESCRIPTIONS[zone.href] ?? "",
               icon: zone.icon,
+              hue: zone.hue,
             },
           ],
     );
@@ -47,29 +57,34 @@ export default function Dashboard() {
 
   return (
     <HmsShell active="/" tenantPicker={<TenantPicker />}>
-      <div className="mx-auto max-w-4xl">
-        <p className="mb-6 text-sm text-muted-foreground">
-          Jump into a department to manage visits, dispensing and lab work.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {cards.map((z) => (
-            <a
-              key={z.href}
-              href={z.href}
-              className="group rounded-lg border bg-card p-5 transition-all hover:border-foreground/20 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+        <h2 className="text-sm font-semibold text-muted-foreground">Jump into a department</h2>
+        <p className="text-xs text-muted-foreground">Manage visits, dispensing and lab work.</p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {cards.map((z) => (
+          <a
+            key={z.href}
+            href={z.href}
+            className="group flex items-start gap-4 rounded-xl border bg-card p-4 shadow-sm transition-colors hover:bg-(--muted) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--hms-accent)"
+          >
+            <span
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${TINT_CLASSES[z.hue]}`}
             >
-              <div className="flex items-start gap-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                  <z.icon className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <div className="min-w-0">
-                  <div className="font-medium text-foreground">{z.title}</div>
-                  <div className="mt-0.5 text-sm text-muted-foreground">{z.desc}</div>
-                </div>
-              </div>
-            </a>
-          ))}
-        </div>
+              <z.icon className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="font-medium text-foreground">{z.title}</div>
+              <div className="mt-0.5 text-sm text-muted-foreground">{z.desc}</div>
+            </div>
+            <span
+              className="text-muted-foreground transition-colors group-hover:text-(--hms-accent)"
+              aria-hidden="true"
+            >
+              →
+            </span>
+          </a>
+        ))}
       </div>
     </HmsShell>
   );

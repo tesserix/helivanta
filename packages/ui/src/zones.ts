@@ -11,12 +11,15 @@ import {
 
 export type ZonePage = { label: string; href: string; icon: LucideIcon; permission: string };
 
+export type ZoneHue = "rose" | "amber" | "violet";
+
 export type Zone = {
   key: string;
   label: string;
   icon: LucideIcon;
   href: string;
   permission: string;
+  hue: ZoneHue;
   pages: ZonePage[];
 };
 
@@ -30,6 +33,7 @@ export const ZONES: Zone[] = [
     icon: LayoutDashboard,
     href: "/",
     permission: "public",
+    hue: "rose",
     pages: [{ label: "Departments", href: "/", icon: LayoutDashboard, permission: "public" }],
   },
   {
@@ -38,6 +42,7 @@ export const ZONES: Zone[] = [
     icon: HeartPulse,
     href: "/medicore/opd",
     permission: "medicore.visit.read",
+    hue: "rose",
     pages: [
       { label: "OPD", href: "/medicore/opd", icon: Stethoscope, permission: "medicore.visit.read" },
       { label: "IPD", href: "/medicore/ipd", icon: BedDouble, permission: "medicore.visit.read" },
@@ -49,6 +54,7 @@ export const ZONES: Zone[] = [
     icon: Pill,
     href: "/pharmacy",
     permission: "pharmacy.dispense.read",
+    hue: "amber",
     pages: [
       { label: "Dispenses", href: "/pharmacy", icon: Pill, permission: "pharmacy.dispense.read" },
       {
@@ -65,6 +71,7 @@ export const ZONES: Zone[] = [
     icon: FlaskConical,
     href: "/lab",
     permission: "lab.order.read",
+    hue: "violet",
     pages: [{ label: "Orders", href: "/lab", icon: FlaskConical, permission: "lab.order.read" }],
   },
 ];

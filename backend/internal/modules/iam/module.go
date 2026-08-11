@@ -236,4 +236,6 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET("/roles", PermMemberManage, func(c *gin.Context) {
 		respond.OK(c, gin.H{"data": SystemRoles()})
 	})
+
+	m.registerMe(g, deps)
 }

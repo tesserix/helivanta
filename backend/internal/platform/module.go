@@ -17,12 +17,25 @@ type TupleWriter interface {
 	GrantPermission(ctx context.Context, tenantID string, perm authz.Permission, role authz.Role) error
 }
 
+// RoleLister is the subset of the authz client that modules may use to
+// discover which tenants a subject belongs to. Narrow by design,
+// mirroring TupleWriter: modules read role bindings across tenants,
+// they never resolve permissions within one — that belongs to the
+// middleware. This is the only supported way for a module to answer
+// "which tenants is this subject a member of" — RLS-forced tenant
+// tables cannot answer it, because every runtime query is scoped to a
+// single tenant GUC by construction.
+type RoleLister interface {
+	ListRoles(ctx context.Context, subject string) ([]authz.RoleBinding, error)
+}
+
 // Deps is everything a module may depend on. Modules must not reach
 // around it — cross-module data access goes through events (spec D6).
 type Deps struct {
 	DB    *tenantdb.DB
 	Bus   *events.Bus
 	Authz TupleWriter
+	Roles RoleLister
 	// Reconcile ensures a tenant's permission tuples match the registry.
 	// Set by main.go; nil in tests that do not exercise it.
 	Reconcile func(ctx context.Context, tenantID string) error

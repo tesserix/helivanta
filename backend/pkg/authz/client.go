@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	openfga "github.com/openfga/go-sdk"
@@ -179,6 +180,57 @@ func (c *Client) Resolve(ctx context.Context, subject, tenantID string) (Permiss
 		}
 	}
 	return set, nil
+}
+
+// RoleBinding is one tenant/role pair a subject holds, as resolved from
+// OpenFGA's role assignments rather than any Postgres table. Membership
+// is proved by resolution: iam_members is a write-side record used to
+// derive tuples, but OpenFGA is the read-side source of truth for "what
+// tenants does this subject belong to", because it is the only store
+// that can be queried without first knowing which tenant to scope to.
+type RoleBinding struct {
+	TenantID string
+	Role     Role
+}
+
+// ListRoles returns every role binding subject holds, across every
+// tenant, in exactly one FGA call. Like Resolve, it returns an error and
+// never a partial slice on failure, so callers can fail closed
+// unambiguously; unlike Resolve it is not tenant-scoped, because the
+// caller does not yet know which tenant(s) to ask about — that is the
+// question this method answers. Objects that do not parse as
+// "role:<tenantID>/<roleKey>" are skipped rather than erroring, since a
+// malformed object would otherwise take down an unrelated lookup. The
+// result is sorted by tenant then role so responses built from it are
+// deterministic.
+func (c *Client) ListRoles(ctx context.Context, subject string) ([]RoleBinding, error) {
+	res, err := c.api.ListObjects(ctx).Body(fgaclient.ClientListObjectsRequest{
+		User:     userObject(subject),
+		Relation: "assignee",
+		Type:     "role",
+	}).Execute()
+	if err != nil {
+		return nil, fmt.Errorf("list objects: %w", err)
+	}
+	bindings := make([]RoleBinding, 0, len(res.GetObjects()))
+	for _, obj := range res.GetObjects() {
+		rest, ok := strings.CutPrefix(obj, "role:")
+		if !ok {
+			continue
+		}
+		tenantID, roleKey, ok := strings.Cut(rest, "/")
+		if !ok || tenantID == "" || roleKey == "" {
+			continue
+		}
+		bindings = append(bindings, RoleBinding{TenantID: tenantID, Role: Role(roleKey)})
+	}
+	sort.Slice(bindings, func(i, j int) bool {
+		if bindings[i].TenantID != bindings[j].TenantID {
+			return bindings[i].TenantID < bindings[j].TenantID
+		}
+		return bindings[i].Role < bindings[j].Role
+	})
+	return bindings, nil
 }
 
 func (c *Client) GrantRole(ctx context.Context, tenantID, subject string, role Role) error {

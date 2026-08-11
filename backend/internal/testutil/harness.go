@@ -55,13 +55,22 @@ func (noopWriter) GrantPermission(context.Context, string, authz.Permission, aut
 	return nil
 }
 
+// noopRoleLister returns no bindings for modules that don't need to
+// resolve cross-tenant membership, so ModuleHarness and
+// ModuleHarnessWithAuthz callers need no RoleLister.
+type noopRoleLister struct{}
+
+func (noopRoleLister) ListRoles(context.Context, string) ([]authz.RoleBinding, error) {
+	return nil, nil
+}
+
 // ModuleHarness boots the full module stack (Postgres, NATS, routes,
 // consumers, dispatcher) for the given modules. One call replaces the
 // setup() previously copy-pasted per module test package. perms maps
 // token → the permissions that token's caller holds.
 func ModuleHarness(t *testing.T, tokens map[string]string, perms map[string][]authz.Permission, mods ...platform.Module) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
-	return moduleHarness(t, tokens, perms, noopWriter{}, mods...)
+	return moduleHarness(t, tokens, perms, noopWriter{}, noopRoleLister{}, mods...)
 }
 
 // ModuleHarnessWithAuthz is ModuleHarness plus a TupleWriter, for modules
@@ -74,7 +83,22 @@ func ModuleHarnessWithAuthz(
 	mods ...platform.Module,
 ) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
-	return moduleHarness(t, tokens, perms, writer, mods...)
+	return moduleHarness(t, tokens, perms, writer, noopRoleLister{}, mods...)
+}
+
+// ModuleHarnessWithRoles is ModuleHarness plus a TupleWriter and a
+// RoleLister, for modules (like iam) that resolve cross-tenant
+// membership from OpenFGA rather than a single-tenant Postgres query.
+func ModuleHarnessWithRoles(
+	t *testing.T,
+	tokens map[string]string,
+	perms map[string][]authz.Permission,
+	writer platform.TupleWriter,
+	roles platform.RoleLister,
+	mods ...platform.Module,
+) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
+	t.Helper()
+	return moduleHarness(t, tokens, perms, writer, roles, mods...)
 }
 
 func moduleHarness(
@@ -82,6 +106,7 @@ func moduleHarness(
 	tokens map[string]string,
 	perms map[string][]authz.Permission,
 	writer platform.TupleWriter,
+	roles platform.RoleLister,
 	mods ...platform.Module,
 ) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
@@ -105,7 +130,7 @@ func moduleHarness(
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 
-	deps := platform.Deps{DB: db, Bus: bus, Authz: writer}
+	deps := platform.Deps{DB: db, Bus: bus, Authz: writer, Roles: roles}
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	resolver := harnessResolver{tokens: tokens, perms: perms}

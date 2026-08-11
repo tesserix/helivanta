@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ChevronsLeft, ChevronsRight, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { usePermissions } from "@hms/api";
 import { visibleZones, activeZone } from "./zones";
+import { ThemeToggle } from "./theme";
 
 // Two-rail chrome in the tesserix-home AdminSidebar style. Both rails
 // collapse independently: the zone rail toggles icons-only ↔ icons+labels,
@@ -73,7 +74,9 @@ export function HmsShell({
             aria-label="HMS home"
             className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-primary"
           >
-            <span className="flex h-9 w-9 items-center justify-center">H</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-(--hms-accent) to-(--hms-accent-strong) text-(--sidebar-primary-foreground)">
+              H
+            </span>
             {railExpanded && <span className="text-sm font-semibold tracking-wide">HMS</span>}
           </a>
         </div>
@@ -91,14 +94,20 @@ export function HmsShell({
                 title={railExpanded ? undefined : z.label}
                 aria-label={z.label}
                 aria-current={isActive ? "page" : undefined}
-                className={`flex h-10 items-center rounded-lg transition-colors ${
+                className={`relative flex h-10 items-center rounded-lg transition-colors ${
                   railExpanded ? "w-full gap-3 px-3" : "w-10 justify-center"
                 } ${
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    ? "bg-(--hms-accent-dim) text-(--hms-accent)"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                 }`}
               >
+                {isActive && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-(--hms-accent)"
+                  />
+                )}
                 <z.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
                 {railExpanded && <span className="truncate text-sm font-medium">{z.label}</span>}
               </a>
@@ -207,12 +216,15 @@ export function HmsShell({
                 {activePage?.label ?? zone.label}
               </h1>
             </div>
-            <a
-              href="/logout"
-              className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-            >
-              Sign out
-            </a>
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <a
+                href="/logout"
+                className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              >
+                Sign out
+              </a>
+            </div>
           </div>
         </header>
         <main className="flex-1 p-6">{children}</main>

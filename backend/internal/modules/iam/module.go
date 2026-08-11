@@ -4,11 +4,18 @@
 package iam
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/hms/internal/platform/respond"
+	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
@@ -99,7 +106,118 @@ type MemberChangedData struct {
 	RoleKey string `json:"role_key"`
 }
 
-// Routes and Consumers are filled in by the next tasks.
-func (m *Module) Routes(r *platform.Router, deps platform.Deps) {}
+type grantRequest struct {
+	Subject string `json:"subject" binding:"required,max=200"`
+	RoleKey string `json:"role_key" binding:"required,max=100"`
+}
 
-func (m *Module) Consumers(deps platform.Deps) []events.Consumer { return nil }
+// knownRole reports whether key is a system role. Custom roles are
+// supported by the model but not yet creatable, so anything else is a
+// client error rather than a silently-dead grant.
+func knownRole(key string) bool {
+	for _, r := range SystemRoles() {
+		if string(r.Key) == key {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
+	g := r.Group("/iam")
+
+	g.POST("/members", PermMemberManage, func(c *gin.Context) {
+		p, tenantUUID, ok := authn.TenantPrincipal(c)
+		if !ok {
+			return
+		}
+		var req grantRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			respond.BadRequest(c, err)
+			return
+		}
+		if !knownRole(req.RoleKey) {
+			respond.BadRequest(c, fmt.Errorf("unknown role %q", req.RoleKey))
+			return
+		}
+		row := member{TenantID: tenantUUID, Subject: req.Subject, RoleKey: req.RoleKey}
+		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+			// Re-granting an existing role is a no-op, not a conflict: the
+			// caller's intent is already satisfied. An explicit ON
+			// CONFLICT DO NOTHING (rather than GORM's FirstOrCreate,
+			// which has sharp edges around which fields populate the
+			// created row) both sets tenant_id on the inserted row and
+			// makes "already granted" unambiguous: row.ID stays uuid.Nil
+			// because Postgres returns no row for a skipped insert.
+			if err := tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "subject"}, {Name: "role_key"}},
+				DoNothing: true,
+			}).Create(&row).Error; err != nil {
+				return err
+			}
+			if row.ID == uuid.Nil {
+				// Already granted: fetch the existing row for the
+				// response and skip publishing — nothing changed.
+				return tx.Where("subject = ? AND role_key = ?", req.Subject, req.RoleKey).First(&row).Error
+			}
+			data, err := json.Marshal(MemberChangedData(req))
+			if err != nil {
+				return err
+			}
+			return deps.Bus.Publish(tx, SubjectMemberGranted, events.Event{
+				Type: "MemberGranted", Version: 1, TenantID: p.TenantID, Data: data,
+			})
+		})
+		if err != nil {
+			respond.Internal(c, "could not grant role")
+			return
+		}
+		respond.Accepted(c, gin.H{"id": row.ID.String()})
+	})
+
+	g.DELETE("/members/:subject/:role", PermMemberManage, func(c *gin.Context) {
+		p, _, ok := authn.TenantPrincipal(c)
+		if !ok {
+			return
+		}
+		subject, roleKey := c.Param("subject"), c.Param("role")
+		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+			if err := tx.Where("subject = ? AND role_key = ?", subject, roleKey).
+				Delete(&member{}).Error; err != nil {
+				return err
+			}
+			data, err := json.Marshal(MemberChangedData{Subject: subject, RoleKey: roleKey})
+			if err != nil {
+				return err
+			}
+			return deps.Bus.Publish(tx, SubjectMemberRevoked, events.Event{
+				Type: "MemberRevoked", Version: 1, TenantID: p.TenantID, Data: data,
+			})
+		})
+		if err != nil {
+			respond.Internal(c, "could not revoke role")
+			return
+		}
+		respond.Accepted(c, gin.H{"subject": subject, "role_key": roleKey})
+	})
+
+	g.GET("/members", PermMemberManage, func(c *gin.Context) {
+		p, _, ok := authn.TenantPrincipal(c)
+		if !ok {
+			return
+		}
+		var rows []member
+		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+			return tx.Order("created_at DESC").Limit(500).Find(&rows).Error
+		})
+		if err != nil {
+			respond.Internal(c, "could not list members")
+			return
+		}
+		respond.OK(c, gin.H{"data": rows})
+	})
+
+	g.GET("/roles", PermMemberManage, func(c *gin.Context) {
+		respond.OK(c, gin.H{"data": SystemRoles()})
+	})
+}

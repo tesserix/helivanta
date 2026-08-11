@@ -1,16 +1,28 @@
 package platform
 
 import (
+	"context"
+
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
+// TupleWriter is the subset of the authz client that modules may use to
+// mutate authorization state. Narrow by design: modules grant and revoke,
+// they never resolve — resolution belongs to the middleware.
+type TupleWriter interface {
+	GrantRole(ctx context.Context, tenantID, subject string, role authz.Role) error
+	RevokeRole(ctx context.Context, tenantID, subject string, role authz.Role) error
+	GrantPermission(ctx context.Context, tenantID string, perm authz.Permission, role authz.Role) error
+}
+
 // Deps is everything a module may depend on. Modules must not reach
 // around it — cross-module data access goes through events (spec D6).
 type Deps struct {
-	DB  *tenantdb.DB
-	Bus *events.Bus
+	DB    *tenantdb.DB
+	Bus   *events.Bus
+	Authz TupleWriter
 }
 
 // Module is the registration contract from issue #2.

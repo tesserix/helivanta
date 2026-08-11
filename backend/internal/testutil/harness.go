@@ -45,11 +45,45 @@ func (h harnessResolver) Resolve(_ context.Context, subject, _ string) (authz.Pe
 	return authz.NewPermissionSet(h.perms[strings.TrimPrefix(subject, "user-")]...), nil
 }
 
+// noopWriter discards tuple writes for modules that don't mutate
+// authorization state, so ModuleHarness callers need no TupleWriter.
+type noopWriter struct{}
+
+func (noopWriter) GrantRole(context.Context, string, string, authz.Role) error  { return nil }
+func (noopWriter) RevokeRole(context.Context, string, string, authz.Role) error { return nil }
+func (noopWriter) GrantPermission(context.Context, string, authz.Permission, authz.Role) error {
+	return nil
+}
+
 // ModuleHarness boots the full module stack (Postgres, NATS, routes,
 // consumers, dispatcher) for the given modules. One call replaces the
 // setup() previously copy-pasted per module test package. perms maps
 // token → the permissions that token's caller holds.
 func ModuleHarness(t *testing.T, tokens map[string]string, perms map[string][]authz.Permission, mods ...platform.Module) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
+	t.Helper()
+	return moduleHarness(t, tokens, perms, noopWriter{}, mods...)
+}
+
+// ModuleHarnessWithAuthz is ModuleHarness plus a TupleWriter, for modules
+// that mutate authorization state.
+func ModuleHarnessWithAuthz(
+	t *testing.T,
+	tokens map[string]string,
+	perms map[string][]authz.Permission,
+	writer platform.TupleWriter,
+	mods ...platform.Module,
+) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
+	t.Helper()
+	return moduleHarness(t, tokens, perms, writer, mods...)
+}
+
+func moduleHarness(
+	t *testing.T,
+	tokens map[string]string,
+	perms map[string][]authz.Permission,
+	writer platform.TupleWriter,
+	mods ...platform.Module,
+) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
 	appDSN, adminDSN := testinfra.StartPostgres(t)
 	db, err := tenantdb.Open(appDSN, adminDSN)
@@ -71,7 +105,7 @@ func ModuleHarness(t *testing.T, tokens map[string]string, perms map[string][]au
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 
-	deps := platform.Deps{DB: db, Bus: bus}
+	deps := platform.Deps{DB: db, Bus: bus, Authz: writer}
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	resolver := harnessResolver{tokens: tokens, perms: perms}

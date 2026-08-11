@@ -32,7 +32,22 @@ func userObject(subject string) string { return "user:" + subject }
 
 // NewClient connects to OpenFGA, reusing the named store if it exists
 // and creating it otherwise, then ensures the authorization model is
-// written. Safe to call from every replica at boot.
+// written.
+//
+// Store selection is deterministic across replicas: OpenFGA does not
+// enforce store-name uniqueness, so replicas racing to boot for the
+// first time can each create a same-named store. ensureStore always
+// resolves to the lexicographically smallest store ID sharing the name
+// (OpenFGA store IDs are ULIDs, so this is also the oldest store),
+// re-listing after its own CreateStore call rather than trusting the ID
+// it just created. Every replica therefore converges on the same store
+// even when a duplicate was transiently created, so a grant written
+// through one replica is always visible to Resolve through another. The
+// residual race window is narrow and self-healing: two replicas can
+// both pass the initial "not found" check and both call CreateStore,
+// but every subsequent selectStore call (by those replicas or any
+// other) re-lists and deterministically picks the same winner, so the
+// split never persists past that first boot.
 func NewClient(ctx context.Context, apiURL, storeName string) (*Client, error) {
 	api, err := fgaclient.NewSdkClient(&fgaclient.ClientConfiguration{ApiUrl: apiURL})
 	if err != nil {
@@ -53,22 +68,55 @@ func NewClient(ctx context.Context, apiURL, storeName string) (*Client, error) {
 	return c, nil
 }
 
+// ensureStore returns the ID of the store named name, creating it if no
+// store by that name exists yet. See NewClient's doc comment for why
+// the returned ID always comes from selectStore rather than directly
+// from CreateStore's response.
 func (c *Client) ensureStore(ctx context.Context, name string) (string, error) {
-	stores, err := c.api.ListStores(ctx).Execute()
-	if err != nil {
-		return "", fmt.Errorf("list stores: %w", err)
+	if id, ok, err := c.selectStore(ctx, name); err != nil {
+		return "", err
+	} else if ok {
+		return id, nil
 	}
-	for _, s := range stores.GetStores() {
-		if s.GetName() == name {
-			return s.GetId(), nil
-		}
-	}
-	created, err := c.api.CreateStore(ctx).
-		Body(fgaclient.ClientCreateStoreRequest{Name: name}).Execute()
-	if err != nil {
+
+	if _, err := c.api.CreateStore(ctx).
+		Body(fgaclient.ClientCreateStoreRequest{Name: name}).Execute(); err != nil {
 		return "", fmt.Errorf("create store: %w", err)
 	}
-	return created.GetId(), nil
+
+	// Re-list instead of trusting the ID just created: a concurrent
+	// replica may have created (or be about to create) a same-named
+	// store, and every replica must land on the same winner.
+	id, ok, err := c.selectStore(ctx, name)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return "", fmt.Errorf("openfga store %q not found immediately after create", name)
+	}
+	return id, nil
+}
+
+// selectStore returns the deterministic winner among every store named
+// name: the lexicographically smallest store ID. OpenFGA store IDs are
+// ULIDs, which sort lexicographically in creation order, so this always
+// picks the oldest store and therefore the same store on every replica
+// and every subsequent call, regardless of how many same-named
+// duplicates a creation race left behind.
+func (c *Client) selectStore(ctx context.Context, name string) (id string, ok bool, err error) {
+	stores, err := c.api.ListStores(ctx).Execute()
+	if err != nil {
+		return "", false, fmt.Errorf("list stores: %w", err)
+	}
+	for _, s := range stores.GetStores() {
+		if s.GetName() != name {
+			continue
+		}
+		if !ok || s.GetId() < id {
+			id, ok = s.GetId(), true
+		}
+	}
+	return id, ok, nil
 }
 
 // ensureModel writes modelJSON unless a model already exists. The model

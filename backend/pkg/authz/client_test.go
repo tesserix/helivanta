@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	fgaclient "github.com/openfga/go-sdk/client"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/hms/internal/testinfra"
@@ -86,4 +87,44 @@ func TestResolveFailsWhenStoreUnreachable(t *testing.T) {
 		_, err = c.Resolve(context.Background(), "alice", tenantA)
 	}
 	require.Error(t, err, "an unreachable store must surface an error so the middleware can fail closed")
+}
+
+// TestConcurrentBootConvergesOnSameStore covers the split-brain finding
+// from review: OpenFGA does not enforce store-name uniqueness, so two
+// replicas racing to boot for the first time can each create a
+// same-named store. Here we simulate that race directly by creating a
+// duplicate store before either authz.Client boots, then assert both
+// independently constructed clients resolve to the same store (a grant
+// written through one is visible to Resolve through the other) rather
+// than silently splitting into two stores that each look like "no
+// permissions" from the other's point of view.
+func TestConcurrentBootConvergesOnSameStore(t *testing.T) {
+	ctx := context.Background()
+	url := testinfra.StartOpenFGA(t)
+	const storeName = "hms-test"
+
+	// Simulate the race window: two stores already exist under the same
+	// name before any authz.Client tries to reconcile it.
+	raw, err := fgaclient.NewSdkClient(&fgaclient.ClientConfiguration{ApiUrl: url})
+	require.NoError(t, err)
+	_, err = raw.CreateStore(ctx).Body(fgaclient.ClientCreateStoreRequest{Name: storeName}).Execute()
+	require.NoError(t, err)
+	_, err = raw.CreateStore(ctx).Body(fgaclient.ClientCreateStoreRequest{Name: storeName}).Execute()
+	require.NoError(t, err)
+
+	// Two independently booted replicas must converge on the same store.
+	c1, err := authz.NewClient(ctx, url, storeName)
+	require.NoError(t, err)
+	c2, err := authz.NewClient(ctx, url, storeName)
+	require.NoError(t, err)
+
+	// A grant written through one replica must be visible through the
+	// other. If they had landed on different stores, this would be
+	// indistinguishable from "user has no permissions."
+	require.NoError(t, c1.GrantPermission(ctx, tenantA, "clinic.visit.read", authz.RoleDoctor))
+	require.NoError(t, c1.GrantRole(ctx, tenantA, "dana", authz.RoleDoctor))
+
+	set, err := c2.Resolve(ctx, "dana", tenantA)
+	require.NoError(t, err)
+	require.True(t, set.Has("clinic.visit.read"), "both replicas must resolve to the same store")
 }

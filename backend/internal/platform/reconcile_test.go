@@ -186,6 +186,32 @@ func TestReconcileReappliesEveryMembership(t *testing.T) {
 	}, w.roles)
 }
 
+// TestReconcileSkipsUnknownRoleKey proves the fix for the raw-SQL gap:
+// iam_members rows are read straight from Postgres with no HTTP-path
+// validation in front of them (the seed script, or a manual fixup,
+// writes them directly), so a row whose role_key does not match one of
+// the known authz.Role constants must not become a tuple write — it must
+// be skipped and logged instead. Known-good rows in the same tenant, and
+// in a different tenant, must still reconcile normally.
+func TestReconcileSkipsUnknownRoleKey(t *testing.T) {
+	db := openMigratedDB(t)
+	seedMember(t, db, tenantA, "dr-jane", "doctor")
+	seedMember(t, db, tenantA, "ghost", "not_a_real_role")
+	seedMember(t, db, tenantB, "dr-bob", "doctor")
+
+	reg := platform.NewRegistry()
+	require.NoError(t, reg.Register(grantingModule{"x"}))
+	w := &capturingWriter{}
+
+	require.NoError(t, platform.Reconcile(context.Background(), reg, db, w))
+
+	sort.Strings(w.roles)
+	require.Equal(t, []string{
+		tenantA + "|dr-jane|doctor",
+		tenantB + "|dr-bob|doctor",
+	}, w.roles, "the unknown role_key must not produce a GrantRole tuple, but known rows still must")
+}
+
 // TestReconcileAlsoReappliesPermissionsPerTenant proves the two passes
 // compose: every tenant discovered via iam_members still gets its
 // permission tuples reconciled, not only its membership tuples.

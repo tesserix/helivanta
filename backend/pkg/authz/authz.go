@@ -26,6 +26,26 @@ const (
 	RoleLabTech     Role = "lab_tech"
 )
 
+// systemRoles is every seeded system role. It is the single source of
+// truth KnownRole validates against, so a role_key read from anywhere
+// outside this package (an HTTP request body, a raw-SQL row from
+// iam_members) can be checked without hand-copying the role list.
+var systemRoles = []Role{RoleTenantAdmin, RoleDoctor, RoleNurse, RolePharmacist, RoleLabTech}
+
+// KnownRole reports whether r is one of the seeded system roles. Custom
+// roles are supported by the data model but not yet creatable, so
+// anything else read from an untrusted source (a request, a raw-SQL
+// scan) is a value that must never be trusted enough to write an
+// authorization tuple for.
+func KnownRole(r Role) bool {
+	for _, sr := range systemRoles {
+		if sr == r {
+			return true
+		}
+	}
+	return false
+}
+
 // Grant declares that a permission is held by the listed system roles.
 // Modules return these from Permissions(); the reconciler turns them
 // into tuples. RoleTenantAdmin is implicit — the reconciler grants it

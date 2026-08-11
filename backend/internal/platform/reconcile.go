@@ -3,6 +3,7 @@ package platform
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"gorm.io/gorm"
 
@@ -96,6 +97,15 @@ type membership struct {
 //
 // A tenant with no members has nothing to authorize and needs no tuples;
 // its first grant creates the row and the next boot reconciles it.
+//
+// A row whose role_key is not one of the known authz.Role constants is
+// skipped (with a slog.Warn) rather than written as a tuple. The HTTP
+// grant path (iam's knownRole check) rejects unknown roles before they
+// ever reach Postgres, but this raw-SQL read has no such gate — a row
+// written directly (the seed script, a manual fixup) is untrusted input
+// exactly like an HTTP body, and casting it straight to authz.Role would
+// silently create a tuple for a role that holds no permissions and was
+// never reviewed.
 func Reconcile(ctx context.Context, reg *Registry, db *tenantdb.DB, w TupleWriter) error {
 	var members []membership
 	err := db.WithAdmin(ctx, func(tx *gorm.DB) error {
@@ -115,6 +125,11 @@ func Reconcile(ctx context.Context, reg *Registry, db *tenantdb.DB, w TupleWrite
 			seenTenants[m.TenantID] = true
 		}
 		role := authz.Role(m.RoleKey)
+		if !authz.KnownRole(role) {
+			slog.Warn("skipping iam_members row with unknown role_key",
+				"tenant_id", m.TenantID, "subject", m.Subject, "role_key", m.RoleKey)
+			continue
+		}
 		if err := w.GrantRole(ctx, m.TenantID, m.Subject, role); err != nil {
 			return fmt.Errorf("grant role %s to %s in %s: %w", role, m.Subject, m.TenantID, err)
 		}

@@ -113,14 +113,12 @@ type grantRequest struct {
 
 // knownRole reports whether key is a system role. Custom roles are
 // supported by the model but not yet creatable, so anything else is a
-// client error rather than a silently-dead grant.
+// client error rather than a silently-dead grant. Delegates to
+// authz.KnownRole, the single source of truth for the system role list,
+// so this HTTP-path check and Reconcile's raw-SQL-path check
+// (internal/platform/reconcile.go) can never drift apart.
 func knownRole(key string) bool {
-	for _, r := range SystemRoles() {
-		if string(r.Key) == key {
-			return true
-		}
-	}
-	return false
+	return authz.KnownRole(authz.Role(key))
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {

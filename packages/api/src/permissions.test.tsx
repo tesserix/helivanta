@@ -44,7 +44,10 @@ describe("Can", () => {
   });
 
   it("renders nothing while permissions are loading", () => {
-    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
     renderWithProviders(<Can permission="pharmacy.dispense.fulfil">Dispense</Can>);
 
     expect(screen.queryByText("Dispense")).not.toBeInTheDocument();

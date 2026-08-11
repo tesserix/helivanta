@@ -1,5 +1,6 @@
 export { HmsShell } from "./hms-shell";
-export { ZONES, activeZone, type Zone, type ZonePage } from "./zones";
+export { ZONES, activeZone, visibleZones, type Zone, type ZonePage } from "./zones";
+export { TenantPicker } from "./tenant-picker";
 export { ConfirmDialog } from "./confirm-dialog";
 export { Field, useZodForm } from "./form";
 export { EmptyState } from "./empty-state";

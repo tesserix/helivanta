@@ -1,18 +1,26 @@
 import { test, expect } from "@playwright/test";
 
+async function login(page: import("@playwright/test").Page) {
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/login$/);
+  await page.getByLabel("Email").fill("test@hms.dev");
+  await page.getByLabel("Password").fill("password123");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
+}
+
+test("seeded admin sees every zone", async ({ page }) => {
+  await login(page);
+  for (const zone of ["MediCore", "Pharmacy", "Lab"]) {
+    await expect(page.getByRole("link", { name: zone })).toBeVisible();
+  }
+});
+
 test("login, OPD visit, pharmacy dispense, lab result", async ({ page }) => {
   const patient = `E2E Patient ${Date.now()}`;
 
   // Unauthenticated → redirected to login.
-  await page.goto("/");
-  await expect(page).toHaveURL(/\/login$/);
-
-  await page.getByLabel("Email").fill("test@hms.dev");
-  await page.getByLabel("Password").fill("password123");
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Departments" }),
-  ).toBeVisible();
+  await login(page);
 
   // Shell → medicore (hard navigation across the zone boundary).
   // The department card's accessible name includes its description text

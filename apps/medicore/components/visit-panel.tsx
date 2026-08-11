@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { Badge, Button, Input } from "@tesserix/web";
 import { CalendarPlus } from "lucide-react";
-import { apiFetch, useApiMutation, useApiQuery } from "@hms/api";
+import { Can, apiFetch, useApiMutation, useApiQuery } from "@hms/api";
 import { EmptyState, Field, formatTime, useZodForm } from "@hms/ui";
 
 type Visit = {
@@ -43,28 +43,30 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
           New visits open a pending dispense in Pharmacy and a pending order in Lab.
         </p>
       </div>
-      <form
-        noValidate
-        onSubmit={form.handleSubmit((values) => createVisit.mutate(values))}
-        className="flex flex-wrap items-end gap-3 border-b px-5 py-4"
-      >
-        <div className="min-w-56 flex-1">
-          <Field
-            id="patient_name"
-            label="Patient name"
-            error={form.formState.errors.patient_name?.message}
-          >
-            <Input
+      <Can permission="medicore.visit.create">
+        <form
+          noValidate
+          onSubmit={form.handleSubmit((values) => createVisit.mutate(values))}
+          className="flex flex-wrap items-end gap-3 border-b px-5 py-4"
+        >
+          <div className="min-w-56 flex-1">
+            <Field
               id="patient_name"
-              placeholder="e.g. Asha Rao"
-              {...form.register("patient_name")}
-            />
-          </Field>
-        </div>
-        <Button type="submit" disabled={createVisit.isPending}>
-          {createVisit.isPending ? "Creating…" : "Create visit"}
-        </Button>
-      </form>
+              label="Patient name"
+              error={form.formState.errors.patient_name?.message}
+            >
+              <Input
+                id="patient_name"
+                placeholder="e.g. Asha Rao"
+                {...form.register("patient_name")}
+              />
+            </Field>
+          </div>
+          <Button type="submit" disabled={createVisit.isPending}>
+            {createVisit.isPending ? "Creating…" : "Create visit"}
+          </Button>
+        </form>
+      </Can>
       <ul className="divide-y text-sm">
         {visits.data?.data.length === 0 && (
           <li>

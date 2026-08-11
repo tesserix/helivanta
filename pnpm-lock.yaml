@@ -370,6 +370,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@hms/api':
+        specifier: workspace:*
+        version: link:../api
       '@hookform/resolvers':
         specifier: ^3.9.1
         version: 3.10.0(react-hook-form@7.84.0(react@19.2.8))

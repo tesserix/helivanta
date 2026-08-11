@@ -787,3 +787,20 @@ change to a module's `Permissions()`:
 `TestMainRegistersExactlyAllModules` (arch_test.go) rounds this out by
 failing if `bootstrap.Modules()` and `allModules()` disagree on the
 module set — see section 1's two-places rule.
+
+**Tenant switching — production prerequisites.** `POST /v1/iam/me/tenant`
+(`backend/internal/modules/iam/me.go`) mints a new session credential via
+`CustomTokenWithClaims` (`backend/pkg/authn/gip.go`), and that call needs
+a signing credential in production: either a service account key or
+`roles/iam.serviceAccountTokenCreator` granted so GIP can reach the
+metadata server's `signBlob`. `firebase.NewApp` resolves credentials
+lazily, so a deploy missing this grant boots cleanly and passes
+`/readyz` — the only symptom is every tenant switch returning `503
+session_unavailable`, with no other signal pointing at a missing signing
+credential. Check this grant explicitly as part of any environment
+standup, not just readiness. Separately, the switch endpoint relies on
+the custom token's `tenant_id` claim taking precedence over any
+persisted Firebase custom attribute in the ID token GIP issues back —
+that precedence is verified in this repo's tests only against the
+Firebase Auth emulator; treat real GIP precedence behavior in production
+as unverified until it's been observed there.

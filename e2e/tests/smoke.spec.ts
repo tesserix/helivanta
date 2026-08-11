@@ -1,18 +1,16 @@
 import { test, expect } from "@playwright/test";
-
-async function login(page: import("@playwright/test").Page) {
-  await page.goto("/");
-  await expect(page).toHaveURL(/\/login$/);
-  await page.getByLabel("Email").fill("test@hms.dev");
-  await page.getByLabel("Password").fill("password123");
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
-}
+import { login } from "./support/login";
 
 test("seeded admin sees every zone", async ({ page }) => {
   await login(page);
+  // Scoped to the zone rail (aria-label="Zones" in packages/ui/src/hms-shell.tsx):
+  // the dashboard also renders an unfiltered card per zone with an
+  // overlapping accessible name (e.g. "Lab Orders, samples & results"
+  // contains "Lab"), so an unscoped query is ambiguous under Playwright's
+  // default substring name matching.
+  const zoneNav = page.getByRole("navigation", { name: "Zones" });
   for (const zone of ["MediCore", "Pharmacy", "Lab"]) {
-    await expect(page.getByRole("link", { name: zone })).toBeVisible();
+    await expect(zoneNav.getByRole("link", { name: zone })).toBeVisible();
   }
 });
 

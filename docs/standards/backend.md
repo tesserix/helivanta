@@ -39,20 +39,26 @@ all sit at `internal/modules/<name>/` with no sub-packages. See
 Registering a module means adding it in **two** places, or its routes
 never mount and its migrations never run:
 
-1. `backend/cmd/api/main.go` — the runtime registry loop:
+1. `backend/internal/bootstrap/modules.go`'s `Modules()` — the single
+   runtime registry constructor, shared by `cmd/api` (boots the full API)
+   and `cmd/migrate` (applies migrations only, no NATS/OpenFGA dependency):
    ```go
-   registry := platform.NewRegistry()
-   for _, mod := range []platform.Module{reference.New(), medicore.New(), pharmacy.New(), lab.New()} {
-       if err := registry.Register(mod); err != nil {
-           return err
+   func Modules() []platform.Module {
+       return []platform.Module{
+           iam.New(), reference.New(), medicore.New(), pharmacy.New(), lab.New(),
        }
    }
    ```
+   `cmd/api/main.go` and `cmd/migrate/main.go` both call
+   `bootstrap.NewRegistry()`, so the module list exists exactly once at
+   runtime — no hand-maintained copy per entrypoint.
 2. `backend/internal/archtest/arch_test.go`'s `allModules()` — the test
    registry that arch tests (isolation, migration-ID uniqueness, consumer
    contracts, RLS lint) iterate over. It is deliberately a second literal
-   list, not a shared import of `main.go`'s, so a module wired into one
-   but not the other fails CI instead of silently running unchecked.
+   list, not a shared import of `bootstrap.Modules()`, so a module wired
+   into one but not the other fails CI instead of silently running
+   unchecked. `TestMainRegistersExactlyAllModules` diffs the two sets on
+   every run.
 
 Never hand-write a new module from scratch. Run
 `make new-module NAME=<name>` (`backend/scripts/new-module.sh`) — it
@@ -630,7 +636,8 @@ go test -race ./...    # full suite, from backend/
 ## 10. Checklist for a new module
 
 1. `make new-module NAME=<name>` from repo root.
-2. Register `<name>.New()` in `backend/cmd/api/main.go`'s registry loop.
+2. Register `<name>.New()` in `backend/internal/bootstrap/modules.go`'s
+   `Modules()` (shared by `cmd/api` and `cmd/migrate`).
 3. Add `<name>.New()` to `allModules()` in
    `backend/internal/archtest/arch_test.go`.
 4. Rename the generated `item` domain nouns (table, struct, subjects,
@@ -749,5 +756,5 @@ change to a module's `Permissions()`:
   than silently trusting whatever the code currently does.
 
 `TestMainRegistersExactlyAllModules` (arch_test.go) rounds this out by
-failing if `cmd/api/main.go`'s registry and `allModules()` disagree on
-the module set — see section 1's two-places rule.
+failing if `bootstrap.Modules()` and `allModules()` disagree on the
+module set — see section 1's two-places rule.

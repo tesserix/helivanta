@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/tools/go/packages"
 
+	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/modules/iam"
 	"github.com/tesserix/hms/internal/modules/lab"
 	"github.com/tesserix/hms/internal/modules/medicore"
@@ -27,9 +28,11 @@ import (
 
 const modulesPrefix = "github.com/tesserix/hms/internal/modules/"
 
-// allModules must list every registered module. cmd/api/main.go is the
-// runtime source of truth; keep them in sync (the generator prints a
-// reminder).
+// allModules must list every registered module. bootstrap.Modules()
+// (backend/internal/bootstrap/modules.go) — shared by cmd/api and
+// cmd/migrate — is the runtime source of truth; keep them in sync (the
+// generator prints a reminder, and TestMainRegistersExactlyAllModules
+// below fails CI on drift).
 func allModules() []platform.Module {
 	return []platform.Module{iam.New(), reference.New(), medicore.New(), pharmacy.New(), lab.New()}
 }
@@ -118,37 +121,25 @@ func TestPublishedSubjectConstants(t *testing.T) {
 	}
 }
 
-// moduleLiteralRe finds the `[]platform.Module{...}` literal in main.go's
-// registry loop.
-var moduleLiteralRe = regexp.MustCompile(`\[\]platform\.Module\{([^}]*)\}`)
-
-// moduleCtorRe pulls out `<pkg>.New()` constructor calls from inside the
-// literal.
-var moduleCtorRe = regexp.MustCompile(`(\w+)\.New\(\)`)
-
 // TestMainRegistersExactlyAllModules guards registry parity: every module
-// constructor registered in cmd/api/main.go's `[]platform.Module{...}`
-// literal must also appear in allModules(), and vice versa. Without this,
-// a module added to one but forgotten in the other silently skips either
-// production registration or the arch/coverage checks that walk
-// allModules().
+// constructor in bootstrap.Modules() — the single shared constructor
+// cmd/api and cmd/migrate both call — must also appear in allModules(),
+// and vice versa. Without this, a module added to one but forgotten in
+// the other silently skips either production registration or the
+// arch/coverage checks that walk allModules().
+//
+// This used to source-parse cmd/api/main.go's `[]platform.Module{...}`
+// literal directly. That broke the moment the module list moved into
+// bootstrap.Modules() (Task 14) so cmd/api and cmd/migrate could share
+// it instead of each hand-writing a copy — comparing against the shared
+// constructor is both the fix and the simpler check.
 func TestMainRegistersExactlyAllModules(t *testing.T) {
-	src, err := os.ReadFile("../../cmd/api/main.go")
-	if err != nil {
-		t.Fatalf("read cmd/api/main.go: %v", err)
-	}
-
-	lit := moduleLiteralRe.FindSubmatch(src)
-	if lit == nil {
-		t.Fatalf("could not find []platform.Module{...} literal in cmd/api/main.go")
-	}
-
 	registered := map[string]bool{}
-	for _, m := range moduleCtorRe.FindAllSubmatch(lit[1], -1) {
-		registered[string(m[1])] = true
+	for _, m := range bootstrap.Modules() {
+		registered[m.Name()] = true
 	}
 	if len(registered) == 0 {
-		t.Fatalf("found []platform.Module{...} literal but no <pkg>.New() constructors inside it")
+		t.Fatalf("bootstrap.Modules() returned no modules")
 	}
 
 	expected := map[string]bool{}
@@ -158,12 +149,12 @@ func TestMainRegistersExactlyAllModules(t *testing.T) {
 
 	for name := range registered {
 		if !expected[name] {
-			t.Errorf("cmd/api/main.go registers module %q but allModules() in arch_test.go does not include it", name)
+			t.Errorf("bootstrap.Modules() registers module %q but allModules() in arch_test.go does not include it", name)
 		}
 	}
 	for name := range expected {
 		if !registered[name] {
-			t.Errorf("allModules() in arch_test.go includes module %q but cmd/api/main.go does not register it", name)
+			t.Errorf("allModules() in arch_test.go includes module %q but bootstrap.Modules() does not register it", name)
 		}
 	}
 }

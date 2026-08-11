@@ -351,7 +351,7 @@ rm -f "$DIR/module.go.bak" "$DIR/module_test.go.bak"
 gofmt -w "$DIR"
 
 echo "Created $DIR. Follow-ups:"
-echo "1. Register ${NAME}.New() in cmd/api/main.go (registry loop)"
+echo "1. Register ${NAME}.New() in internal/bootstrap/modules.go's Modules() (shared by cmd/api and cmd/migrate)"
 echo "2. Add ${NAME}.New() to allModules() in internal/archtest/arch_test.go"
 echo "3. Declare real permissions and the roles that hold them in Permissions() (docs/standards/backend.md section 11)"
 echo "4. Add those permissions/roles to approvedPermissionMatrix in internal/archtest/matrix_test.go"

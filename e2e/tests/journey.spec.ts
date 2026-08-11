@@ -1,0 +1,92 @@
+import { expect, test } from "@playwright/test";
+import { ADMIN, PHARMACIST, login } from "./support/login";
+
+// The cross-zone journey with authorization actually enforced: an admin
+// creates a visit that fans out to pharmacy and lab, and a
+// differently-privileged pharmacist sees only what pharmacist holds
+// permission for — in the nav, and when navigating directly to a route
+// the UI would otherwise hide the action on.
+
+test("admin creates a visit and it lands in pharmacy and lab", async ({
+  page,
+}) => {
+  await login(page, ADMIN);
+
+  const patient = `Journey Patient ${Date.now()}`;
+  await page.locator('a[href="/medicore/opd"]').first().click();
+  await expect(page).toHaveURL(/\/medicore\/opd$/);
+  await page.waitForLoadState("networkidle");
+
+  await page.getByLabel("Patient name").fill(patient);
+  await page.getByRole("button", { name: "Create visit" }).click();
+  await expect(page.getByText(patient).first()).toBeVisible();
+
+  // visit_created flows through JetStream into both consumers.
+  await page.goto("/pharmacy");
+  await expect(page.getByText(patient).first()).toBeVisible({
+    timeout: 30_000,
+  });
+
+  await page.goto("/lab");
+  await expect(page.getByText(patient).first()).toBeVisible({
+    timeout: 30_000,
+  });
+});
+
+test("pharmacist sees only the pharmacy zone", async ({ page }) => {
+  await login(page, PHARMACIST);
+
+  // Scoped to the zone rail (aria-label="Zones") — see smoke.spec.ts for
+  // why an unscoped query is ambiguous against the dashboard's cards.
+  const zoneNav = page.getByRole("navigation", { name: "Zones" });
+  await expect(zoneNav.getByRole("link", { name: "Pharmacy" })).toBeVisible();
+  await expect(zoneNav.getByRole("link", { name: "MediCore" })).toHaveCount(0);
+  await expect(zoneNav.getByRole("link", { name: "Lab" })).toHaveCount(0);
+});
+
+test("pharmacist cannot create a visit even by navigating directly", async ({
+  page,
+}) => {
+  await login(page, PHARMACIST);
+  await page.goto("/medicore/opd");
+  await page.waitForLoadState("networkidle");
+
+  // The UI hides the action entirely (Can permission="medicore.visit.create"
+  // in apps/medicore/components/visit-panel.tsx); the API is the real
+  // enforcement point, so the form must be absent rather than merely
+  // disabled.
+  await expect(page.getByRole("button", { name: "Create visit" })).toHaveCount(
+    0,
+  );
+});
+
+test("pharmacist can dispense a visit created by admin", async ({ page }) => {
+  // Self-contained rather than relying on a pending dispense left over by
+  // another test: create the visit as admin, hand off to the pharmacist,
+  // and prove the dispense actually completes — not just that the button
+  // is present.
+  await login(page, ADMIN);
+
+  const patient = `Journey Dispense ${Date.now()}`;
+  await page.locator('a[href="/medicore/opd"]').first().click();
+  await expect(page).toHaveURL(/\/medicore\/opd$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Patient name").fill(patient);
+  await page.getByRole("button", { name: "Create visit" }).click();
+  await expect(page.getByText(patient).first()).toBeVisible();
+
+  await page.goto("/logout");
+  await login(page, PHARMACIST);
+
+  await page.goto("/pharmacy");
+  await expect(page.getByText(patient).first()).toBeVisible({
+    timeout: 30_000,
+  });
+  await page
+    .locator("li", { hasText: patient })
+    .getByRole("button", { name: "Dispense" })
+    .click();
+  await expect(
+    page.locator("li", { hasText: patient }).getByText(/Dispensed/),
+  ).toBeVisible();
+});

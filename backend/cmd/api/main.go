@@ -11,13 +11,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/config"
 	"github.com/tesserix/hms/internal/httpserver"
-	"github.com/tesserix/hms/internal/modules/iam"
-	"github.com/tesserix/hms/internal/modules/lab"
-	"github.com/tesserix/hms/internal/modules/medicore"
-	"github.com/tesserix/hms/internal/modules/pharmacy"
-	"github.com/tesserix/hms/internal/modules/reference"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/requestid"
 	"github.com/tesserix/hms/pkg/authn"
@@ -43,13 +39,9 @@ func run() error {
 		return err
 	}
 
-	registry := platform.NewRegistry()
-	for _, mod := range []platform.Module{
-		iam.New(), reference.New(), medicore.New(), pharmacy.New(), lab.New(),
-	} {
-		if err := registry.Register(mod); err != nil {
-			return err
-		}
+	registry, err := bootstrap.NewRegistry()
+	if err != nil {
+		return err
 	}
 
 	migs := events.Migrations()

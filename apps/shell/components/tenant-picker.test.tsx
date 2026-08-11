@@ -62,6 +62,7 @@ function mockCred(claimTenantId: string) {
 
 beforeEach(() => {
   calls.length = 0;
+  window.localStorage.clear();
   signInWithCustomToken.mockReset();
   signInWithCustomToken.mockImplementation(async () => {
     calls.push("signInWithCustomToken");

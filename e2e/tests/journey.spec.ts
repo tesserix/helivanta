@@ -4,8 +4,8 @@ import { ADMIN, PHARMACIST, login } from "./support/login";
 // The cross-zone journey with authorization actually enforced: an admin
 // creates a visit that fans out to pharmacy and lab, and a
 // differently-privileged pharmacist sees only what pharmacist holds
-// permission for — in the nav, and when navigating directly to a route
-// the UI would otherwise hide the action on.
+// permission for — in the sidebar, on the dashboard, and when navigating
+// directly to a route the UI would otherwise hide the action on.
 
 test("admin creates a visit and it lands in pharmacy and lab", async ({
   page,
@@ -33,15 +33,27 @@ test("admin creates a visit and it lands in pharmacy and lab", async ({
   });
 });
 
-test("pharmacist sees only the pharmacy zone", async ({ page }) => {
+test("pharmacist sees only the pharmacy zone, in the sidebar and on the dashboard", async ({
+  page,
+}) => {
   await login(page, PHARMACIST);
 
   // Scoped to the zone rail (aria-label="Zones") — see smoke.spec.ts for
-  // why an unscoped query is ambiguous against the dashboard's cards.
+  // why an unscoped query is ambiguous even though the dashboard's cards
+  // (apps/shell/app/page.tsx) apply the same visibleZones(can) filter.
   const zoneNav = page.getByRole("navigation", { name: "Zones" });
   await expect(zoneNav.getByRole("link", { name: "Pharmacy" })).toBeVisible();
   await expect(zoneNav.getByRole("link", { name: "MediCore" })).toHaveCount(0);
   await expect(zoneNav.getByRole("link", { name: "Lab" })).toHaveCount(0);
+
+  // The dashboard is the first thing every user sees and must honour the
+  // same "only doors that will open" contract (packages/ui/src/zones.ts)
+  // as the sidebar — scoped by href since the dashboard's card titles are
+  // per-page ("OPD"/"IPD"), not the zone name.
+  const dashboard = page.getByRole("main");
+  await expect(dashboard.locator('a[href="/pharmacy"]')).toBeVisible();
+  await expect(dashboard.locator('a[href^="/medicore"]')).toHaveCount(0);
+  await expect(dashboard.locator('a[href="/lab"]')).toHaveCount(0);
 });
 
 test("pharmacist cannot create a visit even by navigating directly", async ({

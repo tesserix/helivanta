@@ -4,10 +4,12 @@ import { login } from "./support/login";
 test("seeded admin sees every zone", async ({ page }) => {
   await login(page);
   // Scoped to the zone rail (aria-label="Zones" in packages/ui/src/hms-shell.tsx):
-  // the dashboard also renders an unfiltered card per zone with an
-  // overlapping accessible name (e.g. "Lab Orders, samples & results"
-  // contains "Lab"), so an unscoped query is ambiguous under Playwright's
-  // default substring name matching.
+  // the dashboard (apps/shell/app/page.tsx) also renders a card per
+  // visible zone, and for this admin every zone is visible there too —
+  // its Lab card's accessible name ("Lab Orders, samples & results")
+  // contains "Lab" as a substring, so an unscoped query is ambiguous
+  // under Playwright's default substring name matching even though both
+  // surfaces now apply the same visibleZones(can) permission filter.
   const zoneNav = page.getByRole("navigation", { name: "Zones" });
   for (const zone of ["MediCore", "Pharmacy", "Lab"]) {
     await expect(zoneNav.getByRole("link", { name: zone })).toBeVisible();

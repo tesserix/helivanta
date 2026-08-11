@@ -210,3 +210,64 @@ func TestEveryDeclaredPermissionIsGranted(t *testing.T) {
 		}
 	}
 }
+
+// withAdminAllowlist is exactly the files permitted to call
+// tenantdb.DB.WithAdmin — the reconciler (its one legitimate whole-system
+// caller) and pkg/tenantdb itself (the method's own definition and its
+// direct test). Extending this list is a real RLS-bypass decision, not a
+// convenience; it belongs in code review, not a casual addition here.
+var withAdminAllowlist = map[string]bool{
+	"internal/platform/reconcile.go": true,
+}
+
+// withAdminAllowedDir reports whether path sits under a directory that's
+// wholesale allowed to call WithAdmin.
+func withAdminAllowedDir(path string) bool {
+	return strings.HasPrefix(path, "pkg/tenantdb/")
+}
+
+// TestWithAdminIsOnlyCalledFromTheAllowlist guards the one RLS bypass in
+// the codebase the same way module isolation and route permissions are
+// guarded: mechanically, not by convention. tenantdb.DB.WithAdmin runs on
+// the admin pool, which is not subject to RLS at all — a request handler
+// that reached for it, even by copy-pasting the reconciler's call, would
+// see every tenant's rows. WithTenant is the only path request handlers
+// may use; a genuine cross-tenant read belongs in review, not in an
+// expanded allowlist.
+func TestWithAdminIsOnlyCalledFromTheAllowlist(t *testing.T) {
+	root := "../.."
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		// archtest's own source necessarily mentions the ".WithAdmin("
+		// pattern it scans for; excluding the package avoids that
+		// self-match rather than allowlisting it, which would otherwise
+		// read as "archtest may call WithAdmin".
+		if strings.HasPrefix(rel, "internal/archtest/") {
+			return nil
+		}
+		if withAdminAllowlist[rel] || withAdminAllowedDir(rel) {
+			return nil
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(src), ".WithAdmin(") {
+			t.Errorf("%s calls .WithAdmin(), which bypasses RLS entirely and sees every "+
+				"tenant's rows. Request-path code must use WithTenant. If you genuinely need "+
+				"a cross-tenant read, bring it to review — don't add this file to "+
+				"withAdminAllowlist in arch_test.go on your own.", rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk repo: %v", err)
+	}
+}

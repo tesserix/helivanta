@@ -112,7 +112,7 @@ const (
 
 `*tenantdb.DB` (`backend/pkg/tenantdb/db.go`) is the only database
 handle a module ever sees, and it never exposes a raw `*gorm.DB` field —
-every access goes through one of two methods, each opening its own
+every access goes through one of three methods, each opening its own
 transaction:
 
 - **`WithTenant(ctx, tenantID, fn)`** — the path for every tenant-scoped
@@ -143,6 +143,17 @@ transaction:
   RLS-protected tenant table reads as empty inside it — `WithSystem` is
   not an escape hatch for tenant data, it is the mechanism used to touch
   the platform tables that predate tenancy.
+- **`WithAdmin(ctx, fn)`** — opens a transaction on the *admin* pool (the
+  migration role), which bypasses RLS completely and sees every tenant's
+  rows in every table. This is for boot-time/ops code only, never a
+  request path — the permission reconciler
+  (`backend/internal/platform/reconcile.go`) is currently its only
+  caller, enumerating every tenant's memberships in one pass with no
+  single tenant to scope a `WithTenant` GUC by. `TestWithAdminIsOnlyCalledFromTheAllowlist`
+  in `backend/internal/archtest/arch_test.go` enforces this mechanically:
+  any new `.WithAdmin(` call site outside that allowlist fails the build.
+  Extending the allowlist is a real RLS-bypass decision — bring it to
+  review rather than adding a file to it.
 
 Every tenant table gets forced RLS in the migration that creates it —
 `ENABLE ROW LEVEL SECURITY` alone is not enough, because a table owner

@@ -14,7 +14,9 @@ import (
 var ErrInvalidTenant = errors.New("tenantdb: tenant id is not a valid uuid")
 
 // DB owns two pools: app (non-BYPASSRLS role, all runtime access) and
-// admin (migrations only). There is no exported raw *gorm.DB.
+// admin (the migration role, used for migrations and other privileged
+// boot-time/ops operations — see Migrate, LintRLS, WithAdmin). There is
+// no exported raw *gorm.DB.
 type DB struct {
 	app   *gorm.DB
 	admin *gorm.DB

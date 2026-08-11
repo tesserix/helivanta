@@ -61,7 +61,7 @@ func registry(t *testing.T) *platform.Registry {
 func TestPermissionMatrix(t *testing.T) {
 	ctx := context.Background()
 	reg := registry(t)
-	client, err := authz.NewClient(ctx, testinfra.StartOpenFGA(t), "hms-matrix")
+	client, err := authz.NewClient(ctx, testinfra.StartOpenFGA(t), t.Name())
 	require.NoError(t, err)
 
 	require.NoError(t, platform.ReconcileTenant(ctx, reg, client, tenantA))
@@ -102,7 +102,7 @@ func TestPermissionMatrix(t *testing.T) {
 func TestCrossTenantDenial(t *testing.T) {
 	ctx := context.Background()
 	reg := registry(t)
-	client, err := authz.NewClient(ctx, testinfra.StartOpenFGA(t), "hms-matrix-cross")
+	client, err := authz.NewClient(ctx, testinfra.StartOpenFGA(t), t.Name())
 	require.NoError(t, err)
 
 	require.NoError(t, platform.ReconcileTenant(ctx, reg, client, tenantA))

@@ -178,7 +178,7 @@ func (c *countingReconciler) DeleteTuple(ctx context.Context, t authz.Tuple) err
 
 func newReconciler(t *testing.T) *countingReconciler {
 	t.Helper()
-	c, err := authz.NewClient(context.Background(), testinfra.StartOpenFGA(t), "hms-reconcile-test")
+	c, err := authz.NewClient(context.Background(), testinfra.StartOpenFGA(t), t.Name())
 	require.NoError(t, err)
 	return &countingReconciler{Client: c}
 }

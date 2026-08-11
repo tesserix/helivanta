@@ -211,8 +211,36 @@ func StartNATS(t *testing.T) string {
 	return uri
 }
 
-// StartOpenFGA boots an in-memory OpenFGA and returns its HTTP API URL.
+// One OpenFGA server is shared by every test in a binary, for the same
+// reason Postgres is: the per-container cost is dominated by starting and
+// reaping it, not by the handful of API calls a test makes against it.
+//
+// Isolation here is by store rather than by database. Callers already
+// name their store when they build a client, so a test that wants its own
+// tuples asks for its own store name — see the callers, which pass
+// t.Name(). Two callers naming the same store share it deliberately.
+var (
+	fgaOnce sync.Once
+	fgaURL  string
+	fgaErr  error
+)
+
+// StartOpenFGA returns the HTTP API URL of the shared OpenFGA server,
+// booting it on first use. As with Postgres, it is never torn down by a
+// t.Cleanup — it belongs to the binary, not to the test that happened to
+// need it first.
 func StartOpenFGA(t *testing.T) string {
+	t.Helper()
+	fgaOnce.Do(func() {
+		fgaURL, fgaErr = startOpenFGA(t)
+	})
+	if fgaErr != nil {
+		t.Fatalf("%v", fgaErr)
+	}
+	return fgaURL
+}
+
+func startOpenFGA(t *testing.T) (string, error) {
 	t.Helper()
 	ctx := context.Background()
 	// The wait strategy is restated rather than inherited. The module's
@@ -240,13 +268,11 @@ func StartOpenFGA(t *testing.T) string {
 				})),
 	)
 	if err != nil {
-		t.Fatalf("start openfga: %v", err)
+		return "", fmt.Errorf("start openfga: %w", err)
 	}
-	t.Cleanup(func() { _ = fga.Terminate(context.Background()) })
-
 	url, err := fga.HttpEndpoint(ctx)
 	if err != nil {
-		t.Fatalf("openfga endpoint: %v", err)
+		return "", fmt.Errorf("openfga endpoint: %w", err)
 	}
-	return url
+	return url, nil
 }

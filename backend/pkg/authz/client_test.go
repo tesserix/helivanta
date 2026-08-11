@@ -18,7 +18,7 @@ const (
 
 func newClient(t *testing.T) *authz.Client {
 	t.Helper()
-	c, err := authz.NewClient(context.Background(), testinfra.StartOpenFGA(t), "hms-test")
+	c, err := authz.NewClient(context.Background(), testinfra.StartOpenFGA(t), t.Name())
 	require.NoError(t, err)
 	return c
 }
@@ -106,7 +106,7 @@ func TestResolveFailsWhenStoreUnreachable(t *testing.T) {
 func TestConcurrentBootConvergesOnSameStore(t *testing.T) {
 	ctx := context.Background()
 	url := testinfra.StartOpenFGA(t)
-	const storeName = "hms-test"
+	storeName := t.Name()
 
 	// Simulate the race window: two stores already exist under the same
 	// name before any authz.Client tries to reconcile it.

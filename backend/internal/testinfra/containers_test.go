@@ -64,6 +64,17 @@ func TestStartPostgresIsolatesCallers(t *testing.T) {
 	require.Zero(t, count, "table created by one caller leaked into another's database")
 }
 
+// OpenFGA is shared the same way Postgres is. Isolation is by store name,
+// which callers choose (they pass t.Name()), so this only has to prove the
+// server itself is not rebooted per caller.
+func TestStartOpenFGAReusesOneServer(t *testing.T) {
+	first := StartOpenFGA(t)
+	second := StartOpenFGA(t)
+
+	require.NotEmpty(t, first)
+	require.Equal(t, first, second, "callers should share one OpenFGA server")
+}
+
 // hms_app is the role the application connects as, and forced-RLS policies
 // only mean anything if it cannot bypass them. Creating it once per server
 // rather than once per database must not change that.

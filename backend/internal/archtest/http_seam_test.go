@@ -84,7 +84,7 @@ func newSeamHarness(t *testing.T) *gin.Engine {
 		).Error
 	}))
 
-	fga, err := authz.NewClient(ctx, testinfra.StartOpenFGA(t), "hms-http-seam")
+	fga, err := authz.NewClient(ctx, testinfra.StartOpenFGA(t), t.Name())
 	require.NoError(t, err)
 
 	reg := platform.NewRegistry()

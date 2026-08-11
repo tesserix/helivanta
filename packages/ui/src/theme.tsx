@@ -17,6 +17,30 @@ export const THEME_STORAGE_KEY = "hms.theme";
 export const THEME_INIT_SCRIPT = `(function(){try{var k="${THEME_STORAGE_KEY}";var s=localStorage.getItem(k);var dark=s==="dark"||(!s&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.dataset.theme=dark?"dark":"default";}catch(e){}})();`;
 
 /**
+ * Tracks `document.documentElement.dataset.theme` and stays in sync via a
+ * MutationObserver on the html element's `data-theme` attribute. Initial
+ * state is "default" for SSR safety, corrected on mount — same
+ * hydration-safe pattern as ThemeToggle below.
+ */
+export function useThemeAttribute(): "default" | "dark" {
+  const [theme, setTheme] = useState<"default" | "dark">("default");
+
+  useEffect(() => {
+    const read = () => (document.documentElement.dataset.theme === "dark" ? "dark" : "default");
+    setTheme(read());
+
+    const observer = new MutationObserver(() => setTheme(read()));
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  return theme;
+}
+
+/**
  * 32px icon button that flips `document.documentElement.dataset.theme`
  * between "default" (light) and "dark" and persists the choice to
  * localStorage. Initial state is read from the DOM on mount so it matches

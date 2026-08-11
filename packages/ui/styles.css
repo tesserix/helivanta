@@ -119,6 +119,11 @@
   --hms-violet: #9D9DF0 !important;
   --hms-violet-tint: #26273B !important;
   --hms-track: #232B34 !important;
+
+  /* --radius is only defined under [data-theme="default"] by @tesserix/web;
+     guard it here so it's never undefined in dark mode if a future
+     @tesserix/web release starts consuming it. */
+  --radius: 0.625rem !important;
 }
 
 /* @tesserix/web ships an UNLAYERED base rule that forces

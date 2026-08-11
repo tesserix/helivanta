@@ -1,7 +1,7 @@
-import { screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@hms/api/testing";
-import { THEME_INIT_SCRIPT, THEME_STORAGE_KEY, ThemeToggle } from "./theme";
+import { THEME_INIT_SCRIPT, THEME_STORAGE_KEY, ThemeToggle, useThemeAttribute } from "./theme";
 
 function stubMatchMedia(prefersDark: boolean) {
   Object.defineProperty(window, "matchMedia", {
@@ -47,6 +47,40 @@ describe("ThemeToggle", () => {
     expect(document.documentElement.dataset.theme).toBe("default");
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
     expect(screen.getByRole("button", { name: "Switch to dark theme" })).toBeInTheDocument();
+  });
+});
+
+function ThemeAttributeProbe() {
+  const theme = useThemeAttribute();
+  return <span data-testid="theme-attribute">{theme}</span>;
+}
+
+describe("useThemeAttribute", () => {
+  beforeEach(() => {
+    document.documentElement.dataset.theme = "default";
+  });
+
+  it("reflects the initial data-theme attribute on mount", () => {
+    document.documentElement.dataset.theme = "dark";
+    renderWithProviders(<ThemeAttributeProbe />);
+    expect(screen.getByTestId("theme-attribute")).toHaveTextContent("dark");
+  });
+
+  it("stays in sync when data-theme mutates after mount", async () => {
+    renderWithProviders(<ThemeAttributeProbe />);
+    expect(screen.getByTestId("theme-attribute")).toHaveTextContent("default");
+
+    await act(async () => {
+      document.documentElement.dataset.theme = "dark";
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId("theme-attribute")).toHaveTextContent("dark");
+
+    await act(async () => {
+      document.documentElement.dataset.theme = "default";
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId("theme-attribute")).toHaveTextContent("default");
   });
 });
 

@@ -14,8 +14,9 @@ Read `docs/standards/frontend.md` for the full rules. The short version and wher
 | Feedback      | sonner toasts; ConfirmDialog for destructive only | packages/ui/src/confirm-dialog.tsx            |
 | Empty/loading | EmptyState + app/loading.tsx skeletons            | apps/pharmacy/components/dispense-list.tsx    |
 | Nav           | plain <a>; registry packages/ui/src/zones.ts      | packages/ui/src/hms-shell.tsx                 |
+| Authz         | Can/usePermissions gate UI, convenience only — the API enforces; every zone/page in zones.ts declares a permission | packages/api/src/permissions.tsx              |
 | Tokens        | no hardcoded colors; read styles.css pitfalls     | packages/ui/styles.css                        |
 | New zone      | pnpm new-zone <name>                              | scripts/new-zone.mjs                          |
 | Tests         | renderWithProviders per panel                     | apps/medicore/components/visit-panel.test.tsx |
 
-Never: alert/confirm/prompt, native form validation, raw fetch in components, next/link for cross-zone hops, hex colors in classNames.
+Never: alert/confirm/prompt, native form validation, raw fetch in components, next/link for cross-zone hops, hex colors in classNames, treating `can()` as a security boundary.

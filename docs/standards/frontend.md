@@ -383,3 +383,36 @@ every browser that loads the app — it gets inlined into the client
 bundle at build time and is visible to anyone who opens dev tools.
 Server-only values (API URLs used for server-side rewrites, secrets)
 stay unprefixed.
+
+## 13. Authorization (permission gating)
+
+`Can` and `usePermissions` (`packages/api/src/permissions.tsx`) gate UI
+on the caller's resolved permissions, fetched from
+`GET /iam/me/permissions`:
+
+```tsx
+const { can } = usePermissions();
+{can("pharmacy.medication.write") && <CreateMedicationButton />}
+
+<Can permission="pharmacy.dispense.fulfil">
+  <DispenseButton />
+</Can>
+```
+
+This is a **convenience layer only** — it decides what to show, not
+what's allowed. The Go API is the enforcement point (backend standards
+section 11); every guarded action must still work correctly if this
+layer were deleted entirely, because a curious user can always call the
+API directly. Never add a client-side check in place of, or as a
+substitute for, a permission on the route.
+
+`can()` returns `false` while `usePermissions` is loading and on error,
+never `true` — so an action a user cannot perform never flashes on
+screen before the permission check resolves. Don't special-case the
+loading state to show actions optimistically.
+
+Every zone and page in `packages/ui/src/zones.ts` declares a
+`permission` string (`authz.Public`'s frontend counterpart is the
+literal `"public"`), which `HmsShell` uses to hide rail/panel entries
+the caller can't reach — see the `ZONES` array for the pattern of one
+permission per zone and per page.

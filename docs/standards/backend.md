@@ -17,7 +17,11 @@ implementing `platform.Module` (`backend/internal/platform/module.go`):
 type Module interface {
 	Name() string
 	Migrations() []tenantdb.Migration
-	Routes(r *gin.RouterGroup, deps Deps)
+	// Permissions declares every permission this module's routes use and
+	// which system roles hold it (section 11 — RoleTenantAdmin is
+	// implicit, never list it here).
+	Permissions() []authz.Grant
+	Routes(r *Router, deps Deps)
 	Consumers(deps Deps) []events.Consumer
 }
 ```
@@ -631,15 +635,119 @@ go test -race ./...    # full suite, from backend/
    `backend/internal/archtest/arch_test.go`.
 4. Rename the generated `item` domain nouns (table, struct, subjects,
    routes) to your real ones.
-5. Keep the forced-RLS migration boilerplate (section 3) intact for
+5. Declare real permissions in `Permissions()` — the roles that hold
+   each one your routes use (section 11) — and add them to
+   `approvedPermissionMatrix` in
+   `backend/internal/archtest/matrix_test.go`.
+6. Keep the forced-RLS migration boilerplate (section 3) intact for
    every tenant table you add.
-6. Every mutating handler starts with `authn.TenantPrincipal(c)`
+7. Every mutating handler starts with `authn.TenantPrincipal(c)`
    (section 5) and responds only through `respond.*` (section 4).
-7. Guard every status transition with a conditional `UPDATE` +
+8. Guard every status transition with a conditional `UPDATE` +
    `RowsAffected` check, never read-then-write (section 4).
-8. Publish events on the same `tx` as the row they describe, inside
+9. Publish events on the same `tx` as the row they describe, inside
    `WithTenant`/`WithSystem` (section 6).
-9. Write the five required test cases against
-   `testutil.ModuleHarness` (section 9).
-10. `make lint-go`, `make coverage-go`, and `go test -race ./...` all
+10. Write the five required test cases against
+    `testutil.ModuleHarness` (section 9).
+11. `make lint-go`, `make coverage-go`, and `go test -race ./...` all
     green before calling it done.
+
+## 11. Authorization
+
+Every route declares an `authz.Permission` through `*platform.Router`
+(`backend/internal/platform/router.go`), never a raw
+`*gin.RouterGroup`. This is enforced at compile time, not just by
+convention: `Router` wraps its `*gin.RouterGroup` in an unexported
+field, so `Module.Routes(r *platform.Router, deps Deps)` has no way to
+reach it — an undeclared route is inexpressible, not merely
+disallowed. `TestModulesDoNotUseRawGinGroups`
+(`backend/internal/archtest/arch_test.go`) backs this at the package
+graph level, failing any module that imports `gin.RouterGroup`
+directly. `authz.Public` (`backend/pkg/authz/authz.go`) is the explicit
+opt-out for a deliberately unguarded route — a real value, not an
+omitted argument, so it's greppable:
+
+```go
+g.GET("/me/permissions", authz.Public, func(c *gin.Context) { /* ... */ })
+g.POST("/medications", PermMedicationWrite, func(c *gin.Context) { /* ... */ })
+```
+
+(`backend/internal/modules/iam/me.go`,
+`backend/internal/modules/pharmacy/module.go`)
+
+**Modules declare grants, never `tenant_admin`.**
+`Module.Permissions() []authz.Grant` lists which system roles hold
+each permission the module's routes use:
+
+```go
+func (m *Module) Permissions() []authz.Grant {
+	return []authz.Grant{
+		{Permission: PermDispenseRead, Roles: []authz.Role{authz.RolePharmacist, authz.RoleDoctor}},
+		{Permission: PermDispenseFulfil, Roles: []authz.Role{authz.RolePharmacist}},
+	}
+}
+```
+
+(`backend/internal/modules/pharmacy/module.go`) `platform.GrantsFor`
+(`backend/internal/platform/reconcile.go`) appends
+`authz.RoleTenantAdmin` to every grant before writing tuples — a
+module never lists it itself. `TestEveryDeclaredPermissionIsGranted`
+(arch_test.go) fails if a route uses a permission `Permissions()`
+doesn't declare.
+
+**Naming**: `<module>.<resource>.<action>`, e.g.
+`pharmacy.medication.write`, `lab.order.fulfil`.
+
+**Roles are data.** The five system roles — `tenant_admin`, `doctor`,
+`nurse`, `pharmacist`, `lab_tech` (`authz.Role` constants,
+`backend/pkg/authz/authz.go`) — are seeded per tenant, and
+permission/role bindings are OpenFGA tuples, not Go model relations.
+Adding a zone, a permission, or changing who holds one is a
+`Permissions()` edit plus a reconcile, never a schema migration.
+
+**Status codes fail closed.** `403` means the caller is a member of
+the tenant but lacks the permission; `404` is still the cross-tenant
+answer (section 4 — RLS means the row was never visible to the query
+in the first place, so authorization never gets a chance to
+distinguish "missing" from "someone else's"); an OpenFGA error is
+`503 authz_unavailable`, never a silent allow.
+
+**Membership and grant writes are eventually consistent.** The
+membership/role-grant endpoints publish through the outbox inside the
+same transaction as the row they describe (section 6), so they return
+`202`, not `200`/`201` — the FGA tuple lands once the dispatcher drains
+the outbox. Re-granting an already-held role is allowed and publishes
+unconditionally on purpose: it's the operator's repair mechanism for
+FGA drift, not just the first-grant path.
+
+**The reconciler makes OpenFGA rebuildable from Postgres.**
+`platform.ReconcileTenant` (`backend/internal/platform/reconcile.go`)
+re-applies every module's permission tuples and every tenant's
+memberships at boot, using `WithAdmin` (section 3) to read across
+tenants in one pass. This matters locally: the dev OpenFGA store is
+in-memory and loses every tuple on restart, and the reconciler is what
+restores it with no manual step.
+
+**The adversarial matrix suite**
+(`backend/internal/archtest/matrix_test.go`) is the phase gate for any
+change to a module's `Permissions()`:
+
+- `TestPermissionMatrix` — every role × every declared permission,
+  asserted allow/deny against a real OpenFGA, in both tenants.
+- `TestCrossTenantDenial` — a fully-privileged `tenant_admin` in one
+  tenant holds nothing in another.
+- `TestEveryGuardedRouteIsCoveredByTheMatrix` — a route guarded by a
+  permission that only `tenant_admin` holds is flagged as a likely
+  declaration bug (unreachable for every real role).
+- `TestDeclaredPermissionsMatchTheApprovedMatrix` — checks
+  `platform.GrantsFor` against `approvedPermissionMatrix`, a table
+  hand-transcribed from the design spec, independent of the code it
+  checks. **This is deliberate, not friction to work around**: it
+  means changing any module's `Permissions()` fails CI until someone
+  edits `approvedPermissionMatrix` by hand, forcing a reviewable,
+  intentional edit every time a role↔permission mapping changes rather
+  than silently trusting whatever the code currently does.
+
+`TestMainRegistersExactlyAllModules` (arch_test.go) rounds this out by
+failing if `cmd/api/main.go`'s registry and `allModules()` disagree on
+the module set — see section 1's two-places rule.

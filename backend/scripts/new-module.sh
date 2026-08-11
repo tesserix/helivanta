@@ -55,8 +55,9 @@ const (
 	SubjectItemDone = "hms.in.__NAME__.item_done.v1"
 )
 
-// TODO: rename these permissions to your real domain nouns and adjust
-// the role grants below before shipping.
+// TODO: rename these permissions to your real domain nouns before
+// shipping ("<module>.<resource>.<action>", see
+// docs/standards/backend.md section 11).
 const (
 	PermItemRead  authz.Permission = "__NAME__.item.read"
 	PermItemWrite authz.Permission = "__NAME__.item.write"
@@ -68,6 +69,15 @@ func New() *Module { return &Module{} }
 
 func (m *Module) Name() string { return "__NAME__" }
 
+// TODO: RoleNurse below is an arbitrary placeholder, not a considered
+// role mapping — this generator has no way to know which of the five
+// system roles (authz.RoleDoctor, RoleNurse, RolePharmacist,
+// RoleLabTech; RoleTenantAdmin is implicit, never list it) should hold
+// each permission for your domain. Decide deliberately per permission
+// (see pharmacy's module.go for an example that splits read/write
+// across different roles) and update
+// internal/archtest/matrix_test.go's approvedPermissionMatrix to match
+// before this module ships.
 func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
 		{Permission: PermItemRead, Roles: []authz.Role{authz.RoleNurse}},
@@ -343,5 +353,7 @@ gofmt -w "$DIR"
 echo "Created $DIR. Follow-ups:"
 echo "1. Register ${NAME}.New() in cmd/api/main.go (registry loop)"
 echo "2. Add ${NAME}.New() to allModules() in internal/archtest/arch_test.go"
-echo "3. Rename the placeholder 'item' domain to your real nouns"
-echo "4. cd backend && go test -race ./internal/modules/$NAME/ ./internal/archtest/"
+echo "3. Declare real permissions and the roles that hold them in Permissions() (docs/standards/backend.md section 11)"
+echo "4. Add those permissions/roles to approvedPermissionMatrix in internal/archtest/matrix_test.go"
+echo "5. Rename the placeholder 'item' domain to your real nouns"
+echo "6. cd backend && go test -race ./internal/modules/$NAME/ ./internal/archtest/"

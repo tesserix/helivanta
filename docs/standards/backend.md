@@ -743,10 +743,33 @@ what Postgres no longer backs.** Two functions in
   as the backstop for a `member_revoked` event that was lost before
   `iam-fga-sync` applied it. As a safety floor, `Reconcile` refuses to
   write or delete anything, and returns an error instead, if the
-  `iam_members` read comes back globally empty (zero rows across every
-  tenant) while OpenFGA still holds tuples — that shape is the signature
-  of a misconfigured `ADMIN_DATABASE_URL` (a role that does not bypass
-  RLS), not a real everyone-was-revoked event.
+  `iam_members` read comes back with zero *usable* rows — rows whose
+  `role_key` resolves to a known `authz.Role`, since a row with an
+  unrecognized `role_key` is skipped and contributes nothing to the
+  desired tuple set — across every tenant while OpenFGA still holds
+  tuples. That shape covers both a misconfigured `ADMIN_DATABASE_URL` (a
+  role that does not bypass RLS, so the read comes back with truly zero
+  rows) and a corrupted-but-nonempty table (e.g. an un-migrated role-key
+  rename, or manual/seed drift, leaving rows present but all
+  unrecognized) — neither is a real everyone-was-revoked event. A tripped
+  guard returns an error from `run()`, which `main.go` treats as fatal
+  (`os.Exit(1)`): the process crash-loops rather than boot with
+  authorization data it cannot trust. That is deliberate — a boot that
+  silently reconciled against corrupted or misread membership data would
+  be worse than one that refuses to start.
+
+  One consequence of running at boot on every replica: during a mixed-
+  version deploy or rollback, an old-version replica that boots *after*
+  a deploy added or renamed a permission will run `Reconcile` against a
+  registry that does not yet know about it, and will delete that
+  permission's `perm:` tuples for every tenant — including tenants a
+  still-running new-version replica already reconciled. This converges
+  once every replica is on the new version (the next new-version boot,
+  or the next scheduled reconcile, re-adds them), but it opens a window
+  during the mixed-version boot sequence where access gated on the new
+  permission is denied rather than granted. Treat that window as
+  expected churn during a rollout, not a bug — it self-heals as soon as
+  the old replica is gone.
 - **`platform.ReconcileTenant(ctx, reg, w, tenantID)`** — grant-path,
   additive only. Called inside `iam`'s own transaction on every
   membership grant (`internal/modules/iam/sync.go`), and writes only

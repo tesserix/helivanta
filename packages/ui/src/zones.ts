@@ -70,13 +70,19 @@ export const ZONES: Zone[] = [
 ];
 
 // Navigation is a convenience layer: the API enforces permissions, this
-// only avoids showing doors that will not open. The dashboard always
-// stays so a user with no permissions still lands somewhere coherent.
-export function visibleZones(can: (permission: string) => boolean): Zone[] {
-  return ZONES.filter((zone) => zone.key === "dashboard" || can(zone.permission)).map((zone) => ({
-    ...zone,
-    pages: zone.pages.filter((page) => page.permission === "public" || can(page.permission)),
-  }));
+// only avoids showing doors that will not open. `can("public")` resolves
+// to true (packages/api/src/permissions.tsx mirrors the Go backend's
+// authz.Public sentinel), so the dashboard's "public" permission keeps it
+// visible without a dashboard-specific special case here. A zone whose
+// pages are all filtered out is dropped too, rather than showing as an
+// empty entry in the nav.
+export function visibleZones(can: (permission: string) => boolean, zones: Zone[] = ZONES): Zone[] {
+  return zones
+    .map((zone) => ({
+      ...zone,
+      pages: zone.pages.filter((page) => can(page.permission)),
+    }))
+    .filter((zone) => can(zone.permission) && zone.pages.length > 0);
 }
 
 export function activeZone(path: string): Zone {

@@ -5,6 +5,13 @@ import { useApiQuery } from "./hooks";
 
 const PERMISSIONS_KEY = ["iam", "me", "permissions"];
 
+// Public marks a route as deliberately unguarded. It mirrors the Go
+// backend's authz.Public sentinel (backend/pkg/authz/authz.go) — the
+// backend's PermissionSet.Has treats it as always-allowed, and this hook
+// is the single place the frontend must do the same, so callers never
+// need to special-case the string "public" themselves.
+const PUBLIC_PERMISSION = "public";
+
 /**
  * The caller's resolved permissions for the active tenant.
  *
@@ -27,9 +34,12 @@ export function usePermissions(): {
   return {
     permissions,
     isLoading,
-    // Deny while loading, so a slow response never flashes an action the
-    // user cannot perform.
-    can: (permission: string) => !isLoading && permissions.has(permission),
+    can: (permission: string) =>
+      // Public is always allowed, even while loading — it needs no data
+      // from /iam/me/permissions to resolve, so there is nothing to wait
+      // on. Every other permission is denied while loading, so a slow
+      // response never flashes an action the user cannot perform.
+      permission === PUBLIC_PERMISSION || (!isLoading && permissions.has(permission)),
   };
 }
 

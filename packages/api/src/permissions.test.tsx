@@ -52,4 +52,11 @@ describe("Can", () => {
 
     expect(screen.queryByText("Dispense")).not.toBeInTheDocument();
   });
+
+  it('treats "public" as always allowed, mirroring the Go backend\'s authz.Public sentinel', async () => {
+    mockPermissions([]);
+    renderWithProviders(<Can permission="public">Departments</Can>);
+
+    await waitFor(() => expect(screen.getByText("Departments")).toBeInTheDocument());
+  });
 });

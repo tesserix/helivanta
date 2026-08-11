@@ -1,11 +1,11 @@
-.PHONY: dev dev-infra dev-down dev-api dev-web migrate seed test test-go coverage-go test-web e2e lint-go new-module verify-local
+.PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed test test-go coverage-go test-web e2e lint-go new-module verify-local
 
 dev-infra:
 	docker compose -f docker-compose.dev.yml up -d --wait postgres nats redis openfga
 	docker compose -f docker-compose.dev.yml up -d firebase-auth
-
-dev-down:
-	docker compose -f docker-compose.dev.yml down
+	@printf 'Waiting for the GIP emulator on :9099…'
+	@until curl -fsS --max-time 2 http://localhost:9099/ >/dev/null 2>&1; do printf '.'; sleep 1; done
+	@echo ' ready.'
 
 dev-api:
 	cd backend && FIREBASE_AUTH_EMULATOR_HOST=$${FIREBASE_AUTH_EMULATOR_HOST:-localhost:9099} go run ./cmd/api
@@ -13,9 +13,21 @@ dev-api:
 dev-web:
 	pnpm turbo dev
 
-dev: dev-infra
-	@echo "Infra up. Starting API + web (Ctrl-C stops both)…"
+# `make up` is the one command: infra, migrations, seed, then API + web in
+# the foreground. seed is idempotent, so re-running up is safe.
+up: dev-infra seed
+	@echo "Infra seeded. Starting API + web — Ctrl-C stops them, then run 'make down'."
 	@$(MAKE) -j2 dev-api dev-web
+
+# `make down` stops infra AND the app processes. `docker compose down`
+# alone leaves the API and the four next dev servers holding ports
+# 4301-4304 and 8080 against infra that no longer exists.
+down:
+	@./scripts/dev-down.sh
+
+# Back-compat aliases for the older target names.
+dev: up
+dev-down: down
 
 migrate:
 	cd backend && go run ./cmd/migrate

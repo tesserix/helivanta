@@ -17,10 +17,20 @@ Set `NODE_AUTH_TOKEN` to a GitHub token with `read:packages`
 from GitHub Packages.
 
     pnpm install
-    make dev-infra      # Postgres, NATS, Redis, OpenFGA, GIP emulator
-    make seed           # migrations + dev tenant + two test users
-    make dev            # API (8080) + all four zone apps
-    make verify-local   # asserts every process is healthy
+    make up             # infra + migrations + seed + API (8080) + all four zone apps
+    make verify-local   # asserts every process is healthy (separate terminal)
+    make down           # stops everything
+
+`make up` runs in the foreground. Ctrl-C stops the API and web servers;
+`make down` then stops the containers **and** any app processes still
+holding ports 4301-4304 or 8080 — `docker compose down` on its own leaves
+those running against infrastructure that no longer exists. `make down`
+only ever stops processes whose working directory is inside this repo, so
+an unrelated service of yours on 8080 is reported and left alone.
+
+Seeding is idempotent, so re-running `make up` is safe. The individual
+steps are still available if you want them: `make dev-infra`, `make
+migrate`, `make seed`, `make dev-api`, `make dev-web`.
 
 Log in at http://localhost:4301/login:
 
@@ -36,9 +46,9 @@ picker in the sidebar. Switching re-mints the session with the target
 tenant's claim, so the visible zones change from "all" to "Pharmacy only".
 `pharmacist@hms.dev` shows permission gating without switching.
 
-Stop everything with `make dev-down`.
+Stop everything with `make down`.
 
-`make dev` points the API at the local GIP emulator automatically
+`make up` points the API at the local GIP emulator automatically
 (`FIREBASE_AUTH_EMULATOR_HOST=localhost:9099`); override the variable to
 target a real GIP project.
 

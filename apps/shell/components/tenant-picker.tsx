@@ -1,7 +1,7 @@
 "use client";
 
 import { signInWithCustomToken } from "firebase/auth";
-import { useApiMutation, useApiQuery, apiFetch } from "@hms/api";
+import { useApiMutation, useApiQuery, apiFetch, clearPermissionsCache } from "@hms/api";
 import { firebaseAuth } from "@/lib/firebase";
 
 type Membership = { tenant_id: string; roles: string[]; current: boolean };
@@ -75,8 +75,14 @@ export function TenantPicker() {
     {
       successToast: "Switched hospital",
       // A tenant switch changes every cached query, so reload rather than
-      // trying to invalidate selectively.
-      onSuccess: () => window.location.reload(),
+      // trying to invalidate selectively. The permission cache lives in
+      // localStorage and would survive that reload, so it is dropped
+      // explicitly first — otherwise the new tenant's first paint would
+      // show the old tenant's nav.
+      onSuccess: () => {
+        clearPermissionsCache();
+        window.location.reload();
+      },
     },
   );
 

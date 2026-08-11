@@ -53,6 +53,15 @@ export function Can({
   fallback?: ReactNode;
 }) {
   const { can, isLoading } = usePermissions();
-  if (isLoading) return null;
+  // Gate on loading only when it could still change the answer. `can()`
+  // already resolves "public" to true regardless of isLoading (see
+  // usePermissions above), so gating unconditionally here would hide
+  // `<Can permission="public">` content behind the same fetch it needs
+  // no data from — the exact flash the "public" sentinel exists to avoid
+  // (mirrored by `visibleZones` in packages/ui/src/zones.ts, which calls
+  // `can()` directly and relies on this same bypass). Every other
+  // permission is still denied while loading, so a slow response never
+  // flashes an action the user cannot perform.
+  if (isLoading && !can(permission)) return null;
   return can(permission) ? <>{children}</> : <>{fallback}</>;
 }

@@ -59,4 +59,21 @@ describe("Can", () => {
 
     await waitFor(() => expect(screen.getByText("Departments")).toBeInTheDocument());
   });
+
+  // "public" needs no data from /iam/me/permissions to resolve, so it must
+  // not flash hidden while that fetch is still in flight — the same
+  // no-wait behavior visibleZones (packages/ui/src/zones.ts) relies on by
+  // calling can() directly. Unlike the test above, this asserts the
+  // SYNCHRONOUS render, before the never-resolving fetch has any chance
+  // to settle: if Can gated "public" behind isLoading the way it gates
+  // every other permission, this content would render nothing here.
+  it('renders "public" content immediately, without waiting for permissions to load', () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
+    renderWithProviders(<Can permission="public">Departments</Can>);
+
+    expect(screen.getByText("Departments")).toBeInTheDocument();
+  });
 });

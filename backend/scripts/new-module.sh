@@ -69,19 +69,10 @@ func New() *Module { return &Module{} }
 
 func (m *Module) Name() string { return "__NAME__" }
 
-// TODO: RoleNurse below is an arbitrary placeholder, not a considered
-// role mapping — this generator has no way to know which of the five
-// system roles (authz.RoleDoctor, RoleNurse, RolePharmacist,
-// RoleLabTech; RoleTenantAdmin is implicit, never list it) should hold
-// each permission for your domain. Decide deliberately per permission
-// (see pharmacy's module.go for an example that splits read/write
-// across different roles) and update
-// internal/archtest/matrix_test.go's approvedPermissionMatrix to match
-// before this module ships.
 func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
-		{Permission: PermItemRead, Roles: []authz.Role{authz.RoleNurse}},
-		{Permission: PermItemWrite, Roles: []authz.Role{authz.RoleNurse}},
+		{Permission: PermItemRead, Roles: []authz.Role{}},   // TODO: choose the roles that hold this permission
+		{Permission: PermItemWrite, Roles: []authz.Role{}},  // TODO: choose the roles that hold this permission
 	}
 }
 

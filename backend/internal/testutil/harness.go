@@ -156,7 +156,10 @@ func moduleHarness(
 	require.NoError(t, err)
 	require.Empty(t, bad, "tenant tables must carry forced RLS")
 
-	bus, err := events.NewBus(testinfra.StartNATS(t))
+	// Every test shares one NATS server, so each takes its own subject
+	// namespace — otherwise one test's consumers would receive another's
+	// events. t.Name() is unique per test by construction.
+	bus, err := events.NewBusInNamespace(testinfra.StartNATS(t), t.Name())
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 

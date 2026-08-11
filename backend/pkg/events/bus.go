@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,6 +17,16 @@ import (
 )
 
 const StreamName = "HMS"
+
+// subjectRoot is the top of the subject space every HMS event lives under
+// (`hms.<dir>.<module>.<event>.vN`), and therefore what StreamName claims.
+const subjectRoot = "hms"
+
+// namespaceUnsafe matches everything a NATS stream name and subject token
+// may not contain. Dots and wildcards would silently change the shape of
+// the subject space rather than fail, so they are replaced rather than
+// rejected.
+var namespaceUnsafe = regexp.MustCompile(`[^A-Za-z0-9_-]`)
 
 // maxDeliver is the redelivery ceiling for durable consumers. Once a
 // message has been delivered this many times without a successful Ack,
@@ -58,6 +69,17 @@ type Bus struct {
 	nc *nats.Conn
 	js nats.JetStreamContext
 
+	// ns namespaces this Bus's subject space. Empty in production, where
+	// the stream is HMS over `hms.>` exactly as it has always been. Tests
+	// set it so many of them can share one NATS server: JetStream refuses
+	// two streams with overlapping subjects, so isolation has to come from
+	// the subject space itself rather than from the stream name.
+	//
+	// It applies only at the JetStream boundary. Outbox rows still store
+	// the module's own subject, so what a test writes to the database is
+	// byte-identical to production.
+	ns string
+
 	// stopCtx/stop give Close() a way to unwind consumeLoop/RunDispatcher
 	// goroutines even when the caller's ctx is long-lived (e.g. request
 	// scoped or background.TODO()).
@@ -66,6 +88,18 @@ type Bus struct {
 }
 
 func NewBus(natsURL string) (*Bus, error) {
+	return NewBusInNamespace(natsURL, "")
+}
+
+// NewBusInNamespace is NewBus with an isolated subject space.
+//
+// It exists for tests: many of them share one NATS server, and JetStream
+// rejects a stream whose subjects overlap an existing one's, so each test
+// needs its own subject space rather than merely its own stream name.
+// Passing "" gives exactly what NewBus gives — this is not a production
+// deployment knob, and nothing in cmd/ should call it.
+func NewBusInNamespace(natsURL, ns string) (*Bus, error) {
+	ns = sanitizeNamespace(ns)
 	nc, err := nats.Connect(natsURL, nats.MaxReconnects(-1))
 	if err != nil {
 		return nil, fmt.Errorf("nats connect: %w", err)
@@ -74,17 +108,49 @@ func NewBus(natsURL string) (*Bus, error) {
 	if err != nil {
 		return nil, err
 	}
+	b := &Bus{nc: nc, js: js, ns: ns}
 	_, err = js.AddStream(&nats.StreamConfig{
-		Name:      StreamName,
-		Subjects:  []string{"hms.>"},
+		Name:      b.streamName(),
+		Subjects:  []string{b.Subject(subjectRoot + ".>")},
 		Retention: nats.LimitsPolicy,
 		MaxAge:    7 * 24 * time.Hour,
 	})
 	if err != nil && !errors.Is(err, nats.ErrStreamNameAlreadyInUse) {
 		return nil, fmt.Errorf("ensure stream: %w", err)
 	}
-	stopCtx, stop := context.WithCancel(context.Background())
-	return &Bus{nc: nc, js: js, stopCtx: stopCtx, stop: stop}, nil
+	b.stopCtx, b.stop = context.WithCancel(context.Background())
+	return b, nil
+}
+
+// sanitizeNamespace makes an arbitrary label safe to embed in a stream
+// name and a subject token. Go test names — the intended input — carry
+// slashes for subtests, and a dot would silently split into two subject
+// tokens rather than fail.
+func sanitizeNamespace(ns string) string {
+	return namespaceUnsafe.ReplaceAllString(ns, "_")
+}
+
+// streamName is StreamName in production, and one stream per namespace
+// otherwise.
+func (b *Bus) streamName() string {
+	if b.ns == "" {
+		return StreamName
+	}
+	return StreamName + "_" + b.ns
+}
+
+// Subject reports the subject this Bus actually uses on the wire for a
+// logical subject — the module's own subject in production, and a
+// namespaced one under test. Every subject crossing the JetStream
+// boundary (published, subscribed or dead lettered) goes through here;
+// one that does not is a silent leak between namespaces rather than a
+// visible error, which is why tests that talk to NATS directly resolve
+// their subjects through it too.
+func (b *Bus) Subject(s string) string {
+	if b.ns == "" {
+		return s
+	}
+	return b.ns + "." + s
 }
 
 func (b *Bus) Ping(ctx context.Context) error {
@@ -180,7 +246,7 @@ func (b *Bus) drainOnce(ctx context.Context, db OutboxStore) error {
 		}
 		for _, r := range rows {
 			// MsgId gives JetStream server-side dedup on redelivery.
-			if _, err := b.js.Publish(r.Subject, r.Payload, nats.MsgId(r.ID.String())); err != nil {
+			if _, err := b.js.Publish(b.Subject(r.Subject), r.Payload, nats.MsgId(r.ID.String())); err != nil {
 				// A single row's publish failure must not block the rest
 				// of the batch (head-of-line blocking) — log and retry
 				// this row on the next drain tick instead of aborting.
@@ -200,7 +266,7 @@ func (b *Bus) drainOnce(ctx context.Context, db OutboxStore) error {
 // Each consumer's loop stops when ctx ends or the Bus is Close()'d.
 func (b *Bus) StartConsumers(ctx context.Context, db OutboxStore, consumers []Consumer) error {
 	for _, c := range consumers {
-		sub, err := b.js.PullSubscribe(c.Subject, c.Name, nats.AckExplicit(), nats.MaxDeliver(maxDeliver), nats.AckWait(ackWait))
+		sub, err := b.js.PullSubscribe(b.Subject(c.Subject), c.Name, nats.AckExplicit(), nats.MaxDeliver(maxDeliver), nats.AckWait(ackWait))
 		if err != nil {
 			return fmt.Errorf("subscribe %s: %w", c.Name, err)
 		}
@@ -268,7 +334,7 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 	if err != nil {
 		slog.Error("consumer handle", "consumer", c.Name, "event_id", evt.ID, "tenant_id", evt.TenantID, "err", err)
 		if meta, mErr := msg.Metadata(); mErr == nil && meta.NumDelivered >= maxDeliver {
-			dlqSubject := "hms.dlq." + c.Name
+			dlqSubject := b.Subject(subjectRoot + ".dlq." + c.Name)
 			if _, pErr := b.js.Publish(dlqSubject, msg.Data); pErr != nil {
 				// DLQ publish failed — the event would vanish from both
 				// the live stream and the DLQ if we Term()'d here, so

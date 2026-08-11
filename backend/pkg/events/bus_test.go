@@ -24,7 +24,7 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 	require.NoError(t, db.Migrate(context.Background(), events.Migrations()))
 
 	natsURL := testinfra.StartNATS(t)
-	bus, err := events.NewBus(natsURL)
+	bus, err := events.NewBusInNamespace(natsURL, t.Name())
 	require.NoError(t, err)
 	defer bus.Close()
 
@@ -73,7 +73,7 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 
 	payload, err := json.Marshal(evt)
 	require.NoError(t, err)
-	_, err = directJS.Publish("hms.in.reference.pinged.v1", payload)
+	_, err = directJS.Publish(bus.Subject("hms.in.reference.pinged.v1"), payload)
 	require.NoError(t, err)
 
 	require.Never(t, func() bool { return handled.Load() > 1 }, 3*time.Second, 200*time.Millisecond,
@@ -112,7 +112,7 @@ func TestConsumerTenantScopedWrite(t *testing.T) {
 	})
 	require.NoError(t, db.Migrate(context.Background(), migs))
 
-	bus, err := events.NewBus(testinfra.StartNATS(t))
+	bus, err := events.NewBusInNamespace(testinfra.StartNATS(t), t.Name())
 	require.NoError(t, err)
 	defer bus.Close()
 

@@ -5,12 +5,32 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 
 	openfga "github.com/openfga/go-sdk"
 	fgaclient "github.com/openfga/go-sdk/client"
 )
+
+// openFGADefaultListObjectsMaxResults is OpenFGA's default cap on the
+// number of objects a single ListObjects call returns (server flag
+// --listObjects-max-results, default 1000; see OpenFGA's ListObjects
+// docs). ListObjects has no cursor/pagination — a caller that hits the
+// cap has no way to fetch the rest in the same call. Resolve and
+// ListRoles both call ListObjects, so both warn when a result reaches
+// this count.
+const openFGADefaultListObjectsMaxResults = 1000
+
+// listObjectsTruncated reports whether n, the number of objects a
+// ListObjects call returned, hit the server's result cap — OpenFGA's
+// only signal that more objects may exist beyond what was returned.
+// Kept as a pure predicate, separate from the slog call site, so the
+// threshold can be unit-tested without spinning up an OpenFGA container
+// and writing 1000+ tuples into it.
+func listObjectsTruncated(n int) bool {
+	return n >= openFGADefaultListObjectsMaxResults
+}
 
 // Client is the OpenFGA decision point. Every write helper is
 // idempotent, because the iam-fga-sync consumer retries on failure and
@@ -163,6 +183,13 @@ func (c *Client) Ping(ctx context.Context) error {
 // Resolve returns every permission the subject holds in the tenant, in
 // exactly one FGA call. Any error returns an error and never a partial
 // set, so callers can fail closed unambiguously.
+//
+// The underlying ListObjects call is capped by OpenFGA at
+// openFGADefaultListObjectsMaxResults objects, with no cursor to fetch
+// the rest — so this is NOT guaranteed complete for a subject holding an
+// extreme number of permissions in one tenant. Resolve logs a warning
+// when the raw result hits the cap, but cannot itself detect which
+// entries (if any) are missing.
 func (c *Client) Resolve(ctx context.Context, subject, tenantID string) (PermissionSet, error) {
 	res, err := c.api.ListObjects(ctx).Body(fgaclient.ClientListObjectsRequest{
 		User:     userObject(subject),
@@ -172,9 +199,14 @@ func (c *Client) Resolve(ctx context.Context, subject, tenantID string) (Permiss
 	if err != nil {
 		return nil, fmt.Errorf("list objects: %w", err)
 	}
+	objects := res.GetObjects()
+	if listObjectsTruncated(len(objects)) {
+		slog.WarnContext(ctx, "openfga ListObjects result hit the result cap; permissions may be truncated",
+			"caller", "Resolve", "tenant_id", tenantID, "subject", subject, "count", len(objects))
+	}
 	prefix := "perm:" + tenantID + "/"
 	set := PermissionSet{}
-	for _, obj := range res.GetObjects() {
+	for _, obj := range objects {
 		if rest, ok := strings.CutPrefix(obj, prefix); ok {
 			set[Permission(rest)] = struct{}{}
 		}
@@ -212,8 +244,13 @@ func (c *Client) ListRoles(ctx context.Context, subject string) ([]RoleBinding, 
 	if err != nil {
 		return nil, fmt.Errorf("list objects: %w", err)
 	}
-	bindings := make([]RoleBinding, 0, len(res.GetObjects()))
-	for _, obj := range res.GetObjects() {
+	objects := res.GetObjects()
+	if listObjectsTruncated(len(objects)) {
+		slog.WarnContext(ctx, "openfga ListObjects result hit the result cap; role bindings may be truncated",
+			"caller", "ListRoles", "subject", subject, "count", len(objects))
+	}
+	bindings := make([]RoleBinding, 0, len(objects))
+	for _, obj := range objects {
 		rest, ok := strings.CutPrefix(obj, "role:")
 		if !ok {
 			continue

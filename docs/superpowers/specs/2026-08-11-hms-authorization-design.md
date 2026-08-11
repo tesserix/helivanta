@@ -329,21 +329,69 @@ for cross-hospital, one stable *across* hospitals.
   records from A at read time; A validates the consent artefact, serves
   only the consented scope, and logs the disclosure. PHI never leaves its
   owning tenant, RLS is untouched, and revocation is instant and real.
-- **Patient identity — pluggable multi-scheme identifiers.** A patient
-  holds 0..n identifiers, each `{scheme, value, verified, valid_from,
-  valid_to}` — for example `in.abha`, `au.ihi`, `uk.nhs`,
-  `au.medicare.card` (with IRN). The country profile decides which schemes
-  apply and which are authoritative. Consistent with the ABDM adapter and
-  country-profile direction already in `docs/sdk/architecture.md`.
+- **Patient identity — a Tesserix-minted identifier, with government IDs
+  mapped onto it.** *(Supersedes an earlier decision in this session that
+  made a national health ID — ABHA — the cross-hospital link.)* Every
+  patient record carries **two** Tesserix identifiers plus 0..n external
+  ones:
+  - **Internal key** — `patients.id` UUID. Never displayed, never changes.
+    **Every clinical row (visits, orders, dispenses, results) foreign-keys
+    to this**, which is what makes reissue survivable.
+  - **Human-facing identifier** — Medicare-shaped: a 9-digit card number
+    plus a check digit, plus an IRN of 1–9 identifying the person on that
+    card. Displayed `2123 4567 0 · 2`. Nine members per card maximum; a
+    larger household gets a second card, as in Australia. The composite
+    (card + IRN) identifies an individual, not a family.
+  - **External identifiers** — 0..n rows of `{scheme, value, irn, verified,
+    valid_from, valid_to}`: `in.abha`, `au.ihi`, `au.medicare.card`,
+    `uk.nhs`. The Tesserix identifier lives in this **same** table as
+    `tsx.card` — one mechanism, not two. Country profile decides which
+    schemes apply and which are authoritative.
+
+  On a family split or a child ageing off a card, the person is issued a
+  new card number and IRN: the old identifier row gets `valid_to` set and a
+  new row is inserted against the same `patients.id`. **Zero clinical
+  records move**, and the old number still resolves — which matters when a
+  referral letter quotes it years later.
+
   Demographic matching was rejected as a primary mechanism: a false match
   merges two people's medical records.
-- **Individual vs family-scoped identifiers.** Only *individual* schemes
-  (`au.ihi`, `in.abha`, `uk.nhs`) may establish clinical identity.
-  Family-scoped identifiers such as an Australian Medicare card number are
-  enrolment and benefits artefacts — searchable for billing and reception,
-  never sufficient alone to identify a patient clinically. Cards are
-  reissued, split on separation, and members age off them; clinical
-  identity must not inherit that lifecycle.
+
+  **The cost this accepts.** A cross-tenant patient index sits outside the
+  forced-RLS model that protects everything else, makes Tesserix a
+  controller of identity data spanning hospitals, and produces a table more
+  disclosive than the records it points at — knowing one person attended an
+  oncology hospital, a psychiatric clinic and a fertility clinic is
+  revealing before a single note is read. The alternative considered and
+  rejected was consent-scoped linking, where the consent artefact carries
+  the A↔B linkage and no standing cross-hospital identity graph ever
+  exists. That trade-off was weighed and the index chosen deliberately;
+  it is recorded here so the reasoning survives the decision.
+
+- **Why a national ID cannot be the anchor.** ABHA creation is voluntary.
+  The raw created-count is large but inflated by bulk generation during
+  PM-JAY, CoWIN and hospital registration drives — "has an ABHA" is far
+  more common than "knows they have one", and "has records linked to it" is
+  smaller again. Awareness skews hard by age, literacy and urban/rural.
+  Therefore: ABHA presence cannot be assumed at the front desk; ABHA
+  creation must be a first-class registration flow (Aadhaar or mobile OTP,
+  with consent) that handles refusal gracefully; and **within-hospital care
+  must work fully with no national ID at all** — local MRN carries
+  everything, national IDs gate only the cross-hospital path. *(The
+  adoption characterisation above is unverified against current ABDM data
+  and must be checked before it hardens into an implementation spec.)*
+
+- **Individual vs family-scoped identifiers.** No *externally* family-scoped
+  identifier may establish clinical identity on its own. An Australian
+  Medicare card number is an enrolment and benefits artefact — searchable
+  for billing and reception, never sufficient alone, because cards are
+  reissued, split on separation, and members age off them. The Tesserix
+  identifier borrows Medicare's *shape* without inheriting that lifecycle:
+  the composite is individual-resolving (card **+ IRN**, never card alone),
+  and the actual clinical key is the internal UUID beneath it, so a reissue
+  is one insert and one update rather than a record migration. This is the
+  same separation Australia itself makes between the Medicare card and the
+  IHI.
 - **Households confer no access.** A household groups patients for
   billing, contact details and reception search, and grants **zero** record
   access. Two adults on the same Medicare card have no clinical right to
@@ -375,7 +423,140 @@ for cross-hospital, one stable *across* hospitals.
   no expiry, so consent cannot live as tuples alone — and every
   relationship above expires.
 
-**Indicative sequencing:** patient identity (including identifier schemes
-and households) → audit → intra-tenant care teams and break-glass →
-consent artefact, guardianship and delegation → cross-tenant federated
-exchange. This authorization phase is a prerequisite for all of them.
+## Appendix — provider identity (next milestone, not specced)
+
+Same problem as patient identity with different vocabulary, and with a hard
+dependency line back to this authorization phase.
+
+**Australia separates three concerns HMS currently collapses into one**, and
+the separation is the lesson worth taking:
+
+| Identifier | Purpose | Lifecycle |
+| ---------- | ------- | --------- |
+| AHPRA registration (`MED0001234567`) | Right to practise | Life, but can be suspended / conditional / lapsed |
+| HPI-I (16 digits) | Permanent clinical identity | Never changes |
+| Medicare provider number (`123456AB`) | Billing, **per practice location** | One per (practitioner, location) |
+
+- **Every provider gets a universal Tesserix identifier**, on the same
+  internal-UUID-plus-human-facing-number pattern as patients. Issuing one
+  only to unregistered roles was considered and rejected: a number that
+  appears exclusively on the professions lacking a regulator reads as a
+  *stand-in for the registration they lack*, which is precisely the
+  "looks like a licence" risk the restriction was meant to avoid. Universal
+  issuance makes it obviously an account number. It is also the rule
+  already applied to patients.
+- **Identifier and qualification evidence are different things.** The
+  identifier is universal (who you are here). The *evidence* varies: a
+  verified regulator registration where one exists, hospital-verified
+  evidence where none does.
+
+  | Role | Australia | India |
+  | ---- | --------- | ----- |
+  | doctor | AHPRA `MED…` | NMC + State Medical Council |
+  | nurse | AHPRA `NMW…` | INC + State Nursing Council |
+  | pharmacist | AHPRA `PHA…` | PCI + State Pharmacy Council |
+  | lab_tech | **none — not AHPRA-registered** | NCAHP (2021 Act, rollout incomplete) |
+  | tenant_admin | n/a — administrative | n/a |
+
+- **Pharmacist is the strongest gating case, stronger than doctor.**
+  Dispensing scheduled drugs legally requires a registered pharmacist in
+  both countries, so `pharmacy.dispense.fulfil` maps directly onto a
+  registration number.
+- **Lab tech is the exception that constrains the schema.** Medical
+  laboratory scientists are not AHPRA-registered in Australia at all, and
+  India's NCAHP registration is new with incomplete rollout. **The model
+  must tolerate a clinical role with no registration authority, and one
+  whose authority exists on paper but not yet in practice.** A blanket
+  "clinical role requires registration" rule would make lab work impossible
+  in Australia. Enforcement, when it arrives, must therefore be **per
+  (role, country) policy, not a global rule.**
+- **Decision: registry now, gating later.** Build the registry and put the
+  prescriber identifier on prescriptions and orders. Record registration
+  `status` as data. Do **not** yet make current registration a precondition
+  for a clinical role. **The gap this consciously leaves open:**
+  `Principal.Subject` is a GIP UID with no professional identity behind it,
+  and a role grant in `iam_members` never expires and is never checked
+  against an external registry — so a suspended practitioner keeps their
+  clinical role until a human revokes it by hand.
+- **Registration is not binary.** Provisional, conditional and limited
+  registration exist, and scope of practice varies within a profession — a
+  nurse practitioner has prescribing rights a registered nurse does not.
+  Registration *class* may eventually influence which permissions a role
+  holds; because roles and permissions are already data rather than model
+  relations (D4), that needs no FGA model change.
+- **The privileging layer already exists.** Hospital governance separates
+  registration (external, portable), credentialing (a hospital verifies a
+  qualification), and privileging (this hospital grants specific rights
+  here). Even a fully registered surgeon needs privileges granted at each
+  hospital. **`iam_members` plus FGA role grants *is* the privileging
+  layer**, already shipped in this phase. Only the two layers beneath it —
+  the provider entity, and evidence attached to the grant — remain.
+- **Two constraints on hospital-issued credentials:** never mint anything
+  that reads as a licence (distinct field, distinct label, never rendered
+  where a registration number appears); and keep credentials **per-tenant
+  by default** — another tenant's credential is *evidence* that speeds
+  Hospital B's own check, never automatic authority, or Tesserix becomes a
+  de facto credentialing body.
+
+*(The regulatory specifics above are unverified against current AHPRA,
+NCAHP and PCI sources and must be checked before implementation.)*
+
+## Appendix — public provider directory (next milestone, not specced)
+
+A patient may look up a provider by number and see qualifications and
+registration status **without consent**; a provider reading patient data
+**always** requires consent. The asymmetry is principled — a provider acts
+in a public professional capacity, a patient is a private individual — and
+it is what AHPRA, the Indian Medical Register and the GMC already codify.
+
+- **Publishability is per identifier scheme, not global.** AHPRA / NMC /
+  PCI registration: public by design. Tesserix provider number: public — it
+  is the lookup key and already appears on prescriptions. **Medicare
+  provider number: not public**, publishing it enables fraudulent claiming.
+  HPI-I: not public. `provider_identifiers` therefore needs a visibility
+  attribute per scheme.
+- **Public means the professional record, not the person.** Registration
+  status, profession, specialty, qualifications, conditions, sanctions —
+  yes. Home address, personal contact, DOB — no. **Do not derive "which
+  hospitals they work at" from `iam_members`**; that leaks tenant data and
+  is commercially sensitive. Only what a hospital or provider explicitly
+  publishes.
+- **Sanctions and conditions are the highest-risk field.** Showing one that
+  does not exist is defamatory; omitting one that does is a safety failure.
+  Mirrored regulator data must carry provenance and freshness ("as recorded
+  by AHPRA on <date>") and preferably link to the regulator rather than
+  assert on Tesserix's authority. Verification state and date must be
+  *visible*, not merely stored — displaying an unverified registration
+  number implicitly vouches for it.
+- **This is the platform's first unauthenticated, cross-tenant read
+  surface.** Everything built in this phase is tenant-scoped behind forced
+  RLS and a fail-closed authz middleware; the directory sits outside all of
+  it. It must read from a **curated published projection**, never the
+  operational tables, and needs rate limiting plus enumeration protection —
+  sequential provider numbers would otherwise let anyone scrape it.
+- **Hospital-verified credentials in public view** must render as
+  "credentialed by <hospital>", never in the position a registration number
+  occupies.
+
+## Open questions for the identity spec
+
+1. **Who allocates Tesserix card and provider numbers** — a platform-level
+   issuer service, with its own availability and audit requirements, or
+   per-tenant ranges. This is the concrete operational cost of the chosen
+   global index.
+2. **Check-digit algorithm** — Medicare's own, Luhn, or mod-11. Pin it;
+   changing it later invalidates every issued number. Keep the patient and
+   provider formats visibly distinct, so a number read aloud in a hospital
+   is unambiguous about whether it identifies a patient or a clinician.
+3. **What evidence is sufficient to link two hospitals' patients** as the
+   same person. With a self-minted index **we** own the matching decision a
+   national ID would otherwise have made — and a false match merges two
+   people's medical records.
+4. **Whether the household number is per-tenant or platform-wide** (it may
+   differ from the patient identifier).
+
+**Indicative sequencing:** patient identity (identifier schemes, households,
+issuer) → provider identity and registry → audit → intra-tenant care teams
+and break-glass → consent artefact, guardianship and delegation →
+cross-tenant federated exchange → public provider directory. This
+authorization phase is a prerequisite for all of them.

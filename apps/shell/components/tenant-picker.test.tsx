@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@hms/api/testing";
+import { PERMISSIONS_CACHE_KEY } from "@hms/api";
 import { TenantPicker } from "./tenant-picker";
 
 const signInWithCustomToken = vi.hoisted(() => vi.fn());
@@ -61,6 +62,7 @@ function mockCred(claimTenantId: string) {
 
 beforeEach(() => {
   calls.length = 0;
+  window.localStorage.clear();
   signInWithCustomToken.mockReset();
   signInWithCustomToken.mockImplementation(async () => {
     calls.push("signInWithCustomToken");
@@ -202,5 +204,29 @@ describe("TenantPicker", () => {
     await waitFor(() => expect(screen.getByText("custom token rejected")).toBeInTheDocument());
     expect(calls).not.toContain("POST /api/session");
     expect(window.location.reload).not.toHaveBeenCalled();
+  });
+
+  // A tenant switch changes the whole permission set, so the cached one
+  // must not survive the reload that follows.
+  it("clears the cached permissions when switching tenants", async () => {
+    window.localStorage.setItem(
+      PERMISSIONS_CACHE_KEY,
+      JSON.stringify({
+        subject: "doc",
+        tenantId: "t1",
+        permissions: ["lab.order.read"],
+        storedAt: Date.now(),
+      }),
+    );
+    signInWithCustomToken.mockResolvedValue({
+      user: { getIdTokenResult: async () => ({ claims: { tenant_id: "t2" }, token: "id-token" }) },
+    });
+    stubFetch();
+    const { user } = renderWithProviders(<TenantPicker />);
+
+    await waitFor(() => expect(screen.getByTitle("Hospital")).toBeInTheDocument());
+    await user.selectOptions(screen.getByTitle("Hospital"), "t2");
+
+    await waitFor(() => expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull());
   });
 });

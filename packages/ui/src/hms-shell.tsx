@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { usePermissions } from "@hms/api";
+import { usePermissions, clearPermissionsCache } from "@hms/api";
 import { visibleZones, activeZone } from "./zones";
 import { ThemeToggle } from "./theme";
 
@@ -53,6 +53,12 @@ export function HmsShell({
   // zone was filtered out — e.g. while permissions are still loading.
   const zone = zones.find((z) => z.key === activeZone(active).key) ?? zones[0];
   const [panelOpen, setPanelOpen] = usePersistedFlag(PANEL_KEY, true);
+
+  // Both sign-out links are plain <a> (cross-zone navigation is a hard
+  // navigation by design), so this only drops the cached permission set
+  // before the browser follows the link — the navigation itself is
+  // untouched.
+  const onSignOut = () => clearPermissionsCache();
 
   const activePage = zone.pages.find((p) => p.href === active);
 
@@ -109,6 +115,7 @@ export function HmsShell({
             href="/logout"
             title="Sign out"
             aria-label="Sign out"
+            onClick={onSignOut}
             className="flex h-10 w-10 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
           >
             <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -188,6 +195,7 @@ export function HmsShell({
               <ThemeToggle />
               <a
                 href="/logout"
+                onClick={onSignOut}
                 className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
               >
                 Sign out

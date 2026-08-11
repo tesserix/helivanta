@@ -81,7 +81,42 @@ func TestMePermissionsIsEmptyArrayNotNullForNonMember(t *testing.T) {
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/permissions", "nobody", "")
 	require.Equal(t, http.StatusOK, res.Code)
-	require.JSONEq(t, `{"data":[]}`, res.Body.String())
+	// subject/tenant_id now travel alongside data (see
+	// TestMePermissionsReturnsCallerIdentity), so this asserts on the
+	// data field's shape directly rather than the whole body.
+	require.JSONEq(t, `{"data":[],"subject":"user-nobody","tenant_id":"`+testutil.TenantA+`"}`, res.Body.String())
+}
+
+// The client-side permissions cache (packages/api/src/permissions-cache.ts)
+// stamps its entry with who the permissions belong to, so the entry is
+// self-describing for debugging and for the cache's own shape
+// validation. The client cannot read that identity from the httpOnly
+// session cookie, so this endpoint is where it comes from. It is not the
+// mechanism that stops one user's set being painted for another — that
+// is the clear-on-login/logout/tenant-switch plus the fresh response
+// overwriting the entry.
+func TestMePermissionsReturnsCallerIdentity(t *testing.T) {
+	r, _, _, _ := testutil.ModuleHarnessWithAuthz(t,
+		map[string]string{"doc": testutil.TenantA},
+		map[string][]authz.Permission{"doc": {"medicore.visit.read"}},
+		&recordingWriter{}, iam.New())
+
+	res := testutil.Do(r, "GET", "/v1/iam/me/permissions", "doc", "")
+	require.Equal(t, http.StatusOK, res.Code)
+
+	var body struct {
+		Data     []string `json:"data"`
+		Subject  string   `json:"subject"`
+		TenantID string   `json:"tenant_id"`
+	}
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &body))
+	require.Equal(t, []string{"medicore.visit.read"}, body.Data)
+	// StaticVerifier derives the subject as "user-" + token (see
+	// testutil.StaticVerifier.Verify), matching every other subject
+	// assertion in this file (e.g. TestMeTenantsListsEveryMembership's
+	// "user-jane").
+	require.Equal(t, "user-doc", body.Subject)
+	require.Equal(t, testutil.TenantA, body.TenantID)
 }
 
 func TestMeTenantsListsEveryMembership(t *testing.T) {

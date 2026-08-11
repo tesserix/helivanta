@@ -3,3 +3,4 @@ export { defineEnv } from "./env";
 export { AppProviders } from "./providers";
 export { useApiMutation, useApiQuery } from "./hooks";
 export { Can, usePermissions } from "./permissions";
+export { PERMISSIONS_CACHE_KEY, clearPermissionsCache } from "./permissions-cache";

@@ -6,6 +6,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import { Field, useZodForm } from "@hms/ui";
+import { clearPermissionsCache } from "@hms/api";
 import { firebaseAuth } from "@/lib/firebase";
 
 const loginSchema = z.object({
@@ -32,6 +33,11 @@ export default function LoginPage() {
         body: JSON.stringify({ idToken }),
       });
       if (!res.ok) throw new Error("session");
+      // Whoever signs in now owns this browser's permission cache. A
+      // session that expired without an explicit sign-out leaves the
+      // previous user's entry behind, so clearing here — not only on the
+      // logout link — is what keeps the next user from seeing their nav.
+      clearPermissionsCache();
       router.replace("/");
     } catch {
       setSignInError("Sign-in failed. Check your email and password.");

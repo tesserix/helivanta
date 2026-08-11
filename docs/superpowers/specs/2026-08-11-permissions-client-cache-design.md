@@ -46,11 +46,14 @@ A pure module owning one localStorage key, `hms.permissions.v1`, storing:
 
 ### 3. Hydration: `usePermissions`
 
-The hook reads the cache once and passes it to the existing query as `initialData` with `initialDataUpdatedAt: storedAt`. Because a persisted entry is always older than the query's 5s `staleTime`, React Query paints from the cache and immediately revalidates in the background — the entire stale-while-revalidate loop with no new machinery.
+The hook reads the cache in a layout effect and passes the result to the existing query as `placeholderData` (`useApiQuery` gains a `placeholderData` option). Placeholder data is shown while the request is in flight and is never written into the query cache, so a locally cached value can never be mistaken for a server response.
 
-- With `initialData`, `isLoading` is `false`, so `can()` answers from the cached set on first render; the zone rail and page panel paint fully. No changes to `zones.ts` or `hms-shell.tsx` rendering logic.
-- On every successful response the hook overwrites the cache with fresh permissions + identity. Revocations and identity changes converge after one background fetch, with no reload loop — query data updates in place.
+- The read happens in a layout effect rather than during render because zone apps prerender this tree on the server, where localStorage does not exist. Reading during render would make the hydration render disagree with the server HTML and trigger a React hydration mismatch. A layout effect runs after hydration commits but before the browser paints the hydrated tree, so the nav does not visibly pop in.
+- `isLoading` is derived from `data === undefined` rather than the query's status flag: with placeholder data there is a set to answer from even though the request is still in flight. `can()` therefore answers from the cached set, and the zone rail and page panel paint fully. No changes to `zones.ts` or `hms-shell.tsx` rendering logic.
+- On every real (non-placeholder) response the hook overwrites the cache with fresh permissions + identity. Revocations and identity changes converge after one background fetch, with no reload loop — query data replaces the placeholder in place. Placeholder data is deliberately not written back, or `storedAt` would keep refreshing and hold a stale entry alive past its TTL.
 - Cold cache (first-time user, expired TTL, cleared storage) behaves exactly as today: loading state, deny-while-loading, nav appears when the query resolves.
+
+**Accepted limitation:** the server-rendered HTML still contains the Dashboard-only nav, because localStorage does not exist during prerender. The cache removes the network round-trip, so the full nav appears at hydration rather than after `/iam/me/permissions` returns. Acceptance criterion 1 below is met at the hydration paint, not the server paint.
 
 ### 4. Invalidation choke points
 

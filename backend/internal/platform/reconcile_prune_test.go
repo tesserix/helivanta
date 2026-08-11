@@ -114,6 +114,36 @@ func TestReconcileRefusesToPruneOnGlobalEmptyMembershipRead(t *testing.T) {
 	require.Empty(t, w.deleted, "a global empty membership read must never trigger a delete")
 }
 
+// TestReconcileRefusesToPruneOnAllUnknownRoleKeys is the row-count vs.
+// usable-row-count blast-radius guard: a table with rows in it (raw count
+// > 0) but where every row's role_key is unrecognized — e.g. a role-key
+// rename migration landed in code before the data was backfilled, or a
+// hand-written seed/manual fixup — contributes nothing to the desired
+// role-tuple set, since applyGrants skips every such row. Guarding on
+// len(members) alone would let this look like real membership data and
+// prune proceed, silently deleting the tuple that role rename should have
+// left alone. Reconcile must refuse and delete nothing, exactly as it
+// does for a true empty read.
+func TestReconcileRefusesToPruneOnAllUnknownRoleKeys(t *testing.T) {
+	db := openMigratedDB(t)
+	// role_doctor is not a known authz.Role — simulates a role-key rename
+	// migration or manual drift landing before authz.Role catches up.
+	seedMember(t, db, tenantA, "dr-jane", "role_doctor")
+
+	reg := platform.NewRegistry()
+	require.NoError(t, reg.Register(grantingModule{"x"}))
+	legit := backedRoleTuple(tenantA, "dr-jane", authz.RoleDoctor)
+	w := &capturingWriter{existing: map[string][]authz.Tuple{
+		tenantA: {legit},
+	}}
+
+	err := platform.Reconcile(context.Background(), reg, db, w)
+
+	require.Error(t, err, "a table of only unknown-role rows must refuse to prune, not silently delete")
+	require.ErrorContains(t, err, "refusing to reconcile")
+	require.Empty(t, w.deleted, "the legitimately-backed tuple must survive")
+}
+
 // TestReconcileSkipsTupleFiledUnderTheWrongTenant proves the second of
 // the two isolation guards: even if the bucketing were wrong, a tuple
 // whose object names a different tenant than the bucket it arrived in is

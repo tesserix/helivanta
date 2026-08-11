@@ -184,17 +184,29 @@ type membership struct {
 // like an HTTP body.
 //
 // A global empty read is treated as a misconfiguration, not as "every
-// tenant lost its last member". If iam_members comes back with zero rows
-// at all while OpenFGA still holds tuples, Reconcile refuses to prune and
-// returns an error instead — the same forced-RLS table that makes
-// WithAdmin necessary here (see above) would also silently return zero
-// rows, with no error, if ADMIN_DATABASE_URL were ever pointed at a role
-// that does not bypass RLS. Without this guard that misconfiguration
-// would read as "no tenant has any members" and Reconcile would delete
-// every role:/perm: tuple in the store on that boot. A per-tenant zero
-// (the legitimate last-member-revoked case) is unaffected: it only trips
-// when the membership read is empty across ALL tenants and there is
+// tenant lost its last member". If iam_members comes back with zero USABLE
+// rows — rows whose role_key resolves to a known authz.Role, i.e. rows
+// that can actually produce a role tuple — while OpenFGA still holds
+// tuples, Reconcile refuses to prune and returns an error instead — the
+// same forced-RLS table that makes WithAdmin necessary here (see above)
+// would also silently return zero rows, with no error, if
+// ADMIN_DATABASE_URL were ever pointed at a role that does not bypass
+// RLS. Without this guard that misconfiguration would read as "no tenant
+// has any members" and Reconcile would delete every role:/perm: tuple in
+// the store on that boot. A per-tenant zero (the legitimate
+// last-member-revoked case) is unaffected: it only trips when the
+// membership read yields nothing usable across ALL tenants and there is
 // existing tuple data to lose.
+//
+// Raw row count is deliberately NOT what is guarded on: a table
+// containing only rows with unknown role_keys (a role-key rename
+// migration, seed/manual drift) has len(members) > 0 but contributes
+// nothing to the desired role-tuple set, since applyGrants skips every
+// such row. Guarding on the raw count would let prune proceed on exactly
+// that data and silently delete a legitimately-backed tuple with only a
+// slog.Warn — the same blast radius as the true empty-read case, just
+// reached through a corrupted-rather-than-empty table. Counting only
+// usable rows closes that gap.
 func Reconcile(ctx context.Context, reg *Registry, db *tenantdb.DB, w TupleReconciler) error {
 	existing, err := w.ReadTuplesByTenant(ctx)
 	if err != nil {
@@ -210,12 +222,12 @@ func Reconcile(ctx context.Context, reg *Registry, db *tenantdb.DB, w TupleRecon
 		return fmt.Errorf("list memberships: %w", err)
 	}
 
-	if n := existingTupleCount(existing); len(members) == 0 && n > 0 {
-		slog.ErrorContext(ctx, "refusing to reconcile: zero memberships read from Postgres but existing tuples found, this looks like a misconfiguration",
-			"existing_tuple_count", n, "existing_tenant_count", len(existing))
+	if n, usable := existingTupleCount(existing), usableMembershipCount(members); usable == 0 && n > 0 {
+		slog.ErrorContext(ctx, "refusing to reconcile: zero usable memberships read from Postgres but existing tuples found, this looks like a misconfiguration or corrupted membership data",
+			"existing_tuple_count", n, "existing_tenant_count", len(existing), "raw_membership_row_count", len(members))
 		return fmt.Errorf(
-			"refusing to reconcile: zero memberships read from Postgres but %d existing tuples found across %d tenants, this looks like a misconfiguration (e.g. ADMIN_DATABASE_URL pointed at a role that does not bypass RLS)",
-			n, len(existing))
+			"refusing to reconcile: zero usable memberships (raw row count %d) read from Postgres but %d existing tuples found across %d tenants, this looks like a misconfiguration (e.g. ADMIN_DATABASE_URL pointed at a role that does not bypass RLS) or corrupted role_key data (e.g. an un-migrated role rename)",
+			len(members), n, len(existing))
 	}
 
 	desired, err := applyGrants(ctx, reg, w, members)
@@ -244,6 +256,22 @@ func existingTupleCount(existing map[string][]authz.Tuple) int {
 	n := 0
 	for _, tuples := range existing {
 		n += len(tuples)
+	}
+	return n
+}
+
+// usableMembershipCount counts membership rows whose role_key resolves to
+// a known authz.Role — the rows that can actually become a role tuple in
+// applyGrants. This is deliberately distinct from len(members): a row
+// with an unrecognized role_key is present in the raw scan but is inert,
+// so it must not count toward "we read real membership data" for the
+// blast-radius guard above.
+func usableMembershipCount(members []membership) int {
+	n := 0
+	for _, m := range members {
+		if authz.KnownRole(authz.Role(m.RoleKey)) {
+			n++
+		}
 	}
 	return n
 }

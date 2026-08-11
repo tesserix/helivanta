@@ -62,11 +62,17 @@ func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
 			return
 		}
 		// subject and tenant_id travel with the permission set so the
-		// client-side cache in @hms/api can tell whose permissions it
-		// holds. The session cookie is httpOnly, so this response is the
-		// only place the browser can learn that identity — without it a
-		// cached set could be painted for the wrong user or tenant after
-		// a session change on a shared terminal.
+		// client-side cache in @hms/api can stamp its entry with whose
+		// permissions it holds. The session cookie is httpOnly, so this
+		// response is the only place the browser can learn that identity.
+		// The stamp makes the entry self-describing — useful for
+		// debugging and for the cache's own shape validation — but it is
+		// not what keeps one user's nav from being shown to another:
+		// nothing compares it against the session before painting, and a
+		// pre-response client-side check is impossible with an httpOnly
+		// cookie. That protection comes from clearing the cache on login,
+		// logout and tenant switch, plus the fresh response overwriting
+		// the entry.
 		p, ok := authn.PrincipalFrom(c)
 		if !ok {
 			respond.Unauthenticated(c, "missing principal")

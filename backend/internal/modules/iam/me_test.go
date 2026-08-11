@@ -88,10 +88,13 @@ func TestMePermissionsIsEmptyArrayNotNullForNonMember(t *testing.T) {
 }
 
 // The client-side permissions cache (packages/api/src/permissions-cache.ts)
-// keys its entry on who the permissions belong to, so a cached set is
-// never shown to a different user or tenant on the same browser. The
-// client cannot read that identity from the httpOnly session cookie, so
-// this endpoint is where it comes from.
+// stamps its entry with who the permissions belong to, so the entry is
+// self-describing for debugging and for the cache's own shape
+// validation. The client cannot read that identity from the httpOnly
+// session cookie, so this endpoint is where it comes from. It is not the
+// mechanism that stops one user's set being painted for another — that
+// is the clear-on-login/logout/tenant-switch plus the fresh response
+// overwriting the entry.
 func TestMePermissionsReturnsCallerIdentity(t *testing.T) {
 	r, _, _, _ := testutil.ModuleHarnessWithAuthz(t,
 		map[string]string{"doc": testutil.TenantA},

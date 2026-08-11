@@ -8,6 +8,7 @@ import (
 
 	"github.com/testcontainers/testcontainers-go"
 	tcnats "github.com/testcontainers/testcontainers-go/modules/nats"
+	tcopenfga "github.com/testcontainers/testcontainers-go/modules/openfga"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -69,4 +70,21 @@ func StartNATS(t *testing.T) string {
 	}
 
 	return uri
+}
+
+// StartOpenFGA boots an in-memory OpenFGA and returns its HTTP API URL.
+func StartOpenFGA(t *testing.T) string {
+	t.Helper()
+	ctx := context.Background()
+	fga, err := tcopenfga.Run(ctx, "openfga/openfga:v1.8.4")
+	if err != nil {
+		t.Fatalf("start openfga: %v", err)
+	}
+	t.Cleanup(func() { _ = fga.Terminate(context.Background()) })
+
+	url, err := fga.HttpEndpoint(ctx)
+	if err != nil {
+		t.Fatalf("openfga endpoint: %v", err)
+	}
+	return url
 }

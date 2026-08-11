@@ -727,13 +727,42 @@ the outbox. Re-granting an already-held role is allowed and publishes
 unconditionally on purpose: it's the operator's repair mechanism for
 FGA drift, not just the first-grant path.
 
-**The reconciler makes OpenFGA rebuildable from Postgres.**
-`platform.ReconcileTenant` (`backend/internal/platform/reconcile.go`)
-re-applies every module's permission tuples and every tenant's
-memberships at boot, using `WithAdmin` (section 3) to read across
-tenants in one pass. This matters locally: the dev OpenFGA store is
-in-memory and loses every tuple on restart, and the reconciler is what
-restores it with no manual step.
+**The reconciler makes OpenFGA rebuildable from Postgres, and prunes
+what Postgres no longer backs.** Two functions in
+`backend/internal/platform/reconcile.go`, two different jobs:
+
+- **`platform.Reconcile(ctx, reg, db, w)`** — boot-path, authoritative.
+  Runs once at boot (`cmd/api/main.go`), reads every tenant's
+  `iam_members` rows in one pass using `WithAdmin` (section 3), writes
+  every role/permission tuple Postgres backs, and **deletes** every
+  `role:`/`perm:` tuple Postgres does not back. Deletion is scoped per
+  tenant: a tuple is only ever considered for deletion from the tenant
+  bucket it was read into, never across tenants. This is what makes
+  "OpenFGA is fully rebuildable from Postgres" true — both locally (the
+  dev OpenFGA store is in-memory and loses every tuple on restart) and
+  as the backstop for a `member_revoked` event that was lost before
+  `iam-fga-sync` applied it. As a safety floor, `Reconcile` refuses to
+  write or delete anything, and returns an error instead, if the
+  `iam_members` read comes back globally empty (zero rows across every
+  tenant) while OpenFGA still holds tuples — that shape is the signature
+  of a misconfigured `ADMIN_DATABASE_URL` (a role that does not bypass
+  RLS), not a real everyone-was-revoked event.
+- **`platform.ReconcileTenant(ctx, reg, w, tenantID)`** — grant-path,
+  additive only. Called inside `iam`'s own transaction on every
+  membership grant (`internal/modules/iam/sync.go`), and writes only
+  that tenant's permission tuples. It never reads Postgres and never
+  deletes anything, so permission sets reached through this path can
+  only grow: narrowing a role's declared permissions in code only takes
+  effect for a tenant the next time `Reconcile` runs.
+
+**Revocation self-heals at boot, not continuously.** The normal path
+(`member_revoked` event → outbox → `iam-fga-sync`) converges within the
+usual outbox lag. If that event is permanently lost, the resulting stale
+grant is not self-healing while the process keeps running — there is no
+periodic reconcile ticker or cron — it persists until the next time that
+specific process boots and `Reconcile` runs. Treat `Reconcile` as a
+boot-time correctness backstop for lost revokes, not a live revocation
+mechanism.
 
 **The adversarial matrix suite**
 (`backend/internal/archtest/matrix_test.go`) is the phase gate for any

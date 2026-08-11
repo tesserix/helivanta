@@ -32,10 +32,23 @@ system of record.
   pure in-memory set lookup. One FGA round trip per request regardless of
   how many permissions a route declares, and the same resolved set is the
   response body for `GET /iam/me/permissions` at zero extra cost.
-  Revocation takes effect on the caller's next request; there is no
-  decision cache and therefore no staleness window. A short-TTL cache may
-  later be added *inside* `pkg/authz` as a pure optimisation without
-  touching any call site.
+  Revocation is not instantaneous: it lands only once the outbox event
+  carrying the revoke has been processed by the `iam-fga-sync` consumer
+  and the FGA role tuple is deleted, so there **is** a staleness window
+  bounded by outbox/consumer lag (see "Grant visibility window" below).
+  There is no additional decision cache on top of that — `Resolve`
+  queries FGA fresh on every request — so that outbox lag is the whole
+  window, not zero. If a `member_revoked` event is permanently lost
+  (never delivered, or its consumer permanently fails), that lag has a
+  backstop: `platform.Reconcile` deletes any `role:`/`perm:` tuple
+  Postgres does not back, closing the gap the next time it runs. It
+  currently runs only at process boot (`cmd/api/main.go`), not on a
+  timer, so the backstop's bound is "at the next boot of this replica,"
+  not a bounded wall-clock time for a long-lived process — see the
+  reconciler section of `docs/standards/backend.md` for the full
+  `Reconcile`/`ReconcileTenant` split. A short-TTL cache may later be
+  added *inside* `pkg/authz` as a pure optimisation without touching any
+  call site.
 - **D3 — Fail closed, always.** Any FGA error, timeout or unreachable
   store denies the request with `503 authz_unavailable`. There is no code
   path on which a handler runs without a resolved permission set. Failing
@@ -60,15 +73,40 @@ system of record.
   in a tenant resolves to an empty permission set, so every guarded route
   denies. There is no separate membership check to forget, and cross-tenant
   access remains blocked by forced RLS independently of authorization.
+  This inversion is real, not just conceptual, everywhere membership is
+  read on a request path: `GET /iam/me/tenants` and the `POST
+  /iam/me/tenant` switch gate (`backend/internal/modules/iam/me.go`) both
+  resolve membership from OpenFGA role tuples via `deps.Roles.ListRoles`,
+  not by querying `iam_members` directly. `iam_members` is forced-RLS and
+  every runtime accessor (`WithTenant`) scopes to a single tenant's GUC,
+  so there is no accessor that can answer "which tenants does this
+  subject belong to" without already knowing the tenant — exactly the
+  question these two routes exist to answer. `iam_members` stays the
+  write-side system of record (D6): the grant/revoke endpoints write it
+  directly, and `platform.Reconcile` reads it at boot to keep OpenFGA's
+  role tuples converged with it.
 - **D8 — Tenant switching is in scope.** `tenant_id` is a claim inside
   the verified GIP token, so a clinician working at two hospitals cannot
   currently switch without a separate login. `iam_members` already holds
   every membership, so this phase adds listing, a membership-gated switch
   that re-mints the session, and a shell picker.
-- **D9 — Department scoping is a named non-goal, designed for.**
-  `pkg/authz` takes scope as a parameter that is always tenant-wide in
-  this phase, and the FGA model reserves the scoping shape. Departments
-  and per-record relations drop in later without reshaping call sites.
+- **D9 — Department scoping is a named non-goal, not yet designed for.**
+  `pkg/authz.Resolve(ctx, subject, tenantID)` takes no scope parameter
+  today, and the FGA model (`user`/`role`/`perm` types only — see
+  "Authorization model") reserves no relation or object-ID segment for a
+  department or other sub-tenant scope. Because permissions are FGA
+  *objects*, not model relations (D4), adding scope later is a bounded
+  migration rather than a reshaping of every call site — but it is not
+  free, and it touches four concrete pieces: the model (a new type or
+  relation to carry scope), the reconciler (`platform.Reconcile` /
+  `platform.ReconcileTenant` in `backend/internal/platform/reconcile.go`,
+  which would need to write and prune scope-qualified tuples), a rewrite
+  of every existing `role:<tenantID>/...` and `perm:<tenantID>/...`
+  tuple into the new scoped object-ID shape (today's tuples are not
+  scope-shaped and do not migrate themselves), and `authz.Resolve`'s
+  signature. `authz.Require(perm)` and every route's permission
+  declaration stay untouched, since they only ever see the resolved
+  in-memory permission set and never construct an object ID themselves.
 
 ## Authorization model
 

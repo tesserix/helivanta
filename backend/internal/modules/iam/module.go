@@ -158,13 +158,15 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 				// Already granted at the row level, but the outbox
 				// event still publishes unconditionally below (fetch
 				// the existing row first so the response carries its
-				// real id). Re-granting is the operator's only repair
-				// mechanism for FGA drift: the reconciler does not
-				// re-apply member→role tuples, so if the original
-				// grant's event was lost or its consumer permanently
-				// failed, Postgres would say "granted" and FGA would
-				// say "not granted" forever without this. Tuple writes
-				// are idempotent, so the redundant write on a normal
+				// real id). Re-granting is a request-time repair
+				// mechanism for FGA drift, not the only one:
+				// platform.Reconcile (internal/platform/reconcile.go)
+				// re-applies every iam_members row's role tuple at
+				// boot, so a lost grant event also self-heals the next
+				// time any replica boots. This re-grant path stays
+				// useful because it repairs immediately, on request,
+				// without waiting for a boot. Tuple writes are
+				// idempotent, so the redundant write on a normal
 				// re-grant is harmless.
 				if err := tx.Where("subject = ? AND role_key = ?", req.Subject, req.RoleKey).First(&row).Error; err != nil {
 					return err

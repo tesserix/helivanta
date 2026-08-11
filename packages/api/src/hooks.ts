@@ -5,22 +5,18 @@ import {
   useQuery,
   useQueryClient,
   type UseMutationResult,
+  type UseQueryOptions,
   type UseQueryResult,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { POLL_INTERVAL_MS, apiFetch } from "./client";
 
-// React Query distinguishes a placeholder *value* from a placeholder
-// *factory* by rejecting function-typed values, and expresses that with an
-// internal conditional type it does not export. Mirroring the condition
-// exactly is what lets a value of this type flow into `placeholderData`
-// while `T` is still generic; for every response shape this package deals
-// in (JSON objects and arrays) it resolves to plain `T`. The bare
-// `Function` is deliberate and load-bearing: TypeScript only relates two
-// unresolved conditional types when their branches are *identical*, so a
-// narrower `(...args: never[]) => unknown` is rejected at the call site.
-// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-type PlaceholderValue<T> = T extends Function ? never : T;
+// Borrowed from React Query rather than restated: it guards `placeholderData`
+// with a conditional type it does not export, so a hand-written `T` is
+// rejected at the call site. Reading the option's type off `UseQueryOptions`
+// keeps this in step with the library. For every response shape this package
+// deals in (JSON objects and arrays) it resolves to plain `T`.
+type PlaceholderValue<T> = NonNullable<UseQueryOptions<T, Error, T, unknown[]>["placeholderData"]>;
 
 export function useApiQuery<T>(
   key: unknown[],

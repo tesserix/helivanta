@@ -15,14 +15,14 @@ function mockPermissions(data: string[]) {
   );
 }
 
-function seedCache(permissions: string[]) {
+function seedCache(permissions: string[], storedAt: number = Date.now()) {
   window.localStorage.setItem(
     PERMISSIONS_CACHE_KEY,
     JSON.stringify({
       subject: "doc",
       tenantId: "tenant-a",
       permissions,
-      storedAt: Date.now(),
+      storedAt,
     }),
   );
 }
@@ -141,6 +141,26 @@ describe("permissions cache hydration", () => {
     expect(readPermissionsCache()?.permissions).toEqual([]);
   });
 
+  // The placeholder is a faithful copy of the cached response, identity and
+  // all, so only the isPlaceholderData guard keeps it out of the cache.
+  // Without that guard the entry would be rewritten with a fresh storedAt on
+  // every zone load and never age out of its TTL — a permission set from
+  // months ago would keep painting forever.
+  it("does not refresh the cache timestamp while showing placeholder data", async () => {
+    const storedAt = Date.now() - 6 * 60 * 60 * 1000;
+    seedCache(["pharmacy.dispense.fulfil"], storedAt);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
+    renderWithProviders(<Can permission="pharmacy.dispense.fulfil">Dispense</Can>);
+
+    // Wait for the placeholder to actually be painting before asserting, so
+    // this cannot pass by never reaching the write-through at all.
+    await waitFor(() => expect(screen.getByText("Dispense")).toBeInTheDocument());
+    expect(readPermissionsCache()?.storedAt).toBe(storedAt);
+  });
+
   it("falls back to the loading state when nothing is cached", () => {
     vi.stubGlobal(
       "fetch",
@@ -149,5 +169,46 @@ describe("permissions cache hydration", () => {
     renderWithProviders(<Can permission="pharmacy.dispense.fulfil">Dispense</Can>);
 
     expect(screen.queryByText("Dispense")).not.toBeInTheDocument();
+  });
+});
+
+// A failed permissions request must resolve the loading state rather than
+// hang on it: `Can` gates on `isLoading`, so a query that stays "loading"
+// forever renders neither the children nor the fallback, and the user is
+// left staring at a permanently empty page instead of the denied state.
+describe("Can when the permissions request fails", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.restoreAllMocks();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("renders the fallback when the request rejects", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    renderWithProviders(
+      <Can permission="pharmacy.dispense.fulfil" fallback={<span>Not allowed</span>}>
+        Dispense
+      </Can>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Not allowed")).toBeInTheDocument());
+  });
+
+  it("renders the fallback when the request returns an error status", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: "internal", message: "Something went wrong." }),
+      }),
+    );
+    renderWithProviders(
+      <Can permission="pharmacy.dispense.fulfil" fallback={<span>Not allowed</span>}>
+        Dispense
+      </Can>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Not allowed")).toBeInTheDocument());
   });
 });

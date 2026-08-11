@@ -52,11 +52,17 @@ export function usePermissions(): {
   can: (permission: string) => boolean;
 } {
   const cached = useCachedPermissions();
+  // A faithful stand-in for the response it replaces, identity included —
+  // so `isPlaceholderData` is what keeps it out of the cache, rather than
+  // the write-through happening to trip over a missing `subject`.
   // Memoized so the placeholder keeps a stable identity across renders;
   // a fresh object every render would make the query observer rebuild the
   // placeholder result each time.
   const placeholderData = useMemo(
-    () => (cached ? { data: cached.permissions } : undefined),
+    () =>
+      cached
+        ? { data: cached.permissions, subject: cached.subject, tenant_id: cached.tenantId }
+        : undefined,
     [cached],
   );
   const { data, isPending, isPlaceholderData } = useApiQuery<PermissionsResponse>(

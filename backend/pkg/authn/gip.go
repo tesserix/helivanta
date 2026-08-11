@@ -7,6 +7,7 @@ import (
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
+	"github.com/google/uuid"
 )
 
 var ErrNoTenantClaim = errors.New("authn: token has no tenant_id claim")
@@ -36,11 +37,23 @@ func (g *gipVerifier) Verify(ctx context.Context, raw string) (Principal, error)
 }
 
 // principalFromToken maps a verified GIP/Firebase token to a Principal,
-// enforcing that a tenant_id claim is present and is a string.
+// enforcing that a tenant_id claim is present, is a string, and parses as
+// a UUID. The canonical uuid.String() lowercase form is stored on
+// Principal.TenantID rather than the raw claim, so every downstream
+// consumer (Resolve's object-id prefix matching, the iam-fga-sync
+// consumer, tenant comparisons) sees one consistent casing regardless of
+// how the issuer rendered the claim. This is also why Resolve's
+// "perm:"+tenantID+"/" prefix match is safe: a canonical UUID string
+// cannot contain "/", so it can never be mistaken for a prefix of a
+// different tenant's object id.
 func principalFromToken(tok *auth.Token) (Principal, error) {
-	tenantID, ok := tok.Claims["tenant_id"].(string)
-	if !ok || tenantID == "" {
+	raw, ok := tok.Claims["tenant_id"].(string)
+	if !ok || raw == "" {
 		return Principal{}, ErrNoTenantClaim
 	}
-	return Principal{Subject: tok.UID, TenantID: tenantID}, nil
+	tenantID, err := uuid.Parse(raw)
+	if err != nil {
+		return Principal{}, ErrNoTenantClaim
+	}
+	return Principal{Subject: tok.UID, TenantID: tenantID.String()}, nil
 }

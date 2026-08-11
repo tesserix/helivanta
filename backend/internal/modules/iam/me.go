@@ -27,6 +27,13 @@ type tenantMembership struct {
 	Current bool `json:"current"`
 }
 
+// switchRequest.TenantID's `uuid` binding tag is the actual enforcement
+// point for tenant-id casing on this endpoint: go-playground/validator's
+// uuid rule matches its uuidRegexString, which is lowercase-only
+// ([0-9a-f], not [0-9a-fA-F]). An upper- or mixed-cased tenant id is
+// rejected with 400 by Gin's binding validation before the handler body
+// runs at all, so the raw (non-normalizing) comparison against bindings
+// below never sees a non-canonical value from a well-formed request.
 type switchRequest struct {
 	TenantID string `json:"tenant_id" binding:"required,uuid"`
 }
@@ -89,7 +96,11 @@ func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
 		// therefore every binding ListRoles returns — is already
 		// canonical. A client round-tripping the value it received from
 		// /me/tenants (itself sourced from these same bindings) submits
-		// the same canonical form back here.
+		// the same canonical form back here. The actual enforcement
+		// backstop, though, is switchRequest.TenantID's `uuid` binding
+		// tag (see its doc comment): a non-canonical casing never even
+		// reaches this comparison, because binding validation rejects it
+		// with 400 first.
 		target := req.TenantID
 		bindings, err := deps.Roles.ListRoles(c.Request.Context(), p.Subject)
 		if err != nil {

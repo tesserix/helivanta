@@ -28,15 +28,15 @@ function usePersistedFlag(key: string, fallback: boolean) {
 }
 
 /**
- * `tenantPicker` is a slot in the zone rail rather than a component this
- * package owns. Switching hospitals means re-minting the session — a
- * Firebase custom-token exchange plus a POST to the shell's session route
- * — and both the client config and that route belong to the shell app
- * (`apps/shell/components/tenant-picker.tsx`). Keeping the control here
- * would either drag app-specific auth config into `@hms/ui` or render a
- * switcher that cannot finish the switch, which is the exact failure this
- * slot exists to prevent. Zone apps pass nothing and show no switcher;
- * their users switch from the dashboard.
+ * `tenantPicker` is a slot rendered in the content header rather than a
+ * component this package owns. Switching hospitals means re-minting the
+ * session — a Firebase custom-token exchange plus a POST to the shell's
+ * session route — and both the client config and that route belong to the
+ * shell app (`apps/shell/components/tenant-picker.tsx`). Keeping the
+ * control here would either drag app-specific auth config into `@hms/ui`
+ * or render a switcher that cannot finish the switch, which is the exact
+ * failure this slot exists to prevent. Zone apps pass nothing and show no
+ * switcher; their users switch from the dashboard.
  */
 export function HmsShell({
   active,
@@ -105,7 +105,6 @@ export function HmsShell({
           })}
         </nav>
         <div className="flex flex-col items-center gap-1 px-0 py-3">
-          {tenantPicker}
           <a
             href="/logout"
             title="Sign out"
@@ -185,6 +184,7 @@ export function HmsShell({
               </h1>
             </div>
             <div className="flex items-center gap-3">
+              {tenantPicker}
               <ThemeToggle />
               <a
                 href="/logout"

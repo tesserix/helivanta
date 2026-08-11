@@ -93,12 +93,13 @@ export function TenantPicker() {
   const currentTenantId = memberships.find((m) => m.current)?.tenant_id ?? memberships[0].tenant_id;
 
   return (
-    <label className="flex flex-col gap-1 px-3 py-2 text-xs">
-      <span className="text-muted-foreground">Hospital</span>
+    <label className="flex items-center gap-2 text-xs">
+      <span className="sr-only">Hospital</span>
       <select
-        className="rounded-md border bg-transparent px-2 py-1 text-sm"
+        className="w-44 rounded-md border bg-transparent px-2 py-1 text-sm"
         onChange={(e) => switchTenant.mutate(e.target.value)}
         value={currentTenantId}
+        title="Hospital"
       >
         {memberships.map((m) => (
           <option key={m.tenant_id} value={m.tenant_id}>

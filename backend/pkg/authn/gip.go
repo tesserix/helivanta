@@ -14,9 +14,38 @@ var ErrNoTenantClaim = errors.New("authn: token has no tenant_id claim")
 
 type gipVerifier struct{ client *auth.Client }
 
+type gipMinter struct{ client *auth.Client }
+
 // NewGIPVerifier verifies GIP/Firebase ID tokens. In dev it honors
 // FIREBASE_AUTH_EMULATOR_HOST automatically (no credentials needed).
 func NewGIPVerifier(ctx context.Context, projectID string) (TokenVerifier, error) {
+	client, err := newAuthClient(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	return &gipVerifier{client: client}, nil
+}
+
+// NewGIPMinter mints GIP/Firebase custom tokens. It is a second, narrow
+// view of the same Firebase auth client NewGIPVerifier wraps — separate
+// constructors rather than one object exposing both, so a caller wired
+// for minting cannot also verify (and vice versa), and so adding minting
+// could not change verification. In dev it honors
+// FIREBASE_AUTH_EMULATOR_HOST automatically, like the verifier.
+//
+// Minting requires a service-account credential (the Admin SDK signs the
+// token locally, or delegates to the IAM signBlob API). Against the auth
+// emulator no signature is required, so dev and tests work with no
+// credentials at all.
+func NewGIPMinter(ctx context.Context, projectID string) (TokenMinter, error) {
+	client, err := newAuthClient(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	return &gipMinter{client: client}, nil
+}
+
+func newAuthClient(ctx context.Context, projectID string) (*auth.Client, error) {
 	app, err := firebase.NewApp(ctx, &firebase.Config{ProjectID: projectID})
 	if err != nil {
 		return nil, fmt.Errorf("firebase app: %w", err)
@@ -25,7 +54,18 @@ func NewGIPVerifier(ctx context.Context, projectID string) (TokenVerifier, error
 	if err != nil {
 		return nil, fmt.Errorf("firebase auth client: %w", err)
 	}
-	return &gipVerifier{client: client}, nil
+	return client, nil
+}
+
+// CustomTokenWithClaims forwards to the Admin SDK. The wrapper exists so
+// the concrete *auth.Client never escapes this package: a holder of the
+// TokenMinter interface can mint, and can do nothing else.
+func (g *gipMinter) CustomTokenWithClaims(ctx context.Context, uid string, claims map[string]interface{}) (string, error) {
+	tok, err := g.client.CustomTokenWithClaims(ctx, uid, claims)
+	if err != nil {
+		return "", fmt.Errorf("mint custom token: %w", err)
+	}
+	return tok, nil
 }
 
 func (g *gipVerifier) Verify(ctx context.Context, raw string) (Principal, error) {

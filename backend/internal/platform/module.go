@@ -3,6 +3,7 @@ package platform
 import (
 	"context"
 
+	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
@@ -36,6 +37,15 @@ type Deps struct {
 	Bus   *events.Bus
 	Authz TupleWriter
 	Roles RoleLister
+	// Tokens mints a custom token carrying a tenant_id claim, for the one
+	// operation that must change a caller's identity rather than read it:
+	// switching hospitals. Unlike Authz/Roles this is not a narrowed
+	// mirror of a bigger client — authn.TokenMinter is already exactly one
+	// method, and deliberately does not expose the Firebase auth client
+	// it wraps. Set by main.go; nil in tests that do not exercise it, in
+	// which case the switch route fails closed rather than issuing
+	// nothing and claiming success.
+	Tokens authn.TokenMinter
 	// Reconcile ensures a tenant's permission tuples match the registry.
 	// Set by main.go; nil in tests that do not exercise it.
 	Reconcile func(ctx context.Context, tenantID string) error

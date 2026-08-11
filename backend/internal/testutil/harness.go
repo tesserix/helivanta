@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -64,13 +65,24 @@ func (noopRoleLister) ListRoles(context.Context, string) ([]authz.RoleBinding, e
 	return nil, nil
 }
 
+// stubMinter mints a predictable, obviously-fake custom token so
+// harnesses that don't care about token minting still exercise the
+// switch route's success path. Tests that assert on minting (was it
+// called, with what, and only after the gate) pass their own recorder
+// via ModuleHarnessWithMinter.
+type stubMinter struct{}
+
+func (stubMinter) CustomTokenWithClaims(_ context.Context, uid string, claims map[string]interface{}) (string, error) {
+	return fmt.Sprintf("stub-custom-token:%s:%v", uid, claims["tenant_id"]), nil
+}
+
 // ModuleHarness boots the full module stack (Postgres, NATS, routes,
 // consumers, dispatcher) for the given modules. One call replaces the
 // setup() previously copy-pasted per module test package. perms maps
 // token → the permissions that token's caller holds.
 func ModuleHarness(t *testing.T, tokens map[string]string, perms map[string][]authz.Permission, mods ...platform.Module) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
-	return moduleHarness(t, tokens, perms, noopWriter{}, noopRoleLister{}, mods...)
+	return moduleHarness(t, tokens, perms, noopWriter{}, noopRoleLister{}, stubMinter{}, mods...)
 }
 
 // ModuleHarnessWithAuthz is ModuleHarness plus a TupleWriter, for modules
@@ -83,7 +95,7 @@ func ModuleHarnessWithAuthz(
 	mods ...platform.Module,
 ) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
-	return moduleHarness(t, tokens, perms, writer, noopRoleLister{}, mods...)
+	return moduleHarness(t, tokens, perms, writer, noopRoleLister{}, stubMinter{}, mods...)
 }
 
 // ModuleHarnessWithRoles is ModuleHarness plus a TupleWriter and a
@@ -98,7 +110,24 @@ func ModuleHarnessWithRoles(
 	mods ...platform.Module,
 ) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
-	return moduleHarness(t, tokens, perms, writer, roles, mods...)
+	return moduleHarness(t, tokens, perms, writer, roles, stubMinter{}, mods...)
+}
+
+// ModuleHarnessWithMinter is ModuleHarnessWithRoles plus a TokenMinter,
+// for tests that assert on how the tenant-switch route mints — that it
+// mints only after the membership gate passes, and what claims it puts
+// in the token. Pass nil to simulate an unwired minter.
+func ModuleHarnessWithMinter(
+	t *testing.T,
+	tokens map[string]string,
+	perms map[string][]authz.Permission,
+	writer platform.TupleWriter,
+	roles platform.RoleLister,
+	minter authn.TokenMinter,
+	mods ...platform.Module,
+) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
+	t.Helper()
+	return moduleHarness(t, tokens, perms, writer, roles, minter, mods...)
 }
 
 func moduleHarness(
@@ -107,6 +136,7 @@ func moduleHarness(
 	perms map[string][]authz.Permission,
 	writer platform.TupleWriter,
 	roles platform.RoleLister,
+	minter authn.TokenMinter,
 	mods ...platform.Module,
 ) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
@@ -130,7 +160,7 @@ func moduleHarness(
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 
-	deps := platform.Deps{DB: db, Bus: bus, Authz: writer, Roles: roles}
+	deps := platform.Deps{DB: db, Bus: bus, Authz: writer, Roles: roles, Tokens: minter}
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	resolver := harnessResolver{tokens: tokens, perms: perms}

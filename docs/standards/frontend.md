@@ -118,9 +118,14 @@ Raw `fetch`, `useState` + manual loading flags, or a hand-rolled
 `setInterval` for polling are not used in application components —
 `useApiQuery`, `useApiMutation`, and the shared `POLL_INTERVAL_MS`
 constant cover every case those patterns used to. The sole sanctioned
-exception is the shell login's `POST /api/session`
-(`apps/shell/app/login/page.tsx`) — it's an auth route outside the
-`/api/v1` envelope, so it uses raw `fetch` directly.
+exception is the shell's session route, `POST /api/session` — it's an
+auth route outside the `/api/v1` envelope, so it uses raw `fetch`
+directly. Two callers post to it, both shell-owned and both for the same
+reason (install a freshly minted ID token as the `hms_session` cookie):
+login (`apps/shell/app/login/page.tsx`) and the tenant switcher
+(`apps/shell/components/tenant-picker.tsx`), which re-mints the session
+after the backend authorizes a switch. Anything that is not "exchange an
+ID token for the session cookie" goes through `@hms/api`.
 
 `useApiQuery<T>(key, path, opts?)` takes a TanStack query key, the
 API path (appended to the fixed `/api/v1` prefix), and an optional

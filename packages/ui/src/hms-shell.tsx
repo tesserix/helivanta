@@ -4,7 +4,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ChevronsLeft, ChevronsRight, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { usePermissions } from "@hms/api";
 import { visibleZones, activeZone } from "./zones";
-import { TenantPicker } from "./tenant-picker";
 
 // Two-rail chrome in the tesserix-home AdminSidebar style. Both rails
 // collapse independently: the zone rail toggles icons-only ↔ icons+labels,
@@ -28,7 +27,26 @@ function usePersistedFlag(key: string, fallback: boolean) {
   return [value, update] as const;
 }
 
-export function HmsShell({ active, children }: { active: string; children: ReactNode }) {
+/**
+ * `tenantPicker` is a slot in the zone rail rather than a component this
+ * package owns. Switching hospitals means re-minting the session — a
+ * Firebase custom-token exchange plus a POST to the shell's session route
+ * — and both the client config and that route belong to the shell app
+ * (`apps/shell/components/tenant-picker.tsx`). Keeping the control here
+ * would either drag app-specific auth config into `@hms/ui` or render a
+ * switcher that cannot finish the switch, which is the exact failure this
+ * slot exists to prevent. Zone apps pass nothing and show no switcher;
+ * their users switch from the dashboard.
+ */
+export function HmsShell({
+  active,
+  tenantPicker,
+  children,
+}: {
+  active: string;
+  tenantPicker?: ReactNode;
+  children: ReactNode;
+}) {
   const { can } = usePermissions();
   const zones = visibleZones(can);
   // Fall back to the dashboard (always present in `zones`) if the active
@@ -88,7 +106,7 @@ export function HmsShell({ active, children }: { active: string; children: React
           })}
         </nav>
         <div className={`flex flex-col gap-1 py-3 ${railExpanded ? "px-3" : "items-center px-0"}`}>
-          <TenantPicker />
+          {tenantPicker}
           <a
             href="/logout"
             title={railExpanded ? undefined : "Sign out"}

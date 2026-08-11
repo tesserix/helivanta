@@ -33,6 +33,31 @@ func (f *fakeRoleLister) ListRoles(_ context.Context, subject string) ([]authz.R
 	return f.bindings[subject], nil
 }
 
+// recordingMinter records every mint call so a test can assert not just
+// what came back but whether minting happened at all — the point of the
+// gate-before-mint tests is that on a denied or unresolved switch no
+// credential for the target tenant is ever created, not merely that the
+// response withheld one.
+type recordingMinter struct {
+	calls  []mintCall
+	err    error
+	tokens int
+}
+
+type mintCall struct {
+	uid    string
+	claims map[string]interface{}
+}
+
+func (m *recordingMinter) CustomTokenWithClaims(_ context.Context, uid string, claims map[string]interface{}) (string, error) {
+	m.calls = append(m.calls, mintCall{uid: uid, claims: claims})
+	if m.err != nil {
+		return "", m.err
+	}
+	m.tokens++
+	return "minted-token-" + uid, nil
+}
+
 func TestMePermissionsReturnsResolvedSetSorted(t *testing.T) {
 	r, _, _, _ := testutil.ModuleHarnessWithAuthz(t,
 		map[string]string{"doc": testutil.TenantA},
@@ -110,36 +135,114 @@ func TestMeTenantsFailsClosedOnRoleListerError(t *testing.T) {
 		"a ListRoles error must fail closed, never read as \"no memberships\"")
 }
 
+// TestSwitchTenantRequiresMembership also pins gate-before-mint on the
+// denial path: a non-member must not merely be told no, no custom token
+// for the target tenant may be created at all. A minted token is a
+// bearer credential — once it exists, the 403 is advisory.
 func TestSwitchTenantRequiresMembership(t *testing.T) {
 	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{
 		"user-jane": {{TenantID: testutil.TenantA, Role: authz.RoleNurse}},
 	}}
-	r, _, _, _ := testutil.ModuleHarnessWithRoles(t,
+	minter := &recordingMinter{}
+	r, _, _, _ := testutil.ModuleHarnessWithMinter(t,
 		map[string]string{"jane": testutil.TenantA},
 		map[string][]authz.Permission{"jane": {}},
-		&recordingWriter{}, roles, iam.New())
+		&recordingWriter{}, roles, minter, iam.New())
 
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
 		`{"tenant_id":"`+testutil.TenantB+`"}`)
 	require.Equal(t, http.StatusForbidden, res.Code,
 		"switching into a tenant you are not a member of must be denied")
+	require.Empty(t, minter.calls,
+		"no token may be minted for a tenant the caller is not a member of")
+	require.NotContains(t, res.Body.String(), "custom_token")
 }
 
-func TestSwitchTenantSucceedsWithMembership(t *testing.T) {
+// TestSwitchTenantMintsTokenForTargetTenant is the whole point of the
+// endpoint: the response must carry a credential that actually moves the
+// caller, minted for the caller's own subject and carrying the target
+// tenant as its tenant_id claim. Without it the switch is a no-op that
+// reports success — the shell shows a toast and the user stays put.
+func TestSwitchTenantMintsTokenForTargetTenant(t *testing.T) {
 	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{
 		"user-jane": {
 			{TenantID: testutil.TenantA, Role: authz.RoleDoctor},
 			{TenantID: testutil.TenantB, Role: authz.RoleNurse},
 		},
 	}}
-	r, _, _, _ := testutil.ModuleHarnessWithRoles(t,
+	minter := &recordingMinter{}
+	r, _, _, _ := testutil.ModuleHarnessWithMinter(t,
 		map[string]string{"jane": testutil.TenantA},
 		map[string][]authz.Permission{"jane": {}},
-		&recordingWriter{}, roles, iam.New())
+		&recordingWriter{}, roles, minter, iam.New())
 
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
 		`{"tenant_id":"`+testutil.TenantB+`"}`)
 	require.Equal(t, http.StatusOK, res.Code)
+
+	require.Len(t, minter.calls, 1)
+	require.Equal(t, "user-jane", minter.calls[0].uid,
+		"the token must be minted for the caller, never for another subject")
+	require.Equal(t, testutil.TenantB, minter.calls[0].claims["tenant_id"],
+		"the token must carry the target tenant, which is what makes the switch real")
+
+	var body struct {
+		TenantID    string `json:"tenant_id"`
+		CustomToken string `json:"custom_token"`
+	}
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &body))
+	require.Equal(t, testutil.TenantB, body.TenantID)
+	require.Equal(t, "minted-token-user-jane", body.CustomToken,
+		"the minted token must reach the client — it is the only thing that changes the session")
+}
+
+// TestSwitchTenantFailsClosedWhenMintingFails covers the other half of
+// fail-closed: the membership decision succeeded, but the identity
+// provider could not issue the credential. Reporting 200 with no usable
+// token would reproduce the original bug (a switch that claims success
+// and changes nothing), so this must be an error the client can see.
+func TestSwitchTenantFailsClosedWhenMintingFails(t *testing.T) {
+	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{
+		"user-jane": {{TenantID: testutil.TenantB, Role: authz.RoleNurse}},
+	}}
+	minter := &recordingMinter{err: errors.New("gip unreachable")}
+	r, _, _, _ := testutil.ModuleHarnessWithMinter(t,
+		map[string]string{"jane": testutil.TenantA},
+		map[string][]authz.Permission{"jane": {}},
+		&recordingWriter{}, roles, minter, iam.New())
+
+	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
+		`{"tenant_id":"`+testutil.TenantB+`"}`)
+	require.Equal(t, http.StatusServiceUnavailable, res.Code)
+	require.Zero(t, minter.tokens)
+
+	var body struct {
+		Error string `json:"error"`
+	}
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &body))
+	require.Equal(t, "session_unavailable", body.Error,
+		"a minting outage is not an authorization outage — the codes must stay distinguishable")
+	require.NotContains(t, res.Body.String(), "custom_token")
+}
+
+// TestSwitchTenantFailsClosedWithoutAMinter guards the deployment
+// mistake: Deps.Tokens left nil (a test harness, a half-wired
+// entrypoint). The route must refuse rather than fall back to echoing
+// the tenant id, which is what made the original no-op look like a
+// success.
+func TestSwitchTenantFailsClosedWithoutAMinter(t *testing.T) {
+	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{
+		"user-jane": {{TenantID: testutil.TenantB, Role: authz.RoleNurse}},
+	}}
+	r, _, _, _ := testutil.ModuleHarnessWithMinter(t,
+		map[string]string{"jane": testutil.TenantA},
+		map[string][]authz.Permission{"jane": {}},
+		&recordingWriter{}, roles, nil, iam.New())
+
+	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
+		`{"tenant_id":"`+testutil.TenantB+`"}`)
+	require.Equal(t, http.StatusServiceUnavailable, res.Code)
+	require.NotContains(t, res.Body.String(), "custom_token")
 }
 
 // TestSwitchTenantFailsClosedOnRoleListerError guards the switch
@@ -153,10 +256,11 @@ func TestSwitchTenantSucceedsWithMembership(t *testing.T) {
 // this must be 503, not 403, and not 200.
 func TestSwitchTenantFailsClosedOnRoleListerError(t *testing.T) {
 	roles := &fakeRoleLister{err: errors.New("openfga unreachable")}
-	r, _, _, _ := testutil.ModuleHarnessWithRoles(t,
+	minter := &recordingMinter{}
+	r, _, _, _ := testutil.ModuleHarnessWithMinter(t,
 		map[string]string{"jane": testutil.TenantA},
 		map[string][]authz.Permission{"jane": {}},
-		&recordingWriter{}, roles, iam.New())
+		&recordingWriter{}, roles, minter, iam.New())
 
 	// The requested tenant is one jane genuinely belongs to in the real
 	// world (this fake just can't say so, because ListRoles errors
@@ -173,6 +277,8 @@ func TestSwitchTenantFailsClosedOnRoleListerError(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &body))
 	require.Equal(t, "authz_unavailable", body.Error)
+	require.Empty(t, minter.calls,
+		"minting must sit behind the gate: an unresolved membership check must not produce a credential")
 }
 
 // TestSwitchTenantSucceedsAcrossTenantIDCasing guards against a real

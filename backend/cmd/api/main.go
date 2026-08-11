@@ -68,6 +68,11 @@ func run() error {
 		return err
 	}
 
+	minter, err := authn.NewGIPMinter(ctx, cfg.GIPProjectID)
+	if err != nil {
+		return err
+	}
+
 	fga, err := authz.NewClient(ctx, cfg.OpenFGAURL, cfg.OpenFGAStore)
 	if err != nil {
 		return err
@@ -85,10 +90,11 @@ func run() error {
 		requestid.Middleware(),
 	)
 	deps := platform.Deps{
-		DB:    db,
-		Bus:   bus,
-		Authz: fga,
-		Roles: fga,
+		DB:     db,
+		Bus:    bus,
+		Authz:  fga,
+		Roles:  fga,
+		Tokens: minter,
 		Reconcile: func(ctx context.Context, tenantID string) error {
 			return platform.ReconcileTenant(ctx, registry, fga, tenantID)
 		},

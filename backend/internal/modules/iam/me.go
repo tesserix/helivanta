@@ -1,6 +1,7 @@
 package iam
 
 import (
+	"errors"
 	"net/http"
 	"sort"
 
@@ -91,9 +92,33 @@ func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
 			respond.Forbidden(c, "not a member of that tenant")
 			return
 		}
-		// The session is re-minted by the shell, which exchanges this
-		// confirmation for a token carrying the new tenant_id claim.
-		respond.OK(c, gin.H{"tenant_id": target})
+		// Everything above is the gate; only past it does anything get
+		// minted. A custom token is a credential for the target tenant,
+		// so issuing one before the membership check — or issuing one on
+		// any path where the check did not conclusively pass — would hand
+		// out exactly the access the check exists to withhold.
+		//
+		// target is minted as sent (already validated as a UUID by the
+		// binding tag). Casing does not survive the round trip anyway:
+		// principalFromToken canonicalizes the claim to lowercase
+		// uuid.String() when the re-minted token comes back (see
+		// pkg/authn/gip.go).
+		if deps.Tokens == nil {
+			respondMintUnavailable(c, errors.New("no token minter configured"))
+			return
+		}
+		token, err := deps.Tokens.CustomTokenWithClaims(c.Request.Context(), p.Subject,
+			map[string]interface{}{"tenant_id": target})
+		if err != nil {
+			respondMintUnavailable(c, err)
+			return
+		}
+		// custom_token is what actually performs the switch: the client
+		// exchanges it for a fresh ID token carrying the new tenant_id
+		// claim and replaces its session with it. tenant_id is kept
+		// alongside so callers can confirm which tenant the token is for
+		// without decoding it, and so the response shape stays additive.
+		respond.OK(c, gin.H{"tenant_id": target, "custom_token": token})
 	})
 }
 
@@ -148,4 +173,18 @@ func respondRolesUnavailable(c *gin.Context, err error) {
 	requestid.Logger(c).ErrorContext(c.Request.Context(), "list roles failed", "err", err)
 	respond.Error(c, http.StatusServiceUnavailable,
 		"authz_unavailable", "authorization is temporarily unavailable")
+}
+
+// respondMintUnavailable fails closed when the identity provider cannot
+// issue the new session: the caller keeps the tenant they had. It is a
+// distinct code from authz_unavailable because the membership decision
+// itself succeeded — only the credential could not be issued — and
+// because a client that retries an authz_unavailable and a client that
+// retries this are reacting to outages in two different systems. It is
+// never a 200: a success with no token is precisely the bug this
+// endpoint had, a switch that reports success and changes nothing.
+func respondMintUnavailable(c *gin.Context, err error) {
+	requestid.Logger(c).ErrorContext(c.Request.Context(), "mint tenant token failed", "err", err)
+	respond.Error(c, http.StatusServiceUnavailable,
+		"session_unavailable", "could not issue a session for that hospital")
 }

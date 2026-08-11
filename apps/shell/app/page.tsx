@@ -2,6 +2,7 @@
 
 import { usePermissions } from "@hms/api";
 import { HmsShell, visibleZones, type Zone } from "@hms/ui";
+import { TenantPicker } from "@/components/tenant-picker";
 
 // Per-page descriptions, keyed by href — the registry (packages/ui/src/zones.ts)
 // owns titles and hrefs, this map only supplies the dashboard-card copy.
@@ -45,7 +46,7 @@ export default function Dashboard() {
   const cards = cardsFor(visibleZones(can));
 
   return (
-    <HmsShell active="/">
+    <HmsShell active="/" tenantPicker={<TenantPicker />}>
       <div className="mx-auto max-w-4xl">
         <p className="mb-6 text-sm text-muted-foreground">
           Jump into a department to manage visits, dispensing and lab work.

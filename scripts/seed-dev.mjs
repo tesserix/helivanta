@@ -3,16 +3,36 @@
 // (pharmacist only). The second user is what makes permission gating
 // observable by hand and testable in e2e — everything test@hms.dev can
 // do, pharmacist@hms.dev mostly cannot.
+//
+// test@hms.dev additionally holds a *different* role (pharmacist) in a
+// second hospital, which is what makes tenant switching testable: after
+// switching, the same person must lose every zone tenant_admin gave them
+// in the first hospital. A second membership with the same role would
+// look identical before and after the switch and would pass even if the
+// switch did nothing.
 // Usage: node scripts/seed-dev.mjs   (emulator + Postgres must be up and
 // migrated — `make seed` runs `make migrate` first for exactly this reason)
 const HOST = process.env.AUTH_EMULATOR_HOST ?? "localhost:9099";
-const PROJECT = process.env.GIP_PROJECT_ID ?? "demo-hms";
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
+// St Mary's, the second hospital test@hms.dev works at. The e2e tenant
+// switch journey (e2e/tests/tenant-switch.spec.ts) hard-codes this id.
+const SECOND_TENANT_ID = "22222222-2222-2222-2222-222222222222";
 const PASSWORD = "password123";
 
+// Each user's memberships, in the tenant their GIP claim starts them in
+// first — seedAuthUser sets tenant_id from memberships[0].
 const USERS = [
-  { email: "test@hms.dev", role: "tenant_admin" },
-  { email: "pharmacist@hms.dev", role: "pharmacist" },
+  {
+    email: "test@hms.dev",
+    memberships: [
+      { tenantId: TENANT_ID, role: "tenant_admin" },
+      { tenantId: SECOND_TENANT_ID, role: "pharmacist" },
+    ],
+  },
+  {
+    email: "pharmacist@hms.dev",
+    memberships: [{ tenantId: TENANT_ID, role: "pharmacist" }],
+  },
 ];
 
 const base = `http://${HOST}/identitytoolkit.googleapis.com/v1`;
@@ -26,7 +46,7 @@ const headers = {
 // UID is what authn.Principal.Subject carries — it must match the
 // `subject` written into iam_members below or the seeded user has no
 // permissions.
-async function seedAuthUser(email) {
+async function seedAuthUser(email, tenantId) {
   const signUp = await fetch(`${base}/accounts:signUp?key=demo-key`, {
     method: "POST",
     headers,
@@ -42,11 +62,29 @@ async function seedAuthUser(email) {
   }
   let localId = created.localId;
   if (!localId) {
-    const lookup = await fetch(
-      `http://${HOST}/emulator/v1/projects/${PROJECT}/accounts:query`,
-      { method: "POST", headers, body: JSON.stringify({}) },
-    ).then((r) => r.json());
-    localId = lookup.userInfo?.find((u) => u.email === email)?.localId;
+    // Re-seeding an emulator that already has these users: sign in to
+    // recover the uid. The emulator-only accounts:query endpoint used to
+    // be the fallback here, but it 404s on current firebase-tools, which
+    // made every re-seed fail once the users existed.
+    const signIn = await fetch(
+      `${base}/accounts:signInWithPassword?key=demo-key`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          email,
+          password: PASSWORD,
+          returnSecureToken: true,
+        }),
+      },
+    );
+    const existing = await signIn.json();
+    if (!signIn.ok) {
+      throw new Error(
+        `signIn failed for ${email}: ${JSON.stringify(existing)}`,
+      );
+    }
+    localId = existing.localId;
   }
   if (!localId) throw new Error(`could not resolve user id for ${email}`);
 
@@ -55,7 +93,7 @@ async function seedAuthUser(email) {
     headers,
     body: JSON.stringify({
       localId,
-      customAttributes: JSON.stringify({ tenant_id: TENANT_ID }),
+      customAttributes: JSON.stringify({ tenant_id: tenantId }),
     }),
   });
   if (!update.ok) {
@@ -74,29 +112,35 @@ async function main() {
   await pg.connect();
 
   try {
-    for (const { email, role } of USERS) {
-      const localId = await seedAuthUser(email);
-      console.log(`Seeded ${email} / ${PASSWORD} with tenant_id=${TENANT_ID}`);
+    for (const { email, memberships } of USERS) {
+      const home = memberships[0];
+      const localId = await seedAuthUser(email, home.tenantId);
+      console.log(
+        `Seeded ${email} / ${PASSWORD} with tenant_id=${home.tenantId}`,
+      );
 
       // Bootstrap: the first tenant_admin cannot be granted through a
       // route that requires iam.member.manage, so the seed writes the
       // membership row directly for every seeded user. The API's
       // reconciler turns it into tuples on next boot; the iam-fga-sync
       // consumer does it immediately for later grants.
-      await pg.query(
-        `INSERT INTO iam_members (tenant_id, subject, role_key)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (tenant_id, subject, role_key) DO NOTHING`,
-        [TENANT_ID, localId, role],
-      );
-      console.log(`Granted ${role} to ${email} in tenant ${TENANT_ID}`);
+      for (const { tenantId, role } of memberships) {
+        await pg.query(
+          `INSERT INTO iam_members (tenant_id, subject, role_key)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (tenant_id, subject, role_key) DO NOTHING`,
+          [tenantId, localId, role],
+        );
+        console.log(`Granted ${role} to ${email} in tenant ${tenantId}`);
+      }
     }
   } finally {
     await pg.end();
   }
 
   console.log(`Seeded:
-  test@hms.dev       / password123  (tenant_admin — sees every zone)
+  test@hms.dev       / password123  (tenant_admin in ${TENANT_ID} — sees every zone;
+                                    pharmacist in ${SECOND_TENANT_ID} — switch to see Pharmacy only)
   pharmacist@hms.dev / password123  (pharmacist — sees Pharmacy only)`);
 }
 

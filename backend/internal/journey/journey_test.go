@@ -15,6 +15,7 @@ import (
 	"github.com/tesserix/hms/internal/modules/medicore"
 	"github.com/tesserix/hms/internal/modules/pharmacy"
 	"github.com/tesserix/hms/internal/testutil"
+	"github.com/tesserix/hms/pkg/authz"
 )
 
 var (
@@ -24,6 +25,13 @@ var (
 func TestVisitFansOutToPharmacyAndLab(t *testing.T) {
 	r, _, _, _ := testutil.ModuleHarness(t,
 		map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB},
+		map[string][]authz.Permission{
+			"tokA": {
+				medicore.PermVisitCreate, medicore.PermVisitRead,
+				pharmacy.PermDispenseRead, lab.PermOrderRead,
+			},
+			"tokB": {pharmacy.PermDispenseRead, lab.PermOrderRead},
+		},
 		medicore.New(), pharmacy.New(), lab.New())
 
 	// Create a visit as tenant A.

@@ -80,7 +80,7 @@ func run() error {
 		requestid.Middleware(),
 	)
 	deps := platform.Deps{DB: db, Bus: bus}
-	api := srv.Engine.Group("/v1", authn.Middleware(verifier))
+	api := platform.NewRouter(srv.Engine.Group("/v1", authn.Middleware(verifier)))
 	for _, m := range registry.All() {
 		m.Routes(api, deps)
 		if err := bus.StartConsumers(ctx, db, m.Consumers(deps)); err != nil {

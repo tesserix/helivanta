@@ -3,7 +3,7 @@ package platform
 import (
 	"testing"
 
-	"github.com/gin-gonic/gin"
+	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
@@ -12,7 +12,8 @@ type fakeModule struct{ name string }
 
 func (f fakeModule) Name() string                          { return f.name }
 func (f fakeModule) Migrations() []tenantdb.Migration      { return nil }
-func (f fakeModule) Routes(r *gin.RouterGroup, deps Deps)  {}
+func (f fakeModule) Permissions() []authz.Grant            { return nil }
+func (f fakeModule) Routes(r *Router, deps Deps)           {}
 func (f fakeModule) Consumers(deps Deps) []events.Consumer { return nil }
 
 func TestRegistryRejectsDuplicateNames(t *testing.T) {

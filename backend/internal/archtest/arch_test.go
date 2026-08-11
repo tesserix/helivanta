@@ -5,11 +5,14 @@
 package archtest
 
 import (
+	"io/fs"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"golang.org/x/tools/go/packages"
 
 	"github.com/tesserix/hms/internal/modules/lab"
@@ -17,6 +20,7 @@ import (
 	"github.com/tesserix/hms/internal/modules/pharmacy"
 	"github.com/tesserix/hms/internal/modules/reference"
 	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 )
 
@@ -159,6 +163,50 @@ func TestMainRegistersExactlyAllModules(t *testing.T) {
 	for name := range expected {
 		if !registered[name] {
 			t.Errorf("allModules() in arch_test.go includes module %q but cmd/api/main.go does not register it", name)
+		}
+	}
+}
+
+// TestModulesDoNotUseRawGinGroups keeps the compile-time guarantee that
+// every route declares a permission: a module that reached for
+// *gin.RouterGroup directly could register an unguarded route.
+func TestModulesDoNotUseRawGinGroups(t *testing.T) {
+	root := "../modules"
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(src), "gin.RouterGroup") {
+			t.Errorf("%s references gin.RouterGroup; modules must use *platform.Router", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk modules: %v", err)
+	}
+}
+
+// TestEveryDeclaredPermissionIsGranted catches a module that guards a
+// route with a permission it never declared in Permissions() — the route
+// would be permanently unreachable for every non-admin role.
+func TestEveryDeclaredPermissionIsGranted(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, m := range allModules() {
+		declaredByGrants := map[authz.Permission]bool{authz.Public: true}
+		for _, g := range m.Permissions() {
+			declaredByGrants[g.Permission] = true
+		}
+		e := gin.New()
+		r := platform.NewRouter(e.Group("/v1"))
+		m.Routes(r, platform.Deps{})
+		for _, p := range r.Declared() {
+			if !declaredByGrants[p] {
+				t.Errorf("module %q guards a route with %q but does not declare it in Permissions()", m.Name(), p)
+			}
 		}
 	}
 }

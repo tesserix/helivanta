@@ -10,9 +10,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/testinfra"
 	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/hms/internal/testinfra"
 	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
@@ -32,10 +33,23 @@ func (s StaticVerifier) Verify(ctx context.Context, raw string) (authn.Principal
 	return authn.Principal{}, context.DeadlineExceeded
 }
 
+// harnessResolver resolves from a static token→permissions map, so module
+// tests need no OpenFGA container. Tests that must exercise real tuple
+// resolution use the matrix suite instead.
+type harnessResolver struct {
+	tokens map[string]string
+	perms  map[string][]authz.Permission
+}
+
+func (h harnessResolver) Resolve(_ context.Context, subject, _ string) (authz.PermissionSet, error) {
+	return authz.NewPermissionSet(h.perms[strings.TrimPrefix(subject, "user-")]...), nil
+}
+
 // ModuleHarness boots the full module stack (Postgres, NATS, routes,
 // consumers, dispatcher) for the given modules. One call replaces the
-// setup() previously copy-pasted per module test package.
-func ModuleHarness(t *testing.T, tokens map[string]string, mods ...platform.Module) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
+// setup() previously copy-pasted per module test package. perms maps
+// token → the permissions that token's caller holds.
+func ModuleHarness(t *testing.T, tokens map[string]string, perms map[string][]authz.Permission, mods ...platform.Module) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
 	appDSN, adminDSN := testinfra.StartPostgres(t)
 	db, err := tenantdb.Open(appDSN, adminDSN)
@@ -60,7 +74,10 @@ func ModuleHarness(t *testing.T, tokens map[string]string, mods ...platform.Modu
 	deps := platform.Deps{DB: db, Bus: bus}
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	api := r.Group("/v1", authn.Middleware(StaticVerifier(tokens)))
+	resolver := harnessResolver{tokens: tokens, perms: perms}
+	api := platform.NewRouter(r.Group("/v1",
+		authn.Middleware(StaticVerifier(tokens)),
+		authz.Middleware(resolver)))
 	for _, m := range mods {
 		m.Routes(api, deps)
 		require.NoError(t, bus.StartConsumers(ctx, db, m.Consumers(deps)))

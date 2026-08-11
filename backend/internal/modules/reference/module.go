@@ -15,6 +15,7 @@ import (
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
@@ -26,6 +27,10 @@ type Module struct{}
 func New() *Module { return &Module{} }
 
 func (m *Module) Name() string { return "reference" }
+
+// Permissions is empty: reference exposes no tenant data, so every
+// route is deliberately public (authz.Public).
+func (m *Module) Permissions() []authz.Grant { return nil }
 
 func (m *Module) Migrations() []tenantdb.Migration {
 	return []tenantdb.Migration{{
@@ -69,10 +74,10 @@ type pingedData struct {
 	PingID string `json:"ping_id"`
 }
 
-func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
+func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/reference")
 
-	g.POST("/ping", func(c *gin.Context) {
+	g.POST("/ping", authz.Public, func(c *gin.Context) {
 		p, tenantUUID, ok := authn.TenantPrincipal(c)
 		if !ok {
 			return
@@ -102,7 +107,7 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 		respond.Accepted(c, gin.H{"id": row.ID.String()})
 	})
 
-	g.GET("/pings", func(c *gin.Context) {
+	g.GET("/pings", authz.Public, func(c *gin.Context) {
 		p, _, ok := authn.TenantPrincipal(c)
 		if !ok {
 			return
@@ -118,7 +123,7 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 		respond.OK(c, gin.H{"data": rows})
 	})
 
-	g.GET("/pings/:id", func(c *gin.Context) {
+	g.GET("/pings/:id", authz.Public, func(c *gin.Context) {
 		p, _, ok := authn.TenantPrincipal(c)
 		if !ok {
 			return

@@ -15,6 +15,7 @@ import (
 
 	"github.com/tesserix/hms/internal/modules/pharmacy" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
 	"github.com/tesserix/hms/internal/testutil"
+	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
@@ -30,6 +31,13 @@ var (
 func setup(t *testing.T) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	r, db, bus, ctx := testutil.ModuleHarness(t,
 		map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB},
+		map[string][]authz.Permission{
+			"tokA": {
+				pharmacy.PermMedicationWrite, pharmacy.PermMedicationRead,
+				pharmacy.PermDispenseRead, pharmacy.PermDispenseFulfil,
+			},
+			"tokB": {pharmacy.PermDispenseRead, pharmacy.PermDispenseFulfil, pharmacy.PermMedicationRead},
+		},
 		pharmacy.New())
 	busRef = bus
 	return r, db, bus, ctx

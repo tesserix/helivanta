@@ -1,7 +1,7 @@
 package platform
 
 import (
-	"github.com/gin-gonic/gin"
+	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
@@ -17,6 +17,10 @@ type Deps struct {
 type Module interface {
 	Name() string
 	Migrations() []tenantdb.Migration
-	Routes(r *gin.RouterGroup, deps Deps)
+	// Permissions declares every permission this module's routes use and
+	// which system roles hold it. authz.RoleTenantAdmin is implicit — the
+	// reconciler grants it everything, so never list it here.
+	Permissions() []authz.Grant
+	Routes(r *Router, deps Deps)
 	Consumers(deps Deps) []events.Consumer
 }

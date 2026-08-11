@@ -360,3 +360,49 @@ func direct(db *DB) {
 		})
 	}
 }
+
+// NewBusInNamespace exists so many tests can share one NATS server; it is
+// not a deployment knob. A non-empty namespace renames the stream and
+// prefixes every subject, so production code calling it would quietly
+// publish into a subject space nothing consumes — a silent outage rather
+// than a failure. Tests may call it freely; shipped code may not.
+func TestNewBusInNamespaceIsTestOnly(t *testing.T) {
+	root := "../.."
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		if strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		// The declaration itself, and this check's own description of it.
+		if rel == "pkg/events/bus.go" || strings.HasPrefix(rel, "internal/archtest/") {
+			return nil
+		}
+		// Test-support packages are not _test.go files but never ship:
+		// nothing under cmd/ imports them, so they are the intended
+		// callers. Narrowing the rule to shipped code is the point —
+		// this guards deployment, not the word itself.
+		if strings.HasPrefix(rel, "internal/testinfra/") || strings.HasPrefix(rel, "internal/testutil/") {
+			return nil
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(src), "NewBusInNamespace") {
+			t.Errorf("%s calls events.NewBusInNamespace, which is test-only. Production code "+
+				"must use events.NewBus: a namespace renames the stream and prefixes every "+
+				"subject, so consumers would silently stop seeing events.", rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk repo: %v", err)
+	}
+}

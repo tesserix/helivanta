@@ -190,8 +190,32 @@ func newDatabase(t *testing.T) string {
 	return name
 }
 
-// StartNATS boots nats:2.10-alpine and returns the connection URL.
+// One NATS server is shared by every test in a binary, like Postgres and
+// OpenFGA. Isolation cannot come from the server here: JetStream refuses
+// two streams with overlapping subjects, so it comes from the subject
+// space instead — each caller builds its Bus with its own namespace via
+// events.NewBusInNamespace (see testutil.moduleHarness).
+var (
+	natsOnce sync.Once
+	natsURL  string
+	natsErr  error
+)
+
+// StartNATS returns the URL of the shared NATS server, booting it on
+// first use. As with the other containers it is never torn down by a
+// t.Cleanup — it belongs to the binary, not to one test.
 func StartNATS(t *testing.T) string {
+	t.Helper()
+	natsOnce.Do(func() {
+		natsURL, natsErr = startNATS(t)
+	})
+	if natsErr != nil {
+		t.Fatalf("%v", natsErr)
+	}
+	return natsURL
+}
+
+func startNATS(t *testing.T) (string, error) {
 	t.Helper()
 	ctx := context.Background()
 	nats, err := tcnats.Run(ctx, "nats:2.10-alpine",
@@ -199,16 +223,13 @@ func StartNATS(t *testing.T) string {
 			wait.ForListeningPort("4222/tcp").WithStartupTimeout(startupTimeout(t))),
 	)
 	if err != nil {
-		t.Fatalf("start nats: %v", err)
+		return "", fmt.Errorf("start nats: %w", err)
 	}
-	t.Cleanup(func() { _ = nats.Terminate(context.Background()) })
-
 	uri, err := nats.ConnectionString(ctx)
 	if err != nil {
-		t.Fatalf("nats dsn: %v", err)
+		return "", fmt.Errorf("nats dsn: %w", err)
 	}
-
-	return uri
+	return uri, nil
 }
 
 // One OpenFGA server is shared by every test in a binary, for the same

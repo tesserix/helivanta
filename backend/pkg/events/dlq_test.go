@@ -32,7 +32,7 @@ func TestHandleMsgDeadLettersAfterMaxDeliver(t *testing.T) {
 	require.NoError(t, db.Migrate(context.Background(), Migrations()))
 
 	natsURL := testinfra.StartNATS(t)
-	bus, err := NewBus(natsURL)
+	bus, err := NewBusInNamespace(natsURL, t.Name())
 	require.NoError(t, err)
 	defer bus.Close()
 
@@ -60,7 +60,7 @@ func TestHandleMsgDeadLettersAfterMaxDeliver(t *testing.T) {
 	rawNC, err := nats.Connect(natsURL)
 	require.NoError(t, err)
 	defer rawNC.Close()
-	dlqSub, err := rawNC.SubscribeSync("hms.dlq." + consumerName)
+	dlqSub, err := rawNC.SubscribeSync(bus.Subject("hms.dlq." + consumerName))
 	require.NoError(t, err)
 	defer func() { _ = dlqSub.Unsubscribe() }()
 

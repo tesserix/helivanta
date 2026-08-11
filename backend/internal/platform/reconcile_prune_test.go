@@ -90,6 +90,30 @@ func TestReconcilePrunesTenantWhoseLastMemberWasRevoked(t *testing.T) {
 	require.Equal(t, []string{ghost.Key()}, w.deleted)
 }
 
+// TestReconcileRefusesToPruneOnGlobalEmptyMembershipRead is the blast-radius
+// guard: if iam_members comes back with zero rows across every tenant —
+// e.g. ADMIN_DATABASE_URL misconfigured to a role that does not bypass
+// iam_members' FORCE ROW LEVEL SECURITY, so the query silently returns
+// nothing instead of erroring — Reconcile must refuse to treat that as
+// "every tenant lost its last member" and wipe the store. It must return
+// an error and delete nothing.
+func TestReconcileRefusesToPruneOnGlobalEmptyMembershipRead(t *testing.T) {
+	db := openMigratedDB(t) // no seedMember call: iam_members is empty for every tenant.
+
+	reg := platform.NewRegistry()
+	require.NoError(t, reg.Register(grantingModule{"x"}))
+	w := &capturingWriter{existing: map[string][]authz.Tuple{
+		tenantA: {backedRoleTuple(tenantA, "dr-jane", authz.RoleDoctor)},
+		tenantB: {backedRoleTuple(tenantB, "dr-bob", authz.RoleDoctor)},
+	}}
+
+	err := platform.Reconcile(context.Background(), reg, db, w)
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "refusing to reconcile")
+	require.Empty(t, w.deleted, "a global empty membership read must never trigger a delete")
+}
+
 // TestReconcileSkipsTupleFiledUnderTheWrongTenant proves the second of
 // the two isolation guards: even if the bucketing were wrong, a tuple
 // whose object names a different tenant than the bucket it arrived in is

@@ -182,6 +182,19 @@ type membership struct {
 // reach Postgres, but this raw-SQL read has no such gate: a row written
 // directly (the seed script, a manual fixup) is untrusted input exactly
 // like an HTTP body.
+//
+// A global empty read is treated as a misconfiguration, not as "every
+// tenant lost its last member". If iam_members comes back with zero rows
+// at all while OpenFGA still holds tuples, Reconcile refuses to prune and
+// returns an error instead — the same forced-RLS table that makes
+// WithAdmin necessary here (see above) would also silently return zero
+// rows, with no error, if ADMIN_DATABASE_URL were ever pointed at a role
+// that does not bypass RLS. Without this guard that misconfiguration
+// would read as "no tenant has any members" and Reconcile would delete
+// every role:/perm: tuple in the store on that boot. A per-tenant zero
+// (the legitimate last-member-revoked case) is unaffected: it only trips
+// when the membership read is empty across ALL tenants and there is
+// existing tuple data to lose.
 func Reconcile(ctx context.Context, reg *Registry, db *tenantdb.DB, w TupleReconciler) error {
 	existing, err := w.ReadTuplesByTenant(ctx)
 	if err != nil {
@@ -197,11 +210,42 @@ func Reconcile(ctx context.Context, reg *Registry, db *tenantdb.DB, w TupleRecon
 		return fmt.Errorf("list memberships: %w", err)
 	}
 
+	if n := existingTupleCount(existing); len(members) == 0 && n > 0 {
+		slog.ErrorContext(ctx, "refusing to reconcile: zero memberships read from Postgres but existing tuples found, this looks like a misconfiguration",
+			"existing_tuple_count", n, "existing_tenant_count", len(existing))
+		return fmt.Errorf(
+			"refusing to reconcile: zero memberships read from Postgres but %d existing tuples found across %d tenants, this looks like a misconfiguration (e.g. ADMIN_DATABASE_URL pointed at a role that does not bypass RLS)",
+			n, len(existing))
+	}
+
 	desired, err := applyGrants(ctx, reg, w, members)
 	if err != nil {
 		return err
 	}
-	return prune(ctx, w, existing, desired)
+
+	before := existingTupleCount(existing)
+	slog.InfoContext(ctx, "reconcile: starting prune",
+		"tenant_count", len(existing), "existing_tuple_count", before)
+
+	deleted, err := prune(ctx, w, existing, desired)
+	if err != nil {
+		return err
+	}
+
+	slog.InfoContext(ctx, "reconcile: prune complete",
+		"tenant_count", len(existing), "existing_tuple_count", before, "deleted_count", deleted)
+	return nil
+}
+
+// existingTupleCount sums the tuple counts across every tenant bucket in
+// existing, so the global-empty-read guard and the summary log can both
+// report a single total.
+func existingTupleCount(existing map[string][]authz.Tuple) int {
+	n := 0
+	for _, tuples := range existing {
+		n += len(tuples)
+	}
+	return n
 }
 
 // applyGrants writes every tuple Postgres backs and returns that same
@@ -246,7 +290,8 @@ func applyGrants(ctx context.Context, reg *Registry, w TupleWriter, members []me
 // does not parse, or parses to a different tenant than the bucket it
 // arrived in, is left alone rather than deleted — for an operation this
 // destructive, an unexplained tuple is a reason to stop, not to guess.
-func prune(ctx context.Context, w TupleReconciler, existing map[string][]authz.Tuple, desired map[string]tupleSet) error {
+func prune(ctx context.Context, w TupleReconciler, existing map[string][]authz.Tuple, desired map[string]tupleSet) (int, error) {
+	deleted := 0
 	for tenantID, tuples := range existing {
 		want := desired[tenantID]
 		for _, t := range tuples {
@@ -260,12 +305,13 @@ func prune(ctx context.Context, w TupleReconciler, existing map[string][]authz.T
 				continue
 			}
 			if err := w.DeleteTuple(ctx, t); err != nil {
-				return fmt.Errorf("delete orphaned tuple %s#%s@%s in tenant %s: %w",
+				return deleted, fmt.Errorf("delete orphaned tuple %s#%s@%s in tenant %s: %w",
 					t.Object, t.Relation, t.User, tenantID, err)
 			}
+			deleted++
 			slog.WarnContext(ctx, "deleted authorization tuple no longer backed by postgres",
 				"tenant_id", tenantID, "object", t.Object, "relation", t.Relation, "user", t.User)
 		}
 	}
-	return nil
+	return deleted, nil
 }

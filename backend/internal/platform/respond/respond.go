@@ -36,3 +36,10 @@ func Internal(c *gin.Context, message string) {
 func Unauthenticated(c *gin.Context, message string) {
 	Error(c, http.StatusUnauthorized, "unauthenticated", message)
 }
+
+// Forbidden means the caller is a member of the tenant but lacks the
+// permission. Cross-tenant access returns NotFound instead — the record
+// does not exist for that caller.
+func Forbidden(c *gin.Context, message string) {
+	Error(c, http.StatusForbidden, "forbidden", message)
+}

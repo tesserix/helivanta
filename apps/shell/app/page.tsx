@@ -57,36 +57,34 @@ export default function Dashboard() {
 
   return (
     <HmsShell active="/" tenantPicker={<TenantPicker />}>
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-          <h2 className="text-sm font-semibold text-muted-foreground">Jump into a department</h2>
-          <p className="text-xs text-muted-foreground">Manage visits, dispensing and lab work.</p>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {cards.map((z) => (
-            <a
-              key={z.href}
-              href={z.href}
-              className="group flex items-start gap-4 rounded-xl border bg-card p-4 shadow-sm transition-colors hover:bg-(--muted) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--hms-accent)"
+      <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+        <h2 className="text-sm font-semibold text-muted-foreground">Jump into a department</h2>
+        <p className="text-xs text-muted-foreground">Manage visits, dispensing and lab work.</p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {cards.map((z) => (
+          <a
+            key={z.href}
+            href={z.href}
+            className="group flex items-start gap-4 rounded-xl border bg-card p-4 shadow-sm transition-colors hover:bg-(--muted) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--hms-accent)"
+          >
+            <span
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${TINT_CLASSES[z.hue]}`}
             >
-              <span
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${TINT_CLASSES[z.hue]}`}
-              >
-                <z.icon className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="font-medium text-foreground">{z.title}</div>
-                <div className="mt-0.5 text-sm text-muted-foreground">{z.desc}</div>
-              </div>
-              <span
-                className="text-muted-foreground transition-colors group-hover:text-(--hms-accent)"
-                aria-hidden="true"
-              >
-                →
-              </span>
-            </a>
-          ))}
-        </div>
+              <z.icon className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="font-medium text-foreground">{z.title}</div>
+              <div className="mt-0.5 text-sm text-muted-foreground">{z.desc}</div>
+            </div>
+            <span
+              className="text-muted-foreground transition-colors group-hover:text-(--hms-accent)"
+              aria-hidden="true"
+            >
+              →
+            </span>
+          </a>
+        ))}
       </div>
     </HmsShell>
   );

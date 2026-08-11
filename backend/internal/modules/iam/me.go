@@ -61,7 +61,22 @@ func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
 			respond.Internal(c, "authorization not initialized")
 			return
 		}
-		respond.OK(c, gin.H{"data": set.Sorted()})
+		// subject and tenant_id travel with the permission set so the
+		// client-side cache in @hms/api can tell whose permissions it
+		// holds. The session cookie is httpOnly, so this response is the
+		// only place the browser can learn that identity — without it a
+		// cached set could be painted for the wrong user or tenant after
+		// a session change on a shared terminal.
+		p, ok := authn.PrincipalFrom(c)
+		if !ok {
+			respond.Unauthenticated(c, "missing principal")
+			return
+		}
+		respond.OK(c, gin.H{
+			"data":      set.Sorted(),
+			"subject":   p.Subject,
+			"tenant_id": p.TenantID,
+		})
 	})
 
 	g.GET("/me/tenants", authz.Public, func(c *gin.Context) {

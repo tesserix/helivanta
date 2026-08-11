@@ -24,10 +24,19 @@ from GitHub Packages.
 
 Log in at http://localhost:4301/login:
 
-| User                 | Password      | Sees                        |
-| -------------------- | ------------- | ---------------------------- |
-| `test@hms.dev`       | `password123` | every zone (`tenant_admin`) |
-| `pharmacist@hms.dev` | `password123` | Pharmacy only                |
+| User                 | Password      | Tenant                 | Role           | Sees              |
+| -------------------- | ------------- | ---------------------- | -------------- | ----------------- |
+| `test@hms.dev`       | `password123` | `1111…1111` (default)  | `tenant_admin` | every zone        |
+| `test@hms.dev`       | `password123` | `2222…2222`            | `pharmacist`   | Pharmacy only     |
+| `pharmacist@hms.dev` | `password123` | `1111…1111`            | `pharmacist`   | Pharmacy only     |
+
+`test@hms.dev` is deliberately a member of **two** tenants so tenant
+switching is exercisable by hand: log in as that user and use the hospital
+picker in the sidebar. Switching re-mints the session with the target
+tenant's claim, so the visible zones change from "all" to "Pharmacy only".
+`pharmacist@hms.dev` shows permission gating without switching.
+
+Stop everything with `make dev-down`.
 
 `make dev` points the API at the local GIP emulator automatically
 (`FIREBASE_AUTH_EMULATOR_HOST=localhost:9099`); override the variable to
@@ -46,5 +55,10 @@ Postgres 5432, NATS 4222, Redis 6379, OpenFGA 8090, GIP emulator 9099.
   a fresh clone with no API running — `iam_members` exists before seed
   writes to it.
 - Backend tests need Docker (testcontainers): `cd backend && go test ./...`
+- `make verify-local` retries the zone checks: `next dev` compiles a route on
+  its first request, so a cold zone can take tens of seconds to answer once
+  and milliseconds thereafter. A genuinely down service still fails.
+- Useful targets: `make test` (Go + web), `make lint-go`, `make coverage-go`,
+  `make e2e` (Playwright, needs the stack up), `make new-module NAME=<name>`.
 
 Deployment lives in `tesserix-k8s` (charts/apps/hms-*), not here.

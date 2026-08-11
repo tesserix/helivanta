@@ -5,14 +5,26 @@ set -uo pipefail
 
 fail=0
 
+# check <name> <url> [attempts] [max-time]
+#
+# Retries because `next dev` compiles a route the first time it is
+# requested: a cold zone can take tens of seconds to answer its very first
+# request and answer in milliseconds thereafter. Without retrying, the
+# first run of this script on a freshly started stack reports FAIL against
+# a perfectly healthy app — the worst possible moment to cry wolf, since a
+# developer seeing it has no way to tell a cold compile from a real break.
 check() {
-  local name="$1" url="$2"
-  if curl -fsS --max-time 5 "$url" >/dev/null 2>&1; then
-    printf '  ok    %-24s %s\n' "$name" "$url"
-  else
-    printf '  FAIL  %-24s %s\n' "$name" "$url"
-    fail=1
-  fi
+  local name="$1" url="$2" attempts="${3:-1}" max_time="${4:-5}"
+  local i
+  for ((i = 1; i <= attempts; i++)); do
+    if curl -fsS --max-time "$max_time" "$url" >/dev/null 2>&1; then
+      printf '  ok    %-24s %s\n' "$name" "$url"
+      return
+    fi
+    [ "$i" -lt "$attempts" ] && sleep 2
+  done
+  printf '  FAIL  %-24s %s\n' "$name" "$url"
+  fail=1
 }
 
 echo "Infrastructure:"
@@ -29,10 +41,13 @@ check "api ready"        "http://localhost:8080/readyz"
 echo "Frontend zones:"
 # Each zone app sets basePath in next.config.ts (e.g. medicore is served
 # under /medicore, not "/") — the bare root 404s.
-check "shell    (4301)"  "http://localhost:4301/login"
-check "medicore (4302)"  "http://localhost:4302/medicore"
-check "pharmacy (4303)"  "http://localhost:4303/pharmacy"
-check "lab      (4304)"  "http://localhost:4304/lab"
+#
+# 10 attempts x 20s covers a cold `next dev` first-request compile, which
+# routinely exceeds the 5s the backend checks use.
+check "shell    (4301)"  "http://localhost:4301/login"    10 20
+check "medicore (4302)"  "http://localhost:4302/medicore" 10 20
+check "pharmacy (4303)"  "http://localhost:4303/pharmacy" 10 20
+check "lab      (4304)"  "http://localhost:4304/lab"      10 20
 
 echo
 if [ "$fail" -eq 0 ]; then

@@ -4,9 +4,13 @@ import (
 	"context"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/hms/internal/modules/iam"
+	"github.com/tesserix/hms/internal/modules/lab"
+	"github.com/tesserix/hms/internal/modules/medicore"
+	"github.com/tesserix/hms/internal/modules/pharmacy"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testinfra"
 	"github.com/tesserix/hms/pkg/authz"
@@ -110,20 +114,92 @@ func TestCrossTenantDenial(t *testing.T) {
 }
 
 // TestEveryGuardedRouteIsCoveredByTheMatrix fails if a module guards a
-// route with a permission that no system role holds — such a route would
-// be unreachable for everyone except tenant_admin, which is nearly always
-// a declaration bug.
+// route (per platform.Router.Declared()) with a permission that no system
+// role but tenant_admin holds — such a route would be unreachable for
+// everyone else, which is nearly always a declaration bug. It is the
+// route half of the pair that starts with TestEveryDeclaredPermissionIsGranted
+// in arch_test.go (every permission a route uses must be declared in
+// Permissions()) — this test adds the other direction, that every
+// permission a route uses is actually reachable by some non-admin role.
 func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 	reg := registry(t)
 	holders := map[authz.Permission]int{}
 	for _, g := range platform.GrantsFor(reg) {
 		holders[g.Permission] = len(g.Roles)
 	}
-	for perm, n := range holders {
-		// Every grant gets tenant_admin appended, so a permission held by
-		// exactly one role is admin-only.
-		if n <= 1 && perm != iam.PermMemberManage {
-			t.Errorf("permission %q is held by tenant_admin only; declare the role that needs it", perm)
+
+	for _, m := range allModules() {
+		e := gin.New()
+		r := platform.NewRouter(e.Group("/v1"))
+		m.Routes(r, platform.Deps{})
+		for _, perm := range r.Declared() {
+			if perm == authz.Public {
+				continue
+			}
+			// Every grant gets tenant_admin appended, so a permission held
+			// by exactly one role is admin-only.
+			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage {
+				t.Errorf("module %q guards a route with %q, held by tenant_admin only; declare the role that needs it", m.Name(), perm)
+			}
 		}
+	}
+}
+
+// approvedPermissionMatrix is the independently-authored ground truth for
+// the role -> permission mapping, transcribed by hand from the design
+// spec's "System roles" table
+// (docs/superpowers/specs/2026-08-11-hms-authorization-design.md) crossed
+// with the mapping actually implemented, as recorded in
+// .superpowers/sdd/2026-08-11-hms-authorization/task-4-report.md. The spec
+// table predates pharmacy.medication.write, which the Task 4 mapping adds
+// (pharmacist-only); this literal uses the implemented set.
+//
+// Deliberately NOT derived from platform.GrantsFor: TestPermissionMatrix's
+// own ground truth (expectedPermissions) calls that same function, so a
+// role swapped between two roles in a module's Permissions() would change
+// both the tuples written and the expected set identically and stay
+// green. This literal is the independent oracle that catches exactly that
+// bug class — a role mapping change must be a deliberate, reviewable edit
+// here.
+var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
+	iam.PermMemberManage: {authz.RoleTenantAdmin},
+
+	medicore.PermVisitCreate: {authz.RoleDoctor, authz.RoleTenantAdmin},
+	medicore.PermVisitRead:   {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},
+	medicore.PermVisitUpdate: {authz.RoleNurse, authz.RoleTenantAdmin},
+
+	pharmacy.PermMedicationWrite: {authz.RolePharmacist, authz.RoleTenantAdmin},
+	pharmacy.PermMedicationRead:  {authz.RolePharmacist, authz.RoleTenantAdmin},
+	pharmacy.PermDispenseRead:    {authz.RolePharmacist, authz.RoleDoctor, authz.RoleTenantAdmin},
+	pharmacy.PermDispenseFulfil:  {authz.RolePharmacist, authz.RoleTenantAdmin},
+
+	lab.PermOrderRead:   {authz.RoleLabTech, authz.RoleDoctor, authz.RoleTenantAdmin},
+	lab.PermOrderFulfil: {authz.RoleLabTech, authz.RoleTenantAdmin},
+}
+
+// TestDeclaredPermissionsMatchTheApprovedMatrix is the independent-oracle
+// half of the phase gate: it asserts platform.GrantsFor produces exactly
+// approvedPermissionMatrix — same permissions, same roles per permission,
+// no extras, no omissions. Unlike TestPermissionMatrix (which proves the
+// tuple-write/resolve/tenant-scope plumbing works, using GrantsFor as its
+// own ground truth), this test is the only one that can catch a module
+// declaring the wrong role for a permission, because its expected table
+// is hand-authored from the approved design rather than computed from the
+// code under test.
+func TestDeclaredPermissionsMatchTheApprovedMatrix(t *testing.T) {
+	reg := registry(t)
+	actual := map[authz.Permission][]authz.Role{}
+	for _, g := range platform.GrantsFor(reg) {
+		actual[g.Permission] = g.Roles
+	}
+
+	require.Equal(t, len(approvedPermissionMatrix), len(actual),
+		"declared permission count must match the approved matrix exactly (no extras, no omissions)")
+
+	for perm, wantRoles := range approvedPermissionMatrix {
+		gotRoles, ok := actual[perm]
+		require.Truef(t, ok, "approved matrix expects permission %q but GrantsFor does not produce it", perm)
+		require.ElementsMatchf(t, wantRoles, gotRoles, "permission %q: role mismatch (want %v, got %v)", perm, wantRoles, gotRoles)
 	}
 }

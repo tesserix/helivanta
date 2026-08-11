@@ -2,7 +2,8 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { ChevronsLeft, ChevronsRight, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { ZONES, activeZone } from "./zones";
+import { usePermissions } from "@hms/api";
+import { visibleZones, activeZone } from "./zones";
 
 // Two-rail chrome in the tesserix-home AdminSidebar style. Both rails
 // collapse independently: the zone rail toggles icons-only ↔ icons+labels,
@@ -26,8 +27,31 @@ function usePersistedFlag(key: string, fallback: boolean) {
   return [value, update] as const;
 }
 
-export function HmsShell({ active, children }: { active: string; children: ReactNode }) {
-  const zone = activeZone(active);
+/**
+ * `tenantPicker` is a slot in the zone rail rather than a component this
+ * package owns. Switching hospitals means re-minting the session — a
+ * Firebase custom-token exchange plus a POST to the shell's session route
+ * — and both the client config and that route belong to the shell app
+ * (`apps/shell/components/tenant-picker.tsx`). Keeping the control here
+ * would either drag app-specific auth config into `@hms/ui` or render a
+ * switcher that cannot finish the switch, which is the exact failure this
+ * slot exists to prevent. Zone apps pass nothing and show no switcher;
+ * their users switch from the dashboard.
+ */
+export function HmsShell({
+  active,
+  tenantPicker,
+  children,
+}: {
+  active: string;
+  tenantPicker?: ReactNode;
+  children: ReactNode;
+}) {
+  const { can } = usePermissions();
+  const zones = visibleZones(can);
+  // Fall back to the dashboard (always present in `zones`) if the active
+  // zone was filtered out — e.g. while permissions are still loading.
+  const zone = zones.find((z) => z.key === activeZone(active).key) ?? zones[0];
   const [railExpanded, setRailExpanded] = usePersistedFlag(RAIL_KEY, false);
   const [panelOpen, setPanelOpen] = usePersistedFlag(PANEL_KEY, true);
 
@@ -58,7 +82,7 @@ export function HmsShell({ active, children }: { active: string; children: React
           aria-label="Zones"
           className={`flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto py-4 ${railExpanded ? "px-3" : "items-center px-0"}`}
         >
-          {ZONES.map((z) => {
+          {zones.map((z) => {
             const isActive = z.key === zone.key;
             return (
               <a
@@ -82,6 +106,7 @@ export function HmsShell({ active, children }: { active: string; children: React
           })}
         </nav>
         <div className={`flex flex-col gap-1 py-3 ${railExpanded ? "px-3" : "items-center px-0"}`}>
+          {tenantPicker}
           <a
             href="/logout"
             title={railExpanded ? undefined : "Sign out"}

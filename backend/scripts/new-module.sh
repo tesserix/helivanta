@@ -43,6 +43,7 @@ import (
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
@@ -54,11 +55,26 @@ const (
 	SubjectItemDone = "hms.in.__NAME__.item_done.v1"
 )
 
+// TODO: rename these permissions to your real domain nouns before
+// shipping ("<module>.<resource>.<action>", see
+// docs/standards/backend.md section 11).
+const (
+	PermItemRead  authz.Permission = "__NAME__.item.read"
+	PermItemWrite authz.Permission = "__NAME__.item.write"
+)
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
 
 func (m *Module) Name() string { return "__NAME__" }
+
+func (m *Module) Permissions() []authz.Grant {
+	return []authz.Grant{
+		{Permission: PermItemRead, Roles: []authz.Role{}},   // TODO: choose the roles that hold this permission
+		{Permission: PermItemWrite, Roles: []authz.Role{}},  // TODO: choose the roles that hold this permission
+	}
+}
 
 func (m *Module) Migrations() []tenantdb.Migration {
 	return []tenantdb.Migration{{
@@ -106,10 +122,10 @@ type itemDoneData struct {
 	ItemID string `json:"item_id"`
 }
 
-func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
+func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/__NAME__")
 
-	g.POST("/items", func(c *gin.Context) {
+	g.POST("/items", PermItemWrite, func(c *gin.Context) {
 		p, tenantUUID, ok := authn.TenantPrincipal(c)
 		if !ok {
 			return
@@ -139,7 +155,7 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 		respond.Accepted(c, gin.H{"id": row.ID.String()})
 	})
 
-	g.GET("/items", func(c *gin.Context) {
+	g.GET("/items", PermItemRead, func(c *gin.Context) {
 		p, _, ok := authn.TenantPrincipal(c)
 		if !ok {
 			return
@@ -155,7 +171,7 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 		respond.OK(c, gin.H{"data": rows})
 	})
 
-	g.POST("/items/:id/done", func(c *gin.Context) {
+	g.POST("/items/:id/done", PermItemWrite, func(c *gin.Context) {
 		p, _, ok := authn.TenantPrincipal(c)
 		if !ok {
 			return
@@ -243,6 +259,7 @@ import (
 
 	"github.com/tesserix/hms/internal/modules/__NAME__" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
 	"github.com/tesserix/hms/internal/testutil"
+	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -251,6 +268,10 @@ var do = testutil.Do
 func setup(t *testing.T) (*gin.Engine, *tenantdb.DB, context.Context) {
 	r, db, _, ctx := testutil.ModuleHarness(t,
 		map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB},
+		map[string][]authz.Permission{
+			"tokA": {__NAME__.PermItemRead, __NAME__.PermItemWrite},
+			"tokB": {__NAME__.PermItemRead, __NAME__.PermItemWrite},
+		},
 		__NAME__.New())
 	return r, db, ctx
 }
@@ -321,7 +342,9 @@ rm -f "$DIR/module.go.bak" "$DIR/module_test.go.bak"
 gofmt -w "$DIR"
 
 echo "Created $DIR. Follow-ups:"
-echo "1. Register ${NAME}.New() in cmd/api/main.go (registry loop)"
+echo "1. Register ${NAME}.New() in internal/bootstrap/modules.go's Modules() (shared by cmd/api and cmd/migrate)"
 echo "2. Add ${NAME}.New() to allModules() in internal/archtest/arch_test.go"
-echo "3. Rename the placeholder 'item' domain to your real nouns"
-echo "4. cd backend && go test -race ./internal/modules/$NAME/ ./internal/archtest/"
+echo "3. Declare real permissions and the roles that hold them in Permissions() (docs/standards/backend.md section 11)"
+echo "4. Add those permissions/roles to approvedPermissionMatrix in internal/archtest/matrix_test.go"
+echo "5. Rename the placeholder 'item' domain to your real nouns"
+echo "6. cd backend && go test -race ./internal/modules/$NAME/ ./internal/archtest/"

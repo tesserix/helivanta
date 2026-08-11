@@ -24,22 +24,30 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("DispenseList", () => {
   it("dispenses a pending row", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse(200, { data: [pendingRow] }))
-      .mockResolvedValueOnce(jsonResponse(200, { id: "d-1", status: "dispensed" }))
-      .mockResolvedValue(
+    let dispensed = false;
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes("/iam/me/permissions")) {
+        return Promise.resolve(jsonResponse(200, { data: ["pharmacy.dispense.fulfil"] }));
+      }
+      if (init?.method === "POST") {
+        dispensed = true;
+        return Promise.resolve(jsonResponse(200, { id: "d-1", status: "dispensed" }));
+      }
+      return Promise.resolve(
         jsonResponse(200, {
           data: [
-            {
-              ...pendingRow,
-              status: "dispensed",
-              medication: "Paracetamol 500mg",
-              dispensed_at: "2026-08-04T04:01:00Z",
-            },
+            dispensed
+              ? {
+                  ...pendingRow,
+                  status: "dispensed",
+                  medication: "Paracetamol 500mg",
+                  dispensed_at: "2026-08-04T04:01:00Z",
+                }
+              : pendingRow,
           ],
         }),
       );
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const { user } = renderWithProviders(<DispenseList />);
@@ -57,5 +65,20 @@ describe("DispenseList", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, { data: [] })));
     renderWithProviders(<DispenseList />);
     expect(await screen.findByText(/No dispense tasks yet/)).toBeInTheDocument();
+  });
+
+  it("hides the dispense button without permission", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("/iam/me/permissions")) {
+          return Promise.resolve(jsonResponse(200, { data: [] }));
+        }
+        return Promise.resolve(jsonResponse(200, { data: [pendingRow] }));
+      }),
+    );
+    renderWithProviders(<DispenseList />);
+    await screen.findByText("Asha Rao");
+    expect(screen.queryByRole("button", { name: "Dispense" })).not.toBeInTheDocument();
   });
 });

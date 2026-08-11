@@ -14,17 +14,32 @@ import (
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
 const SubjectVisitCreated = "hms.in.medicore.visit_created.v1"
 
+const (
+	PermVisitCreate authz.Permission = "medicore.visit.create"
+	PermVisitRead   authz.Permission = "medicore.visit.read"
+	PermVisitUpdate authz.Permission = "medicore.visit.update"
+)
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
 
 func (m *Module) Name() string { return "medicore" }
+
+func (m *Module) Permissions() []authz.Grant {
+	return []authz.Grant{
+		{Permission: PermVisitCreate, Roles: []authz.Role{authz.RoleDoctor}},
+		{Permission: PermVisitRead, Roles: []authz.Role{authz.RoleDoctor, authz.RoleNurse}},
+		{Permission: PermVisitUpdate, Roles: []authz.Role{authz.RoleNurse}},
+	}
+}
 
 func (m *Module) Migrations() []tenantdb.Migration {
 	return []tenantdb.Migration{{
@@ -70,10 +85,10 @@ type VisitCreatedData struct {
 	Department  string `json:"department"`
 }
 
-func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
+func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/medicore")
 
-	g.POST("/visits", func(c *gin.Context) {
+	g.POST("/visits", PermVisitCreate, func(c *gin.Context) {
 		p, tenantUUID, ok := authn.TenantPrincipal(c)
 		if !ok {
 			return
@@ -105,7 +120,7 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 		respond.Accepted(c, gin.H{"id": row.ID.String()})
 	})
 
-	g.GET("/visits", func(c *gin.Context) {
+	g.GET("/visits", PermVisitRead, func(c *gin.Context) {
 		p, _, ok := authn.TenantPrincipal(c)
 		if !ok {
 			return

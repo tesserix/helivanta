@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Badge, Button, Input } from "@tesserix/web";
 import { Pill } from "lucide-react";
-import { apiFetch, useApiMutation, useApiQuery } from "@hms/api";
+import { Can, apiFetch, useApiMutation, useApiQuery } from "@hms/api";
 import { EmptyState, formatTime } from "@hms/ui";
 
 type Dispense = {
@@ -84,14 +84,16 @@ export function DispenseList() {
               </div>
             </div>
             {d.status === "pending" ? (
-              <Button
-                onClick={() => dispenseRow.mutate(d.id)}
-                disabled={dispenseRow.isPending && dispenseRow.variables === d.id}
-              >
-                {dispenseRow.isPending && dispenseRow.variables === d.id
-                  ? "Dispensing…"
-                  : "Dispense"}
-              </Button>
+              <Can permission="pharmacy.dispense.fulfil">
+                <Button
+                  onClick={() => dispenseRow.mutate(d.id)}
+                  disabled={dispenseRow.isPending && dispenseRow.variables === d.id}
+                >
+                  {dispenseRow.isPending && dispenseRow.variables === d.id
+                    ? "Dispensing…"
+                    : "Dispense"}
+                </Button>
+              </Can>
             ) : (
               <time className="shrink-0 tabular-nums text-muted-foreground">
                 {formatTime(d.dispensed_at ?? "")}

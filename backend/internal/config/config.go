@@ -8,6 +8,8 @@ type Config struct {
 	AdminDatabaseURL string
 	NATSURL          string
 	GIPProjectID     string
+	OpenFGAURL       string
+	OpenFGAStore     string
 }
 
 func Load() Config {
@@ -17,6 +19,8 @@ func Load() Config {
 		AdminDatabaseURL: getenv("ADMIN_DATABASE_URL", "postgres://hms:hms@localhost:5432/hms?sslmode=disable"),
 		NATSURL:          getenv("NATS_URL", "nats://localhost:4222"),
 		GIPProjectID:     getenv("GIP_PROJECT_ID", "demo-hms"),
+		OpenFGAURL:       getenv("OPENFGA_URL", "http://localhost:8090"),
+		OpenFGAStore:     getenv("OPENFGA_STORE", "hms"),
 	}
 }
 

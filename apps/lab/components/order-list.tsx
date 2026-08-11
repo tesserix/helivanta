@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Badge, Button, Input } from "@tesserix/web";
 import { FlaskConical } from "lucide-react";
-import { apiFetch, useApiMutation, useApiQuery } from "@hms/api";
+import { Can, apiFetch, useApiMutation, useApiQuery } from "@hms/api";
 import { EmptyState, formatTime } from "@hms/ui";
 
 type Order = {
@@ -80,17 +80,19 @@ export function OrderList() {
                   placeholder="e.g. WBC 6.1"
                   className="w-44"
                 />
-                <Button
-                  onClick={() => saveResult.mutate({ id: o.id, value: drafts[o.id] ?? "" })}
-                  disabled={
-                    (saveResult.isPending && saveResult.variables?.id === o.id) ||
-                    !(drafts[o.id] ?? "").trim()
-                  }
-                >
-                  {saveResult.isPending && saveResult.variables?.id === o.id
-                    ? "Saving…"
-                    : "Save result"}
-                </Button>
+                <Can permission="lab.order.fulfil">
+                  <Button
+                    onClick={() => saveResult.mutate({ id: o.id, value: drafts[o.id] ?? "" })}
+                    disabled={
+                      (saveResult.isPending && saveResult.variables?.id === o.id) ||
+                      !(drafts[o.id] ?? "").trim()
+                    }
+                  >
+                    {saveResult.isPending && saveResult.variables?.id === o.id
+                      ? "Saving…"
+                      : "Save result"}
+                  </Button>
+                </Can>
               </div>
             ) : (
               <time className="shrink-0 tabular-nums text-muted-foreground">

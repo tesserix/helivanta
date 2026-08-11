@@ -1,4 +1,4 @@
-.PHONY: dev dev-infra dev-down dev-api dev-web seed test test-go coverage-go test-web e2e lint-go new-module
+.PHONY: dev dev-infra dev-down dev-api dev-web migrate seed test test-go coverage-go test-web e2e lint-go new-module verify-local
 
 dev-infra:
 	docker compose -f docker-compose.dev.yml up -d --wait postgres nats redis openfga
@@ -17,8 +17,17 @@ dev: dev-infra
 	@echo "Infra up. Starting API + web (Ctrl-C stops both)…"
 	@$(MAKE) -j2 dev-api dev-web
 
-seed:
+migrate:
+	cd backend && go run ./cmd/migrate
+
+# seed depends on migrate so `make dev-infra && make seed` works on a
+# fresh clone with no API running — seed writes into iam_members, which
+# only exists after migrations have run.
+seed: migrate
 	node scripts/seed-dev.mjs
+
+verify-local:
+	./scripts/verify-local.sh
 
 test: test-go test-web
 

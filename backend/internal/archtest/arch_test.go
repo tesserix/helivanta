@@ -5,28 +5,40 @@
 package archtest
 
 import (
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"golang.org/x/tools/go/packages"
 
+	"github.com/tesserix/hms/internal/bootstrap"
+	"github.com/tesserix/hms/internal/modules/iam"
 	"github.com/tesserix/hms/internal/modules/lab"
 	"github.com/tesserix/hms/internal/modules/medicore"
 	"github.com/tesserix/hms/internal/modules/pharmacy"
 	"github.com/tesserix/hms/internal/modules/reference"
 	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 )
 
 const modulesPrefix = "github.com/tesserix/hms/internal/modules/"
 
-// allModules must list every registered module. cmd/api/main.go is the
-// runtime source of truth; keep them in sync (the generator prints a
-// reminder).
+// allModules must list every registered module. bootstrap.Modules()
+// (backend/internal/bootstrap/modules.go) — shared by cmd/api and
+// cmd/migrate — is the runtime source of truth; keep them in sync (the
+// generator prints a reminder, and TestMainRegistersExactlyAllModules
+// below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{reference.New(), medicore.New(), pharmacy.New(), lab.New()}
+	return []platform.Module{iam.New(), reference.New(), medicore.New(), pharmacy.New(), lab.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under
@@ -113,37 +125,25 @@ func TestPublishedSubjectConstants(t *testing.T) {
 	}
 }
 
-// moduleLiteralRe finds the `[]platform.Module{...}` literal in main.go's
-// registry loop.
-var moduleLiteralRe = regexp.MustCompile(`\[\]platform\.Module\{([^}]*)\}`)
-
-// moduleCtorRe pulls out `<pkg>.New()` constructor calls from inside the
-// literal.
-var moduleCtorRe = regexp.MustCompile(`(\w+)\.New\(\)`)
-
 // TestMainRegistersExactlyAllModules guards registry parity: every module
-// constructor registered in cmd/api/main.go's `[]platform.Module{...}`
-// literal must also appear in allModules(), and vice versa. Without this,
-// a module added to one but forgotten in the other silently skips either
-// production registration or the arch/coverage checks that walk
-// allModules().
+// constructor in bootstrap.Modules() — the single shared constructor
+// cmd/api and cmd/migrate both call — must also appear in allModules(),
+// and vice versa. Without this, a module added to one but forgotten in
+// the other silently skips either production registration or the
+// arch/coverage checks that walk allModules().
+//
+// This used to source-parse cmd/api/main.go's `[]platform.Module{...}`
+// literal directly. That broke the moment the module list moved into
+// bootstrap.Modules() (Task 14) so cmd/api and cmd/migrate could share
+// it instead of each hand-writing a copy — comparing against the shared
+// constructor is both the fix and the simpler check.
 func TestMainRegistersExactlyAllModules(t *testing.T) {
-	src, err := os.ReadFile("../../cmd/api/main.go")
-	if err != nil {
-		t.Fatalf("read cmd/api/main.go: %v", err)
-	}
-
-	lit := moduleLiteralRe.FindSubmatch(src)
-	if lit == nil {
-		t.Fatalf("could not find []platform.Module{...} literal in cmd/api/main.go")
-	}
-
 	registered := map[string]bool{}
-	for _, m := range moduleCtorRe.FindAllSubmatch(lit[1], -1) {
-		registered[string(m[1])] = true
+	for _, m := range bootstrap.Modules() {
+		registered[m.Name()] = true
 	}
 	if len(registered) == 0 {
-		t.Fatalf("found []platform.Module{...} literal but no <pkg>.New() constructors inside it")
+		t.Fatalf("bootstrap.Modules() returned no modules")
 	}
 
 	expected := map[string]bool{}
@@ -153,12 +153,210 @@ func TestMainRegistersExactlyAllModules(t *testing.T) {
 
 	for name := range registered {
 		if !expected[name] {
-			t.Errorf("cmd/api/main.go registers module %q but allModules() in arch_test.go does not include it", name)
+			t.Errorf("bootstrap.Modules() registers module %q but allModules() in arch_test.go does not include it", name)
 		}
 	}
 	for name := range expected {
 		if !registered[name] {
-			t.Errorf("allModules() in arch_test.go includes module %q but cmd/api/main.go does not register it", name)
+			t.Errorf("allModules() in arch_test.go includes module %q but bootstrap.Modules() does not register it", name)
 		}
+	}
+}
+
+// TestModulesDoNotUseRawGinGroups keeps the compile-time guarantee that
+// every route declares a permission: a module that reached for
+// *gin.RouterGroup directly could register an unguarded route.
+func TestModulesDoNotUseRawGinGroups(t *testing.T) {
+	root := "../modules"
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(src), "gin.RouterGroup") {
+			t.Errorf("%s references gin.RouterGroup; modules must use *platform.Router", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk modules: %v", err)
+	}
+}
+
+// TestEveryDeclaredPermissionIsGranted catches a module that guards a
+// route with a permission it never declared in Permissions() — the route
+// would be permanently unreachable for every non-admin role.
+func TestEveryDeclaredPermissionIsGranted(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, m := range allModules() {
+		declaredByGrants := map[authz.Permission]bool{authz.Public: true}
+		for _, g := range m.Permissions() {
+			declaredByGrants[g.Permission] = true
+		}
+		e := gin.New()
+		r := platform.NewRouter(e.Group("/v1"))
+		m.Routes(r, platform.Deps{})
+		for _, p := range r.Declared() {
+			if !declaredByGrants[p] {
+				t.Errorf("module %q guards a route with %q but does not declare it in Permissions()", m.Name(), p)
+			}
+		}
+	}
+}
+
+// withAdminAllowlist is exactly the files permitted to call
+// tenantdb.DB.WithAdmin — the reconciler (its one legitimate whole-system
+// caller) and pkg/tenantdb itself (the method's own definition and its
+// direct test). Extending this list is a real RLS-bypass decision, not a
+// convenience; it belongs in code review, not a casual addition here.
+var withAdminAllowlist = map[string]bool{
+	"internal/platform/reconcile.go": true,
+}
+
+// withAdminAllowedDir reports whether path sits under a directory that's
+// wholesale allowed to call WithAdmin.
+func withAdminAllowedDir(path string) bool {
+	return strings.HasPrefix(path, "pkg/tenantdb/")
+}
+
+// sourceReferencesWithAdmin parses src as Go source and reports whether
+// it contains any selector expression whose field/method name is
+// "WithAdmin" — whether invoked as a call (db.WithAdmin(ctx, fn)) or
+// referenced bare as a method value (f := db.WithAdmin). A plain text
+// scan for the literal ".WithAdmin(" call substring — this function's
+// predecessor — misses the second form entirely: assigning the method
+// value to a variable and calling that variable instead leaves no
+// ".WithAdmin(" substring anywhere in the source, even though the
+// resulting call still runs on the RLS-bypassing admin pool. Matching
+// via go/ast instead of go/parser's token stream means both forms
+// resolve to the same *ast.SelectorExpr node regardless of how the call
+// is eventually invoked.
+func sourceReferencesWithAdmin(src []byte) (bool, error) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, parser.SkipObjectResolution)
+	if err != nil {
+		return false, err
+	}
+	found := false
+	ast.Inspect(f, func(n ast.Node) bool {
+		if sel, ok := n.(*ast.SelectorExpr); ok && sel.Sel.Name == "WithAdmin" {
+			found = true
+		}
+		return true
+	})
+	return found, nil
+}
+
+// TestWithAdminIsOnlyCalledFromTheAllowlist guards the one RLS bypass in
+// the codebase the same way module isolation and route permissions are
+// guarded: mechanically, not by convention. tenantdb.DB.WithAdmin runs on
+// the admin pool, which is not subject to RLS at all — a request handler
+// that reached for it, even by copy-pasting the reconciler's call, would
+// see every tenant's rows. WithTenant is the only path request handlers
+// may use; a genuine cross-tenant read belongs in review, not in an
+// expanded allowlist.
+func TestWithAdminIsOnlyCalledFromTheAllowlist(t *testing.T) {
+	root := "../.."
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		// archtest's own source necessarily mentions "WithAdmin" (this
+		// very check, its allowlist, its doc comments); excluding the
+		// package avoids that self-match rather than allowlisting it,
+		// which would otherwise read as "archtest may call WithAdmin".
+		if strings.HasPrefix(rel, "internal/archtest/") {
+			return nil
+		}
+		if withAdminAllowlist[rel] || withAdminAllowedDir(rel) {
+			return nil
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		found, err := sourceReferencesWithAdmin(src)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", rel, err)
+		}
+		if found {
+			t.Errorf("%s references WithAdmin (as a call or a bare method value), which bypasses "+
+				"RLS entirely and sees every tenant's rows. Request-path code must use WithTenant. "+
+				"If you genuinely need a cross-tenant read, bring it to review — don't add this "+
+				"file to withAdminAllowlist in arch_test.go on your own.", rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk repo: %v", err)
+	}
+}
+
+// TestSourceReferencesWithAdminCatchesMethodValues is the discriminating
+// test for the hardening itself: a fixture using db.WithAdmin as a bare
+// method value (f := db.WithAdmin), with no ".WithAdmin(" substring
+// anywhere in the source, is exactly the shape the old
+// strings.Contains(src, ".WithAdmin(") scan would have let through
+// silently. It must be caught alongside the ordinary call-syntax case,
+// and ordinary source with no WithAdmin reference at all must still pass
+// clean.
+func TestSourceReferencesWithAdminCatchesMethodValues(t *testing.T) {
+	const methodValueFixture = `package fixture
+
+func evade(db *DB) func(func()) {
+	// The call happens through f below, never spelled out as a direct
+	// method call on db.
+	f := db.WithAdmin
+	return func(fn func()) { f(nil, fn) }
+}
+`
+	const callSyntaxFixture = `package fixture
+
+func direct(db *DB) {
+	db.WithAdmin(nil, func() {})
+}
+`
+	const cleanFixture = `package fixture
+
+func direct(db *DB) {
+	db.WithTenant(nil, "t", func() {})
+}
+`
+	tests := []struct {
+		name string
+		src  string
+		want bool
+	}{
+		{"method value evades text scan but not AST", methodValueFixture, true},
+		{"ordinary call syntax", callSyntaxFixture, true},
+		{"no WithAdmin reference at all", cleanFixture, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// The old check this replaces: a literal substring scan for
+			// the call-syntax pattern. Asserting it disagrees with the
+			// method-value case is what proves that fixture would have
+			// evaded the pre-hardening test.
+			oldCheckWouldCatch := strings.Contains(tt.src, ".WithAdmin(")
+
+			got, err := sourceReferencesWithAdmin([]byte(tt.src))
+			if err != nil {
+				t.Fatalf("sourceReferencesWithAdmin: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("sourceReferencesWithAdmin() = %v, want %v", got, tt.want)
+			}
+			if tt.name == "method value evades text scan but not AST" && oldCheckWouldCatch {
+				t.Fatalf("fixture no longer proves the hardening: the old substring scan would already catch it")
+			}
+		})
 	}
 }

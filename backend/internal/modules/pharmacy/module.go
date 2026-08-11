@@ -17,6 +17,7 @@ import (
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
@@ -28,11 +29,27 @@ const (
 	SubjectDispenseRecorded = "hms.in.pharmacy.dispense_recorded.v1"
 )
 
+const (
+	PermDispenseRead    authz.Permission = "pharmacy.dispense.read"
+	PermDispenseFulfil  authz.Permission = "pharmacy.dispense.fulfil"
+	PermMedicationRead  authz.Permission = "pharmacy.medication.read"
+	PermMedicationWrite authz.Permission = "pharmacy.medication.write"
+)
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
 
 func (m *Module) Name() string { return "pharmacy" }
+
+func (m *Module) Permissions() []authz.Grant {
+	return []authz.Grant{
+		{Permission: PermDispenseRead, Roles: []authz.Role{authz.RolePharmacist, authz.RoleDoctor}},
+		{Permission: PermDispenseFulfil, Roles: []authz.Role{authz.RolePharmacist}},
+		{Permission: PermMedicationRead, Roles: []authz.Role{authz.RolePharmacist}},
+		{Permission: PermMedicationWrite, Roles: []authz.Role{authz.RolePharmacist}},
+	}
+}
 
 func (m *Module) Migrations() []tenantdb.Migration {
 	return []tenantdb.Migration{{
@@ -113,10 +130,10 @@ type dispenseRecordedData struct {
 	VisitID    string `json:"visit_id"`
 }
 
-func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
+func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/pharmacy")
 
-	g.POST("/medications", func(c *gin.Context) {
+	g.POST("/medications", PermMedicationWrite, func(c *gin.Context) {
 		p, tenantUUID, ok := authn.TenantPrincipal(c)
 		if !ok {
 			return
@@ -137,7 +154,7 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 		respond.Created(c, gin.H{"id": row.ID.String()})
 	})
 
-	g.GET("/medications", func(c *gin.Context) {
+	g.GET("/medications", PermMedicationRead, func(c *gin.Context) {
 		p, _, ok := authn.TenantPrincipal(c)
 		if !ok {
 			return
@@ -153,7 +170,7 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 		respond.OK(c, gin.H{"data": rows})
 	})
 
-	g.GET("/dispenses", func(c *gin.Context) {
+	g.GET("/dispenses", PermDispenseRead, func(c *gin.Context) {
 		p, _, ok := authn.TenantPrincipal(c)
 		if !ok {
 			return
@@ -169,7 +186,7 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 		respond.OK(c, gin.H{"data": rows})
 	})
 
-	g.POST("/dispenses/:id/dispense", func(c *gin.Context) {
+	g.POST("/dispenses/:id/dispense", PermDispenseFulfil, func(c *gin.Context) {
 		p, _, ok := authn.TenantPrincipal(c)
 		if !ok {
 			return

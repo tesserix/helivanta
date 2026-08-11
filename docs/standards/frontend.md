@@ -118,9 +118,14 @@ Raw `fetch`, `useState` + manual loading flags, or a hand-rolled
 `setInterval` for polling are not used in application components —
 `useApiQuery`, `useApiMutation`, and the shared `POLL_INTERVAL_MS`
 constant cover every case those patterns used to. The sole sanctioned
-exception is the shell login's `POST /api/session`
-(`apps/shell/app/login/page.tsx`) — it's an auth route outside the
-`/api/v1` envelope, so it uses raw `fetch` directly.
+exception is the shell's session route, `POST /api/session` — it's an
+auth route outside the `/api/v1` envelope, so it uses raw `fetch`
+directly. Two callers post to it, both shell-owned and both for the same
+reason (install a freshly minted ID token as the `hms_session` cookie):
+login (`apps/shell/app/login/page.tsx`) and the tenant switcher
+(`apps/shell/components/tenant-picker.tsx`), which re-mints the session
+after the backend authorizes a switch. Anything that is not "exchange an
+ID token for the session cookie" goes through `@hms/api`.
 
 `useApiQuery<T>(key, path, opts?)` takes a TanStack query key, the
 API path (appended to the fixed `/api/v1` prefix), and an optional
@@ -383,3 +388,36 @@ every browser that loads the app — it gets inlined into the client
 bundle at build time and is visible to anyone who opens dev tools.
 Server-only values (API URLs used for server-side rewrites, secrets)
 stay unprefixed.
+
+## 13. Authorization (permission gating)
+
+`Can` and `usePermissions` (`packages/api/src/permissions.tsx`) gate UI
+on the caller's resolved permissions, fetched from
+`GET /iam/me/permissions`:
+
+```tsx
+const { can } = usePermissions();
+{can("pharmacy.medication.write") && <CreateMedicationButton />}
+
+<Can permission="pharmacy.dispense.fulfil">
+  <DispenseButton />
+</Can>
+```
+
+This is a **convenience layer only** — it decides what to show, not
+what's allowed. The Go API is the enforcement point (backend standards
+section 11); every guarded action must still work correctly if this
+layer were deleted entirely, because a curious user can always call the
+API directly. Never add a client-side check in place of, or as a
+substitute for, a permission on the route.
+
+`can()` returns `false` while `usePermissions` is loading and on error,
+never `true` — so an action a user cannot perform never flashes on
+screen before the permission check resolves. Don't special-case the
+loading state to show actions optimistically.
+
+Every zone and page in `packages/ui/src/zones.ts` declares a
+`permission` string (`authz.Public`'s frontend counterpart is the
+literal `"public"`), which `HmsShell` uses to hide rail/panel entries
+the caller can't reach — see the `ZONES` array for the pattern of one
+permission per zone and per page.

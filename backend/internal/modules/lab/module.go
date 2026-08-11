@@ -17,6 +17,7 @@ import (
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
@@ -26,11 +27,23 @@ const (
 	SubjectResultReady  = "hms.in.lab.result_ready.v1"
 )
 
+const (
+	PermOrderRead   authz.Permission = "lab.order.read"
+	PermOrderFulfil authz.Permission = "lab.order.fulfil"
+)
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
 
 func (m *Module) Name() string { return "lab" }
+
+func (m *Module) Permissions() []authz.Grant {
+	return []authz.Grant{
+		{Permission: PermOrderRead, Roles: []authz.Role{authz.RoleLabTech, authz.RoleDoctor}},
+		{Permission: PermOrderFulfil, Roles: []authz.Role{authz.RoleLabTech}},
+	}
+}
 
 func (m *Module) Migrations() []tenantdb.Migration {
 	return []tenantdb.Migration{{
@@ -84,10 +97,10 @@ type resultReadyData struct {
 	VisitID string `json:"visit_id"`
 }
 
-func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
+func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/lab")
 
-	g.GET("/orders", func(c *gin.Context) {
+	g.GET("/orders", PermOrderRead, func(c *gin.Context) {
 		p, _, ok := authn.TenantPrincipal(c)
 		if !ok {
 			return
@@ -103,7 +116,7 @@ func (m *Module) Routes(r *gin.RouterGroup, deps platform.Deps) {
 		respond.OK(c, gin.H{"data": rows})
 	})
 
-	g.POST("/orders/:id/result", func(c *gin.Context) {
+	g.POST("/orders/:id/result", PermOrderFulfil, func(c *gin.Context) {
 		p, _, ok := authn.TenantPrincipal(c)
 		if !ok {
 			return

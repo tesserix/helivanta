@@ -25,27 +25,50 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("OrderList", () => {
   it("saves a result for a pending order", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse(200, { data: [pendingOrder] }))
-      .mockResolvedValueOnce(jsonResponse(200, { id: "o-1", status: "completed" }))
-      .mockResolvedValue(
+    let completed = false;
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes("/iam/me/permissions")) {
+        return Promise.resolve(jsonResponse(200, { data: ["lab.order.fulfil"] }));
+      }
+      if (init?.method === "POST") {
+        completed = true;
+        return Promise.resolve(jsonResponse(200, { id: "o-1", status: "completed" }));
+      }
+      return Promise.resolve(
         jsonResponse(200, {
           data: [
-            {
-              ...pendingOrder,
-              status: "completed",
-              result_value: "WBC 6.1",
-              resulted_at: "2026-08-04T04:01:00Z",
-            },
+            completed
+              ? {
+                  ...pendingOrder,
+                  status: "completed",
+                  result_value: "WBC 6.1",
+                  resulted_at: "2026-08-04T04:01:00Z",
+                }
+              : pendingOrder,
           ],
         }),
       );
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const { user } = renderWithProviders(<OrderList />);
     await user.type(await screen.findByLabelText("Result for Asha Rao"), "WBC 6.1");
     await user.click(screen.getByRole("button", { name: "Save result" }));
     await waitFor(() => expect(screen.getByText("Result: WBC 6.1")).toBeInTheDocument());
+  });
+
+  it("hides the save result button without permission", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("/iam/me/permissions")) {
+          return Promise.resolve(jsonResponse(200, { data: [] }));
+        }
+        return Promise.resolve(jsonResponse(200, { data: [pendingOrder] }));
+      }),
+    );
+    renderWithProviders(<OrderList />);
+    await screen.findByText("Asha Rao");
+    expect(screen.queryByRole("button", { name: "Save result" })).not.toBeInTheDocument();
   });
 });

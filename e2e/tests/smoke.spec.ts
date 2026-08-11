@@ -1,18 +1,26 @@
 import { test, expect } from "@playwright/test";
+import { login } from "./support/login";
+
+test("seeded admin sees every zone", async ({ page }) => {
+  await login(page);
+  // Scoped to the zone rail (aria-label="Zones" in packages/ui/src/hms-shell.tsx):
+  // the dashboard (apps/shell/app/page.tsx) also renders a card per
+  // visible zone, and for this admin every zone is visible there too —
+  // its Lab card's accessible name ("Lab Orders, samples & results")
+  // contains "Lab" as a substring, so an unscoped query is ambiguous
+  // under Playwright's default substring name matching even though both
+  // surfaces now apply the same visibleZones(can) permission filter.
+  const zoneNav = page.getByRole("navigation", { name: "Zones" });
+  for (const zone of ["MediCore", "Pharmacy", "Lab"]) {
+    await expect(zoneNav.getByRole("link", { name: zone })).toBeVisible();
+  }
+});
 
 test("login, OPD visit, pharmacy dispense, lab result", async ({ page }) => {
   const patient = `E2E Patient ${Date.now()}`;
 
   // Unauthenticated → redirected to login.
-  await page.goto("/");
-  await expect(page).toHaveURL(/\/login$/);
-
-  await page.getByLabel("Email").fill("test@hms.dev");
-  await page.getByLabel("Password").fill("password123");
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Departments" }),
-  ).toBeVisible();
+  await login(page);
 
   // Shell → medicore (hard navigation across the zone boundary).
   // The department card's accessible name includes its description text

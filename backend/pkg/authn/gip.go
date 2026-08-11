@@ -7,15 +7,45 @@ import (
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
+	"github.com/google/uuid"
 )
 
 var ErrNoTenantClaim = errors.New("authn: token has no tenant_id claim")
 
 type gipVerifier struct{ client *auth.Client }
 
+type gipMinter struct{ client *auth.Client }
+
 // NewGIPVerifier verifies GIP/Firebase ID tokens. In dev it honors
 // FIREBASE_AUTH_EMULATOR_HOST automatically (no credentials needed).
 func NewGIPVerifier(ctx context.Context, projectID string) (TokenVerifier, error) {
+	client, err := newAuthClient(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	return &gipVerifier{client: client}, nil
+}
+
+// NewGIPMinter mints GIP/Firebase custom tokens. It is a second, narrow
+// view of the same Firebase auth client NewGIPVerifier wraps — separate
+// constructors rather than one object exposing both, so a caller wired
+// for minting cannot also verify (and vice versa), and so adding minting
+// could not change verification. In dev it honors
+// FIREBASE_AUTH_EMULATOR_HOST automatically, like the verifier.
+//
+// Minting requires a service-account credential (the Admin SDK signs the
+// token locally, or delegates to the IAM signBlob API). Against the auth
+// emulator no signature is required, so dev and tests work with no
+// credentials at all.
+func NewGIPMinter(ctx context.Context, projectID string) (TokenMinter, error) {
+	client, err := newAuthClient(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	return &gipMinter{client: client}, nil
+}
+
+func newAuthClient(ctx context.Context, projectID string) (*auth.Client, error) {
 	app, err := firebase.NewApp(ctx, &firebase.Config{ProjectID: projectID})
 	if err != nil {
 		return nil, fmt.Errorf("firebase app: %w", err)
@@ -24,7 +54,18 @@ func NewGIPVerifier(ctx context.Context, projectID string) (TokenVerifier, error
 	if err != nil {
 		return nil, fmt.Errorf("firebase auth client: %w", err)
 	}
-	return &gipVerifier{client: client}, nil
+	return client, nil
+}
+
+// CustomTokenWithClaims forwards to the Admin SDK. The wrapper exists so
+// the concrete *auth.Client never escapes this package: a holder of the
+// TokenMinter interface can mint, and can do nothing else.
+func (g *gipMinter) CustomTokenWithClaims(ctx context.Context, uid string, claims map[string]interface{}) (string, error) {
+	tok, err := g.client.CustomTokenWithClaims(ctx, uid, claims)
+	if err != nil {
+		return "", fmt.Errorf("mint custom token: %w", err)
+	}
+	return tok, nil
 }
 
 func (g *gipVerifier) Verify(ctx context.Context, raw string) (Principal, error) {
@@ -36,11 +77,23 @@ func (g *gipVerifier) Verify(ctx context.Context, raw string) (Principal, error)
 }
 
 // principalFromToken maps a verified GIP/Firebase token to a Principal,
-// enforcing that a tenant_id claim is present and is a string.
+// enforcing that a tenant_id claim is present, is a string, and parses as
+// a UUID. The canonical uuid.String() lowercase form is stored on
+// Principal.TenantID rather than the raw claim, so every downstream
+// consumer (Resolve's object-id prefix matching, the iam-fga-sync
+// consumer, tenant comparisons) sees one consistent casing regardless of
+// how the issuer rendered the claim. This is also why Resolve's
+// "perm:"+tenantID+"/" prefix match is safe: a canonical UUID string
+// cannot contain "/", so it can never be mistaken for a prefix of a
+// different tenant's object id.
 func principalFromToken(tok *auth.Token) (Principal, error) {
-	tenantID, ok := tok.Claims["tenant_id"].(string)
-	if !ok || tenantID == "" {
+	raw, ok := tok.Claims["tenant_id"].(string)
+	if !ok || raw == "" {
 		return Principal{}, ErrNoTenantClaim
 	}
-	return Principal{Subject: tok.UID, TenantID: tenantID}, nil
+	tenantID, err := uuid.Parse(raw)
+	if err != nil {
+		return Principal{}, ErrNoTenantClaim
+	}
+	return Principal{Subject: tok.UID, TenantID: tenantID.String()}, nil
 }

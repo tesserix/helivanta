@@ -1,4 +1,8 @@
-import { HmsShell, ZONES } from "@hms/ui";
+"use client";
+
+import { usePermissions } from "@hms/api";
+import { HmsShell, visibleZones, type Zone } from "@hms/ui";
+import { TenantPicker } from "@/components/tenant-picker";
 
 // Per-page descriptions, keyed by href — the registry (packages/ui/src/zones.ts)
 // owns titles and hrefs, this map only supplies the dashboard-card copy.
@@ -10,27 +14,39 @@ const DESCRIPTIONS: Record<string, string> = {
   "/lab": "Orders, samples & results",
 };
 
-const cards = ZONES.filter((zone) => zone.key !== "dashboard").flatMap((zone) =>
-  zone.pages.length > 1
-    ? zone.pages.map((page) => ({
-        href: page.href,
-        title: page.label,
-        desc: DESCRIPTIONS[page.href] ?? "",
-        icon: zone.icon,
-      }))
-    : [
-        {
-          href: zone.href,
-          title: zone.label,
-          desc: DESCRIPTIONS[zone.href] ?? "",
-          icon: zone.icon,
-        },
-      ],
-);
+// Cards must show only doors that will open (zones.ts's own contract) —
+// the same visibleZones(can) filter the sidebar (hms-shell.tsx) uses, not
+// a second copy of the zone list. usePermissions().can() denies while
+// permissions are loading, so cards never flash before they resolve —
+// same behaviour the sidebar already relies on.
+function cardsFor(zones: Zone[]) {
+  return zones
+    .filter((zone) => zone.key !== "dashboard")
+    .flatMap((zone) =>
+      zone.pages.length > 1
+        ? zone.pages.map((page) => ({
+            href: page.href,
+            title: page.label,
+            desc: DESCRIPTIONS[page.href] ?? "",
+            icon: zone.icon,
+          }))
+        : [
+            {
+              href: zone.href,
+              title: zone.label,
+              desc: DESCRIPTIONS[zone.href] ?? "",
+              icon: zone.icon,
+            },
+          ],
+    );
+}
 
 export default function Dashboard() {
+  const { can } = usePermissions();
+  const cards = cardsFor(visibleZones(can));
+
   return (
-    <HmsShell active="/">
+    <HmsShell active="/" tenantPicker={<TenantPicker />}>
       <div className="mx-auto max-w-4xl">
         <p className="mb-6 text-sm text-muted-foreground">
           Jump into a department to manage visits, dispensing and lab work.

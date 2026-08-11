@@ -48,3 +48,10 @@ func TestErrorHelpers(t *testing.T) {
 	require.Equal(t, http.StatusInternalServerError, w.Code)
 	require.JSONEq(t, `{"error":"internal","message":"could not record ping"}`, w.Body.String())
 }
+
+func TestForbiddenEnvelope(t *testing.T) {
+	w := run(func(c *gin.Context) { respond.Forbidden(c, "missing permission") })
+
+	require.Equal(t, http.StatusForbidden, w.Code)
+	require.JSONEq(t, `{"error":"forbidden","message":"missing permission"}`, w.Body.String())
+}

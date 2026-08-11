@@ -68,6 +68,34 @@ func TestTenantIsolation(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestWithAdminBypassesRLSAcrossTenants proves WithAdmin (admin/
+// BYPASSRLS pool) can see a tenant-scoped table's rows regardless of
+// tenant, unlike WithTenant (which is scoped to one tenant's GUC) or
+// WithSystem (whose whole contract is that a tenant-scoped read comes
+// back empty — see its doc). This is what the permission reconciler
+// relies on to enumerate every tenant's memberships in one boot-time
+// pass, with no single tenant to scope the read by.
+func TestWithAdminBypassesRLSAcrossTenants(t *testing.T) {
+	db := openMigrated(t)
+	ctx := context.Background()
+	tenantA, tenantB := uuid.NewString(), uuid.NewString()
+
+	require.NoError(t, db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
+		return tx.Create(&widget{TenantID: uuid.MustParse(tenantA), Name: "a-widget"}).Error
+	}))
+	require.NoError(t, db.WithTenant(ctx, tenantB, func(tx *gorm.DB) error {
+		return tx.Create(&widget{TenantID: uuid.MustParse(tenantB), Name: "b-widget"}).Error
+	}))
+
+	var viaAdmin []widget
+	require.NoError(t, db.WithAdmin(ctx, func(tx *gorm.DB) error {
+		return tx.Order("name").Find(&viaAdmin).Error
+	}))
+	require.Len(t, viaAdmin, 2, "WithAdmin must bypass RLS to see every tenant's rows")
+	require.Equal(t, "a-widget", viaAdmin[0].Name)
+	require.Equal(t, "b-widget", viaAdmin[1].Name)
+}
+
 func TestWithTenantRejectsBadTenantID(t *testing.T) {
 	db := openMigrated(t)
 	err := db.WithTenant(context.Background(), "not-a-uuid", func(tx *gorm.DB) error { return nil })

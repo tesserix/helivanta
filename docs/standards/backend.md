@@ -17,7 +17,11 @@ implementing `platform.Module` (`backend/internal/platform/module.go`):
 type Module interface {
 	Name() string
 	Migrations() []tenantdb.Migration
-	Routes(r *gin.RouterGroup, deps Deps)
+	// Permissions declares every permission this module's routes use and
+	// which system roles hold it (section 11 — RoleTenantAdmin is
+	// implicit, never list it here).
+	Permissions() []authz.Grant
+	Routes(r *Router, deps Deps)
 	Consumers(deps Deps) []events.Consumer
 }
 ```
@@ -35,20 +39,26 @@ all sit at `internal/modules/<name>/` with no sub-packages. See
 Registering a module means adding it in **two** places, or its routes
 never mount and its migrations never run:
 
-1. `backend/cmd/api/main.go` — the runtime registry loop:
+1. `backend/internal/bootstrap/modules.go`'s `Modules()` — the single
+   runtime registry constructor, shared by `cmd/api` (boots the full API)
+   and `cmd/migrate` (applies migrations only, no NATS/OpenFGA dependency):
    ```go
-   registry := platform.NewRegistry()
-   for _, mod := range []platform.Module{reference.New(), medicore.New(), pharmacy.New(), lab.New()} {
-       if err := registry.Register(mod); err != nil {
-           return err
+   func Modules() []platform.Module {
+       return []platform.Module{
+           iam.New(), reference.New(), medicore.New(), pharmacy.New(), lab.New(),
        }
    }
    ```
+   `cmd/api/main.go` and `cmd/migrate/main.go` both call
+   `bootstrap.NewRegistry()`, so the module list exists exactly once at
+   runtime — no hand-maintained copy per entrypoint.
 2. `backend/internal/archtest/arch_test.go`'s `allModules()` — the test
    registry that arch tests (isolation, migration-ID uniqueness, consumer
    contracts, RLS lint) iterate over. It is deliberately a second literal
-   list, not a shared import of `main.go`'s, so a module wired into one
-   but not the other fails CI instead of silently running unchecked.
+   list, not a shared import of `bootstrap.Modules()`, so a module wired
+   into one but not the other fails CI instead of silently running
+   unchecked. `TestMainRegistersExactlyAllModules` diffs the two sets on
+   every run.
 
 Never hand-write a new module from scratch. Run
 `make new-module NAME=<name>` (`backend/scripts/new-module.sh`) — it
@@ -112,7 +122,7 @@ const (
 
 `*tenantdb.DB` (`backend/pkg/tenantdb/db.go`) is the only database
 handle a module ever sees, and it never exposes a raw `*gorm.DB` field —
-every access goes through one of two methods, each opening its own
+every access goes through one of three methods, each opening its own
 transaction:
 
 - **`WithTenant(ctx, tenantID, fn)`** — the path for every tenant-scoped
@@ -143,6 +153,17 @@ transaction:
   RLS-protected tenant table reads as empty inside it — `WithSystem` is
   not an escape hatch for tenant data, it is the mechanism used to touch
   the platform tables that predate tenancy.
+- **`WithAdmin(ctx, fn)`** — opens a transaction on the *admin* pool (the
+  migration role), which bypasses RLS completely and sees every tenant's
+  rows in every table. This is for boot-time/ops code only, never a
+  request path — the permission reconciler
+  (`backend/internal/platform/reconcile.go`) is currently its only
+  caller, enumerating every tenant's memberships in one pass with no
+  single tenant to scope a `WithTenant` GUC by. `TestWithAdminIsOnlyCalledFromTheAllowlist`
+  in `backend/internal/archtest/arch_test.go` enforces this mechanically:
+  any new `.WithAdmin(` call site outside that allowlist fails the build.
+  Extending the allowlist is a real RLS-bypass decision — bring it to
+  review rather than adding a file to it.
 
 Every tenant table gets forced RLS in the migration that creates it —
 `ENABLE ROW LEVEL SECURITY` alone is not enough, because a table owner
@@ -615,20 +636,194 @@ go test -race ./...    # full suite, from backend/
 ## 10. Checklist for a new module
 
 1. `make new-module NAME=<name>` from repo root.
-2. Register `<name>.New()` in `backend/cmd/api/main.go`'s registry loop.
+2. Register `<name>.New()` in `backend/internal/bootstrap/modules.go`'s
+   `Modules()` (shared by `cmd/api` and `cmd/migrate`).
 3. Add `<name>.New()` to `allModules()` in
    `backend/internal/archtest/arch_test.go`.
 4. Rename the generated `item` domain nouns (table, struct, subjects,
    routes) to your real ones.
-5. Keep the forced-RLS migration boilerplate (section 3) intact for
+5. Declare real permissions in `Permissions()` — the roles that hold
+   each one your routes use (section 11) — and add them to
+   `approvedPermissionMatrix` in
+   `backend/internal/archtest/matrix_test.go`.
+6. Keep the forced-RLS migration boilerplate (section 3) intact for
    every tenant table you add.
-6. Every mutating handler starts with `authn.TenantPrincipal(c)`
+7. Every mutating handler starts with `authn.TenantPrincipal(c)`
    (section 5) and responds only through `respond.*` (section 4).
-7. Guard every status transition with a conditional `UPDATE` +
+8. Guard every status transition with a conditional `UPDATE` +
    `RowsAffected` check, never read-then-write (section 4).
-8. Publish events on the same `tx` as the row they describe, inside
+9. Publish events on the same `tx` as the row they describe, inside
    `WithTenant`/`WithSystem` (section 6).
-9. Write the five required test cases against
-   `testutil.ModuleHarness` (section 9).
-10. `make lint-go`, `make coverage-go`, and `go test -race ./...` all
+10. Write the five required test cases against
+    `testutil.ModuleHarness` (section 9).
+11. `make lint-go`, `make coverage-go`, and `go test -race ./...` all
     green before calling it done.
+
+## 11. Authorization
+
+Every route declares an `authz.Permission` through `*platform.Router`
+(`backend/internal/platform/router.go`), never a raw
+`*gin.RouterGroup`. This is enforced at compile time, not just by
+convention: `Router` wraps its `*gin.RouterGroup` in an unexported
+field, so `Module.Routes(r *platform.Router, deps Deps)` has no way to
+reach it — an undeclared route is inexpressible, not merely
+disallowed. `TestModulesDoNotUseRawGinGroups`
+(`backend/internal/archtest/arch_test.go`) backs this at the package
+graph level, failing any module that imports `gin.RouterGroup`
+directly. `authz.Public` (`backend/pkg/authz/authz.go`) is the explicit
+opt-out for a deliberately unguarded route — a real value, not an
+omitted argument, so it's greppable:
+
+```go
+g.GET("/me/permissions", authz.Public, func(c *gin.Context) { /* ... */ })
+g.POST("/medications", PermMedicationWrite, func(c *gin.Context) { /* ... */ })
+```
+
+(`backend/internal/modules/iam/me.go`,
+`backend/internal/modules/pharmacy/module.go`)
+
+**Modules declare grants, never `tenant_admin`.**
+`Module.Permissions() []authz.Grant` lists which system roles hold
+each permission the module's routes use:
+
+```go
+func (m *Module) Permissions() []authz.Grant {
+	return []authz.Grant{
+		{Permission: PermDispenseRead, Roles: []authz.Role{authz.RolePharmacist, authz.RoleDoctor}},
+		{Permission: PermDispenseFulfil, Roles: []authz.Role{authz.RolePharmacist}},
+	}
+}
+```
+
+(`backend/internal/modules/pharmacy/module.go`) `platform.GrantsFor`
+(`backend/internal/platform/reconcile.go`) appends
+`authz.RoleTenantAdmin` to every grant before writing tuples — a
+module never lists it itself. `TestEveryDeclaredPermissionIsGranted`
+(arch_test.go) fails if a route uses a permission `Permissions()`
+doesn't declare.
+
+**Naming**: `<module>.<resource>.<action>`, e.g.
+`pharmacy.medication.write`, `lab.order.fulfil`.
+
+**Roles are data.** The five system roles — `tenant_admin`, `doctor`,
+`nurse`, `pharmacist`, `lab_tech` (`authz.Role` constants,
+`backend/pkg/authz/authz.go`) — are seeded per tenant, and
+permission/role bindings are OpenFGA tuples, not Go model relations.
+Adding a zone, a permission, or changing who holds one is a
+`Permissions()` edit plus a reconcile, never a schema migration.
+
+**Status codes fail closed.** `403` means the caller is a member of
+the tenant but lacks the permission; `404` is still the cross-tenant
+answer (section 4 — RLS means the row was never visible to the query
+in the first place, so authorization never gets a chance to
+distinguish "missing" from "someone else's"); an OpenFGA error is
+`503 authz_unavailable`, never a silent allow.
+
+**Membership and grant writes are eventually consistent.** The
+membership/role-grant endpoints publish through the outbox inside the
+same transaction as the row they describe (section 6), so they return
+`202`, not `200`/`201` — the FGA tuple lands once the dispatcher drains
+the outbox. Re-granting an already-held role is allowed and publishes
+unconditionally on purpose: it's the operator's repair mechanism for
+FGA drift, not just the first-grant path.
+
+**The reconciler makes OpenFGA rebuildable from Postgres, and prunes
+what Postgres no longer backs.** Two functions in
+`backend/internal/platform/reconcile.go`, two different jobs:
+
+- **`platform.Reconcile(ctx, reg, db, w)`** — boot-path, authoritative.
+  Runs once at boot (`cmd/api/main.go`), reads every tenant's
+  `iam_members` rows in one pass using `WithAdmin` (section 3), writes
+  every role/permission tuple Postgres backs, and **deletes** every
+  `role:`/`perm:` tuple Postgres does not back. Deletion is scoped per
+  tenant: a tuple is only ever considered for deletion from the tenant
+  bucket it was read into, never across tenants. This is what makes
+  "OpenFGA is fully rebuildable from Postgres" true — both locally (the
+  dev OpenFGA store is in-memory and loses every tuple on restart) and
+  as the backstop for a `member_revoked` event that was lost before
+  `iam-fga-sync` applied it. As a safety floor, `Reconcile` refuses to
+  write or delete anything, and returns an error instead, if the
+  `iam_members` read comes back with zero *usable* rows — rows whose
+  `role_key` resolves to a known `authz.Role`, since a row with an
+  unrecognized `role_key` is skipped and contributes nothing to the
+  desired tuple set — across every tenant while OpenFGA still holds
+  tuples. That shape covers both a misconfigured `ADMIN_DATABASE_URL` (a
+  role that does not bypass RLS, so the read comes back with truly zero
+  rows) and a corrupted-but-nonempty table (e.g. an un-migrated role-key
+  rename, or manual/seed drift, leaving rows present but all
+  unrecognized) — neither is a real everyone-was-revoked event. A tripped
+  guard returns an error from `run()`, which `main.go` treats as fatal
+  (`os.Exit(1)`): the process crash-loops rather than boot with
+  authorization data it cannot trust. That is deliberate — a boot that
+  silently reconciled against corrupted or misread membership data would
+  be worse than one that refuses to start.
+
+  One consequence of running at boot on every replica: during a mixed-
+  version deploy or rollback, an old-version replica that boots *after*
+  a deploy added or renamed a permission will run `Reconcile` against a
+  registry that does not yet know about it, and will delete that
+  permission's `perm:` tuples for every tenant — including tenants a
+  still-running new-version replica already reconciled. This converges
+  once every replica is on the new version (the next new-version boot,
+  or the next scheduled reconcile, re-adds them), but it opens a window
+  during the mixed-version boot sequence where access gated on the new
+  permission is denied rather than granted. Treat that window as
+  expected churn during a rollout, not a bug — it self-heals as soon as
+  the old replica is gone.
+- **`platform.ReconcileTenant(ctx, reg, w, tenantID)`** — grant-path,
+  additive only. Called inside `iam`'s own transaction on every
+  membership grant (`internal/modules/iam/sync.go`), and writes only
+  that tenant's permission tuples. It never reads Postgres and never
+  deletes anything, so permission sets reached through this path can
+  only grow: narrowing a role's declared permissions in code only takes
+  effect for a tenant the next time `Reconcile` runs.
+
+**Revocation self-heals at boot, not continuously.** The normal path
+(`member_revoked` event → outbox → `iam-fga-sync`) converges within the
+usual outbox lag. If that event is permanently lost, the resulting stale
+grant is not self-healing while the process keeps running — there is no
+periodic reconcile ticker or cron — it persists until the next time that
+specific process boots and `Reconcile` runs. Treat `Reconcile` as a
+boot-time correctness backstop for lost revokes, not a live revocation
+mechanism.
+
+**The adversarial matrix suite**
+(`backend/internal/archtest/matrix_test.go`) is the phase gate for any
+change to a module's `Permissions()`:
+
+- `TestPermissionMatrix` — every role × every declared permission,
+  asserted allow/deny against a real OpenFGA, in both tenants.
+- `TestCrossTenantDenial` — a fully-privileged `tenant_admin` in one
+  tenant holds nothing in another.
+- `TestEveryGuardedRouteIsCoveredByTheMatrix` — a route guarded by a
+  permission that only `tenant_admin` holds is flagged as a likely
+  declaration bug (unreachable for every real role).
+- `TestDeclaredPermissionsMatchTheApprovedMatrix` — checks
+  `platform.GrantsFor` against `approvedPermissionMatrix`, a table
+  hand-transcribed from the design spec, independent of the code it
+  checks. **This is deliberate, not friction to work around**: it
+  means changing any module's `Permissions()` fails CI until someone
+  edits `approvedPermissionMatrix` by hand, forcing a reviewable,
+  intentional edit every time a role↔permission mapping changes rather
+  than silently trusting whatever the code currently does.
+
+`TestMainRegistersExactlyAllModules` (arch_test.go) rounds this out by
+failing if `bootstrap.Modules()` and `allModules()` disagree on the
+module set — see section 1's two-places rule.
+
+**Tenant switching — production prerequisites.** `POST /v1/iam/me/tenant`
+(`backend/internal/modules/iam/me.go`) mints a new session credential via
+`CustomTokenWithClaims` (`backend/pkg/authn/gip.go`), and that call needs
+a signing credential in production: either a service account key or
+`roles/iam.serviceAccountTokenCreator` granted so GIP can reach the
+metadata server's `signBlob`. `firebase.NewApp` resolves credentials
+lazily, so a deploy missing this grant boots cleanly and passes
+`/readyz` — the only symptom is every tenant switch returning `503
+session_unavailable`, with no other signal pointing at a missing signing
+credential. Check this grant explicitly as part of any environment
+standup, not just readiness. Separately, the switch endpoint relies on
+the custom token's `tenant_id` claim taking precedence over any
+persisted Firebase custom attribute in the ID token GIP issues back —
+that precedence is verified in this repo's tests only against the
+Firebase Auth emulator; treat real GIP precedence behavior in production
+as unverified until it's been observed there.

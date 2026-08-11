@@ -23,6 +23,21 @@ type TokenVerifier interface {
 	Verify(ctx context.Context, raw string) (Principal, error)
 }
 
+// TokenMinter issues a custom token the client exchanges for a fresh ID
+// token. It exists so a caller who has already been authorized to act in
+// a different tenant can be handed a credential carrying that tenant_id
+// claim — without which a "tenant switch" changes nothing, because
+// Principal.TenantID comes from the token and nowhere else.
+//
+// Deliberately one method wide: it is the whole of the identity
+// provider that any module may reach. Nothing here can verify, look up,
+// or mutate a user — only mint a token for a subject the caller has
+// already gated on. The method signature matches the Firebase Admin
+// SDK's auth.Client so the GIP implementation is a thin forward.
+type TokenMinter interface {
+	CustomTokenWithClaims(ctx context.Context, uid string, claims map[string]interface{}) (string, error)
+}
+
 // Middleware authenticates via Bearer header or the session cookie.
 // Failures are 401 with a JSON envelope; no handler runs unauthenticated.
 func Middleware(v TokenVerifier) gin.HandlerFunc {

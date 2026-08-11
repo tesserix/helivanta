@@ -13,6 +13,7 @@ import (
 
 	"github.com/tesserix/hms/internal/modules/medicore" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
 	"github.com/tesserix/hms/internal/testutil"
+	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -23,6 +24,10 @@ var (
 func setup(t *testing.T) (*gin.Engine, *tenantdb.DB, context.Context) {
 	r, db, _, ctx := testutil.ModuleHarness(t,
 		map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB},
+		map[string][]authz.Permission{
+			"tokA": {medicore.PermVisitCreate, medicore.PermVisitRead},
+			"tokB": {medicore.PermVisitRead},
+		},
 		medicore.New())
 	return r, db, ctx
 }

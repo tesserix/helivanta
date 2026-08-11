@@ -34,6 +34,21 @@ func (g grantingModule) Consumers(platform.Deps) []events.Consumer { return nil 
 type capturingWriter struct {
 	pairs []string // "<permission>@<role>"
 	roles []string // "<tenantID>|<subject>|<role>"
+
+	// existing is what OpenFGA is pretending to already hold, and
+	// deleted records every tuple Reconcile pruned from it, so the
+	// delete half of reconciliation can be asserted without a container.
+	existing map[string][]authz.Tuple
+	deleted  []string // authz.Tuple.Key()
+}
+
+func (c *capturingWriter) ReadTuplesByTenant(context.Context) (map[string][]authz.Tuple, error) {
+	return c.existing, nil
+}
+
+func (c *capturingWriter) DeleteTuple(_ context.Context, t authz.Tuple) error {
+	c.deleted = append(c.deleted, t.Key())
+	return nil
 }
 
 func (c *capturingWriter) GrantRole(_ context.Context, tenantID, subject string, r authz.Role) error {

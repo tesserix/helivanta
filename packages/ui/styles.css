@@ -1,6 +1,5 @@
-/* HMS color tokens — mirrored from tesserix-home apps/web/app/globals.css
-   (light theme, "Stripe / Linear / Vercel inspired") so HMS matches the
-   tesserix admin exactly. Layer AFTER @tesserix/web/styles so these win.
+/* HMS color tokens — Frost/Night system (light theme, cool teal accent).
+   Layer AFTER @tesserix/web/styles so these win.
    @tesserix/web's own light theme rule includes a `:not(.dark):not(.light)`
    fallback branch, whose two :not() pseudo-classes each add a class-level
    specificity point — (0,3,0,0) total — which beats a plain
@@ -13,44 +12,113 @@
 :root[data-theme="default"],
 [data-theme="default"] {
   /* Content surface */
-  --background: #ffffff !important;
-  --foreground: #0f172a !important;
-  --card: #ffffff !important;
-  --card-foreground: #0f172a !important;
-  --popover: #ffffff !important;
-  --popover-foreground: #0f172a !important;
+  --background: #F4F6F9 !important;
+  --foreground: #0F1728 !important;
+  --card: #FFFFFF !important;
+  --card-foreground: #0F1728 !important;
+  --popover: #FFFFFF !important;
+  --popover-foreground: #0F1728 !important;
 
-  --primary: #0f172a !important;
-  --primary-foreground: #ffffff !important;
+  --primary: #0E7569 !important;
+  --primary-foreground: #FFFFFF !important;
 
-  --secondary: #f1f5f9 !important;
-  --secondary-foreground: #1e293b !important;
+  --secondary: #F0F3F7 !important;
+  --secondary-foreground: #3A4557 !important;
 
-  --muted: #f8fafc !important;
-  --muted-foreground: #475569 !important;
+  --muted: #F6F8FB !important;
+  --muted-foreground: #647082 !important;
 
-  --accent: #f1f5f9 !important;
-  --accent-foreground: #0f172a !important;
+  --accent: #E3F2EF !important;
+  --accent-foreground: #0A5A50 !important;
 
-  --destructive: #dc2626 !important;
-  --destructive-foreground: #ffffff !important;
+  --destructive: #C93B3B !important;
+  --destructive-foreground: #FFFFFF !important;
 
-  --border: #e2e8f0 !important;
-  --input: #e2e8f0 !important;
-  --ring: #0f172a !important;
+  --border: #E5EAF1 !important;
+  --input: #E5EAF1 !important;
+  --ring: #0E7569 !important;
 
-  /* Sidebar — dark slate rails */
-  --sidebar: #0f172a !important;
-  --sidebar-foreground: #e2e8f0 !important;
-  --sidebar-primary: #ffffff !important;
-  --sidebar-primary-foreground: #0f172a !important;
-  --sidebar-accent: #1e293b !important;
-  --sidebar-accent-foreground: #f1f5f9 !important;
-  --sidebar-border: #1e293b !important;
-  --sidebar-ring: #ffffff !important;
-  /* Zone (icon) rail sits one step darker than the page panel, as in
-     the tesserix admin. */
-  --sidebar-rail: #0b1220;
+  /* Sidebar — light rails */
+  --sidebar: #FAFBFD !important;
+  --sidebar-foreground: #0F1728 !important;
+  --sidebar-primary: #0E7569 !important;
+  --sidebar-primary-foreground: #FFFFFF !important;
+  --sidebar-accent: #F0F3F7 !important;
+  --sidebar-accent-foreground: #0F1728 !important;
+  --sidebar-border: #EBEFF5 !important;
+  --sidebar-ring: #0E7569 !important;
+  --sidebar-rail: #FFFFFF !important;
+
+  /* HMS semantic tokens */
+  --hms-accent: #0E7569 !important;
+  --hms-accent-strong: #0A5A50 !important;
+  --hms-accent-dim: #E3F2EF !important;
+  --hms-good: #12915E !important;
+  --hms-warn: #B95E04 !important;
+  --hms-crit: #C93B3B !important;
+  --hms-rose: #C13B5E !important;
+  --hms-rose-tint: #FBEDF1 !important;
+  --hms-amber: #A16207 !important;
+  --hms-amber-tint: #FBF3E4 !important;
+  --hms-violet: #5B5BD6 !important;
+  --hms-violet-tint: #EEEEFB !important;
+  --hms-track: #E7EBF1 !important;
+}
+
+:root[data-theme="dark"],
+[data-theme="dark"] {
+  /* Content surface */
+  --background: #0F1317 !important;
+  --foreground: #E8EDF2 !important;
+  --card: #161C22 !important;
+  --card-foreground: #E8EDF2 !important;
+  --popover: #161C22 !important;
+  --popover-foreground: #E8EDF2 !important;
+
+  --primary: #45C4B4 !important;
+  --primary-foreground: #06211D !important;
+
+  --secondary: #1B222A !important;
+  --secondary-foreground: #E8EDF2 !important;
+
+  --muted: #1B222A !important;
+  --muted-foreground: #8B96A3 !important;
+
+  --accent: #182B2D !important;
+  --accent-foreground: #45C4B4 !important;
+
+  --destructive: #F87171 !important;
+  --destructive-foreground: #0F1317 !important;
+
+  --border: #232B34 !important;
+  --input: #232B34 !important;
+  --ring: #45C4B4 !important;
+
+  /* Sidebar — dark rails */
+  --sidebar: #12161B !important;
+  --sidebar-foreground: #E8EDF2 !important;
+  --sidebar-primary: #45C4B4 !important;
+  --sidebar-primary-foreground: #06211D !important;
+  --sidebar-accent: #1B222A !important;
+  --sidebar-accent-foreground: #E8EDF2 !important;
+  --sidebar-border: #1C232B !important;
+  --sidebar-ring: #45C4B4 !important;
+  --sidebar-rail: #0B0E11 !important;
+
+  /* HMS semantic tokens */
+  --hms-accent: #45C4B4 !important;
+  --hms-accent-strong: #5FD8C8 !important;
+  --hms-accent-dim: #182B2D !important;
+  --hms-good: #4ADE80 !important;
+  --hms-warn: #FBBF24 !important;
+  --hms-crit: #F87171 !important;
+  --hms-rose: #F17E9C !important;
+  --hms-rose-tint: #302831 !important;
+  --hms-amber: #F2C464 !important;
+  --hms-amber-tint: #30302A !important;
+  --hms-violet: #9D9DF0 !important;
+  --hms-violet-tint: #26273B !important;
+  --hms-track: #232B34 !important;
 }
 
 /* @tesserix/web ships an UNLAYERED base rule that forces

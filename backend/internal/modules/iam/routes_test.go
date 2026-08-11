@@ -75,6 +75,31 @@ func TestGrantReturns202AndAppliesTuple(t *testing.T) {
 	})
 }
 
+// TestRepeatGrantRepublishesTuple asserts that re-issuing an identical
+// grant is not a true no-op at the outbox level: it must republish and
+// re-apply the tuple. This is the operator's only repair mechanism for
+// FGA drift (the reconciler does not re-apply member->role tuples), so a
+// suppressed republish on the "already granted" path would silently
+// break self-healing.
+func TestRepeatGrantRepublishesTuple(t *testing.T) {
+	w := &recordingWriter{}
+	r, _, _, _ := testutil.ModuleHarnessWithAuthz(t,
+		map[string]string{"admin": testutil.TenantA},
+		map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
+		w, iam.New())
+
+	body := `{"subject":"dr-jane","role_key":"doctor"}`
+	res1 := testutil.Do(r, "POST", "/v1/iam/members", "admin", body)
+	require.Equal(t, http.StatusAccepted, res1.Code)
+	eventually(t, func() bool { return len(w.grants()) == 1 })
+
+	res2 := testutil.Do(r, "POST", "/v1/iam/members", "admin", body)
+	require.Equal(t, http.StatusAccepted, res2.Code)
+
+	eventually(t, func() bool { return len(w.grants()) == 2 })
+	require.Equal(t, testutil.TenantA+"|dr-jane|doctor", w.grants()[1])
+}
+
 func TestGrantRequiresMemberManage(t *testing.T) {
 	r, _, _, _ := testutil.ModuleHarnessWithAuthz(t,
 		map[string]string{"nurse": testutil.TenantA},

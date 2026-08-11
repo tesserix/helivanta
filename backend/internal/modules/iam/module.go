@@ -142,13 +142,14 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 		}
 		row := member{TenantID: tenantUUID, Subject: req.Subject, RoleKey: req.RoleKey}
 		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-			// Re-granting an existing role is a no-op, not a conflict: the
-			// caller's intent is already satisfied. An explicit ON
-			// CONFLICT DO NOTHING (rather than GORM's FirstOrCreate,
-			// which has sharp edges around which fields populate the
-			// created row) both sets tenant_id on the inserted row and
-			// makes "already granted" unambiguous: row.ID stays uuid.Nil
-			// because Postgres returns no row for a skipped insert.
+			// Re-granting an existing role is a no-op at the row level,
+			// not a conflict: the caller's intent is already satisfied.
+			// An explicit ON CONFLICT DO NOTHING (rather than GORM's
+			// FirstOrCreate, which has sharp edges around which fields
+			// populate the created row) both sets tenant_id on the
+			// inserted row and makes "already granted" unambiguous:
+			// row.ID stays uuid.Nil because Postgres returns no row for
+			// a skipped insert.
 			if err := tx.Clauses(clause.OnConflict{
 				Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "subject"}, {Name: "role_key"}},
 				DoNothing: true,
@@ -156,9 +157,20 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 				return err
 			}
 			if row.ID == uuid.Nil {
-				// Already granted: fetch the existing row for the
-				// response and skip publishing — nothing changed.
-				return tx.Where("subject = ? AND role_key = ?", req.Subject, req.RoleKey).First(&row).Error
+				// Already granted at the row level, but the outbox
+				// event still publishes unconditionally below (fetch
+				// the existing row first so the response carries its
+				// real id). Re-granting is the operator's only repair
+				// mechanism for FGA drift: the reconciler does not
+				// re-apply member→role tuples, so if the original
+				// grant's event was lost or its consumer permanently
+				// failed, Postgres would say "granted" and FGA would
+				// say "not granted" forever without this. Tuple writes
+				// are idempotent, so the redundant write on a normal
+				// re-grant is harmless.
+				if err := tx.Where("subject = ? AND role_key = ?", req.Subject, req.RoleKey).First(&row).Error; err != nil {
+					return err
+				}
 			}
 			data, err := json.Marshal(MemberChangedData(req))
 			if err != nil {
@@ -186,6 +198,10 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 				Delete(&member{}).Error; err != nil {
 				return err
 			}
+			// Publishes unconditionally, even if no row matched, for the
+			// same repair-mechanism reason as the grant path above: a
+			// re-issued revoke must still be able to clear a stuck FGA
+			// tuple.
 			data, err := json.Marshal(MemberChangedData{Subject: subject, RoleKey: roleKey})
 			if err != nil {
 				return err

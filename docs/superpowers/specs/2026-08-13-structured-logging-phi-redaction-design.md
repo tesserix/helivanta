@@ -98,8 +98,16 @@ before anything else logs.
 ## Part C — correlation fields
 
 `requestid.Middleware` runs before authentication, so it can only know
-`request_id`. After `authn` verifies the token, it enriches the request-scoped
-logger with `tenant_id` and `subject`.
+`request_id`. Once the principal is known, the request-scoped logger gains
+`tenant_id` and `subject`.
+
+**The enrichment lives in the platform layer, not in `pkg/authn`.** `pkg/authz`
+already imports `internal/platform/respond`, which the foundation audit flagged
+as a dependency pointing the wrong way — `pkg/` is meant to be the layer
+`internal/` builds on, not the reverse. Having `pkg/authn` reach into
+`internal/platform/requestid` would deepen that inversion for no benefit. The
+platform layer already wires the middleware chain and can enrich the logger
+after `authn` has populated the context, keeping the arrow pointing one way.
 
 Both are safe to log and neither is patient data: `subject` is a GIP UID,
 pseudonymous by construction, and `tenant_id` is a UUID. Together with
@@ -174,7 +182,9 @@ Changed:
 - `backend/internal/archtest/arch_test.go` — the `gorm.Open` allowlist test
 - `backend/pkg/tenantdb/db_test.go` — the stderr property test
 - `backend/cmd/api/main.go`, `backend/cmd/migrate/main.go` — `slog.SetDefault`
-- `backend/pkg/authn/authn.go` — enrich the request logger after verification
+- the platform middleware chain — enrich the request logger with `tenant_id`
+  and `subject` once `authn` has populated the context (not `pkg/authn`, to avoid
+  deepening the `pkg/` -> `internal/` inversion)
 - `backend/internal/config/config.go` — `LogLevel`
 
 ## Known limitations

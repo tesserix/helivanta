@@ -452,6 +452,86 @@ func TestWriterSlowPathPreservesKeyOrder(t *testing.T) {
 	}
 }
 
+// mirrorsHasFourConsecutiveDigits duplicates the production gate's
+// condition (hasFourConsecutiveDigits in redact.go) purely so
+// TestWriterByteIdenticalPassthroughForCleanLines can assert its fixture
+// actually trips the gate and exercises the slow (parse-and-re-encode)
+// path, rather than the byte-identical assertion being trivially true
+// because the fast-path short-circuit never let the fixture anywhere near
+// a parser. If this ever diverges from the real gate, the test below stops
+// proving what its name says it proves — keep the two in lockstep.
+func mirrorsHasFourConsecutiveDigits(s string) bool {
+	run := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] >= '0' && s[i] <= '9' {
+			run++
+			if run >= 4 {
+				return true
+			}
+			continue
+		}
+		run = 0
+	}
+	return false
+}
+
+// Round 3 fix — redactJSONByParsing previously always returned its
+// re-encoded copy on success, even when nothing matched. A clean line
+// therefore passed the parse path only by re-encoding to something that
+// happened to match the input byte-for-byte — a property that depends on
+// number formatting, escaping, key order and whitespace all lining up, and
+// this package has produced four separate defects at exactly that seam
+// (dropped trailing newline and HTML-escaping among them). This asserts the
+// stronger claim directly: a clean, realistic slog line — timestamp, level,
+// msg, request_id, tenant_id, subject, status code — that trips the gate
+// (its four-digit year alone guarantees that) comes back as the exact same
+// string, not a re-encoded copy that happens to match.
+func TestWriterByteIdenticalPassthroughForCleanLines(t *testing.T) {
+	const line = `{"time":"2026-08-13T01:02:03Z","level":"INFO","msg":"request completed",` +
+		`"request_id":"7c9e6679-7425-40de-944b-e07fc1f90ae7",` +
+		`"tenant_id":"3fa85f64-5717-4562-b3fc-2c963f66afa6",` +
+		`"subject":"user:staff-42","status":200}` + "\n"
+
+	require.True(t, mirrorsHasFourConsecutiveDigits(line),
+		"fixture must trip the redaction gate so this test exercises the parse path, not the fast-path short-circuit — otherwise the byte-identical assertion below proves nothing")
+
+	out := through(t, line)
+	require.Equal(t, line, out,
+		"a clean line that goes through the parse path must come back as the exact original string, not a re-encoded copy that happens to match")
+}
+
+// TestWriterByteIdenticalPassthroughSurvivesNonCanonicalEscaping is the
+// falsifiable half of the byte-identical passthrough guarantee. The
+// "realistic" fixture above happens to round-trip identically even under a
+// re-encode-always implementation, because slog's own escaping and number
+// formatting already agree with what this package's re-encoder produces for
+// ordinary field values — so that test alone cannot prove the passthrough
+// guarantee does anything. This one can: it uses a `\u0041`-style escape (a
+// printable ASCII letter written the long way, which no real slog line
+// contains, but which a re-encode-always implementation normalises to the
+// literal character) and confirms the whole line survives unmodified. Also
+// covers a JSON-valid escaped forward slash and incidental extra whitespace
+// around a brace — three more shapes that a re-encoding pass silently
+// canonicalises even though no PHI is present anywhere in the line.
+func TestWriterByteIdenticalPassthroughSurvivesNonCanonicalEscaping(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		line string
+	}{
+		{"non-canonical unicode escape for a plain ASCII letter", "{\"a\":\"\\u0041bc\",\"year\":2026}\n"},
+		{"escaped forward slash", "{\"a\":\"\\/slash\",\"year\":2026}\n"},
+		{"incidental whitespace around braces", "{ \"a\":\"x\",\"year\":2026 }\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.True(t, mirrorsHasFourConsecutiveDigits(tc.line),
+				"fixture must trip the gate so this exercises the parse path")
+			out := through(t, tc.line)
+			require.Equal(t, tc.line, out,
+				"a clean line must survive byte-for-byte, including formatting a re-encoder would otherwise canonicalise away")
+		})
+	}
+}
+
 // Round 2 fix — the empirical half of the "run of four consecutive digits is
 // a safe superset" argument: for a range of decoded strings that place PHI
 // behind separators of every kind this fix set out to catch — a literal

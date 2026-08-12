@@ -199,6 +199,18 @@ func (rw *redactingWriter) Write(p []byte) (int, error) {
 // PHI-shaped-looking-but-safe digit run — and that is always fine: an
 // unnecessary parse costs a few extra microseconds, while skipping a parse
 // that should have happened skips redaction entirely.
+//
+// Accepted, not overlooked: an RFC3339 timestamp's four-digit year alone
+// satisfies this gate, and every real record this codebase logs carries one
+// in its "time" field. So in practice this gate trips on essentially every
+// line, and the "fast path" it guards rarely fires on real traffic — most of
+// the cost this package pays is the parse-and-re-encode path, not the gate
+// itself. That trade was made deliberately: correctness on this package has
+// already cost four review rounds, HMS is a hospital API rather than a
+// high-volume firehose, and redaction cost on a genuinely high-volume path
+// is exactly the kind of question #438's read-access audit exists to
+// evaluate if one ever appears. Chasing microseconds here by narrowing this
+// gate is not worth spending any of that correctness back.
 func hasFourConsecutiveDigits(line string) bool {
 	run := 0
 	for i := 0; i < len(line); i++ {
@@ -284,12 +296,32 @@ func redactJSONLine(line string) string {
 // them. The trailer is copied as whatever bytes it actually was, not assumed
 // to be exactly "\n", because nothing about this writer's contract promises
 // that.
+//
+// When the parse succeeds but nothing actually matched a pattern — the
+// common outcome, since hasFourConsecutiveDigits is a wide superset and
+// gates in plenty of lines that turn out to be clean — this returns line
+// itself, unmodified, rather than the re-encoded copy. This is a structural
+// guarantee, not an incidental one: this package has produced four separate
+// defects at exactly the seam of "re-encode and hope it matches the
+// original" (dropped trailing newline, HTML-escaping, and two earlier
+// rounds' worth of JSON-corruption bugs before that), and "we did not
+// re-encode it" is a strictly stronger claim than "we re-encoded it and it
+// happened to come out identical" — the latter has to keep holding across
+// every future change to number formatting, escaping, key ordering, or
+// whitespace, and the former cannot regress on any of those because there
+// is no re-encoding to regress.
 func redactJSONByParsing(line string) (string, bool) {
 	dec := json.NewDecoder(strings.NewReader(line))
 	dec.UseNumber()
 
 	var out bytes.Buffer
 	out.Grow(len(line))
+
+	// redactedCount totals every mask RedactString actually applied while
+	// walking this document — across every string, key, and number token —
+	// so the caller can tell "parsed, nothing to redact" apart from "parsed,
+	// something changed" and return the untouched input in the former case.
+	redactedCount := 0
 
 	// strEnc is reused across every string/key token in this call. It is
 	// configured with SetEscapeHTML(false) because json.Marshal (the
@@ -360,7 +392,8 @@ func redactJSONByParsing(line string) (string, bool) {
 	// text of a string token — key or value — and re-encodes it so escaping
 	// is regenerated correctly around whatever the redaction produced.
 	writeRedactedString := func(s string) bool {
-		red, _ := RedactString(s)
+		red, n := RedactString(s)
+		redactedCount += n
 		return writeJSONString(red)
 	}
 	// writeRedactedNumber screens the whole number literal — sign, integer,
@@ -380,6 +413,7 @@ func redactJSONByParsing(line string) (string, bool) {
 			sign, magnitude = "-", magnitude[1:]
 		}
 		red, n := RedactString(magnitude)
+		redactedCount += n
 		if n > 0 {
 			return writeJSONString(red)
 		}
@@ -484,6 +518,14 @@ func redactJSONByParsing(line string) (string, bool) {
 		// No top-level value was ever seen at all (e.g. an empty or
 		// all-whitespace line). Nothing to reproduce.
 		return "", false
+	}
+
+	if redactedCount == 0 {
+		// Nothing matched anywhere in the document. Return the original
+		// input, not the re-encoded copy — see the doc comment above for
+		// why this is a structural guarantee rather than a hoped-for
+		// property of the re-encoding.
+		return line, true
 	}
 
 	// Whatever trailed the JSON value — the newline slog appends, or

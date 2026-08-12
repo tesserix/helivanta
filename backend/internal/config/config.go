@@ -5,6 +5,7 @@ import "os"
 type Config struct {
 	Env              string
 	Port             string
+	LogLevel         string
 	AppDatabaseURL   string
 	AdminDatabaseURL string
 	NATSURL          string
@@ -17,6 +18,7 @@ func Load() Config {
 	return Config{
 		Env:              getenv("HMS_ENV", "production"),
 		Port:             getenv("PORT", "8080"),
+		LogLevel:         getenv("LOG_LEVEL", "info"),
 		AppDatabaseURL:   getenv("APP_DATABASE_URL", "postgres://hms_app:hms_app@localhost:5432/hms?sslmode=disable"),
 		AdminDatabaseURL: getenv("ADMIN_DATABASE_URL", "postgres://hms:hms@localhost:5432/hms?sslmode=disable"),
 		NATSURL:          getenv("NATS_URL", "nats://localhost:4222"),

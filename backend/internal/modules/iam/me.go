@@ -38,128 +38,146 @@ type switchRequest struct {
 	TenantID string `json:"tenant_id" binding:"required,uuid"`
 }
 
-// registerMe adds the self-service routes. They are authz.Public because
+// meHandlers backs the self-service routes. They are authz.Public because
 // any authenticated caller may ask what they can do and where they
 // belong; the switch endpoint gates on membership itself.
 //
-// /me/tenants and /me/tenant resolve membership from OpenFGA via
-// deps.Roles.ListRoles rather than querying iam_members directly.
-// iam_members is RLS-forced and every runtime accessor (WithTenant)
-// scopes to a single tenant GUC — there is no accessor that can answer
-// "which tenants does this subject belong to" without already knowing
-// the tenant, which is exactly the question these routes exist to
-// answer. tenantdb.WithAdmin bypasses RLS and would work mechanically,
-// but it is boot/ops-only (see TestWithAdminIsOnlyCalledFromTheAllowlist
-// in internal/archtest) and reads every tenant's rows, not just role
-// keys. OpenFGA already holds membership as tuples written by the
+// tenants and switchTenant resolve membership from OpenFGA via
+// roles.ListRoles rather than querying iam_members directly. iam_members
+// is RLS-forced and every runtime accessor (WithTenant) scopes to a
+// single tenant GUC — there is no accessor that can answer "which
+// tenants does this subject belong to" without already knowing the
+// tenant, which is exactly the question these routes exist to answer.
+// tenantdb.WithAdmin bypasses RLS and would work mechanically, but it is
+// boot/ops-only (see TestWithAdminIsOnlyCalledFromTheAllowlist in
+// internal/archtest) and reads every tenant's rows, not just role keys.
+// OpenFGA already holds membership as tuples written by the
 // iam-fga-sync consumer, so resolving from there needs no migration, no
 // new RLS policy, and no privileged accessor on a request path.
+type meHandlers struct {
+	roles  platform.RoleLister
+	tokens authn.TokenMinter
+}
+
 func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
-	g.GET("/me/permissions", authz.Public, func(c *gin.Context) {
-		set, ok := authz.PermissionsFrom(c)
-		if !ok {
-			respond.InternalErr(c, errors.New("permission set missing from context"), "authorization not initialized")
-			return
-		}
-		// subject and tenant_id travel with the permission set so the
-		// client-side cache in @hms/api can stamp its entry with whose
-		// permissions it holds. The session cookie is httpOnly, so this
-		// response is the only place the browser can learn that identity.
-		// The stamp makes the entry self-describing — useful for
-		// debugging and for the cache's own shape validation — but it is
-		// not what keeps one user's nav from being shown to another:
-		// nothing compares it against the session before painting, and a
-		// pre-response client-side check is impossible with an httpOnly
-		// cookie. That protection comes from clearing the cache on login,
-		// logout and tenant switch, plus the fresh response overwriting
-		// the entry.
-		p, ok := authn.PrincipalFrom(c)
-		if !ok {
-			respond.Unauthenticated(c, "missing principal")
-			return
-		}
-		respond.OK(c, gin.H{
-			"data":      set.Sorted(),
-			"subject":   p.Subject,
-			"tenant_id": p.TenantID,
-		})
-	})
+	me := &meHandlers{roles: deps.Roles, tokens: deps.Tokens}
 
-	g.GET("/me/tenants", authz.Public, func(c *gin.Context) {
-		p, ok := authn.PrincipalFrom(c)
-		if !ok {
-			respond.Unauthenticated(c, "missing principal")
-			return
-		}
-		bindings, err := deps.Roles.ListRoles(c.Request.Context(), p.Subject)
-		if err != nil {
-			respondRolesUnavailable(c, err)
-			return
-		}
-		respond.OK(c, gin.H{"data": groupByTenant(bindings, p.TenantID)})
-	})
+	g.GET("/me/permissions", authz.Public, permissions)
+	g.GET("/me/tenants", authz.Public, me.tenants)
+	g.POST("/me/tenant", authz.Public, me.switchTenant)
+}
 
-	g.POST("/me/tenant", authz.Public, func(c *gin.Context) {
-		p, ok := authn.PrincipalFrom(c)
-		if !ok {
-			respond.Unauthenticated(c, "missing principal")
-			return
-		}
-		var req switchRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			respond.BadRequest(c, err)
-			return
-		}
-		// req.TenantID is compared raw, with no casing normalization:
-		// Principal.TenantID is canonicalized (lowercase uuid.String())
-		// at the GIP token parse boundary (pkg/authn/gip.go), so every
-		// FGA role tuple written by the iam-fga-sync consumer — and
-		// therefore every binding ListRoles returns — is already
-		// canonical. A client round-tripping the value it received from
-		// /me/tenants (itself sourced from these same bindings) submits
-		// the same canonical form back here. The actual enforcement
-		// backstop, though, is switchRequest.TenantID's `uuid` binding
-		// tag (see its doc comment): a non-canonical casing never even
-		// reaches this comparison, because binding validation rejects it
-		// with 400 first.
-		target := req.TenantID
-		bindings, err := deps.Roles.ListRoles(c.Request.Context(), p.Subject)
-		if err != nil {
-			respondRolesUnavailable(c, err)
-			return
-		}
-		if !hasBindingForTenant(bindings, target) {
-			respond.Forbidden(c, "not a member of that tenant")
-			return
-		}
-		// Everything above is the gate; only past it does anything get
-		// minted. A custom token is a credential for the target tenant,
-		// so issuing one before the membership check — or issuing one on
-		// any path where the check did not conclusively pass — would hand
-		// out exactly the access the check exists to withhold.
-		//
-		// target is minted as sent (already validated as a UUID by the
-		// binding tag). Casing does not survive the round trip anyway:
-		// principalFromToken canonicalizes the claim to lowercase
-		// uuid.String() when the re-minted token comes back (see
-		// pkg/authn/gip.go).
-		if deps.Tokens == nil {
-			respondMintUnavailable(c, errors.New("no token minter configured"))
-			return
-		}
-		token, err := deps.Tokens.CustomTokenWithClaims(c.Request.Context(), p.Subject,
-			map[string]interface{}{"tenant_id": target})
-		if err != nil {
-			respondMintUnavailable(c, err)
-			return
-		}
-		// custom_token is what actually performs the switch: the client
-		// exchanges it for a fresh ID token carrying the new tenant_id
-		// claim and replaces its session with it. tenant_id is kept
-		// alongside so callers can confirm which tenant the token is for
-		// without decoding it, and so the response shape stays additive.
-		respond.OK(c, gin.H{"tenant_id": target, "custom_token": token})
+// permissions reports the caller's resolved permission set. It takes no
+// handler-struct dependencies: everything it needs already travels on
+// the request context via authz.PermissionsFrom / authn.PrincipalFrom.
+func permissions(c *gin.Context) {
+	set, ok := authz.PermissionsFrom(c)
+	if !ok {
+		respond.InternalErr(c, errors.New("permission set missing from context"), "authorization not initialized")
+		return
+	}
+	// subject and tenant_id travel with the permission set so the
+	// client-side cache in @hms/api can stamp its entry with whose
+	// permissions it holds. The session cookie is httpOnly, so this
+	// response is the only place the browser can learn that identity.
+	// The stamp makes the entry self-describing — useful for
+	// debugging and for the cache's own shape validation — but it is
+	// not what keeps one user's nav from being shown to another:
+	// nothing compares it against the session before painting, and a
+	// pre-response client-side check is impossible with an httpOnly
+	// cookie. That protection comes from clearing the cache on login,
+	// logout and tenant switch, plus the fresh response overwriting
+	// the entry.
+	p, ok := authn.PrincipalFrom(c)
+	if !ok {
+		respond.Unauthenticated(c, "missing principal")
+		return
+	}
+	respond.OK(c, gin.H{
+		"data":      set.Sorted(),
+		"subject":   p.Subject,
+		"tenant_id": p.TenantID,
 	})
+}
+
+// tenants lists every tenant the caller belongs to, with their roles.
+func (h *meHandlers) tenants(c *gin.Context) {
+	p, ok := authn.PrincipalFrom(c)
+	if !ok {
+		respond.Unauthenticated(c, "missing principal")
+		return
+	}
+	bindings, err := h.roles.ListRoles(c.Request.Context(), p.Subject)
+	if err != nil {
+		respondRolesUnavailable(c, err)
+		return
+	}
+	respond.OK(c, gin.H{"data": groupByTenant(bindings, p.TenantID)})
+}
+
+// switchTenant mints a custom token for another tenant the caller is a
+// member of. Everything before the mint is the gate; only past it does
+// anything get issued.
+func (h *meHandlers) switchTenant(c *gin.Context) {
+	p, ok := authn.PrincipalFrom(c)
+	if !ok {
+		respond.Unauthenticated(c, "missing principal")
+		return
+	}
+	var req switchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respond.BadRequest(c, err)
+		return
+	}
+	// req.TenantID is compared raw, with no casing normalization:
+	// Principal.TenantID is canonicalized (lowercase uuid.String())
+	// at the GIP token parse boundary (pkg/authn/gip.go), so every
+	// FGA role tuple written by the iam-fga-sync consumer — and
+	// therefore every binding ListRoles returns — is already
+	// canonical. A client round-tripping the value it received from
+	// /me/tenants (itself sourced from these same bindings) submits
+	// the same canonical form back here. The actual enforcement
+	// backstop, though, is switchRequest.TenantID's `uuid` binding
+	// tag (see its doc comment): a non-canonical casing never even
+	// reaches this comparison, because binding validation rejects it
+	// with 400 first.
+	target := req.TenantID
+	bindings, err := h.roles.ListRoles(c.Request.Context(), p.Subject)
+	if err != nil {
+		respondRolesUnavailable(c, err)
+		return
+	}
+	if !hasBindingForTenant(bindings, target) {
+		respond.Forbidden(c, "not a member of that tenant")
+		return
+	}
+	// Everything above is the gate; only past it does anything get
+	// minted. A custom token is a credential for the target tenant,
+	// so issuing one before the membership check — or issuing one on
+	// any path where the check did not conclusively pass — would hand
+	// out exactly the access the check exists to withhold.
+	//
+	// target is minted as sent (already validated as a UUID by the
+	// binding tag). Casing does not survive the round trip anyway:
+	// principalFromToken canonicalizes the claim to lowercase
+	// uuid.String() when the re-minted token comes back (see
+	// pkg/authn/gip.go).
+	if h.tokens == nil {
+		respondMintUnavailable(c, errors.New("no token minter configured"))
+		return
+	}
+	token, err := h.tokens.CustomTokenWithClaims(c.Request.Context(), p.Subject,
+		map[string]interface{}{"tenant_id": target})
+	if err != nil {
+		respondMintUnavailable(c, err)
+		return
+	}
+	// custom_token is what actually performs the switch: the client
+	// exchanges it for a fresh ID token carrying the new tenant_id
+	// claim and replaces its session with it. tenant_id is kept
+	// alongside so callers can confirm which tenant the token is for
+	// without decoding it, and so the response shape stays additive.
+	respond.OK(c, gin.H{"tenant_id": target, "custom_token": token})
 }
 
 // groupByTenant turns FGA role bindings into the response shape, one

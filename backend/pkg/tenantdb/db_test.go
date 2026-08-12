@@ -107,6 +107,20 @@ func TestMigrateIsIdempotent(t *testing.T) {
 	require.NoError(t, db.Migrate(context.Background(), testMigrations)) // second run: no-op
 }
 
+// Tenant isolation rests entirely on APP_DATABASE_URL naming a role that
+// cannot bypass RLS. Nothing asserted that at runtime, and the two
+// default DSNs differ only by username — so pasting the admin URL into
+// APP_DATABASE_URL silently disabled isolation with every test still
+// green. Open must refuse.
+func TestOpenRefusesAppPoolThatCanBypassRLS(t *testing.T) {
+	_, adminDSN := testutil.StartPostgres(t)
+
+	_, err := tenantdb.Open(adminDSN, adminDSN)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "bypass")
+}
+
 func TestLintRLSFlagsUnprotectedTable(t *testing.T) {
 	db := openMigrated(t)
 	ctx := context.Background()

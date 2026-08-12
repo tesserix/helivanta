@@ -42,7 +42,35 @@ func Open(appDSN, adminDSN string) (*DB, error) {
 		sqlDB.SetMaxOpenConns(5)
 		sqlDB.SetMaxIdleConns(2)
 	}
+	if err := assertNoRLSBypass(app); err != nil {
+		return nil, err
+	}
 	return &DB{app: app, admin: admin}, nil
+}
+
+// assertNoRLSBypass fails when the pool's role can see through row-level
+// security. FORCE ROW LEVEL SECURITY already covers the table-owner case;
+// this covers BYPASSRLS and superuser, and together they close both.
+//
+// Without it, an APP_DATABASE_URL naming the admin role serves every
+// tenant's data from every endpoint, while every test passes and LintRLS
+// stays green — it inspects table metadata, not the connecting role.
+func assertNoRLSBypass(g *gorm.DB) error {
+	var caps struct {
+		Bypass bool
+		Super  bool
+	}
+	err := g.Raw(`SELECT rolbypassrls AS bypass, rolsuper AS super
+		FROM pg_roles WHERE rolname = current_user`).Scan(&caps).Error
+	if err != nil {
+		return fmt.Errorf("probe app role capabilities: %w", err)
+	}
+	if caps.Bypass || caps.Super {
+		return fmt.Errorf("tenantdb: APP_DATABASE_URL connects as a role that can bypass "+
+			"row-level security (bypassrls=%v superuser=%v); tenant isolation would be "+
+			"silently disabled. Point it at the non-superuser application role", caps.Bypass, caps.Super)
+	}
+	return nil
 }
 
 func (d *DB) PingContext(ctx context.Context) error {

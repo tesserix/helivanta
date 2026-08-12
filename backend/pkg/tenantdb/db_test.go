@@ -1,7 +1,12 @@
 package tenantdb_test
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
+	"os"
+	"syscall"
 	"testing"
 
 	"github.com/google/uuid"
@@ -324,4 +329,126 @@ func TestLintRLSFlagsNonInvokerView(t *testing.T) {
 	require.Equal(t, []string{
 		"naughty_exposed_view: view over a tenant table is not security_invoker",
 	}, bad)
+}
+
+// phiProbeMigration is a tenant table with a UNIQUE constraint, so a
+// duplicate insert fails and drives GORM down the error path — the path
+// where its logger echoes the executed SQL with parameters inlined.
+var phiProbeMigration = []tenantdb.Migration{{
+	ID: "0002_phi_probe",
+	SQL: `
+		CREATE TABLE phi_probe (
+		  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+		  tenant_id uuid NOT NULL,
+		  mrn text NOT NULL,
+		  patient_name text NOT NULL,
+		  UNIQUE (tenant_id, mrn)
+		);
+		ALTER TABLE phi_probe ENABLE ROW LEVEL SECURITY;
+		ALTER TABLE phi_probe FORCE ROW LEVEL SECURITY;
+		CREATE POLICY tenant_isolation ON phi_probe
+		  USING (hms_tenant_visible(tenant_id))
+		  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`,
+}}
+
+type phiProbe struct {
+	TenantID    uuid.UUID
+	MRN         string `gorm:"column:mrn"`
+	PatientName string
+}
+
+func (phiProbe) TableName() string { return "phi_probe" }
+
+// captureStdoutStderr redirects file descriptors 1 and 2 to a pipe for the
+// duration of fn and returns everything written to them. Reassigning the
+// os.Stdout / os.Stderr variables would not work here: GORM's logger.Default
+// is constructed at package init from log.New(os.Stderr, ...) and holds the
+// *os.File for fd 2 from that moment. Only replacing the descriptor itself
+// reaches it.
+func captureStdoutStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+
+	savedOut, err := syscall.Dup(syscall.Stdout)
+	require.NoError(t, err)
+	savedErr, err := syscall.Dup(syscall.Stderr)
+	require.NoError(t, err)
+
+	require.NoError(t, syscall.Dup2(int(w.Fd()), syscall.Stdout))
+	require.NoError(t, syscall.Dup2(int(w.Fd()), syscall.Stderr))
+
+	done := make(chan string, 1)
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, r)
+		done <- buf.String()
+	}()
+
+	fn()
+
+	// Restore before closing the pipe, so a later failure message from the
+	// test framework still has somewhere to go.
+	require.NoError(t, syscall.Dup2(savedOut, syscall.Stdout))
+	require.NoError(t, syscall.Dup2(savedErr, syscall.Stderr))
+	_ = syscall.Close(savedOut)
+	_ = syscall.Close(savedErr)
+	require.NoError(t, w.Close())
+	out := <-done
+	require.NoError(t, r.Close())
+	return out
+}
+
+// TestOpenNeverLogsQueryParameters is the property behind the logger.Silent
+// clause in tenantdb.Open. The arch test keeps gorm.Open to two call sites;
+// this asserts what those sites must actually achieve, and it keeps holding
+// if GORM's logging is ever reworked.
+//
+// The control sentinel is what makes this non-vacuous: it proves the capture
+// is wired to the descriptors GORM writes to. Without it, a broken capture
+// returning "" would satisfy the PHI assertion perfectly.
+func TestOpenNeverLogsQueryParameters(t *testing.T) {
+	const patientName = "Suresh Kumar PHI-CANARY"
+	const mrn = "HQ-OPD-0001427"
+	const controlSentinel = "capture-control-sentinel"
+
+	appDSN, adminDSN := testutil.StartPostgres(t)
+	tenantID := uuid.NewString()
+
+	var insertErr error
+	out := captureStdoutStderr(t, func() {
+		fmt.Fprintln(os.Stderr, controlSentinel)
+
+		db, err := tenantdb.Open(appDSN, adminDSN)
+		if err != nil {
+			insertErr = err
+			return
+		}
+		ctx := context.Background()
+		if err := db.Migrate(ctx, tenantdb.Migrations()); err != nil {
+			insertErr = err
+			return
+		}
+		if err := db.Migrate(ctx, phiProbeMigration); err != nil {
+			insertErr = err
+			return
+		}
+		row := phiProbe{TenantID: uuid.MustParse(tenantID), MRN: mrn, PatientName: patientName}
+		if err := db.WithTenant(ctx, tenantID, func(tx *gorm.DB) error {
+			return tx.Create(&row).Error
+		}); err != nil {
+			insertErr = err
+			return
+		}
+		// Second insert violates UNIQUE (tenant_id, mrn): GORM's error path.
+		insertErr = db.WithTenant(ctx, tenantID, func(tx *gorm.DB) error {
+			return tx.Create(&phiProbe{TenantID: uuid.MustParse(tenantID), MRN: mrn, PatientName: patientName}).Error
+		})
+	})
+
+	require.Error(t, insertErr, "the duplicate insert must fail, or GORM's error logging path never ran")
+	require.Contains(t, out, controlSentinel,
+		"capture is not attached to the descriptors under test; the PHI assertion below would pass vacuously")
+	require.NotContains(t, out, patientName, "patient name reached the log stream")
+	require.NotContains(t, out, mrn, "medical record number reached the log stream")
 }

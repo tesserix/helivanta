@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -403,6 +404,155 @@ func TestNewBusInNamespaceIsTestOnly(t *testing.T) {
 			t.Errorf("%s calls events.NewBusInNamespace, which is test-only. Production code "+
 				"must use events.NewBus: a namespace renames the stream and prefixes every "+
 				"subject, so consumers would silently stop seeing events.", rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk repo: %v", err)
+	}
+}
+
+// TestSourceCallsGormOpenDetectsBothSpellings is the discriminating test for
+// the detector itself. A plain text scan for "gorm.Open(" misses the aliased
+// import form, which compiles and runs identically. Both must be caught, and
+// source that merely mentions a different Open must pass clean.
+func TestSourceCallsGormOpenDetectsBothSpellings(t *testing.T) {
+	const plainFixture = `package fixture
+
+import "gorm.io/gorm"
+
+func f(d gorm.Dialector) { gorm.Open(d) }
+`
+	const aliasedFixture = `package fixture
+
+import g "gorm.io/gorm"
+
+func f(d g.Dialector) { g.Open(d) }
+`
+	const cleanFixture = `package fixture
+
+import "os"
+
+func f() { os.Open("x") }
+`
+	tests := []struct {
+		name string
+		src  string
+		want bool
+	}{
+		{"plain gorm.Open", plainFixture, true},
+		{"aliased import still resolves to the gorm package", aliasedFixture, true},
+		{"an unrelated Open is not a match", cleanFixture, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := sourceCallsGormOpen([]byte(tc.src))
+			if err != nil {
+				t.Fatalf("parse fixture: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("sourceCallsGormOpen = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// gormOpenAllowlist is exactly the files permitted to call gorm.Open.
+// Every call site decides, in its gorm.Config, whether GORM's logger
+// echoes executed SQL — and GORM inlines parameter values into that SQL,
+// so a non-silent pool is a full patient-data dump on the error and
+// slow-query paths. Keeping the set of call sites to two means the
+// decision is reviewable; adding a third is a PHI decision, not a
+// convenience, and belongs in review rather than in this map.
+var gormOpenAllowlist = map[string]bool{
+	"pkg/tenantdb/db.go":                    true,
+	"internal/testinfra/containers_test.go": true,
+}
+
+// sourceCallsGormOpen parses src and reports whether it calls Open on the
+// gorm package, under whatever local name the file imports it as. Matching
+// on the import path rather than the literal identifier "gorm" is what
+// makes an aliased import (`import g "gorm.io/gorm"`, then `g.Open(...)`)
+// resolve the same as the ordinary spelling; a text scan for "gorm.Open("
+// would see nothing there at all.
+func sourceCallsGormOpen(src []byte) (bool, error) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, parser.SkipObjectResolution)
+	if err != nil {
+		return false, err
+	}
+	names := map[string]bool{}
+	for _, imp := range f.Imports {
+		path, err := strconv.Unquote(imp.Path.Value)
+		if err != nil || path != "gorm.io/gorm" {
+			continue
+		}
+		if imp.Name != nil {
+			names[imp.Name.Name] = true
+		} else {
+			names["gorm"] = true
+		}
+	}
+	if len(names) == 0 {
+		return false, nil
+	}
+	found := false
+	ast.Inspect(f, func(n ast.Node) bool {
+		sel, ok := n.(*ast.SelectorExpr)
+		if !ok || sel.Sel.Name != "Open" {
+			return true
+		}
+		if ident, ok := sel.X.(*ast.Ident); ok && names[ident.Name] {
+			found = true
+		}
+		return true
+	})
+	return found, nil
+}
+
+// TestGormOpenIsOnlyCalledFromTheAllowlist protects a PHI control that is
+// otherwise invisible. GORM's logger renders executed SQL with parameter
+// values inlined — `INSERT INTO patients VALUES (2,'HQ-OPD-0001427','Suresh
+// Kumar')` — on its error and slow-query paths. The only thing keeping that
+// out of the logs is logger.Silent in each gorm.Config, and a new pool
+// opened anywhere else would default to logger.Warn and start emitting.
+// tenantdb.Open cannot defend against a call site it does not own, so the
+// defence has to be here.
+func TestGormOpenIsOnlyCalledFromTheAllowlist(t *testing.T) {
+	root := "../.."
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		// archtest's own source necessarily mentions gorm.Open (this check,
+		// its allowlist, its fixtures). Excluding the package avoids the
+		// self-match rather than allowlisting it, which would otherwise read
+		// as "archtest may open pools".
+		if strings.HasPrefix(rel, "internal/archtest/") {
+			return nil
+		}
+		if gormOpenAllowlist[rel] {
+			return nil
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		found, err := sourceCallsGormOpen(src)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", rel, err)
+		}
+		if found {
+			t.Errorf("%s calls gorm.Open. GORM's logger inlines parameter values into the "+
+				"SQL it echoes, so a pool opened without logger.Silent writes patient data "+
+				"to the logs on every failing or slow query. Use tenantdb.Open. If you "+
+				"genuinely need another pool, bring it to review — don't add this file to "+
+				"gormOpenAllowlist in arch_test.go on your own.", rel)
 		}
 		return nil
 	})

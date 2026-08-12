@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local preflight
+.PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local preflight reset
 
 preflight:
 	@bash scripts/preflight.sh
@@ -27,6 +27,10 @@ up: dev-infra seed
 # 4301-4304 and 8080 against infra that no longer exists.
 down:
 	@./scripts/dev-down.sh
+
+# Destroys the local volumes and re-seeds. Prompts first; RESET_YES=1 skips.
+reset:
+	@./scripts/reset-dev.sh
 
 # Back-compat aliases for the older target names.
 dev: up

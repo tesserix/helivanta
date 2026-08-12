@@ -90,6 +90,10 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			);
 			ALTER TABLE __NAME___items ENABLE ROW LEVEL SECURITY;
 			ALTER TABLE __NAME___items FORCE ROW LEVEL SECURITY;
+			-- Calling hms_tenant_visible directly here (no two-step ALTER
+			-- POLICY, unlike medicore/pharmacy/lab/iam) is safe only because
+			-- the platform migration defining it always runs first; those
+			-- modules' tables predate the function and needed a follow-up step.
 			CREATE POLICY tenant_isolation ON __NAME___items
 			  USING (hms_tenant_visible(tenant_id))
 			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);

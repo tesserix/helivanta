@@ -185,31 +185,74 @@ var lintAllowlist = map[string]bool{
 // everything, and a module that simply forgets the column now fails.
 func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
 	type row struct {
-		Relname      string
-		HasTenant    bool
-		RLS          bool
-		Forced       bool
-		HasPolicy    bool
-		UsesFunction bool
+		Relname        string
+		HasTenant      bool
+		RLS            bool
+		Forced         bool
+		PolicyCount    int
+		HasPolicy      bool
+		UsesFunction   bool
+		CheckUsesFunc  bool
+		BadRelkind     bool
+		BadSchema      bool
+		NonInvokerView bool
 	}
 	var rows []row
+	// has_policy/uses_function/check_uses_func are all EXISTS-ed against the
+	// SAME policy row (p.policyname carried through every clause) rather than
+	// three independent EXISTS subqueries — independent EXISTS clauses could
+	// each be satisfied by a different policy, and RLS permissive policies OR
+	// together, so a second policy on the table (e.g. USING (true)) would
+	// defeat isolation while every clause here still individually passed.
+	// policy_count catches that same hole from the other side: exactly one
+	// policy per tenant table is what every production table has today, and
+	// a second policy — permissive or not — is a red flag regardless of what
+	// it says, so it fails the lint even before its contents are examined.
 	err := d.admin.WithContext(ctx).Raw(`
 		SELECT c.relname,
 		       EXISTS (SELECT 1 FROM information_schema.columns col
-		               WHERE col.table_schema = 'public'
+		               WHERE col.table_schema = n.nspname
 		                 AND col.table_name = c.relname
 		                 AND col.column_name = 'tenant_id') AS has_tenant,
 		       c.relrowsecurity        AS rls,
 		       c.relforcerowsecurity   AS forced,
+		       (SELECT COUNT(*) FROM pg_policies p
+		               WHERE p.schemaname = n.nspname AND p.tablename = c.relname) AS policy_count,
 		       EXISTS (SELECT 1 FROM pg_policies p
-		               WHERE p.schemaname = 'public' AND p.tablename = c.relname
+		               WHERE p.schemaname = n.nspname AND p.tablename = c.relname
 		                 AND p.qual IS NOT NULL AND p.with_check IS NOT NULL) AS has_policy,
 		       EXISTS (SELECT 1 FROM pg_policies p
-		               WHERE p.schemaname = 'public' AND p.tablename = c.relname
-		                 AND p.qual LIKE '%hms_tenant_visible%') AS uses_function
+		               WHERE p.schemaname = n.nspname AND p.tablename = c.relname
+		                 AND p.qual IS NOT NULL AND p.with_check IS NOT NULL
+		                 AND p.qual LIKE '%hms_tenant_visible%') AS uses_function,
+		       EXISTS (SELECT 1 FROM pg_policies p
+		               WHERE p.schemaname = n.nspname AND p.tablename = c.relname
+		                 AND p.qual IS NOT NULL AND p.with_check IS NOT NULL
+		                 AND p.qual LIKE '%hms_tenant_visible%'
+		                 AND p.with_check LIKE '%hms_tenant_visible%') AS check_uses_func,
+		       (c.relkind IN ('p', 'f')
+		         AND EXISTS (SELECT 1 FROM information_schema.columns col
+		                     WHERE col.table_schema = n.nspname
+		                       AND col.table_name = c.relname
+		                       AND col.column_name = 'tenant_id')) AS bad_relkind,
+		       (n.nspname NOT IN ('public', 'pg_catalog', 'information_schema')
+		         AND n.nspname NOT LIKE 'pg_%'
+		         AND EXISTS (SELECT 1 FROM information_schema.columns col
+		                     WHERE col.table_schema = n.nspname
+		                       AND col.table_name = c.relname
+		                       AND col.column_name = 'tenant_id')) AS bad_schema,
+		       (c.relkind = 'v'
+		         AND EXISTS (SELECT 1 FROM information_schema.columns col
+		                     WHERE col.table_schema = n.nspname
+		                       AND col.table_name = c.relname
+		                       AND col.column_name = 'tenant_id')
+		         AND COALESCE((SELECT option_value::boolean FROM pg_options_to_table(c.reloptions)
+		                       WHERE option_name = 'security_invoker'), false) IS NOT TRUE) AS non_invoker_view
 		FROM pg_class c
 		JOIN pg_namespace n ON n.oid = c.relnamespace
-		WHERE n.nspname = 'public' AND c.relkind = 'r'
+		WHERE c.relkind IN ('r', 'p', 'f', 'v')
+		  AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+		  AND n.nspname NOT LIKE 'pg_%'
 		ORDER BY c.relname`).Scan(&rows).Error
 	if err != nil {
 		return nil, err
@@ -221,14 +264,24 @@ func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
 			continue
 		}
 		switch {
+		case r.BadSchema:
+			bad = append(bad, r.Relname+": tenant table lives outside the public schema")
+		case r.NonInvokerView:
+			bad = append(bad, r.Relname+": view over a tenant table is not security_invoker")
+		case r.BadRelkind:
+			bad = append(bad, r.Relname+": tenant table is a partitioned parent or foreign table, not a plain table")
 		case !r.HasTenant:
 			bad = append(bad, r.Relname+": no tenant_id column")
 		case !r.RLS || !r.Forced:
 			bad = append(bad, r.Relname+": row-level security not enabled and forced")
+		case r.PolicyCount != 1:
+			bad = append(bad, r.Relname+": expected exactly one policy, found a different count")
 		case !r.HasPolicy:
 			bad = append(bad, r.Relname+": no policy with both USING and WITH CHECK")
 		case !r.UsesFunction:
 			bad = append(bad, r.Relname+": USING does not call hms_tenant_visible")
+		case r.CheckUsesFunc:
+			bad = append(bad, r.Relname+": WITH CHECK calls hms_tenant_visible instead of pinning to one tenant")
 		}
 	}
 	return bad, nil

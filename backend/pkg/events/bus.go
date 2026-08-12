@@ -314,7 +314,20 @@ func (b *Bus) consumeLoop(ctx context.Context, db OutboxStore, c Consumer, sub *
 	}
 }
 
+// handleMsg is called directly from consumeLoop's `go`-free for-loop, so a
+// panic here (e.g. from json.Unmarshal or future parsing added before
+// runConsumerTx) has no recover between it and the process — runConsumerTx's
+// recover only guards the tx it wraps. This is a backstop for exactly that
+// gap: log and Nak so a redelivery gets another chance instead of the
+// consumer goroutine, and therefore the process, dying.
 func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *nats.Msg) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("consumer handleMsg panic", "consumer", c.Name,
+				"panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+			_ = msg.Nak()
+		}
+	}()
 	var evt Event
 	if err := json.Unmarshal(msg.Data, &evt); err != nil {
 		slog.Error("consumer bad payload", "consumer", c.Name, "err", err)

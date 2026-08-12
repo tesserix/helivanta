@@ -184,3 +184,138 @@ func TestLintRLSFlagsUnprotectedTable(t *testing.T) {
 	}, bad)
 	require.NotContains(t, bad, "widgets")
 }
+
+// TestLintRLSFlagsWideningWithCheck covers MEDIUM 1 from the final
+// whole-branch review: the asymmetry between USING and WITH CHECK is
+// deliberate — reads may widen to hospital-group visibility later, writes
+// must always land in exactly one tenant — so a policy whose WITH CHECK
+// also calls hms_tenant_visible has to be reported, not just one that lacks
+// a WITH CHECK entirely.
+func TestLintRLSFlagsWideningWithCheck(t *testing.T) {
+	db := openMigrated(t)
+	ctx := context.Background()
+	require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{
+		ID: "0003_naughty_check_widens",
+		SQL: `
+			CREATE TABLE naughty_check_widens (id uuid PRIMARY KEY, tenant_id uuid NOT NULL);
+			ALTER TABLE naughty_check_widens ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE naughty_check_widens FORCE ROW LEVEL SECURITY;
+			CREATE POLICY p ON naughty_check_widens
+			  USING (hms_tenant_visible(tenant_id))
+			  WITH CHECK (hms_tenant_visible(tenant_id));`,
+	}}))
+	bad, err := db.LintRLS(ctx)
+	require.NoError(t, err)
+	require.Contains(t, bad, "naughty_check_widens: WITH CHECK calls hms_tenant_visible instead of pinning to one tenant")
+}
+
+// TestLintRLSFlagsSecondPermissivePolicy covers MEDIUM 2: has_policy and
+// uses_function used to be independent EXISTS clauses that could each be
+// satisfied by a different policy row on the same table. RLS permissive
+// policies OR together, so a second policy — here a wide-open USING (true)
+// — defeats isolation entirely even while a first, correct policy still
+// makes every per-clause EXISTS true. The lint now also fails outright on
+// any table carrying other than exactly one policy.
+func TestLintRLSFlagsSecondPermissivePolicy(t *testing.T) {
+	db := openMigrated(t)
+	ctx := context.Background()
+	require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{
+		ID: "0003_naughty_extra_policy",
+		SQL: `
+			CREATE TABLE naughty_extra_policy (id uuid PRIMARY KEY, tenant_id uuid NOT NULL);
+			ALTER TABLE naughty_extra_policy ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE naughty_extra_policy FORCE ROW LEVEL SECURITY;
+			CREATE POLICY tenant_isolation ON naughty_extra_policy
+			  USING (hms_tenant_visible(tenant_id))
+			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+			CREATE POLICY wide_open ON naughty_extra_policy
+			  AS PERMISSIVE FOR SELECT USING (true);`,
+	}}))
+	bad, err := db.LintRLS(ctx)
+	require.NoError(t, err)
+	require.Contains(t, bad, "naughty_extra_policy: expected exactly one policy, found a different count")
+}
+
+// TestLintRLSFlagsTableOutsidePublicSchema covers the first escape from
+// MEDIUM 3: a tenant table living in a schema other than public used to
+// never be enumerated at all, because the old query filtered on
+// nspname = 'public'.
+func TestLintRLSFlagsTableOutsidePublicSchema(t *testing.T) {
+	db := openMigrated(t)
+	ctx := context.Background()
+	require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{
+		ID: "0003_naughty_wrong_schema",
+		SQL: `
+			CREATE SCHEMA naughty_schema;
+			CREATE TABLE naughty_schema.naughty_wrong_schema (id uuid PRIMARY KEY, tenant_id uuid NOT NULL);`,
+	}}))
+	bad, err := db.LintRLS(ctx)
+	require.NoError(t, err)
+	require.Contains(t, bad, "naughty_wrong_schema: tenant table lives outside the public schema")
+}
+
+// TestLintRLSFlagsPartitionedParent covers the second escape from MEDIUM 3:
+// a partitioned parent has relkind 'p', not 'r', so the old
+// `c.relkind = 'r'` filter skipped it entirely regardless of RLS state.
+func TestLintRLSFlagsPartitionedParent(t *testing.T) {
+	db := openMigrated(t)
+	ctx := context.Background()
+	require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{
+		ID: "0003_naughty_partitioned",
+		SQL: `
+			CREATE TABLE naughty_partitioned_parent (id uuid, tenant_id uuid NOT NULL)
+			  PARTITION BY LIST (tenant_id);`,
+	}}))
+	bad, err := db.LintRLS(ctx)
+	require.NoError(t, err)
+	require.Contains(t, bad, "naughty_partitioned_parent: tenant table is a partitioned parent or foreign table, not a plain table")
+}
+
+// TestLintRLSFlagsForeignTable covers the same relkind escape as the
+// partitioned-parent case, but for foreign tables (relkind 'f'), which the
+// old `relkind = 'r'` filter also skipped.
+func TestLintRLSFlagsForeignTable(t *testing.T) {
+	db := openMigrated(t)
+	ctx := context.Background()
+	require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{
+		ID: "0003_naughty_foreign",
+		SQL: `
+			CREATE EXTENSION IF NOT EXISTS postgres_fdw;
+			CREATE SERVER naughty_loopback FOREIGN DATA WRAPPER postgres_fdw
+			  OPTIONS (host 'localhost', dbname 'postgres');
+			CREATE USER MAPPING FOR CURRENT_USER SERVER naughty_loopback
+			  OPTIONS (user 'postgres');
+			CREATE FOREIGN TABLE naughty_foreign_table (id uuid, tenant_id uuid NOT NULL)
+			  SERVER naughty_loopback OPTIONS (table_name 'irrelevant');`,
+	}}))
+	bad, err := db.LintRLS(ctx)
+	require.NoError(t, err)
+	require.Contains(t, bad, "naughty_foreign_table: tenant table is a partitioned parent or foreign table, not a plain table")
+}
+
+// TestLintRLSFlagsNonInvokerView covers the sharpest escape from MEDIUM 3:
+// a view over a tenant table, created by the migration (owner) role
+// without security_invoker = true, reads the underlying table with the
+// owner's RLS-bypassing rights regardless of who queries the view.
+func TestLintRLSFlagsNonInvokerView(t *testing.T) {
+	db := openMigrated(t)
+	ctx := context.Background()
+	require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{
+		ID: "0003_naughty_view",
+		SQL: `
+			CREATE TABLE naughty_view_base (id uuid PRIMARY KEY, tenant_id uuid NOT NULL);
+			ALTER TABLE naughty_view_base ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE naughty_view_base FORCE ROW LEVEL SECURITY;
+			CREATE POLICY tenant_isolation ON naughty_view_base
+			  USING (hms_tenant_visible(tenant_id))
+			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+			CREATE VIEW naughty_exposed_view AS SELECT * FROM naughty_view_base;
+			CREATE VIEW compliant_invoker_view WITH (security_invoker = true)
+			  AS SELECT * FROM naughty_view_base;`,
+	}}))
+	bad, err := db.LintRLS(ctx)
+	require.NoError(t, err)
+	require.Contains(t, bad, "naughty_exposed_view: view over a tenant table is not security_invoker")
+	require.NotContains(t, bad, "compliant_invoker_view")
+	require.NotContains(t, bad, "naughty_view_base")
+}

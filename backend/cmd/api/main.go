@@ -31,6 +31,10 @@ func main() {
 
 func run() error {
 	cfg := config.Load()
+	// Logged once at boot because HMS_ENV silently gates production safety
+	// checks (see Config.IsDev) — a prod process accidentally started with
+	// HMS_ENV=dev would otherwise disable them with no signal anywhere.
+	slog.Info("resolved environment", "env", cfg.Env, "is_dev", cfg.IsDev())
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 

@@ -167,6 +167,27 @@ assert_contains "names the occupied port" "$out" "$busy_port"
 assert_contains "names the fix"           "$out" "make down"
 
 echo
+echo "reset-dev.sh:"
+
+# Sourced (not $0), so the main guard keeps this from running the script.
+. "$REPO_ROOT/scripts/reset-dev.sh"
+
+reset_reply_accepts "reset"
+assert_status "reset_reply_accepts true for the exact word" 0 "$?"
+
+reset_reply_accepts "no"
+assert_status "reset_reply_accepts false for no" 1 "$?"
+
+reset_reply_accepts ""
+assert_status "reset_reply_accepts false for empty string" 1 "$?"
+
+reset_reply_accepts "RESET"
+assert_status "reset_reply_accepts false for RESET (case-sensitive)" 1 "$?"
+
+reset_reply_accepts " reset"
+assert_status "reset_reply_accepts false for leading whitespace" 1 "$?"
+
+echo
 if [ "$failed" -gt 0 ]; then
   echo "$failed failed, $passed passed"
   exit 1

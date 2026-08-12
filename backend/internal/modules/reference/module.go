@@ -54,6 +54,35 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  ping_id uuid NOT NULL,
 			  processed_at timestamptz NOT NULL DEFAULT now()
 			);`,
+	}, {
+		ID: "0002_reference",
+		// USING moves to the shared predicate so group-tenant
+		// visibility can later be enabled in one place. WITH CHECK
+		// deliberately stays pinned to strict equality: reads may
+		// widen, writes must always land in exactly one tenant.
+		SQL: `
+			ALTER POLICY tenant_isolation ON reference_pings
+			  USING (hms_tenant_visible(tenant_id))
+			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+
+			ALTER TABLE reference_ping_receipts ADD COLUMN tenant_id uuid;
+
+			-- Derive the tenant from the ping the receipt refers to. Receipts whose
+			-- ping no longer exists cannot be attributed to a tenant and are dropped;
+			-- they are consumer bookkeeping, not clinical data.
+			UPDATE reference_ping_receipts r
+			   SET tenant_id = p.tenant_id
+			  FROM reference_pings p
+			 WHERE p.id = r.ping_id;
+			DELETE FROM reference_ping_receipts WHERE tenant_id IS NULL;
+
+			ALTER TABLE reference_ping_receipts ALTER COLUMN tenant_id SET NOT NULL;
+			ALTER TABLE reference_ping_receipts ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE reference_ping_receipts FORCE ROW LEVEL SECURITY;
+			CREATE POLICY tenant_isolation ON reference_ping_receipts
+			  USING (hms_tenant_visible(tenant_id))
+			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+			CREATE INDEX ON reference_ping_receipts (tenant_id, processed_at DESC);`,
 	}}
 }
 
@@ -159,8 +188,11 @@ func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 			if err := json.Unmarshal(evt.Data, &d); err != nil {
 				return err
 			}
-			return tx.Exec(`INSERT INTO reference_ping_receipts (event_id, ping_id) VALUES (?, ?)
-				ON CONFLICT DO NOTHING`, evt.ID, d.PingID).Error
+			// tenant_id is NOT NULL; the bus already scoped this tx to
+			// evt.TenantID (Task 1), but the column still needs an
+			// explicit value on insert.
+			return tx.Exec(`INSERT INTO reference_ping_receipts (event_id, ping_id, tenant_id) VALUES (?, ?, ?)
+				ON CONFLICT DO NOTHING`, evt.ID, d.PingID, evt.TenantID).Error
 		},
 	}}
 }

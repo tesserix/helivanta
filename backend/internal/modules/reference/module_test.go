@@ -53,17 +53,19 @@ func TestPingFullWiring(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, do(r, "GET", "/v1/reference/pings/"+uuid.NewString(), "tokA", "").Code)
 
 	// Event flows outbox → JetStream → consumer → receipt row, and the
-	// receipt records the same ping id that was created above.
+	// receipt records the same ping id that was created above. The
+	// receipt is tenant-scoped (Task 6), so it is only visible under
+	// tenant A's GUC, not WithSystem.
 	require.Eventually(t, func() bool {
 		var n int64
-		_ = db.WithSystem(ctx, func(tx *gorm.DB) error {
+		_ = db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 			return tx.Raw(`SELECT count(*) FROM reference_ping_receipts`).Scan(&n).Error
 		})
 		return n == 1
 	}, 20*time.Second, 200*time.Millisecond)
 
 	var pingID string
-	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Raw(`SELECT ping_id FROM reference_ping_receipts LIMIT 1`).Scan(&pingID).Error
 	}))
 	require.Equal(t, resp.ID, pingID)

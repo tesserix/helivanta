@@ -59,6 +59,16 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
 			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
 			CREATE INDEX ON medicore_visits (tenant_id, created_at DESC);`,
+	}, {
+		ID: "0002_medicore",
+		// USING moves to the shared predicate so group-tenant
+		// visibility can later be enabled in one place. WITH CHECK
+		// deliberately stays pinned to strict equality: reads may
+		// widen, writes must always land in exactly one tenant.
+		SQL: `
+			ALTER POLICY tenant_isolation ON medicore_visits
+			  USING (hms_tenant_visible(tenant_id))
+			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`,
 	}}
 }
 

@@ -2,9 +2,26 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **⚠️ PART E WITHDRAWN — DO NOT IMPLEMENT `hmslog:"phi"` TAGS.**
+>
+> Task 8 below (`hmslog:"phi"` struct-tag redaction, `backend/pkg/logging/phitag.go`)
+> was implemented, reviewed twice, found to carry five Critical defects, and
+> **withdrawn**. It is **not merged** and **not shipped**. `phitag.go` does not exist
+> in this codebase. No Go file reads an `hmslog` tag. The withdrawal is deferred to
+> **issue #778** and recorded in the spec amendment at commit `e30a748`.
+>
+> **Do not write `hmslog:"phi"` struct tags expecting them to mask anything — nothing
+> reads that tag.** Task 8, the "Tags:" block, and the file-structure entries for
+> `phitag.go`/`phitag_test.go` below are preserved for history only; every occurrence
+> is marked WITHDRAWN inline. What actually protects names, dates of birth and
+> addresses today is **the Part A GORM guard** (`logger.Silent` in `pkg/tenantdb.Open`,
+> Tasks 1–2) keeping patient data out of the log stream in the first place — not any
+> redaction mechanism downstream of it. See `docs/standards/backend.md` for the
+> authoritative, currently-accurate contract.
+
 **Goal:** Give the HMS backend one JSON slog pipeline with tenant/subject correlation and PHI redaction, and mechanically protect the single clause that today prevents GORM from dumping patient rows into the logs.
 
-**Architecture:** Five parts, sequenced so the urgent guard lands first in its own PR. Part A adds an arch test plus a captured-stderr property test around `tenantdb.Open`'s `logger.Silent`. Parts B–E build `backend/pkg/logging`: a JSON handler with `LOG_LEVEL` control, request-scoped correlation fields wired in the platform middleware chain, **pattern redaction at the writer** (screening the serialised bytes slog actually emits), and **tag redaction at the handler** (`hmslog:"phi"`, for the names and dates patterns cannot match).
+**Architecture:** Five parts were planned, sequenced so the urgent guard lands first in its own PR. Part A adds an arch test plus a captured-stderr property test around `tenantdb.Open`'s `logger.Silent`. Parts B–D build `backend/pkg/logging`: a JSON handler with `LOG_LEVEL` control, request-scoped correlation fields wired in the platform middleware chain, and **pattern redaction at the writer** (screening the serialised bytes slog actually emits). **Part E — tag redaction at the handler (`hmslog:"phi"`, for the names and dates patterns cannot match) — was WITHDRAWN after review; see the banner above and issue #778. It is not part of the shipped architecture.**
 
 **Why redaction is split across two layers** — this was learned during implementation, not designed up front. A single `slog.Handler` that inspected attribute *values* was built, reviewed adversarially and taken through two fix rounds; both rounds closed every finding and both introduced new leaks of the same class, because the handler screened a *proxy* for what slog would emit (`fmt.Sprint`, `%g`, a reflection-rebuilt struct, `MarshalText`) and slog then emitted something else. In the worst case the redactor itself published a patient's name that the type's own `MarshalJSON` had withheld. Screening the emitted bytes removes the guess entirely; reflection survives only where bytes genuinely cannot help, which is struct tags. See the spec's Part D for the full table.
 
@@ -36,12 +53,15 @@ amended version. Two changes:
    four leaks that motivated it. Tasks 6 and 7 implement the amended design; the
    original reflection-based implementation is preserved on the branch
    `backup/678-redaction-reflection` for reference and is not merged.
-2. **Part E added** for `hmslog:"phi"` tag redaction. Issue #678's primary acceptance
+2. **Part E was added** for `hmslog:"phi"` tag redaction. Issue #678's primary acceptance
    criterion is *"a handler logs a struct containing a field tagged as PHI → the PHI
    field is redacted"*, and its scope line reads *"redaction hooks for tagged PHI fields
    and known patterns"*. Pattern matching alone cannot satisfy that — a patient name
-   carries no pattern — so the tag layer is what closes the issue's headline AC.
-   Task 8 implements it.
+   carries no pattern — so the tag layer was intended to close the issue's headline AC.
+   Task 8 implemented it. **It was subsequently WITHDRAWN after two review rounds found
+   five Critical defects — see the banner at the top of this document and issue #778.**
+   The issue's headline AC is currently unmet for names/DOBs/addresses; the Part A GORM
+   guard is what protects them today by keeping them out of the log stream entirely.
 
 ## File Structure
 
@@ -51,10 +71,10 @@ amended version. Two changes:
 |---|---|
 | `backend/pkg/logging/logging.go` | `New(level string) *slog.Logger` — level parsing, JSON handler, both redaction layers |
 | `backend/pkg/logging/redact.go` | The pattern set, `RedactString`, the byte-level redacting writer, the counter |
-| `backend/pkg/logging/phitag.go` | `hmslog:"phi"` handler, its reflection and type cache |
+| `backend/pkg/logging/phitag.go` | **WITHDRAWN — never created.** Was to be the `hmslog:"phi"` handler, its reflection and type cache. See the banner at the top of this document and #778. |
 | `backend/pkg/logging/logging_test.go` | Level parsing, JSON shape, fallback, end-to-end redaction across every rendering slog produces |
 | `backend/pkg/logging/redact_test.go` | Pattern table, JSON-validity of the writer's output, number-token quoting, escape tracking, counter |
-| `backend/pkg/logging/phitag_test.go` | Tagged struct, nested, pointer, groups, pre-bound attrs, self-marshalling passthrough, cycles |
+| `backend/pkg/logging/phitag_test.go` | **WITHDRAWN — never created.** Was to cover tagged struct, nested, pointer, groups, pre-bound attrs, self-marshalling passthrough, cycles. See #778. |
 
 **Modified:**
 
@@ -1770,7 +1790,16 @@ git commit -m "feat: route the process logger through the redacting writer"
 
 ---
 
-## Task 8: `hmslog:"phi"` tag redaction
+## Task 8: `hmslog:"phi"` tag redaction — **WITHDRAWN, see #778**
+
+> **This task is WITHDRAWN.** It was implemented, taken through two adversarial review
+> rounds, and both rounds found new Critical leaks of the same class (see "Why this
+> layer exists at all" and the earlier design note above). It was pulled from the
+> branch rather than merged. `backend/pkg/logging/phitag.go` and `phitag_test.go`
+> **do not exist**. `logging.NewPHITagHandler` **is not defined anywhere in this
+> codebase**. The steps below are preserved as a record of what was attempted and why
+> it failed review — they are not instructions to follow. Do not implement this task.
+> Follow-up work, if any, is tracked in issue **#778**.
 
 **Files:**
 - Create: `backend/pkg/logging/phitag.go`
@@ -2188,7 +2217,11 @@ Expected: PASS. Every Task 6 and Task 7 test must still pass — in particular
 
 Restore after each and confirm a clean run.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Commit — DID NOT HAPPEN (task withdrawn)**
+
+The commit below was never made. It is left here only to show what Step 7 would have
+been if the task had passed review; it did not, and this task was withdrawn instead
+(see the banner above and #778).
 
 ```bash
 cd .. && make lint-go
@@ -2229,9 +2262,13 @@ wrapped errors and struct fields — passes through redaction:
 - **Patterns:** Aadhaar (12 digits), ABHA (14 digits), Indian mobile (`+91`
   forms and bare 10-digit numbers beginning 5–9). Masked as
   `[REDACTED:aadhaar]` and so on.
-- **Tags:** a struct field tagged `hmslog:"phi"` is replaced with
-  `[REDACTED:phi]`. This is the only mechanism that catches names, dates of
-  birth and addresses — patterns cannot. Tag them.
+- **Tags: WITHDRAWN, do not implement.** A `hmslog:"phi"` struct-tag mechanism was
+  designed to catch names, dates of birth and addresses — the shapes patterns cannot
+  match — but it was found to carry five Critical defects across two review rounds and
+  was withdrawn (deferred to #778). **No file in this codebase reads an `hmslog` tag.**
+  Do not tag fields expecting them to be masked. What protects names/DOBs/addresses
+  today is the Part A GORM guard keeping patient data out of the log stream in the
+  first place, not any redaction mechanism downstream of it.
 
 False positives are expected: a legitimate 12-digit identifier will be masked.
 That is the correct direction to fail, and the marker names the pattern that
@@ -2316,9 +2353,11 @@ checkout races the sub-make and it reads the wrong Makefile.
 
 ## Known limitations (carry into the PR body)
 
-- Pattern redaction cannot detect names, dates of birth or addresses. `hmslog:"phi"`
-  tags cover them only where a developer remembers to apply the tag; the GORM guard
-  (Tasks 1–2) is what protects the bulk case.
+- Pattern redaction cannot detect names, dates of birth or addresses. The `hmslog:"phi"`
+  tag mechanism intended to cover them was **WITHDRAWN** after two review rounds found
+  five Critical defects — it is not implemented, deferred to #778, and no file reads
+  that tag. The GORM guard (Tasks 1–2) is what protects the bulk case today, by keeping
+  patient data out of the log stream rather than by redacting it downstream.
 - The redaction counter is in-process only until #679 provides a metrics sink.
 - The arch test allowlists `gorm.Open` **call sites**; it does not verify the
   **arguments** at those sites. The stderr property test covers the argument. Both exist
@@ -2329,16 +2368,17 @@ checkout races the sub-make and it reads the wrong Makefile.
 - Redaction runs each pattern to a fixpoint (bounded at 100 iterations per pattern per
   string) so that adjacent matches sharing a separator are all caught. A pathological
   string could hit that bound; it would be under-redacted rather than looping.
-- The tag layer declines to rewrite any value implementing `json.Marshaler` or
-  `encoding.TextMarshaler`, because reconstructing such a type from its exported fields
-  publishes what its own marshaller withheld — observed doing exactly that during the
-  earlier implementation. Those values get pattern coverage from the byte layer only, so
-  a `hmslog:"phi"` field inside a custom-marshalled type is pattern-screened but not
-  tag-masked.
+- **WITHDRAWN mechanism, kept for history:** the tag layer, had it shipped, would have
+  declined to rewrite any value implementing `json.Marshaler` or `encoding.TextMarshaler`,
+  because reconstructing such a type from its exported fields publishes what its own
+  marshaller withheld — observed doing exactly that during the earlier implementation.
+  This does not apply to the shipped codebase: there is no tag layer. Every value gets
+  pattern coverage from the byte layer only.
 - `bounded()` makes hyphen-adjacent PHI a blind spot: `9876543210-9876543211` and
   `phone-9876543210` are left in the clear. This is the unavoidable other side of the
   UUID false-positive fix, without which every `tenant_id` would be masked and
   correlation destroyed. Do not widen the neighbour class without re-deriving that case.
-- Sampling guidance for high-volume paths (issue scope line 4) is documented as a note
-  in `docs/standards/backend.md` rather than implemented — no high-volume path exists
-  yet, and #438 is the first candidate.
+- Sampling guidance for high-volume paths (issue scope line 4) is not implemented — no
+  high-volume path exists yet. A short note recording that, the measured per-line
+  redaction cost, and #438 as the likely first candidate to require it, is in
+  `docs/standards/backend.md`.

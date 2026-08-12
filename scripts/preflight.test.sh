@@ -121,9 +121,18 @@ run_preflight() { # run_preflight PATHDIR [ENV=VAL ...]
 out=$(run_preflight "$good"); status=$?
 assert_status "clean environment exits 0" 0 "$status"
 
+# node_modules present (the common case: token rotated, nothing to install)
+# — a missing token is a warning, not a blocker.
 out=$(run_preflight "$good" NODE_AUTH_TOKEN=); status=$?
-assert_status "missing NODE_AUTH_TOKEN exits 1" 1 "$status"
-assert_contains "missing NODE_AUTH_TOKEN names the fix" "$out" 'gh auth token'
+assert_status "missing NODE_AUTH_TOKEN with node_modules present exits 0" 0 "$status"
+assert_contains "missing NODE_AUTH_TOKEN still names the fix" "$out" 'gh auth token'
+
+# node_modules absent — an install is actually coming, so the token is fatal.
+no_node_modules="$TMP/no-node-modules"
+out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN= PREFLIGHT_PORTS="$(free_port)" \
+  NODE_MODULES_DIR="$no_node_modules" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
+assert_status "missing NODE_AUTH_TOKEN with node_modules absent exits 1" 1 "$status"
+assert_contains "missing NODE_AUTH_TOKEN+no node_modules names the fix" "$out" 'gh auth token'
 
 old="$TMP/bin-oldgo"
 make_shim "$old" docker 'exit 0'
@@ -165,6 +174,29 @@ out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="$busy_port" 
 assert_status "occupied foreign port exits 1" 1 "$status"
 assert_contains "names the occupied port" "$out" "$busy_port"
 assert_contains "names the fix"           "$out" "make down"
+
+# A missing lsof must be reported, not silently treated as "no port
+# holders found, so every port is free" — that would fail open exactly in
+# the scenario #714 exists to catch (a foreign process quietly squatting on
+# a port we need). Build a PATH with no lsof anywhere on it: real sed/sort/
+# head (port_is_ours and version_at_least need them) plus /bin for
+# bash/ps/cat, but never /usr/bin or /usr/sbin, which is where lsof lives
+# on both macOS and Linux.
+nolsof="$TMP/bin-nolsof"
+mkdir -p "$nolsof"
+for tool in sed sort head; do
+  ln -s "$(command -v "$tool")" "$nolsof/$tool"
+done
+make_shim "$nolsof" docker 'exit 0'
+make_shim "$nolsof" go     'echo "go version go1.26.5 darwin/arm64"'
+make_shim "$nolsof" node   'echo "v22.11.0"'
+make_shim "$nolsof" pnpm   'echo "10.17.1"'
+
+out=$(env PATH="$nolsof:/bin" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="12345" \
+  bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
+assert_status "missing lsof exits 1" 1 "$status"
+assert_contains "missing lsof is reported" "$out" 'lsof missing'
+assert_contains "missing lsof names the fix" "$out" 'apt-get install -y lsof'
 
 echo
 echo "reset-dev.sh:"

@@ -49,5 +49,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Ensure lsof is present
-        run: command -v lsof || sudo apt-get install -y lsof
+        run: command -v lsof || (sudo apt-get update && sudo apt-get install -y lsof)
       - run: make test-scripts

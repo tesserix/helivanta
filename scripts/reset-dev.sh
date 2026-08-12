@@ -10,9 +10,15 @@
 # Ends with seeded infrastructure but does NOT start the API and zone apps:
 # `make up` runs those in the foreground, and a reset that blocked the
 # terminal could not be used from a script.
+#
+# Preflight runs up front, before the confirmation prompt and before any
+# teardown: `dev-infra` (called below) depends on `preflight` too, and if we
+# let it fail there we'd have already deleted the volumes — strictly worse
+# than not resetting at all. Checking first means we abort with everything
+# still intact.
 set -uo pipefail
 
-REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
+REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 
 # Pure predicate: accepts only the exact typed word "reset". No TTY, no I/O,
 # no globals — kept separate from confirm_reset so the test harness can
@@ -43,6 +49,9 @@ confirm_reset() {
 }
 
 main() {
+  echo "Checking prerequisites…"
+  "$REPO_ROOT/scripts/preflight.sh" || exit 1
+
   confirm_reset || exit 1
 
   echo "Stopping the stack…"
@@ -52,7 +61,12 @@ main() {
   docker compose -f "$REPO_ROOT/docker-compose.dev.yml" down -v || exit 1
 
   echo "Starting infrastructure…"
-  make -C "$REPO_ROOT" dev-infra || exit 1
+  # Skip dev-infra's own preflight: we already passed it above, before
+  # anything was destroyed. Running it again here would gate the *rebuild*
+  # on the same checks — a token that expired mid-reset, say — and leave the
+  # developer with no data and no stack, exactly the outcome the up-front
+  # check exists to prevent.
+  PREFLIGHT_SKIP=1 make -C "$REPO_ROOT" dev-infra || exit 1
 
   echo "Seeding…"
   make -C "$REPO_ROOT" seed || exit 1

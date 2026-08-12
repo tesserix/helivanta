@@ -12,8 +12,12 @@
 # stack that is already up must pass. See scripts/lib/repo-owns.sh.
 set -uo pipefail
 
-REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
+REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 . "$REPO_ROOT/scripts/lib/repo-owns.sh"
+
+# Overridable so the test harness can simulate a fresh clone with no
+# node_modules yet, without touching the repo's real one.
+NODE_MODULES_DIR=${NODE_MODULES_DIR:-$REPO_ROOT/node_modules}
 
 PREFLIGHT_PORTS=${PREFLIGHT_PORTS:-"5432 4222 8222 6379 8090 9099 8080 4301 4302 4303 4304"}
 GO_MIN=1.26
@@ -24,6 +28,7 @@ NODE_MIN=22
 FAILURES=""
 
 ok()   { printf '  ok    %s\n' "$1"; }
+warn() { printf '  warn  %s\n' "$1"; }
 fail() { printf '  FAIL  %s\n' "$1"; FAILURES="${FAILURES}  - $2
 "; }
 
@@ -80,16 +85,45 @@ check_pnpm() {
   fi
 }
 
+# `up`, `dev-infra` and `reset` never run `pnpm install` — the token is only
+# needed to *install* @tesserix/web from GitHub Packages. So a missing token
+# is only fatal when node_modules doesn't exist yet and an install is
+# actually coming; otherwise it's a warning, since every developer's gh
+# token rotates sooner or later and that shouldn't block a stack that
+# doesn't need to install anything.
 check_node_auth_token() {
   if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
     ok "NODE_AUTH_TOKEN"
-  else
+  elif [ ! -d "$NODE_MODULES_DIR" ]; then
     fail "NODE_AUTH_TOKEN" \
-      "NODE_AUTH_TOKEN unset (needed for @tesserix/web from GitHub Packages) — export NODE_AUTH_TOKEN=\$(gh auth token)"
+      "NODE_AUTH_TOKEN unset and node_modules is missing — pnpm install needs it for @tesserix/web from GitHub Packages — export NODE_AUTH_TOKEN=\$(gh auth token)"
+  else
+    warn "NODE_AUTH_TOKEN unset — fine unless you need to (re)run pnpm install — export NODE_AUTH_TOKEN=\$(gh auth token) first if you do"
+  fi
+}
+
+# port_is_ours (scripts/lib/repo-owns.sh) shells out to lsof, and reads an
+# empty result — its normal behaviour when lsof is simply absent — as "no
+# holder found, port is free". Without this check that makes every port
+# check pass open: a foreign Postgres on 5432 would print "ok port 5432"
+# right before compose dies with exactly the cryptic error #714 exists to
+# eliminate. Must run before check_ports, and check_ports must not run its
+# real logic if this failed.
+check_lsof() {
+  if command -v lsof >/dev/null 2>&1; then
+    ok "lsof"
+  else
+    fail "lsof" \
+      "lsof missing — port checks can't detect what holds a port without it — brew install lsof (macOS; present by default) or sudo apt-get install -y lsof (Debian/Ubuntu)"
   fi
 }
 
 check_ports() {
+  # Without lsof, port_is_ours can't see any holder and would report every
+  # port "ok" even when a foreign process has it — fail open. check_lsof
+  # above already recorded the failure; skip the misleading "ok" lines here.
+  command -v lsof >/dev/null 2>&1 || return 0
+
   local port holder
   for port in $PREFLIGHT_PORTS; do
     if port_is_ours "$port"; then
@@ -110,6 +144,7 @@ main() {
   check_node
   check_pnpm
   check_node_auth_token
+  check_lsof
   check_ports
 
   if [ -n "$FAILURES" ]; then

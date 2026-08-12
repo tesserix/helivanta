@@ -1,7 +1,15 @@
 .PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local preflight reset
 
+# PREFLIGHT_SKIP=1 bypasses the checks — used only by reset-dev.sh, which
+# runs preflight itself up front (before touching any volumes) and would
+# otherwise gate `make dev-infra` a second time *after* teardown, turning a
+# preflight failure into data loss with no stack to show for it.
 preflight:
-	@bash scripts/preflight.sh
+	@if [ "$(PREFLIGHT_SKIP)" = "1" ]; then \
+		echo "Preflight skipped (PREFLIGHT_SKIP=1) — already checked by the caller."; \
+	else \
+		bash scripts/preflight.sh; \
+	fi
 
 dev-infra: preflight
 	docker compose -f docker-compose.dev.yml up -d --wait postgres nats redis openfga

@@ -86,7 +86,12 @@ Postgres 5432, NATS 4222, Redis 6379, OpenFGA 8090, GIP emulator 9099.
   two machines could run different emulator builds.
 - All five containers use `restart: unless-stopped`, so the stack comes
   back after a laptop sleep or a Docker restart. A container you stopped
-  deliberately stays stopped.
+  deliberately stays stopped. Note: OpenFGA uses an in-memory datastore, so
+  a Docker restart brings the container back with no tuples — those are
+  only rebuilt by the API's boot reconciler, and the API is a host process
+  (not a container), so it doesn't restart on its own. Re-run `make up`
+  after a Docker restart to get permissions working again. A laptop sleep
+  doesn't kill any container, so it needs no such follow-up.
 - Useful targets: `make test` (Go + web), `make test-scripts` (shell tests),
   `make preflight`, `make reset`, `make lint-go`, `make coverage-go`,
   `make e2e` (Playwright, needs the stack up), `make new-module NAME=<name>`.

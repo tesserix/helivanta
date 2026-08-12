@@ -153,36 +153,66 @@ func (rw *redactingWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// possiblePHI is an unanchored union of the same core shapes redactionPatterns
-// wraps with bounded(), deliberately without the boundary requirement.
+// hasFourConsecutiveDigits reports whether line contains a run of at least
+// four consecutive ASCII digit characters, evaluated directly on line's raw
+// bytes exactly as they arrive from slog — before any JSON unescaping.
 //
 // It exists purely as a prefilter to skip parsing on lines that cannot
-// possibly match: a bounded() match always requires its core to match first
-// — the boundary check can only narrow what the core already found, never
-// widen it — so if no core shape appears anywhere in the line, no pattern
-// can match either, parse or no parse.
+// possibly contain a match, and it must be a superset of "would RedactString
+// change the DECODED text", checked against the ENCODED bytes — those are
+// two different questions, and a prior version of this prefilter (an
+// unanchored union of the core patterns, still evaluated on raw bytes) got
+// this wrong in the same way a raw byte scan always will: every core pattern
+// allows `[-\s]` as a separator between digit groups, `\s` matches a real
+// tab/newline/CR, and those are exactly what JSON escapes as `\t`/`\n`/`\r`.
+// A separator hiding behind an escape sequence — `{"e":"98765\n43210"}` —
+// left the union-of-cores prefilter believing there was no possible match on
+// the wire form, when the DECODED text (`98765` newline `43210`) is exactly
+// the bare mobile pattern. Checking the prefilter and RedactString against
+// the same representation (both encoded, or both decoded) cannot catch this:
+// it takes comparing the prefilter on the wire bytes against RedactString on
+// the decoded text to see the gap.
 //
-// It is deliberately a superset of what actually redacts, and that is the
-// point. A naive "run of 10+ digits, ignoring separators" prefilter was
-// tried first and rejected: it counts hyphens as never breaking a run, so a
-// tenant_id UUID (five hyphen-separated groups summing to 32 digits) always
-// looks like a 10+ digit run and forces the slow path on every single
-// request-scoped log line — exactly the common case this prefilter exists to
-// keep cheap. Matching the real core shapes instead means an ordinary UUID
-// only forces a parse in the rare case three of its groups happen to align
-// into a fully-numeric 4-4-4 (or similar) run, not on every line that merely
-// contains a lot of digits and hyphens.
+// A run of four consecutive digits sidesteps the whole separator question,
+// because it does not look at separators at all — it only needs the fact
+// that every core pattern requires an unbroken run of at least four digits
+// SOMEWHERE in what it matches, regardless of what comes between groups:
+//   - bare mobile is `[5-9]\d{4}` then `\d{5}` — the leading digit plus its
+//     `\d{4}` group is already five contiguous digits, and the trailing
+//     `\d{5}` is five more; either half alone clears the bar on its own.
+//   - the `+91` mobile form is the same shape after the prefix.
+//   - aadhaar is three `\d{4}` groups; each one alone clears the bar.
+//   - abha's `\d{2}` head is short, but it is always followed by three
+//     `\d{4}` groups, each of which clears the bar on its own.
 //
-// Costing an unnecessary parse (a core matches, but bounded() then rejects
-// it — e.g. that occasional numeric-looking UUID slice) is always safe.
-// Skipping a parse that should have happened is not, so this must remain a
-// superset of every core pattern below, not an approximation of one.
-var possiblePHI = regexp.MustCompile(
-	`\+91[-\s]?[5-9]\d{4}[-\s]?\d{5}` + `|` + // international mobile
-		`\d{2}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}` + `|` + // abha
-		`\d{4}[-\s]?\d{4}[-\s]?\d{4}` + `|` + // aadhaar
-		`[5-9]\d{4}[-\s]?\d{5}`, // bare mobile
-)
+// And digits are never escaped in valid JSON output: `encoding/json` (which
+// is what slog's JSON handler uses) only ever escapes control characters,
+// `"`, and `\` — never `0`-`9`. So whatever separator between two digit
+// groups might be hiding behind an escape sequence, the digit groups
+// themselves are always literal ASCII digit bytes in the wire form, with
+// nothing in between them, which is exactly what this check looks for.
+// Escaping the separator cannot make a real digit group invisible to a
+// prefilter that never looked at separators to begin with.
+//
+// This is deliberately a wide superset — it will also return true for the
+// stray four-digit run inside an ordinary UUID slice, or any other
+// PHI-shaped-looking-but-safe digit run — and that is always fine: an
+// unnecessary parse costs a few extra microseconds, while skipping a parse
+// that should have happened skips redaction entirely.
+func hasFourConsecutiveDigits(line string) bool {
+	run := 0
+	for i := 0; i < len(line); i++ {
+		if line[i] >= '0' && line[i] <= '9' {
+			run++
+			if run >= 4 {
+				return true
+			}
+			continue
+		}
+		run = 0
+	}
+	return false
+}
 
 // redactJSONLine masks PHI in one serialised log line.
 //
@@ -204,10 +234,11 @@ var possiblePHI = regexp.MustCompile(
 //     and the result is re-encoded as a single JSON value, so there is no
 //     partial substitution to corrupt.
 //
-// A line where no core pattern shape appears at all (see possiblePHI) cannot
-// contain anything RedactString would match, so that case returns unchanged
-// without parsing — this is the common case for most log lines and keeps the
-// cost of this writer close to zero on them.
+// A line with no run of four or more consecutive digits anywhere (see
+// hasFourConsecutiveDigits) cannot contain anything RedactString would
+// match, so that case returns unchanged without parsing — this is the common
+// case for most log lines and keeps the cost of this writer close to zero on
+// them.
 //
 // If the line does not parse as a single JSON value, redaction falls back to
 // scanning the whole line with RedactString. That fallback cannot corrupt
@@ -216,7 +247,7 @@ var possiblePHI = regexp.MustCompile(
 // had. What it must never do is invent syntax the input didn't have, so on
 // that path the line's validity, or lack of it, passes through unchanged.
 func redactJSONLine(line string) string {
-	if !possiblePHI.MatchString(line) {
+	if !hasFourConsecutiveDigits(line) {
 		return line
 	}
 	if out, ok := redactJSONByParsing(line); ok {
@@ -237,12 +268,40 @@ func redactJSONLine(line string) string {
 // decode errors, a truncated document, or trailing content after the first
 // value all take this path rather than risk emitting something that looks
 // plausible but isn't what was actually in the line.
+//
+// Whatever trails the JSON value in line — normally just the `\n` slog
+// appends after every record — is captured at dec.InputOffset() the instant
+// the top-level value finishes, and appended to the re-encoded output
+// verbatim. This is not optional bookkeeping: an earlier version of this
+// function only emitted the re-encoded value and silently dropped that
+// trailer. slog writes one `Write` per record with no other framing, so the
+// trailing newline is the only thing separating one record from the next in
+// the output stream; dropping it splices every redacted record onto the
+// front of whatever comes after it. In a newline-delimited log pipeline that
+// does not corrupt one record, it corrupts two — the redacted one and its
+// neighbour — which is the exact failure this whole function exists to
+// prevent, now happening on every redacted line instead of a fraction of
+// them. The trailer is copied as whatever bytes it actually was, not assumed
+// to be exactly "\n", because nothing about this writer's contract promises
+// that.
 func redactJSONByParsing(line string) (string, bool) {
 	dec := json.NewDecoder(strings.NewReader(line))
 	dec.UseNumber()
 
 	var out bytes.Buffer
 	out.Grow(len(line))
+
+	// strEnc is reused across every string/key token in this call. It is
+	// configured with SetEscapeHTML(false) because json.Marshal (the
+	// simpler alternative) always escapes `<`, `>` and `&` to `<` etc,
+	// which slog's own encoder does not do. That divergence is semantically
+	// harmless — both decode to the same string — but it means a redacted
+	// line and a clean line render an identical value differently on the
+	// wire, which breaks byte-level and grep-based log tooling that has no
+	// reason to expect HTML-escaping from a structured logger.
+	var strBuf bytes.Buffer
+	strEnc := json.NewEncoder(&strBuf)
+	strEnc.SetEscapeHTML(false)
 
 	// frame tracks one open object or array so commas and, for objects,
 	// key/value alternation land in the right places on re-encode.
@@ -285,14 +344,16 @@ func redactJSONByParsing(line string) (string, bool) {
 		}
 	}
 	writeJSONString := func(s string) bool {
-		b, err := json.Marshal(s)
-		if err != nil {
+		strBuf.Reset()
+		if err := strEnc.Encode(s); err != nil {
 			// A decoded Go string is always valid UTF-8 and always
-			// marshals; this is unreachable in practice. Refuse rather than
+			// encodes; this is unreachable in practice. Refuse rather than
 			// guess if it ever isn't.
 			return false
 		}
-		out.Write(b)
+		// Encode appends a trailing newline that has no place inside a
+		// larger JSON document; trim it before splicing the value in.
+		out.Write(bytes.TrimSuffix(strBuf.Bytes(), []byte("\n")))
 		return true
 	}
 	// writeRedactedString redacts PHI patterns in the decoded (unescaped)
@@ -328,6 +389,7 @@ func redactJSONByParsing(line string) (string, bool) {
 	}
 
 	done := false
+	var valueEnd int64
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -405,7 +467,11 @@ func redactJSONByParsing(line string) (string, bool) {
 		}
 
 		if len(stack) == 0 {
+			// The top-level value just finished. Record exactly how many
+			// bytes of line it consumed, before the next Token() call
+			// advances past any trailing whitespace looking for more.
 			done = true
+			valueEnd = dec.InputOffset()
 		}
 	}
 
@@ -414,6 +480,15 @@ func redactJSONByParsing(line string) (string, bool) {
 		// success on an incomplete parse.
 		return "", false
 	}
+	if !done {
+		// No top-level value was ever seen at all (e.g. an empty or
+		// all-whitespace line). Nothing to reproduce.
+		return "", false
+	}
+
+	// Whatever trailed the JSON value — the newline slog appends, or
+	// nothing at all — is copied through untouched.
+	out.WriteString(line[valueEnd:])
 
 	return out.String(), true
 }

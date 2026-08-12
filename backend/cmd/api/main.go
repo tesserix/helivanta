@@ -63,12 +63,12 @@ func run() error {
 	}
 	defer bus.Close()
 
-	verifier, err := authn.NewGIPVerifier(ctx, cfg.GIPProjectID)
+	verifier, err := authn.NewGIPVerifier(ctx, cfg.GIPProjectID, cfg.IsDev())
 	if err != nil {
 		return err
 	}
 
-	minter, err := authn.NewGIPMinter(ctx, cfg.GIPProjectID)
+	minter, err := authn.NewGIPMinter(ctx, cfg.GIPProjectID, cfg.IsDev())
 	if err != nil {
 		return err
 	}

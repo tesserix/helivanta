@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -22,7 +22,7 @@ func TestAllMigrationsPassRLSLint(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	migs := events.Migrations()
+	migs := bootstrap.PlatformMigrations()
 	for _, mod := range allModules() {
 		migs = append(migs, mod.Migrations()...)
 	}

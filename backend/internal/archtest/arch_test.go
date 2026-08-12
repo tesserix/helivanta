@@ -28,6 +28,7 @@ import (
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
 const modulesPrefix = "github.com/tesserix/hms/internal/modules/"
@@ -82,6 +83,9 @@ func TestMigrationIDsAreGloballyUnique(t *testing.T) {
 			t.Errorf("migration id %q used by both %s and %s", id, prev, owner)
 		}
 		seen[id] = owner
+	}
+	for _, m := range tenantdb.Migrations() {
+		record("tenantdb", m.ID)
 	}
 	for _, m := range events.Migrations() {
 		record("events", m.ID)

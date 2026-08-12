@@ -44,7 +44,7 @@ func run() error {
 		return err
 	}
 
-	migs := events.Migrations()
+	migs := bootstrap.PlatformMigrations()
 	for _, m := range registry.All() {
 		migs = append(migs, m.Migrations()...)
 	}

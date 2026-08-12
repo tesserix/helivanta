@@ -315,7 +315,13 @@ func TestLintRLSFlagsNonInvokerView(t *testing.T) {
 	}}))
 	bad, err := db.LintRLS(ctx)
 	require.NoError(t, err)
-	require.Contains(t, bad, "naughty_exposed_view: view over a tenant table is not security_invoker")
-	require.NotContains(t, bad, "compliant_invoker_view")
-	require.NotContains(t, bad, "naughty_view_base")
+	// bad entries are "<table>: <reason>", never the bare table name, so
+	// require.NotContains(bad, "compliant_invoker_view") could never fail
+	// regardless of what the lint reported — testify's slice Contains needs
+	// exact element equality. Assert the exact, complete set instead: one
+	// entry for the non-invoker view, nothing for the compliant view or the
+	// (compliant) base table.
+	require.Equal(t, []string{
+		"naughty_exposed_view: view over a tenant table is not security_invoker",
+	}, bad)
 }

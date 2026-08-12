@@ -186,6 +186,7 @@ var lintAllowlist = map[string]bool{
 func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
 	type row struct {
 		Relname        string
+		IsView         bool
 		HasTenant      bool
 		RLS            bool
 		Forced         bool
@@ -210,6 +211,7 @@ func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
 	// it says, so it fails the lint even before its contents are examined.
 	err := d.admin.WithContext(ctx).Raw(`
 		SELECT c.relname,
+		       (c.relkind = 'v') AS is_view,
 		       EXISTS (SELECT 1 FROM information_schema.columns col
 		               WHERE col.table_schema = n.nspname
 		                 AND col.table_name = c.relname
@@ -263,11 +265,22 @@ func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
 		if lintAllowlist[r.Relname] {
 			continue
 		}
+		// Views never carry relrowsecurity/relforcerowsecurity — Postgres
+		// has no such concept for a view, they read as false unconditionally
+		// — so a view must never fall into the ordinary table switch below:
+		// a compliant `security_invoker = true` view over a tenant table
+		// would hit `!r.RLS || !r.Forced` and be reported as a false
+		// positive. A view's only obligation is security_invoker, checked
+		// here in its own branch with its own reason string.
+		if r.IsView {
+			if r.NonInvokerView {
+				bad = append(bad, r.Relname+": view over a tenant table is not security_invoker")
+			}
+			continue
+		}
 		switch {
 		case r.BadSchema:
 			bad = append(bad, r.Relname+": tenant table lives outside the public schema")
-		case r.NonInvokerView:
-			bad = append(bad, r.Relname+": view over a tenant table is not security_invoker")
 		case r.BadRelkind:
 			bad = append(bad, r.Relname+": tenant table is a partitioned parent or foreign table, not a plain table")
 		case !r.HasTenant:

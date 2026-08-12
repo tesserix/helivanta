@@ -64,6 +64,12 @@ Stop everything with `make down`.
 (`FIREBASE_AUTH_EMULATOR_HOST=localhost:9099`); override the variable to
 target a real GIP project.
 
+The API refuses to start with `FIREBASE_AUTH_EMULATOR_HOST` set unless
+`HMS_ENV=dev` — otherwise a forged emulator token would be accepted in what
+looks like production. `make dev-api` (and therefore `make up`) sets
+`HMS_ENV=dev` for you; a bare `go run ./cmd/api` does not, so set it
+yourself when running the API outside `make`.
+
 Ports (defaults): shell 4301, medicore 4302, pharmacy 4303, lab 4304, API
 8080, Postgres 5432, NATS 4222 (monitoring 8222), Redis 6379, OpenFGA 8090,
 GIP emulator 9099. The four zone-app ports are fixed — they're Next.js dev

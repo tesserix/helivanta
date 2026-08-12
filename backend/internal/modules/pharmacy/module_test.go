@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -117,6 +118,69 @@ func TestDispenseFlow(t *testing.T) {
 		})
 		return n == 1
 	}, 10*time.Second, 200*time.Millisecond)
+}
+
+// Exactly one of N concurrent fulfilments may win. The guarded UPDATE is
+// what enforces it — under READ COMMITTED the losers re-evaluate
+// "WHERE status = 'pending'" after the winner commits and match zero
+// rows. Delete that branch and this test fails; the sequential flow test
+// does not, because it never reaches the UPDATE.
+func TestConcurrentDispenseYieldsExactlyOneWinner(t *testing.T) {
+	r, db, _, ctx := setup(t)
+
+	visitID := uuid.NewString()
+	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
+		data, _ := json.Marshal(map[string]string{
+			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
+		})
+		return busRef.Publish(tx, "hms.in.medicore.visit_created.v1", events.Event{
+			Type: "VisitCreated", Version: 1, TenantID: testutil.TenantA, Data: data,
+		})
+	}))
+
+	var dispenseID string
+	require.Eventually(t, func() bool {
+		var resp struct {
+			Data []struct {
+				ID string `json:"id"`
+			} `json:"data"`
+		}
+		_ = json.Unmarshal(do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.Bytes(), &resp)
+		if len(resp.Data) == 0 {
+			return false
+		}
+		dispenseID = resp.Data[0].ID
+		return true
+	}, 20*time.Second, 200*time.Millisecond)
+
+	const n = 8
+	codes := make(chan int, n)
+	var start sync.WaitGroup
+	start.Add(1)
+	for i := 0; i < n; i++ {
+		go func() {
+			start.Wait()
+			codes <- do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokA",
+				`{"medication":"Paracetamol 500mg"}`).Code
+		}()
+	}
+	start.Done()
+
+	ok, conflict, other := 0, 0, 0
+	for i := 0; i < n; i++ {
+		switch c := <-codes; c {
+		case http.StatusOK:
+			ok++
+		case http.StatusConflict:
+			conflict++
+		default:
+			other++
+			t.Logf("unexpected status %d", c)
+		}
+	}
+	require.Equal(t, 1, ok, "exactly one fulfilment must win")
+	require.Equal(t, n-1, conflict, "every loser must get 409")
+	require.Zero(t, other)
 }
 
 func TestMedicationsCrud(t *testing.T) {

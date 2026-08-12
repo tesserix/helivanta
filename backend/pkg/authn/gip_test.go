@@ -99,7 +99,7 @@ func TestGIPMinterMintsTokenCarryingTheTenantClaim(t *testing.T) {
 	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credPath)
 	t.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "")
 
-	minter, err := NewGIPMinter(context.Background(), "demo-hms")
+	minter, err := NewGIPMinter(context.Background(), "demo-hms", false)
 	require.NoError(t, err)
 
 	tenantID := "3fa85f64-5717-4562-b3fc-2c963f66afa6"
@@ -119,4 +119,40 @@ func TestGIPMinterMintsTokenCarryingTheTenantClaim(t *testing.T) {
 	require.Equal(t, "u1", claims.UID)
 	require.Equal(t, tenantID, claims.Claims["tenant_id"],
 		"the target tenant must reach the token, or the switch changes nothing")
+}
+
+// firebase-admin-go checks FIREBASE_AUTH_EMULATOR_HOST when the client is
+// constructed; when it is set, VerifyIDToken skips signature verification
+// entirely and trusts the decoded claims. A forged token would be
+// accepted. Constructing a verifier must therefore refuse outside dev.
+func TestNewGIPVerifierRefusesEmulatorOutsideDev(t *testing.T) {
+	t.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
+
+	_, err := NewGIPVerifier(context.Background(), "demo-hms", false)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "FIREBASE_AUTH_EMULATOR_HOST")
+}
+
+func TestNewGIPMinterRefusesEmulatorOutsideDev(t *testing.T) {
+	t.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
+
+	_, err := NewGIPMinter(context.Background(), "demo-hms", false)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "FIREBASE_AUTH_EMULATOR_HOST")
+}
+
+// With the emulator explicitly allowed the guard must not fire. The
+// constructor may still fail for unrelated reasons in a sandbox, so this
+// asserts only that the failure is not the guard.
+func TestNewGIPVerifierAllowsEmulatorInDev(t *testing.T) {
+	t.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
+
+	_, err := NewGIPVerifier(context.Background(), "demo-hms", true)
+
+	if err != nil {
+		require.False(t, strings.Contains(err.Error(), "FIREBASE_AUTH_EMULATOR_HOST"),
+			"guard fired despite allowEmulator=true: %v", err)
+	}
 }

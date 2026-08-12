@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"runtime/debug"
 	"time"
 
 	"github.com/google/uuid"
@@ -229,10 +230,22 @@ func (b *Bus) RunDispatcher(ctx context.Context, db OutboxStore) {
 		case <-loopCtx.Done():
 			return
 		case <-ticker.C:
-			if err := b.drainOnce(loopCtx, db); err != nil {
-				slog.Error("outbox dispatch", "err", err)
-			}
+			b.drainSafely(loopCtx, db)
 		}
+	}
+}
+
+// drainSafely runs one drain pass, containing a panic to this tick. The
+// dispatcher goroutine is started with a bare `go` in main, so a panic
+// here would otherwise terminate the process.
+func (b *Bus) drainSafely(ctx context.Context, db OutboxStore) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("outbox dispatch panic", "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+		}
+	}()
+	if err := b.drainOnce(ctx, db); err != nil {
+		slog.Error("outbox dispatch", "err", err)
 	}
 }
 
@@ -301,36 +314,27 @@ func (b *Bus) consumeLoop(ctx context.Context, db OutboxStore, c Consumer, sub *
 	}
 }
 
+// handleMsg is called directly from consumeLoop's `go`-free for-loop, so a
+// panic here (e.g. from json.Unmarshal or future parsing added before
+// runConsumerTx) has no recover between it and the process — runConsumerTx's
+// recover only guards the tx it wraps. This is a backstop for exactly that
+// gap: log and Nak so a redelivery gets another chance instead of the
+// consumer goroutine, and therefore the process, dying.
 func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *nats.Msg) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("consumer handleMsg panic", "consumer", c.Name,
+				"panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+			_ = msg.Nak()
+		}
+	}()
 	var evt Event
 	if err := json.Unmarshal(msg.Data, &evt); err != nil {
 		slog.Error("consumer bad payload", "consumer", c.Name, "err", err)
 		_ = msg.Term() // poison message — never parseable
 		return
 	}
-	err := db.WithSystem(ctx, func(tx *gorm.DB) error {
-		// Scope the whole consumer tx (claim + handler) to the event's
-		// tenant so handlers can write RLS-forced rows (phase 2 D4).
-		// Invalid/empty tenant → GUC stays unset → tenant tables read
-		// as empty and reject writes, same as before.
-		if _, err := uuid.Parse(evt.TenantID); err == nil {
-			if err := tx.Exec(`SELECT set_config('app.tenant_id', ?, true)`, evt.TenantID).Error; err != nil {
-				return err
-			}
-		}
-		res := tx.Exec(`INSERT INTO processed_events (consumer, event_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
-			c.Name, evt.ID)
-		if res.Error != nil {
-			return res.Error
-		}
-		if res.RowsAffected == 0 {
-			return nil // duplicate delivery — no-op (idempotency)
-		}
-		// Handler runs in the SAME tx as the idempotency claim — do not
-		// open your own transaction; rollback of the claim implies
-		// rollback of handler effects.
-		return c.Handle(ctx, tx, evt)
-	})
+	err := b.runConsumerTx(ctx, db, c, evt)
 	if err != nil {
 		slog.Error("consumer handle", "consumer", c.Name, "event_id", evt.ID, "tenant_id", evt.TenantID, "err", err)
 		if meta, mErr := msg.Metadata(); mErr == nil && meta.NumDelivered >= maxDeliver {
@@ -354,4 +358,45 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 		return
 	}
 	_ = msg.Ack()
+}
+
+// runConsumerTx runs the idempotency claim and the handler in one tx, and
+// recovers a handler panic into a plain error. Without this, a single
+// panicking event would unwind through GORM's Transaction (which recovers,
+// rolls back and re-panics) and crash the consumer goroutine — and since
+// consumers are started with a bare `go`, the whole process. Converting
+// the panic to an error lets it flow through handleMsg's normal Nak /
+// maxDeliver / dead-letter path exactly like a returned error, so a
+// malformed-but-parseable payload costs one event instead of the API.
+func (b *Bus) runConsumerTx(ctx context.Context, db OutboxStore, c Consumer, evt Event) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("consumer panic", "consumer", c.Name, "event_id", evt.ID,
+				"panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+			err = fmt.Errorf("consumer panic: %v", r)
+		}
+	}()
+	return db.WithSystem(ctx, func(tx *gorm.DB) error {
+		// Scope the whole consumer tx (claim + handler) to the event's
+		// tenant so handlers can write RLS-forced rows (phase 2 D4).
+		// Invalid/empty tenant → GUC stays unset → tenant tables read
+		// as empty and reject writes, same as before.
+		if _, err := uuid.Parse(evt.TenantID); err == nil {
+			if err := tx.Exec(`SELECT set_config('app.tenant_id', ?, true)`, evt.TenantID).Error; err != nil {
+				return err
+			}
+		}
+		res := tx.Exec(`INSERT INTO processed_events (consumer, event_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
+			c.Name, evt.ID)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return nil // duplicate delivery — no-op (idempotency)
+		}
+		// Handler runs in the SAME tx as the idempotency claim — do not
+		// open your own transaction; rollback of the claim implies
+		// rollback of handler effects.
+		return c.Handle(ctx, tx, evt)
+	})
 }

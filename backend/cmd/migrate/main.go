@@ -12,7 +12,6 @@ import (
 
 	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/config"
-	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -38,7 +37,7 @@ func run() error {
 		return fmt.Errorf("build registry: %w", err)
 	}
 
-	migs := events.Migrations()
+	migs := bootstrap.PlatformMigrations()
 	for _, m := range registry.All() {
 		migs = append(migs, m.Migrations()...)
 	}

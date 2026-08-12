@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
@@ -16,10 +17,11 @@ type gipVerifier struct{ client *auth.Client }
 
 type gipMinter struct{ client *auth.Client }
 
-// NewGIPVerifier verifies GIP/Firebase ID tokens. In dev it honors
-// FIREBASE_AUTH_EMULATOR_HOST automatically (no credentials needed).
-func NewGIPVerifier(ctx context.Context, projectID string) (TokenVerifier, error) {
-	client, err := newAuthClient(ctx, projectID)
+// NewGIPVerifier verifies GIP/Firebase ID tokens. It refuses to honor
+// FIREBASE_AUTH_EMULATOR_HOST unless allowEmulator is true (dev only);
+// see newAuthClient for why.
+func NewGIPVerifier(ctx context.Context, projectID string, allowEmulator bool) (TokenVerifier, error) {
+	client, err := newAuthClient(ctx, projectID, allowEmulator)
 	if err != nil {
 		return nil, err
 	}
@@ -30,22 +32,33 @@ func NewGIPVerifier(ctx context.Context, projectID string) (TokenVerifier, error
 // view of the same Firebase auth client NewGIPVerifier wraps — separate
 // constructors rather than one object exposing both, so a caller wired
 // for minting cannot also verify (and vice versa), and so adding minting
-// could not change verification. In dev it honors
-// FIREBASE_AUTH_EMULATOR_HOST automatically, like the verifier.
+// could not change verification. Like the verifier, it refuses to honor
+// FIREBASE_AUTH_EMULATOR_HOST unless allowEmulator is true (dev only).
 //
 // Minting requires a service-account credential (the Admin SDK signs the
 // token locally, or delegates to the IAM signBlob API). Against the auth
 // emulator no signature is required, so dev and tests work with no
 // credentials at all.
-func NewGIPMinter(ctx context.Context, projectID string) (TokenMinter, error) {
-	client, err := newAuthClient(ctx, projectID)
+func NewGIPMinter(ctx context.Context, projectID string, allowEmulator bool) (TokenMinter, error) {
+	client, err := newAuthClient(ctx, projectID, allowEmulator)
 	if err != nil {
 		return nil, err
 	}
 	return &gipMinter{client: client}, nil
 }
 
-func newAuthClient(ctx context.Context, projectID string) (*auth.Client, error) {
+func newAuthClient(ctx context.Context, projectID string, allowEmulator bool) (*auth.Client, error) {
+	// The Admin SDK reads this variable at construction. When it is set,
+	// VerifyIDToken decodes the JWT and trusts it — no RSA signature
+	// check at all. Reaching production, that turns "forge a token with
+	// any tenant_id" into full access to every tenant's data, with a
+	// clean boot and a green readiness probe. Refuse instead.
+	if host := os.Getenv("FIREBASE_AUTH_EMULATOR_HOST"); host != "" && !allowEmulator {
+		return nil, fmt.Errorf(
+			"authn: FIREBASE_AUTH_EMULATOR_HOST=%q is set outside a dev environment; "+
+				"the emulator makes ID token signature verification a no-op, so any "+
+				"forged token would be accepted. Unset it, or set HMS_ENV=dev", host)
+	}
 	app, err := firebase.NewApp(ctx, &firebase.Config{ProjectID: projectID})
 	if err != nil {
 		return nil, fmt.Errorf("firebase app: %w", err)

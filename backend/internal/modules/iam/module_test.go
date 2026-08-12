@@ -11,8 +11,9 @@ import (
 
 func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	migs := iam.New().Migrations()
-	require.Len(t, migs, 1)
+	require.Len(t, migs, 2)
 	require.Equal(t, "0001_iam", migs[0].ID)
+	require.Equal(t, "0002_iam", migs[1].ID)
 }
 
 func TestSystemRolesAreTheFiveShippedRoles(t *testing.T) {

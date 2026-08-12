@@ -10,9 +10,10 @@ export function firebaseAuth() {
       projectId: env.NEXT_PUBLIC_GIP_PROJECT_ID,
     });
   const auth = getAuth(app);
-  const emulator =
-    process.env.NEXT_PUBLIC_AUTH_EMULATOR_HOST ??
-    (process.env.NODE_ENV !== "production" ? "localhost:9099" : undefined);
+  // Explicit only — never inferred from NODE_ENV. A production build with
+  // a non-production NODE_ENV would otherwise silently point sign-in at a
+  // local emulator. `make up` sets this variable for dev.
+  const emulator = process.env.NEXT_PUBLIC_AUTH_EMULATOR_HOST;
   // avoids double-connect in fast refresh
   if (emulator && !auth.emulatorConfig) {
     connectAuthEmulator(auth, `http://${emulator}`, { disableWarnings: true });

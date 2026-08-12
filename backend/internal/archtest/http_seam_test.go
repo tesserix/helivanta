@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/modules/medicore"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testinfra"
@@ -74,7 +75,11 @@ func newSeamHarness(t *testing.T) *gin.Engine {
 	require.NoError(t, err)
 
 	mod := medicore.New()
-	migs := append([]tenantdb.Migration{iamMembersSeamMigration}, mod.Migrations()...)
+	// Platform migrations must run first: medicore's policy now depends
+	// on hms_tenant_visible (Task 5/6), which only bootstrap's migration
+	// defines.
+	migs := append(bootstrap.PlatformMigrations(), iamMembersSeamMigration)
+	migs = append(migs, mod.Migrations()...)
 	require.NoError(t, db.Migrate(ctx, migs))
 
 	require.NoError(t, db.WithTenant(ctx, seamTenant, func(tx *gorm.DB) error {

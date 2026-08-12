@@ -31,6 +31,10 @@ func main() {
 
 func run() error {
 	cfg := config.Load()
+	// Logged once at boot because HMS_ENV silently gates production safety
+	// checks (see Config.IsDev) — a prod process accidentally started with
+	// HMS_ENV=dev would otherwise disable them with no signal anywhere.
+	slog.Info("resolved environment", "env", cfg.Env, "is_dev", cfg.IsDev())
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -44,7 +48,7 @@ func run() error {
 		return err
 	}
 
-	migs := events.Migrations()
+	migs := bootstrap.PlatformMigrations()
 	for _, m := range registry.All() {
 		migs = append(migs, m.Migrations()...)
 	}
@@ -63,12 +67,12 @@ func run() error {
 	}
 	defer bus.Close()
 
-	verifier, err := authn.NewGIPVerifier(ctx, cfg.GIPProjectID)
+	verifier, err := authn.NewGIPVerifier(ctx, cfg.GIPProjectID, cfg.IsDev())
 	if err != nil {
 		return err
 	}
 
-	minter, err := authn.NewGIPMinter(ctx, cfg.GIPProjectID)
+	minter, err := authn.NewGIPMinter(ctx, cfg.GIPProjectID, cfg.IsDev())
 	if err != nil {
 		return err
 	}

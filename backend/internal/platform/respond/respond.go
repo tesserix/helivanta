@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tesserix/hms/internal/platform/requestid"
 )
 
 func OK(c *gin.Context, data any)       { c.JSON(http.StatusOK, data) }
@@ -29,7 +30,15 @@ func BadRequest(c *gin.Context, err error) {
 	Error(c, http.StatusBadRequest, "invalid_request", err.Error())
 }
 
-func Internal(c *gin.Context, message string) {
+// InternalErr logs the underlying cause against the request id and returns
+// the client-safe message.
+//
+// It replaces a plain Internal(c, msg): 15 call sites discarded their
+// error, so a production 500 gave the client a generic string and the
+// operator nothing — no error text, no SQLSTATE, no request id. The
+// discarding form is deliberately not offered, so it cannot come back.
+func InternalErr(c *gin.Context, err error, message string) {
+	requestid.Logger(c).ErrorContext(c.Request.Context(), message, "err", err)
 	Error(c, http.StatusInternalServerError, "internal", message)
 }
 

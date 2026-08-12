@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testinfra"
 	"github.com/tesserix/hms/pkg/authn"
@@ -147,7 +148,7 @@ func moduleHarness(
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	t.Cleanup(cancel)
 
-	migs := events.Migrations()
+	migs := bootstrap.PlatformMigrations()
 	for _, m := range mods {
 		migs = append(migs, m.Migrations()...)
 	}

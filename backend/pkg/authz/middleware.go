@@ -2,6 +2,7 @@ package authz
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -55,7 +56,7 @@ func Require(p Permission) gin.HandlerFunc {
 		if !ok {
 			// Router construction guarantees Middleware runs first; this
 			// is a programming error, not a client error.
-			respond.Internal(c, "authorization not initialized")
+			respond.InternalErr(c, errors.New("permission set missing from context"), "authorization not initialized")
 			return
 		}
 		if !set.Has(p) {

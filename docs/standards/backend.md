@@ -525,7 +525,7 @@ rather than `slog.Default()` — it's the default logger pre-bound with
 func Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.GetHeader("X-Request-ID")
-		if id == "" {
+		if id == "" || !validRequestID.MatchString(id) {
 			id = uuid.NewString()
 		}
 		c.Set(Key, id)
@@ -536,6 +536,11 @@ func Middleware() gin.HandlerFunc {
 }
 ```
 
+`validRequestID` bounds an inbound `X-Request-ID` to `^[A-Za-z0-9_-]{1,128}$`
+before it's echoed back or used in log correlation — an unbounded or
+oddly-charactered client-supplied ID is replaced with a fresh UUID rather
+than trusted.
+
 Standard fields across the codebase: `request_id` (every request-scoped
 log line, via `requestid.Logger`), `module` / `consumer` (which module or
 consumer emitted the line — see the bus's
@@ -544,6 +549,93 @@ in `backend/pkg/events/bus.go`), `event_id` and `tenant_id` (any event
 processing path), and `err` (always the wrapped error value, not
 `err.Error()` — `slog`'s handler renders an `error` value correctly on
 its own).
+
+### Output, level and redaction
+
+`pkg/logging.New(level)` (`NewWithWriter(w, level)` for tests) builds the
+process logger: a JSON handler on stdout, writing through a **redacting
+`io.Writer`**. `cmd/api` and `cmd/migrate` install it with
+`slog.SetDefault` as their first act, before anything else logs.
+
+`LOG_LEVEL` selects the threshold — `debug`, `info`, `warn`/`warning`,
+`error`, case-insensitive. An unrecognised non-empty value degrades to
+`info` with a warning and the process still boots; an empty value degrades
+to `info` silently (the ordinary unset case, not a mistake). A mistyped log
+level cannot compromise tenant isolation, and a hospital's API must not
+fail to start over a typo — this is deliberately the opposite call from the
+`HMS_ENV` guards, which fail closed because a wrong value there could
+silently disable a safety check.
+
+**Redaction happens at the writer, not the handler.** Every line `slog`'s
+JSON handler emits passes through pattern redaction before it reaches
+stdout — Aadhaar (12 digits), ABHA (14 digits), and Indian mobile numbers
+(`+91` forms and bare 10-digit numbers beginning 5–9, including the
+conventional 5-5 grouping). Matches are masked as `[REDACTED:aadhaar]`,
+`[REDACTED:abha]`, `[REDACTED:mobile]`. A handler would have to predict how
+`slog` renders each attribute value — `json.Marshaler` vs
+`encoding.TextMarshaler` vs `error` vs `fmt.Stringer` — and every version of
+that prediction leaked PHI in a different way during development. The
+writer instead screens the bytes `slog` actually emits, so there's nothing
+to predict. Full history and the failed handler-based approaches are in the
+design spec — see
+`docs/superpowers/specs/2026-08-13-structured-logging-phi-redaction-design.md`
+rather than reproducing the tables here.
+
+The writer **parses the line as JSON and re-encodes it**, rather than
+scanning the raw bytes. Consequence worth relying on: a masked JSON number
+comes out as a valid JSON string (never invalid syntax like a truncated
+numeric literal), and a line with no PHI match is returned byte-identical.
+Redaction cannot corrupt a line into invalid JSON.
+
+`logging.RedactionCount()` returns an in-process counter of masks applied
+— the seam #679 will wire to metrics; there's no metrics sink yet.
+
+**Nothing in the logging pipeline masks names, dates of birth, or
+addresses today.** Pattern redaction only recognises the identifier shapes
+above; it cannot and does not scan for names or free-text PHI. What
+protects patient rows is the Part A GORM guard (`logger.Silent` in
+`pkg/tenantdb.Open`, enforced by `TestGormOpenIsOnlyCalledFromTheAllowlist`
+and `TestOpenNeverLogsQueryParameters`) keeping patient data out of the log
+stream in the first place, not redaction downstream of it. A tag-based
+mechanism (`hmslog:"phi"` struct tags) to catch names/DOBs/addresses that
+do reach a log line was designed and implemented, but was withdrawn after
+review and is deferred to #778 — do not write `hmslog:"phi"` tags expecting
+them to do anything; no such tag is read by this package.
+
+Known limitations, stated plainly:
+
+- Redaction only sees what passes through `slog`. Anything a dependency
+  writes straight to a file descriptor bypasses it entirely — precisely why
+  the GORM logger needed its own guard rather than relying on this.
+- `bounded()` makes hyphen-adjacent PHI a deliberate blind spot:
+  `9876543210-9876543211` is not masked. This is the unavoidable other side
+  of the fix that keeps a UUID like `tenant_id` from being torn apart and
+  masked as an Aadhaar number. Do not widen the neighbour class without
+  re-deriving that UUID case, or every `tenant_id` in every log line gets
+  redacted and correlation breaks.
+- False positives are expected — a legitimate 12-digit identifier that
+  isn't PHI will still be masked — and that's the correct direction to
+  fail.
+- Redaction runs on every attribute of every emitted line. At current
+  volumes that's not a concern; a future high-volume path (#438's
+  read-access audit is the likely first candidate) should measure the cost
+  rather than assume it's free.
+
+### Correlation fields
+
+Every request line carries `request_id`, stamped by `requestid.Middleware`
+before auth runs. Once `authn` has populated the context,
+`requestid.PrincipalMiddleware` adds `tenant_id` and `subject`, so a line
+answers which hospital, which user, which request. Neither is patient data:
+`subject` is a pseudonymous GIP UID and `tenant_id` is a UUID.
+
+That enrichment lives in `internal/platform/requestid`, not `pkg/authn`:
+`internal/` may import `pkg/`, and the reverse is a dependency inversion the
+foundation audit already flagged.
+
+Add your own request-scoped fields with `requestid.Enrich(c, "module",
+"medicore")` — it returns a new logger (`slog.Logger.With`) rather than
+mutating a shared one, so it can't leak into another request.
 
 Wrap errors with `%w`, not `%v` or string concatenation, whenever an
 error crosses a function boundary and the caller might need

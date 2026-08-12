@@ -14,16 +14,14 @@
 # process whose working directory is inside this repository.
 set -uo pipefail
 
-REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
-APP_PORTS=(4301 4302 4303 4304 8080)
+REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+. "$REPO_ROOT/scripts/lib/repo-owns.sh"
+# 8080 is HMS_API_PORT (see .env.example) — the four zone-app ports are
+# fixed Next.js dev-server ports, out of scope for the port variables.
+APP_PORTS=(4301 4302 4303 4304 "${HMS_API_PORT:-8080}")
 
 echo "Stopping infrastructure…"
 docker compose -f "$REPO_ROOT/docker-compose.dev.yml" down
-
-# cwd_of prints a PID's working directory, or nothing if it cannot be read.
-cwd_of() {
-  lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1
-}
 
 echo "Stopping app processes…"
 killed=0
@@ -31,17 +29,14 @@ skipped=0
 for port in "${APP_PORTS[@]}"; do
   for pid in $(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null); do
     cwd=$(cwd_of "$pid")
-    case "$cwd" in
-      "$REPO_ROOT"|"$REPO_ROOT"/*)
-        kill "$pid" 2>/dev/null && killed=$((killed + 1))
-        printf '  stopped  pid %-7s port %s\n' "$pid" "$port"
-        ;;
-      *)
-        skipped=$((skipped + 1))
-        printf '  SKIPPED  pid %-7s port %s — not this repo (cwd: %s)\n' \
-          "$pid" "$port" "${cwd:-unknown}"
-        ;;
-    esac
+    if pid_is_ours "$pid"; then
+      kill "$pid" 2>/dev/null && killed=$((killed + 1))
+      printf '  stopped  pid %-7s port %s\n' "$pid" "$port"
+    else
+      skipped=$((skipped + 1))
+      printf '  SKIPPED  pid %-7s port %s — not this repo (cwd: %s)\n' \
+        "$pid" "$port" "${cwd:-unknown}"
+    fi
   done
 done
 
@@ -50,13 +45,9 @@ if [ "$killed" -gt 0 ]; then
   sleep 3
   for port in "${APP_PORTS[@]}"; do
     for pid in $(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null); do
-      cwd=$(cwd_of "$pid")
-      case "$cwd" in
-        "$REPO_ROOT"|"$REPO_ROOT"/*)
-          kill -9 "$pid" 2>/dev/null
-          printf '  forced   pid %-7s port %s\n' "$pid" "$port"
-          ;;
-      esac
+      pid_is_ours "$pid" || continue
+      kill -9 "$pid" 2>/dev/null
+      printf '  forced   pid %-7s port %s\n' "$pid" "$port"
     done
   done
 fi

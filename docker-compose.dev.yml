@@ -2,11 +2,12 @@ name: hms-dev
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: hms
       POSTGRES_PASSWORD: hms
       POSTGRES_DB: hms
-    ports: ["5432:5432"]
+    ports: ["${HMS_PG_PORT:-5432}:5432"]
     volumes:
       - ./dev/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
       - pgdata:/var/lib/postgresql/data
@@ -18,8 +19,9 @@ services:
 
   nats:
     image: nats:2.10-alpine
+    restart: unless-stopped
     command: ["-js", "-sd", "/data"]
-    ports: ["4222:4222", "8222:8222"]
+    ports: ["${HMS_NATS_PORT:-4222}:4222", "${HMS_NATS_MONITOR_PORT:-8222}:8222"]
     volumes: [natsdata:/data]
     healthcheck:
       test: ["CMD-SHELL", "echo 'PING' | nc localhost 4222 | grep -q PONG"]
@@ -29,7 +31,8 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    restart: unless-stopped
+    ports: ["${HMS_REDIS_PORT:-6379}:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
@@ -38,10 +41,13 @@ services:
 
   openfga:
     image: openfga/openfga:v1.8.4
+    restart: unless-stopped
     command: ["run"]
     environment:
       OPENFGA_DATASTORE_ENGINE: memory
-    ports: ["8090:8080"]
+    # Host side only — the healthcheck below talks to the container's own
+    # 8080/8081, which never change.
+    ports: ["${HMS_OPENFGA_PORT:-8090}:8080"]
     healthcheck:
       test: ["CMD", "/usr/local/bin/grpc_health_probe", "-addr=localhost:8081"]
       interval: 2s
@@ -51,11 +57,19 @@ services:
   firebase-auth:
     image: node:22-alpine
     working_dir: /workspace
-    command: sh -c "npx -y firebase-tools@13 emulators:start --only auth --project demo-hms"
+    # firebase-tools is pinned exactly. `firebase-tools@13` resolved a
+    # floating minor on every container start, so two machines could run
+    # different emulator builds and every start needed the network —
+    # directly against #714's "seeded data identical across machines".
+    # The npm cache volume makes restarts fast and offline-capable.
+    command: sh -c "npx -y firebase-tools@13.35.1 emulators:start --only auth --project demo-hms"
+    restart: unless-stopped
     volumes:
       - ./dev/firebase:/workspace
-    ports: ["9099:9099"]
+      - npmcache:/root/.npm
+    ports: ["${HMS_GIP_PORT:-9099}:9099"]
 
 volumes:
   pgdata:
   natsdata:
+  npmcache:

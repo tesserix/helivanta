@@ -3,6 +3,13 @@
 # Usage: make verify-local   (after `make dev` in another terminal)
 set -uo pipefail
 
+# Same HMS_* host-port variables as the Makefile/preflight (see
+# .env.example) — falls back to the stock ports when unset, so this still
+# works run standalone with no .env present.
+OPENFGA_PORT=${HMS_OPENFGA_PORT:-8090}
+GIP_PORT=${HMS_GIP_PORT:-9099}
+API_PORT=${HMS_API_PORT:-8080}
+
 fail=0
 
 # check <name> <url> [attempts] [max-time]
@@ -29,14 +36,14 @@ check() {
 
 echo "Infrastructure:"
 docker compose -f docker-compose.dev.yml ps --status running --format '  ok    {{.Service}}' || fail=1
-check "openfga"          "http://localhost:8090/healthz"
-check "gip emulator"     "http://localhost:9099/"
+check "openfga"          "http://localhost:$OPENFGA_PORT/healthz"
+check "gip emulator"     "http://localhost:$GIP_PORT/"
 
 echo "Backend:"
 # The API exposes /healthz and /readyz (backend/internal/httpserver/server.go)
 # — not /health and /ready.
-check "api health"       "http://localhost:8080/healthz"
-check "api ready"        "http://localhost:8080/readyz"
+check "api health"       "http://localhost:$API_PORT/healthz"
+check "api ready"        "http://localhost:$API_PORT/readyz"
 
 echo "Frontend zones:"
 # Each zone app sets basePath in next.config.ts (e.g. medicore is served

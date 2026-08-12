@@ -3,6 +3,9 @@ package logging_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"math/rand"
 	"strings"
 	"testing"
 
@@ -90,8 +93,10 @@ func through(t *testing.T, line string) string {
 
 // requireValidJSON is the assertion that keeps the number-token handling
 // honest. Substituting a bare marker for a JSON number produces syntactically
-// invalid output, and slog would replace the whole record with !ERROR — a
-// redaction control that silently deletes log records.
+// invalid output, and nothing downstream of this writer validates that: the
+// malformed line reaches stdout as-written and an ingest pipeline expecting
+// one JSON object per line drops it — a redaction control that silently
+// deletes log records.
 func requireValidJSON(t *testing.T, line string) map[string]any {
 	t.Helper()
 	var parsed map[string]any
@@ -169,4 +174,295 @@ func TestWriterCountsRedactions(t *testing.T) {
 	before := logging.RedactionCount()
 	through(t, `{"a":"9876543210","b":"123456789012"}`+"\n")
 	require.Equal(t, before+2, logging.RedactionCount())
+}
+
+// Round 1 fix: C1 — PHI immediately after a JSON escape sequence leaked. A
+// byte-scanning writer sees the raw bytes `\` `n` before a newline, and `n`
+// is a word character, so the boundary check reads it as "part of a longer
+// token" and declines to match. errors.Join — the standard library's own
+// multi-error type — joins with `\n`, so this is ordinary Go, not a
+// contrived input. Decoding the string first turns `\n` into an actual
+// newline before the boundary check ever runs, and a newline is not a word
+// character, so it is a valid boundary. Tabs and `\uXXXX` escapes fail the
+// same way on a scanner and are fixed the same way by decoding first.
+func TestWriterRedactsPHIAfterJSONEscapeSequences(t *testing.T) {
+	// The exact shape of the defect: errors.Join joins with "\n".
+	joined := errors.Join(errors.New("bad record"), errors.New("9876543210 rejected"))
+	line, err := json.Marshal(map[string]string{"err": joined.Error()})
+	require.NoError(t, err)
+	out := through(t, string(line)+"\n")
+	parsed := requireValidJSON(t, out)
+	require.Equal(t, "bad record\n[REDACTED:mobile] rejected", parsed["err"])
+
+	newlineCase := "{\"msg\":\"bad record\\n9876543210 rejected\"}\n"
+	tabCase := "{\"msg\":\"bad record\\t9876543210 rejected\"}\n"
+	//   decodes to an ordinary space, but a byte scanner sees the raw
+	// hex digit '0' from the escape sequence immediately before the PHI
+	// digits and reads them as one long, boundary-free run.
+	unicodeCase := "{\"msg\":\"bad record\\u00209876543210 rejected\"}\n"
+
+	for _, tc := range []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"newline before PHI", newlineCase, "bad record\n[REDACTED:mobile] rejected"},
+		{"tab before PHI", tabCase, "bad record\t[REDACTED:mobile] rejected"},
+		{"unicode escape before PHI", unicodeCase, "bad record [REDACTED:mobile] rejected"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out := through(t, tc.in)
+			parsed := requireValidJSON(t, out)
+			require.Equal(t, tc.want, parsed["msg"])
+		})
+	}
+}
+
+// Round 1 fix: C2 — a match only ever covers a contiguous digit run, so
+// substituting a marker for part of a fractional or signed number produces
+// invalid JSON: `{"amount":9876543210.75}` became
+// `{"amount":"[REDACTED:mobile]".75}`. Decoding hands the whole number
+// literal — sign, integer, fraction, exponent — to RedactString as one
+// token, and the result is re-encoded as a single JSON value, so there is no
+// partial substitution left to corrupt the document.
+func TestWriterHandlesFractionalAndSignedNumberTokens(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   string
+		key  string
+	}{
+		{"fractional with PHI integer part", `{"amount":9876543210.75}` + "\n", "amount"},
+		{"small integer part, PHI fraction", `{"v":12.9876543210}` + "\n", "v"},
+		{"zero integer part, PHI fraction", `{"v":0.9876543210}` + "\n", "v"},
+		{"negative PHI-shaped number", `{"a":-9876543210}` + "\n", "a"},
+		{"PHI-shaped fraction longer than any pattern", `{"v":9876543210.123456789012}` + "\n", "v"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out := through(t, tc.in)
+			parsed := requireValidJSON(t, out)
+			got, ok := parsed[tc.key].(string)
+			require.True(t, ok, "a redacted number must become a JSON string: %s", out)
+			require.NotContains(t, got, "9876543210", "raw PHI digits must not survive")
+			require.Contains(t, got, "[REDACTED:", "the field must show a redaction marker")
+		})
+	}
+}
+
+// The negative case specifically: bounded() requires the digit run to sit at
+// the very start of the text it is given, or after a non-token character.
+// Screening the whole signed literal "-9876543210" as one string would find
+// '-' sitting immediately before the digits — itself a token character by
+// bounded()'s own rule — and refuse to match, silently leaving every
+// negative PHI-shaped number in the clear. The sign must be split off first.
+func TestWriterRedactsNegativeNumbers(t *testing.T) {
+	out := through(t, `{"a":-9876543210,"b":-123456789012}`+"\n")
+	parsed := requireValidJSON(t, out)
+	require.Equal(t, "[REDACTED:mobile]", parsed["a"])
+	require.Equal(t, "[REDACTED:aadhaar]", parsed["b"])
+}
+
+// A digit run of ten or more is not automatically PHI: an ordinary long
+// integer that does not match any pattern's exact length or leading-digit
+// requirement must survive the slow (parsing) path untouched, the same way
+// it survives RedactString directly.
+func TestWriterSlowPathLeavesOrdinaryLongNumbersAlone(t *testing.T) {
+	const line = `{"count":1234567890,"ref":"invoice-0000000001"}` + "\n"
+	out := through(t, line)
+	parsed := requireValidJSON(t, out)
+	require.Equal(t, float64(1234567890), parsed["count"])
+	require.Equal(t, "invoice-0000000001", parsed["ref"])
+}
+
+// requireParsesAsJSON is requireValidJSON's generic sibling for the property
+// test, where the top-level document is not always an object — a randomly
+// generated line may be a bare string, array, or number just as validly.
+func requireParsesAsJSON(t *testing.T, line string) {
+	t.Helper()
+	var parsed any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(line)), &parsed),
+		"output is not valid JSON: %s", line)
+}
+
+// requireNoRawDigitRun fails the test if s contains a run of ten or more
+// consecutive ASCII digits anywhere outside a `[REDACTED:...]` marker. Used
+// by the property test as a structure-agnostic backstop: whatever shape the
+// generated document took, no PHI-length digit run may survive in the
+// clear.
+func requireNoRawDigitRun(t *testing.T, s string) {
+	t.Helper()
+	run := 0
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= '0' && c <= '9' {
+			run++
+			if run >= 10 {
+				t.Fatalf("raw digit run of length >= 10 survived redaction: %q in %q", s[i-run+1:i+1], s)
+			}
+			continue
+		}
+		run = 0
+	}
+}
+
+// TestWriterPropertyOverGeneratedLines is the permanent home of the property
+// test that found C2: generate a large number of realistic log lines via
+// encoding/json from assorted, randomly shaped values — nested objects and
+// arrays, unicode, empty strings, PHI in both keys and values, PHI at the
+// start and end of strings, bools, nulls, negatives, fractional numbers —
+// redact each, and assert every output still parses as JSON and leaks no
+// PHI. It is deterministically seeded so a failure is reproducible.
+func TestWriterPropertyOverGeneratedLines(t *testing.T) {
+	rng := rand.New(rand.NewSource(20260813))
+
+	phiPool := []string{
+		"9876543210",     // bare mobile
+		"5876543210",     // bare mobile, alternate leading digit
+		"123456789012",   // aadhaar
+		"12345678901234", // abha
+		"+919876543210",  // international mobile
+	}
+	// Deliberately excludes the documented hyphen/underscore-adjacent blind
+	// spot (e.g. "ref_9876543210_x", "invoice-0000000001") — those are
+	// covered by their own dedicated tests (TestRedactPatterns and
+	// TestWriterSlowPathLeavesOrdinaryLongNumbersAlone) and would trip this
+	// test's raw-digit-run backstop for a reason that is by design, not a
+	// regression.
+	safePool := []string{
+		"11111111-1111-1111-1111-111111111111", // uuid, must survive
+		"22222222-2222-2222-2222-222222222222", // uuid, must survive
+		"",                                     // empty string
+		"café",                                 // unicode
+		"मरीज़ भर्ती",                          // unicode, non-Latin
+	}
+
+	randomLeaf := func() any {
+		switch rng.Intn(9) {
+		case 0:
+			return phiPool[rng.Intn(len(phiPool))]
+		case 1:
+			return "call " + phiPool[rng.Intn(len(phiPool))] + " now" // PHI mid-sentence
+		case 2:
+			return phiPool[rng.Intn(len(phiPool))] + " end" // PHI at string start
+		case 3:
+			return "start " + phiPool[rng.Intn(len(phiPool))] // PHI at string end
+		case 4:
+			return safePool[rng.Intn(len(safePool))]
+		case 5:
+			return rng.Intn(1000) // safe small int
+		case 6:
+			return -9876543210 // negative PHI-shaped
+		case 7:
+			return 9876543210.75 // fractional PHI-shaped
+		default:
+			return rng.Intn(2) == 0 // bool
+		}
+	}
+
+	buildValue := func(depth int) any {
+		var build func(d int) any
+		build = func(d int) any {
+			if d <= 0 || rng.Intn(3) == 0 {
+				return randomLeaf()
+			}
+			if rng.Intn(2) == 0 {
+				n := 1 + rng.Intn(4)
+				arr := make([]any, n)
+				for i := range arr {
+					arr[i] = build(d - 1)
+				}
+				return arr
+			}
+			n := 1 + rng.Intn(4)
+			obj := make(map[string]any, n)
+			for i := 0; i < n; i++ {
+				key := fmt.Sprintf("k%d", i)
+				if rng.Intn(4) == 0 {
+					// PHI-shaped key, must also be screened.
+					key = phiPool[rng.Intn(len(phiPool))]
+				}
+				obj[key] = build(d - 1)
+			}
+			return obj
+		}
+		return build(depth)
+	}
+
+	const iterations = 300
+	for i := 0; i < iterations; i++ {
+		doc := buildValue(3)
+		line, err := json.Marshal(doc)
+		require.NoError(t, err)
+
+		out := through(t, string(line)+"\n")
+		requireParsesAsJSON(t, out)
+
+		// The UUID pool members are themselves long digit-heavy strings (a
+		// 12-digit contiguous run in their last group) that must legitimately
+		// survive untouched, so they would trip the raw-digit-run backstop
+		// below as a false positive. Strip verified-intact safe values before
+		// scanning for leaked PHI.
+		scanned := out
+		for _, safe := range safePool {
+			if safe == "" {
+				continue
+			}
+			scanned = strings.ReplaceAll(scanned, safe, "")
+		}
+		requireNoRawDigitRun(t, scanned)
+
+		for _, safe := range safePool {
+			if safe == "" {
+				continue
+			}
+			if strings.Contains(string(line), safe) {
+				require.Contains(t, out, safe, "safe value must survive verbatim: iteration %d, input %s", i, line)
+			}
+		}
+	}
+}
+
+// cleanLogLine has no PHI-shaped digit run at all — the common case in
+// production, where most fields are short IDs, levels, and short messages.
+// The correlation IDs use realistic mixed hex-digit UUIDs, not the
+// all-decimal "11111111-...", "22222222-..." fixtures used elsewhere in this
+// file for readability: a real UUID's hyphen-separated groups essentially
+// never happen to line up into a fully-numeric run the way an all-decimal
+// placeholder trivially does, and this benchmark exists to measure the fast
+// path a realistic line actually takes.
+const cleanLogLine = `{"time":"2026-08-13T01:02:03Z","level":"INFO","msg":"appointment confirmed","tenant_id":"3fa85f64-5717-4562-b3fc-2c963f66afa6","ward":"ward-3","request_id":"7c9e6679-7425-40de-944b-e07fc1f90ae7"}` + "\n"
+
+// phiLogLine has PHI-shaped values, forcing the slow (parse) path.
+const phiLogLine = `{"time":"2026-08-13T01:02:03Z","level":"INFO","msg":"patient call","phone":"9876543210","aadhaar":123456789012,"tenant_id":"3fa85f64-5717-4562-b3fc-2c963f66afa6"}` + "\n"
+
+// BenchmarkRedactingWriterCleanLine measures the fast path: a line with no
+// digit run long enough to match any pattern should cost close to nothing,
+// since hasDigitRun rejects it before any parsing is attempted.
+func BenchmarkRedactingWriterCleanLine(b *testing.B) {
+	var buf bytes.Buffer
+	w := logging.NewRedactingWriter(&buf)
+	p := []byte(cleanLogLine)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		if _, err := w.Write(p); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkRedactingWriterPHILine measures the slow (parse-and-re-encode)
+// path on a line that does contain PHI and must be redacted.
+func BenchmarkRedactingWriterPHILine(b *testing.B) {
+	var buf bytes.Buffer
+	w := logging.NewRedactingWriter(&buf)
+	p := []byte(phiLogLine)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		if _, err := w.Write(p); err != nil {
+			b.Fatal(err)
+		}
+	}
 }

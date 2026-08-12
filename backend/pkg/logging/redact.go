@@ -2,8 +2,10 @@ package logging
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"regexp"
+	"strings"
 	"sync/atomic"
 )
 
@@ -119,15 +121,31 @@ func RedactString(s string) (string, int) {
 // D). Here there is nothing to predict: these are the bytes.
 //
 // slog's JSON handler emits one Write per record under its own mutex, so this
-// sees exactly one complete line at a time and needs no buffering or locking.
+// sees exactly one complete line at a time and needs no buffering or locking
+// — that is the contract this writer relies on. It is only safe to wrap a
+// writer that hands over one complete line per Write; a caller that splits a
+// single log line across multiple Write calls can have PHI straddle the
+// boundary and escape both halves, because each call is redacted
+// independently. A malformed line is not rejected by anything downstream of
+// this writer — it reaches stdout as-written and an ingest pipeline that
+// expects one JSON object per line will simply drop it, silently, which is
+// exactly the failure this package exists to avoid producing itself.
 func NewRedactingWriter(w io.Writer) io.Writer { return &redactingWriter{inner: w} }
 
 type redactingWriter struct{ inner io.Writer }
 
 func (rw *redactingWriter) Write(p []byte) (int, error) {
 	out := redactJSONLine(string(p))
-	if _, err := rw.inner.Write([]byte(out)); err != nil {
+	n, err := rw.inner.Write([]byte(out))
+	if err != nil {
 		return 0, err
+	}
+	if n < len(out) {
+		// The inner writer accepted fewer bytes than we gave it but reported
+		// no error. That is a short write by io.Writer's own contract, and
+		// silently reporting success would hide a partially written — and
+		// therefore possibly unredacted-looking or truncated — log line.
+		return 0, io.ErrShortWrite
 	}
 	// io.Writer's contract is that a successful Write returns len(p). The
 	// redacted line is a different length, and reporting that length would
@@ -135,70 +153,267 @@ func (rw *redactingWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// redactJSONLine masks PHI in one serialised log line, quoting the marker
-// when the match sits outside a JSON string.
+// possiblePHI is an unanchored union of the same core shapes redactionPatterns
+// wraps with bounded(), deliberately without the boundary requirement.
 //
-// The distinction matters because a bare marker substituted for a number
-// token is not valid JSON: `{"aadhaar":123456789012}` must become
-// `{"aadhaar":"[REDACTED:aadhaar]"}`, never `{"aadhaar":[REDACTED:aadhaar]}`.
-// Emitting the latter would make slog's own encoder reject the record, and a
-// redaction control that silently deletes log lines is its own incident.
+// It exists purely as a prefilter to skip parsing on lines that cannot
+// possibly match: a bounded() match always requires its core to match first
+// — the boundary check can only narrow what the core already found, never
+// widen it — so if no core shape appears anywhere in the line, no pattern
+// can match either, parse or no parse.
+//
+// It is deliberately a superset of what actually redacts, and that is the
+// point. A naive "run of 10+ digits, ignoring separators" prefilter was
+// tried first and rejected: it counts hyphens as never breaking a run, so a
+// tenant_id UUID (five hyphen-separated groups summing to 32 digits) always
+// looks like a 10+ digit run and forces the slow path on every single
+// request-scoped log line — exactly the common case this prefilter exists to
+// keep cheap. Matching the real core shapes instead means an ordinary UUID
+// only forces a parse in the rare case three of its groups happen to align
+// into a fully-numeric 4-4-4 (or similar) run, not on every line that merely
+// contains a lot of digits and hyphens.
+//
+// Costing an unnecessary parse (a core matches, but bounded() then rejects
+// it — e.g. that occasional numeric-looking UUID slice) is always safe.
+// Skipping a parse that should have happened is not, so this must remain a
+// superset of every core pattern below, not an approximation of one.
+var possiblePHI = regexp.MustCompile(
+	`\+91[-\s]?[5-9]\d{4}[-\s]?\d{5}` + `|` + // international mobile
+		`\d{2}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}` + `|` + // abha
+		`\d{4}[-\s]?\d{4}[-\s]?\d{4}` + `|` + // aadhaar
+		`[5-9]\d{4}[-\s]?\d{5}`, // bare mobile
+)
+
+// redactJSONLine masks PHI in one serialised log line.
+//
+// It parses the line as JSON and re-encodes it, rather than scanning the raw
+// bytes, because a scanner operates on two things it cannot get right at
+// once: escaped bytes and partial number tokens.
+//
+//   - A newline inside a JSON string is the two raw bytes `\` `n`, and `n` is
+//     a word character, so a byte scanner's boundary check reads `n` as part
+//     of a longer token and refuses to match PHI immediately after it.
+//     `errors.Join` — the standard library's own multi-error type — joins
+//     with `\n`, so this was not a contrived input. Decoding first turns
+//     `\n` into a real newline before the boundary check ever runs, which is
+//     not a word character and so is a valid boundary.
+//   - A regex match only ever covers a contiguous digit run, so a fractional
+//     number like `9876543210.75` gets its integer part replaced but not its
+//     decimal point, producing `"[REDACTED:mobile]".75` — invalid JSON.
+//     Decoding hands the whole number literal to RedactString as one token,
+//     and the result is re-encoded as a single JSON value, so there is no
+//     partial substitution to corrupt.
+//
+// A line where no core pattern shape appears at all (see possiblePHI) cannot
+// contain anything RedactString would match, so that case returns unchanged
+// without parsing — this is the common case for most log lines and keeps the
+// cost of this writer close to zero on them.
+//
+// If the line does not parse as a single JSON value, redaction falls back to
+// scanning the whole line with RedactString. That fallback cannot corrupt
+// JSON that was not valid JSON to begin with, but it also cannot promise the
+// output is valid — which is the same guarantee (none) the input already
+// had. What it must never do is invent syntax the input didn't have, so on
+// that path the line's validity, or lack of it, passes through unchanged.
 func redactJSONLine(line string) string {
+	if !possiblePHI.MatchString(line) {
+		return line
+	}
+	if out, ok := redactJSONByParsing(line); ok {
+		return out
+	}
+	out, _ := RedactString(line)
+	return out
+}
+
+// redactJSONByParsing decodes line as a single JSON value via encoding/json's
+// token reader and re-encodes it with every string, key and number screened
+// for PHI. Because the output is produced by the encoder rather than by
+// patching the input bytes, it is valid JSON by construction whenever this
+// function reports success.
+//
+// It reports false — meaning "did not produce output; caller must fall
+// back" — whenever the input is not exactly one well-formed JSON value:
+// decode errors, a truncated document, or trailing content after the first
+// value all take this path rather than risk emitting something that looks
+// plausible but isn't what was actually in the line.
+func redactJSONByParsing(line string) (string, bool) {
+	dec := json.NewDecoder(strings.NewReader(line))
+	dec.UseNumber()
+
 	var out bytes.Buffer
 	out.Grow(len(line))
 
-	inString := false
-	escaped := false
-	segStart := 0
+	// frame tracks one open object or array so commas and, for objects,
+	// key/value alternation land in the right places on re-encode.
+	type frame struct {
+		array     bool
+		count     int  // values (object: key/value pairs) already emitted at this depth
+		expectKey bool // object only: true when the next string token is a key
+	}
+	var stack []frame
 
-	// flush redacts the segment [segStart,end) and appends it. Segments are
-	// split at every string boundary so each one is wholly inside or wholly
-	// outside a JSON string, which is what makes the quoting decision local.
-	flush := func(end int, quoted bool) {
-		if end <= segStart {
+	// beforeValue emits the comma that precedes every array element after
+	// the first. It is a no-op for an object value, because that comma (if
+	// any) was already emitted by beforeKey ahead of the key, and the colon
+	// after the key is what separates key from value.
+	beforeValue := func() {
+		if len(stack) == 0 {
 			return
 		}
-		seg := line[segStart:end]
-		red, n := RedactString(seg)
-		if n > 0 && !quoted {
-			// A number token became a marker; it needs quotes to stay JSON.
-			red = quoteBareMarkers(red)
+		top := &stack[len(stack)-1]
+		if top.array && top.count > 0 {
+			out.WriteByte(',')
 		}
-		out.WriteString(red)
+	}
+	// afterValue records that a value was just emitted at the current depth
+	// and, inside an object, flips back to expecting a key next.
+	afterValue := func() {
+		if len(stack) == 0 {
+			return
+		}
+		top := &stack[len(stack)-1]
+		top.count++
+		if !top.array {
+			top.expectKey = true
+		}
+	}
+	beforeKey := func() {
+		top := &stack[len(stack)-1]
+		if top.count > 0 {
+			out.WriteByte(',')
+		}
+	}
+	writeJSONString := func(s string) bool {
+		b, err := json.Marshal(s)
+		if err != nil {
+			// A decoded Go string is always valid UTF-8 and always
+			// marshals; this is unreachable in practice. Refuse rather than
+			// guess if it ever isn't.
+			return false
+		}
+		out.Write(b)
+		return true
+	}
+	// writeRedactedString redacts PHI patterns in the decoded (unescaped)
+	// text of a string token — key or value — and re-encodes it so escaping
+	// is regenerated correctly around whatever the redaction produced.
+	writeRedactedString := func(s string) bool {
+		red, _ := RedactString(s)
+		return writeJSONString(red)
+	}
+	// writeRedactedNumber screens the whole number literal — sign, integer,
+	// fraction and exponent together — as one token. The sign is split off
+	// first: bounded()'s neighbour check requires the digit run to start at
+	// the beginning of the text it is given, and a leading `-` sitting right
+	// before the digits would otherwise read as "part of a longer token" and
+	// block every negative PHI-shaped number from ever matching. If anything
+	// matched, the whole thing — sign dropped, since a masked value has
+	// nothing left worth signing — is re-emitted as a JSON string, because a
+	// substituted marker is text, not a number. Otherwise the literal is
+	// re-emitted unchanged and unquoted, so `42` stays `42`.
+	writeRedactedNumber := func(numStr string) bool {
+		sign := ""
+		magnitude := numStr
+		if strings.HasPrefix(magnitude, "-") {
+			sign, magnitude = "-", magnitude[1:]
+		}
+		red, n := RedactString(magnitude)
+		if n > 0 {
+			return writeJSONString(red)
+		}
+		out.WriteString(sign)
+		out.WriteString(magnitude)
+		return true
 	}
 
-	for i := 0; i < len(line); i++ {
-		c := line[i]
-		if inString {
-			switch {
-			case escaped:
-				escaped = false
-			case c == '\\':
-				escaped = true
-			case c == '"':
-				// Close the string: flush its contents, then the quote.
-				flush(i, true)
-				out.WriteByte('"')
-				segStart = i + 1
-				inString = false
+	done := false
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", false
+		}
+		if done {
+			// A second top-level token after the first value already
+			// closed: more than one JSON value on this line. Not the
+			// single-record-per-Write shape this function promises to
+			// reproduce faithfully — refuse rather than concatenate.
+			return "", false
+		}
+
+		switch t := tok.(type) {
+		case json.Delim:
+			switch rune(t) {
+			case '{':
+				beforeValue()
+				out.WriteByte('{')
+				stack = append(stack, frame{expectKey: true})
+			case '[':
+				beforeValue()
+				out.WriteByte('[')
+				stack = append(stack, frame{array: true})
+			case '}':
+				out.WriteByte('}')
+				stack = stack[:len(stack)-1]
+				afterValue()
+			case ']':
+				out.WriteByte(']')
+				stack = stack[:len(stack)-1]
+				afterValue()
 			}
-			continue
+		case string:
+			if len(stack) > 0 && !stack[len(stack)-1].array && stack[len(stack)-1].expectKey {
+				beforeKey()
+				if !writeRedactedString(t) {
+					return "", false
+				}
+				out.WriteByte(':')
+				stack[len(stack)-1].expectKey = false
+			} else {
+				beforeValue()
+				if !writeRedactedString(t) {
+					return "", false
+				}
+				afterValue()
+			}
+		case json.Number:
+			beforeValue()
+			if !writeRedactedNumber(t.String()) {
+				return "", false
+			}
+			afterValue()
+		case bool:
+			beforeValue()
+			if t {
+				out.WriteString("true")
+			} else {
+				out.WriteString("false")
+			}
+			afterValue()
+		case nil:
+			beforeValue()
+			out.WriteString("null")
+			afterValue()
+		default:
+			// Token() only ever returns the types handled above for the
+			// standard decoder; anything else is not a document we can
+			// safely reproduce.
+			return "", false
 		}
-		if c == '"' {
-			flush(i, false)
-			out.WriteByte('"')
-			segStart = i + 1
-			inString = true
+
+		if len(stack) == 0 {
+			done = true
 		}
 	}
-	flush(len(line), inString)
-	return out.String()
-}
 
-// quoteBareMarkers wraps any redaction marker that is not already inside
-// quotes, so a masked JSON number stays a valid JSON value.
-func quoteBareMarkers(s string) string {
-	return bareMarker.ReplaceAllString(s, `"$1"`)
-}
+	if len(stack) != 0 {
+		// The document never closed — a truncated line. Do not report
+		// success on an incomplete parse.
+		return "", false
+	}
 
-var bareMarker = regexp.MustCompile(`(\[REDACTED:[a-z]+\])`)
+	return out.String(), true
+}

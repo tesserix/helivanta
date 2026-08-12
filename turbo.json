@@ -1,5 +1,18 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  // Turborepo 2.x runs tasks in strict environment mode: a task only sees the
+  // variables declared here. Framework inference already lets NEXT_PUBLIC_*
+  // through for Next.js apps, which is why browser-side config kept working
+  // while these did not — they are read in next.config.ts (server side) and
+  // have no such prefix. Without them, `make up` on shifted ports moved the
+  // API but left every zone's /api/* rewrite pointing at the default 8080,
+  // so the UI silently proxied to whatever else was on that port.
+  "globalPassThroughEnv": [
+    "API_URL",
+    "MEDICORE_URL",
+    "PHARMACY_URL",
+    "LAB_URL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

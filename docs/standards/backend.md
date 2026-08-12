@@ -620,6 +620,30 @@ Known limitations, stated plainly:
   volumes that's not a concern; a future high-volume path (#438's
   read-access audit is the likely first candidate) should measure the cost
   rather than assume it's free.
+- **No sampling guidance exists, deliberately.** No high-volume logging path
+  exists in this codebase yet, so there is nothing to sample. Locally
+  measured cost per line through `NewRedactingWriter` (`BenchmarkRedactingWriter*`
+  in `backend/pkg/logging/redact_test.go`) is roughly 15–16µs for a realistic
+  line carrying a timestamp (the common case, since almost every line clears
+  the four-consecutive-digit prefilter on its `time` field alone) and drops to
+  under 100ns for a line the prefilter can reject outright. #438's read-access
+  audit is the likely first candidate for a genuinely high-volume path — when
+  it lands, measure redaction's actual cost on that path before assuming it
+  needs sampling, rather than adding sampling speculatively here.
+
+**A free extra:** `slog.SetDefault` also redirects the standard library's
+`log` package through the configured handler — `log.Printf` and friends route
+through `slog`'s default handler once it is set, not just calls made directly
+against `*slog.Logger`. A dependency that logs with stdlib `log` (e.g.
+`log.Printf("patient %s not found", mobile)`) is therefore redacted for free,
+the same as a direct `slog` call, and emits
+`{"msg":"patient [REDACTED:mobile] not found", ...}`. This does **not** extend
+to a dependency that builds its own `*log.Logger` pointed at a writer other
+than `log.Default()`'s — gin's `gin.Recovery()` is exactly that case, and is
+the reason `gin.DefaultErrorWriter` is wrapped explicitly in
+`backend/cmd/api/main.go`'s `run()` rather than relied on to inherit the
+redirection. Any other dependency that constructs its own writer the same way
+gin does is an equivalent escape hatch and needs the same explicit treatment.
 
 ### Correlation fields
 

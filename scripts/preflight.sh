@@ -19,7 +19,13 @@ REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 # node_modules yet, without touching the repo's real one.
 NODE_MODULES_DIR=${NODE_MODULES_DIR:-$REPO_ROOT/node_modules}
 
-PREFLIGHT_PORTS=${PREFLIGHT_PORTS:-"5432 4222 8222 6379 8090 9099 8080 4301 4302 4303 4304"}
+# Built from the HMS_* host-port variables (see .env.example) so an
+# overridden port is actually checked, instead of preflight passing a stale
+# port while compose starts on a different one. Each falls back to today's
+# default when unset, so a bare `bash scripts/preflight.sh` with no .env and
+# no Make involved still checks the stock ports. The four zone-app ports are
+# out of scope for this variable set (see .env.example) and stay literal.
+PREFLIGHT_PORTS=${PREFLIGHT_PORTS:-"${HMS_PG_PORT:-5432} ${HMS_NATS_PORT:-4222} ${HMS_NATS_MONITOR_PORT:-8222} ${HMS_REDIS_PORT:-6379} ${HMS_OPENFGA_PORT:-8090} ${HMS_GIP_PORT:-9099} ${HMS_API_PORT:-8080} 4301 4302 4303 4304"}
 GO_MIN=1.26
 NODE_MIN=22
 

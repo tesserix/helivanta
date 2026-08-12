@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: hms
       POSTGRES_PASSWORD: hms
       POSTGRES_DB: hms
-    ports: ["5432:5432"]
+    ports: ["${HMS_PG_PORT:-5432}:5432"]
     volumes:
       - ./dev/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
       - pgdata:/var/lib/postgresql/data
@@ -21,7 +21,7 @@ services:
     image: nats:2.10-alpine
     restart: unless-stopped
     command: ["-js", "-sd", "/data"]
-    ports: ["4222:4222", "8222:8222"]
+    ports: ["${HMS_NATS_PORT:-4222}:4222", "${HMS_NATS_MONITOR_PORT:-8222}:8222"]
     volumes: [natsdata:/data]
     healthcheck:
       test: ["CMD-SHELL", "echo 'PING' | nc localhost 4222 | grep -q PONG"]
@@ -32,7 +32,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    ports: ["6379:6379"]
+    ports: ["${HMS_REDIS_PORT:-6379}:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
@@ -45,7 +45,9 @@ services:
     command: ["run"]
     environment:
       OPENFGA_DATASTORE_ENGINE: memory
-    ports: ["8090:8080"]
+    # Host side only — the healthcheck below talks to the container's own
+    # 8080/8081, which never change.
+    ports: ["${HMS_OPENFGA_PORT:-8090}:8080"]
     healthcheck:
       test: ["CMD", "/usr/local/bin/grpc_health_probe", "-addr=localhost:8081"]
       interval: 2s
@@ -65,7 +67,7 @@ services:
     volumes:
       - ./dev/firebase:/workspace
       - npmcache:/root/.npm
-    ports: ["9099:9099"]
+    ports: ["${HMS_GIP_PORT:-9099}:9099"]
 
 volumes:
   pgdata:

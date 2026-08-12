@@ -64,8 +64,23 @@ Stop everything with `make down`.
 (`FIREBASE_AUTH_EMULATOR_HOST=localhost:9099`); override the variable to
 target a real GIP project.
 
-Ports: shell 4301, medicore 4302, pharmacy 4303, lab 4304, API 8080,
-Postgres 5432, NATS 4222, Redis 6379, OpenFGA 8090, GIP emulator 9099.
+Ports (defaults): shell 4301, medicore 4302, pharmacy 4303, lab 4304, API
+8080, Postgres 5432, NATS 4222 (monitoring 8222), Redis 6379, OpenFGA 8090,
+GIP emulator 9099. The four zone-app ports are fixed — they're Next.js dev
+servers configured in their own package scripts — but every other port is a
+host-side default only, overridable via `.env`:
+
+    cp .env.example .env
+    # .env
+    HMS_PG_PORT=15432   # something else already has 5432
+    HMS_REDIS_PORT=16379
+
+Compose reads `.env` directly; `make` pulls the same file in (`-include
+.env`) so both sides always agree, and `make dev-api`/`make seed` pass
+connection URLs derived from it. Container-internal ports never change —
+only the host side of each mapping shifts — so this is purely about freeing
+yourself from a clash with someone else's stack, never a way to reconfigure
+the containers themselves. See `.env.example` for the full variable list.
 
 ### Notes
 

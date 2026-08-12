@@ -24,7 +24,7 @@ var testMigrations = []tenantdb.Migration{{
 		ALTER TABLE widgets ENABLE ROW LEVEL SECURITY;
 		ALTER TABLE widgets FORCE ROW LEVEL SECURITY;
 		CREATE POLICY tenant_isolation ON widgets
-		  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+		  USING (hms_tenant_visible(tenant_id))
 		  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
 		CREATE INDEX ON widgets (tenant_id, created_at DESC);`,
 }}
@@ -41,6 +41,10 @@ func openMigrated(t *testing.T) *tenantdb.DB {
 	appDSN, adminDSN := testutil.StartPostgres(t)
 	db, err := tenantdb.Open(appDSN, adminDSN)
 	require.NoError(t, err)
+	// hms_tenant_visible is a platform migration (owned by this package but
+	// applied like any module's); widgets' policy calls it, so it must exist
+	// before widgets is created.
+	require.NoError(t, db.Migrate(context.Background(), tenantdb.Migrations()))
 	require.NoError(t, db.Migrate(context.Background(), testMigrations))
 	return db
 }
@@ -150,15 +154,33 @@ func TestLintRLSFlagsUnprotectedTable(t *testing.T) {
 			ALTER TABLE naughty_check_only ENABLE ROW LEVEL SECURITY;
 			ALTER TABLE naughty_check_only FORCE ROW LEVEL SECURITY;
 			CREATE POLICY p ON naughty_check_only
-			  FOR INSERT WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`,
+			  FOR INSERT WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+
+			-- The failure a hurried module author actually makes: forget tenant_id
+			-- entirely. The old lint could not see this — it only inspected tables
+			-- that already had the column — so the table had no tenancy, no RLS and
+			-- no policy, and every check passed green.
+			CREATE TABLE naughty_no_tenant_column (id uuid PRIMARY KEY, note text);
+
+			-- A policy that inlines the old predicate instead of calling the shared
+			-- function. Allowed to exist, it would silently opt out of any future
+			-- group-visibility change.
+			CREATE TABLE naughty_inlined_predicate (id uuid PRIMARY KEY, tenant_id uuid NOT NULL);
+			ALTER TABLE naughty_inlined_predicate ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE naughty_inlined_predicate FORCE ROW LEVEL SECURITY;
+			CREATE POLICY tenant_isolation ON naughty_inlined_predicate
+			  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`,
 	}}))
 	bad, err := db.LintRLS(ctx)
 	require.NoError(t, err)
 	require.Equal(t, []string{
-		"naughty_check_only",
-		"naughty_none",
-		"naughty_not_forced",
-		"naughty_using_only",
+		"naughty_check_only: no policy with both USING and WITH CHECK",
+		"naughty_inlined_predicate: USING does not call hms_tenant_visible",
+		"naughty_no_tenant_column: no tenant_id column",
+		"naughty_none: row-level security not enabled and forced",
+		"naughty_not_forced: row-level security not enabled and forced",
+		"naughty_using_only: no policy with both USING and WITH CHECK",
 	}, bad)
 	require.NotContains(t, bad, "widgets")
 }

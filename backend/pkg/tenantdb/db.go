@@ -164,26 +164,72 @@ func (d *DB) WithAdmin(ctx context.Context, fn func(tx *gorm.DB) error) error {
 	return d.admin.WithContext(ctx).Transaction(fn)
 }
 
-// LintRLS returns tables carrying tenant_id without forced RLS + a policy.
+// lintAllowlist names the tables that legitimately carry no tenant_id.
+//
+// outbox_events is here under protest: it holds event payloads that today
+// include patient names, outside any RLS boundary, readable by any
+// WithSystem transaction. Giving it a tenant_id changes the dispatcher's
+// access path, so it is tracked separately on #774 rather than fixed here.
+var lintAllowlist = map[string]bool{
+	"schema_migrations": true,
+	"outbox_events":     true,
+	"processed_events":  true,
+}
+
+// LintRLS returns every table that is not properly tenant-isolated, each
+// as "<table>: <reason>".
+//
+// It enumerates all tables and subtracts an allowlist, rather than
+// inspecting only tables that already have a tenant_id. The old direction
+// protected the tables someone remembered to mark; this one protects
+// everything, and a module that simply forgets the column now fails.
 func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
-	var bad []string
-	// Platform convention: policies must carry both USING and WITH CHECK
-	// explicitly, so a policy with only one clause is deliberately flagged.
+	type row struct {
+		Relname      string
+		HasTenant    bool
+		RLS          bool
+		Forced       bool
+		HasPolicy    bool
+		UsesFunction bool
+	}
+	var rows []row
 	err := d.admin.WithContext(ctx).Raw(`
-		SELECT c.relname
+		SELECT c.relname,
+		       EXISTS (SELECT 1 FROM information_schema.columns col
+		               WHERE col.table_schema = 'public'
+		                 AND col.table_name = c.relname
+		                 AND col.column_name = 'tenant_id') AS has_tenant,
+		       c.relrowsecurity        AS rls,
+		       c.relforcerowsecurity   AS forced,
+		       EXISTS (SELECT 1 FROM pg_policies p
+		               WHERE p.schemaname = 'public' AND p.tablename = c.relname
+		                 AND p.qual IS NOT NULL AND p.with_check IS NOT NULL) AS has_policy,
+		       EXISTS (SELECT 1 FROM pg_policies p
+		               WHERE p.schemaname = 'public' AND p.tablename = c.relname
+		                 AND p.qual LIKE '%hms_tenant_visible%') AS uses_function
 		FROM pg_class c
 		JOIN pg_namespace n ON n.oid = c.relnamespace
 		WHERE n.nspname = 'public' AND c.relkind = 'r'
-		  AND EXISTS (
-		    SELECT 1 FROM information_schema.columns col
-		    WHERE col.table_schema = 'public'
-		      AND col.table_name = c.relname
-		      AND col.column_name = 'tenant_id')
-		  AND NOT (
-		    c.relrowsecurity AND c.relforcerowsecurity
-		    AND EXISTS (SELECT 1 FROM pg_policies p
-		                WHERE p.schemaname = 'public' AND p.tablename = c.relname
-		                  AND p.qual IS NOT NULL AND p.with_check IS NOT NULL))
-		ORDER BY c.relname`).Scan(&bad).Error
-	return bad, err
+		ORDER BY c.relname`).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	var bad []string
+	for _, r := range rows {
+		if lintAllowlist[r.Relname] {
+			continue
+		}
+		switch {
+		case !r.HasTenant:
+			bad = append(bad, r.Relname+": no tenant_id column")
+		case !r.RLS || !r.Forced:
+			bad = append(bad, r.Relname+": row-level security not enabled and forced")
+		case !r.HasPolicy:
+			bad = append(bad, r.Relname+": no policy with both USING and WITH CHECK")
+		case !r.UsesFunction:
+			bad = append(bad, r.Relname+": USING does not call hms_tenant_visible")
+		}
+	}
+	return bad, nil
 }

@@ -66,7 +66,12 @@ main() {
   # on the same checks — a token that expired mid-reset, say — and leave the
   # developer with no data and no stack, exactly the outcome the up-front
   # check exists to prevent.
-  PREFLIGHT_SKIP=1 make -C "$REPO_ROOT" dev-infra || exit 1
+  #
+  # Passed as a `make` command-line variable (not an env-var prefix): the
+  # Makefile deliberately clears PREFLIGHT_SKIP when it arrives via the
+  # environment (an ambient export must not disable preflight), and only a
+  # command-line assignment survives that.
+  make -C "$REPO_ROOT" dev-infra PREFLIGHT_SKIP=1 || exit 1
 
   echo "Seeding…"
   make -C "$REPO_ROOT" seed || exit 1

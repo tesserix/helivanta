@@ -199,6 +199,46 @@ assert_contains "missing lsof is reported" "$out" 'lsof missing'
 assert_contains "missing lsof names the fix" "$out" 'apt-get install -y lsof'
 
 echo
+echo "PREFLIGHT_PORTS (host-port overrides):"
+
+# The HMS_* port variables (see .env.example) must actually reach the port
+# list preflight checks — not just exist as unused config. Override every
+# one to a distinct free port (so the run is hermetic regardless of what
+# this machine's own ports 5432/6379/8080/etc. happen to be doing) and
+# confirm each shows up as a checked port.
+p_pg=$(free_port); p_nats=$(free_port); p_natsmon=$(free_port)
+p_redis=$(free_port); p_fga=$(free_port); p_gip=$(free_port); p_api=$(free_port)
+out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN=token \
+  HMS_PG_PORT="$p_pg" HMS_NATS_PORT="$p_nats" HMS_NATS_MONITOR_PORT="$p_natsmon" \
+  HMS_REDIS_PORT="$p_redis" HMS_OPENFGA_PORT="$p_fga" HMS_GIP_PORT="$p_gip" \
+  HMS_API_PORT="$p_api" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
+assert_status "all HMS_* ports overridden to free ports exits 0" 0 "$status"
+assert_contains "PREFLIGHT_PORTS reflects HMS_PG_PORT override"      "$out" "port $p_pg"
+assert_contains "PREFLIGHT_PORTS reflects HMS_OPENFGA_PORT override" "$out" "port $p_fga"
+assert_contains "PREFLIGHT_PORTS reflects HMS_API_PORT override"     "$out" "port $p_api"
+
+echo
+echo "PREFLIGHT_SKIP (Makefile):"
+
+# Make auto-imports every shell environment variable, so an ambient
+# PREFLIGHT_SKIP=1 (left exported from an earlier debugging session, say)
+# must not silently disable preflight for every `make up`/`make dev-infra`.
+# Only a deliberate command-line `make ... PREFLIGHT_SKIP=1` — reset-dev.sh's
+# use — may skip it.
+out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="$(free_port)" \
+  PREFLIGHT_SKIP=1 make -C "$REPO_ROOT" preflight 2>&1); status=$?
+assert_status "ambient PREFLIGHT_SKIP=1 still runs preflight, exits 0 on a clean env" 0 "$status"
+case "$out" in
+  *"Preflight skipped"*) t_fail "ambient PREFLIGHT_SKIP=1 must not skip preflight" ;;
+  *) t_ok "ambient PREFLIGHT_SKIP=1 must not skip preflight" ;;
+esac
+
+out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="$(free_port)" \
+  make -C "$REPO_ROOT" preflight PREFLIGHT_SKIP=1 2>&1); status=$?
+assert_status "command-line PREFLIGHT_SKIP=1 exits 0" 0 "$status"
+assert_contains "command-line PREFLIGHT_SKIP=1 skips preflight" "$out" "Preflight skipped"
+
+echo
 echo "reset-dev.sh:"
 
 # Sourced (not $0), so the main guard keeps this from running the script.

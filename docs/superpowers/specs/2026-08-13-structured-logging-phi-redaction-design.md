@@ -156,13 +156,43 @@ bytes are the output. It also deletes the reflection walker, the marshaller
 ordering, the visit budget and the cycle handling — roughly 500 lines and every
 finding above — in exchange for one `io.Writer`.
 
-**The one thing the byte layer must get right** is that a match outside a JSON
-string is a *number* token, and substituting a bare marker there produces
-invalid JSON. `{"aadhaar":123456789012}` must become
-`{"aadhaar":"[REDACTED:aadhaar]"}`, not `{"aadhaar":[REDACTED:aadhaar]}`. So
-the writer scans for string boundaries (tracking `\` escapes) and quotes the
-marker when the match sits outside one. That is the whole of its complexity,
-and it is testable by asserting every output line still parses as JSON.
+**The byte layer parses the line rather than scanning it.** A first attempt
+hand-rolled a scanner that tracked string boundaries and quoted the marker when
+a match fell outside one. It was implemented to spec and failed two ways that
+a scanner cannot avoid, because it operated on *escaped bytes* and on *partial
+number tokens*:
+
+- **PHI after a JSON escape leaked.** A newline inside a string is the two
+  bytes `\` `n`, and `n` is a word character, so the boundary rule read
+  `n9876543210` as one long token and declined to match.
+  `errors.Join` — the standard library's own multi-error type — joins with
+  `\n`, so `slog.Error("validation", "err", joined)` emitted the number in the
+  clear. Tabs and `\uXXXX` failed identically.
+- **Fractional numbers were corrupted into invalid JSON.** A match covers only
+  the integer or the fractional run, so `{"amount":9876543210.75}` became
+  `{"amount":"[REDACTED:mobile]".75}`. A property test over 4000 generated
+  lines corrupted 813 of them. Invalid output is not cosmetic: the line reaches
+  stdout malformed and the ingest pipeline drops it, so the redaction control
+  silently deletes log records.
+
+Both disappear when the line is decoded instead of scanned. The writer streams
+the line through `encoding/json`'s token reader and re-encodes it:
+
+- a **string** token arrives already unescaped, so `\n` is a real newline and
+  the boundary rule works on the text a human would see; re-encoding escapes it
+  again correctly;
+- a **number** arrives as one whole token including sign, fraction and
+  exponent, so the redaction decision is made on the entire value;
+- **keys** are strings and get the same treatment;
+- everything is re-emitted through the encoder, so the output is valid JSON by
+  construction rather than by careful assertion.
+
+A digit pre-filter short-circuits any line with no run of ten or more digits,
+which is most of them, so the common path does not pay for the parse.
+
+The property to test remains the same and is now structural: every redacted
+line still parses, and no PHI survives in any position — inside escapes,
+inside numbers, inside keys.
 
 `slog`'s JSON handler emits one `Write` per record under its own mutex, so the
 writer sees exactly one complete line at a time and needs no buffering or

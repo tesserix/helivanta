@@ -32,8 +32,19 @@ NATS_URL ?= nats://localhost:$(HMS_NATS_PORT)
 OPENFGA_URL ?= http://localhost:$(HMS_OPENFGA_PORT)
 AUTH_EMULATOR_HOST ?= localhost:$(HMS_GIP_PORT)
 
+# The frontend needs the same two ports, by different routes, and both are
+# easy to forget: API_URL is what each app's next.config.ts rewrites /api to
+# (server side), while NEXT_PUBLIC_AUTH_EMULATOR_HOST is read in the browser
+# by apps/shell/lib/firebase.ts. Without these, shifting the ports moves the
+# API and the emulator but leaves the UI still calling 8080 and 9099 — which
+# on a machine whose ports were shifted precisely because something else owns
+# them means the app talks to that something else. Silent and baffling.
+API_URL ?= http://localhost:$(HMS_API_PORT)
+NEXT_PUBLIC_AUTH_EMULATOR_HOST ?= localhost:$(HMS_GIP_PORT)
+
 export HMS_PG_PORT HMS_NATS_PORT HMS_NATS_MONITOR_PORT HMS_REDIS_PORT HMS_OPENFGA_PORT HMS_GIP_PORT HMS_API_PORT
 export APP_DATABASE_URL ADMIN_DATABASE_URL NATS_URL OPENFGA_URL AUTH_EMULATOR_HOST
+export API_URL NEXT_PUBLIC_AUTH_EMULATOR_HOST
 
 # Make auto-imports every shell environment variable as a make variable, so
 # an ambient PREFLIGHT_SKIP=1 — left over from debugging, or copied from a

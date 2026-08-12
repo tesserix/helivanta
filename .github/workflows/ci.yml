@@ -44,3 +44,10 @@ jobs:
           # shell's static build — real deployments inject the real project config.
           NEXT_PUBLIC_GIP_API_KEY: ci-build-key
           NEXT_PUBLIC_GIP_PROJECT_ID: ci-build-project
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure lsof is present
+        run: command -v lsof || sudo apt-get install -y lsof
+      - run: make test-scripts

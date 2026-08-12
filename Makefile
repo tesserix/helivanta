@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed test test-go coverage-go test-web e2e lint-go new-module verify-local
+.PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local
 
 dev-infra:
 	docker compose -f docker-compose.dev.yml up -d --wait postgres nats redis openfga
@@ -54,6 +54,9 @@ coverage-go:
 
 test-web:
 	pnpm turbo type-check test build
+
+test-scripts:
+	bash scripts/preflight.test.sh
 
 e2e:
 	pnpm --filter @hms/e2e run test:e2e

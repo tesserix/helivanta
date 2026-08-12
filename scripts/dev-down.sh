@@ -15,15 +15,11 @@
 set -uo pipefail
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
+. "$REPO_ROOT/scripts/lib/repo-owns.sh"
 APP_PORTS=(4301 4302 4303 4304 8080)
 
 echo "Stopping infrastructure…"
 docker compose -f "$REPO_ROOT/docker-compose.dev.yml" down
-
-# cwd_of prints a PID's working directory, or nothing if it cannot be read.
-cwd_of() {
-  lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1
-}
 
 echo "Stopping app processes…"
 killed=0

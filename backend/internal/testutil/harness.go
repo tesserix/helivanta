@@ -13,6 +13,7 @@ import (
 
 	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/hms/internal/platform/requestid"
 	"github.com/tesserix/hms/internal/testinfra"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/authz"
@@ -167,9 +168,18 @@ func moduleHarness(
 	deps := platform.Deps{DB: db, Bus: bus, Authz: writer, Roles: roles, Tokens: minter}
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	// Same middleware chain, same order, as cmd/api/main.go: requestid.Middleware()
+	// at the engine level, then authn, then requestid.PrincipalMiddleware() (which
+	// needs authn's principal already set), then authz. Without this, module
+	// integration tests exercise requestid.Logger(c) falling back to a bare
+	// slog.Default() instead of the request-scoped logger every real request gets,
+	// and nothing in the suite catches PrincipalMiddleware being dropped from
+	// cmd/api. See TestRequestScopedLoggerCarriesCorrelationFields below.
+	r.Use(requestid.Middleware())
 	resolver := harnessResolver{tokens: tokens, perms: perms}
 	api := platform.NewRouter(r.Group("/v1",
 		authn.Middleware(StaticVerifier(tokens)),
+		requestid.PrincipalMiddleware(),
 		authz.Middleware(resolver)))
 	for _, m := range mods {
 		m.Routes(api, deps)

@@ -91,7 +91,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			ALTER TABLE __NAME___items ENABLE ROW LEVEL SECURITY;
 			ALTER TABLE __NAME___items FORCE ROW LEVEL SECURITY;
 			CREATE POLICY tenant_isolation ON __NAME___items
-			  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+			  USING (hms_tenant_visible(tenant_id))
 			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
 			CREATE INDEX ON __NAME___items (tenant_id, created_at DESC);`,
 	}}
@@ -250,6 +250,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -330,6 +331,61 @@ func TestItemDoneTransition(t *testing.T) {
 		})
 		return n == 1
 	}, 10*time.Second, 200*time.Millisecond)
+}
+
+// Exactly one of N concurrent transitions may win. The guarded UPDATE is
+// what enforces it — under READ COMMITTED the losers re-evaluate
+// "WHERE status = 'pending'" after the winner commits and match zero
+// rows. Delete that branch and this test fails; the sequential flow test
+// does not, because it never reaches the UPDATE.
+func TestConcurrentDoneYieldsExactlyOneWinner(t *testing.T) {
+	r, _, _ := setup(t)
+
+	require.Equal(t, http.StatusAccepted,
+		do(r, "POST", "/v1/__NAME__/items", "tokA", `{"name":"Concurrent item"}`).Code)
+
+	var itemID string
+	require.Eventually(t, func() bool {
+		var resp struct {
+			Data []struct {
+				ID string `json:"id"`
+			} `json:"data"`
+		}
+		_ = json.Unmarshal(do(r, "GET", "/v1/__NAME__/items", "tokA", "").Body.Bytes(), &resp)
+		if len(resp.Data) == 0 {
+			return false
+		}
+		itemID = resp.Data[0].ID
+		return true
+	}, 20*time.Second, 200*time.Millisecond)
+
+	const n = 8
+	codes := make(chan int, n)
+	var start sync.WaitGroup
+	start.Add(1)
+	for i := 0; i < n; i++ {
+		go func() {
+			start.Wait()
+			codes <- do(r, "POST", "/v1/__NAME__/items/"+itemID+"/done", "tokA", "").Code
+		}()
+	}
+	start.Done()
+
+	ok, conflict, other := 0, 0, 0
+	for i := 0; i < n; i++ {
+		switch c := <-codes; c {
+		case http.StatusOK:
+			ok++
+		case http.StatusConflict:
+			conflict++
+		default:
+			other++
+			t.Logf("unexpected status %d", c)
+		}
+	}
+	require.Equal(t, 1, ok, "exactly one transition must win")
+	require.Equal(t, n-1, conflict, "every loser must get 409")
+	require.Zero(t, other)
 }
 EOF
 

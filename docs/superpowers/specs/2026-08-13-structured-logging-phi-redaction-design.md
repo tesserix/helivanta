@@ -116,12 +116,57 @@ naming anyone.
 
 ## Part D — pattern redaction, as defence in depth
 
-A `slog.Handler` wrapper that walks attributes recursively — including inside
-groups and inside error values — masking anything matching:
+Two layers, split by what each can actually see:
+
+**Pattern redaction wraps the writer, not the handler.** The JSON handler is
+constructed over a redacting `io.Writer`, so what gets screened is the
+serialised line slog actually emits. Masked:
 
 - Aadhaar: 12 digits
 - Indian mobile: `+91` forms and bare 10-digit numbers beginning 5-9
 - ABHA: 14 digits, with or without hyphens
+
+**Tag redaction stays at the value level**, because a `hmslog:"phi"` tag is
+visible on the Go value and gone by the time it is bytes. See Part E.
+
+### Why the writer and not the handler — this was learned, not designed
+
+The original design here was a `slog.Handler` wrapper walking attributes
+recursively. It was implemented, reviewed adversarially, and taken through two
+fix rounds. Both rounds closed every finding they were given, and both
+introduced new leaks **of the same class**. The class:
+
+| Screened | Emitted | Result |
+|---|---|---|
+| `fmt.Sprint(v)` | `encoding/json` | `[]*Patient` leaked — pointers print as addresses to `fmt`, are followed by `json` |
+| `%g` | decimal | `float64(123456789012)` leaked |
+| reflection-rebuilt struct | `MarshalJSON` | a patient **name** the marshaller withheld was published *by the redactor* |
+| `MarshalText()` | `Error()` | error text leaked — slog skips `Error()` for `json.Marshaler` but not for `TextMarshaler` |
+
+A handler-level redactor has to *predict* how slog will render each value —
+`json.Marshaler` vs `encoding.TextMarshaler` vs `error` vs `fmt.Stringer`,
+value receiver vs pointer receiver — which means duplicating slog's dispatch
+and re-duplicating it whenever Go changes. Each round did that more accurately
+and was wrong differently. The reflection needed to support it (cycle sets,
+depth caps, a visit budget) became its own defect source: a `big.Int`
+attribute was silently replaced with `!ERROR`, deleting a log record.
+
+Screening the emitted bytes removes the guess entirely. There is no proxy: the
+bytes are the output. It also deletes the reflection walker, the marshaller
+ordering, the visit budget and the cycle handling — roughly 500 lines and every
+finding above — in exchange for one `io.Writer`.
+
+**The one thing the byte layer must get right** is that a match outside a JSON
+string is a *number* token, and substituting a bare marker there produces
+invalid JSON. `{"aadhaar":123456789012}` must become
+`{"aadhaar":"[REDACTED:aadhaar]"}`, not `{"aadhaar":[REDACTED:aadhaar]}`. So
+the writer scans for string boundaries (tracking `\` escapes) and quotes the
+marker when the match sits outside one. That is the whole of its complexity,
+and it is testable by asserting every output line still parses as JSON.
+
+`slog`'s JSON handler emits one `Write` per record under its own mutex, so the
+writer sees exactly one complete line at a time and needs no buffering or
+locking of its own.
 
 Two limits, stated here rather than discovered later:
 
@@ -137,10 +182,44 @@ is unbuilt — so this exposes an atomic counter with an accessor, documented as
 the seam #679 will wire up. Inventing a metrics dependency here would be worse
 than leaving an honest hook.
 
-Redaction runs on every attribute of every emitted line. At `info` level and
-current volumes that is not a concern; it is noted so that a future
-high-volume path (#438's read-access audit is the likely first) evaluates it
-rather than inheriting it silently.
+Redaction runs on every emitted line. At `info` level and current volumes that
+is not a concern; it is noted so that a future high-volume path (#438's
+read-access audit is the likely first) evaluates it rather than inheriting it
+silently. The byte layer is a fixed number of regex passes over one line, with
+no reflection and no allocation proportional to structure depth, so it is
+cheaper than the walker it replaced.
+
+## Part E — tag redaction, for what patterns cannot match
+
+A name, a date of birth and an address have no shape to match on. The only way
+to know they are PHI is for the type to say so:
+
+```go
+type Patient struct {
+    ID   string
+    Name string `hmslog:"phi"`
+}
+```
+
+This is the half the byte layer cannot do — the tag is a property of the Go
+value and is gone by the time the record is serialised — so it stays a
+`slog.Handler` wrapper. Its surface is far smaller than the walker Part D
+removed: it reflects only over values whose type carries a `phi` tag somewhere
+(cached per `reflect.Type`), replaces those fields with `[REDACTED:phi]`, and
+returns `ok=false` for everything else so the value keeps its ordinary
+rendering.
+
+It inherits one lesson from Part D's history: a type that defines its own
+`MarshalJSON` is rendered by that method, so reconstructing it from exported
+fields can publish what its author deliberately withheld. The tag walker
+therefore declines to rewrite any value implementing `json.Marshaler` or
+`encoding.TextMarshaler`, and the limitation is recorded rather than papered
+over — such a type must not carry PHI in its marshalled output, and the byte
+layer is what covers it if it does.
+
+Because it runs before serialisation and the byte layer runs after, the two
+compose: a tagged field is masked by name, and anything the tag missed is
+still pattern-screened on the way out.
 
 ---
 
@@ -173,8 +252,10 @@ a bare name against entries carrying a suffix are the specific shape to avoid.
 New:
 
 - `backend/pkg/logging/logging.go` — `New(level string) *slog.Logger`
-- `backend/pkg/logging/redact.go` — the redacting handler and counter
-- `backend/pkg/logging/logging_test.go`, `redact_test.go`
+- `backend/pkg/logging/redact.go` — the pattern set, the byte-level redacting
+  writer, and the counter
+- `backend/pkg/logging/phitag.go` — the `hmslog:"phi"` handler wrapper
+- `backend/pkg/logging/logging_test.go`, `redact_test.go`, `phitag_test.go`
 
 Changed:
 
@@ -190,8 +271,16 @@ Changed:
 ## Known limitations
 
 - Pattern redaction cannot detect names, dates of birth, or addresses. Part A
-  is what protects those.
+  is what protects those in bulk; Part E's `hmslog:"phi"` tag covers them
+  wherever a developer remembers to apply it.
+- Part E declines to rewrite a value implementing `json.Marshaler` or
+  `encoding.TextMarshaler`, because reconstructing such a type from its
+  exported fields publishes what its own marshaller withheld — observed doing
+  exactly that during implementation. Those values are covered by Part D's byte
+  layer only, which means a tagged field inside a custom-marshalled type is
+  pattern-screened but not tag-masked.
 - The redaction counter is in-process only until #679 provides a metrics sink.
+  With redaction split across two layers it counts both.
 - The arch test allowlists `gorm.Open` call sites; it does not verify the
   *arguments* at those sites. The stderr test covers the argument, which is why
   both exist.

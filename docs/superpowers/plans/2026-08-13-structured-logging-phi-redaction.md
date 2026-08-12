@@ -4,7 +4,9 @@
 
 **Goal:** Give the HMS backend one JSON slog pipeline with tenant/subject correlation and PHI redaction, and mechanically protect the single clause that today prevents GORM from dumping patient rows into the logs.
 
-**Architecture:** Four parts, sequenced so the urgent guard lands first in its own PR. Part A adds an arch test plus a captured-stderr property test around `tenantdb.Open`'s `logger.Silent`. Parts B–D build `backend/pkg/logging` — a JSON handler with `LOG_LEVEL` control, wrapped in a redacting `slog.Handler` that walks attributes, groups, errors and struct fields — and wire request-scoped correlation fields in the platform middleware chain.
+**Architecture:** Five parts, sequenced so the urgent guard lands first in its own PR. Part A adds an arch test plus a captured-stderr property test around `tenantdb.Open`'s `logger.Silent`. Parts B–E build `backend/pkg/logging`: a JSON handler with `LOG_LEVEL` control, request-scoped correlation fields wired in the platform middleware chain, **pattern redaction at the writer** (screening the serialised bytes slog actually emits), and **tag redaction at the handler** (`hmslog:"phi"`, for the names and dates patterns cannot match).
+
+**Why redaction is split across two layers** — this was learned during implementation, not designed up front. A single `slog.Handler` that inspected attribute *values* was built, reviewed adversarially and taken through two fix rounds; both rounds closed every finding and both introduced new leaks of the same class, because the handler screened a *proxy* for what slog would emit (`fmt.Sprint`, `%g`, a reflection-rebuilt struct, `MarshalText`) and slog then emitted something else. In the worst case the redactor itself published a patient's name that the type's own `MarshalJSON` had withheld. Screening the emitted bytes removes the guess entirely; reflection survives only where bytes genuinely cannot help, which is struct tags. See the spec's Part D for the full table.
 
 **Tech Stack:** Go 1.26, `log/slog`, `gorm.io/gorm`, `gin-gonic/gin`, `go/ast` (arch tests), `testify/require`, testcontainers via `internal/testutil`.
 
@@ -24,16 +26,22 @@
 - CI is blocked org-wide by a billing/spending-limit issue. Record local verification output as a PR comment.
 - **Every test in this plan must be proven non-vacuous**: break the assertion or the guard, watch the test fail, restore. Steps that require this say so explicitly. Four inert assertions have already been found on this codebase.
 
-## Deviation from the spec, stated up front
+## Relationship to the spec
 
-The spec's Part D covers **pattern** redaction only. Issue #678's primary acceptance
-criterion is *"a handler logs a struct containing a field tagged as PHI → the PHI field
-is redacted"*, and its scope line reads *"redaction hooks for tagged PHI fields and known
-patterns"*. Pattern matching alone cannot satisfy that — a patient name carries no
-pattern. **Task 8 adds `hmslog:"phi"` struct-tag redaction** to close it. It is a
-contained addition to the same handler, it does not change any spec decision, and
-without it the issue's headline AC would go unmet. Everything else follows the spec as
-written.
+The spec was amended on 2026-08-13, mid-implementation, and this plan follows the
+amended version. Two changes:
+
+1. **Part D moved from the handler to the writer.** Recorded in the spec under "Why
+   the writer and not the handler — this was learned, not designed", with the table of
+   four leaks that motivated it. Tasks 6 and 7 implement the amended design; the
+   original reflection-based implementation is preserved on the branch
+   `backup/678-redaction-reflection` for reference and is not merged.
+2. **Part E added** for `hmslog:"phi"` tag redaction. Issue #678's primary acceptance
+   criterion is *"a handler logs a struct containing a field tagged as PHI → the PHI
+   field is redacted"*, and its scope line reads *"redaction hooks for tagged PHI fields
+   and known patterns"*. Pattern matching alone cannot satisfy that — a patient name
+   carries no pattern — so the tag layer is what closes the issue's headline AC.
+   Task 8 implements it.
 
 ## File Structure
 
@@ -41,12 +49,12 @@ written.
 
 | File | Responsibility |
 |---|---|
-| `backend/pkg/logging/logging.go` | `New(level string) *slog.Logger` — JSON handler, level parsing, redaction wrapper |
-| `backend/pkg/logging/redact.go` | `RedactingHandler`, the pattern set, the value walker, the counter |
-| `backend/pkg/logging/phitag.go` | `hmslog:"phi"` struct-tag reflection and its type cache |
-| `backend/pkg/logging/logging_test.go` | Level parsing, JSON shape, fallback behaviour |
-| `backend/pkg/logging/redact_test.go` | Pattern table, groups, errors, numbers, counter, fail-safe |
-| `backend/pkg/logging/phitag_test.go` | Tagged struct, nested struct, pointer, untagged passthrough |
+| `backend/pkg/logging/logging.go` | `New(level string) *slog.Logger` — level parsing, JSON handler, both redaction layers |
+| `backend/pkg/logging/redact.go` | The pattern set, `RedactString`, the byte-level redacting writer, the counter |
+| `backend/pkg/logging/phitag.go` | `hmslog:"phi"` handler, its reflection and type cache |
+| `backend/pkg/logging/logging_test.go` | Level parsing, JSON shape, fallback, end-to-end redaction across every rendering slog produces |
+| `backend/pkg/logging/redact_test.go` | Pattern table, JSON-validity of the writer's output, number-token quoting, escape tracking, counter |
+| `backend/pkg/logging/phitag_test.go` | Tagged struct, nested, pointer, groups, pre-bound attrs, self-marshalling passthrough, cycles |
 
 **Modified:**
 
@@ -1059,7 +1067,7 @@ git commit -m "feat: correlate request logs with tenant_id and subject once auth
 
 ---
 
-## Task 6: The redacting handler and its pattern set
+## Task 6: The pattern set and the byte-level redacting writer
 
 **Files:**
 - Create: `backend/pkg/logging/redact.go`
@@ -1068,17 +1076,45 @@ git commit -m "feat: correlate request logs with tenant_id and subject once auth
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
 - Produces:
-  - `logging.NewRedactingHandler(inner slog.Handler) slog.Handler`
+  - `logging.RedactString(s string) (string, int)` — masks every known PHI
+    pattern in `s`, returning the result and how many masks it applied.
+  - `logging.NewRedactingWriter(w io.Writer) io.Writer` — wraps `w` so every
+    line written through it is pattern-redacted, with JSON number tokens
+    correctly re-quoted.
   - `logging.RedactionCount() uint64`
-  - `logging.RedactString(s string) (string, int)` — exported so Task 8 and the tests
-    can reuse the pattern pass; returns the masked string and how many masks it applied.
 
-**What redaction is and is not:** patterns cannot catch names, dates of birth or
-addresses. Task 1 does the real work. This is a second line. False positives are
-expected and are the correct direction to fail — a legitimate 12-digit identifier will
-be masked, and the marker makes it obvious what happened.
+**Read this before writing code — it is why this task looks the way it does.**
 
-- [ ] **Step 1: Write the failing tests**
+An earlier implementation of Part D was a `slog.Handler` wrapper that inspected
+attribute *values* and decided whether to mask them. It was taken through two
+adversarial review rounds. Both closed every finding they were given, and both
+introduced new leaks of the same class, because the handler screened a *proxy*
+for what slog would emit and slog then emitted something else:
+
+| Screened | Emitted | Result |
+|---|---|---|
+| `fmt.Sprint(v)` | `encoding/json` | `[]*Patient` leaked |
+| `%g` | decimal | `float64(123456789012)` leaked |
+| reflection-rebuilt struct | `MarshalJSON` | a patient **name** was published *by the redactor* |
+| `MarshalText()` | `Error()` | error text leaked |
+
+This task screens the bytes slog actually writes. There is no proxy and
+therefore no guess. Do not reintroduce value inspection here — Task 8 handles
+the one thing bytes cannot see (struct tags), and nothing else needs it.
+
+**The one hard part:** a pattern match *outside* a JSON string is a number
+token. Substituting a bare marker there produces invalid JSON:
+
+```
+{"aadhaar":123456789012}  →  {"aadhaar":[REDACTED:aadhaar]}   ← INVALID
+{"aadhaar":123456789012}  →  {"aadhaar":"[REDACTED:aadhaar]"} ← correct
+```
+
+So the writer tracks whether each match sits inside a JSON string (scanning for
+unescaped `"`) and quotes the marker when it does not. Every test asserts the
+output still parses as JSON — that assertion is what keeps this honest.
+
+- [ ] **Step 1: Write the failing pattern tests**
 
 Create `backend/pkg/logging/redact_test.go`:
 
@@ -1087,29 +1123,14 @@ package logging_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
-	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/hms/pkg/logging"
 )
-
-// logLine emits one record through a redacting JSON handler and returns it
-// parsed.
-func logLine(t *testing.T, emit func(l *slog.Logger)) map[string]any {
-	t.Helper()
-	var buf bytes.Buffer
-	inner := slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
-	emit(slog.New(logging.NewRedactingHandler(inner)))
-	var line map[string]any
-	require.NoError(t, json.Unmarshal(buf.Bytes(), &line), "raw output: %s", buf.String())
-	return line
-}
 
 func TestRedactPatterns(t *testing.T) {
 	for _, tc := range []struct {
@@ -1125,6 +1146,8 @@ func TestRedactPatterns(t *testing.T) {
 		{"mobile plus91", "call +919876543210 now", "call [REDACTED:mobile] now"},
 		{"mobile plus91 spaced", "call +91 9876543210 now", "call [REDACTED:mobile] now"},
 		{"mobile bare 10 digit", "call 9876543210 now", "call [REDACTED:mobile] now"},
+		{"mobile 5-5 grouping", "call 98765 43210 now", "call [REDACTED:mobile] now"},
+		{"mobile plus91 5-5", "call +91 98765 43210 now", "call [REDACTED:mobile] now"},
 		{"mobile starting five", "call 5876543210 now", "call [REDACTED:mobile] now"},
 		{"two values in one string", "a 123456789012 b 9876543210", "a [REDACTED:aadhaar] b [REDACTED:mobile]"},
 		// Two matches of the SAME pattern sharing one separator. The first
@@ -1171,90 +1194,6 @@ func TestInternationalMobileIsNotMistakenForAnAadhaar(t *testing.T) {
 	got, _ := logging.RedactString("call +919876543210")
 	require.Equal(t, "call [REDACTED:mobile]", got)
 }
-
-func TestHandlerRedactsAttributes(t *testing.T) {
-	line := logLine(t, func(l *slog.Logger) { l.Info("ok", "phone", "9876543210") })
-	require.Equal(t, "[REDACTED:mobile]", line["phone"])
-}
-
-func TestHandlerRedactsTheMessage(t *testing.T) {
-	line := logLine(t, func(l *slog.Logger) { l.Info("lookup failed for 9876543210") })
-	require.Equal(t, "lookup failed for [REDACTED:mobile]", line["msg"])
-}
-
-func TestHandlerRedactsInsideGroups(t *testing.T) {
-	line := logLine(t, func(l *slog.Logger) {
-		l.Info("ok", slog.Group("patient", slog.String("aadhaar", "123456789012")))
-	})
-	group, ok := line["patient"].(map[string]any)
-	require.True(t, ok, "group did not survive redaction: %v", line)
-	require.Equal(t, "[REDACTED:aadhaar]", group["aadhaar"])
-}
-
-func TestHandlerRedactsInsideWithAttrsAndWithGroup(t *testing.T) {
-	var buf bytes.Buffer
-	inner := slog.NewJSONHandler(&buf, nil)
-	l := slog.New(logging.NewRedactingHandler(inner)).
-		With("bound", "9876543210").
-		WithGroup("g")
-	l.Info("ok", "inner", "123456789012")
-
-	var line map[string]any
-	require.NoError(t, json.Unmarshal(buf.Bytes(), &line), "raw: %s", buf.String())
-	require.Equal(t, "[REDACTED:mobile]", line["bound"], "pre-bound attrs must be redacted too")
-	group, ok := line["g"].(map[string]any)
-	require.True(t, ok, "raw: %s", buf.String())
-	require.Equal(t, "[REDACTED:aadhaar]", group["inner"])
-}
-
-func TestHandlerRedactsInsideWrappedErrors(t *testing.T) {
-	err := fmt.Errorf("saving record: %w", errors.New("duplicate mobile 9876543210"))
-	line := logLine(t, func(l *slog.Logger) { l.Error("failed", "err", err) })
-	require.Equal(t, "saving record: duplicate mobile [REDACTED:mobile]", line["err"])
-}
-
-// A number-typed Aadhaar is as much a leak as a string one, and slog carries
-// it as Int64 rather than String.
-func TestHandlerRedactsNumericValues(t *testing.T) {
-	line := logLine(t, func(l *slog.Logger) { l.Info("ok", "aadhaar", int64(123456789012)) })
-	require.Equal(t, "[REDACTED:aadhaar]", line["aadhaar"])
-}
-
-func TestHandlerLeavesOrdinaryValuesAlone(t *testing.T) {
-	line := logLine(t, func(l *slog.Logger) {
-		l.Info("ok", "count", 42, "ok", true, "name", "ward-3")
-	})
-	require.Equal(t, float64(42), line["count"])
-	require.Equal(t, true, line["ok"])
-	require.Equal(t, "ward-3", line["name"])
-}
-
-// Fail safe: a value whose rendering panics must cost that one field, not
-// leak it and not crash the request.
-type explodingValue struct{}
-
-func (explodingValue) String() string { panic("boom") }
-
-func TestRedactionFailureDropsTheFieldRatherThanEmittingItRaw(t *testing.T) {
-	line := logLine(t, func(l *slog.Logger) {
-		l.Info("ok", "bad", explodingValue{}, "good", "kept")
-	})
-	require.Equal(t, "[REDACTED:error]", line["bad"])
-	require.Equal(t, "kept", line["good"], "one bad field must not take the rest of the line with it")
-}
-
-func TestRedactionCounterIncrements(t *testing.T) {
-	before := logging.RedactionCount()
-	logLine(t, func(l *slog.Logger) { l.Info("ok", "a", "9876543210", "b", "123456789012") })
-	require.Equal(t, before+2, logging.RedactionCount())
-}
-
-func TestHandlerEnabledDelegatesToInner(t *testing.T) {
-	inner := slog.NewJSONHandler(&bytes.Buffer{}, &slog.HandlerOptions{Level: slog.LevelWarn})
-	h := logging.NewRedactingHandler(inner)
-	require.False(t, h.Enabled(context.Background(), slog.LevelInfo))
-	require.True(t, h.Enabled(context.Background(), slog.LevelError))
-}
 ```
 
 - [ ] **Step 2: Run and confirm failure**
@@ -1263,26 +1202,19 @@ func TestHandlerEnabledDelegatesToInner(t *testing.T) {
 cd backend && go test ./pkg/logging/ -run TestRedact -v
 ```
 
-Expected: build failure — `undefined: logging.NewRedactingHandler`.
+Expected: build failure — `undefined: logging.RedactString`.
 
-- [ ] **Step 3: Implement `pkg/logging/redact.go`**
+- [ ] **Step 3: Implement the pattern half of `pkg/logging/redact.go`**
 
 ```go
 package logging
 
 import (
-	"context"
-	"fmt"
-	"log/slog"
+	"bytes"
+	"io"
 	"regexp"
 	"sync/atomic"
 )
-
-// The redaction marker names the pattern that fired. False positives are
-// expected — a legitimate 12-digit identifier will be masked — and that is
-// the correct direction to fail, so the marker has to make it obvious what
-// happened rather than leaving an unexplained blank.
-const redactionErrorMarker = "[REDACTED:error]"
 
 // bounded wraps a core pattern in explicit neighbour groups so a match only
 // counts when it is a whole token.
@@ -1296,6 +1228,11 @@ const redactionErrorMarker = "[REDACTED:error]"
 // neighbouring character to be outside [0-9A-Za-z_-] rejects it: the
 // candidate is followed by a hyphen, so it is part of a longer token, so it
 // is not an Aadhaar.
+//
+// What it costs, stated so a future widening is a deliberate decision:
+// hyphen-adjacent PHI is a blind spot. `9876543210-9876543211` and
+// `phone-9876543210` are both left in the clear. Do not widen the neighbour
+// class without re-deriving the UUID case above.
 //
 // Group 1 is the preceding character (or start), group 2 the candidate,
 // group 3 the following character (or end). 1 and 3 are preserved on
@@ -1314,29 +1251,29 @@ var redactionPatterns = []struct {
 	name string
 	re   *regexp.Regexp
 }{
-	// Indian mobile, international form: +91 then 10 digits beginning 5-9.
-	// First, so it wins the twelve-digit run it contains.
-	{"mobile", bounded(`\+91[-\s]?[5-9]\d{9}`)},
+	// Indian mobile, international form: +91 then 10 digits beginning 5-9,
+	// accepting the conventional 5-5 grouping. First, so it wins the
+	// twelve-digit run it contains.
+	{"mobile", bounded(`\+91[-\s]?[5-9]\d{4}[-\s]?\d{5}`)},
 	// ABHA: 14 digits, optionally grouped 2-4-4-4 by hyphens or spaces.
 	{"abha", bounded(`\d{2}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}`)},
 	// Aadhaar: 12 digits, optionally grouped 4-4-4.
 	{"aadhaar", bounded(`\d{4}[-\s]?\d{4}[-\s]?\d{4}`)},
-	// Indian mobile, bare: 10 digits beginning 5-9.
-	{"mobile", bounded(`[5-9]\d{9}`)},
+	// Indian mobile, bare: 10 digits beginning 5-9, 5-5 grouping accepted.
+	{"mobile", bounded(`[5-9]\d{4}[-\s]?\d{5}`)},
 }
 
 var redactions atomic.Uint64
 
-// RedactionCount reports how many values this process has masked. It is an
-// in-process counter with an accessor rather than a metric because no
-// metrics system exists yet — #679 is unbuilt, and inventing a metrics
-// dependency here would be worse than leaving an honest seam for it to wire
-// up.
+// RedactionCount reports how many values this process has masked, across both
+// the byte layer and the tag handler. It is an in-process counter with an
+// accessor rather than a metric because no metrics system exists yet — #679 is
+// unbuilt, and inventing a metrics dependency here would be worse than leaving
+// an honest seam for it to wire up.
 func RedactionCount() uint64 { return redactions.Load() }
 
 // RedactString masks every known PHI pattern in s, returning the result and
-// the number of masks applied. It is exported so the struct-tag walker and
-// the tests share exactly one definition of what a pattern match is.
+// the number of masks applied.
 func RedactString(s string) (string, int) {
 	n := 0
 	out := s
@@ -1379,202 +1316,282 @@ func RedactString(s string) (string, int) {
 	redactions.Add(uint64(n))
 	return out, n
 }
-
-// RedactingHandler masks PHI patterns in every message and attribute on the
-// way out — inside groups, inside wrapped errors, and inside struct fields
-// tagged hmslog:"phi".
-//
-// This is defence in depth, not the defence. Patterns cannot catch names,
-// dates of birth or addresses; keeping GORM's logger silent (see
-// pkg/tenantdb.Open) is what protects those. It also only sees what passes
-// through slog: anything a dependency writes straight to a file descriptor
-// bypasses it entirely, which is precisely why that logger needed its own
-// guard.
-type RedactingHandler struct {
-	inner slog.Handler
-}
-
-// NewRedactingHandler wraps inner so that everything it emits is redacted.
-func NewRedactingHandler(inner slog.Handler) slog.Handler {
-	return &RedactingHandler{inner: inner}
-}
-
-func (h *RedactingHandler) Enabled(ctx context.Context, l slog.Level) bool {
-	return h.inner.Enabled(ctx, l)
-}
-
-func (h *RedactingHandler) Handle(ctx context.Context, r slog.Record) error {
-	out := slog.NewRecord(r.Time, r.Level, redactMessage(r.Message), r.PC)
-	r.Attrs(func(a slog.Attr) bool {
-		out.AddAttrs(redactAttr(a))
-		return true
-	})
-	return h.inner.Handle(ctx, out)
-}
-
-// WithAttrs redacts the pre-bound attributes too. A value bound once with
-// logger.With and reused for the life of the process would otherwise escape
-// on every line it appears in.
-func (h *RedactingHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	safe := make([]slog.Attr, 0, len(attrs))
-	for _, a := range attrs {
-		safe = append(safe, redactAttr(a))
-	}
-	return &RedactingHandler{inner: h.inner.WithAttrs(safe)}
-}
-
-func (h *RedactingHandler) WithGroup(name string) slog.Handler {
-	return &RedactingHandler{inner: h.inner.WithGroup(name)}
-}
-
-func redactMessage(msg string) string {
-	out, _ := RedactString(msg)
-	return out
-}
-
-// redactAttr returns a is a redacted copy of a. It never returns the input
-// value unexamined: if the walk cannot process the value — a String() that
-// panics, a type that misbehaves under reflection — the field is replaced
-// with the error marker rather than emitted raw. Dropping one field is
-// always cheaper than leaking one.
-func redactAttr(a slog.Attr) (out slog.Attr) {
-	defer func() {
-		if rec := recover(); rec != nil {
-			redactions.Add(1)
-			out = slog.String(a.Key, redactionErrorMarker)
-		}
-	}()
-	return slog.Attr{Key: a.Key, Value: redactValue(a.Value)}
-}
-
-func redactValue(v slog.Value) slog.Value {
-	switch v.Kind() {
-	case slog.KindString:
-		s, _ := RedactString(v.String())
-		return slog.StringValue(s)
-
-	case slog.KindGroup:
-		attrs := v.Group()
-		safe := make([]slog.Attr, 0, len(attrs))
-		for _, a := range attrs {
-			safe = append(safe, redactAttr(a))
-		}
-		return slog.GroupValue(safe...)
-
-	case slog.KindLogValuer:
-		// Resolve first, then redact the result — an unresolved LogValuer
-		// would be rendered by the inner handler after we are done with it.
-		return redactValue(v.Resolve())
-
-	case slog.KindInt64, slog.KindUint64, slog.KindFloat64:
-		// A numeric Aadhaar is as much a leak as a string one. Only replace
-		// when a pattern actually fired, so ordinary counts keep their JSON
-		// number type.
-		if s, n := RedactString(fmt.Sprint(v.Any())); n > 0 {
-			return slog.StringValue(s)
-		}
-		return v
-
-	case slog.KindAny:
-		return redactAny(v)
-
-	default:
-		// Bool, Time, Duration: no pattern can match their rendering.
-		return v
-	}
-}
-
-func redactAny(v slog.Value) slog.Value {
-	switch x := v.Any().(type) {
-	case error:
-		// Errors are rendered by their Error() string, wrapping included, so
-		// redacting that string covers the whole chain.
-		s, n := RedactString(x.Error())
-		if n == 0 {
-			return v
-		}
-		return slog.StringValue(s)
-
-	case fmt.Stringer:
-		s, n := RedactString(x.String())
-		if n == 0 {
-			return v
-		}
-		return slog.StringValue(s)
-
-	default:
-		if redacted, ok := redactStructValue(x); ok {
-			return redacted
-		}
-		if s, n := RedactString(fmt.Sprint(x)); n > 0 {
-			return slog.StringValue(s)
-		}
-		return v
-	}
-}
 ```
 
-Add a temporary stub at the bottom so this task compiles standalone; Task 8 replaces it
-with the real implementation in `phitag.go`:
+- [ ] **Step 4: Run the pattern tests**
+
+```bash
+cd backend && go test ./pkg/logging/ -run TestRedact -v
+```
+
+Expected: PASS. If a row fails, fix the expression, not the expectation —
+every row is a deliberate case.
+
+- [ ] **Step 5: Write the failing writer tests**
+
+Append to `backend/pkg/logging/redact_test.go`:
 
 ```go
-// redactStructValue is implemented in phitag.go. This stub keeps redact.go
-// compilable on its own; it is replaced, not extended, by Task 8.
-func redactStructValue(any) (slog.Value, bool) { return slog.Value{}, false }
+// through writes one line through a redacting writer and returns the output.
+func through(t *testing.T, line string) string {
+	t.Helper()
+	var buf bytes.Buffer
+	w := logging.NewRedactingWriter(&buf)
+	n, err := w.Write([]byte(line))
+	require.NoError(t, err)
+	// io.Writer's contract: a successful Write reports len(p), whatever the
+	// wrapped writer received. Returning the post-redaction length would make
+	// callers believe a short write occurred.
+	require.Equal(t, len(line), n, "Write must report the input length")
+	return buf.String()
+}
+
+// requireValidJSON is the assertion that keeps the number-token handling
+// honest. Substituting a bare marker for a JSON number produces syntactically
+// invalid output, and slog would replace the whole record with !ERROR — a
+// redaction control that silently deletes log records.
+func requireValidJSON(t *testing.T, line string) map[string]any {
+	t.Helper()
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(line)), &parsed),
+		"output is not valid JSON: %s", line)
+	return parsed
+}
+
+func TestWriterRedactsInsideStringValues(t *testing.T) {
+	out := through(t, `{"msg":"call 9876543210 now"}`+"\n")
+	parsed := requireValidJSON(t, out)
+	require.Equal(t, "call [REDACTED:mobile] now", parsed["msg"])
+}
+
+// A bare JSON number is the case that produces invalid output if the marker
+// is substituted unquoted.
+func TestWriterQuotesTheMarkerWhenTheMatchIsANumberToken(t *testing.T) {
+	out := through(t, `{"aadhaar":123456789012}`+"\n")
+	parsed := requireValidJSON(t, out)
+	require.Equal(t, "[REDACTED:aadhaar]", parsed["aadhaar"],
+		"a masked number must become a JSON string, not a bare token")
+}
+
+func TestWriterHandlesNumberAndStringOnTheSameLine(t *testing.T) {
+	out := through(t, `{"n":9876543210,"s":"call 9876543211"}`+"\n")
+	parsed := requireValidJSON(t, out)
+	require.Equal(t, "[REDACTED:mobile]", parsed["n"])
+	require.Equal(t, "call [REDACTED:mobile]", parsed["s"])
+}
+
+func TestWriterRedactsKeysAsWellAsValues(t *testing.T) {
+	out := through(t, `{"9876543210":"v"}`+"\n")
+	parsed := requireValidJSON(t, out)
+	_, raw := parsed["9876543210"]
+	require.False(t, raw, "the raw key survived: %s", out)
+	require.Equal(t, "v", parsed["[REDACTED:mobile]"])
+}
+
+// Correlation must survive redaction. A tenant_id is a UUID and a request_id
+// may be one too; masking either destroys the feature Part C exists for.
+func TestWriterLeavesCorrelationFieldsAlone(t *testing.T) {
+	const tenantID = "11111111-1111-1111-1111-111111111111"
+	out := through(t, `{"tenant_id":"`+tenantID+`","count":42,"ok":true}`+"\n")
+	parsed := requireValidJSON(t, out)
+	require.Equal(t, tenantID, parsed["tenant_id"])
+	require.Equal(t, float64(42), parsed["count"])
+	require.Equal(t, true, parsed["ok"])
+}
+
+// An escaped quote inside a string must not be mistaken for the string's end,
+// or the in-string tracking desynchronises and every following number token
+// is misclassified.
+func TestWriterTracksEscapedQuotes(t *testing.T) {
+	out := through(t, `{"msg":"he said \"9876543210\" loudly","n":123456789012}`+"\n")
+	parsed := requireValidJSON(t, out)
+	require.Equal(t, `he said "[REDACTED:mobile]" loudly`, parsed["msg"])
+	require.Equal(t, "[REDACTED:aadhaar]", parsed["n"])
+}
+
+// A trailing backslash before the closing quote is an escaped backslash, not
+// an escaped quote — the classic off-by-one in this kind of scanner.
+func TestWriterTracksEscapedBackslashes(t *testing.T) {
+	out := through(t, `{"msg":"path\\","n":123456789012}`+"\n")
+	parsed := requireValidJSON(t, out)
+	require.Equal(t, `path\`, parsed["msg"])
+	require.Equal(t, "[REDACTED:aadhaar]", parsed["n"])
+}
+
+func TestWriterPassesCleanLinesThroughByteForByte(t *testing.T) {
+	const line = `{"time":"2026-08-13T01:02:03Z","level":"INFO","msg":"ok","ward":"ward-3"}` + "\n"
+	require.Equal(t, line, through(t, line), "a line with no PHI must be untouched")
+}
+
+func TestWriterCountsRedactions(t *testing.T) {
+	before := logging.RedactionCount()
+	through(t, `{"a":"9876543210","b":"123456789012"}`+"\n")
+	require.Equal(t, before+2, logging.RedactionCount())
+}
 ```
 
-- [ ] **Step 4: Run and confirm the tests pass**
+- [ ] **Step 6: Run and confirm failure**
+
+```bash
+cd backend && go test ./pkg/logging/ -run TestWriter -v
+```
+
+Expected: build failure — `undefined: logging.NewRedactingWriter`.
+
+- [ ] **Step 7: Implement the writer**
+
+Append to `backend/pkg/logging/redact.go`:
+
+```go
+// NewRedactingWriter wraps w so that every line written through it is
+// pattern-redacted.
+//
+// This sits at the writer rather than at the handler deliberately. A handler
+// that inspects attribute values has to predict how slog will render each one
+// — json.Marshaler vs encoding.TextMarshaler vs error vs fmt.Stringer, value
+// receiver vs pointer receiver — and every version of that prediction written
+// for this package leaked PHI in a different way (see the design spec's Part
+// D). Here there is nothing to predict: these are the bytes.
+//
+// slog's JSON handler emits one Write per record under its own mutex, so this
+// sees exactly one complete line at a time and needs no buffering or locking.
+func NewRedactingWriter(w io.Writer) io.Writer { return &redactingWriter{inner: w} }
+
+type redactingWriter struct{ inner io.Writer }
+
+func (rw *redactingWriter) Write(p []byte) (int, error) {
+	out := redactJSONLine(string(p))
+	if _, err := rw.inner.Write([]byte(out)); err != nil {
+		return 0, err
+	}
+	// io.Writer's contract is that a successful Write returns len(p). The
+	// redacted line is a different length, and reporting that length would
+	// read to any caller as a short write.
+	return len(p), nil
+}
+
+// redactJSONLine masks PHI in one serialised log line, quoting the marker
+// when the match sits outside a JSON string.
+//
+// The distinction matters because a bare marker substituted for a number
+// token is not valid JSON: `{"aadhaar":123456789012}` must become
+// `{"aadhaar":"[REDACTED:aadhaar]"}`, never `{"aadhaar":[REDACTED:aadhaar]}`.
+// Emitting the latter would make slog's own encoder reject the record, and a
+// redaction control that silently deletes log lines is its own incident.
+func redactJSONLine(line string) string {
+	var out bytes.Buffer
+	out.Grow(len(line))
+
+	inString := false
+	escaped := false
+	segStart := 0
+
+	// flush redacts the segment [segStart,end) and appends it. Segments are
+	// split at every string boundary so each one is wholly inside or wholly
+	// outside a JSON string, which is what makes the quoting decision local.
+	flush := func(end int, quoted bool) {
+		if end <= segStart {
+			return
+		}
+		seg := line[segStart:end]
+		red, n := RedactString(seg)
+		if n > 0 && !quoted {
+			// A number token became a marker; it needs quotes to stay JSON.
+			red = quoteBareMarkers(red)
+		}
+		out.WriteString(red)
+	}
+
+	for i := 0; i < len(line); i++ {
+		c := line[i]
+		if inString {
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == '"':
+				// Close the string: flush its contents, then the quote.
+				flush(i, true)
+				out.WriteByte('"')
+				segStart = i + 1
+				inString = false
+			}
+			continue
+		}
+		if c == '"' {
+			flush(i, false)
+			out.WriteByte('"')
+			segStart = i + 1
+			inString = true
+		}
+	}
+	flush(len(line), inString)
+	return out.String()
+}
+
+// quoteBareMarkers wraps any redaction marker that is not already inside
+// quotes, so a masked JSON number stays a valid JSON value.
+func quoteBareMarkers(s string) string {
+	return bareMarker.ReplaceAllString(s, `"$1"`)
+}
+
+var bareMarker = regexp.MustCompile(`(\[REDACTED:[a-z]+\])`)
+```
+
+- [ ] **Step 8: Run the whole package**
 
 ```bash
 cd backend && go test -race ./pkg/logging/ -v
 ```
 
-Expected: PASS. The regexes are the part of this task most likely to need an empirical
-adjustment — run the table first and let it tell you, rather than reasoning about RE2's
-behaviour. Every expectation in the table is a deliberate case; if one fails, fix the
-expression, not the expectation.
+Expected: PASS.
 
-- [ ] **Step 5: Prove the tests can fail — do not skip this**
+- [ ] **Step 9: Prove the tests can fail — do not skip this**
 
-Run each of these, confirming the named test FAILS, restoring after each:
+Run each, confirm the named test FAILS, restore after each:
 
 1. Delete the last (bare) `mobile` entry from `redactionPatterns` →
    `TestRedactPatterns` fails on the bare-10-digit rows.
 2. Move the international `mobile` entry below `aadhaar` →
    `TestInternationalMobileIsNotMistakenForAnAadhaar` fails.
-3. Replace `bounded(core)` with `regexp.MustCompile(`+"`"+`(^|\b)(`+"`"+`+core+`+"`"+`)(\b|$)`+"`"+`)` →
-   the `uuid untouched` rows fail. This is the exact regression the helper exists to
-   prevent, and the one that would have shipped a broken `tenant_id` on every line.
+3. Replace `bounded(core)` with `regexp.MustCompile("(^|\\b)(" + core + ")(\\b|$)")` →
+   the `uuid untouched` rows fail. This is the exact regression the helper
+   exists to prevent, and the one that would have shipped a broken `tenant_id`
+   on every line.
 4. Change the fixpoint loop to a single pass (`for i := 0; i < 1; i++`) →
-   `TestRedactPatterns/adjacent_mobiles` fails, leaving the second number in the clear.
-5. Make `WithAttrs` pass `attrs` through unchanged → `TestHandlerRedactsInsideWithAttrsAndWithGroup` fails.
-6. Remove the `case error:` branch from `redactAny` → `TestHandlerRedactsInsideWrappedErrors` fails.
-7. Remove the `defer recover` from `redactAttr` → `TestRedactionFailureDropsTheFieldRatherThanEmittingItRaw` fails (panics).
+   `TestRedactPatterns/adjacent_mobiles` fails.
+5. Make `flush` ignore its `quoted` argument and never call
+   `quoteBareMarkers` → `TestWriterQuotesTheMarkerWhenTheMatchIsANumberToken`
+   fails on invalid JSON.
+6. Remove the `case c == '\\': escaped = true` arm →
+   `TestWriterTracksEscapedQuotes` fails.
+7. Make `Write` return the redacted length instead of `len(p)` →
+   `through`'s length assertion fails.
 
-Record which check caught which in the PR comment. **Restore everything and confirm a
-clean `go test -race ./pkg/logging/`.**
+Record which check caught which in the report.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 cd .. && make lint-go && cd backend
 git add backend/pkg/logging/redact.go backend/pkg/logging/redact_test.go
-git commit -m "feat: add a redacting slog handler masking aadhaar, abha and mobile patterns"
+git commit -m "feat: redact aadhaar, abha and mobile patterns in the serialised log line"
 ```
 
 ---
 
-## Task 7: Route the process logger through redaction
+## Task 7: Route the process logger through the redacting writer
 
 **Files:**
 - Modify: `backend/pkg/logging/logging.go`
 - Modify: `backend/pkg/logging/logging_test.go`
 
 **Interfaces:**
-- Consumes: `logging.NewRedactingHandler` (Task 6).
+- Consumes: `logging.NewRedactingWriter` (Task 6).
 - Produces: no new symbols; `New` and `NewWithWriter` keep their signatures.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing tests**
 
 Append to `backend/pkg/logging/logging_test.go`:
 
@@ -1589,11 +1606,10 @@ func TestNewRedacts(t *testing.T) {
 	require.NotContains(t, buf.String(), "9876543210")
 }
 
-// Part D must not eat Part C. The correlation fields go through the same
+// Part D must not eat Part C. The correlation fields pass through the same
 // redaction as everything else, and a tenant_id UUID contains a
 // boundary-delimited twelve-digit run — so a careless Aadhaar pattern would
-// mask the very field that makes an incident traceable. Asserting it here,
-// on the real constructor, is what proves the two parts coexist.
+// mask the very field that makes an incident traceable.
 func TestCorrelationFieldsSurviveRedaction(t *testing.T) {
 	const tenantID = "11111111-1111-1111-1111-111111111111"
 	var buf bytes.Buffer
@@ -1607,60 +1623,179 @@ func TestCorrelationFieldsSurviveRedaction(t *testing.T) {
 	require.Equal(t, tenantID, line["tenant_id"], "redaction destroyed the tenant correlation field")
 	require.Equal(t, "gip-uid-42", line["subject"])
 }
+
+// Whatever slog renders a value as, the writer sees the final bytes — which
+// is the entire reason redaction lives there. These are the shapes that
+// defeated the previous handler-level design; each must come out masked and
+// each line must still parse as JSON.
+func TestNewRedactsEveryRenderingSlogProduces(t *testing.T) {
+	phone := "9876543210"
+	for _, tc := range []struct {
+		name string
+		emit func(l *slog.Logger)
+	}{
+		{"pointer field in a struct", func(l *slog.Logger) {
+			l.Info("m", "k", struct{ Phone *string }{&phone})
+		}},
+		{"slice of pointers", func(l *slog.Logger) {
+			l.Info("m", "k", []*struct{ Phone string }{{Phone: phone}})
+		}},
+		{"map of pointers", func(l *slog.Logger) {
+			l.Info("m", "k", map[string]*string{"a": &phone})
+		}},
+		{"float64", func(l *slog.Logger) { l.Info("m", "aadhaar", float64(123456789012)) }},
+		{"int64", func(l *slog.Logger) { l.Info("m", "aadhaar", int64(123456789012)) }},
+		{"wrapped error", func(l *slog.Logger) {
+			l.Error("m", "err", fmt.Errorf("saving: %w", errors.New("dup mobile "+phone)))
+		}},
+		{"error with a divergent Stringer", func(l *slog.Logger) {
+			l.Error("m", "err", errDivergentStringer{})
+		}},
+		{"json.Marshaler over unexported state", func(l *slog.Logger) {
+			l.Info("m", "k", marshalerOverUnexported{phone: phone})
+		}},
+		{"encoding.TextMarshaler over unexported state", func(l *slog.Logger) {
+			l.Info("m", "k", textMarshalerOverUnexported{phone: phone})
+		}},
+		{"numeric marshaller", func(l *slog.Logger) { l.Info("m", "k", big.NewInt(9876543210)) }},
+		{"group", func(l *slog.Logger) {
+			l.Info("m", slog.Group("g", slog.String("a", "123456789012")))
+		}},
+		{"message text", func(l *slog.Logger) { l.Info("lookup failed for " + phone) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			tc.emit(logging.NewWithWriter(&buf, "info"))
+			require.NotContains(t, buf.String(), phone, "raw: %s", buf.String())
+			require.NotContains(t, buf.String(), "123456789012", "raw: %s", buf.String())
+			require.Contains(t, buf.String(), "[REDACTED:", "raw: %s", buf.String())
+			var parsed map[string]any
+			require.NoError(t, json.Unmarshal(buf.Bytes(), &parsed),
+				"redaction produced invalid JSON: %s", buf.String())
+			require.NotContains(t, buf.String(), "!ERROR",
+				"redaction destroyed the record: %s", buf.String())
+		})
+	}
+}
+
+type errDivergentStringer struct{}
+
+func (errDivergentStringer) Error() string  { return "failed for patient 9876543210" }
+func (errDivergentStringer) String() string { return "failed" }
+
+type marshalerOverUnexported struct{ phone string }
+
+func (m marshalerOverUnexported) MarshalJSON() ([]byte, error) {
+	return []byte(`{"phone":"` + m.phone + `"}`), nil
+}
+
+type textMarshalerOverUnexported struct{ phone string }
+
+func (m textMarshalerOverUnexported) MarshalText() ([]byte, error) {
+	return []byte("p " + m.phone), nil
+}
+
+// A shared logger is used from every request goroutine at once.
+func TestNewIsSafeForConcurrentUse(t *testing.T) {
+	var mu sync.Mutex
+	var buf bytes.Buffer
+	l := logging.NewWithWriter(&lockedWriter{w: &buf, mu: &mu}, "info")
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				l.Info("ok", "phone", "9876543210", "tenant_id", "11111111-1111-1111-1111-111111111111")
+			}
+		}()
+	}
+	wg.Wait()
+	require.NotContains(t, buf.String(), "9876543210")
+	require.Contains(t, buf.String(), "11111111-1111-1111-1111-111111111111")
+}
+
+type lockedWriter struct {
+	w  *bytes.Buffer
+	mu *sync.Mutex
+}
+
+func (lw *lockedWriter) Write(p []byte) (int, error) {
+	lw.mu.Lock()
+	defer lw.mu.Unlock()
+	return lw.w.Write(p)
+}
 ```
 
-- [ ] **Step 2: Run and confirm it fails**
+Add to that file's imports: `"errors"`, `"fmt"`, `"math/big"`, `"sync"`.
+
+- [ ] **Step 2: Run and confirm failure**
 
 ```bash
-cd backend && go test ./pkg/logging/ -run TestNewRedacts -v
+cd backend && go test ./pkg/logging/ -run 'TestNewRedacts|TestCorrelation|TestNewIsSafe' -v
 ```
 
-Expected: FAIL — the raw number is present.
+Expected: FAIL — the raw values are present.
 
-- [ ] **Step 3: Wrap the handler**
+- [ ] **Step 3: Wrap the writer**
 
 In `backend/pkg/logging/logging.go`, change the one construction line:
 
 ```go
-	handler := NewRedactingHandler(slog.NewJSONHandler(w, &slog.HandlerOptions{Level: lvl}))
+	handler := slog.NewJSONHandler(NewRedactingWriter(w), &slog.HandlerOptions{Level: lvl})
 ```
 
-- [ ] **Step 4: Run and confirm the whole package passes**
+- [ ] **Step 4: Run the whole package under the race detector**
 
 ```bash
 cd backend && go test -race ./pkg/logging/ -v
 ```
 
-Expected: PASS, including `TestNewEmitsJSONWithStandardFields` — the wrapper must not
-break the JSON shape or the level threshold.
+Expected: PASS, including `TestNewEmitsJSONWithStandardFields` — the writer
+must not break the JSON shape or the level threshold.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Prove it can fail**
+
+Revert Step 3 to the bare `slog.NewJSONHandler(w, ...)` and re-run.
+Expected: `TestNewRedacts` and every subtest of
+`TestNewRedactsEveryRenderingSlogProduces` FAIL. **Restore and re-run.**
+
+- [ ] **Step 6: Commit**
 
 ```bash
 cd .. && make lint-go
 git add backend/pkg/logging/logging.go backend/pkg/logging/logging_test.go
-git commit -m "feat: route the process logger through the redacting handler"
+git commit -m "feat: route the process logger through the redacting writer"
 ```
 
 ---
 
-## Task 8: `hmslog:"phi"` struct-tag redaction
+## Task 8: `hmslog:"phi"` tag redaction
 
 **Files:**
 - Create: `backend/pkg/logging/phitag.go`
 - Create: `backend/pkg/logging/phitag_test.go`
-- Modify: `backend/pkg/logging/redact.go` (delete the stub added in Task 6)
+- Modify: `backend/pkg/logging/logging.go`
 
 **Interfaces:**
-- Consumes: `logging.RedactString` (Task 6), and is called from `redactAny`'s default
-  branch (Task 6).
-- Produces: `redactStructValue(v any) (slog.Value, bool)` — unexported; returns
-  `ok=false` for anything that is not a struct carrying at least one `hmslog:"phi"` tag,
-  so the caller falls through to pattern matching.
+- Consumes: `logging.RedactString` and the `redactions` counter (Task 6);
+  `NewWithWriter`'s handler construction (Task 7).
+- Produces: `logging.NewPHITagHandler(inner slog.Handler) slog.Handler`.
 
-**Why this task exists:** see "Deviation from the spec" at the top. Patterns cannot
-catch a patient's name; a tag can. This is the mechanism behind issue #678's primary
-acceptance criterion.
+**Why this layer exists at all.** A name, a date of birth and an address have
+no shape to match on, so Task 6's byte layer cannot see them. The only way to
+know they are PHI is for the type to say so. This is the mechanism behind issue
+#678's primary acceptance criterion.
+
+**Scope discipline — read this.** An earlier design had a handler reflecting
+over *every* logged value. It leaked four different ways and was replaced by
+Task 6. This handler reflects only over values whose type carries a `phi` tag
+somewhere, and returns everything else untouched for the byte layer to screen.
+Do not broaden it. In particular it must **decline to rewrite** any value
+implementing `json.Marshaler` or `encoding.TextMarshaler`: reconstructing such
+a type from its exported fields publishes what its own marshaller withheld —
+during the earlier implementation that behaviour published a patient's name
+alongside a correctly-masked phone number.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1670,9 +1805,14 @@ Create `backend/pkg/logging/phitag_test.go`:
 package logging_test
 
 import (
+	"bytes"
+	"encoding/json"
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/tesserix/hms/pkg/logging"
 )
 
 type patient struct {
@@ -1680,10 +1820,12 @@ type patient struct {
 	Name  string `hmslog:"phi"`
 	DOB   string `hmslog:"phi"`
 	Ward  string
-	Notes struct {
-		Complaint string `hmslog:"phi"`
-		Triage    string
-	}
+	Notes notes
+}
+
+type notes struct {
+	Complaint string `hmslog:"phi"`
+	Triage    string
 }
 
 type visit struct {
@@ -1696,12 +1838,22 @@ type plain struct {
 	B int
 }
 
+// tagLine emits one record through the tag handler over a JSON handler.
+func tagLine(t *testing.T, emit func(l *slog.Logger)) map[string]any {
+	t.Helper()
+	var buf bytes.Buffer
+	inner := slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+	emit(slog.New(logging.NewPHITagHandler(inner)))
+	var line map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &line), "raw: %s", buf.String())
+	return line
+}
+
 func TestTaggedFieldsAreRedacted(t *testing.T) {
 	p := patient{ID: "p-1", Name: "Suresh Kumar", DOB: "1971-03-04", Ward: "ward-3"}
-	p.Notes.Complaint = "chest pain"
-	p.Notes.Triage = "amber"
+	p.Notes = notes{Complaint: "chest pain", Triage: "amber"}
 
-	line := logLine(t, func(l *slog.Logger) { l.Info("ok", "patient", p) })
+	line := tagLine(t, func(l *slog.Logger) { l.Info("ok", "patient", p) })
 	got, ok := line["patient"].(map[string]any)
 	require.True(t, ok, "tagged struct should render as an object: %v", line)
 
@@ -1710,14 +1862,14 @@ func TestTaggedFieldsAreRedacted(t *testing.T) {
 	require.Equal(t, "p-1", got["ID"], "untagged fields must survive — a fully-masked struct is useless")
 	require.Equal(t, "ward-3", got["Ward"])
 
-	notes, ok := got["Notes"].(map[string]any)
+	nested, ok := got["Notes"].(map[string]any)
 	require.True(t, ok, "nested struct should be walked: %v", got)
-	require.Equal(t, "[REDACTED:phi]", notes["Complaint"])
-	require.Equal(t, "amber", notes["Triage"])
+	require.Equal(t, "[REDACTED:phi]", nested["Complaint"])
+	require.Equal(t, "amber", nested["Triage"])
 }
 
 func TestTaggedFieldsAreRedactedThroughAPointer(t *testing.T) {
-	line := logLine(t, func(l *slog.Logger) {
+	line := tagLine(t, func(l *slog.Logger) {
 		l.Info("ok", "visit", visit{Ref: "v-9", Patient: &patient{ID: "p-1", Name: "Suresh Kumar"}})
 	})
 	got := line["visit"].(map[string]any)
@@ -1729,47 +1881,85 @@ func TestTaggedFieldsAreRedactedThroughAPointer(t *testing.T) {
 }
 
 // A struct with no phi tag anywhere must pass through untouched, keeping its
-// ordinary rendering — the walker is not a general-purpose reformatter.
+// ordinary rendering — this handler is not a general-purpose reformatter, and
+// that is exactly the overreach that broke the previous design.
 func TestUntaggedStructsAreNotRewritten(t *testing.T) {
-	line := logLine(t, func(l *slog.Logger) { l.Info("ok", "p", plain{A: "x", B: 2}) })
+	line := tagLine(t, func(l *slog.Logger) { l.Info("ok", "p", plain{A: "x", B: 2}) })
 	require.NotContains(t, line, "REDACTED")
-	require.NotNil(t, line["p"])
+	got, ok := line["p"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "x", got["A"])
+	require.Equal(t, float64(2), got["B"])
 }
 
-// A tagged field still gets the pattern pass: a phone number in an untagged
-// sibling field must not escape just because the struct was walked.
-func TestPatternRedactionStillAppliesInsideAWalkedStruct(t *testing.T) {
-	type contact struct {
-		Name  string `hmslog:"phi"`
-		Phone string
-	}
-	line := logLine(t, func(l *slog.Logger) {
-		l.Info("ok", "c", contact{Name: "Suresh Kumar", Phone: "9876543210"})
+func TestTagHandlerRedactsInsideGroups(t *testing.T) {
+	line := tagLine(t, func(l *slog.Logger) {
+		l.Info("ok", slog.Group("g", slog.Any("p", patient{ID: "p-1", Name: "Suresh Kumar"})))
 	})
-	got := line["c"].(map[string]any)
+	group := line["g"].(map[string]any)
+	got := group["p"].(map[string]any)
 	require.Equal(t, "[REDACTED:phi]", got["Name"])
-	require.Equal(t, "[REDACTED:mobile]", got["Phone"])
+}
+
+func TestTagHandlerRedactsPreBoundAttrs(t *testing.T) {
+	var buf bytes.Buffer
+	inner := slog.NewJSONHandler(&buf, nil)
+	slog.New(logging.NewPHITagHandler(inner)).
+		With("patient", patient{ID: "p-1", Name: "Suresh Kumar"}).
+		Info("ok")
+	require.NotContains(t, buf.String(), "Suresh Kumar", "raw: %s", buf.String())
+	require.Contains(t, buf.String(), "[REDACTED:phi]")
+}
+
+// A type that marshals itself must be left alone. Rebuilding it from exported
+// fields publishes whatever its MarshalJSON deliberately omitted — which is
+// how the previous design published a patient's name.
+type selfMarshalling struct {
+	Name string `hmslog:"phi"`
+	Ref  string
+}
+
+func (s selfMarshalling) MarshalJSON() ([]byte, error) {
+	return []byte(`"ref:` + s.Ref + `"`), nil
+}
+
+func TestSelfMarshallingTypesAreNotRewritten(t *testing.T) {
+	line := tagLine(t, func(l *slog.Logger) {
+		l.Info("ok", "k", selfMarshalling{Name: "Suresh Kumar", Ref: "r-1"})
+	})
+	require.Equal(t, "ref:r-1", line["k"],
+		"the type's own marshalling must be respected, not reconstructed")
 }
 
 func TestTaggedRedactionIncrementsTheCounter(t *testing.T) {
 	before := logging.RedactionCount()
-	logLine(t, func(l *slog.Logger) {
+	tagLine(t, func(l *slog.Logger) {
 		l.Info("ok", "p", patient{Name: "Suresh Kumar", DOB: "1971-03-04"})
 	})
 	require.GreaterOrEqual(t, logging.RedactionCount(), before+2)
 }
-```
 
-Add `"log/slog"` and `"github.com/tesserix/hms/pkg/logging"` to that file's imports.
-`logLine` is defined in `redact_test.go`, same package.
+// Self-referential types must not hang the logger.
+type cyclic struct {
+	Name string `hmslog:"phi"`
+	Next *cyclic
+}
+
+func TestCyclicStructuresTerminate(t *testing.T) {
+	c := &cyclic{Name: "Suresh Kumar"}
+	c.Next = c
+	line := tagLine(t, func(l *slog.Logger) { l.Info("ok", "c", c) })
+	require.NotContains(t, line, "Suresh Kumar")
+}
+```
 
 - [ ] **Step 2: Run and confirm failure**
 
 ```bash
-cd backend && go test ./pkg/logging/ -run 'Tagged|Untagged|PatternRedactionStill' -v
+cd backend && go test ./pkg/logging/ -run 'Tagged|Untagged|TagHandler|SelfMarshalling|Cyclic' -v
 ```
 
-Expected: FAIL — the stub returns `ok=false`, so the struct renders unmasked.
+Expected: build failure — `undefined: logging.NewPHITagHandler`.
 
 - [ ] **Step 3: Implement `pkg/logging/phitag.go`**
 
@@ -1777,13 +1967,15 @@ Expected: FAIL — the stub returns `ok=false`, so the struct renders unmasked.
 package logging
 
 import (
+	"context"
+	"encoding"
+	"encoding/json"
 	"log/slog"
 	"reflect"
 	"sync"
 )
 
-// phiTag marks a struct field as protected health information. A field
-// carrying it is replaced wholesale in the log output:
+// phiTag marks a struct field as protected health information:
 //
 //	type Patient struct {
 //	    ID   string
@@ -1793,22 +1985,104 @@ import (
 // This is the half of redaction that patterns cannot do. A name, a date of
 // birth and an address have no shape to match on; the only way to know they
 // are PHI is for the type to say so.
-const phiTag = "hmslog"
-const phiTagValue = "phi"
-const phiMarker = "[REDACTED:phi]"
+const (
+	phiTag      = "hmslog"
+	phiTagValue = "phi"
+	phiMarker   = "[REDACTED:phi]"
+)
+
+// maxPHIDepth bounds the walk so a self-referential value cannot hang a
+// request. Nothing legitimately logged nests this deeply.
+const maxPHIDepth = 16
 
 // taggedTypes caches, per reflect.Type, whether that type carries a phi tag
 // anywhere in its field graph. Without it every logged struct pays a full
 // reflective walk even when nothing in it is ever redacted, on every line.
 var taggedTypes sync.Map // reflect.Type -> bool
 
-// redactStructValue renders v as a slog group with phi-tagged fields masked,
-// reporting ok=false for anything that is not a struct carrying at least one
-// phi tag. A false result means the caller falls through to ordinary pattern
-// matching, so an untagged struct keeps its normal rendering rather than
-// being reformatted into an object it never asked to be.
-func redactStructValue(v any) (slog.Value, bool) {
-	if v == nil {
+// PHITagHandler masks struct fields tagged hmslog:"phi" before the record is
+// serialised.
+//
+// It is deliberately narrow. It reflects only over values whose type carries a
+// phi tag somewhere, and returns everything else untouched — pattern redaction
+// happens downstream at the writer (see NewRedactingWriter), where it screens
+// the emitted bytes rather than guessing at them. An earlier design had a
+// handler reflecting over every logged value; it leaked four separate ways and
+// was replaced. Do not broaden this one.
+type PHITagHandler struct{ inner slog.Handler }
+
+// NewPHITagHandler wraps inner so tagged fields are masked.
+func NewPHITagHandler(inner slog.Handler) slog.Handler { return &PHITagHandler{inner: inner} }
+
+func (h *PHITagHandler) Enabled(ctx context.Context, l slog.Level) bool {
+	return h.inner.Enabled(ctx, l)
+}
+
+func (h *PHITagHandler) Handle(ctx context.Context, r slog.Record) error {
+	out := slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
+	r.Attrs(func(a slog.Attr) bool {
+		out.AddAttrs(maskAttr(a))
+		return true
+	})
+	return h.inner.Handle(ctx, out)
+}
+
+// WithAttrs masks pre-bound attributes too — a patient bound once with
+// logger.With would otherwise appear unmasked on every line it reaches.
+func (h *PHITagHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	safe := make([]slog.Attr, 0, len(attrs))
+	for _, a := range attrs {
+		safe = append(safe, maskAttr(a))
+	}
+	return &PHITagHandler{inner: h.inner.WithAttrs(safe)}
+}
+
+func (h *PHITagHandler) WithGroup(name string) slog.Handler {
+	return &PHITagHandler{inner: h.inner.WithGroup(name)}
+}
+
+// maskAttr returns a masked copy of a. If the walk cannot process the value it
+// leaves the attribute alone rather than dropping it: the byte layer still
+// screens the result, so a failure here degrades to pattern-only coverage
+// rather than to a lost field.
+func maskAttr(a slog.Attr) (out slog.Attr) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			out = a
+		}
+	}()
+	switch a.Value.Kind() {
+	case slog.KindGroup:
+		attrs := a.Value.Group()
+		safe := make([]slog.Attr, 0, len(attrs))
+		for _, g := range attrs {
+			safe = append(safe, maskAttr(g))
+		}
+		return slog.Attr{Key: a.Key, Value: slog.GroupValue(safe...)}
+	case slog.KindLogValuer:
+		return maskAttr(slog.Attr{Key: a.Key, Value: a.Value.Resolve()})
+	case slog.KindAny:
+		if v, ok := maskTagged(a.Value.Any(), 0); ok {
+			return slog.Attr{Key: a.Key, Value: v}
+		}
+	}
+	return a
+}
+
+// maskTagged renders v as a slog group with phi-tagged fields masked,
+// reporting ok=false for anything this handler must not rewrite. A false
+// result means the value keeps its ordinary rendering and the byte layer
+// screens it.
+func maskTagged(v any, depth int) (slog.Value, bool) {
+	if v == nil || depth > maxPHIDepth {
+		return slog.Value{}, false
+	}
+	// A type that marshals itself is rendered by that method. Rebuilding it
+	// from exported fields would publish whatever its marshaller deliberately
+	// omitted — during an earlier implementation that behaviour published a
+	// patient's name next to a correctly-masked phone number.
+	switch v.(type) {
+	case json.Marshaler, encoding.TextMarshaler:
 		return slog.Value{}, false
 	}
 	rv := reflect.ValueOf(v)
@@ -1821,7 +2095,7 @@ func redactStructValue(v any) (slog.Value, bool) {
 	if rv.Kind() != reflect.Struct || !hasPHITag(rv.Type()) {
 		return slog.Value{}, false
 	}
-	return slog.GroupValue(structAttrs(rv)...), true
+	return slog.GroupValue(structAttrs(rv, depth)...), true
 }
 
 func hasPHITag(t reflect.Type) bool {
@@ -1855,9 +2129,8 @@ func hasPHITag(t reflect.Type) bool {
 }
 
 // structAttrs converts one struct value to attrs, masking tagged fields and
-// passing everything else through the ordinary value redaction so a phone
-// number in an untagged sibling field is still caught.
-func structAttrs(rv reflect.Value) []slog.Attr {
+// leaving everything else to render normally.
+func structAttrs(rv reflect.Value, depth int) []slog.Attr {
 	t := rv.Type()
 	attrs := make([]slog.Attr, 0, t.NumField())
 	for i := 0; i < t.NumField(); i++ {
@@ -1871,59 +2144,56 @@ func structAttrs(rv reflect.Value) []slog.Attr {
 			continue
 		}
 		fv := rv.Field(i)
-		deref := fv
-		for deref.Kind() == reflect.Pointer && !deref.IsNil() {
-			deref = deref.Elem()
-		}
-		if deref.Kind() == reflect.Struct && hasPHITag(deref.Type()) {
-			attrs = append(attrs, slog.Attr{Key: f.Name, Value: slog.GroupValue(structAttrs(deref)...)})
+		if v, ok := maskTagged(fv.Interface(), depth+1); ok {
+			attrs = append(attrs, slog.Attr{Key: f.Name, Value: v})
 			continue
 		}
-		attrs = append(attrs, redactAttr(slog.Any(f.Name, fv.Interface())))
+		attrs = append(attrs, slog.Any(f.Name, fv.Interface()))
 	}
 	return attrs
 }
 ```
 
-- [ ] **Step 4: Delete the stub**
+- [ ] **Step 4: Wire it into the constructor**
 
-Remove the `redactStructValue` stub and its comment from the bottom of
-`backend/pkg/logging/redact.go`.
+In `backend/pkg/logging/logging.go`, wrap the handler:
 
-- [ ] **Step 5: Run and confirm the tests pass**
-
-```bash
-cd backend && go test -race ./pkg/logging/ -v
+```go
+	handler := NewPHITagHandler(slog.NewJSONHandler(NewRedactingWriter(w), &slog.HandlerOptions{Level: lvl}))
 ```
 
-Expected: PASS, whole package.
+The order is deliberate: tags are masked while the value is still a Go value,
+and the writer screens the serialised result afterwards, so anything the tag
+layer declined to touch is still pattern-checked.
+
+- [ ] **Step 5: Run the whole package under the race detector**
+
+```bash
+cd backend && go test -race -count=1 ./pkg/logging/ -v
+```
+
+Expected: PASS. Every Task 6 and Task 7 test must still pass — in particular
+`TestUntaggedStructsAreNotRewritten` and
+`TestNewRedactsEveryRenderingSlogProduces`.
 
 - [ ] **Step 6: Prove the tests can fail — do not skip this**
 
 1. Change `phiTagValue` to `"phix"` → `TestTaggedFieldsAreRedacted` fails.
-2. Make `structAttrs` skip the nested-struct branch (append `redactAttr` for every
-   field) → the `Notes.Complaint` assertion fails.
-3. Make `redactStructValue` return `ok=true` for any struct → `TestUntaggedStructsAreNotRewritten` fails.
+2. Delete the `json.Marshaler, encoding.TextMarshaler` case from `maskTagged` →
+   `TestSelfMarshallingTypesAreNotRewritten` fails, and the failure output
+   shows the name being published. Record that output; it is the evidence for
+   why the case exists.
+3. Make `maskTagged` return `ok=true` for any struct → `TestUntaggedStructsAreNotRewritten` fails.
+4. Remove the `depth > maxPHIDepth` guard → `TestCyclicStructuresTerminate` hangs or overflows.
 
-**Restore after each and confirm a clean run.**
+Restore after each and confirm a clean run.
 
-- [ ] **Step 7: Stress it under the race detector**
-
-The type cache is a `sync.Map` written from every logging goroutine; issue #678 requires
-concurrent use to be race-free.
-
-```bash
-cd backend && go test -race -count=5 ./pkg/logging/
-```
-
-Expected: PASS with no race reports.
-
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 cd .. && make lint-go
-git add backend/pkg/logging/phitag.go backend/pkg/logging/phitag_test.go backend/pkg/logging/redact.go
-git commit -m "feat: redact struct fields tagged hmslog:phi, which patterns cannot catch"
+git add backend/pkg/logging/phitag.go backend/pkg/logging/phitag_test.go backend/pkg/logging/logging.go
+git commit -m "feat: mask struct fields tagged hmslog:phi, which patterns cannot catch"
 ```
 
 ---
@@ -2054,10 +2324,21 @@ checkout races the sub-make and it reads the wrong Makefile.
   **arguments** at those sites. The stderr property test covers the argument. Both exist
   because neither covers the other's failure.
 - Redaction applies only to what passes through `slog`. Anything a dependency writes
-  directly to a file descriptor bypasses it.
+  directly to a file descriptor bypasses it — which is exactly why the GORM logger
+  needed its own guard (Tasks 1–2) rather than relying on this.
 - Redaction runs each pattern to a fixpoint (bounded at 100 iterations per pattern per
   string) so that adjacent matches sharing a separator are all caught. A pathological
   string could hit that bound; it would be under-redacted rather than looping.
+- The tag layer declines to rewrite any value implementing `json.Marshaler` or
+  `encoding.TextMarshaler`, because reconstructing such a type from its exported fields
+  publishes what its own marshaller withheld — observed doing exactly that during the
+  earlier implementation. Those values get pattern coverage from the byte layer only, so
+  a `hmslog:"phi"` field inside a custom-marshalled type is pattern-screened but not
+  tag-masked.
+- `bounded()` makes hyphen-adjacent PHI a blind spot: `9876543210-9876543211` and
+  `phone-9876543210` are left in the clear. This is the unavoidable other side of the
+  UUID false-positive fix, without which every `tenant_id` would be masked and
+  correlation destroyed. Do not widen the neighbour class without re-deriving that case.
 - Sampling guidance for high-volume paths (issue scope line 4) is documented as a note
   in `docs/standards/backend.md` rather than implemented — no high-volume path exists
   yet, and #438 is the first candidate.

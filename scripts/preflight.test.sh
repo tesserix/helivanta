@@ -141,7 +141,16 @@ make_shim "$nodocker" docker 'exit 1'
 make_shim "$nodocker" go     'echo "go version go1.24.2 darwin/arm64"'
 make_shim "$nodocker" node   'echo "v20.11.0"'
 
-out=$(run_preflight "$nodocker" NODE_AUTH_TOKEN=); status=$?
+# This case relies on pnpm being ABSENT, so the PATH must be hermetic — the
+# shim dir plus only the system directories preflight genuinely needs — not
+# additive. An additive PATH would still find a real pnpm from the caller's
+# environment (e.g. installed globally via nvm/corepack), making this
+# assertion pass or fail depending on the developer's machine rather than on
+# preflight.sh's own logic. /usr/sbin (macOS) and /usr/bin (Linux) are where
+# lsof lives, which port_is_ours needs; sed/sort/head/ps come from /usr/bin
+# and /bin.
+out=$(env PATH="$nodocker:/usr/bin:/bin:/usr/sbin:/sbin" NODE_AUTH_TOKEN= \
+  PREFLIGHT_PORTS="$(free_port)" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
 assert_status "several problems exit 1" 1 "$status"
 assert_contains "reports docker"    "$out" 'Docker is not running'
 assert_contains "reports go"        "$out" 'Go 1.26+'

@@ -58,9 +58,17 @@ not error-string redaction.
 
 ## Scope
 
-One spec, four parts, sequenced so the guard lands first and survives an
+One spec, five parts, sequenced so the guard lands first and survives an
 interruption. Out of scope: log shipping and storage (infrastructure), metrics
 and traces (#679).
+
+**Shipped: Parts A–D.** Part A merged separately as the urgent guard; B, C and D
+followed. **Part E (tag redaction) is deferred** — implemented, reviewed twice,
+withdrawn, and tracked as its own issue with a replacement design. See the end
+of Part E for the five defects that caused it and the marshal-then-mask approach
+that should supersede it. Issue #678's tagged-field acceptance criterion is
+therefore **not met by this work** and is stated as such rather than quietly
+claimed.
 
 ---
 
@@ -219,7 +227,15 @@ silently. The byte layer is a fixed number of regex passes over one line, with
 no reflection and no allocation proportional to structure depth, so it is
 cheaper than the walker it replaced.
 
-## Part E — tag redaction, for what patterns cannot match
+## Part E — tag redaction — DEFERRED, see below
+
+**Status: not shipped with Parts A–D.** Implemented, reviewed twice, and
+withdrawn. Tracked as [#778](https://github.com/tesserix/hms/issues/778); the
+withdrawn implementation is preserved on `backup/678-phitag-reflection`. What
+follows describes the intent; the closing subsection records why the reflection
+approach was abandoned and what should replace it.
+
+
 
 A name, a date of birth and an address have no shape to match on. The only way
 to know they are PHI is for the type to say so:
@@ -250,6 +266,47 @@ layer is what covers it if it does.
 Because it runs before serialisation and the byte layer runs after, the two
 compose: a tagged field is masked by name, and anything the tag missed is
 still pattern-screened on the way out.
+
+### Why the reflection implementation was withdrawn
+
+Two rounds produced five confirmed Critical defects, all from one root cause:
+**masking a field by reconstructing the value from reflection means
+reimplementing `encoding/json`.** Every rule the reconstruction did not
+reproduce became a defect.
+
+| Defect | Cause |
+|---|---|
+| An untagged wrapper holding `[]patient` leaked every name — `{"Rows":[{"Name":"SECRET-NAME"}]}` | tag detection never looked through a collection element type. This is the ordinary list-response DTO, the most likely shape in the system. |
+| `json:"-"` fields were published — `{"Secret":"HIDDEN"}` | the reconstruction keyed on Go field names and ignored json tags, `omitempty` and `-`. The tag layer published what the type withheld, which is the exact constraint the marshaller decline exists to enforce. |
+| The depth cap failed **open** — 8 plaintext names past the limit | past `maxPHIDepth` the remaining subtree was handed to the encoder raw. A true cycle was caught only because `encoding/json` bails on cycles; a finite deep chain had no such backstop. |
+| Type-cache poisoning across mutually recursive types | `hasPHITag` seeded `false` before recursing, so an outer type could observe the seed and cache `false` permanently. Order-dependent and racy. |
+| A 20-node shared-reference DAG hung the logger past 25s | the depth cap was per-branch, not a global node budget, so a DAG re-expanded into a tree. One log line could wedge a request goroutine. |
+
+This is the same trap Part D fell into from the other direction: Part D tried to
+predict how `encoding/json` would *render* a value; Part E tried to *reproduce*
+that rendering. Both mean duplicating a library's behaviour and being wrong in a
+new way each round.
+
+**The design that should replace it — marshal first, then mask.** Do not
+reconstruct the value at all:
+
+1. `json.Marshal(v)` — the type's true rendering, honouring json tags,
+   `omitempty`, `-`, embedding, custom marshallers, cycles and DAGs, because
+   `encoding/json` does all of it.
+2. Per type, cached, compute the set of **JSON paths** that carry
+   `hmslog:"phi"`, applying `encoding/json`'s own field-naming rules.
+3. Walk the marshalled JSON and replace the values at those paths.
+
+Only step 2 reimplements anything, and it reimplements *naming* rather than
+*rendering* — a far smaller and fully testable surface. `json:"-"` fields never
+appear in the output, so they cannot be published; cycles and deep or wide
+graphs are `encoding/json`'s problem, and it already solves them.
+
+**Until Part E ships, names, dates of birth and addresses are protected by Part
+A only** — the GORM guard that keeps bulk patient data out of the logs
+entirely. Parts B–D ship without it, and issue #678's tagged-field acceptance
+criterion is explicitly unmet and tracked separately rather than quietly
+claimed.
 
 ---
 
@@ -284,8 +341,7 @@ New:
 - `backend/pkg/logging/logging.go` — `New(level string) *slog.Logger`
 - `backend/pkg/logging/redact.go` — the pattern set, the byte-level redacting
   writer, and the counter
-- `backend/pkg/logging/phitag.go` — the `hmslog:"phi"` handler wrapper
-- `backend/pkg/logging/logging_test.go`, `redact_test.go`, `phitag_test.go`
+- `backend/pkg/logging/logging_test.go`, `redact_test.go`
 
 Changed:
 
@@ -300,15 +356,10 @@ Changed:
 
 ## Known limitations
 
-- Pattern redaction cannot detect names, dates of birth, or addresses. Part A
-  is what protects those in bulk; Part E's `hmslog:"phi"` tag covers them
-  wherever a developer remembers to apply it.
-- Part E declines to rewrite a value implementing `json.Marshaler` or
-  `encoding.TextMarshaler`, because reconstructing such a type from its
-  exported fields publishes what its own marshaller withheld — observed doing
-  exactly that during implementation. Those values are covered by Part D's byte
-  layer only, which means a tagged field inside a custom-marshalled type is
-  pattern-screened but not tag-masked.
+- Pattern redaction cannot detect names, dates of birth, or addresses, and
+  **Part E is deferred**, so nothing in the logging pipeline masks them. Part A
+  — keeping GORM's logger silent — is what protects them today, by preventing
+  patient rows from reaching the log stream at all.
 - The redaction counter is in-process only until #679 provides a metrics sink.
   With redaction split across two layers it counts both.
 - The arch test allowlists `gorm.Open` call sites; it does not verify the

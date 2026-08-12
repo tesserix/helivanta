@@ -2,6 +2,7 @@ name: hms-dev
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: hms
       POSTGRES_PASSWORD: hms
@@ -18,6 +19,7 @@ services:
 
   nats:
     image: nats:2.10-alpine
+    restart: unless-stopped
     command: ["-js", "-sd", "/data"]
     ports: ["4222:4222", "8222:8222"]
     volumes: [natsdata:/data]
@@ -29,6 +31,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports: ["6379:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -38,6 +41,7 @@ services:
 
   openfga:
     image: openfga/openfga:v1.8.4
+    restart: unless-stopped
     command: ["run"]
     environment:
       OPENFGA_DATASTORE_ENGINE: memory
@@ -51,11 +55,19 @@ services:
   firebase-auth:
     image: node:22-alpine
     working_dir: /workspace
-    command: sh -c "npx -y firebase-tools@13 emulators:start --only auth --project demo-hms"
+    # firebase-tools is pinned exactly. `firebase-tools@13` resolved a
+    # floating minor on every container start, so two machines could run
+    # different emulator builds and every start needed the network —
+    # directly against #714's "seeded data identical across machines".
+    # The npm cache volume makes restarts fast and offline-capable.
+    command: sh -c "npx -y firebase-tools@13.35.1 emulators:start --only auth --project demo-hms"
+    restart: unless-stopped
     volumes:
       - ./dev/firebase:/workspace
+      - npmcache:/root/.npm
     ports: ["9099:9099"]
 
 volumes:
   pgdata:
   natsdata:
+  npmcache:

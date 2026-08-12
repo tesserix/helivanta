@@ -32,6 +32,18 @@ Seeding is idempotent, so re-running `make up` is safe. The individual
 steps are still available if you want them: `make dev-infra`, `make
 migrate`, `make seed`, `make dev-api`, `make dev-web`.
 
+`make up` runs `scripts/preflight.sh` first. It checks Docker, Compose v2,
+Go, Node, pnpm, `NODE_AUTH_TOKEN` and all eleven ports the stack uses, and
+reports **every** problem at once with the fix for each — a fresh machine
+usually has more than one. A port held by this repo's own containers or
+processes is not a conflict, so re-running `make up` on a stack that is
+already running still works.
+
+`make reset` returns the stack to a clean seeded state: it stops
+everything, drops the Postgres and NATS volumes, restarts infrastructure
+and re-seeds. It prompts first, because dropping those volumes is
+unrecoverable; `RESET_YES=1 make reset` skips the prompt for scripts.
+
 Log in at http://localhost:4301/login:
 
 | User                 | Password      | Tenant                 | Role           | Sees              |
@@ -68,7 +80,15 @@ Postgres 5432, NATS 4222, Redis 6379, OpenFGA 8090, GIP emulator 9099.
 - `make verify-local` retries the zone checks: `next dev` compiles a route on
   its first request, so a cold zone can take tens of seconds to answer once
   and milliseconds thereafter. A genuinely down service still fails.
-- Useful targets: `make test` (Go + web), `make lint-go`, `make coverage-go`,
+- `firebase-tools` is pinned to an exact version in `docker-compose.dev.yml`
+  and its npm download is cached in the `npmcache` volume. The previous
+  floating `@13` resolved a different minor on every container start, so
+  two machines could run different emulator builds.
+- All five containers use `restart: unless-stopped`, so the stack comes
+  back after a laptop sleep or a Docker restart. A container you stopped
+  deliberately stays stopped.
+- Useful targets: `make test` (Go + web), `make test-scripts` (shell tests),
+  `make preflight`, `make reset`, `make lint-go`, `make coverage-go`,
   `make e2e` (Playwright, needs the stack up), `make new-module NAME=<name>`.
 
 Deployment lives in `tesserix-k8s` (charts/apps/hms-*), not here.

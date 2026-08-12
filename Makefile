@@ -70,8 +70,11 @@ dev-infra: preflight
 	@until curl -fsS --max-time 2 http://localhost:$(HMS_GIP_PORT)/ >/dev/null 2>&1; do printf '.'; sleep 1; done
 	@echo ' ready.'
 
+# HMS_ENV=dev is required here: the API refuses to start with
+# FIREBASE_AUTH_EMULATOR_HOST set outside dev, because the emulator makes
+# ID token signature verification a no-op.
 dev-api:
-	cd backend && FIREBASE_AUTH_EMULATOR_HOST=$${FIREBASE_AUTH_EMULATOR_HOST:-localhost:$(HMS_GIP_PORT)} PORT=$${PORT:-$(HMS_API_PORT)} go run ./cmd/api
+	cd backend && HMS_ENV=$${HMS_ENV:-dev} FIREBASE_AUTH_EMULATOR_HOST=$${FIREBASE_AUTH_EMULATOR_HOST:-localhost:$(HMS_GIP_PORT)} PORT=$${PORT:-$(HMS_API_PORT)} go run ./cmd/api
 
 dev-web:
 	pnpm turbo dev

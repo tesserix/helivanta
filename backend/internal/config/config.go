@@ -3,6 +3,7 @@ package config
 import "os"
 
 type Config struct {
+	Env              string
 	Port             string
 	AppDatabaseURL   string
 	AdminDatabaseURL string
@@ -14,6 +15,7 @@ type Config struct {
 
 func Load() Config {
 	return Config{
+		Env:              getenv("HMS_ENV", "production"),
 		Port:             getenv("PORT", "8080"),
 		AppDatabaseURL:   getenv("APP_DATABASE_URL", "postgres://hms_app:hms_app@localhost:5432/hms?sslmode=disable"),
 		AdminDatabaseURL: getenv("ADMIN_DATABASE_URL", "postgres://hms:hms@localhost:5432/hms?sslmode=disable"),
@@ -30,3 +32,9 @@ func getenv(k, def string) string {
 	}
 	return def
 }
+
+// IsDev reports whether this process is running in a developer
+// environment. It defaults to false: the guards that consult it disable
+// production safety checks, so an unset or misspelled HMS_ENV must fail
+// closed rather than silently unlock them.
+func (c Config) IsDev() bool { return c.Env == "dev" }

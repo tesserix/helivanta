@@ -1,6 +1,9 @@
-.PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local
+.PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local preflight
 
-dev-infra:
+preflight:
+	@bash scripts/preflight.sh
+
+dev-infra: preflight
 	docker compose -f docker-compose.dev.yml up -d --wait postgres nats redis openfga
 	docker compose -f docker-compose.dev.yml up -d firebase-auth
 	@printf 'Waiting for the GIP emulator on :9099…'

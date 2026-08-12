@@ -100,6 +100,63 @@ make_shim "$yes_compose" docker \
 PATH="$yes_compose:$PATH" port_is_ours "$foreign_port"
 assert_status "port_is_ours true when our compose project publishes it" 0 "$?"
 
+# --- preflight.sh ---------------------------------------------------------
+
+echo
+echo "preflight.sh:"
+
+# A PATH containing satisfactory versions of everything preflight looks for.
+good="$TMP/bin-good"
+make_shim "$good" docker      'exit 0'
+make_shim "$good" go          'echo "go version go1.26.5 darwin/arm64"'
+make_shim "$good" node        'echo "v22.11.0"'
+make_shim "$good" pnpm        'echo "10.17.1"'
+
+run_preflight() { # run_preflight PATHDIR [ENV=VAL ...]
+  local dir="$1"; shift
+  env PATH="$dir:$PATH" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="$(free_port)" \
+    "$@" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1
+}
+
+out=$(run_preflight "$good"); status=$?
+assert_status "clean environment exits 0" 0 "$status"
+
+out=$(run_preflight "$good" NODE_AUTH_TOKEN=); status=$?
+assert_status "missing NODE_AUTH_TOKEN exits 1" 1 "$status"
+assert_contains "missing NODE_AUTH_TOKEN names the fix" "$out" 'gh auth token'
+
+old="$TMP/bin-oldgo"
+make_shim "$old" docker 'exit 0'
+make_shim "$old" go     'echo "go version go1.24.2 darwin/arm64"'
+make_shim "$old" node   'echo "v22.11.0"'
+make_shim "$old" pnpm   'echo "10.17.1"'
+
+out=$(run_preflight "$old"); status=$?
+assert_status "old Go exits 1" 1 "$status"
+assert_contains "old Go names the required version" "$out" '1.26'
+assert_contains "old Go names the version found"    "$out" '1.24.2'
+
+nodocker="$TMP/bin-nodocker"
+make_shim "$nodocker" docker 'exit 1'
+make_shim "$nodocker" go     'echo "go version go1.24.2 darwin/arm64"'
+make_shim "$nodocker" node   'echo "v20.11.0"'
+
+out=$(run_preflight "$nodocker" NODE_AUTH_TOKEN=); status=$?
+assert_status "several problems exit 1" 1 "$status"
+assert_contains "reports docker"    "$out" 'Docker is not running'
+assert_contains "reports go"        "$out" 'Go 1.26+'
+assert_contains "reports node"      "$out" 'Node 22+'
+assert_contains "reports pnpm"      "$out" 'corepack enable'
+assert_contains "reports the token" "$out" 'NODE_AUTH_TOKEN'
+
+busy_port=$(free_port)
+busy_pid=$(listen_from "$TMP" "$busy_port")
+out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="$busy_port" \
+  bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
+assert_status "occupied foreign port exits 1" 1 "$status"
+assert_contains "names the occupied port" "$out" "$busy_port"
+assert_contains "names the fix"           "$out" "make down"
+
 echo
 if [ "$failed" -gt 0 ]; then
   echo "$failed failed, $passed passed"

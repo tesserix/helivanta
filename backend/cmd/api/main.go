@@ -109,6 +109,7 @@ func run() error {
 	}
 	api := platform.NewRouter(srv.Engine.Group("/v1",
 		authn.Middleware(verifier),
+		requestid.PrincipalMiddleware(),
 		authz.Middleware(fga),
 	))
 	for _, m := range registry.All() {

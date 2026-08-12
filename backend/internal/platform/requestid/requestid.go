@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"github.com/tesserix/hms/pkg/authn"
 )
 
 const Key = "request_id"
@@ -38,4 +40,38 @@ func Logger(c *gin.Context) *slog.Logger {
 		}
 	}
 	return slog.Default()
+}
+
+// Enrich binds additional fields to the request-scoped logger for the rest
+// of this request. slog.Logger.With returns a new logger rather than
+// mutating the receiver, so this cannot leak fields into another request.
+func Enrich(c *gin.Context, args ...any) {
+	if len(args) == 0 {
+		return
+	}
+	c.Set(loggerKey, Logger(c).With(args...))
+}
+
+// PrincipalMiddleware adds tenant_id and subject to the request logger once
+// authn has populated the context. It must be registered after
+// authn.Middleware and before the handlers.
+//
+// This lives in the platform layer rather than in pkg/authn deliberately.
+// internal/ may import pkg/; the reverse is the dependency inversion the
+// foundation audit flagged, and having pkg/authn reach into
+// internal/platform/requestid would deepen it for no benefit.
+//
+// Neither field is patient data: subject is a GIP UID, pseudonymous by
+// construction, and tenant_id is a UUID. With request_id they answer which
+// hospital, which user, which request — without naming anyone.
+func PrincipalMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Unauthenticated requests still log (a 401 is worth a line). An
+		// absent principal leaves the logger untouched rather than binding
+		// empty strings, which would read in a query as a real tenant of "".
+		if p, ok := authn.PrincipalFrom(c); ok {
+			Enrich(c, "tenant_id", p.TenantID, "subject", p.Subject)
+		}
+		c.Next()
+	}
 }

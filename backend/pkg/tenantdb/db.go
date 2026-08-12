@@ -60,15 +60,31 @@ func assertNoRLSBypass(g *gorm.DB) error {
 		Bypass bool
 		Super  bool
 	}
-	err := g.Raw(`SELECT rolbypassrls AS bypass, rolsuper AS super
-		FROM pg_roles WHERE rolname = current_user`).Scan(&caps).Error
-	if err != nil {
-		return fmt.Errorf("probe app role capabilities: %w", err)
+	result := g.Raw(`SELECT rolbypassrls AS bypass, rolsuper AS super
+		FROM pg_roles WHERE rolname = current_user`).Scan(&caps)
+	if result.Error != nil {
+		return fmt.Errorf("probe app role capabilities: %w", result.Error)
 	}
-	if caps.Bypass || caps.Super {
+	return evaluateRLSCaps(caps.Bypass, caps.Super, result.RowsAffected)
+}
+
+// evaluateRLSCaps turns a pg_roles probe into a pass/fail decision. It is
+// split out from assertNoRLSBypass so the zero-row case — current_user
+// matching no row in pg_roles, which Scan does not itself treat as an
+// error — can be unit-tested without a real database. A guard that
+// silently passes when it couldn't evaluate its own precondition is worse
+// than no guard, so rowsAffected == 0 fails closed rather than falling
+// through to the zero-value "safe" caps.
+func evaluateRLSCaps(bypass, super bool, rowsAffected int64) error {
+	if rowsAffected == 0 {
+		return fmt.Errorf("tenantdb: could not determine app role capabilities " +
+			"(current_user matched no row in pg_roles); refusing to assume it cannot " +
+			"bypass row-level security")
+	}
+	if bypass || super {
 		return fmt.Errorf("tenantdb: APP_DATABASE_URL connects as a role that can bypass "+
 			"row-level security (bypassrls=%v superuser=%v); tenant isolation would be "+
-			"silently disabled. Point it at the non-superuser application role", caps.Bypass, caps.Super)
+			"silently disabled. Point it at the non-superuser application role", bypass, super)
 	}
 	return nil
 }

@@ -23,6 +23,19 @@ type DB struct {
 }
 
 func Open(appDSN, adminDSN string) (*DB, error) {
+	// logger.Silent is a PHI control, not a noise preference. GORM's logger
+	// renders the executed SQL with parameter values inlined — verified
+	// against the dev database, an errored insert logs
+	// `INSERT INTO phi_probe VALUES (2,'HQ-OPD-0001427','Suresh Kumar')` —
+	// and it does so on the error and slow-query paths, which is exactly
+	// where a debugging session lives. Raising this to logger.Info or
+	// logger.Warn to see a slow query would dump every column of every
+	// failing write, patient names included, into the log stream. Do not.
+	// Two things stop that regression:
+	// TestGormOpenIsOnlyCalledFromTheAllowlist in internal/archtest keeps
+	// the set of pools to this file and one test helper, and
+	// TestOpenNeverLogsQueryParameters below asserts the property against
+	// a real Postgres.
 	open := func(dsn string) (*gorm.DB, error) {
 		return gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	}

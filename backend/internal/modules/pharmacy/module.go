@@ -161,7 +161,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			return tx.Create(&row).Error
 		})
 		if err != nil {
-			respond.Internal(c, "could not create medication")
+			respond.InternalErr(c, err, "could not create medication")
 			return
 		}
 		respond.Created(c, gin.H{"id": row.ID.String()})
@@ -177,7 +177,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
 		})
 		if err != nil {
-			respond.Internal(c, "could not list medications")
+			respond.InternalErr(c, err, "could not list medications")
 			return
 		}
 		respond.OK(c, gin.H{"data": rows})
@@ -193,7 +193,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
 		})
 		if err != nil {
-			respond.Internal(c, "could not list dispenses")
+			respond.InternalErr(c, err, "could not list dispenses")
 			return
 		}
 		respond.OK(c, gin.H{"data": rows})
@@ -249,7 +249,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			return
 		}
 		if err != nil {
-			respond.Internal(c, "could not dispense")
+			respond.InternalErr(c, err, "could not dispense")
 			return
 		}
 		if status == http.StatusConflict {

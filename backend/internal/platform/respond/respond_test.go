@@ -44,7 +44,7 @@ func TestErrorHelpers(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, w.Code)
 	require.JSONEq(t, `{"error":"invalid_request","message":"bad field"}`, w.Body.String())
 
-	w = run(func(c *gin.Context) { respond.Internal(c, "could not record ping") })
+	w = run(func(c *gin.Context) { respond.InternalErr(c, errors.New("insert failed"), "could not record ping") })
 	require.Equal(t, http.StatusInternalServerError, w.Code)
 	require.JSONEq(t, `{"error":"internal","message":"could not record ping"}`, w.Body.String())
 }

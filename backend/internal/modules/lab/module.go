@@ -120,7 +120,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
 		})
 		if err != nil {
-			respond.Internal(c, "could not list orders")
+			respond.InternalErr(c, err, "could not list orders")
 			return
 		}
 		respond.OK(c, gin.H{"data": rows})
@@ -176,7 +176,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			return
 		}
 		if err != nil {
-			respond.Internal(c, "could not record result")
+			respond.InternalErr(c, err, "could not record result")
 			return
 		}
 		if status == http.StatusConflict {

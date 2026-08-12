@@ -149,7 +149,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			})
 		})
 		if err != nil {
-			respond.Internal(c, "could not create item")
+			respond.InternalErr(c, err, "could not create item")
 			return
 		}
 		respond.Accepted(c, gin.H{"id": row.ID.String()})
@@ -165,7 +165,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
 		})
 		if err != nil {
-			respond.Internal(c, "could not list items")
+			respond.InternalErr(c, err, "could not list items")
 			return
 		}
 		respond.OK(c, gin.H{"data": rows})
@@ -216,7 +216,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			return
 		}
 		if err != nil {
-			respond.Internal(c, "could not complete item")
+			respond.InternalErr(c, err, "could not complete item")
 			return
 		}
 		if status == http.StatusConflict {

@@ -194,7 +194,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			})
 		})
 		if err != nil {
-			respond.Internal(c, "could not grant role")
+			respond.InternalErr(c, err, "could not grant role")
 			return
 		}
 		respond.Accepted(c, gin.H{"id": row.ID.String()})
@@ -224,7 +224,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			})
 		})
 		if err != nil {
-			respond.Internal(c, "could not revoke role")
+			respond.InternalErr(c, err, "could not revoke role")
 			return
 		}
 		respond.Accepted(c, gin.H{"subject": subject, "role_key": roleKey})
@@ -240,7 +240,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			return tx.Order("created_at DESC").Limit(500).Find(&rows).Error
 		})
 		if err != nil {
-			respond.Internal(c, "could not list members")
+			respond.InternalErr(c, err, "could not list members")
 			return
 		}
 		respond.OK(c, gin.H{"data": rows})

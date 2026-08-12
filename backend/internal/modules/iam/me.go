@@ -58,7 +58,7 @@ func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
 	g.GET("/me/permissions", authz.Public, func(c *gin.Context) {
 		set, ok := authz.PermissionsFrom(c)
 		if !ok {
-			respond.Internal(c, "authorization not initialized")
+			respond.InternalErr(c, errors.New("permission set missing from context"), "authorization not initialized")
 			return
 		}
 		// subject and tenant_id travel with the permission set so the

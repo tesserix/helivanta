@@ -124,7 +124,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			})
 		})
 		if err != nil {
-			respond.Internal(c, "could not create visit")
+			respond.InternalErr(c, err, "could not create visit")
 			return
 		}
 		respond.Accepted(c, gin.H{"id": row.ID.String()})
@@ -140,7 +140,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
 		})
 		if err != nil {
-			respond.Internal(c, "could not list visits")
+			respond.InternalErr(c, err, "could not list visits")
 			return
 		}
 		respond.OK(c, gin.H{"data": rows})

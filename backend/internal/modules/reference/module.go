@@ -130,7 +130,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			})
 		})
 		if err != nil {
-			respond.Internal(c, "could not record ping")
+			respond.InternalErr(c, err, "could not record ping")
 			return
 		}
 		respond.Accepted(c, gin.H{"id": row.ID.String()})
@@ -146,7 +146,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
 		})
 		if err != nil {
-			respond.Internal(c, "could not list pings")
+			respond.InternalErr(c, err, "could not list pings")
 			return
 		}
 		respond.OK(c, gin.H{"data": rows})
@@ -172,7 +172,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 			return
 		}
 		if err != nil {
-			respond.Internal(c, "could not load ping")
+			respond.InternalErr(c, err, "could not load ping")
 			return
 		}
 		respond.OK(c, row)

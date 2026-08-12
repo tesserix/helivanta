@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/config"
 	"github.com/tesserix/hms/internal/httpserver"
@@ -88,6 +90,16 @@ func run() error {
 	if err := platform.Reconcile(ctx, registry, db, fga); err != nil {
 		return err
 	}
+
+	// gin.Recovery() does not route through slog — gin builds its own
+	// log.New(gin.DefaultErrorWriter, ...) rather than using log.Default(),
+	// so slog.SetDefault's redirection of the standard library's log package
+	// never reaches it, and a handler panic writes straight to os.Stderr with
+	// whatever identifier triggered it still in the clear. This package's
+	// thesis is that everything the process emits is screened, so this is
+	// the one place gin's own writer has to be wrapped explicitly to keep
+	// that true.
+	gin.DefaultErrorWriter = logging.NewRedactingWriter(gin.DefaultErrorWriter)
 
 	srv := httpserver.New(
 		[]httpserver.ReadyCheck{

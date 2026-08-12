@@ -312,11 +312,17 @@ claimed.
 
 ## Error handling
 
-Redaction fails safe: if the walker cannot process a value, it drops the field
-rather than emitting it raw. An unrecognised `LOG_LEVEL` degrades to `info`
-with a warning rather than refusing to boot — the opposite choice from the
-`HMS_ENV` guards, because a log level cannot compromise tenant isolation and a
-hospital API should not fail to start over a typo.
+There is no walker — that was Part E, and it is withdrawn (see above and #778).
+The shipped mechanism is `NewRedactingWriter`: it parses each emitted line as
+JSON and re-encodes it with every string, key and number screened for PHI. If
+the line does not parse as a single well-formed JSON value, it does **not**
+drop the field — it falls back to whole-line `RedactString`, screening the raw
+bytes as text and passing the result through exactly as valid (or invalid) as
+the input already was. Nothing is ever dropped; the fallback only changes how
+the line is scanned, not whether it is emitted. An unrecognised `LOG_LEVEL`
+degrades to `info` with a warning rather than refusing to boot — the opposite
+choice from the `HMS_ENV` guards, because a log level cannot compromise tenant
+isolation and a hospital API should not fail to start over a typo.
 
 ## Testing
 

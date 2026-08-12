@@ -22,7 +22,7 @@ func New(level string) *slog.Logger {
 // output without touching os.Stdout.
 func NewWithWriter(w io.Writer, level string) *slog.Logger {
 	lvl, ok := ParseLevel(level)
-	handler := slog.NewJSONHandler(w, &slog.HandlerOptions{Level: lvl})
+	handler := slog.NewJSONHandler(NewRedactingWriter(w), &slog.HandlerOptions{Level: lvl})
 	l := slog.New(handler)
 	if !ok && strings.TrimSpace(level) != "" {
 		// Warn rather than fail: a mistyped log level cannot compromise

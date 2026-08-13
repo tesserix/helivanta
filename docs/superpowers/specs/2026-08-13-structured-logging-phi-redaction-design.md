@@ -227,13 +227,16 @@ silently. The byte layer is a fixed number of regex passes over one line, with
 no reflection and no allocation proportional to structure depth, so it is
 cheaper than the walker it replaced.
 
-## Part E — tag redaction — DEFERRED, see below
+## Part E — tag redaction — SHIPPED as #778
 
-**Status: not shipped with Parts A–D.** Implemented, reviewed twice, and
-withdrawn. Tracked as [#778](https://github.com/tesserix/hms/issues/778); the
-withdrawn implementation is preserved on `backup/678-phitag-reflection`. What
-follows describes the intent; the closing subsection records why the reflection
-approach was abandoned and what should replace it.
+**Status: shipped, but not as the design first written here.** The original
+reflection-based implementation was written, reviewed twice and withdrawn over
+five Critical defects; the withdrawn implementation is preserved on
+`backup/678-phitag-reflection`. What shipped under
+[#778](https://github.com/tesserix/hms/issues/778) is the *marshal-then-mask*
+replacement described at the end of this section, in
+`backend/pkg/logging/phitag.go`. What follows describes the intent, then why the
+reflection approach was abandoned and what replaced it.
 
 
 
@@ -302,18 +305,29 @@ Only step 2 reimplements anything, and it reimplements *naming* rather than
 appear in the output, so they cannot be published; cycles and deep or wide
 graphs are `encoding/json`'s problem, and it already solves them.
 
-**Until Part E ships, names, dates of birth and addresses are protected by Part
-A only** — the GORM guard that keeps bulk patient data out of the logs
-entirely. Parts B–D ship without it, and issue #678's tagged-field acceptance
-criterion is explicitly unmet and tracked separately rather than quietly
-claimed.
+This is what shipped. Beyond the three steps above, two things the withdrawn
+design guessed at are not guessed at here: which json tag names `encoding/json`
+honours is answered by *asking it* (marshal a synthetic one-field struct and
+read the emitted key), and its depth/tag conflict rule is mirrored explicitly
+with a fail-closed branch. Both were the source of a name-resolution leak
+during #778's own review, so neither is left to inference.
+
+Parts A–D shipped before it, during which **names, dates of birth and addresses
+were protected by Part A only** — the GORM guard that keeps bulk patient data
+out of the logs entirely. Issue #678's tagged-field acceptance criterion is met
+by this part.
 
 ---
 
 ## Error handling
 
-There is no walker — that was Part E, and it is withdrawn (see above and #778).
-The shipped mechanism is `NewRedactingWriter`: it parses each emitted line as
+There is no reflection walker — that was the withdrawn Part E design (see above
+and #778). Part E as shipped fails closed: a value whose type carries a phi tag
+and which cannot be marshalled, or whose rendering exceeds the size guard or
+cannot be walked, is replaced *whole* by the marker rather than emitted
+partially masked. A value whose type carries no tag is never touched.
+
+The pattern mechanism is `NewRedactingWriter`: it parses each emitted line as
 JSON and re-encodes it with every string, key and number screened for PHI. If
 the line does not parse as a single well-formed JSON value, it does **not**
 drop the field — it falls back to whole-line `RedactString`, screening the raw
@@ -362,10 +376,14 @@ Changed:
 
 ## Known limitations
 
-- Pattern redaction cannot detect names, dates of birth, or addresses, and
-  **Part E is deferred**, so nothing in the logging pipeline masks them. Part A
-  — keeping GORM's logger silent — is what protects them today, by preventing
-  patient rows from reaching the log stream at all.
+- Pattern redaction cannot detect names, dates of birth, or addresses. Part E
+  masks them **only where a field is tagged** `hmslog:"phi"` — an untagged field
+  is not PHI as far as the logger is concerned. Part A — keeping GORM's logger
+  silent — remains what protects bulk patient rows, by preventing them from
+  reaching the log stream at all.
+- Part E sees only static types. PHI logged through `[]any` or
+  `map[string]any` carries no tag on the element type and is not masked, and a
+  type with its own `MarshalJSON` renders however it likes beneath the tag.
 - The redaction counter is in-process only until #679 provides a metrics sink.
   With redaction split across two layers it counts both.
 - The arch test allowlists `gorm.Open` call sites; it does not verify the

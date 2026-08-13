@@ -12,6 +12,7 @@ import (
 
 	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/config"
+	"github.com/tesserix/hms/pkg/logging"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -25,6 +26,7 @@ func main() {
 
 func run() error {
 	cfg := config.Load()
+	slog.SetDefault(logging.New(cfg.LogLevel))
 	ctx := context.Background()
 
 	db, err := tenantdb.Open(cfg.AppDatabaseURL, cfg.AdminDatabaseURL)

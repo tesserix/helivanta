@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/config"
 	"github.com/tesserix/hms/internal/httpserver"
@@ -19,6 +21,7 @@ import (
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/hms/pkg/logging"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -31,6 +34,9 @@ func main() {
 
 func run() error {
 	cfg := config.Load()
+	// Before anything else logs: until this runs, slog.Default() is the
+	// unconfigured text handler on stderr and nothing is redacted.
+	slog.SetDefault(logging.New(cfg.LogLevel))
 	// Logged once at boot because HMS_ENV silently gates production safety
 	// checks (see Config.IsDev) — a prod process accidentally started with
 	// HMS_ENV=dev would otherwise disable them with no signal anywhere.
@@ -85,6 +91,16 @@ func run() error {
 		return err
 	}
 
+	// gin.Recovery() does not route through slog — gin builds its own
+	// log.New(gin.DefaultErrorWriter, ...) rather than using log.Default(),
+	// so slog.SetDefault's redirection of the standard library's log package
+	// never reaches it, and a handler panic writes straight to os.Stderr with
+	// whatever identifier triggered it still in the clear. This package's
+	// thesis is that everything the process emits is screened, so this is
+	// the one place gin's own writer has to be wrapped explicitly to keep
+	// that true.
+	gin.DefaultErrorWriter = logging.NewRedactingWriter(gin.DefaultErrorWriter)
+
 	srv := httpserver.New(
 		[]httpserver.ReadyCheck{
 			{Name: "postgres", Check: db.PingContext},
@@ -105,6 +121,7 @@ func run() error {
 	}
 	api := platform.NewRouter(srv.Engine.Group("/v1",
 		authn.Middleware(verifier),
+		requestid.PrincipalMiddleware(),
 		authz.Middleware(fga),
 	))
 	for _, m := range registry.All() {

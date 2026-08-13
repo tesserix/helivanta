@@ -9,9 +9,17 @@ package authz
 //
 //	role:<tenantID>/<roleKey>          assignee     user:<subject>
 //	perm:<tenantID>/<permission>       granted_role role:<tenantID>/<roleKey>
+//	tenant:<tenantID>                  granted_role role:<tenantID>/<roleKey>
 //
 // Tenant isolation lives in the object-id namespace, so a ListObjects
 // for one tenant can never return another tenant's perm objects.
+//
+// `member` on tenant is DERIVED, never granted directly: it resolves
+// through the same role assignment that grants permissions, so
+// "member of this tenant" and "holds a role in this tenant" cannot
+// drift apart. A directly-writable member relation would be a second,
+// independent definition of membership and therefore a second thing to
+// keep in sync.
 const modelJSON = `{
   "schema_version": "1.1",
   "type_definitions": [
@@ -30,6 +38,23 @@ const modelJSON = `{
       "relations": {
         "granted_role": { "this": {} },
         "can_do": {
+          "tupleToUserset": {
+            "tupleset": { "relation": "granted_role" },
+            "computedUserset": { "relation": "assignee" }
+          }
+        }
+      },
+      "metadata": {
+        "relations": {
+          "granted_role": { "directly_related_user_types": [{ "type": "role" }] }
+        }
+      }
+    },
+    {
+      "type": "tenant",
+      "relations": {
+        "granted_role": { "this": {} },
+        "member": {
           "tupleToUserset": {
             "tupleset": { "relation": "granted_role" },
             "computedUserset": { "relation": "assignee" }

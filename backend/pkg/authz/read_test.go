@@ -35,6 +35,32 @@ func TestTenantOfObject(t *testing.T) {
 	}
 }
 
+// TestTenantOfObjectIsTypeAware pins the tenant type's shape: a tenant
+// object IS its tenant id, with no /name segment, unlike role: and
+// perm:. Making the parse lenient (any object without a "/" treated as a
+// tenant) would be dangerous — see the "dangerous case" below.
+func TestTenantOfObjectIsTypeAware(t *testing.T) {
+	const tid = "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+
+	got, ok := authz.TenantOfObject("tenant:" + tid)
+	require.True(t, ok, "a tenant object carries its tenant id directly, with no /name segment")
+	require.Equal(t, tid, got)
+
+	got, ok = authz.TenantOfObject("perm:" + tid + "/medicore.visit.read")
+	require.True(t, ok)
+	require.Equal(t, tid, got)
+
+	// The dangerous case: a non-tenant type with no /name segment must
+	// NOT parse. If it did, prune would bucket it by a tenant id that
+	// was never validated and could delete a tuple it does not
+	// understand.
+	_, ok = authz.TenantOfObject("perm:garbage")
+	require.False(t, ok, "a non-tenant object without a /name segment must not parse")
+
+	_, ok = authz.TenantOfObject("tenant:")
+	require.False(t, ok, "an empty tenant id must not parse")
+}
+
 func TestReadTuplesByTenantBucketsByTenant(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t)

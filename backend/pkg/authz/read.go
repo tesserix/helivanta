@@ -60,21 +60,37 @@ const readPageSize = 100
 // realistic store is strictly better than hanging.
 const readMaxPages = 100_000
 
-// TenantOfObject returns the tenant an object of a reconciled type is
-// namespaced to, i.e. "tenantA" for "role:tenantA/doctor". ok is false
-// for anything that does not parse as "<type>:<tenantID>/<name>", so a
-// malformed or foreign-shaped object is never attributed to a tenant —
-// and therefore never lands in a bucket the reconciler would delete
-// from.
+// TenantOfObject returns the tenant an object is namespaced to.
+//
+// Two shapes exist, and the distinction is load-bearing for prune:
+//
+//	role:<tenantID>/<roleKey>      perm:<tenantID>/<permission>
+//	tenant:<tenantID>
+//
+// A tenant object IS its tenant id, so it has no /name segment. Every
+// other type must have one. Accepting a missing /name segment for any
+// type would let a malformed object such as "perm:garbage" parse as
+// tenant "garbage" and become a delete candidate bucketed under a
+// tenant id nothing validated — for an operation whose whole purpose is
+// removing authorization, an unexplained object must fail to parse
+// rather than parse into a guess.
 //
 // Exported because tenant isolation for deletes depends on it: the
 // reconciler re-derives the tenant from every object it is about to
 // delete and refuses to delete one that does not belong to the tenant
 // whose desired state it just computed.
 func TenantOfObject(object string) (string, bool) {
-	_, rest, ok := strings.Cut(object, ":")
-	if !ok {
+	typ, rest, ok := strings.Cut(object, ":")
+	if !ok || rest == "" {
 		return "", false
+	}
+	if typ == tenantType {
+		// A tenant object carries no /name segment; one appearing here
+		// means the object is not the shape this function believes.
+		if strings.Contains(rest, "/") {
+			return "", false
+		}
+		return rest, true
 	}
 	tenantID, name, ok := strings.Cut(rest, "/")
 	if !ok || tenantID == "" || name == "" {

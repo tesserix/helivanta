@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -153,24 +154,70 @@ func smallestStoreID(stores []openfga.Store, name string) (id string, ok bool) {
 	return id, ok
 }
 
-// ensureModel writes modelJSON unless a model already exists. The model
-// is immutable in practice, so a store that has one is already correct.
+// ensureModel writes modelJSON unless the store's latest model already
+// has the same type definitions.
+//
+// The previous implementation returned early whenever ANY model
+// existed, on the reasoning that the model is immutable in practice.
+// That stopped being true when the tenant type was added: every store
+// created before it would otherwise keep a model with no `member`
+// relation forever, and every membership check against such a store
+// fails — which locks out every user in every tenant. So this compares
+// rather than assumes.
+//
+// OpenFGA models are immutable and append-only: writing produces a new
+// model id rather than mutating the old one, so an upgrade never
+// invalidates tuples. Racing replicas may both write; both then re-read
+// and converge on the same latest id, exactly as ensureStore does for
+// the store id and for the same reason.
 func (c *Client) ensureModel(ctx context.Context) error {
+	var desired fgaclient.ClientWriteAuthorizationModelRequest
+	if err := json.Unmarshal([]byte(modelJSON), &desired); err != nil {
+		return fmt.Errorf("parse model: %w", err)
+	}
+
 	existing, err := c.api.ReadAuthorizationModels(ctx).Execute()
 	if err != nil {
 		return fmt.Errorf("read models: %w", err)
 	}
-	if len(existing.GetAuthorizationModels()) > 0 {
-		return nil
+	if models := existing.GetAuthorizationModels(); len(models) > 0 {
+		// ReadAuthorizationModels returns newest first.
+		if sameTypeDefinitions(models[0].GetTypeDefinitions(), desired.TypeDefinitions) {
+			return nil
+		}
+		slog.InfoContext(ctx, "authorization model differs from desired; writing a new version",
+			"existing_model_id", models[0].GetId())
 	}
-	var body fgaclient.ClientWriteAuthorizationModelRequest
-	if err := json.Unmarshal([]byte(modelJSON), &body); err != nil {
-		return fmt.Errorf("parse model: %w", err)
-	}
-	if _, err := c.api.WriteAuthorizationModel(ctx).Body(body).Execute(); err != nil {
+	if _, err := c.api.WriteAuthorizationModel(ctx).Body(desired).Execute(); err != nil {
 		return fmt.Errorf("write model: %w", err)
 	}
 	return nil
+}
+
+// sameTypeDefinitions compares two models by the set of type names and
+// each type's relation names.
+//
+// It deliberately does not compare the full rewrite trees. A structural
+// deep-compare of OpenFGA's generated types is brittle across SDK
+// versions, and being wrong in the "they differ" direction is cheap:
+// the model is re-written, which is idempotent in effect because
+// OpenFGA versions rather than mutates. Being wrong in the "they match"
+// direction is the expensive one, and adding a type or a relation —
+// the only changes this repo has ever made — always changes a name.
+func sameTypeDefinitions(existing, desired []openfga.TypeDefinition) bool {
+	shape := func(defs []openfga.TypeDefinition) map[string][]string {
+		out := make(map[string][]string, len(defs))
+		for _, d := range defs {
+			rels := make([]string, 0, len(d.GetRelations()))
+			for name := range d.GetRelations() {
+				rels = append(rels, name)
+			}
+			sort.Strings(rels)
+			out[d.GetType()] = rels
+		}
+		return out
+	}
+	return reflect.DeepEqual(shape(existing), shape(desired))
 }
 
 func (c *Client) Ping(ctx context.Context) error {

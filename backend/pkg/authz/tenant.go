@@ -30,12 +30,13 @@ func (c *Client) GrantTenantRole(ctx context.Context, tenantID string, role Role
 	return c.write(ctx, RoleObject(tenantID, role), "granted_role", TenantObject(tenantID))
 }
 
-// RevokeTenantRole removes the tenant->role edge. Only the reconciler's
-// prune pass calls this: removing it while a role still has assignees
-// would strip membership from people who still hold the role.
-func (c *Client) RevokeTenantRole(ctx context.Context, tenantID string, role Role) error {
-	return c.delete(ctx, RoleObject(tenantID, role), "granted_role", TenantObject(tenantID))
-}
+// There is deliberately no RevokeTenantRole. A stale tenant edge is
+// removed by the reconciler's prune pass through DeleteTuple, like every
+// other tuple it no longer finds backed by Postgres — prune has no
+// per-type branch, so a dedicated revoke method would be a second way to
+// remove an edge that nothing calls, on a client handed to code that
+// must not be able to strip membership from every holder of a role in
+// one call.
 
 // IsMember reports whether subject holds any role in tenantID.
 //

@@ -20,11 +20,12 @@ import (
 type TupleReconciler interface {
 	TupleWriter
 	ReadTuplesByTenant(ctx context.Context) (map[string][]authz.Tuple, error)
+	// DeleteTuple removes any tuple, whatever its object type. Tenant
+	// edges are deleted through it like every other tuple — prune has no
+	// per-type branch, so no per-type delete method belongs here either.
+	// One delete path means one place where the tenant-bucket guard is
+	// enforced.
 	DeleteTuple(ctx context.Context, t authz.Tuple) error
-	// RevokeTenantRole is reconciler-only, alongside DeleteTuple, and for
-	// the same reason: a module able to remove a tenant->role edge could
-	// strip membership from every holder of that role in one call.
-	RevokeTenantRole(ctx context.Context, tenantID string, role authz.Role) error
 }
 
 // tupleSet is a desired-state set keyed by authz.Tuple.Key(). The nil

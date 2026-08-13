@@ -69,7 +69,6 @@ func (c *capturingWriter) GrantTenantRole(_ context.Context, tenantID string, r 
 	return nil
 }
 
-func (c *capturingWriter) RevokeTenantRole(context.Context, string, authz.Role) error { return nil }
 
 // TestGrantsForRejectsDuplicatePermission is the fix for the bug the
 // approved-matrix oracle test in archtest/matrix_test.go could not see:

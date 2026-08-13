@@ -27,6 +27,15 @@ func TestTenantOfObject(t *testing.T) {
 		{"role:doctor", "", false},
 		{"user:alice", "", false},
 		{"", "", false},
+		// A tenant object carries no /name segment. One appearing here
+		// means the object is not the shape this parse believes, so it
+		// must not parse at all — returning "tenant-a" would hand prune a
+		// delete candidate bucketed under a tenant id derived from an
+		// object nobody understands. Without this case the guard that
+		// rejects it can be deleted with every test still green, which is
+		// exactly what happened when it was first written.
+		{"tenant:tenant-a/doctor", "", false},
+		{"tenant:tenant-a/", "", false},
 	}
 	for _, c := range cases {
 		tenant, ok := authz.TenantOfObject(c.object)

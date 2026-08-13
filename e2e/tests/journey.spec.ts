@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ADMIN, PHARMACIST, login } from "./support/login";
+import { login, specAdmin, specPharmacist } from "./support/login";
 
 // The cross-zone journey with authorization actually enforced: an admin
 // creates a visit that fans out to pharmacy and lab, and a
@@ -10,7 +10,7 @@ import { ADMIN, PHARMACIST, login } from "./support/login";
 test("admin creates a visit and it lands in pharmacy and lab", async ({
   page,
 }) => {
-  await login(page, ADMIN);
+  await login(page, specAdmin());
 
   const patient = `Journey Patient ${Date.now()}`;
   await page.locator('a[href="/medicore/opd"]').first().click();
@@ -36,7 +36,7 @@ test("admin creates a visit and it lands in pharmacy and lab", async ({
 test("pharmacist sees only the pharmacy zone, in the sidebar and on the dashboard", async ({
   page,
 }) => {
-  await login(page, PHARMACIST);
+  await login(page, specPharmacist());
 
   // Scoped to the zone rail (aria-label="Zones") — see smoke.spec.ts for
   // why an unscoped query is ambiguous even though the dashboard's cards
@@ -59,7 +59,7 @@ test("pharmacist sees only the pharmacy zone, in the sidebar and on the dashboar
 test("pharmacist cannot create a visit even by navigating directly", async ({
   page,
 }) => {
-  await login(page, PHARMACIST);
+  await login(page, specPharmacist());
   await page.goto("/medicore/opd");
   await page.waitForLoadState("networkidle");
 
@@ -77,7 +77,7 @@ test("pharmacist can dispense a visit created by admin", async ({ page }) => {
   // another test: create the visit as admin, hand off to the pharmacist,
   // and prove the dispense actually completes — not just that the button
   // is present.
-  await login(page, ADMIN);
+  await login(page, specAdmin());
 
   const patient = `Journey Dispense ${Date.now()}`;
   await page.locator('a[href="/medicore/opd"]').first().click();
@@ -93,7 +93,7 @@ test("pharmacist can dispense a visit created by admin", async ({ page }) => {
   // HmsShell sign-out control, including the medicore page we're on.
   await page.getByRole("button", { name: "Sign out" }).last().click();
   await expect(page).toHaveURL(/\/login/);
-  await login(page, PHARMACIST);
+  await login(page, specPharmacist());
 
   await page.goto("/pharmacy");
   await expect(page.getByText(patient).first()).toBeVisible({

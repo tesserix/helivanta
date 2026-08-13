@@ -371,6 +371,27 @@ test at `e2e/tests/smoke.spec.ts`, which drives a real login through all
 three zones (create an OPD visit, see it queued for dispense in
 Pharmacy, dispense it) across actual hard navigations between apps.
 
+**No two e2e spec files may share a login account.** Signing out writes a
+revocation watermark that is per *subject* and global across every tenant
+and device (#781) — so a spec that signs out invalidates every live
+session for that account, including sessions other specs are using. Under
+parallel workers that is a race; run serially it is a certainty. Each
+spec's accounts are therefore derived from its own filename by
+`specAdmin()` / `specPharmacist()` in `e2e/tests/support/login.ts`
+(`login(page)` defaults to the calling spec's admin), and
+`scripts/seed-dev.mjs` seeds a matching `e2e-<spec>-admin@hms.dev` /
+`e2e-<spec>-pharmacist@hms.dev` pair for every `*.spec.ts` it finds. Add a
+spec file, re-run `make seed`, and the isolation is there — never
+hard-code `test@hms.dev`, which is the human account for manual dev, and
+never reach for `--workers=1`, which hides the property rather than
+holding it.
+
+For the same reason `login()` proves the session against the API
+(`GET /api/v1/iam/me/permissions`) rather than against the dashboard
+heading: `apps/shell/middleware.ts` admits any request carrying an
+`hms_session` cookie without inspecting it, so the dashboard renders
+perfectly well for a session the API refuses on every call.
+
 Before calling any frontend change done, run:
 
 ```bash

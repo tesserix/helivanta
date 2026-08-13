@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { ADMIN, login } from "./support/login";
+import { login, specAdmin } from "./support/login";
 
 // Tenant switching, proved by what the *new* session can do rather than
-// by the toast. `make seed` gives test@hms.dev two hospitals with
-// deliberately different roles (scripts/seed-dev.mjs): tenant_admin in
-// the first, pharmacist in the second. So a switch that really re-mints
+// by the toast. `make seed` gives this spec's own admin account two
+// hospitals with deliberately different roles (scripts/seed-dev.mjs):
+// tenant_admin in the first, pharmacist in the second. So a switch that
+// really re-mints
 // the session visibly costs this user the MediCore and Lab zones, while
 // a switch that only toasts and reloads — the bug this journey guards —
 // leaves the old tenant_id claim in the cookie and every zone still
@@ -27,7 +28,7 @@ async function permissions(
 test("switching hospital re-mints the session and changes what the user can do", async ({
   page,
 }) => {
-  await login(page, ADMIN);
+  await login(page, specAdmin());
 
   const zoneNav = page.getByRole("navigation", { name: "Zones" });
   await expect(zoneNav.getByRole("link", { name: "MediCore" })).toBeVisible();

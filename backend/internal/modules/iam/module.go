@@ -4,8 +4,10 @@
 package iam
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -23,22 +25,50 @@ import (
 
 const PermMemberManage authz.Permission = "iam.member.manage"
 
+// PermCredentialRevoke gates POST /subjects/:subject/revoke. It lists no
+// system roles, so tenant_admin is the only role that holds it — the
+// reconciler's implicit grant to tenant_admin, and nothing else. Revoking
+// a person's credentials platform-wide (see revocationHandlers.adminRevoke
+// in signout.go) is not an authority any clinical role should carry.
+const PermCredentialRevoke authz.Permission = "iam.credential.revoke" //nolint:gosec // permission name, not a credential value
+
 const (
 	SubjectMemberGranted = "hms.in.iam.member_granted.v1"
 	SubjectMemberRevoked = "hms.in.iam.member_revoked.v1"
 )
 
-type Module struct{}
+// Module owns tenant membership and the credential-revocation watermark.
+//
+// checker is the same *RevocationChecker instance the authentication
+// middleware (pkg/authn.Middleware) consults on every request. It MUST be
+// constructed once by the caller (cmd/api/main.go, via
+// internal/bootstrap) and threaded into both New and the middleware — two
+// separately constructed checkers would compile and pass most tests while
+// the module's sign-out/revoke handlers silently invalidate a cache
+// nothing on the request path ever reads (#781).
+type Module struct {
+	checker *RevocationChecker
+}
 
-func New() *Module { return &Module{} }
+func New(checker *RevocationChecker) *Module { return &Module{checker: checker} }
 
 func (m *Module) Name() string { return "iam" }
 
-// Permissions declares only iam.member.manage. It lists no roles because
-// tenant_admin is implicit — the reconciler grants it every declared
-// permission — and no other system role may manage membership.
+// CheckerForTest exposes the module's revocation checker for tests that
+// need to assert it is the SAME instance the caller constructed and
+// handed to authn.Middleware — see TestNewRegistryGivesIAMTheExactCheckerPassedIn
+// in internal/bootstrap.
+func (m *Module) CheckerForTest() *RevocationChecker { return m.checker }
+
+// Permissions declares iam.member.manage and iam.credential.revoke.
+// Neither lists a role: tenant_admin is implicit, and revoking a
+// person's credentials platform-wide is not an authority any clinical
+// role should carry.
 func (m *Module) Permissions() []authz.Grant {
-	return []authz.Grant{{Permission: PermMemberManage}}
+	return []authz.Grant{
+		{Permission: PermMemberManage},
+		{Permission: PermCredentialRevoke},
+	}
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
@@ -88,6 +118,24 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			ALTER POLICY tenant_isolation ON iam_members
 			  USING (hms_tenant_visible(tenant_id))
 			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`,
+	}, {
+		ID: "0003_iam",
+		// Not tenant-scoped, and therefore an explicit LintRLS allowlist
+		// entry rather than a table that quietly has no tenant_id: a GIP
+		// subject is global, so a revocation is global. It holds no
+		// tenant data and no PHI.
+		//
+		// The watermark only ever moves forward (see the GREATEST upsert
+		// in revocation.go): a retried or late write must never be able
+		// to resurrect a revoked credential.
+		SQL: `
+			CREATE TABLE iam_credential_revocations (
+			  subject    text PRIMARY KEY,
+			  revoked_at timestamptz NOT NULL,
+			  reason     text NOT NULL CHECK (reason IN ('sign_out','admin_revoke')),
+			  actor      text NOT NULL,
+			  updated_at timestamptz NOT NULL DEFAULT now()
+			);`,
 	}}
 }
 
@@ -265,4 +313,32 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET("/roles", PermMemberManage, listRoles)
 
 	m.registerMe(g, deps)
+
+	rev := &revocationHandlers{db: deps.DB, bus: deps.Bus, checker: m.checker, revoker: deps.TokenRevoker, roles: deps.Roles}
+	// NoTenantMembership: a member whose membership was just revoked must
+	// still be able to end their own session (#781). adminRevoke is the
+	// opposite — it requires both PermCredentialRevoke (membership
+	// examined as usual) and, inside the handler, that the target is a
+	// member of the ACTING admin's own tenant.
+	g.POST("/me/sign-out", authz.NoTenantMembership, rev.signOut)
+	g.POST("/subjects/:subject/revoke", PermCredentialRevoke, rev.adminRevoke)
+}
+
+// Broadcasts invalidates this replica's revocation cache the instant
+// another replica revokes a credential (#781). The durable truth is
+// Postgres — see RevocationChecker.RevokedAfter's read-through and its
+// 5-minute TTL backstop — so a dropped or duplicated broadcast degrades
+// to that TTL, never to incorrectness.
+func (m *Module) Broadcasts(platform.Deps) []events.Broadcast {
+	return []events.Broadcast{{
+		Subject: SubjectCredentialRevoked,
+		Handle: func(ctx context.Context, evt events.Event) {
+			var data CredentialRevokedData
+			if err := json.Unmarshal(evt.Data, &data); err != nil {
+				slog.ErrorContext(ctx, "credential_revoked: undecodable payload", "err", err)
+				return
+			}
+			m.checker.Invalidate(data.Subject)
+		},
+	}}
 }

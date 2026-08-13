@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@hms/api/testing";
 import { PERMISSIONS_CACHE_KEY } from "@hms/api";
 import { HmsShell } from "./hms-shell";
@@ -36,6 +36,10 @@ describe("HmsShell", () => {
         }),
       }),
     );
+    // Sign-out ends in a hard navigation to /login (packages/ui/src/hms-shell.tsx),
+    // which jsdom does not implement; stub it so that step is observable
+    // instead of throwing "Not implemented: navigation".
+    vi.stubGlobal("location", { ...window.location, href: "" });
   });
   afterEach(() => vi.unstubAllGlobals());
 
@@ -59,5 +63,56 @@ describe("HmsShell", () => {
     await user.click(screen.getByLabelText("Sign out"));
 
     expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull();
+  });
+
+  // Regresses #781: a zone app that supplies no `onSignOut` (every zone
+  // but the shell — see the prop's doc comment) must still revoke the
+  // session server-side rather than only navigating away.
+  it("POSTs to /logout by default when no onSignOut is supplied", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal("fetch", fetchMock);
+    const { user } = renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+    await user.click(screen.getByLabelText("Sign out"));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" }));
+    expect(window.location.href).toBe("/login");
+  });
+
+  // The shell app supplies the Firebase-aware sequence (apps/shell/lib/sign-out.ts)
+  // instead of the built-in default — HmsShell must run it, not its own
+  // fetch, and only navigate once it has finished.
+  it("runs the supplied onSignOut instead of the default POST, then navigates to /login", async () => {
+    // renderWithProviders mounts usePermissions too, which fetches
+    // /api/v1/iam/me/permissions on its own regardless of sign-out; the
+    // assertion below only cares whether /logout specifically was hit.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: [] }) });
+    vi.stubGlobal("fetch", fetchMock);
+    let resolveSignOut: () => void = () => {};
+    const onSignOut = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSignOut = resolve;
+        }),
+    );
+    const { user } = renderWithProviders(
+      <HmsShell active="/" onSignOut={onSignOut}>
+        content
+      </HmsShell>,
+    );
+
+    await user.click(screen.getByLabelText("Sign out"));
+
+    expect(onSignOut).toHaveBeenCalledTimes(1);
+    // Navigation must wait for the injected sequence to finish — a caller
+    // who supplied Firebase teardown must have it actually run before the
+    // browser leaves the page.
+    expect(window.location.href).toBe("");
+    expect(fetchMock).not.toHaveBeenCalledWith("/logout", { method: "POST" });
+
+    resolveSignOut();
+    await waitFor(() => expect(window.location.href).toBe("/login"));
   });
 });

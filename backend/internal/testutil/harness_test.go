@@ -22,14 +22,15 @@ import (
 // logModule is a minimal platform.Module whose only route emits a log line
 // through requestid.Logger(c), so tests can observe exactly what a real
 // module handler's request-scoped logger carries. It exists only to prove
-// the ModuleHarness middleware chain — production modules should not need
+// the NewHarness middleware chain — production modules should not need
 // to grow test-only routes just to exercise this.
 type logModule struct{}
 
 func (logModule) Name() string                              { return "logprobe" }
 func (logModule) Migrations() []tenantdb.Migration          { return nil }
 func (logModule) Permissions() []authz.Grant                { return nil }
-func (logModule) Consumers(platform.Deps) []events.Consumer { return nil }
+func (logModule) Consumers(platform.Deps) []events.Consumer   { return nil }
+func (logModule) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 
 func (logModule) Routes(r *platform.Router, _ platform.Deps) {
 	r.Group("/logprobe").GET("/ping", authz.Public, func(c *gin.Context) {
@@ -38,8 +39,8 @@ func (logModule) Routes(r *platform.Router, _ platform.Deps) {
 	})
 }
 
-// TestModuleHarnessRequestScopedLoggerCarriesCorrelationFields proves
-// ModuleHarness wires the same middleware chain, in the same order, as
+// TestNewHarnessRequestScopedLoggerCarriesCorrelationFields proves
+// NewHarness wires the same middleware chain, in the same order, as
 // cmd/api/main.go: requestid.Middleware() at the engine level, then authn,
 // then requestid.PrincipalMiddleware(), then authz. Before this test (and
 // the harness fix it accompanies), the harness built its engine without
@@ -47,16 +48,16 @@ func (logModule) Routes(r *platform.Router, _ platform.Deps) {
 // module integration test ran with requestid.Logger(c) silently falling
 // back to a bare slog.Default() — no request_id, no tenant_id, no subject —
 // and nothing in the suite noticed.
-func TestModuleHarnessRequestScopedLoggerCarriesCorrelationFields(t *testing.T) {
+func TestNewHarnessRequestScopedLoggerCarriesCorrelationFields(t *testing.T) {
 	var buf bytes.Buffer
 	prev := slog.Default()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
 	t.Cleanup(func() { slog.SetDefault(prev) })
 
-	r, _, _, _ := testutil.ModuleHarness(t,
-		map[string]string{"tokA": testutil.TenantA},
-		map[string][]authz.Permission{},
-		logModule{})
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"tokA": testutil.TenantA},
+		Modules: []platform.Module{logModule{}},
+	})
 
 	w := testutil.Do(r, http.MethodGet, "/v1/logprobe/ping", "tokA", "")
 	require.Equal(t, http.StatusOK, w.Code)

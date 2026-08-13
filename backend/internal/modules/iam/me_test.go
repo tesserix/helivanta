@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/hms/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
+	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testutil"
 	"github.com/tesserix/hms/pkg/authz"
 )
@@ -58,10 +59,11 @@ func (m *recordingMinter) CustomTokenWithClaims(_ context.Context, uid string, c
 }
 
 func TestMePermissionsReturnsResolvedSetSorted(t *testing.T) {
-	r, _, _, _ := testutil.ModuleHarnessWithAuthz(t,
-		map[string]string{"doc": testutil.TenantA},
-		map[string][]authz.Permission{"doc": {"medicore.visit.read", "lab.order.read"}},
-		&recordingWriter{}, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"doc": testutil.TenantA},
+		Perms:  map[string][]authz.Permission{"doc": {"medicore.visit.read", "lab.order.read"}},
+		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/permissions", "doc", "")
 	require.Equal(t, http.StatusOK, res.Code)
@@ -74,10 +76,11 @@ func TestMePermissionsReturnsResolvedSetSorted(t *testing.T) {
 }
 
 func TestMePermissionsIsEmptyArrayNotNullForNonMember(t *testing.T) {
-	r, _, _, _ := testutil.ModuleHarnessWithAuthz(t,
-		map[string]string{"nobody": testutil.TenantA},
-		map[string][]authz.Permission{"nobody": {}},
-		&recordingWriter{}, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"nobody": testutil.TenantA},
+		Perms:  map[string][]authz.Permission{"nobody": {}},
+		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/permissions", "nobody", "")
 	require.Equal(t, http.StatusOK, res.Code)
@@ -96,10 +99,11 @@ func TestMePermissionsIsEmptyArrayNotNullForNonMember(t *testing.T) {
 // is the clear-on-login/logout/tenant-switch plus the fresh response
 // overwriting the entry.
 func TestMePermissionsReturnsCallerIdentity(t *testing.T) {
-	r, _, _, _ := testutil.ModuleHarnessWithAuthz(t,
-		map[string]string{"doc": testutil.TenantA},
-		map[string][]authz.Permission{"doc": {"medicore.visit.read"}},
-		&recordingWriter{}, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"doc": testutil.TenantA},
+		Perms:  map[string][]authz.Permission{"doc": {"medicore.visit.read"}},
+		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/permissions", "doc", "")
 	require.Equal(t, http.StatusOK, res.Code)
@@ -127,10 +131,13 @@ func TestMeTenantsListsEveryMembership(t *testing.T) {
 			{TenantID: testutil.TenantB, Role: authz.RoleNurse},
 		},
 	}}
-	r, _, _, _ := testutil.ModuleHarnessWithRoles(t,
-		map[string]string{"jane": testutil.TenantA},
-		map[string][]authz.Permission{"jane": {}},
-		&recordingWriter{}, roles, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"jane": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"jane": {}},
+		Writer:  &recordingWriter{},
+		Roles:   roles,
+		Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/tenants", "jane", "")
 	require.Equal(t, http.StatusOK, res.Code)
@@ -162,10 +169,13 @@ func TestMeTenantsMarksCallersActualTenantCurrent(t *testing.T) {
 	// jane's token claims TenantB even though TenantA sorts first — this
 	// is what the switch flow produces: the caller has already switched
 	// into TenantB, and the picker must reflect that, not TenantA.
-	r, _, _, _ := testutil.ModuleHarnessWithRoles(t,
-		map[string]string{"jane": testutil.TenantB},
-		map[string][]authz.Permission{"jane": {}},
-		&recordingWriter{}, roles, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"jane": testutil.TenantB},
+		Perms:   map[string][]authz.Permission{"jane": {}},
+		Writer:  &recordingWriter{},
+		Roles:   roles,
+		Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/tenants", "jane", "")
 	require.Equal(t, http.StatusOK, res.Code)
@@ -190,10 +200,13 @@ func TestMeTenantsMarksCallersActualTenantCurrent(t *testing.T) {
 
 func TestMeTenantsIsEmptyArrayNotNullForNonMember(t *testing.T) {
 	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{}}
-	r, _, _, _ := testutil.ModuleHarnessWithRoles(t,
-		map[string]string{"nobody": testutil.TenantA},
-		map[string][]authz.Permission{"nobody": {}},
-		&recordingWriter{}, roles, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"nobody": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"nobody": {}},
+		Writer:  &recordingWriter{},
+		Roles:   roles,
+		Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/tenants", "nobody", "")
 	require.Equal(t, http.StatusOK, res.Code)
@@ -202,10 +215,13 @@ func TestMeTenantsIsEmptyArrayNotNullForNonMember(t *testing.T) {
 
 func TestMeTenantsFailsClosedOnRoleListerError(t *testing.T) {
 	roles := &fakeRoleLister{err: errors.New("openfga unreachable")}
-	r, _, _, _ := testutil.ModuleHarnessWithRoles(t,
-		map[string]string{"jane": testutil.TenantA},
-		map[string][]authz.Permission{"jane": {}},
-		&recordingWriter{}, roles, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"jane": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"jane": {}},
+		Writer:  &recordingWriter{},
+		Roles:   roles,
+		Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/tenants", "jane", "")
 	require.Equal(t, http.StatusServiceUnavailable, res.Code,
@@ -221,10 +237,14 @@ func TestSwitchTenantRequiresMembership(t *testing.T) {
 		"user-jane": {{TenantID: testutil.TenantA, Role: authz.RoleNurse}},
 	}}
 	minter := &recordingMinter{}
-	r, _, _, _ := testutil.ModuleHarnessWithMinter(t,
-		map[string]string{"jane": testutil.TenantA},
-		map[string][]authz.Permission{"jane": {}},
-		&recordingWriter{}, roles, minter, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"jane": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"jane": {}},
+		Writer:  &recordingWriter{},
+		Roles:   roles,
+		Minter:  minter,
+		Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
 		`{"tenant_id":"`+testutil.TenantB+`"}`)
@@ -248,10 +268,14 @@ func TestSwitchTenantMintsTokenForTargetTenant(t *testing.T) {
 		},
 	}}
 	minter := &recordingMinter{}
-	r, _, _, _ := testutil.ModuleHarnessWithMinter(t,
-		map[string]string{"jane": testutil.TenantA},
-		map[string][]authz.Permission{"jane": {}},
-		&recordingWriter{}, roles, minter, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"jane": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"jane": {}},
+		Writer:  &recordingWriter{},
+		Roles:   roles,
+		Minter:  minter,
+		Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
 		`{"tenant_id":"`+testutil.TenantB+`"}`)
@@ -283,10 +307,14 @@ func TestSwitchTenantFailsClosedWhenMintingFails(t *testing.T) {
 		"user-jane": {{TenantID: testutil.TenantB, Role: authz.RoleNurse}},
 	}}
 	minter := &recordingMinter{err: errors.New("gip unreachable")}
-	r, _, _, _ := testutil.ModuleHarnessWithMinter(t,
-		map[string]string{"jane": testutil.TenantA},
-		map[string][]authz.Permission{"jane": {}},
-		&recordingWriter{}, roles, minter, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"jane": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"jane": {}},
+		Writer:  &recordingWriter{},
+		Roles:   roles,
+		Minter:  minter,
+		Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
 		`{"tenant_id":"`+testutil.TenantB+`"}`)
@@ -311,10 +339,16 @@ func TestSwitchTenantFailsClosedWithoutAMinter(t *testing.T) {
 	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{
 		"user-jane": {{TenantID: testutil.TenantB, Role: authz.RoleNurse}},
 	}}
-	r, _, _, _ := testutil.ModuleHarnessWithMinter(t,
-		map[string]string{"jane": testutil.TenantA},
-		map[string][]authz.Permission{"jane": {}},
-		&recordingWriter{}, roles, nil, iam.New())
+	// Minter is deliberately left unset — its zero value (nil) is what
+	// this test exercises: deps.Tokens must reach the handler as nil, not
+	// a working stub. See HarnessOptions.Minter's doc comment.
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"jane": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"jane": {}},
+		Writer:  &recordingWriter{},
+		Roles:   roles,
+		Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
 		`{"tenant_id":"`+testutil.TenantB+`"}`)
@@ -334,10 +368,14 @@ func TestSwitchTenantFailsClosedWithoutAMinter(t *testing.T) {
 func TestSwitchTenantFailsClosedOnRoleListerError(t *testing.T) {
 	roles := &fakeRoleLister{err: errors.New("openfga unreachable")}
 	minter := &recordingMinter{}
-	r, _, _, _ := testutil.ModuleHarnessWithMinter(t,
-		map[string]string{"jane": testutil.TenantA},
-		map[string][]authz.Permission{"jane": {}},
-		&recordingWriter{}, roles, minter, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"jane": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"jane": {}},
+		Writer:  &recordingWriter{},
+		Roles:   roles,
+		Minter:  minter,
+		Modules: []platform.Module{iam.New(nil)},
+	})
 
 	// The requested tenant is one jane genuinely belongs to in the real
 	// world (this fake just can't say so, because ListRoles errors
@@ -381,14 +419,51 @@ func TestSwitchTenantRejectsNonCanonicalTenantID(t *testing.T) {
 	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{
 		"user-jane": {{TenantID: testutil.TenantB, Role: authz.RoleNurse}},
 	}}
-	r, _, _, _ := testutil.ModuleHarnessWithRoles(t,
-		map[string]string{"jane": testutil.TenantA},
-		map[string][]authz.Permission{"jane": {}},
-		&recordingWriter{}, roles, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"jane": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"jane": {}},
+		Writer:  &recordingWriter{},
+		Roles:   roles,
+		Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
 		`{"tenant_id":"`+upperCasedUUID+`"}`)
 	require.Equal(t, http.StatusBadRequest, res.Code,
 		"a non-canonical (upper/mixed-cased) tenant id must be rejected by binding validation, "+
 			"before membership is ever consulted")
+}
+
+// denyAllMembership refuses every subject in every tenant — the shape of
+// a caller whose membership in the tenant their token names has just
+// been revoked.
+type denyAllMembership struct{}
+
+func (denyAllMembership) IsMember(context.Context, string, string) (bool, error) { return false, nil }
+
+// TestSelfServiceRoutesServeACallerWithNoMembership is spec T4: a member
+// with zero memberships (or, as here, one revoked out from under them)
+// must still be able to call the self-service routes that answer "what
+// can I do" and "where do I belong" — these are exactly the routes
+// authz.NoTenantMembership exists for (#781). If they too required
+// membership, a revoked caller would be locked out of the one endpoint
+// that could tell them where they still belong.
+func TestSelfServiceRoutesServeACallerWithNoMembership(t *testing.T) {
+	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{
+		"user-nurse": {{TenantID: testutil.TenantA, Role: authz.RoleNurse}},
+	}}
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:     map[string]string{"nurse": testutil.TenantA},
+		Perms:      map[string][]authz.Permission{"nurse": {}},
+		Writer:     &recordingWriter{},
+		Roles:      roles,
+		Membership: denyAllMembership{},
+		Modules:    []platform.Module{iam.New(nil)},
+	})
+
+	for _, path := range []string{"/v1/iam/me/permissions", "/v1/iam/me/tenants"} {
+		w := testutil.Do(r, http.MethodGet, path, "nurse", "")
+		require.Equal(t, http.StatusOK, w.Code,
+			"%s must answer a caller with no membership — it is the endpoint that tells them where they do belong", path)
+	}
 }

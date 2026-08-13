@@ -8,10 +8,30 @@ import "sort"
 // Permission names an action, formatted "<module>.<resource>.<action>".
 type Permission string
 
-// Public marks a route as deliberately unguarded. It is a real value
-// rather than an empty string so that an unguarded route is greppable
-// and can never be created by forgetting an argument.
+// Public marks a route as declaring no permission requirement. It is a
+// real value rather than an empty string so that an unguarded route is
+// greppable and can never be created by forgetting an argument.
+//
+// Public does NOT opt out of tenant membership. A route that declares no
+// permission still only serves members of the tenant its caller's token
+// names — see NoTenantMembership for the narrower opt-out, and #781 for
+// the defect that existed while these two were the same thing: a caller
+// whose membership had been revoked resolved to an empty permission set,
+// but PermissionSet.Has(Public) answered true unconditionally, so the
+// empty set was never actually consulted.
 const Public Permission = "public"
+
+// NoTenantMembership marks the handful of routes that must serve a
+// caller who is not (or is no longer) a member of the tenant their token
+// names: the self-service routes answering "where do I belong?" and
+// sign-out. Every one of them gates itself.
+//
+// Deliberately awkward to type, and pinned by
+// TestNoTenantMembershipAllowlist in internal/archtest to an explicit
+// list — the safety of every other route depends on this set staying
+// small, so growing it must require editing an allowlist a reviewer
+// sees.
+const NoTenantMembership Permission = "no_tenant_membership"
 
 // Role is a role key. The five below ship as seeded system roles;
 // because roles are data, tenants may define others without a model
@@ -66,12 +86,15 @@ func NewPermissionSet(perms ...Permission) PermissionSet {
 	return s
 }
 
-// Has reports whether the set carries p. Public is always allowed, so
-// unguarded routes need no special-casing at the call site.
+// Has reports whether the set carries p.
+//
+// It used to answer true unconditionally for Public, which meant an
+// unguarded route never consulted the set at all — and therefore served
+// a caller whose set was empty because their membership had been
+// revoked (#781). Public is now handled by Require, which skips the
+// permission check explicitly rather than by asking a set a question it
+// answers dishonestly.
 func (s PermissionSet) Has(p Permission) bool {
-	if p == Public {
-		return true
-	}
 	_, ok := s[p]
 	return ok
 }

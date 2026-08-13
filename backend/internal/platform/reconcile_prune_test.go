@@ -196,6 +196,69 @@ func tupleKeys(t *testing.T, c *authz.Client, tenantID string) []string {
 	return keys
 }
 
+// TestReconcileWritesTenantRoleEdgesForEveryBackedMembership is the
+// rescue-path test for the hazard the design doc calls out by name: an
+// existing store has no tenant:… granted_role … tuples at all, so the
+// moment a membership check goes live every Check returns false and
+// every user in every tenant is locked out. This is what proves the
+// boot reconciler actually rebuilds those edges rather than merely
+// leaving the role/perm tuples it already wrote.
+func TestReconcileWritesTenantRoleEdgesForEveryBackedMembership(t *testing.T) {
+	ctx := context.Background()
+	db := openMigratedDB(t)
+	seedMember(t, db, tenantA, "dr-jane", "doctor")
+
+	reg := platform.NewRegistry()
+	require.NoError(t, reg.Register(grantingModule{"x"}))
+	fga := newReconciler(t)
+
+	require.NoError(t, platform.Reconcile(ctx, reg, db, fga))
+
+	member, err := fga.IsMember(ctx, "dr-jane", tenantA)
+	require.NoError(t, err)
+	require.True(t, member,
+		"a membership row backed by Postgres must produce a working membership check after reconcile")
+}
+
+// TestReconcilePrunesTenantEdgesForRolesNobodyHolds proves the other
+// half: an edge for a role no membership row backs any more must be
+// deleted, or a retired role's tenant edge lingers forever and keeps
+// granting membership through it. The edge for a role that IS still
+// backed must survive the same pass — this is the assertion that
+// catches a desired-set omission silently deleting live membership.
+func TestReconcilePrunesTenantEdgesForRolesNobodyHolds(t *testing.T) {
+	ctx := context.Background()
+	db := openMigratedDB(t)
+	seedMember(t, db, tenantA, "dr-jane", "nurse")
+
+	reg := platform.NewRegistry()
+	require.NoError(t, reg.Register(grantingModule{"x"}))
+	fga := newReconciler(t)
+
+	require.NoError(t, platform.Reconcile(ctx, reg, db, fga))
+
+	// A stale edge for a role no membership row backs.
+	require.NoError(t, fga.GrantTenantRole(ctx, tenantA, authz.RoleDoctor))
+
+	require.NoError(t, platform.Reconcile(ctx, reg, db, fga))
+
+	after := tupleKeys(t, fga.Client, tenantA)
+	require.NotContains(t, after,
+		authz.Tuple{
+			User:     authz.RoleObject(tenantA, authz.RoleDoctor),
+			Relation: "granted_role",
+			Object:   authz.TenantObject(tenantA),
+		}.Key(),
+		"an edge for a role no membership row backs must be pruned")
+	require.Contains(t, after,
+		authz.Tuple{
+			User:     authz.RoleObject(tenantA, authz.RoleNurse),
+			Relation: "granted_role",
+			Object:   authz.TenantObject(tenantA),
+		}.Key(),
+		"the edge for the role that IS backed must survive")
+}
+
 // TestReconcileConvergesAgainstRealOpenFGA is the acceptance test: all
 // three convergence properties, plus cross-tenant isolation, against a
 // real OpenFGA and a real Postgres rather than a fake.

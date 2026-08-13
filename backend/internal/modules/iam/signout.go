@@ -1,0 +1,143 @@
+package iam
+
+import (
+	"encoding/json"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
+	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/hms/internal/platform/requestid"
+	"github.com/tesserix/hms/internal/platform/respond"
+	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/hms/pkg/tenantdb"
+)
+
+// SubjectCredentialRevoked is published whenever a subject's watermark
+// moves, from either trigger (sign-out or admin revoke). Every replica's
+// iam module Broadcasts consumes it to invalidate its own cache entry.
+const SubjectCredentialRevoked = "hms.in.iam.credential_revoked.v1" //nolint:gosec // event subject name, not a credential value
+
+// CredentialRevokedData is the v1 payload. It carries only the subject:
+// every replica needs to know which cache entry to drop, and nothing
+// else about the revocation belongs on a bus.
+type CredentialRevokedData struct {
+	Subject string `json:"subject"`
+}
+
+type revocationHandlers struct {
+	db      *tenantdb.DB
+	bus     *events.Bus
+	checker *RevocationChecker
+	revoker authn.TokenRevoker
+	roles   platform.RoleLister
+}
+
+// signOut ends every session for the calling subject, on every device.
+//
+// GIP ID tokens carry no session identifier, so revocation is
+// necessarily by subject — see the design spec's D5. That is the
+// correct answer for the shared-workstation case that motivates this
+// work: a ward terminal's previous user must not be recoverable.
+func (h *revocationHandlers) signOut(c *gin.Context) {
+	p, ok := authn.PrincipalFrom(c)
+	if !ok {
+		respond.Unauthenticated(c, "missing principal")
+		return
+	}
+	if err := h.revoke(c, p.Subject, time.Now().UTC(), "sign_out", p.Subject); err != nil {
+		respond.InternalErr(c, err, "could not sign out")
+		return
+	}
+	respond.OK(c, gin.H{"signed_out": true})
+}
+
+// adminRevoke lets a tenant admin cut off a compromised account
+// immediately.
+//
+// The target must be a member of the acting admin's tenant. Without
+// that gate any tenant admin could revoke any subject on the platform.
+// A non-member is answered 404, this codebase's cross-tenant answer —
+// 403 would confirm the subject exists somewhere.
+//
+// The effect is nonetheless cross-tenant by construction: a credential
+// is global, so revoking it ends that subject's sessions everywhere.
+// That is deliberate — forcing a hospital to leave a known-compromised
+// credential alive elsewhere would be worse — and it is why every
+// revoke is logged with actor, target and tenant.
+func (h *revocationHandlers) adminRevoke(c *gin.Context) {
+	p, ok := authn.PrincipalFrom(c)
+	if !ok {
+		respond.Unauthenticated(c, "missing principal")
+		return
+	}
+	target := c.Param("subject")
+
+	bindings, err := h.roles.ListRoles(c.Request.Context(), target)
+	if err != nil {
+		respondRolesUnavailable(c, err)
+		return
+	}
+	if !hasBindingForTenant(bindings, p.TenantID) {
+		respond.NotFound(c, "subject")
+		return
+	}
+	if err := h.revoke(c, target, time.Now().UTC(), "admin_revoke", p.Subject); err != nil {
+		respond.InternalErr(c, err, "could not revoke credentials")
+		return
+	}
+	requestid.Logger(c).WarnContext(c.Request.Context(), "credentials revoked by administrator",
+		"target_subject", target, "actor_subject", p.Subject, "tenant_id", p.TenantID,
+		"cross_tenant_effect", "the target's sessions end in every tenant, not only this one")
+	respond.OK(c, gin.H{"revoked": true, "subject": target})
+}
+
+// revoke writes the watermark and publishes the invalidation in ONE
+// transaction. Splitting them would allow a watermark that propagates
+// only at TTL, or an invalidation for a revocation that never happened.
+//
+// GIP is told after the commit: it is not transactional, and a GIP
+// failure must not roll back a revocation HMS has already decided on.
+// The HMS watermark is authoritative on the request path, so a GIP call
+// that fails leaves the credential refused here regardless — it is
+// logged loudly rather than surfaced as a failure the caller might
+// retry into a double revoke.
+func (h *revocationHandlers) revoke(c *gin.Context, subject string, at time.Time, reason, actor string) error {
+	err := h.db.WithSystem(c.Request.Context(), func(tx *gorm.DB) error {
+		if err := h.checker.RevokeTx(tx, subject, at, reason, actor); err != nil {
+			return err
+		}
+		data, err := json.Marshal(CredentialRevokedData{Subject: subject})
+		if err != nil {
+			return err
+		}
+		// TenantID is deliberately left empty: a revocation is
+		// subject-scoped, not tenant-scoped (spec D3) — it ends every
+		// session for this subject in every tenant. events.Event.TenantID
+		// is not required to be set; the bus only uses it, when present
+		// and a valid UUID, to scope the consuming transaction's RLS GUC
+		// (pkg/events/bus.go), which this event has no need of because
+		// iam_credential_revocations carries no tenant_id at all.
+		return h.bus.Publish(tx, SubjectCredentialRevoked, events.Event{
+			Type: "CredentialRevoked", Version: 1, Data: data,
+		})
+	})
+	if err != nil {
+		return err
+	}
+	// Drop our own entry immediately rather than waiting for our own
+	// broadcast: the replica that served this request should never serve
+	// the revoked credential again, not even for one more request.
+	h.checker.Invalidate(subject)
+
+	if h.revoker != nil {
+		if err := h.revoker.RevokeRefreshTokens(c.Request.Context(), subject); err != nil {
+			requestid.Logger(c).ErrorContext(c.Request.Context(),
+				"HMS revoked the credential but GIP refresh-token revocation failed; the identity provider will keep issuing tokens this platform refuses",
+				"err", err, "subject", subject)
+		}
+	}
+	return nil
+}

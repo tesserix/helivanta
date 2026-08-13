@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -56,7 +57,17 @@ var iamMembersSeamMigration = tenantdb.Migration{
 type seamVerifier struct{}
 
 func (seamVerifier) Verify(_ context.Context, raw string) (authn.Principal, error) {
-	return authn.Principal{Subject: raw, TenantID: seamTenant}, nil
+	return authn.Principal{Subject: raw, TenantID: seamTenant, AuthTime: time.Now()}, nil
+}
+
+// seamNeverRevoked stands in for the real iam.RevocationChecker: this
+// seam is about authn -> authz -> platform.Router -> handler, not
+// credential revocation, which pkg/authn and internal/modules/iam test
+// directly.
+type seamNeverRevoked struct{}
+
+func (seamNeverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
+	return time.Time{}, nil
 }
 
 // newSeamHarness boots a real Postgres and a real OpenFGA, reconciles
@@ -104,10 +115,15 @@ func newSeamHarness(t *testing.T) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
 	deps := platform.Deps{DB: db, Authz: fga, Roles: fga}
+	// fga doubles as the MembershipChecker here, not a fake: the real
+	// Task 5 reconciler above wrote the tenant->role edge nurse-amy's
+	// role backs (internal/platform/reconcile.go's applyGrants), so this
+	// exercises the real membership Check the same way production does,
+	// not a stand-in for it.
 	api := platform.NewRouter(e.Group("/v1",
-		authn.Middleware(seamVerifier{}),
+		authn.Middleware(seamVerifier{}, seamNeverRevoked{}),
 		authz.Middleware(fga),
-	))
+	), fga)
 	mod.Routes(api, deps)
 	return e
 }

@@ -72,3 +72,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 }
 
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer { return nil }
+
+// Broadcasts declares none: medicore has no per-replica cache to
+// invalidate.
+func (m *Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }

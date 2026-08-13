@@ -16,6 +16,7 @@ import (
 	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/config"
 	"github.com/tesserix/hms/internal/httpserver"
+	"github.com/tesserix/hms/internal/modules/iam"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/requestid"
 	"github.com/tesserix/hms/pkg/authn"
@@ -49,7 +50,16 @@ func run() error {
 		return err
 	}
 
-	registry, err := bootstrap.NewRegistry()
+	// Constructed once, before the registry, and handed to BOTH
+	// bootstrap.NewRegistry (which threads it into iam.New) and
+	// authn.Middleware below: the module's sign-out/revoke handlers and
+	// its broadcast consumer must invalidate the SAME cache instance the
+	// authentication path reads on every request. Two separately
+	// constructed checkers would compile and pass most tests while the
+	// middleware's cache silently never gets invalidated (#781).
+	revocationChecker := iam.NewRevocationChecker(db)
+
+	registry, err := bootstrap.NewRegistry(revocationChecker)
 	if err != nil {
 		return err
 	}
@@ -83,6 +93,11 @@ func run() error {
 		return err
 	}
 
+	revoker, err := authn.NewGIPRevoker(ctx, cfg.GIPProjectID, cfg.IsDev())
+	if err != nil {
+		return err
+	}
+
 	fga, err := authz.NewClient(ctx, cfg.OpenFGAURL, cfg.OpenFGAStore)
 	if err != nil {
 		return err
@@ -110,23 +125,28 @@ func run() error {
 		requestid.Middleware(),
 	)
 	deps := platform.Deps{
-		DB:     db,
-		Bus:    bus,
-		Authz:  fga,
-		Roles:  fga,
-		Tokens: minter,
+		DB:           db,
+		Bus:          bus,
+		Authz:        fga,
+		Roles:        fga,
+		Tokens:       minter,
+		TokenRevoker: revoker,
 		Reconcile: func(ctx context.Context, tenantID string) error {
 			return platform.ReconcileTenant(ctx, registry, fga, tenantID)
 		},
 	}
+
 	api := platform.NewRouter(srv.Engine.Group("/v1",
-		authn.Middleware(verifier),
+		authn.Middleware(verifier, revocationChecker),
 		requestid.PrincipalMiddleware(),
 		authz.Middleware(fga),
-	))
+	), fga)
 	for _, m := range registry.All() {
 		m.Routes(api, deps)
 		if err := bus.StartConsumers(ctx, db, m.Consumers(deps)); err != nil {
+			return err
+		}
+		if err := bus.StartBroadcasts(ctx, m.Broadcasts(deps)); err != nil {
 			return err
 		}
 	}

@@ -20,6 +20,11 @@ import (
 type TupleReconciler interface {
 	TupleWriter
 	ReadTuplesByTenant(ctx context.Context) (map[string][]authz.Tuple, error)
+	// DeleteTuple removes any tuple, whatever its object type. Tenant
+	// edges are deleted through it like every other tuple — prune has no
+	// per-type branch, so no per-type delete method belongs here either.
+	// One delete path means one place where the tenant-bucket guard is
+	// enforced.
 	DeleteTuple(ctx context.Context, t authz.Tuple) error
 }
 
@@ -58,6 +63,19 @@ func permTuple(tenantID string, perm authz.Permission, role authz.Role) authz.Tu
 		User:     authz.RoleObject(tenantID, role),
 		Relation: "granted_role",
 		Object:   authz.PermObject(tenantID, perm),
+	}
+}
+
+// tenantRoleTuple mirrors exactly what authz.Client.GrantTenantRole
+// writes, for the same lockstep reason as roleTuple and permTuple: a
+// drift in relation name or object format would make every tenant edge
+// look orphaned and get deleted on the next boot — which would take
+// membership, and therefore every request, down with it.
+func tenantRoleTuple(tenantID string, role authz.Role) authz.Tuple {
+	return authz.Tuple{
+		User:     authz.RoleObject(tenantID, role),
+		Relation: "granted_role",
+		Object:   authz.TenantObject(tenantID),
 	}
 }
 
@@ -303,6 +321,16 @@ func applyGrants(ctx context.Context, reg *Registry, w TupleWriter, members []me
 			return nil, fmt.Errorf("grant role %s to %s in %s: %w", role, m.Subject, m.TenantID, err)
 		}
 		desired[m.TenantID].add(roleTuple(m.TenantID, m.Subject, role))
+
+		// The tenant edge is written per (tenant, role) and is what makes
+		// membership derivable. Writing it here, keyed off a membership
+		// row rather than off the registry, means a tenant only ever gains
+		// edges for roles somebody actually holds — and the edge is added
+		// to the desired set so prune keeps it.
+		if err := w.GrantTenantRole(ctx, m.TenantID, role); err != nil {
+			return nil, fmt.Errorf("grant tenant edge for role %s in %s: %w", role, m.TenantID, err)
+		}
+		desired[m.TenantID].add(tenantRoleTuple(m.TenantID, role))
 	}
 	return desired, nil
 }

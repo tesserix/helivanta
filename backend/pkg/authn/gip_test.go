@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"firebase.google.com/go/v4/auth"
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,8 @@ import (
 
 func TestPrincipalFromToken_StringTenantID(t *testing.T) {
 	tok := &auth.Token{
-		UID: "u1",
+		UID:      "u1",
+		AuthTime: 1700000000,
 		Claims: map[string]interface{}{
 			"tenant_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
 		},
@@ -28,11 +30,13 @@ func TestPrincipalFromToken_StringTenantID(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "u1", p.Subject)
 	require.Equal(t, "3fa85f64-5717-4562-b3fc-2c963f66afa6", p.TenantID)
+	require.Equal(t, time.Unix(1700000000, 0).UTC(), p.AuthTime)
 }
 
 func TestPrincipalFromToken_CanonicalizesMixedCaseUUID(t *testing.T) {
 	tok := &auth.Token{
-		UID: "u1",
+		UID:      "u1",
+		AuthTime: 1700000000,
 		Claims: map[string]interface{}{
 			"tenant_id": "AbC12345-5717-4562-B3fc-2C963f66aFA6",
 		},
@@ -40,6 +44,21 @@ func TestPrincipalFromToken_CanonicalizesMixedCaseUUID(t *testing.T) {
 	p, err := principalFromToken(tok)
 	require.NoError(t, err)
 	require.Equal(t, "abc12345-5717-4562-b3fc-2c963f66afa6", p.TenantID)
+}
+
+// TestPrincipalFromToken_MissingAuthTime is the fail-closed complement
+// to the tenant_id checks above: a token that verified fine but carries
+// no auth_time cannot be evaluated against a revocation watermark, so it
+// must be rejected rather than silently treated as "never revoked".
+func TestPrincipalFromToken_MissingAuthTime(t *testing.T) {
+	tok := &auth.Token{
+		UID: "u1",
+		Claims: map[string]interface{}{
+			"tenant_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+		},
+	}
+	_, err := principalFromToken(tok)
+	require.ErrorIs(t, err, ErrNoAuthTime)
 }
 
 func TestPrincipalFromToken_NonUUIDTenantID(t *testing.T) {
@@ -138,6 +157,21 @@ func TestNewGIPMinterRefusesEmulatorOutsideDev(t *testing.T) {
 	t.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
 
 	_, err := NewGIPMinter(context.Background(), "demo-hms", false)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "FIREBASE_AUTH_EMULATOR_HOST")
+}
+
+// TestNewGIPRevokerRefusesEmulatorOutsideDev mirrors the minter and
+// verifier guards: NewGIPRevoker shares newAuthClient, so a production
+// process with the emulator variable accidentally set must refuse to
+// construct a revoker for the same reason it must refuse a verifier — an
+// unverified token could otherwise walk through the revocation watermark
+// this feature exists to enforce.
+func TestNewGIPRevokerRefusesEmulatorOutsideDev(t *testing.T) {
+	t.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
+
+	_, err := NewGIPRevoker(context.Background(), "demo-hms", false)
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "FIREBASE_AUTH_EMULATOR_HOST")

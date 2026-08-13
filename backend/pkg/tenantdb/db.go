@@ -187,6 +187,11 @@ var lintAllowlist = map[string]bool{
 	"schema_migrations": true,
 	"outbox_events":     true,
 	"processed_events":  true,
+	// A GIP subject is global, not tenant-scoped, so a revocation
+	// watermark cannot carry a tenant_id and cannot be RLS-policied. The
+	// table holds no tenant data and no PHI: subject, timestamp, reason,
+	// actor. See backend/internal/modules/iam/revocation.go.
+	"iam_credential_revocations": true,
 }
 
 // LintRLS returns every table that is not properly tenant-isolated, each

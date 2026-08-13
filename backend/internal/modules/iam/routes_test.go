@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/hms/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
+	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testutil"
 	"github.com/tesserix/hms/pkg/authz"
 )
@@ -41,6 +42,10 @@ func (w *recordingWriter) GrantPermission(context.Context, string, authz.Permiss
 	return nil
 }
 
+func (w *recordingWriter) GrantTenantRole(context.Context, string, authz.Role) error {
+	return nil
+}
+
 func (w *recordingWriter) grants() []string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -60,10 +65,11 @@ func eventually(t *testing.T, fn func() bool) {
 
 func TestGrantReturns202AndAppliesTuple(t *testing.T) {
 	w := &recordingWriter{}
-	r, _, _, _ := testutil.ModuleHarnessWithAuthz(t,
-		map[string]string{"admin": testutil.TenantA},
-		map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		w, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"admin": testutil.TenantA},
+		Perms:  map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
+		Writer: w, Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/members", "admin",
 		`{"subject":"dr-jane","role_key":"doctor"}`)
@@ -83,10 +89,11 @@ func TestGrantReturns202AndAppliesTuple(t *testing.T) {
 // break self-healing.
 func TestRepeatGrantRepublishesTuple(t *testing.T) {
 	w := &recordingWriter{}
-	r, _, _, _ := testutil.ModuleHarnessWithAuthz(t,
-		map[string]string{"admin": testutil.TenantA},
-		map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		w, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"admin": testutil.TenantA},
+		Perms:  map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
+		Writer: w, Modules: []platform.Module{iam.New(nil)},
+	})
 
 	body := `{"subject":"dr-jane","role_key":"doctor"}`
 	res1 := testutil.Do(r, "POST", "/v1/iam/members", "admin", body)
@@ -101,21 +108,60 @@ func TestRepeatGrantRepublishesTuple(t *testing.T) {
 }
 
 func TestGrantRequiresMemberManage(t *testing.T) {
-	r, _, _, _ := testutil.ModuleHarnessWithAuthz(t,
-		map[string]string{"nurse": testutil.TenantA},
-		map[string][]authz.Permission{"nurse": {}},
-		&recordingWriter{}, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"nurse": testutil.TenantA},
+		Perms:  map[string][]authz.Permission{"nurse": {}},
+		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/members", "nurse",
 		`{"subject":"dr-jane","role_key":"doctor"}`)
 	require.Equal(t, http.StatusForbidden, res.Code)
 }
 
+// denyMembership is a fixed authz.MembershipChecker that refuses every
+// caller.
+type denyMembership struct{}
+
+func (denyMembership) IsMember(context.Context, string, string) (bool, error) { return false, nil }
+
+// TestPermissionGuardedRouteChecksMembershipBeforePermission closes a
+// coverage gap found while implementing #781: with a caller who is
+// BOTH not a member of the tenant AND missing the route's declared
+// permission, both a correct and an (incorrectly) swapped middleware
+// order produce the same 403 status code — status alone cannot tell
+// membership actually ran first. What only the message body reveals is
+// which check produced the denial. platform.Router.handle
+// (internal/platform/router.go) runs RequireMembership before Require
+// deliberately (see its comment: "a non-member gets the same answer on
+// every route regardless of what permission it declares"), so the
+// response here must be the membership denial, not "missing permission
+// iam.member.manage" — a caller must never learn which permissions a
+// route requires before learning they are not even a member.
+func TestPermissionGuardedRouteChecksMembershipBeforePermission(t *testing.T) {
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:     map[string]string{"outsider": testutil.TenantA},
+		Perms:      map[string][]authz.Permission{"outsider": {}}, // holds nothing, including iam.member.manage
+		Writer:     &recordingWriter{},
+		Membership: denyMembership{},
+		Modules:    []platform.Module{iam.New(nil)},
+	})
+
+	res := testutil.Do(r, "POST", "/v1/iam/members", "outsider",
+		`{"subject":"dr-jane","role_key":"doctor"}`)
+	require.Equal(t, http.StatusForbidden, res.Code)
+	require.Contains(t, res.Body.String(), "not a member of this tenant",
+		"a non-member's denial must come from RequireMembership, not leak which permission the route requires")
+	require.NotContains(t, res.Body.String(), "missing permission",
+		"Require must never run first for a non-member")
+}
+
 func TestGrantRejectsUnknownRole(t *testing.T) {
-	r, _, _, _ := testutil.ModuleHarnessWithAuthz(t,
-		map[string]string{"admin": testutil.TenantA},
-		map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		&recordingWriter{}, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"admin": testutil.TenantA},
+		Perms:  map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
+		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil)},
+	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/members", "admin",
 		`{"subject":"dr-jane","role_key":"wizard"}`)
@@ -124,10 +170,11 @@ func TestGrantRejectsUnknownRole(t *testing.T) {
 
 func TestRevokeRemovesRowAndTuple(t *testing.T) {
 	w := &recordingWriter{}
-	r, _, _, _ := testutil.ModuleHarnessWithAuthz(t,
-		map[string]string{"admin": testutil.TenantA},
-		map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		w, iam.New())
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"admin": testutil.TenantA},
+		Perms:  map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
+		Writer: w, Modules: []platform.Module{iam.New(nil)},
+	})
 
 	testutil.Do(r, "POST", "/v1/iam/members", "admin", `{"subject":"dr-jane","role_key":"doctor"}`)
 	eventually(t, func() bool { return len(w.grants()) == 1 })
@@ -150,13 +197,14 @@ func TestRevokeRemovesRowAndTuple(t *testing.T) {
 }
 
 func TestMembersAreTenantIsolated(t *testing.T) {
-	r, _, _, _ := testutil.ModuleHarnessWithAuthz(t,
-		map[string]string{"admin-a": testutil.TenantA, "admin-b": testutil.TenantB},
-		map[string][]authz.Permission{
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"admin-a": testutil.TenantA, "admin-b": testutil.TenantB},
+		Perms: map[string][]authz.Permission{
 			"admin-a": {iam.PermMemberManage},
 			"admin-b": {iam.PermMemberManage},
 		},
-		&recordingWriter{}, iam.New())
+		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil)},
+	})
 
 	testutil.Do(r, "POST", "/v1/iam/members", "admin-a", `{"subject":"dr-jane","role_key":"doctor"}`)
 

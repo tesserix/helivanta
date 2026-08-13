@@ -383,6 +383,17 @@ direction, module, event name, version:
 `backend/internal/archtest/arch_test.go`, against every module's
 `Consumers(deps)` and every module's exported `Subject*` constant.
 
+**Broadcast subscriptions are the one exception to consumer naming.** The
+`<module>-<purpose>` rule assumes a work queue, where replicas sharing a
+durable name compete and exactly one handles each message. A broadcast
+(`events.Broadcast`, `Bus.StartBroadcasts`) is the opposite: every replica
+must receive every message, so it uses an ephemeral, unnamed JetStream
+consumer with `DeliverNew`. Use it only for state whose durable truth
+lives elsewhere — the credential-revocation cache invalidation (#781) is
+the model: Postgres holds the watermark, the broadcast only says "re-read
+it". A broadcast handler gets no transaction and no idempotency claim,
+because a dropped or duplicated hint must be harmless by construction.
+
 **Versioning is additive, never in-place.** A breaking payload change
 gets a new subject (`...v2`) and a new consumer — the old `v1` consumer
 keeps running against the old subject until every publisher and consumer

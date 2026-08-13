@@ -31,7 +31,11 @@ type StaticVerifier map[string]string
 
 func (s StaticVerifier) Verify(ctx context.Context, raw string) (authn.Principal, error) {
 	if tenant, ok := s[raw]; ok {
-		return authn.Principal{Subject: "user-" + raw, TenantID: tenant}, nil
+		// AuthTime is "now", as a real, freshly-issued token's would be.
+		// Zero would silently compare as before any non-zero watermark a
+		// test configures via HarnessOptions.Revocation, which would make
+		// every such caller look already-revoked regardless of intent.
+		return authn.Principal{Subject: "user-" + raw, TenantID: tenant, AuthTime: time.Now()}, nil
 	}
 	return authn.Principal{}, context.DeadlineExceeded
 }
@@ -49,7 +53,8 @@ func (h harnessResolver) Resolve(_ context.Context, subject, _ string) (authz.Pe
 }
 
 // noopWriter discards tuple writes for modules that don't mutate
-// authorization state, so ModuleHarness callers need no TupleWriter.
+// authorization state, so a harness caller that doesn't set Writer needs
+// no TupleWriter of its own.
 type noopWriter struct{}
 
 func (noopWriter) GrantRole(context.Context, string, string, authz.Role) error  { return nil }
@@ -57,91 +62,113 @@ func (noopWriter) RevokeRole(context.Context, string, string, authz.Role) error 
 func (noopWriter) GrantPermission(context.Context, string, authz.Permission, authz.Role) error {
 	return nil
 }
+func (noopWriter) GrantTenantRole(context.Context, string, authz.Role) error { return nil }
 
 // noopRoleLister returns no bindings for modules that don't need to
-// resolve cross-tenant membership, so ModuleHarness and
-// ModuleHarnessWithAuthz callers need no RoleLister.
+// resolve cross-tenant membership, so a harness caller that doesn't set
+// Roles needs no RoleLister of its own.
 type noopRoleLister struct{}
 
 func (noopRoleLister) ListRoles(context.Context, string) ([]authz.RoleBinding, error) {
 	return nil, nil
 }
 
-// stubMinter mints a predictable, obviously-fake custom token so
-// harnesses that don't care about token minting still exercise the
-// switch route's success path. Tests that assert on minting (was it
-// called, with what, and only after the gate) pass their own recorder
-// via ModuleHarnessWithMinter.
-type stubMinter struct{}
+// StubMinter mints a predictable, obviously-fake custom token. It is NOT
+// the default for HarnessOptions.Minter — see that field's doc comment
+// — but is exported for a test that wants a working mint without
+// writing its own recorder.
+type StubMinter struct{}
 
-func (stubMinter) CustomTokenWithClaims(_ context.Context, uid string, claims map[string]interface{}) (string, error) {
+func (StubMinter) CustomTokenWithClaims(_ context.Context, uid string, claims map[string]interface{}) (string, error) {
 	return fmt.Sprintf("stub-custom-token:%s:%v", uid, claims["tenant_id"]), nil
 }
 
-// ModuleHarness boots the full module stack (Postgres, NATS, routes,
-// consumers, dispatcher) for the given modules. One call replaces the
-// setup() previously copy-pasted per module test package. perms maps
-// token → the permissions that token's caller holds.
-func ModuleHarness(t *testing.T, tokens map[string]string, perms map[string][]authz.Permission, mods ...platform.Module) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
-	t.Helper()
-	return moduleHarness(t, tokens, perms, noopWriter{}, noopRoleLister{}, stubMinter{}, mods...)
+// alwaysMember is the harness's default MembershipChecker: every subject
+// is a member of every tenant, in every tenant, unconditionally. This is
+// what keeps HarnessOptions{}'s zero value usable — a test that has not
+// opted into membership semantics (the overwhelming majority of module
+// tests) should keep exercising the route it is actually about, not trip
+// over an incidental 403 from a gate unrelated to what it tests.
+type alwaysMember struct{}
+
+func (alwaysMember) IsMember(context.Context, string, string) (bool, error) { return true, nil }
+
+// neverRevoked is the harness's default RevocationChecker: every subject
+// answers the zero watermark, unconditionally. This keeps
+// HarnessOptions{}'s zero value usable — a test that has not opted into
+// revocation semantics (the overwhelming majority of module tests)
+// should keep exercising the route it is actually about, not trip over
+// an incidental 401 from a gate unrelated to what it tests.
+type neverRevoked struct{}
+
+func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
+	return time.Time{}, nil
 }
 
-// ModuleHarnessWithAuthz is ModuleHarness plus a TupleWriter, for modules
-// that mutate authorization state.
-func ModuleHarnessWithAuthz(
-	t *testing.T,
-	tokens map[string]string,
-	perms map[string][]authz.Permission,
-	writer platform.TupleWriter,
-	mods ...platform.Module,
-) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
-	t.Helper()
-	return moduleHarness(t, tokens, perms, writer, noopRoleLister{}, stubMinter{}, mods...)
+// HarnessOptions are the substitutable dependencies of a module harness.
+//
+// The zero value is valid: every dependency field falls back to a stub
+// -- Writer to noopWriter, Roles to noopRoleLister, Membership to
+// alwaysMember -- so a caller that only cares about, say, tenant
+// isolation on a CRUD route can build a harness with just Tokens and
+// Perms set and get sensible, permissive defaults everywhere else.
+//
+// Minter is the one deliberate exception: it is NOT defaulted to a
+// working stub. ModuleHarnessWithMinter used to exist specifically so a
+// caller could pass nil on purpose and prove the tenant-switch route's
+// "no minter configured" failure path (see
+// TestSwitchTenantFailsClosedWithoutAMinter in internal/modules/iam).
+// Auto-defaulting Minter here would make that case inexpressible again
+// — a caller that wants a working mint sets Minter explicitly (a
+// *recordingMinter test double, or the exported StubMinter above).
+type HarnessOptions struct {
+	Tokens     map[string]string
+	Perms      map[string][]authz.Permission
+	Writer     platform.TupleWriter
+	Roles      platform.RoleLister
+	Minter     authn.TokenMinter
+	Membership authz.MembershipChecker
+	// Revocation defaults to a checker that answers "never revoked" for
+	// every subject — see neverRevoked's doc comment. Set it explicitly
+	// to exercise the credential-revocation gate in authn.Middleware
+	// (#781).
+	Revocation authn.RevocationChecker
+	// TokenRevoker defaults to nil, exactly like Deps.TokenRevoker in
+	// cmd/api when unset: the iam module's sign-out/revoke handlers treat
+	// a nil revoker as "no identity-provider call to make" and still
+	// complete the HMS-side revocation (#781). Set it explicitly (e.g. a
+	// recording double) to assert GIP was told.
+	TokenRevoker authn.TokenRevoker
+	Modules      []platform.Module
 }
 
-// ModuleHarnessWithRoles is ModuleHarness plus a TupleWriter and a
-// RoleLister, for modules (like iam) that resolve cross-tenant
-// membership from OpenFGA rather than a single-tenant Postgres query.
-func ModuleHarnessWithRoles(
-	t *testing.T,
-	tokens map[string]string,
-	perms map[string][]authz.Permission,
-	writer platform.TupleWriter,
-	roles platform.RoleLister,
-	mods ...platform.Module,
-) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
+// NewHarness boots the full module stack (Postgres, NATS, routes,
+// consumers, dispatcher) for opts.Modules. One call replaces the four
+// near-identical ModuleHarness* constructors this harness used to
+// export, collapsed here because Task 3 (#781) added Membership as a
+// fifth substitutable dependency and a sixth is coming — four
+// near-identical variants was already one too many, and a fifth or
+// sixth would only make that worse.
+func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
-	return moduleHarness(t, tokens, perms, writer, roles, stubMinter{}, mods...)
-}
 
-// ModuleHarnessWithMinter is ModuleHarnessWithRoles plus a TokenMinter,
-// for tests that assert on how the tenant-switch route mints — that it
-// mints only after the membership gate passes, and what claims it puts
-// in the token. Pass nil to simulate an unwired minter.
-func ModuleHarnessWithMinter(
-	t *testing.T,
-	tokens map[string]string,
-	perms map[string][]authz.Permission,
-	writer platform.TupleWriter,
-	roles platform.RoleLister,
-	minter authn.TokenMinter,
-	mods ...platform.Module,
-) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
-	t.Helper()
-	return moduleHarness(t, tokens, perms, writer, roles, minter, mods...)
-}
+	writer := opts.Writer
+	if writer == nil {
+		writer = noopWriter{}
+	}
+	roles := opts.Roles
+	if roles == nil {
+		roles = noopRoleLister{}
+	}
+	membership := opts.Membership
+	if membership == nil {
+		membership = alwaysMember{}
+	}
+	revocation := opts.Revocation
+	if revocation == nil {
+		revocation = neverRevoked{}
+	}
 
-func moduleHarness(
-	t *testing.T,
-	tokens map[string]string,
-	perms map[string][]authz.Permission,
-	writer platform.TupleWriter,
-	roles platform.RoleLister,
-	minter authn.TokenMinter,
-	mods ...platform.Module,
-) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
-	t.Helper()
 	appDSN, adminDSN := testinfra.StartPostgres(t)
 	db, err := tenantdb.Open(appDSN, adminDSN)
 	require.NoError(t, err)
@@ -150,7 +177,7 @@ func moduleHarness(
 	t.Cleanup(cancel)
 
 	migs := bootstrap.PlatformMigrations()
-	for _, m := range mods {
+	for _, m := range opts.Modules {
 		migs = append(migs, m.Migrations()...)
 	}
 	require.NoError(t, db.Migrate(ctx, migs))
@@ -165,25 +192,35 @@ func moduleHarness(
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 
-	deps := platform.Deps{DB: db, Bus: bus, Authz: writer, Roles: roles, Tokens: minter}
+	deps := platform.Deps{DB: db, Bus: bus, Authz: writer, Roles: roles, Tokens: opts.Minter, TokenRevoker: opts.TokenRevoker}
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	// Same middleware chain, same order, as cmd/api/main.go: requestid.Middleware()
-	// at the engine level, then authn, then requestid.PrincipalMiddleware() (which
-	// needs authn's principal already set), then authz. Without this, module
+	// at the engine level, then authn (which now also checks the credential
+	// revocation watermark against Principal.AuthTime — Task 4, #781), then
+	// requestid.PrincipalMiddleware() (which needs authn's principal already
+	// set), then authz. Then, inside platform.Router itself
+	// (internal/platform/router.go), authz.RequireMembership runs before
+	// authz.Require on every route not marked authz.NoTenantMembership — the
+	// membership gate that closes #781. Without this middleware order, module
 	// integration tests exercise requestid.Logger(c) falling back to a bare
 	// slog.Default() instead of the request-scoped logger every real request gets,
 	// and nothing in the suite catches PrincipalMiddleware being dropped from
-	// cmd/api. See TestRequestScopedLoggerCarriesCorrelationFields below.
+	// cmd/api, the membership gate being dropped from platform.Router, or the
+	// revocation gate being dropped from authn.Middleware. See
+	// TestRequestScopedLoggerCarriesCorrelationFields and
+	// internal/modules/reference's membership tests below.
 	r.Use(requestid.Middleware())
-	resolver := harnessResolver{tokens: tokens, perms: perms}
+	resolver := harnessResolver{tokens: opts.Tokens, perms: opts.Perms}
 	api := platform.NewRouter(r.Group("/v1",
-		authn.Middleware(StaticVerifier(tokens)),
+		authn.Middleware(StaticVerifier(opts.Tokens), revocation),
 		requestid.PrincipalMiddleware(),
-		authz.Middleware(resolver)))
-	for _, m := range mods {
+		authz.Middleware(resolver)),
+		membership)
+	for _, m := range opts.Modules {
 		m.Routes(api, deps)
 		require.NoError(t, bus.StartConsumers(ctx, db, m.Consumers(deps)))
+		require.NoError(t, bus.StartBroadcasts(ctx, m.Broadcasts(deps)))
 	}
 	go bus.RunDispatcher(ctx, db)
 	return r, db, bus, ctx

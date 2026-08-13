@@ -16,6 +16,11 @@ type TupleWriter interface {
 	GrantRole(ctx context.Context, tenantID, subject string, role authz.Role) error
 	RevokeRole(ctx context.Context, tenantID, subject string, role authz.Role) error
 	GrantPermission(ctx context.Context, tenantID string, perm authz.Permission, role authz.Role) error
+	// GrantTenantRole wires a role into its tenant so that assignees of
+	// the role resolve as members. Written per (tenant, role), not per
+	// member: membership for any number of subjects derives through this
+	// one edge.
+	GrantTenantRole(ctx context.Context, tenantID string, role authz.Role) error
 }
 
 // RoleLister is the subset of the authz client that modules may use to
@@ -46,6 +51,15 @@ type Deps struct {
 	// which case the switch route fails closed rather than issuing
 	// nothing and claiming success.
 	Tokens authn.TokenMinter
+	// TokenRevoker revokes a subject's refresh tokens at the identity
+	// provider when HMS decides a credential is no longer valid, so GIP
+	// agrees with the HMS watermark instead of quietly disagreeing
+	// (#781). platform must not import a module, so this stays a narrow
+	// capability exactly like Tokens above; the revocation watermark
+	// checker itself reaches the iam module through its own constructor,
+	// not through Deps — see iam.New. Set by main.go; nil in tests that
+	// do not exercise it.
+	TokenRevoker authn.TokenRevoker
 	// Reconcile ensures a tenant's permission tuples match the registry.
 	// Set by main.go; nil in tests that do not exercise it.
 	Reconcile func(ctx context.Context, tenantID string) error
@@ -61,4 +75,10 @@ type Module interface {
 	Permissions() []authz.Grant
 	Routes(r *Router, deps Deps)
 	Consumers(deps Deps) []events.Consumer
+	// Broadcasts declares this module's fanout subscriptions — every
+	// replica hears every message, unlike Consumers, where replicas
+	// sharing a durable name compete and exactly one wins (#781). Most
+	// modules return nil; iam uses it to invalidate its revocation cache
+	// the instant another replica revokes a credential.
+	Broadcasts(deps Deps) []events.Broadcast
 }

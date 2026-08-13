@@ -3,6 +3,7 @@
 import { usePermissions } from "@hms/api";
 import { HmsShell, visibleZones, type Zone, type ZoneHue } from "@hms/ui";
 import { TenantPicker } from "@/components/tenant-picker";
+import { signOutEverywhere } from "@/lib/sign-out";
 
 // Per-page descriptions, keyed by href — the registry (packages/ui/src/zones.ts)
 // owns titles and hrefs, this map only supplies the dashboard-card copy.
@@ -56,7 +57,7 @@ export default function Dashboard() {
   const cards = cardsFor(visibleZones(can));
 
   return (
-    <HmsShell active="/" tenantPicker={<TenantPicker />}>
+    <HmsShell active="/" tenantPicker={<TenantPicker />} onSignOut={signOutEverywhere}>
       <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
         <h2 className="text-sm font-semibold text-muted-foreground">Jump into a department</h2>
         <p className="text-xs text-muted-foreground">Manage visits, dispensing and lab work.</p>

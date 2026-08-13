@@ -590,17 +590,39 @@ Redaction cannot corrupt a line into invalid JSON.
 `logging.RedactionCount()` returns an in-process counter of masks applied
 — the seam #679 will wire to metrics; there's no metrics sink yet.
 
-**Nothing in the logging pipeline masks names, dates of birth, or
-addresses today.** Pattern redaction only recognises the identifier shapes
-above; it cannot and does not scan for names or free-text PHI. What
-protects patient rows is the Part A GORM guard (`logger.Silent` in
-`pkg/tenantdb.Open`, enforced by `TestGormOpenIsOnlyCalledFromTheAllowlist`
-and `TestOpenNeverLogsQueryParameters`) keeping patient data out of the log
-stream in the first place, not redaction downstream of it. A tag-based
-mechanism (`hmslog:"phi"` struct tags) to catch names/DOBs/addresses that
-do reach a log line was designed and implemented, but was withdrawn after
-review and is deferred to #778 — do not write `hmslog:"phi"` tags expecting
-them to do anything; no such tag is read by this package.
+**Names, dates of birth and addresses are masked by struct tag, not by
+pattern.** Tag a field `hmslog:"phi"` and `pkg/logging`'s handler replaces
+its value with `[REDACTED:phi]` before the record is serialised:
+
+```go
+type Patient struct {
+    ID   uuid.UUID `json:"id"`
+    Name string    `json:"name" hmslog:"phi"`
+    DOB  string    `json:"dob"  hmslog:"phi"`
+}
+```
+
+The tag is honoured wherever the tagged type appears in a logged value —
+directly, through a pointer, and inside slices, arrays and maps, including
+when an untagged wrapper DTO holds them. The value is rendered by
+`encoding/json` first and masked afterwards, so `json:"-"`, `omitempty`,
+renaming, embedding and custom marshallers all behave exactly as they do
+everywhere else. Anything that cannot be rendered or walked (a reference
+cycle, an unmarshallable field, an oversized graph) has its **whole**
+attribute value masked — this layer fails closed.
+
+Two things it cannot see, by construction: PHI reached only through an
+`any`-typed collection element (`[]any`, `map[string]any`), because the
+static type carries no tag — do not log PHI that way; and PHI inside a type
+that marshals itself. A value with no `hmslog` tag anywhere in its type
+graph is left strictly alone and renders byte-for-byte as it would without
+the handler.
+
+The tag layer is defence in depth, not the primary control. What keeps
+patient rows out of the log stream in the first place is the GORM guard
+(`logger.Silent` in `pkg/tenantdb.Open`, enforced by
+`TestGormOpenIsOnlyCalledFromTheAllowlist` and
+`TestOpenNeverLogsQueryParameters`).
 
 Known limitations, stated plainly:
 

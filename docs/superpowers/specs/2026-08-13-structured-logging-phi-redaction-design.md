@@ -62,13 +62,13 @@ One spec, five parts, sequenced so the guard lands first and survives an
 interruption. Out of scope: log shipping and storage (infrastructure), metrics
 and traces (#679).
 
-**Shipped: Parts A–D.** Part A merged separately as the urgent guard; B, C and D
-followed. **Part E (tag redaction) is deferred** — implemented, reviewed twice,
-withdrawn, and tracked as its own issue with a replacement design. See the end
-of Part E for the five defects that caused it and the marshal-then-mask approach
-that should supersede it. Issue #678's tagged-field acceptance criterion is
-therefore **not met by this work** and is stated as such rather than quietly
-claimed.
+**Shipped: Parts A–E.** Part A merged separately as the urgent guard; B, C and D
+followed. **Part E (tag redaction) shipped separately as #778**, after its
+original reflection-based design was implemented, reviewed twice and withdrawn
+over five Critical defects. What ships is the marshal-then-mask design described
+at the end of Part E: `encoding/json` renders the value, and the rendered bytes
+are masked at the JSON paths the tags identify. Issue #678's tagged-field
+acceptance criterion is met by `backend/pkg/logging/phitag.go`.
 
 ---
 

@@ -2,22 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **⚠️ PART E WITHDRAWN — DO NOT IMPLEMENT `hmslog:"phi"` TAGS.**
+> **⚠️ PART E: THE PLAN BELOW WAS WITHDRAWN; TAG REDACTION NOW SHIPS BY A DIFFERENT DESIGN.**
 >
-> Task 8 below (`hmslog:"phi"` struct-tag redaction, `backend/pkg/logging/phitag.go`)
-> was implemented, reviewed twice, found to carry five Critical defects, and
-> **withdrawn**. It is **not merged** and **not shipped**. `phitag.go` does not exist
-> in this codebase. No Go file reads an `hmslog` tag. The withdrawal is deferred to
-> **issue #778** and recorded in the spec amendment at commit `e30a748`.
->
-> **Do not write `hmslog:"phi"` struct tags expecting them to mask anything — nothing
-> reads that tag.** Task 8, the "Tags:" block, and the file-structure entries for
-> `phitag.go`/`phitag_test.go` below are preserved for history only; every occurrence
-> is marked WITHDRAWN inline. What actually protects names, dates of birth and
-> addresses today is **the Part A GORM guard** (`logger.Silent` in `pkg/tenantdb.Open`,
-> Tasks 1–2) keeping patient data out of the log stream in the first place — not any
-> redaction mechanism downstream of it. See `docs/standards/backend.md` for the
-> authoritative, currently-accurate contract.
+> Task 8 below (reflection-based `hmslog:"phi"` redaction) was implemented,
+> reviewed twice, found to carry five Critical defects, and **withdrawn**. Do not
+> resume it. `hmslog:"phi"` masking **does** ship, via the marshal-then-mask design
+> in issue #778: `encoding/json` renders the value, and the rendered bytes are
+> masked at the JSON paths the tags identify. See `backend/pkg/logging/phitag.go`
+> and `docs/standards/backend.md` for the authoritative contract. Task 8 and the
+> "Tags:" block below are preserved for history only.
 
 **Goal:** Give the HMS backend one JSON slog pipeline with tenant/subject correlation and PHI redaction, and mechanically protect the single clause that today prevents GORM from dumping patient rows into the logs.
 

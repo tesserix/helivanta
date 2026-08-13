@@ -22,7 +22,13 @@ func New(level string) *slog.Logger {
 // output without touching os.Stdout.
 func NewWithWriter(w io.Writer, level string) *slog.Logger {
 	lvl, ok := ParseLevel(level)
-	handler := slog.NewJSONHandler(NewRedactingWriter(w), &slog.HandlerOptions{Level: lvl})
+	// Two redaction layers, in the only order that works. The tag handler runs
+	// first, while attribute values are still Go values and a struct tag is
+	// still visible; the JSON handler then serialises what it produced, and the
+	// redacting writer screens the resulting bytes for PHI *shapes* (Aadhaar,
+	// ABHA, mobile) that no tag could have declared. Reversing them would put
+	// the tag layer behind the serialisation, where the tags no longer exist.
+	handler := NewPHITagHandler(slog.NewJSONHandler(NewRedactingWriter(w), &slog.HandlerOptions{Level: lvl}))
 	l := slog.New(handler)
 	if !ok && strings.TrimSpace(level) != "" {
 		// Warn rather than fail: a mistyped log level cannot compromise

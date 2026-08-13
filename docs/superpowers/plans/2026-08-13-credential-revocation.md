@@ -526,7 +526,8 @@ git commit -m "feat: add a tenant type whose member relation derives from role a
 
 **Interfaces:**
 - Consumes: `authz.TenantObject`, `(*Client).GrantTenantRole`, `(*Client).RevokeTenantRole` from Task 1.
-- Produces: `platform.TupleWriter` gains `GrantTenantRole(ctx, tenantID string, role authz.Role) error`; `platform.TupleReconciler` gains `RevokeTenantRole(ctx, tenantID string, role authz.Role) error`.
+- Produces: `platform.TupleWriter` gains `GrantTenantRole(ctx, tenantID string, role authz.Role) error`.
+- **Correction applied during review:** an earlier draft also added `RevokeTenantRole` to `TupleReconciler` and to `authz.Client`. Both were removed in `7a60de1` — prune deletes tenant edges generically through `DeleteTuple` with no per-type branch, so nothing ever called them. Do not reintroduce either: `TupleReconciler` is deliberately narrow, and a second way to remove a membership edge is capability for nothing.
 
 **Why this matters more than it looks.** An existing store has no `tenant:… granted_role …` tuples. The instant Task 3's membership check goes live, every `Check` returns false and **every user in every tenant is locked out**. `platform.Reconcile` already runs at `cmd/api/main.go:90`, before `ListenAndServe` at line 137, so the ordering that saves us exists — this task makes the reconciler actually write the edges, and the test asserts the whole rescue path.
 

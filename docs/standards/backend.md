@@ -610,14 +610,25 @@ when an untagged wrapper DTO holds them. The value is rendered by
 — is exactly what it would be without this layer; nothing is reshaped, and
 a `json:"-"` field cannot be published because it is never rendered.
 What this layer computes independently is which emitted **key** each tagged
-field corresponds to, mirroring `encoding/json`'s naming and
-conflict-resolution rules (depth, then the tag-named field, then the name is
-dropped). Where that mirror cannot be certain — an ambiguous
-equal-depth name conflict — the position is masked rather than guessed, so
-the residual error is over-masking, never a leak. Anything that cannot be
-rendered or walked (a reference cycle, an unmarshallable field, an oversized
-graph) has its **whole** attribute value masked. This layer fails closed
-throughout.
+field corresponds to. Two things decide that, and both are handled without
+guessing: **which tag names `encoding/json` honours** is answered by asking
+`encoding/json` itself (it silently ignores some tag names — Go 1.26 rejects
+`json:"नाम"` while accepting `json:"aé"` — so a rejected name renders under
+the Go field name instead), and **which field wins when two compete for one
+key** mirrors `encoding/json`'s own rule: shallowest embedding depth, then
+the single tag-named field, then the key is dropped. Where that mirror
+cannot be certain the position is masked rather than guessed. Anything that
+cannot be rendered or walked (a reference cycle, an unmarshallable field, an
+oversized graph) has its **whole** attribute value masked. This layer fails
+closed throughout.
+
+Both of those were learned the hard way: earlier versions guessed the
+tag-name rule, and then hedged the guess by also claiming the Go field name,
+and each leaked tagged PHI in plaintext for a different shape. Neither
+mechanism remains. `phitag_conflict_test.go` fuzzes the class — generated
+structs whose fields deliberately collide on emitted names, with tag names
+`encoding/json` rejects in the pool — asserting in both directions that the
+tagged value never appears and untagged values are never lost.
 
 Three things it cannot see, by construction:
 
@@ -633,13 +644,8 @@ Three things it cannot see, by construction:
 - PHI already flattened into a string before it reaches slog
   (`fmt.Errorf("%s", name)`), where no type remains to carry a tag.
 
-Known over-mask, accepted: to stay safe when `encoding/json` rejects a tag
-name and falls back to the Go field name, a tagged field also claims its Go
-field name as a key. If a *sibling* field is explicitly json-named after that
-Go field name, the sibling wins (it is a real key and the alias is only a
-fallback); but two tagged fields colliding on one name mask both. A value
-with no `hmslog` tag anywhere in its type graph is left strictly alone and
-renders byte-for-byte as it would without the handler.
+A value with no `hmslog` tag anywhere in its type graph is left strictly
+alone and renders byte-for-byte as it would without the handler.
 
 The tag layer is defence in depth, not the primary control. What keeps
 patient rows out of the log stream in the first place is the GORM guard

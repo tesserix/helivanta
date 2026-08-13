@@ -93,6 +93,56 @@ func TestDuplicateEmittedNamesResolveAsEncodingJSONDoes(t *testing.T) {
 	}
 }
 
+// --- tag names encoding/json rejects, competing with a real key -------------
+//
+// Go 1.26's encoding/json rejects some tag names and falls back to the Go field
+// name — `नाम` and `पता` are rejected while `aé`, `имя` and `名前` are accepted.
+// A Hindi-named field on a patient DTO is an entirely realistic thing to write
+// in an Indian hospital system, so this is not an exotic trigger. When such a
+// field then competes with another for the Go field name, the emitted key must
+// still be bound to whichever field encoding/json binds it to.
+
+type shallowInner struct{ Data string }
+
+type rejectedTagOuter struct {
+	shallowInner
+	// encoding/json rejects "नाम" and emits this field as "Data" at depth 0,
+	// which hides shallowInner.Data at depth 1.
+	Data string `json:"नाम" hmslog:"phi"`
+}
+
+type rejectedTagOverMask struct {
+	// Rejected tag: this would be emitted as "Alias" at depth 0 — except that
+	// Other claims "Alias" from a tag, so encoding/json drops this field.
+	Alias string `json:"नाम" hmslog:"phi"`
+	Other string `json:"Alias"`
+}
+
+func TestRejectedTagNameCompetingWithADeeperRealKeyStillMasks(t *testing.T) {
+	v := rejectedTagOuter{shallowInner: shallowInner{Data: "public"}, Data: secretName}
+	raw, err := json.Marshal(v)
+	require.NoError(t, err)
+	require.Contains(t, string(raw), secretName, "fixture must actually emit the tagged field")
+
+	line := logged(t, "v", v)
+	require.NotContains(t, line, secretName,
+		"encoding/json renders %s at depth 0; the mask must follow it there", raw)
+	require.Contains(t, line, `"v":{"Data":"`+phiMarker+`"}`, line)
+}
+
+func TestRejectedTagNameLosingToATaggedSiblingDoesNotOverMask(t *testing.T) {
+	v := rejectedTagOverMask{Alias: secretName, Other: "PUBLIC"}
+	raw, err := json.Marshal(v)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"Alias":"PUBLIC"}`, string(raw),
+		"encoding/json drops the rejected-tag field: the tagged sibling owns this key")
+
+	line := logged(t, "v", v)
+	require.NotContains(t, line, secretName)
+	require.Contains(t, line, `"Alias":"PUBLIC"`,
+		"the key belongs to the untagged sibling and must not be masked: %s", line)
+}
+
 // --- M1: over-masking must not destroy an untagged sibling ------------------
 
 type overMaskSibling struct {
@@ -148,9 +198,14 @@ var allKinds = []fuzzKind{kindPlainString, kindPHIString, kindPTStruct, kindPTPo
 // field's json tag is exactly the collision the Go-name fallback introduced,
 // and "Data" is also the field name inside the embedded fixtures, so embedded
 // and top-level candidates compete at different depths.
+// fuzzJSONNames deliberately includes names encoding/json REJECTS ("नाम",
+// "पता", an emoji) alongside ones it accepts. Their absence is why the first
+// version of this fuzz could not see the class it was written to guard: a
+// rejected tag name is the entire reason name resolution has anything to
+// decide, so a pool without one tests only the easy half.
 var (
 	fuzzGoNames   = []string{"Data", "Alias", "Rec", "Extra", "Name"}
-	fuzzJSONNames = []string{"", "", "Data", "Alias", "name", "alpha", "-", "Extra"}
+	fuzzJSONNames = []string{"", "", "Data", "Alias", "name", "alpha", "-", "Extra", "नाम", "पता", "🙂", "aé"}
 )
 
 func fuzzField(kind fuzzKind, goName, jsonTag string) (reflect.StructField, []int) {
@@ -193,8 +248,8 @@ func TestFuzzDuplicateEmittedNamesNeverLeak(t *testing.T) {
 	rng := rand.New(rand.NewSource(20260813))
 	const iterations = 3000
 
-	leaks, exercised := 0, 0
-	var firstLeak string
+	leaks, overMasks, exercised := 0, 0, 0
+	var firstLeak, firstOverMask string
 	for i := range iterations {
 		typ, secretPath, ok := buildFuzzStruct(rng)
 		if !ok {
@@ -204,6 +259,11 @@ func TestFuzzDuplicateEmittedNamesNeverLeak(t *testing.T) {
 		if !plantSecret(val, secretPath) {
 			continue
 		}
+		// Every other string position gets a public sentinel, so the fuzz
+		// measures both directions: a leak is the secret surviving, an
+		// over-mask is a sentinel disappearing. Only checking for leaks would
+		// pass a redactor that masked the entire record.
+		fillPublic(val)
 		v := val.Interface()
 
 		raw, err := json.Marshal(v)
@@ -226,11 +286,21 @@ func TestFuzzDuplicateEmittedNamesNeverLeak(t *testing.T) {
 				firstLeak = fmt.Sprintf("iteration %d\n  type   %s\n  json   %s\n  logged %s",
 					i, typ, raw, strings.TrimSpace(line))
 			}
+			continue
+		}
+		if want, got := bytes.Count(raw, []byte(publicSentinel)), strings.Count(line, publicSentinel); want != got {
+			overMasks++
+			if firstOverMask == "" {
+				firstOverMask = fmt.Sprintf("iteration %d (%d public values in, %d out)\n  type   %s\n  json   %s\n  logged %s",
+					i, want, got, typ, raw, strings.TrimSpace(line))
+			}
 		}
 	}
 	require.Positive(t, exercised, "the generator must actually emit the secret somewhere")
 	require.Zero(t, leaks, "%d of %d exercised shapes leaked; first:\n%s", leaks, exercised, firstLeak)
-	t.Logf("%d generated shapes emitted the secret and were all masked", exercised)
+	require.Zero(t, overMasks, "%d of %d exercised shapes lost an untagged public value; first:\n%s",
+		overMasks, exercised, firstOverMask)
+	t.Logf("%d generated shapes emitted the secret; all masked, no untagged value lost", exercised)
 }
 
 // buildFuzzStruct generates a struct type whose fields compete for emitted
@@ -267,6 +337,38 @@ func buildFuzzStruct(rng *rand.Rand) (reflect.Type, []int, bool) {
 		return nil, nil, false
 	}
 	return reflect.StructOf(fields), secretPath, true
+}
+
+const publicSentinel = "PUBLIC-VALUE-KEEP"
+
+// fillPublic gives every still-empty string position a sentinel, so the fuzz
+// can tell "masked correctly" from "masked everything".
+func fillPublic(v reflect.Value) {
+	switch v.Kind() {
+	case reflect.String:
+		if v.CanSet() && v.String() == "" {
+			v.SetString(publicSentinel)
+		}
+	case reflect.Struct:
+		for i := range v.NumField() {
+			// Skip tagged positions: those are supposed to disappear, and
+			// filling them would make correct masking look like data loss.
+			if v.Type().Field(i).Tag.Get("hmslog") == "phi" {
+				continue
+			}
+			if v.Field(i).CanSet() {
+				fillPublic(v.Field(i))
+			}
+		}
+	case reflect.Pointer:
+		if !v.IsNil() {
+			fillPublic(v.Elem())
+		}
+	case reflect.Slice:
+		for i := range v.Len() {
+			fillPublic(v.Index(i))
+		}
+	}
 }
 
 // plantSecret walks the generated index path, allocating pointers and slices as

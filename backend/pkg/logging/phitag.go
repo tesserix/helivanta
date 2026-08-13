@@ -32,11 +32,14 @@ package logging
 //     tag. This is the only thing reimplemented here, and it reimplements
 //     encoding/json's field *naming* rules rather than its rendering — a far
 //     smaller surface — but not a free one. Getting a name wrong in the
-//     under-masking direction emits PHI in plaintext, which is exactly how the
-//     equal-depth name-conflict defect happened, and the Go-field-name
-//     fallback below can also over-mask. Every naming decision therefore
-//     resolves toward masking where it cannot be certain, and the differential
-//     fuzz in phitag_conflict_test.go is the mechanical guard on the class.
+//     under-masking direction emits PHI in plaintext, which is how both
+//     name-resolution defects on this feature happened. So the two parts of
+//     naming that encoding/json decides by unexported rules are not
+//     reimplemented at all: which tag names it honours is answered by *asking
+//     it* (jsonEmittedName), and its depth/tag conflict rule is mirrored
+//     explicitly (resolveFieldName) with a fail-closed branch where the mirror
+//     cannot be certain. The differential fuzz in phitag_conflict_test.go is
+//     the mechanical guard on the class.
 //  3. The marshalled bytes are streamed through encoding/json's token reader
 //     and re-encoded, with the values at those paths replaced by the marker.
 //
@@ -87,6 +90,7 @@ import (
 	"io"
 	"log/slog"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -288,12 +292,6 @@ type fieldCandidate struct {
 	// tag-named candidate, so this is not decoration — it decides which
 	// field's type the emitted key is bound to.
 	fromTag bool
-	// fallback marks the Go-field-name alias registered alongside a tag-named
-	// field, as insurance against encoding/json rejecting the tag name. It is
-	// a guess about a key that may not exist, so it ranks strictly below every
-	// real candidate: a field must never claim a key it does not emit and
-	// outrank the field that does.
-	fallback bool
 }
 
 // addStructFields mirrors encoding/json's field rules for one struct type,
@@ -332,6 +330,88 @@ func addStructFields(t reflect.Type, node *phiNode, seen map[reflect.Type]*phiNo
 	}
 }
 
+// jsonEmittedName reports the JSON name encoding/json will use for a field
+// carrying this json struct tag, or "" when the field renders under its Go
+// field name instead.
+//
+// It answers the question by *asking encoding/json*, not by reimplementing it.
+// encoding/json silently ignores a tag name it considers invalid — Go 1.26
+// honours `json:"aé"`, `json:"имя"` and `json:"名前"` but rejects `json:"नाम"`
+// and `json:"पता"` — and the rule behind that (isValidTag) is unexported and
+// has moved between releases. Two attempts to work around not knowing it both
+// leaked: guessing the rule under-masks whenever the guess is wrong, and
+// hedging by *also* claiming the Go field name let a field claim a key it
+// never emits and outrank the field that does. A Devanagari field name on a
+// patient DTO is an ordinary thing to write in an Indian hospital system, so
+// neither failure was exotic.
+//
+// Asking removes the guess: build a one-field struct carrying the same tag,
+// marshal it, and read which key came out. That is exactly the rule
+// encoding/json will apply to the real field, whatever release it comes from,
+// and it makes the Go-field-name fallback — and the entire class of defect it
+// created — unnecessary.
+func jsonEmittedName(tag string) string {
+	declared, _, _ := strings.Cut(tag, ",")
+	if declared == "" {
+		return ""
+	}
+	if cached, ok := jsonTagNameCache.Load(tag); ok {
+		name, _ := cached.(string)
+		return name
+	}
+	name := probeJSONTagName(tag, declared)
+	jsonTagNameCache.Store(tag, name)
+	return name
+}
+
+var jsonTagNameCache sync.Map // json tag string -> emitted name ("" = Go field name)
+
+// probeTagFieldName is the Go field name used by the probe struct. It is
+// deliberately unlikely to collide with a real tag name; if it ever did, both
+// answers coincide anyway.
+const probeTagFieldName = "HMSLogProbeField"
+
+// probeJSONTagName marshals a synthetic single-field struct carrying tag and
+// reports the emitted key if it is the declared name, or "" if encoding/json
+// fell back to the field name.
+//
+// Anything unexpected — a panic from reflect.StructOf, a marshal error, a key
+// that is neither candidate — returns "" as well, which routes the field to
+// its Go field name. That is the same answer encoding/json gives for a
+// rejected tag, so the failure mode is the common case rather than a new one.
+func probeJSONTagName(tag, declared string) (name string) {
+	defer func() {
+		if recover() != nil {
+			name = ""
+		}
+	}()
+
+	probe := reflect.StructOf([]reflect.StructField{{
+		Name: probeTagFieldName,
+		Type: reflect.TypeFor[string](),
+		// strconv.Quote so a tag containing a quote or backslash survives being
+		// re-embedded in a struct tag literal exactly as it was written.
+		Tag: reflect.StructTag("json:" + strconv.Quote(tag)),
+	}})
+	val := reflect.New(probe).Elem()
+	// A non-empty value, so `omitempty` cannot omit the field and hide the
+	// answer.
+	val.Field(0).SetString("x")
+
+	raw, err := json.Marshal(val.Interface())
+	if err != nil {
+		return ""
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return ""
+	}
+	if _, ok := obj[declared]; ok {
+		return declared
+	}
+	return ""
+}
+
 // resolveFieldName picks the candidate encoding/json would bind a JSON name to.
 //
 // The rule, from encoding/json's dominantField: the shallowest depth wins, and
@@ -343,27 +423,16 @@ func addStructFields(t reflect.Type, node *phiNode, seen map[reflect.Type]*phiNo
 // and tagged PHI went out in plaintext. It was declaration-order dependent,
 // which is the same order-dependence class that sank the withdrawn design.
 //
-// Two deviations from encoding/json, both deliberate and both toward masking:
-//
-//   - Fallback candidates (the Go-field-name alias of a tag-named field) are
-//     considered only when no real candidate claims the name at all. They are
-//     a guess about a key encoding/json might emit, and a guess must never
-//     outrank a field that certainly emits that key.
-//   - Where the winner is genuinely ambiguous and the tied candidates disagree
-//     — different types, or different tag status — the position is marked as
-//     PHI. encoding/json drops such a name, so in the ordinary case nothing is
-//     emitted there and the mark is inert; if this mirror of the rule is ever
-//     wrong, the error lands on the masking side.
+// One deliberate deviation from encoding/json: where the winner is genuinely
+// ambiguous and the tied candidates disagree — different types, or different
+// tag status — the position is marked as PHI. encoding/json drops such a name
+// entirely, so in the ordinary case nothing is emitted there and the mark is
+// inert; it exists so that if this mirror of the rule is ever wrong, the error
+// lands on the masking side. resolveFieldName is unit-tested directly in
+// phitag_internal_test.go, because that branch is unobservable through the
+// logger by construction and would otherwise go unasserted.
 func resolveFieldName(group []fieldCandidate) fieldCandidate {
-	pool := make([]fieldCandidate, 0, len(group))
-	for _, c := range group {
-		if !c.fallback {
-			pool = append(pool, c)
-		}
-	}
-	if len(pool) == 0 {
-		pool = group
-	}
+	pool := group
 
 	minDepth := pool[0].depth
 	for _, c := range pool {
@@ -445,7 +514,7 @@ func collectFields(t reflect.Type, depth int, force bool, promoting map[reflect.
 			// literally named "-", which is the next branch's business.
 			continue
 		}
-		name, _, _ := strings.Cut(tag, ",")
+		name := jsonEmittedName(tag)
 
 		// The phi tag is read as a comma-separated option list so a future
 		// `hmslog:"phi,<option>"` still masks. Comparing the whole tag against
@@ -454,31 +523,17 @@ func collectFields(t reflect.Type, depth int, force bool, promoting map[reflect.
 		hmsOpt, _, _ := strings.Cut(sf.Tag.Get(phiTagKey), ",")
 		phi := force || hmsOpt == phiTagValue
 
+		// The promotion test uses the *effective* name, matching
+		// encoding/json: an embedded struct whose tag name was rejected has no
+		// name, so it is promoted rather than nested.
 		if sf.Anonymous && name == "" && embedded.Kind() == reflect.Struct && !rendersItself(sf.Type) && !rendersItself(embedded) {
 			collectFields(embedded, depth+1, phi, promoting, out)
 			continue
 		}
 
-		// Both the json tag name and the Go field name are recorded.
-		//
-		// encoding/json ignores a tag name it considers invalid and falls back
-		// to the Go field name, and the exact validity rule is an unexported
-		// implementation detail that has moved between releases: on Go 1.26
-		// `json:"aé"` is honoured while `json:"नाम"` is not. Mirroring that
-		// rule here would mean re-deriving it on every Go upgrade, and getting
-		// it wrong means computing a path that the output never uses — which
-		// is a silent *under*-mask, the one direction this package must not be
-		// wrong in. Recording both names costs a spurious mask only if a
-		// sibling field is deliberately named after another field's Go name,
-		// which is over-masking: safe, visible, and vanishingly rare.
 		*out = append(*out, fieldCandidate{
 			name: cmp.Or(name, sf.Name), depth: depth, phi: phi, typ: sf.Type, fromTag: name != "",
 		})
-		if name != "" && name != sf.Name {
-			*out = append(*out, fieldCandidate{
-				name: sf.Name, depth: depth, phi: phi, typ: sf.Type, fallback: true,
-			})
-		}
 	}
 }
 

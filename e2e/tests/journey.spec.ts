@@ -87,7 +87,12 @@ test("pharmacist can dispense a visit created by admin", async ({ page }) => {
   await page.getByRole("button", { name: "Create visit" }).click();
   await expect(page.getByText(patient).first()).toBeVisible();
 
-  await page.goto("/logout");
+  // /logout is a same-origin-checked POST now, not a GET a test (or an
+  // attacker's <img> tag) can navigate to directly — see
+  // apps/shell/app/logout/route.ts and #781. Every zone renders the same
+  // HmsShell sign-out control, including the medicore page we're on.
+  await page.getByRole("button", { name: "Sign out" }).last().click();
+  await expect(page).toHaveURL(/\/login/);
   await login(page, PHARMACIST);
 
   await page.goto("/pharmacy");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { usePermissions, clearPermissionsCache } from "@hms/api";
 import { visibleZones, activeZone } from "./zones";
@@ -10,7 +10,8 @@ import { ThemeToggle } from "./theme";
 // fixed icons-only (no expand/collapse); only the page panel toggles open ↔
 // hidden, and that preference persists per browser. All links stay plain
 // <a> — cross-zone navigation is a hard navigation by design (phase 1 spec
-// D3).
+// D3). Sign-out is the one documented exception (docs/standards/frontend.md
+// §6): it is a state change, not navigation, so it renders as a form.
 
 const PANEL_KEY = "hms.panel.open";
 
@@ -41,10 +42,27 @@ function usePersistedFlag(key: string, fallback: boolean) {
 export function HmsShell({
   active,
   tenantPicker,
+  onSignOut,
   children,
 }: {
   active: string;
   tenantPicker?: ReactNode;
+  /**
+   * The full sign-out sequence, run before the browser is sent to
+   * `/login`. Optional because only the shell app can supply it in full:
+   * Firebase's client SDK — the piece that must be cleared to stop a
+   * signed-out session from being reconstructed from the browser console
+   * (#781) — is configured once, in `apps/shell/lib/firebase.ts`, and
+   * `HmsShell` is rendered by every zone app, most of which carry no
+   * Firebase config at all. Same constraint as `tenantPicker` above, for
+   * the same reason.
+   *
+   * Unset, `HmsShell` still performs the server-side half itself (the
+   * POST below): every zone can at least revoke the session and clear the
+   * transport cookie. Only the shell's own dashboard
+   * (`apps/shell/app/page.tsx`) passes the Firebase-aware version.
+   */
+  onSignOut?: () => void | Promise<void>;
   children: ReactNode;
 }) {
   const { can } = usePermissions();
@@ -54,11 +72,30 @@ export function HmsShell({
   const zone = zones.find((z) => z.key === activeZone(active).key) ?? zones[0];
   const [panelOpen, setPanelOpen] = usePersistedFlag(PANEL_KEY, true);
 
-  // Both sign-out links are plain <a> (cross-zone navigation is a hard
-  // navigation by design), so this only drops the cached permission set
-  // before the browser follows the link — the navigation itself is
-  // untouched.
-  const onSignOut = () => clearPermissionsCache();
+  // Sign-out is a state change — it revokes every session for the
+  // subject server-side (#781) — so it is a POST, same-origin checked by
+  // apps/shell/app/logout/route.ts, never a GET a page could trigger with
+  // `<img src="/logout">`. The cache drop happens before the network
+  // round-trip so a slow or failed revoke can never leave stale
+  // permissions visible; the browser is sent onward to /login only once
+  // whatever cleanup was possible has actually finished, so a shared
+  // workstation is never left mid-navigation with a half-torn-down
+  // session.
+  async function handleSignOut(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    clearPermissionsCache();
+    if (onSignOut) {
+      await onSignOut();
+    } else {
+      try {
+        await fetch("/logout", { method: "POST" });
+      } catch {
+        // The user must still be able to leave a shared workstation even
+        // if the revoke call itself is unreachable.
+      }
+    }
+    window.location.href = "/login";
+  }
 
   const activePage = zone.pages.find((p) => p.href === active);
 
@@ -111,15 +148,16 @@ export function HmsShell({
           })}
         </nav>
         <div className="flex flex-col items-center gap-1 px-0 py-3">
-          <a
-            href="/logout"
-            title="Sign out"
-            aria-label="Sign out"
-            onClick={onSignOut}
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-          >
-            <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-          </a>
+          <form onSubmit={handleSignOut}>
+            <button
+              type="submit"
+              title="Sign out"
+              aria-label="Sign out"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+            >
+              <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
+            </button>
+          </form>
         </div>
       </aside>
 
@@ -193,13 +231,14 @@ export function HmsShell({
             <div className="flex items-center gap-3">
               {tenantPicker}
               <ThemeToggle />
-              <a
-                href="/logout"
-                onClick={onSignOut}
-                className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-              >
-                Sign out
-              </a>
+              <form onSubmit={handleSignOut}>
+                <button
+                  type="submit"
+                  className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                >
+                  Sign out
+                </button>
+              </form>
             </div>
           </div>
         </header>

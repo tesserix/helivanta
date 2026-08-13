@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { z } from "zod";
@@ -21,6 +21,16 @@ export default function LoginPage() {
     email: process.env.NODE_ENV !== "production" ? "test@hms.dev" : "",
     password: process.env.NODE_ENV !== "production" ? "password123" : "",
   });
+
+  // Initializes the Firebase client on arrival, not only on submit. Sign-out
+  // (packages/ui/src/hms-shell.tsx) always ends in a hard navigation here,
+  // so this is also the first point after sign-out where the SDK's session
+  // state — cleared or not — becomes observable again; a login page that
+  // waited for a submit to even construct the Auth instance would leave
+  // that state effectively invisible until the next sign-in.
+  useEffect(() => {
+    firebaseAuth();
+  }, []);
 
   async function onSubmit(values: z.infer<typeof loginSchema>) {
     setSignInError(null);

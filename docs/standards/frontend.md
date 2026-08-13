@@ -211,7 +211,14 @@ separately-deployed Next.js app, so moving from `/medicore/opd` to
 `/pharmacy` is a real page load across app boundaries, not client-side
 routing within one app. Using `next/link` there would silently fail or
 produce a broken client-side transition. `packages/ui/src/hms-shell.tsx`
-uses `<a>` for every rail and panel link, including "Sign out".
+uses `<a>` for every rail and panel link.
+
+**Sign-out is the one exception to "cross-zone links are plain `<a>`".**
+It is a state change, not navigation: it revokes every session for the
+subject, so it must be a POST with a same-origin check rather than a GET
+any page can trigger with an `<img>` tag (#781). It renders as a form
+submission (`packages/ui/src/hms-shell.tsx`, `apps/shell/app/logout/route.ts`).
+Do not convert it back to a link.
 
 Zone navigation data — the list of zones, their icons, and their pages —
 lives in exactly one place: `packages/ui/src/zones.ts`. Adding a zone

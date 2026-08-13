@@ -31,8 +31,12 @@ package logging
 //  2. Per type, cached, we compute the set of JSON *paths* that carry the phi
 //     tag. This is the only thing reimplemented here, and it reimplements
 //     encoding/json's field *naming* rules rather than its rendering — a far
-//     smaller surface, and one that is wrong only in the direction of not
-//     matching a path (never in the direction of inventing output).
+//     smaller surface — but not a free one. Getting a name wrong in the
+//     under-masking direction emits PHI in plaintext, which is exactly how the
+//     equal-depth name-conflict defect happened, and the Go-field-name
+//     fallback below can also over-mask. Every naming decision therefore
+//     resolves toward masking where it cannot be certain, and the differential
+//     fuzz in phitag_conflict_test.go is the mechanical guard on the class.
 //  3. The marshalled bytes are streamed through encoding/json's token reader
 //     and re-encoded, with the values at those paths replaced by the marker.
 //
@@ -279,6 +283,17 @@ type fieldCandidate struct {
 	depth int
 	phi   bool
 	typ   reflect.Type
+	// fromTag records that name came from a json tag rather than the Go field
+	// name. encoding/json breaks an equal-depth tie in favour of the single
+	// tag-named candidate, so this is not decoration — it decides which
+	// field's type the emitted key is bound to.
+	fromTag bool
+	// fallback marks the Go-field-name alias registered alongside a tag-named
+	// field, as insurance against encoding/json rejecting the tag name. It is
+	// a guess about a key that may not exist, so it ranks strictly below every
+	// real candidate: a field must never claim a key it does not emit and
+	// outrank the field that does.
+	fallback bool
 }
 
 // addStructFields mirrors encoding/json's field rules for one struct type,
@@ -294,20 +309,13 @@ func addStructFields(t reflect.Type, node *phiNode, seen map[reflect.Type]*phiNo
 	var candidates []fieldCandidate
 	collectFields(t, 0, force, promoting, &candidates)
 
-	// Shallowest depth wins. A tie means encoding/json either picks the single
-	// tagged one or drops the name entirely; either way, treating the position
-	// as PHI when any tied candidate is tagged cannot leak — a dropped field
-	// has no bytes to mask, and a tagged winner should be masked.
-	best := map[string]fieldCandidate{}
+	byName := map[string][]fieldCandidate{}
 	for _, c := range candidates {
-		prev, seenBefore := best[c.name]
-		switch {
-		case !seenBefore || c.depth < prev.depth:
-			best[c.name] = c
-		case c.depth == prev.depth && c.phi:
-			prev.phi = true
-			best[c.name] = prev
-		}
+		byName[c.name] = append(byName[c.name], c)
+	}
+	best := make(map[string]fieldCandidate, len(byName))
+	for name, group := range byName {
+		best[name] = resolveFieldName(group)
 	}
 
 	for name, c := range best {
@@ -322,6 +330,76 @@ func addStructFields(t reflect.Type, node *phiNode, seen map[reflect.Type]*phiNo
 			node.fields[name] = child
 		}
 	}
+}
+
+// resolveFieldName picks the candidate encoding/json would bind a JSON name to.
+//
+// The rule, from encoding/json's dominantField: the shallowest depth wins, and
+// among equally shallow candidates the single one whose name came from a json
+// tag wins; if that is still ambiguous the name is dropped from the output
+// entirely. Keeping the first-seen candidate instead — which is what this
+// function replaced — bound the emitted key to the losing field's type
+// whenever the tagged field happened to be declared second, so no path matched
+// and tagged PHI went out in plaintext. It was declaration-order dependent,
+// which is the same order-dependence class that sank the withdrawn design.
+//
+// Two deviations from encoding/json, both deliberate and both toward masking:
+//
+//   - Fallback candidates (the Go-field-name alias of a tag-named field) are
+//     considered only when no real candidate claims the name at all. They are
+//     a guess about a key encoding/json might emit, and a guess must never
+//     outrank a field that certainly emits that key.
+//   - Where the winner is genuinely ambiguous and the tied candidates disagree
+//     — different types, or different tag status — the position is marked as
+//     PHI. encoding/json drops such a name, so in the ordinary case nothing is
+//     emitted there and the mark is inert; if this mirror of the rule is ever
+//     wrong, the error lands on the masking side.
+func resolveFieldName(group []fieldCandidate) fieldCandidate {
+	pool := make([]fieldCandidate, 0, len(group))
+	for _, c := range group {
+		if !c.fallback {
+			pool = append(pool, c)
+		}
+	}
+	if len(pool) == 0 {
+		pool = group
+	}
+
+	minDepth := pool[0].depth
+	for _, c := range pool {
+		minDepth = min(minDepth, c.depth)
+	}
+	var shallowest []fieldCandidate
+	for _, c := range pool {
+		if c.depth == minDepth {
+			shallowest = append(shallowest, c)
+		}
+	}
+	if len(shallowest) == 1 {
+		return shallowest[0]
+	}
+
+	var tagged []fieldCandidate
+	for _, c := range shallowest {
+		if c.fromTag {
+			tagged = append(tagged, c)
+		}
+	}
+	if len(tagged) == 1 {
+		return tagged[0]
+	}
+
+	// Ambiguous. If every tied candidate says the same thing there is nothing
+	// to get wrong; otherwise fail closed on the position.
+	winner := shallowest[0]
+	for _, c := range shallowest[1:] {
+		if c.typ != winner.typ || c.phi != winner.phi {
+			winner.phi = true
+			winner.typ = nil
+			return winner
+		}
+	}
+	return winner
 }
 
 // collectFields walks t and everything it anonymously embeds, appending one
@@ -393,9 +471,13 @@ func collectFields(t reflect.Type, depth int, force bool, promoting map[reflect.
 		// wrong in. Recording both names costs a spurious mask only if a
 		// sibling field is deliberately named after another field's Go name,
 		// which is over-masking: safe, visible, and vanishingly rare.
-		*out = append(*out, fieldCandidate{name: cmp.Or(name, sf.Name), depth: depth, phi: phi, typ: sf.Type})
+		*out = append(*out, fieldCandidate{
+			name: cmp.Or(name, sf.Name), depth: depth, phi: phi, typ: sf.Type, fromTag: name != "",
+		})
 		if name != "" && name != sf.Name {
-			*out = append(*out, fieldCandidate{name: sf.Name, depth: depth, phi: phi, typ: sf.Type})
+			*out = append(*out, fieldCandidate{
+				name: sf.Name, depth: depth, phi: phi, typ: sf.Type, fallback: true,
+			})
 		}
 	}
 }

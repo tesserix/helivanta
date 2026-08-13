@@ -605,18 +605,41 @@ type Patient struct {
 The tag is honoured wherever the tagged type appears in a logged value —
 directly, through a pointer, and inside slices, arrays and maps, including
 when an untagged wrapper DTO holds them. The value is rendered by
-`encoding/json` first and masked afterwards, so `json:"-"`, `omitempty`,
-renaming, embedding and custom marshallers all behave exactly as they do
-everywhere else. Anything that cannot be rendered or walked (a reference
-cycle, an unmarshallable field, an oversized graph) has its **whole**
-attribute value masked — this layer fails closed.
+`encoding/json` first and masked afterwards, so **the rendering itself** —
+`json:"-"`, `omitempty`, renaming, embedding, `,string`, custom marshallers
+— is exactly what it would be without this layer; nothing is reshaped, and
+a `json:"-"` field cannot be published because it is never rendered.
+What this layer computes independently is which emitted **key** each tagged
+field corresponds to, mirroring `encoding/json`'s naming and
+conflict-resolution rules (depth, then the tag-named field, then the name is
+dropped). Where that mirror cannot be certain — an ambiguous
+equal-depth name conflict — the position is masked rather than guessed, so
+the residual error is over-masking, never a leak. Anything that cannot be
+rendered or walked (a reference cycle, an unmarshallable field, an oversized
+graph) has its **whole** attribute value masked. This layer fails closed
+throughout.
 
-Two things it cannot see, by construction: PHI reached only through an
-`any`-typed collection element (`[]any`, `map[string]any`), because the
-static type carries no tag — do not log PHI that way; and PHI inside a type
-that marshals itself. A value with no `hmslog` tag anywhere in its type
-graph is left strictly alone and renders byte-for-byte as it would without
-the handler.
+Three things it cannot see, by construction:
+
+- PHI reached only through an `any`-typed element — `[]any`,
+  `map[string]any`, or an `any`/interface-typed field — because the static
+  type carries no tag. **Do not log PHI that way.**
+- PHI inside a type that marshals itself (`json.Marshaler` /
+  `encoding.TextMarshaler`), including the pointer-receiver case: this is
+  about the *type*, not about how it was logged, so **any value reachable
+  through such a type is affected** — `struct{ P *T }` where `*T` has its own
+  `MarshalJSON` is as exposed as logging the `*T` directly. Tag the field
+  that holds it instead; a tagged field of such a type is masked whole.
+- PHI already flattened into a string before it reaches slog
+  (`fmt.Errorf("%s", name)`), where no type remains to carry a tag.
+
+Known over-mask, accepted: to stay safe when `encoding/json` rejects a tag
+name and falls back to the Go field name, a tagged field also claims its Go
+field name as a key. If a *sibling* field is explicitly json-named after that
+Go field name, the sibling wins (it is a real key and the alias is only a
+fallback); but two tagged fields colliding on one name mask both. A value
+with no `hmslog` tag anywhere in its type graph is left strictly alone and
+renders byte-for-byte as it would without the handler.
 
 The tag layer is defence in depth, not the primary control. What keeps
 patient rows out of the log stream in the first place is the GORM guard

@@ -2,7 +2,10 @@
 
 **Issue:** [#781](https://github.com/tesserix/hms/issues/781) — Revocation must take
 effect on the next request.
-**Status:** approved 2026-08-13.
+**Status:** implemented 2026-08-13. Where the implementation decided
+differently from the approved design, this document has been corrected rather
+than left describing a design the code does not have; each such point is marked
+**Implemented as**.
 **Related:** #774 (foundation audit, Tier 2), #683, #699, #35, #424, #54.
 
 ---
@@ -99,9 +102,23 @@ employed.
 
 Revocation writes the row and publishes `hms.in.iam.credential_revoked.v1`
 through the existing outbox **inside the same transaction**. Every replica runs
-an ephemeral JetStream consumer, `iam-revocation-<instance>`, so all replicas
-receive every message rather than competing for it, and the consumers vanish
-with the pod rather than accumulating.
+an ephemeral JetStream consumer, so all replicas receive every message rather
+than competing for it, and the consumers vanish with the pod rather than
+accumulating.
+
+**Implemented as** an ephemeral **unnamed** consumer (`events.Broadcast`,
+`Bus.StartBroadcasts`, `DeliverNew`) rather than the named
+`iam-revocation-<instance>` this design first proposed. A per-instance name
+solves the competing-delivery problem but reintroduces the leak it was meant to
+avoid — a named consumer outlives the pod that created it, so every restart
+accumulates one. Unnamed is strictly better here because a broadcast has nothing
+to resume: it carries no durable state, and a replica that reconnects reads
+through to Postgres anyway.
+
+The published event's `TenantID` is **deliberately left empty**. Revocation is
+subject-scoped (D3), so there is no tenant it belongs to; `events.Event.TenantID`
+exists only to scope the consuming transaction's RLS GUC, and
+`iam_credential_revocations` carries no `tenant_id` at all.
 
 This deviates from the `<module>-<purpose>` consumer-naming rule in
 `docs/standards/backend.md`, which assumes a work queue. The deviation and its
@@ -134,6 +151,13 @@ A `tenant` type whose `member` relation is derived, never granted directly:
 tenant:<tenantID>  granted_role  role:<tenantID>/<roleKey>
 member = granted_role → assignee
 ```
+
+There is deliberately **no** `RevokeTenantRole` on the client. A stale tenant
+edge is removed by the reconciler's prune pass through the same `DeleteTuple`
+every other tuple goes through — prune has no per-type branch, so a dedicated
+revoke method would be a second way to remove an edge, on a client handed to
+code that must not be able to strip membership from every holder of a role in
+one call.
 
 "Member" therefore means exactly "holds a role in this tenant" — the definition
 `switchTenant` already uses, expressed once in the model instead of inferred
@@ -251,11 +275,29 @@ someone whose membership was just revoked must still be able to sign out. It
 writes the watermark, publishes the event, and calls GIP `RevokeRefreshTokens`
 so the identity provider agrees rather than quietly disagreeing.
 
-**Frontend.** `apps/shell/app/logout/route.ts` becomes: call the API,
-`await signOut(firebaseAuth())` to clear the SDK's IndexedDB state,
-`clearPermissionsCache()`, clear the cookie, redirect. The Firebase `signOut()`
-is what closes the shared-workstation hole; without it the SDK session survives
-and can rebuild the session.
+**Frontend.** Sign-out calls the API, clears the Firebase SDK's IndexedDB state
+with `await signOut(firebaseAuth())`, drops the permission cache, clears the
+cookie, and sends the browser to `/login`. The Firebase `signOut()` is what
+closes the shared-workstation hole; without it the SDK session survives and can
+rebuild the session.
+
+**Implemented as** two halves rather than all of it in
+`apps/shell/app/logout/route.ts`, because the Firebase client SDK is not
+reachable from a server route handler and is configured in exactly one app:
+
+- `apps/shell/app/logout/route.ts` (server) does the same-origin check, POSTs
+  `/v1/iam/me/sign-out` to the API, and clears the cookie **only after** that
+  call succeeds — telling a caller they are signed out when they are not is the
+  failure this endpoint exists to prevent. It returns JSON, not a redirect,
+  since it is now reached by `fetch` rather than by navigation.
+- `packages/ui/src/hms-shell.tsx` (client) drops the permission cache, runs the
+  sign-out sequence, then navigates to `/login`. It gained an **optional
+  `onSignOut` prop** for the Firebase-aware sequence: `HmsShell` renders in
+  every zone app, and only `apps/shell` carries Firebase config
+  (`apps/shell/lib/firebase.ts`), the same constraint that already applies to
+  `tenantPicker`. Unset, `HmsShell` still POSTs `/logout` itself, so every zone
+  can revoke the session and clear the transport cookie — the server-side half,
+  which is the half the watermark depends on, is never optional.
 
 ### CSRF stops being harmless
 
@@ -306,6 +348,16 @@ must be verified rather than assumed. If the reconciler does not already run to
 completion before the listener starts, making it do so is part of this work.
 
 Acceptance test T5 is exactly this scenario.
+
+**Verified, not assumed.** Against the running local stack: all three
+`tenant:<id> granted_role role:<id>/<key>` edges were deleted from the live
+OpenFGA store, and a membership-gated request from a legitimate `tenant_admin`
+was then refused `403 not a member of this tenant` — the outage, reproduced. The
+API was restarted against that edge-less store; the boot log shows
+`reconcile: prune complete` at `16:21:02.124538` and `api listening` at
+`16:21:02.129321`, the edges were back at 3, and the same request answered 200.
+The listener never opens on an unreconciled store, because `platform.Reconcile`
+returns before `ListenAndServe` is reached in `cmd/api/main.go`.
 
 ---
 

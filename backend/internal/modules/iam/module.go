@@ -88,6 +88,24 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			ALTER POLICY tenant_isolation ON iam_members
 			  USING (hms_tenant_visible(tenant_id))
 			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`,
+	}, {
+		ID: "0003_iam",
+		// Not tenant-scoped, and therefore an explicit LintRLS allowlist
+		// entry rather than a table that quietly has no tenant_id: a GIP
+		// subject is global, so a revocation is global. It holds no
+		// tenant data and no PHI.
+		//
+		// The watermark only ever moves forward (see the GREATEST upsert
+		// in revocation.go): a retried or late write must never be able
+		// to resurrect a revoked credential.
+		SQL: `
+			CREATE TABLE iam_credential_revocations (
+			  subject    text PRIMARY KEY,
+			  revoked_at timestamptz NOT NULL,
+			  reason     text NOT NULL CHECK (reason IN ('sign_out','admin_revoke')),
+			  actor      text NOT NULL,
+			  updated_at timestamptz NOT NULL DEFAULT now()
+			);`,
 	}}
 }
 

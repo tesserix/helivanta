@@ -31,7 +31,11 @@ type StaticVerifier map[string]string
 
 func (s StaticVerifier) Verify(ctx context.Context, raw string) (authn.Principal, error) {
 	if tenant, ok := s[raw]; ok {
-		return authn.Principal{Subject: "user-" + raw, TenantID: tenant}, nil
+		// AuthTime is "now", as a real, freshly-issued token's would be.
+		// Zero would silently compare as before any non-zero watermark a
+		// test configures via HarnessOptions.Revocation, which would make
+		// every such caller look already-revoked regardless of intent.
+		return authn.Principal{Subject: "user-" + raw, TenantID: tenant, AuthTime: time.Now()}, nil
 	}
 	return authn.Principal{}, context.DeadlineExceeded
 }
@@ -89,6 +93,18 @@ type alwaysMember struct{}
 
 func (alwaysMember) IsMember(context.Context, string, string) (bool, error) { return true, nil }
 
+// neverRevoked is the harness's default RevocationChecker: every subject
+// answers the zero watermark, unconditionally. This keeps
+// HarnessOptions{}'s zero value usable — a test that has not opted into
+// revocation semantics (the overwhelming majority of module tests)
+// should keep exercising the route it is actually about, not trip over
+// an incidental 401 from a gate unrelated to what it tests.
+type neverRevoked struct{}
+
+func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
+	return time.Time{}, nil
+}
+
 // HarnessOptions are the substitutable dependencies of a module harness.
 //
 // The zero value is valid: every dependency field falls back to a stub
@@ -112,6 +128,11 @@ type HarnessOptions struct {
 	Roles      platform.RoleLister
 	Minter     authn.TokenMinter
 	Membership authz.MembershipChecker
+	// Revocation defaults to a checker that answers "never revoked" for
+	// every subject — see neverRevoked's doc comment. Set it explicitly
+	// to exercise the credential-revocation gate in authn.Middleware
+	// (#781).
+	Revocation authn.RevocationChecker
 	Modules    []platform.Module
 }
 
@@ -136,6 +157,10 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	membership := opts.Membership
 	if membership == nil {
 		membership = alwaysMember{}
+	}
+	revocation := opts.Revocation
+	if revocation == nil {
+		revocation = neverRevoked{}
 	}
 
 	appDSN, adminDSN := testinfra.StartPostgres(t)
@@ -165,21 +190,24 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	// Same middleware chain, same order, as cmd/api/main.go: requestid.Middleware()
-	// at the engine level, then authn, then requestid.PrincipalMiddleware() (which
-	// needs authn's principal already set), then authz. Then, inside platform.Router
-	// itself (internal/platform/router.go), authz.RequireMembership runs before
+	// at the engine level, then authn (which now also checks the credential
+	// revocation watermark against Principal.AuthTime — Task 4, #781), then
+	// requestid.PrincipalMiddleware() (which needs authn's principal already
+	// set), then authz. Then, inside platform.Router itself
+	// (internal/platform/router.go), authz.RequireMembership runs before
 	// authz.Require on every route not marked authz.NoTenantMembership — the
 	// membership gate that closes #781. Without this middleware order, module
 	// integration tests exercise requestid.Logger(c) falling back to a bare
 	// slog.Default() instead of the request-scoped logger every real request gets,
 	// and nothing in the suite catches PrincipalMiddleware being dropped from
-	// cmd/api, or the membership gate being dropped from platform.Router. See
+	// cmd/api, the membership gate being dropped from platform.Router, or the
+	// revocation gate being dropped from authn.Middleware. See
 	// TestRequestScopedLoggerCarriesCorrelationFields and
 	// internal/modules/reference's membership tests below.
 	r.Use(requestid.Middleware())
 	resolver := harnessResolver{tokens: opts.Tokens, perms: opts.Perms}
 	api := platform.NewRouter(r.Group("/v1",
-		authn.Middleware(StaticVerifier(opts.Tokens)),
+		authn.Middleware(StaticVerifier(opts.Tokens), revocation),
 		requestid.PrincipalMiddleware(),
 		authz.Middleware(resolver)),
 		membership)

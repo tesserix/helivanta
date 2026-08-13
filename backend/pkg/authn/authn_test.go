@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -25,10 +26,19 @@ func (f fakeVerifier) Verify(ctx context.Context, raw string) (authn.Principal, 
 	return authn.Principal{}, errors.New("bad token")
 }
 
+// neverRevoked answers RevokedAfter with the zero time unconditionally.
+// This file's tests are about token verification, not revocation, so
+// they get the permissive default rather than each rolling their own.
+type neverRevoked struct{}
+
+func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
+	return time.Time{}, nil
+}
+
 func router(v authn.TokenVerifier) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.GET("/p", authn.Middleware(v), func(c *gin.Context) {
+	r.GET("/p", authn.Middleware(v, neverRevoked{}), func(c *gin.Context) {
 		p, _ := authn.PrincipalFrom(c)
 		c.JSON(http.StatusOK, p)
 	})
@@ -72,12 +82,12 @@ func TestMiddlewareRejectsMissingAndBadTokens(t *testing.T) {
 func TestTenantPrincipal(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.GET("/p", authn.Middleware(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: "11111111-1111-1111-1111-111111111111"}}), func(c *gin.Context) {
+	r.GET("/p", authn.Middleware(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: "11111111-1111-1111-1111-111111111111"}}, neverRevoked{}), func(c *gin.Context) {
 		_, tenantID, ok := authn.TenantPrincipal(c)
 		require.True(t, ok)
 		c.JSON(http.StatusOK, gin.H{"tenant": tenantID.String()})
 	})
-	r.GET("/bad", authn.Middleware(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: "not-a-uuid"}}), func(c *gin.Context) {
+	r.GET("/bad", authn.Middleware(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: "not-a-uuid"}}, neverRevoked{}), func(c *gin.Context) {
 		if _, _, ok := authn.TenantPrincipal(c); !ok {
 			return
 		}

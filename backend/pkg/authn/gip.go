@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
@@ -12,6 +13,12 @@ import (
 )
 
 var ErrNoTenantClaim = errors.New("authn: token has no tenant_id claim")
+
+// ErrNoAuthTime is returned when a verified token carries no auth_time
+// claim. A token with no auth_time cannot be evaluated against a
+// revocation watermark, and a credential that cannot be evaluated is not
+// one that can be trusted.
+var ErrNoAuthTime = errors.New("authn: token has no auth_time claim")
 
 type gipVerifier struct{ client *auth.Client }
 
@@ -108,5 +115,15 @@ func principalFromToken(tok *auth.Token) (Principal, error) {
 	if err != nil {
 		return Principal{}, ErrNoTenantClaim
 	}
-	return Principal{Subject: tok.UID, TenantID: tenantID.String()}, nil
+	// A token with no auth_time claim cannot be evaluated against a
+	// revocation watermark, and a credential that cannot be evaluated is
+	// not one that can be trusted.
+	if tok.AuthTime == 0 {
+		return Principal{}, ErrNoAuthTime
+	}
+	return Principal{
+		Subject:  tok.UID,
+		TenantID: tenantID.String(),
+		AuthTime: time.Unix(tok.AuthTime, 0).UTC(),
+	}, nil
 }

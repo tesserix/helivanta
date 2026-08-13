@@ -16,6 +16,7 @@ import (
 	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/config"
 	"github.com/tesserix/hms/internal/httpserver"
+	"github.com/tesserix/hms/internal/modules/iam"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/requestid"
 	"github.com/tesserix/hms/pkg/authn"
@@ -119,8 +120,19 @@ func run() error {
 			return platform.ReconcileTenant(ctx, registry, fga, tenantID)
 		},
 	}
+	// NewRevocationChecker is constructed directly here rather than
+	// reached through the iam module instance registry.All() returns:
+	// the authentication path needs it before any module's Routes() is
+	// even called. Task 6 (#781) makes the iam module accept this same
+	// *iam.RevocationChecker at construction so the module's sign-out
+	// handler and broadcast invalidation consumer share this exact
+	// instance with the middleware below — two separate instances would
+	// compile and pass most tests while silently never invalidating the
+	// cache the request path actually consults.
+	revocationChecker := iam.NewRevocationChecker(db)
+
 	api := platform.NewRouter(srv.Engine.Group("/v1",
-		authn.Middleware(verifier),
+		authn.Middleware(verifier, revocationChecker),
 		requestid.PrincipalMiddleware(),
 		authz.Middleware(fga),
 	), fga)

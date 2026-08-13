@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -17,6 +18,13 @@ const principalKey = "authn.principal"
 type Principal struct {
 	Subject  string `json:"subject"`
 	TenantID string `json:"tenant_id"`
+	// AuthTime is when the user actually authenticated, not when this
+	// token was issued. A token refresh mints a new token with a fresh
+	// iat but carries the ORIGINAL auth_time, so this is the only claim
+	// a revocation watermark can be compared against: comparing iat
+	// would let any client holding a live refresh token walk through the
+	// watermark simply by refreshing.
+	AuthTime time.Time `json:"-"`
 }
 
 type TokenVerifier interface {
@@ -38,9 +46,12 @@ type TokenMinter interface {
 	CustomTokenWithClaims(ctx context.Context, uid string, claims map[string]interface{}) (string, error)
 }
 
-// Middleware authenticates via Bearer header or the session cookie.
-// Failures are 401 with a JSON envelope; no handler runs unauthenticated.
-func Middleware(v TokenVerifier) gin.HandlerFunc {
+// Middleware authenticates via Bearer header or the session cookie, then
+// refuses any credential whose auth_time predates rev's watermark for
+// that subject. Failures are 401 (bad/missing/revoked credential) or 503
+// (revocation state could not be read) with a JSON envelope; no handler
+// runs unauthenticated or with an unevaluated revocation state.
+func Middleware(v TokenVerifier, rev RevocationChecker) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		raw := ""
 		if h := c.GetHeader("Authorization"); strings.HasPrefix(h, "Bearer ") {
@@ -57,6 +68,26 @@ func Middleware(v TokenVerifier) gin.HandlerFunc {
 		if err != nil {
 			slog.Warn("auth verification failed", "err", err, "path", c.Request.URL.Path)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "invalid credentials"})
+			return
+		}
+		watermark, err := rev.RevokedAfter(c.Request.Context(), p.Subject)
+		if err != nil {
+			slog.ErrorContext(c.Request.Context(), "revocation lookup failed",
+				"err", err, "subject", p.Subject)
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{
+				"error": "authz_unavailable", "message": "authorization is temporarily unavailable"})
+			return
+		}
+		// Not-after, deliberately: a token whose auth_time equals the
+		// watermark to the second is refused. Second granularity means a
+		// sign-in racing a revocation is ambiguous, and the safe reading
+		// of an ambiguous credential is that it is revoked.
+		if !watermark.IsZero() && !p.AuthTime.After(watermark) {
+			slog.InfoContext(c.Request.Context(), "refused a revoked credential",
+				"subject", p.Subject, "auth_time", p.AuthTime, "revoked_at", watermark,
+				"path", c.Request.URL.Path)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "unauthenticated", "message": "credential revoked"})
 			return
 		}
 		c.Set(principalKey, p)

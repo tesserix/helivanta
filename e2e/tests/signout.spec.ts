@@ -56,3 +56,65 @@ test("a signed-out session cannot be reconstructed from the browser", async ({ p
 
   expect(restored).not.toBe("RESTORED");
 });
+
+// The test above is necessary but NOT sufficient, and the gap is worth
+// stating: it passes the moment `currentUser` is null, which client-side
+// signOut() guarantees on its own. Comment out the server-side call in
+// app/logout/route.ts and it still passes — so it proves the client half
+// and silently assumes the server half.
+//
+// That assumption is the whole feature. Clearing browser state protects
+// the shared workstation; only the watermark protects a token that has
+// already left the browser — copied out of devtools, captured from a
+// proxy, or held by a native client. This test holds a valid, unexpired
+// ID token across the sign-out and replays it, so the only thing that
+// can refuse it is the server-side revocation watermark
+// (docs/superpowers/specs/2026-08-13-credential-revocation-design.md D1/D2).
+test("a token captured before sign-out is refused afterwards", async ({ page }) => {
+  await login(page);
+  await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
+
+  await page.waitForFunction(() => Boolean(window.__hmsFirebaseAuth));
+  const captured = await page.evaluate(async () => {
+    const auth = window.__hmsFirebaseAuth!;
+    await auth.authStateReady();
+    return auth.currentUser ? auth.currentUser.getIdToken() : null;
+  });
+  expect(captured, "precondition: a live ID token was captured before sign-out").toBeTruthy();
+
+  // Precondition: the captured token works right now. Without this, a
+  // token that was never valid would make the post-sign-out refusal
+  // meaningless — the test would pass for the wrong reason.
+  const before = await page.evaluate(async (token) => {
+    const res = await fetch("/api/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken: token }),
+    });
+    if (!res.ok) return "session-refused";
+    return (await fetch("/api/v1/iam/me/permissions")).ok ? "accepted" : "api-refused";
+  }, captured);
+  expect(before, "the captured token must be accepted before sign-out").toBe("accepted");
+
+  await page.getByRole("button", { name: "Sign out" }).last().click();
+  await expect(page).toHaveURL(/\/login/);
+
+  // The same token, still cryptographically valid and unexpired, replayed
+  // after sign-out. Its auth_time predates the watermark the sign-out
+  // wrote, so the API must refuse it. Browser state is irrelevant here:
+  // the token is supplied directly.
+  const after = await page.evaluate(async (token) => {
+    const res = await fetch("/api/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken: token }),
+    });
+    if (!res.ok) return "session-refused";
+    return (await fetch("/api/v1/iam/me/permissions")).ok ? "STILL-ACCEPTED" : "api-refused";
+  }, captured);
+
+  expect(
+    after,
+    "a token captured before sign-out was still accepted afterwards; the server-side watermark is not being written, and clearing browser state is the only thing protecting the session",
+  ).not.toBe("STILL-ACCEPTED");
+});

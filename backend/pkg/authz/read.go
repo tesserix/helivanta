@@ -29,12 +29,13 @@ func (t Tuple) Key() string {
 
 // reconciledObjectTypes are the object types the reconciler owns end to
 // end, and therefore the only types it is ever allowed to delete from.
-// Both are namespaced "<type>:<tenantID>/<name>" (see model.go), which
-// is what makes tenant-scoped pruning possible at all. Any type added to
+// role: and perm: are namespaced "<type>:<tenantID>/<name>" (see
+// model.go); tenant: is namespaced "<type>:<tenantID>" with no /name
+// segment, which TenantOfObject already accounts for. Any type added to
 // the model later is invisible to ReadTuplesByTenant until it is listed
 // here, so a new object type can never be pruned by a reconciler that
 // does not yet know how to derive its desired state.
-var reconciledObjectTypes = []string{"role:", "perm:"}
+var reconciledObjectTypes = []string{"role:", "perm:", tenantType + ":"}
 
 // isReconciledObject reports whether object is of a type the reconciler
 // owns. Read returns every tuple in the store — it filters by object
@@ -99,8 +100,8 @@ func TenantOfObject(object string) (string, bool) {
 	return tenantID, true
 }
 
-// ReadTuplesByTenant returns every role: and perm: tuple in the store,
-// bucketed by the tenant its object is namespaced to. Tuples whose
+// ReadTuplesByTenant returns every role:, perm: and tenant: tuple in the
+// store, bucketed by the tenant its object is namespaced to. Tuples whose
 // object does not parse (see TenantOfObject) are dropped rather than
 // bucketed, so an object the reconciler does not understand can never be
 // deleted by it.

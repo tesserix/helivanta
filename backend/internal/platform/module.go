@@ -16,6 +16,11 @@ type TupleWriter interface {
 	GrantRole(ctx context.Context, tenantID, subject string, role authz.Role) error
 	RevokeRole(ctx context.Context, tenantID, subject string, role authz.Role) error
 	GrantPermission(ctx context.Context, tenantID string, perm authz.Permission, role authz.Role) error
+	// GrantTenantRole wires a role into its tenant so that assignees of
+	// the role resolve as members. Written per (tenant, role), not per
+	// member: membership for any number of subjects derives through this
+	// one edge.
+	GrantTenantRole(ctx context.Context, tenantID string, role authz.Role) error
 }
 
 // RoleLister is the subset of the authz client that modules may use to

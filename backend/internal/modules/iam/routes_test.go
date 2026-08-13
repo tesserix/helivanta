@@ -41,6 +41,10 @@ func (w *recordingWriter) GrantPermission(context.Context, string, authz.Permiss
 	return nil
 }
 
+func (w *recordingWriter) GrantTenantRole(context.Context, string, authz.Role) error {
+	return nil
+}
+
 func (w *recordingWriter) grants() []string {
 	w.mu.Lock()
 	defer w.mu.Unlock()

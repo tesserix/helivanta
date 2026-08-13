@@ -57,6 +57,7 @@ func (noopWriter) RevokeRole(context.Context, string, string, authz.Role) error 
 func (noopWriter) GrantPermission(context.Context, string, authz.Permission, authz.Role) error {
 	return nil
 }
+func (noopWriter) GrantTenantRole(context.Context, string, authz.Role) error { return nil }
 
 // noopRoleLister returns no bindings for modules that don't need to
 // resolve cross-tenant membership, so ModuleHarness and

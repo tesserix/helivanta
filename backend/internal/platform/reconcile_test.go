@@ -32,8 +32,9 @@ func (g grantingModule) Consumers(platform.Deps) []events.Consumer { return nil 
 // role grants (tenant member -> role), so it can stand in for the real
 // OpenFGA client across both reconciliation paths.
 type capturingWriter struct {
-	pairs []string // "<permission>@<role>"
-	roles []string // "<tenantID>|<subject>|<role>"
+	pairs       []string // "<permission>@<role>"
+	roles       []string // "<tenantID>|<subject>|<role>"
+	tenantRoles []string // "<tenantID>|<role>"
 
 	// existing is what OpenFGA is pretending to already hold, and
 	// deleted records every tuple Reconcile pruned from it, so the
@@ -62,6 +63,13 @@ func (c *capturingWriter) GrantPermission(_ context.Context, tenantID string, p 
 	c.pairs = append(c.pairs, string(p)+"@"+string(r))
 	return nil
 }
+
+func (c *capturingWriter) GrantTenantRole(_ context.Context, tenantID string, r authz.Role) error {
+	c.tenantRoles = append(c.tenantRoles, tenantID+"|"+string(r))
+	return nil
+}
+
+func (c *capturingWriter) RevokeTenantRole(context.Context, string, authz.Role) error { return nil }
 
 // TestGrantsForRejectsDuplicatePermission is the fix for the bug the
 // approved-matrix oracle test in archtest/matrix_test.go could not see:

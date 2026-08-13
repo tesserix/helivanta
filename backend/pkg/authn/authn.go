@@ -46,6 +46,15 @@ type TokenMinter interface {
 	CustomTokenWithClaims(ctx context.Context, uid string, claims map[string]interface{}) (string, error)
 }
 
+// TokenRevoker revokes a subject's refresh tokens at the identity
+// provider, so GIP agrees with the HMS watermark instead of quietly
+// disagreeing. One method wide, for the same reason TokenMinter is: it
+// is the whole of the identity provider a module may reach for this
+// purpose, and nothing else.
+type TokenRevoker interface {
+	RevokeRefreshTokens(ctx context.Context, uid string) error
+}
+
 // Middleware authenticates via Bearer header or the session cookie, then
 // refuses any credential whose auth_time predates rev's watermark for
 // that subject. Failures are 401 (bad/missing/revoked credential) or 503

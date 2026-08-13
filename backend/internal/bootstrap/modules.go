@@ -25,9 +25,16 @@ import (
 // must stay first: it owns tenant membership, and the reconciler grants
 // tenant_admin its permissions before any other module assumes a member
 // row exists.
-func Modules() []platform.Module {
+//
+// revocationChecker is handed straight to iam.New so the iam module's
+// sign-out/revoke handlers and broadcast consumer invalidate the SAME
+// cache instance pkg/authn.Middleware reads on every request (#781).
+// cmd/api constructs exactly one *iam.RevocationChecker and passes it
+// both here and to authn.Middleware; cmd/migrate, which never serves a
+// request, passes nil.
+func Modules(revocationChecker *iam.RevocationChecker) []platform.Module {
 	return []platform.Module{
-		iam.New(),
+		iam.New(revocationChecker),
 		reference.New(),
 		medicore.New(),
 		pharmacy.New(),
@@ -35,12 +42,12 @@ func Modules() []platform.Module {
 	}
 }
 
-// NewRegistry builds a *platform.Registry pre-populated with Modules().
-// Both cmd/api and cmd/migrate call this instead of hand-rolling the
-// registration loop.
-func NewRegistry() (*platform.Registry, error) {
+// NewRegistry builds a *platform.Registry pre-populated with
+// Modules(revocationChecker). Both cmd/api and cmd/migrate call this
+// instead of hand-rolling the registration loop.
+func NewRegistry(revocationChecker *iam.RevocationChecker) (*platform.Registry, error) {
 	reg := platform.NewRegistry()
-	for _, m := range Modules() {
+	for _, m := range Modules(revocationChecker) {
 		if err := reg.Register(m); err != nil {
 			return nil, err
 		}

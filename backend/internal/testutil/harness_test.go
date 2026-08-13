@@ -29,7 +29,8 @@ type logModule struct{}
 func (logModule) Name() string                              { return "logprobe" }
 func (logModule) Migrations() []tenantdb.Migration          { return nil }
 func (logModule) Permissions() []authz.Grant                { return nil }
-func (logModule) Consumers(platform.Deps) []events.Consumer { return nil }
+func (logModule) Consumers(platform.Deps) []events.Consumer   { return nil }
+func (logModule) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 
 func (logModule) Routes(r *platform.Router, _ platform.Deps) {
 	r.Group("/logprobe").GET("/ping", authz.Public, func(c *gin.Context) {

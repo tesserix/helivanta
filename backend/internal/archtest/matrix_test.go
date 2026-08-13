@@ -146,8 +146,14 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 				continue
 			}
 			// Every grant gets tenant_admin appended, so a permission held
-			// by exactly one role is admin-only.
-			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage {
+			// by exactly one role is admin-only. iam.member.manage and
+			// iam.credential.revoke are the two deliberate exceptions:
+			// managing membership and revoking a subject's credentials
+			// platform-wide are administrative acts by design, not an
+			// oversight (#781 — PermCredentialRevoke is declared with no
+			// system roles precisely so only tenant_admin's implicit
+			// grant reaches it).
+			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke {
 				t.Errorf("module %q guards a route with %q, held by tenant_admin only; declare the role that needs it", m.Name(), perm)
 			}
 		}
@@ -171,7 +177,8 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 // bug class — a role mapping change must be a deliberate, reviewable edit
 // here.
 var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
-	iam.PermMemberManage: {authz.RoleTenantAdmin},
+	iam.PermMemberManage:     {authz.RoleTenantAdmin},
+	iam.PermCredentialRevoke: {authz.RoleTenantAdmin},
 
 	medicore.PermVisitCreate: {authz.RoleDoctor, authz.RoleTenantAdmin},
 	medicore.PermVisitRead:   {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},

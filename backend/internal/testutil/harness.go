@@ -133,7 +133,13 @@ type HarnessOptions struct {
 	// to exercise the credential-revocation gate in authn.Middleware
 	// (#781).
 	Revocation authn.RevocationChecker
-	Modules    []platform.Module
+	// TokenRevoker defaults to nil, exactly like Deps.TokenRevoker in
+	// cmd/api when unset: the iam module's sign-out/revoke handlers treat
+	// a nil revoker as "no identity-provider call to make" and still
+	// complete the HMS-side revocation (#781). Set it explicitly (e.g. a
+	// recording double) to assert GIP was told.
+	TokenRevoker authn.TokenRevoker
+	Modules      []platform.Module
 }
 
 // NewHarness boots the full module stack (Postgres, NATS, routes,
@@ -186,7 +192,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 
-	deps := platform.Deps{DB: db, Bus: bus, Authz: writer, Roles: roles, Tokens: opts.Minter}
+	deps := platform.Deps{DB: db, Bus: bus, Authz: writer, Roles: roles, Tokens: opts.Minter, TokenRevoker: opts.TokenRevoker}
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	// Same middleware chain, same order, as cmd/api/main.go: requestid.Middleware()
@@ -214,6 +220,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	for _, m := range opts.Modules {
 		m.Routes(api, deps)
 		require.NoError(t, bus.StartConsumers(ctx, db, m.Consumers(deps)))
+		require.NoError(t, bus.StartBroadcasts(ctx, m.Broadcasts(deps)))
 	}
 	go bus.RunDispatcher(ctx, db)
 	return r, db, bus, ctx

@@ -42,7 +42,7 @@ const modulesPrefix = "github.com/tesserix/hms/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(), reference.New(), medicore.New(), pharmacy.New(), lab.New()}
+	return []platform.Module{iam.New(nil), reference.New(), medicore.New(), pharmacy.New(), lab.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under
@@ -146,7 +146,7 @@ func TestPublishedSubjectConstants(t *testing.T) {
 // constructor is both the fix and the simpler check.
 func TestMainRegistersExactlyAllModules(t *testing.T) {
 	registered := map[string]bool{}
-	for _, m := range bootstrap.Modules() {
+	for _, m := range bootstrap.Modules(nil) {
 		registered[m.Name()] = true
 	}
 	if len(registered) == 0 {
@@ -260,6 +260,7 @@ var noTenantMembershipAllowlist = map[string]string{
 	"GET /iam/me/permissions": "reports what the caller resolved to; reveals nothing they did not already hold",
 	"GET /iam/me/tenants":     "answers 'where do I belong'; unusable if it required belonging",
 	"POST /iam/me/tenant":     "gates on membership itself before minting (iam/me.go switchTenant)",
+	"POST /iam/me/sign-out":   "a revoked member must still be able to end their own session (iam/signout.go signOut)",
 }
 
 // TestNoTenantMembershipAllowlist pins the set of routes permitted to

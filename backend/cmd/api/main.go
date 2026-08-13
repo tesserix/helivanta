@@ -50,7 +50,16 @@ func run() error {
 		return err
 	}
 
-	registry, err := bootstrap.NewRegistry()
+	// Constructed once, before the registry, and handed to BOTH
+	// bootstrap.NewRegistry (which threads it into iam.New) and
+	// authn.Middleware below: the module's sign-out/revoke handlers and
+	// its broadcast consumer must invalidate the SAME cache instance the
+	// authentication path reads on every request. Two separately
+	// constructed checkers would compile and pass most tests while the
+	// middleware's cache silently never gets invalidated (#781).
+	revocationChecker := iam.NewRevocationChecker(db)
+
+	registry, err := bootstrap.NewRegistry(revocationChecker)
 	if err != nil {
 		return err
 	}
@@ -84,6 +93,11 @@ func run() error {
 		return err
 	}
 
+	revoker, err := authn.NewGIPRevoker(ctx, cfg.GIPProjectID, cfg.IsDev())
+	if err != nil {
+		return err
+	}
+
 	fga, err := authz.NewClient(ctx, cfg.OpenFGAURL, cfg.OpenFGAStore)
 	if err != nil {
 		return err
@@ -111,25 +125,16 @@ func run() error {
 		requestid.Middleware(),
 	)
 	deps := platform.Deps{
-		DB:     db,
-		Bus:    bus,
-		Authz:  fga,
-		Roles:  fga,
-		Tokens: minter,
+		DB:           db,
+		Bus:          bus,
+		Authz:        fga,
+		Roles:        fga,
+		Tokens:       minter,
+		TokenRevoker: revoker,
 		Reconcile: func(ctx context.Context, tenantID string) error {
 			return platform.ReconcileTenant(ctx, registry, fga, tenantID)
 		},
 	}
-	// NewRevocationChecker is constructed directly here rather than
-	// reached through the iam module instance registry.All() returns:
-	// the authentication path needs it before any module's Routes() is
-	// even called. Task 6 (#781) makes the iam module accept this same
-	// *iam.RevocationChecker at construction so the module's sign-out
-	// handler and broadcast invalidation consumer share this exact
-	// instance with the middleware below — two separate instances would
-	// compile and pass most tests while silently never invalidating the
-	// cache the request path actually consults.
-	revocationChecker := iam.NewRevocationChecker(db)
 
 	api := platform.NewRouter(srv.Engine.Group("/v1",
 		authn.Middleware(verifier, revocationChecker),
@@ -139,6 +144,9 @@ func run() error {
 	for _, m := range registry.All() {
 		m.Routes(api, deps)
 		if err := bus.StartConsumers(ctx, db, m.Consumers(deps)); err != nil {
+			return err
+		}
+		if err := bus.StartBroadcasts(ctx, m.Broadcasts(deps)); err != nil {
 			return err
 		}
 	}

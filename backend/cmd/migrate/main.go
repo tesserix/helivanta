@@ -34,7 +34,10 @@ func run() error {
 		return fmt.Errorf("open database: %w", err)
 	}
 
-	registry, err := bootstrap.NewRegistry()
+	// nil: migrate only walks Migrations() and never serves a request, so
+	// it never needs the shared revocation-cache instance iam.New wires
+	// into the module for the sign-out/revoke handlers (#781).
+	registry, err := bootstrap.NewRegistry(nil)
 	if err != nil {
 		return fmt.Errorf("build registry: %w", err)
 	}

@@ -24,6 +24,8 @@ type gipVerifier struct{ client *auth.Client }
 
 type gipMinter struct{ client *auth.Client }
 
+type gipRevoker struct{ client *auth.Client }
+
 // NewGIPVerifier verifies GIP/Firebase ID tokens. It refuses to honor
 // FIREBASE_AUTH_EMULATOR_HOST unless allowEmulator is true (dev only);
 // see newAuthClient for why.
@@ -52,6 +54,19 @@ func NewGIPMinter(ctx context.Context, projectID string, allowEmulator bool) (To
 		return nil, err
 	}
 	return &gipMinter{client: client}, nil
+}
+
+// NewGIPRevoker revokes GIP/Firebase refresh tokens. A third narrow view
+// of the same Firebase auth client NewGIPVerifier and NewGIPMinter wrap,
+// for the same separation-of-capability reason: a caller wired to revoke
+// cannot also verify or mint. Like both, it refuses to honor
+// FIREBASE_AUTH_EMULATOR_HOST unless allowEmulator is true (dev only).
+func NewGIPRevoker(ctx context.Context, projectID string, allowEmulator bool) (TokenRevoker, error) {
+	client, err := newAuthClient(ctx, projectID, allowEmulator)
+	if err != nil {
+		return nil, err
+	}
+	return &gipRevoker{client: client}, nil
 }
 
 func newAuthClient(ctx context.Context, projectID string, allowEmulator bool) (*auth.Client, error) {
@@ -86,6 +101,18 @@ func (g *gipMinter) CustomTokenWithClaims(ctx context.Context, uid string, claim
 		return "", fmt.Errorf("mint custom token: %w", err)
 	}
 	return tok, nil
+}
+
+// RevokeRefreshTokens forwards to the Admin SDK, telling GIP to stop
+// honoring refresh tokens issued to uid before now. It is called AFTER
+// the HMS watermark commits, never before: GIP is not transactional, and
+// a GIP failure must not roll back a revocation HMS already decided on
+// (see revocationHandlers.revoke in internal/modules/iam/signout.go).
+func (g *gipRevoker) RevokeRefreshTokens(ctx context.Context, uid string) error {
+	if err := g.client.RevokeRefreshTokens(ctx, uid); err != nil {
+		return fmt.Errorf("revoke refresh tokens for %s: %w", uid, err)
+	}
+	return nil
 }
 
 func (g *gipVerifier) Verify(ctx context.Context, raw string) (Principal, error) {

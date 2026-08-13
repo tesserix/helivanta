@@ -25,8 +25,9 @@ func (g grantingModule) Permissions() []authz.Grant {
 		{Permission: "x.thing.write", Roles: []authz.Role{authz.RoleDoctor}},
 	}
 }
-func (g grantingModule) Routes(*platform.Router, platform.Deps)    {}
-func (g grantingModule) Consumers(platform.Deps) []events.Consumer { return nil }
+func (g grantingModule) Routes(*platform.Router, platform.Deps)      {}
+func (g grantingModule) Consumers(platform.Deps) []events.Consumer   { return nil }
+func (g grantingModule) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 
 // capturingWriter records both permission grants (module -> role) and
 // role grants (tenant member -> role), so it can stand in for the real
@@ -102,8 +103,9 @@ func (d duplicatingModule) Permissions() []authz.Grant {
 		{Permission: "x.thing.read", Roles: []authz.Role{authz.RolePharmacist}},
 	}
 }
-func (d duplicatingModule) Routes(*platform.Router, platform.Deps)    {}
-func (d duplicatingModule) Consumers(platform.Deps) []events.Consumer { return nil }
+func (d duplicatingModule) Routes(*platform.Router, platform.Deps)      {}
+func (d duplicatingModule) Consumers(platform.Deps) []events.Consumer   { return nil }
+func (d duplicatingModule) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 
 func TestTenantAdminReceivesEveryDeclaredPermission(t *testing.T) {
 	reg := platform.NewRegistry()

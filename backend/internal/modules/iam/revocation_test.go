@@ -25,7 +25,7 @@ func revocationHarness(t *testing.T) (*tenantdb.DB, context.Context) {
 	db, err := tenantdb.Open(appDSN, adminDSN)
 	require.NoError(t, err)
 
-	migs := New().Migrations()
+	migs := New(nil).Migrations()
 	revocationMig := migs[len(migs)-1]
 	require.Equal(t, "0003_iam", revocationMig.ID, "precondition: the last iam migration is the revocation table")
 	require.NoError(t, db.Migrate(context.Background(), []tenantdb.Migration{revocationMig}))

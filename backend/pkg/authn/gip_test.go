@@ -162,6 +162,21 @@ func TestNewGIPMinterRefusesEmulatorOutsideDev(t *testing.T) {
 	require.Contains(t, err.Error(), "FIREBASE_AUTH_EMULATOR_HOST")
 }
 
+// TestNewGIPRevokerRefusesEmulatorOutsideDev mirrors the minter and
+// verifier guards: NewGIPRevoker shares newAuthClient, so a production
+// process with the emulator variable accidentally set must refuse to
+// construct a revoker for the same reason it must refuse a verifier — an
+// unverified token could otherwise walk through the revocation watermark
+// this feature exists to enforce.
+func TestNewGIPRevokerRefusesEmulatorOutsideDev(t *testing.T) {
+	t.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
+
+	_, err := NewGIPRevoker(context.Background(), "demo-hms", false)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "FIREBASE_AUTH_EMULATOR_HOST")
+}
+
 // With the emulator explicitly allowed the guard must not fire. The
 // constructor may still fail for unrelated reasons in a sandbox, so this
 // asserts only that the failure is not the guard.

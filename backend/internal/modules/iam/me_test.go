@@ -62,7 +62,7 @@ func TestMePermissionsReturnsResolvedSetSorted(t *testing.T) {
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"doc": testutil.TenantA},
 		Perms:  map[string][]authz.Permission{"doc": {"medicore.visit.read", "lab.order.read"}},
-		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New()},
+		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil)},
 	})
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/permissions", "doc", "")
@@ -79,7 +79,7 @@ func TestMePermissionsIsEmptyArrayNotNullForNonMember(t *testing.T) {
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"nobody": testutil.TenantA},
 		Perms:  map[string][]authz.Permission{"nobody": {}},
-		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New()},
+		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil)},
 	})
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/permissions", "nobody", "")
@@ -102,7 +102,7 @@ func TestMePermissionsReturnsCallerIdentity(t *testing.T) {
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"doc": testutil.TenantA},
 		Perms:  map[string][]authz.Permission{"doc": {"medicore.visit.read"}},
-		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New()},
+		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil)},
 	})
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/permissions", "doc", "")
@@ -136,7 +136,7 @@ func TestMeTenantsListsEveryMembership(t *testing.T) {
 		Perms:   map[string][]authz.Permission{"jane": {}},
 		Writer:  &recordingWriter{},
 		Roles:   roles,
-		Modules: []platform.Module{iam.New()},
+		Modules: []platform.Module{iam.New(nil)},
 	})
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/tenants", "jane", "")
@@ -174,7 +174,7 @@ func TestMeTenantsMarksCallersActualTenantCurrent(t *testing.T) {
 		Perms:   map[string][]authz.Permission{"jane": {}},
 		Writer:  &recordingWriter{},
 		Roles:   roles,
-		Modules: []platform.Module{iam.New()},
+		Modules: []platform.Module{iam.New(nil)},
 	})
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/tenants", "jane", "")
@@ -205,7 +205,7 @@ func TestMeTenantsIsEmptyArrayNotNullForNonMember(t *testing.T) {
 		Perms:   map[string][]authz.Permission{"nobody": {}},
 		Writer:  &recordingWriter{},
 		Roles:   roles,
-		Modules: []platform.Module{iam.New()},
+		Modules: []platform.Module{iam.New(nil)},
 	})
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/tenants", "nobody", "")
@@ -220,7 +220,7 @@ func TestMeTenantsFailsClosedOnRoleListerError(t *testing.T) {
 		Perms:   map[string][]authz.Permission{"jane": {}},
 		Writer:  &recordingWriter{},
 		Roles:   roles,
-		Modules: []platform.Module{iam.New()},
+		Modules: []platform.Module{iam.New(nil)},
 	})
 
 	res := testutil.Do(r, "GET", "/v1/iam/me/tenants", "jane", "")
@@ -243,7 +243,7 @@ func TestSwitchTenantRequiresMembership(t *testing.T) {
 		Writer:  &recordingWriter{},
 		Roles:   roles,
 		Minter:  minter,
-		Modules: []platform.Module{iam.New()},
+		Modules: []platform.Module{iam.New(nil)},
 	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
@@ -274,7 +274,7 @@ func TestSwitchTenantMintsTokenForTargetTenant(t *testing.T) {
 		Writer:  &recordingWriter{},
 		Roles:   roles,
 		Minter:  minter,
-		Modules: []platform.Module{iam.New()},
+		Modules: []platform.Module{iam.New(nil)},
 	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
@@ -313,7 +313,7 @@ func TestSwitchTenantFailsClosedWhenMintingFails(t *testing.T) {
 		Writer:  &recordingWriter{},
 		Roles:   roles,
 		Minter:  minter,
-		Modules: []platform.Module{iam.New()},
+		Modules: []platform.Module{iam.New(nil)},
 	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
@@ -347,7 +347,7 @@ func TestSwitchTenantFailsClosedWithoutAMinter(t *testing.T) {
 		Perms:   map[string][]authz.Permission{"jane": {}},
 		Writer:  &recordingWriter{},
 		Roles:   roles,
-		Modules: []platform.Module{iam.New()},
+		Modules: []platform.Module{iam.New(nil)},
 	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
@@ -374,7 +374,7 @@ func TestSwitchTenantFailsClosedOnRoleListerError(t *testing.T) {
 		Writer:  &recordingWriter{},
 		Roles:   roles,
 		Minter:  minter,
-		Modules: []platform.Module{iam.New()},
+		Modules: []platform.Module{iam.New(nil)},
 	})
 
 	// The requested tenant is one jane genuinely belongs to in the real
@@ -424,7 +424,7 @@ func TestSwitchTenantRejectsNonCanonicalTenantID(t *testing.T) {
 		Perms:   map[string][]authz.Permission{"jane": {}},
 		Writer:  &recordingWriter{},
 		Roles:   roles,
-		Modules: []platform.Module{iam.New()},
+		Modules: []platform.Module{iam.New(nil)},
 	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
@@ -458,7 +458,7 @@ func TestSelfServiceRoutesServeACallerWithNoMembership(t *testing.T) {
 		Writer:     &recordingWriter{},
 		Roles:      roles,
 		Membership: denyAllMembership{},
-		Modules:    []platform.Module{iam.New()},
+		Modules:    []platform.Module{iam.New(nil)},
 	})
 
 	for _, path := range []string{"/v1/iam/me/permissions", "/v1/iam/me/tenants"} {

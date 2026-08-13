@@ -56,6 +56,28 @@ Where a control *deliberately* fails open — `LOG_LEVEL` degrading to `info`
 rather than refusing to boot — that choice is argued in the code comment, not
 merely made.
 
+**What "the safe side" means depends on what the control protects.**
+
+- A control protecting **data, isolation or identity** fails **closed**. If it
+  cannot decide, nobody gets in. Authorization, tenant scoping, redaction,
+  credential revocation, membership: all of these deny on error, and a 503 is
+  the correct answer to "the authorization system cannot answer right now".
+- A control protecting **capacity** fails **open**, with an alert. A rate
+  limiter whose backing store is unreachable must not take a hospital's API
+  down over quota accounting — availability of a clinical system outranks
+  enforcing a limit that exists to protect that same availability. Denying
+  every request because the limiter is confused causes precisely the outage the
+  limiter was installed to prevent.
+
+The distinction is not a licence to argue any control into the second category.
+Ask what the failure actually costs: a wrongly-admitted request past a capacity
+control costs some load; a wrongly-admitted request past a data control costs a
+reportable breach. If a control has both characters, it fails closed.
+
+Either way the direction is stated in a comment at the decision point, with the
+reasoning — so the next person cannot "fix" a deliberate fail-open into a
+fail-closed, or the reverse, by pattern-matching on this document.
+
 ## 4. Enforce structurally, not by convention
 
 A rule that depends on a developer remembering it is not a control. Prefer, in

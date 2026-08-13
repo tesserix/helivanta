@@ -14,20 +14,43 @@ import (
 // the guarantee holds at compile time rather than at startup.
 //
 // Use authz.Public for deliberately unguarded routes — it is an explicit,
-// greppable opt-out rather than an omission.
+// greppable opt-out rather than an omission. Public no longer means the
+// route skips tenant membership, only that it declares no permission
+// (#781) — see authz.NoTenantMembership for the narrower opt-out.
 type Router struct {
-	group    *gin.RouterGroup
-	declared *[]authz.Permission
+	group      *gin.RouterGroup
+	declared   *[]DeclaredRoute
+	membership authz.MembershipChecker
 }
 
-func NewRouter(g *gin.RouterGroup) *Router {
-	return &Router{group: g, declared: &[]authz.Permission{}}
+// DeclaredRoute is one route's method, path and permission, as recorded
+// by handle. Declared() returns these rather than bare permissions so a
+// caller that needs to know WHICH route carries a permission — the
+// NoTenantMembership allowlist arch test — doesn't have to re-register
+// every module's routes a second time to find out.
+type DeclaredRoute struct {
+	Method     string
+	Path       string
+	Permission authz.Permission
+}
+
+// NewRouter builds the root router. membership is required, not
+// optional: a nil checker would mean every route silently skips the
+// membership gate, which is the defect this parameter exists to close
+// (#781) — so a nil argument is a programming error caught immediately
+// at construction, not a silent bypass discovered later in production.
+func NewRouter(g *gin.RouterGroup, membership authz.MembershipChecker) *Router {
+	if membership == nil {
+		panic("platform: NewRouter requires a non-nil MembershipChecker")
+	}
+	return &Router{group: g, declared: &[]DeclaredRoute{}, membership: membership}
 }
 
 // Group returns a nested router that shares the parent's declaration
-// list, so Declared() sees every route regardless of nesting.
+// list and membership checker, so Declared() sees every route regardless
+// of nesting.
 func (r *Router) Group(prefix string) *Router {
-	return &Router{group: r.group.Group(prefix), declared: r.declared}
+	return &Router{group: r.group.Group(prefix), declared: r.declared, membership: r.membership}
 }
 
 func (r *Router) GET(path string, perm authz.Permission, h ...gin.HandlerFunc) {
@@ -51,14 +74,27 @@ func (r *Router) DELETE(path string, perm authz.Permission, h ...gin.HandlerFunc
 }
 
 func (r *Router) handle(method, path string, perm authz.Permission, h []gin.HandlerFunc) {
-	*r.declared = append(*r.declared, perm)
-	chain := append([]gin.HandlerFunc{authz.Require(perm)}, h...)
+	*r.declared = append(*r.declared, DeclaredRoute{
+		Method: method, Path: r.group.BasePath() + path, Permission: perm,
+	})
+	chain := make([]gin.HandlerFunc, 0, len(h)+2)
+	// Membership first: a non-member gets the same answer on every route
+	// regardless of what permission it declares, and a route marked
+	// NoTenantMembership never pays for the call at all — see that
+	// marker's doc comment for why that matters (sign-out during an
+	// OpenFGA outage).
+	if perm != authz.NoTenantMembership {
+		chain = append(chain, authz.RequireMembership(r.membership))
+	}
+	chain = append(chain, authz.Require(perm))
+	chain = append(chain, h...)
 	r.group.Handle(method, path, chain...)
 }
 
-// Declared lists every permission declared through this router and its
-// nested groups, including authz.Public. The architecture test and the
-// adversarial matrix suite both build on it.
-func (r *Router) Declared() []authz.Permission {
-	return append([]authz.Permission(nil), *r.declared...)
+// Declared lists every route declared through this router and its nested
+// groups, including authz.Public and authz.NoTenantMembership routes.
+// The architecture test and the adversarial matrix suite both build on
+// it.
+func (r *Router) Declared() []DeclaredRoute {
+	return append([]DeclaredRoute(nil), *r.declared...)
 }

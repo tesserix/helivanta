@@ -104,10 +104,15 @@ func newSeamHarness(t *testing.T) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
 	deps := platform.Deps{DB: db, Authz: fga, Roles: fga}
+	// fga doubles as the MembershipChecker here, not a fake: the real
+	// Task 5 reconciler above wrote the tenant->role edge nurse-amy's
+	// role backs (internal/platform/reconcile.go's applyGrants), so this
+	// exercises the real membership Check the same way production does,
+	// not a stand-in for it.
 	api := platform.NewRouter(e.Group("/v1",
 		authn.Middleware(seamVerifier{}),
 		authz.Middleware(fga),
-	))
+	), fga)
 	mod.Routes(api, deps)
 	return e
 }

@@ -5,6 +5,7 @@
 package archtest
 
 import (
+	"context"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -18,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/tools/go/packages"
 
 	"github.com/tesserix/hms/internal/bootstrap"
@@ -191,25 +193,88 @@ func TestModulesDoNotUseRawGinGroups(t *testing.T) {
 	}
 }
 
+// dryRouteRegistrationChecker is the MembershipChecker used everywhere
+// arch tests register a module's routes only to inspect
+// platform.Router.Declared() — no request is ever dispatched through
+// these routers, so what IsMember answers is irrelevant. It exists
+// purely because platform.NewRouter panics on a nil checker (#781): an
+// arch test that built its router with a nil checker would itself be
+// masking the exact defect that panic exists to catch.
+type dryRouteRegistrationChecker struct{}
+
+func (dryRouteRegistrationChecker) IsMember(context.Context, string, string) (bool, error) {
+	return true, nil
+}
+
 // TestEveryDeclaredPermissionIsGranted catches a module that guards a
 // route with a permission it never declared in Permissions() — the route
 // would be permanently unreachable for every non-admin role.
 func TestEveryDeclaredPermissionIsGranted(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, m := range allModules() {
-		declaredByGrants := map[authz.Permission]bool{authz.Public: true}
+		// Public and NoTenantMembership both declare no permission — see
+		// their doc comments in pkg/authz/authz.go.
+		declaredByGrants := map[authz.Permission]bool{authz.Public: true, authz.NoTenantMembership: true}
 		for _, g := range m.Permissions() {
 			declaredByGrants[g.Permission] = true
 		}
 		e := gin.New()
-		r := platform.NewRouter(e.Group("/v1"))
+		r := platform.NewRouter(e.Group("/v1"), dryRouteRegistrationChecker{})
 		m.Routes(r, platform.Deps{})
-		for _, p := range r.Declared() {
-			if !declaredByGrants[p] {
-				t.Errorf("module %q guards a route with %q but does not declare it in Permissions()", m.Name(), p)
+		for _, dr := range r.Declared() {
+			if !declaredByGrants[dr.Permission] {
+				t.Errorf("module %q guards a route with %q but does not declare it in Permissions()", m.Name(), dr.Permission)
 			}
 		}
 	}
+}
+
+// routesDeclaring walks every registered module's routes (registration
+// only — no request dispatched, see dryRouteRegistrationChecker) and
+// returns "METHOD /path/without/the/v1/prefix" for every route declaring
+// perm. The /v1 prefix is stripped by building the router directly at
+// the root rather than under a /v1 group, so the strings this returns
+// match noTenantMembershipAllowlist's keys exactly.
+func routesDeclaring(t *testing.T, perm authz.Permission) []string {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	var found []string
+	for _, m := range allModules() {
+		e := gin.New()
+		r := platform.NewRouter(e.Group(""), dryRouteRegistrationChecker{})
+		m.Routes(r, platform.Deps{})
+		for _, dr := range r.Declared() {
+			if dr.Permission == perm {
+				found = append(found, dr.Method+" "+dr.Path)
+			}
+		}
+	}
+	return found
+}
+
+// noTenantMembershipAllowlist is every route permitted to skip the
+// tenant-membership check. Adding an entry is a security decision: such
+// a route serves a caller who is not a member of the tenant their token
+// names, so it must gate itself.
+var noTenantMembershipAllowlist = map[string]string{
+	"GET /iam/me/permissions": "reports what the caller resolved to; reveals nothing they did not already hold",
+	"GET /iam/me/tenants":     "answers 'where do I belong'; unusable if it required belonging",
+	"POST /iam/me/tenant":     "gates on membership itself before minting (iam/me.go switchTenant)",
+}
+
+// TestNoTenantMembershipAllowlist pins the set of routes permitted to
+// skip RequireMembership to an explicit, reviewed list (#781). The
+// safety of every other route depends on this set staying small, so
+// growing it must be a deliberate edit here, not an incidental one at
+// the call site.
+func TestNoTenantMembershipAllowlist(t *testing.T) {
+	found := routesDeclaring(t, authz.NoTenantMembership)
+	var want []string
+	for k := range noTenantMembershipAllowlist {
+		want = append(want, k)
+	}
+	require.ElementsMatch(t, want, found,
+		"a route skipping the membership check must be added to noTenantMembershipAllowlist with a reason")
 }
 
 // withAdminAllowlist is exactly the files permitted to call

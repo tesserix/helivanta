@@ -38,9 +38,12 @@ type switchRequest struct {
 	TenantID string `json:"tenant_id" binding:"required,uuid"`
 }
 
-// meHandlers backs the self-service routes. They are authz.Public because
-// any authenticated caller may ask what they can do and where they
-// belong; the switch endpoint gates on membership itself.
+// meHandlers backs the self-service routes. They are authz.NoTenantMembership
+// because any authenticated caller may ask what they can do and where
+// they belong — including a caller whose membership in the tenant their
+// token names has just been revoked (#781); the switch endpoint gates on
+// membership itself, and permissions/tenants report only what the
+// caller actually resolves to.
 //
 // tenants and switchTenant resolve membership from OpenFGA via
 // roles.ListRoles rather than querying iam_members directly. iam_members
@@ -62,9 +65,16 @@ type meHandlers struct {
 func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
 	me := &meHandlers{roles: deps.Roles, tokens: deps.Tokens}
 
-	g.GET("/me/permissions", authz.Public, permissions)
-	g.GET("/me/tenants", authz.Public, me.tenants)
-	g.POST("/me/tenant", authz.Public, me.switchTenant)
+	// NoTenantMembership, not Public: a caller whose membership in the
+	// tenant their token names has just been revoked must still be able
+	// to discover the other tenants they belong to and switch to one.
+	// Requiring membership here would lock them out of the endpoint whose
+	// whole job is answering that question (#781). Each of these gates
+	// itself — switchTenant checks membership before minting, and
+	// permissions reports only what the caller actually resolved to.
+	g.GET("/me/permissions", authz.NoTenantMembership, permissions)
+	g.GET("/me/tenants", authz.NoTenantMembership, me.tenants)
+	g.POST("/me/tenant", authz.NoTenantMembership, me.switchTenant)
 }
 
 // permissions reports the caller's resolved permission set. It takes no

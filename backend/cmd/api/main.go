@@ -123,7 +123,7 @@ func run() error {
 		authn.Middleware(verifier),
 		requestid.PrincipalMiddleware(),
 		authz.Middleware(fga),
-	))
+	), fga)
 	for _, m := range registry.All() {
 		m.Routes(api, deps)
 		if err := bus.StartConsumers(ctx, db, m.Consumers(deps)); err != nil {

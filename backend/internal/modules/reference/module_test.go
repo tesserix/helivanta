@@ -3,6 +3,7 @@ package reference_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -13,8 +14,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/hms/internal/modules/reference" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
+	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -23,10 +24,10 @@ var (
 )
 
 func setup(t *testing.T) (*gin.Engine, *tenantdb.DB, context.Context) {
-	r, db, _, ctx := testutil.ModuleHarness(t,
-		map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB, "tokBad": "not-a-uuid"},
-		map[string][]authz.Permission{},
-		reference.New())
+	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB, "tokBad": "not-a-uuid"},
+		Modules: []platform.Module{reference.New()},
+	})
 	return r, db, ctx
 }
 
@@ -82,4 +83,114 @@ func TestPingInvalidTenantClaim(t *testing.T) {
 	w := do(r, "POST", "/v1/reference/ping", "tokBad", `{"message":"x"}`)
 	require.Equal(t, http.StatusUnauthorized, w.Code)
 	require.Contains(t, w.Body.String(), "error")
+}
+
+// fixedMembership is an authz.MembershipChecker whose answer is fixed
+// per test, independent of subject or tenant — reference's routes are
+// all authz.Public (no permission declared), so these tests need
+// control over ONLY the membership dimension to prove #781: a Public
+// route must consult membership even though it consults no permission.
+type fixedMembership struct {
+	allow bool
+	err   error
+}
+
+func (f fixedMembership) IsMember(context.Context, string, string) (bool, error) {
+	return f.allow, f.err
+}
+
+func harnessWithMembership(t *testing.T, member bool) *gin.Engine {
+	t.Helper()
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:     map[string]string{"tok": testutil.TenantA},
+		Membership: fixedMembership{allow: member},
+		Modules:    []platform.Module{reference.New()},
+	})
+	return r
+}
+
+func harnessWithFailingMembership(t *testing.T, err error) *gin.Engine {
+	t.Helper()
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:     map[string]string{"tok": testutil.TenantA},
+		Membership: fixedMembership{err: err},
+		Modules:    []platform.Module{reference.New()},
+	})
+	return r
+}
+
+// TestPublicRouteRefusesANonMember is the literal regression test for
+// the defect in #781: PermissionSet.Has used to short-circuit true for
+// authz.Public, so an unguarded route served a caller whose permission
+// set was empty because their membership had been revoked — the set was
+// never actually examined. The caller here authenticates fine and
+// carries a valid tenant_id claim, but holds no role in that tenant:
+// the shape of an ex-employee whose membership was revoked while their
+// token was still live.
+func TestPublicRouteRefusesANonMember(t *testing.T) {
+	r := harnessWithMembership(t, false)
+
+	w := testutil.Do(r, http.MethodGet, "/v1/reference/pings", "tok", "")
+
+	require.Equal(t, http.StatusForbidden, w.Code,
+		"a Public route declares no permission; it must still refuse a non-member")
+}
+
+func TestPublicRouteStillServesAMember(t *testing.T) {
+	r := harnessWithMembership(t, true)
+
+	w := testutil.Do(r, http.MethodGet, "/v1/reference/pings", "tok", "")
+
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestMembershipInfrastructureFailureIsFailClosed(t *testing.T) {
+	r := harnessWithFailingMembership(t, errors.New("openfga unreachable"))
+
+	w := testutil.Do(r, http.MethodGet, "/v1/reference/pings", "tok", "")
+
+	require.Equal(t, http.StatusServiceUnavailable, w.Code,
+		"a membership check that cannot be answered must deny, never admit")
+	require.Contains(t, w.Body.String(), "authz_unavailable")
+}
+
+// tenantScopedMembership keys its answer on subject+tenant, so it can
+// answer differently for the same caller depending which tenant's token
+// they present — the whole point of TestMembershipRevokedInOneTenantLeavesTheOtherWorking.
+type tenantScopedMembership map[string]bool
+
+func (m tenantScopedMembership) IsMember(_ context.Context, subject, tenantID string) (bool, error) {
+	return m[subject+"@"+tenantID], nil
+}
+
+// TestMembershipRevokedInOneTenantLeavesTheOtherWorking is spec T3:
+// losing membership in one hospital must not end a session in another.
+// This is what proves membership stayed a tenant-scoped check (spec D3)
+// rather than collapsing into a subject-only decision — see the
+// "prove it can fail" note on this test in the Task 3 report: changing
+// RequireMembership to ignore the caller's tenant claim and consult only
+// the subject makes the second assertion below fail, because the fake's
+// lookup key no longer matches.
+func TestMembershipRevokedInOneTenantLeavesTheOtherWorking(t *testing.T) {
+	// tok-a and tok-b authenticate as two different subjects (StaticVerifier
+	// derives "user-"+token), standing in for the same clinician holding
+	// two separate credentials — one per hospital they work at. Membership
+	// survives in B only.
+	member := tenantScopedMembership{
+		"user-tok-a@" + testutil.TenantA: false,
+		"user-tok-b@" + testutil.TenantB: true,
+	}
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:     map[string]string{"tok-a": testutil.TenantA, "tok-b": testutil.TenantB},
+		Membership: member,
+		Modules:    []platform.Module{reference.New()},
+	})
+
+	require.Equal(t, http.StatusForbidden,
+		testutil.Do(r, http.MethodGet, "/v1/reference/pings", "tok-a", "").Code,
+		"membership was revoked in tenant A")
+
+	require.Equal(t, http.StatusOK,
+		testutil.Do(r, http.MethodGet, "/v1/reference/pings", "tok-b", "").Code,
+		"the same person is still employed at tenant B; revoking A must not touch B")
 }

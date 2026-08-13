@@ -138,10 +138,11 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 
 	for _, m := range allModules() {
 		e := gin.New()
-		r := platform.NewRouter(e.Group("/v1"))
+		r := platform.NewRouter(e.Group("/v1"), dryRouteRegistrationChecker{})
 		m.Routes(r, platform.Deps{})
-		for _, perm := range r.Declared() {
-			if perm == authz.Public {
+		for _, dr := range r.Declared() {
+			perm := dr.Permission
+			if perm == authz.Public || perm == authz.NoTenantMembership {
 				continue
 			}
 			// Every grant gets tenant_admin appended, so a permission held

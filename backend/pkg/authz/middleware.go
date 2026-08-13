@@ -48,10 +48,19 @@ func Middleware(r Resolver) gin.HandlerFunc {
 }
 
 // Require denies with 403 unless the resolved set carries p. A caller
-// who is not a member of the tenant resolves to an empty set, so
-// membership needs no separate check.
+// who is not a member of the tenant resolves to an empty set, and is
+// additionally refused by RequireMembership before reaching here.
+//
+// The two markers declare no permission, so there is nothing to check:
+// Public still passes through RequireMembership, NoTenantMembership does
+// not. Skipping explicitly here — rather than by having Has lie about
+// what the set contains (#781) — keeps PermissionSet an honest set.
 func Require(p Permission) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if p == Public || p == NoTenantMembership {
+			c.Next()
+			return
+		}
 		set, ok := PermissionsFrom(c)
 		if !ok {
 			// Router construction guarantees Middleware runs first; this

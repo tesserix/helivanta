@@ -15,8 +15,16 @@ func TestPermissionSetHas(t *testing.T) {
 	require.False(t, s.Has("pharmacy.dispense.fulfil"))
 }
 
-func TestPublicIsAlwaysAllowedEvenOnEmptySet(t *testing.T) {
-	require.True(t, authz.NewPermissionSet().Has(authz.Public))
+// TestHasNoLongerLiesAboutPublic is the regression test for #781 at the
+// unit level: Has used to short-circuit true for Public regardless of
+// what the set actually contained, which is what let a Public route
+// serve a caller whose set was empty because their membership had been
+// revoked. Has must now answer exactly what the set contains — Require
+// is what skips the check for Public, not Has.
+func TestHasNoLongerLiesAboutPublic(t *testing.T) {
+	require.False(t, authz.NewPermissionSet().Has(authz.Public),
+		"Has must consult the set honestly; Public is handled by Require, not by Has lying about the set")
+	require.False(t, authz.NewPermissionSet().Has(authz.NoTenantMembership))
 }
 
 func TestSortedIsDeterministic(t *testing.T) {

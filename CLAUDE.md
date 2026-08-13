@@ -1,5 +1,31 @@
 # HMS — agent rules
 
+## Quality bar (read first, applies to everything)
+
+Full document: docs/standards/engineering-principles.md — read it before
+proposing any design or writing any code.
+
+- **No minimal, MVP, quick or temporary solutions.** "For now", "we can harden
+  it later" and "good enough to unblock" are not acceptable justifications.
+  When work is too big, decompose it into *correct* slices; never build an
+  incorrect small one.
+- **Scope down, never quality down.** Cut the set of cases handled, never
+  correctness, isolation, error handling, tests or observability. State what a
+  slice does not cover, in the spec and the PR body.
+- **Fail closed**, and argue the direction in a comment at the decision point.
+- **Enforce structurally**: compile error > boot failure > CI failure >
+  documented convention. A rule needing a developer to remember it is not a
+  control.
+- **Verify the claim, not a proxy.** Assert on the bytes/rows/responses
+  actually produced; prove every new assertion can fail; test a claim before
+  recording it as a blocker.
+- **Design before code**: issue → spec in `docs/superpowers/specs/` → plan in
+  `docs/superpowers/plans/` → implementation. Correct superseded docs in the
+  same change.
+- **Vertical slices**: backend + frontend + migration + tests in one PR.
+- If a request looks like it asks for a quick fix, say what the correct
+  solution is and propose a decomposition. Do not silently comply.
+
 ## Before starting any work (all agents)
 
 Every piece of work is tracked by a GitHub issue. Before writing code:

@@ -4,7 +4,7 @@
 # forced-RLS migration with a status CHECK, respond-helper routes
 # (create -> Accepted, list -> OK, guarded transition -> 404/409),
 # a published event constant, a consumer stub satisfying the arch-test
-# naming rules, and a module_test.go built on testutil.ModuleHarness.
+# naming rules, and a module_test.go built on testutil.NewHarness.
 #
 # Usage: ./scripts/new-module.sh <name>   (run from backend/)
 set -euo pipefail
@@ -45,6 +45,7 @@ import (
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/hms/pkg/pagination"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -112,6 +113,9 @@ type item struct {
 
 func (item) TableName() string { return "__NAME___items" }
 
+// PageKey is the keyset position of this row, satisfying platform.Keyed.
+func (i item) PageKey() (time.Time, uuid.UUID) { return i.CreatedAt, i.ID }
+
 type createItemRequest struct {
 	Name string `json:"name" binding:"required,max=200"`
 }
@@ -124,6 +128,26 @@ type ItemCreatedData struct {
 
 type itemDoneData struct {
 	ItemID string `json:"item_id"`
+}
+
+// listItems returns one page of this tenant's items, newest first.
+//
+// It returns whatever ApplyKeyset yields — up to Limit+1 rows — and does
+// not trim, does not decide has_more and does not build a cursor.
+// platform.ListRoute owns all three, so they cannot be got wrong per
+// endpoint.
+func listItems(deps platform.Deps) platform.ListHandler[item] {
+	return func(c *gin.Context, p pagination.Params) ([]item, error) {
+		principal, _, ok := authn.TenantPrincipal(c)
+		if !ok {
+			return nil, nil
+		}
+		var rows []item
+		err := deps.DB.WithTenant(c.Request.Context(), principal.TenantID, func(tx *gorm.DB) error {
+			return tenantdb.ApplyKeyset(tx, p).Find(&rows).Error
+		})
+		return rows, err
+	}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -159,21 +183,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 		respond.Accepted(c, gin.H{"id": row.ID.String()})
 	})
 
-	g.GET("/items", PermItemRead, func(c *gin.Context) {
-		p, _, ok := authn.TenantPrincipal(c)
-		if !ok {
-			return
-		}
-		var rows []item
-		err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-			return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
-		})
-		if err != nil {
-			respond.InternalErr(c, err, "could not list items")
-			return
-		}
-		respond.OK(c, gin.H{"data": rows})
-	})
+	platform.ListRoute(g, "/items", PermItemRead, listItems(deps))
 
 	g.POST("/items/:id/done", PermItemWrite, func(c *gin.Context) {
 		p, _, ok := authn.TenantPrincipal(c)
@@ -245,6 +255,11 @@ func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 		},
 	}}
 }
+
+// Broadcasts declares none: __NAME__ has no per-replica cache to
+// invalidate. See platform.Module.Broadcasts's doc comment (iam's
+// revocation-cache invalidation is the one module that needs this).
+func (m *Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 EOF
 
 cat > "$DIR/module_test.go" <<'EOF'
@@ -263,6 +278,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/hms/internal/modules/__NAME__" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
+	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testutil"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/tenantdb"
@@ -271,13 +287,14 @@ import (
 var do = testutil.Do
 
 func setup(t *testing.T) (*gin.Engine, *tenantdb.DB, context.Context) {
-	r, db, _, ctx := testutil.ModuleHarness(t,
-		map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB},
-		map[string][]authz.Permission{
+	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB},
+		Perms: map[string][]authz.Permission{
 			"tokA": {__NAME__.PermItemRead, __NAME__.PermItemWrite},
 			"tokB": {__NAME__.PermItemRead, __NAME__.PermItemWrite},
 		},
-		__NAME__.New())
+		Modules: []platform.Module{__NAME__.New()},
+	})
 	return r, db, ctx
 }
 

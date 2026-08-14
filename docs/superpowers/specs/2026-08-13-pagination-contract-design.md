@@ -2,7 +2,8 @@
 
 **Issue:** [#816](https://github.com/tesserix/hms/issues/816) — List endpoints
 truncate silently.
-**Status:** approved 2026-08-13.
+**Status:** implemented 2026-08-14. Deviations from the approved design are
+recorded inline below, each marked **Implemented as**.
 **Related:** #774 (foundation audit, Tier 2), #666 (API design standards),
 #710 (contract testing in CI).
 
@@ -228,6 +229,14 @@ go there — but that changes the hook's contract for every consumer. A narrow
 `useApiPagedQuery` is added beside it instead, leaving the hook every panel
 already uses untouched.
 
+**Implemented as** `useApiPagedQuery(key, path, opts: { poll?: boolean } = {})`.
+The design did not mention `poll`, but `dispense-list` and `order-list` are
+queue screens that `useApiQuery` was polling at `POLL_INTERVAL_MS`: moving them
+to a hook without it would have traded silent truncation for a queue that stops
+updating, which is a different regression rather than a fix. An infinite
+query's refetch covers every page already fetched, so a clinician who has paged
+past page one still sees live rows on everything in front of them.
+
 **The generator matters as much as the six endpoints.** `make new-module` emits
 a list endpoint; if the template still emits `g.GET` + `Limit(100)`, module seven
 reintroduces the defect on day one and the contract is decorative. The template
@@ -265,7 +274,7 @@ to fail before it is trusted.
 | ID | Test | Why it exists |
 |---|---|---|
 | T1 | Rows inserted mid-pagination → **every row exactly once** | The property offset cannot provide. Fails if the keyset is ever "simplified" to `OFFSET`. |
-| T2 | Rows sharing a millisecond paginate exact-once | The precision trap. Fails only here, never in casual testing. |
+| T2 | Rows sharing a microsecond paginate exact-once | The precision trap. Fails only here, never in casual testing. **Implemented as** microsecond, not millisecond: Postgres `timestamptz` stores microseconds, so a millisecond-granular test would pass against an encoding that truncates the digit that actually exists. |
 | T3 | The cursor's anchor row is deleted between pages | Proves the keyset is a value comparison, not a row lookup. |
 | T4 | Exactly `limit` rows remain | `has_more` false, `next_cursor` null — distinguishable from a full page. |
 | T5 | Empty collection | `[]` and no cursor, never `null` — the shape panels branch on. |
@@ -274,7 +283,7 @@ to fail before it is trusted.
 | T8 | Arch test: no collection route on plain `g.GET` | The one hole the type system cannot close. |
 | T9 | Generator output uses `ListRoute` | Otherwise module seven reintroduces the defect. |
 | T10 | Panel: "Load more" appends, and disappears at the end | Vitest with `renderWithProviders`, per the frontend standard. |
-| T11 | E2E: a ward with more than one page reads to completion | End to end through the real stack, not an assertion about an envelope. |
+| T11 | E2E: a ward with more than one page reads to completion | End to end through the real stack, not an assertion about an envelope. **Implemented as** an exact page-size assertion (`toHaveCount(50)`) plus a walk to exhaustion, rather than only "the Load more button is visible". The dev database is shared and already held 71 visits, so a raised page size still leaves more than one page and the button visible — the button alone does not discriminate. The count does: it fails for any page size that is not the contract's. |
 
 ---
 
@@ -292,6 +301,14 @@ to fail before it is trusted.
 - **Six panels change page size from 100 to 50** and gain "Load more". Anyone
   relying on "the list shows everything up to 100" sees fewer rows and an
   explicit control instead.
+- **A 50-row first page makes the e2e suite's shared hospital contended.**
+  Every spec has its own login account but they all write into one tenant's
+  rows, and `pagination.spec.ts` creates 55 visits. Run concurrently, that
+  flood displaces another spec's freshly created patient off page one of the
+  pharmacy queue. The bulk spec is therefore sequenced after the rest through
+  a Playwright project dependency (`e2e/playwright.config.ts`) rather than
+  isolated by data. Per-spec tenants would be the structural fix; it is a
+  seeding change beyond this issue.
 
 ---
 

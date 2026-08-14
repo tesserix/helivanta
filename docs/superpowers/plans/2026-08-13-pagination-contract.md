@@ -533,7 +533,7 @@ func TestKeysetSeparatesRowsSharingATimestamp(t *testing.T) {
 cd backend && go test -race ./pkg/tenantdb/ -run TestKeysetSeparatesRows -v
 ```
 
-Expected: PASS. Then change the predicate to `created_at < ?` (dropping the id tiebreaker) and confirm this test fails — four of the five rows vanish. Restore.
+Expected: PASS. Then change the predicate to `created_at < ?` (dropping the id tiebreaker) and confirm this test fails. Observed on 2026-08-14: `"map[same-2:1 same-3:1 same-4:1]" should have 5 item(s), but has 3` — **three** of the five rows are reachable and two vanish, not four. At `limit: 2` the first page is the limit plus the probe row, so three rows come back before the cursor advances; the anchor then shares its `created_at` with the remaining two, and `created_at < anchor` excludes them along with itself, so paging stops. How many vanish is a function of the limit; the assertion (`require.Len(t, seen, 5)`) is not, which is why it is written against the whole set rather than against a count of losses.
 
 - [ ] **Step 8: Write the deleted-anchor test (spec T3)**
 

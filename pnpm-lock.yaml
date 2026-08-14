@@ -6,6 +6,7 @@ settings:
 
 overrides:
   nanoid: ^3.3.18
+  postcss: ^8.5.23
   sharp: ^0.35.0
 
 importers:
@@ -1960,15 +1961,15 @@ packages:
       react: ^18 || ^19
 
   '@tesserix/hooks@1.0.0':
-    resolution: {integrity: sha512-wddwrjuDkR0yu93DbhkqyZwhVcUZkJ03PNQYjGRi3jok5FjMh6SaLooIY1q+tyV0JvCxPOPkGdTSNaeqj597aQ==}
+    resolution: {integrity: sha512-1MxiKUtiI7NPfmh41GYn5Bfrziwv8gcKt3v5161jXmqJ/Qbwh/T+oEKV8hWvKzMp0XJqEV8W6gS5uLp7eLA2Kg==, tarball: https://npm.pkg.github.com/download/@tesserix/hooks/1.0.0/60c67e981047356fc504bcf1378154d843a6e44d}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
 
   '@tesserix/tokens@1.0.0':
-    resolution: {integrity: sha512-d28KWQxt/QnNRiWzrkqxC1row+A3Oq1OYrt++0rDQFyJVhZ3+Vv9sDmtyxySyP0OLrS7zlpUgs6blJUpgzN2Mg==}
+    resolution: {integrity: sha512-grimAfdmmFAo5f0+rTyZ06PrtNCUkgaTGQ7lRR4E5dsbBhhthIKpw/d7mm8X42cOCVke6FIoHu0vG6JDJHBsiw==, tarball: https://npm.pkg.github.com/download/@tesserix/tokens/1.0.0/8d0661040a60420abea18bdd61a2701d166a9f17}
 
   '@tesserix/utils@1.0.0':
-    resolution: {integrity: sha512-kKxY38ClYLulU/MGIkuBJbnfn9Ra09CR3mdC8NgTPSEx9qa9e8i2v5QJ1rHNHtaqRdjHyGiR/iPDRzxYObwYmg==}
+    resolution: {integrity: sha512-9adoLCg82aWWGnMEDXT+a/1aYk5k9D5HuCYHNID9CJl4m/DXxSu0g603GwkKC7/TomWsRYlU5N3yDVIHvnOL/A==, tarball: https://npm.pkg.github.com/download/@tesserix/utils/1.0.0/a3b6095d050faff9a1a2c11e259cbee82c6e4009}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
 
@@ -1979,9 +1980,6 @@ packages:
       react: ^19.0.0
       react-dom: ^19.0.0
       tailwindcss: ^4.1.0
-    peerDependenciesMeta:
-      framer-motion:
-        optional: true
 
   '@testing-library/dom@10.4.1':
     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
@@ -3250,10 +3248,6 @@ packages:
   possible-typed-array-names@1.1.0:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
     engines: {node: '>= 0.4'}
-
-  postcss@8.4.31:
-    resolution: {integrity: sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==}
-    engines: {node: ^10 || ^12 || >=14}
 
   postcss@8.5.25:
     resolution: {integrity: sha512-DTPx3RWSSnWyzLxQnlH0rJP+EW5ekl16ZU4/psbIhA0e53kJfdgaN5vKM+xP7yJtXVu+nfdVFmlgFDEKAe4Pyw==}
@@ -5364,13 +5358,12 @@ snapshots:
       class-variance-authority: 0.7.1
       clsx: 2.1.1
       date-fns: 4.4.0
+      framer-motion: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react: 19.2.8
       react-day-picker: 9.14.0(react@19.2.8)
       react-dom: 19.2.8(react@19.2.8)
       tailwind-merge: 3.6.0
       tailwindcss: 4.3.3
-    optionalDependencies:
-      framer-motion: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
     transitivePeerDependencies:
       - '@types/react'
       - '@types/react-dom'
@@ -6656,7 +6649,7 @@ snapshots:
       '@swc/helpers': 0.5.15
       baseline-browser-mapping: 2.11.11
       caniuse-lite: 1.0.30001806
-      postcss: 8.4.31
+      postcss: 8.5.25
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
       styled-jsx: 5.1.6(@babel/core@7.29.7)(react@19.2.8)
@@ -6797,12 +6790,6 @@ snapshots:
       fsevents: 2.3.2
 
   possible-typed-array-names@1.1.0: {}
-
-  postcss@8.4.31:
-    dependencies:
-      nanoid: 3.3.18
-      picocolors: 1.1.1
-      source-map-js: 1.2.1
 
   postcss@8.5.25:
     dependencies:

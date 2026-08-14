@@ -13,6 +13,7 @@ import (
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/hms/pkg/pagination"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -29,6 +30,9 @@ type dispense struct {
 
 func (dispense) TableName() string { return "pharmacy_dispenses" }
 
+// PageKey is the keyset position of this row, satisfying platform.Keyed.
+func (d dispense) PageKey() (time.Time, uuid.UUID) { return d.CreatedAt, d.ID }
+
 type dispenseRequest struct {
 	Medication string `json:"medication" binding:"required,max=200"`
 }
@@ -43,21 +47,22 @@ type dispenseHandlers struct {
 	bus *events.Bus
 }
 
-// list returns this tenant's dispenses, newest first.
-func (h *dispenseHandlers) list(c *gin.Context) {
-	p, _, ok := authn.TenantPrincipal(c)
+// list returns one page of this tenant's dispenses, newest first.
+//
+// It returns whatever ApplyKeyset yields — up to Limit+1 rows — and does
+// not trim, does not decide has_more and does not build a cursor.
+// platform.ListRoute owns all three, so they cannot be got wrong per
+// endpoint.
+func (h *dispenseHandlers) list(c *gin.Context, p pagination.Params) ([]dispense, error) {
+	principal, _, ok := authn.TenantPrincipal(c)
 	if !ok {
-		return
+		return nil, nil
 	}
 	var rows []dispense
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
+	err := h.db.WithTenant(c.Request.Context(), principal.TenantID, func(tx *gorm.DB) error {
+		return tenantdb.ApplyKeyset(tx, p).Find(&rows).Error
 	})
-	if err != nil {
-		respond.InternalErr(c, err, "could not list dispenses")
-		return
-	}
-	respond.OK(c, gin.H{"data": rows})
+	return rows, err
 }
 
 // fulfil marks a pending dispense dispensed. The guarded UPDATE is what

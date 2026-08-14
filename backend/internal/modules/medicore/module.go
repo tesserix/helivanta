@@ -68,7 +68,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	visits := &visitHandlers{db: deps.DB, bus: deps.Bus}
 
 	g.POST("/visits", PermVisitCreate, visits.create)
-	g.GET("/visits", PermVisitRead, visits.list)
+	platform.ListRoute(g, "/visits", PermVisitRead, visits.list)
 }
 
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer { return nil }

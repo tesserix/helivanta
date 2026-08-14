@@ -3,11 +3,14 @@ package medicore_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
@@ -15,6 +18,7 @@ import (
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testutil"
 	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/hms/pkg/pagination"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -68,4 +72,101 @@ func TestVisitValidation(t *testing.T) {
 		do(r, "POST", "/v1/medicore/visits", "tokA", `{"patient_name":"X","department":"ICU"}`).Code)
 	require.Equal(t, http.StatusUnauthorized,
 		do(r, "POST", "/v1/medicore/visits", "nope", `{"patient_name":"X","department":"OPD"}`).Code)
+}
+
+// seedVisits inserts n visits directly (bypassing the HTTP create route,
+// which is not under test here) so TestVisitsArePaginated controls
+// exactly how many rows exist and can name each one distinctly.
+func seedVisits(t *testing.T, db *tenantdb.DB, ctx context.Context, tenantID uuid.UUID, n int) []string {
+	t.Helper()
+	names := make([]string, n)
+	for i := range n {
+		name := fmt.Sprintf("visit-%02d", i)
+		names[i] = name
+		require.NoError(t, db.WithTenant(ctx, tenantID.String(), func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO medicore_visits (tenant_id, patient_name, department) VALUES (?, ?, 'OPD')`,
+				tenantID, name).Error
+		}))
+	}
+	return names
+}
+
+// TestVisitsArePaginated walks a seeded tenant's visits to exhaustion
+// through the cursor and asserts every seeded visit appears exactly
+// once — the exact-once property the keyset helper (pkg/tenantdb) and
+// ListRoute's trim (internal/platform) jointly guarantee, now proven
+// through the real HTTP route rather than against a fake handler.
+func TestVisitsArePaginated(t *testing.T) {
+	r, db, ctx := setup(t)
+	tenantID := uuid.MustParse(testutil.TenantA)
+	seedVisits(t, db, ctx, tenantID, 7)
+
+	w := do(r, "GET", "/v1/medicore/visits?limit=3", "tokA", "")
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var page1 struct {
+		Data []struct {
+			ID          string `json:"id"`
+			PatientName string `json:"patient_name"`
+		} `json:"data"`
+		Page struct {
+			NextCursor *string `json:"next_cursor"`
+			HasMore    bool    `json:"has_more"`
+		} `json:"page"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &page1))
+	require.Len(t, page1.Data, 3)
+	require.True(t, page1.Page.HasMore)
+	require.NotNil(t, page1.Page.NextCursor)
+
+	seen := map[string]int{}
+	for _, v := range page1.Data {
+		seen[v.PatientName]++
+	}
+	cursor := *page1.Page.NextCursor
+	for range 10 {
+		w := do(r, "GET", "/v1/medicore/visits?limit=3&cursor="+url.QueryEscape(cursor), "tokA", "")
+		require.Equal(t, http.StatusOK, w.Code)
+		var next struct {
+			Data []struct {
+				PatientName string `json:"patient_name"`
+			} `json:"data"`
+			Page struct {
+				NextCursor *string `json:"next_cursor"`
+				HasMore    bool    `json:"has_more"`
+			} `json:"page"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &next))
+		for _, v := range next.Data {
+			seen[v.PatientName]++
+		}
+		if !next.Page.HasMore {
+			require.Nil(t, next.Page.NextCursor)
+			break
+		}
+		cursor = *next.Page.NextCursor
+	}
+
+	require.Len(t, seen, 7)
+	for name, n := range seen {
+		require.Equal(t, 1, n, "visit %s appeared %d times across pages", name, n)
+	}
+}
+
+// TestVisitsRejectAnotherTenantsCursor proves the route refuses a cursor
+// minted for a different tenant rather than silently using it as a
+// position — pagination.Decode's tenant check exercised through the real
+// route, not just the unit test in pkg/pagination.
+func TestVisitsRejectAnotherTenantsCursor(t *testing.T) {
+	r, _, _ := setup(t)
+	foreign := pagination.Cursor{
+		TenantID:  testutil.TenantB,
+		CreatedAt: time.Now().UTC(),
+		ID:        uuid.New(),
+	}.Encode()
+
+	w := do(r, "GET", "/v1/medicore/visits?cursor="+url.QueryEscape(foreign), "tokA", "")
+
+	require.Equal(t, http.StatusBadRequest, w.Code,
+		"a cursor issued for another tenant must be refused, not applied as a position")
 }

@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/tesserix/hms/internal/modules/reference" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testutil"
+	"github.com/tesserix/hms/pkg/pagination"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -83,6 +86,77 @@ func TestPingInvalidTenantClaim(t *testing.T) {
 	w := do(r, "POST", "/v1/reference/ping", "tokBad", `{"message":"x"}`)
 	require.Equal(t, http.StatusUnauthorized, w.Code)
 	require.Contains(t, w.Body.String(), "error")
+}
+
+// seedPings inserts n pings directly so TestPingsArePaginated controls
+// exactly how many rows exist.
+func seedPings(t *testing.T, db *tenantdb.DB, ctx context.Context, tenantID uuid.UUID, n int) {
+	t.Helper()
+	for i := range n {
+		msg := fmt.Sprintf("ping-%02d", i)
+		require.NoError(t, db.WithTenant(ctx, tenantID.String(), func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO reference_pings (tenant_id, message) VALUES (?, ?)`, tenantID, msg).Error
+		}))
+	}
+}
+
+// TestPingsArePaginated walks a seeded tenant's pings to exhaustion
+// through the cursor and asserts every seeded ping appears exactly
+// once — the same property proven for medicore's visits.
+func TestPingsArePaginated(t *testing.T) {
+	r, db, ctx := setup(t)
+	tenantID := uuid.MustParse(testutil.TenantA)
+	seedPings(t, db, ctx, tenantID, 7)
+
+	seen := map[string]int{}
+	cursor := ""
+	for i := 0; i < 20; i++ {
+		q := "/v1/reference/pings?limit=3"
+		if cursor != "" {
+			q += "&cursor=" + url.QueryEscape(cursor)
+		}
+		w := do(r, "GET", q, "tokA", "")
+		require.Equal(t, http.StatusOK, w.Code)
+		var body struct {
+			Data []struct {
+				Message string `json:"message"`
+			} `json:"data"`
+			Page struct {
+				NextCursor *string `json:"next_cursor"`
+				HasMore    bool    `json:"has_more"`
+			} `json:"page"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		for _, rr := range body.Data {
+			seen[rr.Message]++
+		}
+		if !body.Page.HasMore {
+			require.Nil(t, body.Page.NextCursor)
+			break
+		}
+		cursor = *body.Page.NextCursor
+	}
+
+	require.Len(t, seen, 7)
+	for msg, n := range seen {
+		require.Equal(t, 1, n, "ping %s appeared %d times across pages", msg, n)
+	}
+}
+
+// TestPingsRejectAnotherTenantsCursor mirrors medicore's cursor
+// tenant-mismatch test. Reference's routes are all authz.Public, so this
+// also proves the cursor's tenant check runs on a Public collection
+// route, not only on a permission-gated one.
+func TestPingsRejectAnotherTenantsCursor(t *testing.T) {
+	r, _, _ := setup(t)
+	foreign := pagination.Cursor{
+		TenantID:  testutil.TenantB,
+		CreatedAt: time.Now().UTC(),
+		ID:        uuid.New(),
+	}.Encode()
+
+	w := do(r, "GET", "/v1/reference/pings?cursor="+url.QueryEscape(foreign), "tokA", "")
+	require.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 // fixedMembership is an authz.MembershipChecker whose answer is fixed

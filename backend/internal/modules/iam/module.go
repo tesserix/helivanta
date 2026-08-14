@@ -20,6 +20,7 @@ import (
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/hms/pkg/pagination"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -160,6 +161,9 @@ type member struct {
 
 func (member) TableName() string { return "iam_members" }
 
+// PageKey is the keyset position of this row, satisfying platform.Keyed.
+func (m member) PageKey() (time.Time, uuid.UUID) { return m.CreatedAt, m.ID }
+
 // MemberChangedData is the v1 payload of member_granted and
 // member_revoked.
 type MemberChangedData struct {
@@ -286,21 +290,25 @@ func (h *memberHandlers) revoke(c *gin.Context) {
 	respond.Accepted(c, gin.H{"subject": subject, "role_key": roleKey})
 }
 
-// list returns this tenant's members, newest first.
-func (h *memberHandlers) list(c *gin.Context) {
-	p, _, ok := authn.TenantPrincipal(c)
+// list returns one page of this tenant's members, newest first.
+//
+// It returns whatever ApplyKeyset yields — up to Limit+1 rows — and does
+// not trim, does not decide has_more and does not build a cursor.
+// platform.ListRoute owns all three, so they cannot be got wrong per
+// endpoint. This is the endpoint the pagination contract matters most
+// for: it governs who has access to a hospital, so the 500-row hard cap
+// it previously carried was an access-control blind spot, not a UX
+// annoyance (#816).
+func (h *memberHandlers) list(c *gin.Context, p pagination.Params) ([]member, error) {
+	principal, _, ok := authn.TenantPrincipal(c)
 	if !ok {
-		return
+		return nil, nil
 	}
 	var rows []member
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		return tx.Order("created_at DESC").Limit(500).Find(&rows).Error
+	err := h.db.WithTenant(c.Request.Context(), principal.TenantID, func(tx *gorm.DB) error {
+		return tenantdb.ApplyKeyset(tx, p).Find(&rows).Error
 	})
-	if err != nil {
-		respond.InternalErr(c, err, "could not list members")
-		return
-	}
-	respond.OK(c, gin.H{"data": rows})
+	return rows, err
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -309,7 +317,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 
 	g.POST("/members", PermMemberManage, members.grant)
 	g.DELETE("/members/:subject/:role", PermMemberManage, members.revoke)
-	g.GET("/members", PermMemberManage, members.list)
+	platform.ListRoute(g, "/members", PermMemberManage, members.list)
 	g.GET("/roles", PermMemberManage, listRoles)
 
 	m.registerMe(g, deps)

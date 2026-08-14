@@ -3,7 +3,9 @@ package lab_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -19,6 +21,7 @@ import (
 	"github.com/tesserix/hms/internal/testutil"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/hms/pkg/pagination"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -178,4 +181,74 @@ func TestConcurrentResultYieldsExactlyOneWinner(t *testing.T) {
 	require.Equal(t, 1, ok, "exactly one result submission must win")
 	require.Equal(t, n-1, conflict, "every loser must get 409")
 	require.Zero(t, other)
+}
+
+// seedOrders inserts n orders directly so TestOrdersArePaginated
+// controls exactly how many rows exist.
+func seedOrders(t *testing.T, db *tenantdb.DB, ctx context.Context, tenantID uuid.UUID, n int) {
+	t.Helper()
+	for i := range n {
+		name := fmt.Sprintf("order-%02d", i)
+		require.NoError(t, db.WithTenant(ctx, tenantID.String(), func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO lab_orders (tenant_id, visit_id, patient_name) VALUES (?, ?, ?)`,
+				tenantID, uuid.New(), name).Error
+		}))
+	}
+}
+
+// TestOrdersArePaginated walks a seeded tenant's orders to exhaustion
+// through the cursor and asserts every seeded order appears exactly
+// once — the same property proven for medicore's visits.
+func TestOrdersArePaginated(t *testing.T) {
+	r, db, _, ctx := setup(t)
+	tenantID := uuid.MustParse(testutil.TenantA)
+	seedOrders(t, db, ctx, tenantID, 7)
+
+	seen := map[string]int{}
+	cursor := ""
+	for i := 0; i < 20; i++ {
+		q := "/v1/lab/orders?limit=3"
+		if cursor != "" {
+			q += "&cursor=" + url.QueryEscape(cursor)
+		}
+		w := do(r, "GET", q, "tokA", "")
+		require.Equal(t, http.StatusOK, w.Code)
+		var body struct {
+			Data []struct {
+				PatientName string `json:"patient_name"`
+			} `json:"data"`
+			Page struct {
+				NextCursor *string `json:"next_cursor"`
+				HasMore    bool    `json:"has_more"`
+			} `json:"page"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		for _, rr := range body.Data {
+			seen[rr.PatientName]++
+		}
+		if !body.Page.HasMore {
+			require.Nil(t, body.Page.NextCursor)
+			break
+		}
+		cursor = *body.Page.NextCursor
+	}
+
+	require.Len(t, seen, 7)
+	for name, n := range seen {
+		require.Equal(t, 1, n, "order %s appeared %d times across pages", name, n)
+	}
+}
+
+// TestOrdersRejectAnotherTenantsCursor mirrors medicore's cursor
+// tenant-mismatch test.
+func TestOrdersRejectAnotherTenantsCursor(t *testing.T) {
+	r, _, _, _ := setup(t)
+	foreign := pagination.Cursor{
+		TenantID:  testutil.TenantB,
+		CreatedAt: time.Now().UTC(),
+		ID:        uuid.New(),
+	}.Encode()
+
+	w := do(r, "GET", "/v1/lab/orders?cursor="+url.QueryEscape(foreign), "tokA", "")
+	require.Equal(t, http.StatusBadRequest, w.Code)
 }

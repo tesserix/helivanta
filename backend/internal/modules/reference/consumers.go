@@ -6,6 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
+	referencecontract "github.com/tesserix/hms/internal/modules/reference/contract"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/pkg/events"
 )
@@ -13,9 +14,9 @@ import (
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 	return []events.Consumer{{
 		Name:    "reference-receipts",
-		Subject: SubjectPinged,
+		Subject: referencecontract.SubjectPinged,
 		Handle: func(ctx_ context.Context, tx *gorm.DB, evt events.Event) error {
-			var d pingedData
+			var d referencecontract.PingedData
 			if err := json.Unmarshal(evt.Data, &d); err != nil {
 				return err
 			}

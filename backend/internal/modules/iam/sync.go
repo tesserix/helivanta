@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
+	iamcontract "github.com/tesserix/hms/internal/modules/iam/contract"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
@@ -21,7 +22,7 @@ type fgaSyncHandlers struct {
 // tenant's full permission set first (self-healing any prior drift)
 // before writing the new role tuple.
 func (h *fgaSyncHandlers) grant(ctx context.Context, _ *gorm.DB, evt events.Event) error {
-	var data MemberChangedData
+	var data iamcontract.MemberChangedData
 	if err := json.Unmarshal(evt.Data, &data); err != nil {
 		return fmt.Errorf("iam sync payload: %w", err)
 	}
@@ -35,7 +36,7 @@ func (h *fgaSyncHandlers) grant(ctx context.Context, _ *gorm.DB, evt events.Even
 
 // revoke applies a member_revoked event to OpenFGA.
 func (h *fgaSyncHandlers) revoke(ctx context.Context, _ *gorm.DB, evt events.Event) error {
-	var data MemberChangedData
+	var data iamcontract.MemberChangedData
 	if err := json.Unmarshal(evt.Data, &data); err != nil {
 		return fmt.Errorf("iam sync payload: %w", err)
 	}
@@ -50,7 +51,7 @@ func (h *fgaSyncHandlers) revoke(ctx context.Context, _ *gorm.DB, evt events.Eve
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 	sync := &fgaSyncHandlers{authz: deps.Authz, reconcile: deps.Reconcile}
 	return []events.Consumer{
-		{Name: "iam-fga-sync", Subject: SubjectMemberGranted, Handle: sync.grant},
-		{Name: "iam-fga-sync-revoke", Subject: SubjectMemberRevoked, Handle: sync.revoke},
+		{Name: "iam-fga-sync", Subject: iamcontract.SubjectMemberGranted, Handle: sync.grant},
+		{Name: "iam-fga-sync-revoke", Subject: iamcontract.SubjectMemberRevoked, Handle: sync.revoke},
 	}
 }

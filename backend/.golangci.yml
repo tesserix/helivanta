@@ -46,6 +46,10 @@ linters:
             # the deny entry above — that's what lets it carve out the
             # exception instead of widening it into an allowlist.
             - "github.com/tesserix/hms/internal/modules/medicore/contract"
+            - "github.com/tesserix/hms/internal/modules/pharmacy/contract"
+            - "github.com/tesserix/hms/internal/modules/lab/contract"
+            - "github.com/tesserix/hms/internal/modules/iam/contract"
+            - "github.com/tesserix/hms/internal/modules/reference/contract"
         no-logrus:
           deny:
             - pkg: "github.com/sirupsen/logrus"

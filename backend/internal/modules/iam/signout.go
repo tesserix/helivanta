@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	iamcontract "github.com/tesserix/hms/internal/modules/iam/contract"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/requestid"
 	"github.com/tesserix/hms/internal/platform/respond"
@@ -14,18 +15,6 @@ import (
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
-
-// SubjectCredentialRevoked is published whenever a subject's watermark
-// moves, from either trigger (sign-out or admin revoke). Every replica's
-// iam module Broadcasts consumes it to invalidate its own cache entry.
-const SubjectCredentialRevoked = "hms.in.iam.credential_revoked.v1" //nolint:gosec // event subject name, not a credential value
-
-// CredentialRevokedData is the v1 payload. It carries only the subject:
-// every replica needs to know which cache entry to drop, and nothing
-// else about the revocation belongs on a bus.
-type CredentialRevokedData struct {
-	Subject string `json:"subject"`
-}
 
 type revocationHandlers struct {
 	db      *tenantdb.DB
@@ -109,7 +98,7 @@ func (h *revocationHandlers) revoke(c *gin.Context, subject string, at time.Time
 		if err := h.checker.RevokeTx(tx, subject, at, reason, actor); err != nil {
 			return err
 		}
-		data, err := json.Marshal(CredentialRevokedData{Subject: subject})
+		data, err := json.Marshal(iamcontract.CredentialRevokedData{Subject: subject})
 		if err != nil {
 			return err
 		}
@@ -120,7 +109,7 @@ func (h *revocationHandlers) revoke(c *gin.Context, subject string, at time.Time
 		// and a valid UUID, to scope the consuming transaction's RLS GUC
 		// (pkg/events/bus.go), which this event has no need of because
 		// iam_credential_revocations carries no tenant_id at all.
-		return h.bus.Publish(tx, SubjectCredentialRevoked, events.Event{
+		return h.bus.Publish(tx, iamcontract.SubjectCredentialRevoked, events.Event{
 			Type: "CredentialRevoked", Version: 1, Data: data,
 		})
 	})

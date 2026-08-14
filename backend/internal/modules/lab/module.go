@@ -9,8 +9,6 @@ import (
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
-const SubjectResultReady = "hms.in.lab.result_ready.v1"
-
 const (
 	PermOrderRead   authz.Permission = "lab.order.read"
 	PermOrderFulfil authz.Permission = "lab.order.fulfil"

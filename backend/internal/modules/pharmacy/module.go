@@ -9,8 +9,6 @@ import (
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
-const SubjectDispenseRecorded = "hms.in.pharmacy.dispense_recorded.v1"
-
 const (
 	PermDispenseRead    authz.Permission = "pharmacy.dispense.read"
 	PermDispenseFulfil  authz.Permission = "pharmacy.dispense.fulfil"

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	referencecontract "github.com/tesserix/hms/internal/modules/reference/contract"
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/events"
@@ -32,10 +33,6 @@ type pingRequest struct {
 	Message string `json:"message" binding:"required,max=500"`
 }
 
-type pingedData struct {
-	PingID string `json:"ping_id"`
-}
-
 type pingHandlers struct {
 	db  *tenantdb.DB
 	bus *events.Bus
@@ -57,11 +54,11 @@ func (h *pingHandlers) create(c *gin.Context) {
 		if err := tx.Create(&row).Error; err != nil {
 			return err
 		}
-		data, err := json.Marshal(pingedData{PingID: row.ID.String()})
+		data, err := json.Marshal(referencecontract.PingedData{PingID: row.ID.String()})
 		if err != nil {
 			return err
 		}
-		return h.bus.Publish(tx, SubjectPinged, events.Event{
+		return h.bus.Publish(tx, referencecontract.SubjectPinged, events.Event{
 			Type: "ReferencePinged", Version: 1, TenantID: p.TenantID, Data: data,
 		})
 	})

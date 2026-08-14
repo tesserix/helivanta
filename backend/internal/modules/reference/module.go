@@ -8,8 +8,6 @@ import (
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
-const SubjectPinged = "hms.in.reference.pinged.v1"
-
 type Module struct{}
 
 func New() *Module { return &Module{} }

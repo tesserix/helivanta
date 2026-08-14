@@ -26,10 +26,13 @@ import (
 	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/modules/iam"
 	"github.com/tesserix/hms/internal/modules/lab"
+	labcontract "github.com/tesserix/hms/internal/modules/lab/contract"
 	"github.com/tesserix/hms/internal/modules/medicore"
 	medicorecontract "github.com/tesserix/hms/internal/modules/medicore/contract"
 	"github.com/tesserix/hms/internal/modules/pharmacy"
+	pharmacycontract "github.com/tesserix/hms/internal/modules/pharmacy/contract"
 	"github.com/tesserix/hms/internal/modules/reference"
+	referencecontract "github.com/tesserix/hms/internal/modules/reference/contract"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
@@ -139,10 +142,10 @@ func TestConsumerContracts(t *testing.T) {
 
 func TestPublishedSubjectConstants(t *testing.T) {
 	for name, s := range map[string]string{
-		"reference.SubjectPinged":          reference.SubjectPinged,
+		"reference.SubjectPinged":          referencecontract.SubjectPinged,
 		"medicore.SubjectVisitCreated":     medicorecontract.SubjectVisitCreated,
-		"pharmacy.SubjectDispenseRecorded": pharmacy.SubjectDispenseRecorded,
-		"lab.SubjectResultReady":           lab.SubjectResultReady,
+		"pharmacy.SubjectDispenseRecorded": pharmacycontract.SubjectDispenseRecorded,
+		"lab.SubjectResultReady":           labcontract.SubjectResultReady,
 	} {
 		if !subjectRe.MatchString(s) {
 			t.Errorf("%s = %q must match %s", name, s, subjectRe)

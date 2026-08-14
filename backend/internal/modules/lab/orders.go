@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	labcontract "github.com/tesserix/hms/internal/modules/lab/contract"
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/events"
@@ -36,11 +37,6 @@ func (o order) PageKey() (time.Time, uuid.UUID) { return o.CreatedAt, o.ID }
 
 type resultRequest struct {
 	ResultValue string `json:"result_value" binding:"required,max=500"`
-}
-
-type resultReadyData struct {
-	OrderID string `json:"order_id"`
-	VisitID string `json:"visit_id"`
 }
 
 type orderHandlers struct {
@@ -106,11 +102,11 @@ func (h *orderHandlers) result(c *gin.Context) {
 			status = http.StatusConflict
 			return nil
 		}
-		data, err := json.Marshal(resultReadyData{OrderID: row.ID.String(), VisitID: row.VisitID.String()})
+		data, err := json.Marshal(labcontract.ResultReadyData{OrderID: row.ID.String(), VisitID: row.VisitID.String()})
 		if err != nil {
 			return err
 		}
-		return h.bus.Publish(tx, SubjectResultReady, events.Event{
+		return h.bus.Publish(tx, labcontract.SubjectResultReady, events.Event{
 			Type: "ResultReady", Version: 1, TenantID: p.TenantID, Data: data,
 		})
 	})

@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	iamcontract "github.com/tesserix/hms/internal/modules/iam/contract"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
@@ -32,11 +33,6 @@ const PermMemberManage authz.Permission = "iam.member.manage"
 // a person's credentials platform-wide (see revocationHandlers.adminRevoke
 // in signout.go) is not an authority any clinical role should carry.
 const PermCredentialRevoke authz.Permission = "iam.credential.revoke" //nolint:gosec // permission name, not a credential value
-
-const (
-	SubjectMemberGranted = "hms.in.iam.member_granted.v1"
-	SubjectMemberRevoked = "hms.in.iam.member_revoked.v1"
-)
 
 // Module owns tenant membership and the credential-revocation watermark.
 //
@@ -164,13 +160,6 @@ func (member) TableName() string { return "iam_members" }
 // PageKey is the keyset position of this row, satisfying platform.Keyed.
 func (m member) PageKey() (time.Time, uuid.UUID) { return m.CreatedAt, m.ID }
 
-// MemberChangedData is the v1 payload of member_granted and
-// member_revoked.
-type MemberChangedData struct {
-	Subject string `json:"subject"`
-	RoleKey string `json:"role_key"`
-}
-
 type grantRequest struct {
 	Subject string `json:"subject" binding:"required,max=200"`
 	RoleKey string `json:"role_key" binding:"required,max=100"`
@@ -242,11 +231,11 @@ func (h *memberHandlers) grant(c *gin.Context) {
 				return err
 			}
 		}
-		data, err := json.Marshal(MemberChangedData(req))
+		data, err := json.Marshal(iamcontract.MemberChangedData(req))
 		if err != nil {
 			return err
 		}
-		return h.bus.Publish(tx, SubjectMemberGranted, events.Event{
+		return h.bus.Publish(tx, iamcontract.SubjectMemberGranted, events.Event{
 			Type: "MemberGranted", Version: 1, TenantID: p.TenantID, Data: data,
 		})
 	})
@@ -275,11 +264,11 @@ func (h *memberHandlers) revoke(c *gin.Context) {
 		// same repair-mechanism reason as the grant path above: a
 		// re-issued revoke must still be able to clear a stuck FGA
 		// tuple.
-		data, err := json.Marshal(MemberChangedData{Subject: subject, RoleKey: roleKey})
+		data, err := json.Marshal(iamcontract.MemberChangedData{Subject: subject, RoleKey: roleKey})
 		if err != nil {
 			return err
 		}
-		return h.bus.Publish(tx, SubjectMemberRevoked, events.Event{
+		return h.bus.Publish(tx, iamcontract.SubjectMemberRevoked, events.Event{
 			Type: "MemberRevoked", Version: 1, TenantID: p.TenantID, Data: data,
 		})
 	})
@@ -339,9 +328,9 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 // to that TTL, never to incorrectness.
 func (m *Module) Broadcasts(platform.Deps) []events.Broadcast {
 	return []events.Broadcast{{
-		Subject: SubjectCredentialRevoked,
+		Subject: iamcontract.SubjectCredentialRevoked,
 		Handle: func(ctx context.Context, evt events.Event) {
-			var data CredentialRevokedData
+			var data iamcontract.CredentialRevokedData
 			if err := json.Unmarshal(evt.Data, &data); err != nil {
 				slog.ErrorContext(ctx, "credential_revoked: undecodable payload", "err", err)
 				return

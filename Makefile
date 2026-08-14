@@ -70,11 +70,46 @@ dev-infra: preflight
 	@until curl -fsS --max-time 2 http://localhost:$(HMS_GIP_PORT)/ >/dev/null 2>&1; do printf '.'; sleep 1; done
 	@echo ' ready.'
 
+# The e2e suite is, in load terms, an attack: pagination.spec.ts creates 55
+# visits in a tight loop as one principal, and the whole suite runs at four
+# workers. Production's 600/min per tenant and 120/min per principal would
+# throttle our own tests, so the dev stack raises those two budgets far out
+# of the suite's reach (spec D7). The limiter itself stays ENABLED — a
+# limiter never exercised where developers work would first be exercised in
+# production.
+#
+# RATE_LIMIT_MINT_PER_MIN is the deliberate exception: it stays low, because
+# e2e/tests/ratelimit.spec.ts proves the limiter still refuses by draining
+# exactly this budget on POST /v1/iam/me/tenant. 60/min is one token per
+# second against a hardcoded burst of 3 (internal/bootstrap/ratelimit.go),
+# and the measured browser->proxy->API->GIP round trip for that route is
+# 9ms, so a sequential loop drains the bucket ~100x faster than it refills
+# and is refused on about the fourth attempt.
+#
+# The margin is the point, not the mean. A budget refilling FASTER than the
+# round trip can never be drained sequentially, and the loop would spin
+# until it gave up — a green limiter reported as broken, or "fixed" by
+# raising the attempt count until it accidentally passed. 1000/min refills
+# a token every 60ms: it happens to trip at today's 9ms, but only 6x clear
+# of it, and the round trip under four parallel Playwright workers on a
+# loaded machine is exactly the number that moves. 60/min holds until the
+# round trip degrades past a full second.
+#
+# 60/min does not throttle real flows: the only caller of the mint route is
+# the hospital picker (apps/shell/components/tenant-picker.tsx), one call
+# per switch, and tenant-switch.spec.ts performs exactly one.
+#
+# All three are overridable from the environment so the "prove it can fail"
+# check (RATE_LIMIT_MINT_PER_MIN=1000000) needs no edit here.
+RATE_LIMIT_TENANT_PER_MIN ?= 100000
+RATE_LIMIT_PRINCIPAL_PER_MIN ?= 100000
+RATE_LIMIT_MINT_PER_MIN ?= 60
+
 # HMS_ENV=dev is required here: the API refuses to start with
 # FIREBASE_AUTH_EMULATOR_HOST set outside dev, because the emulator makes
 # ID token signature verification a no-op.
 dev-api:
-	cd backend && HMS_ENV=$${HMS_ENV:-dev} FIREBASE_AUTH_EMULATOR_HOST=$${FIREBASE_AUTH_EMULATOR_HOST:-localhost:$(HMS_GIP_PORT)} PORT=$${PORT:-$(HMS_API_PORT)} go run ./cmd/api
+	cd backend && HMS_ENV=$${HMS_ENV:-dev} FIREBASE_AUTH_EMULATOR_HOST=$${FIREBASE_AUTH_EMULATOR_HOST:-localhost:$(HMS_GIP_PORT)} PORT=$${PORT:-$(HMS_API_PORT)} RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) RATE_LIMIT_MINT_PER_MIN=$(RATE_LIMIT_MINT_PER_MIN) go run ./cmd/api
 
 dev-web:
 	pnpm turbo dev

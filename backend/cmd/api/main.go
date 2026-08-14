@@ -23,6 +23,7 @@ import (
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/hms/pkg/ratelimit"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -136,11 +137,18 @@ func run() error {
 		},
 	}
 
-	api := platform.NewRouter(srv.Engine.Group("/v1",
-		authn.Middleware(verifier, revocationChecker),
-		requestid.PrincipalMiddleware(),
-		authz.Middleware(fga),
-	), fga)
+	// The chain itself lives in bootstrap.V1Chain, not inline here, so
+	// internal/archtest can build its harness from the SAME function that
+	// serves production traffic. Inline, the limiter could be deleted from
+	// this list and every test would still pass, because the placement
+	// test built its own equivalent chain. See V1Chain's comment for the
+	// order and why it is load-bearing;
+	// internal/archtest.TestThrottledRequestMakesNoOpenFGACall pins it.
+	limiter := ratelimit.NewMemory(10_000)
+	api := platform.NewRouter(
+		srv.Engine.Group("/v1", bootstrap.V1Chain(verifier, revocationChecker, limiter, cfg, fga)...),
+		fga,
+	)
 	for _, m := range registry.All() {
 		m.Routes(api, deps)
 		if err := bus.StartConsumers(ctx, db, m.Consumers(deps)); err != nil {

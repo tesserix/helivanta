@@ -356,28 +356,95 @@ already-parsed `uuid.UUID` form, so handlers that need the string form
 typed form (row structs) use `tenantUUID` — both are returned so neither
 call site re-parses.
 
-**Middleware chain**, wired once in `backend/cmd/api/main.go`:
+**Middleware chain.** The `/v1` chain is declared in
+`bootstrap.V1Chain` (`backend/internal/bootstrap/chain.go`), and
+`cmd/api/main.go` mounts it:
 
 ```go
-srv := httpserver.New(
-	[]httpserver.ReadyCheck{
-		{Name: "postgres", Check: db.PingContext},
-		{Name: "nats", Check: bus.Ping},
-	},
-	requestid.Middleware(),
+api := platform.NewRouter(
+	srv.Engine.Group("/v1", bootstrap.V1Chain(verifier, revocationChecker, limiter, cfg, fga)...),
+	fga,
 )
-api := srv.Engine.Group("/v1", authn.Middleware(verifier))
 ```
 
-`requestid.Middleware()` (section 8) runs first, on every route,
-stamping a request ID before auth even runs, so a 401 log line is still
-correlated. `authn.Middleware(verifier)` (`backend/pkg/authn/authn.go`)
-wraps the `/v1` group only — it reads a `Bearer` header or the
-`hms_session` cookie, verifies it via the injected `TokenVerifier`
+```go
+// bootstrap.V1Chain, in order:
+authn.Middleware(verifier, revocations),   // 1. verify the token
+requestid.PrincipalMiddleware(),           // 2. attribute the logs
+ratelimit.Middleware(limiter, RateLimitConfig(cfg)), // 3. refuse over-budget
+authz.Middleware(resolver),                // 4. resolve permissions (OpenFGA)
+```
+
+**The chain is a function, not a literal inside `main.go`, and that is
+load-bearing.** `run()` opens a database, a NATS connection and a GIP
+client before it builds a router, so nothing in `main.go` is reachable
+from a test. While the chain was inline, deleting `ratelimit.Middleware`
+removed rate limiting from production and the entire backend suite
+stayed green — the placement test built its own equivalent chain and
+kept passing against a replica of a chain production no longer had. Arch
+tests build their harness from `V1Chain` so that mutation now fails CI.
+**Do not re-inline a middleware into `main.go`, and do not hand-copy the
+chain into a test.**
+
+`requestid.Middleware()` (section 8) runs earlier still, on every route
+including `/healthz`, stamping a request ID before auth runs so a 401 log
+line is still correlated. `authn.Middleware` reads a `Bearer` header or
+the `hms_session` cookie, verifies it via the injected `TokenVerifier`
 (`authn.NewGIPVerifier` in production, `testutil.StaticVerifier` in
 tests), and sets the `authn.Principal` on the Gin context for
 `TenantPrincipal` to read later; a missing or invalid credential aborts
 with 401 before any module handler runs.
+
+### Rate limiting
+
+**Every `/v1` route is rate limited**, per tenant *and* per principal —
+both buckets must allow. The tenant bucket protects other hospitals from
+a noisy one; the principal bucket protects a hospital from one of its own
+users, or from a compromised credential looping.
+
+Placement is the whole design: **after `authn`** (the tenant key is only
+trustworthy because it comes from a verified token, not a client header)
+and **before `authz`** (which calls OpenFGA on every request — the most
+expensive step in the chain and itself a shared resource). Limiting after
+`authz` would let a flood exhaust OpenFGA before anything was refused,
+and the limiter would still return 429, so nothing would look broken.
+`TestThrottledRequestMakesNoOpenFGACall` pins that order by counting
+OpenFGA calls, not by inspecting the chain.
+
+Routes consuming a shared **external** resource get a tighter budget in
+`RateLimitConfig`'s `Tight` map — today only `POST /v1/iam/me/tenant`,
+which mints a GIP custom token per call against project-wide Identity
+Platform quota. A tight rule gets its **own** bucket key, so draining it
+does not drain the budget every other route reads from.
+
+Routes that must never be throttled go in `Exempt` **with a reason**,
+pinned by `TestRateLimitExemptionsAreAllowlisted`. The bar is high: an
+exempt route is one an attacker may hammer without being refused. The two
+entries today are sign-out and admin revoke — security controls whose
+whole purpose is to work during the incident that would trip a limiter.
+Exempt means exempt from the *limit*, not from the *record*: exempt
+requests are still logged, or the exemption becomes a blind spot.
+
+`TestRateLimitPolicyRoutesAreRegistered` additionally requires every
+`Exempt` and `Tight` key to name a route that actually exists. A typo'd
+key is otherwise silently dead — sign-out would be rate limited during
+exactly the incident it must survive, with nothing red.
+
+Rate limiting is a **capacity** control, so per
+`docs/standards/engineering-principles.md` §3 it fails **open**, unlike
+authorization or tenant scoping. The in-memory limiter cannot be
+unavailable; when a Redis-backed one replaces it (#7), a limiter that
+cannot reach its store must admit the request and alert, never deny.
+Limits come from env (`RATE_LIMIT_TENANT_PER_MIN`,
+`RATE_LIMIT_PRINCIPAL_PER_MIN`, `RATE_LIMIT_MINT_PER_MIN`) with
+production defaults, and an unparseable value falls back to the default
+with a warning rather than refusing to boot — same call `LOG_LEVEL`
+makes.
+
+**Known cost:** the limiter is in-process, so with N replicas the
+effective global limit is N × configured. That is exact for the
+connection pool (per-process) and approximate for GIP quota, and is the
+trade ADR-0005 accepts until #7 fixes the replica count.
 
 ## 6. Events
 

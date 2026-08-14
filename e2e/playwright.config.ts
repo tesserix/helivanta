@@ -17,6 +17,21 @@ import { defineConfig } from "@playwright/test";
 // just created, which sorts newest-first onto page one regardless of how
 // much history sits beneath it. It is only simultaneous creation that
 // displaces another spec's row.
+//
+// ratelimit.spec.ts (#689) joins bulk for the same reason under a different
+// shared resource: it deliberately floods POST /v1/iam/me/tenant until the
+// limiter refuses. The principal bucket it drains is keyed by its own
+// subject and route, but the TENANT bucket is shared by every spec running
+// against the same hospital, so a flood running alongside the others could
+// refuse a request they depend on and fail them for a reason that has
+// nothing to do with what they test.
+//
+// One regex, referenced twice, so the include and the exclude cannot drift:
+// a spec listed in bulk's testMatch but absent from specs' testIgnore runs
+// in BOTH projects — twice, once of them concurrently with everything else,
+// which is precisely the arrangement both comments above exist to prevent.
+const BULK_SPECS = /(pagination|ratelimit)\.spec\.ts/;
+
 export default defineConfig({
   testDir: "./tests",
   timeout: 60_000,
@@ -24,11 +39,11 @@ export default defineConfig({
   projects: [
     {
       name: "specs",
-      testIgnore: /pagination\.spec\.ts/,
+      testIgnore: BULK_SPECS,
     },
     {
       name: "bulk",
-      testMatch: /pagination\.spec\.ts/,
+      testMatch: BULK_SPECS,
       dependencies: ["specs"],
     },
   ],

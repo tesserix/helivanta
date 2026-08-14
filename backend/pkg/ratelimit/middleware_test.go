@@ -2,6 +2,7 @@ package ratelimit_test
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -39,6 +40,10 @@ func harness(t *testing.T, cfg ratelimit.Config) *gin.Engine {
 	e.GET("/v1/things", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"ok": true}) })
 	e.POST("/v1/mint", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"ok": true}) })
 	e.POST("/v1/escape", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"ok": true}) })
+	// A PARAMETERISED route, so the suite can tell c.FullPath() from
+	// c.Request.URL.Path. Every other route here is a literal path, where
+	// the two are identical and the distinction is invisible.
+	e.POST("/v1/subjects/:subject/revoke", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"ok": true}) })
 	return e
 }
 
@@ -214,4 +219,35 @@ func TestAllowedRequestCarriesRemainingHeader(t *testing.T) {
 	w := do(r, "/v1/things", "alice", "tenant-a")
 	require.Equal(t, "120", w.Header().Get("RateLimit-Limit"))
 	require.Equal(t, "19", w.Header().Get("RateLimit-Remaining"))
+}
+
+// TestParameterisedRouteMatchesByPatternNotURI is the test the rest of
+// this suite cannot be: every other harness route is a literal path,
+// where gin's registered pattern and the request URI are the same string
+// and swapping one for the other changes nothing.
+//
+// The real exemption is POST /v1/iam/subjects/:subject/revoke. Keying on
+// the URI instead of the pattern would make every distinct subject id its
+// own key, so the Exempt lookup would miss on every request and the
+// route an administrator uses to cut off a compromised credential would
+// become throttled — precisely while an attacker's traffic is what
+// exhausted the bucket. The same slip silently drops the Tight rule and
+// turns the key space into one bucket per URI.
+func TestParameterisedRouteMatchesByPatternNotURI(t *testing.T) {
+	r := harness(t, ratelimit.Config{
+		Tenant:    ratelimit.Rule{Rate: 600, Burst: 1, Per: time.Minute},
+		Principal: ratelimit.Rule{Rate: 120, Burst: 1, Per: time.Minute},
+		Exempt: map[string]string{
+			"POST /v1/subjects/:subject/revoke": "incident response; must not be throttled",
+		},
+	})
+
+	// Different subject ids, far past a burst of 1. Under pattern
+	// matching these are one exempt route; under URI matching they are
+	// distinct keys that miss the exemption entirely.
+	for i := range 25 {
+		path := fmt.Sprintf("/v1/subjects/uid-%d/revoke", i)
+		require.Equal(t, http.StatusOK, doPost(r, path, "alice", "tenant-a").Code,
+			"%s was throttled: the exemption is being matched against the request URI rather than the registered route pattern, so no revoke request ever matches it", path)
+	}
 }

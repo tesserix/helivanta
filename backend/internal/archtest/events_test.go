@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/tools/go/packages"
 
 	"github.com/tesserix/hms/internal/platform"
 )
@@ -99,4 +100,62 @@ func TestPublishesUsesContractConstants(t *testing.T) {
 				m.Name(), s, m.Name())
 		}
 	}
+}
+
+// TestConsumersUnmarshalIntoContractTypes is the standing guard against
+// a local payload copy coming back. Tasks 1 and 3 deleted the copies;
+// nothing yet stops a new consumer declaring its own struct and
+// unmarshalling into that, which is exactly the state #827 fixed.
+//
+// This resolves the TYPE of the second argument to
+// json.Unmarshal(evt.Data, &d) using go/packages type information —
+// which the type checker has already computed. That is why it is
+// acceptable where walking bus.Publish call sites was not: that check
+// had to resolve a constant VALUE through arbitrary indirection and
+// fails opaquely. This fails loudly: a type it cannot resolve is a
+// failure, not a skip.
+func TestConsumersUnmarshalIntoContractTypes(t *testing.T) {
+	pkgs, err := packages.Load(&packages.Config{
+		Mode: packages.NeedName | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedImports,
+	}, modulesPrefix+"...")
+	require.NoError(t, err)
+
+	checked := 0
+	for _, p := range pkgs {
+		if strings.HasSuffix(p.PkgPath, "/contract") || strings.HasSuffix(p.PkgPath, ".test") {
+			continue
+		}
+		for _, file := range p.Syntax {
+			ast.Inspect(file, func(n ast.Node) bool {
+				call, ok := n.(*ast.CallExpr)
+				if !ok || len(call.Args) != 2 {
+					return true
+				}
+				sel, ok := call.Fun.(*ast.SelectorExpr)
+				if !ok || sel.Sel.Name != "Unmarshal" {
+					return true
+				}
+				pkgIdent, ok := sel.X.(*ast.Ident)
+				if !ok || pkgIdent.Name != "json" {
+					return true
+				}
+				// Only calls unmarshalling an event payload.
+				argSel, ok := call.Args[0].(*ast.SelectorExpr)
+				if !ok || argSel.Sel.Name != "Data" {
+					return true
+				}
+
+				checked++
+				typ := p.TypesInfo.TypeOf(call.Args[1])
+				require.NotNil(t, typ, "%s: cannot resolve the type unmarshalled from evt.Data", p.PkgPath)
+
+				name := typ.String() // e.g. *github.com/.../medicore/contract.VisitCreatedData
+				require.Contains(t, name, "/contract.",
+					"%s unmarshals an event payload into %s, which is not a contract type — declare the payload in the publishing module's contract package so a renamed field breaks this build instead of writing a zero value (#827)",
+					p.PkgPath, name)
+				return true
+			})
+		}
+	}
+	require.Positive(t, checked, "no json.Unmarshal(evt.Data, …) call sites found — this test would pass vacuously")
 }

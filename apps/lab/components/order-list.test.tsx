@@ -10,6 +10,10 @@ function jsonResponse(status: number, body: unknown) {
   });
 }
 
+function page(data: unknown[], opts: { hasMore?: boolean; nextCursor?: string | null } = {}) {
+  return { data, page: { next_cursor: opts.nextCursor ?? null, has_more: opts.hasMore ?? false } };
+}
+
 const pendingOrder = {
   id: "o-1",
   visit_id: "v-1",
@@ -35,8 +39,9 @@ describe("OrderList", () => {
         return Promise.resolve(jsonResponse(200, { id: "o-1", status: "completed" }));
       }
       return Promise.resolve(
-        jsonResponse(200, {
-          data: [
+        jsonResponse(
+          200,
+          page([
             completed
               ? {
                   ...pendingOrder,
@@ -45,8 +50,8 @@ describe("OrderList", () => {
                   resulted_at: "2026-08-04T04:01:00Z",
                 }
               : pendingOrder,
-          ],
-        }),
+          ]),
+        ),
       );
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -64,11 +69,37 @@ describe("OrderList", () => {
         if (url.includes("/iam/me/permissions")) {
           return Promise.resolve(jsonResponse(200, { data: [] }));
         }
-        return Promise.resolve(jsonResponse(200, { data: [pendingOrder] }));
+        return Promise.resolve(jsonResponse(200, page([pendingOrder])));
       }),
     );
     renderWithProviders(<OrderList />);
     await screen.findByText("Asha Rao");
     expect(screen.queryByRole("button", { name: "Save result" })).not.toBeInTheDocument();
+  });
+
+  it("loads the next page on click, then hides Load more once the list is complete", async () => {
+    const secondOrder = { ...pendingOrder, id: "o-2", patient_name: "Rohan Iyer" };
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/iam/me/permissions")) {
+        return Promise.resolve(jsonResponse(200, { data: [] }));
+      }
+      if (url.includes("cursor=")) {
+        return Promise.resolve(jsonResponse(200, page([secondOrder])));
+      }
+      return Promise.resolve(
+        jsonResponse(200, page([pendingOrder], { hasMore: true, nextCursor: "c1" })),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { user } = renderWithProviders(<OrderList />);
+    await screen.findByText("Asha Rao");
+    expect(screen.queryByText("Rohan Iyer")).not.toBeInTheDocument();
+
+    const loadMore = screen.getByRole("button", { name: "Load more" });
+    await user.click(loadMore);
+
+    await waitFor(() => expect(screen.getByText("Rohan Iyer")).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
   });
 });

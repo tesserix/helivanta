@@ -3,8 +3,8 @@
 import { z } from "zod";
 import { Badge, Button, Input } from "@tesserix/web";
 import { CalendarPlus } from "lucide-react";
-import { Can, apiFetch, useApiMutation, useApiQuery } from "@hms/api";
-import { EmptyState, Field, formatTime, useZodForm } from "@hms/ui";
+import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@hms/api";
+import { EmptyState, Field, LoadMore, formatTime, useZodForm } from "@hms/ui";
 
 type Visit = {
   id: string;
@@ -19,7 +19,7 @@ const visitSchema = z.object({
 });
 
 export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
-  const visits = useApiQuery<{ data: Visit[] }>(["visits"], "/medicore/visits");
+  const visits = useApiPagedQuery<Visit>(["visits"], "/medicore/visits");
   const form = useZodForm(visitSchema, { patient_name: "" });
 
   const createVisit = useApiMutation(
@@ -68,7 +68,7 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
         </form>
       </Can>
       <ul className="divide-y text-sm">
-        {visits.data?.data.length === 0 && (
+        {visits.items.length === 0 && (
           <li>
             <EmptyState
               icon={CalendarPlus}
@@ -77,7 +77,7 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
             />
           </li>
         )}
-        {visits.data?.data.map((v) => (
+        {visits.items.map((v) => (
           <li key={v.id} className="flex items-center justify-between gap-4 px-5 py-3">
             <div className="flex min-w-0 items-center gap-3">
               <span className="truncate font-medium text-foreground">{v.patient_name}</span>
@@ -89,6 +89,11 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
           </li>
         ))}
       </ul>
+      <LoadMore
+        hasMore={visits.hasMore}
+        isLoading={visits.isFetchingMore}
+        onClick={visits.loadMore}
+      />
     </section>
   );
 }

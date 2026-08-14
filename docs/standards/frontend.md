@@ -144,6 +144,31 @@ submits a create mutation that toasts "Visit created" and invalidates
 `["visits"]`, and resets the form on success — the shape every
 create-and-list panel in HMS follows.
 
+**Collection endpoints are read with `useApiPagedQuery`, never `useApiQuery`.**
+Every collection endpoint returns `{data: [...], page: {next_cursor, has_more}}`
+(#816); reading it with `useApiQuery` shows only the first page and silently
+hides the rest — exactly the truncation this contract exists to end.
+`useApiPagedQuery<T>(key, path, opts?)` (`packages/api/src/paged.ts`) is a
+narrow sibling of `useApiQuery` built on `useInfiniteQuery`, not a
+replacement: `useApiQuery` is used by every panel and by `permissions.tsx`,
+and reshaping it to `useInfiniteQuery` would change the contract for all of
+them. It returns `{ items, hasMore, loadMore, isPending, isFetchingMore }`
+and accepts the same `{ poll?: boolean }` option `useApiQuery` does, for
+queue screens (dispense, lab orders) that need to stay current.
+
+Render `<LoadMore hasMore isLoading onClick />` (`packages/ui/src/load-more.tsx`)
+after the list. It renders nothing when `hasMore` is false — that absence is
+a positive statement that the client has the whole collection, so its
+disappearance is the point, not an oversight to patch with a disabled state.
+Never infer "there is more" from a full page (page length equal to the
+requested limit): a full final page and a truncated one are indistinguishable
+by length alone, which is the defect #816 exists to fix. `hasMore` must come
+from the server's explicit `has_more` flag only.
+
+Reference implementations for the paginated shape:
+`apps/medicore/components/visit-panel.tsx` and `apps/pharmacy/components/dispense-list.tsx`
+(the latter also shows `poll: true` combined with pagination).
+
 ## 4. Forms
 
 Forms use `useZodForm` (a `react-hook-form` + `@hookform/resolvers/zod`

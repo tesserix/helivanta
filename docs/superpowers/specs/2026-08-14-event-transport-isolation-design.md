@@ -115,8 +115,21 @@ module events, so the outbox legitimately holds tenant-less rows.
 CREATE POLICY tenant_isolation ON outbox_events
   USING (hms_tenant_visible(tenant_id))
   WITH CHECK (tenant_id IS NULL
-              OR tenant_id = current_setting('app.tenant_id', true)::uuid);
+              OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
 ```
+
+> **`NULLIF` added during Task 1**, and it is not cosmetic. An "unset" custom
+> GUC returns SQL NULL only the *first* time a session ever references the
+> name; after any `WithTenant` transaction commits, it reverts to `''` for the
+> life of that pooled connection. `''::uuid` is a hard type error, so without
+> `NULLIF` the identical cross-tenant write reported **two different errors
+> depending on pool scheduling** — `new row violates row-level security policy`
+> on a fresh connection, `invalid input syntax for type uuid: ""` on a reused
+> one. A security control whose rejection is indistinguishable from malformed
+> input, nondeterministically, is not a control anyone can reason about.
+> `USING` is safe because `hms_tenant_visible` carries the same `NULLIF`
+> (migration `0002_platform_rls`); `WITH CHECK` cannot call that function — the
+> lint forbids it — so it needs its own.
 
 This is the house form (`medicore/module.go:52-61`) with exactly one deviation,
 and both halves are constrained by `LintRLS`, which was read rather than

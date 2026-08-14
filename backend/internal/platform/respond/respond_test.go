@@ -85,3 +85,26 @@ func TestTooManyRequestsRoundsSubSecondRetryUp(t *testing.T) {
 	})
 	require.Equal(t, "1", w.Header().Get("Retry-After"))
 }
+
+// TestTooManyRequestsRoundsAMultiSecondWaitUp is the case that actually
+// discriminates the rounding, and it exists because the obvious test did
+// not.
+//
+// TestTooManyRequestsRoundsSubSecondRetryUp looks like it pins Ceil, but
+// the `secs < 1` clamp rescues every sub-second value: at 400ms, Floor
+// gives 0, the clamp bumps it to 1, and the header is identical either
+// way. Swapping Ceil for Floor passed the whole suite.
+//
+// 1.5s is above the clamp, so the two disagree: Ceil gives 2, Floor
+// gives 1. Rounding down tells a client to come back before a token
+// exists, so it is refused again — the retry storm Retry-After is
+// supposed to prevent, arriving through the header meant to prevent it.
+func TestTooManyRequestsRoundsAMultiSecondWaitUp(t *testing.T) {
+	w := run(func(c *gin.Context) {
+		respond.TooManyRequests(c, "slow down", 1500*time.Millisecond, 120, 0)
+	})
+
+	require.Equal(t, "2", w.Header().Get("Retry-After"),
+		"a 1.5s wait must round up to 2: telling a client to retry after 1s sends it back before a token exists")
+	require.Equal(t, "2", w.Header().Get("RateLimit-Reset"))
+}

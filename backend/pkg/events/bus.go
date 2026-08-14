@@ -199,7 +199,11 @@ func NewBusInNamespace(natsURL, ns string) (*Bus, error) {
 		Name:      b.streamName(),
 		Subjects:  []string{b.Subject(subjectRoot + ".>")},
 		Retention: nats.LimitsPolicy,
-		MaxAge:    7 * 24 * time.Hour,
+		// streamMaxAge (retention.go) — was 7 days; see its comment for why
+		// 24h is ample. The DLQ subject lives inside this same stream, so a
+		// dead-lettered clinical event is bounded by the same window rather
+		// than kept indefinitely.
+		MaxAge: streamMaxAge,
 	})
 	if err != nil && !errors.Is(err, nats.ErrStreamNameAlreadyInUse) {
 		return nil, fmt.Errorf("ensure stream: %w", err)

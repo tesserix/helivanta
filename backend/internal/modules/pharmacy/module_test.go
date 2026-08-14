@@ -55,7 +55,13 @@ func TestVisitIntakeCreatesPendingDispense(t *testing.T) {
 	// Simulate medicore publishing visit_created (module boundary: we
 	// publish the envelope, not import medicore).
 	visitID := uuid.NewString()
-	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
+	// Published from inside WithTenant(TenantA, ...), not WithSystem:
+	// since #835 Task 1, the outbox's WITH CHECK pins a non-NULL
+	// tenant_id to the GUC of the transaction that inserted it, and this
+	// event carries a real tenant — a WithSystem insert of it would now
+	// be rejected by the policy, same as it would be for the real
+	// publisher (medicore) below.
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		data, _ := json.Marshal(map[string]string{
 			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
 		})
@@ -77,7 +83,13 @@ func TestDispenseFlow(t *testing.T) {
 	r, db, _, ctx := setup(t)
 
 	visitID := uuid.NewString()
-	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
+	// Published from inside WithTenant(TenantA, ...), not WithSystem:
+	// since #835 Task 1, the outbox's WITH CHECK pins a non-NULL
+	// tenant_id to the GUC of the transaction that inserted it, and this
+	// event carries a real tenant — a WithSystem insert of it would now
+	// be rejected by the policy, same as it would be for the real
+	// publisher (medicore) below.
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		data, _ := json.Marshal(map[string]string{
 			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
 		})
@@ -114,10 +126,14 @@ func TestDispenseFlow(t *testing.T) {
 	require.Equal(t, http.StatusConflict,
 		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokA", `{"medication":"Paracetamol 500mg"}`).Code)
 
-	// dispense_recorded hit the outbox.
+	// dispense_recorded hit the outbox. Read under WithTenant(TenantA),
+	// not WithSystem: since #835 Task 1, outbox_events carries the
+	// publishing tenant and is RLS-forced, so a WithSystem read (no
+	// tenant GUC) now sees nothing here — that is the point of the
+	// change, not a regression.
 	require.Eventually(t, func() bool {
 		var n int64
-		_ = db.WithSystem(ctx, func(tx *gorm.DB) error {
+		_ = db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 			return tx.Raw(`SELECT count(*) FROM outbox_events
 				WHERE subject = 'hms.in.pharmacy.dispense_recorded.v1'`).Scan(&n).Error
 		})
@@ -134,7 +150,13 @@ func TestConcurrentDispenseYieldsExactlyOneWinner(t *testing.T) {
 	r, db, _, ctx := setup(t)
 
 	visitID := uuid.NewString()
-	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
+	// Published from inside WithTenant(TenantA, ...), not WithSystem:
+	// since #835 Task 1, the outbox's WITH CHECK pins a non-NULL
+	// tenant_id to the GUC of the transaction that inserted it, and this
+	// event carries a real tenant — a WithSystem insert of it would now
+	// be rejected by the policy, same as it would be for the real
+	// publisher (medicore) below.
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		data, _ := json.Marshal(map[string]string{
 			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
 		})

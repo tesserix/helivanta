@@ -41,8 +41,17 @@ const maxDeliver = 5
 var ackWait = 30 * time.Second
 
 // OutboxStore is the slice of tenantdb the bus needs (system tables only).
+//
+// WithAdmin is here deliberately, not as a convenience: it is what forces
+// drainOnce to be able to compile only against a store that offers the
+// admin-pool, RLS-bypassing path (see drainOnce's comment for why it needs
+// it). Adding this method is itself part of Task 1 (#835) — a store that
+// only implements WithSystem can no longer satisfy this interface, so the
+// migration that puts RLS on outbox_events and the dispatcher's move off
+// WithSystem cannot land apart.
 type OutboxStore interface {
 	WithSystem(ctx context.Context, fn func(tx *gorm.DB) error) error
+	WithAdmin(ctx context.Context, fn func(tx *gorm.DB) error) error
 }
 
 func Migrations() []tenantdb.Migration {
@@ -63,6 +72,46 @@ func Migrations() []tenantdb.Migration {
 			  processed_at timestamptz NOT NULL DEFAULT now(),
 			  PRIMARY KEY (consumer, event_id)
 			);`,
+	}, {
+		// 0002_events_outbox_tenant brings the outbox inside the RLS
+		// boundary (design spec D1/D1a, #835/#774). Append-only: 0001 is
+		// never edited.
+		//
+		// tenant_id is NULLABLE — no SET NOT NULL — because
+		// SubjectCredentialRevoked (iam/signout.go) publishes with no
+		// TenantID at all: revocation is subject-scoped and ends every
+		// session for a subject in every tenant, so there is genuinely no
+		// tenant to name. The policy is asymmetric on purpose: USING calls
+		// hms_tenant_visible(tenant_id), which evaluates NULL (not true)
+		// for a tenant-less row — strictly the correct, strictest outcome,
+		// since a platform-wide event is not any single tenant's to read.
+		// WITH CHECK must NOT call hms_tenant_visible (LintRLS fails that
+		// shape explicitly: reads may widen, writes stay pinned to one
+		// tenant) and MUST permit NULL, or publishing a tenant-less event
+		// from inside a tenant-scoped transaction — exactly what sign-out
+		// does — would be rejected by the policy and sign-out would 500.
+		ID: "0002_events_outbox_tenant",
+		SQL: `
+			ALTER TABLE outbox_events ADD COLUMN tenant_id uuid;
+
+			-- Backfill from the envelope Publish has always written into
+			-- payload. The regex guard matters: tenant-less events (e.g.
+			-- CredentialRevoked) carry "" in payload->>'tenant_id', and a
+			-- bare ::uuid cast would abort the whole migration on the
+			-- first such row rather than leave it NULL.
+			UPDATE outbox_events
+			   SET tenant_id = (payload->>'tenant_id')::uuid
+			 WHERE payload->>'tenant_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+
+			ALTER TABLE outbox_events ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE outbox_events FORCE ROW LEVEL SECURITY;
+
+			CREATE POLICY tenant_isolation ON outbox_events
+			  USING (hms_tenant_visible(tenant_id))
+			  WITH CHECK (tenant_id IS NULL
+			              OR tenant_id = current_setting('app.tenant_id', true)::uuid);
+
+			CREATE INDEX ON outbox_events (tenant_id);`,
 	}}
 }
 
@@ -185,9 +234,14 @@ func (b *Bus) deriveCtx(ctx context.Context) (context.Context, context.CancelFun
 }
 
 type outboxRow struct {
-	ID          uuid.UUID
-	Subject     string
-	Payload     []byte
+	ID      uuid.UUID
+	Subject string
+	Payload []byte
+	// TenantID is nullable — see 0002_events_outbox_tenant's comment.
+	// Nil for events with no TenantID (e.g. CredentialRevoked), which the
+	// tenant_isolation policy then makes readable by nobody but the
+	// dispatcher's WithAdmin read.
+	TenantID    *uuid.UUID
 	PublishedAt *time.Time
 }
 
@@ -215,7 +269,17 @@ func (b *Bus) Publish(tx *gorm.DB, subject string, evt Event) error {
 	if err != nil {
 		return err
 	}
-	return tx.Create(&outboxRow{ID: id, Subject: subject, Payload: payload}).Error
+	row := outboxRow{ID: id, Subject: subject, Payload: payload}
+	// tenant_id is derived from the envelope itself, never a separate
+	// parameter, so the column and the payload can never disagree.
+	// Absent or unparseable (empty string for a subject-scoped broadcast,
+	// or any other non-UUID) leaves it NULL rather than erroring — the
+	// same fail-closed-on-read, permissive-on-write shape the
+	// tenant_isolation policy expects.
+	if tenantID, err := uuid.Parse(evt.TenantID); err == nil {
+		row.TenantID = &tenantID
+	}
+	return tx.Create(&row).Error
 }
 
 // RunDispatcher drains the outbox into JetStream until ctx ends or the
@@ -250,7 +314,18 @@ func (b *Bus) drainSafely(ctx context.Context, db OutboxStore) {
 }
 
 func (b *Bus) drainOnce(ctx context.Context, db OutboxStore) error {
-	return db.WithSystem(ctx, func(tx *gorm.DB) error {
+	// WithAdmin, not WithSystem (trap 1, design spec D1): 0002_events_outbox_tenant
+	// put row-level security on outbox_events, and WithSystem sets no
+	// tenant GUC. Every row's tenant_isolation policy would then evaluate
+	// current_setting('app.tenant_id', true) as NULL, match nothing, and
+	// this select would silently return zero rows on every tick — the
+	// whole event bus stops platform-wide with no error anywhere.
+	// WithAdmin runs on the admin pool, which bypasses RLS entirely, and
+	// this is the one call site allowed to (see withAdminAllowlist in
+	// internal/archtest/arch_test.go). TestDispatcherPublishesEveryTenant
+	// in outbox_rls_test.go pins this: reverting this line to WithSystem
+	// must make that test observe zero published events, not an error.
+	return db.WithAdmin(ctx, func(tx *gorm.DB) error {
 		var rows []outboxRow
 		if err := tx.Raw(`SELECT id, subject, payload FROM outbox_events
 			WHERE published_at IS NULL ORDER BY created_at LIMIT 100

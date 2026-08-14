@@ -137,7 +137,7 @@ type signoutHarnessConfig struct {
 // main.go's construction order here is also what makes this harness the
 // right place to prove the module and the middleware share one checker
 // instance (see TestModuleAndMiddlewareShareOneRevocationCheckerInstance).
-func newSignoutHarness(t *testing.T, cfg signoutHarnessConfig) (*gin.Engine, *tenantdb.DB, *RevocationChecker, *recordingRevoker) {
+func newSignoutHarness(t *testing.T, cfg signoutHarnessConfig) (*gin.Engine, *tenantdb.DB, *RevocationChecker, *recordingRevoker, *events.Bus) {
 	t.Helper()
 
 	appDSN, adminDSN := testinfra.StartPostgres(t)
@@ -177,7 +177,7 @@ func newSignoutHarness(t *testing.T, cfg signoutHarnessConfig) (*gin.Engine, *te
 	require.NoError(t, bus.StartBroadcasts(ctx, m.Broadcasts(deps)))
 	go bus.RunDispatcher(ctx, db)
 
-	return e, db, checker, revoker
+	return e, db, checker, revoker, bus
 }
 
 func watermarkFor(t *testing.T, db *tenantdb.DB, subject string) time.Time {
@@ -193,29 +193,54 @@ func watermarkFor(t *testing.T, db *tenantdb.DB, subject string) time.Time {
 	return row.RevokedAt
 }
 
-// outboxContains reports whether an outbox row published on subject
-// carries a CredentialRevokedData payload naming targetSubject. It reads
-// outbox_events directly rather than through the dispatcher, so it
-// observes the write made inside the SAME transaction as the watermark —
-// exactly the property TestRevocationPublishesInvalidationInTheSameTransaction
-// exists to prove.
-func outboxContains(t *testing.T, db *tenantdb.DB, subject, targetSubject string) bool {
+// revocationWatcher observes CredentialRevoked broadcasts as they arrive
+// over NATS, standing in for a direct outbox_events read.
+//
+// Before #835 Task 1, this test read outbox_events directly under
+// WithSystem to observe the write made inside the SAME transaction as the
+// watermark. Since Task 1, that no longer works: SubjectCredentialRevoked
+// publishes with no TenantID (revocation is subject-scoped, not
+// tenant-scoped — see revoke()'s comment in signout.go), so its outbox
+// row's tenant_id is NULL, and 0002_events_outbox_tenant's policy makes a
+// NULL-tenant row readable by nobody under RLS — not even WithSystem —
+// exactly as designed: only the dispatcher's WithAdmin read sees it.
+// Watching the stream a message arrives on is the closest observation
+// left to a test, without reaching for the same admin-pool bypass the
+// dispatcher alone is allowed (withAdminAllowlist, internal/archtest/arch_test.go).
+// A message reaching here still proves the write committed — it can only
+// have been drained from a row the sign-out transaction actually inserted.
+type revocationWatcher struct {
+	mu      sync.Mutex
+	targets []string
+}
+
+// startRevocationWatcher subscribes before the caller triggers a
+// revocation, so no message can be published before the subscription is
+// live and missed — the same reason dlq_test.go/panic_test.go subscribe
+// to the DLQ subject before publishing.
+func startRevocationWatcher(t *testing.T, ctx context.Context, bus *events.Bus) *revocationWatcher {
 	t.Helper()
-	var payloads [][]byte
-	err := db.WithSystem(context.Background(), func(tx *gorm.DB) error {
-		return tx.Raw(`SELECT payload FROM outbox_events WHERE subject = ?`, subject).Scan(&payloads).Error
-	})
-	require.NoError(t, err)
-	for _, raw := range payloads {
-		var evt events.Event
-		if err := json.Unmarshal(raw, &evt); err != nil {
-			continue
-		}
-		var data iamcontract.CredentialRevokedData
-		if err := json.Unmarshal(evt.Data, &data); err != nil {
-			continue
-		}
-		if data.Subject == targetSubject {
+	w := &revocationWatcher{}
+	require.NoError(t, bus.StartBroadcasts(ctx, []events.Broadcast{{
+		Subject: iamcontract.SubjectCredentialRevoked,
+		Handle: func(_ context.Context, evt events.Event) {
+			var data iamcontract.CredentialRevokedData
+			if err := json.Unmarshal(evt.Data, &data); err != nil {
+				return
+			}
+			w.mu.Lock()
+			w.targets = append(w.targets, data.Subject)
+			w.mu.Unlock()
+		},
+	}}))
+	return w
+}
+
+func (w *revocationWatcher) saw(subject string) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	for _, s := range w.targets {
+		if s == subject {
 			return true
 		}
 	}
@@ -223,7 +248,7 @@ func outboxContains(t *testing.T, db *tenantdb.DB, subject, targetSubject string
 }
 
 func TestSignOutWritesTheWatermarkAndRevokesAtGIP(t *testing.T) {
-	r, db, _, revoker := newSignoutHarness(t, signoutHarnessConfig{
+	r, db, _, revoker, _ := newSignoutHarness(t, signoutHarnessConfig{
 		verifier:   fixedVerifier{"tok-nurse": {Subject: "uid-nurse", TenantID: signoutTestTenantA, AuthTime: time.Now()}},
 		membership: fakeMembership{"uid-nurse": false},
 		perms:      stubResolver{},
@@ -244,7 +269,7 @@ func TestSignOutWritesTheWatermarkAndRevokesAtGIP(t *testing.T) {
 // harness, so a 200 here is only possible because /me/sign-out is
 // authz.NoTenantMembership and RequireMembership never runs for it.
 func TestSignOutWorksForARevokedMember(t *testing.T) {
-	r, _, _, _ := newSignoutHarness(t, signoutHarnessConfig{
+	r, _, _, _, _ := newSignoutHarness(t, signoutHarnessConfig{
 		verifier:   fixedVerifier{"tok-nurse": {Subject: "uid-nurse", TenantID: signoutTestTenantA, AuthTime: time.Now()}},
 		membership: fakeMembership{"uid-nurse": false},
 		perms:      stubResolver{},
@@ -255,7 +280,7 @@ func TestSignOutWorksForARevokedMember(t *testing.T) {
 }
 
 func TestAdminRevokeRefusesASubjectOutsideTheActingTenant(t *testing.T) {
-	r, db, _, _ := newSignoutHarness(t, signoutHarnessConfig{
+	r, db, _, _, _ := newSignoutHarness(t, signoutHarnessConfig{
 		verifier:   fixedVerifier{"tok-admin": {Subject: "uid-admin", TenantID: signoutTestTenantA, AuthTime: time.Now()}},
 		membership: fakeMembership{"uid-admin": true},
 		perms:      stubResolver{"uid-admin": {PermCredentialRevoke}},
@@ -271,7 +296,7 @@ func TestAdminRevokeRefusesASubjectOutsideTheActingTenant(t *testing.T) {
 }
 
 func TestAdminRevokeRequiresThePermission(t *testing.T) {
-	r, _, _, _ := newSignoutHarness(t, signoutHarnessConfig{
+	r, _, _, _, _ := newSignoutHarness(t, signoutHarnessConfig{
 		verifier:   fixedVerifier{"tok-nurse": {Subject: "uid-nurse", TenantID: signoutTestTenantA, AuthTime: time.Now()}},
 		membership: fakeMembership{"uid-nurse": true},
 		perms:      stubResolver{}, // holds nothing, in particular not PermCredentialRevoke
@@ -291,7 +316,7 @@ func TestAdminRevokeRequiresThePermission(t *testing.T) {
 // reinterpreted as "the subject doesn't exist", which is a different
 // claim the code has no basis to make when it could not even ask.
 func TestAdminRevokeFailsClosedWhenRolesUnavailable(t *testing.T) {
-	r, db, _, _ := newSignoutHarness(t, signoutHarnessConfig{
+	r, db, _, _, _ := newSignoutHarness(t, signoutHarnessConfig{
 		verifier:   fixedVerifier{"tok-admin": {Subject: "uid-admin", TenantID: signoutTestTenantA, AuthTime: time.Now()}},
 		membership: fakeMembership{"uid-admin": true},
 		perms:      stubResolver{"uid-admin": {PermCredentialRevoke}},
@@ -308,16 +333,20 @@ func TestAdminRevokeFailsClosedWhenRolesUnavailable(t *testing.T) {
 }
 
 func TestRevocationPublishesInvalidationInTheSameTransaction(t *testing.T) {
-	r, db, _, _ := newSignoutHarness(t, signoutHarnessConfig{
+	r, _, _, _, bus := newSignoutHarness(t, signoutHarnessConfig{
 		verifier:   fixedVerifier{"tok-nurse": {Subject: "uid-nurse", TenantID: signoutTestTenantA, AuthTime: time.Now()}},
 		membership: fakeMembership{"uid-nurse": false},
 		perms:      stubResolver{},
 	})
 
+	watchCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	watcher := startRevocationWatcher(t, watchCtx, bus)
+
 	doRequest(r, http.MethodPost, "/v1/iam/me/sign-out", "tok-nurse", "")
 
 	require.Eventually(t, func() bool {
-		return outboxContains(t, db, iamcontract.SubjectCredentialRevoked, "uid-nurse")
+		return watcher.saw("uid-nurse")
 	}, 10*time.Second, 100*time.Millisecond,
 		"the invalidation must go through the outbox, so it cannot commit without the watermark or vice versa")
 }
@@ -342,7 +371,7 @@ func TestRevocationPublishesInvalidationInTheSameTransaction(t *testing.T) {
 // feature exists to prevent.
 func TestModuleAndMiddlewareShareOneRevocationCheckerInstance(t *testing.T) {
 	signInTime := time.Now()
-	r, _, checker, _ := newSignoutHarness(t, signoutHarnessConfig{
+	r, _, checker, _, _ := newSignoutHarness(t, signoutHarnessConfig{
 		verifier: fixedVerifier{
 			"tok-nurse": {Subject: "uid-nurse", TenantID: signoutTestTenantA, AuthTime: signInTime},
 		},
@@ -386,10 +415,13 @@ func TestRevocationPropagatesToAnotherReplica(t *testing.T) {
 
 	// The revocation table plus events.Migrations() (outbox_events, which
 	// bus.Publish below writes into): this test needs no iam_roles/
-	// iam_members and no hms_tenant_visible, so it pulls in only what it
-	// exercises rather than the full platform migration set.
+	// iam_members, so it pulls in only what it exercises rather than the
+	// full platform migration set. tenantdb.Migrations() IS still needed
+	// (unlike the comment used to say) because outbox_events' own policy
+	// (0002_events_outbox_tenant, #835 Task 1) calls hms_tenant_visible.
 	iamMigs := New(nil).Migrations()
-	migs := append(events.Migrations(), iamMigs[len(iamMigs)-1])
+	migs := append(tenantdb.Migrations(), events.Migrations()...)
+	migs = append(migs, iamMigs[len(iamMigs)-1])
 	require.NoError(t, db.Migrate(ctx, migs))
 
 	bus, err := events.NewBusInNamespace(testinfra.StartNATS(t), t.Name())

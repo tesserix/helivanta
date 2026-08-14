@@ -63,20 +63,40 @@ test("a ward with more than one page reads to completion", async ({ page }) => {
   await expect(rows).toHaveCount(PAGE_SIZE);
   await expect(loadMore).toBeVisible();
 
-  // Walk to the end. The control disappearing is the positive statement
-  // that the client now holds the whole collection — the statement a
-  // silently-truncated list could never make.
-  for (let i = 0; i < MAX_PAGES && (await loadMore.isVisible()); i++) {
+  // Walk until this run's own visits are all on screen.
+  //
+  // Deliberately NOT "walk until the button disappears". The tenant is
+  // shared with every other spec and the dev database persists, so this
+  // spec's 55 visits land on top of however many thousand already exist —
+  // exhausting the tenant would take a growing number of pages every run
+  // and eventually cannot finish at all. An earlier version of this test
+  // did exactly that: it passed at ~180 rows, then failed at ~800 with the
+  // button still visible after 14 clicks, which is the test degrading
+  // rather than the contract breaking.
+  //
+  // This run's visits are the newest, so created_at DESC puts all 55
+  // within the first pages; patient(0) is the oldest of them and therefore
+  // the last to appear. Reaching it is the real statement — the walk got
+  // past page one and kept its place across page boundaries.
+  //
+  // The complementary property — that the control DISAPPEARS at the true
+  // end of a collection — is proven where it can be stated exactly:
+  // packages/ui/src/load-more.test.tsx (renders nothing when hasMore is
+  // false) and the per-module Go tests, which walk a tenant they own to
+  // exhaustion and assert has_more goes false with a null cursor.
+  const oldestOfRun = visits.getByText(patient(0), { exact: true });
+  for (let i = 0; i < MAX_PAGES && !(await oldestOfRun.isVisible()); i++) {
+    await expect(loadMore).toBeVisible();
     const before = await rows.count();
     await loadMore.click();
     await expect.poll(() => rows.count()).toBeGreaterThan(before);
   }
-  await expect(loadMore).toBeHidden();
+  await expect(oldestOfRun).toBeVisible();
 
-  // The first visit created is the oldest of the run and therefore last in
-  // the created_at DESC ordering. Seeing it proves the walk reached past
-  // the first page rather than merely rendering a longer first one.
-  await expect(visits.getByText(patient(0), { exact: true })).toBeVisible();
+  // More than one page was genuinely required: 55 seeded rows cannot fit
+  // in a 50-row page, so a test that somehow saw them all at once would be
+  // looking at the pre-#816 behaviour wearing a cursor.
+  expect(await rows.count()).toBeGreaterThan(PAGE_SIZE);
 
   // Exact-once, through the UI: keyset paging must neither repeat a row as
   // an insert shifts positions nor skip one. A count of 2 here is the

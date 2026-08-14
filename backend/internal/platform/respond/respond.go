@@ -4,7 +4,10 @@
 package respond
 
 import (
+	"math"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tesserix/hms/internal/platform/requestid"
@@ -51,4 +54,28 @@ func Unauthenticated(c *gin.Context, message string) {
 // does not exist for that caller.
 func Forbidden(c *gin.Context, message string) {
 	Error(c, http.StatusForbidden, "forbidden", message)
+}
+
+// TooManyRequests refuses a request that exceeded its rate budget.
+//
+// Retry-After is seconds (RFC 7231) and is rounded UP: a sub-second wait
+// must never render as "0", because a client told to retry after zero
+// seconds retries immediately and turns a limiter into an amplifier.
+// The offline-first mobile clients in the backlog back off on this
+// header, so it is load-bearing rather than informational.
+//
+// Takes primitives rather than a ratelimit.Decision on purpose: this
+// package is under internal/platform, and importing pkg/ratelimit here
+// would deepen the pkg/ -> internal/ inversion the foundation audit
+// flagged rather than leaving it where it is.
+func TooManyRequests(c *gin.Context, message string, retryAfter time.Duration, limit, remaining int) {
+	secs := int(math.Ceil(retryAfter.Seconds()))
+	if secs < 1 {
+		secs = 1
+	}
+	c.Header("Retry-After", strconv.Itoa(secs))
+	c.Header("RateLimit-Limit", strconv.Itoa(limit))
+	c.Header("RateLimit-Remaining", strconv.Itoa(remaining))
+	c.Header("RateLimit-Reset", strconv.Itoa(secs))
+	Error(c, http.StatusTooManyRequests, "rate_limited", message)
 }

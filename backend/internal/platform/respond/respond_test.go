@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -54,4 +55,33 @@ func TestForbiddenEnvelope(t *testing.T) {
 
 	require.Equal(t, http.StatusForbidden, w.Code)
 	require.JSONEq(t, `{"error":"forbidden","message":"missing permission"}`, w.Body.String())
+}
+
+func TestTooManyRequestsCarriesTheBackoffHeaders(t *testing.T) {
+	w := run(func(c *gin.Context) {
+		respond.TooManyRequests(c, "too many requests for this principal; retry in 12s",
+			12*time.Second, 120, 0)
+	})
+
+	require.Equal(t, http.StatusTooManyRequests, w.Code)
+	require.JSONEq(t, `{"error":"rate_limited","message":"too many requests for this principal; retry in 12s"}`, w.Body.String())
+
+	// Retry-After is seconds per RFC 7231, and it is the header the
+	// offline-first mobile clients back off on. A client that retries
+	// immediately turns a limiter into an amplifier.
+	require.Equal(t, "12", w.Header().Get("Retry-After"))
+	require.Equal(t, "120", w.Header().Get("RateLimit-Limit"))
+	require.Equal(t, "0", w.Header().Get("RateLimit-Remaining"))
+	require.Equal(t, "12", w.Header().Get("RateLimit-Reset"))
+}
+
+// TestTooManyRequestsRoundsSubSecondRetryUp: Retry-After has
+// second granularity, so a 400ms wait must render as 1, not 0. A client
+// told to retry after 0 seconds retries immediately, which is the
+// amplification this header exists to prevent.
+func TestTooManyRequestsRoundsSubSecondRetryUp(t *testing.T) {
+	w := run(func(c *gin.Context) {
+		respond.TooManyRequests(c, "slow down", 400*time.Millisecond, 120, 0)
+	})
+	require.Equal(t, "1", w.Header().Get("Retry-After"))
 }

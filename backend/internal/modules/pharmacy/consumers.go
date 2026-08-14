@@ -6,21 +6,17 @@ import (
 
 	"gorm.io/gorm"
 
+	medicorecontract "github.com/tesserix/hms/internal/modules/medicore/contract"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/pkg/events"
 )
 
-type visitCreatedData struct {
-	VisitID     string `json:"visit_id"`
-	PatientName string `json:"patient_name"`
-}
-
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 	return []events.Consumer{{
 		Name:    "pharmacy-visit-intake",
-		Subject: subjectVisitCreated,
+		Subject: medicorecontract.SubjectVisitCreated,
 		Handle: func(ctx context.Context, tx *gorm.DB, evt events.Event) error {
-			var d visitCreatedData
+			var d medicorecontract.VisitCreatedData
 			if err := json.Unmarshal(evt.Data, &d); err != nil {
 				return err
 			}

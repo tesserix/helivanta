@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	pharmacycontract "github.com/tesserix/hms/internal/modules/pharmacy/contract"
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/events"
@@ -35,11 +36,6 @@ func (d dispense) PageKey() (time.Time, uuid.UUID) { return d.CreatedAt, d.ID }
 
 type dispenseRequest struct {
 	Medication string `json:"medication" binding:"required,max=200"`
-}
-
-type dispenseRecordedData struct {
-	DispenseID string `json:"dispense_id"`
-	VisitID    string `json:"visit_id"`
 }
 
 type dispenseHandlers struct {
@@ -105,11 +101,11 @@ func (h *dispenseHandlers) fulfil(c *gin.Context) {
 			status = http.StatusConflict
 			return nil
 		}
-		data, err := json.Marshal(dispenseRecordedData{DispenseID: row.ID.String(), VisitID: row.VisitID.String()})
+		data, err := json.Marshal(pharmacycontract.DispenseRecordedData{DispenseID: row.ID.String(), VisitID: row.VisitID.String()})
 		if err != nil {
 			return err
 		}
-		return h.bus.Publish(tx, SubjectDispenseRecorded, events.Event{
+		return h.bus.Publish(tx, pharmacycontract.SubjectDispenseRecorded, events.Event{
 			Type: "DispenseRecorded", Version: 1, TenantID: p.TenantID, Data: data,
 		})
 	})

@@ -566,6 +566,29 @@ on the same `tx` as the row create — see pharmacy's dispense handler and
 the generated `new-module.sh` template's `items` create handler for the
 pattern.
 
+**An event's subject and payload live in the publishing module's `contract`
+package, and nowhere else.** `internal/modules/<module>/contract` is the one
+part of a module that other modules may import — the exception exists so a
+publisher and its consumers share one definition instead of copies, because a
+renamed field in a copied struct is not an error to `encoding/json`, just a
+zero value written into a real record (#827).
+
+Contract packages are **data only**: `const`, `type`, `var`, no funcs or
+methods, importing nothing beyond `time` and `github.com/google/uuid`.
+`TestContractPackagesDeclareOnlyData` and `TestContractPackagesImportAlmostNothing`
+enforce it; without them the exception would be a hole in module isolation
+rather than a narrow opening in it.
+
+Import a foreign contract aliased `<module>contract` — two packages both named
+`contract` will not compile unaliased, and `contract.VisitCreatedData` does not
+tell a reader whose contract it is.
+
+Every module declares `Publishes() []string`, using constants from its own
+contract package. `TestEveryConsumedSubjectIsPublished` fails any consumer
+subscribed to a subject no module publishes; `TestNoSubjectIsPublishedByTwoModules`
+keeps one subject to one publisher. A published subject with no consumer is
+legal and checked by nothing.
+
 ## 7. Migrations
 
 Every module's `Migrations()` returns `[]tenantdb.Migration{{ID, SQL}}`

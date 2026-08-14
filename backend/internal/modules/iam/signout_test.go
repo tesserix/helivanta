@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	iamcontract "github.com/tesserix/hms/internal/modules/iam/contract"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/requestid"
 	"github.com/tesserix/hms/internal/testinfra"
@@ -210,7 +211,7 @@ func outboxContains(t *testing.T, db *tenantdb.DB, subject, targetSubject string
 		if err := json.Unmarshal(raw, &evt); err != nil {
 			continue
 		}
-		var data CredentialRevokedData
+		var data iamcontract.CredentialRevokedData
 		if err := json.Unmarshal(evt.Data, &data); err != nil {
 			continue
 		}
@@ -316,7 +317,7 @@ func TestRevocationPublishesInvalidationInTheSameTransaction(t *testing.T) {
 	doRequest(r, http.MethodPost, "/v1/iam/me/sign-out", "tok-nurse", "")
 
 	require.Eventually(t, func() bool {
-		return outboxContains(t, db, SubjectCredentialRevoked, "uid-nurse")
+		return outboxContains(t, db, iamcontract.SubjectCredentialRevoked, "uid-nurse")
 	}, 10*time.Second, 100*time.Millisecond,
 		"the invalidation must go through the outbox, so it cannot commit without the watermark or vice versa")
 }
@@ -412,11 +413,11 @@ func TestRevocationPropagatesToAnotherReplica(t *testing.T) {
 		if err := replicaA.RevokeTx(tx, "uid-nurse", time.Now().UTC(), "sign_out", "uid-nurse"); err != nil {
 			return err
 		}
-		data, err := json.Marshal(CredentialRevokedData{Subject: "uid-nurse"})
+		data, err := json.Marshal(iamcontract.CredentialRevokedData{Subject: "uid-nurse"})
 		if err != nil {
 			return err
 		}
-		return bus.Publish(tx, SubjectCredentialRevoked, events.Event{
+		return bus.Publish(tx, iamcontract.SubjectCredentialRevoked, events.Event{
 			Type: "CredentialRevoked", Version: 1, Data: data,
 		})
 	}))

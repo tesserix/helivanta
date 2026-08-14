@@ -64,6 +64,18 @@ func moduleOf(pkgPath string) string {
 	return name
 }
 
+// isContractImport reports whether imp is a module's published contract
+// package — the one cross-module import permitted.
+//
+// Suffix match on "/contract" rather than an allowlist of paths: the
+// point is the *shape* of the exception, not which modules currently use
+// it, and a new module's contract should be legal to import the day it
+// exists. What keeps this from being a hole is contract_test.go, which
+// enforces that anything living behind this name is data only.
+func isContractImport(imp string) bool {
+	return strings.HasSuffix(imp, "/contract")
+}
+
 func TestModulesDoNotImportEachOther(t *testing.T) {
 	pkgs, err := packages.Load(&packages.Config{Mode: packages.NeedName | packages.NeedImports, Tests: true}, modulesPrefix+"...")
 	if err != nil {
@@ -73,9 +85,13 @@ func TestModulesDoNotImportEachOther(t *testing.T) {
 		from := moduleOf(p.PkgPath)
 		for imp := range p.Imports {
 			to := moduleOf(imp)
-			if to != "" && to != from {
-				t.Errorf("module %q imports module %q (%s -> %s): cross-module data flows only via events", from, to, p.PkgPath, imp)
+			if to == "" || to == from {
+				continue
 			}
+			if isContractImport(imp) {
+				continue
+			}
+			t.Errorf("module %q imports module %q (%s -> %s): cross-module data flows only via events, except a module's /contract package", from, to, p.PkgPath, imp)
 		}
 	}
 }
@@ -120,15 +136,18 @@ func TestConsumerContracts(t *testing.T) {
 	}
 }
 
+// TestPublishedSubjectConstants derives its input from ⋃ Publishes()
+// instead of a hand-maintained map. The map this replaced listed four
+// subjects by hand and silently checked nothing when a fifth (iam's
+// three) was never added to it — deriving from Publishes() means every
+// module's declared subjects are covered automatically, including a
+// module added after this test was written.
 func TestPublishedSubjectConstants(t *testing.T) {
-	for name, s := range map[string]string{
-		"reference.SubjectPinged":          reference.SubjectPinged,
-		"medicore.SubjectVisitCreated":     medicore.SubjectVisitCreated,
-		"pharmacy.SubjectDispenseRecorded": pharmacy.SubjectDispenseRecorded,
-		"lab.SubjectResultReady":           lab.SubjectResultReady,
-	} {
-		if !subjectRe.MatchString(s) {
-			t.Errorf("%s = %q must match %s", name, s, subjectRe)
+	for _, m := range allModules() {
+		for _, s := range m.Publishes() {
+			if !subjectRe.MatchString(s) {
+				t.Errorf("module %q publishes %q, which must match %s", m.Name(), s, subjectRe)
+			}
 		}
 	}
 }

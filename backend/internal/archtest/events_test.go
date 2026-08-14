@@ -122,7 +122,24 @@ func TestConsumersUnmarshalIntoContractTypes(t *testing.T) {
 
 	checked := 0
 	for _, p := range pkgs {
-		if strings.HasSuffix(p.PkgPath, "/contract") || strings.HasSuffix(p.PkgPath, ".test") {
+		// Contract packages declare the payload types; they do not consume
+		// events, so there is nothing here to check and matching one would
+		// be circular.
+		//
+		// Test files are not inspected at all, and that is deliberate
+		// rather than incidental: packages.Config above sets no
+		// Tests: true, so go/packages never loads them. A test may
+		// legitimately unmarshal into an ad-hoc struct to assert on the
+		// wire shape itself — pinning the JSON a publisher emits is a
+		// reasonable thing for a test to do, and forcing it through a
+		// contract type would defeat the point. The defect #827 fixes is
+		// a *production* consumer drifting from its publisher.
+		//
+		// An earlier version also filtered on a ".test" suffix. That was
+		// dead: without Tests: true, go/packages never produces such a
+		// package, so the branch read as a deliberate exclusion while
+		// excluding nothing.
+		if strings.HasSuffix(p.PkgPath, "/contract") {
 			continue
 		}
 		for _, file := range p.Syntax {

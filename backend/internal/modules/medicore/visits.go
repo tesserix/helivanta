@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	medicorecontract "github.com/tesserix/hms/internal/modules/medicore/contract"
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/events"
@@ -34,13 +35,6 @@ type createVisitRequest struct {
 	Department  string `json:"department" binding:"required,oneof=OPD IPD"`
 }
 
-// VisitCreatedData is the v1 payload of visit_created.
-type VisitCreatedData struct {
-	VisitID     string `json:"visit_id"`
-	PatientName string `json:"patient_name"`
-	Department  string `json:"department"`
-}
-
 type visitHandlers struct {
 	db  *tenantdb.DB
 	bus *events.Bus
@@ -62,13 +56,13 @@ func (h *visitHandlers) create(c *gin.Context) {
 		if err := tx.Create(&row).Error; err != nil {
 			return err
 		}
-		data, err := json.Marshal(VisitCreatedData{
+		data, err := json.Marshal(medicorecontract.VisitCreatedData{
 			VisitID: row.ID.String(), PatientName: row.PatientName, Department: row.Department,
 		})
 		if err != nil {
 			return err
 		}
-		return h.bus.Publish(tx, SubjectVisitCreated, events.Event{
+		return h.bus.Publish(tx, medicorecontract.SubjectVisitCreated, events.Event{
 			Type: "VisitCreated", Version: 1, TenantID: p.TenantID, Data: data,
 		})
 	})

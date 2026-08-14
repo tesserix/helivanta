@@ -10,8 +10,6 @@ import (
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
-const SubjectVisitCreated = "hms.in.medicore.visit_created.v1"
-
 const (
 	PermVisitCreate authz.Permission = "medicore.visit.create"
 	PermVisitRead   authz.Permission = "medicore.visit.read"

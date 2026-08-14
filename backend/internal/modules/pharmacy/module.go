@@ -9,12 +9,7 @@ import (
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
-const (
-	// SubjectVisitCreated is medicore's subject, repeated by value —
-	// modules must not import each other (spec D6 / phase 1).
-	subjectVisitCreated     = "hms.in.medicore.visit_created.v1"
-	SubjectDispenseRecorded = "hms.in.pharmacy.dispense_recorded.v1"
-)
+const SubjectDispenseRecorded = "hms.in.pharmacy.dispense_recorded.v1"
 
 const (
 	PermDispenseRead    authz.Permission = "pharmacy.dispense.read"

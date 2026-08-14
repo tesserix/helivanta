@@ -21,9 +21,31 @@ linters:
         module-isolation:
           files:
             - "**/internal/modules/**"
+          # list-mode: lax keeps this a denylist ("allowed if it doesn't
+          # match deny, or the allow entry is more specific than the deny
+          # entry that matched"). depguard's default mode, "original",
+          # requires every import to ALSO match something in `allow` once
+          # `allow` is non-empty — under that mode, adding the contract
+          # exception below would deny "context", "errors", every pkg/*
+          # import, everything, because none of them match the (one-entry)
+          # allow list either. Confirmed by running `make lint-go` against
+          # `original` mode during #827: it failed 50 imports across three
+          # files that have nothing to do with module isolation.
+          list-mode: lax
           deny:
             - pkg: "github.com/tesserix/hms/internal/modules"
               desc: "modules must not import other modules — cross-module data flows only via events (spec D3)"
+          allow:
+            # The ONE exception: a module's contract package is its
+            # published event interface — subject constants and payload
+            # types, data only. internal/archtest/contract_test.go
+            # enforces that it stays data only; without that test this
+            # allowance would be a hole in module isolation rather than a
+            # narrow exception to it (#827). Under list-mode: lax, this
+            # entry only matters because it is more specific (longer) than
+            # the deny entry above — that's what lets it carve out the
+            # exception instead of widening it into an allowlist.
+            - "github.com/tesserix/hms/internal/modules/medicore/contract"
         no-logrus:
           deny:
             - pkg: "github.com/sirupsen/logrus"

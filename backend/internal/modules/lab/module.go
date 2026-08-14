@@ -9,10 +9,7 @@ import (
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
-const (
-	subjectVisitCreated = "hms.in.medicore.visit_created.v1"
-	SubjectResultReady  = "hms.in.lab.result_ready.v1"
-)
+const SubjectResultReady = "hms.in.lab.result_ready.v1"
 
 const (
 	PermOrderRead   authz.Permission = "lab.order.read"

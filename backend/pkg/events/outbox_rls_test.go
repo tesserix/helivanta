@@ -239,3 +239,56 @@ func TestTenantlessRowIsReadableByNobody(t *testing.T) {
 	}))
 	require.Zero(t, nTenant, "a tenant-less row must not be visible under any tenant's WithTenant either")
 }
+
+// TestCrossTenantWriteIsRejectedNotMalformed pins the KIND of failure, not
+// merely that one happens.
+//
+// The WITH CHECK clause cannot call hms_tenant_visible — LintRLS fails that
+// shape, because reads may widen to hospital groups later while writes must
+// stay pinned to exactly one tenant — so it calls current_setting directly and
+// did not inherit 0002_platform_rls's NULLIF fix.
+//
+// That mattered because an "unset" custom GUC is only NULL the first time a
+// session ever references it. After any WithTenant transaction commits, the
+// name reverts to '' for the rest of that pooled connection's life, and
+// ''::uuid is a hard type error rather than a non-match. So the SAME cross-
+// tenant write reported "new row violates row-level security policy" on a
+// fresh connection and "invalid input syntax for type uuid" on a reused one —
+// which of the two a caller saw depended on pool scheduling.
+//
+// A security control that reports a type error for a policy violation is worse
+// than one that merely rejects: nothing downstream can tell tenancy enforcement
+// from a malformed value, and the operator reading the log has no reason to
+// suspect tenancy at all. This asserts the rejection is an RLS rejection.
+func TestCrossTenantWriteIsRejectedNotMalformed(t *testing.T) {
+	db, _, _ := setUpOutboxHarness(t)
+	ctx := context.Background()
+
+	tenantA := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	tenantB := uuid.MustParse("22222222-2222-2222-2222-222222222222")
+
+	// Dirty this pooled connection exactly as ordinary traffic does: any
+	// committed WithTenant transaction leaves app.tenant_id as '' behind it.
+	require.NoError(t, db.WithTenant(ctx, tenantA.String(), func(tx *gorm.DB) error {
+		return tx.Exec(`SELECT 1`).Error
+	}))
+
+	// Now attempt the write UNDER WithSystem — no GUC of its own, so the
+	// policy sees whatever the pooled connection was left holding. This is
+	// the shape that actually reaches the bare cast: inside WithTenant the
+	// GUC is set to a real uuid and the clause never sees ''. Publishing a
+	// tenant-carrying event under WithSystem is exactly what several module
+	// tests did before Task 1.
+	err := db.WithSystem(ctx, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO outbox_events (id, subject, payload, tenant_id)
+			VALUES (?, 'probe', '{}'::jsonb, ?)`, uuid.New(), tenantB).Error
+	})
+
+	require.Error(t, err, "writing another tenant's row must be refused")
+	require.Contains(t, err.Error(), "row-level security",
+		"the refusal must be an RLS rejection")
+	require.NotContains(t, err.Error(), "invalid input syntax",
+		"a policy violation must never surface as a uuid cast error: that is the "+
+			"pooled-connection defect 0003_events_outbox_tenant_check fixes, and it "+
+			"makes enforcement indistinguishable from malformed input")
+}

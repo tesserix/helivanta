@@ -112,6 +112,42 @@ func Migrations() []tenantdb.Migration {
 			              OR tenant_id = current_setting('app.tenant_id', true)::uuid);
 
 			CREATE INDEX ON outbox_events (tenant_id);`,
+	}, {
+		// 0003 finishes the fix 0002_platform_rls started. That migration
+		// wrapped current_setting in NULLIF inside hms_tenant_visible, so
+		// USING stopped erroring on a pooled connection whose GUC had
+		// reverted to '' — but 0002_events_outbox_tenant's WITH CHECK
+		// calls current_setting DIRECTLY (it must not call
+		// hms_tenant_visible: LintRLS requires writes to stay pinned to
+		// one tenant), so it kept the bare cast and kept the bug.
+		//
+		// Verified against the dev database rather than reasoned about.
+		// The SAME policy violation — inserting a row for a tenant other
+		// than the transaction's — reports two different errors depending
+		// on whether that pooled connection had previously served a
+		// WithTenant transaction:
+		//
+		//   clean connection: ERROR: new row violates row-level security policy
+		//   dirty connection: ERROR: invalid input syntax for type uuid: ""
+		//
+		// With a pool of 5 and no control over which connection serves a
+		// request, which one a caller sees is effectively random. That is
+		// nondeterminism in a security control: the second is a type
+		// error, so any handler or test discriminating on "was this an RLS
+		// rejection" sees a different answer run to run, and the operator
+		// reading it has no reason to connect it to tenancy at all.
+		//
+		// The tenant-less INSERT path happens to survive today only
+		// because the planner evaluates the cheap `tenant_id IS NULL`
+		// before the function call. Postgres does not guarantee OR operand
+		// order, so relying on that is relying on a cost estimate — this
+		// makes the clause correct regardless of evaluation order.
+		ID: "0003_events_outbox_tenant_check",
+		SQL: `
+			ALTER POLICY tenant_isolation ON outbox_events
+			  USING (hms_tenant_visible(tenant_id))
+			  WITH CHECK (tenant_id IS NULL
+			              OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);`,
 	}}
 }
 

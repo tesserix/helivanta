@@ -59,12 +59,39 @@ func TestContractPackagesDeclareOnlyData(t *testing.T) {
 	for _, p := range loadContractPackages(t) {
 		for _, file := range p.Syntax {
 			for _, decl := range file.Decls {
-				fn, isFunc := decl.(*ast.FuncDecl)
-				if !isFunc {
+				if fn, isFunc := decl.(*ast.FuncDecl); isFunc {
+					t.Errorf("%s declares func %q: a contract package is data only (const, type, var). Behaviour belongs in the module, or in pkg/ if it is genuinely shared",
+						p.PkgPath, fn.Name.Name)
 					continue
 				}
-				t.Errorf("%s declares func %q: a contract package is data only (const, type, var). Behaviour belongs in the module, or in pkg/ if it is genuinely shared",
-					p.PkgPath, fn.Name.Name)
+				// A func literal bound to a package-level var is behaviour
+				// too, and it is not an *ast.FuncDecl — `var Describe =
+				// func(v VisitCreatedData) string { … }` slipped past the
+				// check above entirely, verified by probe. Rejecting only
+				// the declaration form would have left the rule readable,
+				// green, and trivially bypassable by anyone who reached
+				// for a var out of habit.
+				gen, isGen := decl.(*ast.GenDecl)
+				if !isGen {
+					continue
+				}
+				for _, spec := range gen.Specs {
+					vs, isValue := spec.(*ast.ValueSpec)
+					if !isValue {
+						continue
+					}
+					for i, v := range vs.Values {
+						if _, isLit := v.(*ast.FuncLit); !isLit {
+							continue
+						}
+						name := "?"
+						if i < len(vs.Names) {
+							name = vs.Names[i].Name
+						}
+						t.Errorf("%s binds a func literal to %q: a contract package is data only, and a func literal is behaviour whatever it is assigned to",
+							p.PkgPath, name)
+					}
+				}
 			}
 		}
 	}

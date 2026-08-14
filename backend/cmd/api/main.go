@@ -23,6 +23,7 @@ import (
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/hms/pkg/ratelimit"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -136,9 +137,18 @@ func run() error {
 		},
 	}
 
+	// Sits between authn and authz on purpose: the tenant bucket key
+	// needs the verified tenant from authn, and authz.Middleware calls
+	// OpenFGA on every request — the most expensive step in the chain
+	// and itself a shared resource. Limiting after it would let a flood
+	// exhaust OpenFGA before anything was refused.
+	// internal/archtest.TestThrottledRequestMakesNoOpenFGACall pins this
+	// order against the real chain.
+	limiter := ratelimit.NewMemory(10_000)
 	api := platform.NewRouter(srv.Engine.Group("/v1",
 		authn.Middleware(verifier, revocationChecker),
 		requestid.PrincipalMiddleware(),
+		ratelimit.Middleware(limiter, bootstrap.RateLimitConfig(cfg)),
 		authz.Middleware(fga),
 	), fga)
 	for _, m := range registry.All() {

@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { Badge, Button, Input } from "@tesserix/web";
 import { FlaskConical } from "lucide-react";
-import { Can, apiFetch, useApiMutation, useApiQuery } from "@hms/api";
-import { EmptyState, formatTime } from "@hms/ui";
+import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@hms/api";
+import { EmptyState, LoadMore, formatTime } from "@hms/ui";
 
 type Order = {
   id: string;
@@ -19,7 +19,7 @@ type Order = {
 
 export function OrderList() {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const orders = useApiQuery<{ data: Order[] }>(["orders"], "/lab/orders", { poll: true });
+  const orders = useApiPagedQuery<Order>(["orders"], "/lab/orders", { poll: true });
 
   const saveResult = useApiMutation(
     ({ id, value }: { id: string; value: string }) =>
@@ -33,7 +33,7 @@ export function OrderList() {
     },
   );
 
-  const pending = orders.data?.data.filter((o) => o.status === "pending").length ?? 0;
+  const pending = orders.items.filter((o) => o.status === "pending").length;
 
   return (
     <section className="max-w-3xl rounded-lg border bg-card">
@@ -46,7 +46,7 @@ export function OrderList() {
         </p>
       </div>
       <ul className="divide-y text-sm">
-        {orders.data?.data.length === 0 && (
+        {orders.items.length === 0 && (
           <li>
             <EmptyState
               icon={FlaskConical}
@@ -55,7 +55,7 @@ export function OrderList() {
             />
           </li>
         )}
-        {orders.data?.data.map((o) => (
+        {orders.items.map((o) => (
           <li key={o.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-3">
             <div className="min-w-0">
               <div className="flex items-center gap-3">
@@ -102,6 +102,11 @@ export function OrderList() {
           </li>
         ))}
       </ul>
+      <LoadMore
+        hasMore={orders.hasMore}
+        isLoading={orders.isFetchingMore}
+        onClick={orders.loadMore}
+      />
     </section>
   );
 }

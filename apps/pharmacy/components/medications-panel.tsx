@@ -3,8 +3,8 @@
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import { ClipboardList } from "lucide-react";
-import { apiFetch, useApiMutation, useApiQuery } from "@hms/api";
-import { EmptyState, Field, useZodForm } from "@hms/ui";
+import { apiFetch, useApiMutation, useApiPagedQuery } from "@hms/api";
+import { EmptyState, Field, LoadMore, useZodForm } from "@hms/ui";
 
 type Medication = { id: string; name: string; strength: string; created_at: string };
 
@@ -14,7 +14,7 @@ const medicationSchema = z.object({
 });
 
 export function MedicationsPanel() {
-  const medications = useApiQuery<{ data: Medication[] }>(["medications"], "/pharmacy/medications");
+  const medications = useApiPagedQuery<Medication>(["medications"], "/pharmacy/medications");
   const form = useZodForm(medicationSchema, { name: "", strength: "" });
 
   const addMedication = useApiMutation(
@@ -58,7 +58,7 @@ export function MedicationsPanel() {
         </Button>
       </form>
       <ul className="divide-y text-sm">
-        {medications.data?.data.length === 0 && (
+        {medications.items.length === 0 && (
           <li>
             <EmptyState
               icon={ClipboardList}
@@ -67,13 +67,18 @@ export function MedicationsPanel() {
             />
           </li>
         )}
-        {medications.data?.data.map((m) => (
+        {medications.items.map((m) => (
           <li key={m.id} className="flex items-center justify-between gap-4 px-5 py-3">
             <span className="truncate font-medium text-foreground">{m.name}</span>
             <span className="shrink-0 text-muted-foreground">{m.strength}</span>
           </li>
         ))}
       </ul>
+      <LoadMore
+        hasMore={medications.hasMore}
+        isLoading={medications.isFetchingMore}
+        onClick={medications.loadMore}
+      />
     </section>
   );
 }

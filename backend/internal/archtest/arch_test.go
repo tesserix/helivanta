@@ -11,6 +11,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -252,6 +253,26 @@ func routesDeclaring(t *testing.T, perm authz.Permission) []string {
 	return found
 }
 
+// allDeclaredRoutes walks every registered module's routes (registration
+// only — no request dispatched, see dryRouteRegistrationChecker) and
+// returns every platform.DeclaredRoute with its path stripped of the /v1
+// prefix, matching unpaginatedGETAllowlist's keys exactly. It shares the
+// same registration walk as routesDeclaring rather than duplicating it;
+// routesDeclaring filters to one permission, this returns everything so
+// callers can filter on other fields (here, Method and Paginated).
+func allDeclaredRoutes(t *testing.T) []platform.DeclaredRoute {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	var found []platform.DeclaredRoute
+	for _, m := range allModules() {
+		e := gin.New()
+		r := platform.NewRouter(e.Group(""), dryRouteRegistrationChecker{})
+		m.Routes(r, platform.Deps{})
+		found = append(found, r.Declared()...)
+	}
+	return found
+}
+
 // noTenantMembershipAllowlist is every route permitted to skip the
 // tenant-membership check. Adding an entry is a security decision: such
 // a route serves a caller who is not a member of the tenant their token
@@ -276,6 +297,46 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 	}
 	require.ElementsMatch(t, want, found,
 		"a route skipping the membership check must be added to noTenantMembershipAllowlist with a reason")
+}
+
+// unpaginatedGETAllowlist is every GET route permitted to return a
+// collection-shaped body without a cursor. Two kinds qualify:
+//
+//   - single-item reads, which return one object
+//   - collections bounded by construction rather than by tenant data:
+//     a fixed role set, a person's memberships, a resolved permission set
+//
+// Anything else is a collection that will truncate silently once a
+// tenant has enough rows, which is #816. Adding an entry here is a
+// decision a reviewer sees.
+var unpaginatedGETAllowlist = map[string]string{
+	"GET /reference/pings/:id": "single item, not a collection",
+	"GET /iam/roles":           "bounded: the fixed system role set",
+	"GET /iam/me/tenants":      "bounded: one person's memberships",
+	"GET /iam/me/permissions":  "bounded: one resolved permission set",
+}
+
+// TestEveryCollectionGETIsPaginated is the one hole platform.ListRoute's
+// type signature cannot close (D4): nothing stops a handler registering
+// a collection through plain g.GET instead. This test is the CI
+// backstop — every GET route must either be registered through
+// platform.ListRoute or be named in unpaginatedGETAllowlist with a
+// reason.
+func TestEveryCollectionGETIsPaginated(t *testing.T) {
+	var offenders []string
+	for _, rt := range allDeclaredRoutes(t) {
+		if rt.Method != http.MethodGet || rt.Paginated {
+			continue
+		}
+		key := rt.Method + " " + rt.Path
+		if _, allowed := unpaginatedGETAllowlist[key]; allowed {
+			continue
+		}
+		offenders = append(offenders, key)
+	}
+	require.Empty(t, offenders,
+		"these GET routes return a collection without a cursor and will truncate silently (#816): "+
+			"register them through platform.ListRoute, or add them to unpaginatedGETAllowlist with a reason")
 }
 
 // withAdminAllowlist is exactly the files permitted to call

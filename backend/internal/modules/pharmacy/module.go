@@ -94,7 +94,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	disp := &dispenseHandlers{db: deps.DB, bus: deps.Bus}
 
 	g.POST("/medications", PermMedicationWrite, meds.create)
-	g.GET("/medications", PermMedicationRead, meds.list)
-	g.GET("/dispenses", PermDispenseRead, disp.list)
+	platform.ListRoute(g, "/medications", PermMedicationRead, meds.list)
+	platform.ListRoute(g, "/dispenses", PermDispenseRead, disp.list)
 	g.POST("/dispenses/:id/dispense", PermDispenseFulfil, disp.fulfil)
 }

@@ -226,7 +226,18 @@ Every response goes through `respond` (`backend/internal/platform/respond/respon
 
 Error envelope shape (`{"error", "message"}`) and success envelope shape
 (`{"data": [...]}` for lists, raw object for single resources) are
-frozen — a handler must not invent a new response shape.
+frozen — a handler must not invent a new response shape. Paginated
+collections keep `data` and add a sibling `page` (below).
+
+**Collection endpoints are registered through `platform.ListRoute`, never
+`g.GET`.** It owns the limit clamp, the keyset, the `+1` probe, the trim and
+the `{"data": [...], "page": {...}}` envelope, so a handler cannot forget any
+of them. Default page size 50, maximum 200; an out-of-range `limit` is a 400,
+never a silent clamp. Row types implement `platform.Keyed` (`PageKey() (time.Time,
+uuid.UUID)`). `TestEveryCollectionGETIsPaginated` fails any collection GET that
+is neither paginated nor in `unpaginatedGETAllowlist` with a reason — the two
+kinds that qualify are single-item reads and collections bounded by
+construction rather than by tenant data.
 
 **404, never 403, for cross-tenant access.** Every read is
 `WithTenant`-scoped (section 3), so a row belonging to another tenant is

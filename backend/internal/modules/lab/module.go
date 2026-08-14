@@ -70,6 +70,6 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/lab")
 	orders := &orderHandlers{db: deps.DB, bus: deps.Bus}
 
-	g.GET("/orders", PermOrderRead, orders.list)
+	platform.ListRoute(g, "/orders", PermOrderRead, orders.list)
 	g.POST("/orders/:id/result", PermOrderFulfil, orders.result)
 }

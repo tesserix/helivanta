@@ -18,11 +18,29 @@ const SECOND_TENANT_ID = "22222222-2222-2222-2222-222222222222";
 async function permissions(
   page: import("@playwright/test").Page,
 ): Promise<string[]> {
-  return page.evaluate(async () => {
-    const res = await fetch("/api/v1/iam/me/permissions");
-    const body = await res.json();
-    return body.data as string[];
-  });
+  // The switch reloads the page, and the poll below reads permissions
+  // across exactly that window — so an evaluate can be torn down mid-flight
+  // with "Execution context was destroyed". That is a navigation, not an
+  // answer: it must be retried once the new document is up, never reported
+  // as a permission set. Returning a sentinel instead would satisfy the
+  // `.not.toContain` assertion for the wrong reason, which is the failure
+  // mode worth avoiding. expect.poll does not retry a callback that throws,
+  // so the retry has to live here.
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      return await page.evaluate(async () => {
+        const res = await fetch("/api/v1/iam/me/permissions");
+        const body = await res.json();
+        return body.data as string[];
+      });
+    } catch (err) {
+      if (!/Execution context was destroyed/.test(String(err))) throw err;
+      await page.waitForLoadState("domcontentloaded");
+    }
+  }
+  throw new Error(
+    "the permissions probe was destroyed by a navigation 10 times running; the page is reloading in a loop, not switching hospital",
+  );
 }
 
 test("switching hospital re-mints the session and changes what the user can do", async ({

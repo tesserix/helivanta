@@ -2,13 +2,13 @@
 
 import { Activity } from "lucide-react";
 import { Button } from "@tesserix/web";
-import { apiFetch, useApiMutation, useApiQuery } from "@hms/api";
-import { EmptyState, formatTime } from "@hms/ui";
+import { apiFetch, useApiMutation, useApiPagedQuery } from "@hms/api";
+import { EmptyState, LoadMore, formatTime } from "@hms/ui";
 
 type Ping = { id: string; message: string; created_at: string };
 
 export function PingPanel({ department }: { department: string }) {
-  const pings = useApiQuery<{ data: Ping[] }>(["pings"], "/reference/pings");
+  const pings = useApiPagedQuery<Ping>(["pings"], "/reference/pings");
 
   const sendPing = useApiMutation(
     () =>
@@ -36,12 +36,12 @@ export function PingPanel({ department }: { department: string }) {
         </Button>
       </div>
       <ul className="divide-y text-sm">
-        {pings.data?.data.length === 0 && (
+        {pings.items.length === 0 && (
           <li>
             <EmptyState icon={Activity} title="No activity yet" />
           </li>
         )}
-        {pings.data?.data.map((p) => (
+        {pings.items.map((p) => (
           <li key={p.id} className="flex items-center justify-between gap-4 px-5 py-3">
             <span className="truncate text-foreground">{p.message}</span>
             <time className="shrink-0 tabular-nums text-muted-foreground">
@@ -50,6 +50,7 @@ export function PingPanel({ department }: { department: string }) {
           </li>
         ))}
       </ul>
+      <LoadMore hasMore={pings.hasMore} isLoading={pings.isFetchingMore} onClick={pings.loadMore} />
     </section>
   );
 }

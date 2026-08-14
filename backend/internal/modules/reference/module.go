@@ -79,6 +79,6 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	pings := &pingHandlers{db: deps.DB, bus: deps.Bus}
 
 	g.POST("/ping", authz.Public, pings.create)
-	g.GET("/pings", authz.Public, pings.list)
+	platform.ListRoute(g, "/pings", authz.Public, pings.list)
 	g.GET("/pings/:id", authz.Public, pings.get)
 }

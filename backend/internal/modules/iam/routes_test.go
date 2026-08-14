@@ -3,17 +3,23 @@ package iam_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/tesserix/hms/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testutil"
 	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/hms/pkg/pagination"
+	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
 // recordingWriter captures tuple writes so tests can assert the consumer
@@ -214,4 +220,89 @@ func TestMembersAreTenantIsolated(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(list.Body.Bytes(), &body))
 	require.Empty(t, body.Data, "tenant B must never see tenant A's members")
+}
+
+// seedMembers inserts n members directly so TestMembersArePaginated
+// controls exactly how many rows exist. Distinct subjects avoid the
+// (tenant_id, subject, role_key) uniqueness constraint.
+func seedMembers(t *testing.T, db *tenantdb.DB, ctx context.Context, tenantID uuid.UUID, n int) {
+	t.Helper()
+	for i := range n {
+		subject := fmt.Sprintf("member-%02d", i)
+		require.NoError(t, db.WithTenant(ctx, tenantID.String(), func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO iam_members (tenant_id, subject, role_key) VALUES (?, ?, 'doctor')`,
+				tenantID, subject).Error
+		}))
+	}
+}
+
+// TestMembersArePaginated walks a seeded tenant's members to exhaustion
+// through the cursor and asserts every seeded member appears exactly
+// once. This is the endpoint that matters most in this migration: it
+// governs who has access to a hospital, and used to hard-cap at 500 with
+// no cursor — an access-control blind spot masquerading as a UX
+// limitation (#816).
+func TestMembersArePaginated(t *testing.T) {
+	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"admin": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
+		Modules: []platform.Module{iam.New(nil)},
+	})
+	tenantID := uuid.MustParse(testutil.TenantA)
+	seedMembers(t, db, ctx, tenantID, 7)
+
+	seen := map[string]int{}
+	cursor := ""
+	for i := 0; i < 20; i++ {
+		q := "/v1/iam/members?limit=3"
+		if cursor != "" {
+			q += "&cursor=" + url.QueryEscape(cursor)
+		}
+		w := testutil.Do(r, "GET", q, "admin", "")
+		require.Equal(t, http.StatusOK, w.Code)
+		var body struct {
+			Data []struct {
+				Subject string `json:"subject"`
+			} `json:"data"`
+			Page struct {
+				NextCursor *string `json:"next_cursor"`
+				HasMore    bool    `json:"has_more"`
+			} `json:"page"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		for _, rr := range body.Data {
+			seen[rr.Subject]++
+		}
+		if !body.Page.HasMore {
+			require.Nil(t, body.Page.NextCursor)
+			break
+		}
+		cursor = *body.Page.NextCursor
+	}
+
+	require.Len(t, seen, 7)
+	for subject, n := range seen {
+		require.Equal(t, 1, n, "member %s appeared %d times across pages", subject, n)
+	}
+}
+
+// TestMembersRejectAnotherTenantsCursor mirrors medicore's cursor
+// tenant-mismatch test. It matters here specifically: a cursor accepted
+// across tenants on this endpoint would be a membership-list confusion,
+// not merely a UX bug.
+func TestMembersRejectAnotherTenantsCursor(t *testing.T) {
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"admin": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
+		Modules: []platform.Module{iam.New(nil)},
+	})
+	foreign := pagination.Cursor{
+		TenantID:  testutil.TenantB,
+		CreatedAt: time.Now().UTC(),
+		ID:        uuid.New(),
+	}.Encode()
+
+	w := testutil.Do(r, "GET", "/v1/iam/members?cursor="+url.QueryEscape(foreign), "admin", "")
+	require.Equal(t, http.StatusBadRequest, w.Code,
+		"a cursor issued for another tenant must be refused, not applied as a position")
 }

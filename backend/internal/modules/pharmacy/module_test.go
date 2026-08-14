@@ -3,7 +3,9 @@ package pharmacy_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -19,6 +21,7 @@ import (
 	"github.com/tesserix/hms/internal/testutil"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/hms/pkg/pagination"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -193,4 +196,123 @@ func TestMedicationsCrud(t *testing.T) {
 		do(r, "POST", "/v1/pharmacy/medications", "tokA", `{}`).Code)
 	require.Contains(t, do(r, "GET", "/v1/pharmacy/medications", "tokA", "").Body.String(), "Paracetamol")
 	require.NotContains(t, do(r, "GET", "/v1/pharmacy/medications", "tokB", "").Body.String(), "Paracetamol")
+}
+
+// seedMedications inserts n medications directly so
+// TestMedicationsArePaginated controls exactly how many rows exist.
+func seedMedications(t *testing.T, db *tenantdb.DB, ctx context.Context, tenantID uuid.UUID, n int) {
+	t.Helper()
+	for i := range n {
+		name := fmt.Sprintf("med-%02d", i)
+		require.NoError(t, db.WithTenant(ctx, tenantID.String(), func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO pharmacy_medications (tenant_id, name, strength) VALUES (?, ?, '500mg')`,
+				tenantID, name).Error
+		}))
+	}
+}
+
+// seedDispenses inserts n dispenses directly so TestDispensesArePaginated
+// controls exactly how many rows exist.
+func seedDispenses(t *testing.T, db *tenantdb.DB, ctx context.Context, tenantID uuid.UUID, n int) {
+	t.Helper()
+	for i := range n {
+		name := fmt.Sprintf("dispense-%02d", i)
+		require.NoError(t, db.WithTenant(ctx, tenantID.String(), func(tx *gorm.DB) error {
+			return tx.Exec(
+				`INSERT INTO pharmacy_dispenses (tenant_id, visit_id, patient_name) VALUES (?, ?, ?)`,
+				tenantID, uuid.New(), name).Error
+		}))
+	}
+}
+
+// TestMedicationsArePaginated walks a seeded tenant's medications to
+// exhaustion through the cursor and asserts every seeded medication
+// appears exactly once — same pattern medicore's TestVisitsArePaginated
+// proved, repeated for pharmacy's second collection.
+func TestMedicationsArePaginated(t *testing.T) {
+	r, db, _, ctx := setup(t)
+	tenantID := uuid.MustParse(testutil.TenantA)
+	seedMedications(t, db, ctx, tenantID, 7)
+
+	w := do(r, "GET", "/v1/pharmacy/medications?limit=3", "tokA", "")
+	require.Equal(t, http.StatusOK, w.Code)
+
+	seen := paginateAll(t, r, "/v1/pharmacy/medications", "tokA", 3)
+	require.Len(t, seen, 7)
+	for name, n := range seen {
+		require.Equal(t, 1, n, "medication %s appeared %d times across pages", name, n)
+	}
+}
+
+// TestDispensesArePaginated is the same property for pharmacy's other
+// collection, /dispenses.
+func TestDispensesArePaginated(t *testing.T) {
+	r, db, _, ctx := setup(t)
+	tenantID := uuid.MustParse(testutil.TenantA)
+	seedDispenses(t, db, ctx, tenantID, 7)
+
+	seen := paginateAll(t, r, "/v1/pharmacy/dispenses", "tokA", 3)
+	require.Len(t, seen, 7)
+	for name, n := range seen {
+		require.Equal(t, 1, n, "dispense %s appeared %d times across pages", name, n)
+	}
+}
+
+// paginateAll walks path to exhaustion via limit and cursor, returning
+// how many times each row's patient_name/name was seen. Shared by both
+// pharmacy collections since the walk shape is identical.
+func paginateAll(t *testing.T, r *gin.Engine, path, token string, limit int) map[string]int {
+	t.Helper()
+	type row struct {
+		Name string `json:"name"`
+		PN   string `json:"patient_name"`
+	}
+	seen := map[string]int{}
+	cursor := ""
+	for i := 0; i < 20; i++ {
+		q := fmt.Sprintf("%s?limit=%d", path, limit)
+		if cursor != "" {
+			q += "&cursor=" + url.QueryEscape(cursor)
+		}
+		w := do(r, "GET", q, token, "")
+		require.Equal(t, http.StatusOK, w.Code)
+		var body struct {
+			Data []row `json:"data"`
+			Page struct {
+				NextCursor *string `json:"next_cursor"`
+				HasMore    bool    `json:"has_more"`
+			} `json:"page"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		for _, rr := range body.Data {
+			name := rr.Name
+			if name == "" {
+				name = rr.PN
+			}
+			seen[name]++
+		}
+		if !body.Page.HasMore {
+			require.Nil(t, body.Page.NextCursor)
+			return seen
+		}
+		cursor = *body.Page.NextCursor
+	}
+	t.Fatal("did not reach the last page within 20 iterations")
+	return nil
+}
+
+// TestPharmacyRejectAnotherTenantsCursor mirrors medicore's cursor
+// tenant-mismatch test for pharmacy's two collections.
+func TestPharmacyRejectAnotherTenantsCursor(t *testing.T) {
+	r, _, _, _ := setup(t)
+	foreign := pagination.Cursor{
+		TenantID:  testutil.TenantB,
+		CreatedAt: time.Now().UTC(),
+		ID:        uuid.New(),
+	}.Encode()
+
+	require.Equal(t, http.StatusBadRequest,
+		do(r, "GET", "/v1/pharmacy/medications?cursor="+url.QueryEscape(foreign), "tokA", "").Code)
+	require.Equal(t, http.StatusBadRequest,
+		do(r, "GET", "/v1/pharmacy/dispenses?cursor="+url.QueryEscape(foreign), "tokA", "").Code)
 }

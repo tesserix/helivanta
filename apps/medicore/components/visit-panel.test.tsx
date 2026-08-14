@@ -10,6 +10,10 @@ function jsonResponse(status: number, body: unknown) {
   });
 }
 
+function page(data: unknown[], opts: { hasMore?: boolean; nextCursor?: string | null } = {}) {
+  return { data, page: { next_cursor: opts.nextCursor ?? null, has_more: opts.hasMore ?? false } };
+}
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe("VisitPanel", () => {
@@ -24,19 +28,22 @@ describe("VisitPanel", () => {
         return Promise.resolve(jsonResponse(202, { id: "v-1" }));
       }
       return Promise.resolve(
-        jsonResponse(200, {
-          data: created
-            ? [
-                {
-                  id: "v-1",
-                  patient_name: "Asha Rao",
-                  department: "OPD",
-                  status: "open",
-                  created_at: "2026-08-04T04:00:00Z",
-                },
-              ]
-            : [],
-        }),
+        jsonResponse(
+          200,
+          page(
+            created
+              ? [
+                  {
+                    id: "v-1",
+                    patient_name: "Asha Rao",
+                    department: "OPD",
+                    status: "open",
+                    created_at: "2026-08-04T04:00:00Z",
+                  },
+                ]
+              : [],
+          ),
+        ),
       );
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -44,7 +51,7 @@ describe("VisitPanel", () => {
     const { user } = renderWithProviders(<VisitPanel department="OPD" />);
     expect(await screen.findByText(/No visits yet/)).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Patient name"), "Asha Rao");
+    await user.type(await screen.findByLabelText("Patient name"), "Asha Rao");
     await user.click(screen.getByRole("button", { name: "Create visit" }));
 
     await waitFor(() => expect(screen.getByText("Asha Rao")).toBeInTheDocument());
@@ -61,7 +68,7 @@ describe("VisitPanel", () => {
         if (url.includes("/iam/me/permissions")) {
           return Promise.resolve(jsonResponse(200, { data: ["medicore.visit.create"] }));
         }
-        return Promise.resolve(jsonResponse(200, { data: [] }));
+        return Promise.resolve(jsonResponse(200, page([])));
       }),
     );
     const { user } = renderWithProviders(<VisitPanel department="OPD" />);
@@ -76,11 +83,50 @@ describe("VisitPanel", () => {
         if (url.includes("/iam/me/permissions")) {
           return Promise.resolve(jsonResponse(200, { data: [] }));
         }
-        return Promise.resolve(jsonResponse(200, { data: [] }));
+        return Promise.resolve(jsonResponse(200, page([])));
       }),
     );
     renderWithProviders(<VisitPanel department="OPD" />);
     await screen.findByText(/No visits yet/);
     expect(screen.queryByRole("button", { name: "Create visit" })).not.toBeInTheDocument();
+  });
+
+  it("loads the next page on click, then hides Load more once the list is complete", async () => {
+    const firstVisit = {
+      id: "v-1",
+      patient_name: "Asha Rao",
+      department: "OPD",
+      status: "open",
+      created_at: "2026-08-04T04:00:00Z",
+    };
+    const secondVisit = {
+      id: "v-2",
+      patient_name: "Rohan Iyer",
+      department: "OPD",
+      status: "open",
+      created_at: "2026-08-04T03:00:00Z",
+    };
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/iam/me/permissions")) {
+        return Promise.resolve(jsonResponse(200, { data: [] }));
+      }
+      if (url.includes("cursor=")) {
+        return Promise.resolve(jsonResponse(200, page([secondVisit])));
+      }
+      return Promise.resolve(
+        jsonResponse(200, page([firstVisit], { hasMore: true, nextCursor: "c1" })),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { user } = renderWithProviders(<VisitPanel department="OPD" />);
+    await screen.findByText("Asha Rao");
+    expect(screen.queryByText("Rohan Iyer")).not.toBeInTheDocument();
+
+    const loadMore = screen.getByRole("button", { name: "Load more" });
+    await user.click(loadMore);
+
+    await waitFor(() => expect(screen.getByText("Rohan Iyer")).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
   });
 });

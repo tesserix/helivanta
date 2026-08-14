@@ -12,6 +12,7 @@ import (
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/hms/pkg/pagination"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -23,6 +24,9 @@ type ping struct {
 }
 
 func (ping) TableName() string { return "reference_pings" }
+
+// PageKey is the keyset position of this row, satisfying platform.Keyed.
+func (pg ping) PageKey() (time.Time, uuid.UUID) { return pg.CreatedAt, pg.ID }
 
 type pingRequest struct {
 	Message string `json:"message" binding:"required,max=500"`
@@ -68,21 +72,22 @@ func (h *pingHandlers) create(c *gin.Context) {
 	respond.Accepted(c, gin.H{"id": row.ID.String()})
 }
 
-// list returns this tenant's pings, newest first.
-func (h *pingHandlers) list(c *gin.Context) {
-	p, _, ok := authn.TenantPrincipal(c)
+// list returns one page of this tenant's pings, newest first.
+//
+// It returns whatever ApplyKeyset yields — up to Limit+1 rows — and does
+// not trim, does not decide has_more and does not build a cursor.
+// platform.ListRoute owns all three, so they cannot be got wrong per
+// endpoint.
+func (h *pingHandlers) list(c *gin.Context, p pagination.Params) ([]ping, error) {
+	principal, _, ok := authn.TenantPrincipal(c)
 	if !ok {
-		return
+		return nil, nil
 	}
 	var rows []ping
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
+	err := h.db.WithTenant(c.Request.Context(), principal.TenantID, func(tx *gorm.DB) error {
+		return tenantdb.ApplyKeyset(tx, p).Find(&rows).Error
 	})
-	if err != nil {
-		respond.InternalErr(c, err, "could not list pings")
-		return
-	}
-	respond.OK(c, gin.H{"data": rows})
+	return rows, err
 }
 
 // get loads a single ping by id, scoped to the caller's tenant.

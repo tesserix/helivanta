@@ -9,6 +9,7 @@ import (
 
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/hms/pkg/pagination"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -21,6 +22,9 @@ type medication struct {
 }
 
 func (medication) TableName() string { return "pharmacy_medications" }
+
+// PageKey is the keyset position of this row, satisfying platform.Keyed.
+func (m medication) PageKey() (time.Time, uuid.UUID) { return m.CreatedAt, m.ID }
 
 type createMedicationRequest struct {
 	Name     string `json:"name" binding:"required,max=200"`
@@ -53,19 +57,20 @@ func (h *medicationHandlers) create(c *gin.Context) {
 	respond.Created(c, gin.H{"id": row.ID.String()})
 }
 
-// list returns this tenant's medications, newest first.
-func (h *medicationHandlers) list(c *gin.Context) {
-	p, _, ok := authn.TenantPrincipal(c)
+// list returns one page of this tenant's medications, newest first.
+//
+// It returns whatever ApplyKeyset yields — up to Limit+1 rows — and does
+// not trim, does not decide has_more and does not build a cursor.
+// platform.ListRoute owns all three, so they cannot be got wrong per
+// endpoint.
+func (h *medicationHandlers) list(c *gin.Context, p pagination.Params) ([]medication, error) {
+	principal, _, ok := authn.TenantPrincipal(c)
 	if !ok {
-		return
+		return nil, nil
 	}
 	var rows []medication
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		return tx.Order("created_at DESC").Limit(100).Find(&rows).Error
+	err := h.db.WithTenant(c.Request.Context(), principal.TenantID, func(tx *gorm.DB) error {
+		return tenantdb.ApplyKeyset(tx, p).Find(&rows).Error
 	})
-	if err != nil {
-		respond.InternalErr(c, err, "could not list medications")
-		return
-	}
-	respond.OK(c, gin.H{"data": rows})
+	return rows, err
 }

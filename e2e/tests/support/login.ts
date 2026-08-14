@@ -72,9 +72,16 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
   await page.getByLabel("Email").fill(user.email);
   await page.getByLabel("Password").fill(user.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Departments" }),
-  ).toBeVisible();
+  // Longer than the 5s default on purpose. Landing on the dashboard crosses
+  // a token exchange, a cookie write and a redirect into a route the dev
+  // server may still be compiling, and under five parallel workers that has
+  // been observed taking over five seconds. A timeout here is not a refused
+  // session — it throws past the retry loop below and fails the spec with a
+  // missing heading, which reads like a broken dashboard rather than a slow
+  // one.
+  await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible({
+    timeout: 30_000,
+  });
   return page.evaluate(async (url) => (await fetch(url)).ok, PERMISSIONS_PROBE);
 }
 

@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { Badge, Button, Input } from "@tesserix/web";
 import { Pill } from "lucide-react";
-import { Can, apiFetch, useApiMutation, useApiQuery } from "@hms/api";
-import { EmptyState, formatTime } from "@hms/ui";
+import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@hms/api";
+import { EmptyState, LoadMore, formatTime } from "@hms/ui";
 
 type Dispense = {
   id: string;
@@ -18,7 +18,7 @@ type Dispense = {
 
 export function DispenseList() {
   const [medication, setMedication] = useState("Paracetamol 500mg");
-  const dispenses = useApiQuery<{ data: Dispense[] }>(["dispenses"], "/pharmacy/dispenses", {
+  const dispenses = useApiPagedQuery<Dispense>(["dispenses"], "/pharmacy/dispenses", {
     poll: true,
   });
 
@@ -34,7 +34,7 @@ export function DispenseList() {
     },
   );
 
-  const pending = dispenses.data?.data.filter((d) => d.status === "pending").length ?? 0;
+  const pending = dispenses.items.filter((d) => d.status === "pending").length;
 
   return (
     <section className="max-w-3xl rounded-lg border bg-card">
@@ -61,7 +61,7 @@ export function DispenseList() {
         </label>
       </div>
       <ul className="divide-y text-sm">
-        {dispenses.data?.data.length === 0 && (
+        {dispenses.items.length === 0 && (
           <li>
             <EmptyState
               icon={Pill}
@@ -70,7 +70,7 @@ export function DispenseList() {
             />
           </li>
         )}
-        {dispenses.data?.data.map((d) => (
+        {dispenses.items.map((d) => (
           <li key={d.id} className="flex items-center justify-between gap-4 px-5 py-3">
             <div className="min-w-0">
               <div className="flex items-center gap-3">
@@ -102,6 +102,11 @@ export function DispenseList() {
           </li>
         ))}
       </ul>
+      <LoadMore
+        hasMore={dispenses.hasMore}
+        isLoading={dispenses.isFetchingMore}
+        onClick={dispenses.loadMore}
+      />
     </section>
   );
 }

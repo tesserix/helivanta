@@ -3,6 +3,7 @@ package platform_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -170,4 +171,60 @@ func TestListRouteRejectsBadLimitAndCursor(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, w.Code, q)
 		require.Contains(t, w.Body.String(), "invalid_request", q)
 	}
+}
+
+// runListRouteWithoutPrincipal is runListRoute with the principal
+// middleware omitted, so ListRoute's own missing-principal branch is
+// reachable. It cannot be expressed through runListRoute, which always
+// stubs one.
+func runListRouteWithoutPrincipal(t *testing.T, h platform.ListHandler[fakeRow]) *httptest.ResponseRecorder {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	e := gin.New()
+	e.Use(func(c *gin.Context) {
+		c.Set("authz.permissions", authz.NewPermissionSet(listRoutePerm))
+		c.Next()
+	})
+	r := platform.NewRouter(e.Group("/v1"), alwaysMemberListRoute{})
+	platform.ListRoute[fakeRow](r, "/things", listRoutePerm, h)
+
+	w := httptest.NewRecorder()
+	e.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/v1/things", nil))
+	return w
+}
+
+// TestListRouteWithoutAPrincipalIsUnauthenticated covers the branch the
+// happy-path tests cannot reach, because they all stub a principal.
+//
+// It matters beyond coverage: the cursor is scoped to the caller's
+// tenant, so a ListRoute that proceeded without a principal would have
+// no tenant to validate a cursor against. Failing here rather than
+// later is what keeps that impossible.
+func TestListRouteWithoutAPrincipalIsUnauthenticated(t *testing.T) {
+	w := runListRouteWithoutPrincipal(t, func(*gin.Context, pagination.Params) ([]fakeRow, error) {
+		t.Fatal("the handler must not run without an authenticated principal")
+		return nil, nil
+	})
+
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+	require.Contains(t, w.Body.String(), "unauthenticated")
+}
+
+// TestListRouteHandlerErrorIsFiveHundredWithNoPartialPage pins what a
+// failing handler must NOT do: emit 200 with whatever rows it managed to
+// collect, or an envelope claiming has_more about a page that was never
+// assembled. A half-page presented as a whole one is the same
+// silently-incomplete-list defect #816 exists to remove, arriving from
+// the error path instead of the query.
+func TestListRouteHandlerErrorIsFiveHundredWithNoPartialPage(t *testing.T) {
+	partial := makeRows(t, 2)
+	w := runListRoute(t, "?limit=3", func(*gin.Context, pagination.Params) ([]fakeRow, error) {
+		return partial, errors.New("database is on fire")
+	})
+
+	require.Equal(t, http.StatusInternalServerError, w.Code)
+	require.NotContains(t, w.Body.String(), `"data"`,
+		"a failed page must not return rows it happened to have; the client cannot tell them from a complete page")
+	require.NotContains(t, w.Body.String(), "database is on fire",
+		"the underlying cause is logged against the request id, never sent to the client")
 }

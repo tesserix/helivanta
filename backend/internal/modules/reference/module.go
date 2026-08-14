@@ -3,6 +3,7 @@
 package reference
 
 import (
+	referencecontract "github.com/tesserix/hms/internal/modules/reference/contract"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/tenantdb"
@@ -79,4 +80,10 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.POST("/ping", authz.Public, pings.create)
 	platform.ListRoute(g, "/pings", authz.Public, pings.list)
 	g.GET("/pings/:id", authz.Public, pings.get)
+}
+
+// Publishes declares pinged, the one event reference emits. reference
+// consumes its own event — see Consumers in consumers.go.
+func (m *Module) Publishes() []string {
+	return []string{referencecontract.SubjectPinged}
 }

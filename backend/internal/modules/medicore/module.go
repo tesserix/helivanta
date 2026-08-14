@@ -4,6 +4,7 @@
 package medicore
 
 import (
+	medicorecontract "github.com/tesserix/hms/internal/modules/medicore/contract"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
@@ -67,6 +68,12 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 
 	g.POST("/visits", PermVisitCreate, visits.create)
 	platform.ListRoute(g, "/visits", PermVisitRead, visits.list)
+}
+
+// Publishes declares visit_created, the one event medicore emits.
+// pharmacy and lab each consume it via medicorecontract.
+func (m *Module) Publishes() []string {
+	return []string{medicorecontract.SubjectVisitCreated}
 }
 
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer { return nil }

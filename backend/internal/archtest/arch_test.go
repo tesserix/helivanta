@@ -26,13 +26,9 @@ import (
 	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/modules/iam"
 	"github.com/tesserix/hms/internal/modules/lab"
-	labcontract "github.com/tesserix/hms/internal/modules/lab/contract"
 	"github.com/tesserix/hms/internal/modules/medicore"
-	medicorecontract "github.com/tesserix/hms/internal/modules/medicore/contract"
 	"github.com/tesserix/hms/internal/modules/pharmacy"
-	pharmacycontract "github.com/tesserix/hms/internal/modules/pharmacy/contract"
 	"github.com/tesserix/hms/internal/modules/reference"
-	referencecontract "github.com/tesserix/hms/internal/modules/reference/contract"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
@@ -140,15 +136,18 @@ func TestConsumerContracts(t *testing.T) {
 	}
 }
 
+// TestPublishedSubjectConstants derives its input from ⋃ Publishes()
+// instead of a hand-maintained map. The map this replaced listed four
+// subjects by hand and silently checked nothing when a fifth (iam's
+// three) was never added to it — deriving from Publishes() means every
+// module's declared subjects are covered automatically, including a
+// module added after this test was written.
 func TestPublishedSubjectConstants(t *testing.T) {
-	for name, s := range map[string]string{
-		"reference.SubjectPinged":          referencecontract.SubjectPinged,
-		"medicore.SubjectVisitCreated":     medicorecontract.SubjectVisitCreated,
-		"pharmacy.SubjectDispenseRecorded": pharmacycontract.SubjectDispenseRecorded,
-		"lab.SubjectResultReady":           labcontract.SubjectResultReady,
-	} {
-		if !subjectRe.MatchString(s) {
-			t.Errorf("%s = %q must match %s", name, s, subjectRe)
+	for _, m := range allModules() {
+		for _, s := range m.Publishes() {
+			if !subjectRe.MatchString(s) {
+				t.Errorf("module %q publishes %q, which must match %s", m.Name(), s, subjectRe)
+			}
 		}
 	}
 }

@@ -4,6 +4,7 @@
 package pharmacy
 
 import (
+	pharmacycontract "github.com/tesserix/hms/internal/modules/pharmacy/contract"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/tenantdb"
@@ -90,4 +91,11 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "/medications", PermMedicationRead, meds.list)
 	platform.ListRoute(g, "/dispenses", PermDispenseRead, disp.list)
 	g.POST("/dispenses/:id/dispense", PermDispenseFulfil, disp.fulfil)
+}
+
+// Publishes declares dispense_recorded, the one event pharmacy emits.
+// No module consumes it today; declaring it anyway is what makes it
+// available to anything added later without changing pharmacy.
+func (m *Module) Publishes() []string {
+	return []string{pharmacycontract.SubjectDispenseRecorded}
 }

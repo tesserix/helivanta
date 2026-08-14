@@ -321,6 +321,17 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.POST("/subjects/:subject/revoke", PermCredentialRevoke, rev.adminRevoke)
 }
 
+// Publishes declares the three events iam emits: member_granted and
+// member_revoked drive the FGA sync consumers, credential_revoked is a
+// broadcast every replica hears (see Broadcasts below).
+func (m *Module) Publishes() []string {
+	return []string{
+		iamcontract.SubjectMemberGranted,
+		iamcontract.SubjectMemberRevoked,
+		iamcontract.SubjectCredentialRevoked,
+	}
+}
+
 // Broadcasts invalidates this replica's revocation cache the instant
 // another replica revokes a credential (#781). The durable truth is
 // Postgres — see RevocationChecker.RevokedAfter's read-through and its

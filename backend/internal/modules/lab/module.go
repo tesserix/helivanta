@@ -4,6 +4,7 @@
 package lab
 
 import (
+	labcontract "github.com/tesserix/hms/internal/modules/lab/contract"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/tenantdb"
@@ -67,4 +68,11 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 
 	platform.ListRoute(g, "/orders", PermOrderRead, orders.list)
 	g.POST("/orders/:id/result", PermOrderFulfil, orders.result)
+}
+
+// Publishes declares result_ready, the one event lab emits. No module
+// consumes it today; declaring it anyway is what makes it available to
+// anything added later without changing lab.
+func (m *Module) Publishes() []string {
+	return []string{labcontract.SubjectResultReady}
 }

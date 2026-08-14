@@ -74,6 +74,19 @@ type Module interface {
 	// reconciler grants it everything, so never list it here.
 	Permissions() []authz.Grant
 	Routes(r *Router, deps Deps)
+	// Publishes declares every subject this module publishes.
+	//
+	// Declarative like Permissions and Migrations, and for the same
+	// reason: it makes a property checkable that is otherwise scattered
+	// across call sites. Two CI checks build on it — that every consumer
+	// subscribes to something a module actually publishes, and that no
+	// two modules publish the same subject — and the event catalogue
+	// (#667) is its union, so the catalogue cannot drift from the code.
+	//
+	// Entries must be constants from this module's own contract package,
+	// not bare strings; TestPublishesUsesContractConstants enforces it.
+	// A module that publishes nothing returns nil.
+	Publishes() []string
 	Consumers(deps Deps) []events.Consumer
 	// Broadcasts declares this module's fanout subscriptions — every
 	// replica hears every message, unlike Consumers, where replicas

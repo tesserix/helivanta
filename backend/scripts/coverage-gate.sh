@@ -5,6 +5,20 @@ out=$(go test -race -count=1 -cover ./... 2>&1) || { echo "$out"; exit 1; }
 echo "$out"
 is_gated() {
   case "$1" in
+    # A module's contract package holds its published event interface and
+    # nothing else: const, type and var only, with no func or method
+    # declarations at all (#827). That is not a convention here — it is
+    # asserted by TestContractPackagesDeclareOnlyData, which fails on a
+    # func declaration and on a func literal bound to a var. A package
+    # with no functions has no statements, so `go test -cover` reports it
+    # as 0.0%/no test files no matter what anyone writes, and the "no test
+    # files" arm below would fail it forever.
+    #
+    # Exempting a path is normally how a coverage gate rots. This one is
+    # safe only because a *separate mechanical check* guarantees there is
+    # no behaviour behind the exempted name; if that arch test is ever
+    # deleted, this exemption becomes a hole and must go with it.
+    github.com/tesserix/hms/internal/modules/*/contract) return 1 ;;
     github.com/tesserix/hms/internal/modules/*|github.com/tesserix/hms/pkg/*|github.com/tesserix/hms/internal/platform|github.com/tesserix/hms/internal/platform/*) return 0 ;;
     *) return 1 ;;
   esac

@@ -99,6 +99,72 @@ func TestKeySpaceIsBounded(t *testing.T) {
 	require.LessOrEqual(t, l.Len(), max, "the bucket store must stay bounded")
 }
 
+// TestAKeyAddedToAFullStoreIsStillLimited is a correctness test, and the
+// bound test above does not imply it.
+//
+// Eviction runs immediately after a new key is inserted, so the new key
+// is the most recently used at that instant. An implementation that
+// evicted the most recently used would therefore evict the key it just
+// created — leaving the store bounded, the hot keys intact, and every
+// assertion above green, while **the new caller is never limited at
+// all**: their bucket is recreated with a full burst on every request
+// and discarded before the next one.
+//
+// That is a limiter bypass for every caller not already resident once
+// the store is full, which on a busy system is most of them. It is
+// invisible to a size assertion, which is why this test exists
+// separately.
+func TestAKeyAddedToAFullStoreIsStillLimited(t *testing.T) {
+	const max = 10
+	tiny := ratelimit.Rule{Rate: 120, Burst: 2, Per: time.Minute}
+	l := ratelimit.NewMemory(max)
+	now := time.Date(2026, 8, 14, 9, 0, 0, 0, time.UTC)
+
+	// Fill the store past its bound with other callers.
+	for i := range max * 3 {
+		l.Allow(fmt.Sprintf("subject:filler-%d", i), tiny, now)
+	}
+
+	// A new caller arrives at a full store and spends its burst. The
+	// third request must be refused: a bucket that survives between
+	// requests is the only thing that can refuse it.
+	newcomer := "subject:newcomer"
+	require.True(t, l.Allow(newcomer, tiny, now).Allowed)
+	require.True(t, l.Allow(newcomer, tiny, now).Allowed)
+	require.False(t, l.Allow(newcomer, tiny, now).Allowed,
+		"a caller arriving at a full store is never limited: its bucket is being evicted between requests and recreated with a full burst")
+}
+
+// TestAHotKeySurvivesEviction pins the other half of the LRU: a key that
+// keeps being used must not age out like a cold one.
+//
+// Without MoveToFront on a cache hit, a frequently-hit key is exactly as
+// evictable as one touched once — so the caller generating the most load
+// is among the first to have their bucket reset, which is the opposite of
+// what a limiter should do under pressure.
+func TestAnExhaustedHotKeyStaysExhaustedUnderChurn(t *testing.T) {
+	const max = 10
+	tiny := ratelimit.Rule{Rate: 120, Burst: 2, Per: time.Minute}
+	l := ratelimit.NewMemory(max)
+	now := time.Date(2026, 8, 14, 9, 0, 0, 0, time.UTC)
+
+	// Exhaust the hot key first, so any reset is immediately visible as
+	// a request that should have been refused being allowed.
+	hot := "subject:hot"
+	require.True(t, l.Allow(hot, tiny, now).Allowed)
+	require.True(t, l.Allow(hot, tiny, now).Allowed)
+	require.False(t, l.Allow(hot, tiny, now).Allowed, "precondition: the hot bucket is empty")
+
+	// Churn far past the bound while the hot key keeps requesting. Time
+	// never advances, so no token can legitimately refill: every later
+	// request must still be refused.
+	for i := range max * 5 {
+		l.Allow(fmt.Sprintf("subject:cold-%d", i), tiny, now)
+		require.False(t, l.Allow(hot, tiny, now).Allowed,
+			"the hot key was allowed again at churn step %d with no time elapsed: its bucket was evicted and recreated with a full burst, so the caller generating the most load is the one the limiter stops limiting", i)
+	}
+}
+
 // TestMemoryIsRaceFree exercises the bucket map under concurrent access.
 // The map is mutated on every request, so this must be proven under
 // -race, not merely assumed from the mutex being present.

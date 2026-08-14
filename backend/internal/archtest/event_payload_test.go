@@ -28,41 +28,30 @@ var eventPayloadPHIAllowlist = map[string]string{
 }
 
 // eventPayloadReviewedNonPHI is the second half of the same decision:
-// fields a human has confirmed do NOT carry PHI or identifying data,
-// despite not being auto-recognised as an identifier (see
-// isAutoSafeIdentifierField). It exists so the classifier does not have
+// fields a human has confirmed do NOT carry PHI or identifying data.
+// It exists so the classifier does not have
 // to guess at "enum-shaped" or "operational" strings by type or name
 // pattern — Go's type system cannot tell RoleKey from PatientName, both
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
-	"iam.MemberChangedData.Subject":        "the iam subject identifier (e.g. GIP subject claim), already known to every module via authn.Principal.Subject; a reference, not identifying content",
-	"iam.CredentialRevokedData.Subject":    "same iam subject identifier as MemberChangedData.Subject",
-	"iam.MemberChangedData.RoleKey":        "a key into the fixed role registry (docs/standards/backend.md), not clinical or identifying data",
-	"medicore.VisitCreatedData.Department": "the ward/department the visit is opened in; operational routing metadata, not patient-identifying",
-}
+	"iam.MemberChangedData.Subject":     "the iam subject identifier (e.g. GIP subject claim), already known to every module via authn.Principal.Subject; a reference, not identifying content",
+	"iam.CredentialRevokedData.Subject": "same iam subject identifier as MemberChangedData.Subject",
+	"iam.MemberChangedData.RoleKey":     "a key into the fixed role registry (docs/standards/backend.md), not clinical or identifying data",
 
-// isAutoSafeIdentifierField is the ONLY automatic (non-pinned)
-// classification this test performs, and it is narrow on purpose: a
-// field whose name ends in "ID" or "IDs" is, by this codebase's naming
-// convention (VisitID, OrderID, DispenseID, PingID, ...), an opaque
-// reference to a row elsewhere — not identifying content itself. It
-// applies regardless of the field's Go type (string, uuid.UUID, a
-// future int64) because the argument is about what the value MEANS
-// (a pointer requiring its own authorized lookup), not how it is
-// encoded.
-//
-// Nothing else is auto-classified. In particular this test does NOT
-// treat time.Time, numeric, or bool fields as automatically safe: a
-// date of birth is exactly as identifying stored as time.Time as it is
-// stored as a string, and a medical record number is exactly as
-// identifying as an int as it is as a string. Classifying by Go kind
-// would silently wave through a differently-typed PHI field the day
-// someone adds one — proved by mutation in the Task 3 report for #835
-// (a time.Time DateOfBirth field, which a type-based classifier would
-// have waved through as "just a timestamp").
-func isAutoSafeIdentifierField(name string) bool {
-	return strings.HasSuffix(name, "ID") || strings.HasSuffix(name, "IDs")
+	"medicore.VisitCreatedData.Department": "the ward/department the visit is opened in; operational routing metadata, not patient-identifying",
+
+	// Internally-minted row ids. Listed one by one rather than matched by
+	// an "ends in ID" rule: see the test's comment for why that rule was
+	// removed. The reason below is the thing being asserted — it is NOT
+	// true of every identifier, and an externally-issued one (Aadhaar,
+	// ABHA, an insurer member number) belongs in the PHI allowlist.
+	"medicore.VisitCreatedData.VisitID":        "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"lab.ResultReadyData.VisitID":              "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"lab.ResultReadyData.OrderID":              "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"pharmacy.DispenseRecordedData.VisitID":    "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"pharmacy.DispenseRecordedData.DispenseID": "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"reference.PingedData.PingID":              "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
 }
 
 // loadContractPackagesWithTypes is loadContractPackages (contract_test.go)
@@ -149,14 +138,28 @@ func contractModuleNameT(t *testing.T, pkgPath string) string {
 // field of every event payload struct in every module's contract package
 // must be either
 //
-//  1. auto-recognised as an opaque identifier (isAutoSafeIdentifierField), or
-//  2. pinned in eventPayloadPHIAllowlist with the reason it must carry
+//  1. pinned in eventPayloadPHIAllowlist with the reason it must carry
 //     PHI/identifying data, or
-//  3. pinned in eventPayloadReviewedNonPHI with the reason it does not.
+//  2. pinned in eventPayloadReviewedNonPHI with the reason it does not.
 //
-// A field found by reflection that matches none of the three is a field
-// nobody has made a decision about — this test fails closed and names
-// it, rather than guessing whether it is safe.
+// There is NO automatic classification, deliberately. An earlier version
+// auto-passed any field whose name ended in "ID" or "IDs", on the
+// reasoning that this codebase's identifiers (VisitID, OrderID, PingID)
+// are opaque row pointers. That rule silently admitted `AadhaarID` and
+// `ABHAID` — proved by mutation during review of #835 Task 3, both of
+// which the test passed without comment. In an ABDM/DPDP context those
+// are among the most sensitive fields the platform could put on a wire:
+// Aadhaar is sensitive personal data under the DPDP Act and ABHA is the
+// national health identifier. "It is an identifier" is an argument for
+// scrutiny, not against it.
+//
+// So every field is classified by a human exactly once. The cost is one
+// map line per new payload field — 10 entries across five modules today
+// — and that cost IS the control: adding a field to an event contract
+// becomes a diff a reviewer must justify, which is what spec D4 asks for.
+//
+// A field matching neither map is a field nobody has decided about; this
+// test fails closed and names it rather than guessing.
 func TestEventPayloadPHIFieldsAreAllowlisted(t *testing.T) {
 	fields := findPayloadFields(t)
 
@@ -164,24 +167,13 @@ func TestEventPayloadPHIFieldsAreAllowlisted(t *testing.T) {
 	for _, f := range fields {
 		seen[f.key] = true
 
-		if isAutoSafeIdentifierField(f.field) {
-			// An identifier-shaped field cannot also be independently
-			// pinned: if it is, the pin is dead weight and the field's
-			// true classification is ambiguous to a reader.
-			_, inPHI := eventPayloadPHIAllowlist[f.key]
-			_, inSafe := eventPayloadReviewedNonPHI[f.key]
-			require.Falsef(t, inPHI || inSafe,
-				"%s is auto-classified as an identifier (ends in ID/IDs) AND separately pinned — remove one classification, it should have exactly one",
-				f.key)
-			continue
-		}
-
 		_, inPHI := eventPayloadPHIAllowlist[f.key]
 		_, inSafe := eventPayloadReviewedNonPHI[f.key]
 		require.Falsef(t, inPHI && inSafe,
 			"%s is pinned in BOTH eventPayloadPHIAllowlist and eventPayloadReviewedNonPHI — it cannot be both", f.key)
 		require.Truef(t, inPHI || inSafe,
-			"%s is a new event payload field with no PHI classification: it does not end in ID/IDs, and is not pinned in eventPayloadPHIAllowlist or eventPayloadReviewedNonPHI in event_payload_test.go. "+
+			"%s is a new event payload field with no PHI classification: it is not pinned in eventPayloadPHIAllowlist or eventPayloadReviewedNonPHI in event_payload_test.go. "+
+				"Every field is classified by hand — there is no automatic pass for identifier-shaped names, because AadhaarID and ABHAID are identifiers too. "+
 				"If it carries clinical or patient-identifying data, add it to eventPayloadPHIAllowlist with a reason it must be on the wire. "+
 				"If it does not, add it to eventPayloadReviewedNonPHI with the reason.",
 			f.key)

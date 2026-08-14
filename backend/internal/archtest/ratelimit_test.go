@@ -14,7 +14,6 @@ import (
 	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/config"
 	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/internal/platform/requestid"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/ratelimit"
@@ -68,31 +67,38 @@ func (allowAllResolver) Resolve(context.Context, string, string) (authz.Permissi
 	return authz.PermissionSet{}, nil
 }
 
-// chainHarness builds the SAME middleware chain cmd/api/main.go mounts
-// under /v1: a static verifier standing in for GIP, requestid's principal
-// middleware, ratelimit.Middleware, then authz.Middleware wired to
-// resolver. One plain route is enough — this seam is about which
-// middleware runs, not about authz.Require or a real handler.
-func chainHarness(t *testing.T, resolver authz.Resolver, cfg ratelimit.Config) *gin.Engine {
+// chainHarness mounts the REAL production chain — bootstrap.V1Chain, the
+// same call cmd/api/main.go makes — with a static verifier standing in
+// for GIP and a fake Resolver standing in for OpenFGA. One plain route is
+// enough; this seam is about which middleware runs, not about
+// authz.Require or a real handler.
+//
+// It builds from V1Chain rather than re-listing the middlewares on
+// purpose. A hand-listed copy is a replica, and a replica keeps passing
+// after production diverges from it: with the chain inline in main.go,
+// deleting ratelimit.Middleware removed rate limiting from the API
+// entirely and this whole suite stayed green.
+//
+// limits are applied via config, because V1Chain builds its
+// ratelimit.Config from a config.Config through
+// bootstrap.RateLimitConfig — there is deliberately no seam for injecting
+// a pre-built policy, so the test exercises the real construction path
+// including the Rate/6 burst arithmetic.
+func chainHarness(t *testing.T, resolver authz.Resolver, cfg config.Config) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
-	e.Use(
-		authn.Middleware(rlChainVerifier{}, rlChainNeverRevoked{}),
-		requestid.PrincipalMiddleware(),
-		ratelimit.Middleware(ratelimit.NewMemory(1000), cfg),
-		authz.Middleware(resolver),
-	)
+	e.Use(bootstrap.V1Chain(rlChainVerifier{}, rlChainNeverRevoked{}, ratelimit.NewMemory(1000), cfg, resolver)...)
 	e.GET("/v1/things", func(c *gin.Context) { c.Status(http.StatusOK) })
 	return e
 }
 
-// doChain fires one request as subject, into the fixed rlChainTenant.
-// tenant is accepted (rather than dropped) purely for the caller's
-// readability at the call site — chainHarness's verifier always resolves
-// into rlChainTenant regardless of what is passed here.
-func doChain(e *gin.Engine, subject, tenant string) *httptest.ResponseRecorder {
-	_ = tenant
+// doChain fires one request as subject. Every principal this harness
+// issues belongs to rlChainTenant — see rlChainVerifier — so there is no
+// tenant parameter to pass: one would be silently ignored, and a later
+// test written against it would assert on tenant isolation it never
+// actually exercised.
+func doChain(e *gin.Engine, subject string) *httptest.ResponseRecorder {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/v1/things", nil)
 	req.Header.Set("Authorization", "Bearer "+subject)
@@ -113,15 +119,22 @@ func TestThrottledRequestMakesNoOpenFGACall(t *testing.T) {
 	var resolves atomic.Int64
 	counting := countingResolver{inner: allowAllResolver{}, n: &resolves}
 
-	r := chainHarness(t, counting, ratelimit.Config{
-		Tenant:    ratelimit.Rule{Rate: 600, Burst: 100, Per: time.Minute},
-		Principal: ratelimit.Rule{Rate: 120, Burst: 1, Per: time.Minute},
+	// Principal rate 6/min gives a burst of exactly 1 through
+	// RateLimitConfig's Rate/6 arithmetic, so the second request is
+	// refused with no clock manipulation. Tenant is left at the
+	// production default so only the principal bucket can be the one that
+	// refuses — otherwise a tenant-bucket denial would satisfy this test
+	// while saying nothing about the principal path.
+	r := chainHarness(t, counting, config.Config{
+		RateLimitTenantPerMin:    600,
+		RateLimitPrincipalPerMin: 6,
+		RateLimitMintPerMin:      10,
 	})
 
-	require.Equal(t, http.StatusOK, doChain(r, "alice", rlChainTenant).Code)
+	require.Equal(t, http.StatusOK, doChain(r, "alice").Code)
 	require.Equal(t, int64(1), resolves.Load())
 
-	require.Equal(t, http.StatusTooManyRequests, doChain(r, "alice", rlChainTenant).Code)
+	require.Equal(t, http.StatusTooManyRequests, doChain(r, "alice").Code)
 	require.Equal(t, int64(1), resolves.Load(),
 		"a throttled request must not reach authz: it would exhaust OpenFGA before the limiter refused anything")
 }

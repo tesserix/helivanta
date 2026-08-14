@@ -2,7 +2,8 @@
 
 **Issue:** [#689](https://github.com/tesserix/hms/issues/689) — Per-tenant rate
 limiting & quotas.
-**Status:** approved 2026-08-14.
+**Status:** implemented 2026-08-14. See "As implemented" at the end for the
+places the code decided differently from this document.
 **Related:** #447 (the product story), #47, #774 Tier 2, ADR-0004, ADR-0005,
 PR #815 (the fail-safe carve-out this depends on).
 
@@ -96,8 +97,8 @@ parameters and giving only the rate is the kind of gap that gets filled by
 whoever writes the code first. Burst is the bucket's capacity: how many requests
 may arrive at once before the refill rate governs.
 
-The values are one-tenth of the per-minute rate, roughly ten seconds' worth.
-That is deliberate: a clinical screen loading fires several requests together
+The values are one-sixth of the per-minute rate — ten seconds' worth, since a
+per-minute rate divided by six is the per-ten-second rate. That is deliberate: a clinical screen loading fires several requests together
 (the dashboard resolves permissions, then a zone list, then a panel), so a burst
 smaller than a page load would throttle normal navigation. A burst equal to the
 full minute's budget would let one client consume a tenant's entire allowance
@@ -206,11 +207,17 @@ tests, which is backwards.
 
 ```
 pkg/ratelimit
-  Limiter interface { Allow(key string, now time.Time) Decision }
-  Decision { Allowed bool; RetryAfter time.Duration; Limit, Remaining int; Reset time.Time }
-  NewMemory(rules Rules) *Memory      ← ships now
+  Rule    { Rate, Burst int; Per time.Duration }
+  Limiter interface { Allow(key string, r Rule, now time.Time) Decision }
+  Decision { Allowed bool; RetryAfter, Reset time.Duration; Limit, Remaining int }
+  NewMemory(maxKeys int) *Memory      ← ships now
   // redisLimiter later, when replica count is known (#7)
 ```
+
+The `Rule` is a parameter to `Allow` rather than baked into the limiter at
+construction: the same key space carries different budgets (a principal has the
+default rule on most routes and the tight rule on the mint path), so passing the
+rule keeps one bucket store and lets the caller decide the budget per request.
 
 A token bucket per key, bounded by an LRU so a key space driven by tenant and
 subject IDs cannot grow without limit — the same bound the revocation cache
@@ -326,3 +333,60 @@ does not exist, and a fake sink would be worse than none.
 - Billing on usage — Subscriptions.
 - The rest of #447, as enumerated above.
 - Changing the connection-pool ceiling or partitioning it per tenant.
+
+---
+
+## As implemented
+
+Recorded because a spec that describes a design the code no longer has is worse
+than no spec (engineering principles §6). Everything below is a place the
+implementation decided differently, or learned something this document assumed.
+
+**The `/v1` middleware chain moved out of `cmd/api/main.go` into
+`bootstrap.V1Chain`.** This was not planned. With the chain inline, `run()`
+opens a database, a NATS connection and a GIP client before it builds a router,
+so nothing in `main.go` was reachable from a test — and deleting
+`ratelimit.Middleware` from the chain removed rate limiting from production
+while the entire backend suite stayed green, because the placement test built
+its own equivalent chain and kept passing against a replica of a chain
+production no longer had. The arch harness now builds from `V1Chain`, so that
+mutation fails CI. This is the §4 control the design was missing.
+
+**A tight rule gets its own bucket key** (`subject:<sub>:<route>`), not the
+plain `subject:<sub>` bucket. Sharing one key between the default and tight
+rules would let traffic on the tight route drain the budget every other route
+reads from, and vice versa — two independently configured budgets bleeding into
+one counter, which looks like two buckets until tested.
+
+**`TestRateLimitPolicyRoutesAreRegistered` was added** beyond the planned
+allowlist test. Comparing the `Exempt` map to a second hand-written map proves
+only that someone transcribed it faithfully; it cannot catch a typo'd key, and a
+typo'd key means sign-out is silently rate limited during exactly the incident it
+exists to survive. The new test requires every `Exempt` and `Tight` key to name a
+route the module registry actually declares.
+
+**The dev mint budget is 60/min, not the "generous" value the plan implied.**
+`RATE_LIMIT_MINT_PER_MIN=1000` would refill a token every 60ms, and the E2E's
+round trip through the Next proxy to the API and GIP measures ~9ms — only ~6x of
+headroom on a number that moves under parallel workers. Had the round trip ever
+exceeded the refill interval, the bucket would refill as fast as the loop drained
+it and the limiter could never be tripped: the spec would fail against a working
+limiter, or be "fixed" by raising the attempt count until it passed by accident.
+60/min (one token per second) holds until the round trip degrades past a full
+second. The tenant and principal dev budgets stay generous per D7.
+
+**Burst, not rate, governs the first refusal.** Verified by hand against the
+running stack on the real exposure: `POST /v1/iam/me/tenant` returns 200 three
+times (`RateLimit-Remaining` 2, 1, 0) and 429 on the fourth, with
+`Retry-After: 1` and a body naming the principal bucket. The implementation plan
+predicted refusal "at roughly the tenth call", which is wrong — the rate governs
+sustained throughput, the burst governs how many may arrive at once.
+
+**`Decision.Reset` is a `time.Duration`, not a `time.Time`**, so the whole
+`Decision` is a pure function of the injected clock and carries no absolute
+timestamps.
+
+**`respond.TooManyRequests` takes primitives, not a `ratelimit.Decision`.**
+`respond` lives under `internal/platform`, and importing `pkg/ratelimit` there
+would deepen the `pkg/` → `internal/` inversion the foundation audit flagged
+rather than leaving it where it is.

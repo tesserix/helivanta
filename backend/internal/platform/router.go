@@ -32,6 +32,10 @@ type DeclaredRoute struct {
 	Method     string
 	Path       string
 	Permission authz.Permission
+	// Paginated is true for routes registered through ListRoute. The
+	// arch test uses it to fail any collection GET registered the old
+	// way — the one hole ListRoute's type signature cannot close.
+	Paginated bool
 }
 
 // NewRouter builds the root router. membership is required, not
@@ -54,28 +58,28 @@ func (r *Router) Group(prefix string) *Router {
 }
 
 func (r *Router) GET(path string, perm authz.Permission, h ...gin.HandlerFunc) {
-	r.handle(http.MethodGet, path, perm, h)
+	r.handle(http.MethodGet, path, perm, false, h)
 }
 
 func (r *Router) POST(path string, perm authz.Permission, h ...gin.HandlerFunc) {
-	r.handle(http.MethodPost, path, perm, h)
+	r.handle(http.MethodPost, path, perm, false, h)
 }
 
 func (r *Router) PUT(path string, perm authz.Permission, h ...gin.HandlerFunc) {
-	r.handle(http.MethodPut, path, perm, h)
+	r.handle(http.MethodPut, path, perm, false, h)
 }
 
 func (r *Router) PATCH(path string, perm authz.Permission, h ...gin.HandlerFunc) {
-	r.handle(http.MethodPatch, path, perm, h)
+	r.handle(http.MethodPatch, path, perm, false, h)
 }
 
 func (r *Router) DELETE(path string, perm authz.Permission, h ...gin.HandlerFunc) {
-	r.handle(http.MethodDelete, path, perm, h)
+	r.handle(http.MethodDelete, path, perm, false, h)
 }
 
-func (r *Router) handle(method, path string, perm authz.Permission, h []gin.HandlerFunc) {
+func (r *Router) handle(method, path string, perm authz.Permission, paginated bool, h []gin.HandlerFunc) {
 	*r.declared = append(*r.declared, DeclaredRoute{
-		Method: method, Path: r.group.BasePath() + path, Permission: perm,
+		Method: method, Path: r.group.BasePath() + path, Permission: perm, Paginated: paginated,
 	})
 	chain := make([]gin.HandlerFunc, 0, len(h)+2)
 	// Membership first: a non-member gets the same answer on every route

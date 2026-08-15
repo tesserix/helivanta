@@ -87,6 +87,18 @@ function getSharedUserManager(): UserManager | null {
  * as `apps/shell/lib/sign-out.ts` documents), `false` if it fell back to
  * the same-origin redirect itself.
  */
+// SIGNED_OUT_MARK records that the user actually signed out, so the login
+// page can say so. Without it /login cannot distinguish a clinician who
+// just ended their shift from someone who simply opened the app and was
+// redirected there by middleware — and telling the latter "You are signed
+// out" is plainly false.
+//
+// sessionStorage rather than a query parameter: post_logout_redirect_uri
+// is matched against what is registered on the Zitadel client, so
+// decorating it risks the logout being rejected outright. Per-tab is also
+// the right scope — signing out in one tab should not relabel another.
+export const SIGNED_OUT_MARK = "hms.signed-out";
+
 export async function endZitadelSession(): Promise<boolean> {
   const userManager = getSharedUserManager();
   if (!userManager) {
@@ -97,6 +109,15 @@ export async function endZitadelSession(): Promise<boolean> {
     return false;
   }
   try {
+    // Set before redirecting: signoutRedirect() navigates away, so
+    // anything after it may never run.
+    try {
+      window.sessionStorage.setItem(SIGNED_OUT_MARK, "1");
+    } catch {
+      // Private mode or a blocked store — the message is cosmetic, and a
+      // sign-out that works but is worded generically beats one that
+      // throws.
+    }
     // signoutRedirect() BEFORE removeUser() — load-bearing, not
     // stylistic: it reads `id_token_hint` from the still-stored user, and
     // clearing first would send Zitadel's end_session request with no way

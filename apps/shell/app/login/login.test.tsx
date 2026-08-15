@@ -1,6 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { SIGNED_OUT_MARK } from "@hms/ui";
+
 import LoginPage from "./page";
 
 const signinRedirect = vi.hoisted(() => vi.fn());
@@ -11,6 +13,37 @@ describe("LoginPage", () => {
   beforeEach(() => {
     signinRedirect.mockReset();
     getUserManager.mockReturnValue({ signinRedirect });
+    window.sessionStorage.clear();
+  });
+
+  // Arriving here unauthenticated is the COMMON case — middleware.ts
+  // redirects any unauthenticated request to /login — so the default
+  // wording must not claim a sign-out happened. Saying "You are signed
+  // out" to someone who was never signed in is untrue, and on a shared
+  // terminal it implies the previous clinician's session was ended when
+  // nothing of the sort occurred.
+  it("does not claim the user signed out when they simply arrived here", () => {
+    render(<LoginPage />);
+    expect(screen.queryByText(/you are signed out/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument();
+  });
+
+  it("confirms the sign-out when the user actually signed out", async () => {
+    window.sessionStorage.setItem(SIGNED_OUT_MARK, "1");
+    render(<LoginPage />);
+    expect(await screen.findByText(/you are signed out/i)).toBeInTheDocument();
+  });
+
+  // Consumed on read: a reload, or navigating back here later in the same
+  // tab, is no longer "you just signed out".
+  it("only confirms it once", async () => {
+    window.sessionStorage.setItem(SIGNED_OUT_MARK, "1");
+    const first = render(<LoginPage />);
+    expect(await screen.findByText(/you are signed out/i)).toBeInTheDocument();
+    first.unmount();
+
+    render(<LoginPage />);
+    expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument();
   });
 
   // #847: the redirect must NOT fire on mount. Sign-out lands on this page

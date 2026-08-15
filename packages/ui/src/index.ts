@@ -7,3 +7,4 @@ export { LoadMore } from "./load-more";
 export { formatDateTime, formatTime } from "./format";
 export { sanitizeHtml } from "./sanitize";
 export { THEME_STORAGE_KEY, THEME_INIT_SCRIPT, ThemeToggle, useThemeAttribute } from "./theme";
+export { SIGNED_OUT_MARK, endZitadelSession } from "./zitadel-session";

@@ -221,7 +221,7 @@ async function hostedUILoginOnce({ issuer, clientId, redirectUri, email, passwor
     const page = await ownBrowser.newPage();
     // The redirect to redirectUri is the proof, captured here rather than
     // waited for as a navigation: the callback route does not exist yet
-    // (apps/shell is still Firebase-based, #838 Task 6 is dev stack/
+    // (the browser flow is the Playwright suite's job, not this script's;
     // seeding only), so letting Chromium actually navigate there would
     // hit a connection error. The request event fires before that happens.
     const gotCode = new Promise((resolve) => {

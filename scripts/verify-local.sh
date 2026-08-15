@@ -67,28 +67,25 @@ check "lab      (4304)"  "http://localhost:4304/lab"      10 20
 # throughout issue #770, a bug where every zone proxied /api/* to the wrong
 # service, so no permission resolved and the sidebar collapsed to one zone.
 #
-# It cannot go through the shell anymore: apps/shell still authenticates
-# via Firebase (Task 6 is dev stack/seeding only, the frontend is a
-# separate follow-on), so /api/session no longer exists on any path a real
-# Zitadel token can take. This instead verifies what IS wired today,
-# straight against the API: a real Zitadel token (via the actual hosted
+# It goes straight against the API rather than through the shell: the
+# browser path is exercised end to end by the Playwright suite, and
+# duplicating it here would make this script depend on four Next dev
+# servers being warm to answer "is auth wired up". This verifies: a real Zitadel token (via the actual hosted
 # login UI, not a shortcut) → POST /v1/auth/login → an HMS session that
 # resolves a real permission on /v1/iam/me/permissions. Each hop is still
 # reported separately by scripts/zitadel-verify-login.mjs, because "the
 # stack is broken" is not actionable but "the session exchange failed" is.
 #
-# Deliberately NOT re-verified here: the shell's own auth wiring
-# (/api/session, the /api/* rewrite through :4301) — that is untestable
-# until the frontend is ported off Firebase, and this script must not
-# pretend otherwise.
+# Deliberately NOT re-verified here: the browser redirect flow
+# (/login -> Zitadel -> /api/auth/callback) and silent renewal. Those are
+# the Playwright suite's job — `pnpm --filter e2e exec playwright test`.
 echo "Authenticated round trip (API-level — see script comment for what this does and does not cover):"
 node scripts/zitadel-verify-login.mjs || fail=1
 
 echo
 if [ "$fail" -eq 0 ]; then
   echo "All checks passed."
-  echo "http://localhost:4301/login renders but cannot sign these accounts in yet —"
-  echo "apps/shell still authenticates via Firebase (see README's Quick start)."
+  echo "Sign in at http://localhost:4301 — you will be redirected to Zitadel."
   echo "Zitadel accounts, login-verified by 'make seed':"
   echo "  test@hms.dev       / HmsDev123!  (tenant_admin)"
   echo "  pharmacist@hms.dev / HmsDev123!  (pharmacist)"

@@ -142,7 +142,14 @@ func run() error {
 	}
 	defer bus.Close()
 
-	verifier, err := authn.NewGIPVerifier(ctx, cfg.GIPProjectID, cfg.IsDev())
+	// The Zitadel verifier replaces GIP's for token verification (plan
+	// Task 3). TokenMinter/TokenRevoker below are STILL GIP's — Task 5
+	// replaces their last callers (iam's tenant switch and
+	// sign-out/revoke) before Task 7 deletes gip.go and the Firebase
+	// dependency entirely; see gip.go's package doc for why this is safe
+	// to leave mid-cutover on this branch (spec D7, plan Task 3's
+	// "Sequencing corrected" note).
+	verifier, err := authn.NewZitadelVerifier(ctx, cfg.ZitadelIssuerURL, cfg.ZitadelClientID)
 	if err != nil {
 		return err
 	}

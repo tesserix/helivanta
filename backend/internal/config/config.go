@@ -14,9 +14,26 @@ type Config struct {
 	AppDatabaseURL   string
 	AdminDatabaseURL string
 	NATSURL          string
-	GIPProjectID     string
-	OpenFGAURL       string
-	OpenFGAStore     string
+	// GIPProjectID is used only by the surviving GIP minter/revoker
+	// (pkg/authn/gip.go — TokenMinter/TokenRevoker, dying code kept alive
+	// until plan Task 5). The GIP token *verifier* was removed in Task 3;
+	// ZitadelIssuerURL/ZitadelClientID below configure its replacement.
+	GIPProjectID string
+	OpenFGAURL   string
+	OpenFGAStore string
+
+	// ZitadelIssuerURL and ZitadelClientID configure the standard-OIDC
+	// verifier in pkg/authn/zitadel.go (spike
+	// docs/superpowers/spikes/2026-08-15-zitadel-spike.md P0-2/P0-4):
+	// issuer for discovery, clientID to pin the audience check. Both
+	// default to the local dev stack's Zitadel (spike/zitadel-838, port
+	// 20080) — a wrong default here fails verification loudly (every
+	// real token's issuer/audience will mismatch) rather than opening a
+	// hole, so a getenv default is safe the same way GIPProjectID's is;
+	// it is not the emulator-signature-bypass case that must never
+	// default (see gip.go's newAuthClient guard).
+	ZitadelIssuerURL string
+	ZitadelClientID  string
 
 	// SessionSigningKey is the raw, still-encoded value of
 	// SESSION_SIGNING_KEY — a base64 Ed25519 seed. Deliberately NOT
@@ -58,6 +75,9 @@ func Load() Config {
 		GIPProjectID:     getenv("GIP_PROJECT_ID", "demo-hms"),
 		OpenFGAURL:       getenv("OPENFGA_URL", "http://localhost:8090"),
 		OpenFGAStore:     getenv("OPENFGA_STORE", "hms"),
+
+		ZitadelIssuerURL: getenv("ZITADEL_ISSUER_URL", "http://localhost:20080"),
+		ZitadelClientID:  getenv("ZITADEL_CLIENT_ID", ""),
 
 		// os.Getenv, not getenv(): getenv's whole purpose is supplying a
 		// default for an unset variable, and a signing key must never

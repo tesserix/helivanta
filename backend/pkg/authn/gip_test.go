@@ -12,85 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
-	"firebase.google.com/go/v4/auth"
 	"github.com/stretchr/testify/require"
 )
-
-func TestPrincipalFromToken_StringTenantID(t *testing.T) {
-	tok := &auth.Token{
-		UID:      "u1",
-		AuthTime: 1700000000,
-		Claims: map[string]interface{}{
-			"tenant_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-		},
-	}
-	p, err := principalFromToken(tok)
-	require.NoError(t, err)
-	require.Equal(t, "u1", p.Subject)
-	require.Equal(t, "3fa85f64-5717-4562-b3fc-2c963f66afa6", p.TenantID)
-	require.Equal(t, time.Unix(1700000000, 0).UTC(), p.AuthTime)
-}
-
-func TestPrincipalFromToken_CanonicalizesMixedCaseUUID(t *testing.T) {
-	tok := &auth.Token{
-		UID:      "u1",
-		AuthTime: 1700000000,
-		Claims: map[string]interface{}{
-			"tenant_id": "AbC12345-5717-4562-B3fc-2C963f66aFA6",
-		},
-	}
-	p, err := principalFromToken(tok)
-	require.NoError(t, err)
-	require.Equal(t, "abc12345-5717-4562-b3fc-2c963f66afa6", p.TenantID)
-}
-
-// TestPrincipalFromToken_MissingAuthTime is the fail-closed complement
-// to the tenant_id checks above: a token that verified fine but carries
-// no auth_time cannot be evaluated against a revocation watermark, so it
-// must be rejected rather than silently treated as "never revoked".
-func TestPrincipalFromToken_MissingAuthTime(t *testing.T) {
-	tok := &auth.Token{
-		UID: "u1",
-		Claims: map[string]interface{}{
-			"tenant_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-		},
-	}
-	_, err := principalFromToken(tok)
-	require.ErrorIs(t, err, ErrNoAuthTime)
-}
-
-func TestPrincipalFromToken_NonUUIDTenantID(t *testing.T) {
-	tok := &auth.Token{
-		UID: "u1",
-		Claims: map[string]interface{}{
-			"tenant_id": "not-a-uuid",
-		},
-	}
-	_, err := principalFromToken(tok)
-	require.ErrorIs(t, err, ErrNoTenantClaim)
-}
-
-func TestPrincipalFromToken_MissingTenantID(t *testing.T) {
-	tok := &auth.Token{
-		UID:    "u1",
-		Claims: map[string]interface{}{},
-	}
-	_, err := principalFromToken(tok)
-	require.ErrorIs(t, err, ErrNoTenantClaim)
-}
-
-func TestPrincipalFromToken_NonStringTenantID(t *testing.T) {
-	tok := &auth.Token{
-		UID: "u1",
-		Claims: map[string]interface{}{
-			"tenant_id": 42,
-		},
-	}
-	_, err := principalFromToken(tok)
-	require.ErrorIs(t, err, ErrNoTenantClaim)
-}
 
 // TestGIPMinterMintsTokenCarryingTheTenantClaim exercises the real
 // Firebase Admin SDK path end to end without any network or emulator:
@@ -100,6 +24,12 @@ func TestPrincipalFromToken_NonStringTenantID(t *testing.T) {
 // token. That claim is the whole point — it is what a client's next ID
 // token inherits, and therefore what decides which hospital the request
 // runs in.
+//
+// This, NewGIPMinter and NewGIPRevoker are the surviving GIP surface
+// (see gip.go's package doc): the verifier tests that used to live here
+// (principalFromToken's tenant_id/auth_time handling, the emulator guard
+// on NewGIPVerifier) were removed with the verifier itself in plan
+// Task 3 — their replacements are in zitadel_test.go.
 func TestGIPMinterMintsTokenCarryingTheTenantClaim(t *testing.T) {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
@@ -140,19 +70,6 @@ func TestGIPMinterMintsTokenCarryingTheTenantClaim(t *testing.T) {
 		"the target tenant must reach the token, or the switch changes nothing")
 }
 
-// firebase-admin-go checks FIREBASE_AUTH_EMULATOR_HOST when the client is
-// constructed; when it is set, VerifyIDToken skips signature verification
-// entirely and trusts the decoded claims. A forged token would be
-// accepted. Constructing a verifier must therefore refuse outside dev.
-func TestNewGIPVerifierRefusesEmulatorOutsideDev(t *testing.T) {
-	t.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
-
-	_, err := NewGIPVerifier(context.Background(), "demo-hms", false)
-
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "FIREBASE_AUTH_EMULATOR_HOST")
-}
-
 func TestNewGIPMinterRefusesEmulatorOutsideDev(t *testing.T) {
 	t.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
 
@@ -162,12 +79,12 @@ func TestNewGIPMinterRefusesEmulatorOutsideDev(t *testing.T) {
 	require.Contains(t, err.Error(), "FIREBASE_AUTH_EMULATOR_HOST")
 }
 
-// TestNewGIPRevokerRefusesEmulatorOutsideDev mirrors the minter and
-// verifier guards: NewGIPRevoker shares newAuthClient, so a production
-// process with the emulator variable accidentally set must refuse to
-// construct a revoker for the same reason it must refuse a verifier — an
-// unverified token could otherwise walk through the revocation watermark
-// this feature exists to enforce.
+// TestNewGIPRevokerRefusesEmulatorOutsideDev mirrors the minter guard:
+// NewGIPRevoker shares newAuthClient, so a production process with the
+// emulator variable accidentally set must refuse to construct a revoker
+// for the same reason it must refuse a minter — an unverified token
+// could otherwise walk through the revocation watermark this feature
+// exists to enforce.
 func TestNewGIPRevokerRefusesEmulatorOutsideDev(t *testing.T) {
 	t.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
 
@@ -175,18 +92,4 @@ func TestNewGIPRevokerRefusesEmulatorOutsideDev(t *testing.T) {
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "FIREBASE_AUTH_EMULATOR_HOST")
-}
-
-// With the emulator explicitly allowed the guard must not fire. The
-// constructor may still fail for unrelated reasons in a sandbox, so this
-// asserts only that the failure is not the guard.
-func TestNewGIPVerifierAllowsEmulatorInDev(t *testing.T) {
-	t.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
-
-	_, err := NewGIPVerifier(context.Background(), "demo-hms", true)
-
-	if err != nil {
-		require.False(t, strings.Contains(err.Error(), "FIREBASE_AUTH_EMULATOR_HOST"),
-			"guard fired despite allowEmulator=true: %v", err)
-	}
 }

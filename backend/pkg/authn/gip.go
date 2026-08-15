@@ -1,48 +1,40 @@
+// Package authn's GIP support is DYING CODE, kept alive only for the two
+// capabilities Zitadel does not replace at the token-verification layer:
+// minting a custom token for tenant switching (TokenMinter) and revoking
+// refresh tokens at the identity provider (TokenRevoker). Both are used
+// by internal/modules/iam (me.go's switchTenant, signout.go/revoke), and
+// deleting this file before those call sites are replaced would not
+// compile — see the "Sequencing corrected" note in
+// docs/superpowers/plans/2026-08-15-zitadel-auth.md Task 3.
+//
+// Task 5 of that plan removes TokenMinter/TokenRevoker's last GIP callers
+// (replacing them with an HMS-session re-mint and the #781 watermark
+// alone), and Task 7 deletes this file and the Firebase dependency
+// entirely. Do not add anything new here, and do not resurrect
+// NewGIPVerifier/gipVerifier/principalFromToken — Task 3 removed the GIP
+// *verifier* path for good; backend/pkg/authn/zitadel.go is what verifies
+// an ID token now.
 package authn
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
-	"github.com/google/uuid"
 )
-
-var ErrNoTenantClaim = errors.New("authn: token has no tenant_id claim")
-
-// ErrNoAuthTime is returned when a verified token carries no auth_time
-// claim. A token with no auth_time cannot be evaluated against a
-// revocation watermark, and a credential that cannot be evaluated is not
-// one that can be trusted.
-var ErrNoAuthTime = errors.New("authn: token has no auth_time claim")
-
-type gipVerifier struct{ client *auth.Client }
 
 type gipMinter struct{ client *auth.Client }
 
 type gipRevoker struct{ client *auth.Client }
 
-// NewGIPVerifier verifies GIP/Firebase ID tokens. It refuses to honor
-// FIREBASE_AUTH_EMULATOR_HOST unless allowEmulator is true (dev only);
-// see newAuthClient for why.
-func NewGIPVerifier(ctx context.Context, projectID string, allowEmulator bool) (TokenVerifier, error) {
-	client, err := newAuthClient(ctx, projectID, allowEmulator)
-	if err != nil {
-		return nil, err
-	}
-	return &gipVerifier{client: client}, nil
-}
-
-// NewGIPMinter mints GIP/Firebase custom tokens. It is a second, narrow
-// view of the same Firebase auth client NewGIPVerifier wraps — separate
-// constructors rather than one object exposing both, so a caller wired
-// for minting cannot also verify (and vice versa), and so adding minting
-// could not change verification. Like the verifier, it refuses to honor
-// FIREBASE_AUTH_EMULATOR_HOST unless allowEmulator is true (dev only).
+// NewGIPMinter mints GIP/Firebase custom tokens. Separate constructors
+// rather than one object exposing both mint and revoke, so a caller
+// wired for minting cannot also revoke (and vice versa), and so adding
+// one capability could not change the other. It refuses to honor
+// FIREBASE_AUTH_EMULATOR_HOST unless allowEmulator is true (dev only) —
+// see newAuthClient.
 //
 // Minting requires a service-account credential (the Admin SDK signs the
 // token locally, or delegates to the IAM signBlob API). Against the auth
@@ -56,11 +48,11 @@ func NewGIPMinter(ctx context.Context, projectID string, allowEmulator bool) (To
 	return &gipMinter{client: client}, nil
 }
 
-// NewGIPRevoker revokes GIP/Firebase refresh tokens. A third narrow view
-// of the same Firebase auth client NewGIPVerifier and NewGIPMinter wrap,
-// for the same separation-of-capability reason: a caller wired to revoke
-// cannot also verify or mint. Like both, it refuses to honor
-// FIREBASE_AUTH_EMULATOR_HOST unless allowEmulator is true (dev only).
+// NewGIPRevoker revokes GIP/Firebase refresh tokens. A second narrow
+// view of the same Firebase auth client NewGIPMinter wraps, for the same
+// separation-of-capability reason: a caller wired to revoke cannot also
+// mint. Like NewGIPMinter, it refuses to honor FIREBASE_AUTH_EMULATOR_HOST
+// unless allowEmulator is true (dev only).
 func NewGIPRevoker(ctx context.Context, projectID string, allowEmulator bool) (TokenRevoker, error) {
 	client, err := newAuthClient(ctx, projectID, allowEmulator)
 	if err != nil {
@@ -113,44 +105,4 @@ func (g *gipRevoker) RevokeRefreshTokens(ctx context.Context, uid string) error 
 		return fmt.Errorf("revoke refresh tokens for %s: %w", uid, err)
 	}
 	return nil
-}
-
-func (g *gipVerifier) Verify(ctx context.Context, raw string) (Principal, error) {
-	tok, err := g.client.VerifyIDToken(ctx, raw)
-	if err != nil {
-		return Principal{}, err
-	}
-	return principalFromToken(tok)
-}
-
-// principalFromToken maps a verified GIP/Firebase token to a Principal,
-// enforcing that a tenant_id claim is present, is a string, and parses as
-// a UUID. The canonical uuid.String() lowercase form is stored on
-// Principal.TenantID rather than the raw claim, so every downstream
-// consumer (Resolve's object-id prefix matching, the iam-fga-sync
-// consumer, tenant comparisons) sees one consistent casing regardless of
-// how the issuer rendered the claim. This is also why Resolve's
-// "perm:"+tenantID+"/" prefix match is safe: a canonical UUID string
-// cannot contain "/", so it can never be mistaken for a prefix of a
-// different tenant's object id.
-func principalFromToken(tok *auth.Token) (Principal, error) {
-	raw, ok := tok.Claims["tenant_id"].(string)
-	if !ok || raw == "" {
-		return Principal{}, ErrNoTenantClaim
-	}
-	tenantID, err := uuid.Parse(raw)
-	if err != nil {
-		return Principal{}, ErrNoTenantClaim
-	}
-	// A token with no auth_time claim cannot be evaluated against a
-	// revocation watermark, and a credential that cannot be evaluated is
-	// not one that can be trusted.
-	if tok.AuthTime == 0 {
-		return Principal{}, ErrNoAuthTime
-	}
-	return Principal{
-		Subject:  tok.UID,
-		TenantID: tenantID.String(),
-		AuthTime: time.Unix(tok.AuthTime, 0).UTC(),
-	}, nil
 }

@@ -2,6 +2,7 @@ package authn
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -15,8 +16,32 @@ const SessionCookie = "hms_session"
 
 const principalKey = "authn.principal"
 
+// ErrNoAuthTime is returned when a verified token carries no auth_time
+// claim. A token with no auth_time cannot be evaluated against a
+// revocation watermark, and a credential that cannot be evaluated is not
+// one that can be trusted.
+var ErrNoAuthTime = errors.New("authn: token has no auth_time claim")
+
 type Principal struct {
-	Subject  string `json:"subject"`
+	Subject string `json:"subject"`
+	// TenantID is HMS's own fact, not the identity provider's (spec
+	// docs/superpowers/specs/2026-08-15-zitadel-auth-design.md, decision
+	// D1) — Zitadel carries no claim asserting which organization a
+	// token was issued for.
+	//
+	// TRANSITIONAL, until plan Task 4/5 land: a Principal produced by
+	// verifying a raw Zitadel ID token (pkg/authn/zitadel.go) can only
+	// ever assert who authenticated and when, never a tenant — so
+	// TenantID is left as the empty string, not fabricated. This is
+	// deliberately NOT loosened anywhere else to treat an empty TenantID
+	// as "no tenant scoping needed": TenantPrincipal below still requires
+	// TenantID to parse as a UUID and 401s otherwise, so an empty
+	// TenantID still fails closed, exactly as a malformed one always has.
+	// Once Task 4 mints an HMS session carrying a real tenant_id (D2) and
+	// wires ITS verifier into authn.Middleware, every Principal reaching
+	// TenantPrincipal will have a real tenant again; until then, no
+	// tenant-scoped route can be reached with a bare Zitadel token, by
+	// construction.
 	TenantID string `json:"tenant_id"`
 	// AuthTime is when the user actually authenticated, not when this
 	// token was issued. A token refresh mints a new token with a fresh

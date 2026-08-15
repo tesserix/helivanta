@@ -128,20 +128,33 @@ Commit: `feat: refuse to boot without a session signing key (#838)`
 
 ## Task 3: the Zitadel verifier
 
-**Files:** `backend/pkg/authn/zitadel.go` (new), `gip.go` (**deleted**), `authn.go`
+**Files:** `backend/pkg/authn/zitadel.go` (new), `gip.go` (verifier removed; minter/revoker stay until Task 5), `authn.go`, `cmd/api/main.go`
+
+> **Sequencing corrected 2026-08-15.** This task originally said "delete
+> `gip.go` and the Firebase dependency in the same commit". That is not
+> buildable: `TokenMinter` is used by `iam/me.go`'s `switchTenant` and
+> `TokenRevoker` by sign-out/revoke, so deleting the file before Task 5 replaces
+> those call sites cannot compile.
+>
+> D7 forbids **merging** a dual-provider state to `main`; it does not require
+> every intermediate commit on the branch to be single-provider. So: Task 3
+> replaces the *verifier* only. `gip.go` keeps its minter and revoker, clearly
+> marked as dying, until Task 5 removes their last callers — and Task 7's `grep`
+> is what proves nothing survived.
 
 - [ ] Implement `TokenVerifier` with `github.com/coreos/go-oidc/v3` against
   Zitadel's discovery document *(observed to work, with negative-case proof)*.
-- [ ] **Delete `gip.go` and the Firebase dependency in the same commit.**
-- [ ] `TokenMinter` (the custom-token concept) **goes away entirely** — nothing
-  mints IdP tokens now. `TokenRevoker`'s fate follows Task 5.
+- [ ] **Delete the GIP verifier path** and switch `cmd/api` to the Zitadel one.
+- [ ] **Leave `TokenMinter` and `TokenRevoker` in place**, with a comment on each
+  naming Task 5 as what removes them. The Firebase dependency therefore survives
+  this task; Task 5 drops it.
 - [ ] Tests: a valid token verifies; wrong issuer, wrong audience, expired, and
   tampered tokens are each refused. Reuse the spike's negative cases.
 - [ ] **A token with no `auth_time` is refused** — the existing contract, and the
   reason is not hygiene: a credential that cannot be evaluated against the
   watermark is not one that can be trusted.
 
-Commit: `feat: verify Zitadel ID tokens through standard OIDC, deleting the Firebase SDK (#838)`
+Commit: `feat: verify Zitadel ID tokens through standard OIDC (#838)`
 
 ---
 

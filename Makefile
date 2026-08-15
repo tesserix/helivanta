@@ -107,9 +107,19 @@ RATE_LIMIT_MINT_PER_MIN ?= 60
 
 # HMS_ENV=dev is required here: the API refuses to start with
 # FIREBASE_AUTH_EMULATOR_HOST set outside dev, because the emulator makes
-# ID token signature verification a no-op.
+# ID token signature verification a no-op — and, since #838 Task 2, the
+# API also refuses to start with no SESSION_SIGNING_KEY at all, or with
+# HMS_DEV_SESSION_SIGNING_KEY set outside HMS_ENV=dev (see
+# backend/internal/config/signingkey.go). HMS_DEV_SESSION_SIGNING_KEY
+# below is the SAME well-known value as config.DevSessionSigningKey —
+# committed to source, shared by every developer and CI runner, and
+# usable ONLY because HMS_ENV=dev is required alongside it here. It is
+# a make variable of its own (not inlined into SESSION_SIGNING_KEY
+# directly) so a developer who has provisioned a real key via .env can
+# override it the same way every other HMS_* variable here works.
+HMS_DEV_SESSION_SIGNING_KEY ?= X5yoi73f6FRR8XH2ZfRBjanOZLm/bkae0QV7wGJRuf8=
 dev-api:
-	cd backend && HMS_ENV=$${HMS_ENV:-dev} FIREBASE_AUTH_EMULATOR_HOST=$${FIREBASE_AUTH_EMULATOR_HOST:-localhost:$(HMS_GIP_PORT)} PORT=$${PORT:-$(HMS_API_PORT)} RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) RATE_LIMIT_MINT_PER_MIN=$(RATE_LIMIT_MINT_PER_MIN) go run ./cmd/api
+	cd backend && HMS_ENV=$${HMS_ENV:-dev} FIREBASE_AUTH_EMULATOR_HOST=$${FIREBASE_AUTH_EMULATOR_HOST:-localhost:$(HMS_GIP_PORT)} SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-$(HMS_DEV_SESSION_SIGNING_KEY)} PORT=$${PORT:-$(HMS_API_PORT)} RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) RATE_LIMIT_MINT_PER_MIN=$(RATE_LIMIT_MINT_PER_MIN) go run ./cmd/api
 
 dev-web:
 	pnpm turbo dev

@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"time"
 )
 
 type Config struct {
@@ -16,6 +17,26 @@ type Config struct {
 	GIPProjectID     string
 	OpenFGAURL       string
 	OpenFGAStore     string
+
+	// SessionSigningKey is the raw, still-encoded value of
+	// SESSION_SIGNING_KEY — a base64 Ed25519 seed. Deliberately NOT
+	// decoded or defaulted here: Load() has no way to fail, and a
+	// signing key is exactly the thing that must be able to refuse
+	// construction (see SessionSigningKeySeed and §3 below). It is left
+	// as the empty string when unset, same as any other unset env var,
+	// and it is SessionSigningKeySeed's job — not Load's — to turn
+	// "empty" into a boot refusal.
+	SessionSigningKey string
+	// SessionIssuer is the `iss` claim HMS's own session tokens carry
+	// and the Verifier checks against. Safe to default: it is a label,
+	// not a secret, and an operator who cares can override it.
+	SessionIssuer string
+	// SessionTTL bounds how long an HMS session is honoured before it
+	// must be renewed. Spec D4 makes this the upper bound on how long a
+	// user deactivated upstream (in Zitadel) keeps working — Task 5
+	// chooses and justifies the actual number; this default is a
+	// deliberately short placeholder, not that decision.
+	SessionTTL time.Duration
 
 	// Rate limits are env-configurable, unlike the pagination page-size
 	// constants: a page size bounds a query, but a rate limit bounds
@@ -37,6 +58,13 @@ func Load() Config {
 		GIPProjectID:     getenv("GIP_PROJECT_ID", "demo-hms"),
 		OpenFGAURL:       getenv("OPENFGA_URL", "http://localhost:8090"),
 		OpenFGAStore:     getenv("OPENFGA_STORE", "hms"),
+
+		// os.Getenv, not getenv(): getenv's whole purpose is supplying a
+		// default for an unset variable, and a signing key must never
+		// have one (see SessionSigningKeySeed's doc comment).
+		SessionSigningKey: os.Getenv("SESSION_SIGNING_KEY"),
+		SessionIssuer:     getenv("SESSION_ISSUER", "https://hms.local"),
+		SessionTTL:        getenvDuration("SESSION_TTL", 15*time.Minute),
 
 		RateLimitTenantPerMin:    getenvInt("RATE_LIMIT_TENANT_PER_MIN", 600),
 		RateLimitPrincipalPerMin: getenvInt("RATE_LIMIT_PRINCIPAL_PER_MIN", 120),
@@ -70,6 +98,26 @@ func getenvInt(k string, def int) int {
 		return def
 	}
 	return n
+}
+
+// getenvDuration returns def when k is unset OR unparseable, for the
+// same reason getenvInt does: a session TTL is a capacity control (it
+// trades renewal traffic against how long a stale grant keeps working),
+// not the identity control the signing key itself is. A mistyped
+// SESSION_TTL must not be able to stop the API from booting; the
+// fallback is logged so the mistype is visible rather than silently
+// eaten.
+func getenvDuration(k string, def time.Duration) time.Duration {
+	v := os.Getenv(k)
+	if v == "" {
+		return def
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		slog.Warn("invalid duration env var; using default", "key", k, "value", v, "default", def)
+		return def
+	}
+	return d
 }
 
 // IsDev reports whether this process is running in a developer

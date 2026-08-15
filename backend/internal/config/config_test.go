@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/hms/internal/config"
@@ -76,4 +77,34 @@ func TestRateLimitEnvFallsOpenOnUnparseableValue(t *testing.T) {
 	cfg := config.Load()
 	require.Equal(t, 600, cfg.RateLimitTenantPerMin,
 		"an unparseable rate limit must fall back to the production default, not to zero or a boot failure")
+}
+
+// TestSessionTTLDefaultsAndFallsOpen pins SessionTTL's default and
+// proves it is env-overridable, then proves the SAME fail-open
+// direction as the rate limits: unlike SESSION_SIGNING_KEY, an
+// unparseable SESSION_TTL is a capacity/latency-bound control (it
+// trades renewal traffic against upstream-deactivation latency, spec
+// D4), not the identity control the key is, so it must fall back to
+// the default rather than block boot.
+func TestSessionTTLDefaultsAndFallsOpen(t *testing.T) {
+	t.Setenv("SESSION_TTL", "")
+	require.Equal(t, 15*time.Minute, config.Load().SessionTTL)
+
+	t.Setenv("SESSION_TTL", "5m")
+	require.Equal(t, 5*time.Minute, config.Load().SessionTTL)
+
+	t.Setenv("SESSION_TTL", "not-a-duration")
+	require.Equal(t, 15*time.Minute, config.Load().SessionTTL,
+		"an unparseable SESSION_TTL must fall back to the default, not block boot")
+}
+
+// TestSessionIssuerDefaultsAndOverrides pins SessionIssuer's default —
+// a label the Verifier checks the session token's `iss` claim against,
+// not a secret — and proves it is overridable.
+func TestSessionIssuerDefaultsAndOverrides(t *testing.T) {
+	t.Setenv("SESSION_ISSUER", "")
+	require.Equal(t, "https://hms.local", config.Load().SessionIssuer)
+
+	t.Setenv("SESSION_ISSUER", "https://hms.example.org")
+	require.Equal(t, "https://hms.example.org", config.Load().SessionIssuer)
 }

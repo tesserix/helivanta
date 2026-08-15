@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -27,6 +30,15 @@ import (
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
+// sessionSigningKeyID is the `kid` HMS's session tokens carry until key
+// rotation is designed (out of scope here, plan Task 2 / spec D5 — the
+// header exists from the start so rotation is not precluded later).
+// Fixed rather than derived from the key material itself: deriving it
+// from the key would make "kid" a second, redundant fingerprint of the
+// exact secret this whole package exists to keep out of logs and error
+// messages.
+const sessionSigningKeyID = "hms-session-v1"
+
 func main() {
 	if err := run(); err != nil {
 		slog.Error("fatal", "err", err)
@@ -43,6 +55,52 @@ func run() error {
 	// checks (see Config.IsDev) — a prod process accidentally started with
 	// HMS_ENV=dev would otherwise disable them with no signal anywhere.
 	slog.Info("resolved environment", "env", cfg.Env, "is_dev", cfg.IsDev())
+
+	// Resolved before anything else that costs time or a network round
+	// trip (DB, NATS, OpenFGA): a missing or malformed signing key is a
+	// configuration defect the operator can fix in seconds, and it
+	// should be the FIRST thing a bad deploy reports, not something
+	// discovered after a DB connection and a set of migrations already
+	// ran. See config.SessionSigningKeySeed's doc comment for why this
+	// refuses rather than generating or defaulting a key — it is a
+	// data/identity control (engineering-principles.md §3) and fails
+	// CLOSED, unlike every other cfg.* value read so far.
+	//
+	// Only decoded and validated here, deliberately not yet turned into
+	// a session.Signer/session.Verifier and wired into a route: nothing
+	// mints or checks an HMS session until Task 3/4 of
+	// docs/superpowers/plans/2026-08-15-zitadel-auth.md land the Zitadel
+	// verifier those need. This task's job is narrower — prove the key
+	// loads and is genuine, and refuse to boot otherwise — and
+	// constructing a Signer/Verifier nobody calls would be exactly the
+	// kind of half-built code docs/standards/engineering-principles.md
+	// forbids.
+	sessionSeed, err := cfg.SessionSigningKeySeed()
+	if err != nil {
+		return err
+	}
+	sessionKey := ed25519.NewKeyFromSeed(sessionSeed)
+	// Logging a fingerprint of the PUBLIC key (never the private key,
+	// never the seed) confirms the key loaded, the same way "resolved
+	// environment" confirms HMS_ENV without printing a secret. The
+	// public key itself is not secret either, but a fingerprint keeps
+	// this line short and avoids training anyone to expect a raw key
+	// value in a log line.
+	sessionKeyFingerprint := sha256.Sum256(sessionKey.Public().(ed25519.PublicKey))
+	slog.Info("session signing key loaded",
+		"kid", sessionSigningKeyID,
+		"issuer", cfg.SessionIssuer,
+		// .String(), not the bare time.Duration: slog has no special case
+		// for time.Duration, so an unconverted value renders as a raw
+		// nanosecond int64 (900000000000 for the 15-minute default) —
+		// observed to false-positive-match pkg/logging's 12-digit Aadhaar
+		// pattern and come out as "[REDACTED:aadhaar]" instead of a
+		// readable TTL. .String() ("15m0s") is unambiguous, readable, and
+		// has no digit run long enough to trip any redaction pattern.
+		"ttl", cfg.SessionTTL.String(),
+		"public_key_fingerprint", hex.EncodeToString(sessionKeyFingerprint[:8]),
+	)
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 

@@ -107,15 +107,18 @@ test("pharmacist can dispense a visit created by admin", async ({ page }) => {
   // and reached the dashboard as admin without ever calling login() at
   // all.
   //
-  // The provable, unambiguous signal that the chain finished — and that
-  // Zitadel's SSO session was genuinely cleared, not silently reused — is
-  // the credential form itself actually rendering. A manual trace of this
-  // exact sequence (docs kept in the PR body) confirms sign-out's
-  // end_session call carries `id_token_hint` and Zitadel does land back on
-  // a real Loginname prompt once it's processed; waiting for that prompt
-  // here, rather than for an intermediate URL Playwright may not observe
-  // as a distinct "landed" state, is what makes this deterministic.
-  await expect(page.getByLabel(/Loginname|Email|Login Name/i).first()).toBeVisible({
+  // Since #847 the chain settles on HMS's own /login landing page — it no
+  // longer carries on to Zitadel by itself. The unambiguous "chain
+  // finished" signal is therefore that page's Sign in button rendering.
+  //
+  // Note what this does and does NOT prove. It proves the sign-out
+  // navigation completed, which is all this spec needs before handing off
+  // to the pharmacist. It does NOT prove Zitadel's SSO session was
+  // cleared: the Sign in button sends prompt=login, so a credential form
+  // would appear either way. That guarantee lives in signout.spec.ts,
+  // where it is asserted against an authorize request WITHOUT prompt —
+  // the only form of it that cannot pass vacuously.
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible({
     timeout: 20_000,
   });
   await login(page, specPharmacist());

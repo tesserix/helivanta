@@ -589,6 +589,89 @@ subscribed to a subject no module publishes; `TestNoSubjectIsPublishedByTwoModul
 keeps one subject to one publisher. A published subject with no consumer is
 legal and checked by nothing.
 
+### The outbox is inside the RLS boundary
+
+`outbox_events` carries a `tenant_id` and a forced-RLS policy like any other
+tenant table (#835). It used to carry none, which meant a patient name written
+into a payload was readable by **any** `WithSystem` transaction in any module,
+forever, with no policy in the way.
+
+`tenant_id` is **nullable**, and that is deliberate. `SubjectCredentialRevoked`
+publishes with no tenant at all — revocation is subject-scoped and ends every
+session for a subject *in every tenant* — and broadcasts travel the same
+`Publish` → outbox → dispatcher path as module events. So the policy is
+asymmetric:
+
+```sql
+USING      (hms_tenant_visible(tenant_id))
+WITH CHECK (tenant_id IS NULL
+            OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)
+```
+
+- `USING` omits the NULL case, so a tenant-less row is readable by **nobody**
+  under RLS. A platform-wide event is not any single tenant's to read.
+- `WITH CHECK` must permit NULL, or publishing a tenant-less event from inside
+  a tenant-scoped transaction — exactly what sign-out does — is rejected and
+  sign-out 500s.
+
+**Every `WITH CHECK` needs its own `NULLIF`.** `USING` clauses are safe because
+they call `hms_tenant_visible`, which carries it; `WITH CHECK` clauses *cannot*
+call that function (the lint requires writes to stay pinned to one tenant), so
+they must wrap `current_setting` themselves. Without it, an unset GUC on a
+**reused pooled connection** is `''` rather than NULL — `current_setting`
+returns SQL NULL only the first time a session ever names it — and `''::uuid`
+is a hard type error. The same cross-tenant write then reports
+`new row violates row-level security policy` on a fresh connection and
+`invalid input syntax for type uuid: ""` on a reused one, so enforcement
+becomes indistinguishable from malformed input, nondeterministically.
+
+**Only the dispatcher and the pruner use `WithAdmin` on this path**, both
+allowlisted in `internal/archtest`. The dispatcher must: `WithSystem` sets no
+tenant GUC, so under the new policy it would select zero rows on every tick —
+and `drainOnce` returns no error on an empty result, so the entire event bus
+would stop platform-wide with nothing in the log.
+`TestDispatcherPublishesEveryTenant` pins that. `Prune` must, for the same
+reason in reverse: a `DELETE` under `WithSystem` matches nothing and reports
+success, which is why `TestPruneDeletesPublishedOutboxRows` asserts the row
+count drops rather than that the call returned nil.
+
+### Retention
+
+`streamMaxAge` (24h) bounds how long a payload lives on the stream and how long
+a *published* outbox row is kept. **Unpublished outbox rows are never pruned at
+any age** — an old unpublished row is a dispatcher failure to investigate, not
+garbage.
+
+`processedRetention` is **derived** as `streamMaxAge + 24h`, never written as a
+second number. `processed_events` is the idempotency ledger and JetStream
+redelivers for `streamMaxAge`, so pruning the ledger sooner makes a redelivered
+event indistinguishable from a new one: the consumer's `ON CONFLICT DO NOTHING`
+claim finds no row, runs the handler again, and writes a **second dispense
+record**. A duplicate clinical row produced by a cleanup job.
+`TestProcessedRetentionOutlivesRedelivery` makes the invariant a CI failure
+rather than a comment.
+
+### Payload fields carrying PHI are pinned by hand
+
+Every exported field of every contract payload must appear in one of two maps in
+`internal/archtest/event_payload_test.go` — `eventPayloadPHIAllowlist` (with the
+reason it must be on the wire) or `eventPayloadReviewedNonPHI` (with the reason
+it is not PHI). A field in neither fails CI by name.
+
+**There is no automatic pass, including for identifier-shaped names.** An
+earlier version auto-classified anything ending in `ID` as an opaque row
+pointer; it silently admitted `AadhaarID` and `ABHAID`. Aadhaar is sensitive
+personal data under the DPDP Act and ABHA is the national health identifier —
+being an identifier is an argument for scrutiny, not against it. Nor is
+classification by Go type: a date of birth is as identifying as a `time.Time`
+as it is as a `string`.
+
+Payload minimisation is the rule, but **stripping PHI outright is not the
+answer here**: consumers write `patient_name` into their own tenant-scoped,
+RLS-forced tables and a pharmacist's queue displays it, and modules may not
+import modules, so there is no cross-module read path to fetch it instead. The
+destination is legitimate; it was the transport that was not.
+
 ## 7. Migrations
 
 Every module's `Migrations()` returns `[]tenantdb.Migration{{ID, SQL}}`

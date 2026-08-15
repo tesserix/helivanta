@@ -21,7 +21,10 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 	appDSN, adminDSN := testinfra.StartPostgres(t)
 	db, err := tenantdb.Open(appDSN, adminDSN)
 	require.NoError(t, err)
-	require.NoError(t, db.Migrate(context.Background(), events.Migrations()))
+	// tenantdb.Migrations() must run first: outbox_events' policy
+	// (0002_events_outbox_tenant) calls hms_tenant_visible, which only
+	// tenantdb.Migrations() defines.
+	require.NoError(t, db.Migrate(context.Background(), append(tenantdb.Migrations(), events.Migrations()...)))
 
 	natsURL := testinfra.StartNATS(t)
 	bus, err := events.NewBusInNamespace(natsURL, t.Name())
@@ -95,7 +98,11 @@ func TestConsumerTenantScopedWrite(t *testing.T) {
 	db, err := tenantdb.Open(appDSN, adminDSN)
 	require.NoError(t, err)
 
-	migs := append(events.Migrations(), tenantdb.Migration{
+	// tenantdb.Migrations() first: outbox_events' own policy
+	// (0002_events_outbox_tenant, inside events.Migrations()) calls
+	// hms_tenant_visible, which only tenantdb.Migrations() defines.
+	migs := append(tenantdb.Migrations(), events.Migrations()...)
+	migs = append(migs, tenantdb.Migration{
 		ID: "0002_consumer_widgets",
 		SQL: `
 			CREATE TABLE consumer_widgets (
@@ -132,7 +139,15 @@ func TestConsumerTenantScopedWrite(t *testing.T) {
 	}}))
 	go bus.RunDispatcher(ctx, db)
 
-	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
+	// Published from inside WithTenant(tenantA, ...), not WithSystem: since
+	// 0002_events_outbox_tenant, the outbox's WITH CHECK pins a
+	// non-NULL tenant_id to the GUC of the transaction that inserted it
+	// (design spec D1a) — this mirrors how every real tenant-scoped
+	// publisher in this codebase calls Publish (see
+	// docs/standards/backend.md's events section), unlike iam's
+	// tenant-less CredentialRevoked broadcast, which really does publish
+	// from WithSystem.
+	require.NoError(t, db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
 		return bus.Publish(tx, "hms.in.test.tenantwrite.v1", events.Event{
 			Type: "TenantWrite", Version: 1, TenantID: tenantA,
 			Data: json.RawMessage(`{}`),

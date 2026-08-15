@@ -360,11 +360,20 @@ func TestEveryCollectionGETIsPaginated(t *testing.T) {
 
 // withAdminAllowlist is exactly the files permitted to call
 // tenantdb.DB.WithAdmin — the reconciler (its one legitimate whole-system
-// caller) and pkg/tenantdb itself (the method's own definition and its
-// direct test). Extending this list is a real RLS-bypass decision, not a
-// convenience; it belongs in code review, not a casual addition here.
+// caller), the outbox dispatcher (#835 Task 1 — draining outbox_events
+// across every tenant is its one job, and RLS on that table since
+// 0002_events_outbox_tenant would otherwise blind it, see drainOnce's
+// comment in pkg/events/bus.go), the outbox/ledger pruner (#835 Task 2 —
+// Prune must run on the admin pool or a DELETE under WithSystem matches
+// zero rows across every tenant and reports success, see Prune's comment
+// in pkg/events/retention.go), and pkg/tenantdb itself (the method's own
+// definition and its direct test). Extending this list is a real
+// RLS-bypass decision, not a convenience; it belongs in code review, not a
+// casual addition here.
 var withAdminAllowlist = map[string]bool{
 	"internal/platform/reconcile.go": true,
+	"pkg/events/bus.go":              true,
+	"pkg/events/retention.go":        true,
 }
 
 // withAdminAllowedDir reports whether path sits under a directory that's

@@ -159,6 +159,10 @@ func run() error {
 		}
 	}
 	go bus.RunDispatcher(ctx, db)
+	// A separate loop and ticker from the dispatcher's 500ms tick (#835
+	// Task 2, spec D3): pruning belongs on its own hourly cadence, not
+	// coupled to publish throughput.
+	go bus.RunPruner(ctx, db)
 
 	httpSrv := &http.Server{Addr: ":" + cfg.Port, Handler: srv.Engine, ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)

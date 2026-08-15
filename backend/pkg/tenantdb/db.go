@@ -179,14 +179,24 @@ func (d *DB) WithAdmin(ctx context.Context, fn func(tx *gorm.DB) error) error {
 
 // lintAllowlist names the tables that legitimately carry no tenant_id.
 //
-// outbox_events is here under protest: it holds event payloads that today
-// include patient names, outside any RLS boundary, readable by any
-// WithSystem transaction. Giving it a tenant_id changes the dispatcher's
-// access path, so it is tracked separately on #774 rather than fixed here.
+// outbox_events is deliberately NOT here (#835/#774, Task 1): it now
+// carries a nullable tenant_id and forced RLS via
+// events.Migrations()'s 0002_events_outbox_tenant, so a module that
+// forgets its own table's isolation is still caught the same as before —
+// this table stopped being a hole.
 var lintAllowlist = map[string]bool{
 	"schema_migrations": true,
-	"outbox_events":     true,
-	"processed_events":  true,
+	// processed_events is the cross-consumer idempotency ledger
+	// (consumer, event_id, processed_at) — keyed on (consumer, event_id),
+	// not per-tenant. Not every event carries a tenant (broadcasts, e.g.
+	// CredentialRevoked, have none — bus.go's handleMsg only sets the GUC
+	// when evt.TenantID parses), so a NOT NULL tenant_id would break
+	// dedup for those, and a nullable one gives a tenant_isolation policy
+	// nothing to enforce (every consumer's claim row would be equally
+	// unscoped). It holds no PHI — consumer name, event id, timestamp —
+	// the same argument iam_credential_revocations makes below. It needs
+	// pruning (retention, not RLS), tracked separately (#835 Task 2).
+	"processed_events": true,
 	// A GIP subject is global, not tenant-scoped, so a revocation
 	// watermark cannot carry a tenant_id and cannot be RLS-policied. The
 	// table holds no tenant data and no PHI: subject, timestamp, reason,

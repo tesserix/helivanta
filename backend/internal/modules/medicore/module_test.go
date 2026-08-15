@@ -54,10 +54,16 @@ func TestCreateAndListVisits(t *testing.T) {
 	require.NotContains(t, do(r, "GET", "/v1/medicore/visits", "tokB", "").Body.String(), "Asha Rao")
 
 	// visit_created reached the outbox and got published (peek the
-	// outbox row directly — no consumer in this module).
+	// outbox row directly — no consumer in this module). Read under
+	// WithTenant(TenantA), not WithSystem: since #835 Task 1,
+	// outbox_events carries the publishing tenant and is RLS-forced, so
+	// a WithSystem read (no tenant GUC) now sees nothing here — that is
+	// the point of the change, not a regression. Reading through
+	// WithTenant also proves the row was actually tagged with this
+	// tenant's id, not just that some row exists.
 	require.Eventually(t, func() bool {
 		var n int64
-		_ = db.WithSystem(ctx, func(tx *gorm.DB) error {
+		_ = db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 			return tx.Raw(`SELECT count(*) FROM outbox_events
 				WHERE subject = 'hms.in.medicore.visit_created.v1' AND published_at IS NOT NULL`).Scan(&n).Error
 		})

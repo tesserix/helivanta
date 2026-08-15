@@ -26,7 +26,9 @@ func TestPanickingConsumerDoesNotKillTheProcess(t *testing.T) {
 	appDSN, adminDSN := testinfra.StartPostgres(t)
 	db, err := tenantdb.Open(appDSN, adminDSN)
 	require.NoError(t, err)
-	require.NoError(t, db.Migrate(context.Background(), events.Migrations()))
+	// tenantdb.Migrations() first: outbox_events' policy
+	// (0002_events_outbox_tenant) calls hms_tenant_visible.
+	require.NoError(t, db.Migrate(context.Background(), append(tenantdb.Migrations(), events.Migrations()...)))
 
 	natsURL := testinfra.StartNATS(t)
 	bus, err := events.NewBusInNamespace(natsURL, t.Name())

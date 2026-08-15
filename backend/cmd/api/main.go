@@ -27,6 +27,7 @@ import (
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/logging"
 	"github.com/tesserix/hms/pkg/ratelimit"
+	"github.com/tesserix/hms/pkg/session"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -66,15 +67,13 @@ func run() error {
 	// data/identity control (engineering-principles.md §3) and fails
 	// CLOSED, unlike every other cfg.* value read so far.
 	//
-	// Only decoded and validated here, deliberately not yet turned into
-	// a session.Signer/session.Verifier and wired into a route: nothing
-	// mints or checks an HMS session until Task 3/4 of
-	// docs/superpowers/plans/2026-08-15-zitadel-auth.md land the Zitadel
-	// verifier those need. This task's job is narrower — prove the key
-	// loads and is genuine, and refuse to boot otherwise — and
-	// constructing a Signer/Verifier nobody calls would be exactly the
-	// kind of half-built code docs/standards/engineering-principles.md
-	// forbids.
+	// Task 2 only decoded and validated the key here, deliberately not
+	// yet turned into a session.Signer/session.Verifier: nothing minted
+	// or checked an HMS session until Task 4 of
+	// docs/superpowers/plans/2026-08-15-zitadel-auth.md landed the login
+	// endpoint and the request-path verifier that use it — see the
+	// Signer/Verifier construction just below run() builds the OpenFGA
+	// client, where both are now actually wired to something.
 	sessionSeed, err := cfg.SessionSigningKeySeed()
 	if err != nil {
 		return err
@@ -142,18 +141,48 @@ func run() error {
 	}
 	defer bus.Close()
 
-	// The Zitadel verifier replaces GIP's for token verification (plan
-	// Task 3). TokenMinter/TokenRevoker below are STILL GIP's — Task 5
-	// replaces their last callers (iam's tenant switch and
-	// sign-out/revoke) before Task 7 deletes gip.go and the Firebase
-	// dependency entirely; see gip.go's package doc for why this is safe
-	// to leave mid-cutover on this branch (spec D7, plan Task 3's
-	// "Sequencing corrected" note).
-	verifier, err := authn.NewZitadelVerifier(ctx, cfg.ZitadelIssuerURL, cfg.ZitadelClientID)
+	// zitadelVerifier verifies a Zitadel ID token through standard OIDC
+	// (plan Task 3). Task 4 narrows where that verifier is used: it is
+	// ONLY the login endpoint's job now (see loginHandlers below) to
+	// look at a raw Zitadel token at all. Every ordinary /v1 request
+	// verifies an HMS session instead (requestVerifier, built from
+	// sessionVerifier just below) — that is what ends the interim state
+	// recorded in the plan's "Interim-state note" after Task 3, where
+	// Principal.TenantID could only ever be empty because nothing yet
+	// minted a session carrying a real one.
+	zitadelVerifier, err := authn.NewZitadelVerifier(ctx, cfg.ZitadelIssuerURL, cfg.ZitadelClientID)
 	if err != nil {
 		return err
 	}
 
+	// sessionSigner mints HMS sessions (login, and Task 5's tenant
+	// switch); sessionVerifier checks them. Built from the SAME
+	// sessionKey decoded and refused-to-boot-without above, and the SAME
+	// sessionSigningKeyID logged there — a Signer and Verifier
+	// constructed from two different keys or kids would silently refuse
+	// every session this process itself mints, which is exactly the kind
+	// of self-inflicted outage a single shared source of truth for both
+	// avoids.
+	sessionSigner, err := session.NewSigner(sessionKey, sessionSigningKeyID, cfg.SessionIssuer, cfg.SessionTTL)
+	if err != nil {
+		return err
+	}
+	sessionVerifier, err := session.NewVerifier(sessionKey.Public().(ed25519.PublicKey), sessionSigningKeyID, cfg.SessionIssuer)
+	if err != nil {
+		return err
+	}
+	// requestVerifier is what bootstrap.V1Chain mounts in front of every
+	// ordinary /v1 route (below). It refuses a raw Zitadel ID token
+	// outright — see authn.NewSessionVerifier's doc comment for why that
+	// is structural (wrong algorithm and wrong issuer), not a check this
+	// code has to remember to make.
+	requestVerifier := authn.NewSessionVerifier(sessionVerifier)
+
+	// TokenMinter/TokenRevoker below are STILL GIP's — Task 5 replaces
+	// their last callers (iam's tenant switch and sign-out/revoke) before
+	// Task 7 deletes gip.go and the Firebase dependency entirely; see
+	// gip.go's package doc for why this is safe to leave mid-cutover on
+	// this branch (spec D7, plan Task 3's "Sequencing corrected" note).
 	minter, err := authn.NewGIPMinter(ctx, cfg.GIPProjectID, cfg.IsDev())
 	if err != nil {
 		return err
@@ -209,11 +238,29 @@ func run() error {
 	// test built its own equivalent chain. See V1Chain's comment for the
 	// order and why it is load-bearing;
 	// internal/archtest.TestThrottledRequestMakesNoOpenFGACall pins it.
+	//
+	// requestVerifier (an HMS session, never a raw Zitadel token) is what
+	// gates every route in this group.
 	limiter := ratelimit.NewMemory(10_000)
 	api := platform.NewRouter(
-		srv.Engine.Group("/v1", bootstrap.V1Chain(verifier, revocationChecker, limiter, cfg, fga)...),
+		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, fga)...),
 		fga,
 	)
+
+	// POST /v1/auth/login is mounted directly on the raw engine — NOT
+	// through `api`/bootstrap.V1Chain above — because it is the endpoint
+	// that CREATES an HMS session (plan Task 4, spec D1) and so cannot
+	// itself require one: it verifies a caller-presented Zitadel ID
+	// token, not the HMS session requestVerifier checks. It shares the
+	// /v1 URL prefix for API-path consistency but is structurally outside
+	// the authenticated chain — no authn.Middleware, no
+	// authz.RequireMembership, no rate-limit bucket keyed by a principal
+	// that does not exist yet — because gin routes registered directly on
+	// the engine are independent of any *gin.RouterGroup built over it,
+	// even one sharing the same path prefix.
+	loginHandlers := iam.NewLoginHandlers(zitadelVerifier, fga, sessionSigner, cfg.SessionTTL, !cfg.IsDev())
+	srv.Engine.POST("/v1/auth/login", loginHandlers.Login)
+
 	for _, m := range registry.All() {
 		m.Routes(api, deps)
 		if err := bus.StartConsumers(ctx, db, m.Consumers(deps)); err != nil {

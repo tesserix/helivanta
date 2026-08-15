@@ -176,14 +176,29 @@ carry over:
 
 The cost is a redirect off-domain and back — the pattern users meet everywhere.
 
+**Ship against the stock login UI first.** The branded component does not exist
+yet, and waiting for it would block the frontend for a cosmetic reason. Zitadel's
+stock login already works — MFA, password reset and lockout included — so HMS
+points at it now and the branded build swaps in later. The redirect target does
+not change; only its appearance does. Nothing is thrown away, which is what makes
+this an interim *appearance* rather than an interim *solution*.
+
 **Contract on the login component, and it is load-bearing for the e2e suite.**
-`e2e/tests/support/login.ts` drives the form by accessible name:
+`e2e/tests/support/login.ts` drives the form by accessible name — currently
 `getByLabel("Email")`, `getByLabel("Password")`,
-`getByRole("button", { name: "Sign in" })`. If the component preserves those
-names — a real `<label>` per field, "Sign in" as the button's accessible name —
-the suite works against the hosted UI essentially unchanged. If they drift to
-"Email address" or "Log in", **every spec fails at once**, at the login step,
-which reads like a broken application rather than a renamed label.
+`getByRole("button", { name: "Sign in" })`.
+
+Shipping against stock first has a consequence worth stating: **the suite will
+first be written against Zitadel's own markup**, not ours. Both spikes drove that
+UI successfully with Playwright, so working selectors already exist — the
+frontend task should take them from there rather than guess.
+
+The contract therefore runs the other way from how it was first written: **the
+branded component must preserve the accessible names the stock UI uses**, so the
+swap is invisible to the suite. If it renames them, every spec fails at once, at
+the login step, which reads like a broken application rather than a renamed
+label. If a rename is genuinely wanted, it is a planned, single, coordinated
+change — not a surprise.
 
 This is an accessibility property rather than a test convenience: the names a
 screen reader announces are the ones Playwright queries, which is why targeting
@@ -249,14 +264,12 @@ credential are platform-team operations, not HMS ones.
   If a convention already exists there, D1 should defer to it.
 - **NOT VERIFIED: a login through a linked external IdP.** D5 rests on link
   creation and readback, not a completed federated sign-in.
-- **The branded login UI does not exist yet.** Production serves
-  `zitadel-login:v4.15.3-aurora.1` from a private registry; all local work used
-  stock upstream, and the design-system login component of D5a is still to be
-  written. This is a **cross-repo dependency**: HMS's e2e suite cannot pass
-  against the real login until that component exists and the aurora build ships
-  it. HMS should not block on it — local dev can run stock upstream — but the
-  suite's first run against a branded UI is the moment the selector contract in
-  D5a is either honoured or discovered to be broken.
+- **The branded login UI does not exist yet, and HMS does not wait for it.**
+  Production serves `zitadel-login:v4.15.3-aurora.1`; the design-system login
+  component behind it is still to be written. Per D5a, HMS ships against the
+  **stock** login UI, so this is not a blocker — but the branded build's first
+  run against the e2e suite is the moment D5a's accessible-name contract is
+  either honoured or found broken. That is a scheduled risk, not an unknown.
 - **HMS shares an instance.** An instance-wide Zitadel outage is a total
   sign-in outage for every product at once. Existing HMS sessions survive until
   renewal, which is a modest mitigation, not a plan.

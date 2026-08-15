@@ -26,8 +26,8 @@ func TestSessionSigningKeySeed_Unset_Refuses(t *testing.T) {
 	require.Contains(t, err.Error(), "SESSION_SIGNING_KEY")
 }
 
-// TestSessionSigningKeySeed_DevKeyOutsideDev_Refuses mirrors
-// NewGIPVerifier's FIREBASE_AUTH_EMULATOR_HOST guard (pkg/authn/gip.go):
+// TestSessionSigningKeySeed_DevKeyOutsideDev_Refuses mirrors the
+// emulator-host guard the GIP verifier carried before #838 deleted it:
 // the well-known dev key must be refused unless HMS_ENV=dev, whether
 // HMS_ENV is unset (defaults to production, per TestEnvDefaultsToProduction)
 // or set to "production" explicitly.

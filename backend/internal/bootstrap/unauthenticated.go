@@ -36,7 +36,7 @@ var UnauthenticatedRoutes = map[string]string{
 // MountUnauthenticated registers the routes that cannot sit behind the
 // authenticated chain. It is a function rather than a literal in
 // cmd/api/main.go for the same reason V1Chain is: run() opens a
-// database, NATS and a GIP client before it builds a router, so nothing
+// database, NATS and an OIDC provider before it builds a router, so nothing
 // mounted there is reachable from a test, and a bypass nobody can
 // enumerate is a bypass nobody reviews.
 //

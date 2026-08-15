@@ -12,8 +12,8 @@ import (
 
 // V1Chain is the middleware chain mounted under /v1, in order. It exists
 // as a function rather than a literal inside cmd/api/main.go for one
-// reason: main.go's run() opens a database, a NATS connection and a GIP
-// client before it ever builds a router, so no test can reach the chain
+// reason: main.go's run() opens a database, a NATS connection and an OIDC
+// provider before it ever builds a router, so no test can reach the chain
 // it mounts. While the chain lived there, deleting ratelimit.Middleware
 // from it removed rate limiting from production entirely and the whole
 // backend suite stayed green — the placement test built its own

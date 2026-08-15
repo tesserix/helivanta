@@ -14,8 +14,8 @@ import (
 // and CI runner shares it, so a session it mints can be forged by
 // anyone who has cloned this repo. That is fine ONLY because
 // SessionSigningKeySeed refuses to honor it outside HMS_ENV=dev — see
-// the guard there, which mirrors NewGIPVerifier's
-// FIREBASE_AUTH_EMULATOR_HOST guard in pkg/authn/gip.go for the same
+// the guard there, which mirrors the emulator-host guard the GIP
+// verifier carried before #838 deleted it, for the same
 // reason: a control that is silently unlockable by an env var needs a
 // second, independent check tying it to "this is a developer machine",
 // not just "a value was supplied".

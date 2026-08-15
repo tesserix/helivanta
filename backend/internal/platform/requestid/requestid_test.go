@@ -94,7 +94,7 @@ func TestPrincipalMiddlewareAddsTenantAndSubject(t *testing.T) {
 	r := gin.New()
 	r.Use(requestid.Middleware())
 	r.Use(func(c *gin.Context) {
-		c.Set("authn.principal", authn.Principal{Subject: "gip-uid-42", TenantID: "11111111-1111-1111-1111-111111111111"})
+		c.Set("authn.principal", authn.Principal{Subject: "zitadel-uid-42", TenantID: "11111111-1111-1111-1111-111111111111"})
 		c.Next()
 	})
 	r.Use(requestid.PrincipalMiddleware())
@@ -112,7 +112,7 @@ func TestPrincipalMiddlewareAddsTenantAndSubject(t *testing.T) {
 	require.Equal(t, "handled", line["msg"])
 	require.Equal(t, "req-abc", line["request_id"])
 	require.Equal(t, "11111111-1111-1111-1111-111111111111", line["tenant_id"])
-	require.Equal(t, "gip-uid-42", line["subject"])
+	require.Equal(t, "zitadel-uid-42", line["subject"])
 }
 
 // The middleware runs on unauthenticated paths too (a 401 still logs). With

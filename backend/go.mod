@@ -5,6 +5,7 @@ go 1.26.5
 require (
 	firebase.google.com/go/v4 v4.21.0
 	github.com/gin-gonic/gin v1.12.0
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/nats-io/nats.go v1.52.0
 	github.com/openfga/go-sdk v0.8.2

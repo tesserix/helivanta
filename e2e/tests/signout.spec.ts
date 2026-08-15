@@ -1,5 +1,11 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { test, expect } from "@playwright/test";
+
 import { login } from "./support/login";
+
+const ZITADEL_ORIGIN = "http://localhost:20080";
 
 // The assertion that would have caught the original bug (#781): sign-out
 // used to only clear the transport cookie, leaving the client-side SDK's
@@ -33,15 +39,54 @@ test("a signed-out session cannot be reconstructed from the browser", async ({ p
   // server-side, not just that a click fired.
   await expect(page.getByRole("heading", { name: "Departments" })).not.toBeVisible();
 
-  // Sign-out ends in a MULTI-HOP redirect chain: HMS dashboard ->
-  // Zitadel's end_session endpoint -> back to /login -> /login's own
-  // effect immediately redirects onward AGAIN, to Zitadel's authorize
-  // endpoint (D5a) -> Zitadel's real hosted login form, since its SSO
-  // session is now actually ended. Waiting for that chain to settle on
-  // Zitadel's own origin, rather than trying to freeze or intercept it
-  // mid-flight (both were tried and rejected — see below), is what makes
-  // the next step land reliably.
-  await page.waitForURL(/localhost:20080/, { timeout: 15_000 });
+  // Sign-out ends: HMS dashboard -> Zitadel's end_session endpoint ->
+  // back to /login, which is the registered post_logout_redirect_uri.
+  //
+  // Since #847 the chain STOPS there. /login is a landing page with a
+  // Sign in button, not an automatic redirect — firing an authorization
+  // request on arrival raced Zitadel's session teardown, after which a
+  // DIFFERENT user could not sign in at all ("User not found in the
+  // system"). So the assertion is that we settle on HMS's own /login,
+  // signed out, rather than being carried onward to Zitadel.
+  await page.waitForURL(/localhost:4301\/login/, { timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+
+  // Sign-out must end ZITADEL's SSO session, not merely HMS's own — or the
+  // next person at a shared ward terminal is signed in silently as the
+  // previous clinician. That defect was real and was fixed during #838
+  // (packages/ui/src/zitadel-session.ts), so it needs an assertion that
+  // cannot rot.
+  //
+  // It has to be checked with an authorize request carrying NO prompt.
+  // The landing page's Sign in button sends prompt=login (#847), which
+  // forces a credential form whether or not a session survives — so
+  // asserting on that form would pass vacuously and quietly stop testing
+  // the thing it names. A plain authorize is the only version of this
+  // check that can fail.
+  // Playwright runs from e2e/, so the bootstrap-written client id sits one
+  // level up. Read at run time rather than via an env var: make's -include
+  // of this same file is parsed before dev-infra creates it on a fresh
+  // clone, which is the staleness window scripts/lib/zitadel.mjs documents.
+  const clientId = readFileSync(
+    resolve(process.cwd(), "../dev/zitadel/secrets/zitadel.env"),
+    "utf8",
+  )
+    .split("=")[1]
+    .trim();
+  const plainAuthorize =
+    `${ZITADEL_ORIGIN}/oauth/v2/authorize?client_id=${clientId}` +
+    `&redirect_uri=${encodeURIComponent("http://localhost:4301/api/auth/callback")}` +
+    `&response_type=code&scope=openid&state=s&nonce=n` +
+    `&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256`;
+
+  await page.goto(plainAuthorize);
+  await expect(
+    page.getByLabel(/Loginname|Email|Login Name/i).first(),
+    "a plain authorize after sign-out must prompt for credentials; reaching the callback " +
+      "silently means Zitadel's SSO session outlived sign-out and the next user at this " +
+      "terminal would be signed in as the previous one",
+  ).toBeVisible({ timeout: 15_000 });
+  await page.goto("/login");
 
   // The attack: the previous user's oidc-client-ts session used to
   // survive in sessionStorage, so this rebuilt a working session by

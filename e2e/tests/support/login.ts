@@ -138,6 +138,27 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
   return page.evaluate(async (url) => (await fetch(url)).ok, PERMISSIONS_PROBE);
 }
 
+// Clicks HMS's Sign in button if we are sitting on its landing page.
+//
+// Tolerant on purpose: after a sign-out the browser may already be
+// mid-redirect to Zitadel, in which case there is no button to click and
+// the credential form is on its way. Requiring the button unconditionally
+// would turn that ordinary race into a flake.
+async function startSignIn(page: Page): Promise<void> {
+  // Decide by where we actually ARE, not by racing a timeout. Since #847,
+  // sign-out lands on HMS's /login and STAYS there — nothing redirects
+  // onward any more — so on that page the button is not optional and a
+  // short "maybe it is already navigating" tolerance would simply give up
+  // and leave the caller waiting for a credential field that will never
+  // appear. That was the first version of this helper, and it failed
+  // exactly the two specs that sign out and back in.
+  if (!/localhost:4301/.test(page.url())) return; // already on Zitadel
+
+  const button = page.getByRole("button", { name: "Sign in" });
+  await button.waitFor({ state: "visible", timeout: 20_000 });
+  await button.click();
+}
+
 // Shared login flow for every e2e spec. The default account is the
 // calling spec's own admin — evaluated per call, so it resolves against
 // whichever spec file is currently running.
@@ -147,26 +168,25 @@ export async function login(page: Page, user: Credentials = specAdmin()): Promis
   } catch (err) {
     // ERR_ABORTED here means a navigation was ALREADY in flight when this
     // goto fired — the real case is a spec that calls login() again
-    // immediately after signing out (e.g.
-    // journey.spec.ts's "pharmacist can dispense a visit created by
-    // admin"): sign-out (lib/sign-out.ts) ends with signoutRedirect()
-    // through Zitadel and back to /login, and /login's own effect
-    // (app/login/page.tsx) immediately redirects onward again — so by the
-    // time this goto("/") runs, the browser can already be mid-navigation
-    // to Zitadel's hosted login. That competing navigation is heading to
-    // the exact same place this one would have, so it is safe to let it
-    // win and just wait for the login form below; anything other than
-    // ERR_ABORTED is a real failure and must still throw.
+    // immediately after signing out (e.g. journey.spec.ts's "pharmacist
+    // can dispense a visit created by admin"): sign-out ends with
+    // signoutRedirect() through Zitadel and back to /login, so by the time
+    // this goto("/") runs the browser can already be mid-navigation. That
+    // competing navigation heads to the same place this one would, so it
+    // is safe to let it win; anything other than ERR_ABORTED is a real
+    // failure and must still throw.
     if (!/ERR_ABORTED/.test(String(err))) throw err;
   }
-  // Unauthenticated: apps/shell's middleware.ts redirects to /login,
-  // which (design spec D5a) immediately redirects again — off-origin, to
-  // Zitadel's hosted login. This settles on Zitadel's own
-  // /oauth/v2/authorize-derived URL, never on HMS's /login itself, so the
-  // old `toHaveURL(/\/login$/)` assertion no longer holds: HMS renders no
-  // login page to land on. Waiting for the real login field is both the
-  // provable claim ("the sign-in form is now showing") and host/port
-  // agnostic, unlike asserting a literal localhost:4301 URL would be.
+  // Unauthenticated: apps/shell's middleware.ts redirects to /login, which
+  // since #847 is a LANDING PAGE with a Sign in button rather than an
+  // automatic redirect. The button is deliberate: firing an authorization
+  // request on mount raced Zitadel's session teardown after a sign-out, and
+  // the next user then could not sign in at all.
+  //
+  // So the suite must click it. Waiting for the real credential field after
+  // the click is the provable claim ("the sign-in form is now showing") and
+  // is host/port agnostic, unlike asserting a literal localhost:4301 URL.
+  await startSignIn(page);
   await expect(page.getByLabel(/Loginname|Email|Login Name/i).first()).toBeVisible({
     timeout: 15_000,
   });
@@ -182,6 +202,7 @@ export async function login(page: Page, user: Credentials = specAdmin()): Promis
     await page.context().clearCookies();
     await page.waitForTimeout(RETRY_DELAY_MS);
     await page.goto("/login");
+    await startSignIn(page);
   }
 
   throw new Error(

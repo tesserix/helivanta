@@ -9,13 +9,15 @@ import { chromium } from "@playwright/test";
 
 const SECRETS_DIR = fileURLToPath(new URL("../../dev/zitadel/secrets/", import.meta.url));
 
-// The one redirect_uri registered on the hms-web app (scripts/zitadel-
-// bootstrap.mjs). Nothing serves it yet — apps/shell has not been ported
-// off Firebase (#838 Task 6 is dev stack/seeding only) — so every caller
-// that uses this only needs Zitadel to ACCEPT it as registered, never to
-// actually receive a response there; hostedUILogin captures the
-// authorization code from the request itself before the browser tries.
+// The redirect_uris registered on the hms-web app (scripts/zitadel-
+// bootstrap.mjs). apps/shell/app/api/auth/callback/page.tsx and
+// apps/shell/app/api/auth/silent-renew/page.tsx (#838 Task 7) are the
+// real handlers for the first two; hostedUILogin below still captures the
+// authorization code from the request itself rather than waiting for a
+// navigation, since that is more robust for a scripted login than relying
+// on the shell app being reachable at all during dev-infra/seeding.
 export const DEV_REDIRECT_URI = "http://localhost:4301/api/auth/callback";
+export const DEV_SILENT_RENEW_REDIRECT_URI = "http://localhost:4301/api/auth/silent-renew";
 export const DEV_POST_LOGOUT_REDIRECT_URI = "http://localhost:4301/login";
 
 // readClientID prefers an explicit ZITADEL_CLIENT_ID from the environment

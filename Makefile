@@ -43,17 +43,28 @@ OPENFGA_URL ?= http://localhost:$(HMS_OPENFGA_PORT)
 ZITADEL_ISSUER_URL ?= http://localhost:$(HMS_ZITADEL_PORT)
 
 # API_URL is what each app's next.config.ts rewrites /api to (server side).
-# apps/shell still authenticates via Firebase (#838 Task 6 is dev
-# stack/seeding only — the shell is a separate follow-on task) so it is
-# NOT wired to Zitadel here; this is expected mid-cutover, not an
-# oversight. See the PR body for what that means the shell cannot do
-# locally until that task lands.
 API_URL ?= http://localhost:$(HMS_API_PORT)
+
+# apps/shell's browser-side OIDC client (apps/shell/lib/oidc.ts) needs the
+# SAME issuer/client-id the backend verifies against, just under
+# NEXT_PUBLIC_ names so Next.js inlines them into the client bundle.
+# ZITADEL_CLIENT_ID is only ever real once scripts/zitadel-bootstrap.mjs
+# has run (see the `-include` at the top of this file) — `up`'s recipe
+# re-invokes `$(MAKE)` for dev-api/dev-web AFTER dev-infra has already run
+# it, so that recursive invocation re-parses this file with the real
+# value already written to dev/zitadel/secrets/zitadel.env. A developer
+# running `make dev-web` on its own, before `make dev-infra`, gets an
+# empty NEXT_PUBLIC_ZITADEL_CLIENT_ID — apps/shell/lib/env.ts refuses to
+# construct with one, the same fail-closed shape as `dev-api`'s own guard
+# just above.
+NEXT_PUBLIC_ZITADEL_ISSUER_URL ?= $(ZITADEL_ISSUER_URL)
+NEXT_PUBLIC_ZITADEL_CLIENT_ID ?= $(ZITADEL_CLIENT_ID)
 
 export HMS_PG_PORT HMS_NATS_PORT HMS_NATS_MONITOR_PORT HMS_REDIS_PORT HMS_OPENFGA_PORT HMS_ZITADEL_PORT HMS_ZITADEL_PG_PORT HMS_API_PORT
 export APP_DATABASE_URL ADMIN_DATABASE_URL NATS_URL OPENFGA_URL ZITADEL_ISSUER_URL
 export API_URL
 export ZITADEL_CLIENT_ID
+export NEXT_PUBLIC_ZITADEL_ISSUER_URL NEXT_PUBLIC_ZITADEL_CLIENT_ID
 
 # Zitadel refuses to boot with a masterkey that is not EXACTLY 32 bytes —
 # but not by failing fast: it crash-loops on every restart with "masterkey

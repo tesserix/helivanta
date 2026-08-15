@@ -4,20 +4,13 @@ import { renderWithProviders } from "@hms/api/testing";
 import { PERMISSIONS_CACHE_KEY } from "@hms/api";
 import { TenantPicker } from "./tenant-picker";
 
-const signInWithCustomToken = vi.hoisted(() => vi.fn());
-vi.mock("firebase/auth", () => ({ signInWithCustomToken }));
-vi.mock("@/lib/firebase", () => ({ firebaseAuth: () => ({ name: "test-auth" }) }));
-
 // Every network call the picker makes, in the order it made them, so a
 // test can assert the *sequence* — the original bug was a switcher that
-// stopped after step 1 and reloaded, so "the session POST happened" is
-// only meaningful together with "after the custom token came back".
+// stopped after step 1 and reloaded without waiting for the backend to
+// actually confirm the switch.
 const calls: string[] = [];
 
-function stubFetch(
-  switchBody: unknown = { tenant_id: "t2", custom_token: "custom-abc" },
-  currentTenantId = "t1",
-) {
+function stubFetch(currentTenantId = "t1", switchResult: "ok" | "not-member" = "ok") {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     calls.push(`${init?.method ?? "GET"} ${url}`);
     if (url.endsWith("/iam/me/tenants")) {
@@ -33,10 +26,11 @@ function stubFetch(
       };
     }
     if (url.endsWith("/iam/me/tenant")) {
-      return { ok: true, status: 200, json: async () => switchBody };
-    }
-    if (url === "/api/session") {
-      return { ok: true, status: 200, json: async () => ({ ok: true }) };
+      if (switchResult === "not-member") {
+        return { ok: false, status: 404, json: async () => ({ error: "not_found", message: "tenant not found" }) };
+      }
+      const body = init?.body ? (JSON.parse(init.body as string) as { tenant_id: string }) : { tenant_id: "" };
+      return { ok: true, status: 200, json: async () => ({ tenant_id: body.tenant_id }) };
     }
     throw new Error(`unexpected fetch: ${url}`);
   });
@@ -44,33 +38,9 @@ function stubFetch(
   return fetchMock;
 }
 
-// mockCred builds the signInWithCustomToken resolution: an
-// getIdTokenResult() carrying whatever tenant_id claim the test wants to
-// simulate, matching the real firebase.User shape closely enough for
-// tenant-picker.tsx to read `.claims.tenant_id` and `.token` off it.
-function mockCred(claimTenantId: string) {
-  return {
-    user: {
-      getIdToken: async () => "fresh-id-token",
-      getIdTokenResult: async () => ({
-        token: "fresh-id-token",
-        claims: { tenant_id: claimTenantId },
-      }),
-    },
-  };
-}
-
 beforeEach(() => {
   calls.length = 0;
   window.localStorage.clear();
-  signInWithCustomToken.mockReset();
-  signInWithCustomToken.mockImplementation(async () => {
-    calls.push("signInWithCustomToken");
-    // Default: the minted token carries the tenant the picker asked to
-    // switch to. Individual tests override this to simulate GIP handing
-    // back a token for the wrong tenant.
-    return mockCred("t2");
-  });
   vi.stubGlobal("location", { reload: vi.fn() });
 });
 
@@ -105,7 +75,7 @@ describe("TenantPicker", () => {
     expect(screen.getAllByRole("option")).toHaveLength(2);
   });
 
-  it("re-mints the session: switch, sign in with the custom token, then replace the cookie", async () => {
+  it("re-mints the session: switch, then reload only once the backend confirms it", async () => {
     const fetchMock = stubFetch();
     const { user } = renderWithProviders(<TenantPicker />);
     await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
@@ -114,23 +84,14 @@ describe("TenantPicker", () => {
 
     await waitFor(() => expect(screen.getByText("Switched hospital")).toBeInTheDocument());
 
-    // The whole point: a switch is not done when the backend says yes.
-    // Without the middle two steps the user keeps their old tenant_id
-    // claim and silently stays in the hospital they started in.
-    expect(calls).toEqual([
-      "GET /api/v1/iam/me/tenants",
-      "POST /api/v1/iam/me/tenant",
-      "signInWithCustomToken",
-      "POST /api/session",
-    ]);
+    expect(calls).toEqual(["GET /api/v1/iam/me/tenants", "POST /api/v1/iam/me/tenant"]);
 
-    expect(signInWithCustomToken).toHaveBeenCalledWith(expect.anything(), "custom-abc");
+    const switchCall = fetchMock.mock.calls.find(([url]) => url === "/api/v1/iam/me/tenant");
+    expect(JSON.parse(switchCall![1]!.body as string)).toEqual({ tenant_id: "t2" });
 
-    const sessionCall = fetchMock.mock.calls.find(([url]) => url === "/api/session");
-    expect(JSON.parse(sessionCall![1]!.body as string)).toEqual({ idToken: "fresh-id-token" });
-
-    // Reload last, and only after the cookie was replaced — reloading
-    // first would just re-render the old tenant's data.
+    // Reload only after the backend actually confirmed the switch — a
+    // switch that reloaded regardless of the response would leave the old
+    // tenant's session cookie in place while showing the new tenant's UI.
     await waitFor(() => expect(window.location.reload).toHaveBeenCalled());
   });
 
@@ -146,7 +107,7 @@ describe("TenantPicker", () => {
   // position), and the picker must be a controlled component driven by
   // that flag.
   it("reflects the caller's actual current tenant after a switch, and allows switching back", async () => {
-    stubFetch(undefined, "t2");
+    stubFetch("t2");
     const { user } = renderWithProviders(<TenantPicker />);
 
     await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
@@ -160,49 +121,22 @@ describe("TenantPicker", () => {
     await user.selectOptions(screen.getByRole("combobox"), "t1");
 
     await waitFor(() => expect(calls).toContain("POST /api/v1/iam/me/tenant"));
-    const switchCall = calls.find((c) => c.includes("/iam/me/tenant"));
-    expect(switchCall).toBeDefined();
   });
 
-  // The disclosed production-only risk this control cannot rule out in
-  // this environment: real GIP might let a persisted
-  // `customAttributes.tenant_id` on the account win over the custom
-  // token's developer claim, silently minting a token for the OLD
-  // tenant. This test cannot reproduce GIP's actual precedence behavior,
-  // but it proves the client-side guard that makes a mismatch loud
-  // instead of silent — the exact regression of the bug this control was
-  // built to fix, just one layer down.
-  it("reports failure and never POSTs the session when the minted token's tenant claim does not match the target", async () => {
-    stubFetch();
-    // Simulate GIP handing back a token still carrying t1 (the tenant
-    // being switched FROM) even though the picker asked to switch to t2.
-    signInWithCustomToken.mockImplementation(async () => {
-      calls.push("signInWithCustomToken");
-      return mockCred("t1");
-    });
+  // THE mutation-discriminating test for "tenant picker sends a tenant
+  // the user isn't in": the backend answers 404 (not 403 — see
+  // tenant-picker.tsx's doc comment on why) for exactly this case. The
+  // picker must surface it as an ordinary error toast, never crash, never
+  // reload, and never leave the caller's actual session touched.
+  it("reports failure and never reloads when the backend refuses the target tenant (404)", async () => {
+    stubFetch("t1", "not-member");
     const { user } = renderWithProviders(<TenantPicker />);
     await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
 
     await user.selectOptions(screen.getByRole("combobox"), "t2");
 
-    await waitFor(() =>
-      expect(screen.getByText(/did not carry the expected hospital/)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("tenant not found")).toBeInTheDocument());
     expect(screen.queryByText("Switched hospital")).not.toBeInTheDocument();
-    expect(calls).not.toContain("POST /api/session");
-    expect(window.location.reload).not.toHaveBeenCalled();
-  });
-
-  it("keeps the old session and does not reload when the exchange fails", async () => {
-    stubFetch();
-    signInWithCustomToken.mockRejectedValue(new Error("custom token rejected"));
-    const { user } = renderWithProviders(<TenantPicker />);
-    await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
-
-    await user.selectOptions(screen.getByRole("combobox"), "t2");
-
-    await waitFor(() => expect(screen.getByText("custom token rejected")).toBeInTheDocument());
-    expect(calls).not.toContain("POST /api/session");
     expect(window.location.reload).not.toHaveBeenCalled();
   });
 
@@ -218,9 +152,6 @@ describe("TenantPicker", () => {
         storedAt: Date.now(),
       }),
     );
-    signInWithCustomToken.mockResolvedValue({
-      user: { getIdTokenResult: async () => ({ claims: { tenant_id: "t2" }, token: "id-token" }) },
-    });
     stubFetch();
     const { user } = renderWithProviders(<TenantPicker />);
 

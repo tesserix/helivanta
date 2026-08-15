@@ -2,17 +2,20 @@ import { test, expect } from "@playwright/test";
 import { login } from "./support/login";
 
 // The assertion that would have caught the original bug (#781): sign-out
-// used to only clear the transport cookie, leaving the Firebase SDK's
-// session alive in IndexedDB. A fresh ID token minted from that stale
-// session could rebuild a working `hms_session` cookie from the browser
-// console — on a shared ward terminal, the previous user's session was
-// recoverable after they "logged out".
+// used to only clear the transport cookie, leaving the client-side SDK's
+// session alive (originally Firebase's IndexedDB store; now
+// oidc-client-ts's sessionStorage entry, apps/shell/lib/oidc.ts). A
+// stored id_token surviving sign-out could be replayed straight into
+// POST /v1/auth/login and rebuild a working `hms_session` cookie — on a
+// shared ward terminal, the previous user's session was recoverable
+// after they "logged out".
 //
 // This deliberately does NOT assert "the cookie was cleared" — that is
 // exactly the proxy assertion that let the defect exist
 // (docs/standards/engineering-principles.md §5). It reconstructs the
-// actual attack instead: mint a fresh ID token from whatever Firebase
-// session survives sign-out, and see whether the API still answers it.
+// actual attack instead: replay the id_token captured from whatever
+// client-side session survives sign-out, and see whether the API still
+// mints a session from it.
 test("a signed-out session cannot be reconstructed from the browser", async ({ page }) => {
   await login(page);
   await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
@@ -23,31 +26,83 @@ test("a signed-out session cannot be reconstructed from the browser", async ({ p
   // the bottom-left, where Next.js's dev-mode tooling indicator also
   // renders, and can intercept the click in local/dev-server runs.
   await page.getByRole("button", { name: "Sign out" }).last().click();
-  await expect(page).toHaveURL(/\/login/);
 
-  // The attack: the previous user's Firebase SDK session used to survive
-  // in IndexedDB, so this rebuilt a working session from the console.
+  // handleSignOut's OWN awaited `fetch("/logout")` (which writes the
+  // #781 watermark) resolves BEFORE any navigation starts — the heading
+  // disappearing is the real signal that revocation has already happened
+  // server-side, not just that a click fired.
+  await expect(page.getByRole("heading", { name: "Departments" })).not.toBeVisible();
+
+  // Sign-out ends in a MULTI-HOP redirect chain: HMS dashboard ->
+  // Zitadel's end_session endpoint -> back to /login -> /login's own
+  // effect immediately redirects onward AGAIN, to Zitadel's authorize
+  // endpoint (D5a) -> Zitadel's real hosted login form, since its SSO
+  // session is now actually ended. Waiting for that chain to settle on
+  // Zitadel's own origin, rather than trying to freeze or intercept it
+  // mid-flight (both were tried and rejected — see below), is what makes
+  // the next step land reliably.
+  await page.waitForURL(/localhost:20080/, { timeout: 15_000 });
+
+  // The attack: the previous user's oidc-client-ts session used to
+  // survive in sessionStorage, so this rebuilt a working session by
+  // replaying its id_token.
   //
-  // `getAuth()` from "firebase/auth" isn't reachable here: page.evaluate
-  // runs as a plain script with no bundler, so a bare specifier import
-  // has nothing to resolve against. `window.__hmsFirebaseAuth`
-  // (apps/shell/lib/firebase.ts, dev/test builds only) hands back the
-  // exact Auth instance the app itself uses, once /login has mounted and
-  // constructed it (app/login/page.tsx).
-  await page.waitForFunction(() => Boolean(window.__hmsFirebaseAuth));
+  // `getUserManager()` isn't reachable here: page.evaluate runs as a
+  // plain script with no bundler, so a bare specifier import has nothing
+  // to resolve against. `window.__hmsUserManager` (apps/shell/lib/oidc.ts,
+  // dev/test builds only) hands back the exact UserManager instance the
+  // app itself uses — but only on an HMS page, and the browser is
+  // currently on Zitadel's origin (the wait above), so this navigates
+  // back to `/api/auth/callback` with NO `code`/`state` query params: the
+  // one shell route that constructs a UserManager (setting
+  // `window.__hmsUserManager` as a side effect, same as every shell page)
+  // and then STOPS — `signinRedirectCallback()` fails fast on the missing
+  // params and the page shows an error, triggering no further navigation
+  // of its own. That absence of a next hop is exactly what makes it a
+  // stable place to run `evaluate` from, unlike `/login` (which always
+  // redirects again) or a route-interception trick (tried and rejected —
+  // see below).
+  //
+  // Two techniques were tried first and rejected, worth recording so they
+  // are not tried again:
+  //  - `page.route(...).abort()` on the authorize request: aborting a
+  //    TOP-LEVEL navigation does not leave the browser on the previous
+  //    page — Chromium replaces the frame with its own
+  //    `chrome-error://chromewebdata/`, which has no app JS at all, so
+  //    `window.__hmsUserManager` never appears there, on any attempt.
+  //  - Stubbing `window.location.assign`/`.replace` to a no-op via
+  //    `addInitScript`, to neutralise oidc-client-ts's own redirect call
+  //    before it becomes a navigation: had no effect at all (confirmed
+  //    live — the browser still reached Zitadel's real login form
+  //    regardless). Browsers generally refuse to let page script shadow
+  //    `Location` methods; the assignment silently no-ops.
+  //
+  // A goto immediately after the chain settles can still occasionally
+  // race a not-yet-finished internal redirect inside Zitadel's own login
+  // app and get `ERR_ABORTED`; retried a bounded number of times rather
+  // than treated as a failure, the same judgment call
+  // e2e/tests/support/login.ts's own retry makes for a real,
+  // non-permanent race.
+  let landed = false;
+  for (let attempt = 1; attempt <= 5 && !landed; attempt++) {
+    try {
+      await page.goto("/api/auth/callback", { waitUntil: "domcontentloaded", timeout: 10_000 });
+      landed = true;
+    } catch (err) {
+      if (!/ERR_ABORTED/.test(String(err)) || attempt === 5) throw err;
+      await page.waitForTimeout(300);
+    }
+  }
+  await page.waitForFunction(() => Boolean(window.__hmsUserManager), null, { timeout: 15_000 });
+
   const restored = await page.evaluate(async () => {
-    const auth = window.__hmsFirebaseAuth!;
-    // The SDK rehydrates its session from IndexedDB asynchronously; a
-    // fresh Auth instance answers `currentUser` with null until that
-    // finishes, so this waits for the real answer rather than racing it.
-    await auth.authStateReady();
-    const user = auth.currentUser;
-    if (!user) return "no-user";
-    const idToken = await user.getIdToken(true);
-    const res = await fetch("/api/session", {
+    const userManager = window.__hmsUserManager!;
+    const user = await userManager.getUser();
+    if (!user?.id_token) return "no-user";
+    const res = await fetch("/api/v1/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),
+      body: JSON.stringify({ id_token: user.id_token }),
     });
     if (!res.ok) return "session-refused";
     const check = await fetch("/api/v1/iam/me/permissions");
@@ -58,10 +113,11 @@ test("a signed-out session cannot be reconstructed from the browser", async ({ p
 });
 
 // The test above is necessary but NOT sufficient, and the gap is worth
-// stating: it passes the moment `currentUser` is null, which client-side
-// signOut() guarantees on its own. Comment out the server-side call in
-// app/logout/route.ts and it still passes — so it proves the client half
-// and silently assumes the server half.
+// stating: it passes the moment the stored oidc-client-ts session is
+// gone (or was never captured), which client-side removeUser() alone
+// guarantees. Comment out the server-side call in app/logout/route.ts
+// and it still passes — so it proves the client half and silently
+// assumes the server half.
 //
 // That assumption is the whole feature. Clearing browser state protects
 // the shared workstation; only the watermark protects a token that has
@@ -74,11 +130,11 @@ test("a token captured before sign-out is refused afterwards", async ({ page }) 
   await login(page);
   await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
 
-  await page.waitForFunction(() => Boolean(window.__hmsFirebaseAuth));
+  await page.waitForFunction(() => Boolean(window.__hmsUserManager));
   const captured = await page.evaluate(async () => {
-    const auth = window.__hmsFirebaseAuth!;
-    await auth.authStateReady();
-    return auth.currentUser ? auth.currentUser.getIdToken() : null;
+    const userManager = window.__hmsUserManager!;
+    const user = await userManager.getUser();
+    return user?.id_token ?? null;
   });
   expect(captured, "precondition: a live ID token was captured before sign-out").toBeTruthy();
 
@@ -86,10 +142,10 @@ test("a token captured before sign-out is refused afterwards", async ({ page }) 
   // token that was never valid would make the post-sign-out refusal
   // meaningless — the test would pass for the wrong reason.
   const before = await page.evaluate(async (token) => {
-    const res = await fetch("/api/session", {
+    const res = await fetch("/api/v1/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken: token }),
+      body: JSON.stringify({ id_token: token }),
     });
     if (!res.ok) return "session-refused";
     return (await fetch("/api/v1/iam/me/permissions")).ok ? "accepted" : "api-refused";
@@ -97,21 +153,36 @@ test("a token captured before sign-out is refused afterwards", async ({ page }) 
   expect(before, "the captured token must be accepted before sign-out").toBe("accepted");
 
   await page.getByRole("button", { name: "Sign out" }).last().click();
-  await expect(page).toHaveURL(/\/login/);
+  await expect(page.getByRole("heading", { name: "Departments" })).not.toBeVisible();
 
   // The same token, still cryptographically valid and unexpired, replayed
   // after sign-out. Its auth_time predates the watermark the sign-out
   // wrote, so the API must refuse it. Browser state is irrelevant here:
-  // the token is supplied directly.
-  const after = await page.evaluate(async (token) => {
-    const res = await fetch("/api/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken: token }),
-    });
-    if (!res.ok) return "session-refused";
-    return (await fetch("/api/v1/iam/me/permissions")).ok ? "STILL-ACCEPTED" : "api-refused";
-  }, captured);
+  // the token is supplied directly — `evaluate` just needs SOME live page
+  // to run `fetch` from, and sign-out's own redirect chain (Zitadel
+  // end_session -> /login -> authorize) is still actively navigating this
+  // one right after the click, so an `evaluate` landing exactly then can
+  // throw "Execution context was destroyed" — a real, retriable timing
+  // gap (same class this file's other test already retries for), not a
+  // wrong result.
+  let after: string | undefined;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      after = await page.evaluate(async (token) => {
+        const res = await fetch("/api/v1/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id_token: token }),
+        });
+        if (!res.ok) return "session-refused";
+        return (await fetch("/api/v1/iam/me/permissions")).ok ? "STILL-ACCEPTED" : "api-refused";
+      }, captured);
+      break;
+    } catch (err) {
+      if (!/Execution context was destroyed/.test(String(err)) || attempt === 5) throw err;
+      await page.waitForLoadState("domcontentloaded");
+    }
+  }
 
   expect(
     after,

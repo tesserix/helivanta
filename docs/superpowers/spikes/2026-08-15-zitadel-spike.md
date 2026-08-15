@@ -407,3 +407,244 @@ Time remained for a brief look; not a thorough capacity study.
    API-created users still need an email-verification step resolved before
    they can log in interactively, and the mechanism to suppress that
    wasn't found in the time available.
+
+---
+
+## Task 0 — the seeding wrinkle, resolved
+
+**Continuing from Q6.** Ran against a fresh instance of the same
+`spike/zitadel-838/docker-compose.zitadel.yml` stack (`hms-dev` confirmed
+untouched throughout, per the same `docker ps` check as before). Every call
+below is a real request against that instance; every login below is a real
+browser drive of the real hosted login UI, not a mock.
+
+### The root cause, found by reading the wire format, not guessing
+
+Q6 reported the wrinkle as "email-verification-pending blocks login even with
+`isEmailVerified: true`". That framing turned out to be **wrong, and worth
+correcting**: `isEmailVerified: true` was working exactly as asked the whole
+time. The actual blocker was a **second, independent gate — a forced
+password-change step** — that Q6's request never controlled, because the
+field it used to try to control it does not exist on that endpoint.
+
+Proof, extracted from ZITADEL Console's own compiled protobuf definitions
+(`/ui/console/main.<hash>.js`, fetched and grepped, not guessed):
+
+```
+proto.zitadel.management.v1.AddHumanUserRequest.toObject = function(e,i){
+  return {
+    userName: ...(field 1),
+    profile:  ...(field 2),
+    email:    ...(field 3),
+    phone:    ...(field 4),
+    initialPassword: ...(field 5),
+  }
+}
+```
+
+`POST /management/v1/users/human` (`AddHumanUserRequest`) has **five fields,
+full stop** — there is no `passwordChangeRequired`/`changeRequired` field on
+it at all. Any such key in the JSON body is silently dropped by the
+grpc-gateway (no error, no rejection — it just isn't a field on that
+message), which is exactly the "set it and it didn't help" experience Q6
+recorded. Sending `"password"` (rather than the real field, `"initialPassword"`)
+on this endpoint is silently dropped the same way, leaving the user with no
+password at all — which is a different, more severe version of the same
+trap: it *looks* like it worked (`201`, a `userId` back) and the user even
+reads back as `USER_STATE_ACTIVE`, but there is no credential to log in with.
+
+The field that controls this, `passwordChangeRequired`, exists only on
+**`ImportHumanUserRequest`** (field 7, confirmed the same way from the
+bundle) — a sibling message, not a variant of the same one. Reached via a
+different endpoint: `POST /management/v1/users/human/_import`.
+
+### The working recipe
+
+Bootstrap (once per environment — see caveat below), then two calls per
+seeded user, no browser involved in either:
+
+```bash
+# 1. Machine user (once)
+POST /management/v1/users/machine
+  {"userName":"hms-seed-bot","name":"HMS Seed Bot","accessTokenType":"ACCESS_TOKEN_TYPE_BEARER"}
+  → userId
+
+# 2. Grant it an org role — a fresh machine user has none (Q6, still true)
+POST /management/v1/orgs/me/members
+  {"userId":"<machineUserId>","roles":["ORG_OWNER"]}
+
+# 3. Mint its PAT (once, stored as a dev secret from here on)
+POST /management/v1/users/{machineUserId}/pats
+  {"expirationDate":"2027-01-01T00:00:00Z"}
+  → token   # returned once, never retrievable again
+
+# 4. Per user — the actual recipe — using ONLY the machine PAT:
+POST /management/v1/users/human/_import
+Authorization: Bearer <machine PAT>
+{
+  "userName": "e2e-<spec>-admin@hms.dev",
+  "profile": {"firstName": "...", "lastName": "..."},
+  "email": {"email": "e2e-<spec>-admin@hms.dev", "isEmailVerified": true},
+  "password": "Password123!",
+  "passwordChangeRequired": false
+}
+```
+
+Both flags are load-bearing — dropping either one reproduces a documented
+failure mode below, not a partial success.
+
+Confirmed the equivalent also exists on the **v2** resource API (the plan
+explicitly asked to compare v1 vs v2 — they behave the same once the right
+fields are used, they just spell them differently):
+
+```bash
+POST /v2/users/human
+Authorization: Bearer <machine PAT>
+{
+  "username": "e2e-<spec>-admin@hms.dev",
+  "profile": {"givenName": "...", "familyName": "..."},
+  "email": {"email": "e2e-<spec>-admin@hms.dev", "isVerified": true},
+  "password": {"password": "Password123!", "changeRequired": false}
+}
+```
+
+Both produced a user that read back as `USER_STATE_ACTIVE` **and** logged in
+immediately with no extra step — the two-endpoint gap Q6 hit is closed on
+either API surface. `/_import` was used for the bulk of this verification
+because it is the v1-parity call the rest of Q6's recipe already used.
+
+### The proof: a completed login, not a 201
+
+Every login below drove the **real** hosted login UI
+(`/oauth/v2/authorize` → `/ui/login/loginname` → `/ui/login/password`,
+server-rendered HTML forms, not mocked) with Playwright (`chromium`,
+headless, from `e2e/`'s own installed browser — no new dependency added).
+Zitadel's first-party Console SPA is itself a PKCE client of the same
+`/oauth/v2/authorize` endpoint the real HMS login page will use, so driving
+it end to end and reading the token it stores is a real, complete
+authorization-code-plus-PKCE exchange, the same mechanism `e2e/tests/support/login.ts`
+drives against apps/shell — just captured from Console's `sessionStorage`
+after its own internal exchange completes, rather than from a callback this
+spike's own redirect_uri wasn't registered for.
+
+Decoded ID token from one such login (`e2e-signoutspec-pharmacist@hms.dev`,
+created via the recipe above, header + payload, verbatim):
+
+```json
+// header
+{
+  "alg": "RS256",
+  "kid": "386323422205968387",
+  "typ": "JWT"
+}
+
+// payload
+{
+  "iss": "http://localhost:20080",
+  "sub": "386324150303588355",
+  "aud": ["386322847301107715", "386322847301173251", "386322847301238787",
+          "386322847301304323", "386322845724180483"],
+  "exp": 1786806361,
+  "iat": 1786763161,
+  "auth_time": 1786763159,
+  "nonce": "YX5wb3VTZGRNc3I5ci1XMGVQMnJaVUppMUEzZGx1VkozT1dwQmRYZ0tpdWpt",
+  "amr": ["pwd"],
+  "azp": "386322847301304323",
+  "client_id": "386322847301304323",
+  "at_hash": "DFD4x0mTmDVGKNFeSHR-CA",
+  "sid": "V1_386324187767111683"
+}
+```
+
+`auth_time` (`1786763159`) is present, non-zero, and distinct from `iat`
+(`1786763161`) — the same load-bearing shape confirmed in Q3, now confirmed
+for a user created entirely through the non-interactive recipe, with no
+human ever touching a keyboard for this user's creation.
+
+### Confirmed for several distinct users, not just one
+
+Seven users total were created via the recipe (six via `_import` mirroring
+the real `e2e-<spec>-<kind>@hms.dev` naming scheme, one via `/v2/users/human`
+to prove the v2 path too) and **every one of them completed a real hosted-UI
+login on the first attempt**, no retry, no extra screen:
+
+| Email | `sub` | `auth_time` |
+|---|---|---|
+| `e2e-loginspec-admin@hms.dev` | `386324143089385475` | `1786763144` |
+| `e2e-loginspec-pharmacist@hms.dev` | `386324144549003267` | `1786763147` |
+| `e2e-tenantswitchspec-admin@hms.dev` | `386324145975066627` | `1786763150` |
+| `e2e-tenantswitchspec-pharmacist@hms.dev` | `386324147451461635` | `1786763153` |
+| `e2e-signoutspec-admin@hms.dev` | `386324148843970563` | `1786763156` |
+| `e2e-signoutspec-pharmacist@hms.dev` | `386324150303588355` | `1786763159` |
+| `e2e-v2attempt-admin@hms.dev` (v2 API) | `386324213000044547` | `1786763183` |
+
+Each `sub` is distinct and matches the `userId` the creation call returned —
+no collision, no reused subject, which is exactly what #781's per-spec-file
+isolation requires.
+
+### What did NOT work, and what happened instead
+
+- **`POST /management/v1/users/human` (`AddHumanUserRequest`) with
+  `"password"` + `"passwordChangeRequired": false` in the body** — the exact
+  shape Q6 used. `201`, `userId` back, user reads back as
+  `USER_STATE_ACTIVE`. **Login through the hosted UI never completes**:
+  `/ui/login/password` accepts the (nonexistent, since `"password"` isn't a
+  real field) attempted password with a "Password must contain upper case"
+  — because there was never a password on the account to accept, the
+  endpoint doesn't have a field for one under that name.
+- **Same endpoint with the correct field name, `"initialPassword"`, but no
+  `passwordChangeRequired` control (because the field doesn't exist here)**
+  — creation succeeds, state reads `USER_STATE_ACTIVE`, but the hosted UI
+  **stops at a forced `/ui/login/password` "Change Password" screen**
+  (old/new/confirm) before it will issue a token. Not a hard block — a
+  human (or a second scripted step, not attempted here since the goal was
+  *immediate* login) could complete it — but it fails the plan's bar of
+  completing login **immediately**, and it is silent about why: nothing in
+  the `201` response or the `GetUser` read-back says a change is pending.
+- **Setting `isEmailVerified: false` (or omitting it) on `_import` even with
+  `passwordChangeRequired: false`** — reproduces the original
+  email-verification-pending block on its own: `GetUser` reads back
+  `USER_STATE_INITIAL`. Confirms `isEmailVerified: true` was never the
+  wrong half of Q6's fix — it was always necessary, just not sufficient.
+
+### Still NOT VERIFIED
+
+- **A fully non-interactive path to the *first* machine PAT.** Steps 1–3
+  above (machine user → org role → PAT) were driven using a bearer token
+  obtained by scripting a real Playwright login as the bootstrap admin
+  (`ZITADEL_FIRSTINSTANCE_ORG_HUMAN_*`) — a browser was involved for that one,
+  first, environment-bootstrap step, not for any per-user seeding after it.
+  `zitadel start-from-init --steps <file>` accepts declarative provisioning
+  files and plausibly can create a machine user + PAT at first boot with no
+  login at all, which would remove even that one browser step — **not
+  attempted, time-boxed out**. Task 6 should decide whether closing this
+  matters: the PAT this produces is a long-lived dev secret minted once per
+  environment, not a per-test-run credential, so a one-time scripted browser
+  bootstrap is a materially smaller problem than what Q6 left blocking.
+- **Whether `passwordChangeRequired` has a different name on
+  `AddHumanUserRequest` in a newer Zitadel version.** This spike is pinned to
+  `v2.65.1`; not checked against latest.
+- **Password complexity policy sensitivity.** `Password123!` satisfies this
+  instance's default complexity policy; a production/dev-stack instance with
+  a different policy could reject it — worth a length/charset comment where
+  Task 6's seed script hard-codes the seeded password, mirroring
+  `scripts/seed-dev.mjs`'s existing `PASSWORD` constant.
+
+### Read: is this fragile?
+
+**No — once the two fields are right, it is not fragile; it was
+undocumented, not unreliable.** All seven creations behaved identically and
+every login succeeded on the first attempt with no retry logic needed
+(contrast `e2e/tests/support/login.ts`'s `MAX_SIGN_IN_ATTEMPTS` retry, which
+exists for a real distributed-system race — the revocation watermark — not
+for the seeding recipe). The actual risk is **the exact trap this section
+documents**: `AddHumanUserRequest`'s silent-drop-of-unknown-fields behavior
+means a future edit to Task 6's seed script that "helpfully" switches back
+to the plainer-looking `/management/v1/users/human` endpoint, or that
+reintroduces a `"password"` typo for `"initialPassword"`, will not error —
+it will produce users that pass a code review reading only the `201` and
+silently cannot log in, exactly as Q6 first found. Task 6 should either
+comment this trap loudly at the call site or (better) have the seed script
+assert the created user's state is `USER_STATE_ACTIVE` via a `GetUser`
+read-back before declaring success, so a regression fails the seed step
+itself rather than surfacing later as a mysteriously-failing e2e login.

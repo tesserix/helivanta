@@ -171,7 +171,7 @@ func TestLogin_RefusesSubjectWithNoTenantMembership(t *testing.T) {
 	r, _ := loginHarness(t, fakeZitadelVerifier{subject: "ghost", authTime: time.Now()}, roles)
 
 	w := doLogin(t, r, `{"id_token":"good"}`)
-	require.Equal(t, http.StatusForbidden, w.Code)
+	require.Equal(t, http.StatusNotFound, w.Code)
 	require.Empty(t, sessionCookies(w), "no session cookie may be set on a refused login")
 }
 
@@ -193,7 +193,7 @@ func TestLogin_RefusalBodyDoesNotDistinguishNoAccountFromNoMembership(t *testing
 	r2, _ := loginHarness(t, fakeZitadelVerifier{subject: "revoked-everywhere", authTime: time.Now()}, roles)
 	w2 := doLogin(t, r2, `{"id_token":"good"}`)
 
-	require.Equal(t, http.StatusForbidden, w1.Code)
+	require.Equal(t, http.StatusNotFound, w1.Code)
 	require.Equal(t, w1.Code, w2.Code)
 	require.Equal(t, w1.Body.String(), w2.Body.String(),
 		"the refusal must not disclose which of the two cases occurred")
@@ -208,7 +208,7 @@ func TestLogin_RefusesRequestedTenantCallerIsNotMemberOf(t *testing.T) {
 	r, _ := loginHarness(t, fakeZitadelVerifier{subject: "user-1", authTime: time.Now()}, roles)
 
 	w := doLogin(t, r, `{"id_token":"good","tenant_id":"`+tenantB+`"}`)
-	require.Equal(t, http.StatusForbidden, w.Code)
+	require.Equal(t, http.StatusNotFound, w.Code)
 	require.Empty(t, sessionCookies(w), "no session cookie may be set when the requested tenant is refused")
 }
 
@@ -231,6 +231,63 @@ func TestLogin_HonoursExplicitTenantWhenCallerIsAMember(t *testing.T) {
 	claims, err := verifier.Verify(sessionCookie(t, w))
 	require.NoError(t, err)
 	require.Equal(t, tenantB, claims.TenantID)
+}
+
+// --- 5. renewal (spec D4a) re-checks membership on every call, not only
+//        at first login ---------------------------------------------------
+
+// TestLogin_RenewalForSinceRevokedMemberIsRefused is the D4a proof: this
+// endpoint IS the renewal mechanism (spec D4a — "renewal is the login
+// exchange, run again with a fresh Zitadel token"; there is no separate
+// renewal endpoint), so it must re-check membership on EVERY call, not
+// only the first one a session is minted from. A first call succeeds
+// while user-1 is a member of tenantA; membership is then revoked FROM
+// TENANT A SPECIFICALLY, while user-1 keeps an unrelated membership in
+// tenantB — bindings is non-empty, so this exercises hasBindingForTenant's
+// per-tenant check, not the separate "len(bindings) == 0" no-account gate
+// (an earlier version of this test cleared bindings to nil entirely and
+// passed even with the per-tenant check removed, because the empty-bindings
+// gate caught it first for the wrong reason; see the task report's
+// mutation-testing section for the reproduction). A second call — same
+// subject, same tenant_id, the shape of a browser's silent prompt=none
+// renewal naming the tenant it is currently in — must be refused exactly
+// like a first-time non-member of that tenant would be. If this endpoint
+// only checked membership once (e.g. by caching the bindings, or by
+// trusting a previously-issued session instead of the fresh Zitadel
+// token), a revoked member would keep renewing indefinitely and the TTL
+// bound spec D4/D4a promises would be false.
+func TestLogin_RenewalForSinceRevokedMemberIsRefused(t *testing.T) {
+	roles := &fakeRoleListerLogin{bindings: map[string][]authz.RoleBinding{
+		"user-1": {{TenantID: tenantA, Role: authz.RoleNurse}},
+	}}
+	r, verifier := loginHarness(t, fakeZitadelVerifier{subject: "user-1", authTime: time.Now()}, roles)
+
+	// The original sign-in: user-1 is a member of tenantA, and succeeds.
+	w1 := doLogin(t, r, `{"id_token":"good","tenant_id":"`+tenantA+`"}`)
+	require.Equal(t, http.StatusOK, w1.Code, w1.Body.String())
+	_, err := verifier.Verify(sessionCookie(t, w1))
+	require.NoError(t, err)
+	require.Equal(t, 1, roles.calls, "precondition: the first login consulted OpenFGA")
+
+	// Membership in tenantA is revoked out from under user-1 between the
+	// original sign-in and the renewal — the iam-fga-sync consumer
+	// applying a member_revoked event, from this handler's point of view.
+	// user-1 keeps an unrelated membership in tenantB, so bindings stays
+	// non-empty: this isolates the per-tenant membership check from the
+	// separate "no accessible tenant anywhere" gate above it.
+	roles.bindings["user-1"] = []authz.RoleBinding{{TenantID: tenantB, Role: authz.RoleNurse}}
+
+	// The silent renewal: the browser re-authenticated against Zitadel
+	// (prompt=none) and posts a FRESH ID token — fakeZitadelVerifier
+	// still accepts raw=="good" for this test's purposes, standing in for
+	// a genuinely fresh Zitadel token — naming the SAME tenant (A) it was
+	// last in, exactly as D4a describes.
+	w2 := doLogin(t, r, `{"id_token":"good","tenant_id":"`+tenantA+`"}`)
+	require.Equal(t, http.StatusNotFound, w2.Code,
+		"a renewal for a since-revoked member must be refused, the same as any other non-member")
+	require.Empty(t, sessionCookies(w2), "no session may be re-issued for a revoked member")
+	require.Equal(t, 2, roles.calls,
+		"the renewal must consult OpenFGA again, not trust a cached or previously-issued answer")
 }
 
 // --- invalid credentials never reach the membership gate ----------------

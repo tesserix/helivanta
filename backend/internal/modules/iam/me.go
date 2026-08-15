@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"sort"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/hms/pkg/session"
 )
 
 type tenantMembership struct {
@@ -59,11 +61,23 @@ type switchRequest struct {
 // new RLS policy, and no privileged accessor on a request path.
 type meHandlers struct {
 	roles  platform.RoleLister
-	tokens authn.TokenMinter
+	signer *session.Signer
+	// ttl and secureCookie mirror iam.LoginHandlers' fields exactly (see
+	// login.go): a re-minted session cookie must carry the SAME lifetime
+	// and the SAME `secure` flag semantics a freshly logged-in session
+	// gets, or a switch could silently outlive login's bound or downgrade
+	// the cookie's transport requirement.
+	ttl          time.Duration
+	secureCookie bool
 }
 
 func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
-	me := &meHandlers{roles: deps.Roles, tokens: deps.Tokens}
+	me := &meHandlers{
+		roles:        deps.Roles,
+		signer:       deps.SessionSigner,
+		ttl:          deps.SessionTTL,
+		secureCookie: deps.SessionSecureCookie,
+	}
 
 	// NoTenantMembership, not Public: a caller whose membership in the
 	// tenant their token names has just been revoked must still be able
@@ -125,9 +139,12 @@ func (h *meHandlers) tenants(c *gin.Context) {
 	respond.OK(c, gin.H{"data": groupByTenant(bindings, p.TenantID)})
 }
 
-// switchTenant mints a custom token for another tenant the caller is a
-// member of. Everything before the mint is the gate; only past it does
-// anything get issued.
+// switchTenant re-mints the caller's OWN HMS session for another tenant
+// they are a member of (#838, spec D3). Everything before the mint is
+// the gate; only past it does anything get issued, and no IdP round
+// trip happens at all — this is the difference from the old GIP-backed
+// design, which had to mint a custom token the browser then exchanged
+// with Firebase for a fresh ID token.
 func (h *meHandlers) switchTenant(c *gin.Context) {
 	p, ok := authn.PrincipalFrom(c)
 	if !ok {
@@ -141,8 +158,8 @@ func (h *meHandlers) switchTenant(c *gin.Context) {
 	}
 	// req.TenantID is compared raw, with no casing normalization:
 	// Principal.TenantID is canonicalized (lowercase uuid.String())
-	// at the GIP token parse boundary (pkg/authn/gip.go), so every
-	// FGA role tuple written by the iam-fga-sync consumer — and
+	// by session.Verifier's parse of the HMS session (pkg/session), so
+	// every FGA role tuple written by the iam-fga-sync consumer — and
 	// therefore every binding ListRoles returns — is already
 	// canonical. A client round-tripping the value it received from
 	// /me/tenants (itself sourced from these same bindings) submits
@@ -157,43 +174,58 @@ func (h *meHandlers) switchTenant(c *gin.Context) {
 		respondRolesUnavailable(c, err)
 		return
 	}
+	// 404, not 403: docs/standards/backend.md's cross-tenant rule
+	// ("404, never 403, for cross-tenant access ... 403 would confirm
+	// the subject exists somewhere") applies here exactly as it does to
+	// any other resource lookup. target is a tenant identifier the
+	// caller named; a 403 would confirm that tenant exists and only
+	// withholds it, which is precisely the disclosure the rule exists
+	// to prevent. This ALSO reconciles the endpoint with the rest of
+	// the codebase: it used to answer 403 here (a hold-over from before
+	// this rule was applied uniformly), the one remaining inconsistency
+	// docs/superpowers/plans/2026-08-15-zitadel-auth.md Task 5 calls out
+	// by name. login.go's equivalent refusal is brought in line with
+	// this same reasoning in the same change — see its doc comment.
 	if !hasBindingForTenant(bindings, target) {
-		respond.Forbidden(c, "not a member of that tenant")
+		respond.NotFound(c, "tenant")
 		return
 	}
 	// Everything above is the gate; only past it does anything get
-	// minted. A custom token is a credential for the target tenant,
-	// so issuing one before the membership check — or issuing one on
-	// any path where the check did not conclusively pass — would hand
-	// out exactly the access the check exists to withhold.
-	//
-	// target is minted as sent (already validated as a UUID by the
-	// binding tag). Casing does not survive the round trip anyway:
-	// principalFromToken canonicalizes the claim to lowercase
-	// uuid.String() when the re-minted token comes back (see
-	// pkg/authn/gip.go).
-	if h.tokens == nil {
-		respondMintUnavailable(c, errors.New("no token minter configured"))
+	// re-minted. A session token is a credential for the target
+	// tenant, so issuing one before the membership check — or issuing
+	// one on any path where the check did not conclusively pass —
+	// would hand out exactly the access the check exists to withhold.
+	if h.signer == nil {
+		respondMintUnavailable(c, errors.New("no session signer configured"))
 		return
 	}
-	token, err := h.tokens.CustomTokenWithClaims(c.Request.Context(), p.Subject,
-		map[string]interface{}{"tenant_id": target})
+	// p.AuthTime is carried through UNMODIFIED — never time.Now(). This
+	// is the load-bearing line in this handler: p.AuthTime is when the
+	// human last authenticated against Zitadel, and the #781 revocation
+	// watermark compares a session's auth_time against a per-subject
+	// revoked-after mark. Resetting it here would let a tenant switch
+	// launder an old authentication into a fresh one and silently walk
+	// straight through a revocation made between the original sign-in
+	// and this switch (spec D2, D3).
+	token, err := h.signer.Mint(p.Subject, target, p.AuthTime)
 	if err != nil {
 		respondMintUnavailable(c, err)
 		return
 	}
-	// custom_token is what actually performs the switch: the client
-	// exchanges it for a fresh ID token carrying the new tenant_id
-	// claim and replaces its session with it. tenant_id is kept
-	// alongside so callers can confirm which tenant the token is for
-	// without decoding it, and so the response shape stays additive.
-	respond.OK(c, gin.H{"tenant_id": target, "custom_token": token})
+	// Same cookie flags iam.LoginHandlers.Login sets (login.go): httpOnly
+	// and sameSite=Lax fixed, secure from config. This IS the switch —
+	// there is no separate token for the client to exchange the way the
+	// old custom_token was; the new session cookie itself is the
+	// credential from here on.
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(authn.SessionCookie, token, int(h.ttl.Seconds()), "/", "", h.secureCookie, true)
+	respond.OK(c, gin.H{"tenant_id": target})
 }
 
 // groupByTenant turns FGA role bindings into the response shape, one
 // entry per tenant listing every role key held there. Tenant ids are
 // compared raw, not normalized: Principal.TenantID is canonicalized at
-// the GIP token parse boundary (pkg/authn/gip.go), so every grant the
+// the HMS session parse boundary (pkg/session/verifier.go), so every grant the
 // iam-fga-sync consumer applies — and therefore every binding this
 // resolves to — already carries the same lowercase uuid.String() form,
 // regardless of when it was granted. Grouping by first-appearance order
@@ -250,16 +282,17 @@ func respondRolesUnavailable(c *gin.Context, err error) {
 		"authz_unavailable", "authorization is temporarily unavailable")
 }
 
-// respondMintUnavailable fails closed when the identity provider cannot
-// issue the new session: the caller keeps the tenant they had. It is a
-// distinct code from authz_unavailable because the membership decision
-// itself succeeded — only the credential could not be issued — and
-// because a client that retries an authz_unavailable and a client that
-// retries this are reacting to outages in two different systems. It is
-// never a 200: a success with no token is precisely the bug this
-// endpoint had, a switch that reports success and changes nothing.
+// respondMintUnavailable fails closed when HMS itself cannot re-mint the
+// session (no signer configured, or Signer.Mint refused): the caller
+// keeps the tenant they had. It is a distinct code from authz_unavailable
+// because the membership decision itself succeeded — only the credential
+// could not be issued — and because a client that retries an
+// authz_unavailable and a client that retries this are reacting to
+// outages in two different systems. It is never a 200: a success with no
+// new session is precisely the bug this endpoint had, a switch that
+// reports success and changes nothing.
 func respondMintUnavailable(c *gin.Context, err error) {
-	requestid.Logger(c).ErrorContext(c.Request.Context(), "mint tenant token failed", "err", err)
+	requestid.Logger(c).ErrorContext(c.Request.Context(), "mint tenant session failed", "err", err)
 	respond.Error(c, http.StatusServiceUnavailable,
 		"session_unavailable", "could not issue a session for that hospital")
 }

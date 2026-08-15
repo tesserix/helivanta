@@ -178,21 +178,6 @@ func run() error {
 	// code has to remember to make.
 	requestVerifier := authn.NewSessionVerifier(sessionVerifier)
 
-	// TokenMinter/TokenRevoker below are STILL GIP's — Task 5 replaces
-	// their last callers (iam's tenant switch and sign-out/revoke) before
-	// Task 7 deletes gip.go and the Firebase dependency entirely; see
-	// gip.go's package doc for why this is safe to leave mid-cutover on
-	// this branch (spec D7, plan Task 3's "Sequencing corrected" note).
-	minter, err := authn.NewGIPMinter(ctx, cfg.GIPProjectID, cfg.IsDev())
-	if err != nil {
-		return err
-	}
-
-	revoker, err := authn.NewGIPRevoker(ctx, cfg.GIPProjectID, cfg.IsDev())
-	if err != nil {
-		return err
-	}
-
 	fga, err := authz.NewClient(ctx, cfg.OpenFGAURL, cfg.OpenFGAStore)
 	if err != nil {
 		return err
@@ -219,13 +204,21 @@ func run() error {
 		},
 		requestid.Middleware(),
 	)
+	// sessionSecureCookie is the SAME value passed to iam.NewLoginHandlers
+	// below (!cfg.IsDev()) — a tenant switch re-mints the identical
+	// session cookie login mints, so the two must never disagree on
+	// `secure`. Computed once, here, so there is exactly one place this
+	// could get out of sync rather than two call sites independently
+	// negating cfg.IsDev().
+	sessionSecureCookie := !cfg.IsDev()
 	deps := platform.Deps{
-		DB:           db,
-		Bus:          bus,
-		Authz:        fga,
-		Roles:        fga,
-		Tokens:       minter,
-		TokenRevoker: revoker,
+		DB:                  db,
+		Bus:                 bus,
+		Authz:               fga,
+		Roles:               fga,
+		SessionSigner:       sessionSigner,
+		SessionTTL:          cfg.SessionTTL,
+		SessionSecureCookie: sessionSecureCookie,
 		Reconcile: func(ctx context.Context, tenantID string) error {
 			return platform.ReconcileTenant(ctx, registry, fga, tenantID)
 		},
@@ -258,7 +251,7 @@ func run() error {
 	// that does not exist yet — because gin routes registered directly on
 	// the engine are independent of any *gin.RouterGroup built over it,
 	// even one sharing the same path prefix.
-	loginHandlers := iam.NewLoginHandlers(zitadelVerifier, fga, sessionSigner, cfg.SessionTTL, !cfg.IsDev())
+	loginHandlers := iam.NewLoginHandlers(zitadelVerifier, fga, sessionSigner, cfg.SessionTTL, sessionSecureCookie)
 	// Mounted through bootstrap so the bypass is declared in one
 	// enumerable place and pinned by
 	// archtest.TestEveryEngineRouteIsDeclaredOrAllowlisted — a route on the

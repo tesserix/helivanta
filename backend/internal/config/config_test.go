@@ -46,12 +46,10 @@ func TestIsDevOnlyForExactDev(t *testing.T) {
 func TestRateLimitDefaultsMatchTheDesignSpec(t *testing.T) {
 	t.Setenv("RATE_LIMIT_TENANT_PER_MIN", "")
 	t.Setenv("RATE_LIMIT_PRINCIPAL_PER_MIN", "")
-	t.Setenv("RATE_LIMIT_MINT_PER_MIN", "")
 
 	cfg := config.Load()
 	require.Equal(t, 600, cfg.RateLimitTenantPerMin)
 	require.Equal(t, 120, cfg.RateLimitPrincipalPerMin)
-	require.Equal(t, 10, cfg.RateLimitMintPerMin)
 }
 
 // TestRateLimitEnvOverridesAreHonoured proves getenvInt actually reads
@@ -62,12 +60,10 @@ func TestRateLimitDefaultsMatchTheDesignSpec(t *testing.T) {
 func TestRateLimitEnvOverridesAreHonoured(t *testing.T) {
 	t.Setenv("RATE_LIMIT_TENANT_PER_MIN", "100000")
 	t.Setenv("RATE_LIMIT_PRINCIPAL_PER_MIN", "100000")
-	t.Setenv("RATE_LIMIT_MINT_PER_MIN", "1000")
 
 	cfg := config.Load()
 	require.Equal(t, 100000, cfg.RateLimitTenantPerMin)
 	require.Equal(t, 100000, cfg.RateLimitPrincipalPerMin)
-	require.Equal(t, 1000, cfg.RateLimitMintPerMin)
 }
 
 // TestRateLimitEnvFallsOpenOnUnparseableValue is the fail-open case

@@ -6,13 +6,17 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/hms/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/testutil"
+	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/hms/pkg/session"
 )
 
 // fakeRoleLister fakes authz.Client's ListRoles from a static
@@ -31,31 +35,6 @@ func (f *fakeRoleLister) ListRoles(_ context.Context, subject string) ([]authz.R
 		return nil, f.err
 	}
 	return f.bindings[subject], nil
-}
-
-// recordingMinter records every mint call so a test can assert not just
-// what came back but whether minting happened at all — the point of the
-// gate-before-mint tests is that on a denied or unresolved switch no
-// credential for the target tenant is ever created, not merely that the
-// response withheld one.
-type recordingMinter struct {
-	calls  []mintCall
-	err    error
-	tokens int
-}
-
-type mintCall struct {
-	uid    string
-	claims map[string]interface{}
-}
-
-func (m *recordingMinter) CustomTokenWithClaims(_ context.Context, uid string, claims map[string]interface{}) (string, error) {
-	m.calls = append(m.calls, mintCall{uid: uid, claims: claims})
-	if m.err != nil {
-		return "", m.err
-	}
-	m.tokens++
-	return "minted-token-" + uid, nil
 }
 
 func TestMePermissionsReturnsResolvedSetSorted(t *testing.T) {
@@ -228,120 +207,145 @@ func TestMeTenantsFailsClosedOnRoleListerError(t *testing.T) {
 		"a ListRoles error must fail closed, never read as \"no memberships\"")
 }
 
+// switchHarness wires a real session.Signer/Verifier pair into
+// testutil.NewHarness (SessionSigner/SessionTTL), exactly mirroring what
+// cmd/api/main.go wires in production (deps.SessionSigner) minus the DB
+// key material. Using a REAL signer means the tests below observe an
+// actual minted session, not a fake token string — the point of
+// TestSwitchTenantCarriesTheOriginalAuthTimeThrough is that the cookie
+// decodes back to the caller's subject, the TARGET tenant and the
+// ORIGINAL auth_time, which a hand-rolled fake could get wrong in
+// exactly the way this endpoint's whole security property depends on.
+func switchHarness(t *testing.T, opts testutil.HarnessOptions) (*gin.Engine, *session.Verifier) {
+	t.Helper()
+	signer, verifier := testutil.NewSessionSignerForTest(t)
+	opts.SessionSigner = signer
+	opts.SessionTTL = testutil.TestSessionTTL
+	opts.SessionSecureCookie = true
+	r, _, _, _ := testutil.NewHarness(t, opts)
+	return r, verifier
+}
+
+// fixedAuthTimeVerifier is testutil.StaticVerifier's token->tenant lookup
+// with an operator-chosen AuthTime instead of always stamping time.Now()
+// at Verify time. TestSwitchTenantCarriesTheOriginalAuthTimeThrough needs
+// this: with the default StaticVerifier, the ORIGINAL session's auth_time
+// and a BUGGY reset-to-mint-time auth_time are both stamped "now" only
+// moments apart, so asserting the re-minted claim is merely "close to
+// now" cannot tell carried-through from reset apart. A deliberately
+// distant, fixed AuthTime makes the two cases unmistakable.
+type fixedAuthTimeVerifier struct {
+	tokens   map[string]string
+	authTime time.Time
+}
+
+func (f fixedAuthTimeVerifier) Verify(_ context.Context, raw string) (authn.Principal, error) {
+	tenant, ok := f.tokens[raw]
+	if !ok {
+		return authn.Principal{}, errors.New("unknown token")
+	}
+	return authn.Principal{Subject: "user-" + raw, TenantID: tenant, AuthTime: f.authTime}, nil
+}
+
 // TestSwitchTenantRequiresMembership also pins gate-before-mint on the
-// denial path: a non-member must not merely be told no, no custom token
-// for the target tenant may be created at all. A minted token is a
-// bearer credential — once it exists, the 403 is advisory.
+// denial path: a non-member must not merely be told no, no re-minted
+// session for the target tenant may be issued at all — no Set-Cookie on
+// the response, and the caller's existing session is left untouched.
 func TestSwitchTenantRequiresMembership(t *testing.T) {
 	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{
 		"user-jane": {{TenantID: testutil.TenantA, Role: authz.RoleNurse}},
 	}}
-	minter := &recordingMinter{}
-	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+	r, _ := switchHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"jane": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"jane": {}},
 		Writer:  &recordingWriter{},
 		Roles:   roles,
-		Minter:  minter,
 		Modules: []platform.Module{iam.New(nil)},
 	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
 		`{"tenant_id":"`+testutil.TenantB+`"}`)
-	require.Equal(t, http.StatusForbidden, res.Code,
-		"switching into a tenant you are not a member of must be denied")
-	require.Empty(t, minter.calls,
-		"no token may be minted for a tenant the caller is not a member of")
-	require.NotContains(t, res.Body.String(), "custom_token")
+	// 404, the cross-tenant answer (docs/standards/backend.md; #838
+	// reconciles this with login's identical refusal — see login.go's
+	// noAccessibleTenantMessage doc comment): a 403 here would confirm
+	// tenant B exists, which is exactly what withholding it should not
+	// do.
+	require.Equal(t, http.StatusNotFound, res.Code,
+		"switching into a tenant you are not a member of must be denied, and answered as the cross-tenant case")
+	require.Empty(t, sessionCookies(res),
+		"no session may be re-minted for a tenant the caller is not a member of")
 }
 
-// TestSwitchTenantMintsTokenForTargetTenant is the whole point of the
-// endpoint: the response must carry a credential that actually moves the
-// caller, minted for the caller's own subject and carrying the target
-// tenant as its tenant_id claim. Without it the switch is a no-op that
-// reports success — the shell shows a toast and the user stays put.
-func TestSwitchTenantMintsTokenForTargetTenant(t *testing.T) {
+// TestSwitchTenantCarriesTheOriginalAuthTimeThrough is the whole point of
+// the endpoint: the response must set a new HMS session cookie that
+// decodes to the caller's own subject, the TARGET tenant, and the
+// auth_time carried through UNCHANGED from the caller's original session
+// — not a fresh time.Now(). Without the last of these, a switch would
+// launder an old authentication into a new one and quietly defeat the
+// #781 revocation watermark (spec D2/D3). Without any of the first two,
+// the switch is a no-op that reports success while changing nothing.
+//
+// originalAuthTime is deliberately six years in the past, and asserted by
+// EXACT Unix-seconds equality, not "close to now": see
+// fixedAuthTimeVerifier's doc comment for why a "close to now" bound
+// cannot tell "carried through" apart from "reset to the mint time" — an
+// earlier version of this test used exactly that weaker bound and passed
+// even when the handler was mutated to call h.signer.Mint(..., time.Now())
+// instead of p.AuthTime (verified by hand while writing this test; see the
+// task report's mutation-testing section for the reproduction).
+func TestSwitchTenantCarriesTheOriginalAuthTimeThrough(t *testing.T) {
+	originalAuthTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{
 		"user-jane": {
 			{TenantID: testutil.TenantA, Role: authz.RoleDoctor},
 			{TenantID: testutil.TenantB, Role: authz.RoleNurse},
 		},
 	}}
-	minter := &recordingMinter{}
-	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens:  map[string]string{"jane": testutil.TenantA},
+	r, verifier := switchHarness(t, testutil.HarnessOptions{
+		Verifier: fixedAuthTimeVerifier{
+			tokens:   map[string]string{"jane": testutil.TenantA},
+			authTime: originalAuthTime,
+		},
 		Perms:   map[string][]authz.Permission{"jane": {}},
 		Writer:  &recordingWriter{},
 		Roles:   roles,
-		Minter:  minter,
 		Modules: []platform.Module{iam.New(nil)},
 	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
 		`{"tenant_id":"`+testutil.TenantB+`"}`)
-	require.Equal(t, http.StatusOK, res.Code)
-
-	require.Len(t, minter.calls, 1)
-	require.Equal(t, "user-jane", minter.calls[0].uid,
-		"the token must be minted for the caller, never for another subject")
-	require.Equal(t, testutil.TenantB, minter.calls[0].claims["tenant_id"],
-		"the token must carry the target tenant, which is what makes the switch real")
+	require.Equal(t, http.StatusOK, res.Code, res.Body.String())
 
 	var body struct {
-		TenantID    string `json:"tenant_id"`
-		CustomToken string `json:"custom_token"`
+		TenantID string `json:"tenant_id"`
 	}
 	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &body))
 	require.Equal(t, testutil.TenantB, body.TenantID)
-	require.Equal(t, "minted-token-user-jane", body.CustomToken,
-		"the minted token must reach the client — it is the only thing that changes the session")
+
+	claims, err := verifier.Verify(sessionCookie(t, res))
+	require.NoError(t, err)
+	require.Equal(t, "user-jane", claims.Subject,
+		"the re-minted session must be for the caller, never for another subject")
+	require.Equal(t, testutil.TenantB, claims.TenantID,
+		"the re-minted session must carry the target tenant, which is what makes the switch real")
+	require.Equal(t, originalAuthTime.Unix(), claims.AuthTime.Unix(),
+		"auth_time must be carried through from the caller's existing session, not reset to the mint time")
 }
 
-// TestSwitchTenantFailsClosedWhenMintingFails covers the other half of
-// fail-closed: the membership decision succeeded, but the identity
-// provider could not issue the credential. Reporting 200 with no usable
-// token would reproduce the original bug (a switch that claims success
-// and changes nothing), so this must be an error the client can see.
-func TestSwitchTenantFailsClosedWhenMintingFails(t *testing.T) {
-	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{
-		"user-jane": {{TenantID: testutil.TenantB, Role: authz.RoleNurse}},
-	}}
-	minter := &recordingMinter{err: errors.New("gip unreachable")}
-	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens:  map[string]string{"jane": testutil.TenantA},
-		Perms:   map[string][]authz.Permission{"jane": {}},
-		Writer:  &recordingWriter{},
-		Roles:   roles,
-		Minter:  minter,
-		Modules: []platform.Module{iam.New(nil)},
-	})
-
-	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
-		`{"tenant_id":"`+testutil.TenantB+`"}`)
-	require.Equal(t, http.StatusServiceUnavailable, res.Code)
-	require.Zero(t, minter.tokens)
-
-	var body struct {
-		Error string `json:"error"`
-	}
-	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &body))
-	require.Equal(t, "session_unavailable", body.Error,
-		"a minting outage is not an authorization outage — the codes must stay distinguishable")
-	require.NotContains(t, res.Body.String(), "custom_token")
-}
-
-// TestSwitchTenantFailsClosedWithoutAMinter guards the deployment
-// mistake: Deps.Tokens left nil (a test harness, a half-wired
+// TestSwitchTenantFailsClosedWithoutASigner guards the deployment
+// mistake: Deps.SessionSigner left nil (a test harness, a half-wired
 // entrypoint). The route must refuse rather than fall back to echoing
 // the tenant id, which is what made the original no-op look like a
 // success.
-func TestSwitchTenantFailsClosedWithoutAMinter(t *testing.T) {
+func TestSwitchTenantFailsClosedWithoutASigner(t *testing.T) {
 	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{
 		"user-jane": {{TenantID: testutil.TenantB, Role: authz.RoleNurse}},
 	}}
-	// Minter is deliberately left unset — its zero value (nil) is what
-	// this test exercises: deps.Tokens must reach the handler as nil, not
-	// a working stub. See HarnessOptions.Minter's doc comment.
+	// SessionSigner is deliberately left unset — its zero value (nil) is
+	// what this test exercises: deps.SessionSigner must reach the handler
+	// as nil, not a working signer. Built directly through
+	// testutil.NewHarness, NOT switchHarness, which always wires a
+	// working signer.
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"jane": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"jane": {}},
@@ -353,7 +357,7 @@ func TestSwitchTenantFailsClosedWithoutAMinter(t *testing.T) {
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
 		`{"tenant_id":"`+testutil.TenantB+`"}`)
 	require.Equal(t, http.StatusServiceUnavailable, res.Code)
-	require.NotContains(t, res.Body.String(), "custom_token")
+	require.Empty(t, sessionCookies(res))
 }
 
 // TestSwitchTenantFailsClosedOnRoleListerError guards the switch
@@ -362,18 +366,16 @@ func TestSwitchTenantFailsClosedWithoutAMinter(t *testing.T) {
 // hasBindingForTenant(nil, ...) == false would produce if a future
 // refactor let the error fall through to the normal not-a-member path.
 // That would silently convert "authorization is unavailable" into
-// "you are definitively not a member" — a 403 that looks like a
+// "you are definitively not a member" — a 503 masquerading as a
 // deliberate, permanent denial rather than a transient outage — so
-// this must be 503, not 403, and not 200.
+// this must be 503, not 404, and not 200.
 func TestSwitchTenantFailsClosedOnRoleListerError(t *testing.T) {
 	roles := &fakeRoleLister{err: errors.New("openfga unreachable")}
-	minter := &recordingMinter{}
-	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+	r, _ := switchHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"jane": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"jane": {}},
 		Writer:  &recordingWriter{},
 		Roles:   roles,
-		Minter:  minter,
 		Modules: []platform.Module{iam.New(nil)},
 	})
 
@@ -385,15 +387,15 @@ func TestSwitchTenantFailsClosedOnRoleListerError(t *testing.T) {
 	res := testutil.Do(r, "POST", "/v1/iam/me/tenant", "jane",
 		`{"tenant_id":"`+testutil.TenantA+`"}`)
 	require.Equal(t, http.StatusServiceUnavailable, res.Code,
-		"a ListRoles error must fail closed as 503, never as 403 or 200")
+		"a ListRoles error must fail closed as 503, never as 404 or 200")
 
 	var body struct {
 		Error string `json:"error"`
 	}
 	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &body))
 	require.Equal(t, "authz_unavailable", body.Error)
-	require.Empty(t, minter.calls,
-		"minting must sit behind the gate: an unresolved membership check must not produce a credential")
+	require.Empty(t, sessionCookies(res),
+		"minting must sit behind the gate: an unresolved membership check must not produce a session")
 }
 
 // TestSwitchTenantRejectsNonCanonicalTenantID guards the actual

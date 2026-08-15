@@ -2,10 +2,11 @@ package platform
 
 import (
 	"context"
+	"time"
 
-	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/hms/pkg/session"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -42,24 +43,28 @@ type Deps struct {
 	Bus   *events.Bus
 	Authz TupleWriter
 	Roles RoleLister
-	// Tokens mints a custom token carrying a tenant_id claim, for the one
-	// operation that must change a caller's identity rather than read it:
-	// switching hospitals. Unlike Authz/Roles this is not a narrowed
-	// mirror of a bigger client — authn.TokenMinter is already exactly one
-	// method, and deliberately does not expose the Firebase auth client
-	// it wraps. Set by main.go; nil in tests that do not exercise it, in
-	// which case the switch route fails closed rather than issuing
-	// nothing and claiming success.
-	Tokens authn.TokenMinter
-	// TokenRevoker revokes a subject's refresh tokens at the identity
-	// provider when HMS decides a credential is no longer valid, so GIP
-	// agrees with the HMS watermark instead of quietly disagreeing
-	// (#781). platform must not import a module, so this stays a narrow
-	// capability exactly like Tokens above; the revocation watermark
-	// checker itself reaches the iam module through its own constructor,
-	// not through Deps — see iam.New. Set by main.go; nil in tests that
-	// do not exercise it.
-	TokenRevoker authn.TokenRevoker
+	// SessionSigner re-mints the HMS session for the one operation that
+	// must change a caller's identity rather than read it: switching
+	// hospitals (#838, spec D3). Post-cutover this is the ONLY way a
+	// module can issue a credential — there is no more external identity
+	// provider to mint against, and no more Firebase client to wrap. Set
+	// by main.go from the SAME key/kid/issuer login mints with (cmd/api's
+	// sessionSigner); nil in tests that do not exercise it, in which case
+	// the switch route fails closed rather than issuing nothing and
+	// claiming success — mirroring the old Tokens field's nil behaviour.
+	SessionSigner *session.Signer
+	// SessionTTL is the lifetime stamped on a re-minted session cookie.
+	// Must be the same value cfg.SessionTTL feeds iam.NewLoginHandlers
+	// (cmd/api/main.go) — two different TTLs for the same signer would
+	// mean a tenant switch silently outlives or undercuts the bound login
+	// established (spec D4).
+	SessionTTL time.Duration
+	// SessionSecureCookie mirrors the `secure` flag iam.NewLoginHandlers
+	// sets on the session cookie at login (true outside dev). A re-mint
+	// that got this wrong would either downgrade an HTTPS-only cookie to
+	// plaintext-eligible or, in dev, refuse to set a cookie the browser
+	// will not send back over http://.
+	SessionSecureCookie bool
 	// Reconcile ensures a tenant's permission tuples match the registry.
 	// Set by main.go; nil in tests that do not exercise it.
 	Reconcile func(ctx context.Context, tenantID string) error

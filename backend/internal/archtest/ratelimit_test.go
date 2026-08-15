@@ -128,7 +128,6 @@ func TestThrottledRequestMakesNoOpenFGACall(t *testing.T) {
 	r := chainHarness(t, counting, config.Config{
 		RateLimitTenantPerMin:    600,
 		RateLimitPrincipalPerMin: 6,
-		RateLimitMintPerMin:      10,
 	})
 
 	require.Equal(t, http.StatusOK, doChain(r, "alice").Code)

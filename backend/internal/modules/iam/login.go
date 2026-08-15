@@ -34,6 +34,20 @@ type loginRequest struct {
 // which one happened: this endpoint runs before any HMS session exists,
 // so its refusal is the only information a caller who does not belong
 // anywhere ever gets about their own account.
+//
+// The status code is 404, not 403 (#838 Task 5, reconciling this with
+// docs/standards/backend.md's cross-tenant rule: "404, never 403 ... 403
+// would confirm the subject exists somewhere"). A caller naming a real
+// tenant_id it is not a member of is the same shape as any other
+// cross-tenant lookup in this codebase, and a 403 here would confirm
+// that tenant exists — precisely the disclosure the byte-identical body
+// above already goes out of its way to avoid for the "no account at all"
+// case. Answering 403 for one sub-case and 404 for the other would leak
+// through the status code what the body deliberately hides, so both
+// collapse to 404 for the same reason they already collapse to one
+// message: this handler has exactly one signal and must not let any
+// channel of the response — body OR status — distinguish what that
+// signal cannot.
 const noAccessibleTenantMessage = "no accessible hospital for this account"
 
 // LoginHandlers backs POST /v1/auth/login, spec D1
@@ -116,7 +130,7 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 		return
 	}
 	if len(bindings) == 0 {
-		respond.Forbidden(c, noAccessibleTenantMessage)
+		respondNoAccessibleTenant(c)
 		return
 	}
 
@@ -133,7 +147,7 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	tenantID := bindings[0].TenantID
 	if req.TenantID != "" {
 		if !hasBindingForTenant(bindings, req.TenantID) {
-			respond.Forbidden(c, noAccessibleTenantMessage)
+			respondNoAccessibleTenant(c)
 			return
 		}
 		tenantID = req.TenantID
@@ -167,4 +181,16 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(authn.SessionCookie, token, int(h.ttl.Seconds()), "/", "", h.secureCookie, true)
 	respond.OK(c, gin.H{"tenant_id": tenantID})
+}
+
+// respondNoAccessibleTenant is the one refusal shape both "no bindings
+// anywhere" and "named a tenant not in the bindings" collapse to — see
+// noAccessibleTenantMessage's doc comment for why the status code, not
+// just the body, must not distinguish the two. respond.NotFound is not
+// used directly because it appends " not found" to a resource name,
+// which would either name the tenant (disclosing it exists) or read
+// oddly for the no-bindings-at-all case; this keeps the exact fixed
+// message instead.
+func respondNoAccessibleTenant(c *gin.Context) {
+	respond.Error(c, http.StatusNotFound, "not_found", noAccessibleTenantMessage)
 }

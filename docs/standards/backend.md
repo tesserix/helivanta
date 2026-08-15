@@ -411,11 +411,18 @@ and the limiter would still return 429, so nothing would look broken.
 `TestThrottledRequestMakesNoOpenFGACall` pins that order by counting
 OpenFGA calls, not by inspecting the chain.
 
-Routes consuming a shared **external** resource get a tighter budget in
-`RateLimitConfig`'s `Tight` map — today only `POST /v1/iam/me/tenant`,
-which mints a GIP custom token per call against project-wide Identity
-Platform quota. A tight rule gets its **own** bucket key, so draining it
-does not drain the budget every other route reads from.
+Routes consuming a shared **external** resource may get a tighter budget
+in `RateLimitConfig`'s `Tight` map — a tight rule gets its **own** bucket
+key, so draining it does not drain the budget every other route reads
+from. `Tight` is empty as of #838: its one entry, `POST
+/v1/iam/me/tenant`, was budgeted tighter because it minted a GIP custom
+token per call against project-wide Identity Platform quota. #838
+replaced that with an in-process HMS session re-mint (one Ed25519
+signature) plus one OpenFGA membership check — the same shape of cost
+every other authenticated route already pays through `authz.Middleware`'s
+own `Resolve` call — so there is no longer a shared external resource
+this route uniquely threatens, and it is deliberately left off `Tight`
+rather than carried forward with a stale rationale.
 
 Routes that must never be throttled go in `Exempt` **with a reason**,
 pinned by `TestRateLimitExemptionsAreAllowlisted`. The bar is high: an
@@ -436,15 +443,14 @@ authorization or tenant scoping. The in-memory limiter cannot be
 unavailable; when a Redis-backed one replaces it (#7), a limiter that
 cannot reach its store must admit the request and alert, never deny.
 Limits come from env (`RATE_LIMIT_TENANT_PER_MIN`,
-`RATE_LIMIT_PRINCIPAL_PER_MIN`, `RATE_LIMIT_MINT_PER_MIN`) with
-production defaults, and an unparseable value falls back to the default
-with a warning rather than refusing to boot — same call `LOG_LEVEL`
-makes.
+`RATE_LIMIT_PRINCIPAL_PER_MIN`) with production defaults, and an
+unparseable value falls back to the default with a warning rather than
+refusing to boot — same call `LOG_LEVEL` makes.
 
 **Known cost:** the limiter is in-process, so with N replicas the
-effective global limit is N × configured. That is exact for the
-connection pool (per-process) and approximate for GIP quota, and is the
-trade ADR-0005 accepts until #7 fixes the replica count.
+effective global limit is N × configured — exact for the connection pool
+(per-process), and the trade ADR-0005 accepts until #7 fixes the replica
+count.
 
 ## 6. Events
 
@@ -1174,18 +1180,16 @@ failing if `bootstrap.Modules()` and `allModules()` disagree on the
 module set — see section 1's two-places rule.
 
 **Tenant switching — production prerequisites.** `POST /v1/iam/me/tenant`
-(`backend/internal/modules/iam/me.go`) mints a new session credential via
-`CustomTokenWithClaims` (`backend/pkg/authn/gip.go`), and that call needs
-a signing credential in production: either a service account key or
-`roles/iam.serviceAccountTokenCreator` granted so GIP can reach the
-metadata server's `signBlob`. `firebase.NewApp` resolves credentials
-lazily, so a deploy missing this grant boots cleanly and passes
-`/readyz` — the only symptom is every tenant switch returning `503
-session_unavailable`, with no other signal pointing at a missing signing
-credential. Check this grant explicitly as part of any environment
-standup, not just readiness. Separately, the switch endpoint relies on
-the custom token's `tenant_id` claim taking precedence over any
-persisted Firebase custom attribute in the ID token GIP issues back —
-that precedence is verified in this repo's tests only against the
-Firebase Auth emulator; treat real GIP precedence behavior in production
-as unverified until it's been observed there.
+(`backend/internal/modules/iam/me.go`) verifies the caller's current HMS
+session, checks membership of the target tenant in OpenFGA, and re-mints
+the session with `session.Signer.Mint` (`backend/pkg/session/signer.go`)
+— the SAME Ed25519 signer `cmd/api/main.go` builds for login, carried in
+via `platform.Deps.SessionSigner`. There is no external identity provider
+in this path as of #838 (spec D3): the only production prerequisite is
+the session signing key itself (`SESSION_SIGNING_KEY`), which the process
+already refuses to boot without (§5 above) — there is no separate
+signing-credential grant to check, unlike the GIP-backed design this
+replaced. A misconfigured signer reaching the route as `nil` (a
+half-wired entrypoint) fails closed as `503 session_unavailable`, mirroring
+the shape of the old failure mode but for a different, entirely local
+cause.

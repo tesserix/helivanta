@@ -2,7 +2,7 @@ package testutil
 
 import (
 	"context"
-	"fmt"
+	"crypto/ed25519"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -18,6 +18,7 @@ import (
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/hms/pkg/session"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
 
@@ -73,14 +74,37 @@ func (noopRoleLister) ListRoles(context.Context, string) ([]authz.RoleBinding, e
 	return nil, nil
 }
 
-// StubMinter mints a predictable, obviously-fake custom token. It is NOT
-// the default for HarnessOptions.Minter — see that field's doc comment
-// — but is exported for a test that wants a working mint without
-// writing its own recorder.
-type StubMinter struct{}
+// TestSessionKID/TestSessionIssuer/TestSessionTTL are fixed, obviously-fake
+// values for NewSessionSignerForTest, mirroring login_test.go's
+// loginTestKID/loginTestIssuer/loginTestTTL constants — kept here too so a
+// module test that needs a working re-mint (the tenant-switch route) does
+// not have to duplicate them.
+const (
+	TestSessionKID    = "hms-session-test"
+	TestSessionIssuer = "https://hms.test"
+	TestSessionTTL    = 15 * time.Minute
+)
 
-func (StubMinter) CustomTokenWithClaims(_ context.Context, uid string, claims map[string]interface{}) (string, error) {
-	return fmt.Sprintf("stub-custom-token:%s:%v", uid, claims["tenant_id"]), nil
+// NewSessionSignerForTest builds a real Ed25519 Signer/Verifier pair for
+// tests that need a WORKING HMS session re-mint — the tenant-switch route
+// (internal/modules/iam/me.go), specifically. It is deliberately not
+// wired into NewHarness's defaults the way Writer/Roles/Membership are:
+// HarnessOptions.SessionSigner left nil is exactly the deployment mistake
+// (a half-wired entrypoint, or a test that never opted in) the switch
+// route must refuse rather than silently issue nothing and claim success
+// — see TestSwitchTenantFailsClosedWithoutASigner in
+// internal/modules/iam/me_test.go. A caller that wants a working re-mint
+// calls this explicitly and sets HarnessOptions.SessionSigner /
+// SessionTTL from the result.
+func NewSessionSignerForTest(t *testing.T) (*session.Signer, *session.Verifier) {
+	t.Helper()
+	pub, priv, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+	signer, err := session.NewSigner(priv, TestSessionKID, TestSessionIssuer, TestSessionTTL)
+	require.NoError(t, err)
+	verifier, err := session.NewVerifier(pub, TestSessionKID, TestSessionIssuer)
+	require.NoError(t, err)
+	return signer, verifier
 }
 
 // alwaysMember is the harness's default MembershipChecker: every subject
@@ -113,33 +137,43 @@ func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
 // isolation on a CRUD route can build a harness with just Tokens and
 // Perms set and get sensible, permissive defaults everywhere else.
 //
-// Minter is the one deliberate exception: it is NOT defaulted to a
-// working stub. ModuleHarnessWithMinter used to exist specifically so a
-// caller could pass nil on purpose and prove the tenant-switch route's
-// "no minter configured" failure path (see
-// TestSwitchTenantFailsClosedWithoutAMinter in internal/modules/iam).
-// Auto-defaulting Minter here would make that case inexpressible again
-// — a caller that wants a working mint sets Minter explicitly (a
-// *recordingMinter test double, or the exported StubMinter above).
+// SessionSigner is the one deliberate exception: it is NOT defaulted to
+// a working signer. Left nil, deps.SessionSigner reaches the switch
+// route nil on purpose, proving the "no session signer configured"
+// failure path (see TestSwitchTenantFailsClosedWithoutASigner in
+// internal/modules/iam). Auto-defaulting it here would make that case
+// inexpressible again — a caller that wants a working re-mint sets
+// SessionSigner/SessionTTL explicitly, typically from
+// NewSessionSignerForTest.
 type HarnessOptions struct {
 	Tokens     map[string]string
 	Perms      map[string][]authz.Permission
 	Writer     platform.TupleWriter
 	Roles      platform.RoleLister
-	Minter     authn.TokenMinter
 	Membership authz.MembershipChecker
 	// Revocation defaults to a checker that answers "never revoked" for
 	// every subject — see neverRevoked's doc comment. Set it explicitly
 	// to exercise the credential-revocation gate in authn.Middleware
 	// (#781).
 	Revocation authn.RevocationChecker
-	// TokenRevoker defaults to nil, exactly like Deps.TokenRevoker in
-	// cmd/api when unset: the iam module's sign-out/revoke handlers treat
-	// a nil revoker as "no identity-provider call to make" and still
-	// complete the HMS-side revocation (#781). Set it explicitly (e.g. a
-	// recording double) to assert GIP was told.
-	TokenRevoker authn.TokenRevoker
-	Modules      []platform.Module
+	// Verifier defaults to StaticVerifier(opts.Tokens), which always
+	// stamps AuthTime as time.Now() at Verify time. Set it explicitly
+	// when a test needs to control AuthTime itself — e.g. proving a
+	// tenant-switch re-mint carries the ORIGINAL auth_time through
+	// rather than resetting it: with the default verifier, "carried
+	// through" and "reset to the mint time" are indistinguishable,
+	// because the original auth_time is ALSO stamped moments before the
+	// switch request and so is ALSO close to "now" by the time an
+	// assertion runs.
+	Verifier      authn.TokenVerifier
+	SessionSigner *session.Signer
+	// SessionTTL must be set alongside SessionSigner — it is the cookie
+	// lifetime deps.SessionTTL carries into the switch route, exactly
+	// like cfg.SessionTTL in cmd/api. Left at zero when SessionSigner is
+	// nil, which is fine: nothing reads it before the signer-nil check.
+	SessionTTL          time.Duration
+	SessionSecureCookie bool
+	Modules             []platform.Module
 }
 
 // NewHarness boots the full module stack (Postgres, NATS, routes,
@@ -168,6 +202,10 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	if revocation == nil {
 		revocation = neverRevoked{}
 	}
+	verifier := opts.Verifier
+	if verifier == nil {
+		verifier = StaticVerifier(opts.Tokens)
+	}
 
 	appDSN, adminDSN := testinfra.StartPostgres(t)
 	db, err := tenantdb.Open(appDSN, adminDSN)
@@ -192,7 +230,12 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 
-	deps := platform.Deps{DB: db, Bus: bus, Authz: writer, Roles: roles, Tokens: opts.Minter, TokenRevoker: opts.TokenRevoker}
+	deps := platform.Deps{
+		DB: db, Bus: bus, Authz: writer, Roles: roles,
+		SessionSigner:       opts.SessionSigner,
+		SessionTTL:          opts.SessionTTL,
+		SessionSecureCookie: opts.SessionSecureCookie,
+	}
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	// Same middleware chain, same order, as cmd/api/main.go: requestid.Middleware()
@@ -213,7 +256,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	r.Use(requestid.Middleware())
 	resolver := harnessResolver{tokens: opts.Tokens, perms: opts.Perms}
 	api := platform.NewRouter(r.Group("/v1",
-		authn.Middleware(StaticVerifier(opts.Tokens), revocation),
+		authn.Middleware(verifier, revocation),
 		requestid.PrincipalMiddleware(),
 		authz.Middleware(resolver)),
 		membership)

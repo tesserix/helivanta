@@ -14,13 +14,8 @@ type Config struct {
 	AppDatabaseURL   string
 	AdminDatabaseURL string
 	NATSURL          string
-	// GIPProjectID is used only by the surviving GIP minter/revoker
-	// (pkg/authn/gip.go — TokenMinter/TokenRevoker, dying code kept alive
-	// until plan Task 5). The GIP token *verifier* was removed in Task 3;
-	// ZitadelIssuerURL/ZitadelClientID below configure its replacement.
-	GIPProjectID string
-	OpenFGAURL   string
-	OpenFGAStore string
+	OpenFGAURL       string
+	OpenFGAStore     string
 
 	// ZitadelIssuerURL and ZitadelClientID configure the standard-OIDC
 	// verifier in pkg/authn/zitadel.go (spike
@@ -29,9 +24,9 @@ type Config struct {
 	// default to the local dev stack's Zitadel (spike/zitadel-838, port
 	// 20080) — a wrong default here fails verification loudly (every
 	// real token's issuer/audience will mismatch) rather than opening a
-	// hole, so a getenv default is safe the same way GIPProjectID's is;
-	// it is not the emulator-signature-bypass case that must never
-	// default (see gip.go's newAuthClient guard).
+	// hole, so a getenv default is safe: unlike SessionSigningKey below,
+	// there is no signature-bypass mode a wrong-but-present value can
+	// trigger here.
 	ZitadelIssuerURL string
 	ZitadelClientID  string
 
@@ -49,10 +44,30 @@ type Config struct {
 	// not a secret, and an operator who cares can override it.
 	SessionIssuer string
 	// SessionTTL bounds how long an HMS session is honoured before it
-	// must be renewed. Spec D4 makes this the upper bound on how long a
-	// user deactivated upstream (in Zitadel) keeps working — Task 5
-	// chooses and justifies the actual number; this default is a
-	// deliberately short placeholder, not that decision.
+	// must be renewed, and — post-#838 (spec D4/D4a) — renewal is the
+	// login exchange re-run with a fresh Zitadel token, re-checking
+	// membership every time. So this ONE number is the upper bound on
+	// BOTH: how long a user deactivated upstream in Zitadel keeps
+	// working, and how stale an OpenFGA membership grant/revoke can be
+	// before it is re-observed.
+	//
+	// 15 minutes, chosen (#838 Task 5) by weighing that bound against
+	// renewal traffic: renewal is a silent, browser-driven OIDC round
+	// trip against Zitadel plus one local Ed25519 verify and one FGA
+	// membership check — none of it against the project-wide quota the
+	// old GIP mint threatened (see bootstrap.RateLimitConfig's doc
+	// comment) — so a short TTL costs a few silent requests per hour per
+	// active session, not a shared resource. Against that cheap cost, 15
+	// minutes is short enough that a clinician deactivated mid-shift, or
+	// a member whose role is pulled for a safety reason, loses access
+	// within a quarter hour rather than surviving to their next full
+	// re-login — appropriate for a system whose failure mode is
+	// clinical, not merely inconvenient (engineering-principles.md's
+	// framing). It is not shortened further only because a TTL near the
+	// low end of what a human page-to-page session naturally spans (a
+	// few minutes) would turn ordinary navigation into visible renewal
+	// latency; 15 minutes stays well clear of that without meaningfully
+	// widening the deactivation window in absolute terms.
 	SessionTTL time.Duration
 
 	// Rate limits are env-configurable, unlike the pagination page-size
@@ -61,7 +76,6 @@ type Config struct {
 	// the e2e suite and a hospital in production.
 	RateLimitTenantPerMin    int
 	RateLimitPrincipalPerMin int
-	RateLimitMintPerMin      int
 }
 
 func Load() Config {
@@ -72,7 +86,6 @@ func Load() Config {
 		AppDatabaseURL:   getenv("APP_DATABASE_URL", "postgres://hms_app:hms_app@localhost:5432/hms?sslmode=disable"),
 		AdminDatabaseURL: getenv("ADMIN_DATABASE_URL", "postgres://hms:hms@localhost:5432/hms?sslmode=disable"),
 		NATSURL:          getenv("NATS_URL", "nats://localhost:4222"),
-		GIPProjectID:     getenv("GIP_PROJECT_ID", "demo-hms"),
 		OpenFGAURL:       getenv("OPENFGA_URL", "http://localhost:8090"),
 		OpenFGAStore:     getenv("OPENFGA_STORE", "hms"),
 
@@ -88,7 +101,6 @@ func Load() Config {
 
 		RateLimitTenantPerMin:    getenvInt("RATE_LIMIT_TENANT_PER_MIN", 600),
 		RateLimitPrincipalPerMin: getenvInt("RATE_LIMIT_PRINCIPAL_PER_MIN", 120),
-		RateLimitMintPerMin:      getenvInt("RATE_LIMIT_MINT_PER_MIN", 10),
 	}
 }
 

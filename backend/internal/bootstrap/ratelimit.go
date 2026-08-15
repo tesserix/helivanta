@@ -21,6 +21,21 @@ import (
 // mint rule's burst is fixed at 3 rather than derived the same way:
 // Rate/6 at the default of 10/min would floor to 1, which is smaller
 // than the burst the tenant-switch flow itself needs.
+// Tight is deliberately empty as of #838. `POST /v1/iam/me/tenant` was
+// its one entry, budgeted tighter than every other route because it
+// minted a GIP custom token per call against Identity Platform's
+// project-wide quota — exhausting that quota broke sign-in for every
+// hospital, not just the caller's. #838 replaced that mint with an
+// in-process HMS session re-mint (an Ed25519 signature, no network call)
+// plus one OpenFGA membership check — the SAME shape of cost every other
+// authenticated route already pays through authz.Middleware's own
+// Resolve call. There is no longer a shared external resource this
+// route uniquely threatens, so the rationale for a tighter-than-default
+// budget is gone; it is deliberately left off the Tight map rather than
+// carried forward with a stale comment, per spec D3's explicit note that
+// this budget "should be revisited when this lands" and "this spec does
+// not silently inherit its reasoning." The route still gets the
+// ordinary Tenant/Principal budgets below, same as any other route.
 func RateLimitConfig(cfg config.Config) ratelimit.Config {
 	return ratelimit.Config{
 		Tenant: ratelimit.Rule{
@@ -28,13 +43,6 @@ func RateLimitConfig(cfg config.Config) ratelimit.Config {
 		},
 		Principal: ratelimit.Rule{
 			Rate: cfg.RateLimitPrincipalPerMin, Burst: cfg.RateLimitPrincipalPerMin / 6, Per: time.Minute,
-		},
-		Tight: map[string]ratelimit.Rule{
-			// Mints a GIP custom token per call (internal/modules/iam/me.go
-			// switchTenant). Identity Platform quota is project-wide, so
-			// exhausting it breaks sign-in for every hospital, not just this
-			// caller's.
-			"POST /v1/iam/me/tenant": {Rate: cfg.RateLimitMintPerMin, Burst: 3, Per: time.Minute},
 		},
 		Exempt: map[string]string{
 			"POST /v1/iam/me/sign-out":              "a clinician on a shared ward terminal must always be able to end their session",

@@ -59,20 +59,23 @@ Seeded accounts (Zitadel, verified by a real hosted-UI login as part of
 | `pharmacist@hms.dev` | `HmsDev123!`  | `1111…1111`            | `pharmacist`   | Pharmacy only     |
 
 `test@hms.dev` is deliberately a member of **two** tenants so tenant
-switching is exercisable once the frontend is wired to Zitadel: OpenFGA
+switching is exercisable end to end: OpenFGA
 already carries both memberships, and `POST /v1/iam/me/tenant` re-mints the
 session for either without an IdP round trip (spec D3).
 
-**apps/shell cannot log these accounts in yet.** The shell still
-authenticates via the Firebase/GIP SDK (#838 is a staged cutover — see
-`docs/superpowers/plans/2026-08-15-zitadel-auth.md`'s task list), and the
-Firebase emulator this used to talk to has been removed from the dev stack
-now that Zitadel replaces it. Visiting http://localhost:4301/login renders,
-but signing in there does nothing useful until the frontend task ports the
-shell to Zitadel. Until then, verify auth with `make verify-local` (which
-drives the real API-level exchange — a real Zitadel token through the
-hosted login UI → `POST /v1/auth/login` → an authenticated `/v1` call) or
-by hand: `node scripts/zitadel-verify-login.mjs`.
+Sign in at http://localhost:4301/login. The shell redirects to Zitadel's
+hosted login (authorization code + PKCE), and the callback exchanges the ID
+token for an HMS session via `POST /v1/auth/login` — the API mints and sets
+the cookie, so the browser never holds an IdP token as its session.
+
+The login page you land on is Zitadel's **stock** UI. Branding comes later
+from a design-system component consumed by the org's `zitadel-login` build
+(spec D5a); the redirect target does not change when it lands.
+
+To check auth without a browser: `make verify-local` drives the real
+API-level exchange (a Zitadel token through the hosted login UI →
+`POST /v1/auth/login` → an authenticated `/v1` call), or run
+`node scripts/zitadel-verify-login.mjs` directly.
 
 Stop everything with `make down`.
 

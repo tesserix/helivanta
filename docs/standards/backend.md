@@ -376,8 +376,8 @@ authz.Middleware(resolver),                // 4. resolve permissions (OpenFGA)
 ```
 
 **The chain is a function, not a literal inside `main.go`, and that is
-load-bearing.** `run()` opens a database, a NATS connection and a GIP
-client before it builds a router, so nothing in `main.go` is reachable
+load-bearing.** `run()` opens a database, a NATS connection and an OIDC
+provider before it builds a router, so nothing in `main.go` is reachable
 from a test. While the chain was inline, deleting `ratelimit.Middleware`
 removed rate limiting from production and the entire backend suite
 stayed green — the placement test built its own equivalent chain and
@@ -390,8 +390,9 @@ chain into a test.**
 including `/healthz`, stamping a request ID before auth runs so a 401 log
 line is still correlated. `authn.Middleware` reads a `Bearer` header or
 the `hms_session` cookie, verifies it via the injected `TokenVerifier`
-(`authn.NewGIPVerifier` in production, `testutil.StaticVerifier` in
-tests), and sets the `authn.Principal` on the Gin context for
+(`authn.NewSessionVerifier` over `pkg/session` in production, since #838 made
+the HMS session — not the IdP token — what a `/v1` request presents;
+`testutil.StaticVerifier` in tests), and sets the `authn.Principal` on the Gin context for
 `TenantPrincipal` to read later; a missing or invalid credential aborts
 with 401 before any module handler runs.
 
@@ -903,7 +904,7 @@ Every request line carries `request_id`, stamped by `requestid.Middleware`
 before auth runs. Once `authn` has populated the context,
 `requestid.PrincipalMiddleware` adds `tenant_id` and `subject`, so a line
 answers which hospital, which user, which request. Neither is patient data:
-`subject` is a pseudonymous GIP UID and `tenant_id` is a UUID.
+`subject` is a pseudonymous Zitadel user id and `tenant_id` is a UUID.
 
 That enrichment lives in `internal/platform/requestid`, not `pkg/authn`:
 `internal/` may import `pkg/`, and the reverse is a dependency inversion the
@@ -952,8 +953,8 @@ func setup(t *testing.T) (*gin.Engine, *tenantdb.DB, context.Context) {
 
 (`backend/internal/modules/medicore/module_test.go`) — `testutil.TenantA`
 / `testutil.TenantB` are fixed UUID constants, and `StaticVerifier` maps
-a bearer token string straight to a tenant ID so tests never touch a
-real GIP token. `testutil.Do(r, method, path, token, body)` issues an
+a bearer token string straight to a tenant ID so tests never mint a
+real HMS session or call Zitadel. `testutil.Do(r, method, path, token, body)` issues an
 authenticated JSON request against the harness router and returns the
 `httptest.ResponseRecorder`.
 

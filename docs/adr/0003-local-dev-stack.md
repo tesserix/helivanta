@@ -1,5 +1,11 @@
 # ADR-0003: Docker Compose is the local development stack
 
+- **Amended (2026-08-16) by [ADR-0006](0006-zitadel-not-gip.md) and #838.**
+  The stack no longer runs a Firebase/GIP emulator on `:9099`. Identity is
+  **Zitadel v4.15.3** — its own Postgres 17, a `zitadel-login` service and a
+  reverse proxy, matching the topology production runs. Everything below about
+  *why* the dev stack is Compose rather than a cluster still holds; only the
+  identity component changed.
 - **Status:** Accepted (2026-08-12)
 - **Context:** Issue #714 asks for a one-command local stack and names
   "CNPG, Redis, NATS, Keycloak, OpenFGA". Two of those names predate

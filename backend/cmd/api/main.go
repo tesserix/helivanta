@@ -259,7 +259,11 @@ func run() error {
 	// the engine are independent of any *gin.RouterGroup built over it,
 	// even one sharing the same path prefix.
 	loginHandlers := iam.NewLoginHandlers(zitadelVerifier, fga, sessionSigner, cfg.SessionTTL, !cfg.IsDev())
-	srv.Engine.POST("/v1/auth/login", loginHandlers.Login)
+	// Mounted through bootstrap so the bypass is declared in one
+	// enumerable place and pinned by
+	// archtest.TestEveryEngineRouteIsDeclaredOrAllowlisted — a route on the
+	// raw engine otherwise escapes platform.Router entirely.
+	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login)
 
 	for _, m := range registry.All() {
 		m.Routes(api, deps)

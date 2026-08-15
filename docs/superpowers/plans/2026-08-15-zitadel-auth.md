@@ -234,6 +234,22 @@ Commit: `feat: switch tenant by re-minting the HMS session, never the IdP token 
 - [ ] Zitadel replaces the Firebase emulator, own database, shifted ports
   *(observed to coexist with `hms-dev`)*. Promote the spike compose; delete
   `spike/zitadel-838/`.
+- [ ] **Pin v4.15.3 — the version production actually runs**, not the v2.65.1 the
+  first spike used. Verified 2026-08-15: the seeding recipe survives the major
+  version unchanged on both `/management/v1/users/human/_import` and
+  `/v2/users/human`, and both original traps reproduce identically. v4 also
+  requires **Postgres 17** (Cockroach support dropped), and with
+  `LOGINV2_REQUIRED=true` the core hard-404s `/ui/v2/login/*` — the separate
+  `zitadel-login` service plus a same-origin reverse proxy becomes mandatory,
+  not optional. `spike/zitadel-838/docker-compose.zitadel-v4.yml` is the working
+  shape.
+- [ ] **NOT VERIFIED, and it lands on this task's neighbour:** production runs a
+  *customised* login UI (`tesserix/third-party/zitadel-login:v4.15.3-aurora.1`,
+  private registry). All local verification used stock upstream. The e2e suite
+  drives login UI selectors, so `e2e/tests/support/login.ts` will be written
+  against a UI that is **not** the one production serves. Decide whether dev
+  pulls the custom image or the suite tolerates both, and say which — do not
+  discover this when the selectors fail.
 - [ ] Seeding per Task 0's recipe, **one account per spec file**.
 - [ ] **The seed script must verify each account by logging in, not by checking
   the status code.** Task 0 established that this API returns 200 while silently

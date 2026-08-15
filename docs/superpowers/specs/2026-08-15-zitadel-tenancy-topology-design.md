@@ -153,6 +153,42 @@ IdP; only link-and-readback was exercised.
 The capability is why Zitadel was chosen over GIP; building it before a customer
 asks would be speculative.
 
+### D5a — Login is hosted by Zitadel and branded, not rendered by HMS
+
+HMS redirects to the Zitadel login app at `auth.tesserix.app`. The branding comes
+from a **design-system login component** (to be added) consumed by the
+`zitadel-login` build the platform team runs. **`apps/shell/app/login/page.tsx`
+is deleted, not ported.**
+
+Today HMS renders its own form and calls the identity provider's SDK directly,
+so a clinician's password is typed into an HMS page. Two reasons that must not
+carry over:
+
+- **It would block the capability Zitadel was chosen for.** When a hospital
+  federates to their Active Directory, login has to hand off to that provider. A
+  self-hosted form would have to detect the user's IdP and redirect — plus
+  handle MFA challenges, passkeys, password reset and lockout. That is
+  reimplementing Zitadel's login app, on the surface where security defects are
+  most expensive.
+- **Credentials stop passing through HMS.** A compromised HMS frontend cannot
+  harvest passwords it never receives. For a system holding patient records that
+  is a real reduction in blast radius.
+
+The cost is a redirect off-domain and back — the pattern users meet everywhere.
+
+**Contract on the login component, and it is load-bearing for the e2e suite.**
+`e2e/tests/support/login.ts` drives the form by accessible name:
+`getByLabel("Email")`, `getByLabel("Password")`,
+`getByRole("button", { name: "Sign in" })`. If the component preserves those
+names — a real `<label>` per field, "Sign in" as the button's accessible name —
+the suite works against the hosted UI essentially unchanged. If they drift to
+"Email address" or "Log in", **every spec fails at once**, at the login step,
+which reads like a broken application rather than a renamed label.
+
+This is an accessibility property rather than a test convenience: the names a
+screen reader announces are the ones Playwright queries, which is why targeting
+them survives restyling.
+
 ### D6 — Hospital groups and owners: model the relationship, not the permission
 
 Two real shapes are coming, and they are structurally identical but must not
@@ -213,10 +249,14 @@ credential are platform-team operations, not HMS ones.
   If a convention already exists there, D1 should defer to it.
 - **NOT VERIFIED: a login through a linked external IdP.** D5 rests on link
   creation and readback, not a completed federated sign-in.
-- **NOT VERIFIED: the custom login UI.** Production serves
+- **The branded login UI does not exist yet.** Production serves
   `zitadel-login:v4.15.3-aurora.1` from a private registry; all local work used
-  stock upstream. The e2e suite drives login-UI selectors, so this is the most
-  likely place the migration breaks.
+  stock upstream, and the design-system login component of D5a is still to be
+  written. This is a **cross-repo dependency**: HMS's e2e suite cannot pass
+  against the real login until that component exists and the aurora build ships
+  it. HMS should not block on it — local dev can run stock upstream — but the
+  suite's first run against a branded UI is the moment the selector contract in
+  D5a is either honoured or discovered to be broken.
 - **HMS shares an instance.** An instance-wide Zitadel outage is a total
   sign-in outage for every product at once. Existing HMS sessions survive until
   renewal, which is a modest mitigation, not a plan.

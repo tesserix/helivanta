@@ -92,7 +92,32 @@ test("pharmacist can dispense a visit created by admin", async ({ page }) => {
   // apps/shell/app/logout/route.ts and #781. Every zone renders the same
   // HmsShell sign-out control, including the medicore page we're on.
   await page.getByRole("button", { name: "Sign out" }).last().click();
-  await expect(page).toHaveURL(/\/login/);
+  // Sign-out (lib/sign-out.ts) is a MULTI-HOP redirect chain: HMS
+  // dashboard -> Zitadel's end_session endpoint (which is what actually
+  // clears Zitadel's own SSO cookie) -> back to HMS's /login -> /login's
+  // own effect immediately redirects onward to Zitadel's authorize
+  // endpoint. Calling login() (which itself starts with a fresh
+  // page.goto("/")) before that chain has fully settled does not merely
+  // race a URL assertion — it can WIN the race and cancel the
+  // still-pending navigation to end_session outright, so Zitadel's
+  // session is never actually cleared. The very next authorize() call
+  // then succeeds silently, using admin's still-live SSO session instead
+  // of prompting the pharmacist for real credentials — observed live in
+  // an earlier version of this wait, which raced on a URL check instead
+  // and reached the dashboard as admin without ever calling login() at
+  // all.
+  //
+  // The provable, unambiguous signal that the chain finished — and that
+  // Zitadel's SSO session was genuinely cleared, not silently reused — is
+  // the credential form itself actually rendering. A manual trace of this
+  // exact sequence (docs kept in the PR body) confirms sign-out's
+  // end_session call carries `id_token_hint` and Zitadel does land back on
+  // a real Loginname prompt once it's processed; waiting for that prompt
+  // here, rather than for an intermediate URL Playwright may not observe
+  // as a distinct "landed" state, is what makes this deterministic.
+  await expect(page.getByLabel(/Loginname|Email|Login Name/i).first()).toBeVisible({
+    timeout: 20_000,
+  });
   await login(page, specPharmacist());
 
   await page.goto("/pharmacy");

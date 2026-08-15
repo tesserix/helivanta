@@ -25,9 +25,18 @@ NODE_MODULES_DIR=${NODE_MODULES_DIR:-$REPO_ROOT/node_modules}
 # default when unset, so a bare `bash scripts/preflight.sh` with no .env and
 # no Make involved still checks the stock ports. The four zone-app ports are
 # out of scope for this variable set (see .env.example) and stay literal.
-PREFLIGHT_PORTS=${PREFLIGHT_PORTS:-"${HMS_PG_PORT:-5432} ${HMS_NATS_PORT:-4222} ${HMS_NATS_MONITOR_PORT:-8222} ${HMS_REDIS_PORT:-6379} ${HMS_OPENFGA_PORT:-8090} ${HMS_GIP_PORT:-9099} ${HMS_API_PORT:-8080} 4301 4302 4303 4304"}
+PREFLIGHT_PORTS=${PREFLIGHT_PORTS:-"${HMS_PG_PORT:-5432} ${HMS_NATS_PORT:-4222} ${HMS_NATS_MONITOR_PORT:-8222} ${HMS_REDIS_PORT:-6379} ${HMS_OPENFGA_PORT:-8090} ${HMS_ZITADEL_PORT:-20080} ${HMS_ZITADEL_PG_PORT:-5433} ${HMS_API_PORT:-8080} 4301 4302 4303 4304"}
 GO_MIN=1.26
 NODE_MIN=22
+
+# Zitadel does not fail fast on a wrong-length masterkey — it crash-loops
+# on every restart instead (docker-compose.dev.yml's zitadel service
+# comment has the full story, reproduced live while wiring this stack up).
+# Checked here, before Docker is touched, so the one length that matters
+# is caught in one place rather than rediscovered per developer via a log
+# grep. HMS_DEV_ZITADEL_MASTERKEY mirrors the Makefile's own default so a
+# bare `bash scripts/preflight.sh` with no Make involved still checks it.
+ZITADEL_MASTERKEY_CHECK=${HMS_DEV_ZITADEL_MASTERKEY:-HmsDevZitadelMasterKey32BytesXXX}
 
 # Newline-delimited rather than an array: macOS ships bash 3.2, where
 # expanding an empty array under `set -u` is an error.
@@ -91,6 +100,17 @@ check_pnpm() {
   fi
 }
 
+check_zitadel_masterkey() {
+  local len
+  len=$(printf '%s' "$ZITADEL_MASTERKEY_CHECK" | wc -c | tr -d ' ')
+  if [ "$len" = 32 ]; then
+    ok "zitadel masterkey (32 bytes)"
+  else
+    fail "zitadel masterkey" \
+      "HMS_DEV_ZITADEL_MASTERKEY is $len bytes, want exactly 32 — Zitadel does not fail fast on this, it crash-loops on every restart instead (docker-compose.dev.yml's zitadel service comment has the full story)"
+  fi
+}
+
 # `up`, `dev-infra` and `reset` never run `pnpm install` — the token is only
 # needed to *install* @tesserix/web from GitHub Packages. So a missing token
 # is only fatal when node_modules doesn't exist yet and an install is
@@ -150,6 +170,7 @@ main() {
   check_node
   check_pnpm
   check_node_auth_token
+  check_zitadel_masterkey
   check_lsof
   check_ports
 

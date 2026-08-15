@@ -21,7 +21,7 @@ type PlaceholderValue<T> = NonNullable<UseQueryOptions<T, Error, T, unknown[]>["
 export function useApiQuery<T>(
   key: unknown[],
   path: string,
-  opts: { poll?: boolean; placeholderData?: PlaceholderValue<T> } = {},
+  opts: { poll?: boolean; placeholderData?: PlaceholderValue<T>; enabled?: boolean } = {},
 ): UseQueryResult<T, Error> {
   return useQuery({
     queryKey: key,
@@ -32,6 +32,13 @@ export function useApiQuery<T>(
     // value can never be mistaken for a server response or served to a
     // later consumer of the same key.
     placeholderData: opts.placeholderData,
+    // enabled defaults to true (react-query's own default) so every
+    // existing call site is unaffected. Added for callers that can only
+    // decide whether a session exists to query against after render —
+    // components/session-renewal.tsx on /login, specifically — where the
+    // alternative (calling the hook conditionally) would break the Rules
+    // of Hooks.
+    enabled: opts.enabled,
   });
 }
 

@@ -13,3 +13,9 @@ playwright-report/
 .DS_Store
 next-env.d.ts
 *.tsbuildinfo
+
+# PATs Zitadel mints at first boot (docker-compose.dev.yml's zitadel
+# service, FirstInstance.Org.Machine/.LoginClient) and the client ID
+# scripts/zitadel-bootstrap.mjs provisions from them. Live dev secrets,
+# regenerated per stack, never committed.
+dev/zitadel/secrets/

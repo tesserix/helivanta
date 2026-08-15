@@ -61,7 +61,7 @@ func Enrich(c *gin.Context, args ...any) {
 // foundation audit flagged, and having pkg/authn reach into
 // internal/platform/requestid would deepen it for no benefit.
 //
-// Neither field is patient data: subject is a GIP UID, pseudonymous by
+// Neither field is patient data: subject is a Zitadel user id, pseudonymous by
 // construction, and tenant_id is a UUID. With request_id they answer which
 // hospital, which user, which request — without naming anyone.
 func PrincipalMiddleware() gin.HandlerFunc {

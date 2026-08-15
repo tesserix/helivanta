@@ -1,0 +1,19 @@
+# Reverse proxy merging Zitadel core and the separate zitadel-login service
+# under one origin (#838 Task 6). Mirrors, at dev scale, the official
+# Zitadel compose's Traefik routing (github.com/zitadel/zitadel
+# deploy/compose/docker-compose.yml): core serves everything EXCEPT
+# /ui/v2/login/*, which zitadel-login serves. Both must appear to live at
+# the same origin because the browser's redirect target is built from
+# ZITADEL_EXTERNALDOMAIN/ZITADEL_EXTERNALPORT, which has no way to express
+# two backend processes (docs/superpowers/spikes/2026-08-15-zitadel-spike.md
+# P1-4, confirmed the hard way: without this proxy, /ui/v2/login/* 404s
+# straight from core).
+:8080 {
+	@login path /ui/v2/login/*
+	handle @login {
+		reverse_proxy zitadel-login:3000
+	}
+	handle {
+		reverse_proxy zitadel:8080
+	}
+}

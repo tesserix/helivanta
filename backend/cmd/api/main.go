@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -24,8 +27,18 @@ import (
 	"github.com/tesserix/hms/pkg/events"
 	"github.com/tesserix/hms/pkg/logging"
 	"github.com/tesserix/hms/pkg/ratelimit"
+	"github.com/tesserix/hms/pkg/session"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
+
+// sessionSigningKeyID is the `kid` HMS's session tokens carry until key
+// rotation is designed (out of scope here, plan Task 2 / spec D5 — the
+// header exists from the start so rotation is not precluded later).
+// Fixed rather than derived from the key material itself: deriving it
+// from the key would make "kid" a second, redundant fingerprint of the
+// exact secret this whole package exists to keep out of logs and error
+// messages.
+const sessionSigningKeyID = "hms-session-v1"
 
 func main() {
 	if err := run(); err != nil {
@@ -43,6 +56,50 @@ func run() error {
 	// checks (see Config.IsDev) — a prod process accidentally started with
 	// HMS_ENV=dev would otherwise disable them with no signal anywhere.
 	slog.Info("resolved environment", "env", cfg.Env, "is_dev", cfg.IsDev())
+
+	// Resolved before anything else that costs time or a network round
+	// trip (DB, NATS, OpenFGA): a missing or malformed signing key is a
+	// configuration defect the operator can fix in seconds, and it
+	// should be the FIRST thing a bad deploy reports, not something
+	// discovered after a DB connection and a set of migrations already
+	// ran. See config.SessionSigningKeySeed's doc comment for why this
+	// refuses rather than generating or defaulting a key — it is a
+	// data/identity control (engineering-principles.md §3) and fails
+	// CLOSED, unlike every other cfg.* value read so far.
+	//
+	// Task 2 only decoded and validated the key here, deliberately not
+	// yet turned into a session.Signer/session.Verifier: nothing minted
+	// or checked an HMS session until Task 4 of
+	// docs/superpowers/plans/2026-08-15-zitadel-auth.md landed the login
+	// endpoint and the request-path verifier that use it — see the
+	// Signer/Verifier construction just below run() builds the OpenFGA
+	// client, where both are now actually wired to something.
+	sessionSeed, err := cfg.SessionSigningKeySeed()
+	if err != nil {
+		return err
+	}
+	sessionKey := ed25519.NewKeyFromSeed(sessionSeed)
+	// Logging a fingerprint of the PUBLIC key (never the private key,
+	// never the seed) confirms the key loaded, the same way "resolved
+	// environment" confirms HMS_ENV without printing a secret. The
+	// public key itself is not secret either, but a fingerprint keeps
+	// this line short and avoids training anyone to expect a raw key
+	// value in a log line.
+	sessionKeyFingerprint := sha256.Sum256(sessionKey.Public().(ed25519.PublicKey))
+	slog.Info("session signing key loaded",
+		"kid", sessionSigningKeyID,
+		"issuer", cfg.SessionIssuer,
+		// .String(), not the bare time.Duration: slog has no special case
+		// for time.Duration, so an unconverted value renders as a raw
+		// nanosecond int64 (900000000000 for the 15-minute default) —
+		// observed to false-positive-match pkg/logging's 12-digit Aadhaar
+		// pattern and come out as "[REDACTED:aadhaar]" instead of a
+		// readable TTL. .String() ("15m0s") is unambiguous, readable, and
+		// has no digit run long enough to trip any redaction pattern.
+		"ttl", cfg.SessionTTL.String(),
+		"public_key_fingerprint", hex.EncodeToString(sessionKeyFingerprint[:8]),
+	)
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -84,20 +141,42 @@ func run() error {
 	}
 	defer bus.Close()
 
-	verifier, err := authn.NewGIPVerifier(ctx, cfg.GIPProjectID, cfg.IsDev())
+	// zitadelVerifier verifies a Zitadel ID token through standard OIDC
+	// (plan Task 3). Task 4 narrows where that verifier is used: it is
+	// ONLY the login endpoint's job now (see loginHandlers below) to
+	// look at a raw Zitadel token at all. Every ordinary /v1 request
+	// verifies an HMS session instead (requestVerifier, built from
+	// sessionVerifier just below) — that is what ends the interim state
+	// recorded in the plan's "Interim-state note" after Task 3, where
+	// Principal.TenantID could only ever be empty because nothing yet
+	// minted a session carrying a real one.
+	zitadelVerifier, err := authn.NewZitadelVerifier(ctx, cfg.ZitadelIssuerURL, cfg.ZitadelClientID)
 	if err != nil {
 		return err
 	}
 
-	minter, err := authn.NewGIPMinter(ctx, cfg.GIPProjectID, cfg.IsDev())
+	// sessionSigner mints HMS sessions (login, and Task 5's tenant
+	// switch); sessionVerifier checks them. Built from the SAME
+	// sessionKey decoded and refused-to-boot-without above, and the SAME
+	// sessionSigningKeyID logged there — a Signer and Verifier
+	// constructed from two different keys or kids would silently refuse
+	// every session this process itself mints, which is exactly the kind
+	// of self-inflicted outage a single shared source of truth for both
+	// avoids.
+	sessionSigner, err := session.NewSigner(sessionKey, sessionSigningKeyID, cfg.SessionIssuer, cfg.SessionTTL)
 	if err != nil {
 		return err
 	}
-
-	revoker, err := authn.NewGIPRevoker(ctx, cfg.GIPProjectID, cfg.IsDev())
+	sessionVerifier, err := session.NewVerifier(sessionKey.Public().(ed25519.PublicKey), sessionSigningKeyID, cfg.SessionIssuer)
 	if err != nil {
 		return err
 	}
+	// requestVerifier is what bootstrap.V1Chain mounts in front of every
+	// ordinary /v1 route (below). It refuses a raw Zitadel ID token
+	// outright — see authn.NewSessionVerifier's doc comment for why that
+	// is structural (wrong algorithm and wrong issuer), not a check this
+	// code has to remember to make.
+	requestVerifier := authn.NewSessionVerifier(sessionVerifier)
 
 	fga, err := authz.NewClient(ctx, cfg.OpenFGAURL, cfg.OpenFGAStore)
 	if err != nil {
@@ -125,13 +204,21 @@ func run() error {
 		},
 		requestid.Middleware(),
 	)
+	// sessionSecureCookie is the SAME value passed to iam.NewLoginHandlers
+	// below (!cfg.IsDev()) — a tenant switch re-mints the identical
+	// session cookie login mints, so the two must never disagree on
+	// `secure`. Computed once, here, so there is exactly one place this
+	// could get out of sync rather than two call sites independently
+	// negating cfg.IsDev().
+	sessionSecureCookie := !cfg.IsDev()
 	deps := platform.Deps{
-		DB:           db,
-		Bus:          bus,
-		Authz:        fga,
-		Roles:        fga,
-		Tokens:       minter,
-		TokenRevoker: revoker,
+		DB:                  db,
+		Bus:                 bus,
+		Authz:               fga,
+		Roles:               fga,
+		SessionSigner:       sessionSigner,
+		SessionTTL:          cfg.SessionTTL,
+		SessionSecureCookie: sessionSecureCookie,
 		Reconcile: func(ctx context.Context, tenantID string) error {
 			return platform.ReconcileTenant(ctx, registry, fga, tenantID)
 		},
@@ -144,11 +231,33 @@ func run() error {
 	// test built its own equivalent chain. See V1Chain's comment for the
 	// order and why it is load-bearing;
 	// internal/archtest.TestThrottledRequestMakesNoOpenFGACall pins it.
+	//
+	// requestVerifier (an HMS session, never a raw Zitadel token) is what
+	// gates every route in this group.
 	limiter := ratelimit.NewMemory(10_000)
 	api := platform.NewRouter(
-		srv.Engine.Group("/v1", bootstrap.V1Chain(verifier, revocationChecker, limiter, cfg, fga)...),
+		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, fga)...),
 		fga,
 	)
+
+	// POST /v1/auth/login is mounted directly on the raw engine — NOT
+	// through `api`/bootstrap.V1Chain above — because it is the endpoint
+	// that CREATES an HMS session (plan Task 4, spec D1) and so cannot
+	// itself require one: it verifies a caller-presented Zitadel ID
+	// token, not the HMS session requestVerifier checks. It shares the
+	// /v1 URL prefix for API-path consistency but is structurally outside
+	// the authenticated chain — no authn.Middleware, no
+	// authz.RequireMembership, no rate-limit bucket keyed by a principal
+	// that does not exist yet — because gin routes registered directly on
+	// the engine are independent of any *gin.RouterGroup built over it,
+	// even one sharing the same path prefix.
+	loginHandlers := iam.NewLoginHandlers(zitadelVerifier, fga, sessionSigner, cfg.SessionTTL, sessionSecureCookie)
+	// Mounted through bootstrap so the bypass is declared in one
+	// enumerable place and pinned by
+	// archtest.TestEveryEngineRouteIsDeclaredOrAllowlisted — a route on the
+	// raw engine otherwise escapes platform.Router entirely.
+	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login)
+
 	for _, m := range registry.All() {
 		m.Routes(api, deps)
 		if err := bus.StartConsumers(ctx, db, m.Consumers(deps)); err != nil {

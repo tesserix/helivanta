@@ -5,6 +5,7 @@ import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { usePermissions, clearPermissionsCache } from "@hms/api";
 import { visibleZones, activeZone } from "./zones";
 import { ThemeToggle } from "./theme";
+import { endZitadelSession } from "./zitadel-session";
 
 // Two-rail chrome in the tesserix-home AdminSidebar style. The zone rail is
 // fixed icons-only (no expand/collapse); only the page panel toggles open ↔
@@ -30,14 +31,13 @@ function usePersistedFlag(key: string, fallback: boolean) {
 
 /**
  * `tenantPicker` is a slot rendered in the content header rather than a
- * component this package owns. Switching hospitals means re-minting the
- * session — a Firebase custom-token exchange plus a POST to the shell's
- * session route — and both the client config and that route belong to the
- * shell app (`apps/shell/components/tenant-picker.tsx`). Keeping the
- * control here would either drag app-specific auth config into `@hms/ui`
- * or render a switcher that cannot finish the switch, which is the exact
- * failure this slot exists to prevent. Zone apps pass nothing and show no
- * switcher; their users switch from the dashboard.
+ * component this package owns. Switching hospitals re-mints the HMS
+ * session server-side (`POST /v1/iam/me/tenant`, design spec D3) — no
+ * client-side token exchange is needed any more, but the call still
+ * belongs to the shell app (`apps/shell/components/tenant-picker.tsx`),
+ * consistent with `onSignOut` below. Keeping the control here would drag
+ * app-specific plumbing into `@hms/ui` for no benefit. Zone apps pass
+ * nothing and show no switcher; their users switch from the dashboard.
  */
 export function HmsShell({
   active,
@@ -48,19 +48,17 @@ export function HmsShell({
   active: string;
   tenantPicker?: ReactNode;
   /**
-   * The full sign-out sequence, run before the browser is sent to
-   * `/login`. Optional because only the shell app can supply it in full:
-   * Firebase's client SDK — the piece that must be cleared to stop a
-   * signed-out session from being reconstructed from the browser console
-   * (#781) — is configured once, in `apps/shell/lib/firebase.ts`, and
-   * `HmsShell` is rendered by every zone app, most of which carry no
-   * Firebase config at all. Same constraint as `tenantPicker` above, for
-   * the same reason.
+   * An override for the ENTIRE sign-out sequence, for a caller that needs
+   * something this package's own default cannot express. Not needed for
+   * ordinary Zitadel-ending sign-out any more — see the default path's
+   * comment below for why that turned out to be true everywhere, not only
+   * in the shell app.
    *
-   * Unset, `HmsShell` still performs the server-side half itself (the
-   * POST below): every zone can at least revoke the session and clear the
-   * transport cookie. Only the shell's own dashboard
-   * (`apps/shell/app/page.tsx`) passes the Firebase-aware version.
+   * A caller-supplied `onSignOut` owns navigation end to end and must not
+   * return normally on success if it navigates: `handleSignOut` below
+   * does not navigate after it, specifically so a redirect it starts
+   * (e.g. through an IdP's own logout) is never raced by a second,
+   * competing navigation to `/login`.
    */
   onSignOut?: () => void | Promise<void>;
   children: ReactNode;
@@ -77,24 +75,42 @@ export function HmsShell({
   // apps/shell/app/logout/route.ts, never a GET a page could trigger with
   // `<img src="/logout">`. The cache drop happens before the network
   // round-trip so a slow or failed revoke can never leave stale
-  // permissions visible; the browser is sent onward to /login only once
-  // whatever cleanup was possible has actually finished, so a shared
-  // workstation is never left mid-navigation with a half-torn-down
-  // session.
+  // permissions visible.
+  //
+  // The default path ends BOTH sessions — the HMS one (POST /logout) and
+  // Zitadel's own SSO cookie (zitadel-session.ts's endZitadelSession) —
+  // from EVERY app, not only the shell's dashboard. That used to be
+  // shell-only, on the same "only the shell carries Zitadel client
+  // config" reasoning `tenantPicker` still uses — and it was wrong for
+  // sign-out specifically: signing out from a zone page hit only the POST
+  // below, leaving Zitadel's SSO session alive, so the very next login on
+  // that browser (even for a DIFFERENT identity) completed silently with
+  // no credential prompt. Found live driving the real e2e suite, not
+  // theorised — see zitadel-session.ts's doc comment for the full trace.
+  //
+  // Navigation only happens in the `else` branch. A caller-supplied
+  // `onSignOut` (see its doc comment) owns navigation itself, and
+  // endZitadelSession() ALSO owns navigation on its own success path
+  // (signoutRedirect() is a real cross-origin redirect) — forcing
+  // `/login` after either would cancel an in-flight navigation and
+  // replace it with a same-origin one, undoing the whole point.
+  // endZitadelSession() already falls back to a same-origin `/login`
+  // redirect itself when it can't reach Zitadel, so there is nothing left
+  // for this function to do in either case.
   async function handleSignOut(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     clearPermissionsCache();
     if (onSignOut) {
       await onSignOut();
-    } else {
-      try {
-        await fetch("/logout", { method: "POST" });
-      } catch {
-        // The user must still be able to leave a shared workstation even
-        // if the revoke call itself is unreachable.
-      }
+      return;
     }
-    window.location.href = "/login";
+    try {
+      await fetch("/logout", { method: "POST" });
+    } catch {
+      // The user must still be able to leave a shared workstation even
+      // if the revoke call itself is unreachable.
+    }
+    await endZitadelSession();
   }
 
   const activePage = zone.pages.find((p) => p.href === active);

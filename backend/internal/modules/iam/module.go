@@ -311,7 +311,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 
 	m.registerMe(g, deps)
 
-	rev := &revocationHandlers{db: deps.DB, bus: deps.Bus, checker: m.checker, revoker: deps.TokenRevoker, roles: deps.Roles}
+	rev := &revocationHandlers{db: deps.DB, bus: deps.Bus, checker: m.checker, roles: deps.Roles}
 	// NoTenantMembership: a member whose membership was just revoked must
 	// still be able to end their own session (#781). adminRevoke is the
 	// opposite — it requires both PermCredentialRevoke (membership

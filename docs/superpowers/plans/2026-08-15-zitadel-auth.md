@@ -49,16 +49,20 @@ drives a real login form, so a user that cannot log in through the hosted UI is
 useless to us. A machine user also has **no permissions until granted an org
 role**.
 
-- [ ] Establish, against a running Zitadel, a **non-interactive** recipe that
-  produces a user who can immediately complete a password login through the
-  hosted UI. Record the exact API calls.
-- [ ] Confirm it scales to one account per spec file (sign-out revokes globally
-  per subject, so specs must not share logins — #781).
-- [ ] **If no such recipe exists**, stop and report before writing any code.
-  Every e2e spec depends on it, and the alternative — bypassing the login UI in
-  tests — would stop testing the thing most likely to break in this migration.
+- [x] **RESOLVED 2026-08-15.** Recipe found and proven end to end: seven distinct
+  users seeded and logged in through the real hosted UI, each yielding an ID
+  token with `auth_time` present and distinct from `iat`. See the spike doc's
+  "Task 0" section.
 
-Append findings to the spike doc. Commit: `docs: record how to seed a Zitadel user that can actually log in (#838)`
+**The trap, and why it matters beyond seeding.** `POST /management/v1/users/human`
+has **no `passwordChangeRequired` field at all**, and the endpoint **silently
+drops unrecognised JSON keys** — no error, HTTP 200, a user that then stalls on a
+forced password-change screen. The field exists only on the sibling
+`POST /management/v1/users/human/_import`.
+
+So on this API, **a 200 does not mean what you asked for happened.** That is what
+cost the first spike, and it generalises: any Zitadel call whose body we get
+subtly wrong will succeed and do something other than intended.
 
 ---
 
@@ -124,22 +128,63 @@ Commit: `feat: refuse to boot without a session signing key (#838)`
 
 ## Task 3: the Zitadel verifier
 
-**Files:** `backend/pkg/authn/zitadel.go` (new), `gip.go` (**deleted**), `authn.go`
+**Files:** `backend/pkg/authn/zitadel.go` (new), `gip.go` (verifier removed; minter/revoker stay until Task 5), `authn.go`, `cmd/api/main.go`
+
+> **Sequencing corrected 2026-08-15.** This task originally said "delete
+> `gip.go` and the Firebase dependency in the same commit". That is not
+> buildable: `TokenMinter` is used by `iam/me.go`'s `switchTenant` and
+> `TokenRevoker` by sign-out/revoke, so deleting the file before Task 5 replaces
+> those call sites cannot compile.
+>
+> D7 forbids **merging** a dual-provider state to `main`; it does not require
+> every intermediate commit on the branch to be single-provider. So: Task 3
+> replaces the *verifier* only. `gip.go` keeps its minter and revoker, clearly
+> marked as dying, until Task 5 removes their last callers — and Task 7's `grep`
+> is what proves nothing survived.
 
 - [ ] Implement `TokenVerifier` with `github.com/coreos/go-oidc/v3` against
   Zitadel's discovery document *(observed to work, with negative-case proof)*.
-- [ ] **Delete `gip.go` and the Firebase dependency in the same commit.**
-- [ ] `TokenMinter` (the custom-token concept) **goes away entirely** — nothing
-  mints IdP tokens now. `TokenRevoker`'s fate follows Task 5.
+- [ ] **Delete the GIP verifier path** and switch `cmd/api` to the Zitadel one.
+- [ ] **Leave `TokenMinter` and `TokenRevoker` in place**, with a comment on each
+  naming Task 5 as what removes them. The Firebase dependency therefore survives
+  this task; Task 5 drops it.
 - [ ] Tests: a valid token verifies; wrong issuer, wrong audience, expired, and
   tampered tokens are each refused. Reuse the spike's negative cases.
 - [ ] **A token with no `auth_time` is refused** — the existing contract, and the
   reason is not hygiene: a credential that cannot be evaluated against the
   watermark is not one that can be trusted.
 
-Commit: `feat: verify Zitadel ID tokens through standard OIDC, deleting the Firebase SDK (#838)`
+Commit: `feat: verify Zitadel ID tokens through standard OIDC (#838)`
 
 ---
+
+> **Interim-state note, added after Task 3 (2026-08-15).** From Task 3 until
+> Task 4/5 land, the Zitadel verifier populates only `Subject` and `AuthTime`;
+> `Principal.TenantID` is `""`. Task 3's report claimed a grep found no code
+> reading `TenantID` raw — **that is wrong**. Several paths read it without going
+> through `TenantPrincipal`:
+>
+> - `pkg/authz/middleware.go` → `Resolve(subject, p.TenantID)`
+> - `pkg/authz/membership.go` → the membership gate
+> - `pkg/ratelimit/middleware.go` → the bucket key `"tenant:"+p.TenantID`
+> - `internal/platform/listroute.go` → the pagination cursor
+>
+> The branch is expected to be non-functional for tenant traffic in this window;
+> what matters is that it is non-functional in the **closed** direction. The
+> reasoning is that an empty tenant resolves to an empty permission set and no
+> membership, so authz denies before any handler runs — but **that has been
+> reasoned, not observed**, and reasoning is what this repo keeps catching itself
+> on.
+>
+> **Task 4 must verify it empirically against a real OpenFGA** before relying on
+> it: an empty tenant must deny, not admit. If it admits, that is a
+> cross-tenant hole and it stops the task.
+>
+> Note also `"tenant:"+p.TenantID` collapses every caller into one shared
+> rate-limit bucket while `TenantID` is empty. Harmless in this window (a
+> capacity control, and nothing gets past authz anyway), and it disappears once
+> the session supplies the tenant — but it is the kind of thing that would be
+> mystifying if hit during local development, so it is written down.
 
 ## Task 4: login exchanges a Zitadel token for an HMS session
 
@@ -189,7 +234,34 @@ Commit: `feat: switch tenant by re-minting the HMS session, never the IdP token 
 - [ ] Zitadel replaces the Firebase emulator, own database, shifted ports
   *(observed to coexist with `hms-dev`)*. Promote the spike compose; delete
   `spike/zitadel-838/`.
+- [ ] **Pin v4.15.3 — the version production actually runs**, not the v2.65.1 the
+  first spike used. Verified 2026-08-15: the seeding recipe survives the major
+  version unchanged on both `/management/v1/users/human/_import` and
+  `/v2/users/human`, and both original traps reproduce identically. v4 also
+  requires **Postgres 17** (Cockroach support dropped), and with
+  `LOGINV2_REQUIRED=true` the core hard-404s `/ui/v2/login/*` — the separate
+  `zitadel-login` service plus a same-origin reverse proxy becomes mandatory,
+  not optional. `spike/zitadel-838/docker-compose.zitadel-v4.yml` is the working
+  shape.
+- [ ] **NOT VERIFIED, and it lands on this task's neighbour:** production runs a
+  *customised* login UI (`tesserix/third-party/zitadel-login:v4.15.3-aurora.1`,
+  private registry). All local verification used stock upstream. The e2e suite
+  drives login UI selectors, so `e2e/tests/support/login.ts` will be written
+  against a UI that is **not** the one production serves. Decide whether dev
+  pulls the custom image or the suite tolerates both, and say which — do not
+  discover this when the selectors fail.
 - [ ] Seeding per Task 0's recipe, **one account per spec file**.
+- [ ] **The seed script must verify each account by logging in, not by checking
+  the status code.** Task 0 established that this API returns 200 while silently
+  ignoring fields it does not recognise, so a script that trusts the response
+  produces accounts that look seeded and cannot authenticate — and the failure
+  surfaces later as every e2e spec timing out at the login form, which reads like
+  a broken app rather than a broken seed. Assert on a completed authentication,
+  the same rule §5 applies everywhere else.
+- [ ] *(observed, NOT VERIFIED end-to-end)* bootstrapping the **first** machine
+  PAT still needed one scripted browser login as admin. It is a one-time
+  environment secret rather than a per-test one, so decide here whether that
+  matters and say which.
 - [ ] `verify-local.sh`'s auth round trip updated — it must still fail loudly
   when auth is broken, which is its whole purpose.
 - [ ] Note *(observed)* the masterkey length gotcha: a wrong-length key

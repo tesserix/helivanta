@@ -47,28 +47,6 @@ func doRequest(r *gin.Engine, method, path, token, body string) *httptest.Respon
 	return w
 }
 
-// recordingRevoker records every subject GIP was asked to revoke, so a
-// test can assert not just that sign-out succeeded but that the identity
-// provider was actually told (#781 D1: HMS-initiated revocations must not
-// leave GIP quietly disagreeing).
-type recordingRevoker struct {
-	mu    sync.Mutex
-	calls []string
-}
-
-func (r *recordingRevoker) RevokeRefreshTokens(_ context.Context, uid string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.calls = append(r.calls, uid)
-	return nil
-}
-
-func (r *recordingRevoker) Calls() []string {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return append([]string(nil), r.calls...)
-}
-
 // fixedVerifier maps bearer tokens to principals with an operator-chosen
 // AuthTime, unlike testutil.StaticVerifier, which always stamps "now" at
 // Verify time. The shared-checker proof (below) needs a token that keeps
@@ -137,7 +115,7 @@ type signoutHarnessConfig struct {
 // main.go's construction order here is also what makes this harness the
 // right place to prove the module and the middleware share one checker
 // instance (see TestModuleAndMiddlewareShareOneRevocationCheckerInstance).
-func newSignoutHarness(t *testing.T, cfg signoutHarnessConfig) (*gin.Engine, *tenantdb.DB, *RevocationChecker, *recordingRevoker, *events.Bus) {
+func newSignoutHarness(t *testing.T, cfg signoutHarnessConfig) (*gin.Engine, *tenantdb.DB, *RevocationChecker, *events.Bus) {
 	t.Helper()
 
 	appDSN, adminDSN := testinfra.StartPostgres(t)
@@ -159,7 +137,6 @@ func newSignoutHarness(t *testing.T, cfg signoutHarnessConfig) (*gin.Engine, *te
 	t.Cleanup(bus.Close)
 
 	checker := NewRevocationChecker(db)
-	revoker := &recordingRevoker{}
 
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
@@ -170,14 +147,14 @@ func newSignoutHarness(t *testing.T, cfg signoutHarnessConfig) (*gin.Engine, *te
 		authz.Middleware(cfg.perms),
 	), cfg.membership)
 
-	deps := platform.Deps{DB: db, Bus: bus, Roles: cfg.roles, TokenRevoker: revoker}
+	deps := platform.Deps{DB: db, Bus: bus, Roles: cfg.roles}
 	m := New(checker)
 	m.Routes(api, deps)
 	require.NoError(t, bus.StartConsumers(ctx, db, m.Consumers(deps)))
 	require.NoError(t, bus.StartBroadcasts(ctx, m.Broadcasts(deps)))
 	go bus.RunDispatcher(ctx, db)
 
-	return e, db, checker, revoker, bus
+	return e, db, checker, bus
 }
 
 func watermarkFor(t *testing.T, db *tenantdb.DB, subject string) time.Time {
@@ -247,8 +224,14 @@ func (w *revocationWatcher) saw(subject string) bool {
 	return false
 }
 
-func TestSignOutWritesTheWatermarkAndRevokesAtGIP(t *testing.T) {
-	r, db, _, revoker, _ := newSignoutHarness(t, signoutHarnessConfig{
+// TestSignOutWritesTheWatermark used to also assert GIP was told
+// (RevokeRefreshTokens) — #838 removed that call entirely: HMS stores no
+// IdP credential to revoke (spec D4a), so the HMS watermark alone is now
+// the whole of revocation. See TestModuleAndMiddlewareShareOneRevocationCheckerInstance
+// below for the proof that the watermark alone is sufficient to refuse a
+// live credential immediately, with no wait for GIP or any TTL.
+func TestSignOutWritesTheWatermark(t *testing.T) {
+	r, db, _, _ := newSignoutHarness(t, signoutHarnessConfig{
 		verifier:   fixedVerifier{"tok-nurse": {Subject: "uid-nurse", TenantID: signoutTestTenantA, AuthTime: time.Now()}},
 		membership: fakeMembership{"uid-nurse": false},
 		perms:      stubResolver{},
@@ -259,8 +242,6 @@ func TestSignOutWritesTheWatermarkAndRevokesAtGIP(t *testing.T) {
 
 	require.False(t, watermarkFor(t, db, "uid-nurse").IsZero(),
 		"sign-out must write the watermark, not merely clear a cookie")
-	require.Equal(t, []string{"uid-nurse"}, revoker.Calls(),
-		"GIP must be told, so the identity provider does not disagree with us")
 }
 
 // TestSignOutWorksForARevokedMember is spec T4's sign-out counterpart:
@@ -269,7 +250,7 @@ func TestSignOutWritesTheWatermarkAndRevokesAtGIP(t *testing.T) {
 // harness, so a 200 here is only possible because /me/sign-out is
 // authz.NoTenantMembership and RequireMembership never runs for it.
 func TestSignOutWorksForARevokedMember(t *testing.T) {
-	r, _, _, _, _ := newSignoutHarness(t, signoutHarnessConfig{
+	r, _, _, _ := newSignoutHarness(t, signoutHarnessConfig{
 		verifier:   fixedVerifier{"tok-nurse": {Subject: "uid-nurse", TenantID: signoutTestTenantA, AuthTime: time.Now()}},
 		membership: fakeMembership{"uid-nurse": false},
 		perms:      stubResolver{},
@@ -280,7 +261,7 @@ func TestSignOutWorksForARevokedMember(t *testing.T) {
 }
 
 func TestAdminRevokeRefusesASubjectOutsideTheActingTenant(t *testing.T) {
-	r, db, _, _, _ := newSignoutHarness(t, signoutHarnessConfig{
+	r, db, _, _ := newSignoutHarness(t, signoutHarnessConfig{
 		verifier:   fixedVerifier{"tok-admin": {Subject: "uid-admin", TenantID: signoutTestTenantA, AuthTime: time.Now()}},
 		membership: fakeMembership{"uid-admin": true},
 		perms:      stubResolver{"uid-admin": {PermCredentialRevoke}},
@@ -296,7 +277,7 @@ func TestAdminRevokeRefusesASubjectOutsideTheActingTenant(t *testing.T) {
 }
 
 func TestAdminRevokeRequiresThePermission(t *testing.T) {
-	r, _, _, _, _ := newSignoutHarness(t, signoutHarnessConfig{
+	r, _, _, _ := newSignoutHarness(t, signoutHarnessConfig{
 		verifier:   fixedVerifier{"tok-nurse": {Subject: "uid-nurse", TenantID: signoutTestTenantA, AuthTime: time.Now()}},
 		membership: fakeMembership{"uid-nurse": true},
 		perms:      stubResolver{}, // holds nothing, in particular not PermCredentialRevoke
@@ -316,7 +297,7 @@ func TestAdminRevokeRequiresThePermission(t *testing.T) {
 // reinterpreted as "the subject doesn't exist", which is a different
 // claim the code has no basis to make when it could not even ask.
 func TestAdminRevokeFailsClosedWhenRolesUnavailable(t *testing.T) {
-	r, db, _, _, _ := newSignoutHarness(t, signoutHarnessConfig{
+	r, db, _, _ := newSignoutHarness(t, signoutHarnessConfig{
 		verifier:   fixedVerifier{"tok-admin": {Subject: "uid-admin", TenantID: signoutTestTenantA, AuthTime: time.Now()}},
 		membership: fakeMembership{"uid-admin": true},
 		perms:      stubResolver{"uid-admin": {PermCredentialRevoke}},
@@ -333,7 +314,7 @@ func TestAdminRevokeFailsClosedWhenRolesUnavailable(t *testing.T) {
 }
 
 func TestRevocationPublishesInvalidationInTheSameTransaction(t *testing.T) {
-	r, _, _, _, bus := newSignoutHarness(t, signoutHarnessConfig{
+	r, _, _, bus := newSignoutHarness(t, signoutHarnessConfig{
 		verifier:   fixedVerifier{"tok-nurse": {Subject: "uid-nurse", TenantID: signoutTestTenantA, AuthTime: time.Now()}},
 		membership: fakeMembership{"uid-nurse": false},
 		perms:      stubResolver{},
@@ -371,7 +352,7 @@ func TestRevocationPublishesInvalidationInTheSameTransaction(t *testing.T) {
 // feature exists to prevent.
 func TestModuleAndMiddlewareShareOneRevocationCheckerInstance(t *testing.T) {
 	signInTime := time.Now()
-	r, _, checker, _, _ := newSignoutHarness(t, signoutHarnessConfig{
+	r, _, checker, _ := newSignoutHarness(t, signoutHarnessConfig{
 		verifier: fixedVerifier{
 			"tok-nurse": {Subject: "uid-nurse", TenantID: signoutTestTenantA, AuthTime: signInTime},
 		},

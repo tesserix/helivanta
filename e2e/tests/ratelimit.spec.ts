@@ -54,7 +54,31 @@ type Flood = {
   meanRoundTripMs: number;
 };
 
-test("draining the mint budget is refused with a Retry-After that is honest", async ({
+// SKIPPED, not deleted or weakened — this spec's premise no longer holds,
+// as a PRE-EXISTING gap from #838 Task 5 (backend, already committed
+// before this frontend task started), found live running this suite for
+// #838's frontend half, not introduced by it.
+//
+// Design spec D3 (docs/superpowers/specs/2026-08-15-zitadel-auth-design.md)
+// is explicit: "the Tight rate-limit entry for [POST /v1/iam/me/tenant] is
+// no longer protecting a project-wide external quota... The budget should
+// be revisited when this lands, and this spec does not silently inherit
+// its reasoning." Task 5 acted on exactly that — see
+// backend/internal/bootstrap/ratelimit.go's `Tight is deliberately empty
+// as of #838` comment: the route now shares the SAME (dev: 100000/min)
+// Tenant/Principal budgets every other authenticated route gets, not a
+// separate tight one. This spec still floods the OLD 60/min mint-specific
+// budget the design deliberately removed; run against the current
+// backend it correctly finds no 429 within 100 attempts, because there is
+// no longer a tighter budget to trip.
+//
+// This is a rate-limit BUDGET decision — D3 flags it as its own follow-up,
+// out of scope for both Task 5 (backend) and #838's frontend half (this
+// task). Skipping rather than deleting keeps the gap visible and the
+// original intent on record for whoever picks up "revisit the budget" as
+// its own piece of work, rather than silently losing the coverage this
+// spec used to provide.
+test.skip("draining the mint budget is refused with a Retry-After that is honest", async ({
   page,
 }) => {
   // Login alone can take 30s under parallel workers (see support/login.ts),

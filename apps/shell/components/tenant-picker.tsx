@@ -1,51 +1,40 @@
 "use client";
 
-import { signInWithCustomToken } from "firebase/auth";
 import { useApiMutation, useApiQuery, apiFetch, clearPermissionsCache } from "@hms/api";
-import { firebaseAuth } from "@/lib/firebase";
 
 type Membership = { tenant_id: string; roles: string[]; current: boolean };
 
-type SwitchResponse = { tenant_id: string; custom_token: string };
+type SwitchResponse = { tenant_id: string };
 
 /**
  * Lets a clinician working at more than one hospital switch tenants.
  * Renders nothing for single-tenant users, which is almost everyone.
  *
- * This lives in the shell, not in `@hms/ui`, because completing a switch
- * needs the Firebase client config (`lib/firebase.ts`) and the session
- * route (`app/api/session/route.ts`) — both shell-owned. A picker in the
- * shared package could render the control but not finish the exchange,
- * which is exactly the bug this replaces: a switcher that toasted
- * "Switched hospital", reloaded, and left the user in the old tenant
- * because nothing re-minted the session.
+ * This lives in the shell, not in `@hms/ui`, for the same reason
+ * `onSignOut` does (see `packages/ui/src/hms-shell.tsx`) — historically
+ * because completing a switch needed shell-owned Firebase client config;
+ * that coupling is gone now (design spec D3: switching re-mints the HMS
+ * session server-side, no client-side token exchange at all), but the
+ * shell remains the natural owner since it is where the dashboard and the
+ * rest of the auth surface already live.
  *
- * The switch is three steps and all three must happen, in order:
- *  1. `POST /iam/me/tenant` — the backend re-checks membership (it is the
- *     authority; this control only offers the choices) and mints a custom
- *     token carrying the new `tenant_id` claim.
- *  2. `signInWithCustomToken` — exchanges it for a fresh ID token. The
- *     tenant a request runs in comes from that token's claim and nowhere
- *     else, so this is the step that actually moves the user. Before
- *     trusting the result, `getIdTokenResult()` is checked against the
- *     `tenant_id` we asked to switch to: this environment cannot verify
- *     that Google Identity Platform's custom-token claim always wins over
- *     a persisted `customAttributes.tenant_id` on the account (see
- *     `scripts/seed-dev.mjs`, and production provisioning likely sets the
- *     same attribute) rather than being overridden by it. If GIP ever let
- *     the persisted attribute win, this step would silently mint a token
- *     for the OLD tenant — the exact bug this control replaces, just
- *     reintroduced one layer down. A mismatch here throws instead of
- *     proceeding, so that failure mode is loud (an error toast, no
- *     session POST, no reload) instead of a silent no-op switch.
- *  3. `POST /api/session` — replaces the `hms_session` cookie with the new
- *     ID token, the same handler `app/login/page.tsx` posts to after
- *     sign-in. Raw `fetch` here is the sanctioned session-route exception
- *     (docs/standards/frontend.md section 3) — it is an auth route outside
- *     the `/api/v1` envelope, so `apiFetch` does not apply.
+ * The switch is one call: `POST /iam/me/tenant` re-checks membership (it
+ * is the authority; this control only offers the choices the caller's own
+ * `/iam/me/tenants` listing already named) and, on success, re-mints the
+ * session and replaces the `hms_session` cookie itself via the response's
+ * Set-Cookie — the same way `POST /v1/auth/login` does for a fresh login.
+ * There is no `custom_token` any more, and nothing for this component to
+ * exchange: unlike the old GIP-backed design, a 200 here IS the switch.
  *
- * Any step throwing leaves the old session intact and surfaces the error
- * toast from `useApiMutation`; only a completed exchange reloads.
+ * A non-member target tenant answers 404 (backend/internal/modules/iam/me.go,
+ * reconciled to the codebase's standard cross-tenant rule: 404, never 403 —
+ * a 403 would confirm the tenant exists). `useApiMutation`'s `onError`
+ * surfaces that as a toast built from the response body's `message`
+ * (`"tenant not found"`, byte-identical for a nonexistent tenant and one
+ * the caller cannot access, so the toast text itself never distinguishes
+ * them) — no special handling is needed here beyond letting the mutation's
+ * default error path run: it never reloads, and the old session/tenant
+ * stays exactly as it was.
  */
 export function TenantPicker() {
   const { data } = useApiQuery<{ data: Membership[] }>(["iam", "me", "tenants"], "/iam/me/tenants");
@@ -53,24 +42,11 @@ export function TenantPicker() {
 
   const switchTenant = useApiMutation(
     async (tenantId: string) => {
-      const { custom_token } = await apiFetch<SwitchResponse>("/iam/me/tenant", {
+      const res = await apiFetch<SwitchResponse>("/iam/me/tenant", {
         method: "POST",
         body: JSON.stringify({ tenant_id: tenantId }),
       });
-      const cred = await signInWithCustomToken(firebaseAuth(), custom_token);
-      const idTokenResult = await cred.user.getIdTokenResult();
-      if (idTokenResult.claims.tenant_id !== tenantId) {
-        throw new Error(
-          "Hospital switch failed: the new session did not carry the expected hospital. Please try again.",
-        );
-      }
-      const res = await fetch("/api/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken: idTokenResult.token }),
-      });
-      if (!res.ok) throw new Error("Could not start a session for that hospital.");
-      return tenantId;
+      return res.tenant_id;
     },
     {
       successToast: "Switched hospital",

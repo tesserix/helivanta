@@ -109,6 +109,30 @@ func TestTenantPrincipal(t *testing.T) {
 	require.Contains(t, w.Body.String(), "unauthenticated")
 }
 
+// TestTenantPrincipalRefusesEmptyTenant pins the specific shape a
+// Zitadel-verified Principal takes today (pkg/authn/zitadel.go — no
+// tenant claim exists on a Zitadel token, so TenantID is left empty
+// rather than fabricated, see Principal.TenantID's doc comment): an
+// empty TenantID must fail exactly like a malformed one, not be treated
+// as "no tenant scoping required" anywhere downstream.
+func TestTenantPrincipalRefusesEmptyTenant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.GET("/p", authn.Middleware(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: ""}}, neverRevoked{}), func(c *gin.Context) {
+		if _, _, ok := authn.TenantPrincipal(c); !ok {
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{})
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/p", nil)
+	req.Header.Set("Authorization", "Bearer good")
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+	require.Contains(t, w.Body.String(), "unauthenticated")
+}
+
 func TestPrincipalFromWhenKeyNotInContext(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

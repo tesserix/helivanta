@@ -9,7 +9,7 @@
   None of that describes what was built. `backend/go.mod` declares
   `github.com/tesserix/hms` and has **no go-shared requirement** — not in
   `go.mod`, not in `go.sum`. The shared capability lives in `backend/pkg/`:
-  `authn` (GIP token verification, revocation), `authz` (OpenFGA client and
+  `authn` (OIDC token verification, revocation — GIP at the time, Zitadel since ADR-0006), `authz` (OpenFGA client and
   Gin middleware), `events` (outbox, JetStream consumers, DLQ, broadcast),
   `logging` (slog with PHI redaction), `tenantdb` (pooling, migrations,
   `WithTenant`/`WithSystem`/`WithAdmin`, `LintRLS`) — roughly 8,200 lines.

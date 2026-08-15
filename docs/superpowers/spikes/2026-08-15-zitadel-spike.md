@@ -407,3 +407,623 @@ Time remained for a brief look; not a thorough capacity study.
    API-created users still need an email-verification step resolved before
    they can log in interactively, and the mechanism to suppress that
    wasn't found in the time available.
+
+---
+
+## Task 0 — the seeding wrinkle, resolved
+
+**Continuing from Q6.** Ran against a fresh instance of the same
+`spike/zitadel-838/docker-compose.zitadel.yml` stack (`hms-dev` confirmed
+untouched throughout, per the same `docker ps` check as before). Every call
+below is a real request against that instance; every login below is a real
+browser drive of the real hosted login UI, not a mock.
+
+### The root cause, found by reading the wire format, not guessing
+
+Q6 reported the wrinkle as "email-verification-pending blocks login even with
+`isEmailVerified: true`". That framing turned out to be **wrong, and worth
+correcting**: `isEmailVerified: true` was working exactly as asked the whole
+time. The actual blocker was a **second, independent gate — a forced
+password-change step** — that Q6's request never controlled, because the
+field it used to try to control it does not exist on that endpoint.
+
+Proof, extracted from ZITADEL Console's own compiled protobuf definitions
+(`/ui/console/main.<hash>.js`, fetched and grepped, not guessed):
+
+```
+proto.zitadel.management.v1.AddHumanUserRequest.toObject = function(e,i){
+  return {
+    userName: ...(field 1),
+    profile:  ...(field 2),
+    email:    ...(field 3),
+    phone:    ...(field 4),
+    initialPassword: ...(field 5),
+  }
+}
+```
+
+`POST /management/v1/users/human` (`AddHumanUserRequest`) has **five fields,
+full stop** — there is no `passwordChangeRequired`/`changeRequired` field on
+it at all. Any such key in the JSON body is silently dropped by the
+grpc-gateway (no error, no rejection — it just isn't a field on that
+message), which is exactly the "set it and it didn't help" experience Q6
+recorded. Sending `"password"` (rather than the real field, `"initialPassword"`)
+on this endpoint is silently dropped the same way, leaving the user with no
+password at all — which is a different, more severe version of the same
+trap: it *looks* like it worked (`201`, a `userId` back) and the user even
+reads back as `USER_STATE_ACTIVE`, but there is no credential to log in with.
+
+The field that controls this, `passwordChangeRequired`, exists only on
+**`ImportHumanUserRequest`** (field 7, confirmed the same way from the
+bundle) — a sibling message, not a variant of the same one. Reached via a
+different endpoint: `POST /management/v1/users/human/_import`.
+
+### The working recipe
+
+Bootstrap (once per environment — see caveat below), then two calls per
+seeded user, no browser involved in either:
+
+```bash
+# 1. Machine user (once)
+POST /management/v1/users/machine
+  {"userName":"hms-seed-bot","name":"HMS Seed Bot","accessTokenType":"ACCESS_TOKEN_TYPE_BEARER"}
+  → userId
+
+# 2. Grant it an org role — a fresh machine user has none (Q6, still true)
+POST /management/v1/orgs/me/members
+  {"userId":"<machineUserId>","roles":["ORG_OWNER"]}
+
+# 3. Mint its PAT (once, stored as a dev secret from here on)
+POST /management/v1/users/{machineUserId}/pats
+  {"expirationDate":"2027-01-01T00:00:00Z"}
+  → token   # returned once, never retrievable again
+
+# 4. Per user — the actual recipe — using ONLY the machine PAT:
+POST /management/v1/users/human/_import
+Authorization: Bearer <machine PAT>
+{
+  "userName": "e2e-<spec>-admin@hms.dev",
+  "profile": {"firstName": "...", "lastName": "..."},
+  "email": {"email": "e2e-<spec>-admin@hms.dev", "isEmailVerified": true},
+  "password": "Password123!",
+  "passwordChangeRequired": false
+}
+```
+
+Both flags are load-bearing — dropping either one reproduces a documented
+failure mode below, not a partial success.
+
+Confirmed the equivalent also exists on the **v2** resource API (the plan
+explicitly asked to compare v1 vs v2 — they behave the same once the right
+fields are used, they just spell them differently):
+
+```bash
+POST /v2/users/human
+Authorization: Bearer <machine PAT>
+{
+  "username": "e2e-<spec>-admin@hms.dev",
+  "profile": {"givenName": "...", "familyName": "..."},
+  "email": {"email": "e2e-<spec>-admin@hms.dev", "isVerified": true},
+  "password": {"password": "Password123!", "changeRequired": false}
+}
+```
+
+Both produced a user that read back as `USER_STATE_ACTIVE` **and** logged in
+immediately with no extra step — the two-endpoint gap Q6 hit is closed on
+either API surface. `/_import` was used for the bulk of this verification
+because it is the v1-parity call the rest of Q6's recipe already used.
+
+### The proof: a completed login, not a 201
+
+Every login below drove the **real** hosted login UI
+(`/oauth/v2/authorize` → `/ui/login/loginname` → `/ui/login/password`,
+server-rendered HTML forms, not mocked) with Playwright (`chromium`,
+headless, from `e2e/`'s own installed browser — no new dependency added).
+Zitadel's first-party Console SPA is itself a PKCE client of the same
+`/oauth/v2/authorize` endpoint the real HMS login page will use, so driving
+it end to end and reading the token it stores is a real, complete
+authorization-code-plus-PKCE exchange, the same mechanism `e2e/tests/support/login.ts`
+drives against apps/shell — just captured from Console's `sessionStorage`
+after its own internal exchange completes, rather than from a callback this
+spike's own redirect_uri wasn't registered for.
+
+Decoded ID token from one such login (`e2e-signoutspec-pharmacist@hms.dev`,
+created via the recipe above, header + payload, verbatim):
+
+```json
+// header
+{
+  "alg": "RS256",
+  "kid": "386323422205968387",
+  "typ": "JWT"
+}
+
+// payload
+{
+  "iss": "http://localhost:20080",
+  "sub": "386324150303588355",
+  "aud": ["386322847301107715", "386322847301173251", "386322847301238787",
+          "386322847301304323", "386322845724180483"],
+  "exp": 1786806361,
+  "iat": 1786763161,
+  "auth_time": 1786763159,
+  "nonce": "YX5wb3VTZGRNc3I5ci1XMGVQMnJaVUppMUEzZGx1VkozT1dwQmRYZ0tpdWpt",
+  "amr": ["pwd"],
+  "azp": "386322847301304323",
+  "client_id": "386322847301304323",
+  "at_hash": "DFD4x0mTmDVGKNFeSHR-CA",
+  "sid": "V1_386324187767111683"
+}
+```
+
+`auth_time` (`1786763159`) is present, non-zero, and distinct from `iat`
+(`1786763161`) — the same load-bearing shape confirmed in Q3, now confirmed
+for a user created entirely through the non-interactive recipe, with no
+human ever touching a keyboard for this user's creation.
+
+### Confirmed for several distinct users, not just one
+
+Seven users total were created via the recipe (six via `_import` mirroring
+the real `e2e-<spec>-<kind>@hms.dev` naming scheme, one via `/v2/users/human`
+to prove the v2 path too) and **every one of them completed a real hosted-UI
+login on the first attempt**, no retry, no extra screen:
+
+| Email | `sub` | `auth_time` |
+|---|---|---|
+| `e2e-loginspec-admin@hms.dev` | `386324143089385475` | `1786763144` |
+| `e2e-loginspec-pharmacist@hms.dev` | `386324144549003267` | `1786763147` |
+| `e2e-tenantswitchspec-admin@hms.dev` | `386324145975066627` | `1786763150` |
+| `e2e-tenantswitchspec-pharmacist@hms.dev` | `386324147451461635` | `1786763153` |
+| `e2e-signoutspec-admin@hms.dev` | `386324148843970563` | `1786763156` |
+| `e2e-signoutspec-pharmacist@hms.dev` | `386324150303588355` | `1786763159` |
+| `e2e-v2attempt-admin@hms.dev` (v2 API) | `386324213000044547` | `1786763183` |
+
+Each `sub` is distinct and matches the `userId` the creation call returned —
+no collision, no reused subject, which is exactly what #781's per-spec-file
+isolation requires.
+
+### What did NOT work, and what happened instead
+
+- **`POST /management/v1/users/human` (`AddHumanUserRequest`) with
+  `"password"` + `"passwordChangeRequired": false` in the body** — the exact
+  shape Q6 used. `201`, `userId` back, user reads back as
+  `USER_STATE_ACTIVE`. **Login through the hosted UI never completes**:
+  `/ui/login/password` accepts the (nonexistent, since `"password"` isn't a
+  real field) attempted password with a "Password must contain upper case"
+  — because there was never a password on the account to accept, the
+  endpoint doesn't have a field for one under that name.
+- **Same endpoint with the correct field name, `"initialPassword"`, but no
+  `passwordChangeRequired` control (because the field doesn't exist here)**
+  — creation succeeds, state reads `USER_STATE_ACTIVE`, but the hosted UI
+  **stops at a forced `/ui/login/password` "Change Password" screen**
+  (old/new/confirm) before it will issue a token. Not a hard block — a
+  human (or a second scripted step, not attempted here since the goal was
+  *immediate* login) could complete it — but it fails the plan's bar of
+  completing login **immediately**, and it is silent about why: nothing in
+  the `201` response or the `GetUser` read-back says a change is pending.
+- **Setting `isEmailVerified: false` (or omitting it) on `_import` even with
+  `passwordChangeRequired: false`** — reproduces the original
+  email-verification-pending block on its own: `GetUser` reads back
+  `USER_STATE_INITIAL`. Confirms `isEmailVerified: true` was never the
+  wrong half of Q6's fix — it was always necessary, just not sufficient.
+
+### Still NOT VERIFIED
+
+- **A fully non-interactive path to the *first* machine PAT.** Steps 1–3
+  above (machine user → org role → PAT) were driven using a bearer token
+  obtained by scripting a real Playwright login as the bootstrap admin
+  (`ZITADEL_FIRSTINSTANCE_ORG_HUMAN_*`) — a browser was involved for that one,
+  first, environment-bootstrap step, not for any per-user seeding after it.
+  `zitadel start-from-init --steps <file>` accepts declarative provisioning
+  files and plausibly can create a machine user + PAT at first boot with no
+  login at all, which would remove even that one browser step — **not
+  attempted, time-boxed out**. Task 6 should decide whether closing this
+  matters: the PAT this produces is a long-lived dev secret minted once per
+  environment, not a per-test-run credential, so a one-time scripted browser
+  bootstrap is a materially smaller problem than what Q6 left blocking.
+- **Whether `passwordChangeRequired` has a different name on
+  `AddHumanUserRequest` in a newer Zitadel version.** This spike is pinned to
+  `v2.65.1`; not checked against latest.
+- **Password complexity policy sensitivity.** `Password123!` satisfies this
+  instance's default complexity policy; a production/dev-stack instance with
+  a different policy could reject it — worth a length/charset comment where
+  Task 6's seed script hard-codes the seeded password, mirroring
+  `scripts/seed-dev.mjs`'s existing `PASSWORD` constant.
+
+### Read: is this fragile?
+
+**No — once the two fields are right, it is not fragile; it was
+undocumented, not unreliable.** All seven creations behaved identically and
+every login succeeded on the first attempt with no retry logic needed
+(contrast `e2e/tests/support/login.ts`'s `MAX_SIGN_IN_ATTEMPTS` retry, which
+exists for a real distributed-system race — the revocation watermark — not
+for the seeding recipe). The actual risk is **the exact trap this section
+documents**: `AddHumanUserRequest`'s silent-drop-of-unknown-fields behavior
+means a future edit to Task 6's seed script that "helpfully" switches back
+to the plainer-looking `/management/v1/users/human` endpoint, or that
+reintroduces a `"password"` typo for `"initialPassword"`, will not error —
+it will produce users that pass a code review reading only the `201` and
+silently cannot log in, exactly as Q6 first found. Task 6 should either
+comment this trap loudly at the call site or (better) have the seed script
+assert the created user's state is `USER_STATE_ACTIVE` via a `GetUser`
+read-back before declaring success, so a regression fails the seed step
+itself rather than surfacing later as a mysteriously-failing e2e login.
+
+---
+
+## v4.15.3 re-verification (2026-08-15)
+
+**Trigger:** production runs `ghcr.io/zitadel/zitadel:v4.15.3`
+(`auth.tesserix.app`, GKE `tesseract-prod-in-gke`, namespace `zitadel`) — a
+major-version gap from this spike's v2.65.1. v4 also splits the interactive
+login UI into a separate `zitadel-login` service, and the org runs a
+customised build of it in a private registry
+(`tesserix/third-party/zitadel-login:v4.15.3-aurora.1`). Everything below is
+re-run against a **local** `v4.15.3` stack this session stood up itself.
+**No writes were made to production** — the only production contact was two
+unauthenticated `GET`s of public OIDC metadata
+(`https://auth.tesserix.app/.well-known/openid-configuration` and
+`/oauth/v2/keys`), both read-only, both fine under the constraint. Everything
+else — every `POST`, every login, every container — ran against
+`spike/zitadel-838/docker-compose.zitadel-v4.yml`, a fresh local stack, `hms-dev`
+confirmed untouched throughout by the same `docker ps` check as the original
+spike.
+
+### What was stood up
+
+`ghcr.io/zitadel/zitadel:v4.15.3`
+(`sha256:2356d646340724b3d843c024d589314adb9b54dbd6452ebc34008b011e023eff`),
+`start-from-init`, its own `postgres:17-alpine` (v4 requires Postgres 17 —
+CockroachDB support was dropped; the v2.65.1 stack used `postgres:16-alpine`,
+a real difference, not a copy-paste artifact), plus a `caddy:2-alpine` reverse
+proxy and, for the P1 run, `ghcr.io/zitadel/zitadel-login:v4.15.3` (stock
+upstream). Compose file:
+[`spike/zitadel-838/docker-compose.zitadel-v4.yml`](../../../spike/zitadel-838/docker-compose.zitadel-v4.yml),
+plus [`Caddyfile.v4-login`](../../../spike/zitadel-838/Caddyfile.v4-login).
+Ports shifted again to avoid colliding with both `hms-dev` and the v2.65.1
+spike stack if all three were ever brought up together:
+
+| Service | Port |
+|---|---|
+| Zitadel (via Caddy proxy) | 20081 |
+| Zitadel's own Postgres | 15434 |
+
+**The exact 31-byte masterkey trap the original spike warned about was hit
+again, live, while writing this section** — `SpikeMasterKeyV4X32BytesLongXXX`
+(31 bytes) crash-looped with the identical error the original spike
+predicted: `migration failed ... masterkey must be 32 bytes, but is 31`. Fixed
+to a verified-32-byte key
+(`python3 -c "print(len('SpikeMasterKeyV4Exactly32BytesXX'))"` → `32`) before
+retrying. Recorded here exactly because the original spike said this failure
+mode was easy to reproduce by not checking, and it was.
+
+**New v4-specific operational gotcha, not present in the v2.65.1 write-up:**
+the compose healthcheck `/app/zitadel ready --config /dev/null` — the same
+command the v2.65.1 file used and reported "Up (healthy)" for — reports
+`Error: not ready` (exit 1) against this v4.15.3 instance **even while it is
+demonstrably serving real traffic** (`curl .../debug/healthz` returns `ok`
+throughout, discovery and every API call below worked). Root cause **NOT
+VERIFIED** — the image is distroless (no `sh`, no `curl`, no `wget` in the
+container, confirmed by a failed `docker exec ... sh`), so there is no
+straightforward alternative healthcheck command to substitute. This spike
+polled `/debug/healthz` from the host instead of trusting `docker compose ps`
+health status, and the compose file's healthcheck is left in place but
+documented as unreliable rather than silently "fixed" by deleting it.
+
+### P0-1 — Does the v2.65.1 recipe still work on v4.15.3?
+
+**Answer: yes, unchanged, both API surfaces, both proved with a completed
+login — not a 201.**
+
+**`POST /management/v1/users/human/_import` still exists and still works
+exactly as documented in Task 0 above.** Real call against the running v4
+instance, using a machine PAT (same bootstrap mechanism as before — machine
+user → org role → PAT, all reproduced fresh against v4, not assumed):
+
+```
+POST /management/v1/users/human/_import
+Authorization: Bearer <machine PAT>
+{
+  "userName": "e2e-v4spike-admin@hms.dev",
+  "profile": {"firstName": "V4", "lastName": "Spike"},
+  "email": {"email": "e2e-v4spike-admin@hms.dev", "isEmailVerified": true},
+  "password": "Password123!",
+  "passwordChangeRequired": false
+}
+→ HTTP 200 {"userId":"386363744248135683", ...}
+```
+
+Read-back confirms `"state": "USER_STATE_ACTIVE"` immediately, same as
+v2.65.1.
+
+**`POST /v2/users/human` also still exists and still works**, same shape as
+Task 0 documented:
+
+```
+POST /v2/users/human
+Authorization: Bearer <machine PAT>
+{
+  "username": "e2e-v4v2-admin@hms.dev",
+  "profile": {"givenName": "V4", "familyName": "V2Test"},
+  "email": {"email": "e2e-v4v2-admin@hms.dev", "isVerified": true},
+  "password": {"password": "Password123!", "changeRequired": false}
+}
+→ HTTP 200 {"userId":"386363965455728643", ...}
+```
+
+**Both failure modes from Task 0 reproduce identically on v4.15.3** — this
+matters because it means the *trap*, not just the recipe, survived the
+version bump unchanged:
+
+- `POST /management/v1/users/human` with `"password"` +
+  `"passwordChangeRequired": false"` (Q6's original mistake) — `HTTP 200`,
+  `userId` back, but the field is silently dropped exactly as before. Proven
+  by driving the real hosted login: the account has **no credential at all**,
+  so the login UI does not even prompt for an old password — it jumps
+  straight to a bare "New Password" / "Confirm Password" screen with no "Old
+  Password" field (`getByLabel(/Password/i)` in the throwaway Playwright
+  script resolved to exactly those two fields, nothing else — a Playwright
+  strict-mode error is itself evidence here, not just friction). Login does
+  not complete.
+- `POST /management/v1/users/human` with the correct `initialPassword` field
+  but no `passwordChangeRequired` control (because the field doesn't exist on
+  this message, same as v2.65.1) — creation succeeds
+  (`USER_STATE_ACTIVE`), but the hosted UI stops at a forced **"Change
+  Password"** screen (Old Password / New Password / Password confirmation),
+  screenshot captured, before it will issue a token.
+- **No `Deprecation` response header and no server-side deprecation log line**
+  on any v1 call, checked directly (`curl -sD -` and `docker logs | grep -i
+  deprecat`, both empty). Whatever migration-guide language exists for v1
+  human-user endpoints (ZITADEL's public docs mark `AddHumanUser` and
+  `ImportHumanUser` as deprecated in favour of a unified v2 create endpoint)
+  is **doc-only** — nothing at runtime signals it. This is the same "looks
+  fine, isn't" shape as the original `_import` vs `/users/human` trap:
+  silence, not an error, is what a caller sees either way.
+
+**The proof: two completed real logins, not two 201s.** Both driven through
+the actual hosted login UI with a real Playwright browser (`chromium`,
+headless), authorization-code-plus-PKCE against the real `/oauth/v2/authorize`
+endpoint, tokens read back from Console's own `sessionStorage` after its
+internal exchange completed — the same method the original spike used, same
+justification (Console is itself a PKCE client of the identical endpoint
+`e2e/tests/support/login.ts` drives against apps/shell).
+
+**Decoded ID token, `_import`-created user (`e2e-v4spike-admin@hms.dev`),
+header + payload, verbatim:**
+
+```json
+// header
+{ "alg": "RS256", "kid": "386363123994722307", "typ": "JWT" }
+
+// payload
+{
+  "iss": "http://localhost:20081",
+  "sub": "386363744248135683",
+  "aud": ["386363123994460163", "386363123994525699", "386363123994591235",
+          "386363123994656771", "386363122585305091"],
+  "exp": 1786829973,
+  "iat": 1786786773,
+  "auth_time": 1786786771,
+  "nonce": "YjU0NmhtNmN2bl8xelJvUDdIWTJmLkYtWX54cG40SEFHamJrRDU3M2w1cTBi",
+  "amr": ["pwd"],
+  "azp": "386363123994656771",
+  "client_id": "386363123994656771",
+  "at_hash": "kiofy6tci_s1qP672qQEQg",
+  "sid": "V1_386363801240338435"
+}
+```
+
+`auth_time` (`1786786771`) present, non-zero, distinct from `iat`
+(`1786786773`) — exactly the shape `principalFromToken` in
+`backend/pkg/authn/gip.go` (per ADR-0006) requires. **`sub`
+(`386363744248135683`) matches the `userId` the `_import` call returned.**
+
+**Decoded ID token, `/v2/users/human`-created user
+(`e2e-v4v2-admin@hms.dev`):** `sub` `386363965455728643`, `iat` `1786786878`,
+`auth_time` `1786786876` — present, distinct, `sub` matches the v2 call's
+returned `userId`.
+
+**Conclusion — P0 is fully closed:** the v2.65.1 recipe is unchanged on
+v4.15.3, on both API surfaces, traps included. Nothing in Task 0's guidance
+needs revision for v4; it can be carried into Task 6's seed script verbatim,
+with the same "loudly comment the trap or assert `USER_STATE_ACTIVE`
+read-back" recommendation as before.
+
+### P1-4 — What does the separate `zitadel-login` service mean for us?
+
+**Answer, empirically, not from docs: a v4 instance with
+`LOGINV2_REQUIRED=true` cannot serve a login on its own — the separate
+service is mandatory once that flag is set, and a reverse proxy merging both
+under one origin is mandatory too.** Three states tested, in order:
+
+1. **`LOGINV2_REQUIRED=false` (the default in this spike's compose file) —
+   core alone serves everything, `zitadel-login` never runs.** This is what
+   P0 above ran against. The bundled `/ui/login` (same legacy UI as
+   v2.65.1) handled both the bootstrap admin's login and every seeded
+   user's login end to end, MFA-setup skip included. **No separate service
+   needed in this mode** — this is the materially simpler option for local
+   dev/CI if it's acceptable to diverge from production's `LOGINV2_REQUIRED`
+   setting.
+
+2. **`LOGINV2_REQUIRED=true`, `zitadel-login` NOT running — proved broken,
+   not assumed:**
+
+   ```
+   $ curl -s -w "\nHTTP %{http_code}\n" \
+       "http://localhost:20081/ui/v2/login/login?authRequest=V2_386364093532995587"
+   {"code":5, "message":"Not Found"}
+   HTTP 404
+   ```
+
+   Confirmed independently: an actual browser drive of `/ui/console` with
+   this flag set redirects to `/ui/v2/login/login?authRequest=...` and then
+   times out waiting for a page that 404s. **Core genuinely cannot serve a
+   login on its own once this flag is set** — this is not a config nuance,
+   it is a hard split.
+
+3. **`LOGINV2_REQUIRED=true`, `zitadel-login` running, fronted by a reverse
+   proxy on one origin — completed logins, both for the bootstrap admin and
+   for an `_import`-seeded user.** The official ZITADEL compose file
+   (`github.com/zitadel/zitadel` `deploy/compose/docker-compose.yml`, fetched
+   and read directly — not paraphrased from a summary) uses Traefik to route
+   `/ui/v2/login/*` (and `/`) to `zitadel-login` and everything else to core,
+   because **the browser's redirect target is built from
+   `ZITADEL_EXTERNALDOMAIN`/`ZITADEL_EXTERNALPORT` with no way to express two
+   backend processes** — both must appear to live at the same origin. This
+   spike replicated that with a minimal Caddy config
+   (`spike/zitadel-838/Caddyfile.v4-login`) instead of Traefik. The
+   login-service container needs, at minimum: `ZITADEL_API_URL` (reaching
+   core over the docker network), `NEXT_PUBLIC_BASE_PATH=/ui/v2/login`, and
+   `ZITADEL_SERVICE_USER_TOKEN_FILE` pointing at a PAT for a machine user
+   holding the **instance-level** `IAM_LOGIN_CLIENT` role (granted via
+   `POST /admin/v1/members`, not the org-level `/management/v1/orgs/me/members`
+   used for `ORG_OWNER` — a different endpoint, easy to get wrong by pattern
+   matching on the org-role call already in Task 0's recipe).
+
+**Decoded ID token, bootstrap admin, logged in through the separate
+`zitadel-login` service via the Caddy-fronted origin:**
+
+```json
+{
+  "iss": "http://localhost:20081",
+  "sub": "386363122585763843",
+  "aud": ["386363123994460163", "386363123994525699", "386363123994591235",
+          "386363123994656771", "386363122585305091"],
+  "exp": 1786830432,
+  "iat": 1786787232,
+  "auth_time": 1786787231,
+  "amr": ["pwd"],
+  "azp": "386363123994656771",
+  "client_id": "386363123994656771",
+  "at_hash": "kUo5531AVnKQkKA3r9f6lA",
+  "sid": "386364569368395779"
+}
+```
+
+**Decoded ID token, an `_import`-seeded user
+(`e2e-v4loginsvc-admin@hms.dev`), same separate-service path — proving the
+seeding recipe and the split-login architecture compose cleanly, not just
+each in isolation:**
+
+```json
+{
+  "iss": "http://localhost:20081",
+  "sub": "386364596883030019",
+  "aud": ["386363123994460163", "386363123994525699", "386363123994591235",
+          "386363123994656771", "386363122585305091"],
+  "exp": 1786830462,
+  "iat": 1786787262,
+  "auth_time": 1786787261,
+  "amr": ["pwd"],
+  "azp": "386363123994656771",
+  "client_id": "386363123994656771",
+  "at_hash": "n5R9vIVrH70a8fO8lrZaqw",
+  "sid": "386364623139373059"
+}
+```
+
+Both have `auth_time` present and distinct from `iat`. One observed cosmetic
+difference worth a note, not a concern: `sid` under the separate login
+service is a bare numeric string (`386364569368395779`); under the legacy
+bundled login it carries a `V1_` prefix (`V1_386363801240338435`). Nothing in
+HMS's design depends on `sid`'s shape.
+
+**Read: what should HMS actually run locally/in CI?** `LOGINV2_REQUIRED=false`
+(core-only, legacy `/ui/login`) is the materially simpler option and this
+spike proved it still works end-to-end on v4.15.3, traps and all. The
+tradeoff, stated plainly: it means local/CI would exercise a **different**
+login UI than what production's `auth.tesserix.app` actually serves (both
+`zitadel-login` itself vs core-bundled, and separately the org's *own*
+customised `zitadel-login` build, see below) — a real environment-parity gap
+for the e2e suite, not a reason to avoid the simpler setup, but something
+Task 6 / the design spec should decide consciously rather than by default.
+
+### P1-5 — v1 management API deprecation in v4
+
+Covered above under P0-1: **no runtime deprecation signal** (no header, no
+log line) on any v1 human-user call in this v4.15.3 instance. ZITADEL's
+public API reference marks the v1 `AddHumanUser` and `ImportHumanUser`
+methods as deprecated in favour of v2's endpoints (checked via
+`zitadel.com/docs`, not re-quoted verbatim here since the fetched summaries
+were themselves paraphrased and this spike did not independently confirm the
+exact wording against the raw `.proto`/OpenAPI source the way Task 0 did for
+the `AddHumanUserRequest` field list) — but deprecated-in-docs is not the
+same claim as broken-in-v4.15.3, and this spike's own `curl`/log evidence
+above is the stronger, independently-produced claim: **the v1 endpoints are
+fully functional on v4.15.3 today.** Task 6 should still prefer the v2
+surface (`/v2/users/human`) for new code, both because it's the
+forward-looking API and because this spike proved it works identically — but
+should not treat "still works" as "safe indefinitely"; a future major version
+could remove what v4.15.3 merely deprecates.
+
+### What did NOT work / was NOT VERIFIED this session
+
+- **The org's actual custom login image
+  (`tesserix/third-party/zitadel-login:v4.15.3-aurora.1`) — NOT VERIFIED, and
+  not attempted.** It lives in a private registry this session had no
+  credentials for and was explicitly told not to fight. Everything in the
+  P1 section above used the **stock** `ghcr.io/zitadel/zitadel-login:v4.15.3`
+  image. This is a real, material gap for the e2e suite: the actual login UI
+  our specs will drive in any environment running the custom build is
+  untested by this spike. If the custom build changes routes, field names,
+  button labels, or timing behaviour relative to stock — all things this
+  spike had to hand-discover for stock (`getByLabel(/Login Name/i)` vs
+  `Loginname`, `Continue` vs `Next`, the "Old Password" field appearing or
+  not depending on account state) — `e2e/tests/support/login.ts`'s selectors
+  could silently stop matching. **Recorded as NOT VERIFIED, not glossed
+  over**, per the task brief.
+- **Root cause of the `/app/zitadel ready` healthcheck reporting "not ready"
+  while serving real traffic.** Worked around by polling `/debug/healthz`
+  from the host instead; not diagnosed further, time-boxed out.
+- **Exact wording of ZITADEL's own v1→v2 deprecation guidance** — this
+  spike's `curl`/log evidence (no runtime signal) is solid; the doc-side
+  claim about which v2 method officially supersedes which v1 method is
+  paraphrased from fetched summaries, not independently re-derived from the
+  `.proto` source the way Task 0's `AddHumanUserRequest` field list was.
+  If Task 6 needs the exact API-reference wording, re-derive it from the
+  primary source rather than trusting this note.
+- **Whether the official Traefik-based compose's exact routing rules (this
+  spike used a minimal Caddy substitute covering only the one path split
+  that mattered) hide any other split-origin subtlety** — e.g. the official
+  file also routes bare `/` to `zitadel-login` with a path rewrite, which
+  this spike's Caddyfile does not replicate because nothing in the recipe
+  or the login flow needed it. Not a gap in the *proof* (every URL actually
+  exercised in this spike's login flows was proxied correctly), but a gap in
+  *completeness* of the reverse-proxy config if it were ever promoted beyond
+  spike scaffolding.
+- **Whether `ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH`** (the official
+  compose's first-boot shortcut for minting the login-client PAT without any
+  interactive step) works as documented — this spike instead reused the
+  same "browser-drive the bootstrap admin, use their session to mint the PAT"
+  approach Task 0 already flagged as its one remaining non-interactive gap.
+  That gap is therefore **still open on v4**, unchanged from Task 0's
+  finding, and still judged low-priority for the same reason: it is a
+  one-time environment-bootstrap step, not a per-test-run credential.
+
+### Read: how much of the existing spike/design now needs revisiting?
+
+**Very little of substance — the P0 answer is unchanged, which was the one
+finding that could have forced a design rework.** Task 0's recipe, both API
+surfaces, both traps, and the underlying `auth_time`/`sub` token shape all
+survive the v2.65.1 → v4.15.3 jump intact. What *does* need to reach the
+design spec, concretely:
+
+1. **A conscious decision on `LOGINV2_REQUIRED` for local/CI**, now that
+   both options are proven to work: simpler-but-diverges-from-prod
+   (`false`) vs matches-prod-topology-but-needs-a-proxy-and-a-second-service
+   (`true`). This spike does not recommend one over the other — it makes the
+   tradeoff visible with working recipes for both, which is what was missing
+   before this session.
+2. **The custom login image gap is the one real open risk**, and it is
+   entirely orthogonal to the seeding recipe (P0) — seeding will work
+   regardless of which login UI serves the resulting user. It affects
+   `e2e/tests/support/login.ts`'s selectors, not `scripts/seed-dev.mjs`'s
+   replacement. Task 6 can proceed on the seeding recipe with confidence;
+   whoever owns the e2e login flow itself should budget time to get
+   credentials for the private registry and re-verify selectors against the
+   actual `aurora.1` build before trusting `login.ts` in an environment that
+   runs it.
+3. **Nothing about Postgres 17, the healthcheck quirk, or the missing
+   deprecation header changes any design decision** — they're operational
+   footnotes for whoever templates this for real CI, not architectural
+   findings.

@@ -207,15 +207,35 @@ echo "PREFLIGHT_PORTS (host-port overrides):"
 # this machine's own ports 5432/6379/8080/etc. happen to be doing) and
 # confirm each shows up as a checked port.
 p_pg=$(free_port); p_nats=$(free_port); p_natsmon=$(free_port)
-p_redis=$(free_port); p_fga=$(free_port); p_gip=$(free_port); p_api=$(free_port)
+p_redis=$(free_port); p_fga=$(free_port); p_zitadel=$(free_port); p_zitadelpg=$(free_port); p_api=$(free_port)
 out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN=token \
   HMS_PG_PORT="$p_pg" HMS_NATS_PORT="$p_nats" HMS_NATS_MONITOR_PORT="$p_natsmon" \
-  HMS_REDIS_PORT="$p_redis" HMS_OPENFGA_PORT="$p_fga" HMS_GIP_PORT="$p_gip" \
+  HMS_REDIS_PORT="$p_redis" HMS_OPENFGA_PORT="$p_fga" HMS_ZITADEL_PORT="$p_zitadel" \
+  HMS_ZITADEL_PG_PORT="$p_zitadelpg" \
   HMS_API_PORT="$p_api" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
 assert_status "all HMS_* ports overridden to free ports exits 0" 0 "$status"
 assert_contains "PREFLIGHT_PORTS reflects HMS_PG_PORT override"      "$out" "port $p_pg"
 assert_contains "PREFLIGHT_PORTS reflects HMS_OPENFGA_PORT override" "$out" "port $p_fga"
+assert_contains "PREFLIGHT_PORTS reflects HMS_ZITADEL_PORT override" "$out" "port $p_zitadel"
 assert_contains "PREFLIGHT_PORTS reflects HMS_API_PORT override"     "$out" "port $p_api"
+
+echo
+echo "HMS_DEV_ZITADEL_MASTERKEY length check:"
+
+# Proves the check can actually fail (engineering-principles.md §5) rather
+# than trusting that a wrong-length key would be caught — the whole reason
+# this check exists is that Zitadel itself does NOT fail fast on this, it
+# crash-loops instead (see docker-compose.dev.yml's zitadel service
+# comment), so a silently-passing check here would be worse than none.
+out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="$(free_port)" \
+  HMS_DEV_ZITADEL_MASTERKEY="tooShort" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
+assert_status "a masterkey that is not 32 bytes exits 1" 1 "$status"
+assert_contains "the wrong length is reported" "$out" "is 8 bytes, want exactly 32"
+
+out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="$(free_port)" \
+  HMS_DEV_ZITADEL_MASTERKEY="HmsDevZitadelMasterKey32BytesXXX" \
+  bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
+assert_status "the real 32-byte default exits 0" 0 "$status"
 
 echo
 echo "PREFLIGHT_SKIP (Makefile):"

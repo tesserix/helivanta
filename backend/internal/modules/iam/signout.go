@@ -20,16 +20,18 @@ type revocationHandlers struct {
 	db      *tenantdb.DB
 	bus     *events.Bus
 	checker *RevocationChecker
-	revoker authn.TokenRevoker
 	roles   platform.RoleLister
 }
 
 // signOut ends every session for the calling subject, on every device.
 //
-// GIP ID tokens carry no session identifier, so revocation is
-// necessarily by subject — see the design spec's D5. That is the
-// correct answer for the shared-workstation case that motivates this
-// work: a ward terminal's previous user must not be recoverable.
+// HMS session tokens carry no session identifier, so revocation is
+// necessarily by subject — see the design spec's D5 (the #838 Zitadel
+// design; the original decision predates it under GIP but the reasoning
+// is unchanged: neither identity provider's token format is asked to
+// carry one). That is the correct answer for the shared-workstation case
+// that motivates this work: a ward terminal's previous user must not be
+// recoverable.
 func (h *revocationHandlers) signOut(c *gin.Context) {
 	p, ok := authn.PrincipalFrom(c)
 	if !ok {
@@ -87,12 +89,14 @@ func (h *revocationHandlers) adminRevoke(c *gin.Context) {
 // transaction. Splitting them would allow a watermark that propagates
 // only at TTL, or an invalidation for a revocation that never happened.
 //
-// GIP is told after the commit: it is not transactional, and a GIP
-// failure must not roll back a revocation HMS has already decided on.
-// The HMS watermark is authoritative on the request path, so a GIP call
-// that fails leaves the credential refused here regardless — it is
-// logged loudly rather than surfaced as a failure the caller might
-// retry into a double revoke.
+// This is the WHOLE of revocation, post-#838: the HMS watermark is
+// authoritative and there is no separate upstream call to make.
+// HMS stores no Zitadel credential to revoke (spec D4a — renewal is the
+// login exchange re-run with a fresh Zitadel token, not a server-side
+// refresh of a stored one), so unlike the old GIP-backed design there is
+// nothing left to "tell" after the commit. A subject whose watermark
+// moves is refused by authn.Middleware on their very next request,
+// regardless of what Zitadel still believes.
 func (h *revocationHandlers) revoke(c *gin.Context, subject string, at time.Time, reason, actor string) error {
 	err := h.db.WithSystem(c.Request.Context(), func(tx *gorm.DB) error {
 		if err := h.checker.RevokeTx(tx, subject, at, reason, actor); err != nil {
@@ -120,13 +124,5 @@ func (h *revocationHandlers) revoke(c *gin.Context, subject string, at time.Time
 	// broadcast: the replica that served this request should never serve
 	// the revoked credential again, not even for one more request.
 	h.checker.Invalidate(subject)
-
-	if h.revoker != nil {
-		if err := h.revoker.RevokeRefreshTokens(c.Request.Context(), subject); err != nil {
-			requestid.Logger(c).ErrorContext(c.Request.Context(),
-				"HMS revoked the credential but GIP refresh-token revocation failed; the identity provider will keep issuing tokens this platform refuses",
-				"err", err, "subject", subject)
-		}
-	}
 	return nil
 }

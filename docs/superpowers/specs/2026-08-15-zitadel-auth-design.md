@@ -137,6 +137,57 @@ account keeps working.
 *(observed)*, and a network call per request against the IdP recreates exactly
 the shared-resource exposure #689 exists to prevent.
 
+#### D4a — renewal re-runs the exchange; HMS stores no IdP token
+
+**Resolved 2026-08-15.** The paragraph above said "renewal re-checks the Zitadel
+session" without saying *with what credential*, and that gap had a security
+answer hiding in it. HMS verifies the Zitadel ID token at login and keeps
+nothing; `userinfo` needs the **access** token. So an upstream re-check demands
+HMS hold an IdP credential — unless renewal is not a server-side operation at
+all.
+
+**Renewal is the login exchange, run again with a fresh Zitadel token.** The
+browser silently re-authenticates against Zitadel (`prompt=none` — its session
+cookie on `auth.tesserix.app` is what makes this silent) and posts the fresh ID
+token to the same exchange endpoint, naming the tenant it is currently in. HMS
+verifies the token, re-checks membership in OpenFGA, and re-mints. There is no
+separate renewal endpoint and no separate mechanism to get wrong.
+
+The bound holds for the reason D4 claims: after the TTL, continuing requires a
+**fresh** Zitadel token, and a deactivated user cannot obtain one — Zitadel
+refuses the silent re-authentication. Deactivation therefore bites within one
+TTL without HMS ever asking Zitadel a question directly.
+
+Two properties fall out of this that are worth having deliberately:
+
+- **HMS stores no refresh token.** A refresh token is long-lived and, for a
+  clinical system, roughly as dangerous as a password. Not storing one removes a
+  whole class of secret-at-rest, encryption and rotation obligation — and there
+  is nothing to steal from the HMS database that grants access to the IdP.
+- **Membership is re-checked every renewal**, so a *revoked member* also loses
+  access within one TTL, not only a deactivated account. That bounds OpenFGA
+  staleness with the same mechanism, for free.
+
+*Rejected: store the Zitadel refresh token server-side, encrypted.* A true
+upstream check at any moment, but it makes HMS the custodian of credentials to
+another system, needs a store, encryption and rotation, and #45 does not exist
+yet. The security cost buys latency we do not need.
+
+*Rejected: store the access token and call `userinfo` at renewal.* Access tokens
+are short-lived, so by renewal time it has usually expired — and an expired token
+is indistinguishable from a deactivated user, which is precisely the distinction
+the check exists to make.
+
+*Rejected: no upstream check at all.* Then the TTL bounds nothing and D4's
+statement is simply false. A deactivated clinician would keep working
+indefinitely so long as their browser kept renewing.
+
+**Consequence for the frontend:** silent renewal is browser-side work — the
+shell must run the OIDC silent-renew flow and fall back to a visible login when
+it fails. Server-side, "renewal" needs no new code beyond the exchange endpoint
+already built, which must therefore accept a tenant and re-check membership on
+every call rather than only on first login.
+
 ### D5 — Signing keys, and failing closed without them
 
 Asymmetric (EdDSA or RS256), private key from the secret manager, public key

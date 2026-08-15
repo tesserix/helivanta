@@ -1,7 +1,7 @@
 // The API-level auth round trip scripts/verify-local.sh drives (#838 Task
 // 6): a real Zitadel token → POST /v1/auth/login → an HMS session that
 // works on a /v1 route. Deliberately API-level, not through the shell's
-// old /api/session route — apps/shell still authenticates via Firebase
+// old /api/session route, which #838 deleted: the API now mints and sets
 // (Task 6 is dev stack/seeding only; the frontend is a separate follow-on),
 // so that route no longer exists on the path a Zitadel token can take. This
 // script proves the part of the chain that IS wired today: Zitadel issues a

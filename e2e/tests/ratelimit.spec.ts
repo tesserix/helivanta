@@ -12,7 +12,7 @@ import { login } from "./support/login";
 // never exercised anywhere before production. The mint route is the one
 // budget left deliberately reachable, and this spec is what reaches it.
 //
-// The route: POST /v1/iam/me/tenant mints a GIP custom token per call
+// The route: POST /v1/iam/me/tenant minted a GIP custom token per call
 // against project-wide Identity Platform quota, so it carries the tightest
 // budget on the platform (internal/bootstrap/ratelimit.go, Tight map) and
 // gets its own bucket keyed by subject AND route. Draining it therefore

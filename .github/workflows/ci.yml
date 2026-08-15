@@ -39,11 +39,18 @@ jobs:
       - run: pnpm turbo lint format:check type-check test build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
-          # Firebase web config is not secret (client-visible by design); CI only
-          # needs a syntactically valid value to satisfy defineEnv during the
-          # shell's static build — real deployments inject the real project config.
-          NEXT_PUBLIC_GIP_API_KEY: ci-build-key
-          NEXT_PUBLIC_GIP_PROJECT_ID: ci-build-project
+          # Zitadel's client id and issuer are client-visible by design, so a
+          # placeholder is fine here. Replaces NEXT_PUBLIC_GIP_* which #838
+          # deleted along with Firebase.
+          #
+          # NOTE, verified rather than assumed: `next build` currently succeeds
+          # with these UNSET — the shell's defineEnv runs at module evaluation on
+          # a dynamic route, not during static generation, so a missing client id
+          # surfaces as a 500 on /login at RUNTIME, not as a red build. CI is
+          # therefore not covering this, and setting them here does not make it
+          # cover it. Treat a green build as saying nothing about runtime env.
+          NEXT_PUBLIC_ZITADEL_CLIENT_ID: ci-build-client-id
+          NEXT_PUBLIC_ZITADEL_ISSUER_URL: http://localhost:20080
   scripts:
     runs-on: ubuntu-latest
     steps:

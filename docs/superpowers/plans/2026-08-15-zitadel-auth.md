@@ -158,6 +158,34 @@ Commit: `feat: verify Zitadel ID tokens through standard OIDC (#838)`
 
 ---
 
+> **Interim-state note, added after Task 3 (2026-08-15).** From Task 3 until
+> Task 4/5 land, the Zitadel verifier populates only `Subject` and `AuthTime`;
+> `Principal.TenantID` is `""`. Task 3's report claimed a grep found no code
+> reading `TenantID` raw — **that is wrong**. Several paths read it without going
+> through `TenantPrincipal`:
+>
+> - `pkg/authz/middleware.go` → `Resolve(subject, p.TenantID)`
+> - `pkg/authz/membership.go` → the membership gate
+> - `pkg/ratelimit/middleware.go` → the bucket key `"tenant:"+p.TenantID`
+> - `internal/platform/listroute.go` → the pagination cursor
+>
+> The branch is expected to be non-functional for tenant traffic in this window;
+> what matters is that it is non-functional in the **closed** direction. The
+> reasoning is that an empty tenant resolves to an empty permission set and no
+> membership, so authz denies before any handler runs — but **that has been
+> reasoned, not observed**, and reasoning is what this repo keeps catching itself
+> on.
+>
+> **Task 4 must verify it empirically against a real OpenFGA** before relying on
+> it: an empty tenant must deny, not admit. If it admits, that is a
+> cross-tenant hole and it stops the task.
+>
+> Note also `"tenant:"+p.TenantID` collapses every caller into one shared
+> rate-limit bucket while `TenantID` is empty. Harmless in this window (a
+> capacity control, and nothing gets past authz anyway), and it disappears once
+> the session supplies the tenant — but it is the kind of thing that would be
+> mystifying if hit during local development, so it is written down.
+
 ## Task 4: login exchanges a Zitadel token for an HMS session
 
 **Files:** `backend/internal/modules/iam/`, `apps/shell/`

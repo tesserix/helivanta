@@ -14,6 +14,8 @@ playwright-report/
 next-env.d.ts
 *.tsbuildinfo
 
-# Live secret minted by the zitadel-838 spike's login-service recipe —
-# never committed, see spike/zitadel-838/docker-compose.zitadel-v4.yml.
-spike/zitadel-838/login-client.pat
+# PATs Zitadel mints at first boot (docker-compose.dev.yml's zitadel
+# service, FirstInstance.Org.Machine/.LoginClient) and the client ID
+# scripts/zitadel-bootstrap.mjs provisions from them. Live dev secrets,
+# regenerated per stack, never committed.
+dev/zitadel/secrets/

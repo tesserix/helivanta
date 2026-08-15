@@ -8,6 +8,15 @@
 # ?= defaults below cover every variable.
 -include .env
 
+# Written by scripts/zitadel-bootstrap.mjs (run from `dev-infra`, below)
+# once the HMS org/project/app exist in the local Zitadel — ZITADEL_CLIENT_ID
+# cannot be a fixed default the way the other HMS_* ports are, because
+# Zitadel assigns it at creation time. Absent on a fresh clone before the
+# first `make dev-infra`/`make up`; -include swallows that the same way it
+# swallows a missing .env, and `dev-api` below refuses with an actionable
+# message rather than silently booting with an empty client ID.
+-include dev/zitadel/secrets/zitadel.env
+
 # Host-side ports for the local stack, overridable via .env (copy
 # .env.example) so a developer whose ports are already taken by unrelated
 # work can shift the whole stack instead of being blocked outright. Only
@@ -18,7 +27,8 @@ HMS_NATS_PORT ?= 4222
 HMS_NATS_MONITOR_PORT ?= 8222
 HMS_REDIS_PORT ?= 6379
 HMS_OPENFGA_PORT ?= 8090
-HMS_GIP_PORT ?= 9099
+HMS_ZITADEL_PORT ?= 20080
+HMS_ZITADEL_PG_PORT ?= 5433
 HMS_API_PORT ?= 8080
 
 # Connection strings derived from the ports above, for dev-api/migrate/seed.
@@ -30,21 +40,31 @@ APP_DATABASE_URL ?= postgres://hms_app:hms_app@localhost:$(HMS_PG_PORT)/hms?sslm
 ADMIN_DATABASE_URL ?= postgres://hms:hms@localhost:$(HMS_PG_PORT)/hms?sslmode=disable
 NATS_URL ?= nats://localhost:$(HMS_NATS_PORT)
 OPENFGA_URL ?= http://localhost:$(HMS_OPENFGA_PORT)
-AUTH_EMULATOR_HOST ?= localhost:$(HMS_GIP_PORT)
+ZITADEL_ISSUER_URL ?= http://localhost:$(HMS_ZITADEL_PORT)
 
-# The frontend needs the same two ports, by different routes, and both are
-# easy to forget: API_URL is what each app's next.config.ts rewrites /api to
-# (server side), while NEXT_PUBLIC_AUTH_EMULATOR_HOST is read in the browser
-# by apps/shell/lib/firebase.ts. Without these, shifting the ports moves the
-# API and the emulator but leaves the UI still calling 8080 and 9099 — which
-# on a machine whose ports were shifted precisely because something else owns
-# them means the app talks to that something else. Silent and baffling.
+# API_URL is what each app's next.config.ts rewrites /api to (server side).
+# apps/shell still authenticates via Firebase (#838 Task 6 is dev
+# stack/seeding only — the shell is a separate follow-on task) so it is
+# NOT wired to Zitadel here; this is expected mid-cutover, not an
+# oversight. See the PR body for what that means the shell cannot do
+# locally until that task lands.
 API_URL ?= http://localhost:$(HMS_API_PORT)
-NEXT_PUBLIC_AUTH_EMULATOR_HOST ?= localhost:$(HMS_GIP_PORT)
 
-export HMS_PG_PORT HMS_NATS_PORT HMS_NATS_MONITOR_PORT HMS_REDIS_PORT HMS_OPENFGA_PORT HMS_GIP_PORT HMS_API_PORT
-export APP_DATABASE_URL ADMIN_DATABASE_URL NATS_URL OPENFGA_URL AUTH_EMULATOR_HOST
-export API_URL NEXT_PUBLIC_AUTH_EMULATOR_HOST
+export HMS_PG_PORT HMS_NATS_PORT HMS_NATS_MONITOR_PORT HMS_REDIS_PORT HMS_OPENFGA_PORT HMS_ZITADEL_PORT HMS_ZITADEL_PG_PORT HMS_API_PORT
+export APP_DATABASE_URL ADMIN_DATABASE_URL NATS_URL OPENFGA_URL ZITADEL_ISSUER_URL
+export API_URL
+export ZITADEL_CLIENT_ID
+
+# Zitadel refuses to boot with a masterkey that is not EXACTLY 32 bytes —
+# but not by failing fast: it crash-loops on every restart with "masterkey
+# must be 32 bytes, but is N" buried in its logs, which reads as a flaky
+# container rather than a one-line config mistake (reproduced live while
+# wiring this stack up — see docker-compose.dev.yml's zitadel service
+# comment). scripts/preflight.sh checks the length before Docker is ever
+# touched, so a wrong value is caught in one place rather than
+# rediscovered per developer via a log grep.
+HMS_DEV_ZITADEL_MASTERKEY ?= HmsDevZitadelMasterKey32BytesXXX
+export HMS_DEV_ZITADEL_MASTERKEY
 
 # Make auto-imports every shell environment variable as a make variable, so
 # an ambient PREFLIGHT_SKIP=1 — left over from debugging, or copied from a
@@ -65,10 +85,15 @@ preflight:
 
 dev-infra: preflight
 	docker compose -f docker-compose.dev.yml up -d --wait postgres nats redis openfga
-	docker compose -f docker-compose.dev.yml up -d firebase-auth
-	@printf 'Waiting for the GIP emulator on :$(HMS_GIP_PORT)…'
-	@until curl -fsS --max-time 2 http://localhost:$(HMS_GIP_PORT)/ >/dev/null 2>&1; do printf '.'; sleep 1; done
+	docker compose -f docker-compose.dev.yml up -d zitadel-db zitadel zitadel-login zitadel-proxy
+	@printf 'Waiting for Zitadel on :$(HMS_ZITADEL_PORT)…'
+	@until curl -fsS --max-time 2 http://localhost:$(HMS_ZITADEL_PORT)/debug/healthz >/dev/null 2>&1; do printf '.'; sleep 1; done
 	@echo ' ready.'
+	@# Provisions the HMS org/project/app once (idempotent — see the
+	@# script's own doc comment) and writes
+	@# dev/zitadel/secrets/zitadel.env, which the -include near the top of
+	@# this file picks up for dev-api/seed below.
+	node scripts/zitadel-bootstrap.mjs
 
 # The e2e suite is, in load terms, an attack: pagination.spec.ts creates 55
 # visits in a tight loop as one principal, and the whole suite runs at four
@@ -78,48 +103,36 @@ dev-infra: preflight
 # limiter never exercised where developers work would first be exercised in
 # production.
 #
-# RATE_LIMIT_MINT_PER_MIN is the deliberate exception: it stays low, because
-# e2e/tests/ratelimit.spec.ts proves the limiter still refuses by draining
-# exactly this budget on POST /v1/iam/me/tenant. 60/min is one token per
-# second against a hardcoded burst of 3 (internal/bootstrap/ratelimit.go),
-# and the measured browser->proxy->API->GIP round trip for that route is
-# 9ms, so a sequential loop drains the bucket ~100x faster than it refills
-# and is refused on about the fourth attempt.
-#
-# The margin is the point, not the mean. A budget refilling FASTER than the
-# round trip can never be drained sequentially, and the loop would spin
-# until it gave up — a green limiter reported as broken, or "fixed" by
-# raising the attempt count until it accidentally passed. 1000/min refills
-# a token every 60ms: it happens to trip at today's 9ms, but only 6x clear
-# of it, and the round trip under four parallel Playwright workers on a
-# loaded machine is exactly the number that moves. 60/min holds until the
-# round trip degrades past a full second.
-#
-# 60/min does not throttle real flows: the only caller of the mint route is
-# the hospital picker (apps/shell/components/tenant-picker.tsx), one call
-# per switch, and tenant-switch.spec.ts performs exactly one.
-#
-# All three are overridable from the environment so the "prove it can fail"
-# check (RATE_LIMIT_MINT_PER_MIN=1000000) needs no edit here.
+# There is no third, tighter budget for POST /v1/iam/me/tenant anymore
+# (RATE_LIMIT_MINT_PER_MIN, removed #838 Task 5): that route used to mint a
+# GIP custom token against Identity Platform's project-wide quota, and now
+# re-mints the HMS session in-process — the same cost every other
+# authenticated route already pays through authz.Middleware. See
+# backend/internal/bootstrap/ratelimit.go's doc comment for the full
+# reasoning; it is not silently carried forward here.
 RATE_LIMIT_TENANT_PER_MIN ?= 100000
 RATE_LIMIT_PRINCIPAL_PER_MIN ?= 100000
-RATE_LIMIT_MINT_PER_MIN ?= 60
 
 # HMS_ENV=dev is required here: the API refuses to start with
-# FIREBASE_AUTH_EMULATOR_HOST set outside dev, because the emulator makes
-# ID token signature verification a no-op — and, since #838 Task 2, the
-# API also refuses to start with no SESSION_SIGNING_KEY at all, or with
-# HMS_DEV_SESSION_SIGNING_KEY set outside HMS_ENV=dev (see
-# backend/internal/config/signingkey.go). HMS_DEV_SESSION_SIGNING_KEY
-# below is the SAME well-known value as config.DevSessionSigningKey —
-# committed to source, shared by every developer and CI runner, and
-# usable ONLY because HMS_ENV=dev is required alongside it here. It is
-# a make variable of its own (not inlined into SESSION_SIGNING_KEY
-# directly) so a developer who has provisioned a real key via .env can
-# override it the same way every other HMS_* variable here works.
+# SESSION_SIGNING_KEY set to the well-known HMS_DEV_SESSION_SIGNING_KEY
+# outside HMS_ENV=dev (see backend/internal/config/signingkey.go), and
+# refuses to boot at all with no SESSION_SIGNING_KEY (#838 Task 2).
+# HMS_DEV_SESSION_SIGNING_KEY below is the SAME well-known value as
+# config.DevSessionSigningKey — committed to source, shared by every
+# developer and CI runner, and usable ONLY because HMS_ENV=dev is required
+# alongside it here. It is a make variable of its own (not inlined into
+# SESSION_SIGNING_KEY directly) so a developer who has provisioned a real
+# key via .env can override it the same way every other HMS_* variable
+# here works.
 HMS_DEV_SESSION_SIGNING_KEY ?= X5yoi73f6FRR8XH2ZfRBjanOZLm/bkae0QV7wGJRuf8=
 dev-api:
-	cd backend && HMS_ENV=$${HMS_ENV:-dev} FIREBASE_AUTH_EMULATOR_HOST=$${FIREBASE_AUTH_EMULATOR_HOST:-localhost:$(HMS_GIP_PORT)} SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-$(HMS_DEV_SESSION_SIGNING_KEY)} PORT=$${PORT:-$(HMS_API_PORT)} RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) RATE_LIMIT_MINT_PER_MIN=$(RATE_LIMIT_MINT_PER_MIN) go run ./cmd/api
+	@if [ -z "$${ZITADEL_CLIENT_ID:-$(ZITADEL_CLIENT_ID)}" ]; then \
+		echo "ZITADEL_CLIENT_ID is not set — run 'make dev-infra' first so" >&2; \
+		echo "scripts/zitadel-bootstrap.mjs can provision the HMS app and" >&2; \
+		echo "write dev/zitadel/secrets/zitadel.env." >&2; \
+		exit 1; \
+	fi
+	cd backend && HMS_ENV=$${HMS_ENV:-dev} ZITADEL_ISSUER_URL=$${ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} ZITADEL_CLIENT_ID=$${ZITADEL_CLIENT_ID:-$(ZITADEL_CLIENT_ID)} SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-$(HMS_DEV_SESSION_SIGNING_KEY)} PORT=$${PORT:-$(HMS_API_PORT)} RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) go run ./cmd/api
 
 dev-web:
 	pnpm turbo dev

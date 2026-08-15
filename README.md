@@ -33,48 +33,72 @@ steps are still available if you want them: `make dev-infra`, `make
 migrate`, `make seed`, `make dev-api`, `make dev-web`.
 
 `make up` runs `scripts/preflight.sh` first. It checks Docker, Compose v2,
-Go, Node, pnpm, `NODE_AUTH_TOKEN` and all eleven ports the stack uses, and
-reports **every** problem at once with the fix for each — a fresh machine
-usually has more than one. A port held by this repo's own containers or
-processes is not a conflict, so re-running `make up` on a stack that is
-already running still works.
+Go, Node, pnpm, `NODE_AUTH_TOKEN`, the Zitadel dev masterkey's length, and
+every port the stack uses, and reports **every** problem at once with the
+fix for each — a fresh machine usually has more than one. A port held by
+this repo's own containers or processes is not a conflict, so re-running
+`make up` on a stack that is already running still works.
 
 `make reset` returns the stack to a clean seeded state: it stops
-everything, drops the Postgres and NATS volumes, restarts infrastructure
-and re-seeds. It prompts first, because dropping those volumes is
-unrecoverable; `RESET_YES=1 make reset` skips the prompt for scripts.
+everything, drops the Postgres, NATS and Zitadel volumes, restarts
+infrastructure and re-seeds. Dropping the Zitadel volume means its org,
+users and OIDC app are gone too — `dev-infra` re-provisions all of it from
+scratch via `scripts/zitadel-bootstrap.mjs`, so this is safe, but the
+resulting `ZITADEL_CLIENT_ID` will be a different value than before (a new
+Zitadel instance, not the same one restored). It prompts first, because
+dropping those volumes is unrecoverable; `RESET_YES=1 make reset` skips the
+prompt for scripts.
 
-Log in at http://localhost:4301/login:
+Seeded accounts (Zitadel, verified by a real hosted-UI login as part of
+`make seed` — see `scripts/seed-dev.mjs`):
 
 | User                 | Password      | Tenant                 | Role           | Sees              |
 | -------------------- | ------------- | ---------------------- | -------------- | ----------------- |
-| `test@hms.dev`       | `password123` | `1111…1111` (default)  | `tenant_admin` | every zone        |
-| `test@hms.dev`       | `password123` | `2222…2222`            | `pharmacist`   | Pharmacy only     |
-| `pharmacist@hms.dev` | `password123` | `1111…1111`            | `pharmacist`   | Pharmacy only     |
+| `test@hms.dev`       | `HmsDev123!`  | `1111…1111` (default)  | `tenant_admin` | every zone        |
+| `test@hms.dev`       | `HmsDev123!`  | `2222…2222`            | `pharmacist`   | Pharmacy only     |
+| `pharmacist@hms.dev` | `HmsDev123!`  | `1111…1111`            | `pharmacist`   | Pharmacy only     |
 
 `test@hms.dev` is deliberately a member of **two** tenants so tenant
-switching is exercisable by hand: log in as that user and use the hospital
-picker in the sidebar. Switching re-mints the session with the target
-tenant's claim, so the visible zones change from "all" to "Pharmacy only".
-`pharmacist@hms.dev` shows permission gating without switching.
+switching is exercisable once the frontend is wired to Zitadel: OpenFGA
+already carries both memberships, and `POST /v1/iam/me/tenant` re-mints the
+session for either without an IdP round trip (spec D3).
+
+**apps/shell cannot log these accounts in yet.** The shell still
+authenticates via the Firebase/GIP SDK (#838 is a staged cutover — see
+`docs/superpowers/plans/2026-08-15-zitadel-auth.md`'s task list), and the
+Firebase emulator this used to talk to has been removed from the dev stack
+now that Zitadel replaces it. Visiting http://localhost:4301/login renders,
+but signing in there does nothing useful until the frontend task ports the
+shell to Zitadel. Until then, verify auth with `make verify-local` (which
+drives the real API-level exchange — a real Zitadel token through the
+hosted login UI → `POST /v1/auth/login` → an authenticated `/v1` call) or
+by hand: `node scripts/zitadel-verify-login.mjs`.
 
 Stop everything with `make down`.
 
-`make up` points the API at the local GIP emulator automatically
-(`FIREBASE_AUTH_EMULATOR_HOST=localhost:9099`); override the variable to
-target a real GIP project.
+`make up` provisions and seeds a local Zitadel v4.15.3 (spec
+`docs/superpowers/specs/2026-08-15-zitadel-auth-design.md`, topology
+`docs/superpowers/specs/2026-08-15-zitadel-tenancy-topology-design.md`):
+its own Postgres, an HMS org/project/OIDC app (`scripts/zitadel-bootstrap.mjs`,
+fully declarative — no browser step, even for the first machine credential),
+and the split `zitadel-login` service fronted by a Caddy reverse proxy
+(`dev/zitadel/Caddyfile`), matching production's topology rather than the
+simpler core-only login mode. `ZITADEL_ISSUER_URL` and `ZITADEL_CLIENT_ID`
+are what `make dev-api` (and therefore `make up`) passes the API; override
+`ZITADEL_ISSUER_URL` to point dev at a different instance.
 
-The API refuses to start with `FIREBASE_AUTH_EMULATOR_HOST` set unless
-`HMS_ENV=dev` — otherwise a forged emulator token would be accepted in what
-looks like production. `make dev-api` (and therefore `make up`) sets
-`HMS_ENV=dev` for you; a bare `go run ./cmd/api` does not, so set it
-yourself when running the API outside `make`.
+The API refuses to start with no `SESSION_SIGNING_KEY`, and refuses the
+well-known dev key (`HMS_DEV_SESSION_SIGNING_KEY`) outside `HMS_ENV=dev` —
+otherwise a forged session would be accepted in what looks like production.
+`make dev-api` (and therefore `make up`) sets `HMS_ENV=dev` for you; a bare
+`go run ./cmd/api` does not, so set it yourself when running the API outside
+`make`.
 
 Ports (defaults): shell 4301, medicore 4302, pharmacy 4303, lab 4304, API
 8080, Postgres 5432, NATS 4222 (monitoring 8222), Redis 6379, OpenFGA 8090,
-GIP emulator 9099. The four zone-app ports are fixed — they're Next.js dev
-servers configured in their own package scripts — but every other port is a
-host-side default only, overridable via `.env`:
+Zitadel 20080 (its own Postgres 5433). The four zone-app ports are fixed —
+they're Next.js dev servers configured in their own package scripts — but
+every other port is a host-side default only, overridable via `.env`:
 
     cp .env.example .env
     # .env
@@ -96,16 +120,28 @@ the containers themselves. See `.env.example` for the full variable list.
 - `make seed` runs `make migrate` first (`backend/cmd/migrate`, a
   migrate-only entrypoint with no NATS/OpenFGA dependency), so it works on
   a fresh clone with no API running — `iam_members` exists before seed
-  writes to it.
+  writes to it. It also depends on `make dev-infra` having already run:
+  seeding reads the `hms-seed-bot` machine PAT and `ZITADEL_CLIENT_ID` from
+  `dev/zitadel/secrets/`, which `scripts/zitadel-bootstrap.mjs` writes.
+- `make seed` verifies every account by completing a REAL login through
+  Zitadel's hosted UI (a headless Chromium via Playwright), not by trusting
+  the creation call's status code — `POST /v2/users/human` returns 200
+  while silently discarding fields it does not recognise, so a 200 is not
+  evidence an account can actually authenticate (see
+  `docs/superpowers/spikes/2026-08-15-zitadel-spike.md`'s "Task 0"). This
+  means `make seed` needs a Chromium binary Playwright can drive —
+  `pnpm install` pulls in `@playwright/test`; run `pnpm exec playwright
+  install chromium` once if seeding fails with a "browser not found" error.
 - Backend tests need Docker (testcontainers): `cd backend && go test ./...`
 - `make verify-local` retries the zone checks: `next dev` compiles a route on
   its first request, so a cold zone can take tens of seconds to answer once
   and milliseconds thereafter. A genuinely down service still fails.
-- `firebase-tools` is pinned to an exact version in `docker-compose.dev.yml`
-  and its npm download is cached in the `npmcache` volume. The previous
-  floating `@13` resolved a different minor on every container start, so
-  two machines could run different emulator builds.
-- All five containers use `restart: unless-stopped`, so the stack comes
+- Zitadel does NOT fail fast on a wrong-length masterkey — a value that
+  isn't exactly 32 bytes crash-loops on every restart instead of refusing
+  once (`docker-compose.dev.yml`'s `zitadel` service comment has the full
+  story). `scripts/preflight.sh` checks the length before Docker is
+  touched, so this is caught in one place.
+- All containers use `restart: unless-stopped`, so the stack comes
   back after a laptop sleep or a Docker restart. A container you stopped
   deliberately stays stopped. Note: OpenFGA uses an in-memory datastore, so
   a Docker restart brings the container back with no tuples — those are

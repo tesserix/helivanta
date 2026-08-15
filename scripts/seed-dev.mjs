@@ -1,4 +1,4 @@
-// Seeds the GIP emulator with the dev users and grants each a role via
+// Seeds the local Zitadel with the dev users and grants each a role via
 // iam_members.
 //
 // Two of them are for humans: test@hms.dev (tenant_admin) and
@@ -25,17 +25,45 @@
 // spec file gets its own isolated pair on the next `make seed` with
 // nothing to remember.
 //
-// Usage: node scripts/seed-dev.mjs   (emulator + Postgres must be up and
-// migrated — `make seed` runs `make migrate` first for exactly this reason)
+// #838 Task 6 replaces the Firebase/GIP emulator seeding this file used to
+// do with Zitadel's. The load-bearing difference from the old version:
+// EVERY seeded account is verified by completing a REAL login through the
+// hosted UI, not by trusting the creation call's status code.
+// POST /v2/users/human returns 200 while silently discarding fields it
+// does not recognise (docs/superpowers/spikes/2026-08-15-zitadel-spike.md
+// "Task 0" — the exact trap that produced users who looked seeded and
+// could not authenticate). A script that trusts the response produces
+// accounts that fail later as every e2e spec timing out at the login
+// form, which reads like a broken application rather than a broken seed.
+//
+// Usage: node scripts/seed-dev.mjs   (Zitadel + Postgres must be up and
+// migrated — `make seed` runs `make dev-infra` and `make migrate` first for
+// exactly this reason; dev-infra also runs scripts/zitadel-bootstrap.mjs,
+// which this script depends on for the client_id and machine PAT.)
 import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { chromium } from "@playwright/test";
 
-const HOST = process.env.AUTH_EMULATOR_HOST ?? "localhost:9099";
+import {
+  DEV_REDIRECT_URI,
+  hostedUILogin,
+  managementAPI,
+  readClientID,
+  readMachinePAT,
+} from "./lib/zitadel.mjs";
+
+const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://localhost:20080";
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 // St Mary's, the second hospital test@hms.dev works at. The e2e tenant
 // switch journey (e2e/tests/tenant-switch.spec.ts) hard-codes this id.
 const SECOND_TENANT_ID = "22222222-2222-2222-2222-222222222222";
-const PASSWORD = "password123";
+
+// password123 (the old GIP-emulator value) fails Zitadel's default
+// complexity policy outright — "Password must contain upper case",
+// observed live while wiring this up. HmsDev123! satisfies it (upper,
+// lower, digit, symbol), mirroring the spike's own Password123! finding
+// that complexity, not the recipe, was the sensitivity to watch for.
+const PASSWORD = "HmsDev123!";
 
 // The two-hospital membership set, shared by test@hms.dev and by every
 // generated per-spec admin. Every spec's admin gets BOTH memberships, not
@@ -74,8 +102,11 @@ function specSlugs() {
     .sort();
 }
 
-// Each user's memberships, in the tenant their GIP claim starts them in
-// first — seedAuthUser sets tenant_id from memberships[0].
+// Each user and the tenant memberships iam_members should hold for them.
+// Unlike the old GIP-based version, no membership is "home" anymore —
+// there is no tenant_id claim to seed; POST /v1/auth/login picks the
+// first tenant ListRoles returns and the picker/switchTenant handle the
+// rest (spec D1/D3).
 const USERS = [
   { email: "test@hms.dev", memberships: ADMIN_MEMBERSHIPS },
   { email: "pharmacist@hms.dev", memberships: PHARMACIST_MEMBERSHIPS },
@@ -85,74 +116,48 @@ const USERS = [
   ]),
 ];
 
-const base = `http://${HOST}/identitytoolkit.googleapis.com/v1`;
-const headers = {
-  "Content-Type": "application/json",
-  Authorization: "Bearer owner",
-};
+function profileFor(email) {
+  const local = email.split("@")[0];
+  return { givenName: local, familyName: "Seed" };
+}
 
-// Signs a user up in the GIP emulator (or resolves their existing id),
-// sets the tenant_id custom claim, and returns the Firebase UID. That
-// UID is what authn.Principal.Subject carries — it must match the
-// `subject` written into iam_members below or the seeded user has no
-// permissions.
-async function seedAuthUser(email, tenantId) {
-  const signUp = await fetch(`${base}/accounts:signUp?key=demo-key`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      email,
-      password: PASSWORD,
-      returnSecureToken: true,
-    }),
+async function findUserId(pat, email) {
+  const { result } = await managementAPI(ISSUER, pat, "/v2/users", {
+    queries: [{ userNameQuery: { userName: email, method: "TEXT_QUERY_METHOD_EQUALS" } }],
   });
-  const created = await signUp.json();
-  if (!signUp.ok && created?.error?.message !== "EMAIL_EXISTS") {
-    throw new Error(`signUp failed for ${email}: ${JSON.stringify(created)}`);
-  }
-  let localId = created.localId;
-  if (!localId) {
-    // Re-seeding an emulator that already has these users: sign in to
-    // recover the uid. The emulator-only accounts:query endpoint used to
-    // be the fallback here, but it 404s on current firebase-tools, which
-    // made every re-seed fail once the users existed.
-    const signIn = await fetch(
-      `${base}/accounts:signInWithPassword?key=demo-key`,
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          email,
-          password: PASSWORD,
-          returnSecureToken: true,
-        }),
-      },
-    );
-    const existing = await signIn.json();
-    if (!signIn.ok) {
+  return result?.[0]?.userId ?? null;
+}
+
+// ensureUser creates email as a Zitadel human user (isVerified + a
+// complexity-satisfying password + changeRequired:false — both fields
+// load-bearing, see the module doc comment and the spike's Task 0), or
+// resolves its existing userId if it already exists. Returns the userId —
+// which becomes authn.Principal.Subject and must match the `subject`
+// written into iam_members below, or the seeded user has no permissions.
+async function ensureUser(pat, email) {
+  try {
+    const created = await managementAPI(ISSUER, pat, "/v2/users/human", {
+      username: email,
+      profile: profileFor(email),
+      email: { email, isVerified: true },
+      password: { password: PASSWORD, changeRequired: false },
+    });
+    return created.userId;
+  } catch (err) {
+    if (!/already exists/i.test(err.message)) throw err;
+    const existing = await findUserId(pat, email);
+    if (!existing) {
       throw new Error(
-        `signIn failed for ${email}: ${JSON.stringify(existing)}`,
+        `${email} reported "already exists" but a search for it found nothing: ${err.message}`,
       );
     }
-    localId = existing.localId;
+    return existing;
   }
-  if (!localId) throw new Error(`could not resolve user id for ${email}`);
-
-  const update = await fetch(`${base}/accounts:update?key=demo-key`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      localId,
-      customAttributes: JSON.stringify({ tenant_id: tenantId }),
-    }),
-  });
-  if (!update.ok) {
-    throw new Error(`set claims failed for ${email}: ${await update.text()}`);
-  }
-  return localId;
 }
 
 async function main() {
+  const pat = readMachinePAT();
+  const clientId = readClientID();
   const { Client } = await import("pg");
   const pg = new Client({
     connectionString:
@@ -161,13 +166,14 @@ async function main() {
   });
   await pg.connect();
 
+  // One shared browser for every hosted-UI login verification below — see
+  // hostedUILogin's doc comment on why this matters at 14 accounts.
+  const browser = await chromium.launch({ headless: true });
+
   try {
     for (const { email, memberships } of USERS) {
-      const home = memberships[0];
-      const localId = await seedAuthUser(email, home.tenantId);
-      console.log(
-        `Seeded ${email} / ${PASSWORD} with tenant_id=${home.tenantId}`,
-      );
+      const userId = await ensureUser(pat, email);
+      console.log(`Seeded ${email} / ${PASSWORD} (userId=${userId})`);
 
       // Bootstrap: the first tenant_admin cannot be granted through a
       // route that requires iam.member.manage, so the seed writes the
@@ -179,19 +185,34 @@ async function main() {
           `INSERT INTO iam_members (tenant_id, subject, role_key)
            VALUES ($1, $2, $3)
            ON CONFLICT (tenant_id, subject, role_key) DO NOTHING`,
-          [tenantId, localId, role],
+          [tenantId, userId, role],
         );
         console.log(`Granted ${role} to ${email} in tenant ${tenantId}`);
       }
+
+      // THE control this rewrite exists for: prove the account can
+      // actually authenticate, not that the creation call returned 200.
+      // Throws (and this script exits non-zero) on any failure — an
+      // account that cannot log in is not seeded, whatever the API said.
+      await hostedUILogin({
+        issuer: ISSUER,
+        clientId,
+        redirectUri: DEV_REDIRECT_URI,
+        email,
+        password: PASSWORD,
+        browser,
+      });
+      console.log(`Verified ${email} completes a real hosted-UI login`);
     }
   } finally {
+    await browser.close();
     await pg.end();
   }
 
-  console.log(`Seeded:
-  test@hms.dev       / password123  (tenant_admin in ${TENANT_ID} — sees every zone;
+  console.log(`Seeded and login-verified:
+  test@hms.dev       / ${PASSWORD}  (tenant_admin in ${TENANT_ID} — sees every zone;
                                     pharmacist in ${SECOND_TENANT_ID} — switch to see Pharmacy only)
-  pharmacist@hms.dev / password123  (pharmacist — sees Pharmacy only)
+  pharmacist@hms.dev / ${PASSWORD}  (pharmacist — sees Pharmacy only)
   plus one e2e-<spec>-admin@hms.dev and one e2e-<spec>-pharmacist@hms.dev per
   Playwright spec file, so no two specs share a revocation subject.`);
 }

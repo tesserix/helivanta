@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@tesserix/web";
+import { SIGNED_OUT_MARK } from "@hms/ui";
 
 import { getUserManager } from "@/lib/oidc";
 
@@ -40,6 +41,30 @@ import { getUserManager } from "@/lib/oidc";
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  // Whether the user actually signed out, as opposed to landing here
+  // because middleware.ts redirects an unauthenticated request. Telling
+  // someone who was never signed in that they are "signed out" is simply
+  // untrue, and on a shared terminal it is worse than untrue — it implies
+  // the previous person's session was ended when nothing of the sort
+  // happened.
+  //
+  // Read in an effect, not during render: sessionStorage does not exist on
+  // the server, and branching on it while rendering would mismatch
+  // hydration. The first paint shows the neutral wording and settles.
+  const [signedOut, setSignedOut] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem(SIGNED_OUT_MARK)) {
+        setSignedOut(true);
+        // Consumed: a reload, or coming back here later in the same tab,
+        // is no longer "you just signed out".
+        window.sessionStorage.removeItem(SIGNED_OUT_MARK);
+      }
+    } catch {
+      // Blocked storage — fall back to the neutral wording.
+    }
+  }, []);
 
   async function signIn() {
     setError(null);
@@ -66,7 +91,7 @@ export default function LoginPage() {
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight">HMS</h1>
           <p className="text-sm text-muted-foreground">
-            You are signed out. Continue to sign in.
+            {signedOut ? "You are signed out." : "Sign in to continue."}
           </p>
         </div>
 

@@ -13,3 +13,7 @@ playwright-report/
 .DS_Store
 next-env.d.ts
 *.tsbuildinfo
+
+# Live secret minted by the zitadel-838 spike's login-service recipe —
+# never committed, see spike/zitadel-838/docker-compose.zitadel-v4.yml.
+spike/zitadel-838/login-client.pat

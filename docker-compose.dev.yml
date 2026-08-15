@@ -160,6 +160,41 @@ services:
   # Stock upstream login UI — see the zitadel service's LOGINV2_REQUIRED
   # comment above for why dev runs the split topology at all, and what is
   # and is not proven by using the stock image here.
+  # Gate between core and zitadel-login. Zitadel writes the login client's
+  # PAT during FIRST-INSTANCE PROVISIONING, which happens well after its
+  # container starts — and zitadel-login reads that file exactly ONCE, at
+  # boot, caching the token for the life of the process. A login container
+  # that starts before the file is written therefore holds an invalid token
+  # forever: every login 500s with `Errors.Token.Invalid (AUTH-7fs1e)` and
+  # its readiness probe fails permanently, while core sits there perfectly
+  # healthy. Nothing self-heals, because `restart: unless-stopped` does not
+  # restart a merely-unhealthy container.
+  #
+  # `depends_on: zitadel: service_started` does NOT cover this — the
+  # container is up long before provisioning finishes. Reproduced on a
+  # genuinely fresh volume: core and login started 76ms apart, login cached
+  # an absent PAT, and a fresh clone's first `make up` produced a login
+  # nobody could use. Restarting login alone fixed it, which is what
+  # identified the cause.
+  zitadel-pat-ready:
+    image: alpine:3.20
+    volumes:
+      - ./dev/zitadel/secrets:/secrets:ro
+    command: >
+      sh -c 'i=0;
+      until [ -s /secrets/login-client.pat ]; do
+        i=$$((i+1));
+        if [ $$i -gt 180 ]; then
+          echo "login-client.pat was never written by Zitadel first-instance provisioning" >&2;
+          exit 1;
+        fi;
+        sleep 1;
+      done;
+      echo "login client PAT is present"'
+    depends_on:
+      zitadel:
+        condition: service_started
+
   zitadel-login:
     image: ghcr.io/zitadel/zitadel-login:v4.15.3
     restart: unless-stopped
@@ -180,6 +215,8 @@ services:
     depends_on:
       zitadel:
         condition: service_started
+      zitadel-pat-ready:
+        condition: service_completed_successfully
 
   # Merges zitadel (everything except /ui/v2/login/*) and zitadel-login
   # (/ui/v2/login/*) under one origin — see dev/zitadel/Caddyfile's own

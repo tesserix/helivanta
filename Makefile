@@ -146,6 +146,18 @@ dev-api:
 	cd backend && HMS_ENV=$${HMS_ENV:-dev} ZITADEL_ISSUER_URL=$${ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} ZITADEL_CLIENT_ID=$${ZITADEL_CLIENT_ID:-$(ZITADEL_CLIENT_ID)} SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-$(HMS_DEV_SESSION_SIGNING_KEY)} PORT=$${PORT:-$(HMS_API_PORT)} RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) go run ./cmd/api
 
 dev-web:
+	@# Source dev/zitadel/secrets/zitadel.env at RECIPE RUN TIME, not via
+	@# make's -include. On a fresh clone the -include is parsed before
+	@# dev-infra's recipe has created the file, so NEXT_PUBLIC_ZITADEL_CLIENT_ID
+	@# is empty for the whole make process and every Next app boots with an
+	@# invalid environment — /login then 500s with "String must contain at
+	@# least 1 character(s)" while the API, which reads the file at runtime,
+	@# works fine. Same staleness window scripts/lib/zitadel.mjs's
+	@# readClientID() documents for the seed path; the web path needs its own
+	@# fix because these values are inlined into the client bundle at boot.
+	set -a; [ -f dev/zitadel/secrets/zitadel.env ] && . ./dev/zitadel/secrets/zitadel.env; set +a; \
+	NEXT_PUBLIC_ZITADEL_CLIENT_ID=$${NEXT_PUBLIC_ZITADEL_CLIENT_ID:-$$ZITADEL_CLIENT_ID} \
+	NEXT_PUBLIC_ZITADEL_ISSUER_URL=$${NEXT_PUBLIC_ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} \
 	pnpm turbo dev
 
 # `make up` is the one command: infra, migrations, seed, then API + web in

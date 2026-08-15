@@ -114,7 +114,15 @@ func getenvDuration(k string, def time.Duration) time.Duration {
 	}
 	d, err := time.ParseDuration(v)
 	if err != nil {
-		slog.Warn("invalid duration env var; using default", "key", k, "value", v, "default", def)
+		// def.String(), never the bare Duration: slog renders a
+		// time.Duration as its nanosecond int64, and pkg/logging's PHI
+		// matcher reads long digit runs as identifiers — 15m becomes
+		// 900000000000, a 12-digit run, and is emitted as
+		// "[REDACTED:aadhaar]"; 24h is 14 digits and comes out as
+		// "[REDACTED:abha]". The whole point of this line is to make a
+		// mistyped value visible, so a fallback the operator cannot read
+		// is the one thing it must not be.
+		slog.Warn("invalid duration env var; using default", "key", k, "value", v, "default", def.String())
 		return def
 	}
 	return d

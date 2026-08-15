@@ -1,11 +1,15 @@
 package config_test
 
 import (
+	"bytes"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/tesserix/hms/internal/config"
+	"github.com/tesserix/hms/pkg/logging"
 )
 
 // The default must be production. A guard that defaults to permissive
@@ -107,4 +111,30 @@ func TestSessionIssuerDefaultsAndOverrides(t *testing.T) {
 
 	t.Setenv("SESSION_ISSUER", "https://hms.example.org")
 	require.Equal(t, "https://hms.example.org", config.Load().SessionIssuer)
+}
+
+// TestDurationFallbackIsReadableInLogs asserts on the bytes actually
+// emitted, not on the call being made.
+//
+// slog renders a time.Duration as its nanosecond int64, and
+// pkg/logging's PHI matcher treats a long digit run as an identifier: 15m
+// is 900000000000 — twelve digits — and is emitted as
+// "[REDACTED:aadhaar]"; 24h is fourteen and becomes "[REDACTED:abha]".
+// This line exists solely so a mistyped SESSION_TTL is visible, so a
+// fallback the operator cannot read defeats the only reason to log it.
+func TestDurationFallbackIsReadableInLogs(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(logging.NewWithWriter(&buf, "info"))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	t.Setenv("SESSION_TTL", "not-a-duration")
+	cfg := config.Load()
+
+	out := buf.String()
+	require.Contains(t, out, "15m0s",
+		"the fallback duration must be readable; slog renders a bare time.Duration as nanoseconds")
+	require.NotContains(t, out, "REDACTED",
+		"a nanosecond int64 is a long digit run, which the PHI matcher masks as an identifier")
+	require.Equal(t, 15*time.Minute, cfg.SessionTTL)
 }

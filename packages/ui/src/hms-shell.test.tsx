@@ -144,4 +144,57 @@ describe("HmsShell", () => {
     // time.
     expect(window.location.href).toBe("");
   });
+
+  // #848 D4/D7: every app that renders HmsShell tracks interaction and
+  // reports it to the activity endpoint, not only the shell's dashboard.
+  describe("idle activity tracking", () => {
+    it("POSTs to the activity endpoint on a qualifying interaction", async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: [] }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      window.dispatchEvent(new Event("keydown"));
+
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          "/api/v1/auth/session/activity",
+          expect.objectContaining({ method: "POST" }),
+        ),
+      );
+    });
+
+    // The single most important guarantee here (spec "Errors and failure
+    // handling"): a transient failure on this background ping must never
+    // end the session. Only the server-side idle_deadline may do that.
+    it("does not sign the user out when the activity call fails", async () => {
+      const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (url.includes("/auth/session/activity")) {
+          return Promise.reject(new Error("network down"));
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      window.dispatchEvent(new Event("keydown"));
+
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          "/api/v1/auth/session/activity",
+          expect.objectContaining({ method: "POST" }),
+        ),
+      );
+      // Give the rejected promise's .catch() a turn, then assert nothing
+      // resembling sign-out/teardown happened.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(fetchMock).not.toHaveBeenCalledWith("/logout", { method: "POST" });
+      expect(endZitadelSession).not.toHaveBeenCalled();
+      expect(window.location.href).toBe("");
+    });
+  });
 });

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { usePermissions, clearPermissionsCache } from "@hms/api";
+import { apiFetch, usePermissions, useApiMutation, clearPermissionsCache } from "@hms/api";
 import { visibleZones, activeZone } from "./zones";
 import { ThemeToggle } from "./theme";
 import { endZitadelSession } from "./zitadel-session";
+import { createIdleTracker } from "./idle-timer";
 
 // Two-rail chrome in the tesserix-home AdminSidebar style. The zone rail is
 // fixed icons-only (no expand/collapse); only the page panel toggles open ↔
@@ -69,6 +70,47 @@ export function HmsShell({
   // zone was filtered out — e.g. while permissions are still loading.
   const zone = zones.find((z) => z.key === activeZone(active).key) ?? zones[0];
   const [panelOpen, setPanelOpen] = usePersistedFlag(PANEL_KEY, true);
+
+  // Idle-session tracking (design spec D2/D4/D7). Mounted here, not in
+  // apps/shell, for the exact reason endZitadelSession's doc comment
+  // records for sign-out: every app that renders HmsShell — medicore,
+  // pharmacy, lab, not only the shell's own dashboard — must count as
+  // "active" while a clinician works in it, or they get signed out
+  // mid-consultation while the feature looks implemented.
+  //
+  // onWarn/onExpire are deliberately no-ops here — the warning modal
+  // (D5) and this-browser teardown (D6) are follow-up changes (#848
+  // tasks 6 and 7). Until they land, the server-side idle_deadline
+  // (already fail-closed in authn.Middleware) is the only enforcement;
+  // this task only wires the client's half of the activity signal.
+  const activity = useApiMutation<{ idle_deadline: string }>(
+    () => apiFetch<{ idle_deadline: string }>("/auth/session/activity", { method: "POST" }),
+    // A failed activity call must NEVER sign the user out — the
+    // server-side deadline is the backstop, and the next qualifying
+    // interaction retries. A toast on every dropped background ping
+    // would just be alarming noise on top of behaviour that is already
+    // correct, so it is suppressed rather than surfaced.
+    { suppressErrorToast: true },
+  );
+  const activityRef = useRef(activity.mutateAsync);
+  activityRef.current = activity.mutateAsync;
+
+  useEffect(() => {
+    const tracker = createIdleTracker({
+      onActivity: () => {
+        void activityRef
+          .current()
+          .then((data) => tracker.noteDeadline(new Date(data.idle_deadline)))
+          .catch(() => {
+            // Deliberately swallowed — see the comment on `activity` above.
+          });
+      },
+      onWarn: () => {},
+      onExpire: () => {},
+    });
+    tracker.start();
+    return () => tracker.stop();
+  }, []);
 
   // Sign-out is a state change — it revokes every session for the
   // subject server-side (#781) — so it is a POST, same-origin checked by

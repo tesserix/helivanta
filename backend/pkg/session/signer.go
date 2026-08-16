@@ -67,7 +67,18 @@ func NewSigner(key ed25519.PrivateKey, kid, issuer string, ttl time.Duration) (*
 // compares a token's auth_time against a per-subject revoked-after
 // mark, and re-minting on tenant switch must not launder an old
 // authentication into a fresh one by resetting it.
-func (s *Signer) Mint(subject, tenantID string, authTime time.Time) (string, error) {
+//
+// idleDeadline is carried through into the token's idle_deadline claim
+// the same way, for a different reason (spec D3, #848): it is when
+// this session stops being usable without further human interaction.
+// Mint takes it as a required parameter rather than computing
+// "time.Now() + 15m" itself, deliberately, so that every caller states
+// what it is doing. Renewal (every 5 minutes, D4a) must pass the
+// deadline it already had; only the explicit activity endpoint may
+// compute a new one. A Mint that defaulted this would let an untouched
+// tab renew itself forever and the idle timeout would never fire, all
+// while looking implemented.
+func (s *Signer) Mint(subject, tenantID string, authTime, idleDeadline time.Time) (string, error) {
 	if len(s.key) != ed25519.PrivateKeySize {
 		return "", ErrNoSigningKey
 	}
@@ -80,11 +91,15 @@ func (s *Signer) Mint(subject, tenantID string, authTime time.Time) (string, err
 	if authTime.IsZero() {
 		return "", errors.New("session: auth_time is required to mint")
 	}
+	if idleDeadline.IsZero() {
+		return "", errors.New("session: idle_deadline is required to mint")
+	}
 
 	now := time.Now().UTC()
 	claims := tokenClaims{
-		TenantID: tenantID,
-		AuthTime: authTime.Unix(),
+		TenantID:     tenantID,
+		AuthTime:     authTime.Unix(),
+		IdleDeadline: idleDeadline.Unix(),
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   subject,
 			Issuer:    s.issuer,

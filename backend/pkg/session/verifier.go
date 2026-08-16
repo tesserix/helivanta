@@ -94,6 +94,15 @@ func (v *Verifier) Verify(raw string) (Claims, error) {
 	if claims.Subject == "" || claims.TenantID == "" {
 		return Claims{}, fmt.Errorf("%w: missing subject or tenant_id", ErrInvalidToken)
 	}
+	// Fail closed on a missing idle_deadline (spec D2/D3, #848): a
+	// token minted before this claim existed must be refused, not
+	// treated as "no idle limit" — that would be a class of session
+	// this control can never reach. The cost, accepted deliberately,
+	// is that every session minted before this deploys is invalidated
+	// and everyone signs in once.
+	if claims.IdleDeadline == 0 {
+		return Claims{}, fmt.Errorf("%w: missing idle_deadline", ErrInvalidToken)
+	}
 
 	var issuedAt, expiresAt time.Time
 	if claims.IssuedAt != nil {
@@ -104,11 +113,12 @@ func (v *Verifier) Verify(raw string) (Claims, error) {
 	}
 
 	return Claims{
-		Subject:   claims.Subject,
-		TenantID:  claims.TenantID,
-		AuthTime:  time.Unix(claims.AuthTime, 0).UTC(),
-		IssuedAt:  issuedAt,
-		ExpiresAt: expiresAt,
-		Issuer:    claims.Issuer,
+		Subject:      claims.Subject,
+		TenantID:     claims.TenantID,
+		AuthTime:     time.Unix(claims.AuthTime, 0).UTC(),
+		IdleDeadline: time.Unix(claims.IdleDeadline, 0).UTC(),
+		IssuedAt:     issuedAt,
+		ExpiresAt:    expiresAt,
+		Issuer:       claims.Issuer,
 	}, nil
 }

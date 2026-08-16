@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { apiFetch, usePermissions, useApiMutation, clearPermissionsCache } from "@hms/api";
+import {
+  ApiError,
+  apiFetch,
+  usePermissions,
+  useApiMutation,
+  clearPermissionsCache,
+} from "@hms/api";
 import { visibleZones, activeZone } from "./zones";
 import { ThemeToggle } from "./theme";
 import { endZitadelSession } from "./zitadel-session";
@@ -92,17 +98,46 @@ export function HmsShell({
     // correct, so it is suppressed rather than surfaced.
     { suppressErrorToast: true },
   );
+  // A ref, not a plain closure over `activity.mutateAsync`, because the
+  // tracker below is created exactly once (empty dep array — see its own
+  // comment for why) and must still call the LATEST mutation function
+  // rather than whichever one existed at mount. Assigned in an effect,
+  // not during render, so this component never mutates a ref as a render
+  // side effect.
   const activityRef = useRef(activity.mutateAsync);
-  activityRef.current = activity.mutateAsync;
+  useEffect(() => {
+    activityRef.current = activity.mutateAsync;
+  }, [activity.mutateAsync]);
 
   useEffect(() => {
+    // NOTE: nothing seeds an initial idle_deadline on mount. The tracker
+    // only learns a deadline from a SUCCESSFUL activity response (D2: the
+    // browser may only move the deadline via that one endpoint), so a
+    // terminal that is loaded and never touched has no client-side
+    // schedule at all until the first qualifying interaction — only the
+    // server's own eventual 401 refusal (already fail-closed in
+    // authn.Middleware) protects it in the meantime. That is correct per
+    // D2/D4 as written, not a bug, but it does mean the warning modal
+    // (task 6) cannot appear before a session's first interaction either.
     const tracker = createIdleTracker({
       onActivity: () => {
         void activityRef
           .current()
           .then((data) => tracker.noteDeadline(new Date(data.idle_deadline)))
-          .catch(() => {
-            // Deliberately swallowed — see the comment on `activity` above.
+          .catch((err: unknown) => {
+            // A 401 here is NOT a transient failure — it means the
+            // session is already idle-expired or gone server-side (spec
+            // "Errors and failure handling": "the session is already
+            // gone. Run D6's teardown immediately rather than waiting
+            // for a timer"). This is the seam task 7's teardown
+            // (POST /logout + endZitadelSession) hooks into; until then
+            // it deliberately does nothing beyond not-retrying, same as
+            // every other failure here (network, 5xx, rate limit),
+            // which ARE transient and must never sign anyone out — see
+            // the comment on `activity` above.
+            if (err instanceof ApiError && err.status === 401) {
+              // TODO(#848 task 7): trigger D6 teardown here.
+            }
           });
       },
       onWarn: () => {},

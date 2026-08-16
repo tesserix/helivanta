@@ -97,6 +97,11 @@ export function createIdleTracker(handlers: IdleTrackerHandlers): IdleTracker {
   }
 
   function noteDeadline(newDeadline: Date, fromBroadcast = false): void {
+    // A stop()ped tracker must schedule nothing: an activity response can
+    // resolve after unmount (hms-shell.tsx awaits the POST, then calls
+    // this), and with nothing left to clearTimeout() on the next start(),
+    // a stray onExpire would eventually fire against a torn-down mount.
+    if (!started) return;
     if (Number.isNaN(newDeadline.getTime())) return;
     if (deadline && newDeadline.getTime() <= deadline.getTime()) return;
     deadline = newDeadline;
@@ -106,7 +111,10 @@ export function createIdleTracker(handlers: IdleTrackerHandlers): IdleTracker {
     // (see onmessage below) but not re-broadcast, so tabs don't relay
     // the same deadline back and forth forever.
     if (!fromBroadcast) {
-      channel?.postMessage({ type: "deadline", deadline: newDeadline.toISOString() } satisfies DeadlineMessage);
+      channel?.postMessage({
+        type: "deadline",
+        deadline: newDeadline.toISOString(),
+      } satisfies DeadlineMessage);
     }
   }
 
@@ -121,7 +129,20 @@ export function createIdleTracker(handlers: IdleTrackerHandlers): IdleTracker {
     if (started) return;
     started = true;
     for (const event of QUALIFYING_EVENTS) {
-      window.addEventListener(event, handleQualifyingEvent, { passive: true });
+      // capture: true is load-bearing for "scroll", not stylistic:
+      // scroll events do NOT bubble, and HmsShell's actual scroll
+      // container is an inner `overflow-y-auto` div
+      // (hms-shell.tsx), not `window` — a bubble-phase listener on
+      // window would never observe it. Capture-phase listeners see
+      // every event on its way DOWN to the target regardless of
+      // whether it bubbles back up, so this is the only phase that
+      // works for all three qualifying events uniformly. The same
+      // `{ capture: true }` shape must be passed to removeEventListener
+      // in stop() below — capture is the one option addEventListener/
+      // removeEventListener use to identify which listener to remove;
+      // a mismatch (e.g. omitting it there) leaves this listener
+      // permanently attached.
+      window.addEventListener(event, handleQualifyingEvent, { passive: true, capture: true });
     }
     // BroadcastChannel is unavailable in a handful of older browsers and
     // some restricted embeds. Fall back to a per-tab-only timer rather
@@ -133,6 +154,17 @@ export function createIdleTracker(handlers: IdleTrackerHandlers): IdleTracker {
         channel.onmessage = (event: MessageEvent<unknown>) => {
           const data = event.data as Partial<DeadlineMessage> | undefined;
           if (data?.type === "deadline" && typeof data.deadline === "string") {
+            // Another tab observed real interaction (that's the only way
+            // it could have a fresher deadline to report). Count that
+            // towards THIS tab's debounce window too — D4's "only one
+            // activity call is made for all of them" would otherwise be
+            // undone by two simultaneously-used tabs each running their
+            // own independent debounce clock and both firing their own
+            // request. This never calls onActivity itself, only widens
+            // the window before this tab's own next qualifying event
+            // would fire it — see the dedicated test for why that
+            // distinction matters.
+            lastActivityAt = Date.now();
             noteDeadline(new Date(data.deadline), true);
           }
         };
@@ -146,7 +178,7 @@ export function createIdleTracker(handlers: IdleTrackerHandlers): IdleTracker {
     if (!started) return;
     started = false;
     for (const event of QUALIFYING_EVENTS) {
-      window.removeEventListener(event, handleQualifyingEvent);
+      window.removeEventListener(event, handleQualifyingEvent, { capture: true });
     }
     clearScheduled();
     channel?.close();

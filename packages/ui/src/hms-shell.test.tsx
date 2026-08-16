@@ -7,6 +7,29 @@ import { HmsShell } from "./hms-shell";
 const endZitadelSession = vi.hoisted(() => vi.fn());
 vi.mock("./zitadel-session", () => ({ endZitadelSession }));
 
+// Wraps the real createIdleTracker so tests can observe what HmsShell
+// actually passes to noteDeadline — the shell test previously used a
+// fetch stub shaped `{ data: [] }`, under which `new Date(undefined)` is
+// silently discarded and the response-body-to-noteDeadline wiring was
+// never exercised at all.
+const noteDeadlineSpy = vi.hoisted(() => vi.fn());
+vi.mock("./idle-timer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./idle-timer")>();
+  return {
+    ...actual,
+    createIdleTracker: (handlers: Parameters<typeof actual.createIdleTracker>[0]) => {
+      const tracker = actual.createIdleTracker(handlers);
+      return {
+        ...tracker,
+        noteDeadline: (d: Date) => {
+          noteDeadlineSpy(d);
+          tracker.noteDeadline(d);
+        },
+      };
+    },
+  };
+});
+
 function seedCache(permissions: string[]) {
   window.localStorage.setItem(
     PERMISSIONS_CACHE_KEY,
@@ -25,6 +48,7 @@ describe("HmsShell", () => {
     vi.restoreAllMocks();
     endZitadelSession.mockReset();
     endZitadelSession.mockResolvedValue(true);
+    noteDeadlineSpy.mockReset();
     // Deliberately different from the seeded cache: the two prove
     // different things. If the stub matched the cache, `Lab` would render
     // whether or not the cache was ever read, since the network response
@@ -195,6 +219,30 @@ describe("HmsShell", () => {
       expect(fetchMock).not.toHaveBeenCalledWith("/logout", { method: "POST" });
       expect(endZitadelSession).not.toHaveBeenCalled();
       expect(window.location.href).toBe("");
+    });
+
+    // Previously uncovered: the shell test's default fetch stub returns
+    // `{ data: [] }`, under which `new Date(undefined)` is silently
+    // discarded and this path is never actually exercised.
+    it("passes the activity response's idle_deadline through to the tracker's noteDeadline", async () => {
+      const returnedDeadline = "2026-08-16T12:34:56.000Z";
+      const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (url.includes("/auth/session/activity")) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ idle_deadline: returnedDeadline }),
+          });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      window.dispatchEvent(new Event("keydown"));
+
+      await waitFor(() => expect(noteDeadlineSpy).toHaveBeenCalledWith(new Date(returnedDeadline)));
     });
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   ApiError,
@@ -12,7 +12,8 @@ import {
 import { visibleZones, activeZone } from "./zones";
 import { ThemeToggle } from "./theme";
 import { endZitadelSession } from "./zitadel-session";
-import { createIdleTracker } from "./idle-timer";
+import { createIdleTracker, type IdleTracker } from "./idle-timer";
+import { IdleWarning } from "./idle-warning";
 
 // Two-rail chrome in the tesserix-home AdminSidebar style. The zone rail is
 // fixed icons-only (no expand/collapse); only the page panel toggles open ↔
@@ -84,11 +85,11 @@ export function HmsShell({
   // "active" while a clinician works in it, or they get signed out
   // mid-consultation while the feature looks implemented.
   //
-  // onWarn/onExpire are deliberately no-ops here — the warning modal
-  // (D5) and this-browser teardown (D6) are follow-up changes (#848
-  // tasks 6 and 7). Until they land, the server-side idle_deadline
-  // (already fail-closed in authn.Middleware) is the only enforcement;
-  // this task only wires the client's half of the activity signal.
+  // onWarn now opens the IdleWarning modal (D5, #848 task 6 — see
+  // reportActivity/handleStayLoggedIn and the tracker effect below).
+  // onExpire is still a deliberate no-op — this-browser teardown (D6) is
+  // task 7. Until it lands, the server-side idle_deadline (already
+  // fail-closed in authn.Middleware) remains the backstop for expiry.
   const activity = useApiMutation<{ idle_deadline: string }>(
     () => apiFetch<{ idle_deadline: string }>("/auth/session/activity", { method: "POST" }),
     // A failed activity call must NEVER sign the user out — the
@@ -109,43 +110,123 @@ export function HmsShell({
     activityRef.current = activity.mutateAsync;
   }, [activity.mutateAsync]);
 
+  // Latest known idle_deadline, readable outside the tracker's own closure
+  // (onWarn needs it to seed the warning modal below) and outside React
+  // render (it is written from a promise callback, not during render).
+  const deadlineRef = useRef<Date | undefined>(undefined);
+  const trackerRef = useRef<IdleTracker | null>(null);
+  // The deadline the warning modal was opened against; the modal is shown
+  // whenever this is set. Kept separate from `deadlineRef` because the
+  // modal's own countdown must stay pinned to the deadline that triggered
+  // it, not silently rewritten if a later (still-in-the-past-relative-to-
+  // now) response arrives while it is open — see the ticking effect below.
+  const [warningDeadline, setWarningDeadline] = useState<Date | null>(null);
+
+  // Reports genuine interaction to the server and folds the response back
+  // into the tracker (design spec D4's "response body returns the new
+  // deadline"). Used both as the tracker's onActivity handler AND, once
+  // below, called directly on mount and from the warning modal's "Stay
+  // signed in" action — see those call sites' comments for why.
+  const reportActivity = useCallback(() => {
+    void activityRef
+      .current()
+      .then((data) => {
+        const nextDeadline = new Date(data.idle_deadline);
+        deadlineRef.current = nextDeadline;
+        trackerRef.current?.noteDeadline(nextDeadline);
+      })
+      .catch((err: unknown) => {
+        // A 401 here is NOT a transient failure — it means the
+        // session is already idle-expired or gone server-side (spec
+        // "Errors and failure handling": "the session is already
+        // gone. Run D6's teardown immediately rather than waiting
+        // for a timer"). This is the seam task 7's teardown
+        // (POST /logout + endZitadelSession) hooks into; until then
+        // it deliberately does nothing beyond not-retrying, same as
+        // every other failure here (network, 5xx, rate limit),
+        // which ARE transient and must never sign anyone out — see
+        // the comment on `activity` above.
+        if (err instanceof ApiError && err.status === 401) {
+          // TODO(#848 task 7): trigger D6 teardown here.
+        }
+      });
+  }, []);
+
   useEffect(() => {
-    // NOTE: nothing seeds an initial idle_deadline on mount. The tracker
-    // only learns a deadline from a SUCCESSFUL activity response (D2: the
-    // browser may only move the deadline via that one endpoint), so a
-    // terminal that is loaded and never touched has no client-side
-    // schedule at all until the first qualifying interaction — only the
-    // server's own eventual 401 refusal (already fail-closed in
-    // authn.Middleware) protects it in the meantime. That is correct per
-    // D2/D4 as written, not a bug, but it does mean the warning modal
-    // (task 6) cannot appear before a session's first interaction either.
     const tracker = createIdleTracker({
-      onActivity: () => {
-        void activityRef
-          .current()
-          .then((data) => tracker.noteDeadline(new Date(data.idle_deadline)))
-          .catch((err: unknown) => {
-            // A 401 here is NOT a transient failure — it means the
-            // session is already idle-expired or gone server-side (spec
-            // "Errors and failure handling": "the session is already
-            // gone. Run D6's teardown immediately rather than waiting
-            // for a timer"). This is the seam task 7's teardown
-            // (POST /logout + endZitadelSession) hooks into; until then
-            // it deliberately does nothing beyond not-retrying, same as
-            // every other failure here (network, 5xx, rate limit),
-            // which ARE transient and must never sign anyone out — see
-            // the comment on `activity` above.
-            if (err instanceof ApiError && err.status === 401) {
-              // TODO(#848 task 7): trigger D6 teardown here.
-            }
-          });
+      onActivity: reportActivity,
+      onWarn: () => {
+        // D5: "Before showing it, the client re-checks the deadline it
+        // holds. Another tab may have extended the session, in which
+        // case the modal must not appear at all." In practice this is
+        // already guaranteed by createIdleTracker itself: noteDeadline
+        // (called here, from a broadcast, or from this tab's own
+        // activity) cancels and reschedules the pending onWarn timer the
+        // moment a LATER deadline is known (idle-timer.ts, "a later
+        // deadline from another tab cancels a pending warning" —
+        // exercised in idle-timer.test.ts and again end to end in
+        // hms-shell.test.tsx below), so onWarn simply never fires for a
+        // deadline that has already been superseded. deadlineRef.current
+        // is read here only as the value to render the modal FROM, not
+        // as an extra guard — there is nothing left to re-check.
+        if (deadlineRef.current) setWarningDeadline(deadlineRef.current);
       },
-      onWarn: () => {},
       onExpire: () => {},
     });
+    trackerRef.current = tracker;
     tracker.start();
-    return () => tracker.stop();
-  }, []);
+
+    // Seed an initial idle_deadline (gap this task closes — see the NOTE
+    // this replaced). The tracker only ever learns a deadline from a
+    // SUCCESSFUL activity response, so without this call a terminal that
+    // is loaded and never touched would have no client-side schedule at
+    // all — no warning modal, ever — until the server's own eventual 401
+    // refusal. Reporting once on mount treats navigating to a page as the
+    // interaction it is: a clinician who opened this screen is not an
+    // unattended terminal, so this is a legitimate use of the SAME
+    // activity endpoint every qualifying interaction already calls, not
+    // a workaround for D2/D4's "only an explicit activity call moves the
+    // deadline" rule.
+    reportActivity();
+
+    return () => {
+      tracker.stop();
+      trackerRef.current = null;
+    };
+  }, [reportActivity]);
+
+  // The warning modal's countdown re-derives seconds-remaining from the
+  // deadline on every tick (spec "Errors and failure handling": "the
+  // client's countdown is a display derived from the server's returned
+  // deadline, never its own arithmetic on a locally-stored timestamp") —
+  // this recomputes from `Date.now()` each second rather than
+  // decrementing a counter, so clock drift or a paused/backgrounded tab
+  // can never desync the displayed time from the real deadline.
+  const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
+  useEffect(() => {
+    if (!warningDeadline) {
+      setSecondsRemaining(null);
+      return;
+    }
+    const tick = () => {
+      const remainingMs = warningDeadline.getTime() - Date.now();
+      setSecondsRemaining(Math.max(0, Math.round(remainingMs / 1000)));
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [warningDeadline]);
+
+  // "Stay signed in" — and any other dismissal of the modal, per
+  // IdleWarning's own onStay contract — reports activity exactly like a
+  // qualifying interaction would, extending the session rather than
+  // merely hiding the warning (item 6: hiding without extending would
+  // leave the clinician believing they are safe while the deadline keeps
+  // counting down underneath them).
+  function handleStayLoggedIn() {
+    setWarningDeadline(null);
+    reportActivity();
+  }
 
   // Sign-out is a state change — it revokes every session for the
   // subject server-side (#781) — so it is a POST, same-origin checked by
@@ -193,152 +274,157 @@ export function HmsShell({
   const activePage = zone.pages.find((p) => p.href === active);
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Zone rail: fixed icons-only. Matches tesserix admin: one step
+    <>
+      {warningDeadline && secondsRemaining !== null && (
+        <IdleWarning secondsRemaining={secondsRemaining} onStay={handleStayLoggedIn} />
+      )}
+      <div className="flex h-screen overflow-hidden">
+        {/* Zone rail: fixed icons-only. Matches tesserix admin: one step
           darker than the page panel, faint border between the rails, none
           against the content. */}
-      <aside className="hms-sidebar-border flex w-16 shrink-0 flex-col border-r bg-(--sidebar-rail)">
-        <div className="flex h-16 items-center justify-center">
-          <a
-            href="/"
-            aria-label="HMS home"
-            className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-primary"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-(--hms-accent) to-(--hms-accent-strong) text-(--sidebar-primary-foreground)">
-              H
-            </span>
-          </a>
-        </div>
-        <div className="hms-sidebar-border mx-2 border-t" />
-        <nav
-          aria-label="Zones"
-          className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto px-0 py-4"
-        >
-          {zones.map((z) => {
-            const isActive = z.key === zone.key;
-            return (
-              <a
-                key={z.key}
-                href={z.href}
-                title={z.label}
-                aria-label={z.label}
-                aria-current={isActive ? "page" : undefined}
-                className={`relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
-                  isActive
-                    ? "bg-(--hms-accent-dim) text-(--hms-accent)"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                }`}
-              >
-                {isActive && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-(--hms-accent)"
-                  />
-                )}
-                <z.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-              </a>
-            );
-          })}
-        </nav>
-        <div className="flex flex-col items-center gap-1 px-0 py-3">
-          <form onSubmit={handleSignOut}>
-            <button
-              type="submit"
-              title="Sign out"
-              aria-label="Sign out"
-              className="flex h-10 w-10 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+        <aside className="hms-sidebar-border flex w-16 shrink-0 flex-col border-r bg-(--sidebar-rail)">
+          <div className="flex h-16 items-center justify-center">
+            <a
+              href="/"
+              aria-label="HMS home"
+              className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-primary"
             >
-              <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-            </button>
-          </form>
-        </div>
-      </aside>
-
-      {/* Page panel: open or hidden */}
-      <aside
-        className={`flex shrink-0 flex-col overflow-hidden bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
-          panelOpen ? "w-56" : "w-0"
-        }`}
-        aria-hidden={!panelOpen}
-      >
-        <div className="flex h-16 w-56 items-center justify-between pl-5 pr-3">
-          <h2 className="text-sm font-semibold text-sidebar-foreground">{zone.label}</h2>
-          <button
-            type="button"
-            onClick={() => setPanelOpen(false)}
-            aria-label="Collapse page panel"
-            title="Collapse panel"
-            tabIndex={panelOpen ? 0 : -1}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-          >
-            <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
-        <div className="hms-sidebar-border border-t" />
-        <nav
-          aria-label={zone.label}
-          className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"
-        >
-          {zone.pages.map((pageLink) => {
-            const isActive = active === pageLink.href;
-            return (
-              <a
-                key={pageLink.href}
-                href={pageLink.href}
-                aria-current={isActive ? "page" : undefined}
-                tabIndex={panelOpen ? 0 : -1}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                }`}
-              >
-                <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                {pageLink.label}
-              </a>
-            );
-          })}
-        </nav>
-      </aside>
-
-      {/* Content */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-16 items-center justify-between px-6">
-            <div className="flex items-center gap-2">
-              {!panelOpen && (
-                <button
-                  type="button"
-                  onClick={() => setPanelOpen(true)}
-                  aria-label="Expand page panel"
-                  title="Expand panel"
-                  className="mr-1 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
-                </button>
-              )}
-              <h1 className="text-xl font-semibold text-foreground">
-                {activePage?.label ?? zone.label}
-              </h1>
-            </div>
-            <div className="flex items-center gap-3">
-              {tenantPicker}
-              <ThemeToggle />
-              <form onSubmit={handleSignOut}>
-                <button
-                  type="submit"
-                  className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-                >
-                  Sign out
-                </button>
-              </form>
-            </div>
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-(--hms-accent) to-(--hms-accent-strong) text-(--sidebar-primary-foreground)">
+                H
+              </span>
+            </a>
           </div>
-        </header>
-        <main className="flex-1 px-6 py-6">
-          <div className="mx-auto w-full max-w-6xl">{children}</div>
-        </main>
+          <div className="hms-sidebar-border mx-2 border-t" />
+          <nav
+            aria-label="Zones"
+            className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto px-0 py-4"
+          >
+            {zones.map((z) => {
+              const isActive = z.key === zone.key;
+              return (
+                <a
+                  key={z.key}
+                  href={z.href}
+                  title={z.label}
+                  aria-label={z.label}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
+                    isActive
+                      ? "bg-(--hms-accent-dim) text-(--hms-accent)"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  }`}
+                >
+                  {isActive && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-(--hms-accent)"
+                    />
+                  )}
+                  <z.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                </a>
+              );
+            })}
+          </nav>
+          <div className="flex flex-col items-center gap-1 px-0 py-3">
+            <form onSubmit={handleSignOut}>
+              <button
+                type="submit"
+                title="Sign out"
+                aria-label="Sign out"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              >
+                <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
+              </button>
+            </form>
+          </div>
+        </aside>
+
+        {/* Page panel: open or hidden */}
+        <aside
+          className={`flex shrink-0 flex-col overflow-hidden bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
+            panelOpen ? "w-56" : "w-0"
+          }`}
+          aria-hidden={!panelOpen}
+        >
+          <div className="flex h-16 w-56 items-center justify-between pl-5 pr-3">
+            <h2 className="text-sm font-semibold text-sidebar-foreground">{zone.label}</h2>
+            <button
+              type="button"
+              onClick={() => setPanelOpen(false)}
+              aria-label="Collapse page panel"
+              title="Collapse panel"
+              tabIndex={panelOpen ? 0 : -1}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+            >
+              <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="hms-sidebar-border border-t" />
+          <nav
+            aria-label={zone.label}
+            className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"
+          >
+            {zone.pages.map((pageLink) => {
+              const isActive = active === pageLink.href;
+              return (
+                <a
+                  key={pageLink.href}
+                  href={pageLink.href}
+                  aria-current={isActive ? "page" : undefined}
+                  tabIndex={panelOpen ? 0 : -1}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-foreground"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  }`}
+                >
+                  <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  {pageLink.label}
+                </a>
+              );
+            })}
+          </nav>
+        </aside>
+
+        {/* Content */}
+        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+          <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="flex h-16 items-center justify-between px-6">
+              <div className="flex items-center gap-2">
+                {!panelOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setPanelOpen(true)}
+                    aria-label="Expand page panel"
+                    title="Expand panel"
+                    className="mr-1 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                )}
+                <h1 className="text-xl font-semibold text-foreground">
+                  {activePage?.label ?? zone.label}
+                </h1>
+              </div>
+              <div className="flex items-center gap-3">
+                {tenantPicker}
+                <ThemeToggle />
+                <form onSubmit={handleSignOut}>
+                  <button
+                    type="submit"
+                    className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                  >
+                    Sign out
+                  </button>
+                </form>
+              </div>
+            </div>
+          </header>
+          <main className="flex-1 px-6 py-6">
+            <div className="mx-auto w-full max-w-6xl">{children}</div>
+          </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

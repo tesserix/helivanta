@@ -1,8 +1,9 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@hms/api/testing";
 import { PERMISSIONS_CACHE_KEY } from "@hms/api";
 import { HmsShell } from "./hms-shell";
+import { WARNING_LEAD_MS, type IdleTracker } from "./idle-timer";
 
 const endZitadelSession = vi.hoisted(() => vi.fn());
 vi.mock("./zitadel-session", () => ({ endZitadelSession }));
@@ -13,12 +14,19 @@ vi.mock("./zitadel-session", () => ({ endZitadelSession }));
 // silently discarded and the response-body-to-noteDeadline wiring was
 // never exercised at all.
 const noteDeadlineSpy = vi.hoisted(() => vi.fn());
+// Every REAL tracker createIdleTracker() produces, in creation order — lets
+// the idle-warning tests drive `noteDeadline` directly the same way a
+// `BroadcastChannel` message from another tab would (idle-timer.ts's own
+// onmessage handler calls exactly this method), without re-testing
+// BroadcastChannel delivery itself (already covered in idle-timer.test.ts).
+const createdTrackers = vi.hoisted(() => [] as IdleTracker[]);
 vi.mock("./idle-timer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./idle-timer")>();
   return {
     ...actual,
     createIdleTracker: (handlers: Parameters<typeof actual.createIdleTracker>[0]) => {
       const tracker = actual.createIdleTracker(handlers);
+      createdTrackers.push(tracker);
       return {
         ...tracker,
         noteDeadline: (d: Date) => {
@@ -49,6 +57,7 @@ describe("HmsShell", () => {
     endZitadelSession.mockReset();
     endZitadelSession.mockResolvedValue(true);
     noteDeadlineSpy.mockReset();
+    createdTrackers.length = 0;
     // Deliberately different from the seeded cache: the two prove
     // different things. If the stub matched the cache, `Lab` would render
     // whether or not the cache was ever read, since the network response
@@ -70,7 +79,10 @@ describe("HmsShell", () => {
     // instead of throwing "Not implemented: navigation".
     vi.stubGlobal("location", { ...window.location, href: "" });
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
 
   // Proves the cache is actually read on first paint (not just present in
   // storage): the cache and the network stub grant different permissions,
@@ -243,6 +255,150 @@ describe("HmsShell", () => {
       window.dispatchEvent(new Event("keydown"));
 
       await waitFor(() => expect(noteDeadlineSpy).toHaveBeenCalledWith(new Date(returnedDeadline)));
+    });
+  });
+
+  // #848 task 6 (D5): the warning modal itself, and the gap task 5
+  // deliberately left open — see hms-shell.tsx's comment on the mount
+  // effect for why seeding on mount is treated as a legitimate
+  // interaction rather than a workaround.
+  describe("idle warning modal", () => {
+    function stubActivityFetch(deadlines: () => Date) {
+      const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (url.includes("/auth/session/activity")) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ idle_deadline: deadlines().toISOString() }),
+          });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      return fetchMock;
+    }
+
+    // Closes the gap recorded in hms-shell.tsx: without this, a terminal
+    // that is loaded and never touched gets no client-side schedule at
+    // all — no warning, ever — since noteDeadline only ever learns a
+    // deadline from a successful activity response.
+    it("reports activity on mount, before any interaction, so an untouched terminal still gets a schedule", async () => {
+      const fetchMock = stubActivityFetch(() => new Date(Date.now() + 15 * 60_000));
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          "/api/v1/auth/session/activity",
+          expect.objectContaining({ method: "POST" }),
+        ),
+      );
+      // No dispatchEvent anywhere above — this call can only have come
+      // from the mount effect itself.
+    });
+
+    it("shows the warning dialog with a live countdown once the deadline reaches the lead time", async () => {
+      vi.useFakeTimers();
+      const deadline = new Date(Date.now() + WARNING_LEAD_MS + 5_000);
+      stubActivityFetch(() => deadline);
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      // Let the mount-seeded activity call resolve and its
+      // .then(noteDeadline) run, which schedules onWarn ~5s out.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+      });
+
+      const dialog = screen.getByRole("dialog");
+      expect(dialog).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /stay signed in/i })).toBeInTheDocument();
+      // onWarn fires WARNING_LEAD_MS before the deadline (that's the
+      // whole point of the lead time), so the countdown reads ~2:00 the
+      // instant it appears.
+      expect(dialog).toHaveTextContent(/2:00|1:59/);
+
+      // The countdown is a display DERIVED from the deadline on every
+      // tick, not a locally-decremented counter (spec's error-handling
+      // rule) — ticking fake time forward must move the displayed value
+      // down by roughly the same amount, proving it is actually reading
+      // `deadline - Date.now()` each second rather than a value computed
+      // once when the modal opened.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(90_000);
+      });
+      expect(dialog).toHaveTextContent(/0:3\d/);
+    });
+
+    it("extends the session and hides the modal when Stay signed in is pressed", async () => {
+      vi.useFakeTimers();
+      const deadline = new Date(Date.now() + WARNING_LEAD_MS + 1_000);
+      const fetchMock = stubActivityFetch(() => deadline);
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      const callsBeforeStay = fetchMock.mock.calls.filter((c) =>
+        String(c[0]).includes("/auth/session/activity"),
+      ).length;
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /stay signed in/i }));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      // Dismissing via the button must call the SAME activity endpoint
+      // that a qualifying interaction would — not merely hide the modal
+      // (item 6: hiding without extending leaves the clinician believing
+      // they are safe while the deadline keeps counting down).
+      const callsAfterStay = fetchMock.mock.calls.filter((c) =>
+        String(c[0]).includes("/auth/session/activity"),
+      ).length;
+      expect(callsAfterStay).toBeGreaterThan(callsBeforeStay);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    // D5: "Another tab may have extended the session, in which case the
+    // modal must not appear at all." Drives the REAL tracker's
+    // `noteDeadline` directly — exactly the call idle-timer.ts's own
+    // BroadcastChannel `onmessage` handler makes on a message from
+    // another tab (already unit-tested in idle-timer.test.ts) — so this
+    // proves HmsShell's onWarn wiring actually respects that
+    // cancellation end to end, rather than assuming it because the
+    // lower-level module does.
+    it("does not show the warning if the deadline was already extended before the lead time was reached", async () => {
+      vi.useFakeTimers();
+      const shortDeadline = new Date(Date.now() + WARNING_LEAD_MS + 5_000);
+      stubActivityFetch(() => shortDeadline);
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(createdTrackers).toHaveLength(1);
+
+      // Simulate another tab's activity extending the session well past
+      // the original deadline — the same call idle-timer.ts's
+      // BroadcastChannel handler makes on receipt of another tab's
+      // message.
+      const extendedDeadline = new Date(Date.now() + 20 * 60_000);
+      act(() => {
+        createdTrackers[0]?.noteDeadline(extendedDeadline);
+      });
+
+      // Advance well past where the ORIGINAL deadline's warning would
+      // have fired.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
   });
 });

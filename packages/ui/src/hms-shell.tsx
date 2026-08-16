@@ -11,7 +11,7 @@ import {
 } from "@hms/api";
 import { visibleZones, activeZone } from "./zones";
 import { ThemeToggle } from "./theme";
-import { endZitadelSession } from "./zitadel-session";
+import { endZitadelSession, IDLE_ENDED_MARK } from "./zitadel-session";
 import { createIdleTracker, WARNING_LEAD_MS, type IdleTracker } from "./idle-timer";
 import { IdleWarning } from "./idle-warning";
 
@@ -85,11 +85,12 @@ export function HmsShell({
   // "active" while a clinician works in it, or they get signed out
   // mid-consultation while the feature looks implemented.
   //
-  // onWarn now opens the IdleWarning modal (D5, #848 task 6 — see
+  // onWarn opens the IdleWarning modal (D5, #848 task 6 — see
   // reportActivity/handleStayLoggedIn and the tracker effect below).
-  // onExpire is still a deliberate no-op — this-browser teardown (D6) is
-  // task 7. Until it lands, the server-side idle_deadline (already
-  // fail-closed in authn.Middleware) remains the backstop for expiry.
+  // onExpire runs endIdleSession() (D6, #848 task 7 — see that function's
+  // own comment), and the server-side idle_deadline (already fail-closed
+  // in authn.Middleware) remains the backstop regardless, for a browser
+  // that never got the chance to run its own timer at all.
   const activity = useApiMutation<{ idle_deadline: string }>(
     () => apiFetch<{ idle_deadline: string }>("/auth/session/activity", { method: "POST" }),
     // A failed activity call must NEVER sign the user out — the
@@ -121,6 +122,50 @@ export function HmsShell({
   // scheduled against).
   const [warningDeadline, setWarningDeadline] = useState<Date | null>(null);
 
+  // D6 teardown — the ONE thing that ends this browser's session on idle
+  // expiry. Two triggers reach this same function: the client's own
+  // onExpire timer (below) and a 401 `session_idle` from the activity
+  // endpoint (reportActivity's catch, further down) — the server's refusal
+  // is authoritative because a laptop that slept through the deadline
+  // never runs its own onExpire timer at all, so the 401 branch is not
+  // redundant with it.
+  //
+  // Deliberately NOT subject-wide revocation (that is sign-out's #781
+  // semantics, driven through handleSignOut below): ending every device's
+  // session because ONE ward terminal sat idle would sign a clinician out
+  // of their office desktop and phone too.
+  //
+  // tornDownRef guards against running this twice — onExpire's timer and a
+  // 401 from a THEN-in-flight activity call can both fire once the
+  // deadline has passed, and endZitadelSession() must only ever be asked
+  // to navigate once.
+  const tornDownRef = useRef(false);
+  const endIdleSession = useCallback(() => {
+    if (tornDownRef.current) return;
+    tornDownRef.current = true;
+    void (async () => {
+      try {
+        await fetch("/logout", { method: "POST" });
+      } catch {
+        // Same reasoning as handleSignOut below: the browser must still
+        // end up on a signed-out-looking page even if the HMS session
+        // revoke call itself is unreachable.
+      }
+      // Set BEFORE endZitadelSession(), mirroring how that module sets
+      // SIGNED_OUT_MARK immediately before signoutRedirect() navigates
+      // away — endZitadelSession() (or its own same-origin `/login`
+      // fallback) is what actually navigates next, so anything set after
+      // calling it may never run.
+      try {
+        window.sessionStorage.setItem(IDLE_ENDED_MARK, "1");
+      } catch {
+        // Private mode or blocked storage — the wording degrades to
+        // neutral, which is cosmetic; the teardown itself still runs.
+      }
+      await endZitadelSession();
+    })();
+  }, []);
+
   // Reports genuine interaction to the server and folds the response back
   // into the tracker (design spec D4's "response body returns the new
   // deadline"). Used both as the tracker's onActivity handler AND, once
@@ -137,17 +182,15 @@ export function HmsShell({
         // session is already idle-expired or gone server-side (spec
         // "Errors and failure handling": "the session is already
         // gone. Run D6's teardown immediately rather than waiting
-        // for a timer"). This is the seam task 7's teardown
-        // (POST /logout + endZitadelSession) hooks into; until then
-        // it deliberately does nothing beyond not-retrying, same as
-        // every other failure here (network, 5xx, rate limit),
-        // which ARE transient and must never sign anyone out — see
-        // the comment on `activity` above.
+        // for a timer"). Every OTHER failure here (network, 5xx, rate
+        // limit) IS transient and must never sign anyone out — see the
+        // comment on `activity` above — so only this one status code
+        // triggers teardown.
         if (err instanceof ApiError && err.status === 401) {
-          // TODO(#848 task 7): trigger D6 teardown here.
+          endIdleSession();
         }
       });
-  }, []);
+  }, [endIdleSession]);
 
   useEffect(() => {
     const tracker = createIdleTracker({
@@ -165,7 +208,11 @@ export function HmsShell({
       // for the warning that just fired, not a second copy this
       // component keeps — see warningDeadline's doc comment above.
       onWarn: (deadline) => setWarningDeadline(deadline),
-      onExpire: () => {},
+      // D6: this tab's own clock reaching the deadline runs the SAME
+      // teardown a server-side 401 (reportActivity's catch, above) does —
+      // see endIdleSession's own comment for why both triggers exist and
+      // why running it twice is guarded against there, not here.
+      onExpire: () => endIdleSession(),
       // D5's "or any interaction … the modal closes" (review finding):
       // the deadline can move forward from THIS tab's own activity (a
       // keydown/scroll fired while the modal happens to be open) or from
@@ -213,7 +260,7 @@ export function HmsShell({
       tracker.stop();
       trackerRef.current = null;
     };
-  }, [reportActivity]);
+  }, [reportActivity, endIdleSession]);
 
   // The warning modal's countdown re-derives seconds-remaining from the
   // deadline on every tick (spec "Errors and failure handling": "the

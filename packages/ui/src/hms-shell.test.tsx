@@ -6,7 +6,8 @@ import { HmsShell } from "./hms-shell";
 import { WARNING_LEAD_MS, type IdleTracker } from "./idle-timer";
 
 const endZitadelSession = vi.hoisted(() => vi.fn());
-vi.mock("./zitadel-session", () => ({ endZitadelSession }));
+const IDLE_ENDED_MARK = vi.hoisted(() => "hms.idle-ended");
+vi.mock("./zitadel-session", () => ({ endZitadelSession, IDLE_ENDED_MARK }));
 
 // Wraps the real createIdleTracker so tests can observe what HmsShell
 // actually passes to noteDeadline — the shell test previously used a
@@ -53,6 +54,7 @@ function seedCache(permissions: string[]) {
 describe("HmsShell", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.sessionStorage.clear();
     vi.restoreAllMocks();
     endZitadelSession.mockReset();
     endZitadelSession.mockResolvedValue(true);
@@ -519,6 +521,152 @@ describe("HmsShell", () => {
         String(c[0]).includes("/auth/session/activity"),
       ).length;
       expect(callsAfterKeydown).toBe(1);
+    });
+  });
+
+  // #848 task 7 (D6): ending THIS browser's session on idle expiry, from
+  // BOTH triggers the spec requires — the client's own onExpire timer and
+  // the server's 401 `session_idle` refusal.
+  describe("idle session teardown (D6)", () => {
+    function stubActivityFetch(deadlines: () => Date) {
+      const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (url.includes("/auth/session/activity")) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ idle_deadline: deadlines().toISOString() }),
+          });
+        }
+        if (url === "/logout") {
+          return Promise.resolve({ ok: true, status: 200 });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      return fetchMock;
+    }
+
+    it("ends this browser's session when the client's own onExpire timer fires", async () => {
+      vi.useFakeTimers();
+      // Captured INSIDE endZitadelSession's mock implementation, not read
+      // afterwards — proves the mark is set BEFORE endZitadelSession() is
+      // invoked, not merely present by the time the test gets around to
+      // checking. That ordering is load-bearing: endZitadelSession() (or
+      // its own same-origin `/login` fallback) navigates away, so a mark
+      // set after it runs may never run at all.
+      let markAtEndZitadelSessionCall: string | null = "unset";
+      endZitadelSession.mockImplementation(async () => {
+        markAtEndZitadelSessionCall = window.sessionStorage.getItem(IDLE_ENDED_MARK);
+        return true;
+      });
+      // A deadline close enough that the SAME advance clears both the
+      // warn point (max(0, deadline - WARNING_LEAD_MS - now), floored at
+      // 0 here since 5s < WARNING_LEAD_MS) and the deadline itself.
+      const fetchMock = stubActivityFetch(() => new Date(Date.now() + 5_000));
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      // Two advances: the first crosses the deadline and fires onExpire,
+      // whose async body (fetch("/logout") → set mark → endZitadelSession())
+      // resolves purely through microtasks the fake-timer flush already
+      // drains; the second is a zero-length flush for any leftover tick.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" });
+      expect(endZitadelSession).toHaveBeenCalledTimes(1);
+      expect(markAtEndZitadelSessionCall).toBe("1");
+      expect(window.sessionStorage.getItem(IDLE_ENDED_MARK)).toBe("1");
+    });
+
+    // D6 explicitly forbids subject-wide revocation here — that is
+    // sign-out's #781 semantics. Nothing in this teardown path may call
+    // anything resembling a global/subject revoke; the only server call is
+    // the same-origin, this-browser-only POST /logout.
+    it("never calls anything beyond this-browser teardown on expiry", async () => {
+      vi.useFakeTimers();
+      const fetchMock = stubActivityFetch(() => new Date(Date.now() + 5_000));
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      expect(endZitadelSession).toHaveBeenCalledTimes(1);
+      // POSTs beyond the mount seed's activity call: exactly one, to
+      // same-origin /logout — nothing resembling a subject-wide revoke
+      // endpoint.
+      const postCallsOtherThanActivity = fetchMock.mock.calls.filter((c) => {
+        const url = typeof c[0] === "string" ? c[0] : c[0].toString();
+        const init = c[1] as RequestInit | undefined;
+        return init?.method === "POST" && !url.includes("/auth/session/activity");
+      });
+      expect(postCallsOtherThanActivity).toHaveLength(1);
+      expect(postCallsOtherThanActivity[0]?.[0]).toBe("/logout");
+    });
+
+    // The other trigger: a 401 `session_idle` from the activity endpoint
+    // means the session is ALREADY gone server-side — spec "Errors and
+    // failure handling" says run D6's teardown immediately rather than
+    // waiting for this tab's own timer, which matters for a laptop that
+    // slept through the deadline and never ran its own onExpire at all.
+    it("ends this browser's session when the activity endpoint answers 401", async () => {
+      const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (url.includes("/auth/session/activity")) {
+          return Promise.resolve({
+            ok: false,
+            status: 401,
+            json: async () => ({ error: "session_idle", message: "session expired" }),
+          });
+        }
+        if (url === "/logout") {
+          return Promise.resolve({ ok: true, status: 200 });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" }));
+      await waitFor(() => expect(endZitadelSession).toHaveBeenCalledTimes(1));
+      expect(window.sessionStorage.getItem(IDLE_ENDED_MARK)).toBe("1");
+    });
+
+    // A transient failure (network error, 5xx, rate limit) must NEVER
+    // trigger teardown — only a 401 does. This is the discriminating
+    // assertion for the `err.status === 401` check: a mutation that
+    // dropped the status guard (teardown on ANY activity failure) would
+    // pass every other test in this file but fail this one, since a 500
+    // here must leave the session alone.
+    it("does not tear down the session on a non-401 activity failure", async () => {
+      const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (url.includes("/auth/session/activity")) {
+          return Promise.resolve({
+            ok: false,
+            status: 500,
+            json: async () => ({ error: "internal", message: "server error" }),
+          });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          "/api/v1/auth/session/activity",
+          expect.objectContaining({ method: "POST" }),
+        ),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(fetchMock).not.toHaveBeenCalledWith("/logout", { method: "POST" });
+      expect(endZitadelSession).not.toHaveBeenCalled();
+      expect(window.sessionStorage.getItem(IDLE_ENDED_MARK)).toBeNull();
     });
   });
 });

@@ -99,6 +99,28 @@ function getSharedUserManager(): UserManager | null {
 // the right scope — signing out in one tab should not relabel another.
 export const SIGNED_OUT_MARK = "hms.signed-out";
 
+// IDLE_ENDED_MARK is SIGNED_OUT_MARK's counterpart for design spec D6: the
+// session ended because the client (onExpire) or the server (a 401
+// `session_idle` refusal) decided the clinician had been idle too long,
+// which is a DIFFERENT event from a deliberate sign-out and must say so.
+// #850 exists precisely because claiming someone signed out when they did
+// not is untrue, and telling an idle-ended session "you signed out" is the
+// same class of lie — on a shared terminal it wrongly implies a deliberate
+// act ended the previous person's session, when in fact inactivity did.
+//
+// Set by the caller BEFORE calling endZitadelSession() (packages/ui/src/
+// hms-shell.tsx's teardown), mirroring how SIGNED_OUT_MARK is set inside
+// this module immediately before signoutRedirect() navigates away —
+// endZitadelSession() itself (or its same-origin `/login` fallback) is
+// what actually navigates, so anything set after it runs may never run at
+// all.
+//
+// sessionStorage, per-tab, for the same reasons as SIGNED_OUT_MARK: a
+// query parameter on post_logout_redirect_uri risks the logout request
+// being rejected by Zitadel's registered-redirect check, and per-tab scope
+// is correct — one tab's idle expiry should not relabel another tab.
+export const IDLE_ENDED_MARK = "hms.idle-ended";
+
 export async function endZitadelSession(): Promise<boolean> {
   const userManager = getSharedUserManager();
   if (!userManager) {

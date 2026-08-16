@@ -2,7 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { renderWithProviders } from "@hms/api/testing";
-import { SIGNED_OUT_MARK } from "@hms/ui";
+import { SIGNED_OUT_MARK, IDLE_ENDED_MARK } from "@hms/ui";
 
 import LoginPage from "./page";
 
@@ -60,7 +60,10 @@ function stubAuthFlow(opts: { authRequest?: () => Response; password?: () => Res
     }
     if (url.includes("/auth/login/password")) {
       return Promise.resolve(
-        (opts.password ?? (() => jsonResponse(200, { callback_url: "https://hms.example/api/auth/callback" })))(),
+        (
+          opts.password ??
+          (() => jsonResponse(200, { callback_url: "https://hms.example/api/auth/callback" }))
+        )(),
       );
     }
     throw new Error(`stubAuthFlow: unexpected fetch call to ${url}`);
@@ -94,6 +97,29 @@ describe("LoginPage", () => {
       window.sessionStorage.setItem(SIGNED_OUT_MARK, "1");
       renderWithProviders(<LoginPage />);
       expect(await screen.findByText(/you are signed out/i)).toBeInTheDocument();
+    });
+
+    // #848 D6: the idle-timeout teardown is a THIRD, distinct outcome from
+    // a deliberate sign-out — #850 exists precisely because claiming
+    // someone signed out when they did not is untrue, and telling an
+    // idle-ended session "you are signed out" is the same class of lie.
+    it("says the session ended through inactivity, not that the user signed out", async () => {
+      window.sessionStorage.setItem(IDLE_ENDED_MARK, "1");
+      renderWithProviders(<LoginPage />);
+      expect(await screen.findByText(/ended after a period of inactivity/i)).toBeInTheDocument();
+      expect(screen.queryByText(/you are signed out/i)).not.toBeInTheDocument();
+    });
+
+    // Consumed on read, same as SIGNED_OUT_MARK — a reload or navigating
+    // back here later in the same tab is no longer "you just idled out".
+    it("only shows the idle-ended wording once", async () => {
+      window.sessionStorage.setItem(IDLE_ENDED_MARK, "1");
+      const first = renderWithProviders(<LoginPage />);
+      expect(await screen.findByText(/ended after a period of inactivity/i)).toBeInTheDocument();
+      first.unmount();
+
+      renderWithProviders(<LoginPage />);
+      expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument();
     });
 
     // Consumed on read: a reload, or navigating back here later in the same
@@ -207,10 +233,7 @@ describe("LoginPage", () => {
       expect(await screen.findByText(/enter your email/i)).toBeInTheDocument();
       // The auth-request GET is allowed (it is how the form got here at
       // all); the credential POST specifically must never have fired.
-      expect(fetchMock).not.toHaveBeenCalledWith(
-        "/api/v1/auth/login/password",
-        expect.anything(),
-      );
+      expect(fetchMock).not.toHaveBeenCalledWith("/api/v1/auth/login/password", expect.anything());
     });
 
     // Spec D5: a wrong password and an unknown user answer identically, so
@@ -389,7 +412,9 @@ describe("LoginPage", () => {
 
         renderWithProviders(<LoginPage />);
 
-        expect(await screen.findByText(/this sign-in attempt has expired; start again/i)).toBeInTheDocument();
+        expect(
+          await screen.findByText(/this sign-in attempt has expired; start again/i),
+        ).toBeInTheDocument();
         expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
         expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
       });

@@ -90,6 +90,15 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	// Same class of check, same reason to run it here rather than on the
+	// hot path: a hosted-login URL misconfigured to share an origin with
+	// HMS's own frontend would loop every MFA-enrolled clinician forever
+	// through a handoff that always sends them right back — see
+	// config.RequireDistinctHostedLoginOrigin's doc comment for why
+	// nothing short of a boot refusal makes that loop unrepresentable.
+	if err := cfg.RequireDistinctHostedLoginOrigin(); err != nil {
+		return err
+	}
 	sessionKey := ed25519.NewKeyFromSeed(sessionSeed)
 	// Logging a fingerprint of the PUBLIC key (never the private key,
 	// never the seed) confirms the key loaded, the same way "resolved

@@ -76,6 +76,22 @@ type Config struct {
 	// well-known Zitadel URL, not a secret, and a wrong value fails
 	// loudly (a 404 from Zitadel) rather than opening a hole.
 	ZitadelHostedLoginURL string
+	// HMSWebOrigin is the origin (scheme + host, no path) HMS's OWN
+	// frontend is served from — the same origin scripts/lib/zitadel.mjs
+	// configures as Zitadel's per-app `loginVersion.loginV2.baseUri` for
+	// hms-web (spec D1), and the origin `/login?authRequest=…` renders
+	// on. It exists SOLELY so RequireDistinctHostedLoginOrigin
+	// (hostedlogin.go) has something to compare ZitadelHostedLoginURL
+	// against at boot — nothing on the request path reads it, because
+	// every real request already reaches this API through the frontend's
+	// own same-origin `/api` rewrite (docs/standards/frontend.md §3) and
+	// never needs to be told its own origin back. Safe to default: like
+	// ZitadelHostedLoginURL, it is a well-known, non-secret URL, and an
+	// operator who gets it wrong in production either fails the boot
+	// guard immediately (if it collides with the hosted-login origin) or
+	// changes nothing at all (if it does not — the value is otherwise
+	// inert).
+	HMSWebOrigin string
 
 	// SessionSigningKey is the raw, still-encoded value of
 	// SESSION_SIGNING_KEY — a base64 Ed25519 seed. Deliberately NOT
@@ -153,6 +169,12 @@ func Load() Config {
 		// ZitadelLoginClientToken's doc comment on exactly why).
 		ZitadelLoginClientToken: os.Getenv("ZITADEL_LOGIN_CLIENT_TOKEN"),
 		ZitadelHostedLoginURL:   getenv("ZITADEL_HOSTED_LOGIN_URL", "http://localhost:20080/ui/v2/login"),
+		// Default matches scripts/lib/zitadel.mjs's DEV_REDIRECT_URI
+		// origin — the same dev-stack value Zitadel's per-app login base
+		// URI is provisioned with (spec D1), so a fresh clone's defaults
+		// agree with each other without either side having to read the
+		// other's config.
+		HMSWebOrigin: getenv("HMS_WEB_ORIGIN", "http://localhost:4301"),
 
 		// os.Getenv, not getenv(): getenv's whole purpose is supplying a
 		// default for an unset variable, and a signing key must never

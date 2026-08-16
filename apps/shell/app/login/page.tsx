@@ -4,11 +4,11 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { AuthCardCentered, AuthCardFooter, AuthLayoutCentered, Button, Input } from "@tesserix/web";
-import { ApiError, useApiMutation } from "@hms/api";
+import { ApiError, useApiMutation, useApiQuery } from "@hms/api";
 import { Field, SIGNED_OUT_MARK, useZodForm } from "@hms/ui";
 
 import { getUserManager } from "@/lib/oidc";
-import { checkPassword, type PasswordCheckResult } from "@/lib/login-client";
+import { checkPassword, type AuthRequestInfo, type PasswordCheckResult } from "@/lib/login-client";
 
 // HMS's own sign-in page (spec D2/D6, #854 — supersedes D5a of
 // 2026-08-15-zitadel-tenancy-topology-design.md). D5a said HMS must
@@ -71,6 +71,20 @@ import { checkPassword, type PasswordCheckResult } from "@/lib/login-client";
 // (e.g. "no account with that email"), which would rebuild the same
 // enumeration oracle the backend just closed.
 //
+// A FOURTH outcome sits in front of all three of the above: the auth request
+// itself can be unknown, expired, or already used — reachable in normal
+// use, per the design spec, by nothing more unusual than a browser left
+// on this page overnight. ValidatedCredentialForm calls
+// GET /v1/auth/login/request/:id on mount specifically to catch that
+// BEFORE a clinician types a credential into a form that can only ever
+// fail — the same expired-request error is also possible from the
+// submit-time POST (checkPassword), which stays in place as the
+// backstop for an auth request that goes stale in the gap between the
+// mount-time check succeeding and the credential being submitted. Either
+// path renders the SAME "start again" affordance: RedirectLanding's own
+// Sign in button, which is a real, working control here — not just an
+// error message with nowhere to go.
+//
 // apps/shell/app/api/auth/callback/page.tsx is unchanged: it is still
 // the target both `callback_url` (this page) and Zitadel's hosted login
 // (a `handoff_url` this page navigated to) eventually redirect back to.
@@ -78,11 +92,12 @@ export default function LoginPage() {
   return (
     // Suspense boundary: useSearchParams() opts a page out of Next's
     // static shell unless something above it can suspend for the value.
-    // There is no meaningful loading state to show here — the read is
-    // synchronous on the client — so the fallback only matters for the
-    // brief window Next's build tooling cares about, not anything a real
-    // browser will ever see.
-    <Suspense fallback={null}>
+    // The fallback renders the SAME auth chrome the two real states use
+    // (AuthChromeLoading) rather than nothing — an earlier version of
+    // this page used `fallback={null}`, which made /login's prerendered
+    // HTML empty and left a blank card on screen until JS hydrated; on a
+    // slow ward terminal that reads as a broken page, not a loading one.
+    <Suspense fallback={<AuthChromeLoading />}>
       <LoginPageContent />
     </Suspense>
   );
@@ -91,9 +106,67 @@ export default function LoginPage() {
 function LoginPageContent() {
   const authRequestId = useSearchParams().get("authRequest");
   if (authRequestId) {
-    return <CredentialForm authRequestId={authRequestId} />;
+    return <ValidatedCredentialForm authRequestId={authRequestId} />;
   }
   return <RedirectLanding />;
+}
+
+// The shared auth chrome with nothing but a neutral "Loading…" line —
+// used both as LoginPage's Suspense fallback and as
+// ValidatedCredentialForm's pending state, so a caller waiting on either
+// the search-param read or the auth-request GET sees the same page shell
+// rather than a blank one.
+function AuthChromeLoading() {
+  return (
+    <AuthLayoutCentered>
+      <AuthCardCentered>
+        <div className="space-y-2 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight">HMS</h1>
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        </div>
+      </AuthCardCentered>
+    </AuthLayoutCentered>
+  );
+}
+
+// Validates the auth request BEFORE rendering the credential form — see
+// LoginPage's header comment on why this call exists at all
+// (GET /v1/auth/login/request/:id was previously reachable and tested on
+// the backend but never called by the frontend, so a stale auth request
+// was only ever caught at submit time, one credential too late).
+//
+//  - pending → AuthChromeLoading. The read is a real network round trip
+//    (unlike useSearchParams' synchronous one above), so this state is
+//    reachable by a real browser, not just Next's build tooling.
+//  - error → RedirectLanding, with the API's own message (e.g. "this
+//    sign-in attempt has expired; start again") as the greeting and its
+//    Sign in button doing double duty as "start again": clicking it
+//    calls the exact same signinRedirect() a fresh visit to /login does,
+//    which is genuinely what starting again means here.
+//  - success → CredentialForm, unchanged.
+function ValidatedCredentialForm({ authRequestId }: { authRequestId: string }) {
+  const authRequest = useApiQuery<AuthRequestInfo>(
+    ["auth-login-request", authRequestId],
+    `/auth/login/request/${encodeURIComponent(authRequestId)}`,
+  );
+
+  if (authRequest.isPending) {
+    return <AuthChromeLoading />;
+  }
+
+  if (authRequest.isError) {
+    return (
+      <RedirectLanding
+        message={
+          authRequest.error instanceof ApiError
+            ? authRequest.error.message
+            : "This sign-in attempt could not be verified. Start again to continue."
+        }
+      />
+    );
+  }
+
+  return <CredentialForm authRequestId={authRequestId} />;
 }
 
 const credentialsSchema = z.object({
@@ -103,10 +176,11 @@ const credentialsSchema = z.object({
 
 type Credentials = z.infer<typeof credentialsSchema>;
 
-// The credential form itself (spec D2/D6). Renders only when Zitadel
-// already handed this page a real auth request id — see LoginPage's
-// header comment for the full outcome contract (`callback_url` /
-// `handoff_url` / shared refusal) this drives against.
+// The credential form itself (spec D2/D6). Renders only once
+// ValidatedCredentialForm's mount-time check confirms the auth request is
+// still good — see LoginPage's header comment for the full outcome
+// contract (`callback_url` / `handoff_url` / shared refusal / expired
+// request) this drives against.
 function CredentialForm({ authRequestId }: { authRequestId: string }) {
   const form = useZodForm(credentialsSchema, { email: "", password: "" });
 
@@ -128,6 +202,14 @@ function CredentialForm({ authRequestId }: { authRequestId: string }) {
           result.outcome === "complete" ? result.callbackUrl : result.handoffUrl,
         );
       },
+      // The role="alert" paragraph below is this mutation's error surface
+      // — it sits next to the fields and is what a screen reader user
+      // focused on the form expects (spec D5/D6). useApiMutation's
+      // automatic toast.error(error.message) would show the EXACT SAME
+      // text a second time through a second channel, which review
+      // flagged as confusing rather than helpful. See
+      // packages/api/src/hooks.ts's suppressErrorToast doc comment.
+      suppressErrorToast: true,
     },
   );
 
@@ -186,15 +268,26 @@ function CredentialForm({ authRequestId }: { authRequestId: string }) {
   );
 }
 
-// The pre-#854 landing page, UNCHANGED: shown whenever this route is
-// reached with no auth request to act on. See LoginPage's header comment
-// for when that is — the common case is arriving at /login directly, or
-// as the post-logout redirect target, neither of which has an auth
-// request to act on yet. Clicking the button below is what obtains one:
+// The pre-#854 landing page — logic unchanged, now ALSO reused as the
+// "start again" affordance for an expired/unknown/already-used auth
+// request (see LoginPage's header comment and ValidatedCredentialForm).
+// Shown whenever this route has no auth request to act on, OR the auth
+// request it was given turned out not to be a good one. The common case
+// for the former is arriving at /login directly, or as the post-logout
+// redirect target, neither of which has an auth request to act on yet.
+// Clicking the button below is what obtains one either way:
 // getUserManager().signinRedirect() sends the browser to Zitadel's own
 // /oauth/v2/authorize, which (per D1) redirects it right back here, this
-// time WITH ?authRequest= set — landing in LoginPageContent's other
-// branch, CredentialForm.
+// time WITH a fresh ?authRequest= set — landing in LoginPageContent's
+// other branch, ValidatedCredentialForm.
+//
+// message overrides the default greeting ("Sign in to continue." / "You
+// are signed out.") with ValidatedCredentialForm's own wording (e.g.
+// "this sign-in attempt has expired; start again") when this component
+// is being reused as the expired-request state. When message is set, the
+// SIGNED_OUT_MARK check below is skipped entirely — mixing "you signed
+// out" wording into an already-more-specific expired-request message
+// would only confuse which of the two actually happened.
 //
 // Uses @tesserix/web's AuthLayout chrome without its credential parts —
 // this is the one case on this page where that is still correct, because
@@ -225,7 +318,7 @@ function CredentialForm({ authRequestId }: { authRequestId: string }) {
 // valid, so the next person never reaches this page at all. That is #848
 // (idle timeout), and it is the control that actually covers the ward
 // terminal.
-function RedirectLanding() {
+function RedirectLanding({ message }: { message?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   // Whether the user actually signed out, as opposed to landing here
@@ -241,6 +334,9 @@ function RedirectLanding() {
   const [signedOut, setSignedOut] = useState(false);
 
   useEffect(() => {
+    // An explicit message (the expired-request state) always wins — see
+    // this function's doc comment on why the two must never be mixed.
+    if (message) return;
     try {
       if (window.sessionStorage.getItem(SIGNED_OUT_MARK)) {
         setSignedOut(true);
@@ -251,7 +347,7 @@ function RedirectLanding() {
     } catch {
       // Blocked storage — fall back to the neutral wording.
     }
-  }, []);
+  }, [message]);
 
   async function signIn() {
     setError(null);
@@ -278,7 +374,7 @@ function RedirectLanding() {
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">HMS</h1>
           <p className="text-sm text-muted-foreground">
-            {signedOut ? "You are signed out." : "Sign in to continue."}
+            {message ?? (signedOut ? "You are signed out." : "Sign in to continue.")}
           </p>
         </div>
 

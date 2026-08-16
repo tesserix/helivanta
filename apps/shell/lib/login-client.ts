@@ -1,5 +1,30 @@
 import { apiFetch } from "@hms/api";
 
+// The wire shape GET /v1/auth/login/request/:id answers with —
+// authRequestResponse in loginui.go. Fetched directly via useApiQuery in
+// apps/shell/app/login/page.tsx's ValidatedCredentialForm (no wrapper
+// function here, unlike checkPassword below — a plain GET with no body
+// to build and no discriminated outcome to narrow needs nothing this
+// file would add over calling useApiQuery with this type directly, the
+// same pattern every other read in this codebase follows, e.g.
+// apps/medicore/components/visit-panel.tsx's `useApiQuery<Visit[]>(...)`).
+//
+// HMS's login form reads this on mount, before rendering the credential
+// fields, so that an auth request that is already unknown, expired, or
+// already used (a browser left on the login page overnight — spec D3's
+// "errors and failure handling" section calls this reachable in normal
+// use) is caught and shown as "start again" BEFORE a clinician types a
+// credential into a form that can only ever fail. That submit-time
+// handling (checkPassword below) stays in place as the backstop for an
+// auth request that goes stale in the gap between this read succeeding
+// and the credential being submitted.
+export interface AuthRequestInfo {
+  id: string;
+  client_id: string;
+  redirect_uri: string;
+  scope: string[];
+}
+
 // Typed wrapper around POST /v1/auth/login/password
 // (backend/internal/modules/iam/loginui.go), the credential check that
 // drives Zitadel's login-client API on HMS's behalf (spec D2, #854). This
@@ -17,8 +42,7 @@ import { apiFetch } from "@hms/api";
 // both; the union makes "read the wrong field" a compile error at every
 // call site instead of a `undefined` that only surfaces at runtime.
 export type PasswordCheckResult =
-  | { outcome: "complete"; callbackUrl: string }
-  | { outcome: "handoff"; handoffUrl: string };
+  { outcome: "complete"; callbackUrl: string } | { outcome: "handoff"; handoffUrl: string };
 
 interface PasswordCheckParams {
   authRequestId: string;

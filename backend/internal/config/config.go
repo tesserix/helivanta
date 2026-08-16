@@ -172,12 +172,15 @@ type Config struct {
 	// the idle deadline, and an untouched tab would then renew itself
 	// forever while the feature looked implemented.
 	//
-	// getenvDuration, so a mistyped IDLE_TIMEOUT logs and falls back to
-	// the default rather than stopping a hospital's API from booting —
-	// same direction SESSION_TTL takes. A deliberately non-positive value
-	// parses fine and fails CLOSED (every minted session is already past
-	// its deadline, so every request is refused): loud and safe, rather
-	// than silently disabling the control.
+	// getenvDuration, so a MISTYPED IDLE_TIMEOUT ("fifteen") logs and
+	// falls back to DefaultIdleTimeout rather than stopping a hospital's
+	// API from booting — same direction SESSION_TTL takes. A
+	// deliberately non-positive value ("0", "-5m") is a different case:
+	// it parses cleanly, so that fallback never sees it, and it is
+	// refused at boot by RequireIdleTimeout (idletimeout.go) rather than
+	// left to fail closed as a hospital-wide sign-out. Read it through
+	// that accessor, never straight off this field, on any path that
+	// decides a deadline.
 	IdleTimeout time.Duration
 
 	// Rate limits are env-configurable, unlike the pagination page-size
@@ -233,7 +236,7 @@ func Load() Config {
 		// Read from its OWN variable, never derived from SESSION_TTL —
 		// see IdleTimeout's doc comment on why the two clocks must stay
 		// independent even while they share a value.
-		IdleTimeout: getenvDuration("IDLE_TIMEOUT", 15*time.Minute),
+		IdleTimeout: getenvDuration("IDLE_TIMEOUT", DefaultIdleTimeout),
 
 		RateLimitTenantPerMin:    getenvInt("RATE_LIMIT_TENANT_PER_MIN", 600),
 		RateLimitPrincipalPerMin: getenvInt("RATE_LIMIT_PRINCIPAL_PER_MIN", 120),

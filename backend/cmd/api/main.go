@@ -90,6 +90,18 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	// Same class of check, same reason to run it here: a non-positive
+	// IDLE_TIMEOUT parses cleanly (so getenvDuration's mistyped-value
+	// fallback never sees it) and then fails closed at the worst possible
+	// granularity — every session minted already past its idle deadline,
+	// so every clinician's every request is refused with session_idle.
+	// See config.RequireIdleTimeout's doc comment for why a boot refusal
+	// is the only place that defect can usefully surface, and why it is
+	// deliberately not clamped to the default.
+	idleTimeout, err := cfg.RequireIdleTimeout()
+	if err != nil {
+		return err
+	}
 	// Same class of check, same reason to run it here rather than on the
 	// hot path: a hosted-login URL misconfigured to share an origin with
 	// HMS's own frontend would loop every MFA-enrolled clinician forever
@@ -293,7 +305,7 @@ func run() error {
 		Signer:       sessionSigner,
 		Sessions:     sessionVerifier,
 		TTL:          cfg.SessionTTL,
-		IdleTimeout:  cfg.IdleTimeout,
+		IdleTimeout:  idleTimeout,
 		SecureCookie: sessionSecureCookie,
 		Limiter:      limiter,
 		Limit:        bootstrap.LoginRateLimitRule(cfg),

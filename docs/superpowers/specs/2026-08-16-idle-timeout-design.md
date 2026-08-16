@@ -98,10 +98,15 @@ accepts a past deadline. Someone genuinely signing back in after a timeout is
 covered by the `auth_time` case, on the strength of the new authentication
 rather than the absence of a cookie.
 
-**Not covered:** a cookie whose `exp` has lapsed (a browser that skipped
-renewals for longer than `SESSION_TTL`) fails verification outright and so takes
-the fresh-window branch. Closing it needs a deadline read out of a token the
-verifier refuses, which is a `pkg/session` API change.
+**Not covered — [#859](https://github.com/tesserix/hms/issues/859):** a cookie
+whose `exp` has lapsed (a machine that stopped renewing for longer than
+`SESSION_TTL` and was later woken) fails verification outright, so the deadline
+cannot be read and the request takes the fresh-window branch — a fresh window
+with no human having authenticated, which is this issue's own scenario rather
+than an edge case. Closing it needs a `pkg/session` accessor that can surface a
+deadline from a token the verifier refuses, structurally unusable as an
+authentication result; that is a design decision, not a patch, hence its own
+issue.
 
 ## D4 — Activity is a deliberate signal, debounced, and shared across tabs
 

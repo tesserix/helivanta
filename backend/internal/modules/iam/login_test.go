@@ -27,6 +27,14 @@ const (
 	loginTestIssuer = "https://hms.test"
 	loginTestKID    = "hms-session-v1"
 	loginTestTTL    = 15 * time.Minute
+	// testIdleTimeout is stated here rather than read from
+	// config.Load(), which an ambient IDLE_TIMEOUT in a developer's or
+	// CI shell would silently change — quietly altering what the D3
+	// tests exercise, in a feature whose whole failure mode is looking
+	// correct while proving nothing. newLoginEnv asserts it still equals
+	// config.DefaultIdleTimeout so the fixed value and the shipped
+	// default cannot drift apart.
+	testIdleTimeout = 15 * time.Minute
 
 	tenantA = testutil.TenantA
 	tenantB = testutil.TenantB
@@ -96,16 +104,16 @@ func loginHarnessRL(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerL
 	// cookies with, exactly as cmd/api/main.go passes the SAME
 	// sessionVerifier the /v1 chain uses: it is what lets Login recognise
 	// its own previously-minted session on a renewal (spec D3).
-	// IdleTimeout comes from config.Load() rather than a literal so these
-	// tests exercise the real default (15m) and would follow it if it
-	// ever changed.
+	// IdleTimeout is testIdleTimeout, a stated constant pinned against
+	// config.DefaultIdleTimeout — never config.Load(), which an ambient
+	// IDLE_TIMEOUT would silently change out from under these tests.
 	h := iam.NewLoginHandlers(iam.LoginDeps{
 		Zitadel:      zv,
 		Roles:        roles,
 		Signer:       signer,
 		Sessions:     verifier,
 		TTL:          loginTestTTL,
-		IdleTimeout:  config.Load().IdleTimeout,
+		IdleTimeout:  testIdleTimeout,
 		SecureCookie: true,
 		Limiter:      limiter,
 		Limit:        rule,
@@ -511,7 +519,12 @@ func newLoginEnv(t *testing.T) *loginEnv {
 	roles := &fakeRoleListerLogin{bindings: map[string][]authz.RoleBinding{
 		"user-1": {{TenantID: tenantA, Role: authz.RoleNurse}},
 	}}
-	cfg := config.Load()
+	// Built by hand, not config.Load(): see testIdleTimeout. The
+	// equality check is what keeps this fixture honest if the shipped
+	// default ever moves.
+	require.Equal(t, config.DefaultIdleTimeout, testIdleTimeout,
+		"the D3 fixture must exercise the idle window HMS actually ships")
+	cfg := config.Config{IdleTimeout: testIdleTimeout}
 	clock := time.Now()
 	h := iam.NewLoginHandlers(iam.LoginDeps{
 		Zitadel:      mutableZitadelVerifier{subject: "user-1", authTime: &zitadelAuthTime},

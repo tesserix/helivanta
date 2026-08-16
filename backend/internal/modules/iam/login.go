@@ -401,14 +401,15 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 // case 3 above, on the strength of their new Zitadel authentication,
 // which is the fact that actually means "someone is here".
 //
-// NOT COVERED BY THIS SLICE, stated rather than hidden: a cookie whose
-// `exp` has lapsed (a laptop suspended for longer than SessionTTL) fails
-// h.sessions.Verify and so takes case 1, earning a fresh window on what
-// may be a silent renewal. Closing that needs a deadline read from a
-// token this Verifier refuses, which is a pkg/session API decision beyond
-// this task. It is narrower than it sounds — reaching it requires the
-// browser to skip renewals for longer than SessionTTL and then resume —
-// but it is real, and it is the first thing to fix after this lands.
+// NOT COVERED BY THIS SLICE, tracked as #859: a cookie whose `exp` has
+// lapsed (a machine that stopped renewing for longer than SessionTTL and
+// was later woken) fails h.sessions.Verify, so its deadline cannot be
+// read at all and the request takes case 1 — a fresh window on what may
+// be a silent renewal with no human present. Closing it needs a
+// pkg/session accessor that surfaces a deadline from a token the
+// Verifier refuses, structurally unusable as an authentication result;
+// that is a design decision rather than a patch, which is why it is a
+// separate issue and not a TODO here.
 func (h *LoginHandlers) idleDeadlineFor(c *gin.Context, principal authn.Principal, now time.Time) time.Time {
 	fresh := now.Add(h.idleTimeout)
 

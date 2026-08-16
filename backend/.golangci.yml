@@ -63,6 +63,19 @@ linters:
             # in login_test.go already covers for iam importing iam;
             # this entry is what makes iam importing iam/loginclient
             # possible in non-test code too.
+            #
+            # This entry reads WIDER than it actually permits: depguard
+            # cannot express "only iam may import iam/loginclient", so on
+            # its own this would also admit, say, pharmacy importing
+            # iam/loginclient — a real cross-module import, exactly what
+            # module-isolation exists to block. The compensating control
+            # is internal/archtest.TestModulesDoNotImportEachOther, which
+            # walks the real dependency graph module-by-module (not by
+            # path prefix) and fails on any module importing another
+            # module's non-contract package, loginclient included. This
+            # allow-list entry only has to be narrow enough to compile;
+            # TestModulesDoNotImportEachOther is what keeps it narrow
+            # enough to be correct.
             - "github.com/tesserix/hms/internal/modules/iam/loginclient"
         no-logrus:
           deny:

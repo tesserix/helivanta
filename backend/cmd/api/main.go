@@ -262,11 +262,17 @@ func run() error {
 	// enumerable place and pinned by
 	// archtest.TestEveryEngineRouteIsDeclaredOrAllowlisted — a route on the
 	// raw engine otherwise escapes platform.Router entirely.
-	// authRequest/password/handoff are nil until Task 5 constructs
-	// loginclient.Client and iam.LoginUIHandlers here (it needs the
-	// login-client PAT, plumbed through config in that same task); a nil
-	// simply leaves those three routes unregistered in the meantime. See
-	// MountUnauthenticated's own doc comment.
+	// authRequest/password/handoff are nil here because Task 5, not this
+	// commit, constructs loginclient.Client and iam.LoginUIHandlers (it
+	// needs the login-client PAT, plumbed through config in that same
+	// task). MountUnauthenticated PANICS on a nil handler rather than
+	// silently skipping the route (see its own doc comment on why) — so
+	// until Task 5 lands, `go run ./cmd/api` fails at boot rather than
+	// serving /v1/auth/login/* incompletely. That is the intended,
+	// visible state of an in-flight branch between these two tasks, not
+	// a bug: a route this repo already promises is reachable
+	// (bootstrap.UnauthenticatedRoutes) must not be able to silently NOT
+	// be one.
 	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login, nil, nil, nil)
 
 	for _, m := range registry.All() {

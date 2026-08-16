@@ -163,16 +163,63 @@ func TestPasswordFailuresAreIdenticalForWrongPasswordAndUnknownUser(t *testing.T
 	}
 }
 
-func TestPasswordFailureTimingIsEqualised(t *testing.T) {
-	// The fake unknown-user server answers instantly; the fake wrong-password
-	// server sleeps to imitate the real hash cost.
-	start := time.Now()
-	postPassword(t, zitadelUnknownUser(t), "nobody@hms.dev", "nope")
-	unknownElapsed := time.Since(start)
+// timingToleranceForEqualisedFailures bounds how far apart the two
+// failure paths' measured latencies may land in this test. It is
+// deliberately generous (test-scheduling jitter on a shared CI runner is
+// real) while still being far tighter than the ~55x gap spec D5 exists
+// to close — see TestPasswordFailureTimingIsEqualised's doc comment for
+// what it is actually there to catch.
+const timingToleranceForEqualisedFailures = 150 * time.Millisecond
 
+// TestPasswordFailureTimingIsEqualised is spec D5's timing proof, and it
+// must check BOTH sides plus the gap between them — not just that the
+// FAST path (unknown user) got slowed down to the floor.
+//
+// An earlier version of this test asserted only unknownElapsed >=
+// MinFailedLoginDuration. That is insufficient: a regression that
+// applied the floor to ONLY ONE of the two ErrBadCredentials/
+// ErrUserNotFound branches in Password (e.g. an errors.Is check that
+// silently stopped matching one of them) would leave wrong-password
+// answering at its own natural ~830ms while unknown-user sat pinned at
+// the floor — a real, if smaller, enumeration oracle — and the
+// single-sided assertion could not see it: it only ever looks at the
+// side that was already slow by construction of the FAKE SERVER, not by
+// construction of the HANDLER under test. See this task's fix-round
+// report for the mutation that demonstrates this concretely (the floor
+// applied to only the unknown-user branch): the single-sided assertion
+// passes it, this one does not.
+func TestPasswordFailureTimingIsEqualised(t *testing.T) {
+	// The fake unknown-user server answers instantly; the fake
+	// wrong-password server sleeps to imitate the real hash cost
+	// (809-845ms measured against the real dev Zitadel, see
+	// MinFailedLoginDuration's doc comment) — both must still clear the
+	// floor, and land close to each other, regardless of how differently
+	// they started.
+	wrongStart := time.Now()
+	postPassword(t, zitadelWrongPassword(t), "test@hms.dev", "nope")
+	wrongElapsed := time.Since(wrongStart)
+
+	unknownStart := time.Now()
+	postPassword(t, zitadelUnknownUser(t), "nobody@hms.dev", "nope")
+	unknownElapsed := time.Since(unknownStart)
+
+	if wrongElapsed < MinFailedLoginDuration {
+		t.Errorf("wrong-password path returned in %v, faster than the %v floor: timing oracle intact",
+			wrongElapsed, MinFailedLoginDuration)
+	}
 	if unknownElapsed < MinFailedLoginDuration {
 		t.Errorf("unknown-user path returned in %v, faster than the %v floor: timing oracle intact",
 			unknownElapsed, MinFailedLoginDuration)
+	}
+
+	gap := wrongElapsed - unknownElapsed
+	if gap < 0 {
+		gap = -gap
+	}
+	if gap > timingToleranceForEqualisedFailures {
+		t.Errorf("wrong-password (%v) and unknown-user (%v) differ by %v, over the %v tolerance: "+
+			"the floor is not applying equally to both failure paths",
+			wrongElapsed, unknownElapsed, gap, timingToleranceForEqualisedFailures)
 	}
 }
 

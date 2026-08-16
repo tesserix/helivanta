@@ -16,23 +16,63 @@ import (
 
 // MinFailedLoginDuration is the floor every FAILED password attempt must
 // take before responding, wrong password or unknown user alike (spec
-// D5). It exists to close a timing oracle, not just a status/body one:
-// measured against a real Zitadel v4.15.3 instance (spike §3,
-// docs/superpowers/spikes/2026-08-16-zitadel-login-client.md), a wrong
-// password takes 0.72-0.78s (Zitadel actually computes the password
-// hash) while an unknown user answers in 0.013s (it never reaches the
-// hash). That ~55x gap tells an attacker which login names have
-// accounts at all — for a hospital, that is itself sensitive
+// D5). It exists to close a timing oracle, not just a status/body one: a
+// wrong password reaches Zitadel's password hash, an unknown user never
+// does, and the gap between them tells an attacker which login names
+// have accounts at all — for a hospital, that is itself sensitive
 // information (who works there) — regardless of what the status code or
-// body say. 900ms sits comfortably above the slower, real path's
-// observed ceiling, so the wrong-password case is never truncated below
-// its own natural latency (which would itself be a smaller, secondary
-// timing tell).
+// body say.
 //
-// MUST be revisited if Zitadel's password hash cost changes (a
-// different algorithm, a higher work factor) — this constant is pinned
-// to one measurement, not derived from anything self-adjusting.
-const MinFailedLoginDuration = 900 * time.Millisecond
+// MEASURED 2026-08-16 against the real dev Zitadel (v4.15.3, PAT-backed
+// login-client API, `go run` a throwaway harness over
+// loginclient.Client.CreatePasswordSession — see this task's report for
+// the program): 25 wrong-password attempts against test@hms.dev,
+// spaced 4s apart so the sample reflects independent single attempts,
+// not sustained hammering. The first 9 landed in a tight 809-845ms
+// band (mean ~830ms) — consistent with the original spike's 0.72-0.78s,
+// slightly higher on this host/network. That is the number this floor
+// has to clear, and it is why the ORIGINAL 900ms was wrong: only ~55-90ms
+// (~7-11%) of headroom over an observed ceiling is not "comfortable" —
+// it is exactly the margin p99 network jitter (something an attacker can
+// induce by loading the endpoint) eats first, which would let
+// wrong-password drift back above the floor while unknown-user stays
+// pinned exactly at it, reopening the same oracle in miniature. 1500ms
+// clears the measured 845ms ceiling with ~650ms (~77%) of margin. There
+// is no real UX cost to this being generous: the floor only ever
+// extends a FAILED login, and a wrong password that already takes
+// ~830ms to compute costing 1.5s total is not a tradeoff worth making
+// against the oracle it closes.
+//
+// A SEPARATE, undefeated finding from the same measurement: attempts
+// 10-25 escalated in lockstep — ~1.83s at #10-14, ~2.83s at #15-19,
+// ~3.85s at #20-24, ~4.86s at #25 — identically whether attempts were
+// back-to-back or spaced 4s apart, and it reset after one SUCCESSFUL
+// login (verified separately: a correct-password call afterwards
+// returned in ~850ms, session minted). That is Zitadel's own
+// per-account brute-force backoff, keyed on accumulated failed
+// attempts, not on request rate or elapsed time — and it is NOT
+// something a static floor can track: past roughly the 10th consecutive
+// failure against the SAME login name, the real wrong-password latency
+// exceeds whatever this constant is set to, and this file's sleep-until-
+// floor logic (respondEqualisedFailure) only ever waits UP to the floor,
+// never truncates a slower real answer down to it — so from that point
+// the two paths ARE distinguishable again by timing. This is accepted
+// as a known, undefeated residual, not silently assumed away, for two
+// reasons: (1) it only manifests after roughly ten failed attempts
+// against one specific login name, which the endpoint's own IP-keyed
+// rate limiter (Password's own budget, see NewLoginUIHandlers' doc
+// comment) is expected to have refused well before, and (2) the signal
+// it eventually leaks — "this account has accumulated recent failed
+// attempts" — is far weaker than the oracle spec D5 targets in the
+// first place ("this account exists at all"), since triggering it
+// requires the attacker to already be sustaining an attack against a
+// specific, chosen login name rather than sweeping many.
+//
+// MUST be revisited if Zitadel's password hash cost OR its lockout
+// backoff schedule changes (a different algorithm, a higher work
+// factor, a retuned lockout policy) — this constant is pinned to one
+// measurement, not derived from anything self-adjusting.
+const MinFailedLoginDuration = 1500 * time.Millisecond
 
 // passwordFailureMessage is the ONE refusal body a wrong password and an
 // unknown user both produce (spec D5). Equalising the status code and
@@ -265,18 +305,35 @@ func failureOutcome(err error) string {
 	return "user_not_found"
 }
 
-// respondEqualisedFailure is spec D5's timing half: it sleeps until
+// respondEqualisedFailure is spec D5's timing half: it waits until
 // MinFailedLoginDuration has elapsed since start, THEN responds with the
 // one fixed refusal both wrong-password and unknown-user answer with.
-// Sleeping before checking the elapsed time would double the wait on a
-// call that was already slow (e.g. the real wrong-password path, ~0.75s
-// on its own); sleeping the REMAINDER keeps every failure landing at
+// Waiting before checking the elapsed time would double the wait on a
+// call that was already slow (e.g. the real wrong-password path, ~0.83s
+// on its own); waiting the REMAINDER keeps every failure landing at
 // approximately the same total latency regardless of how long the
 // Zitadel call itself took, which is the property the timing oracle
 // needs to be closed.
+//
+// The wait races against c.Request.Context() being cancelled (the
+// caller disconnecting or the request timing out) rather than a bare
+// time.Sleep, so an abandoned attempt does not hold a goroutine open for
+// the full floor. This cannot become a new timing signal of its own:
+// BOTH failure paths reach this exact same select, so whether it returns
+// early depends only on the CALLER's own disconnect, never on which
+// sentinel (bad credentials vs unknown user) occurred — the two remain
+// indistinguishable either way. Nothing is written to c on the
+// cancelled branch: the caller is already gone, so there is nobody left
+// to observe a response at all.
 func (h *LoginUIHandlers) respondEqualisedFailure(c *gin.Context, start time.Time) {
 	if elapsed := time.Since(start); elapsed < MinFailedLoginDuration {
-		time.Sleep(MinFailedLoginDuration - elapsed)
+		timer := time.NewTimer(MinFailedLoginDuration - elapsed)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+		case <-c.Request.Context().Done():
+			return
+		}
 	}
 	respond.Error(c, http.StatusUnauthorized, "invalid_credentials", passwordFailureMessage)
 }

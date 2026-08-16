@@ -131,6 +131,17 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
 // mid-redirect to Zitadel, in which case there is no button to click and
 // the credential form is on its way. Requiring the button unconditionally
 // would turn that ordinary race into a flake.
+// Zitadel's fixed local port (HMS_ZITADEL_PORT) — the one constant across
+// every HMS web+API pair the suite runs against. Checking for THIS,
+// rather than for HMS's own dev-server port, is what makes startSignIn
+// work under the "idle-timeout" Playwright project (#848 Task 8), which
+// points baseURL at a second shell instance on its own port
+// (e2e/playwright.config.ts) so it can run against a short-IDLE_TIMEOUT
+// API without weakening the 15-minute default every other spec relies
+// on. A literal `localhost:4301` check would misread that project's own
+// pages as "mid-redirect through Zitadel" and never click Sign in.
+const ZITADEL_ORIGIN_HOST = "localhost:20080";
+
 async function startSignIn(page: Page): Promise<void> {
   // Decide by where we actually ARE, not by racing a timeout. Since #847,
   // sign-out lands on HMS's /login and STAYS there — nothing redirects
@@ -139,7 +150,7 @@ async function startSignIn(page: Page): Promise<void> {
   // and leave the caller waiting for a credential field that will never
   // appear. That was the first version of this helper, and it failed
   // exactly the two specs that sign out and back in.
-  if (!/localhost:4301/.test(page.url())) return; // mid-redirect through Zitadel
+  if (page.url().includes(ZITADEL_ORIGIN_HOST)) return; // mid-redirect through Zitadel
 
   const button = page.getByRole("button", { name: "Sign in" });
   await button.waitFor({ state: "visible", timeout: 20_000 });

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/hms/pkg/session"
@@ -45,13 +46,70 @@ func fixedAuthTime() time.Time {
 	return time.Date(2026, 3, 4, 9, 30, 12, 0, time.UTC)
 }
 
+// fixedIdleDeadline mirrors fixedAuthTime for the same reason: a fixed
+// 2026 date is orders of magnitude away from any live process time, so
+// a mutation that reconstructs it via time.Now() is unmistakable rather
+// than "close enough to pass".
+func fixedIdleDeadline() time.Time {
+	return time.Date(2026, 3, 4, 9, 45, 12, 0, time.UTC)
+}
+
+// mintLegacyTokenWithoutIdleDeadline signs a token carrying sub,
+// tenant_id and auth_time but deliberately no idle_deadline claim — the
+// shape of a session minted before #848 shipped. It is built by hand
+// with jwt.MapClaims, bypassing this package's own tokenClaims type,
+// because tokenClaims has no exported way to omit a field.
+func mintLegacyTokenWithoutIdleDeadline(t *testing.T, priv ed25519.PrivateKey) string {
+	t.Helper()
+	now := time.Now().UTC()
+	claims := jwt.MapClaims{
+		"sub":       "user-123",
+		"tenant_id": "tenant-abc",
+		"auth_time": fixedAuthTime().Unix(),
+		"iss":       testIssuer,
+		"iat":       jwt.NewNumericDate(now),
+		"exp":       jwt.NewNumericDate(now.Add(testTTL)),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
+	token.Header["kid"] = testKID
+
+	signed, err := token.SignedString(priv)
+	require.NoError(t, err)
+	return signed
+}
+
+// mintTokenWithRawIdleDeadline signs a token carrying idleDeadline
+// verbatim as the idle_deadline claim, bypassing Signer.Mint's own
+// validation entirely. Used only to construct a claim shape Mint itself
+// now refuses to produce (e.g. negative), so Verify's handling of that
+// shape can still be pinned by a test.
+func mintTokenWithRawIdleDeadline(t *testing.T, priv ed25519.PrivateKey, idleDeadline int64) string {
+	t.Helper()
+	now := time.Now().UTC()
+	claims := jwt.MapClaims{
+		"sub":           "user-123",
+		"tenant_id":     "tenant-abc",
+		"auth_time":     fixedAuthTime().Unix(),
+		"idle_deadline": idleDeadline,
+		"iss":           testIssuer,
+		"iat":           jwt.NewNumericDate(now),
+		"exp":           jwt.NewNumericDate(now.Add(testTTL)),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
+	token.Header["kid"] = testKID
+
+	signed, err := token.SignedString(priv)
+	require.NoError(t, err)
+	return signed
+}
+
 // --- Test 1: round trip -----------------------------------------------
 
 func TestMintVerify_RoundTrip(t *testing.T) {
 	signer, verifier, _, _ := newSignerVerifier(t)
 	authTime := fixedAuthTime()
 
-	token, err := signer.Mint("user-123", "tenant-abc", authTime)
+	token, err := signer.Mint("user-123", "tenant-abc", authTime, fixedIdleDeadline())
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
 
@@ -74,7 +132,7 @@ func TestMintVerify_AuthTimeByteIdentical(t *testing.T) {
 	signer, verifier, _, _ := newSignerVerifier(t)
 	authTime := fixedAuthTime()
 
-	token, err := signer.Mint("user-123", "tenant-abc", authTime)
+	token, err := signer.Mint("user-123", "tenant-abc", authTime, fixedIdleDeadline())
 	require.NoError(t, err)
 
 	claims, err := verifier.Verify(token)
@@ -92,7 +150,7 @@ func TestMintVerify_AuthTimeByteIdentical(t *testing.T) {
 
 func TestVerify_RefusesTokenSignedByDifferentKey(t *testing.T) {
 	signer, _, _, _ := newSignerVerifier(t)
-	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime())
+	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline())
 	require.NoError(t, err)
 
 	otherPub, _, err := ed25519.GenerateKey(nil)
@@ -117,7 +175,7 @@ func TestVerify_RefusesExpiredToken(t *testing.T) {
 	verifier, err := session.NewVerifier(pub, testKID, testIssuer)
 	require.NoError(t, err)
 
-	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime())
+	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline())
 	require.NoError(t, err)
 	time.Sleep(10 * time.Millisecond)
 
@@ -179,7 +237,7 @@ func TestVerify_RefusesAlgorithmConfusionAttack(t *testing.T) {
 
 func TestVerify_RefusesTamperedClaim(t *testing.T) {
 	signer, verifier, _, _ := newSignerVerifier(t)
-	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime())
+	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline())
 	require.NoError(t, err)
 
 	parts := strings.Split(token, ".")
@@ -247,7 +305,7 @@ func TestVerify_RefusesWrongIssuer(t *testing.T) {
 	verifier, err := session.NewVerifier(pub, testKID, "https://issuer-b.test")
 	require.NoError(t, err)
 
-	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime())
+	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline())
 	require.NoError(t, err)
 
 	_, err = verifier.Verify(token)
@@ -262,7 +320,7 @@ func TestVerify_RefusesUnknownKID(t *testing.T) {
 	verifier, err := session.NewVerifier(pub, "kid-b", testIssuer)
 	require.NoError(t, err)
 
-	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime())
+	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline())
 	require.NoError(t, err)
 
 	_, err = verifier.Verify(token)
@@ -271,13 +329,119 @@ func TestVerify_RefusesUnknownKID(t *testing.T) {
 
 func TestVerify_RefusesMissingSubjectOrTenant(t *testing.T) {
 	signer, verifier, _, _ := newSignerVerifier(t)
-	_, err := signer.Mint("", "tenant-abc", fixedAuthTime())
+	_, err := signer.Mint("", "tenant-abc", fixedAuthTime(), fixedIdleDeadline())
 	require.Error(t, err, "Mint itself must refuse an empty subject")
 
-	_, err = signer.Mint("user-123", "", fixedAuthTime())
+	_, err = signer.Mint("user-123", "", fixedAuthTime(), fixedIdleDeadline())
 	require.Error(t, err, "Mint itself must refuse an empty tenant_id")
 
 	_ = verifier // used above only for symmetry with other tests
+}
+
+// --- Idle deadline (#848) ------------------------------------------------
+
+// TestMintCarriesIdleDeadlineThroughVerify runs two DISTINCT deadlines,
+// deliberately, rather than the single package-level fixedIdleDeadline()
+// every other test in this file uses. A single fixed value here would
+// pass against a Verify that just returned that constant hardcoded —
+// two different inputs, each asserted against its own expectation,
+// close that gap.
+func TestMintCarriesIdleDeadlineThroughVerify(t *testing.T) {
+	tests := []struct {
+		name     string
+		deadline time.Time
+	}{
+		{"deadline A", fixedIdleDeadline()},
+		{"deadline B, a different value entirely", time.Date(2031, 11, 2, 18, 5, 40, 0, time.UTC)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			signer, verifier, _, _ := newSignerVerifier(t)
+			authTime := fixedAuthTime()
+
+			raw, err := signer.Mint("sub-1", "11111111-1111-1111-1111-111111111111", authTime, tt.deadline)
+			require.NoError(t, err)
+
+			got, err := verifier.Verify(raw)
+			require.NoError(t, err)
+			require.True(t, got.IdleDeadline.Equal(tt.deadline),
+				"IdleDeadline = %v, want %v", got.IdleDeadline, tt.deadline)
+		})
+	}
+}
+
+// TestMintVerify_IdleDeadlineByteIdentical mirrors
+// TestMintVerify_AuthTimeByteIdentical: the wire format is a Unix
+// timestamp, so Unix-second equality is the strongest promise Mint and
+// Verify can make, and it is strong enough to catch a reset-to-now bug
+// by decades of seconds.
+func TestMintVerify_IdleDeadlineByteIdentical(t *testing.T) {
+	signer, verifier, _, _ := newSignerVerifier(t)
+	deadline := fixedIdleDeadline()
+
+	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), deadline)
+	require.NoError(t, err)
+
+	claims, err := verifier.Verify(token)
+	require.NoError(t, err)
+
+	require.Equal(t, deadline.Unix(), claims.IdleDeadline.Unix())
+}
+
+func TestMintRefusesAZeroIdleDeadline(t *testing.T) {
+	signer, _, _, _ := newSignerVerifier(t)
+	_, err := signer.Mint("sub-1", "11111111-1111-1111-1111-111111111111", time.Now(), time.Time{})
+	require.Error(t, err, "Mint() must refuse a zero idle_deadline: a mint with no idle deadline would be exempt from the timeout")
+}
+
+// TestMintRefusesAnIdleDeadlineAtOrBeforeTheUnixEpoch pins the sentinel
+// symmetry between Mint and Verify. Mint's own zero check is
+// idleDeadline.IsZero() (Go's year-1 zero value), but Verify refuses
+// claims.IdleDeadline == 0 (the Unix epoch). Without also checking
+// idleDeadline.Unix() <= 0, Mint would happily sign a token carrying
+// exactly 1970-01-01T00:00:00Z — a credential Verify then always
+// refuses, i.e. a token nothing can meaningfully verify, which is the
+// exact failure mode NewSigner's own validation exists to prevent for a
+// signing key.
+func TestMintRefusesAnIdleDeadlineAtOrBeforeTheUnixEpoch(t *testing.T) {
+	signer, _, _, _ := newSignerVerifier(t)
+	_, err := signer.Mint("sub-1", "11111111-1111-1111-1111-111111111111",
+		fixedAuthTime(), time.Unix(0, 0).UTC())
+	require.Error(t, err, "Mint() must refuse an idle_deadline at the Unix epoch: Verify would refuse the resulting token anyway")
+}
+
+// TestVerifyRefusesATokenWithNoIdleDeadlineClaim is the fail-closed
+// regression test for #848: a token predating this claim must not be
+// treated as "no idle limit" — that would be a class of session the
+// control cannot reach.
+func TestVerifyRefusesATokenWithNoIdleDeadlineClaim(t *testing.T) {
+	_, verifier, _, priv := newSignerVerifier(t)
+	raw := mintLegacyTokenWithoutIdleDeadline(t, priv)
+
+	_, err := verifier.Verify(raw)
+	require.Error(t, err, "Verify() must refuse a token carrying no idle_deadline")
+}
+
+// TestVerify_AcceptsANegativeIdleDeadlineAsAlreadyExpired pins the
+// fail-closed direction of a value Mint itself now refuses to produce
+// (idleDeadline.Unix() <= 0) but Verify may still see on a token it did
+// not mint — e.g. a forged or otherwise malformed one. Verify's own
+// check is claims.IdleDeadline == 0, so a negative value is NOT treated
+// as "unset": it is accepted as a claim and maps to a time before the
+// Unix epoch, i.e. already expired. This is deliberately the safe
+// direction — a negative deadline can never grant more time than a
+// zero one would refuse outright — but it depends on Verify never
+// widening its "missing" check to <= 0, which would make this claim
+// indistinguishable from an absent one. This test exists so that
+// widening is caught rather than silently changing behaviour.
+func TestVerify_AcceptsANegativeIdleDeadlineAsAlreadyExpired(t *testing.T) {
+	_, verifier, _, priv := newSignerVerifier(t)
+	raw := mintTokenWithRawIdleDeadline(t, priv, -3600) // one hour before the Unix epoch
+
+	got, err := verifier.Verify(raw)
+	require.NoError(t, err, "Verify() must not treat a negative idle_deadline as an absent one")
+	require.True(t, got.IdleDeadline.Before(time.Unix(0, 0).UTC()),
+		"IdleDeadline = %v, want a time before the Unix epoch", got.IdleDeadline)
 }
 
 // mustJSON builds the raw bytes for a forged token header/payload by

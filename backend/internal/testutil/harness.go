@@ -36,7 +36,21 @@ func (s StaticVerifier) Verify(ctx context.Context, raw string) (authn.Principal
 		// Zero would silently compare as before any non-zero watermark a
 		// test configures via HarnessOptions.Revocation, which would make
 		// every such caller look already-revoked regardless of intent.
-		return authn.Principal{Subject: "user-" + raw, TenantID: tenant, AuthTime: time.Now()}, nil
+		//
+		// IdleDeadline is an hour out for the same shape of reason
+		// (#848): authn.Middleware refuses a zero deadline exactly like
+		// an already-past one, so leaving it unset would 401 every
+		// harness request regardless of what the test is about. An hour
+		// is comfortably beyond any harness test's own runtime, so the
+		// idle gate never fires incidentally; a test that actually cares
+		// about the idle deadline supplies its own Verifier (see
+		// HarnessOptions.Verifier and me_test.go's idleDeadlineVerifier).
+		return authn.Principal{
+			Subject:      "user-" + raw,
+			TenantID:     tenant,
+			AuthTime:     time.Now(),
+			IdleDeadline: time.Now().Add(time.Hour),
+		}, nil
 	}
 	return authn.Principal{}, context.DeadlineExceeded
 }
@@ -173,7 +187,17 @@ type HarnessOptions struct {
 	// nil, which is fine: nothing reads it before the signer-nil check.
 	SessionTTL          time.Duration
 	SessionSecureCookie bool
-	Modules             []platform.Module
+	// IdleTimeout feeds deps.IdleTimeout (#848 Task 4): the window
+	// iam's POST /v1/auth/session/activity re-opens on every call.
+	// Defaults to TestSessionTTL (15m) when left zero — comfortably
+	// longer than any harness test's own runtime, mirroring
+	// StaticVerifier's hour-out IdleDeadline default — so a test that
+	// isn't about the activity endpoint's specific window length still
+	// gets a sensible, non-zero value rather than a Signer.Mint refusal
+	// (idle_deadline <= epoch) if it happens to exercise that route
+	// incidentally.
+	IdleTimeout time.Duration
+	Modules     []platform.Module
 }
 
 // NewHarness boots the full module stack (Postgres, NATS, routes,
@@ -206,6 +230,10 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	if verifier == nil {
 		verifier = StaticVerifier(opts.Tokens)
 	}
+	idleTimeout := opts.IdleTimeout
+	if idleTimeout == 0 {
+		idleTimeout = TestSessionTTL
+	}
 
 	appDSN, adminDSN := testinfra.StartPostgres(t)
 	db, err := tenantdb.Open(appDSN, adminDSN)
@@ -235,6 +263,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		SessionSigner:       opts.SessionSigner,
 		SessionTTL:          opts.SessionTTL,
 		SessionSecureCookie: opts.SessionSecureCookie,
+		IdleTimeout:         idleTimeout,
 	}
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

@@ -55,6 +55,14 @@ func NewVerifier(key ed25519.PublicKey, kid, issuer string) (*Verifier, error) {
 // a wrapped ErrInvalidToken if raw is not a live, genuine HMS session
 // signed by this Verifier's key.
 //
+// Verify does NOT enforce IdleDeadline — it only refuses a token that
+// omits the claim (fail closed, #848) and returns whatever value the
+// token carries, which may already be in the past. Checking IdleDeadline
+// against time.Now() is authn.Middleware's job, the same way this
+// package carries auth_time but the #781 revocation-watermark check is
+// the caller's. A successful Verify is not proof the session is still
+// within its idle window.
+//
 // The accepted algorithm is pinned to EdDSA and never taken from the
 // token's own header: the keyfunc below refuses to hand back a key at
 // all unless token.Method is concretely *jwt.SigningMethodEd25519, and
@@ -94,6 +102,15 @@ func (v *Verifier) Verify(raw string) (Claims, error) {
 	if claims.Subject == "" || claims.TenantID == "" {
 		return Claims{}, fmt.Errorf("%w: missing subject or tenant_id", ErrInvalidToken)
 	}
+	// Fail closed on a missing idle_deadline (spec D2/D3, #848): a
+	// token minted before this claim existed must be refused, not
+	// treated as "no idle limit" — that would be a class of session
+	// this control can never reach. The cost, accepted deliberately,
+	// is that every session minted before this deploys is invalidated
+	// and everyone signs in once.
+	if claims.IdleDeadline == 0 {
+		return Claims{}, fmt.Errorf("%w: missing idle_deadline", ErrInvalidToken)
+	}
 
 	var issuedAt, expiresAt time.Time
 	if claims.IssuedAt != nil {
@@ -104,11 +121,12 @@ func (v *Verifier) Verify(raw string) (Claims, error) {
 	}
 
 	return Claims{
-		Subject:   claims.Subject,
-		TenantID:  claims.TenantID,
-		AuthTime:  time.Unix(claims.AuthTime, 0).UTC(),
-		IssuedAt:  issuedAt,
-		ExpiresAt: expiresAt,
-		Issuer:    claims.Issuer,
+		Subject:      claims.Subject,
+		TenantID:     claims.TenantID,
+		AuthTime:     time.Unix(claims.AuthTime, 0).UTC(),
+		IdleDeadline: time.Unix(claims.IdleDeadline, 0).UTC(),
+		IssuedAt:     issuedAt,
+		ExpiresAt:    expiresAt,
+		Issuer:       claims.Issuer,
 	}, nil
 }

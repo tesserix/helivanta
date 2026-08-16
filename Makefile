@@ -187,6 +187,65 @@ dev-web:
 	NEXT_PUBLIC_ZITADEL_ISSUER_URL=$${NEXT_PUBLIC_ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} \
 	pnpm turbo dev
 
+# --- Idle-timeout e2e fixture (#848 Task 8) -------------------------------
+# e2e/tests/idle-timeout.spec.ts has to observe a session actually going
+# idle without sitting for the real 15-minute IDLE_TIMEOUT default, and no
+# other spec — or production — may have that default weakened out from
+# under it. So the spec gets its own API + shell pair, on their own ports,
+# running ALONGSIDE (not instead of) the ones dev-api/dev-web start; the
+# e2e "idle-timeout" Playwright project (e2e/playwright.config.ts) points
+# its baseURL at HMS_IDLE_WEB_PORT.
+#
+# IDLE_TIMEOUT_TEST_VALUE is baked into dev-api-idle-timeout's recipe
+# rather than read from IDLE_TIMEOUT: reading that variable the normal way
+# would let a value a developer already exported for some other reason
+# leak into this recipe too, and — the direction that actually matters —
+# it keeps this recipe from ever being able to affect dev-api's own
+# IDLE_TIMEOUT, since the two recipes read two different variables.
+HMS_IDLE_API_PORT ?= 8099
+HMS_IDLE_WEB_PORT ?= 4399
+IDLE_TIMEOUT_TEST_VALUE ?= 20s
+ZITADEL_IDLE_TIMEOUT_ENV_FILE ?= dev/zitadel/secrets/zitadel-idle-timeout.env
+
+# hms-web-idle-timeout is a SEPARATE Zitadel OIDC app from hms-web
+# (scripts/zitadel-bootstrap.mjs), not a reused client_id — Zitadel's
+# per-app Login V2 `baseUri` is a single origin, so pointing hms-web's own
+# baseUri at a second port would make every OTHER login (every other e2e
+# spec, every human developer) render its interactive step on whichever
+# port last won. dev-infra runs the bootstrap script, which writes this
+# app's client_id to ZITADEL_IDLE_TIMEOUT_ENV_FILE the same way it writes
+# zitadel.env for hms-web.
+dev-api-idle-timeout:
+	@if [ ! -s "$(ZITADEL_IDLE_TIMEOUT_ENV_FILE)" ]; then \
+		echo "$(ZITADEL_IDLE_TIMEOUT_ENV_FILE) does not exist or is empty — run" >&2; \
+		echo "'make dev-infra' first so scripts/zitadel-bootstrap.mjs can" >&2; \
+		echo "provision the hms-web-idle-timeout app and write it." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$${ZITADEL_LOGIN_CLIENT_TOKEN:-}" ] && [ ! -s "$(ZITADEL_LOGIN_CLIENT_PAT_FILE)" ]; then \
+		echo "$(ZITADEL_LOGIN_CLIENT_PAT_FILE) does not exist or is empty — run" >&2; \
+		echo "'make dev-infra' first so Zitadel's first-instance provisioning" >&2; \
+		echo "can write it (see docker-compose.dev.yml's zitadel-pat-ready" >&2; \
+		echo "service comment for why this can lag the container starting)." >&2; \
+		exit 1; \
+	fi
+	set -a; . ./$(ZITADEL_IDLE_TIMEOUT_ENV_FILE); set +a; \
+	cd backend && HMS_ENV=$${HMS_ENV:-dev} ZITADEL_ISSUER_URL=$${ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} ZITADEL_CLIENT_ID=$$ZITADEL_CLIENT_ID ZITADEL_LOGIN_CLIENT_TOKEN=$${ZITADEL_LOGIN_CLIENT_TOKEN:-$$(cat ../$(ZITADEL_LOGIN_CLIENT_PAT_FILE))} SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-$(HMS_DEV_SESSION_SIGNING_KEY)} PORT=$(HMS_IDLE_API_PORT) IDLE_TIMEOUT=$(IDLE_TIMEOUT_TEST_VALUE) RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) go run ./cmd/api
+
+# Only apps/shell, not `pnpm turbo dev` (which would start every zone app
+# again on the default 4301-4304 ports and collide with dev-web's own
+# instances). The idle-timeout spec never navigates into a zone app, so
+# shell alone is enough.
+dev-web-idle-timeout:
+	@if [ ! -s "$(ZITADEL_IDLE_TIMEOUT_ENV_FILE)" ]; then \
+		echo "$(ZITADEL_IDLE_TIMEOUT_ENV_FILE) does not exist or is empty — run" >&2; \
+		echo "'make dev-infra' first so scripts/zitadel-bootstrap.mjs can" >&2; \
+		echo "provision the hms-web-idle-timeout app and write it." >&2; \
+		exit 1; \
+	fi
+	set -a; . ./$(ZITADEL_IDLE_TIMEOUT_ENV_FILE); set +a; \
+	cd apps/shell && API_URL=http://localhost:$(HMS_IDLE_API_PORT) NEXT_PUBLIC_ZITADEL_CLIENT_ID=$$ZITADEL_CLIENT_ID NEXT_PUBLIC_ZITADEL_ISSUER_URL=$${NEXT_PUBLIC_ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} npx next dev -p $(HMS_IDLE_WEB_PORT)
+
 # `make up` is the one command: infra, migrations, seed, then API + web in
 # the foreground. seed is idempotent, so re-running up is safe.
 up: dev-infra seed
@@ -236,8 +295,24 @@ test-web:
 test-scripts:
 	bash scripts/preflight.test.sh
 
+# `make e2e` runs the WHOLE suite in two phases, because idle-timeout.spec.ts's
+# fixture and the main stack's own shell cannot coexist (see the "Idle
+# timeout e2e fixture" comment above) — Next.js 16 refuses a second `next
+# dev` for the same project directory. A bare `playwright test` only ever
+# runs phase one: the "idle-timeout" project is deliberately left out of
+# Playwright's default project list (e2e/playwright.config.ts) so that
+# command stays honest about what it covers, instead of quietly failing
+# whenever the fixture happens to also be up.
+#
+# scripts/e2e.sh does the actual swap (stop shell -> start fixture -> run
+# the idle-timeout project -> stop fixture -> restart shell) behind an
+# EXIT trap, so a failure partway through still restores the shell and
+# frees the fixture's ports rather than leaving the developer stuck. It
+# assumes `make dev` (or `make up`) and `make seed` have already brought
+# up infra + API + shell + medicore — the same assumption "specs"/"bulk"
+# already make.
 e2e:
-	pnpm --filter @hms/e2e run test:e2e
+	HMS_API_PORT=$(HMS_API_PORT) HMS_IDLE_API_PORT=$(HMS_IDLE_API_PORT) HMS_IDLE_WEB_PORT=$(HMS_IDLE_WEB_PORT) bash scripts/e2e.sh
 
 new-module:
 	cd backend && ./scripts/new-module.sh $(NAME)

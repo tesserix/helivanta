@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { AuthCardCentered, AuthCardFooter, AuthLayoutCentered, Button, Input } from "@tesserix/web";
 import { ApiError, useApiMutation, useApiQuery } from "@hms/api";
-import { Field, SIGNED_OUT_MARK, useZodForm } from "@hms/ui";
+import { Field, IDLE_ENDED_MARK, SIGNED_OUT_MARK, useZodForm } from "@hms/ui";
 
 import { getUserManager } from "@/lib/oidc";
 import { checkPassword, type AuthRequestInfo, type PasswordCheckResult } from "@/lib/login-client";
@@ -287,12 +287,35 @@ function CredentialForm({ authRequestId }: { authRequestId: string }) {
 // other branch, ValidatedCredentialForm.
 //
 // message overrides the default greeting ("Sign in to continue." / "You
-// are signed out.") with ValidatedCredentialForm's own wording (e.g.
-// "this sign-in attempt has expired; start again") when this component
-// is being reused as the expired-request state. When message is set, the
-// SIGNED_OUT_MARK check below is skipped entirely — mixing "you signed
-// out" wording into an already-more-specific expired-request message
-// would only confuse which of the two actually happened.
+// are signed out." / the idle-ended wording) with ValidatedCredentialForm's
+// own wording (e.g. "this sign-in attempt has expired; start again") when
+// this component is being reused as the expired-request state. When
+// message is set, the SIGNED_OUT_MARK/IDLE_ENDED_MARK check below is
+// skipped entirely — mixing one of those into an already-more-specific
+// expired-request message would only confuse which outcome actually
+// happened.
+//
+// This page distinguishes THREE states (#848 D6, on top of #850's
+// sign-out/neither distinction): ended through inactivity, deliberately
+// signed out, and neither (arrived here unauthenticated with no prior
+// session event to report). They must never be collapsed into each
+// other — #850 exists precisely because claiming a sign-out that did not
+// happen is untrue, and telling an idle-ended session "you are signed
+// out" is the same class of lie, worse on a shared terminal because it
+// implies the previous clinician's session was ended deliberately.
+//
+// BOTH marks CAN be present in sessionStorage at once — this is not
+// merely theoretical, and treating it as impossible was itself a defect
+// (review finding): a SIGNED_OUT_MARK from an earlier sign-out survives
+// if that sign-out's navigation to /login never completed in this tab
+// (closed before the redirect landed, or the redirect failed and fell
+// back — endZitadelSession's own fallback path is exactly such a case),
+// and the SAME tab can then go on to idle-timeout a later session, which
+// sets IDLE_ENDED_MARK without ever having cleared the stale one.
+// IDLE_ENDED_MARK is checked and consumed FIRST, and — precisely because
+// a stale SIGNED_OUT_MARK must not survive to lie on the NEXT render —
+// this effect clears BOTH marks whenever it finds IDLE_ENDED_MARK, not
+// only the one it acted on.
 //
 // Uses @tesserix/web's AuthLayout chrome without its credential parts —
 // this is the one case on this page where that is still correct, because
@@ -337,12 +360,33 @@ function RedirectLanding({ message }: { message?: string }) {
   // the server, and branching on it while rendering would mismatch
   // hydration. The first paint shows the neutral wording and settles.
   const [signedOut, setSignedOut] = useState(false);
+  // Whether the session ended because the clinician was idle (#848 D6) —
+  // either this browser's own onExpire timer or the server's 401
+  // `session_idle` refusal, both funnelled through the same teardown in
+  // hms-shell.tsx before it lands here. NOT mutually exclusive with
+  // `signedOut` in sessionStorage (see this component's doc comment on
+  // why both marks can coexist) — kept as its own flag, rather than
+  // folded into `signedOut`, so the two messages can never be conflated,
+  // and this component's effect below is what enforces which one wins.
+  const [idleEnded, setIdleEnded] = useState(false);
 
   useEffect(() => {
     // An explicit message (the expired-request state) always wins — see
-    // this function's doc comment on why the two must never be mixed.
+    // this function's doc comment on why the states must never be mixed.
     if (message) return;
     try {
+      if (window.sessionStorage.getItem(IDLE_ENDED_MARK)) {
+        setIdleEnded(true);
+        // Consumed: a reload, or coming back here later in the same tab,
+        // is no longer "your session just ended from inactivity".
+        window.sessionStorage.removeItem(IDLE_ENDED_MARK);
+        // A stale SIGNED_OUT_MARK from an earlier, uncompleted sign-out
+        // (see this component's doc comment) must not survive to lie on
+        // the NEXT arrival at /login in this tab, once idle-ended has
+        // already won this one — cleared here, not merely left unread.
+        window.sessionStorage.removeItem(SIGNED_OUT_MARK);
+        return;
+      }
       if (window.sessionStorage.getItem(SIGNED_OUT_MARK)) {
         setSignedOut(true);
         // Consumed: a reload, or coming back here later in the same tab,
@@ -379,7 +423,12 @@ function RedirectLanding({ message }: { message?: string }) {
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">HMS</h1>
           <p className="text-sm text-muted-foreground">
-            {message ?? (signedOut ? "You are signed out." : "Sign in to continue.")}
+            {message ??
+              (idleEnded
+                ? "Your session ended after a period of inactivity."
+                : signedOut
+                  ? "You are signed out."
+                  : "Sign in to continue.")}
           </p>
         </div>
 

@@ -38,6 +38,29 @@ type Claims struct {
 	// re-mint launder an old authentication into a fresh one and
 	// quietly defeat revocation.
 	AuthTime time.Time
+	// IdleDeadline is when this session stops being usable without
+	// further human interaction (spec D2, #848). It is set at genuine
+	// login and CARRIED FORWARD unchanged by every re-mint — renewal
+	// and tenant switch included — exactly as AuthTime is. A re-mint
+	// that reset it to time.Now() would let an untouched tab renew
+	// itself forever and the timeout would never fire, while every
+	// test that only checks "renewal works" still passed. That is spec
+	// D3, and it is the reason Mint takes this as an explicit
+	// parameter with no default: a caller must say what it is doing.
+	//
+	// A token carrying no idle_deadline is refused by Verify, not
+	// treated as "no idle limit" — a class of session exempt from this
+	// control would be worse than requiring everyone to sign in once
+	// after this deploys.
+	//
+	// Verify itself does NOT enforce this deadline — it only checks
+	// that the claim is present and returns it. A successful Verify can
+	// return a Claims whose IdleDeadline is hours in the past. The
+	// enforcement point is authn.Middleware (Task 2, #848), the same
+	// way this package signs auth_time but the #781 watermark check
+	// lives in the caller. Do not read "Verify succeeded" as "the
+	// session is not idle-expired".
+	IdleDeadline time.Time
 	// IssuedAt and ExpiresAt are this token's own mint/expiry times,
 	// distinct from AuthTime.
 	IssuedAt  time.Time
@@ -48,12 +71,14 @@ type Claims struct {
 }
 
 // tokenClaims is the wire shape signed into the JWT. It embeds
-// jwt.RegisteredClaims for sub/iss/iat/exp and adds exactly the two
-// custom claims spec D2 allows: tenant_id and auth_time. AuthTime is
-// carried as a Unix-seconds integer rather than jwt.NumericDate so its
-// precision is explicit and symmetric between Mint and Verify.
+// jwt.RegisteredClaims for sub/iss/iat/exp and adds exactly the three
+// custom claims spec D2 allows: tenant_id, auth_time and idle_deadline.
+// AuthTime and IdleDeadline are carried as Unix-seconds integers rather
+// than jwt.NumericDate so their precision is explicit and symmetric
+// between Mint and Verify.
 type tokenClaims struct {
-	TenantID string `json:"tenant_id"`
-	AuthTime int64  `json:"auth_time"`
+	TenantID     string `json:"tenant_id"`
+	AuthTime     int64  `json:"auth_time"`
+	IdleDeadline int64  `json:"idle_deadline"`
 	jwt.RegisteredClaims
 }

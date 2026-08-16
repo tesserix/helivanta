@@ -83,7 +83,12 @@ func newChainHarness(t *testing.T) (*gin.Engine, *session.Signer) {
 // through, and must resolve the tenant it was minted for.
 func TestV1ChainAcceptsAnHMSSession(t *testing.T) {
 	e, signer := newChainHarness(t)
-	token, err := signer.Mint("user-1", "11111111-1111-1111-1111-111111111111", time.Now())
+	// An hour of idle window: this test is about which TOKEN the chain
+	// accepts, not about the idle timeout, so the deadline is set
+	// comfortably beyond any plausible run of this test and the
+	// authn.Middleware idle check (#848) never fires here. The idle check
+	// itself is pinned by pkg/authn's own tests.
+	token, err := signer.Mint("user-1", "11111111-1111-1111-1111-111111111111", time.Now(), time.Now().Add(time.Hour))
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()

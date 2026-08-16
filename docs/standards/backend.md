@@ -396,6 +396,37 @@ the HMS session — not the IdP token — what a `/v1` request presents;
 `TenantPrincipal` to read later; a missing or invalid credential aborts
 with 401 before any module handler runs.
 
+### Idle session timeout
+
+`session.Claims.IdleDeadline` (carried through to `authn.Principal.IdleDeadline`)
+is how long an HMS session stays usable with no human interaction (#848,
+design spec D2). `authn.Middleware` (`backend/pkg/authn/authn.go`) enforces
+it fail-closed and unconditionally, on every `/v1` request, alongside the
+revocation-watermark check: `!time.Now().Before(p.IdleDeadline)` refuses
+with 401 `{"error": "session_idle"}`, no `IsZero` exemption — a zero
+deadline reads as already-past, never as "no limit."
+
+`idle_deadline` is carried forward, unchanged, by **every** re-mint of a
+session — a tenant switch, a token refresh, anything that produces a new
+signed session for an already-authenticated principal — and is moved
+forward **only** by `POST /v1/auth/session/activity`
+(`internal/modules/iam/activity.go`). This is why `session.Mint` takes
+`idleDeadline time.Time` as an explicit parameter rather than deriving it
+internally from `time.Now() + IdleTimeout`: a re-mint that silently reset
+the deadline to "now + timeout" would extend an idle session just because
+some unrelated action (a tenant switch, a renewal) touched it, defeating
+the whole control. Every caller of `Mint` must pass the deadline it
+actually intends — carried through from the existing claims for a
+re-mint, or `time.Now().Add(idleTimeout)` for a genuinely new login — so
+the caller states its intent at the call site instead of leaving it to an
+implicit default.
+
+`config.RequireIdleTimeout` refuses to boot the API on a non-positive
+`IDLE_TIMEOUT` (`0`, a negative duration) rather than falling back to the
+15-minute default — see its doc comment for why silently substituting the
+default here would hide a misconfiguration that mints every session
+already past its idle deadline.
+
 ### Rate limiting
 
 **Every `/v1` route is rate limited**, per tenant *and* per principal —

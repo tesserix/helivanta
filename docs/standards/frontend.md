@@ -259,6 +259,28 @@ on the matching rail and panel links (section 10). Every zone's
 `app/page.tsx` renders `<HmsShell active="/pharmacy">...</HmsShell>`
 with its own literal path.
 
+### Idle session tracking
+
+Interaction tracking for the idle-timeout feature (#848, design spec D2/
+D4/D7) lives in `@hms/ui` (`packages/ui/src/idle-timer.ts`), mounted once
+by `HmsShell` (`packages/ui/src/hms-shell.tsx`) — **not** in `apps/shell`.
+Every HMS app (`apps/shell`, `apps/medicore`, `apps/pharmacy`,
+`apps/lab`) renders `HmsShell`, so every zone app inherits the same
+tracker automatically; a shell-only tracker would count a clinician
+working inside a zone page as idle and sign them out mid-consultation.
+Do not add a second, zone-local copy of this tracking — if a zone needs
+something the shared tracker does not do, extend `createIdleTracker`
+rather than reimplementing interaction tracking next to it.
+
+`HmsShell`'s activity mutation is deliberately configured with
+`suppressErrorToast: true`, and its failure handler only ever acts on a
+401 whose `ApiError.code` is `session_idle` — **a failed activity call
+must never sign a user out.** The server-side `idle_deadline` is the
+backstop, and the next qualifying interaction simply retries the call;
+treating a dropped network request, a 5xx, or a rate limit as "sign the
+user out" would turn ordinary transient failure into a false idle-timeout
+for a clinician who was never idle at all.
+
 ## 7. Tokens & the two `@tesserix/web` pitfalls
 
 No hardcoded colors, radii, or shadows in app or component code —
@@ -424,7 +446,16 @@ pnpm turbo lint type-check test build
 cd e2e && npx playwright test
 ```
 
-All four `turbo` tasks and the Playwright run must be green.
+All four `turbo` tasks and the Playwright run must be green. That bare
+Playwright run deliberately covers 11 of the suite's 12 tests: the
+"idle-timeout" project (idle-timeout.spec.ts, #848) needs apps/shell's dev
+server swapped for a second instance pointed at a short-`IDLE_TIMEOUT`
+API, and Next.js 16 refuses a second `next dev` for the same project
+directory — so it cannot run alongside the main stack the other 11 tests
+assume is up. `make e2e`, run from the repo root, is what runs the whole
+suite: "specs"+"bulk" against the main stack, then a swap to the fixture
+for `--project=idle-timeout`, then a swap back (see `scripts/e2e.sh` and
+`e2e/playwright.config.ts`).
 
 ## 12. Env
 

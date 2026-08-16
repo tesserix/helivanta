@@ -50,6 +50,12 @@ type Principal struct {
 	// would let any client holding a live refresh token walk through the
 	// watermark simply by refreshing.
 	AuthTime time.Time `json:"-"`
+	// IdleDeadline is when this session stops being usable without
+	// further human interaction (spec D2, #848), carried through
+	// unchanged from session.Claims.IdleDeadline. A zero value here is
+	// refused by Middleware exactly like an already-past deadline, never
+	// read as "no limit" — see its comment.
+	IdleDeadline time.Time `json:"-"`
 }
 
 type TokenVerifier interface {
@@ -98,6 +104,22 @@ func Middleware(v TokenVerifier, rev RevocationChecker) gin.HandlerFunc {
 				"path", c.Request.URL.Path)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "unauthenticated", "message": "credential revoked"})
+			return
+		}
+		// Idle timeout (#848, spec D2), enforced server-side because the
+		// deadline travels inside the signed token rather than a
+		// browser-owned timer — a killed tab, a suspended laptop or a
+		// stolen cookie all fail closed here. No IsZero exemption: a zero
+		// deadline is treated as already past, not as "no limit" (see
+		// Principal.IdleDeadline). Not-before, mirroring the watermark
+		// check's not-after: exactly-now is refused. Distinct error code
+		// (session_idle) so the frontend can tell "went idle" from "bad
+		// credentials" apart (spec D6).
+		if !time.Now().Before(p.IdleDeadline) {
+			slog.InfoContext(c.Request.Context(), "refused an idle session",
+				"subject", p.Subject, "idle_deadline", p.IdleDeadline, "path", c.Request.URL.Path)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "session_idle", "message": "your session ended after a period of inactivity"})
 			return
 		}
 		c.Set(principalKey, p)

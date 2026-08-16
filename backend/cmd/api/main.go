@@ -90,6 +90,18 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	// Same class of check, same reason to run it here: a non-positive
+	// IDLE_TIMEOUT parses cleanly (so getenvDuration's mistyped-value
+	// fallback never sees it) and then fails closed at the worst possible
+	// granularity — every session minted already past its idle deadline,
+	// so every clinician's every request is refused with session_idle.
+	// See config.RequireIdleTimeout's doc comment for why a boot refusal
+	// is the only place that defect can usefully surface, and why it is
+	// deliberately not clamped to the default.
+	idleTimeout, err := cfg.RequireIdleTimeout()
+	if err != nil {
+		return err
+	}
 	// Same class of check, same reason to run it here rather than on the
 	// hot path: a hosted-login URL misconfigured to share an origin with
 	// HMS's own frontend would loop every MFA-enrolled clinician forever
@@ -243,6 +255,14 @@ func run() error {
 		Reconcile: func(ctx context.Context, tenantID string) error {
 			return platform.ReconcileTenant(ctx, registry, fga, tenantID)
 		},
+		// IdleTimeout feeds iam's activity route (#848 Task 4) — see
+		// platform.Deps' field doc comment. That route's rate budget
+		// does NOT travel through Deps: it is registered through
+		// platform.Router, so it already passes through
+		// ratelimit.Middleware via bootstrap.RateLimitConfig's Tight
+		// map, the same mechanism (and the same limiter instance built
+		// below) every other authenticated route already uses.
+		IdleTimeout: idleTimeout,
 	}
 
 	// The chain itself lives in bootstrap.V1Chain, not inline here, so
@@ -254,7 +274,13 @@ func run() error {
 	// internal/archtest.TestThrottledRequestMakesNoOpenFGACall pins it.
 	//
 	// requestVerifier (an HMS session, never a raw Zitadel token) is what
-	// gates every route in this group.
+	// gates every route in this group. limiter is constructed once, here,
+	// and reused everywhere a rate budget is needed: this chain (through
+	// ratelimit.Middleware, which is also where iam's POST
+	// /v1/auth/session/activity gets its own Tight-mapped budget — #848
+	// Task 4 — with no separate construction) and iam.LoginDeps.Limiter
+	// below (#841 — this file must construct exactly one
+	// ratelimit.Limiter, never a second).
 	limiter := ratelimit.NewMemory(10_000)
 	api := platform.NewRouter(
 		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, fga)...),
@@ -278,7 +304,26 @@ func run() error {
 	// authenticated routes read from. LoginRateLimitRule is
 	// bootstrap-owned for the same reason RateLimitConfig is: one
 	// construction path both production and internal/archtest read.
-	loginHandlers := iam.NewLoginHandlers(zitadelVerifier, fga, sessionSigner, cfg.SessionTTL, sessionSecureCookie, limiter, bootstrap.LoginRateLimitRule(cfg))
+	//
+	// Sessions is the SAME sessionVerifier requestVerifier wraps for the
+	// /v1 chain, reused rather than built a second time: it is not an
+	// authentication gate here (this endpoint runs before a session
+	// exists) but the renewal-vs-genuine-login discriminator spec D3
+	// turns on — see iam's idleDeadlineFor. A second Verifier built from
+	// a different key or kid would silently make every renewal look like
+	// a genuine login and re-open the idle window each time, which is
+	// exactly the #848 failure that looks like success.
+	loginHandlers := iam.NewLoginHandlers(iam.LoginDeps{
+		Zitadel:      zitadelVerifier,
+		Roles:        fga,
+		Signer:       sessionSigner,
+		Sessions:     sessionVerifier,
+		TTL:          cfg.SessionTTL,
+		IdleTimeout:  idleTimeout,
+		SecureCookie: sessionSecureCookie,
+		Limiter:      limiter,
+		Limit:        bootstrap.LoginRateLimitRule(cfg),
+	})
 
 	// zitadelLoginClient speaks Zitadel's v2 login-client API
 	// (internal/modules/iam/loginclient), authenticated with the PAT

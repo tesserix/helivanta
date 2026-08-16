@@ -68,6 +68,22 @@ type Deps struct {
 	// Reconcile ensures a tenant's permission tuples match the registry.
 	// Set by main.go; nil in tests that do not exercise it.
 	Reconcile func(ctx context.Context, tenantID string) error
+	// IdleTimeout is cfg.IdleTimeout (#848 Task 4): the window POST
+	// /v1/auth/session/activity re-opens on every call it serves. The
+	// SAME value iam.LoginDeps.IdleTimeout feeds a genuine login with —
+	// there is exactly one idle window in this system, and the two
+	// endpoints that can ever grant a fresh one must agree on its
+	// length.
+	//
+	// This route's rate budget does NOT travel through Deps: unlike
+	// login (mounted outside the authenticated chain, so it needs its
+	// own ratelimit.Limiter/Rule pair threaded in by hand), the activity
+	// route is registered through platform.Router and so already passes
+	// through ratelimit.Middleware — its budget is bootstrap.RateLimitConfig's
+	// Tight map (keyed "POST /v1/auth/session/activity"), the same
+	// mechanism and the same Limiter instance every other authenticated
+	// route already uses, with no extra wiring here.
+	IdleTimeout time.Duration
 }
 
 // Module is the registration contract from issue #2.

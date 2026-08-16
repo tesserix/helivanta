@@ -244,7 +244,18 @@ func (f fixedAuthTimeVerifier) Verify(_ context.Context, raw string) (authn.Prin
 	if !ok {
 		return authn.Principal{}, errors.New("unknown token")
 	}
-	return authn.Principal{Subject: "user-" + raw, TenantID: tenant, AuthTime: f.authTime}, nil
+	// IdleDeadline an hour out, for the same reason
+	// testutil.StaticVerifier stamps one (#848): authn.Middleware refuses
+	// a zero deadline exactly like an already-past one, so this test's
+	// request would 401 before reaching the handler it is about. The
+	// tenant-switch idle test below supplies its own deadline instead of
+	// this default.
+	return authn.Principal{
+		Subject:      "user-" + raw,
+		TenantID:     tenant,
+		AuthTime:     f.authTime,
+		IdleDeadline: time.Now().Add(time.Hour),
+	}, nil
 }
 
 // TestSwitchTenantRequiresMembership also pins gate-before-mint on the
@@ -434,6 +445,111 @@ func TestSwitchTenantRejectsNonCanonicalTenantID(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, res.Code,
 		"a non-canonical (upper/mixed-cased) tenant id must be rejected by binding validation, "+
 			"before membership is ever consulted")
+}
+
+// --- #848 spec D3: a tenant switch is not human activity ---------------
+
+// idleDeadlineVerifier reports a Principal whose IdleDeadline the test
+// controls and can change between requests. It is a pointer to one
+// Principal rather than a value so meEnv.sessionWithDeadline can set the
+// deadline AFTER the harness (and therefore the middleware chain) is
+// built.
+type idleDeadlineVerifier struct{ p *authn.Principal }
+
+func (v idleDeadlineVerifier) Verify(_ context.Context, raw string) (authn.Principal, error) {
+	if raw != "jane" {
+		return authn.Principal{}, errors.New("unknown token")
+	}
+	return *v.p, nil
+}
+
+// meSession is one side of the tenant-switch assertion. For the session
+// the caller arrives with, deadline is the value the verifier hands the
+// middleware; for the one the switch produces, it is decoded out of the
+// re-minted cookie by a real session.Verifier. That asymmetry is the
+// point: the test compares what the handler was GIVEN against what it
+// actually SIGNED.
+type meSession struct{ deadline time.Time }
+
+type meEnv struct {
+	r         *gin.Engine
+	verifier  *session.Verifier
+	principal *authn.Principal
+}
+
+func newMeEnv(t *testing.T) *meEnv {
+	t.Helper()
+	p := &authn.Principal{
+		Subject:  "user-jane",
+		TenantID: testutil.TenantA,
+		AuthTime: time.Date(2026, 3, 4, 9, 30, 12, 0, time.UTC),
+	}
+	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{
+		"user-jane": {
+			{TenantID: testutil.TenantA, Role: authz.RoleDoctor},
+			{TenantID: testutil.TenantB, Role: authz.RoleNurse},
+		},
+	}}
+	r, verifier := switchHarness(t, testutil.HarnessOptions{
+		Verifier: idleDeadlineVerifier{p: p},
+		Tokens:   map[string]string{"jane": testutil.TenantA},
+		Perms:    map[string][]authz.Permission{"jane": {}},
+		Writer:   &recordingWriter{},
+		Roles:    roles,
+		Modules:  []platform.Module{iam.New(nil)},
+	})
+	return &meEnv{r: r, verifier: verifier, principal: p}
+}
+
+// sessionWithDeadline is the caller arriving mid-window: four minutes of
+// idle time left, deliberately far from both zero and a full window, so
+// neither "carried through" nor "reset to now + IdleTimeout" could be
+// mistaken for the other.
+func (e *meEnv) sessionWithDeadline(t *testing.T, deadline time.Time) meSession {
+	t.Helper()
+	// Truncated to whole seconds and normalised to UTC because that is
+	// the resolution and location the claim round-trips at: idle_deadline
+	// travels as a Unix timestamp (pkg/session), so a caller's
+	// sub-second component could never survive the mint and comparing
+	// against it would fail for a reason that has nothing to do with
+	// carry-forward. Seconds are far finer than the minutes this control
+	// deals in.
+	deadline = deadline.UTC().Truncate(time.Second)
+	e.principal.IdleDeadline = deadline
+	return meSession{deadline: deadline}
+}
+
+// switchTenant performs the real switch and reads the deadline back out
+// of the cookie the handler actually minted.
+func (e *meEnv) switchTenant(t *testing.T, _ meSession) meSession {
+	t.Helper()
+	res := testutil.Do(e.r, "POST", "/v1/iam/me/tenant", "jane",
+		`{"tenant_id":"`+testutil.TenantB+`"}`)
+	require.Equal(t, http.StatusOK, res.Code, res.Body.String())
+	claims, err := e.verifier.Verify(sessionCookie(t, res))
+	require.NoError(t, err)
+	require.Equal(t, testutil.TenantB, claims.TenantID,
+		"precondition: the switch must actually have happened")
+	return meSession{deadline: claims.IdleDeadline}
+}
+
+func (e *meEnv) deadlineOf(_ *testing.T, s meSession) time.Time { return s.deadline }
+
+// TestTenantSwitchCarriesTheIdleDeadlineForward: switching hospitals is
+// one click, not fourteen minutes of work. If it reset the deadline, any
+// client could hold a session open forever by switching to the tenant it
+// is already in — no keystroke required — and #848 would be defeated
+// through a route that has nothing to do with authentication.
+//
+// Observed failing (see the task report) against a me.go that minted
+// time.Now().Add(15 * time.Minute) instead of p.IdleDeadline.
+func TestTenantSwitchCarriesTheIdleDeadlineForward(t *testing.T) {
+	env := newMeEnv(t)
+	before := env.sessionWithDeadline(t, time.Now().Add(4*time.Minute))
+	after := env.switchTenant(t, before)
+	if !env.deadlineOf(t, after).Equal(env.deadlineOf(t, before)) {
+		t.Error("tenant switch reset the idle deadline; switching hospitals is not human activity on a timer")
+	}
 }
 
 // denyAllMembership refuses every subject in every tenant — the shape of

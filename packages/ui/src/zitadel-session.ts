@@ -81,6 +81,23 @@ function getSharedUserManager(): UserManager | null {
  * redirect itself so a sign-out always ends up somewhere signed-out-
  * looking rather than stuck.
  *
+ * `mark` is NOT defaulted (`undefined` is a real, intentional value — see
+ * SessionEndMark's doc comment) and is the ONE thing this function stamps
+ * into `sessionStorage` before navigating — `SIGNED_OUT_MARK` for a
+ * deliberate sign-out, `IDLE_ENDED_MARK` for D6's idle teardown, or
+ * nothing at all when neither wording applies. A default of always
+ * `SIGNED_OUT_MARK` was tried and reviewed as CRITICAL: this function
+ * used to set `SIGNED_OUT_MARK` unconditionally regardless of caller, so
+ * the idle path (which separately set `IDLE_ENDED_MARK` itself before
+ * calling this) left BOTH marks in `sessionStorage`. `/login` only
+ * consumes the one it recognises first and returns early, so the leftover
+ * `SIGNED_OUT_MARK` survived to the NEXT arrival at `/login` in that tab
+ * and told a clinician who was idled out, not signed out, "You are signed
+ * out." — the exact lie #850 exists to prevent. Requiring the caller to
+ * name the mark (or explicitly pass none) makes it impossible for two
+ * callers to both stamp: there is only ever one `sessionStorage.setItem`
+ * call in this function, for whichever mark was asked for.
+ *
  * Returns `true` if `signoutRedirect()` actually ran (meaning it now
  * owns navigation — the caller must not also navigate, or it will cancel
  * the in-flight cross-origin redirect and undo the whole point, exactly
@@ -108,20 +125,24 @@ export const SIGNED_OUT_MARK = "hms.signed-out";
 // same class of lie — on a shared terminal it wrongly implies a deliberate
 // act ended the previous person's session, when in fact inactivity did.
 //
-// Set by the caller BEFORE calling endZitadelSession() (packages/ui/src/
-// hms-shell.tsx's teardown), mirroring how SIGNED_OUT_MARK is set inside
-// this module immediately before signoutRedirect() navigates away —
-// endZitadelSession() itself (or its same-origin `/login` fallback) is
-// what actually navigates, so anything set after it runs may never run at
-// all.
-//
 // sessionStorage, per-tab, for the same reasons as SIGNED_OUT_MARK: a
 // query parameter on post_logout_redirect_uri risks the logout request
 // being rejected by Zitadel's registered-redirect check, and per-tab scope
 // is correct — one tab's idle expiry should not relabel another tab.
 export const IDLE_ENDED_MARK = "hms.idle-ended";
 
-export async function endZitadelSession(): Promise<boolean> {
+// These two marks are set by the SAME line inside endZitadelSession
+// below, chosen by its `mark` parameter — never by two separate call
+// sites each stamping their own, which is what let BOTH marks end up in
+// sessionStorage at once (review finding, see endZitadelSession's own doc
+// comment). Exactly one of them is ever set per call, or none at all:
+// `mark` is optional because a caller can legitimately have NEITHER
+// wording to offer (e.g. a 401 caused by #781's revocation watermark or a
+// lapsed `exp` — not idle, not a deliberate sign-out), in which case
+// `/login` should fall back to its neutral greeting rather than guess.
+export type SessionEndMark = typeof SIGNED_OUT_MARK | typeof IDLE_ENDED_MARK;
+
+export async function endZitadelSession(mark?: SessionEndMark): Promise<boolean> {
   const userManager = getSharedUserManager();
   if (!userManager) {
     // No Zitadel config reachable from this app/bundle — degrade to a
@@ -133,12 +154,14 @@ export async function endZitadelSession(): Promise<boolean> {
   try {
     // Set before redirecting: signoutRedirect() navigates away, so
     // anything after it may never run.
-    try {
-      window.sessionStorage.setItem(SIGNED_OUT_MARK, "1");
-    } catch {
-      // Private mode or a blocked store — the message is cosmetic, and a
-      // sign-out that works but is worded generically beats one that
-      // throws.
+    if (mark) {
+      try {
+        window.sessionStorage.setItem(mark, "1");
+      } catch {
+        // Private mode or a blocked store — the message is cosmetic, and
+        // a sign-out/idle-teardown that works but is worded generically
+        // beats one that throws.
+      }
     }
     // signoutRedirect() BEFORE removeUser() — load-bearing, not
     // stylistic: it reads `id_token_hint` from the still-stored user, and

@@ -122,6 +122,30 @@ describe("LoginPage", () => {
       expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument();
     });
 
+    // CRITICAL review finding: a stale SIGNED_OUT_MARK from an earlier,
+    // uncompleted sign-out (the redirect to /login never completed in
+    // this tab) can coexist with a LATER idle teardown's IDLE_ENDED_MARK
+    // — they are not mutually exclusive, and the previous implementation
+    // (endZitadelSession() setting SIGNED_OUT_MARK unconditionally on
+    // every call) made it the NORMAL case rather than a rare edge case.
+    // Idle wins the first render (correct), but the stale SIGNED_OUT_MARK
+    // must not survive to lie on the SECOND: a clinician who was idled
+    // out and then reloads /login must see the neutral greeting, never
+    // "You are signed out" for a sign-out that did not happen this time.
+    it("does not let a stale signed-out mark survive an idle-ended render and lie on the next one", async () => {
+      window.sessionStorage.setItem(IDLE_ENDED_MARK, "1");
+      window.sessionStorage.setItem(SIGNED_OUT_MARK, "1");
+      const first = renderWithProviders(<LoginPage />);
+      expect(await screen.findByText(/ended after a period of inactivity/i)).toBeInTheDocument();
+      expect(screen.queryByText(/you are signed out/i)).not.toBeInTheDocument();
+      first.unmount();
+
+      renderWithProviders(<LoginPage />);
+      expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument();
+      expect(screen.queryByText(/you are signed out/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/ended after a period of inactivity/i)).not.toBeInTheDocument();
+    });
+
     // Consumed on read: a reload, or navigating back here later in the same
     // tab, is no longer "you just signed out".
     it("only confirms it once", async () => {

@@ -4,10 +4,19 @@ import { renderWithProviders } from "@hms/api/testing";
 import { PERMISSIONS_CACHE_KEY } from "@hms/api";
 import { HmsShell } from "./hms-shell";
 import { WARNING_LEAD_MS, type IdleTracker } from "./idle-timer";
+import { IDLE_ENDED_MARK, SIGNED_OUT_MARK } from "./zitadel-session";
 
 const endZitadelSession = vi.hoisted(() => vi.fn());
-const IDLE_ENDED_MARK = vi.hoisted(() => "hms.idle-ended");
-vi.mock("./zitadel-session", () => ({ endZitadelSession, IDLE_ENDED_MARK }));
+// Real SIGNED_OUT_MARK/IDLE_ENDED_MARK/SessionEndMark from the actual
+// module, only endZitadelSession replaced — review finding (Minor): a
+// hoisted literal re-declaration here would keep passing even if the
+// real exported constant's VALUE changed while login/page.tsx (a
+// different module, reading the real export) moved with it, silently
+// decoupling this test from what ships.
+vi.mock("./zitadel-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./zitadel-session")>();
+  return { ...actual, endZitadelSession };
+});
 
 // Wraps the real createIdleTracker so tests can observe what HmsShell
 // actually passes to noteDeadline — the shell test previously used a
@@ -124,7 +133,12 @@ describe("HmsShell", () => {
     await user.click(screen.getByLabelText("Sign out"));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" }));
-    await waitFor(() => expect(endZitadelSession).toHaveBeenCalledTimes(1));
+    // A deliberate sign-out asks for SIGNED_OUT_MARK specifically — never
+    // IDLE_ENDED_MARK, and never with no mark (review finding: the two
+    // teardown paths must each ask for their own mark, or the wrong one
+    // can end up set).
+    await waitFor(() => expect(endZitadelSession).toHaveBeenCalledWith(SIGNED_OUT_MARK));
+    expect(endZitadelSession).toHaveBeenCalledTimes(1);
   });
 
   // endZitadelSession() itself owns the same-origin fallback when it
@@ -549,17 +563,6 @@ describe("HmsShell", () => {
 
     it("ends this browser's session when the client's own onExpire timer fires", async () => {
       vi.useFakeTimers();
-      // Captured INSIDE endZitadelSession's mock implementation, not read
-      // afterwards — proves the mark is set BEFORE endZitadelSession() is
-      // invoked, not merely present by the time the test gets around to
-      // checking. That ordering is load-bearing: endZitadelSession() (or
-      // its own same-origin `/login` fallback) navigates away, so a mark
-      // set after it runs may never run at all.
-      let markAtEndZitadelSessionCall: string | null = "unset";
-      endZitadelSession.mockImplementation(async () => {
-        markAtEndZitadelSessionCall = window.sessionStorage.getItem(IDLE_ENDED_MARK);
-        return true;
-      });
       // A deadline close enough that the SAME advance clears both the
       // warn point (max(0, deadline - WARNING_LEAD_MS - now), floored at
       // 0 here since 5s < WARNING_LEAD_MS) and the deadline itself.
@@ -567,7 +570,7 @@ describe("HmsShell", () => {
       renderWithProviders(<HmsShell active="/">content</HmsShell>);
 
       // Two advances: the first crosses the deadline and fires onExpire,
-      // whose async body (fetch("/logout") → set mark → endZitadelSession())
+      // whose async body (fetch("/logout") → endZitadelSession(mark))
       // resolves purely through microtasks the fake-timer flush already
       // drains; the second is a zero-length flush for any leftover tick.
       await act(async () => {
@@ -576,9 +579,14 @@ describe("HmsShell", () => {
       });
 
       expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" });
+      // A client timer reaching the deadline IS idle expiry — see
+      // hms-shell.tsx's onExpire comment. endZitadelSession itself owns
+      // the actual sessionStorage.setItem for this mark (proved directly
+      // in zitadel-session.test.ts, since this module mocks
+      // endZitadelSession wholesale); this test's job is only to prove
+      // HmsShell asks for the right mark.
+      expect(endZitadelSession).toHaveBeenCalledWith(IDLE_ENDED_MARK);
       expect(endZitadelSession).toHaveBeenCalledTimes(1);
-      expect(markAtEndZitadelSessionCall).toBe("1");
-      expect(window.sessionStorage.getItem(IDLE_ENDED_MARK)).toBe("1");
     });
 
     // D6 explicitly forbids subject-wide revocation here — that is
@@ -632,8 +640,41 @@ describe("HmsShell", () => {
       renderWithProviders(<HmsShell active="/">content</HmsShell>);
 
       await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" }));
-      await waitFor(() => expect(endZitadelSession).toHaveBeenCalledTimes(1));
-      expect(window.sessionStorage.getItem(IDLE_ENDED_MARK)).toBe("1");
+      await waitFor(() => expect(endZitadelSession).toHaveBeenCalledWith(IDLE_ENDED_MARK));
+      expect(endZitadelSession).toHaveBeenCalledTimes(1);
+    });
+
+    // Important review finding: tearing down is correct for ANY 401 (the
+    // session really is gone), but the WORDING is not — a 401 caused by
+    // #781's revocation watermark or an ordinary lapsed `exp` is not
+    // inactivity, and claiming it is sends the clinician looking for the
+    // wrong explanation. Only `ApiError.code === "session_idle"` may set
+    // IDLE_ENDED_MARK; endZitadelSession must still run (this-browser
+    // teardown is still correct), just with no mark, so /login falls back
+    // to its neutral greeting rather than either specific claim.
+    it("tears down on a differently-coded 401 but does not claim inactivity", async () => {
+      const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (url.includes("/auth/session/activity")) {
+          return Promise.resolve({
+            ok: false,
+            status: 401,
+            json: async () => ({ error: "revoked", message: "session revoked" }),
+          });
+        }
+        if (url === "/logout") {
+          return Promise.resolve({ ok: true, status: 200 });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" }));
+      // Teardown ran (endZitadelSession was called), but with no mark —
+      // neither wording is true here.
+      await waitFor(() => expect(endZitadelSession).toHaveBeenCalledWith(undefined));
+      expect(endZitadelSession).toHaveBeenCalledTimes(1);
     });
 
     // A transient failure (network error, 5xx, rate limit) must NEVER

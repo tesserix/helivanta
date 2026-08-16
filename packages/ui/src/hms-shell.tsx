@@ -11,7 +11,12 @@ import {
 } from "@hms/api";
 import { visibleZones, activeZone } from "./zones";
 import { ThemeToggle } from "./theme";
-import { endZitadelSession, IDLE_ENDED_MARK } from "./zitadel-session";
+import {
+  endZitadelSession,
+  IDLE_ENDED_MARK,
+  SIGNED_OUT_MARK,
+  type SessionEndMark,
+} from "./zitadel-session";
 import { createIdleTracker, WARNING_LEAD_MS, type IdleTracker } from "./idle-timer";
 import { IdleWarning } from "./idle-warning";
 
@@ -122,13 +127,22 @@ export function HmsShell({
   // scheduled against).
   const [warningDeadline, setWarningDeadline] = useState<Date | null>(null);
 
-  // D6 teardown — the ONE thing that ends this browser's session on idle
-  // expiry. Two triggers reach this same function: the client's own
-  // onExpire timer (below) and a 401 `session_idle` from the activity
-  // endpoint (reportActivity's catch, further down) — the server's refusal
-  // is authoritative because a laptop that slept through the deadline
-  // never runs its own onExpire timer at all, so the 401 branch is not
-  // redundant with it.
+  // D6 teardown — the ONE thing that ends this browser's session on
+  // expiry OR on a session-gone 401. Two triggers reach this same
+  // function: the client's own onExpire timer (below) and ANY 401 from
+  // the activity endpoint (reportActivity's catch, further down) — a 401
+  // there always means the session is gone server-side, whether that is
+  // idle expiry, #781's revocation watermark, or a lapsed `exp`, so
+  // teardown always runs. `mark` is separate from "should teardown run at
+  // all": it is ONLY about which wording `/login` shows afterwards, and
+  // is `IDLE_ENDED_MARK` for onExpire (a client timer reaching the
+  // deadline is definitionally idle) and for a 401 whose `ApiError.code`
+  // is specifically `"session_idle"`, `undefined` for any other 401 code
+  // (review finding: tearing down is correct for those too, but claiming
+  // inactivity when the real cause was a revoked membership or an
+  // ordinary token lapse is its own false claim, so those get /login's
+  // neutral wording instead — see reportActivity's catch for the code
+  // check).
   //
   // Deliberately NOT subject-wide revocation (that is sign-out's #781
   // semantics, driven through handleSignOut below): ending every device's
@@ -140,7 +154,7 @@ export function HmsShell({
   // deadline has passed, and endZitadelSession() must only ever be asked
   // to navigate once.
   const tornDownRef = useRef(false);
-  const endIdleSession = useCallback(() => {
+  const endIdleSession = useCallback((mark: SessionEndMark | undefined) => {
     if (tornDownRef.current) return;
     tornDownRef.current = true;
     void (async () => {
@@ -151,18 +165,13 @@ export function HmsShell({
         // end up on a signed-out-looking page even if the HMS session
         // revoke call itself is unreachable.
       }
-      // Set BEFORE endZitadelSession(), mirroring how that module sets
-      // SIGNED_OUT_MARK immediately before signoutRedirect() navigates
-      // away — endZitadelSession() (or its own same-origin `/login`
-      // fallback) is what actually navigates next, so anything set after
-      // calling it may never run.
-      try {
-        window.sessionStorage.setItem(IDLE_ENDED_MARK, "1");
-      } catch {
-        // Private mode or blocked storage — the wording degrades to
-        // neutral, which is cosmetic; the teardown itself still runs.
-      }
-      await endZitadelSession();
+      // endZitadelSession() itself does the sessionStorage.setItem for
+      // `mark`, immediately before it navigates — see that function's own
+      // doc comment for why it, and only it, may ever set one of these
+      // marks (review finding: two call sites each stamping their own
+      // mark is what previously left BOTH marks in sessionStorage at
+      // once).
+      await endZitadelSession(mark);
     })();
   }, []);
 
@@ -179,15 +188,23 @@ export function HmsShell({
       })
       .catch((err: unknown) => {
         // A 401 here is NOT a transient failure — it means the
-        // session is already idle-expired or gone server-side (spec
-        // "Errors and failure handling": "the session is already
-        // gone. Run D6's teardown immediately rather than waiting
-        // for a timer"). Every OTHER failure here (network, 5xx, rate
-        // limit) IS transient and must never sign anyone out — see the
-        // comment on `activity` above — so only this one status code
-        // triggers teardown.
+        // session is already gone server-side (spec "Errors and failure
+        // handling": "the session is already gone. Run D6's teardown
+        // immediately rather than waiting for a timer"). Every OTHER
+        // failure here (network, 5xx, rate limit) IS transient and must
+        // never sign anyone out — see the comment on `activity` above —
+        // so only this one status code triggers teardown.
+        //
+        // The WORDING is a separate decision from whether to tear down
+        // (review finding): only `err.code === "session_idle"` means
+        // inactivity actually caused this — the binding constraint (spec
+        // D6/authn.Middleware) names that code specifically. A 401 from
+        // #781's revocation watermark or an ordinary lapsed `exp` still
+        // ends the session (it IS gone), but /login must not claim
+        // inactivity did it, so those pass `undefined` and get the
+        // neutral greeting instead.
         if (err instanceof ApiError && err.status === 401) {
-          endIdleSession();
+          endIdleSession(err.code === "session_idle" ? IDLE_ENDED_MARK : undefined);
         }
       });
   }, [endIdleSession]);
@@ -211,8 +228,10 @@ export function HmsShell({
       // D6: this tab's own clock reaching the deadline runs the SAME
       // teardown a server-side 401 (reportActivity's catch, above) does —
       // see endIdleSession's own comment for why both triggers exist and
-      // why running it twice is guarded against there, not here.
-      onExpire: () => endIdleSession(),
+      // why running it twice is guarded against there, not here. Always
+      // IDLE_ENDED_MARK: a client timer reaching the deadline IS idle
+      // expiry, unlike a 401 whose cause could be something else.
+      onExpire: () => endIdleSession(IDLE_ENDED_MARK),
       // D5's "or any interaction … the modal closes" (review finding):
       // the deadline can move forward from THIS tab's own activity (a
       // keydown/scroll fired while the modal happens to be open) or from
@@ -335,7 +354,7 @@ export function HmsShell({
       // The user must still be able to leave a shared workstation even
       // if the revoke call itself is unreachable.
     }
-    await endZitadelSession();
+    await endZitadelSession(SIGNED_OUT_MARK);
   }
 
   const activePage = zone.pages.find((p) => p.href === active);

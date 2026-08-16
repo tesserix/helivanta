@@ -303,10 +303,19 @@ function CredentialForm({ authRequestId }: { authRequestId: string }) {
 // happen is untrue, and telling an idle-ended session "you are signed
 // out" is the same class of lie, worse on a shared terminal because it
 // implies the previous clinician's session was ended deliberately.
-// IDLE_ENDED_MARK is checked first: the two marks are set by mutually
-// exclusive code paths (packages/ui/src/hms-shell.tsx's D6 teardown vs.
-// its handleSignOut), so at most one is ever present in practice, but the
-// order still encodes which wins if that ever changed.
+//
+// BOTH marks CAN be present in sessionStorage at once — this is not
+// merely theoretical, and treating it as impossible was itself a defect
+// (review finding): a SIGNED_OUT_MARK from an earlier sign-out survives
+// if that sign-out's navigation to /login never completed in this tab
+// (closed before the redirect landed, or the redirect failed and fell
+// back — endZitadelSession's own fallback path is exactly such a case),
+// and the SAME tab can then go on to idle-timeout a later session, which
+// sets IDLE_ENDED_MARK without ever having cleared the stale one.
+// IDLE_ENDED_MARK is checked and consumed FIRST, and — precisely because
+// a stale SIGNED_OUT_MARK must not survive to lie on the NEXT render —
+// this effect clears BOTH marks whenever it finds IDLE_ENDED_MARK, not
+// only the one it acted on.
 //
 // Uses @tesserix/web's AuthLayout chrome without its credential parts —
 // this is the one case on this page where that is still correct, because
@@ -354,10 +363,11 @@ function RedirectLanding({ message }: { message?: string }) {
   // Whether the session ended because the clinician was idle (#848 D6) —
   // either this browser's own onExpire timer or the server's 401
   // `session_idle` refusal, both funnelled through the same teardown in
-  // hms-shell.tsx before it lands here. Mutually exclusive with
-  // `signedOut` in practice (see this component's doc comment), but kept
-  // as its own flag rather than folded into `signedOut` so the two
-  // messages can never be conflated.
+  // hms-shell.tsx before it lands here. NOT mutually exclusive with
+  // `signedOut` in sessionStorage (see this component's doc comment on
+  // why both marks can coexist) — kept as its own flag, rather than
+  // folded into `signedOut`, so the two messages can never be conflated,
+  // and this component's effect below is what enforces which one wins.
   const [idleEnded, setIdleEnded] = useState(false);
 
   useEffect(() => {
@@ -370,6 +380,11 @@ function RedirectLanding({ message }: { message?: string }) {
         // Consumed: a reload, or coming back here later in the same tab,
         // is no longer "your session just ended from inactivity".
         window.sessionStorage.removeItem(IDLE_ENDED_MARK);
+        // A stale SIGNED_OUT_MARK from an earlier, uncompleted sign-out
+        // (see this component's doc comment) must not survive to lie on
+        // the NEXT arrival at /login in this tab, once idle-ended has
+        // already won this one — cleared here, not merely left unread.
+        window.sessionStorage.removeItem(SIGNED_OUT_MARK);
         return;
       }
       if (window.sessionStorage.getItem(SIGNED_OUT_MARK)) {

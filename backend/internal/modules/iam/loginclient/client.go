@@ -225,16 +225,39 @@ func (c *Client) finalize(ctx context.Context, authRequestID string, s Session) 
 // see that it could not, rather than being handed a value
 // indistinguishable from a real "MFA off" answer.
 // TestLoginPolicyErrorsRatherThanReportingNoMFA pins this.
+//
+// That promise is why BOTH wire fields are pointers, and why an absent
+// one is an error rather than a default. "The request succeeded" is not
+// the same claim as "the policy was understood", and with plain value
+// fields the two were indistinguishable: any 200 whose body did not carry
+// exactly policy.forceMfa — `{}`, `null`, an un-nested `{"forceMfa":true}`,
+// a renamed `{"policy":{"force_mfa":true}}` — decoded silently to
+// LoginPolicy{false} with a nil error, which CompleteIfSufficient then
+// reads as "MFA off" and completes the login. That is a fail-OPEN on the
+// SUCCESS path, reached without any error occurring, so no amount of care
+// on the error paths closes it. A Zitadel upgrade that renamed or
+// un-nested this one field would have disabled MFA enforcement for every
+// user with the whole suite still green, because fixtures only ever pin
+// the shape that works. Decoding into pointers makes "field absent"
+// representable, and therefore refusable.
+// TestLoginPolicyRejectsBodiesItCannotUnderstand pins each shape.
 func (c *Client) LoginPolicy(ctx context.Context) (LoginPolicy, error) {
 	var wire struct {
-		Policy struct {
-			ForceMFA bool `json:"forceMfa"`
+		Policy *struct {
+			ForceMFA *bool `json:"forceMfa"`
 		} `json:"policy"`
 	}
 	if err := c.do(ctx, http.MethodGet, "/management/v1/policies/login", nil, &wire, ErrUnavailable); err != nil {
 		return LoginPolicy{}, err
 	}
-	return LoginPolicy{ForceMFA: wire.Policy.ForceMFA}, nil
+	if wire.Policy == nil || wire.Policy.ForceMFA == nil {
+		// ErrUnavailable rather than a new sentinel: from the caller's
+		// point of view an answer it cannot interpret and no answer at all
+		// are the same situation — Zitadel did not tell HMS whether MFA is
+		// required — and both must reach the same fail-closed branch.
+		return LoginPolicy{}, fmt.Errorf("GET /management/v1/policies/login: 200 without a policy.forceMfa field: %w", ErrUnavailable)
+	}
+	return LoginPolicy{ForceMFA: *wire.Policy.ForceMFA}, nil
 }
 
 // zitadelError is the subset of Zitadel's gRPC-gateway error envelope this

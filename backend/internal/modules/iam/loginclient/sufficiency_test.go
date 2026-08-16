@@ -66,6 +66,39 @@ func TestCompleteIfSufficientFinalizesWhenNoMFARequired(t *testing.T) {
 	}
 }
 
+// The fail-closed guarantee at the level that matters: not "LoginPolicy
+// returns an error" but "no authorization code is issued". Every body here
+// is a 200 — no error path is involved anywhere — and each one previously
+// produced outcome=complete with finalize actually called, because a
+// missing forceMfa field decoded to false. This asserts on the call
+// counter, which is the only thing that distinguishes a working login from
+// an MFA bypass.
+func TestCompleteIfSufficientHandsOffWhenPolicyShapeIsUnrecognised(t *testing.T) {
+	bodies := map[string]string{
+		"empty object":                   `{}`,
+		"null body":                      `null`,
+		"forceMfa un-nested":             `{"forceMfa":true}`,
+		"forceMfa renamed to snake_case": `{"policy":{"force_mfa":true}}`,
+	}
+	for name, body := range bodies {
+		t.Run(name, func(t *testing.T) {
+			var finalized atomic.Bool
+			c := countingZitadel(t, body, &finalized)
+
+			got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+			if err != nil {
+				t.Fatalf("CompleteIfSufficient() error = %v, want a handoff not an error", err)
+			}
+			if finalized.Load() {
+				t.Fatal("finalize was called for a policy body HMS could not understand: a 200 that did not say 'MFA off' was read as if it had")
+			}
+			if got.Outcome != OutcomeHandoff {
+				t.Errorf("Outcome = %v, want OutcomeHandoff", got.Outcome)
+			}
+		})
+	}
+}
+
 // Fail closed: an unreadable policy must hand off, never complete.
 func TestCompleteIfSufficientHandsOffWhenPolicyUnreadable(t *testing.T) {
 	var finalized atomic.Bool

@@ -73,15 +73,35 @@ type Result struct {
 // completion that was not warranted is an authentication bypass, and that
 // asymmetry decides the direction.
 //
-// KNOWN LIMITATION — read this before trusting the check to be more than
-// it is. This only enforces the ORGANISATION policy's forceMfa. If the org
-// does not force MFA but an individual user has voluntarily enrolled a
-// second factor, this returns OutcomeComplete on a password-only session
-// and that user's own factor is skipped. Closing that needs a per-user
-// enrolled-factor read, and the endpoint for it is not yet identified
-// (both /v2/users/{id}/authentication_factors and
-// /management/v1/users/{id}/auth_factors answered 404 on v4.15.3). That
-// work is tracked separately (#854 Task 8) and is NOT covered here.
+// KNOWN LIMITATIONS — read these before trusting the check to be more
+// than it is. Both are gaps in WHICH cases are covered, not in how the
+// covered cases behave, and neither is silently assumed: they are stated
+// here because the alternative is a future reader taking this for a
+// complete MFA gate.
+//
+//  1. PER-USER ENROLLED FACTORS ARE NOT CHECKED. This enforces the
+//     ORGANISATION policy's forceMfa only. If the org does not force MFA
+//     but an individual user has voluntarily enrolled a second factor,
+//     this returns OutcomeComplete on a password-only session and that
+//     user's own factor is skipped. Closing it needs a per-user
+//     enrolled-factor read, and the endpoint for it is not yet identified
+//     (both /v2/users/{id}/authentication_factors and
+//     /management/v1/users/{id}/auth_factors answered 404 on v4.15.3).
+//     Tracked as #854 Task 8.
+//
+//  2. THE POLICY IS READ UNSCOPED. GET /management/v1/policies/login
+//     resolves against the login client PAT's own resource owner, because
+//     the request carries no x-zitadel-orgid header. HMS runs a single
+//     org today, so the policy read and the authenticating user are
+//     necessarily the same org. In a multi-org instance they would not
+//     be: a user in org B would be judged by org A's policy, and org B's
+//     forceMfa would never reach the branch above — failing OPEN for that
+//     user. Scoping it needs the session's own org id and confirmation
+//     that Zitadel honours the header on this endpoint; the spike
+//     recorded neither (it captured only `factors: {user, password}` from
+//     the session response, not an organizationId), so it is documented
+//     rather than guessed at. Adding a second org to this instance
+//     REQUIRES fixing this first.
 func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string, s Session) (Result, error) {
 	policy, err := c.LoginPolicy(ctx)
 	if err != nil {

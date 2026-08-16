@@ -112,6 +112,53 @@ func TestLoginPolicyErrorsRatherThanReportingNoMFA(t *testing.T) {
 	}
 }
 
+// A 200 whose body does not carry policy.forceMfa means Zitadel answered
+// but did not tell HMS whether MFA is required — which is NOT the same as
+// telling it MFA is off. Each body below decoded to LoginPolicy{false}
+// with a nil error before the wire fields became pointers, and
+// CompleteIfSufficient completed the login on every one of them. These
+// are the shapes a Zitadel upgrade could plausibly produce.
+func TestLoginPolicyRejectsBodiesItCannotUnderstand(t *testing.T) {
+	bodies := map[string]string{
+		"empty object":                    `{}`,
+		"null body":                       `null`,
+		"forceMfa un-nested":              `{"forceMfa":true}`,
+		"forceMfa renamed to snake_case":  `{"policy":{"force_mfa":true}}`,
+		"policy present but field absent": `{"policy":{"allowUsernamePassword":true}}`,
+		"policy explicitly null":          `{"policy":null}`,
+	}
+	for name, body := range bodies {
+		t.Run(name, func(t *testing.T) {
+			c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(body))
+			})
+			got, err := c.LoginPolicy(context.Background())
+			if err == nil {
+				t.Fatalf("LoginPolicy() = %+v, error = nil; a body without policy.forceMfa must not read as MFA off", got)
+			}
+			if !errors.Is(err, ErrUnavailable) {
+				t.Errorf("error = %v, want ErrUnavailable so it reaches the same fail-closed branch as an unreachable Zitadel", err)
+			}
+		})
+	}
+}
+
+// The shape that IS understood must still be accepted — the pointer
+// decoding must not reject a legitimate "MFA off" answer, which would
+// make every login a handoff.
+func TestLoginPolicyAcceptsAnExplicitFalse(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"policy":{"allowUsernamePassword":true,"forceMfa":false}}`))
+	})
+	p, err := c.LoginPolicy(context.Background())
+	if err != nil {
+		t.Fatalf("LoginPolicy() error = %v, want an explicit false to be accepted", err)
+	}
+	if p.ForceMFA {
+		t.Error("ForceMFA = true, want false")
+	}
+}
+
 // A broken or compromised Zitadel streaming an unbounded 200 response must
 // not be decoded without a size cap (review finding 1). The fake server
 // here writes a well-formed JSON object whose redirectUri field alone is

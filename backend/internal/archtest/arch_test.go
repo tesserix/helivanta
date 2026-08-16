@@ -675,19 +675,77 @@ const finalizeEndpointPath = "/v2/oidc/auth_requests/"
 // contributor to append to.
 const finalizeCallSite = "internal/modules/iam/loginclient/client.go"
 
-// exprMentions reports whether e, anywhere inside it, is a string literal
-// containing want. It recurses through binary expressions and calls
-// because the real call site builds its path by concatenation —
-// `"/v2/oidc/auth_requests/" + url.PathEscape(id)` — so the literal is
-// never the argument node itself.
-func exprMentions(e ast.Expr, want string) bool {
+// fileStringConsts collects every file-level `const`/`var` bound directly
+// to a string literal, so the path can be recognised when it has been
+// lifted out of the call into a named constant. Without this the detector
+// keys on the literal text at the call site, and `const p =
+// "/v2/oidc/auth_requests/"` followed by `http.NewRequest(http.MethodPost,
+// base+p+id, …)` — an ordinary, entirely innocent-looking refactor —
+// becomes invisible to it.
+//
+// It resolves one level, not arbitrary constant expressions: a path
+// assembled from two concatenated constants would still evade this. That
+// bound is deliberate (a full constant folder here would be its own source
+// of bugs) and it is why unexporting finalize, not this test, is the
+// primary control — see TestFinalizeCallSiteIsUnique.
+func fileStringConsts(f *ast.File) map[string]string {
+	out := map[string]string{}
+	for _, decl := range f.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || (gen.Tok != token.CONST && gen.Tok != token.VAR) {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			vs, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			for i, name := range vs.Names {
+				if i >= len(vs.Values) {
+					continue
+				}
+				lit, ok := vs.Values[i].(*ast.BasicLit)
+				if !ok || lit.Kind != token.STRING {
+					continue
+				}
+				if s, err := strconv.Unquote(lit.Value); err == nil {
+					out[name.Name] = s
+				}
+			}
+		}
+	}
+	return out
+}
+
+// stringValue returns the string e denotes, if it denotes one directly: a
+// string literal, or an identifier bound to one by consts.
+func stringValue(e ast.Expr, consts map[string]string) (string, bool) {
+	switch v := e.(type) {
+	case *ast.BasicLit:
+		if v.Kind != token.STRING {
+			return "", false
+		}
+		s, err := strconv.Unquote(v.Value)
+		return s, err == nil
+	case *ast.Ident:
+		s, ok := consts[v.Name]
+		return s, ok
+	}
+	return "", false
+}
+
+// exprMentions reports whether e, anywhere inside it, denotes a string
+// containing want. It recurses because the real call site builds its path
+// by concatenation — `"/v2/oidc/auth_requests/" + url.PathEscape(id)` — so
+// the string is never the argument node itself.
+func exprMentions(e ast.Expr, want string, consts map[string]string) bool {
 	found := false
 	ast.Inspect(e, func(n ast.Node) bool {
-		lit, ok := n.(*ast.BasicLit)
-		if !ok || lit.Kind != token.STRING {
+		expr, ok := n.(ast.Expr)
+		if !ok {
 			return true
 		}
-		if s, err := strconv.Unquote(lit.Value); err == nil && strings.Contains(s, want) {
+		if s, ok := stringValue(expr, consts); ok && strings.Contains(s, want) {
 			found = true
 		}
 		return true
@@ -695,55 +753,142 @@ func exprMentions(e ast.Expr, want string) bool {
 	return found
 }
 
-// exprIsPOST reports whether e denotes the POST method — either the
-// http.MethodPost constant (under any import alias, matched on the
-// selector name, which is unambiguous) or the bare "POST" string that
-// http.NewRequest is just as happy to take.
-func exprIsPOST(e ast.Expr) bool {
-	switch v := e.(type) {
-	case *ast.SelectorExpr:
-		return v.Sel.Name == "MethodPost"
-	case *ast.BasicLit:
-		s, err := strconv.Unquote(v.Value)
-		return err == nil && s == http.MethodPost
+// exprIsPOST reports whether e denotes the POST method — the
+// http.MethodPost constant (matched on the selector name, which is
+// unambiguous under any import alias), the bare "POST" string that
+// http.NewRequest is just as happy to take, or a local constant bound to
+// either.
+func exprIsPOST(e ast.Expr, consts map[string]string) bool {
+	if sel, ok := e.(*ast.SelectorExpr); ok && sel.Sel.Name == "MethodPost" {
+		return true
+	}
+	s, ok := stringValue(e, consts)
+	return ok && s == http.MethodPost
+}
+
+// callIsPOST reports whether call issues a POST, by either route: a method
+// ARGUMENT (http.NewRequest(http.MethodPost, …), c.do(ctx,
+// http.MethodPost, …)) or a method-named CALLEE, where POST is in the
+// helper's name and there is no method argument at all — http.Post(url,
+// …), hc.Post(…), resty's .Post(…). Keying only on the argument, as the
+// first version of this test did, meant http.Post reached the finalize
+// endpoint completely undetected: the single most natural way to write the
+// bypass was the one shape the control could not see.
+func callIsPOST(call *ast.CallExpr, consts map[string]string) bool {
+	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+		switch sel.Sel.Name {
+		case "Post", "PostForm":
+			return true
+		}
+	}
+	for _, arg := range call.Args {
+		if exprIsPOST(arg, consts) {
+			return true
+		}
 	}
 	return false
 }
 
 // sourcePostsToFinalizeEndpoint parses src and reports whether it contains
-// a single call expression that both names POST and carries the finalize
-// endpoint path. Requiring both in the SAME call is what keeps this from
-// firing on a fake Zitadel in a test handler, which mentions the path and
-// http.MethodPost in separate expressions, while still catching every real
-// spelling of the call: c.do(ctx, http.MethodPost, path+id, …) and
-// http.NewRequest("POST", base+path+id, …) have the same shape here.
+// a single call expression that both issues a POST and carries the
+// finalize endpoint path. Requiring both in the SAME call is what keeps
+// this from firing on code that merely mentions the path, while catching
+// every spelling of the call the detector's own fixtures exercise
+// (TestSourcePostsToFinalizeEndpointCatchesEvasions).
 func sourcePostsToFinalizeEndpoint(src []byte) (bool, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", src, parser.SkipObjectResolution)
 	if err != nil {
 		return false, err
 	}
+	consts := fileStringConsts(f)
 	found := false
 	ast.Inspect(f, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return true
 		}
-		var hasPOST, hasPath bool
-		for _, arg := range call.Args {
-			if exprIsPOST(arg) {
-				hasPOST = true
-			}
-			if exprMentions(arg, finalizeEndpointPath) {
-				hasPath = true
-			}
+		if !callIsPOST(call, consts) {
+			return true
 		}
-		if hasPOST && hasPath {
-			found = true
+		for _, arg := range call.Args {
+			if exprMentions(arg, finalizeEndpointPath, consts) {
+				found = true
+			}
 		}
 		return true
 	})
 	return found, nil
+}
+
+// TestSourcePostsToFinalizeEndpointCatchesEvasions is the discriminating
+// test for the detector itself, and it exists because the first version of
+// this control did NOT hold the line it claimed: review probed it and
+// found http.Post and a hoisted path constant both passed straight
+// through, while a harmless httptest.NewRequest in a _test.go was flagged.
+// The mutation that was supposed to have proven the detector — a
+// http.NewRequest("POST", literal+id, …) probe — differed from the real
+// call only in the helper's name, not in either feature the detector keys
+// on, so it proved nothing. These fixtures are the shapes that actually
+// evaded it.
+func TestSourcePostsToFinalizeEndpointCatchesEvasions(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want bool
+	}{
+		{"the real call shape: method argument plus a literal path", `package fixture
+
+func f(c *C, ctx Ctx, id string) { c.do(ctx, http.MethodPost, "/v2/oidc/auth_requests/"+id, nil) }
+`, true},
+		{"http.Post has no method argument at all", `package fixture
+
+func f(base, id string) { http.Post(base+"/v2/oidc/auth_requests/"+id, "application/json", nil) }
+`, true},
+		{"path hoisted into a file-level const", `package fixture
+
+const finalizePath = "/v2/oidc/auth_requests/"
+
+func f(base, id string) { http.NewRequest(http.MethodPost, base+finalizePath+id, nil) }
+`, true},
+		{"both evasions at once", `package fixture
+
+const finalizePath = "/v2/oidc/auth_requests/"
+
+func f(hc *http.Client, base, id string) { hc.Post(base+finalizePath+id, "application/json", nil) }
+`, true},
+		{"a bare POST string rather than the constant", `package fixture
+
+func f(base, id string) { http.NewRequest("POST", base+"/v2/oidc/auth_requests/"+id, nil) }
+`, true},
+		{"reading the auth request is a GET, not a completion", `package fixture
+
+func f(c *C, ctx Ctx, id string) { c.do(ctx, http.MethodGet, "/v2/oidc/auth_requests/"+id, nil) }
+`, false},
+		{"a fake Zitadel that only mentions the path is not a call site", `package fixture
+
+func handler(w W, r *R) {
+	if r.Method == http.MethodPost && r.URL.Path == "/v2/oidc/auth_requests/V2_1" {
+		w.Write(nil)
+	}
+}
+`, false},
+		{"POSTing somewhere else entirely", `package fixture
+
+func f(c *C, ctx Ctx) { c.do(ctx, http.MethodPost, "/v2/sessions", nil) }
+`, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := sourcePostsToFinalizeEndpoint([]byte(tc.src))
+			if err != nil {
+				t.Fatalf("parse fixture: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("sourcePostsToFinalizeEndpoint = %v, want %v", got, tc.want)
+			}
+		})
+	}
 }
 
 // TestFinalizeCallSiteIsUnique is the CI half of spec D4's structural
@@ -759,12 +904,27 @@ func sourcePostsToFinalizeEndpoint(src []byte) (bool, error) {
 // would therefore work perfectly — while silently skipping the factor
 // every user was supposed to present. Nothing observable would be wrong,
 // which is exactly why the control has to be mechanical.
+//
+// Two boundaries this does NOT cover, stated so nobody reads it as more
+// than it is:
+//
+//   - _test.go files are excluded. Test code does not ship, and a handler
+//     test legitimately stands up a fake Zitadel that receives this exact
+//     POST — flagging those would block Task 4 while protecting nothing.
+//   - The walk roots at backend/. A Next.js route handler in apps/shell
+//     could POST to the endpoint directly with the login client PAT and
+//     this test would never see it. Nothing in the frontend does today;
+//     closing that properly means keeping the PAT out of the frontend's
+//     reach, which is a deployment/config control, not a Go arch test.
 func TestFinalizeCallSiteIsUnique(t *testing.T) {
 	root := "../.."
 	var callSites []string
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
 			return err
+		}
+		if strings.HasSuffix(path, "_test.go") {
+			return nil
 		}
 		rel, err := filepath.Rel(root, path)
 		if err != nil {

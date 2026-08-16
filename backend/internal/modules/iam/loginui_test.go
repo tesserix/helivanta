@@ -73,7 +73,11 @@ func zitadelUnknownUser(t *testing.T) *loginclient.Client {
 
 // zitadelHappyPath answers a session, a forceMfa=false policy, and a
 // finalize call returning a callback URL — the full OutcomeComplete
-// path.
+// path. The policy fixture omits forceMfa entirely rather than sending
+// an explicit false, matching what the real dev Zitadel actually sends
+// (loginclient.LoginPolicy's doc comment) — allowUsernamePassword is the
+// anchor that fixture relies on to tell this apart from an unrecognized
+// body.
 func zitadelHappyPath(t *testing.T) *loginclient.Client {
 	t.Helper()
 	mux := http.NewServeMux()
@@ -81,7 +85,7 @@ func zitadelHappyPath(t *testing.T) *loginclient.Client {
 		_, _ = w.Write([]byte(`{"sessionId":"sess-1","sessionToken":"tok-1"}`))
 	})
 	mux.HandleFunc("GET /management/v1/policies/login", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"policy":{"forceMfa":false}}`))
+		_, _ = w.Write([]byte(`{"policy":{"allowUsernamePassword":true}}`))
 	})
 	mux.HandleFunc("POST /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"callbackUrl":"https://hms.test/api/auth/callback?code=abc&state=xyz"}`))
@@ -103,7 +107,7 @@ func zitadelForceMFA(t *testing.T) *loginclient.Client {
 		_, _ = w.Write([]byte(`{"sessionId":"sess-2","sessionToken":"tok-2"}`))
 	})
 	mux.HandleFunc("GET /management/v1/policies/login", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"policy":{"forceMfa":true}}`))
+		_, _ = w.Write([]byte(`{"policy":{"allowUsernamePassword":true,"forceMfa":true}}`))
 	})
 	mux.HandleFunc("POST /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("finalize called (%s %s) under a forceMfa policy: this is an MFA bypass", r.Method, r.URL.Path)

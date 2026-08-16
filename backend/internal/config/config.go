@@ -30,6 +30,53 @@ type Config struct {
 	ZitadelIssuerURL string
 	ZitadelClientID  string
 
+	// ZitadelLoginClientToken is the raw value of
+	// ZITADEL_LOGIN_CLIENT_TOKEN — an instance-level Zitadel Personal
+	// Access Token for a machine user holding the IAM_LOGIN_CLIENT role
+	// (docker-compose.dev.yml's zitadel service,
+	// FirstInstance.Org.LoginClient; plan #854 Task 4/5). This is the
+	// SINGLE MOST PRIVILEGED credential HMS holds: IAM_LOGIN_CLIENT is
+	// scoped to the whole Zitadel instance, not to HMS's own project, so
+	// a holder can read and FINALIZE an OIDC auth request for ANY app on
+	// the instance — including other Tesserix products that share it.
+	// loginclient.Client uses it to call Zitadel's v2 login-client API
+	// (AuthRequest, CreatePasswordSession, and — ONLY through
+	// CompleteIfSufficient's fail-closed sufficiency check,
+	// loginclient/sufficiency.go — finalize). It must never appear in a
+	// log line, an error message, or an HTTP response: nothing in
+	// internal/modules/iam/loginui.go or loginclient ever formats this
+	// value into anything a caller or a log sink can read.
+	//
+	// Deliberately NOT decoded, defaulted, or generated here, for the
+	// exact same reason as SessionSigningKey immediately below: Load()
+	// cannot fail, and a credential this privileged must be able to
+	// refuse process construction rather than boot with an absent or
+	// placeholder value that quietly makes every login request 503. It
+	// is left as the empty string when unset, and it is
+	// RequireZitadelLoginClientToken's job — not Load's — to turn
+	// "empty" into a boot refusal (see zitadellogin.go).
+	//
+	// PRODUCTION NOTE: #45 (secrets management) must cover how this PAT
+	// is provisioned, rotated, and delivered to the production process
+	// in a way that never touches source control or a shared dev
+	// default — dev/zitadel/secrets/login-client.pat (Makefile's
+	// dev-api target) is a local-only convenience with none of those
+	// properties.
+	ZitadelLoginClientToken string
+	// ZitadelHostedLoginURL is Zitadel's own hosted login origin+path
+	// (e.g. http://localhost:20080/ui/v2/login) — the target
+	// LoginUIHandlers.Handoff (and a Password call that resolves to
+	// OutcomeHandoff) redirect the browser to when HMS's own login form
+	// cannot complete a sign-in itself (an enrolled second factor Zitadel
+	// requires but HMS does not yet collect). Task 1's finding
+	// (docs/superpowers/plans/2026-08-16-hms-login-client.md) is that
+	// Zitadel APPENDS its own "/login" segment to whatever baseUri is
+	// configured, so this must be an origin+path with NO query string of
+	// its own — see loginui.go's handoffURL. Safe to default: it is a
+	// well-known Zitadel URL, not a secret, and a wrong value fails
+	// loudly (a 404 from Zitadel) rather than opening a hole.
+	ZitadelHostedLoginURL string
+
 	// SessionSigningKey is the raw, still-encoded value of
 	// SESSION_SIGNING_KEY — a base64 Ed25519 seed. Deliberately NOT
 	// decoded or defaulted here: Load() has no way to fail, and a
@@ -100,6 +147,12 @@ func Load() Config {
 
 		ZitadelIssuerURL: getenv("ZITADEL_ISSUER_URL", "http://localhost:20080"),
 		ZitadelClientID:  getenv("ZITADEL_CLIENT_ID", ""),
+
+		// os.Getenv, not getenv(): mirrors SessionSigningKey immediately
+		// below — this PAT must never have a default (see
+		// ZitadelLoginClientToken's doc comment on exactly why).
+		ZitadelLoginClientToken: os.Getenv("ZITADEL_LOGIN_CLIENT_TOKEN"),
+		ZitadelHostedLoginURL:   getenv("ZITADEL_HOSTED_LOGIN_URL", "http://localhost:20080/ui/v2/login"),
 
 		// os.Getenv, not getenv(): getenv's whole purpose is supplying a
 		// default for an unset variable, and a signing key must never

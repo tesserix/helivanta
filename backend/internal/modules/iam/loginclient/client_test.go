@@ -118,14 +118,20 @@ func TestLoginPolicyErrorsRatherThanReportingNoMFA(t *testing.T) {
 // with a nil error before the wire fields became pointers, and
 // CompleteIfSufficient completed the login on every one of them. These
 // are the shapes a Zitadel upgrade could plausibly produce.
+// A body that does not even carry the AllowUsernamePassword anchor is not
+// recognizable as a login policy at all — see LoginPolicy's doc comment
+// on why AllowUsernamePassword, not ForceMFA, is what this client uses to
+// tell "a genuine policy whose forceMfa is unpopulated because it is
+// false" apart from "a shape this client does not understand". Every
+// fixture here lacks that anchor.
 func TestLoginPolicyRejectsBodiesItCannotUnderstand(t *testing.T) {
 	bodies := map[string]string{
-		"empty object":                    `{}`,
-		"null body":                       `null`,
-		"forceMfa un-nested":              `{"forceMfa":true}`,
-		"forceMfa renamed to snake_case":  `{"policy":{"force_mfa":true}}`,
-		"policy present but field absent": `{"policy":{"allowUsernamePassword":true}}`,
-		"policy explicitly null":          `{"policy":null}`,
+		"empty object":                            `{}`,
+		"null body":                                `null`,
+		"forceMfa un-nested":                       `{"forceMfa":true}`,
+		"forceMfa renamed to snake_case":           `{"policy":{"force_mfa":true}}`,
+		"policy present but no recognizable field": `{"policy":{"isDefault":true}}`,
+		"policy explicitly null":                   `{"policy":null}`,
 	}
 	for name, body := range bodies {
 		t.Run(name, func(t *testing.T) {
@@ -134,7 +140,7 @@ func TestLoginPolicyRejectsBodiesItCannotUnderstand(t *testing.T) {
 			})
 			got, err := c.LoginPolicy(context.Background())
 			if err == nil {
-				t.Fatalf("LoginPolicy() = %+v, error = nil; a body without policy.forceMfa must not read as MFA off", got)
+				t.Fatalf("LoginPolicy() = %+v, error = nil; a body without a recognizable policy object must not read as MFA off", got)
 			}
 			if !errors.Is(err, ErrUnavailable) {
 				t.Errorf("error = %v, want ErrUnavailable so it reaches the same fail-closed branch as an unreachable Zitadel", err)
@@ -153,6 +159,29 @@ func TestLoginPolicyAcceptsAnExplicitFalse(t *testing.T) {
 	p, err := c.LoginPolicy(context.Background())
 	if err != nil {
 		t.Fatalf("LoginPolicy() error = %v, want an explicit false to be accepted", err)
+	}
+	if p.ForceMFA {
+		t.Error("ForceMFA = true, want false")
+	}
+}
+
+// TestLoginPolicyTreatsAbsentForceMFAAsFalseWhenPolicyIsRecognizable pins
+// the finding this task's integration test made live against the real
+// dev Zitadel v4.15.3: a genuine, healthy login policy elides `forceMfa`
+// ENTIRELY when it is false (protojson's default zero-value omission),
+// rather than sending an explicit `false` the way this package's earlier
+// fixtures assumed. AllowUsernamePassword present with ForceMFA absent
+// must decode to LoginPolicy{ForceMFA: false}, not an error — see
+// LoginPolicy's doc comment for the full story and why this is safe
+// (AllowUsernamePassword is the anchor proving the object was
+// understood, not merely present).
+func TestLoginPolicyTreatsAbsentForceMFAAsFalseWhenPolicyIsRecognizable(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"policy":{"allowUsernamePassword":true,"allowRegister":true,"isDefault":true}}`))
+	})
+	p, err := c.LoginPolicy(context.Background())
+	if err != nil {
+		t.Fatalf("LoginPolicy() error = %v, want an absent-but-recognizable forceMfa to be accepted as false", err)
 	}
 	if p.ForceMFA {
 		t.Error("ForceMFA = true, want false")

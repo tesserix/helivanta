@@ -30,7 +30,12 @@ func countingZitadel(t *testing.T, policyJSON string, finalized *atomic.Bool) *C
 // password-only session under forceMfa (spike §2) — HMS must not ask it to.
 func TestCompleteIfSufficientDoesNotFinalizeWhenForceMFA(t *testing.T) {
 	var finalized atomic.Bool
-	c := countingZitadel(t, `{"policy":{"forceMfa":true}}`, &finalized)
+	// allowUsernamePassword is the anchor LoginPolicy's doc comment
+	// describes (client.go): without it this fixture would exercise the
+	// fail-closed "unrecognized policy" branch instead of the genuine
+	// forceMfa=true branch this test is named for — both currently reach
+	// OutcomeHandoff, so that mistake would pass silently.
+	c := countingZitadel(t, `{"policy":{"allowUsernamePassword":true,"forceMfa":true}}`, &finalized)
 
 	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
 	if err != nil {
@@ -49,7 +54,11 @@ func TestCompleteIfSufficientDoesNotFinalizeWhenForceMFA(t *testing.T) {
 
 func TestCompleteIfSufficientFinalizesWhenNoMFARequired(t *testing.T) {
 	var finalized atomic.Bool
-	c := countingZitadel(t, `{"policy":{"forceMfa":false}}`, &finalized)
+	// allowUsernamePassword is the anchor LoginPolicy's doc comment
+	// describes (client.go) — real Zitadel elides forceMfa entirely when
+	// it is false, so this fixture, like the real wire response, carries
+	// no explicit forceMfa at all.
+	c := countingZitadel(t, `{"policy":{"allowUsernamePassword":true}}`, &finalized)
 
 	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
 	if err != nil {

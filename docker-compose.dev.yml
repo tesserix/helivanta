@@ -196,6 +196,19 @@ services:
   # an absent PAT, and a fresh clone's first `make up` produced a login
   # nobody could use. Restarting login alone fixed it, which is what
   # identified the cause.
+  #
+  # #854 Task 5: the SAME file (and the SAME ordering trap) also gates
+  # HMS's own API process, which reads it into ZITADEL_LOGIN_CLIENT_TOKEN
+  # to drive Zitadel's login-client API directly
+  # (internal/modules/iam/loginui.go). The API is not a compose service —
+  # it runs via `go run ./cmd/api` from the Makefile's dev-api target, not
+  # docker-compose — so it cannot depend on this service the way
+  # zitadel-login below does; Makefile's dev-api target carries its own
+  # equivalent guard instead (a fail-closed "does the PAT file exist and
+  # is it non-empty" check, run before `go run` ever starts, mirroring
+  # this service's own polling loop), and dev-api only runs after
+  # `dev-infra` has waited on Zitadel's healthz, by which point
+  # provisioning has completed.
   zitadel-pat-ready:
     image: alpine:3.20
     volumes:

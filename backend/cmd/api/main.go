@@ -20,6 +20,7 @@ import (
 	"github.com/tesserix/hms/internal/config"
 	"github.com/tesserix/hms/internal/httpserver"
 	"github.com/tesserix/hms/internal/modules/iam"
+	"github.com/tesserix/hms/internal/modules/iam/loginclient"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/requestid"
 	"github.com/tesserix/hms/pkg/authn"
@@ -75,6 +76,17 @@ func run() error {
 	// Signer/Verifier construction just below run() builds the OpenFGA
 	// client, where both are now actually wired to something.
 	sessionSeed, err := cfg.SessionSigningKeySeed()
+	if err != nil {
+		return err
+	}
+	// Resolved alongside the signing key, for the same reason: a missing
+	// login-client PAT is a configuration defect, not a runtime one, and
+	// it should surface before anything else costs time or a network
+	// round trip. See config.RequireZitadelLoginClientToken's doc
+	// comment for why this fails closed rather than booting with login
+	// silently broken — the SAME direction SessionSigningKeySeed already
+	// takes for a different secret, immediately above.
+	zitadelLoginClientToken, err := cfg.RequireZitadelLoginClientToken()
 	if err != nil {
 		return err
 	}
@@ -258,22 +270,47 @@ func run() error {
 	// bootstrap-owned for the same reason RateLimitConfig is: one
 	// construction path both production and internal/archtest read.
 	loginHandlers := iam.NewLoginHandlers(zitadelVerifier, fga, sessionSigner, cfg.SessionTTL, sessionSecureCookie, limiter, bootstrap.LoginRateLimitRule(cfg))
+
+	// zitadelLoginClient speaks Zitadel's v2 login-client API
+	// (internal/modules/iam/loginclient), authenticated with the PAT
+	// resolved (and refused-to-boot-without) above. baseURL is
+	// cfg.ZitadelIssuerURL — the SAME Zitadel origin zitadelVerifier's
+	// OIDC discovery uses — because loginclient's endpoints
+	// (/v2/sessions, /v2/oidc/auth_requests/…) live on Zitadel's core
+	// API, not a separate host. http.DefaultClient matches every other
+	// loginclient.New call site in this codebase (loginui_test.go's
+	// newZitadelTestClient uses the test server's own equivalent);
+	// loginclient.defaultTimeout bounds every call it makes, so this
+	// does not need its own per-request timeout.
+	zitadelLoginClient := loginclient.New(cfg.ZitadelIssuerURL, zitadelLoginClientToken, http.DefaultClient)
+	// loginUIHandlers backs HMS's own login form (plan #854 Task 4):
+	// reading an auth request, checking a password, and handing off to
+	// Zitadel's hosted UI when HMS cannot complete the login itself. It
+	// reuses the SAME limiter instance as loginHandlers and V1Chain
+	// above (#841's rule: this file must construct exactly one
+	// ratelimit.Limiter, never a second) — see NewLoginUIHandlers' own
+	// doc comment on why sharing the limiter is still safe: Password
+	// keys its bucket under "login_password:", a prefix distinct from
+	// both LoginHandlers.Login's "login:" bucket and
+	// ratelimit.Middleware's Principal bucket, so none of the three can
+	// bleed into another's budget despite sharing one Limiter. The Rule
+	// itself is bootstrap.LoginRateLimitRule(cfg) too — this endpoint
+	// does not yet warrant a budget shaped differently from
+	// POST /v1/auth/login's (both are "one browser tab's worth of login
+	// traffic"), so a second RATE_LIMIT_* knob would be configuration
+	// nobody has a reason to set independently; revisit if that changes.
+	loginUIHandlers := iam.NewLoginUIHandlers(zitadelLoginClient, cfg.ZitadelHostedLoginURL, limiter, bootstrap.LoginRateLimitRule(cfg))
+
 	// Mounted through bootstrap so the bypass is declared in one
 	// enumerable place and pinned by
 	// archtest.TestEveryEngineRouteIsDeclaredOrAllowlisted — a route on the
 	// raw engine otherwise escapes platform.Router entirely.
-	// authRequest/password/handoff are nil here because Task 5, not this
-	// commit, constructs loginclient.Client and iam.LoginUIHandlers (it
-	// needs the login-client PAT, plumbed through config in that same
-	// task). MountUnauthenticated PANICS on a nil handler rather than
-	// silently skipping the route (see its own doc comment on why) — so
-	// until Task 5 lands, `go run ./cmd/api` fails at boot rather than
-	// serving /v1/auth/login/* incompletely. That is the intended,
-	// visible state of an in-flight branch between these two tasks, not
-	// a bug: a route this repo already promises is reachable
-	// (bootstrap.UnauthenticatedRoutes) must not be able to silently NOT
-	// be one.
-	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login, nil, nil, nil)
+	// authRequest/password/handoff are now the real loginUIHandlers
+	// methods (Task 5) — MountUnauthenticated's nil guard is what made
+	// `go run ./cmd/api` refuse to boot on this branch before this
+	// commit, per its own doc comment; this is the fix.
+	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login,
+		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Handoff)
 
 	for _, m := range registry.All() {
 		m.Routes(api, deps)

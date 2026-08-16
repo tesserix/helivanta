@@ -19,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tesserix/hms/internal/bootstrap"
 	"github.com/tesserix/hms/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
 	"github.com/tesserix/hms/internal/modules/iam/loginclient"
 	"github.com/tesserix/hms/pkg/ratelimit"
@@ -241,17 +242,38 @@ func newAuthRequest(t *testing.T, env integrationEnv) string {
 	return id
 }
 
-// newIntegrationRouter wires the SAME route bootstrap.MountUnauthenticated
-// mounts in production, backed by a REAL loginclient.Client pointed at
-// env's Zitadel — the router-building half of what main.go's run() does,
-// minus the DB/NATS/OpenFGA construction this test has no need for. Only
+// newIntegrationRouter mounts the login routes by CALLING
+// bootstrap.MountUnauthenticated — the same function cmd/api/main.go
+// calls — backed by a REAL loginclient.Client pointed at env's Zitadel.
+// It is the router-building half of what main.go's run() does, minus the
+// DB/NATS/OpenFGA construction this test has no need for. Only
 // *gin.Engine is returned: every caller in this file drives Password
 // through HTTP requests against the router, never the handlers value
 // directly, so there is nothing for a second return to be used for.
-func newIntegrationRouter(env integrationEnv) *gin.Engine {
+//
+// It calls the real function rather than hand-registering
+// `r.POST("/v1/auth/login/password", handlers.Password)`, which is what
+// an earlier version of this helper did while its comment claimed it
+// "wires the SAME route bootstrap.MountUnauthenticated mounts". That was
+// a replica: a change to the production path string, the HTTP method, or
+// the argument ORDER of MountUnauthenticated (which takes four
+// interchangeable gin.HandlerFunc values, so swapping two compiles
+// cleanly) would leave this test green while production served the wrong
+// handler on the wrong route. This repo has an explicit lesson on
+// exactly that failure — test the wiring, not a replica — and this is a
+// live integration test, the one place a replica costs the most.
+//
+// The `login` argument is POST /v1/auth/login (iam.LoginHandlers), which
+// this file never exercises; it is passed a handler that FAILS the test
+// if reached, rather than a silent no-op, so a future argument-order
+// mistake surfaces as a failure here instead of a mystery elsewhere.
+// MountUnauthenticated panics on a nil, by design, so it cannot be
+// omitted.
+func newIntegrationRouter(t *testing.T, env integrationEnv) *gin.Engine {
+	t.Helper()
 	client := loginclient.New(env.issuer, env.token, http.DefaultClient)
 	// nil limiter: this test makes a handful of calls total, nowhere near
-	// any real budget, and a nil limiter fails OPEN per Password's own
+	// any real budget, and a nil limiter fails OPEN per allowedByLimiter's
 	// doc comment — exercising that same fail-open path other unit tests
 	// already cover directly (TestPasswordAdmitsWhenLimiterUnavailable)
 	// is not this test's job.
@@ -259,7 +281,13 @@ func newIntegrationRouter(env integrationEnv) *gin.Engine {
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.POST("/v1/auth/login/password", handlers.Password)
+	notExercised := func(c *gin.Context) {
+		t.Errorf("POST /v1/auth/login was reached; this file only drives the login-UI routes — "+
+			"check bootstrap.MountUnauthenticated's argument order (%s %s)", c.Request.Method, c.Request.URL.Path)
+		c.Status(http.StatusInternalServerError)
+	}
+	bootstrap.MountUnauthenticated(r, notExercised,
+		handlers.AuthRequest, handlers.Password, handlers.Handoff)
 	return r
 }
 
@@ -332,7 +360,7 @@ func TestIntegration_PasswordSuccess_ReturnsCallbackURLWithCodeAndState(t *testi
 // not fight this; design the test around it"), not an oversight.
 func TestIntegration_PasswordFailures_WrongPasswordAndUnknownUserAreByteIdentical(t *testing.T) {
 	env := skipUnlessDevStackIsUp(t)
-	r := newIntegrationRouter(env)
+	r := newIntegrationRouter(t, env)
 
 	// Both failing attempts reuse ONE fresh auth request: Password
 	// returns before ever calling CompleteIfSufficient on either failure
@@ -505,7 +533,7 @@ func assertHandsOffWithoutCallback(t *testing.T, w *httptest.ResponseRecorder, p
 // default policy, not just "produced a handoff for some reason".
 func assertLoginSucceeds(t *testing.T, env integrationEnv) {
 	t.Helper()
-	r := newIntegrationRouter(env)
+	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
 
@@ -578,7 +606,7 @@ func TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting(t *testing.T) {
 	setOrgLoginPolicy(t, env, seedToken, map[string]any{"forceMfa": true})
 	t.Cleanup(func() { resetOrgLoginPolicy(t, env, seedToken) })
 
-	r := newIntegrationRouter(env)
+	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
 	assertHandsOffWithoutCallback(t, w, "forceMfa")
@@ -613,7 +641,7 @@ func TestIntegration_ForceMFALocalOnlyPolicy_HandsOffInsteadOfCompleting(t *test
 	setOrgLoginPolicy(t, env, seedToken, map[string]any{"forceMfa": false, "forceMfaLocalOnly": true})
 	t.Cleanup(func() { resetOrgLoginPolicy(t, env, seedToken) })
 
-	r := newIntegrationRouter(env)
+	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
 	assertHandsOffWithoutCallback(t, w, "forceMfaLocalOnly")
@@ -706,7 +734,7 @@ func TestIntegration_UserEnrolledFactor_HandsOffInsteadOfCompleting(t *testing.T
 	userID, loginName := createImportedUser(t, env, seedToken)
 	managementAPICall(t, env, seedToken, http.MethodPost, "/v2/users/"+userID+"/otp_email", map[string]any{})
 
-	r := newIntegrationRouter(env)
+	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, loginName, devSeededPassword)
 	assertHandsOffWithoutCallback(t, w, "per-user enrolled factor (otp_email)")

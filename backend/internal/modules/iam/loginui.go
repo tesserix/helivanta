@@ -118,16 +118,82 @@ type LoginUIHandlers struct {
 // http://localhost:20080/ui/v2/login per Task 1's finding that Zitadel
 // APPENDS to whatever baseUri is configured) — Handoff and a Password
 // call that resolves to OutcomeHandoff both build their handoff_url from
-// it. limiter and limit are the Password endpoint's own budget (#854
-// Task 4): reused from the SAME ratelimit.Limiter instance
-// bootstrap.V1Chain and LoginHandlers already share, per docs/standards
-// on not inventing a second limiter, keyed under this endpoint's own
-// prefix so it cannot bleed into another route's bucket. A nil limiter
-// fails OPEN, mirroring LoginHandlers.Login's documented direction: this
-// is a capacity control, and a limiter that cannot decide must not take
-// sign-in down for a hospital.
+// it. limiter and limit are the budget shared by ALL THREE of this
+// type's routes (#854 Task 4, spec D2: "all three sit behind the
+// existing unauthenticated limiter"): reused from the SAME
+// ratelimit.Limiter instance bootstrap.V1Chain and LoginHandlers already
+// share, per #851 and docs/standards on not inventing a second limiter,
+// each keyed under its OWN prefix (see allowedByLimiter) so no route can
+// bleed into another's bucket. A nil limiter fails OPEN, mirroring
+// LoginHandlers.Login's documented direction: this is a capacity
+// control, and a limiter that cannot decide must not take sign-in down
+// for a hospital.
 func NewLoginUIHandlers(client *loginclient.Client, hostedLoginBaseURL string, limiter ratelimit.Limiter, limit ratelimit.Rule) *LoginUIHandlers {
 	return &LoginUIHandlers{client: client, hostedLoginBaseURL: hostedLoginBaseURL, limiter: limiter, limit: limit}
+}
+
+// Rate-limit bucket prefixes, one per route. All three routes share ONE
+// ratelimit.Limiter instance and ONE Rule (see NewLoginUIHandlers), but
+// each gets its own key prefix so a flood against one cannot spend
+// another's budget: a browser reading an auth request is not the same
+// traffic as a browser guessing passwords, and neither should be able to
+// lock the other out. The prefixes are also distinct from
+// LoginHandlers.Login's "login:" bucket and ratelimit.Middleware's
+// principal bucket, so none of the five can collide.
+const (
+	authRequestRateBucket = "login_auth_request:"
+	passwordRateBucket    = "login_password:"
+	handoffRateBucket     = "login_handoff:"
+)
+
+// allowedByLimiter is spec D2's "all three sit behind the existing
+// unauthenticated limiter", applied identically by every route on this
+// type. It answers false and has ALREADY written the 429 when the caller
+// is over budget, so a handler's only job is to return.
+//
+// # Why all three, not just Password
+//
+// The three routes are mounted on the raw gin engine
+// (bootstrap.MountUnauthenticated), OUTSIDE V1Chain — so
+// ratelimit.Middleware never runs for them and they get no budget at all
+// unless it is applied here. An earlier version of this file limited only
+// Password, which left GET /v1/auth/login/request/:id and
+// POST /v1/auth/login/handoff/:id unauthenticated AND unlimited. That is
+// not merely a missing control on a cheap route: AuthRequest makes an
+// unauthenticated Zitadel round trip per request, spending the
+// INSTANCE-LEVEL login-client PAT's budget on a Zitadel shared with the
+// whole Tesserix fleet (docs/standards/backend.md, "The login-client
+// credential"), so an unlimited flood there degrades sign-in for every
+// product on the instance, not just HMS. #851 landed for exactly this
+// class of gap on POST /v1/auth/login.
+//
+// # Keying
+//
+// There is no verified subject on any of these routes — that is what the
+// flow is establishing — so the budget is keyed on client IP, the same
+// reasoning that rules out ratelimit.Middleware's tenant/principal
+// buckets here.
+//
+// A nil limiter fails OPEN (admits, warns), mirroring
+// LoginHandlers.Login: per docs/standards/engineering-principles.md §3
+// this is a capacity control, and a limiter that cannot decide must not
+// take sign-in down for a hospital.
+func (h *LoginUIHandlers) allowedByLimiter(c *gin.Context, bucket string) bool {
+	if h.limiter == nil {
+		requestid.Logger(c).WarnContext(c.Request.Context(), "login: rate limiter unavailable, admitting (fail open)",
+			"bucket", bucket)
+		return true
+	}
+	d := h.limiter.Allow(bucket+c.ClientIP(), h.limit, time.Now())
+	if d.Allowed {
+		return true
+	}
+	requestid.Logger(c).WarnContext(c.Request.Context(), "login rate limited",
+		"bucket", bucket, "client_ip", c.ClientIP(), "retry_after_ms", d.RetryAfter.Milliseconds())
+	respond.TooManyRequests(c,
+		"too many sign-in attempts; retry in "+d.RetryAfter.Round(time.Second).String(),
+		d.RetryAfter, d.Limit, d.Remaining)
+	return false
 }
 
 // authRequestResponse is what GET /v1/auth/login/request/:id answers
@@ -148,7 +214,16 @@ type authRequestResponse struct {
 // an HMS session — there is nothing yet to check one against, and this
 // call is what tells the form whether the id it was given even makes
 // sense.
+//
+// It DOES take a rate-limit budget (spec D2): every call makes an
+// unauthenticated Zitadel round trip on the instance-level login-client
+// PAT — see allowedByLimiter's doc comment on why leaving this route
+// unlimited was a fleet-wide exposure, not a local one.
 func (h *LoginUIHandlers) AuthRequest(c *gin.Context) {
+	if !h.allowedByLimiter(c, authRequestRateBucket) {
+		return
+	}
+
 	id := c.Param("id")
 
 	ar, err := h.client.AuthRequest(c.Request.Context(), id)
@@ -228,31 +303,15 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 		return
 	}
 
-	// There is no verified subject at this point in the flow — that is
-	// exactly what this call is checking — so the budget is keyed on
-	// client IP rather than a principal, the same reasoning
-	// ratelimit.Middleware's tenant/principal buckets do not apply
-	// here. This is a password-attempt surface, so it gets its OWN
-	// budget (h.limit) rather than sharing LoginHandlers' "login:"
-	// bucket — a flood here is credential-guessing traffic, a
-	// different threat than a flood of already-verified renewals.
-	//
-	// A nil limiter fails OPEN, mirroring LoginHandlers.Login: per
-	// docs/standards/engineering-principles.md §3 this is a capacity
-	// control, and a limiter that cannot decide must not take sign-in
-	// down for a hospital.
-	if h.limiter != nil {
-		key := "login_password:" + c.ClientIP()
-		if d := h.limiter.Allow(key, h.limit, time.Now()); !d.Allowed {
-			requestid.Logger(c).WarnContext(c.Request.Context(), "login password rate limited",
-				"client_ip", c.ClientIP(), "retry_after_ms", d.RetryAfter.Milliseconds())
-			respond.TooManyRequests(c,
-				"too many sign-in attempts; retry in "+d.RetryAfter.Round(time.Second).String(),
-				d.RetryAfter, d.Limit, d.Remaining)
-			return
-		}
-	} else {
-		requestid.Logger(c).WarnContext(c.Request.Context(), "login password: rate limiter unavailable, admitting (fail open)")
+	// This is a password-attempt surface, so it gets its OWN bucket
+	// (passwordRateBucket) rather than sharing LoginHandlers' "login:"
+	// one or either sibling route's — a flood here is
+	// credential-guessing traffic, a different threat from a flood of
+	// already-verified renewals or of auth-request reads. See
+	// allowedByLimiter for the keying and fail-open reasoning all three
+	// routes share.
+	if !h.allowedByLimiter(c, passwordRateBucket) {
+		return
 	}
 
 	session, err := h.client.CreatePasswordSession(c.Request.Context(), req.LoginName, req.Password)
@@ -385,7 +444,18 @@ func (h *LoginUIHandlers) handoffURL(authRequestID string) string {
 // nothing to check, only a URL to build — so it has no failure mode
 // beyond a missing id, which gin's route match already guarantees is
 // non-empty for a matched :id segment.
+//
+// It still takes a rate-limit budget (spec D2). Being cheap for HMS to
+// serve is not a reason to leave an unauthenticated route unlimited:
+// this one is mounted on the raw engine, so nothing else applies a
+// budget to it, and an entry in bootstrap.UnauthenticatedRoutes that is
+// reachable by anyone with no principal is exactly the shape #851 closed
+// on POST /v1/auth/login. See allowedByLimiter.
 func (h *LoginUIHandlers) Handoff(c *gin.Context) {
+	if !h.allowedByLimiter(c, handoffRateBucket) {
+		return
+	}
+
 	id := c.Param("id")
 	requestid.Logger(c).InfoContext(c.Request.Context(), "login: handed off to hosted login",
 		"auth_request_id", id)

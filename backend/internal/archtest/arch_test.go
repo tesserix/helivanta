@@ -911,11 +911,26 @@ func f(c *C, ctx Ctx) { c.do(ctx, http.MethodPost, "/v2/sessions", nil) }
 //   - _test.go files are excluded. Test code does not ship, and a handler
 //     test legitimately stands up a fake Zitadel that receives this exact
 //     POST — flagging those would block Task 4 while protecting nothing.
-//   - The walk roots at backend/. A Next.js route handler in apps/shell
-//     could POST to the endpoint directly with the login client PAT and
-//     this test would never see it. Nothing in the frontend does today;
-//     closing that properly means keeping the PAT out of the frontend's
-//     reach, which is a deployment/config control, not a Go arch test.
+//   - The walk roots at backend/, so this proves the finalize call is
+//     unique WITHIN backend/ — not within the repository. A Next.js
+//     route handler in apps/shell could POST the endpoint directly with
+//     the login client PAT and this test would never see it. Nothing in
+//     the frontend does today; closing that properly means keeping the
+//     PAT out of the frontend's reach, which is a deployment/config
+//     control, not a Go arch test.
+//
+//     There IS one known call site outside the walk, and it is accepted
+//     rather than overlooked: scripts/lib/zitadel.mjs's
+//     `passwordLoginIDToken` POSTs the same endpoint with the
+//     login-client PAT to mint an ID token for LOCAL DEV VERIFICATION.
+//     It is not production code, ships in no image, and is not reachable
+//     from a request — but it is a real second place the finalize call
+//     is spelled out, so this test's guarantee must be read as "exactly
+//     one call site in backend/", never as "nothing outside
+//     CompleteIfSufficient finalises an auth request anywhere in this
+//     repo". Extending the walk to .mjs would flag that script on its
+//     first run and teach the next person to add an allowlist entry,
+//     which is a worse control than stating the boundary plainly here.
 func TestFinalizeCallSiteIsUnique(t *testing.T) {
 	root := "../.."
 	var callSites []string

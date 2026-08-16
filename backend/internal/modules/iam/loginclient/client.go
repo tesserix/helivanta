@@ -359,25 +359,35 @@ func (c *Client) LoginPolicy(ctx context.Context) (LoginPolicy, error) {
 		return LoginPolicy{}, fmt.Errorf("GET /management/v1/policies/login: 200 without a recognizable policy object: %w", ErrUnavailable)
 	}
 
+	// ONE loop over mfaPolicyKeys does BOTH halves for every key — the
+	// rename guard AND the read — so that adding a third MFA-forcing key
+	// to that list is genuinely a one-place change. An earlier version
+	// iterated the list for the rename guard only and then called
+	// readMFABool twice with hardcoded literals; a third key added to
+	// the list would have been guarded against renames but NEVER read
+	// into ForceMFA, which is a silent MFA bypass in the one file
+	// written to prevent exactly that. TestLoginPolicyReadsEveryKeyIn
+	// MFAPolicyKeys pins that the read really is list-driven.
+	//
+	// The keys are OR-ed together: forceMfaLocalOnly folds into the SAME
+	// ForceMFA bool as forceMfa — see this function's doc comment
+	// ("forceMfaLocalOnly — a second, REAL field") for why that is safe
+	// today and what would have to change if it stops being safe. Any
+	// third key discovered later is, by construction, folded the same
+	// way; if a future key ever needs DIFFERENT semantics than "true
+	// means MFA is forced", it does not belong in this list at all.
+	forceMFA := false
 	for _, key := range mfaPolicyKeys {
 		if err := refuseIfKeyRenamedOrRecased(wire.Policy, key); err != nil {
 			return LoginPolicy{}, err
 		}
+		forced, err := readMFABool(wire.Policy, key)
+		if err != nil {
+			return LoginPolicy{}, err
+		}
+		forceMFA = forceMFA || forced
 	}
-
-	forceMFA, err := readMFABool(wire.Policy, "forceMfa")
-	if err != nil {
-		return LoginPolicy{}, err
-	}
-	// forceMfaLocalOnly folds into the SAME ForceMFA bool — see this
-	// function's doc comment ("forceMfaLocalOnly — a second, REAL field")
-	// for why that is safe today and what would have to change if it
-	// stops being safe.
-	forceMFALocalOnly, err := readMFABool(wire.Policy, "forceMfaLocalOnly")
-	if err != nil {
-		return LoginPolicy{}, err
-	}
-	return LoginPolicy{ForceMFA: forceMFA || forceMFALocalOnly}, nil
+	return LoginPolicy{ForceMFA: forceMFA}, nil
 }
 
 // nonPasswordFactorPrefix is what an enrolled Zitadel authentication
@@ -428,8 +438,13 @@ func (c *Client) sessionUserID(ctx context.Context, sessionID string) (string, e
 // session's own `factors` report (session.proto's Factors is what was
 // CHECKED in this one session, not what the user has available) — a
 // password-only session always has just a password factor even when the
-// user separately enrolled TOTP, which is exactly the gap this closes
-// (see sufficiency.go's KNOWN LIMITATIONS §1).
+// user separately enrolled TOTP, which is exactly the gap this closes —
+// see the enrolled-factor branch of sufficiency.go's
+// CompleteIfSufficient, the sole caller. (An earlier version of this
+// comment pointed at "sufficiency.go's KNOWN LIMITATIONS §1"; that
+// section is password-change-required, an unrelated and still-OPEN gap
+// tracked as #856. This gap is CLOSED, so it is not in that list at
+// all.)
 //
 // This exists to be called from CompleteIfSufficient's fail-closed path:
 // any error here (transport failure, unreadable body, empty id) must
@@ -457,10 +472,20 @@ func (c *Client) HasEnrolledFactor(ctx context.Context, sessionID string) (bool,
 }
 
 // mfaPolicyKeys is every wire key LoginPolicy reads to decide ForceMFA —
-// forceMfa and forceMfaLocalOnly today. Both readMFABool's absent-key
-// path and refuseIfKeyRenamedOrRecased's rename guard are driven off
-// this one list, so a THIRD MFA-forcing field discovered later (see the
-// KNOWN RESIDUAL section above) is added in exactly one place.
+// forceMfa and forceMfaLocalOnly today. LoginPolicy's single loop over
+// this list does BOTH the rename guard (refuseIfKeyRenamedOrRecased) and
+// the read (readMFABool) for every entry, and OR-s the results into
+// ForceMFA, so a THIRD MFA-forcing field discovered later (see the KNOWN
+// RESIDUAL section above) really is added in exactly one place: appending
+// it here both guards and reads it. TestLoginPolicyReadsEveryKeyIn
+// MFAPolicyKeys is the CI half of that claim — it appends a third key to
+// this list and asserts a policy body setting only that key produces
+// ForceMFA:true, so a future edit that re-hardcodes the reads fails
+// rather than silently dropping the new key.
+//
+// Every entry must mean "true forces MFA"; a hypothetical future policy
+// field with different semantics (e.g. one that RELAXES a requirement)
+// cannot be expressed by appending to this list and must not be.
 var mfaPolicyKeys = []string{"forceMfa", "forceMfaLocalOnly"}
 
 // refuseIfKeyRenamedOrRecased scans policy for any key that NORMALIZES

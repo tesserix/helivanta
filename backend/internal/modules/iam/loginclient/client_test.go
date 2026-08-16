@@ -251,6 +251,48 @@ func TestLoginPolicyTreatsForceMFALocalOnlyAsRequiringMFA(t *testing.T) {
 	}
 }
 
+// TestLoginPolicyReadsEveryKeyInMFAPolicyKeys is the CI half of
+// mfaPolicyKeys' claim that adding a THIRD MFA-forcing field is a
+// one-place change. It is not a test of a shape Zitadel sends today —
+// there is no third field yet — it is a test that the MECHANISM is
+// list-driven: it appends a key to mfaPolicyKeys (restoring it
+// afterwards) and asserts a policy body setting ONLY that key produces
+// ForceMFA:true.
+//
+// This exists because an earlier version of LoginPolicy iterated
+// mfaPolicyKeys for the rename guard but called readMFABool twice with
+// HARDCODED literals, while mfaPolicyKeys' own doc comment claimed both
+// halves were list-driven. A contributor following that comment would
+// have registered a third key, gotten the rename guard, and had the
+// field never read into ForceMFA at all — a silent MFA bypass in the one
+// file written to prevent exactly that. Proven to fail against that
+// implementation before it passed against this one (see the branch's
+// final-fixes report for the failure output).
+func TestLoginPolicyReadsEveryKeyInMFAPolicyKeys(t *testing.T) {
+	// Mutating a package-level var is safe here only because Go runs
+	// tests within a package sequentially unless t.Parallel() is called,
+	// and nothing in this file calls it. Restored via t.Cleanup so a
+	// failure cannot leak the extra key into a later test.
+	original := mfaPolicyKeys
+	t.Cleanup(func() { mfaPolicyKeys = original })
+	mfaPolicyKeys = append(append([]string{}, original...), "forceMfaHypothetical")
+
+	// forceMfa and forceMfaLocalOnly are BOTH absent (the ordinary
+	// elision shape), so the only thing that can produce ForceMFA:true
+	// here is the newly registered key actually being read.
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfaHypothetical":true}}`))
+	})
+	p, err := c.LoginPolicy(context.Background())
+	if err != nil {
+		t.Fatalf("LoginPolicy() error = %v, want the newly registered key to be read, not refused", err)
+	}
+	if !p.ForceMFA {
+		t.Error("ForceMFA = false, want true: a key registered in mfaPolicyKeys must be READ into ForceMFA, " +
+			"not merely guarded against renames — otherwise adding a third MFA-forcing field is a silent MFA bypass")
+	}
+}
+
 // TestLoginPolicyForceMFAAndForceMFALocalOnlyDoNotFalsePositiveOnEachOther
 // proves the rename guard extension for forceMfaLocalOnly does not break
 // the ordinary case where only ONE of the two fields is set — a body

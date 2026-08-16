@@ -167,8 +167,18 @@ asks would be speculative.
 > - **The accessible-name contract below** (`Email`, `Password`, `Sign in`) — it
 >   now applies to HMS's own form, and the e2e suite still depends on it.
 > - **The hosted login still exists and is still reached**, as the handoff target
->   for every case HMS does not implement (MFA, password change required,
->   federated IdP). It is no longer the ordinary path.
+>   for every case HMS does not implement (MFA required by org policy,
+>   `forceMfaLocalOnly`, a user's own voluntarily enrolled second factor, a
+>   federated IdP, or a login policy the API could not read and so fails closed
+>   on). It is no longer the ordinary path.
+>
+>   **A forced password change is NOT one of those cases**, though an earlier
+>   version of this block listed it. Verified live 2026-08-16 (#854 Task 8,
+>   spike §5): Zitadel signals `passwordChangeRequired` to a login client
+>   nowhere in the flow — session create, session read and finalize are
+>   byte-identical in shape to a normal user's — so HMS **completes** those
+>   logins rather than handing off. Tracked as
+>   [#856](https://github.com/tesserix/hms/issues/856).
 >
 > A finding from the superseding spike is worth reading here rather than only
 > there: **Zitadel does not enforce `forceMfa` for a login client** — it issued a

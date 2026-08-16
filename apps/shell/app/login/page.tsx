@@ -53,9 +53,14 @@ import { checkPassword, type AuthRequestInfo, type PasswordCheckResult } from "@
 //
 //  - `{ callback_url }` — the login is actually complete; navigate there.
 //  - `{ handoff_url }` — HMS cannot finish this login itself (MFA
-//    required, `forceMfaLocalOnly`, a forced password change, a
-//    federated hospital IdP, or a policy the API could not read and so
-//    fails closed on). This is a NORMAL OUTCOME, not an error. The
+//    required by org policy, `forceMfaLocalOnly`, a user's own
+//    voluntarily enrolled second factor, a federated hospital IdP, or a
+//    policy the API could not read and so fails closed on). A forced
+//    password change is NOT among them, though an earlier version of
+//    this comment listed it: verified live 2026-08-16 (#854 Task 8,
+//    spike §5), Zitadel signals `passwordChangeRequired` to a login
+//    client nowhere in the flow, so the API COMPLETES those logins —
+//    tracked as #856. This is a NORMAL OUTCOME, not an error. The
 //    caller's password may have been entirely correct — this page must
 //    navigate to `handoff_url` exactly as it would `callback_url`, never
 //    render it as a failed sign-in. Treating a handoff as an error would

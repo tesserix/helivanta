@@ -8,6 +8,29 @@ Stack: `ghcr.io/zitadel/zitadel:v4.15.3`, `LOGINV2_REQUIRED=true`, login client
 machine user `hms-login-client` (PAT at `dev/zitadel/secrets/login-client.pat`),
 org `HMS`, seeded user `test@hms.dev`.
 
+> **The stack no longer runs `LOGINV2_REQUIRED=true`.** #854 Task 1 flipped
+> `ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED` to `false` in
+> `docker-compose.dev.yml`, working around upstream
+> [zitadel/zitadel#10722](https://github.com/zitadel/zitadel/issues/10722):
+> with `required=true`, the instance-wide flag wins over the per-app
+> `loginVersion.loginV2.baseUri` this design depends on, so HMS's own
+> `/login` was never reached.
+>
+> **The flip is not a no-op**, and `docker-compose.dev.yml`'s own comment at
+> that setting says so: any other product getting Login V2 *implicitly* from
+> the instance-wide flag falls back to its own per-app setting — or to Login
+> V1, if it has none — the moment `required` goes to `false`. In dev that is
+> harmless (HMS is the only app configured here besides the Management
+> Console). On the shared instance it is a cross-product change and belongs to
+> the platform team. This qualifies spec D1's "another product's login must
+> not move": the *per-app base URI* is HMS's alone, but the instance-wide
+> `required` flag this workaround also needs is not, and the two were
+> conflated in D1 as originally written. See D1 for the corrected claim.
+>
+> Every observation below was recorded BEFORE the flip and is unaffected by
+> it: none of the four login-client API calls goes through the login UI at
+> all.
+
 ---
 
 ## 1. The flow works end to end
@@ -53,7 +76,24 @@ structurally by HMS (read the policy, refuse or hand off), not left as a
 convention.
 
 The org policy was restored to default afterwards; re-read confirms
-`isDefault: true, forceMfa: false`.
+`isDefault: true` and **no `forceMfa` key at all**.
+
+> **Corrected 2026-08-16 (#854 Task 8).** This line originally recorded the
+> read-back as `isDefault: true, forceMfa: false`. That cannot be what the API
+> returned: Zitadel's protojson marshaling elides zero-value booleans, so a
+> false `forceMfa` is **absent from the body entirely** — proven by
+> `loginclient.LoginPolicy`'s implementation and its tests
+> (`client.go`, the "ForceMFA absent does NOT mean unrecognized" section), and
+> by the live integration tests that read the real default policy. The
+> original wording was the spike author's own interpretation of an absent
+> field written back as if it were an observed one, which is exactly the
+> failure mode this document's header rule ("observed, not read from
+> documentation") exists to prevent.
+>
+> This mattered materially: the first implementation required an EXPLICIT
+> `forceMfa` and so treated every ordinary login as an unreadable policy,
+> handing off 100% of sign-ins. The anchor field
+> (`passwordCheckLifetime`) exists because of this correction.
 
 ## 3. Failed and unknown logins are distinguishable — two ways
 
@@ -73,13 +113,28 @@ fixed. `failedAttempts` must never reach the browser.
 ## 4. There is no account lockout at all
 
 `GET /management/v1/policies/login` and `/policies/lockout` return the default
-policy with **no `maxPasswordAttempts`**, i.e. zero, i.e. unlimited password
-attempts. The `failedAttempts` counter in the error detail increments but nothing
-acts on it.
+policy with **no `maxPasswordAttempts`**, i.e. zero, i.e. no policy-driven
+account lockout: no number of failures ever locks the account, and a correct
+password always succeeds.
 
-So today the only brute-force control on HMS login is the request rate limiter
-(#841/#851). That is a real gap and it exists **now**, independent of this work —
-it is not introduced by the login client. Worth its own issue.
+> **Corrected 2026-08-16 (#854 Task 4, carried by
+> [#855](https://github.com/tesserix/hms/issues/855)).** This section
+> originally said attempts were "unlimited" and that "nothing acts on"
+> `failedAttempts`. **Both are wrong**, and were contradicted by a later
+> measurement against this same stack: 25 wrong-password attempts against
+> `test@hms.dev` showed a **per-account escalating backoff** — the first 9 in a
+> tight 809–845ms band, then ~1.83s at #10–14, ~2.83s at #15–19, ~3.85s at
+> #20–24, ~4.86s at #25. It escalated identically whether attempts were
+> back-to-back or spaced 4s apart (so it is keyed on accumulated failures, not
+> on request rate or elapsed time) and **reset after one successful login**.
+> Something does act on `failedAttempts`; it just delays rather than locks.
+> The full measurement and its consequences are recorded at
+> `MinFailedLoginDuration` in `backend/internal/modules/iam/loginui.go`.
+
+So there is still no *lockout*, and the request rate limiter (#841/#851) remains
+the only control HMS itself applies. That is a real gap and it exists **now**,
+independent of this work — it is not introduced by the login client. Tracked as
+[#855](https://github.com/tesserix/hms/issues/855).
 
 Also observed on the default policy: `passwordCheckLifetime: 864000s` (10 days),
 `secondFactorCheckLifetime: 64800s`, `allowRegister: true`,

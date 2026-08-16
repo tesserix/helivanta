@@ -91,8 +91,8 @@ type Result struct {
 //     against this user returned 200 with a valid callback_url — the
 //     same as any other successful login. Zitadel does not signal this
 //     case to a login client at all, so there is nothing in this
-//     package's wire responses to branch on. Filed as its own issue
-//     (#854 Task 8 follow-up) rather than fixed here: closing it needs
+//     package's wire responses to branch on. Filed as its own issue,
+//     #856, rather than fixed here: closing it needs
 //     either a users/{id} read before finalize (an extra round trip on
 //     every login) or Zitadel exposing the flag on the session/finalize
 //     response, which is outside HMS's control. Documented rather than

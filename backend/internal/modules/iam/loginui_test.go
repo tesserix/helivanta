@@ -332,6 +332,148 @@ func TestPasswordRefusesOverBudget(t *testing.T) {
 	require.NotEmpty(t, w2.Header().Get("Retry-After"))
 }
 
+// TestAuthRequestRefusesOverBudget and TestHandoffRefusesOverBudget are
+// spec D2's "all three sit behind the existing unauthenticated limiter"
+// for the two routes that had NO budget at all before this branch's
+// final review round. Both are mounted on the raw gin engine
+// (bootstrap.MountUnauthenticated), outside V1Chain, so
+// ratelimit.Middleware never runs for them — an unlimited
+// GET /v1/auth/login/request/:id in particular makes an unauthenticated
+// Zitadel round trip per call on the INSTANCE-LEVEL login-client PAT,
+// spending a budget shared with every other Tesserix product.
+//
+// Both were proven to fail against the pre-fix handlers (200 on the
+// second call, where a 429 is required); see the branch's final-fixes
+// report for the failure output.
+func TestAuthRequestRefusesOverBudget(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"authRequest":{"id":"V2_abc","clientId":"cid-1","redirectUri":"https://hms.test/cb","scope":["openid"]}}`))
+	})
+	limiter := ratelimit.NewMemory(100)
+	rule := ratelimit.Rule{Rate: 6, Burst: 1, Per: time.Minute}
+	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), loginUITestHostedLoginBaseURL, limiter, rule)
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.GET("/v1/auth/login/request/:id", h.AuthRequest)
+
+	get := func() *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/v1/auth/login/request/V2_abc", nil)
+		req.RemoteAddr = "203.0.113.9:12345"
+		r.ServeHTTP(w, req)
+		return w
+	}
+
+	require.Equal(t, http.StatusOK, get().Code)
+
+	w2 := get()
+	require.Equal(t, http.StatusTooManyRequests, w2.Code,
+		"GET /v1/auth/login/request/:id is unauthenticated and makes a Zitadel round trip on the "+
+			"instance-level login-client PAT; it must be budgeted (spec D2)")
+	require.NotEmpty(t, w2.Header().Get("Retry-After"))
+}
+
+func TestHandoffRefusesOverBudget(t *testing.T) {
+	limiter := ratelimit.NewMemory(100)
+	rule := ratelimit.Rule{Rate: 6, Burst: 1, Per: time.Minute}
+	h := NewLoginUIHandlers(nil, loginUITestHostedLoginBaseURL, limiter, rule)
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.POST("/v1/auth/login/handoff/:id", h.Handoff)
+
+	post := func() *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/v1/auth/login/handoff/"+loginUITestAuthRequestID, nil)
+		req.RemoteAddr = "203.0.113.11:12345"
+		r.ServeHTTP(w, req)
+		return w
+	}
+
+	require.Equal(t, http.StatusOK, post().Code)
+
+	w2 := post()
+	require.Equal(t, http.StatusTooManyRequests, w2.Code,
+		"POST /v1/auth/login/handoff/:id is reachable by anyone with no principal; it must be budgeted (spec D2)")
+	require.NotEmpty(t, w2.Header().Get("Retry-After"))
+}
+
+// TestLoginUIRoutesDoNotShareEachOthersBudget proves the three routes
+// key into DIFFERENT buckets off the one shared limiter: exhausting
+// Password's budget from an IP must not refuse that same IP's
+// AuthRequest or Handoff call. A single shared key would let a
+// credential-guessing flood lock a legitimate clinician out of even
+// LOADING the login form.
+func TestLoginUIRoutesDoNotShareEachOthersBudget(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"authRequest":{"id":"V2_abc"}}`))
+	})
+	mux.HandleFunc("POST /v2/sessions", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"message":"user not found","details":[{"id":"QUERY-Dfbg2"}]}`))
+	})
+	limiter := ratelimit.NewMemory(100)
+	rule := ratelimit.Rule{Rate: 6, Burst: 1, Per: time.Minute}
+	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), loginUITestHostedLoginBaseURL, limiter, rule)
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.POST("/v1/auth/login/password", h.Password)
+	r.GET("/v1/auth/login/request/:id", h.AuthRequest)
+	r.POST("/v1/auth/login/handoff/:id", h.Handoff)
+
+	do := func(method, path, body string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.RemoteAddr = "203.0.113.13:12345"
+		r.ServeHTTP(w, req)
+		return w
+	}
+
+	// Drain Password's bucket for this IP (burst 1, so the second call
+	// is refused). The credential is deliberately wrong — this test is
+	// about budgets, not outcomes.
+	pwBody := `{"auth_request_id":"` + loginUITestAuthRequestID + `","login_name":"nobody@hms.dev","password":"wrong"}`
+	require.Equal(t, http.StatusUnauthorized, do(http.MethodPost, "/v1/auth/login/password", pwBody).Code)
+	require.Equal(t, http.StatusTooManyRequests, do(http.MethodPost, "/v1/auth/login/password", pwBody).Code,
+		"precondition: Password's own bucket must be drained for this IP")
+
+	require.Equal(t, http.StatusOK, do(http.MethodGet, "/v1/auth/login/request/V2_abc", "").Code,
+		"a drained password budget must not refuse the auth-request read from the same IP")
+	require.Equal(t, http.StatusOK, do(http.MethodPost, "/v1/auth/login/handoff/"+loginUITestAuthRequestID, "").Code,
+		"a drained password budget must not refuse the handoff call from the same IP")
+}
+
+// TestAuthRequestAndHandoffAdmitWhenLimiterUnavailable extends
+// TestPasswordAdmitsWhenLimiterUnavailable to the other two routes: a
+// nil limiter must fail OPEN on all three, never take sign-in down.
+func TestAuthRequestAndHandoffAdmitWhenLimiterUnavailable(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"authRequest":{"id":"V2_abc"}}`))
+	})
+	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), loginUITestHostedLoginBaseURL, nil, ratelimit.Rule{})
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.GET("/v1/auth/login/request/:id", h.AuthRequest)
+	r.POST("/v1/auth/login/handoff/:id", h.Handoff)
+
+	for i := 0; i < 5; i++ {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/v1/auth/login/request/V2_abc", nil))
+		require.Equal(t, http.StatusOK, w.Code, "auth request attempt %d: nil limiter must fail open", i+1)
+
+		w = httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/v1/auth/login/handoff/"+loginUITestAuthRequestID, nil))
+		require.Equal(t, http.StatusOK, w.Code, "handoff attempt %d: nil limiter must fail open", i+1)
+	}
+}
+
 // TestPasswordAdmitsWhenLimiterUnavailable is this endpoint's version of
 // login_test.go's TestLoginAdmitsWhenLimiterUnavailable: a nil limiter
 // must fail OPEN, not block sign-in.

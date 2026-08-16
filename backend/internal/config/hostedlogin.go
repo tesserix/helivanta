@@ -83,10 +83,20 @@ func (c Config) resolveHMSWebOrigin() (string, error) {
 // RequireDistinctHostedLoginOrigin refuses to boot if
 // ZitadelHostedLoginURL — the handoff target LoginUIHandlers.Handoff
 // sends a browser to whenever HMS's own login form cannot finish a
-// sign-in itself (spec D3/D4: MFA required, forceMfaLocalOnly, a forced
-// password change, a federated hospital IdP, or a policy the API could
-// not read and so fails closed on) — and HMSWebOrigin, the origin HMS's
-// OWN /login page is served from, resolve to the SAME origin.
+// sign-in itself (spec D3/D4: MFA required by org policy,
+// forceMfaLocalOnly, a user's own voluntarily enrolled second factor, a
+// federated hospital IdP, or a policy the API could not read and so
+// fails closed on) — and HMSWebOrigin, the origin HMS's OWN /login page
+// is served from, resolve to the SAME origin.
+//
+// A forced password change is NOT one of those cases, though an earlier
+// version of this comment listed it. Verified live 2026-08-16 (#854
+// Task 8, spike §5): Zitadel signals passwordChangeRequired to a login
+// client nowhere in the flow — the session create, session read and
+// finalize are byte-identical in shape to a normal user's — so HMS
+// COMPLETES those logins rather than handing off. Tracked as #856; it
+// changes nothing about this guard, which is about the handoff target's
+// origin, not about which cases reach it.
 //
 // # Why this is worth a boot guard rather than "just configure it right"
 //

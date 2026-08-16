@@ -65,8 +65,13 @@ interface PasswordCheckResponse {
 // outcome is NOT a failure — spec D4 is explicit that Zitadel does not
 // enforce MFA for a login client, so the API decides sufficiency itself
 // and answers `handoff` whenever a password alone is not enough (MFA
-// required, a forced password change, a federated hospital IdP, or a
-// policy it could not read). The caller MUST navigate to `handoffUrl`
+// required by org policy, `forceMfaLocalOnly`, a user's own voluntarily
+// enrolled second factor, a federated hospital IdP, or a policy it could
+// not read). A forced password change is NOT one of them, though an
+// earlier version of this comment listed it: verified live 2026-08-16
+// (#854 Task 8, spike §5), Zitadel signals `passwordChangeRequired` to a
+// login client nowhere in the flow, so the API COMPLETES those logins
+// instead — tracked as #856. The caller MUST navigate to `handoffUrl`
 // exactly as it would `callbackUrl` on success — treating a handoff as an
 // error would strand a clinician who needs MFA at a dead end, and
 // treating it as success would skip a required factor entirely.

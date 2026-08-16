@@ -41,10 +41,11 @@ func TestEveryEngineRouteIsDeclaredOrAllowlisted(t *testing.T) {
 		m.Routes(api, platform.Deps{})
 	}
 	// Stub, non-nil handlers for all four routes: this test enumerates
-	// what would be registered in production, so #854 Task 4's three
-	// login-ui routes (nil in main.go until Task 5 wires the real
-	// loginclient.Client) must still be REGISTERED here, or this test
-	// would silently stop pinning them.
+	// what would be registered in production. main.go:321 wires the real
+	// loginclient-backed handlers for #854 Task 4's three login-ui
+	// routes (Task 5); stubs stand in here only because this test builds
+	// a router without a DB, NATS or OpenFGA. All four must still be
+	// REGISTERED, or this test would silently stop pinning them.
 	stub := func(c *gin.Context) { c.Status(http.StatusOK) }
 	bootstrap.MountUnauthenticated(srv.Engine, stub, stub, stub, stub)
 
@@ -83,10 +84,11 @@ func TestUnauthenticatedAllowlistHasNoDeadEntries(t *testing.T) {
 		m.Routes(api, platform.Deps{})
 	}
 	// Stub, non-nil handlers for all four routes: this test enumerates
-	// what would be registered in production, so #854 Task 4's three
-	// login-ui routes (nil in main.go until Task 5 wires the real
-	// loginclient.Client) must still be REGISTERED here, or this test
-	// would silently stop pinning them.
+	// what would be registered in production. main.go:321 wires the real
+	// loginclient-backed handlers for #854 Task 4's three login-ui
+	// routes (Task 5); stubs stand in here only because this test builds
+	// a router without a DB, NATS or OpenFGA. All four must still be
+	// REGISTERED, or this test would silently stop pinning them.
 	stub := func(c *gin.Context) { c.Status(http.StatusOK) }
 	bootstrap.MountUnauthenticated(srv.Engine, stub, stub, stub, stub)
 

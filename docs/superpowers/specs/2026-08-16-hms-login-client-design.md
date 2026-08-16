@@ -41,8 +41,25 @@ pointing at HMS's `/login`. The instance-wide `LOGINV2_BASEURI` is not changed.
 
 The Zitadel instance is shared with every other Tesserix product, and the
 instance-level setting applies to every app on it. Scoping per-app is what makes
-this change HMS's alone: another product's login must not move because HMS
-rebranded its own.
+the *base URI* change HMS's alone: another product's login must not move
+because HMS rebranded its own.
+
+**Qualification, found while implementing (#854 Task 1) and recorded honestly
+rather than left as the flat claim above.** The per-app base URI alone is not
+sufficient on our stack: with the instance-wide
+`LOGINV2_REQUIRED=true`, that flag wins over the per-app
+`loginVersion.loginV2.baseUri` and HMS's `/login` is never reached (upstream
+[zitadel/zitadel#10722](https://github.com/zitadel/zitadel/issues/10722)). The
+dev stack therefore runs
+`ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "false"`
+(`docker-compose.dev.yml`), and **that half is instance-wide, not per-app**.
+Per that file's own comment it is *not* a no-op: any other product currently
+getting Login V2 implicitly from the instance-wide flag would fall back to its
+own per-app setting, or to Login V1 if it has none. So the guarantee this
+section makes holds for the base URI and **does not** hold for the `required`
+flag — on the shared instance, flipping it is a cross-product change that
+belongs to the platform team, and HMS must not make it unilaterally. In dev,
+where HMS and the Management Console are the only apps, the flip is contained.
 
 **This is the first thing to prove.** The per-app setting is confirmed to exist
 in the v4 documentation but was *not* exercised in the spike. If it turns out not
@@ -64,7 +81,12 @@ It lives in the Go API, which already has secret loading, the rate limiter
 which serves no untrusted browser markup. The login page calls
 `POST /v1/auth/login/password` on our own API and never sees a Zitadel token.
 
-New endpoints, in a new `login` module:
+New endpoints. **As built they live in the existing `iam` module**
+(`backend/internal/modules/iam/loginui.go`, with the Zitadel wire client in
+`iam/loginclient/`), not a new `login` module as this section originally said —
+they are the same subject matter as `iam`'s existing `POST /v1/auth/login`, and
+a module whose only content is three unauthenticated handlers would have split
+the login flow across two modules for no gain:
 
 | Route | Purpose |
 |---|---|
@@ -72,9 +94,27 @@ New endpoints, in a new `login` module:
 | `POST /v1/auth/login/password` | Password check, then finalise; returns `callbackUrl` |
 | `POST /v1/auth/login/handoff/:id` | Hand the auth request to the hosted login (D3) |
 
-All three are `authz.Public` — they run before any principal exists — and all
-three sit behind the existing unauthenticated limiter. `POST .../password` is a
-password-attempt surface and gets the tighter of the buckets.
+All three run before any principal exists, and all three sit behind the existing
+unauthenticated limiter — the **same** `ratelimit.Limiter` instance `V1Chain` and
+`POST /v1/auth/login` already share (#841/#851: this codebase constructs exactly
+one), each keyed under its own prefix so no route can spend another's budget.
+`POST .../password` gets its own bucket because credential-guessing traffic is a
+different threat from an auth-request read.
+
+**Correction to how "public" is expressed.** This section originally said all
+three are `authz.Public`. They are not, and cannot be: `authz.Public` is an
+opt-out available to routes registered through `*platform.Router`, and none of
+these three go through it. They are mounted directly on the gin engine via
+`bootstrap.MountUnauthenticated`, which is the repo's *other*, narrower
+mechanism for a deliberate bypass — every route there is enumerated in
+`bootstrap.UnauthenticatedRoutes` with the reason it cannot work any other way,
+and `archtest.TestEveryEngineRouteIsDeclaredOrAllowlisted` fails CI for any
+engine route that is neither declared through `platform.Router` nor listed
+there. The guarantee is equivalent in strength and stricter in review, but it is
+a different mechanism and the spec should name the real one. The consequence
+that matters is the one this section already fixes: routes outside
+`platform.Router` get **no** rate limiting for free, so it has to be applied in
+the handlers — which is why all three, not just `password`, take a budget.
 
 **#45 (secrets management) is now a hard production blocker for login itself**,
 not only for `SESSION_SIGNING_KEY`. It was already blocking; this raises what is
@@ -122,6 +162,30 @@ and **hands off (D3) rather than finalising** when it is not. Fail closed: if th
 policy cannot be read, hand off. A login that redirects unnecessarily is a minor
 annoyance; one that skips a required factor is an authentication bypass.
 
+**`forceMfa` is not the only field that forces MFA.** Found live during
+implementation (#854 Task 8) and added here because it shipped in code without
+appearing in any design doc: the org login policy also carries
+**`forceMfaLocalOnly`** — "require MFA for local (password) users, not
+federated ones" — a normal, supported Zitadel configuration an operator can set
+today, not upstream drift. A policy with `forceMfaLocalOnly: true` and
+`forceMfa` left off answers with `forceMfa` elided entirely, so reading only
+`forceMfa` missed a real, reachable way to require MFA.
+
+HMS folds it into the **same** decision (`forceMfa || forceMfaLocalOnly`) rather
+than modelling it separately, on one narrow and explicitly recorded assumption:
+`forceMfaLocalOnly` means "force MFA for non-federated users", and **every HMS
+user is local today** — no external IdP is configured. If HMS ever federates a
+hospital IdP, this fold-together stops being correct for federated users and
+must be revisited: the sufficiency check would need to know which kind of
+session it is evaluating, not just read one bool. It is not built now because
+there is no federated login path to get it wrong on yet.
+
+Both keys are registered in one list (`mfaPolicyKeys` in
+`loginclient/client.go`) that drives *both* the read and the
+rename/re-casing guard, so a third such field discovered later is a one-place
+change. A test pins that the read really is list-driven, because a list that
+guards a key without reading it is a silent MFA bypass.
+
 **This must be structural, not a convention.** The finalize call is wrapped so
 that it is unreachable except through the function that has already evaluated
 sufficiency — a future contributor adding a second call site should have to
@@ -150,6 +214,28 @@ intact while looking fixed, which is worse than not trying.
 
 The floor is a named constant with its measurement in a comment, because it is
 tied to Zitadel's hash cost and will need revisiting if that changes.
+
+**The equalisation is not unconditional, and this spec must not claim it is.**
+The floor closes the gap only while the real wrong-password latency stays
+*below* it. Zitadel applies a per-account escalating backoff past roughly ten
+consecutive failures against the same login name (see "no account lockout"
+above, and `MinFailedLoginDuration`'s comment): from ~1.83s at attempt 10 it
+exceeds the 1500ms floor, and `respondEqualisedFailure` only ever waits **up
+to** the floor — it never truncates a slower real answer down to it. Past that
+point the wrong-password and unknown-user paths are distinguishable by timing
+again.
+
+This residual is **accepted, not closed**, for two reasons stated at the
+decision point in `loginui.go`: (1) reaching it requires ~10 consecutive
+failures against one specific login name, which the endpoint's own IP-keyed
+rate limiter should have refused well before; and (2) the signal it eventually
+leaks — "this account has accumulated recent failed attempts" — is much weaker
+than the oracle D5 targets ("this account exists at all"), and obtaining it
+requires already sustaining an attack on a login name the attacker has chosen,
+rather than sweeping many. Truncating a slow answer down to the floor would
+close it, at the cost of capping every failure's latency at a value the real
+backoff has already exceeded — which would leak the backoff state a different
+way. Left undefeated deliberately.
 
 ## D6 — The page keeps D5a's accessible names
 
@@ -245,11 +331,24 @@ login page already uses — this time *with* the credential parts.
 ## Surfaced, and not part of this work
 
 **There is no account lockout.** The login policy has no `maxPasswordAttempts`,
-so password attempts against a known account are unlimited; the request rate
-limiter (#841/#851) is the only brute-force control, and it limits by caller, not
-by account. This is **pre-existing** — it is not introduced by this change — but
-it is materially more visible once HMS owns the login form. It needs its own
-issue.
+so no number of failures ever locks an account and a correct password always
+succeeds. The request rate limiter (#841/#851) is the only brute-force control
+HMS itself applies, and it limits by caller, not by account. This is
+**pre-existing** — it is not introduced by this change — but it is materially
+more visible once HMS owns the login form. Tracked as
+[#855](https://github.com/tesserix/hms/issues/855).
+
+**Correction (#854 Task 4, carried by #855):** an earlier version of this
+section, and spike §4, said attempts were "unlimited" and that "nothing acts on
+`failedAttempts`". Both are wrong. A later measurement against the same stack
+found a **per-account escalating backoff**: ~830ms for the first 9 consecutive
+failures against one login name, then ~1.83s, ~2.83s, ~3.85s, ~4.86s in blocks
+of five, keyed on accumulated failures rather than request rate, and reset by a
+single successful login. It is a delay, not a lockout — the distinction this
+section's headline still holds — but it is emphatically *something acting on*
+`failedAttempts`. See `MinFailedLoginDuration` in
+`backend/internal/modules/iam/loginui.go` for the measurement, and D5 below for
+what it costs the timing-equalisation guarantee.
 
 ## Out of scope
 

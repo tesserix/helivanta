@@ -4,7 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 )
+
+// DevHMSWebOrigin is the origin HMS_WEB_ORIGIN defaults to ONLY inside
+// Config.IsDev() (see resolveHMSWebOrigin) — the local dev stack's shell
+// origin, matching scripts/lib/zitadel.mjs's DEV_REDIRECT_URI so a fresh
+// clone's two independently-configured defaults still agree with each
+// other. Mirrors DevSessionSigningKey's shape (signingkey.go): a
+// well-known, committed, dev-only value that must never silently answer
+// for a real one outside dev.
+const DevHMSWebOrigin = "http://localhost:4301"
 
 // ErrHostedLoginOriginMatchesWebOrigin is returned by
 // RequireDistinctHostedLoginOrigin when ZitadelHostedLoginURL and
@@ -13,6 +23,62 @@ import (
 var ErrHostedLoginOriginMatchesWebOrigin = errors.New(
 	"config: ZITADEL_HOSTED_LOGIN_URL shares an origin with HMS_WEB_ORIGIN",
 )
+
+// ErrNoHMSWebOrigin is returned by resolveHMSWebOrigin when HMS_WEB_ORIGIN
+// is unset outside dev. See resolveHMSWebOrigin's doc comment for why an
+// unset value cannot simply fall back to DevHMSWebOrigin everywhere.
+var ErrNoHMSWebOrigin = errors.New("config: HMS_WEB_ORIGIN is not set")
+
+// resolveHMSWebOrigin returns HMSWebOrigin, trimmed, or DevHMSWebOrigin
+// when it is unset AND c.IsDev() — never outside dev.
+//
+// This is the fix for a review finding on an EARLIER version of this
+// file, which had HMSWebOrigin default to DevHMSWebOrigin
+// unconditionally via Load()'s getenv(). That made
+// RequireDistinctHostedLoginOrigin inert exactly where it is needed
+// most: an unset HMS_WEB_ORIGIN in PRODUCTION compared the real
+// ZitadelHostedLoginURL against "http://localhost:4301", found no
+// collision (a real hosted-login URL is never literally
+// localhost:4301), and booted — the redirect loop this guard exists to
+// make unrepresentable stayed fully possible, with nothing anywhere
+// reporting it. That is the identical shape SessionSigningKeySeed
+// (signingkey.go) and RequireZitadelLoginClientToken
+// (zitadelloginclient.go) already refuse to allow for their own
+// secrets: a control that looks present and does nothing under the
+// conditions that matter is not a control.
+//
+// So, mirroring those two functions' own env-loading style (plain
+// os.Getenv in Load(), the default applied HERE instead of there):
+// unset is accepted ONLY inside Config.IsDev(), where DevHMSWebOrigin is
+// a known, committed, safe value never mistaken for a real deployment's
+// origin. Outside dev, unset is ErrNoHMSWebOrigin — a boot refusal, not
+// a warning, because (docs/standards/engineering-principles.md §4)
+// compile error > BOOT FAILURE > CI failure > convention, and the
+// alternative is exactly the silent-passthrough this fix exists to
+// close.
+//
+// HMS_WEB_ORIGIN is consequently a NEW PRODUCTION PREREQUISITE as of
+// this fix: whatever deploys HMS's API (this repo does not own that —
+// see ZitadelLoginClientToken's PRODUCTION NOTE for the sibling case,
+// #45/tesserix-infra) must set it to HMS's real public origin
+// alongside ZITADEL_LOGIN_CLIENT_TOKEN, or the API refuses to start.
+func (c Config) resolveHMSWebOrigin() (string, error) {
+	origin := strings.TrimSpace(c.HMSWebOrigin)
+	if origin != "" {
+		return origin, nil
+	}
+	if c.IsDev() {
+		return DevHMSWebOrigin, nil
+	}
+	return "", fmt.Errorf(
+		"%w: refusing to boot without one outside HMS_ENV=dev — "+
+			"RequireDistinctHostedLoginOrigin cannot tell a real ZITADEL_HOSTED_LOGIN_URL "+
+			"apart from one misconfigured to loop every MFA-enrolled clinician back to "+
+			"HMS's own login page without HMS_WEB_ORIGIN to compare it against; set it to "+
+			"HMS's own public origin (scheme + host, no path — e.g. https://hms.example.org)",
+		ErrNoHMSWebOrigin,
+	)
+}
 
 // RequireDistinctHostedLoginOrigin refuses to boot if
 // ZitadelHostedLoginURL — the handoff target LoginUIHandlers.Handoff
@@ -64,11 +130,15 @@ var ErrHostedLoginOriginMatchesWebOrigin = errors.New(
 // one lands on the same server, which is the property that actually
 // matters here.
 func (c Config) RequireDistinctHostedLoginOrigin() error {
+	hmsWebOrigin, err := c.resolveHMSWebOrigin()
+	if err != nil {
+		return err
+	}
 	hosted, err := url.Parse(c.ZitadelHostedLoginURL)
 	if err != nil {
 		return fmt.Errorf("config: ZITADEL_HOSTED_LOGIN_URL is not a valid URL: %w", err)
 	}
-	web, err := url.Parse(c.HMSWebOrigin)
+	web, err := url.Parse(hmsWebOrigin)
 	if err != nil {
 		return fmt.Errorf("config: HMS_WEB_ORIGIN is not a valid URL: %w", err)
 	}
@@ -79,7 +149,7 @@ func (c Config) RequireDistinctHostedLoginOrigin() error {
 				"from HMS's own login form would be sent right back to it, looping "+
 				"forever with no error anywhere; point ZITADEL_HOSTED_LOGIN_URL at "+
 				"Zitadel's hosted login origin instead",
-			ErrHostedLoginOriginMatchesWebOrigin, c.ZitadelHostedLoginURL, c.HMSWebOrigin,
+			ErrHostedLoginOriginMatchesWebOrigin, c.ZitadelHostedLoginURL, hmsWebOrigin,
 		)
 	}
 	return nil

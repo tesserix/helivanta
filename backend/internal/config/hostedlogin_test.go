@@ -44,12 +44,51 @@ func TestRequireDistinctHostedLoginOrigin_ExactSameURL_Refuses(t *testing.T) {
 // TestRequireDistinctHostedLoginOrigin_DevDefaults_Accepted proves the
 // guard does not fight the dev stack's own defaults: Zitadel's hosted
 // login (localhost:20080) and HMS's own frontend (localhost:4301) are
-// different origins out of the box, with nothing overridden.
+// different origins out of the box, with nothing overridden — but ONLY
+// inside HMS_ENV=dev, which this test sets explicitly rather than relying
+// on Load()'s own "unset defaults to production" behaviour (proven
+// separately by TestRequireDistinctHostedLoginOrigin_UnsetOutsideDev_Refuses
+// immediately below, which is the review finding this pair exists to
+// pin both directions of).
 func TestRequireDistinctHostedLoginOrigin_DevDefaults_Accepted(t *testing.T) {
+	t.Setenv("HMS_ENV", "dev")
+
 	cfg := config.Load()
 	err := cfg.RequireDistinctHostedLoginOrigin()
 
 	require.NoError(t, err)
+}
+
+// TestRequireDistinctHostedLoginOrigin_UnsetOutsideDev_Refuses is
+// Finding 6's core claim: an EARLIER version of this file let
+// HMS_WEB_ORIGIN default to DevHMSWebOrigin unconditionally, which made
+// the guard inert in production — an unset HMS_WEB_ORIGIN there compared
+// the real ZITADEL_HOSTED_LOGIN_URL against "http://localhost:4301",
+// found no collision, and booted, leaving the redirect loop this guard
+// exists to make unrepresentable fully possible with nothing anywhere
+// reporting it. Covers every non-dev value HMS_ENV can plausibly hold,
+// including simply being unset (Load()'s own default, per
+// TestEnvDefaultsToProduction in config_test.go) — mirroring the same
+// table SessionSigningKeySeed's dev-key guard already runs
+// (signingkey_test.go) for the identical class of check.
+func TestRequireDistinctHostedLoginOrigin_UnsetOutsideDev_Refuses(t *testing.T) {
+	for _, env := range []string{"", "production", "staging"} {
+		t.Run("HMS_ENV="+env, func(t *testing.T) {
+			t.Setenv("HMS_ENV", env)
+			t.Setenv("HMS_WEB_ORIGIN", "")
+			// A real-looking hosted-login URL, so the ONLY thing this
+			// test can be failing on is the missing HMS_WEB_ORIGIN, not
+			// an incidental origin collision with some other default.
+			t.Setenv("ZITADEL_HOSTED_LOGIN_URL", "https://auth.tesserix.app/ui/v2/login")
+
+			cfg := config.Load()
+			err := cfg.RequireDistinctHostedLoginOrigin()
+
+			require.Error(t, err)
+			require.ErrorIs(t, err, config.ErrNoHMSWebOrigin)
+			require.Contains(t, err.Error(), "HMS_WEB_ORIGIN")
+		})
+	}
 }
 
 // TestRequireDistinctHostedLoginOrigin_DifferentHost_Accepted proves the

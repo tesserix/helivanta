@@ -293,19 +293,28 @@ func run() error {
 	// does not need its own per-request timeout.
 	zitadelLoginClient := loginclient.New(cfg.ZitadelIssuerURL, zitadelLoginClientToken, http.DefaultClient)
 	// loginUIHandlers backs HMS's own login form (plan #854 Task 4):
-	// reading an auth request, checking a password, and handing off to
-	// Zitadel's hosted UI when HMS cannot complete the login itself. It
-	// reuses the SAME limiter instance as loginHandlers and V1Chain
-	// above (#841's rule: this file must construct exactly one
-	// ratelimit.Limiter, never a second) — see NewLoginUIHandlers' own
-	// doc comment on why sharing the limiter is still safe: Password
-	// keys its bucket under "login_password:", a prefix distinct from
-	// both LoginHandlers.Login's "login:" bucket and
-	// ratelimit.Middleware's Principal bucket, so none of the three can
-	// bleed into another's budget despite sharing one Limiter. The Rule
-	// itself is bootstrap.LoginRateLimitRule(cfg) too — this endpoint
-	// does not yet warrant a budget shaped differently from
-	// POST /v1/auth/login's (both are "one browser tab's worth of login
+	// three unauthenticated routes reading an auth request (GET
+	// /v1/auth/login/request/:id), checking a password (POST
+	// /v1/auth/login/password), and handing off to Zitadel's hosted UI
+	// when HMS cannot complete the login itself (POST
+	// /v1/auth/login/handoff/:id). All three reuse the SAME limiter
+	// instance as loginHandlers and V1Chain above (#841's rule: this
+	// file must construct exactly one ratelimit.Limiter, never a second)
+	// — see NewLoginUIHandlers' own doc comment on why sharing the
+	// limiter is still safe: each route keys its bucket under its own
+	// prefix (login_auth_request:, login_password:, login_handoff:) —
+	// distinct from each other AND from both LoginHandlers.Login's
+	// "login:" bucket and ratelimit.Middleware's Principal bucket, so
+	// none of the five can bleed into another's budget despite sharing
+	// one Limiter. The reason the buckets are separate: a shared key
+	// would let credential-guessing traffic exhaust the same budget as
+	// merely LOADING the login form, so an attacker (or one clinician
+	// mistyping their password repeatedly) could lock people out of the
+	// sign-in page itself — a self-inflicted denial of service on the
+	// sign-in path that buckets are distinct specifically to prevent.
+	// The Rule itself is bootstrap.LoginRateLimitRule(cfg) too — these
+	// endpoints do not yet warrant a budget shaped differently from
+	// POST /v1/auth/login's (all are "one browser tab's worth of login
 	// traffic"), so a second RATE_LIMIT_* knob would be configuration
 	// nobody has a reason to set independently; revisit if that changes.
 	loginUIHandlers := iam.NewLoginUIHandlers(zitadelLoginClient, cfg.ZitadelHostedLoginURL, limiter, bootstrap.LoginRateLimitRule(cfg))

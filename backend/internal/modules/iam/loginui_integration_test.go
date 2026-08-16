@@ -267,8 +267,11 @@ func newAuthRequest(t *testing.T, env integrationEnv) string {
 // this file never exercises; it is passed a handler that FAILS the test
 // if reached, rather than a silent no-op, so a future argument-order
 // mistake surfaces as a failure here instead of a mystery elsewhere.
-// MountUnauthenticated panics on a nil, by design, so it cannot be
-// omitted.
+// This only detects a swap that involves the login slot — an
+// authRequest↔handoff swap (the other two positions) would still
+// compile and leave this file green, because only the password route
+// is driven here. MountUnauthenticated panics on a nil, by design, so
+// it cannot be omitted.
 func newIntegrationRouter(t *testing.T, env integrationEnv) *gin.Engine {
 	t.Helper()
 	client := loginclient.New(env.issuer, env.token, http.DefaultClient)

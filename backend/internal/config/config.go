@@ -76,6 +76,15 @@ type Config struct {
 	// the e2e suite and a hospital in production.
 	RateLimitTenantPerMin    int
 	RateLimitPrincipalPerMin int
+	// RateLimitLoginPerMin bounds POST /v1/auth/login, keyed on the
+	// verified Zitadel subject (#841) — a separate knob from
+	// RateLimitPrincipalPerMin because login runs entirely outside
+	// bootstrap.V1Chain (there is no authn.Principal yet for
+	// ratelimit.Middleware to key on) and is sized off renewal traffic,
+	// not general API traffic — see
+	// docs/superpowers/specs/2026-08-16-login-rate-limit-design.md D2 for
+	// the arithmetic behind the default.
+	RateLimitLoginPerMin int
 }
 
 func Load() Config {
@@ -101,6 +110,7 @@ func Load() Config {
 
 		RateLimitTenantPerMin:    getenvInt("RATE_LIMIT_TENANT_PER_MIN", 600),
 		RateLimitPrincipalPerMin: getenvInt("RATE_LIMIT_PRINCIPAL_PER_MIN", 120),
+		RateLimitLoginPerMin:     getenvInt("RATE_LIMIT_LOGIN_PER_MIN", 20),
 	}
 }
 

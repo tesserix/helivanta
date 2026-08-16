@@ -36,6 +36,38 @@ import (
 // this budget "should be revisited when this lands" and "this spec does
 // not silently inherit its reasoning." The route still gets the
 // ordinary Tenant/Principal budgets below, same as any other route.
+
+// LoginRateLimitRule builds the budget for POST /v1/auth/login (#841),
+// keyed on the verified Zitadel subject rather than folded into Principal
+// above. It is applied inline in iam.LoginHandlers.Login, not through
+// ratelimit.Middleware — that route runs entirely outside V1Chain (there
+// is no authn.Principal yet to key Middleware's Principal bucket on; see
+// login.go's own doc comment on why it is mounted directly on the
+// engine) — so it needs its own Rule, not a Tight/Exempt entry: Tight and
+// Exempt only affect routes that actually pass through
+// ratelimit.Middleware, and TestRateLimitPolicyRoutesAreRegistered
+// verifies every Tight/Exempt key against routes registered through
+// platform.Router, which POST /v1/auth/login (registered via
+// bootstrap.MountUnauthenticated) is not one of — adding it to either map
+// would be silently dead configuration, not a working control.
+//
+// Burst is fixed at 10, not derived from Rate/6 the way Tenant/Principal
+// above are. See
+// docs/superpowers/specs/2026-08-16-login-rate-limit-design.md D2 for the
+// full arithmetic: Rate/6 sizes a burst to "one page load's worth of
+// parallel requests", which is not this endpoint's traffic shape. This
+// endpoint's legitimate bursts come from #838 D4a's silent renewal
+// (RENEWAL_INTERVAL_MS, 5 minutes) firing from every open shell tab —
+// tabs opened close together renew in a synchronized cluster every 5
+// minutes for as long as they stay open, and 10 is a generous bound on
+// how many tabs one clinician has open at once. Rate=20/min (default)
+// refills a fully-drained 10-token burst in 30s, comfortably inside that
+// 5-minute gap, while staying an order of magnitude above the ~2/min a
+// heavy 10-tab clinician actually sustains.
+func LoginRateLimitRule(cfg config.Config) ratelimit.Rule {
+	return ratelimit.Rule{Rate: cfg.RateLimitLoginPerMin, Burst: 10, Per: time.Minute}
+}
+
 func RateLimitConfig(cfg config.Config) ratelimit.Config {
 	return ratelimit.Config{
 		Tenant: ratelimit.Rule{

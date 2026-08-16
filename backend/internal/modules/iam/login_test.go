@@ -18,6 +18,7 @@ import (
 	"github.com/tesserix/hms/internal/testutil"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/hms/pkg/ratelimit"
 	"github.com/tesserix/hms/pkg/session"
 )
 
@@ -69,8 +70,19 @@ func (f *fakeRoleListerLogin) ListRoles(_ context.Context, subject string) ([]au
 // loginHarness wires a real session.Signer/Verifier pair (so minted
 // tokens can actually be checked, not just asserted non-empty) around a
 // fakeZitadelVerifier and fakeRoleListerLogin, exactly mirroring what
-// cmd/api/main.go wires in production minus the network calls.
+// cmd/api/main.go wires in production minus the network calls. limiter is
+// nil — every test in this file except the #841 rate-limit tests below is
+// about what Login does once it holds a verified Principal, not about the
+// budget, and a nil limiter fails open (Login admits unconditionally),
+// which is exactly "no rate limiting" for these tests' purposes.
 func loginHarness(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLogin) (*gin.Engine, *session.Verifier) {
+	t.Helper()
+	return loginHarnessRL(t, zv, roles, nil, ratelimit.Rule{})
+}
+
+// loginHarnessRL is loginHarness plus an explicit limiter/rule, for the
+// #841 rate-limit tests that need to control the budget directly.
+func loginHarnessRL(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLogin, limiter ratelimit.Limiter, rule ratelimit.Rule) (*gin.Engine, *session.Verifier) {
 	t.Helper()
 	pub, priv, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
@@ -79,7 +91,7 @@ func loginHarness(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLog
 	verifier, err := session.NewVerifier(pub, loginTestKID, loginTestIssuer)
 	require.NoError(t, err)
 
-	h := iam.NewLoginHandlers(zv, roles, signer, loginTestTTL, true)
+	h := iam.NewLoginHandlers(zv, roles, signer, loginTestTTL, true, limiter, rule)
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -310,6 +322,104 @@ func TestLogin_RejectsMalformedRequestBody(t *testing.T) {
 
 	w := doLogin(t, r, `not json`)
 	require.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// --- #841: rate limit between token verification and ListRoles ----------
+
+// TestLogin_RefusesOverBudget proves the budget actually refuses: rate 6
+// with burst 1 (mirroring internal/archtest/ratelimit_test.go's
+// TestThrottledRequestMakesNoOpenFGACall arithmetic) admits exactly one
+// request and 429s the second, with a Retry-After header a client can
+// act on.
+func TestLogin_RefusesOverBudget(t *testing.T) {
+	roles := &fakeRoleListerLogin{bindings: map[string][]authz.RoleBinding{
+		"user-1": {{TenantID: tenantA, Role: authz.RoleNurse}},
+	}}
+	limiter := ratelimit.NewMemory(100)
+	rule := ratelimit.Rule{Rate: 6, Burst: 1, Per: time.Minute}
+	r, _ := loginHarnessRL(t, fakeZitadelVerifier{subject: "user-1", authTime: time.Now()}, roles, limiter, rule)
+
+	w1 := doLogin(t, r, `{"id_token":"good"}`)
+	require.Equal(t, http.StatusOK, w1.Code, w1.Body.String())
+
+	w2 := doLogin(t, r, `{"id_token":"good"}`)
+	require.Equal(t, http.StatusTooManyRequests, w2.Code)
+	require.NotEmpty(t, w2.Header().Get("Retry-After"),
+		"a refused login must tell the client when to retry")
+	require.Empty(t, sessionCookies(w2), "no session may be issued for a throttled login")
+}
+
+// TestLoginThrottledMakesNoRolesListCall is this endpoint's equivalent of
+// internal/archtest/ratelimit_test.go's
+// TestThrottledRequestMakesNoOpenFGACall: the budget must be checked
+// BEFORE ListRoles, not after, or a flood exhausts OpenFGA before
+// anything is refused. roles.calls is asserted, not just the status
+// code, because a check placed after ListRoles would ALSO return 429 on
+// the second call — the status code alone cannot distinguish correct
+// placement from the exact bug this test exists to catch. See this
+// task's report for the observed failure when the check is moved after
+// ListRoles.
+func TestLoginThrottledMakesNoRolesListCall(t *testing.T) {
+	roles := &fakeRoleListerLogin{bindings: map[string][]authz.RoleBinding{
+		"user-1": {{TenantID: tenantA, Role: authz.RoleNurse}},
+	}}
+	limiter := ratelimit.NewMemory(100)
+	rule := ratelimit.Rule{Rate: 6, Burst: 1, Per: time.Minute}
+	r, _ := loginHarnessRL(t, fakeZitadelVerifier{subject: "user-1", authTime: time.Now()}, roles, limiter, rule)
+
+	require.Equal(t, http.StatusOK, doLogin(t, r, `{"id_token":"good"}`).Code)
+	require.Equal(t, 1, roles.calls, "the first, admitted login must have consulted OpenFGA")
+
+	require.Equal(t, http.StatusTooManyRequests, doLogin(t, r, `{"id_token":"good"}`).Code)
+	require.Equal(t, 1, roles.calls,
+		"a throttled login must not reach OpenFGA: it would exhaust ListRoles before the limiter refused anything")
+}
+
+// TestLogin_BudgetIsPerSubject proves the bucket is keyed on the verified
+// subject, not shared globally: a second subject exhausting its own
+// budget must not affect a third subject's ability to log in, and the
+// throttled subject retrying under a different (fresh) principal is not
+// how a real attacker would behave — but the isolation itself is what a
+// shared/global bucket would break, silently throttling every hospital's
+// logins over one caller's flood.
+func TestLogin_BudgetIsPerSubject(t *testing.T) {
+	roles := &fakeRoleListerLogin{bindings: map[string][]authz.RoleBinding{
+		"user-1": {{TenantID: tenantA, Role: authz.RoleNurse}},
+		"user-2": {{TenantID: tenantA, Role: authz.RoleNurse}},
+	}}
+	limiter := ratelimit.NewMemory(100)
+	rule := ratelimit.Rule{Rate: 6, Burst: 1, Per: time.Minute}
+
+	r1, _ := loginHarnessRL(t, fakeZitadelVerifier{subject: "user-1", authTime: time.Now()}, roles, limiter, rule)
+	require.Equal(t, http.StatusOK, doLogin(t, r1, `{"id_token":"good"}`).Code)
+	require.Equal(t, http.StatusTooManyRequests, doLogin(t, r1, `{"id_token":"good"}`).Code,
+		"precondition: user-1's budget is exhausted")
+
+	r2, _ := loginHarnessRL(t, fakeZitadelVerifier{subject: "user-2", authTime: time.Now()}, roles, limiter, rule)
+	require.Equal(t, http.StatusOK, doLogin(t, r2, `{"id_token":"good"}`).Code,
+		"user-2's login must not be affected by user-1 exhausting its own budget")
+}
+
+// TestLoginAdmitsWhenLimiterUnavailable is D3's fail-open proof: a nil
+// limiter (the shape an unwired dependency takes) must never block a
+// login that would otherwise succeed — denying here, per
+// docs/standards/engineering-principles.md §3, is the worse outage,
+// since it would time out every open tab's silent renewal within one
+// SessionTTL. loginHarness (not loginHarnessRL) is used deliberately: it
+// is the nil-limiter case by construction.
+func TestLoginAdmitsWhenLimiterUnavailable(t *testing.T) {
+	roles := &fakeRoleListerLogin{bindings: map[string][]authz.RoleBinding{
+		"user-1": {{TenantID: tenantA, Role: authz.RoleNurse}},
+	}}
+	r, _ := loginHarness(t, fakeZitadelVerifier{subject: "user-1", authTime: time.Now()}, roles)
+
+	// Many calls in a row: a real (non-nil) limiter at any sane budget
+	// would have refused well before this many. A nil limiter must
+	// admit every single one.
+	for i := 0; i < 20; i++ {
+		w := doLogin(t, r, `{"id_token":"good"}`)
+		require.Equal(t, http.StatusOK, w.Code, "attempt %d: nil limiter must fail open, not deny", i+1)
+	}
 }
 
 func sessionCookies(w *httptest.ResponseRecorder) []*http.Cookie {

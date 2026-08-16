@@ -251,7 +251,13 @@ func run() error {
 	// that does not exist yet — because gin routes registered directly on
 	// the engine are independent of any *gin.RouterGroup built over it,
 	// even one sharing the same path prefix.
-	loginHandlers := iam.NewLoginHandlers(zitadelVerifier, fga, sessionSigner, cfg.SessionTTL, sessionSecureCookie)
+	// limiter is the SAME instance V1Chain above uses — #841 reuses it
+	// rather than building a second one, keyed under its own "login:"
+	// prefix (see login.go) so it cannot bleed into the Principal bucket
+	// authenticated routes read from. LoginRateLimitRule is
+	// bootstrap-owned for the same reason RateLimitConfig is: one
+	// construction path both production and internal/archtest read.
+	loginHandlers := iam.NewLoginHandlers(zitadelVerifier, fga, sessionSigner, cfg.SessionTTL, sessionSecureCookie, limiter, bootstrap.LoginRateLimitRule(cfg))
 	// Mounted through bootstrap so the bypass is declared in one
 	// enumerable place and pinned by
 	// archtest.TestEveryEngineRouteIsDeclaredOrAllowlisted — a route on the

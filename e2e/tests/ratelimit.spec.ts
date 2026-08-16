@@ -1,41 +1,42 @@
 import { expect, test } from "@playwright/test";
 import { login } from "./support/login";
 
-// #689: the limiter must actually refuse, and the client must be told when
-// to come back — and the answer must be true, not decorative.
+// #841: the login-exchange limiter must actually refuse, and the client
+// must be told when to come back — and the answer must be true, not
+// decorative. Restores the coverage e2e/tests/ratelimit.spec.ts used to
+// provide before #838 Task 5 removed the mint-specific budget this spec
+// used to drain (see git history / the design spec below for that story);
+// this version targets #841's NEW budget instead of the retired one.
 //
-// This spec exists because a rate limiter that is configured but never
-// exercised is indistinguishable from one that is broken. The dev stack
-// deliberately runs enormous per-tenant and per-principal budgets (see the
-// RATE_LIMIT_* block in the Makefile) so the rest of the suite is not
-// throttled by its own load, which would otherwise mean the limiter is
-// never exercised anywhere before production. The mint route is the one
-// budget left deliberately reachable, and this spec is what reaches it.
-//
-// The route: POST /v1/iam/me/tenant minted a GIP custom token per call
-// against project-wide Identity Platform quota, so it carries the tightest
-// budget on the platform (internal/bootstrap/ratelimit.go, Tight map) and
-// gets its own bucket keyed by subject AND route. Draining it therefore
-// affects nothing else this spec or any other spec does.
-
-// The user's own first hospital, seeded by scripts/seed-dev.mjs. Switching
-// to the hospital the session is already in is a real, membership-checked
-// mint — the point is to consume mint budget, not to move anywhere.
-const OWN_TENANT_ID = "11111111-1111-1111-1111-111111111111";
+// The route: POST /v1/auth/login, rate limited per verified Zitadel
+// subject (backend/internal/modules/iam/login.go, checked between token
+// verification and the OpenFGA ListRoles call — never before verification,
+// see docs/superpowers/specs/2026-08-16-login-rate-limit-design.md for why).
+// The budget (backend/internal/bootstrap/ratelimit.go's LoginRateLimitRule,
+// RATE_LIMIT_LOGIN_PER_MIN) is left at its PRODUCTION default in dev too —
+// unlike RATE_LIMIT_TENANT_PER_MIN/RATE_LIMIT_PRINCIPAL_PER_MIN, which the
+// Makefile inflates to 100000/min so the rest of the e2e suite is not
+// throttled by its own load. Login's bucket is keyed per-subject and every
+// spec logs in under its own account (support/login.ts), so one spec's
+// login traffic cannot drain another's budget, and even the sign-in retry
+// loop support/login.ts itself runs (MAX_SIGN_IN_ATTEMPTS = 4) sits well
+// inside the burst of 10 — nothing in the existing suite risks tripping
+// this by accident.
 
 // A bound on the flood, not an expectation: the refusal is expected within
-// single digits.
+// single digits (burst 10), same shape as the retired mint spec.
 //
-// The arithmetic that matters. The dev mint budget is 60/min — one token
-// per second — against a burst of 3. A sequential loop drains a token per
-// round trip, so it outruns the refill whenever the round trip is under a
-// second, and the bucket empties after roughly 3 / (1 - T/1000) attempts:
-// ~4 at the measured T of 9ms, ~6 at 500ms, ~15 at 800ms. 100 attempts
-// covers a round trip up to ~970ms, a hundred times worse than measured.
-// Above that the loop cannot trip a 60/min bucket at all and no attempt
-// count would help — which is exactly why the dev budget is 60 and not the
-// 1000/min (a token every 60ms) that would leave only 6x of headroom over
-// the round trip and let this loop spin against a limiter that works.
+// The arithmetic that matters. The login budget is 20/min — one token
+// every 3s — against a burst of 10. A sequential loop drains a token per
+// round trip, so it outruns the refill whenever the round trip is under 3
+// seconds, and the bucket empties after roughly 10 / (1 - T/3000)
+// attempts: ~11 at a measured T well under a second. 100 attempts covers a
+// round trip up to ~2.7s, well beyond anything this suite has measured for
+// a same-origin fetch. Above that the loop cannot trip a 20/min bucket at
+// all and no attempt count would help — which is exactly why the budget is
+// 20 and not something an order of magnitude looser that would leave no
+// headroom over the round trip and let this loop spin against a limiter
+// that works.
 const MAX_ATTEMPTS = 100;
 
 // Retry-After has one-second granularity and is rounded up, so sleeping it
@@ -50,35 +51,11 @@ type Flood = {
   // Reported in the failure message rather than asserted on: if this test
   // ever fails with "never refused", the first question is whether the
   // round trip has grown past the refill interval — in which case the loop
-  // cannot win and the dev budget, not the test, is what needs changing.
+  // cannot win and the budget, not the test, is what needs changing.
   meanRoundTripMs: number;
 };
 
-// SKIPPED, not deleted or weakened — this spec's premise no longer holds,
-// as a PRE-EXISTING gap from #838 Task 5 (backend, already committed
-// before this frontend task started), found live running this suite for
-// #838's frontend half, not introduced by it.
-//
-// Design spec D3 (docs/superpowers/specs/2026-08-15-zitadel-auth-design.md)
-// is explicit: "the Tight rate-limit entry for [POST /v1/iam/me/tenant] is
-// no longer protecting a project-wide external quota... The budget should
-// be revisited when this lands, and this spec does not silently inherit
-// its reasoning." Task 5 acted on exactly that — see
-// backend/internal/bootstrap/ratelimit.go's `Tight is deliberately empty
-// as of #838` comment: the route now shares the SAME (dev: 100000/min)
-// Tenant/Principal budgets every other authenticated route gets, not a
-// separate tight one. This spec still floods the OLD 60/min mint-specific
-// budget the design deliberately removed; run against the current
-// backend it correctly finds no 429 within 100 attempts, because there is
-// no longer a tighter budget to trip.
-//
-// This is a rate-limit BUDGET decision — D3 flags it as its own follow-up,
-// out of scope for both Task 5 (backend) and #838's frontend half (this
-// task). Skipping rather than deleting keeps the gap visible and the
-// original intent on record for whoever picks up "revisit the budget" as
-// its own piece of work, rather than silently losing the coverage this
-// spec used to provide.
-test.skip("draining the mint budget is refused with a Retry-After that is honest", async ({
+test("draining the login budget is refused with a Retry-After that is honest", async ({
   page,
 }) => {
   // Login alone can take 30s under parallel workers (see support/login.ts),
@@ -86,14 +63,31 @@ test.skip("draining the mint budget is refused with a Retry-After that is honest
   test.setTimeout(180_000);
 
   await login(page);
+  await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
+
+  // window.__hmsUserManager (apps/shell/lib/oidc.ts, dev/test builds only)
+  // is the same technique e2e/tests/signout.spec.ts uses to get at the raw
+  // id_token oidc-client-ts holds in sessionStorage — there is no bundler
+  // inside page.evaluate to import getUserManager() through directly.
+  await page.waitForFunction(() => Boolean(window.__hmsUserManager));
+  const idToken = await page.evaluate(async () => {
+    const user = await window.__hmsUserManager!.getUser();
+    return user?.id_token ?? null;
+  });
+  expect(idToken, "precondition: a live Zitadel ID token was captured after login").toBeTruthy();
 
   const flood = await page.evaluate(
-    async ({ tenantId, maxAttempts }): Promise<Flood> => {
+    async ({ token, maxAttempts }): Promise<Flood> => {
+      // Re-verifying the SAME ID token repeatedly is deliberate: Zitadel
+      // ID tokens are not single-use (unlike the authorization code that
+      // minted this one), so this isolates the login-exchange rate limit
+      // from token freshness — a stale-token failure would refuse for the
+      // wrong reason and this test must not confuse the two.
       const attempt = () =>
-        fetch("/api/v1/iam/me/tenant", {
+        fetch("/api/v1/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tenant_id: tenantId }),
+          body: JSON.stringify({ id_token: token }),
         });
 
       let firstStatus = 0;
@@ -122,22 +116,23 @@ test.skip("draining the mint budget is refused with a Retry-After that is honest
         meanRoundTripMs: mean(maxAttempts),
       };
     },
-    { tenantId: OWN_TENANT_ID, maxAttempts: MAX_ATTEMPTS },
+    { token: idToken, maxAttempts: MAX_ATTEMPTS },
   );
 
-  // Asserted before the 429, deliberately: a route that answered 403 or 500
-  // from the very first call would exhaust the loop and fail below with
-  // "never refused", which reads as a broken limiter when the truth is a
-  // broken route. This says which one it was.
+  // Asserted before the 429, deliberately: a route that answered 401 or
+  // 500 from the very first call would exhaust the loop and fail below
+  // with "never refused", which reads as a broken limiter when the truth
+  // is a broken route (or a token that failed to capture). This says
+  // which one it was.
   expect(
     flood.firstStatus,
-    "the first mint must succeed — the limiter is supposed to be refusing real work, not a route that was already failing",
+    "the first re-exchange must succeed — the limiter is supposed to be refusing real work, not a route that was already failing",
   ).toBe(200);
 
   expect(
     flood.status,
     `never refused after ${flood.attempts} attempts (mean round trip ${flood.meanRoundTripMs}ms; ` +
-      `a mint budget refilling faster than that cannot be drained sequentially)`,
+      `a login budget refilling faster than that cannot be drained sequentially)`,
   ).toBe(429);
 
   // Not merely present: a header of "0" is present and truthy-as-a-string,
@@ -156,17 +151,17 @@ test.skip("draining the mint budget is refused with a Retry-After that is honest
   // emptied permanently. This is the assertion that fails if refill breaks
   // while denial keeps working.
   const recovered = await page.evaluate(
-    async ({ tenantId, waitMs }) => {
+    async ({ token, waitMs }) => {
       await new Promise((resolve) => setTimeout(resolve, waitMs));
-      const res = await fetch("/api/v1/iam/me/tenant", {
+      const res = await fetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenant_id: tenantId }),
+        body: JSON.stringify({ id_token: token }),
       });
       return res.status;
     },
     {
-      tenantId: OWN_TENANT_ID,
+      token: idToken,
       waitMs: retryAfterSeconds * 1000 + RETRY_MARGIN_MS,
     },
   );

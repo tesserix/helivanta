@@ -46,10 +46,17 @@ func TestIsDevOnlyForExactDev(t *testing.T) {
 func TestRateLimitDefaultsMatchTheDesignSpec(t *testing.T) {
 	t.Setenv("RATE_LIMIT_TENANT_PER_MIN", "")
 	t.Setenv("RATE_LIMIT_PRINCIPAL_PER_MIN", "")
+	t.Setenv("RATE_LIMIT_LOGIN_PER_MIN", "")
 
 	cfg := config.Load()
 	require.Equal(t, 600, cfg.RateLimitTenantPerMin)
 	require.Equal(t, 120, cfg.RateLimitPrincipalPerMin)
+	// 20/min, per
+	// docs/superpowers/specs/2026-08-16-login-rate-limit-design.md D2:
+	// refills a fully-drained 10-token burst (bootstrap.LoginRateLimitRule)
+	// in 30s, well inside the 5-minute gap between #838 D4a's synchronized
+	// multi-tab renewal clusters.
+	require.Equal(t, 20, cfg.RateLimitLoginPerMin)
 }
 
 // TestRateLimitEnvOverridesAreHonoured proves getenvInt actually reads
@@ -60,10 +67,12 @@ func TestRateLimitDefaultsMatchTheDesignSpec(t *testing.T) {
 func TestRateLimitEnvOverridesAreHonoured(t *testing.T) {
 	t.Setenv("RATE_LIMIT_TENANT_PER_MIN", "100000")
 	t.Setenv("RATE_LIMIT_PRINCIPAL_PER_MIN", "100000")
+	t.Setenv("RATE_LIMIT_LOGIN_PER_MIN", "100000")
 
 	cfg := config.Load()
 	require.Equal(t, 100000, cfg.RateLimitTenantPerMin)
 	require.Equal(t, 100000, cfg.RateLimitPrincipalPerMin)
+	require.Equal(t, 100000, cfg.RateLimitLoginPerMin)
 }
 
 // TestRateLimitEnvFallsOpenOnUnparseableValue is the fail-open case

@@ -1,6 +1,7 @@
 package iam
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/tesserix/hms/internal/platform/requestid"
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/hms/pkg/ratelimit"
 	"github.com/tesserix/hms/pkg/session"
 )
 
@@ -77,6 +79,14 @@ type LoginHandlers struct {
 	// its own session, and it is the only thing holding the signing
 	// key), where the shell used to.
 	secureCookie bool
+	// limiter and limit are #841's budget on this endpoint, keyed on the
+	// verified Zitadel subject once Login has one — see Login's own
+	// comment on exactly where the check runs and why. limiter may be
+	// nil (see Login's fail-open comment at the check itself);
+	// docs/superpowers/specs/2026-08-16-login-rate-limit-design.md is
+	// the full design.
+	limiter ratelimit.Limiter
+	limit   ratelimit.Rule
 }
 
 // NewLoginHandlers wires Login's dependencies: verifier authenticates
@@ -86,9 +96,12 @@ type LoginHandlers struct {
 // meHandlers.tenants does (see roles' doc comment on Deps.Roles), and
 // signer mints the HMS session itself. secureCookie is threaded from
 // config rather than decided here, so this file has no direct
-// environment dependency to get wrong.
-func NewLoginHandlers(verifier authn.TokenVerifier, roles platform.RoleLister, signer *session.Signer, ttl time.Duration, secureCookie bool) *LoginHandlers {
-	return &LoginHandlers{verifier: verifier, roles: roles, signer: signer, ttl: ttl, secureCookie: secureCookie}
+// environment dependency to get wrong. limiter is the SAME
+// ratelimit.Limiter instance cmd/api/main.go builds for bootstrap.V1Chain
+// — reused, not duplicated, per #841 — and limit is
+// bootstrap.LoginRateLimitRule(cfg).
+func NewLoginHandlers(verifier authn.TokenVerifier, roles platform.RoleLister, signer *session.Signer, ttl time.Duration, secureCookie bool, limiter ratelimit.Limiter, limit ratelimit.Rule) *LoginHandlers {
+	return &LoginHandlers{verifier: verifier, roles: roles, signer: signer, ttl: ttl, secureCookie: secureCookie, limiter: limiter, limit: limit}
 }
 
 // Login verifies req.IDToken as a Zitadel ID token, resolves the
@@ -120,6 +133,40 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 		requestid.Logger(c).WarnContext(c.Request.Context(), "login: zitadel token verification failed", "err", err)
 		respond.Unauthenticated(c, "invalid credentials")
 		return
+	}
+
+	// #841: the budget sits HERE — after Verify succeeded (there is no
+	// subject to key on before it) and before ListRoles (the OpenFGA
+	// call every tenant's login traffic shares; refusing after it would
+	// let a flood exhaust OpenFGA before anything was refused, the exact
+	// mistake #689's TestThrottledRequestMakesNoOpenFGACall exists to
+	// catch for the /v1 chain — TestLoginThrottledMakesNoRolesListCall is
+	// this endpoint's equivalent). Keyed "login:"+subject, deliberately
+	// NOT the plain "subject:"+subject bucket ratelimit.Middleware's
+	// Principal rule reads: sharing it would let logging in drain the
+	// budget every other authenticated route reads from, and vice versa.
+	//
+	// A nil limiter fails OPEN (admits, warns) rather than refusing to
+	// mint a session: per
+	// docs/standards/engineering-principles.md §3, this is a capacity
+	// control, and a limiter that cannot decide must not take sign-in
+	// down for a hospital — denying every login here would time out
+	// every open tab's renewal within one SessionTTL, a worse outage than
+	// the flood this budget exists to bound.
+	// TestLoginAdmitsWhenLimiterUnavailable pins this direction; see
+	// design spec D3 for why there is currently no other "cannot decide"
+	// path (pkg/ratelimit.Memory.Allow has no error return).
+	if h.limiter != nil {
+		if d := h.limiter.Allow("login:"+principal.Subject, h.limit, time.Now()); !d.Allowed {
+			slog.WarnContext(c.Request.Context(), "login rate limited",
+				"subject", principal.Subject, "retry_after_ms", d.RetryAfter.Milliseconds())
+			respond.TooManyRequests(c,
+				"too many sign-in attempts; retry in "+d.RetryAfter.Round(time.Second).String(),
+				d.RetryAfter, d.Limit, d.Remaining)
+			return
+		}
+	} else {
+		requestid.Logger(c).WarnContext(c.Request.Context(), "login: rate limiter unavailable, admitting (fail open)")
 	}
 
 	bindings, err := h.roles.ListRoles(c.Request.Context(), principal.Subject)

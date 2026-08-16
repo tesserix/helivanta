@@ -9,7 +9,6 @@ import (
 	"github.com/tesserix/hms/internal/platform/requestid"
 	"github.com/tesserix/hms/internal/platform/respond"
 	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/ratelimit"
 	"github.com/tesserix/hms/pkg/session"
 )
 
@@ -33,6 +32,15 @@ type activityResponse struct {
 // on purpose, per spec D3. This handler is the deliberate exception,
 // reached only when the browser has observed genuine human interaction
 // (a debounced pointerdown/keydown/scroll, per D4) — never on a timer.
+//
+// This handler carries no rate-limiter field of its own: the route is
+// registered through platform.Router (see Module.registerActivity)
+// inside the authenticated /v1 chain, so it already passes through
+// ratelimit.Middleware, which applies bootstrap.RateLimitConfig's Tight
+// entry for "POST /v1/auth/session/activity" — a narrower, separately
+// keyed budget than the Principal rule every other authenticated route
+// draws from, with no handler-level plumbing needed. See that Tight
+// entry's doc comment for the exact numbers and why this route gets one.
 type activityHandlers struct {
 	signer       *session.Signer
 	ttl          time.Duration
@@ -44,35 +52,6 @@ type activityHandlers struct {
 	// after signing in can silence go unnoticed" and "how long after the
 	// last click can silence go unnoticed".
 	idleTimeout time.Duration
-	// limiter and limit are this endpoint's own rate budget (#848 Task
-	// 4), mirroring #841's login budget in shape though not in
-	// placement: the SAME ratelimit.Limiter instance cmd/api/main.go
-	// builds once for bootstrap.V1Chain and for iam.LoginDeps.Limiter —
-	// reused, never a second construction — keyed under its own
-	// "activity:" prefix. That prefix matters for the same reason
-	// login's "login:" prefix does: this route is ALSO registered
-	// through platform.Router inside the authenticated /v1 chain, so it
-	// already passes through ratelimit.Middleware's "subject:" Principal
-	// bucket — the budget every other authenticated route (products,
-	// orders, the works) draws from for that caller. A clinician's
-	// browser calls this endpoint roughly once a minute while active
-	// (D4's 60s debounce, shared across tabs via BroadcastChannel), and
-	// folding that traffic into the shared Principal bucket would mean
-	// ordinary API calls and idle-keepalive calls compete for the same
-	// allowance — an inactive-looking clinician mid heavy-use could find
-	// their OWN activity calls throttled by their OWN product-list
-	// requests, or vice versa. A distinct "activity:" bucket keeps this
-	// endpoint's cheap, predictable traffic shape (~1/min) from ever
-	// touching that budget, in either direction.
-	//
-	// A nil limiter fails OPEN (admits, warns), the same direction
-	// login.go's Login takes and for the identical reason
-	// (docs/standards/engineering-principles.md §3): this is a capacity
-	// control, not a data/identity one, and a limiter that cannot decide
-	// must not be the thing that lets a clinician's session lapse
-	// mid-shift.
-	limiter ratelimit.Limiter
-	limit   ratelimit.Rule
 	// now is the clock this handler reads when computing the fresh
 	// deadline, time.Now in production. Injectable for the same one
 	// reason LoginHandlers.now is (see its doc comment): idle_deadline
@@ -87,15 +66,13 @@ type activityHandlers struct {
 }
 
 func newActivityHandlers(signer *session.Signer, ttl time.Duration, secureCookie bool,
-	idleTimeout time.Duration, limiter ratelimit.Limiter, limit ratelimit.Rule,
+	idleTimeout time.Duration,
 ) *activityHandlers {
 	return &activityHandlers{
 		signer:       signer,
 		ttl:          ttl,
 		secureCookie: secureCookie,
 		idleTimeout:  idleTimeout,
-		limiter:      limiter,
-		limit:        limit,
 		now:          time.Now,
 	}
 }
@@ -112,32 +89,16 @@ func newActivityHandlers(signer *session.Signer, ttl time.Duration, secureCookie
 // never be revivable by a single "I'm active" claim, or the whole
 // control this endpoint exists to serve would be one request away from
 // bypassed. This handler therefore has no idle-deadline check of its
-// own to write — the absence is deliberate, not an omission.
+// own to write — the absence is deliberate, not an omission. Rate
+// limiting is likewise not this handler's job to enforce (see the type
+// doc comment): ratelimit.Middleware, upstream of this handler in the
+// chain, has already refused an over-budget request before this code
+// runs.
 func (h *activityHandlers) activity(c *gin.Context) {
 	p, ok := authn.PrincipalFrom(c)
 	if !ok {
 		respond.Unauthenticated(c, "missing principal")
 		return
-	}
-
-	// Budget sits here, mirroring login.go's placement rationale: after
-	// the caller is known (there is no subject to key on before
-	// authn.Middleware ran) and before the one expensive-ish operation
-	// this handler performs (minting and signing a new token). See the
-	// field doc comment on activityHandlers.limiter/limit for the
-	// bucket's shape and why it is distinct from the Principal bucket
-	// this route ALSO passes through via ratelimit.Middleware.
-	if h.limiter != nil {
-		if d := h.limiter.Allow("activity:"+p.Subject, h.limit, time.Now()); !d.Allowed {
-			requestid.Logger(c).WarnContext(c.Request.Context(), "session activity rate limited",
-				"subject", p.Subject, "retry_after_ms", d.RetryAfter.Milliseconds())
-			respond.TooManyRequests(c,
-				"too many activity signals; retry in "+d.RetryAfter.Round(time.Second).String(),
-				d.RetryAfter, d.Limit, d.Remaining)
-			return
-		}
-	} else {
-		requestid.Logger(c).WarnContext(c.Request.Context(), "session activity: rate limiter unavailable, admitting (fail open)")
 	}
 
 	if h.signer == nil {
@@ -163,12 +124,15 @@ func (h *activityHandlers) activity(c *gin.Context) {
 	// caller reached this route only because the browser observed
 	// genuine interaction, which is exactly the fact that justifies
 	// opening a new window.
+	//
 	// Truncated to whole seconds before minting: idle_deadline travels
 	// as a Unix-second integer claim (pkg/session's tokenClaims), so a
 	// sub-second value here would round-trip through the token as
 	// something other than what this response body reports — the two
 	// would disagree about the deadline the client is told to warn
-	// against, for no reason a client could act on.
+	// against, for no reason a client could act on. See
+	// TestActivityBodyDeadlineMatchesTheMintedCookie for the assertion
+	// that keeps this true.
 	deadline := h.now().Add(h.idleTimeout).UTC().Truncate(time.Second)
 	token, err := h.signer.Mint(p.Subject, p.TenantID, p.AuthTime, deadline)
 	if err != nil {
@@ -182,5 +146,17 @@ func (h *activityHandlers) activity(c *gin.Context) {
 	// set: httpOnly and sameSite=Lax fixed, secure from config.
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(authn.SessionCookie, token, int(h.ttl.Seconds()), "/", "", h.secureCookie, true)
+
+	// The one record that a session was ever extended: without this line
+	// there is nothing anywhere — this handler's own logging or
+	// otherwise — that answers "why was I signed out mid-shift" with
+	// "you weren't; your last extension was at 14:32 and expired at
+	// 14:47" during an incident review. Debug, not Info: this fires on
+	// every genuine interaction (D4's 60s debounce), so at Info it would
+	// dominate the log volume of every other authenticated route
+	// combined for an active shift.
+	requestid.Logger(c).DebugContext(c.Request.Context(), "session activity: extended idle deadline",
+		"subject", p.Subject, "idle_deadline", deadline)
+
 	respond.OK(c, activityResponse{IdleDeadline: deadline})
 }

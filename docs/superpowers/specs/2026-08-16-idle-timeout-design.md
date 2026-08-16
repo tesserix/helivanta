@@ -119,8 +119,16 @@ POST /v1/auth/session/activity
 ```
 
 It requires a currently-valid session, carries `sub`, `tenant_id` and `auth_time`
-through untouched, and is rate limited on the existing limiter like every other
-unauthenticated-adjacent route.
+through untouched. Unlike login and the other pre-session auth routes, this
+endpoint runs INSIDE the authenticated `/v1` chain (it re-mints an EXISTING
+session rather than creating one), so it is rate limited through the SAME
+`ratelimit.Middleware` every other authenticated route already passes
+through, using `ratelimit.Config`'s `Tight` override
+(`bootstrap.RateLimitConfig`) to give it its own narrower, separately keyed
+budget rather than sharing the general per-subject one — see that Tight
+entry's doc comment for the exact numbers. It needs no hand-rolled limiter
+of its own the way login does, because login sits outside the chain `Tight`
+applies to and this route does not.
 
 The browser calls it on genuine interaction — `pointerdown`, `keydown`, and a
 real scroll — **debounced to at most once per 60 seconds**, so an active

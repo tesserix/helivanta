@@ -15,7 +15,6 @@ import (
 	"github.com/tesserix/hms/internal/testutil"
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/ratelimit"
 	"github.com/tesserix/hms/pkg/session"
 )
 
@@ -33,10 +32,14 @@ type activitySession struct {
 
 // activityEnv wires a real session.Signer/Verifier pair into
 // testutil.NewHarness (mirroring me_test.go's switchHarness/meEnv), plus
-// deps.IdleTimeout and deps.Limiter/ActivityRateLimit so the activity
-// route under test is dependency-complete — a nil signer or a zero
-// IdleTimeout would make every one of these tests fail for a reason
-// that has nothing to do with what each one asserts.
+// deps.IdleTimeout, so the activity route under test is
+// dependency-complete — a nil signer or a zero IdleTimeout would make
+// every one of these tests fail for a reason that has nothing to do
+// with what each one asserts. No Limiter/rate-limit rule is wired here:
+// testutil.NewHarness's chain does not include ratelimit.Middleware at
+// all (see its own doc comment), so the activity route's Tight-mapped
+// budget (bootstrap.RateLimitConfig) is exercised only by
+// internal/archtest's real-chain tests, never by this module harness.
 type activityEnv struct {
 	r           *gin.Engine
 	verifier    *session.Verifier
@@ -83,12 +86,7 @@ func newActivityEnv(t *testing.T) *activityEnv {
 		SessionTTL:          testutil.TestSessionTTL,
 		SessionSecureCookie: true,
 		IdleTimeout:         idleTimeout,
-		Limiter:             ratelimit.NewMemory(1000),
-		// Generous budget: the point of these tests is the deadline
-		// arithmetic and the 401 refusal, not the rate limiter — a
-		// tight budget here would make an unrelated test flaky.
-		ActivityRateLimit: ratelimit.Rule{Rate: 1000, Burst: 1000, Per: time.Minute},
-		Modules:           []platform.Module{iam.New(nil)},
+		Modules:             []platform.Module{iam.New(nil)},
 	})
 	return &activityEnv{r: r, verifier: verifier, principal: p, idleTimeout: idleTimeout}
 }
@@ -225,5 +223,31 @@ func TestActivityRefusesAnAlreadyIdleSession(t *testing.T) {
 	rec := env.post(t, env.sessionWithDeadline(t, time.Now().Add(-1*time.Second)))
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401 — an expired session must not be revivable by claiming activity", rec.Code)
+	}
+}
+
+// TestActivityBodyDeadlineMatchesTheMintedCookie proves the ONE contract
+// spec D4 relies on for the browser's warning modal (see
+// activityResponse's doc comment): the session cookie is httpOnly, so
+// the response body's idle_deadline is the ONLY channel the client has
+// for learning when its window closes. None of the tests above compare
+// the body against the cookie — each reads only one or the other — so a
+// handler that reported a stale or drifted value in the body while
+// minting the correct one into the cookie would pass every one of them
+// and still silently break the warning modal a later task builds on
+// this response. This test is the one that actually checks the two
+// agree, and it is what exercises the truncate-before-minting logic in
+// activity.go (see that comment): without it, nothing in this suite
+// would notice if the body and the mint diverged in their rounding.
+func TestActivityBodyDeadlineMatchesTheMintedCookie(t *testing.T) {
+	env := newActivityEnv(t)
+	before := env.sessionWithDeadline(t, time.Now().Add(3*time.Minute))
+	rec := env.post(t, before)
+	bodyDeadline := env.deadlineFromBody(t, rec)
+	cookieDeadline := env.reissued(t, rec).Deadline
+	if !bodyDeadline.Equal(cookieDeadline) {
+		t.Errorf("body idle_deadline = %v, cookie idle_deadline = %v; "+
+			"the client's ONLY view of the deadline is the response body, so the two must agree exactly",
+			bodyDeadline, cookieDeadline)
 	}
 }

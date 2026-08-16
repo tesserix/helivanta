@@ -244,14 +244,6 @@ func run() error {
 	// could get out of sync rather than two call sites independently
 	// negating cfg.IsDev().
 	sessionSecureCookie := !cfg.IsDev()
-	// limiter is constructed once, here, and reused everywhere a rate
-	// budget is needed: bootstrap.V1Chain, iam.LoginDeps.Limiter below,
-	// and (through deps.Limiter) iam's POST /v1/auth/session/activity
-	// handler (#841/#848 — this file must construct exactly one
-	// ratelimit.Limiter, never a second). Moved above deps so
-	// deps.Limiter can be set from it, rather than being built after
-	// deps the way it was before #848 added a Deps-threaded consumer.
-	limiter := ratelimit.NewMemory(10_000)
 	deps := platform.Deps{
 		DB:                  db,
 		Bus:                 bus,
@@ -263,14 +255,14 @@ func run() error {
 		Reconcile: func(ctx context.Context, tenantID string) error {
 			return platform.ReconcileTenant(ctx, registry, fga, tenantID)
 		},
-		// IdleTimeout/Limiter/ActivityRateLimit feed iam's activity
-		// route (#848 Task 4) — see platform.Deps' field doc comments.
-		// idleTimeout and limiter are the SAME values LoginDeps below
-		// receives; ActivityRateLimitRule is bootstrap-owned for the
-		// same one-construction-path reason RateLimitConfig is.
-		IdleTimeout:       idleTimeout,
-		Limiter:           limiter,
-		ActivityRateLimit: bootstrap.ActivityRateLimitRule(cfg),
+		// IdleTimeout feeds iam's activity route (#848 Task 4) — see
+		// platform.Deps' field doc comment. That route's rate budget
+		// does NOT travel through Deps: it is registered through
+		// platform.Router, so it already passes through
+		// ratelimit.Middleware via bootstrap.RateLimitConfig's Tight
+		// map, the same mechanism (and the same limiter instance built
+		// below) every other authenticated route already uses.
+		IdleTimeout: idleTimeout,
 	}
 
 	// The chain itself lives in bootstrap.V1Chain, not inline here, so
@@ -282,9 +274,14 @@ func run() error {
 	// internal/archtest.TestThrottledRequestMakesNoOpenFGACall pins it.
 	//
 	// requestVerifier (an HMS session, never a raw Zitadel token) is what
-	// gates every route in this group. limiter itself was built earlier,
-	// alongside deps (deps.Limiter) — see that construction's comment for
-	// why it moved.
+	// gates every route in this group. limiter is constructed once, here,
+	// and reused everywhere a rate budget is needed: this chain (through
+	// ratelimit.Middleware, which is also where iam's POST
+	// /v1/auth/session/activity gets its own Tight-mapped budget — #848
+	// Task 4 — with no separate construction) and iam.LoginDeps.Limiter
+	// below (#841 — this file must construct exactly one
+	// ratelimit.Limiter, never a second).
+	limiter := ratelimit.NewMemory(10_000)
 	api := platform.NewRouter(
 		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, fga)...),
 		fga,

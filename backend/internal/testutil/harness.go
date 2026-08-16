@@ -18,7 +18,6 @@ import (
 	"github.com/tesserix/hms/pkg/authn"
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/ratelimit"
 	"github.com/tesserix/hms/pkg/session"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
@@ -198,15 +197,7 @@ type HarnessOptions struct {
 	// (idle_deadline <= epoch) if it happens to exercise that route
 	// incidentally.
 	IdleTimeout time.Duration
-	// Limiter and ActivityRateLimit feed deps.Limiter /
-	// deps.ActivityRateLimit. Left nil/zero by default: a nil Limiter is
-	// handled the same fail-open way production does (see
-	// iam.activityHandlers.activity), so most tests need not set this at
-	// all. A test that exercises the activity budget itself sets both
-	// explicitly.
-	Limiter           ratelimit.Limiter
-	ActivityRateLimit ratelimit.Rule
-	Modules           []platform.Module
+	Modules     []platform.Module
 }
 
 // NewHarness boots the full module stack (Postgres, NATS, routes,
@@ -273,8 +264,6 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		SessionTTL:          opts.SessionTTL,
 		SessionSecureCookie: opts.SessionSecureCookie,
 		IdleTimeout:         idleTimeout,
-		Limiter:             opts.Limiter,
-		ActivityRateLimit:   opts.ActivityRateLimit,
 	}
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

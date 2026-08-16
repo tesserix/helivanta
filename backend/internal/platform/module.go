@@ -6,7 +6,6 @@ import (
 
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/ratelimit"
 	"github.com/tesserix/hms/pkg/session"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
@@ -75,23 +74,16 @@ type Deps struct {
 	// there is exactly one idle window in this system, and the two
 	// endpoints that can ever grant a fresh one must agree on its
 	// length.
+	//
+	// This route's rate budget does NOT travel through Deps: unlike
+	// login (mounted outside the authenticated chain, so it needs its
+	// own ratelimit.Limiter/Rule pair threaded in by hand), the activity
+	// route is registered through platform.Router and so already passes
+	// through ratelimit.Middleware — its budget is bootstrap.RateLimitConfig's
+	// Tight map (keyed "POST /v1/auth/session/activity"), the same
+	// mechanism and the same Limiter instance every other authenticated
+	// route already uses, with no extra wiring here.
 	IdleTimeout time.Duration
-	// Limiter is the SAME ratelimit.Limiter instance cmd/api/main.go
-	// builds once for bootstrap.V1Chain and for iam.LoginDeps.Limiter
-	// (#841's rule: exactly one construction, reused everywhere it is
-	// needed) — threaded through Deps so a route registered via
-	// platform.Router (inside the authenticated chain, unlike login)
-	// can still apply its OWN budget on top of ratelimit.Middleware's
-	// Principal bucket. nil in tests that do not exercise a
-	// rate-limited route; ratelimit.Memory has no error return, so a
-	// nil Limiter is handled the same fail-open way
-	// iam.LoginHandlers.Login already does.
-	Limiter ratelimit.Limiter
-	// ActivityRateLimit is bootstrap.ActivityRateLimitRule(cfg): the
-	// budget POST /v1/auth/session/activity applies to Limiter above.
-	// See that function's doc comment for the exact numbers and the
-	// traffic shape they are sized against.
-	ActivityRateLimit ratelimit.Rule
 }
 
 // Module is the registration contract from issue #2.

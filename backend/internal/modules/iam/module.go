@@ -344,8 +344,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 // signal from someone who is legitimately still present, for a reason
 // unrelated to whether they are present.
 func (m *Module) registerActivity(r *platform.Router, deps platform.Deps) {
-	act := newActivityHandlers(deps.SessionSigner, deps.SessionTTL, deps.SessionSecureCookie,
-		deps.IdleTimeout, deps.Limiter, deps.ActivityRateLimit)
+	act := newActivityHandlers(deps.SessionSigner, deps.SessionTTL, deps.SessionSecureCookie, deps.IdleTimeout)
 	auth := r.Group("/auth")
 	auth.POST("/session/activity", authz.NoTenantMembership, act.activity)
 }

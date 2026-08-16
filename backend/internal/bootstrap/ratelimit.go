@@ -21,21 +21,43 @@ import (
 // mint rule's burst is fixed at 3 rather than derived the same way:
 // Rate/6 at the default of 10/min would floor to 1, which is smaller
 // than the burst the tenant-switch flow itself needs.
-// Tight is deliberately empty as of #838. `POST /v1/iam/me/tenant` was
-// its one entry, budgeted tighter than every other route because it
-// minted a GIP custom token per call against Identity Platform's
-// project-wide quota — exhausting that quota broke sign-in for every
-// hospital, not just the caller's. #838 replaced that mint with an
-// in-process HMS session re-mint (an Ed25519 signature, no network call)
-// plus one OpenFGA membership check — the SAME shape of cost every other
-// authenticated route already pays through authz.Middleware's own
-// Resolve call. There is no longer a shared external resource this
-// route uniquely threatens, so the rationale for a tighter-than-default
-// budget is gone; it is deliberately left off the Tight map rather than
-// carried forward with a stale comment, per spec D3's explicit note that
-// this budget "should be revisited when this lands" and "this spec does
-// not silently inherit its reasoning." The route still gets the
-// ordinary Tenant/Principal budgets below, same as any other route.
+// `POST /v1/iam/me/tenant` was Tight's one entry through #838, budgeted
+// tighter than every other route because it minted a GIP custom token
+// per call against Identity Platform's project-wide quota — exhausting
+// that quota broke sign-in for every hospital, not just the caller's.
+// #838 replaced that mint with an in-process HMS session re-mint (an
+// Ed25519 signature, no network call) plus one OpenFGA membership
+// check — the SAME shape of cost every other authenticated route
+// already pays through authz.Middleware's own Resolve call. There is no
+// longer a shared external resource that route uniquely threatens, so
+// the rationale for a tighter-than-default budget on it is gone; it was
+// left off the Tight map rather than carried forward with a stale
+// comment, per spec D3's explicit note that this budget "should be
+// revisited when this lands" and "this spec does not silently inherit
+// its reasoning." It still gets the ordinary Tenant/Principal budgets
+// below, same as any other route.
+//
+// POST /v1/auth/session/activity (#848 Task 4) is Tight's current
+// entry, for a DIFFERENT reason than the tenant-switch one above: it is
+// not a shared-external-resource concern, but a traffic-shape one. Spec
+// D4 debounces a browser's activity calls to at most once per 60
+// seconds, shared across every open tab via BroadcastChannel, so one
+// clinician's legitimate traffic is roughly 1/min regardless of tab
+// count — nothing like the burst a dashboard's several concurrent
+// panel-load requests need, which is what the Principal rule's Burst is
+// actually sized for. Folding this route into the shared Principal
+// bucket would mean ordinary API calls and idle-keepalive calls compete
+// for the same allowance: an active clinician's own page-load traffic
+// could throttle their own activity calls, or vice versa. Tight gives
+// it its own "subject:...:route" bucket (see
+// pkg/ratelimit.Middleware) at Rate=cfg.RateLimitActivityPerMin
+// (default 10/min, an order of magnitude above the ~1/min sustained
+// rate) and Burst=3 (comfortably covers the BroadcastChannel-unavailable
+// fallback D4 describes — "per-tab timers ... more requests, same
+// behaviour" — for a small number of tabs firing within the same
+// second), while staying far below the shared Principal budget
+// (RateLimitPrincipalPerMin, default 120/min) every other request from
+// the same subject also draws from.
 
 // LoginRateLimitRule builds the budget for POST /v1/auth/login (#841),
 // keyed on the verified Zitadel subject rather than folded into Principal
@@ -68,35 +90,6 @@ func LoginRateLimitRule(cfg config.Config) ratelimit.Rule {
 	return ratelimit.Rule{Rate: cfg.RateLimitLoginPerMin, Burst: 10, Per: time.Minute}
 }
 
-// ActivityRateLimitRule builds the budget for POST
-// /v1/auth/session/activity (#848 Task 4), keyed "activity:"+subject in
-// iam.activityHandlers.activity rather than folded into the Principal
-// rule above — see that field's doc comment for why sharing the bucket
-// would let this endpoint's traffic and a caller's ordinary API traffic
-// throttle each other.
-//
-// Unlike LoginRateLimitRule, this route DOES also pass through
-// ratelimit.Middleware's Principal bucket (it is registered inside the
-// authenticated /v1 chain, not mounted on the raw engine the way login
-// is) — this Rule is a SECOND, narrower budget layered on top, not a
-// replacement for that one.
-//
-// Sized against spec D4's actual traffic shape: a browser calls this
-// endpoint on genuine interaction, debounced to at most once per 60
-// seconds, and shared across every open tab via BroadcastChannel — so
-// one clinician's legitimate traffic is roughly 1/min regardless of how
-// many tabs are open (unlike login's traffic, which scales with tab
-// count because BroadcastChannel does not coordinate renewal). Rate=10/min
-// is an order of magnitude above that sustained rate, and Burst=3 comfortably
-// covers the BroadcastChannel-unavailable fallback (D4: "per-tab timers ...
-// more requests, same behaviour") for a small number of tabs firing within
-// the same second, while still bounding a flood far below the shared
-// Principal budget (RateLimitPrincipalPerMin, default 120/min) that every
-// other request from the same subject also draws from.
-func ActivityRateLimitRule(cfg config.Config) ratelimit.Rule {
-	return ratelimit.Rule{Rate: cfg.RateLimitActivityPerMin, Burst: 3, Per: time.Minute}
-}
-
 func RateLimitConfig(cfg config.Config) ratelimit.Config {
 	return ratelimit.Config{
 		Tenant: ratelimit.Rule{
@@ -104,6 +97,11 @@ func RateLimitConfig(cfg config.Config) ratelimit.Config {
 		},
 		Principal: ratelimit.Rule{
 			Rate: cfg.RateLimitPrincipalPerMin, Burst: cfg.RateLimitPrincipalPerMin / 6, Per: time.Minute,
+		},
+		Tight: map[string]ratelimit.Rule{
+			"POST /v1/auth/session/activity": {
+				Rate: cfg.RateLimitActivityPerMin, Burst: 3, Per: time.Minute,
+			},
 		},
 		Exempt: map[string]string{
 			"POST /v1/iam/me/sign-out":              "a clinician on a shared ward terminal must always be able to end their session",

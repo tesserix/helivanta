@@ -27,7 +27,22 @@ export async function exchangeIdToken(
   const res = await fetch("/api/v1/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(tenantId ? { id_token: idToken, tenant_id: tenantId } : { id_token: idToken }),
+    body: JSON.stringify(
+      tenantId ? { id_token: idToken, tenant_id: tenantId } : { id_token: idToken },
+    ),
+    // Spec D3: the backend tells a renewal from a genuine login by whether
+    // THIS request carries the HMS session cookie — carrying it forward
+    // means "carry idle_deadline forward too"; its absence means "mint a
+    // fresh window". fetch's default credentials mode is already
+    // "same-origin" (this URL is relative/same-origin), so this is
+    // currently a no-op — but stated explicitly and pinned by
+    // auth-exchange.test.ts, because a silent default is one refactor (an
+    // absolute URL, a different origin, "credentials: omit") away from
+    // dropping the cookie, which would make every renewal take the
+    // fresh-window branch and let an untouched tab renew itself forever —
+    // the exact failure this feature exists to prevent — with every
+    // backend test still green.
+    credentials: "same-origin",
   });
   if (!res.ok) {
     let message = "Sign-in failed. Please try again.";

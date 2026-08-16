@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -96,6 +97,37 @@ type integrationEnv struct {
 	clientID    string
 	token       string
 	redirectURI string
+}
+
+// skipUnlessSeedPATIsAvailable resolves the hms-seed-bot IAM_OWNER PAT
+// (dev/zitadel/secrets/hms-seed.pat, same file scripts/lib/zitadel.mjs's
+// readMachinePAT reads) — the credential org-level policy ADMINISTRATION
+// calls need. This is deliberately a SEPARATE credential from
+// integrationEnv.token: the login-client PAT can READ the login policy
+// (loginclient.Client.LoginPolicy already proves that) but has no
+// permission to WRITE it — confirmed live: POST/DELETE
+// /management/v1/policies/login with the login-client PAT answers
+// AUTH-5mWD2 "No matching permissions found", the same permission
+// boundary IAM_LOGIN_CLIENT is scoped by design. Using the seed PAT here,
+// not a widened login-client PAT, keeps that boundary real rather than
+// papering over it for one test's convenience.
+//
+// Only the one test that mutates org policy
+// (TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting) calls
+// this — every other integration test in this file needs no
+// administrative access at all, and should not skip just because this
+// separate credential happens to be missing.
+func skipUnlessSeedPATIsAvailable(t *testing.T) string {
+	t.Helper()
+	token := os.Getenv("ZITADEL_SEED_TOKEN")
+	if token == "" {
+		token = readFileTrimmed(t, "hms-seed.pat")
+	}
+	if token == "" {
+		t.Skip("dev/zitadel/secrets/hms-seed.pat not found and ZITADEL_SEED_TOKEN unset — " +
+			"run `make dev-infra` to provision the local stack before running this test")
+	}
+	return token
 }
 
 func getenvOrDefault(k, def string) string {
@@ -209,11 +241,14 @@ func newAuthRequest(t *testing.T, env integrationEnv) string {
 	return id
 }
 
-// newIntegrationRouter wires the SAME three routes bootstrap.MountUnauthenticated
+// newIntegrationRouter wires the SAME route bootstrap.MountUnauthenticated
 // mounts in production, backed by a REAL loginclient.Client pointed at
 // env's Zitadel — the router-building half of what main.go's run() does,
-// minus the DB/NATS/OpenFGA construction this test has no need for.
-func newIntegrationRouter(env integrationEnv) (*gin.Engine, *iam.LoginUIHandlers) {
+// minus the DB/NATS/OpenFGA construction this test has no need for. Only
+// *gin.Engine is returned: every caller in this file drives Password
+// through HTTP requests against the router, never the handlers value
+// directly, so there is nothing for a second return to be used for.
+func newIntegrationRouter(env integrationEnv) *gin.Engine {
 	client := loginclient.New(env.issuer, env.token, http.DefaultClient)
 	// nil limiter: this test makes a handful of calls total, nowhere near
 	// any real budget, and a nil limiter fails OPEN per Password's own
@@ -225,7 +260,7 @@ func newIntegrationRouter(env integrationEnv) (*gin.Engine, *iam.LoginUIHandlers
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/v1/auth/login/password", handlers.Password)
-	return r, handlers
+	return r
 }
 
 func postPasswordReal(t *testing.T, r *gin.Engine, authRequestID, loginName, password string) *httptest.ResponseRecorder {
@@ -259,7 +294,7 @@ const (
 // authorization response — not just that SOME string came back.
 func TestIntegration_PasswordSuccess_ReturnsCallbackURLWithCodeAndState(t *testing.T) {
 	env := skipUnlessDevStackIsUp(t)
-	r, _ := newIntegrationRouter(env)
+	r := newIntegrationRouter(env)
 
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
@@ -309,7 +344,7 @@ func TestIntegration_PasswordSuccess_ReturnsCallbackURLWithCodeAndState(t *testi
 // not fight this; design the test around it"), not an oversight.
 func TestIntegration_PasswordFailures_WrongPasswordAndUnknownUserAreByteIdentical(t *testing.T) {
 	env := skipUnlessDevStackIsUp(t)
-	r, _ := newIntegrationRouter(env)
+	r := newIntegrationRouter(env)
 
 	// Both failing attempts reuse ONE fresh auth request: Password
 	// returns before ever calling CompleteIfSufficient on either failure
@@ -327,8 +362,19 @@ func TestIntegration_PasswordFailures_WrongPasswordAndUnknownUserAreByteIdentica
 		fmt.Sprintf("nobody-%d@hms.dev", time.Now().UnixNano()), "irrelevant")
 	unknownElapsed := time.Since(unknownStart)
 
-	require.Equal(t, wrong.Code, unknown.Code, "status differs: wrong=%d unknown=%d", wrong.Code, unknown.Code)
-	require.Equal(t, wrong.Body.String(), unknown.Body.String(), "refusal body differs between wrong password and unknown user")
+	// Asserting the two are merely EQUAL to each other is not enough — two
+	// identical 503s (e.g. Zitadel entirely unreachable) would pass that
+	// check while login is completely broken, not "correctly refusing a
+	// bad credential". Pin the CONCRETE expected shape (401,
+	// passwordFailureMessage's exact body) on each side individually,
+	// THEN compare them to each other — that is what actually proves
+	// spec D5's identical-refusal property, not just "these two calls
+	// happened to fail the same way".
+	wantBody := `{"error":"invalid_credentials","message":"email or password is incorrect"}`
+	require.Equalf(t, http.StatusUnauthorized, wrong.Code, "wrong-password body: %s", wrong.Body.String())
+	require.JSONEq(t, wantBody, wrong.Body.String())
+	require.Equalf(t, http.StatusUnauthorized, unknown.Code, "unknown-user body: %s", unknown.Body.String())
+	require.JSONEq(t, wantBody, unknown.Body.String())
 	require.NotContains(t, wrong.Body.String(), "failedAttempts", "response leaks Zitadel's internal attempt counter")
 
 	// Both must also clear MinFailedLoginDuration's floor — the SAME
@@ -339,4 +385,130 @@ func TestIntegration_PasswordFailures_WrongPasswordAndUnknownUserAreByteIdentica
 		"wrong-password path returned in %v, faster than the floor", wrongElapsed)
 	require.GreaterOrEqualf(t, unknownElapsed, iam.MinFailedLoginDuration,
 		"unknown-user path returned in %v, faster than the floor", unknownElapsed)
+}
+
+// managementAPICall makes one machine-authenticated call against
+// Zitadel's management API — the same convention
+// scripts/lib/zitadel.mjs's managementAPI helper uses, reimplemented
+// here rather than shared across the Go/JS boundary. Used only by the
+// org-login-policy administration below; every other call in this file
+// goes through loginclient.Client or a direct OIDC endpoint, neither of
+// which this credential (the seed PAT, not the login-client PAT) is
+// for.
+func managementAPICall(t *testing.T, env integrationEnv, seedToken, method, path string, body map[string]any) map[string]any {
+	t.Helper()
+	var reqBody io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		require.NoError(t, err)
+		reqBody = strings.NewReader(string(b))
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, method, env.issuer+path, reqBody)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+seedToken)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	var parsed map[string]any
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&parsed))
+	require.Truef(t, resp.StatusCode >= 200 && resp.StatusCode < 300,
+		"%s %s = HTTP %d: %v", method, path, resp.StatusCode, parsed)
+	return parsed
+}
+
+const loginPolicyPath = "/management/v1/policies/login"
+
+// setOrgLoginPolicyForceMFA writes a CUSTOM org login policy with
+// forceMfa=true, using the exact field set Zitadel's own policy object
+// carries (verified live, per this task's fix-round report) — a partial
+// body risks Zitadel filling unset fields with ITS OWN zero values rather
+// than preserving the previous (default) policy's values, which would
+// leave the org in a different state than "default plus forceMfa" after
+// restore.
+func setOrgLoginPolicyForceMFA(t *testing.T, env integrationEnv, seedToken string) {
+	t.Helper()
+	managementAPICall(t, env, seedToken, http.MethodPost, loginPolicyPath, map[string]any{
+		"allowUsernamePassword":      true,
+		"allowRegister":              true,
+		"allowExternalIdp":           true,
+		"forceMfa":                   true,
+		"passwordlessType":           "PASSWORDLESS_TYPE_ALLOWED",
+		"passwordCheckLifetime":      "864000s",
+		"externalLoginCheckLifetime": "864000s",
+		"mfaInitSkipLifetime":        "2592000s",
+		"secondFactorCheckLifetime":  "64800s",
+		"multiFactorCheckLifetime":   "43200s",
+	})
+}
+
+// resetOrgLoginPolicy DELETEs the custom policy set above, which Zitadel
+// documents (and this call VERIFIES, not just trusts) resets the org back
+// to its default policy — the DELETE is followed by a GET asserting
+// isDefault:true, so a restore that silently no-ops or leaves a
+// different custom policy behind fails loudly here rather than being
+// discovered by the next developer's login mysteriously requiring MFA.
+func resetOrgLoginPolicy(t *testing.T, env integrationEnv, seedToken string) {
+	t.Helper()
+	managementAPICall(t, env, seedToken, http.MethodDelete, loginPolicyPath, nil)
+
+	got := managementAPICall(t, env, seedToken, http.MethodGet, loginPolicyPath, nil)
+	policy, _ := got["policy"].(map[string]any)
+	isDefault, _ := policy["isDefault"].(bool)
+	require.Truef(t, isDefault, "org login policy after DELETE %s is not back to default: %v", loginPolicyPath, got)
+}
+
+// TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting is Finding
+// 2 of this task's review round: a unit fixture can pin what
+// loginclient.LoginPolicy DOES with a given body, but it cannot catch a
+// REAL Zitadel upgrade that renames or re-casts forceMfa on the wire,
+// because whoever makes that change is also the one who would update the
+// fixture. This test closes that gap by reading the ACTUAL live policy
+// object through the ACTUAL decode path client.go uses, with forceMfa
+// genuinely set to true on the org — so a rename upstream breaks THIS
+// test's assertions (login completes when it must not) regardless of
+// what any fixture says.
+//
+// # This test MUTATES shared Zitadel instance state
+//
+// Setting the org login policy is instance-wide within this dev org, not
+// scoped to one test — every other integration test in this file (and
+// any other real login against this dev stack, including a developer's
+// own `make dev-api`/`dev-web` session running at the same time) reads
+// the SAME policy object. Two safeguards, both load-bearing:
+//
+//  1. The restore runs in t.Cleanup, registered IMMEDIATELY after the
+//     policy is set (before ANY assertion below), so a failed assertion
+//     or an unexpected panic still restores the default policy — the
+//     alternative (restoring at the end of the test body) would leave
+//     forceMfa on, silently, for every subsequent login on the machine,
+//     which reads as a broken app rather than a broken test.
+//  2. This package's tests are NOT parallel: nothing in this file (or
+//     loginui_test.go) calls t.Parallel(), so Go's default sequential
+//     execution within one package is what actually serializes this
+//     against TestIntegration_PasswordSuccess_ReturnsCallbackURLWithCodeAndState
+//     and TestIntegration_PasswordFailures_WrongPasswordAndUnknownUserAreByteIdentical
+//     above — both of which log in against the SAME org and would
+//     otherwise race a forceMfa flip mid-test. If a future change adds
+//     t.Parallel() anywhere in this package, this test's isolation
+//     assumption breaks silently; nothing currently enforces that beyond
+//     this comment.
+func TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting(t *testing.T) {
+	env := skipUnlessDevStackIsUp(t)
+	seedToken := skipUnlessSeedPATIsAvailable(t)
+
+	setOrgLoginPolicyForceMFA(t, env, seedToken)
+	t.Cleanup(func() { resetOrgLoginPolicy(t, env, seedToken) })
+
+	r := newIntegrationRouter(env)
+	authRequestID := newAuthRequest(t, env)
+	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
+
+	require.Equalf(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
+	require.Containsf(t, w.Body.String(), "handoff_url", "forceMfa=true must hand off, body: %s", w.Body.String())
+	require.NotContainsf(t, w.Body.String(), "callback_url",
+		"forceMfa=true completed the login (callback_url present) instead of handing off — MFA bypass: %s",
+		w.Body.String())
 }

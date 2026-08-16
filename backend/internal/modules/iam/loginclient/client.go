@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -226,21 +227,10 @@ func (c *Client) finalize(ctx context.Context, authRequestID string, s Session) 
 // indistinguishable from a real "MFA off" answer.
 // TestLoginPolicyErrorsRatherThanReportingNoMFA pins this.
 //
-// That promise is why the wire fields are pointers, and why a body this
-// client does not RECOGNIZE is an error rather than a default. "The
-// request succeeded" is not the same claim as "the policy was
-// understood", and with plain value fields the two were
-// indistinguishable: any 200 whose body did not carry a recognizable
-// policy — `{}`, `null`, an un-nested `{"forceMfa":true}`, a renamed
-// `{"policy":{"force_mfa":true}}` — decoded silently to LoginPolicy{false}
-// with a nil error, which CompleteIfSufficient then reads as "MFA off"
-// and completes the login. That is a fail-OPEN on the SUCCESS path,
-// reached without any error occurring, so no amount of care on the error
-// paths closes it. A Zitadel upgrade that renamed or un-nested this field
-// would have disabled MFA enforcement for every user with the whole
-// suite still green, because fixtures only ever pin the shape that
-// works. Decoding into pointers makes "field absent" representable, and
-// therefore refusable.
+// That promise is why field absence has always been treated as an error
+// rather than a default, and why — see the "verified live" and "rename
+// detection" sections below — that promise now spans TWO different kinds
+// of absence, not one.
 //
 // # ForceMFA absent does NOT mean "unrecognized" — verified live 2026-08-16
 //
@@ -250,44 +240,106 @@ func (c *Client) finalize(ctx context.Context, authRequestID string, s Session) 
 // — never sends `forceMfa` AT ALL when it is false: Zitadel's own
 // protojson marshaling elides zero-value boolean fields by default, the
 // same way `secondFactors`/`multiFactors` would be elided as empty
-// arrays if unset. Requiring an EXPLICIT `forceMfa` (this file's original
-// design, before this finding) therefore treated the ORDINARY,
-// non-MFA-enforcing case as "cannot understand this response" on every
-// single real login — CompleteIfSufficient's fail-closed branch then
-// handed EVERY login off to Zitadel's hosted UI, which is not a
-// conservative failure mode here, it is the feature not working at all.
+// arrays if unset. The original design (require an EXPLICIT `forceMfa`,
+// full stop) therefore treated the ORDINARY, non-MFA-enforcing case as
+// "cannot understand this response" on every single real login —
+// CompleteIfSufficient's fail-closed branch then handed EVERY login off
+// to Zitadel's hosted UI, which is not a conservative failure mode here,
+// it is the feature not working at all.
 //
-// The fix is an ANCHOR, not a relaxed default: AllowUsernamePassword is
-// present on the SAME wire object in every observed real response
-// (`{}`, `null`, the un-nested and renamed fixtures above all lack it
-// too), so its presence is what now distinguishes "a genuine policy
-// object whose forceMfa is unpopulated because it is false" from "a body
-// this client does not recognize as a login policy at all". ForceMFA
-// absent alongside AllowUsernamePassword PRESENT decodes to false;
-// AllowUsernamePassword absent (with or without ForceMFA) still refuses,
-// exactly as before.
-// TestLoginPolicyRejectsBodiesItCannotUnderstand and
-// TestLoginPolicyTreatsAbsentForceMFAAsFalseWhenPolicyIsRecognizable pin
-// this split.
+// The fix is an ANCHOR, not a relaxed default:
+// `policy.passwordCheckLifetime` is a `google.protobuf.Duration` field,
+// which — unlike a scalar bool — protojson gives explicit-presence
+// semantics: it is emitted whenever the policy message itself is
+// present, never elided at its zero value the way `forceMfa`/
+// `allowUsernamePassword` are. Its presence is therefore evidence "this
+// really is Zitadel's login policy object", independent of what any
+// individual boolean field happens to be set to — including, notably,
+// an org that has legitimately set `allowUsernamePassword` to false,
+// which an anchor built on THAT field would have misread as
+// unrecognized. ForceMFA absent alongside the anchor PRESENT decodes to
+// false; the anchor absent (with or without ForceMFA) still refuses,
+// exactly as the original design did for every shape it covered.
+//
+// # Rename/re-casing detection — closes the residual the anchor alone leaves open
+//
+// The anchor closes "forceMfa absent because it is false". It does
+// nothing for "forceMfa absent because Zitadel renamed or re-cased it" —
+// `{"policy":{"passwordCheckLifetime":"864000s","force_mfa":true}}`
+// anchors as recognized AND has no field literally named "forceMfa", so
+// naively reading `wire.Policy["forceMfa"]` as absent-therefore-false
+// would silently complete a login Zitadel is telling HMS requires MFA.
+// That is the exact fail-open Task 3 was written to close, re-opened by
+// the anchor fix above if nothing else changed.
+//
+// The policy object is therefore decoded into a `map[string]any`
+// (rather than a fixed struct) so every key Zitadel actually sent is
+// visible, and every key is checked: any key whose name NORMALIZES
+// (lowercased, underscores stripped) to "forcemfa" but is not spelled
+// exactly "forceMfa" is treated as unrecognized and refuses, on the
+// theory that Zitadel renaming or re-casing this one field is far more
+// likely than it inventing an unrelated field that happens to normalize
+// the same way. This also catches `forceMfa` changing TYPE (e.g. a
+// future Zitadel encoding it as a string) — the type assertion to `bool`
+// below fails the same way absence does.
+//
+// KNOWN RESIDUAL: this detects a rename/re-casing of the FIELD NAME or a
+// change to a non-bool wire TYPE. It does NOT detect Zitadel silently
+// changing the MEANING of `forceMfa` while keeping both its name and its
+// bool type (e.g. inverting the polarity to "allowPasswordOnly"-shaped
+// semantics under the same key) — no purely structural check can catch a
+// semantic change with an unchanged shape. That gap is why Finding 2's
+// live integration test (loginui_integration_test.go,
+// TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting) exists
+// alongside this structural guard rather than instead of it: a real
+// forceMfa=true policy read through the real decode path is the only
+// thing that can prove the MEANING, not just the shape, still holds.
+// TestLoginPolicyRejectsBodiesItCannotUnderstand,
+// TestLoginPolicyTreatsAbsentForceMFAAsFalseWhenPolicyIsRecognizable, and
+// TestLoginPolicyRejectsARenamedOrRecasedForceMFA pin this file's half.
 func (c *Client) LoginPolicy(ctx context.Context) (LoginPolicy, error) {
 	var wire struct {
-		Policy *struct {
-			AllowUsernamePassword *bool `json:"allowUsernamePassword"`
-			ForceMFA              *bool `json:"forceMfa"`
-		} `json:"policy"`
+		Policy map[string]any `json:"policy"`
 	}
 	if err := c.do(ctx, http.MethodGet, "/management/v1/policies/login", nil, &wire, ErrUnavailable); err != nil {
 		return LoginPolicy{}, err
 	}
-	if wire.Policy == nil || wire.Policy.AllowUsernamePassword == nil {
+	if _, anchored := wire.Policy["passwordCheckLifetime"]; !anchored {
 		// ErrUnavailable rather than a new sentinel: from the caller's
 		// point of view an answer it cannot interpret and no answer at all
 		// are the same situation — Zitadel did not tell HMS whether MFA is
 		// required — and both must reach the same fail-closed branch.
 		return LoginPolicy{}, fmt.Errorf("GET /management/v1/policies/login: 200 without a recognizable policy object: %w", ErrUnavailable)
 	}
-	forceMFA := wire.Policy.ForceMFA != nil && *wire.Policy.ForceMFA
+	for key := range wire.Policy {
+		if key == "forceMfa" {
+			continue
+		}
+		if normalizePolicyKey(key) == "forcemfa" {
+			return LoginPolicy{}, fmt.Errorf(
+				"GET /management/v1/policies/login: policy object has a field %q that looks like a "+
+					"renamed or re-cased forceMfa but is not spelled exactly that way: %w", key, ErrUnavailable)
+		}
+	}
+	rawForceMFA, present := wire.Policy["forceMfa"]
+	if !present {
+		return LoginPolicy{ForceMFA: false}, nil
+	}
+	forceMFA, isBool := rawForceMFA.(bool)
+	if !isBool {
+		return LoginPolicy{}, fmt.Errorf(
+			"GET /management/v1/policies/login: policy.forceMfa is %T, not a bool: %w", rawForceMFA, ErrUnavailable)
+	}
 	return LoginPolicy{ForceMFA: forceMFA}, nil
+}
+
+// normalizePolicyKey collapses a JSON object key to the form
+// LoginPolicy's rename/re-casing check compares against: lowercased,
+// underscores stripped. "forceMfa", "force_mfa", "ForceMFA", and
+// "FORCE_MFA" all normalize to "forcemfa"; unrelated keys
+// ("allowUsernamePassword", "passwordCheckLifetime") do not.
+func normalizePolicyKey(key string) string {
+	return strings.ToLower(strings.ReplaceAll(key, "_", ""))
 }
 
 // zitadelError is the subset of Zitadel's gRPC-gateway error envelope this

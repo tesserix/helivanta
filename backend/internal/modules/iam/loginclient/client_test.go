@@ -89,9 +89,14 @@ func TestAuthRequestParsesClientAndRedirect(t *testing.T) {
 	}
 }
 
+// policyAnchor is the passwordCheckLifetime value every fixture in this
+// file that wants to be RECOGNIZED carries — see LoginPolicy's doc
+// comment on why this specific field, not a boolean, is the anchor.
+const policyAnchor = `"passwordCheckLifetime":"864000s"`
+
 func TestLoginPolicyReportsForceMFA(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"policy":{"allowUsernamePassword":true,"forceMfa":true}}`))
+		w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfa":true}}`))
 	})
 	p, err := c.LoginPolicy(context.Background())
 	if err != nil {
@@ -112,24 +117,22 @@ func TestLoginPolicyErrorsRatherThanReportingNoMFA(t *testing.T) {
 	}
 }
 
-// A 200 whose body does not carry policy.forceMfa means Zitadel answered
-// but did not tell HMS whether MFA is required — which is NOT the same as
-// telling it MFA is off. Each body below decoded to LoginPolicy{false}
-// with a nil error before the wire fields became pointers, and
-// CompleteIfSufficient completed the login on every one of them. These
-// are the shapes a Zitadel upgrade could plausibly produce.
-// A body that does not even carry the AllowUsernamePassword anchor is not
+// A body that does not even carry the passwordCheckLifetime anchor is not
 // recognizable as a login policy at all — see LoginPolicy's doc comment
-// on why AllowUsernamePassword, not ForceMFA, is what this client uses to
-// tell "a genuine policy whose forceMfa is unpopulated because it is
-// false" apart from "a shape this client does not understand". Every
-// fixture here lacks that anchor.
+// on why that field, not a boolean, is what this client uses to tell "a
+// genuine policy whose forceMfa is unpopulated because it is false"
+// apart from "a shape this client does not understand". Every fixture
+// here lacks that anchor. These are the shapes a Zitadel upgrade could
+// plausibly produce; a RENAMED forceMfa with the anchor PRESENT is
+// covered separately by TestLoginPolicyRejectsARenamedOrRecasedForceMFA,
+// since that shape must be rejected for a different reason (the rename
+// check, not the anchor check).
 func TestLoginPolicyRejectsBodiesItCannotUnderstand(t *testing.T) {
 	bodies := map[string]string{
 		"empty object":                            `{}`,
 		"null body":                                `null`,
 		"forceMfa un-nested":                       `{"forceMfa":true}`,
-		"forceMfa renamed to snake_case":           `{"policy":{"force_mfa":true}}`,
+		"forceMfa renamed, anchor also absent":     `{"policy":{"force_mfa":true}}`,
 		"policy present but no recognizable field": `{"policy":{"isDefault":true}}`,
 		"policy explicitly null":                   `{"policy":null}`,
 	}
@@ -149,12 +152,12 @@ func TestLoginPolicyRejectsBodiesItCannotUnderstand(t *testing.T) {
 	}
 }
 
-// The shape that IS understood must still be accepted — the pointer
-// decoding must not reject a legitimate "MFA off" answer, which would
-// make every login a handoff.
+// The shape that IS understood must still be accepted — decoding must
+// not reject a legitimate "MFA off" answer, which would make every login
+// a handoff.
 func TestLoginPolicyAcceptsAnExplicitFalse(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"policy":{"allowUsernamePassword":true,"forceMfa":false}}`))
+		w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfa":false}}`))
 	})
 	p, err := c.LoginPolicy(context.Background())
 	if err != nil {
@@ -170,14 +173,12 @@ func TestLoginPolicyAcceptsAnExplicitFalse(t *testing.T) {
 // dev Zitadel v4.15.3: a genuine, healthy login policy elides `forceMfa`
 // ENTIRELY when it is false (protojson's default zero-value omission),
 // rather than sending an explicit `false` the way this package's earlier
-// fixtures assumed. AllowUsernamePassword present with ForceMFA absent
-// must decode to LoginPolicy{ForceMFA: false}, not an error — see
-// LoginPolicy's doc comment for the full story and why this is safe
-// (AllowUsernamePassword is the anchor proving the object was
-// understood, not merely present).
+// fixtures assumed. The anchor present with ForceMFA absent must decode
+// to LoginPolicy{ForceMFA: false}, not an error — see LoginPolicy's doc
+// comment for the full story.
 func TestLoginPolicyTreatsAbsentForceMFAAsFalseWhenPolicyIsRecognizable(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"policy":{"allowUsernamePassword":true,"allowRegister":true,"isDefault":true}}`))
+		w.Write([]byte(`{"policy":{"allowUsernamePassword":true,"allowRegister":true,"isDefault":true,` + policyAnchor + `}}`))
 	})
 	p, err := c.LoginPolicy(context.Background())
 	if err != nil {
@@ -185,6 +186,40 @@ func TestLoginPolicyTreatsAbsentForceMFAAsFalseWhenPolicyIsRecognizable(t *testi
 	}
 	if p.ForceMFA {
 		t.Error("ForceMFA = true, want false")
+	}
+}
+
+// TestLoginPolicyRejectsARenamedOrRecasedForceMFA is the fix for the
+// Critical review finding on this task: the anchor above closes "forceMfa
+// absent because it is false", but on its own does NOTHING for "forceMfa
+// absent because Zitadel renamed or re-cased it" — a body that anchors as
+// recognized AND carries a differently-spelled MFA-forcing field must
+// still be refused, not silently read as "MFA off". Before this fix, the
+// realistic rename shape here (anchor present, field renamed) decoded to
+// LoginPolicy{ForceMFA:false} and the login COMPLETED — exactly the
+// fail-open Task 3 exists to prevent, re-entered through the elision
+// workaround. See LoginPolicy's "Rename/re-casing detection" doc comment
+// section for the full mechanism and its own documented residual.
+func TestLoginPolicyRejectsARenamedOrRecasedForceMFA(t *testing.T) {
+	bodies := map[string]string{
+		"snake_case":                `{"policy":{` + policyAnchor + `,"force_mfa":true}}`,
+		"PascalCase":                `{"policy":{` + policyAnchor + `,"ForceMfa":true}}`,
+		"SCREAMING_SNAKE_CASE":      `{"policy":{` + policyAnchor + `,"FORCE_MFA":true}}`,
+		"forceMfa present but not a bool (type drift)": `{"policy":{` + policyAnchor + `,"forceMfa":"true"}}`,
+	}
+	for name, body := range bodies {
+		t.Run(name, func(t *testing.T) {
+			c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(body))
+			})
+			got, err := c.LoginPolicy(context.Background())
+			if err == nil {
+				t.Fatalf("LoginPolicy() = %+v, error = nil; a renamed/re-cased/retyped forceMfa must not read as MFA off", got)
+			}
+			if !errors.Is(err, ErrUnavailable) {
+				t.Errorf("error = %v, want ErrUnavailable so it reaches the same fail-closed branch as an unreachable Zitadel", err)
+			}
+		})
 	}
 }
 

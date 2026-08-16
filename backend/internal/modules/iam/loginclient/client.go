@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -52,6 +53,17 @@ var (
 // actually computed); 10s leaves generous room above that without letting
 // a stalled Zitadel hang HMS's login handler indefinitely.
 const defaultTimeout = 10 * time.Second
+
+// maxSuccessBodyBytes bounds every 2xx response body this client decodes.
+// The largest real payload observed (the spike's auth-request response)
+// is a few hundred bytes; session ids/tokens are similarly small. 64KiB
+// is generous headroom above any real payload while still capping memory
+// use if a broken or compromised Zitadel streamed an unbounded response —
+// mirroring the same reasoning readZitadelErrorID already applies to the
+// error path (io.LimitReader(r, 4096)), just sized for larger legitimate
+// bodies. TestDoBoundsSuccessResponseSize pins that this bound is
+// actually applied, not just documented.
+const maxSuccessBodyBytes = 64 * 1024
 
 // Client speaks Zitadel's v2 login-client HTTP API, authenticating every
 // call with a login client PAT (Personal Access Token) rather than an
@@ -109,7 +121,11 @@ type LoginPolicy struct {
 	ForceMFA bool
 }
 
-// AuthRequest fetches GET /v2/oidc/auth_requests/{id}.
+// AuthRequest fetches GET /v2/oidc/auth_requests/{id}. id is escaped with
+// url.PathEscape before being placed in the URL — see the do call in
+// Finalize for why this matters: it originates as a browser-supplied
+// query parameter (spike §1, "/login?authRequest=V2_..."), not a value
+// this package minted itself.
 func (c *Client) AuthRequest(ctx context.Context, id string) (AuthRequest, error) {
 	var wire struct {
 		AuthRequest struct {
@@ -119,7 +135,7 @@ func (c *Client) AuthRequest(ctx context.Context, id string) (AuthRequest, error
 			Scope       []string `json:"scope"`
 		} `json:"authRequest"`
 	}
-	if err := c.do(ctx, http.MethodGet, "/v2/oidc/auth_requests/"+id, nil, &wire, ErrAuthRequestInvalid); err != nil {
+	if err := c.do(ctx, http.MethodGet, "/v2/oidc/auth_requests/"+url.PathEscape(id), nil, &wire, ErrAuthRequestInvalid); err != nil {
 		return AuthRequest{}, err
 	}
 	return AuthRequest{
@@ -159,6 +175,17 @@ func (c *Client) CreatePasswordSession(ctx context.Context, loginName, password 
 // apps/shell/app/api/auth/callback/page.tsx already handles (spike §1),
 // so this method's return value needs no further transformation by the
 // caller; it can be redirected to as-is.
+//
+// authRequestID is escaped with url.PathEscape before being placed in the
+// URL. Like AuthRequest's id, it traces back to a browser query
+// parameter (spike §1) — attacker-influenced input, even though every id
+// observed so far is alphanumeric-plus-underscore. Unescaped, a value
+// containing "/" or ".." could alter which path this request actually
+// hits; PathEscape turns any such character into a literal path segment
+// rather than a separator. TestFinalizeEscapesAdversarialAuthRequestID
+// and TestAuthRequestEscapesAdversarialID pin this against both an
+// adversarial id and a real spike-observed id, so the escaping cannot
+// quietly corrupt a legitimate id either.
 func (c *Client) Finalize(ctx context.Context, authRequestID string, s Session) (string, error) {
 	body := map[string]any{
 		"session": map[string]any{
@@ -169,7 +196,7 @@ func (c *Client) Finalize(ctx context.Context, authRequestID string, s Session) 
 	var wire struct {
 		CallbackURL string `json:"callbackUrl"`
 	}
-	if err := c.do(ctx, http.MethodPost, "/v2/oidc/auth_requests/"+authRequestID, body, &wire, ErrAuthRequestInvalid); err != nil {
+	if err := c.do(ctx, http.MethodPost, "/v2/oidc/auth_requests/"+url.PathEscape(authRequestID), body, &wire, ErrAuthRequestInvalid); err != nil {
 		return "", err
 	}
 	return wire.CallbackURL, nil
@@ -272,7 +299,7 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any, not
 	if out == nil {
 		return nil
 	}
-	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxSuccessBodyBytes)).Decode(out); err != nil {
 		return fmt.Errorf("loginclient: decode response: %w", err)
 	}
 	return nil

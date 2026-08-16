@@ -47,7 +47,7 @@ func router(v authn.TokenVerifier) *gin.Engine {
 }
 
 func TestMiddlewareAcceptsBearer(t *testing.T) {
-	r := router(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: "t1"}})
+	r := router(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: "t1", IdleDeadline: time.Now().Add(time.Hour)}})
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/p", nil)
 	req.Header.Set("Authorization", "Bearer good")
@@ -57,7 +57,7 @@ func TestMiddlewareAcceptsBearer(t *testing.T) {
 }
 
 func TestMiddlewareAcceptsSessionCookie(t *testing.T) {
-	r := router(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: "t1"}})
+	r := router(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: "t1", IdleDeadline: time.Now().Add(time.Hour)}})
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/p", nil)
 	req.AddCookie(&http.Cookie{Name: authn.SessionCookie, Value: "good"})
@@ -83,12 +83,12 @@ func TestMiddlewareRejectsMissingAndBadTokens(t *testing.T) {
 func TestTenantPrincipal(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.GET("/p", authn.Middleware(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: "11111111-1111-1111-1111-111111111111"}}, neverRevoked{}), func(c *gin.Context) {
+	r.GET("/p", authn.Middleware(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: "11111111-1111-1111-1111-111111111111", IdleDeadline: time.Now().Add(time.Hour)}}, neverRevoked{}), func(c *gin.Context) {
 		_, tenantID, ok := authn.TenantPrincipal(c)
 		require.True(t, ok)
 		c.JSON(http.StatusOK, gin.H{"tenant": tenantID.String()})
 	})
-	r.GET("/bad", authn.Middleware(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: "not-a-uuid"}}, neverRevoked{}), func(c *gin.Context) {
+	r.GET("/bad", authn.Middleware(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: "not-a-uuid", IdleDeadline: time.Now().Add(time.Hour)}}, neverRevoked{}), func(c *gin.Context) {
 		if _, _, ok := authn.TenantPrincipal(c); !ok {
 			return
 		}
@@ -116,10 +116,17 @@ func TestTenantPrincipal(t *testing.T) {
 // rather than fabricated, see Principal.TenantID's doc comment): an
 // empty TenantID must fail exactly like a malformed one, not be treated
 // as "no tenant scoping required" anywhere downstream.
+//
+// IdleDeadline is set to a real future value deliberately: a genuine
+// Zitadel-verified Principal also carries a zero IdleDeadline today, but
+// that path never reaches Middleware in production (only the session
+// verifier is mounted on V1Chain — see session_verifier.go), and this
+// test's one concern is the empty-tenant refusal, not idle handling.
+// Zero-deadline refusal has its own dedicated test.
 func TestTenantPrincipalRefusesEmptyTenant(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.GET("/p", authn.Middleware(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: ""}}, neverRevoked{}), func(c *gin.Context) {
+	r.GET("/p", authn.Middleware(fakeVerifier{p: authn.Principal{Subject: "u1", TenantID: "", IdleDeadline: time.Now().Add(time.Hour)}}, neverRevoked{}), func(c *gin.Context) {
 		if _, _, ok := authn.TenantPrincipal(c); !ok {
 			return
 		}
@@ -182,6 +189,39 @@ func TestMiddlewareAdmitsASessionInsideItsIdleDeadline(t *testing.T) {
 	rec := doRequest(t, principalWithIdleDeadline(time.Now().Add(5*time.Minute)))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200 well inside the idle window", rec.Code)
+	}
+}
+
+// TestMiddlewareRefusesASessionExactlyAtItsIdleDeadline pins the
+// not-before boundary directly (code review minor #3): a deadline
+// captured immediately before the request is refused, not admitted,
+// because time.Now() inside Middleware can only be equal to or later
+// than a timestamp captured before it — this is the case most likely to
+// be "simplified" later by someone who misreads !Before(deadline) as
+// After(deadline).
+func TestMiddlewareRefusesASessionExactlyAtItsIdleDeadline(t *testing.T) {
+	deadline := time.Now()
+	rec := doRequest(t, principalWithIdleDeadline(deadline))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401 for a session exactly at its idle deadline", rec.Code)
+	}
+}
+
+// TestMiddlewareRefusesAZeroIdleDeadline pins code review Finding 2: a
+// zero IdleDeadline is refused exactly like an already-past one, never
+// read as "no limit". session.Verifier already refuses to hand back a
+// Claims with no idle_deadline, so a Principal minted from a real HMS
+// session can never carry a zero value here — this test is what keeps
+// that true even if that guarantee is ever weakened or a different
+// TokenVerifier is mounted without it: a zero IdleDeadline must never
+// become a class of session exempt from this control.
+func TestMiddlewareRefusesAZeroIdleDeadline(t *testing.T) {
+	rec := doRequest(t, authn.Principal{Subject: "u1", TenantID: "t1", AuthTime: time.Now()})
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401 for a zero idle deadline", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "session_idle") {
+		t.Errorf("body = %s, want a distinguishable idle reason", rec.Body.String())
 	}
 }
 

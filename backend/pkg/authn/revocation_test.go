@@ -85,7 +85,7 @@ func TestTokenIssuedAfterRevocationIsAccepted(t *testing.T) {
 	signIn := time.Now() // signed in again after the revocation
 
 	mw := Middleware(staticVerifier{
-		"tok": Principal{Subject: "uid-nurse", TenantID: testTenant, AuthTime: signIn},
+		"tok": Principal{Subject: "uid-nurse", TenantID: testTenant, AuthTime: signIn, IdleDeadline: time.Now().Add(time.Hour)},
 	}, fixedRevocation{"uid-nurse": revokedAt})
 
 	require.Equal(t, http.StatusOK, runWithMiddleware(t, mw, "tok").Code,
@@ -109,7 +109,7 @@ func TestRevocationLookupFailureIsFailClosed(t *testing.T) {
 // (the zero time) must not be refused.
 func TestNeverRevokedSubjectIsAccepted(t *testing.T) {
 	mw := Middleware(staticVerifier{
-		"tok": Principal{Subject: "uid-nurse", TenantID: testTenant, AuthTime: time.Now()},
+		"tok": Principal{Subject: "uid-nurse", TenantID: testTenant, AuthTime: time.Now(), IdleDeadline: time.Now().Add(time.Hour)},
 	}, fixedRevocation{})
 
 	require.Equal(t, http.StatusOK, runWithMiddleware(t, mw, "tok").Code)

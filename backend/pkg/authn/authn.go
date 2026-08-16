@@ -52,11 +52,9 @@ type Principal struct {
 	AuthTime time.Time `json:"-"`
 	// IdleDeadline is when this session stops being usable without
 	// further human interaction (spec D2, #848), carried through
-	// unchanged from session.Claims.IdleDeadline. session.Verifier
-	// already refuses to hand back a Claims with no idle_deadline, so a
-	// Principal built from a verified HMS session always carries a real,
-	// non-zero value here — see Middleware's use of this field for what
-	// a zero value is deliberately treated as instead.
+	// unchanged from session.Claims.IdleDeadline. A zero value here is
+	// refused by Middleware exactly like an already-past deadline, never
+	// read as "no limit" — see its comment.
 	IdleDeadline time.Time `json:"-"`
 }
 
@@ -108,37 +106,16 @@ func Middleware(v TokenVerifier, rev RevocationChecker) gin.HandlerFunc {
 				"error": "unauthenticated", "message": "credential revoked"})
 			return
 		}
-		// Idle timeout (#848, spec D2). Server-side and authoritative: a
-		// killed tab, a suspended laptop or a stolen cookie replayed by a
-		// direct API caller all fail closed here, because the deadline
-		// travels inside the signed token rather than living in a timer
-		// the browser owns — nothing client-side is trusted to enforce
-		// it.
-		//
-		// !p.IdleDeadline.IsZero() guards this the same way the
-		// watermark check above guards on !watermark.IsZero(), but for
-		// the opposite reason: session.Verifier already refuses to hand
-		// back a Claims with no idle_deadline (fail closed, see
-		// session/verifier.go), so a Principal minted from a real HMS
-		// session never reaches here with a zero IdleDeadline. The guard
-		// exists only for a Principal built by some OTHER TokenVerifier
-		// (e.g. the raw Zitadel verifier, zitadel.go) that has no notion
-		// of an idle deadline at all — that path carries no idle claim to
-		// fail closed on, and is out of scope for this control rather
-		// than silently exempted from one it never had. This must NOT be
-		// read as "an absent deadline means no limit": nothing here
-		// manufactures that meaning, and nothing downstream may either.
-		//
-		// Not-before, deliberately, mirroring the watermark check's
-		// not-after above: a session whose deadline is exactly now is
-		// refused rather than admitted, so an ambiguous instant reads the
-		// same safe way both checks do.
-		//
-		// A DISTINCT error code, not the generic one: the frontend must
-		// be able to tell "your session went idle" from "your
-		// credentials are bad", because the two need different wording
-		// on a shared terminal — see spec D6.
-		if !p.IdleDeadline.IsZero() && !time.Now().Before(p.IdleDeadline) {
+		// Idle timeout (#848, spec D2), enforced server-side because the
+		// deadline travels inside the signed token rather than a
+		// browser-owned timer — a killed tab, a suspended laptop or a
+		// stolen cookie all fail closed here. No IsZero exemption: a zero
+		// deadline is treated as already past, not as "no limit" (see
+		// Principal.IdleDeadline). Not-before, mirroring the watermark
+		// check's not-after: exactly-now is refused. Distinct error code
+		// (session_idle) so the frontend can tell "went idle" from "bad
+		// credentials" apart (spec D6).
+		if !time.Now().Before(p.IdleDeadline) {
 			slog.InfoContext(c.Request.Context(), "refused an idle session",
 				"subject", p.Subject, "idle_deadline", p.IdleDeadline, "path", c.Request.URL.Path)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{

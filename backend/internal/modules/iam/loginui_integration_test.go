@@ -291,25 +291,13 @@ const (
 // step 1-3 of this task's brief: create a real auth request, check the
 // real seeded credential against it through HMS's own handler, and
 // assert the resulting callback_url is a genuine, freshly-minted
-// authorization response — not just that SOME string came back.
+// authorization response — not just that SOME string came back. Shares
+// its assertion body with assertLoginSucceeds (used again by the
+// forceMfa/forceMfaLocalOnly tests below to prove login still works
+// after a policy restore) rather than duplicating it.
 func TestIntegration_PasswordSuccess_ReturnsCallbackURLWithCodeAndState(t *testing.T) {
 	env := skipUnlessDevStackIsUp(t)
-	r := newIntegrationRouter(env)
-
-	authRequestID := newAuthRequest(t, env)
-	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
-
-	require.Equalf(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
-	var body struct {
-		CallbackURL string `json:"callback_url"`
-	}
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
-
-	callback, err := url.Parse(body.CallbackURL)
-	require.NoErrorf(t, err, "callback_url %q did not parse as a URL", body.CallbackURL)
-	q := callback.Query()
-	require.NotEmptyf(t, q.Get("code"), "callback_url %q carried no code param", body.CallbackURL)
-	require.NotEmptyf(t, q.Get("state"), "callback_url %q carried no state param", body.CallbackURL)
+	assertLoginSucceeds(t, env)
 }
 
 // TestIntegration_PasswordFailures_WrongPasswordAndUnknownUserAreByteIdentical
@@ -421,47 +409,120 @@ func managementAPICall(t *testing.T, env integrationEnv, seedToken, method, path
 
 const loginPolicyPath = "/management/v1/policies/login"
 
-// setOrgLoginPolicyForceMFA writes a CUSTOM org login policy with
-// forceMfa=true, using the exact field set Zitadel's own policy object
-// carries (verified live, per this task's fix-round report) — a partial
-// body risks Zitadel filling unset fields with ITS OWN zero values rather
-// than preserving the previous (default) policy's values, which would
-// leave the org in a different state than "default plus forceMfa" after
-// restore.
-func setOrgLoginPolicyForceMFA(t *testing.T, env integrationEnv, seedToken string) {
-	t.Helper()
-	managementAPICall(t, env, seedToken, http.MethodPost, loginPolicyPath, map[string]any{
+// baseCustomLoginPolicy is the full field set Zitadel's own policy object
+// carries (verified live, per this task's fix-round report) — the
+// starting point every custom policy this file writes overrides fields
+// onto. A partial body risks Zitadel filling unset fields with ITS OWN
+// zero values rather than preserving the previous (default) policy's
+// values, which would leave the org in a different state than "default
+// plus the one field under test" after restore.
+func baseCustomLoginPolicy() map[string]any {
+	return map[string]any{
 		"allowUsernamePassword":      true,
 		"allowRegister":              true,
 		"allowExternalIdp":           true,
-		"forceMfa":                   true,
+		"forceMfa":                   false,
+		"forceMfaLocalOnly":          false,
 		"passwordlessType":           "PASSWORDLESS_TYPE_ALLOWED",
 		"passwordCheckLifetime":      "864000s",
 		"externalLoginCheckLifetime": "864000s",
 		"mfaInitSkipLifetime":        "2592000s",
 		"secondFactorCheckLifetime":  "64800s",
 		"multiFactorCheckLifetime":   "43200s",
-	})
+	}
 }
 
-// resetOrgLoginPolicy DELETEs the custom policy set above, which Zitadel
-// documents (and this call VERIFIES, not just trusts) resets the org back
-// to its default policy — the DELETE is followed by a GET asserting
-// isDefault:true, so a restore that silently no-ops or leaves a
-// different custom policy behind fails loudly here rather than being
-// discovered by the next developer's login mysteriously requiring MFA.
+// setOrgLoginPolicy writes a CUSTOM org login policy: baseCustomLoginPolicy
+// with override applied on top (e.g. {"forceMfa": true} or
+// {"forceMfaLocalOnly": true}) — shared by both the forceMfa and
+// forceMfaLocalOnly integration tests so the two do not maintain two
+// near-duplicate field lists that could silently drift apart.
+func setOrgLoginPolicy(t *testing.T, env integrationEnv, seedToken string, override map[string]any) {
+	t.Helper()
+	policy := baseCustomLoginPolicy()
+	for k, v := range override {
+		policy[k] = v
+	}
+	managementAPICall(t, env, seedToken, http.MethodPost, loginPolicyPath, policy)
+}
+
+// resetOrgLoginPolicy restores the org's default login policy, and is
+// deliberately IDEMPOTENT: DELETE on an already-default policy answers
+// 404 "Login Policy not found" (verified live), so a naive
+// unconditional DELETE would itself fail the SECOND time this is called
+// — which matters here because every caller below invokes this BOTH
+// explicitly mid-test (to prove a login succeeds again, Finding 5) AND
+// via t.Cleanup (as the safety net if the explicit call is never
+// reached). GET-first avoids ever issuing that DELETE on nothing.
+//
+// The DELETE path is still followed by a GET asserting isDefault:true —
+// this call VERIFIES the restore, not just trusts a 200 — so a restore
+// that silently no-ops or leaves a different custom policy behind fails
+// loudly here rather than being discovered by the next developer's login
+// mysteriously requiring MFA.
 func resetOrgLoginPolicy(t *testing.T, env integrationEnv, seedToken string) {
 	t.Helper()
+	got := managementAPICall(t, env, seedToken, http.MethodGet, loginPolicyPath, nil)
+	if policy, _ := got["policy"].(map[string]any); policy != nil {
+		if isDefault, _ := policy["isDefault"].(bool); isDefault {
+			return
+		}
+	}
+
 	managementAPICall(t, env, seedToken, http.MethodDelete, loginPolicyPath, nil)
 
-	got := managementAPICall(t, env, seedToken, http.MethodGet, loginPolicyPath, nil)
+	got = managementAPICall(t, env, seedToken, http.MethodGet, loginPolicyPath, nil)
 	policy, _ := got["policy"].(map[string]any)
 	isDefault, _ := policy["isDefault"].(bool)
 	require.Truef(t, isDefault, "org login policy after DELETE %s is not back to default: %v", loginPolicyPath, got)
 }
 
+// assertHandsOffWithoutCallback is the shared assertion both the
+// forceMfa and forceMfaLocalOnly tests below make: a real login against
+// a policy that requires MFA must return 200 + handoff_url, and must
+// NEVER return callback_url — the latter would mean CompleteIfSufficient
+// finalized a password-only session under a policy that said not to,
+// which is the MFA bypass this whole fix round exists to prevent.
+func assertHandsOffWithoutCallback(t *testing.T, w *httptest.ResponseRecorder, policyField string) {
+	t.Helper()
+	require.Equalf(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
+	require.Containsf(t, w.Body.String(), "handoff_url", "%s=true must hand off, body: %s", policyField, w.Body.String())
+	require.NotContainsf(t, w.Body.String(), "callback_url",
+		"%s=true completed the login (callback_url present) instead of handing off — MFA bypass: %s",
+		policyField, w.Body.String())
+}
+
+// assertLoginSucceeds is the OTHER half of Finding 5's fix: a test that
+// only proves "MFA policy → handoff" says nothing about whether the
+// policy read itself still WORKS — handoff is also what an UNREADABLE
+// policy produces (CompleteIfSufficient's own fail-closed branch,
+// sufficiency.go), so a regression that broke the anchor
+// (passwordCheckLifetime renamed, say) would make this file's MFA tests
+// keep passing while EVERY login on the system silently degraded to
+// hosted-UI handoff. Calling this in the SAME test, after the policy is
+// restored, closes that gap: a real callback_url with code/state proves
+// the policy read path still resolves to "recognized, MFA off" for the
+// default policy, not just "produced a handoff for some reason".
+func assertLoginSucceeds(t *testing.T, env integrationEnv) {
+	t.Helper()
+	r := newIntegrationRouter(env)
+	authRequestID := newAuthRequest(t, env)
+	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
+
+	require.Equalf(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
+	var body struct {
+		CallbackURL string `json:"callback_url"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	callback, err := url.Parse(body.CallbackURL)
+	require.NoErrorf(t, err, "callback_url %q did not parse as a URL", body.CallbackURL)
+	q := callback.Query()
+	require.NotEmptyf(t, q.Get("code"), "callback_url %q carried no code param after policy restore", body.CallbackURL)
+	require.NotEmptyf(t, q.Get("state"), "callback_url %q carried no state param after policy restore", body.CallbackURL)
+}
+
 // TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting is Finding
-// 2 of this task's review round: a unit fixture can pin what
+// 2 of this task's first review round: a unit fixture can pin what
 // loginclient.LoginPolicy DOES with a given body, but it cannot catch a
 // REAL Zitadel upgrade that renames or re-casts forceMfa on the wire,
 // because whoever makes that change is also the one who would update the
@@ -471,21 +532,36 @@ func resetOrgLoginPolicy(t *testing.T, env integrationEnv, seedToken string) {
 // test's assertions (login completes when it must not) regardless of
 // what any fixture says.
 //
+// Finding 5 of the SECOND review round: this test now also proves login
+// still WORKS once the policy is restored (assertLoginSucceeds below,
+// called in the SAME test rather than left as an implicit dependency on
+// another test elsewhere in the file/package running afterward) — see
+// assertLoginSucceeds's own doc comment for why "hands off" alone is not
+// enough evidence that the policy READ path, as opposed to just the
+// MFA-enforcement branch, is healthy.
+//
 // # This test MUTATES shared Zitadel instance state
 //
 // Setting the org login policy is instance-wide within this dev org, not
 // scoped to one test — every other integration test in this file (and
 // any other real login against this dev stack, including a developer's
 // own `make dev-api`/`dev-web` session running at the same time) reads
-// the SAME policy object. Two safeguards, both load-bearing:
+// the SAME policy object. Safeguards, all load-bearing:
 //
-//  1. The restore runs in t.Cleanup, registered IMMEDIATELY after the
-//     policy is set (before ANY assertion below), so a failed assertion
-//     or an unexpected panic still restores the default policy — the
-//     alternative (restoring at the end of the test body) would leave
-//     forceMfa on, silently, for every subsequent login on the machine,
-//     which reads as a broken app rather than a broken test.
-//  2. This package's tests are NOT parallel: nothing in this file (or
+//  1. t.Cleanup is registered IMMEDIATELY after the policy is set (before
+//     ANY assertion below), so a failed assertion or an unexpected panic
+//     still restores the default policy — the alternative (restoring
+//     only at the end of the test body) would leave forceMfa on,
+//     silently, for every subsequent login on the machine, which reads
+//     as a broken app rather than a broken test.
+//  2. The test ALSO calls resetOrgLoginPolicy explicitly, mid-body,
+//     before assertLoginSucceeds — resetOrgLoginPolicy is idempotent
+//     (see its own doc comment), so this and the t.Cleanup call do not
+//     conflict; the explicit call is what makes assertLoginSucceeds's
+//     precondition (default policy) true within THIS test rather than
+//     relying on t.Cleanup having already run, which it has not at that
+//     point in the test body.
+//  3. This package's tests are NOT parallel: nothing in this file (or
 //     loginui_test.go) calls t.Parallel(), so Go's default sequential
 //     execution within one package is what actually serializes this
 //     against TestIntegration_PasswordSuccess_ReturnsCallbackURLWithCodeAndState
@@ -499,16 +575,49 @@ func TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting(t *testing.T) {
 	env := skipUnlessDevStackIsUp(t)
 	seedToken := skipUnlessSeedPATIsAvailable(t)
 
-	setOrgLoginPolicyForceMFA(t, env, seedToken)
+	setOrgLoginPolicy(t, env, seedToken, map[string]any{"forceMfa": true})
 	t.Cleanup(func() { resetOrgLoginPolicy(t, env, seedToken) })
 
 	r := newIntegrationRouter(env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
+	assertHandsOffWithoutCallback(t, w, "forceMfa")
 
-	require.Equalf(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
-	require.Containsf(t, w.Body.String(), "handoff_url", "forceMfa=true must hand off, body: %s", w.Body.String())
-	require.NotContainsf(t, w.Body.String(), "callback_url",
-		"forceMfa=true completed the login (callback_url present) instead of handing off — MFA bypass: %s",
-		w.Body.String())
+	resetOrgLoginPolicy(t, env, seedToken)
+	assertLoginSucceeds(t, env)
+}
+
+// TestIntegration_ForceMFALocalOnlyPolicy_HandsOffInsteadOfCompleting is
+// Finding 4 of the second review round: forceMfaLocalOnly is a REAL
+// Zitadel login-policy field the unit tests now cover with fixtures, but
+// — for the exact same reason TestIntegration_ForceMFAPolicy_... exists
+// alongside the forceMfa unit fixtures — only a live read through the
+// real decode path can prove HMS actually treats a genuinely-configured
+// forceMfaLocalOnly:true org as requiring MFA, not just that a
+// hand-written fixture says it should. See loginclient.LoginPolicy's
+// "forceMfaLocalOnly — a second, REAL field" doc comment for the
+// fold-together decision this test is proving live.
+//
+// Same MUTATES-shared-state safeguards as
+// TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting above
+// (t.Cleanup registered immediately, resetOrgLoginPolicy's idempotency,
+// and this package's tests never running in parallel) — not repeated
+// here in full; see that test's doc comment.
+func TestIntegration_ForceMFALocalOnlyPolicy_HandsOffInsteadOfCompleting(t *testing.T) {
+	env := skipUnlessDevStackIsUp(t)
+	seedToken := skipUnlessSeedPATIsAvailable(t)
+
+	// forceMfa stays false — that is the whole point: this policy must
+	// require MFA through forceMfaLocalOnly ALONE, the exact shape
+	// Finding 4 found reachable through supported Zitadel configuration.
+	setOrgLoginPolicy(t, env, seedToken, map[string]any{"forceMfa": false, "forceMfaLocalOnly": true})
+	t.Cleanup(func() { resetOrgLoginPolicy(t, env, seedToken) })
+
+	r := newIntegrationRouter(env)
+	authRequestID := newAuthRequest(t, env)
+	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
+	assertHandsOffWithoutCallback(t, w, "forceMfaLocalOnly")
+
+	resetOrgLoginPolicy(t, env, seedToken)
+	assertLoginSucceeds(t, env)
 }

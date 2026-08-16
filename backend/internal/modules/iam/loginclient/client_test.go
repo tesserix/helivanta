@@ -223,6 +223,97 @@ func TestLoginPolicyRejectsARenamedOrRecasedForceMFA(t *testing.T) {
 	}
 }
 
+// TestLoginPolicyTreatsForceMFALocalOnlyAsRequiringMFA pins Finding 4 of
+// this task's second review round: forceMfaLocalOnly is a REAL Zitadel
+// login-policy field ("require MFA for local/password users, not
+// federated ones" — a normal configuration, not a hypothetical), and
+// before this fix a policy with forceMfaLocalOnly:true and forceMfa
+// elided (the ordinary "false" shape, per LoginPolicy's doc comment)
+// decoded to LoginPolicy{ForceMFA:false} — a real, reachable MFA bypass
+// through supported Zitadel configuration, not upstream drift. See
+// LoginPolicy's "forceMfaLocalOnly — a second, REAL field" doc comment
+// section for the fold-together decision and its documented assumption
+// (every HMS user is local today).
+func TestLoginPolicyTreatsForceMFALocalOnlyAsRequiringMFA(t *testing.T) {
+	// forceMfa absent entirely, matching the real elision shape — the
+	// realistic body a Zitadel org with forceMfaLocalOnly configured and
+	// forceMfa left off actually sends (verified live, see this
+	// function's doc comment).
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfaLocalOnly":true}}`))
+	})
+	p, err := c.LoginPolicy(context.Background())
+	if err != nil {
+		t.Fatalf("LoginPolicy() error = %v, want forceMfaLocalOnly to be read, not refused", err)
+	}
+	if !p.ForceMFA {
+		t.Error("ForceMFA = false, want true: forceMfaLocalOnly:true must require MFA")
+	}
+}
+
+// TestLoginPolicyForceMFAAndForceMFALocalOnlyDoNotFalsePositiveOnEachOther
+// proves the rename guard extension for forceMfaLocalOnly does not break
+// the ordinary case where only ONE of the two fields is set — a body
+// with forceMfaLocalOnly present must not trip forceMfa's rename check
+// (and vice versa), since "forceMfaLocalOnly" and "forceMfa" normalize
+// to different strings ("forcemfalocalonly" vs "forcemfa"). Verified
+// live against the real dev Zitadel as part of this fix (see this task's
+// report); this test pins it structurally too.
+func TestLoginPolicyForceMFAAndForceMFALocalOnlyDoNotFalsePositiveOnEachOther(t *testing.T) {
+	t.Run("forceMfaLocalOnly alone does not trip forceMfa's guard", func(t *testing.T) {
+		c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfaLocalOnly":false}}`))
+		})
+		p, err := c.LoginPolicy(context.Background())
+		if err != nil {
+			t.Fatalf("LoginPolicy() error = %v, want a lone forceMfaLocalOnly:false to be accepted", err)
+		}
+		if p.ForceMFA {
+			t.Error("ForceMFA = true, want false")
+		}
+	})
+	t.Run("forceMfa alone does not trip forceMfaLocalOnly's guard", func(t *testing.T) {
+		c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfa":false}}`))
+		})
+		p, err := c.LoginPolicy(context.Background())
+		if err != nil {
+			t.Fatalf("LoginPolicy() error = %v, want a lone forceMfa:false to be accepted", err)
+		}
+		if p.ForceMFA {
+			t.Error("ForceMFA = true, want false")
+		}
+	})
+}
+
+// TestLoginPolicyRejectsARenamedOrRecasedForceMFALocalOnly applies the
+// same rigour Finding 4 asked for: forceMfaLocalOnly gets the identical
+// rename/re-casing/type-drift guard forceMfa already had, not a weaker
+// one, since a renamed forceMfaLocalOnly would reopen exactly the same
+// class of bypass this whole fix exists to close.
+func TestLoginPolicyRejectsARenamedOrRecasedForceMFALocalOnly(t *testing.T) {
+	bodies := map[string]string{
+		"snake_case":           `{"policy":{` + policyAnchor + `,"force_mfa_local_only":true}}`,
+		"PascalCase":           `{"policy":{` + policyAnchor + `,"ForceMfaLocalOnly":true}}`,
+		"SCREAMING_SNAKE_CASE": `{"policy":{` + policyAnchor + `,"FORCE_MFA_LOCAL_ONLY":true}}`,
+		"forceMfaLocalOnly present but not a bool (type drift)": `{"policy":{` + policyAnchor + `,"forceMfaLocalOnly":"true"}}`,
+	}
+	for name, body := range bodies {
+		t.Run(name, func(t *testing.T) {
+			c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(body))
+			})
+			got, err := c.LoginPolicy(context.Background())
+			if err == nil {
+				t.Fatalf("LoginPolicy() = %+v, error = nil; a renamed/re-cased/retyped forceMfaLocalOnly must not read as MFA off", got)
+			}
+			if !errors.Is(err, ErrUnavailable) {
+				t.Errorf("error = %v, want ErrUnavailable so it reaches the same fail-closed branch as an unreachable Zitadel", err)
+			}
+		})
+	}
+}
+
 // A broken or compromised Zitadel streaming an unbounded 200 response must
 // not be decoded without a size cap (review finding 1). The fake server
 // here writes a well-formed JSON object whose redirectUri field alone is

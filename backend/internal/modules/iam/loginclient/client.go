@@ -248,18 +248,24 @@ func (c *Client) finalize(ctx context.Context, authRequestID string, s Session) 
 // it is the feature not working at all.
 //
 // The fix is an ANCHOR, not a relaxed default:
-// `policy.passwordCheckLifetime` is a `google.protobuf.Duration` field,
-// which — unlike a scalar bool — protojson gives explicit-presence
-// semantics: it is emitted whenever the policy message itself is
-// present, never elided at its zero value the way `forceMfa`/
-// `allowUsernamePassword` are. Its presence is therefore evidence "this
-// really is Zitadel's login policy object", independent of what any
-// individual boolean field happens to be set to — including, notably,
-// an org that has legitimately set `allowUsernamePassword` to false,
-// which an anchor built on THAT field would have misread as
-// unrecognized. ForceMFA absent alongside the anchor PRESENT decodes to
-// false; the anchor absent (with or without ForceMFA) still refuses,
-// exactly as the original design did for every shape it covered.
+// `policy.passwordCheckLifetime` is a `google.protobuf.Duration` field.
+// It has been present on every response observed live against v4.15.3,
+// including every shape this file's tests construct from real captures —
+// that is the actual basis for using it, not a claim about protojson's
+// general semantics for message-typed fields (an earlier version of this
+// comment overstated that guarantee; see the review round that caught
+// it). If it were ever absent, the result is this function refusing with
+// ErrUnavailable — the SAME fail-closed branch an unrecognized body
+// already takes — not a bypass, so the anchor's failure mode stays safe
+// even if the "always present" premise it rests on ever turns out to be
+// wrong. Its presence is evidence "this really is Zitadel's login policy
+// object", independent of what any individual boolean field happens to
+// be set to — including, notably, an org that has legitimately set
+// `allowUsernamePassword` to false, which an anchor built on THAT field
+// would have misread as unrecognized. `forceMfa`/`forceMfaLocalOnly`
+// absent alongside the anchor PRESENT decodes to false; the anchor
+// absent (with either present or not) still refuses, exactly as the
+// original design did for every shape it covered.
 //
 // # Rename/re-casing detection — closes the residual the anchor alone leaves open
 //
@@ -274,29 +280,69 @@ func (c *Client) finalize(ctx context.Context, authRequestID string, s Session) 
 //
 // The policy object is therefore decoded into a `map[string]any`
 // (rather than a fixed struct) so every key Zitadel actually sent is
-// visible, and every key is checked: any key whose name NORMALIZES
-// (lowercased, underscores stripped) to "forcemfa" but is not spelled
-// exactly "forceMfa" is treated as unrecognized and refuses, on the
-// theory that Zitadel renaming or re-casing this one field is far more
-// likely than it inventing an unrelated field that happens to normalize
-// the same way. This also catches `forceMfa` changing TYPE (e.g. a
-// future Zitadel encoding it as a string) — the type assertion to `bool`
-// below fails the same way absence does.
+// visible, and every key that matters (`forceMfa`, `forceMfaLocalOnly`)
+// is checked: any OTHER key whose name NORMALIZES (lowercased,
+// underscores stripped) to the SAME normalized form but is not spelled
+// exactly that way is treated as unrecognized and refuses — e.g.
+// "force_mfa" and "ForceMFA" both collide with "forceMfa"'s normalized
+// form and refuse, but "forceMfaLocalOnly" normalizes to
+// "forcemfalocalonly", which does NOT collide with "forceMfa"'s
+// "forcemfa", so a real, unrelated `forceMfaLocalOnly` field is never
+// mistaken for a renamed `forceMfa` (or vice versa) — verified live:
+// setting only `forceMfaLocalOnly` does not trip `forceMfa`'s guard, and
+// setting only `forceMfa` does not trip `forceMfaLocalOnly`'s. This also
+// catches either field changing TYPE (e.g. a future Zitadel encoding it
+// as a string) — the type assertion to `bool` fails the same way
+// absence does.
 //
-// KNOWN RESIDUAL: this detects a rename/re-casing of the FIELD NAME or a
-// change to a non-bool wire TYPE. It does NOT detect Zitadel silently
-// changing the MEANING of `forceMfa` while keeping both its name and its
-// bool type (e.g. inverting the polarity to "allowPasswordOnly"-shaped
-// semantics under the same key) — no purely structural check can catch a
-// semantic change with an unchanged shape. That gap is why Finding 2's
-// live integration test (loginui_integration_test.go,
-// TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting) exists
-// alongside this structural guard rather than instead of it: a real
-// forceMfa=true policy read through the real decode path is the only
-// thing that can prove the MEANING, not just the shape, still holds.
+// # forceMfaLocalOnly — a second, REAL field with the same shape of gap
+//
+// Verified live 2026-08-16 (this task's second fix round): setting
+// `forceMfaLocalOnly:true` with `forceMfa:false` (a normal Zitadel
+// configuration — "require MFA for local/password users, not for
+// federated ones") answers with `forceMfa` elided entirely (per the
+// section above) and `forceMfaLocalOnly:true` present. Reading only
+// `forceMfa` therefore missed a REAL, supported way to require MFA — not
+// a hypothetical drift, a config an operator can set today. HMS folds
+// `forceMfaLocalOnly` into the SAME ForceMFA bool
+// (`forceMfa || forceMfaLocalOnly`) rather than modeling it separately,
+// on a documented, narrow assumption: `forceMfaLocalOnly` strictly means
+// "force MFA for non-federated (local) users", and EVERY HMS user is
+// local today — no external IdP is configured (spec D5) — so for HMS's
+// purposes the two fields currently mean the same thing. This is an
+// assumption, not a derived fact: if HMS ever configures an external
+// IdP, this fold-together stops being correct for federated users and
+// must be revisited (a future CompleteIfSufficient would need to know
+// which kind of session it is evaluating, not just read one bool). Not
+// built now because HMS has no federated login path to get it wrong on
+// yet — see docs/standards/engineering-principles.md on not building for
+// a case that cannot occur.
+//
+// KNOWN RESIDUAL: this detects a rename/re-casing of either FIELD NAME,
+// a change to either field's non-bool wire TYPE, and (as of this
+// section) `forceMfaLocalOnly` overriding `forceMfa`'s apparent "off"
+// value through a name this file already knows to read. It does NOT
+// detect two other classes: (1) Zitadel silently changing the MEANING of
+// `forceMfa`/`forceMfaLocalOnly` while keeping both name and bool type
+// (e.g. inverting the polarity under the same key), and (2) a THIRD,
+// not-yet-discovered field overriding MFA requirements the way
+// `forceMfaLocalOnly` turned out to — this file only knows to guard the
+// two fields discovered so far, and a structural check cannot enumerate
+// fields it has never been told about. No purely structural check can
+// close either gap. That is why Finding 2's live integration tests
+// (loginui_integration_test.go,
+// TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting and
+// TestIntegration_ForceMFALocalOnlyPolicy_HandsOffInsteadOfCompleting)
+// exist alongside this structural guard rather than instead of it: a
+// real policy read through the real decode path is the only thing that
+// can prove the MEANING, not just the shape, still holds — and a THIRD
+// override field would show up there as a completed login when handoff
+// was expected, the same way `forceMfaLocalOnly` itself was found.
 // TestLoginPolicyRejectsBodiesItCannotUnderstand,
-// TestLoginPolicyTreatsAbsentForceMFAAsFalseWhenPolicyIsRecognizable, and
-// TestLoginPolicyRejectsARenamedOrRecasedForceMFA pin this file's half.
+// TestLoginPolicyTreatsAbsentForceMFAAsFalseWhenPolicyIsRecognizable,
+// TestLoginPolicyRejectsARenamedOrRecasedForceMFA, and
+// TestLoginPolicyTreatsForceMFALocalOnlyAsRequiringMFA pin this file's
+// half.
 func (c *Client) LoginPolicy(ctx context.Context) (LoginPolicy, error) {
 	var wire struct {
 		Policy map[string]any `json:"policy"`
@@ -311,33 +357,81 @@ func (c *Client) LoginPolicy(ctx context.Context) (LoginPolicy, error) {
 		// required — and both must reach the same fail-closed branch.
 		return LoginPolicy{}, fmt.Errorf("GET /management/v1/policies/login: 200 without a recognizable policy object: %w", ErrUnavailable)
 	}
-	for key := range wire.Policy {
-		if key == "forceMfa" {
+
+	for _, key := range mfaPolicyKeys {
+		if err := refuseIfKeyRenamedOrRecased(wire.Policy, key); err != nil {
+			return LoginPolicy{}, err
+		}
+	}
+
+	forceMFA, err := readMFABool(wire.Policy, "forceMfa")
+	if err != nil {
+		return LoginPolicy{}, err
+	}
+	// forceMfaLocalOnly folds into the SAME ForceMFA bool — see this
+	// function's doc comment ("forceMfaLocalOnly — a second, REAL field")
+	// for why that is safe today and what would have to change if it
+	// stops being safe.
+	forceMFALocalOnly, err := readMFABool(wire.Policy, "forceMfaLocalOnly")
+	if err != nil {
+		return LoginPolicy{}, err
+	}
+	return LoginPolicy{ForceMFA: forceMFA || forceMFALocalOnly}, nil
+}
+
+// mfaPolicyKeys is every wire key LoginPolicy reads to decide ForceMFA —
+// forceMfa and forceMfaLocalOnly today. Both readMFABool's absent-key
+// path and refuseIfKeyRenamedOrRecased's rename guard are driven off
+// this one list, so a THIRD MFA-forcing field discovered later (see the
+// KNOWN RESIDUAL section above) is added in exactly one place.
+var mfaPolicyKeys = []string{"forceMfa", "forceMfaLocalOnly"}
+
+// refuseIfKeyRenamedOrRecased scans policy for any key that NORMALIZES
+// (normalizePolicyKey) to the same form as wantKey but is not spelled
+// exactly wantKey — see LoginPolicy's "Rename/re-casing detection" doc
+// comment for the full reasoning and the live verification that this
+// does not false-positive between forceMfa and forceMfaLocalOnly (their
+// normalized forms, "forcemfa" and "forcemfalocalonly", differ).
+func refuseIfKeyRenamedOrRecased(policy map[string]any, wantKey string) error {
+	want := normalizePolicyKey(wantKey)
+	for key := range policy {
+		if key == wantKey {
 			continue
 		}
-		if normalizePolicyKey(key) == "forcemfa" {
-			return LoginPolicy{}, fmt.Errorf(
+		if normalizePolicyKey(key) == want {
+			return fmt.Errorf(
 				"GET /management/v1/policies/login: policy object has a field %q that looks like a "+
-					"renamed or re-cased forceMfa but is not spelled exactly that way: %w", key, ErrUnavailable)
+					"renamed or re-cased %s but is not spelled exactly that way: %w", key, wantKey, ErrUnavailable)
 		}
 	}
-	rawForceMFA, present := wire.Policy["forceMfa"]
+	return nil
+}
+
+// readMFABool reads policy[key] as the bool LoginPolicy needs it to be:
+// absent decodes to false (the elision case — see LoginPolicy's doc
+// comment), present-but-not-a-bool refuses the same way a rename does,
+// present-and-bool returns as is.
+func readMFABool(policy map[string]any, key string) (bool, error) {
+	raw, present := policy[key]
 	if !present {
-		return LoginPolicy{ForceMFA: false}, nil
+		return false, nil
 	}
-	forceMFA, isBool := rawForceMFA.(bool)
+	b, isBool := raw.(bool)
 	if !isBool {
-		return LoginPolicy{}, fmt.Errorf(
-			"GET /management/v1/policies/login: policy.forceMfa is %T, not a bool: %w", rawForceMFA, ErrUnavailable)
+		return false, fmt.Errorf(
+			"GET /management/v1/policies/login: policy.%s is %T, not a bool: %w", key, raw, ErrUnavailable)
 	}
-	return LoginPolicy{ForceMFA: forceMFA}, nil
+	return b, nil
 }
 
 // normalizePolicyKey collapses a JSON object key to the form
 // LoginPolicy's rename/re-casing check compares against: lowercased,
 // underscores stripped. "forceMfa", "force_mfa", "ForceMFA", and
-// "FORCE_MFA" all normalize to "forcemfa"; unrelated keys
-// ("allowUsernamePassword", "passwordCheckLifetime") do not.
+// "FORCE_MFA" all normalize to "forcemfa"; "forceMfaLocalOnly" normalizes
+// to "forcemfalocalonly" — a DIFFERENT string, so it is never mistaken
+// for a renamed forceMfa (verified live, see LoginPolicy's doc comment).
+// Unrelated keys ("allowUsernamePassword", "passwordCheckLifetime") do
+// not collide with either.
 func normalizePolicyKey(key string) string {
 	return strings.ToLower(strings.ReplaceAll(key, "_", ""))
 }

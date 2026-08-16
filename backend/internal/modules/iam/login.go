@@ -71,7 +71,32 @@ type LoginHandlers struct {
 	verifier authn.TokenVerifier
 	roles    platform.RoleLister
 	signer   *session.Signer
+	// sessions verifies the caller's EXISTING HMS session cookie, if it
+	// sent one. It is not an authentication gate — this endpoint has no
+	// session to authenticate — it is how Login tells a silent renewal
+	// apart from a genuine sign-in, which is the whole of spec D3. See
+	// idleDeadlineFor.
+	sessions *session.Verifier
 	ttl      time.Duration
+	// idleTimeout is cfg.IdleTimeout, the window a GENUINELY NEW login
+	// opens. It is deliberately not read anywhere on the renewal path:
+	// renewal carries the deadline it already had (D3).
+	idleTimeout time.Duration
+	// now is the clock idleDeadlineFor reads, time.Now in production.
+	//
+	// It exists for ONE reason, and it is not general testability: the D3
+	// regression test has to observe a renewal that happens LATER than the
+	// login it renews. idle_deadline travels as a Unix timestamp, so a
+	// test that logs in and renews within the same wall-clock second
+	// computes the identical "now + IdleTimeout" for both — and therefore
+	// PASSES against an implementation that resets the deadline on every
+	// renewal, which is precisely the bug it exists to catch. That was
+	// observed, not theorised (see the task report for #848 Task 3): the
+	// first version of this handler was mutated to reset unconditionally
+	// and the test still went green. A sleep would work and would make the
+	// suite slower and flakier for no gain; an injectable clock makes the
+	// test deterministic and the assertion real.
+	now func() time.Time
 	// secureCookie mirrors the `secure` cookie flag apps/shell's
 	// app/api/session/route.ts used to set (secure only outside
 	// development) — see this field's use in Login for the exact
@@ -89,19 +114,73 @@ type LoginHandlers struct {
 	limit   ratelimit.Rule
 }
 
-// NewLoginHandlers wires Login's dependencies: verifier authenticates
-// the caller against Zitadel (pkg/authn.NewZitadelVerifier — the SAME
-// verifier instance Task 3 built, reused rather than duplicated), roles
-// resolves tenant membership from OpenFGA exactly the way
-// meHandlers.tenants does (see roles' doc comment on Deps.Roles), and
-// signer mints the HMS session itself. secureCookie is threaded from
-// config rather than decided here, so this file has no direct
-// environment dependency to get wrong. limiter is the SAME
-// ratelimit.Limiter instance cmd/api/main.go builds for bootstrap.V1Chain
-// — reused, not duplicated, per #841 — and limit is
-// bootstrap.LoginRateLimitRule(cfg).
-func NewLoginHandlers(verifier authn.TokenVerifier, roles platform.RoleLister, signer *session.Signer, ttl time.Duration, secureCookie bool, limiter ratelimit.Limiter, limit ratelimit.Rule) *LoginHandlers {
-	return &LoginHandlers{verifier: verifier, roles: roles, signer: signer, ttl: ttl, secureCookie: secureCookie, limiter: limiter, limit: limit}
+// LoginDeps are Login's dependencies, passed as a struct rather than a
+// positional argument list.
+//
+// That is not a style preference. #848 added a SECOND time.Duration
+// (IdleTimeout) beside the existing TTL, and the two default to the same
+// value — 15 minutes — for entirely unrelated reasons (config.go's
+// IdleTimeout doc comment). Positionally, transposing them compiles,
+// passes every test, and silently couples the two clocks spec D3 requires
+// to stay independent: exactly the class of mistake this codebase asks to
+// be made unrepresentable rather than remembered
+// (docs/standards/engineering-principles.md — "compile error > boot
+// failure > CI failure > documented convention"). Named fields make the
+// transposition impossible to write.
+type LoginDeps struct {
+	// Zitadel authenticates the caller (pkg/authn.NewZitadelVerifier —
+	// the SAME verifier instance #838 Task 3 built, reused rather than
+	// duplicated).
+	Zitadel authn.TokenVerifier
+	// Roles resolves tenant membership from OpenFGA exactly the way
+	// meHandlers.tenants does (see roles' doc comment on Deps.Roles).
+	Roles platform.RoleLister
+	// Signer mints the HMS session itself.
+	Signer *session.Signer
+	// Sessions verifies the caller's existing session cookie — the
+	// renewal-vs-login discriminator (spec D3, see idleDeadlineFor).
+	// Login refuses to mint without it rather than defaulting to "treat
+	// everything as a genuine login", which would reset the idle deadline
+	// on every renewal and disable the timeout entirely.
+	Sessions *session.Verifier
+	// TTL is this token's own lifetime (cfg.SessionTTL).
+	TTL time.Duration
+	// IdleTimeout is the window a genuinely new login opens
+	// (cfg.IdleTimeout). NEVER applied to a renewal.
+	IdleTimeout time.Duration
+	// SecureCookie is threaded from config rather than decided here, so
+	// this file has no direct environment dependency to get wrong.
+	SecureCookie bool
+	// Limiter is the SAME ratelimit.Limiter instance cmd/api/main.go
+	// builds for bootstrap.V1Chain — reused, not duplicated, per #841 —
+	// and Limit is bootstrap.LoginRateLimitRule(cfg).
+	Limiter ratelimit.Limiter
+	Limit   ratelimit.Rule
+	// Now is the clock, defaulting to time.Now when nil. Production
+	// leaves it unset; see LoginHandlers.now for the one reason it is
+	// injectable at all.
+	Now func() time.Time
+}
+
+// NewLoginHandlers wires Login's dependencies. See LoginDeps for what
+// each one is and why the parameter is a struct.
+func NewLoginHandlers(d LoginDeps) *LoginHandlers {
+	now := d.Now
+	if now == nil {
+		now = time.Now
+	}
+	return &LoginHandlers{
+		now:          now,
+		verifier:     d.Zitadel,
+		roles:        d.Roles,
+		signer:       d.Signer,
+		sessions:     d.Sessions,
+		ttl:          d.TTL,
+		idleTimeout:  d.IdleTimeout,
+		secureCookie: d.SecureCookie,
+		limiter:      d.Limiter,
+		limit:        d.Limit,
+	}
 }
 
 // Login verifies req.IDToken as a Zitadel ID token, resolves the
@@ -200,6 +279,23 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 		tenantID = req.TenantID
 	}
 
+	// Fail closed with no session verifier: without it this handler
+	// cannot tell a renewal from a genuine login (idleDeadlineFor), so
+	// every renewal would be treated as a genuine one and re-open a full
+	// idle window — an untouched tab would renew itself forever and the
+	// #848 timeout would never fire, while everything looked healthy.
+	// The unwired-dependency case is a deployment mistake, and the same
+	// direction meHandlers.switchTenant takes for a nil signer: refuse to
+	// issue, rather than issue something whose security property is
+	// silently absent.
+	if h.sessions == nil {
+		requestid.Logger(c).ErrorContext(c.Request.Context(),
+			"login: no session verifier configured; refusing to mint")
+		respond.Error(c, http.StatusServiceUnavailable,
+			"session_unavailable", "could not issue a session")
+		return
+	}
+
 	// authTime is principal.AuthTime — Zitadel's auth_time, verified and
 	// parsed by h.verifier, NEVER time.Now(). See session.Signer.Mint's
 	// doc comment and spec D2: resetting it here would launder this
@@ -207,7 +303,11 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	// which is exactly what would let a re-mint walk through a
 	// revocation watermark set between the original Zitadel
 	// authentication and this call.
-	token, err := h.signer.Mint(principal.Subject, tenantID, principal.AuthTime)
+	//
+	// idleDeadline is likewise NOT unconditionally time.Now() +
+	// IdleTimeout — see idleDeadlineFor, which is the whole of spec D3.
+	token, err := h.signer.Mint(principal.Subject, tenantID, principal.AuthTime,
+		h.idleDeadlineFor(c, principal, h.now()))
 	if err != nil {
 		requestid.Logger(c).ErrorContext(c.Request.Context(), "login: mint session failed", "err", err)
 		respond.Error(c, http.StatusServiceUnavailable,
@@ -228,6 +328,109 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(authn.SessionCookie, token, int(h.ttl.Seconds()), "/", "", h.secureCookie, true)
 	respond.OK(c, gin.H{"tenant_id": tenantID})
+}
+
+// idleDeadlineFor decides the idle_deadline this mint carries. It is the
+// load-bearing decision of #848 — spec D3, "the single most important
+// rule in this spec, and the one most likely to be got wrong, because
+// everything looks like it works when it is broken".
+//
+// THE PROBLEM. Silent renewal (spec D4a) is not a separate endpoint: it
+// is THIS handler, POST /v1/auth/login, run again every 5 minutes with a
+// freshly-obtained Zitadel ID token. Route, method and body are identical
+// to a first sign-in, so nothing about the REQUEST distinguishes them. If
+// a re-mint set idle_deadline = now + IdleTimeout, an untouched tab would
+// renew itself forever, the timeout would never fire, and every test
+// asserting "renewal works" would still pass.
+//
+// THE DISCRIMINATOR is the caller's own existing HMS session cookie. A
+// renewal always carries one (the browser attaches it automatically; it
+// is httpOnly and same-origin), and that cookie already holds the
+// deadline this session is running against. So:
+//
+//   - cookie present, genuine, and this same subject's, with no newer
+//     authentication behind this request  ⇒  RENEWAL. Carry its
+//     idle_deadline forward UNCHANGED.
+//   - anything else  ⇒  GENUINE NEW LOGIN. now + IdleTimeout.
+//
+// Carrying forward can only ever keep or SHORTEN the window, never
+// extend it: every deadline this system writes is minted as
+// now + IdleTimeout at a genuine login (or at the activity endpoint,
+// spec D4), so a carried value is by construction never later than the
+// fresh one it replaces. There is therefore nothing here for a caller to
+// abuse by presenting a cookie.
+//
+// THE THREE WAYS OUT of the carry branch, each deliberate:
+//
+//  1. No cookie, or one that does not verify. Nothing to carry.
+//
+//  2. The cookie's subject is not the subject Zitadel just verified. A
+//     DIFFERENT human is signing in at a terminal where the previous one
+//     never signed out — precisely the scenario in the issue. They get
+//     their own full window; inheriting a stranger's remaining seconds
+//     would sign them out mid-consultation. This can only ever WIDEN the
+//     window for someone who has genuinely just authenticated as another
+//     person, so it is not a way to extend one's own session.
+//
+//  3. principal.AuthTime is strictly after the session's auth_time — the
+//     human has authenticated against Zitadel AGAIN since this session
+//     was minted. That is a person standing at the keyboard, so a fresh
+//     window is correct. A prompt=none renewal cannot reach this branch:
+//     Zitadel returns the ORIGINAL auth_time on a silent re-authorization
+//     (the same property the #781 revocation watermark relies on, see
+//     authn.Principal.AuthTime), so a renewal's auth_time EQUALS the
+//     one already in the session. Equality carries — the conservative
+//     direction, mirroring the watermark check's own "not-after"
+//     reasoning: within one second of clock granularity the two cases are
+//     ambiguous, and the safe reading of an ambiguous renewal is that no
+//     human was involved.
+//
+// WHY AN ALREADY-LAPSED DEADLINE IS CARRIED, NOT REFRESHED. This is the
+// one place this implementation is deliberately stricter than the task
+// brief, which expected a lapsed session to fall through to the
+// genuine-login branch. It must not, and the reason is the same failure
+// D3 exists to prevent, one layer down: a tab whose deadline has lapsed
+// is STILL renewing every 5 minutes, and if a lapsed deadline earned a
+// fresh window, the session would simply resurrect itself at the next
+// renewal — dead for a few minutes, then alive again, forever. So a
+// lapsed deadline is carried through verbatim and the re-minted session
+// stays refused by authn.Middleware. session.Signer.Mint accepts a past
+// deadline for exactly this reason (see its doc comment): the middleware
+// stays the single place that decides "idle-expired". A human genuinely
+// signing back in after a timeout still gets a fresh window — through
+// case 3 above, on the strength of their new Zitadel authentication,
+// which is the fact that actually means "someone is here".
+//
+// NOT COVERED BY THIS SLICE, stated rather than hidden: a cookie whose
+// `exp` has lapsed (a laptop suspended for longer than SessionTTL) fails
+// h.sessions.Verify and so takes case 1, earning a fresh window on what
+// may be a silent renewal. Closing that needs a deadline read from a
+// token this Verifier refuses, which is a pkg/session API decision beyond
+// this task. It is narrower than it sounds — reaching it requires the
+// browser to skip renewals for longer than SessionTTL and then resume —
+// but it is real, and it is the first thing to fix after this lands.
+func (h *LoginHandlers) idleDeadlineFor(c *gin.Context, principal authn.Principal, now time.Time) time.Time {
+	fresh := now.Add(h.idleTimeout)
+
+	raw, err := c.Cookie(authn.SessionCookie)
+	if err != nil || raw == "" {
+		return fresh
+	}
+	claims, err := h.sessions.Verify(raw)
+	if err != nil {
+		// Not logged at error level and never surfaced to the caller: an
+		// unverifiable cookie on a login request is ordinary (a session
+		// from a rotated key, a stale cookie after a redeploy), and the
+		// request is about to succeed or fail on its own merits anyway.
+		return fresh
+	}
+	if claims.Subject != principal.Subject {
+		return fresh
+	}
+	if principal.AuthTime.After(claims.AuthTime) {
+		return fresh
+	}
+	return claims.IdleDeadline
 }
 
 // respondNoAccessibleTenant is the one refusal shape both "no bindings

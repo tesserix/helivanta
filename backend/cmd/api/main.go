@@ -278,7 +278,26 @@ func run() error {
 	// authenticated routes read from. LoginRateLimitRule is
 	// bootstrap-owned for the same reason RateLimitConfig is: one
 	// construction path both production and internal/archtest read.
-	loginHandlers := iam.NewLoginHandlers(zitadelVerifier, fga, sessionSigner, cfg.SessionTTL, sessionSecureCookie, limiter, bootstrap.LoginRateLimitRule(cfg))
+	//
+	// Sessions is the SAME sessionVerifier requestVerifier wraps for the
+	// /v1 chain, reused rather than built a second time: it is not an
+	// authentication gate here (this endpoint runs before a session
+	// exists) but the renewal-vs-genuine-login discriminator spec D3
+	// turns on — see iam's idleDeadlineFor. A second Verifier built from
+	// a different key or kid would silently make every renewal look like
+	// a genuine login and re-open the idle window each time, which is
+	// exactly the #848 failure that looks like success.
+	loginHandlers := iam.NewLoginHandlers(iam.LoginDeps{
+		Zitadel:      zitadelVerifier,
+		Roles:        fga,
+		Signer:       sessionSigner,
+		Sessions:     sessionVerifier,
+		TTL:          cfg.SessionTTL,
+		IdleTimeout:  cfg.IdleTimeout,
+		SecureCookie: sessionSecureCookie,
+		Limiter:      limiter,
+		Limit:        bootstrap.LoginRateLimitRule(cfg),
+	})
 
 	// zitadelLoginClient speaks Zitadel's v2 login-client API
 	// (internal/modules/iam/loginclient), authenticated with the PAT

@@ -57,7 +57,12 @@ var iamMembersSeamMigration = tenantdb.Migration{
 type seamVerifier struct{}
 
 func (seamVerifier) Verify(_ context.Context, raw string) (authn.Principal, error) {
-	return authn.Principal{Subject: raw, TenantID: seamTenant, AuthTime: time.Now()}, nil
+	// IdleDeadline an hour out (#848): authn.Middleware refuses a zero
+	// deadline exactly like an already-past one (fail closed), so
+	// leaving it unset would 401 every request here and this seam test
+	// would stop exercising the seam it is about. The idle gate itself
+	// is pinned by pkg/authn's own tests.
+	return authn.Principal{Subject: raw, TenantID: seamTenant, AuthTime: time.Now(), IdleDeadline: time.Now().Add(time.Hour)}, nil
 }
 
 // seamNeverRevoked stands in for the real iam.RevocationChecker: this

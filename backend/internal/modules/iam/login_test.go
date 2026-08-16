@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tesserix/hms/internal/config"
 	"github.com/tesserix/hms/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
 	"github.com/tesserix/hms/internal/testutil"
 	"github.com/tesserix/hms/pkg/authn"
@@ -91,7 +92,24 @@ func loginHarnessRL(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerL
 	verifier, err := session.NewVerifier(pub, loginTestKID, loginTestIssuer)
 	require.NoError(t, err)
 
-	h := iam.NewLoginHandlers(zv, roles, signer, loginTestTTL, true, limiter, rule)
+	// Sessions is the SAME verifier the assertions below decode minted
+	// cookies with, exactly as cmd/api/main.go passes the SAME
+	// sessionVerifier the /v1 chain uses: it is what lets Login recognise
+	// its own previously-minted session on a renewal (spec D3).
+	// IdleTimeout comes from config.Load() rather than a literal so these
+	// tests exercise the real default (15m) and would follow it if it
+	// ever changed.
+	h := iam.NewLoginHandlers(iam.LoginDeps{
+		Zitadel:      zv,
+		Roles:        roles,
+		Signer:       signer,
+		Sessions:     verifier,
+		TTL:          loginTestTTL,
+		IdleTimeout:  config.Load().IdleTimeout,
+		SecureCookie: true,
+		Limiter:      limiter,
+		Limit:        rule,
+	})
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -420,6 +438,285 @@ func TestLoginAdmitsWhenLimiterUnavailable(t *testing.T) {
 		w := doLogin(t, r, `{"id_token":"good"}`)
 		require.Equal(t, http.StatusOK, w.Code, "attempt %d: nil limiter must fail open, not deny", i+1)
 	}
+}
+
+// --- #848 spec D3: the idle deadline, and what may move it -------------
+
+// mutableZitadelVerifier is fakeZitadelVerifier with an auth_time the
+// test can move. It exists because auth_time is what distinguishes a
+// silent renewal from a human signing in again: Zitadel returns the
+// ORIGINAL auth_time on a prompt=none re-authorization, so a renewal's
+// token carries the same auth_time as the session it renews, while a
+// genuine re-authentication carries a later one. A fixed-auth_time fake
+// can express only the first of those.
+type mutableZitadelVerifier struct {
+	subject  string
+	authTime *time.Time
+}
+
+func (m mutableZitadelVerifier) Verify(_ context.Context, raw string) (authn.Principal, error) {
+	if raw != "good" {
+		return authn.Principal{}, errors.New("invalid zitadel token")
+	}
+	return authn.Principal{Subject: m.subject, AuthTime: *m.authTime}, nil
+}
+
+// loginEnv is the fixture for the idle-deadline tests.
+//
+// It builds its own signer/verifier pair rather than going through
+// loginHarness, because these tests need to mint PRIOR sessions the HTTP
+// surface cannot produce — one whose deadline has already lapsed, one
+// belonging to another subject. Those tokens must be signed with the
+// SAME key the handler verifies with, or they would simply fail
+// verification and every such test would pass for the wrong reason (the
+// "no usable cookie" branch) while proving nothing about carry-forward.
+// env.signer is therefore deliberately the harness's own signer.
+type loginEnv struct {
+	cfg      config.Config
+	r        *gin.Engine
+	signer   *session.Signer
+	verifier *session.Verifier
+	roles    *fakeRoleListerLogin
+	authTime time.Time
+	// zitadelAuthTime is what the fake Zitadel verifier reports;
+	// reauthenticate moves it.
+	zitadelAuthTime *time.Time
+	// clock is the handler's own clock. renewWith advances it five
+	// minutes per call, the real renewal cadence (spec D4a) — and, more
+	// importantly, the thing that makes the D3 assertion able to fail at
+	// all: idle_deadline travels as a Unix timestamp, so a login and a
+	// renewal in the same wall-clock second compute the IDENTICAL
+	// "now + IdleTimeout" and a reset-on-renewal implementation passes.
+	// That was observed against this very test before the clock was
+	// injected (see the task report), which is exactly the class of
+	// prove-nothing test this project keeps finding.
+	clock *time.Time
+}
+
+func newLoginEnv(t *testing.T) *loginEnv {
+	t.Helper()
+	// An auth_time in the past, not time.Now(): every renewal below
+	// re-presents it, and a fixed, distant value makes "carried through"
+	// unmistakably different from "reset to the mint time".
+	authTime := time.Date(2026, 3, 4, 9, 30, 12, 0, time.UTC)
+	zitadelAuthTime := authTime
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+	signer, err := session.NewSigner(priv, loginTestKID, loginTestIssuer, loginTestTTL)
+	require.NoError(t, err)
+	verifier, err := session.NewVerifier(pub, loginTestKID, loginTestIssuer)
+	require.NoError(t, err)
+
+	roles := &fakeRoleListerLogin{bindings: map[string][]authz.RoleBinding{
+		"user-1": {{TenantID: tenantA, Role: authz.RoleNurse}},
+	}}
+	cfg := config.Load()
+	clock := time.Now()
+	h := iam.NewLoginHandlers(iam.LoginDeps{
+		Zitadel:      mutableZitadelVerifier{subject: "user-1", authTime: &zitadelAuthTime},
+		Roles:        roles,
+		Signer:       signer,
+		Sessions:     verifier,
+		TTL:          loginTestTTL,
+		IdleTimeout:  cfg.IdleTimeout,
+		SecureCookie: true,
+		Now:          func() time.Time { return clock },
+	})
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.POST("/v1/auth/login", h.Login)
+
+	return &loginEnv{
+		cfg: cfg, r: r, signer: signer, verifier: verifier, roles: roles,
+		authTime: authTime, zitadelAuthTime: &zitadelAuthTime, clock: &clock,
+	}
+}
+
+// freshWindow is what a genuine login mints RIGHT NOW, on the handler's
+// own clock: the value the carry-forward branch must NOT produce, and the
+// one the genuine-login branch must.
+func (e *loginEnv) freshWindow() time.Time { return e.clock.Add(e.cfg.IdleTimeout) }
+
+// reauthenticate moves the auth_time the fake Zitadel verifier reports,
+// standing in for the human signing in again at the terminal.
+func (e *loginEnv) reauthenticate(at time.Time) { *e.zitadelAuthTime = at }
+
+// login is a GENUINE sign-in: no HMS session cookie on the request, which
+// is exactly how the handler tells it apart from a renewal.
+func (e *loginEnv) login(t *testing.T) string {
+	t.Helper()
+	w := doLogin(t, e.r, `{"id_token":"good"}`)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	return sessionCookie(t, w)
+}
+
+// renewWith is spec D4a's silent renewal: the SAME endpoint, a fresh
+// Zitadel ID token, and — the part that matters — the session cookie the
+// browser attaches automatically, carrying the deadline this session is
+// already running against.
+func (e *loginEnv) renewWith(t *testing.T, current string) string {
+	t.Helper()
+	// Five minutes later, the real renewal cadence. Without this the
+	// handler's clock never moves and the assertion cannot fail — see
+	// loginEnv.clock.
+	*e.clock = e.clock.Add(5 * time.Minute)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/login", strings.NewReader(`{"id_token":"good"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: authn.SessionCookie, Value: current})
+	e.r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	return sessionCookie(t, w)
+}
+
+// deadlineOf decodes the idle_deadline out of a minted session token with
+// a REAL verifier — the claim as it actually travels on the wire, not a
+// value the test kept on the side.
+func (e *loginEnv) deadlineOf(t *testing.T, token string) time.Time {
+	t.Helper()
+	claims, err := e.verifier.Verify(token)
+	require.NoError(t, err)
+	return claims.IdleDeadline
+}
+
+// TestRenewalDoesNotMoveTheIdleDeadline is THE test for spec D3. An
+// untouched tab renews every 5 minutes; if renewal moved the deadline,
+// the timeout would never fire and every other test would still pass.
+//
+// Observed failing (see the task report) against an implementation that
+// minted time.Now().Add(cfg.IdleTimeout) unconditionally.
+func TestRenewalDoesNotMoveTheIdleDeadline(t *testing.T) {
+	env := newLoginEnv(t)
+	first := env.login(t) // genuine login, sets deadline
+	original := env.deadlineOf(t, first)
+
+	for i := 0; i < 3; i++ {
+		next := env.renewWith(t, first) // POST /v1/auth/login carrying the session cookie
+		got := env.deadlineOf(t, next)
+		if !got.Equal(original) {
+			t.Fatalf("renewal %d moved the idle deadline: got %v, want %v unchanged — "+
+				"an untouched tab would renew itself forever and the timeout would never fire",
+				i+1, got, original)
+		}
+		first = next
+	}
+}
+
+func TestGenuineLoginSetsAFreshIdleDeadline(t *testing.T) {
+	env := newLoginEnv(t)
+	tok := env.login(t) // no session cookie on the request
+	got := env.deadlineOf(t, tok)
+	want := time.Now().Add(env.cfg.IdleTimeout)
+	if got.Before(want.Add(-30*time.Second)) || got.After(want.Add(30*time.Second)) {
+		t.Errorf("idle deadline = %v, want ~%v for a genuine login", got, want)
+	}
+}
+
+// TestRenewalDoesNotResurrectAnAlreadyLapsedSession closes the second
+// half of D3, and the one place this implementation is stricter than the
+// task brief. A tab whose deadline has already lapsed is STILL renewing
+// every five minutes. If a lapsed deadline earned a fresh window, the
+// session would come back to life at the next renewal — dead for a few
+// minutes, alive again after, forever — which is the same failure D3
+// exists to prevent, just delayed.
+//
+// The lapsed session here is minted directly (not slept into existence)
+// so the test is deterministic and fast; carrying a past deadline is
+// explicitly allowed by session.Signer.Mint for exactly this flow.
+func TestRenewalDoesNotResurrectAnAlreadyLapsedSession(t *testing.T) {
+	env := newLoginEnv(t)
+	lapsed := time.Now().Add(-2 * time.Minute).UTC().Truncate(time.Second)
+	stale, err := env.signer.Mint("user-1", tenantA, env.authTime, lapsed)
+	require.NoError(t, err)
+
+	renewed := env.renewWith(t, stale)
+	got := env.deadlineOf(t, renewed)
+	require.True(t, got.Equal(lapsed),
+		"a renewal of a lapsed session must carry the lapsed deadline through (got %v, want %v): "+
+			"granting it a fresh window would let an untouched tab resurrect itself every five minutes", got, lapsed)
+	require.True(t, got.Before(time.Now()),
+		"precondition: the re-minted session must still be idle-expired, so authn.Middleware refuses it")
+}
+
+// TestGenuineReAuthenticationAfterALapsedSessionGetsAFreshWindow is the
+// other side of the test above, and what keeps it from being a lockout: a
+// human who signs in again — a NEW Zitadel authentication, so a strictly
+// later auth_time — gets a full window even though their browser still
+// holds the lapsed cookie. The discriminator is the new auth_time, not
+// the absence of a cookie, because a browser that never cleared its
+// cookie is the normal case at a shared terminal.
+func TestGenuineReAuthenticationAfterALapsedSessionGetsAFreshWindow(t *testing.T) {
+	env := newLoginEnv(t)
+	lapsed := time.Now().Add(-2 * time.Minute).UTC().Truncate(time.Second)
+	stale, err := env.signer.Mint("user-1", tenantA, env.authTime, lapsed)
+	require.NoError(t, err)
+
+	// A NEW authentication: auth_time strictly after the one the stale
+	// session carries. Everything else about the request is identical to
+	// a renewal, cookie included — which is the point.
+	env.reauthenticate(env.authTime.Add(time.Hour))
+
+	renewed := env.renewWith(t, stale)
+	got := env.deadlineOf(t, renewed)
+	// Against the HANDLER's clock, which renewWith has just advanced —
+	// comparing against the test process's own time.Now() would be off by
+	// exactly that advance and would assert the wrong thing.
+	want := env.freshWindow()
+	require.WithinDuration(t, want, got, 30*time.Second,
+		"a human who authenticated again must get a fresh idle window, not inherit the lapsed one")
+}
+
+// TestGenuineLoginByADifferentSubjectDoesNotInheritTheOtherSessionsDeadline
+// is the issue's own scenario: the previous clinician never signed out,
+// so their cookie is still on the terminal when the next person signs in.
+// The new person must get their own window rather than the remainder of a
+// stranger's.
+func TestGenuineLoginByADifferentSubjectDoesNotInheritTheOtherSessionsDeadline(t *testing.T) {
+	env := newLoginEnv(t)
+	// user-2's session, nearly out of idle window, left behind on the
+	// terminal. user-1 is the subject this env's Zitadel verifier
+	// authenticates.
+	nearlyOut := time.Now().Add(20 * time.Second).UTC().Truncate(time.Second)
+	othersCookie, err := env.signer.Mint("user-2", tenantA, env.authTime, nearlyOut)
+	require.NoError(t, err)
+
+	tok := env.renewWith(t, othersCookie) // same request shape; different subject's cookie
+	got := env.deadlineOf(t, tok)
+	want := env.freshWindow()
+	require.WithinDuration(t, want, got, 30*time.Second,
+		"a different subject signing in must get their own idle window, not the remainder of the session left on the terminal")
+}
+
+// TestLoginFailsClosedWithoutASessionVerifier guards the deployment
+// mistake, mirroring TestSwitchTenantFailsClosedWithoutASigner: without
+// the verifier this handler cannot tell a renewal from a genuine login,
+// so every renewal would re-open the idle window and #848 would be
+// silently absent. Refusing to mint is the only safe answer.
+func TestLoginFailsClosedWithoutASessionVerifier(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+	require.NotNil(t, pub)
+	signer, err := session.NewSigner(priv, loginTestKID, loginTestIssuer, loginTestTTL)
+	require.NoError(t, err)
+	roles := &fakeRoleListerLogin{bindings: map[string][]authz.RoleBinding{
+		"user-1": {{TenantID: tenantA, Role: authz.RoleNurse}},
+	}}
+	// Sessions deliberately left unset — its zero value (nil) is what
+	// this test exercises.
+	h := iam.NewLoginHandlers(iam.LoginDeps{
+		Zitadel: fakeZitadelVerifier{subject: "user-1", authTime: time.Now()},
+		Roles:   roles, Signer: signer, TTL: loginTestTTL,
+		IdleTimeout: 15 * time.Minute, SecureCookie: true,
+	})
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.POST("/v1/auth/login", h.Login)
+
+	w := doLogin(t, r, `{"id_token":"good"}`)
+	require.Equal(t, http.StatusServiceUnavailable, w.Code)
+	require.Empty(t, sessionCookies(w),
+		"no session may be minted when the renewal discriminator is unwired")
 }
 
 func sessionCookies(w *httptest.ResponseRecorder) []*http.Cookie {

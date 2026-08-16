@@ -57,6 +57,16 @@ type fixedVerifier map[string]authn.Principal
 
 func (f fixedVerifier) Verify(_ context.Context, raw string) (authn.Principal, error) {
 	if p, ok := f[raw]; ok {
+		// #848: authn.Middleware refuses an unset IdleDeadline exactly
+		// like an already-past one, so a principal declared without one
+		// would 401 before reaching the sign-out route these tests are
+		// about. Filled in here, on a copy, rather than at every literal
+		// below, so this file stays about revocation — and only when the
+		// caller left it unset, so a test that DOES want to exercise the
+		// idle gate can still say so.
+		if p.IdleDeadline.IsZero() {
+			p.IdleDeadline = time.Now().Add(time.Hour)
+		}
 		return p, nil
 	}
 	return authn.Principal{}, errors.New("unknown token")

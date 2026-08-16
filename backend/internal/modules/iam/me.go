@@ -207,7 +207,18 @@ func (h *meHandlers) switchTenant(c *gin.Context) {
 	// launder an old authentication into a fresh one and silently walk
 	// straight through a revocation made between the original sign-in
 	// and this switch (spec D2, D3).
-	token, err := h.signer.Mint(p.Subject, target, p.AuthTime)
+	//
+	// p.IdleDeadline is carried through UNMODIFIED for the same shape of
+	// reason, on the #848 clock (spec D3): switching hospitals is not
+	// human activity on a timer. A clinician who worked at ward A for
+	// fourteen minutes and then switches to ward B has not touched
+	// anything since — the switch is one click, and one click is not
+	// evidence the session should get another full idle window. Only the
+	// explicit activity endpoint (spec D4) moves this deadline. Resetting
+	// it here would also hand any client a way to extend indefinitely
+	// without a single keystroke: switch to the tenant you are already
+	// working in, every fourteen minutes, forever.
+	token, err := h.signer.Mint(p.Subject, target, p.AuthTime, p.IdleDeadline)
 	if err != nil {
 		respondMintUnavailable(c, err)
 		return

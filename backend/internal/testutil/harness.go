@@ -36,7 +36,21 @@ func (s StaticVerifier) Verify(ctx context.Context, raw string) (authn.Principal
 		// Zero would silently compare as before any non-zero watermark a
 		// test configures via HarnessOptions.Revocation, which would make
 		// every such caller look already-revoked regardless of intent.
-		return authn.Principal{Subject: "user-" + raw, TenantID: tenant, AuthTime: time.Now()}, nil
+		//
+		// IdleDeadline is an hour out for the same shape of reason
+		// (#848): authn.Middleware refuses a zero deadline exactly like
+		// an already-past one, so leaving it unset would 401 every
+		// harness request regardless of what the test is about. An hour
+		// is comfortably beyond any harness test's own runtime, so the
+		// idle gate never fires incidentally; a test that actually cares
+		// about the idle deadline supplies its own Verifier (see
+		// HarnessOptions.Verifier and me_test.go's idleDeadlineVerifier).
+		return authn.Principal{
+			Subject:      "user-" + raw,
+			TenantID:     tenant,
+			AuthTime:     time.Now(),
+			IdleDeadline: time.Now().Add(time.Hour),
+		}, nil
 	}
 	return authn.Principal{}, context.DeadlineExceeded
 }

@@ -78,6 +78,31 @@ it is doing. A test must exist that runs several renewals against an untouched
 session and asserts the deadline did not move — and it must be observed failing
 against an implementation that resets it.
 
+**The discriminator, and what "unchanged" has to mean** (added while
+implementing; `internal/modules/iam/login.go`'s `idleDeadlineFor` carries the
+full argument). Renewal and first login are the same endpoint, so the request
+cannot tell them apart; the caller's own session cookie can. A renewal carries
+one, and the deadline is read straight out of it. Three things send a request to
+the fresh-window branch instead: no usable cookie, a cookie belonging to a
+*different* subject (the next person signing in at a terminal the last one never
+signed out of — they get their own window, never the remainder of a stranger's),
+and a Zitadel `auth_time` strictly later than the session's, which is a human
+who has just authenticated again.
+
+A deadline that has **already lapsed is carried forward too**, not refreshed.
+The tab is still renewing every five minutes, so refreshing a lapsed deadline
+would let the session resurrect itself indefinitely — the same failure as
+above, merely delayed by one renewal interval. The re-mint therefore produces a
+session `authn.Middleware` still refuses, which is why `session.Signer.Mint`
+accepts a past deadline. Someone genuinely signing back in after a timeout is
+covered by the `auth_time` case, on the strength of the new authentication
+rather than the absence of a cookie.
+
+**Not covered:** a cookie whose `exp` has lapsed (a browser that skipped
+renewals for longer than `SESSION_TTL`) fails verification outright and so takes
+the fresh-window branch. Closing it needs a deadline read out of a token the
+verifier refuses, which is a `pkg/session` API change.
+
 ## D4 — Activity is a deliberate signal, debounced, and shared across tabs
 
 New endpoint, in `iam` beside the other pre-session auth routes:

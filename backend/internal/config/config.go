@@ -144,6 +144,42 @@ type Config struct {
 	// widening the deactivation window in absolute terms.
 	SessionTTL time.Duration
 
+	// IdleTimeout is how long an HMS session stays usable with no human
+	// interaction at all (#848, spec D1/D2): the idle_deadline claim a
+	// genuinely new login mints is time.Now() + IdleTimeout, and
+	// authn.Middleware refuses every request at or past that instant.
+	//
+	// This is a CLINICAL WORKFLOW value, not a technical one. 15 minutes
+	// is spec D1's judgement about a ward terminal: long enough for a
+	// clinician to read a chart, take a call or talk to a patient without
+	// being interrupted, short enough that a walk-away is caught well
+	// inside a shift, before the next person at the terminal inherits the
+	// session and every action they take is attributed to whoever walked
+	// away. Shortening it is a decision about how much uninterrupted
+	// reading a ward does, not about server load; lengthening it is a
+	// decision about how long an unattended terminal stays signed in.
+	//
+	// It is DELIBERATELY independent of SessionTTL even though both are
+	// currently 15 minutes, and the equality is a coincidence of two
+	// separate judgements rather than a coupling (spec D1: "It happens to
+	// equal SESSION_TTL, which is convenient but not a coupling"). D3
+	// depends on the two clocks staying independent: SessionTTL is this
+	// TOKEN's own lifetime and is moved forward by every silent renewal
+	// (D4a, every 5 minutes), while IdleTimeout measures the HUMAN and
+	// must survive those renewals untouched — see login.go's
+	// idleDeadlineFor. Deriving one from the other, in either direction,
+	// would let the renewal that legitimately extends `exp` also extend
+	// the idle deadline, and an untouched tab would then renew itself
+	// forever while the feature looked implemented.
+	//
+	// getenvDuration, so a mistyped IDLE_TIMEOUT logs and falls back to
+	// the default rather than stopping a hospital's API from booting —
+	// same direction SESSION_TTL takes. A deliberately non-positive value
+	// parses fine and fails CLOSED (every minted session is already past
+	// its deadline, so every request is refused): loud and safe, rather
+	// than silently disabling the control.
+	IdleTimeout time.Duration
+
 	// Rate limits are env-configurable, unlike the pagination page-size
 	// constants: a page size bounds a query, but a rate limit bounds
 	// capacity, and capacity genuinely differs between a laptop running
@@ -194,6 +230,10 @@ func Load() Config {
 		SessionSigningKey: os.Getenv("SESSION_SIGNING_KEY"),
 		SessionIssuer:     getenv("SESSION_ISSUER", "https://hms.local"),
 		SessionTTL:        getenvDuration("SESSION_TTL", 15*time.Minute),
+		// Read from its OWN variable, never derived from SESSION_TTL —
+		// see IdleTimeout's doc comment on why the two clocks must stay
+		// independent even while they share a value.
+		IdleTimeout: getenvDuration("IDLE_TIMEOUT", 15*time.Minute),
 
 		RateLimitTenantPerMin:    getenvInt("RATE_LIMIT_TENANT_PER_MIN", 600),
 		RateLimitPrincipalPerMin: getenvInt("RATE_LIMIT_PRINCIPAL_PER_MIN", 120),

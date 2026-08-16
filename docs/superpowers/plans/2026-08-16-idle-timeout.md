@@ -214,7 +214,19 @@ git commit -m "feat: refuse a session past its idle deadline (#848)"
 
 ### Task 3: Every re-mint carries the deadline forward — spec D3
 
-**This is the task the feature lives or dies by.** There are exactly two `Mint` call sites, and both must carry rather than reset.
+**This is the task the feature lives or dies by.**
+
+There are two PRODUCTION `Mint` call sites, and both must carry rather than reset:
+`internal/modules/iam/login.go` and `internal/modules/iam/me.go`.
+
+**Correction to an earlier draft of this plan, which said "exactly two":** four
+TEST files also call `Mint` and will not compile until they are updated —
+`pkg/authn/session_verifier_test.go` (three calls), `internal/bootstrap/chain_test.go`,
+and `internal/modules/iam/me_test.go`. The whole backend build is red from the end
+of Task 1 until this task lands. Update those call sites to pass a deadline;
+choose a value that keeps each test's intent intact (a comfortably-future
+deadline where the test is not about idling), and do not weaken any existing
+assertion to make it compile.
 
 **Files:**
 - Modify: `backend/internal/modules/iam/login.go:210` (login AND renewal — the same endpoint)

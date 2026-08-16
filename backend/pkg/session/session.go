@@ -52,6 +52,14 @@ type Claims struct {
 	// treated as "no idle limit" — a class of session exempt from this
 	// control would be worse than requiring everyone to sign in once
 	// after this deploys.
+	//
+	// Verify itself does NOT enforce this deadline — it only checks
+	// that the claim is present and returns it. A successful Verify can
+	// return a Claims whose IdleDeadline is hours in the past. The
+	// enforcement point is authn.Middleware (Task 2, #848), the same
+	// way this package signs auth_time but the #781 watermark check
+	// lives in the caller. Do not read "Verify succeeded" as "the
+	// session is not idle-expired".
 	IdleDeadline time.Time
 	// IssuedAt and ExpiresAt are this token's own mint/expiry times,
 	// distinct from AuthTime.

@@ -55,6 +55,14 @@ func NewVerifier(key ed25519.PublicKey, kid, issuer string) (*Verifier, error) {
 // a wrapped ErrInvalidToken if raw is not a live, genuine HMS session
 // signed by this Verifier's key.
 //
+// Verify does NOT enforce IdleDeadline — it only refuses a token that
+// omits the claim (fail closed, #848) and returns whatever value the
+// token carries, which may already be in the past. Checking IdleDeadline
+// against time.Now() is authn.Middleware's job, the same way this
+// package carries auth_time but the #781 revocation-watermark check is
+// the caller's. A successful Verify is not proof the session is still
+// within its idle window.
+//
 // The accepted algorithm is pinned to EdDSA and never taken from the
 // token's own header: the keyfunc below refuses to hand back a key at
 // all unless token.Method is concretely *jwt.SigningMethodEd25519, and

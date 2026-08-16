@@ -78,6 +78,16 @@ func NewSigner(key ed25519.PrivateKey, kid, issuer string, ttl time.Duration) (*
 // compute a new one. A Mint that defaulted this would let an untouched
 // tab renew itself forever and the idle timeout would never fire, all
 // while looking implemented.
+//
+// Mint deliberately does NOT refuse an idleDeadline already in the
+// past. That is not an oversight: renewal must be able to re-mint a
+// session whose deadline just lapsed a moment ago, so that
+// authn.Middleware stays the single place that decides "idle-expired".
+// Refusing here would split that decision across two layers, expose it
+// to clock skew between instances, and tempt a caller into
+// recomputing the deadline just to dodge the error — which is exactly
+// the D3 failure (renewal silently extending an untouched session)
+// this design exists to prevent.
 func (s *Signer) Mint(subject, tenantID string, authTime, idleDeadline time.Time) (string, error) {
 	if len(s.key) != ed25519.PrivateKeySize {
 		return "", ErrNoSigningKey
@@ -91,7 +101,15 @@ func (s *Signer) Mint(subject, tenantID string, authTime, idleDeadline time.Time
 	if authTime.IsZero() {
 		return "", errors.New("session: auth_time is required to mint")
 	}
-	if idleDeadline.IsZero() {
+	// idleDeadline.Unix() <= 0 catches the Unix-epoch sentinel
+	// (1970-01-01T00:00:00Z and earlier) in addition to IsZero()'s
+	// Go zero value (year 1): Verify refuses claims.IdleDeadline == 0,
+	// so a Mint that only checked IsZero() could sign a token carrying
+	// exactly the epoch and hand back a credential Verify always
+	// refuses — nothing can meaningfully verify a token minted with
+	// that value, which is precisely what NewSigner's own validation
+	// exists to prevent for a signing key.
+	if idleDeadline.IsZero() || idleDeadline.Unix() <= 0 {
 		return "", errors.New("session: idle_deadline is required to mint")
 	}
 

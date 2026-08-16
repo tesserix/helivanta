@@ -1,12 +1,13 @@
-// Package loginclient speaks the four Zitadel v2 "login client" HTTP calls
+// Package loginclient speaks the Zitadel v2 "login client" HTTP calls
 // HMS's own login page needs to drive a session end to end: read an OIDC
 // auth request, create a password-checked session, finalize the auth
-// request into a callback URL, and read the org login policy. It makes NO
+// request into a callback URL, read the org login policy, and (Task 8)
+// read which authentication methods a user has enrolled. It makes NO
 // authorization decision — whether a session is SUFFICIENT to finalize
 // (e.g. whether MFA is required and present) lives in sufficiency.go
-// (Task 3), not here. This package only knows how to make the four calls
-// and translate their observed error shapes into typed sentinels; it has
-// no opinion on what a caller should do with them.
+// (Task 3), not here. This package only knows how to make the calls and
+// translate their observed error shapes into typed sentinels; it has no
+// opinion on what a caller should do with them.
 //
 // Every JSON shape and error mapping here is pinned to what was OBSERVED
 // against a live Zitadel v4.15.3 instance, recorded in
@@ -377,6 +378,82 @@ func (c *Client) LoginPolicy(ctx context.Context) (LoginPolicy, error) {
 		return LoginPolicy{}, err
 	}
 	return LoginPolicy{ForceMFA: forceMFA || forceMFALocalOnly}, nil
+}
+
+// nonPasswordFactorPrefix is what an enrolled Zitadel authentication
+// method type looks like when it is NOT the password itself —
+// AUTHENTICATION_METHOD_TYPE_PASSWORD is the one value HasEnrolledFactor
+// must ignore; every other observed value (AUTHENTICATION_METHOD_TYPE_
+// OTP_EMAIL, _TOTP, _U2F, _PASSKEY, _IDP, _OTP_SMS, _RECOVERY_CODE — see
+// GET /v2/users/{id}/authentication_methods, verified live 2026-08-16
+// against v4.15.3 with the login-client PAT, spike §"Per-user enrolled
+// factors") means the user configured something a password-only session
+// cannot satisfy.
+const passwordOnlyMethodType = "AUTHENTICATION_METHOD_TYPE_PASSWORD"
+
+// sessionUserID reads GET /v2/sessions/{id} to recover the user id a
+// session belongs to — CreateSessionResponse (POST /v2/sessions) does
+// NOT carry it (confirmed against the v4.15.3 proto and live: the create
+// response is only {details, sessionId, sessionToken}), so
+// HasEnrolledFactor needs this extra round trip to learn who to ask.
+// Verified live 2026-08-16: the login-client PAT alone (no session
+// token) is sufficient to read an arbitrary session it created.
+func (c *Client) sessionUserID(ctx context.Context, sessionID string) (string, error) {
+	var wire struct {
+		Session struct {
+			Factors struct {
+				User struct {
+					ID string `json:"id"`
+				} `json:"user"`
+			} `json:"factors"`
+		} `json:"session"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/v2/sessions/"+url.PathEscape(sessionID), nil, &wire, ErrUnavailable); err != nil {
+		return "", err
+	}
+	if wire.Session.Factors.User.ID == "" {
+		return "", fmt.Errorf("GET /v2/sessions/%s: no factors.user.id in response: %w", sessionID, ErrUnavailable)
+	}
+	return wire.Session.Factors.User.ID, nil
+}
+
+// HasEnrolledFactor answers whether the user behind sessionID has
+// configured any authentication method besides a password — GET
+// /v2/users/{id}/authentication_methods, verified live 2026-08-16
+// against v4.15.3 with the login-client PAT: enrolling OTP_EMAIL on a
+// test user made authMethodTypes read
+// ["AUTHENTICATION_METHOD_TYPE_OTP_EMAIL","AUTHENTICATION_METHOD_TYPE_PASSWORD"],
+// where a password-only user reads just
+// ["AUTHENTICATION_METHOD_TYPE_PASSWORD"]. This is DIFFERENT from what a
+// session's own `factors` report (session.proto's Factors is what was
+// CHECKED in this one session, not what the user has available) — a
+// password-only session always has just a password factor even when the
+// user separately enrolled TOTP, which is exactly the gap this closes
+// (see sufficiency.go's KNOWN LIMITATIONS §1).
+//
+// This exists to be called from CompleteIfSufficient's fail-closed path:
+// any error here (transport failure, unreadable body, empty id) must
+// read as "cannot prove the session is sufficient", not "no factor
+// found" — so it always returns a non-nil error together with false
+// rather than ever answering false by swallowing a failure. Callers must
+// hand off, not complete, when err != nil.
+func (c *Client) HasEnrolledFactor(ctx context.Context, sessionID string) (bool, error) {
+	userID, err := c.sessionUserID(ctx, sessionID)
+	if err != nil {
+		return false, err
+	}
+	var wire struct {
+		AuthMethodTypes []string `json:"authMethodTypes"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/v2/users/"+url.PathEscape(userID)+"/authentication_methods", nil, &wire, ErrUnavailable); err != nil {
+		return false, err
+	}
+	for _, methodType := range wire.AuthMethodTypes {
+		if methodType != passwordOnlyMethodType {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // mfaPolicyKeys is every wire key LoginPolicy reads to decide ForceMFA —

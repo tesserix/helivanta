@@ -621,3 +621,93 @@ func TestIntegration_ForceMFALocalOnlyPolicy_HandsOffInsteadOfCompleting(t *test
 	resetOrgLoginPolicy(t, env, seedToken)
 	assertLoginSucceeds(t, env)
 }
+
+const importUserPath = "/management/v1/users/human/_import"
+
+// createImportedUser creates a fresh human user via the ONE endpoint on
+// v4.15.3 that accepts a password at creation time and lets a caller set
+// passwordChangeRequired — POST /management/v1/users/human/_import. Task
+// 8's spike work found that POST /management/v1/users/human SILENTLY
+// DROPS unrecognized fields including passwordChangeRequired and answers
+// 200 anyway; this sibling endpoint is the one that actually took the
+// value (verified live: GET /v2/users/{id} echoed
+// human.passwordChangeRequired back). loginName is made unique per call
+// (embeds time.Now().UnixNano()) so repeated test runs never collide on
+// an existing username. t.Cleanup deletes the user via deleteAndVerify,
+// the same "verify the restore, don't trust the 200" discipline
+// resetOrgLoginPolicy already applies to policy state — this repo's
+// practice, not just this file's.
+func createImportedUser(t *testing.T, env integrationEnv, seedToken string) (userID, loginName string) {
+	t.Helper()
+	loginName = fmt.Sprintf("task8-test-%d@hms.dev", time.Now().UnixNano())
+	resp := managementAPICall(t, env, seedToken, http.MethodPost, importUserPath, map[string]any{
+		"userName": loginName,
+		"profile":  map[string]any{"firstName": "Task8", "lastName": "IntegrationTest"},
+		"email":    map[string]any{"email": loginName, "isEmailVerified": true},
+		"password": devSeededPassword,
+	})
+	id, _ := resp["userId"].(string)
+	require.NotEmptyf(t, id, "user import response carried no userId: %v", resp)
+	t.Cleanup(func() { deleteAndVerifyUser(t, env, seedToken, id) })
+	return id, loginName
+}
+
+// deleteAndVerifyUser deletes a user (DELETE /v2/users/{id}, verified
+// live 2026-08-16 to exist and succeed on v4.15.3) and then reads it back
+// to PROVE the delete took, not just that it answered 200 — the same
+// verify-the-restore discipline resetOrgLoginPolicy applies to policy
+// state, applied here to the test users this file creates so none of
+// them are left in the shared dev org afterward.
+func deleteAndVerifyUser(t *testing.T, env integrationEnv, seedToken, userID string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, env.issuer+"/v2/users/"+userID, nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+seedToken)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	require.Equalf(t, http.StatusOK, resp.StatusCode, "DELETE /v2/users/%s did not succeed", userID)
+
+	verifyReq, err := http.NewRequestWithContext(ctx, http.MethodGet, env.issuer+"/v2/users/"+userID, nil)
+	require.NoError(t, err)
+	verifyReq.Header.Set("Authorization", "Bearer "+seedToken)
+	verifyResp, err := http.DefaultClient.Do(verifyReq)
+	require.NoError(t, err)
+	_ = verifyResp.Body.Close()
+	require.NotEqualf(t, http.StatusOK, verifyResp.StatusCode,
+		"user %s still readable (HTTP %d) after DELETE: cleanup did not take", userID, verifyResp.StatusCode)
+}
+
+// TestIntegration_UserEnrolledFactor_HandsOffInsteadOfCompleting is #854
+// Task 8's second unknown, resolved: GET
+// /v2/users/{id}/authentication_methods (found by reading the v4.15.3
+// proto's google.api.http annotations and confirmed live with the
+// login-client PAT — the earlier-guessed
+// /v2/users/{id}/authentication_factors and
+// /management/v1/users/{id}/auth_factors both answered 404) reflects a
+// user's own enrolled second factor even when the ORG policy does not
+// force MFA. This test creates a throwaway user, enrolls OTP email
+// (POST /v2/users/{id}/otp_email — the one factor type that needs no
+// separate verification step, unlike TOTP/U2F/passkeys, so this test
+// can enroll it in one call), and proves a password-only login for that
+// user hands off rather than completing — the exact bypass
+// loginclient.CompleteIfSufficient's KNOWN LIMITATIONS §1 used to warn
+// about before this task closed it.
+//
+// The default org login policy is untouched by this test (no forceMfa
+// anywhere here) — the handoff below is entirely the per-user factor
+// check's doing, which is the point.
+func TestIntegration_UserEnrolledFactor_HandsOffInsteadOfCompleting(t *testing.T) {
+	env := skipUnlessDevStackIsUp(t)
+	seedToken := skipUnlessSeedPATIsAvailable(t)
+
+	userID, loginName := createImportedUser(t, env, seedToken)
+	managementAPICall(t, env, seedToken, http.MethodPost, "/v2/users/"+userID+"/otp_email", map[string]any{})
+
+	r := newIntegrationRouter(env)
+	authRequestID := newAuthRequest(t, env)
+	w := postPasswordReal(t, r, authRequestID, loginName, devSeededPassword)
+	assertHandsOffWithoutCallback(t, w, "per-user enrolled factor (otp_email)")
+}

@@ -87,6 +87,17 @@ func zitadelHappyPath(t *testing.T) *loginclient.Client {
 	mux.HandleFunc("GET /management/v1/policies/login", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"policy":{"passwordCheckLifetime":"864000s"}}`))
 	})
+	// GET /v2/sessions/{id} and GET /v2/users/{id}/authentication_methods
+	// back CompleteIfSufficient's per-user enrolled-factor check (#854
+	// Task 8) — a PASSWORD-ONLY user here, matching this fixture's name
+	// ("happy path": nothing HMS cannot handle), so the login still
+	// completes.
+	mux.HandleFunc("GET /v2/sessions/{id}", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"session":{"id":"sess-1","factors":{"user":{"id":"user-1"}}}}`))
+	})
+	mux.HandleFunc("GET /v2/users/{id}/authentication_methods", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD"]}`))
+	})
 	mux.HandleFunc("POST /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"callbackUrl":"https://hms.test/api/auth/callback?code=abc&state=xyz"}`))
 	})

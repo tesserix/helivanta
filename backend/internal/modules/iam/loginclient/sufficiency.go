@@ -79,15 +79,24 @@ type Result struct {
 // here because the alternative is a future reader taking this for a
 // complete MFA gate.
 //
-//  1. PER-USER ENROLLED FACTORS ARE NOT CHECKED. This enforces the
-//     ORGANISATION policy's forceMfa only. If the org does not force MFA
-//     but an individual user has voluntarily enrolled a second factor,
-//     this returns OutcomeComplete on a password-only session and that
-//     user's own factor is skipped. Closing it needs a per-user
-//     enrolled-factor read, and the endpoint for it is not yet identified
-//     (both /v2/users/{id}/authentication_factors and
-//     /management/v1/users/{id}/auth_factors answered 404 on v4.15.3).
-//     Tracked as #854 Task 8.
+//  1. PASSWORD-CHANGE-REQUIRED IS NOT CHECKED. Verified live 2026-08-16
+//     (#854 Task 8): a user imported via
+//     POST /management/v1/users/human/_import with
+//     passwordChangeRequired:true — confirmed to have taken effect via
+//     GET /v2/users/{id} echoing human.passwordChangeRequired:true —
+//     produces a session create (POST /v2/sessions) and a finalize
+//     (POST /v2/oidc/auth_requests/{id}) that are BYTE-IDENTICAL in
+//     shape to a normal user's: no field on either response says the
+//     password must change. HMS's own POST /v1/auth/login/password
+//     against this user returned 200 with a valid callback_url — the
+//     same as any other successful login. Zitadel does not signal this
+//     case to a login client at all, so there is nothing in this
+//     package's wire responses to branch on. Filed as its own issue
+//     (#854 Task 8 follow-up) rather than fixed here: closing it needs
+//     either a users/{id} read before finalize (an extra round trip on
+//     every login) or Zitadel exposing the flag on the session/finalize
+//     response, which is outside HMS's control. Documented rather than
+//     silently accepted.
 //
 //  2. THE POLICY IS READ UNSCOPED. GET /management/v1/policies/login
 //     resolves against the login client PAT's own resource owner, because
@@ -125,6 +134,24 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 		// learns to collect a second factor (#41), this is the branch that
 		// grows a "session already carries an MFA factor" case — it must
 		// not become a reason to delete the check.
+		return Result{Outcome: OutcomeHandoff}, nil
+	}
+
+	// The org may not force MFA, but an individual user can still have
+	// VOLUNTARILY enrolled a second factor (spike "Per-user enrolled
+	// factors" §, #854 Task 8). A password-only session bypasses that
+	// factor unless HMS checks for it here — the org policy alone is not
+	// the whole story. Fails closed the same way the policy read above
+	// does: an error from HasEnrolledFactor means "cannot prove this
+	// session is sufficient", not "no factor found", so it hands off
+	// rather than risking a bypass on an unreadable answer.
+	hasFactor, err := c.HasEnrolledFactor(ctx, s.ID)
+	if err != nil {
+		slog.WarnContext(ctx, "enrolled-factor check unreadable: handing off rather than completing the login (fails closed, same as an unreadable policy)",
+			"err", err)
+		return Result{Outcome: OutcomeHandoff}, nil
+	}
+	if hasFactor {
 		return Result{Outcome: OutcomeHandoff}, nil
 	}
 

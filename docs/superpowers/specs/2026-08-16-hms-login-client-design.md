@@ -90,8 +90,9 @@ completes it and returns to the same callback:
 
 | Case | HMS behaviour |
 |---|---|
-| MFA required (D4) | Handoff. Not an error. |
-| Password change required | Handoff. |
+| MFA required by org policy (D4) | Handoff. Not an error. |
+| MFA: user has voluntarily enrolled a factor (D4) | Handoff. Verified live 2026-08-16 (#854 Task 8): `GET /v2/users/{id}/authentication_methods`, reachable with the login-client PAT, lists a user's enrolled methods independent of org policy — a password-only session hands off when it reports anything besides `AUTHENTICATION_METHOD_TYPE_PASSWORD`. |
+| Password change required | **Not handled — reversed from the original design.** Verified live 2026-08-16 (#854 Task 8, spike §5): a user imported with `passwordChangeRequired:true` produces a session create, a session read, and a finalize that are byte-identical in shape to a normal user's — Zitadel signals this to a login client **nowhere in the flow**. HMS's own `POST /v1/auth/login/password` against such a user returns 200 with a valid `callback_url`, same as any other successful login. There is no field to branch on, so this row cannot be implemented as "handoff" without an extra `GET /v2/users/{id}` read on every login. Documented as a known limitation at the decision point in `sufficiency.go` and filed as [#856](https://github.com/tesserix/hms/issues/856) rather than fixed in this slice. |
 | Federated hospital IdP | Handoff — this is the capability Zitadel was chosen for and must never break silently. |
 | Locked out | Zitadel's answer, shown inline. Never worded as a wrong password. |
 | Unknown user / wrong password | D5. |
@@ -209,20 +210,32 @@ login page already uses — this time *with* the credential parts.
   `GET /management/v1/policies/login` successfully (HTTP 200, `forceMfa`
   included), so no additional credential is needed for the org-policy half of
   the check.
-- **The per-user enrolled-factor half of D4 is not yet resolved.** The endpoint
-  exposing a user's configured second factors was not identified —
+- **The per-user enrolled-factor half of D4 is resolved (#854 Task 8).**
   `/v2/users/{id}/authentication_factors` and
-  `/management/v1/users/{id}/auth_factors` both 404. `GET /v2/users/{id}` does
-  work with the same PAT and returns user state.
-  This matters for the case where the **org does not force MFA but the user has
-  voluntarily enrolled a factor**: a password-only login would bypass a factor
-  the user chose to add. Until the endpoint is found, D4's rule is the org
-  policy alone, and this gap is a stated limitation of the slice rather than an
-  unnoticed hole. Resolving it is an implementation task with a real answer
-  required — not "best effort".
-- **`passwordChangeRequired` signalling was not observed** — no dev user has it
-  set. The implementation must provoke it and record the real response before
-  writing that row of D3's table as fact.
+  `/management/v1/users/{id}/auth_factors` do 404, as originally recorded, but
+  `GET /v2/users/{id}/authentication_methods` (found from the v4.15.3 proto's
+  `google.api.http` annotations, then verified live) works — including with
+  the login-client PAT, not just the seed/owner PAT — and correctly reflects a
+  user's own enrolled second factor independent of org policy. Enrolling
+  `otp_email` on a test user changed `authMethodTypes` from
+  `["...PASSWORD"]` to `["...OTP_EMAIL","...PASSWORD"]`, proving the endpoint
+  is live rather than a stub. `loginclient.CompleteIfSufficient` now hands off
+  whenever a session's user has any enrolled method besides
+  `AUTHENTICATION_METHOD_TYPE_PASSWORD`, with a unit test proven to fail
+  without the change and a live integration test
+  (`TestIntegration_UserEnrolledFactor_HandsOffInsteadOfCompleting`) alongside
+  the existing forceMfa ones.
+- **`passwordChangeRequired` signalling was provoked and observed
+  (#854 Task 8) — and Zitadel does not send it.** A user imported via
+  `POST /management/v1/users/human/_import` with `passwordChangeRequired:true`
+  (confirmed to have taken via a `GET /v2/users/{id}` read-back) produces a
+  session create, session read, and finalize that carry no trace of the flag;
+  HMS's own login endpoint completes the login for this user exactly as it
+  would for any other. D3's table row is reversed from the original design as
+  a result: this case is **not** handled by this slice. It is documented as a
+  known limitation at the point of decision in `sufficiency.go` and tracked as
+  its own issue, [#856](https://github.com/tesserix/hms/issues/856), rather
+  than silently accepted or half-implemented.
 - **Lockout is unreachable to test** because the policy sets no
   `maxPasswordAttempts`. See below.
 - **HMS now owns a credential surface.** A defect in the login page is a

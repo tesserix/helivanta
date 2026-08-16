@@ -453,6 +453,30 @@ effective global limit is N × configured — exact for the connection pool
 (per-process), and the trade ADR-0005 accepts until #7 fixes the replica
 count.
 
+### The login-client credential
+
+`ZITADEL_LOGIN_CLIENT_TOKEN` is an **instance-level** Zitadel PAT: its
+holder can finalise an OIDC auth request for *any* app on the shared
+Zitadel instance, not just HMS's own (`docs/superpowers/specs/2026-08-16-hms-login-client-design.md`
+D2). It is the most privileged secret HMS holds. It **must never appear
+in a frontend service or in a log** — it lives only in the Go API
+(`backend/internal/modules/iam/loginclient`), which loads it from env the
+same way every other secret does, and `loginclient.Client` never embeds
+it, a session token, or a raw Zitadel error body in an error string (see
+`readZitadelErrorID`'s doc comment in `client.go`) precisely so a log
+line built from one of its errors cannot leak it either.
+
+The one call this credential can make that matters most — finalising an
+auth request — sits behind `loginclient.Client.CompleteIfSufficient`, the
+**only** path that can reach the unexported `finalize` call
+(`sufficiency.go`). A caller cannot skip the sufficiency decision (org
+`forceMfa`, and — since #854 Task 8 — the user's own enrolled second
+factors) by calling `finalize` directly, because nothing outside the
+package can name it. This is enforced by an arch test, not a convention:
+it asserts the Zitadel finalize call appears in exactly that one call
+site, so a second call site added later fails CI rather than silently
+becoming a bypass.
+
 ## 6. Events
 
 All cross-module data flows through NATS JetStream via

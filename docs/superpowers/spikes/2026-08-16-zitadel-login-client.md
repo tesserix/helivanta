@@ -85,16 +85,122 @@ Also observed on the default policy: `passwordCheckLifetime: 864000s` (10 days),
 `secondFactorCheckLifetime: 64800s`, `allowRegister: true`,
 `allowExternalIdp: true`, `allowDomainDiscovery: true`.
 
-## 5. Not checked
+## 5. `passwordChangeRequired` is not signalled to a login client at all (#854 Task 8)
+
+Provoked, not assumed. `POST /management/v1/users/human` (the endpoint named in
+the design's D2 table) silently drops unrecognised keys and answers 200 either
+way — a hard-won fact from earlier work on this project. The sibling import
+endpoint is the one that actually takes the flag:
+
+```
+POST /management/v1/users/human/_import
+  {"userName":"pwchange-test@hms.dev","profile":{...},
+   "email":{...},"password":"HmsDev123!","passwordChangeRequired":true}
+→ 200 {"userId":"386506687000870919", ...}
+
+GET  /v2/users/386506687000870919
+→ 200 {..., "human":{..., "passwordChangeRequired":true, ...}}   ← confirmed it took
+```
+
+With the flag confirmed set, a normal password login was driven all the way
+through both the raw Zitadel API and HMS's own endpoint:
+
+```
+POST /v2/sessions        {checks:{user,password}}
+→ 200 {"sessionId":"386506702654013447","sessionToken":"..."}
+  — no passwordChangeRequired anywhere in the body
+
+GET  /v2/sessions/386506702654013447
+→ 200 {"session":{..., "factors":{"user":{...},"password":{"verifiedAt":...}}}}
+  — no passwordChangeRequired anywhere in the body
+
+POST /v2/oidc/auth_requests/{id}   {callbackKind, session:{sessionId,sessionToken}}
+→ 200 {"callbackUrl":"http://localhost:4301/api/auth/callback?code=...&state=..."}
+  — a REAL authorization code, issued anyway
+
+POST http://localhost:8080/v1/auth/login/password   (HMS's own endpoint)
+  {"auth_request_id":"V2_...","login_name":"pwchange-test@hms.dev","password":"HmsDev123!"}
+→ 200 {"callback_url":"http://localhost:4301/api/auth/callback?code=...&state=..."}
+  — HMS completed the login exactly as if nothing were different
+```
+
+**Zitadel does not signal `passwordChangeRequired` to a login client at any
+point in this flow** — not on session create, not on session read, not on
+finalize. There is no field in any of these responses for HMS to branch on.
+Consequently **HMS today silently completes a login for a user an admin
+flagged as needing a password change** — the same class of silent bypass §2
+found for `forceMfa`, except here there is no wire signal at all to read,
+where `forceMfa`'s failure at least left a policy HMS could consult. This is
+recorded as a known limitation at the decision point in
+`backend/internal/modules/iam/loginclient/sufficiency.go`
+(`CompleteIfSufficient`'s KNOWN LIMITATIONS §1) and filed as
+[#856](https://github.com/tesserix/hms/issues/856) rather than fixed in this
+task — closing it costs an extra round trip (a `users/{id}` read) on every
+login, which is a real product tradeoff, not a small fix.
+
+(Test user and its `passwordChangeRequired:true` state were deleted afterward;
+`DELETE /v2/users/386506687000870919` followed by a `GET` confirming 404
+verified the cleanup actually took.)
+
+## 6. Per-user enrolled factors: found, and reachable with the login-client PAT (#854 Task 8)
+
+The two endpoints guessed at in the original handoff both still 404 on v4.15.3, confirmed
+again live: `/v2/users/{id}/authentication_factors` and
+`/management/v1/users/{id}/auth_factors`. The correct endpoints, found by
+reading the v4.15.3 proto's `google.api.http` annotations
+(`proto/zitadel/user/v2/user_service.proto`) and then verified live rather
+than trusted from the source:
+
+```
+GET  /v2/users/{id}/authentication_methods
+→ 200 {"details":{"totalResult":"1"}, "authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD"]}
+
+POST /v2/users/{id}/authentication_factors/_search
+→ 200 {}   (empty result for a password-only user)
+```
+
+Both answer with the **login-client PAT**, not just the seed/IAM_OWNER PAT —
+confirmed by repeating each call with `dev/zitadel/secrets/login-client.pat`
+and getting the identical 200. This matters: the sufficiency check
+(`loginclient.CompleteIfSufficient`) runs with only the login-client PAT in
+production, so an endpoint that needed the owner PAT would not have been
+usable there at all.
+
+Enrolling a second factor changes the answer, proving the endpoint actually
+reflects real state and is not just an empty stub:
+
+```
+POST /v2/users/{id}/otp_email   {}
+→ 200
+
+GET  /v2/users/{id}/authentication_methods
+→ 200 {"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_OTP_EMAIL","AUTHENTICATION_METHOD_TYPE_PASSWORD"]}
+
+POST /v2/users/{id}/authentication_factors/_search
+→ 200 {"result":[{"state":"AUTH_FACTOR_STATE_READY","otpEmail":{}}]}
+```
+
+`GET .../authentication_methods` was chosen for the implementation (simple
+GET, no body) over the `_search` POST: both work, and the GET is the smaller
+surface for what HMS needs (just the type list, not per-factor state).
+`AUTHENTICATION_METHOD_TYPE_PASSWORD` is the one value that does not count as
+"a factor a password-only session cannot satisfy"; every other observed
+value (`_TOTP`, `_U2F`, `_PASSKEY`, `_IDP`, `_OTP_SMS`, `_OTP_EMAIL`,
+`_RECOVERY_CODE`) does. This closed the D4 gap in
+`loginclient.CompleteIfSufficient`: the org may not force MFA, but a user who
+voluntarily enrolled a second factor now gets handed off rather than
+password-only-completed.
+
+(The OTP-email-enrolled test user was deleted afterward the same way the
+`passwordChangeRequired` one was, verified via a post-delete `GET` 404.)
+
+## 7. Not checked
 
 Stated explicitly rather than assumed, per this repo's practice:
 
-- **`passwordChangeRequired`** — how it is signalled on session creation. No dev
-  user currently has it set, and the handoff notes it only exists on the
-  `_import` sibling endpoint. The implementation must provoke and record this.
 - **Account lockout signalling** — unreachable while `maxPasswordAttempts` is 0.
 - **Federated IdP handoff** — no external IdP is configured on the instance.
-- **Per-app "Custom base URL for the new Login UI"** — confirmed to exist in the
-  v4 docs, **not yet exercised on our instance**. This is the setting that keeps
-  the change scoped to `hms-web` and away from other Tesserix products on the
-  shared instance, so it is the first thing the implementation must prove.
+- **Per-app "Custom base URL for the new Login UI"** — exercised as part of
+  Task 1/D1 (see `docs/superpowers/plans/2026-08-16-hms-login-client.md` and
+  this repo's git history); not re-recorded in this section since it was
+  resolved before Task 8, not by it.

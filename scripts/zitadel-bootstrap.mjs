@@ -24,6 +24,7 @@ import {
   DEV_SILENT_RENEW_REDIRECT_URI,
   managementAPI,
   readMachinePAT,
+  setLoginV2BaseUri,
 } from "./lib/zitadel.mjs";
 
 const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://localhost:20080";
@@ -87,7 +88,9 @@ async function main() {
 
   let app = await findAppByName(pat, project.id, APP_NAME);
   let clientId;
+  let appId;
   if (app) {
+    appId = app.id;
     const detail = await getApp(pat, project.id, app.id);
     clientId = detail.app?.oidcConfig?.clientId;
     console.log(`Reusing existing app "${APP_NAME}" (client_id=${clientId})`);
@@ -144,6 +147,7 @@ async function main() {
       devMode: true,
     });
     clientId = created.clientId;
+    appId = created.appId;
     console.log(`Created app "${APP_NAME}" (client_id=${clientId})`);
   }
 
@@ -153,6 +157,20 @@ async function main() {
         `but its OIDC config did not come back as expected; check the Console`,
     );
   }
+
+  // Point hms-web's login redirect at HMS's own login page instead of
+  // Zitadel's stock hosted UI (#854 Task 1) — scoped to this ONE app via
+  // Zitadel's per-app `loginVersion.loginV2.baseUri`, deliberately not the
+  // instance-wide setting, because this Zitadel instance is shared with
+  // every other Tesserix product and the instance-wide setting would move
+  // login for all of them. Runs unconditionally, every `make up`, same as
+  // the oidc_config update above — see setLoginV2BaseUri's doc comment in
+  // lib/zitadel.mjs for why this needs
+  // ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED=false (above, in
+  // docker-compose.dev.yml) to take effect at all, and why the origin
+  // passed here must have no path.
+  await setLoginV2BaseUri(ISSUER, pat, project.id, appId, new URL(DEV_REDIRECT_URI).origin);
+  console.log(`Set loginVersion.loginV2.baseUri=${new URL(DEV_REDIRECT_URI).origin} for "${APP_NAME}"`);
 
   writeFileSync(ENV_OUT_PATH, `ZITADEL_CLIENT_ID=${clientId}\n`);
   console.log(`Wrote ${ENV_OUT_PATH}`);

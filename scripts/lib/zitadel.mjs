@@ -123,6 +123,47 @@ export async function managementAPI(issuer, pat, path, body) {
   }
 }
 
+// setLoginV2BaseUri points a single app's login redirect at HMS's own
+// login page instead of Zitadel's stock hosted UI (#854 Task 1). This is
+// deliberately scoped per-app, not instance-wide: the Zitadel instance is
+// shared with every other Tesserix product, and the instance-wide "Custom
+// base URL for the new Login UI" setting would move login for ALL of them.
+// docker-compose.dev.yml's ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED
+// comment has the full story on why that instance-wide flag must stay
+// "false" for this per-app setting to take effect at all (confirmed live:
+// with it "true", this exact PUT still returns 200 and reads back
+// correctly, but /oauth/v2/authorize never honours it — zitadel/zitadel#10722).
+//
+// baseUri must be an ORIGIN WITH NO PATH. Zitadel appends "/login" itself
+// when building the redirect (confirmed live: baseUri
+// "http://localhost:4301/login" produced a redirect to
+// ".../login/login?authRequest=…", a double path segment) — passing
+// "http://localhost:4301" is what yields the expected
+// "http://localhost:4301/login?authRequest=…".
+//
+// PUT, not POST (see the oidc_config PUT in zitadel-bootstrap.mjs for the
+// same note): unlike managementAPI's hardcoded POST convention, this is a
+// genuine partial update — verified live that a body containing ONLY
+// loginVersion leaves every other oidc_config field (redirectUris,
+// clientId, postLogoutRedirectUris, …) untouched, so this does not need to
+// resend the whole config.
+export async function setLoginV2BaseUri(issuer, pat, projectId, appId, originNoPath) {
+  const res = await fetch(
+    `${issuer}/management/v1/projects/${projectId}/apps/${appId}/oidc_config`,
+    {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ loginVersion: { loginV2: { baseUri: originNoPath } } }),
+    },
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(
+      `setting loginVersion.loginV2.baseUri=${originNoPath} failed: HTTP ${res.status} ${JSON.stringify(body)}`,
+    );
+  }
+}
+
 function b64url(buf) {
   return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }

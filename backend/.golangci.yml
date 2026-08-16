@@ -50,6 +50,20 @@ linters:
             - "github.com/tesserix/hms/internal/modules/lab/contract"
             - "github.com/tesserix/hms/internal/modules/iam/contract"
             - "github.com/tesserix/hms/internal/modules/reference/contract"
+            # loginclient is NOT another module's internals — it lives
+            # under internal/modules/iam/ and is iam's own Zitadel
+            # login-client wrapper (#854 Task 2/4), consumed by iam's own
+            # HTTP handlers (loginui.go). The deny rule above matches on
+            # the "internal/modules" PREFIX, so it cannot distinguish "a
+            # different module" from "a subpackage of this same module" —
+            # without this entry, iam could not import its own
+            # subpackage at all. Task 3/4's tests reach it the same way
+            # (an external `iam_test`/`iam` package importing
+            # iam/loginclient), which the (unrelated) self-import nolint
+            # in login_test.go already covers for iam importing iam;
+            # this entry is what makes iam importing iam/loginclient
+            # possible in non-test code too.
+            - "github.com/tesserix/hms/internal/modules/iam/loginclient"
         no-logrus:
           deny:
             - pkg: "github.com/sirupsen/logrus"

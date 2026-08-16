@@ -262,7 +262,12 @@ func run() error {
 	// enumerable place and pinned by
 	// archtest.TestEveryEngineRouteIsDeclaredOrAllowlisted — a route on the
 	// raw engine otherwise escapes platform.Router entirely.
-	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login)
+	// authRequest/password/handoff are nil until Task 5 constructs
+	// loginclient.Client and iam.LoginUIHandlers here (it needs the
+	// login-client PAT, plumbed through config in that same task); a nil
+	// simply leaves those three routes unregistered in the meantime. See
+	// MountUnauthenticated's own doc comment.
+	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login, nil, nil, nil)
 
 	for _, m := range registry.All() {
 		m.Routes(api, deps)

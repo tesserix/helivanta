@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -131,6 +132,57 @@ func TestTenantPrincipalRefusesEmptyTenant(t *testing.T) {
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusUnauthorized, w.Code)
 	require.Contains(t, w.Body.String(), "unauthenticated")
+}
+
+// principalWithIdleDeadline builds a Principal that is otherwise valid
+// (real subject, real tenant, real auth_time) but carries deadline as
+// its IdleDeadline, so the idle-timeout tests below exercise nothing
+// but that one field.
+func principalWithIdleDeadline(deadline time.Time) authn.Principal {
+	return authn.Principal{
+		Subject:      "u1",
+		TenantID:     "t1",
+		AuthTime:     time.Now(),
+		IdleDeadline: deadline,
+	}
+}
+
+// doRequest drives a single authenticated GET through Middleware with p
+// as the Principal a "good" bearer token resolves to, and returns the
+// recorded response.
+func doRequest(t *testing.T, p authn.Principal) *httptest.ResponseRecorder {
+	t.Helper()
+	r := router(fakeVerifier{p: p})
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/p", nil)
+	req.Header.Set("Authorization", "Bearer good")
+	r.ServeHTTP(w, req)
+	return w
+}
+
+// TestMiddlewareRefusesASessionPastItsIdleDeadline is the mandatory
+// proof for #848/spec D2: a session whose idle deadline has already
+// passed must never reach a handler, and the refusal must be
+// distinguishable ("session_idle") from a generic credential failure —
+// see spec D6 for why the frontend needs to tell the two apart.
+func TestMiddlewareRefusesASessionPastItsIdleDeadline(t *testing.T) {
+	rec := doRequest(t, principalWithIdleDeadline(time.Now().Add(-1*time.Second)))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401 for a session past its idle deadline", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "session_idle") {
+		t.Errorf("body = %s, want a distinguishable idle reason", rec.Body.String())
+	}
+}
+
+// TestMiddlewareAdmitsASessionInsideItsIdleDeadline proves the check
+// above does not become a false positive for a session that is well
+// within its idle window.
+func TestMiddlewareAdmitsASessionInsideItsIdleDeadline(t *testing.T) {
+	rec := doRequest(t, principalWithIdleDeadline(time.Now().Add(5*time.Minute)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 well inside the idle window", rec.Code)
+	}
 }
 
 func TestPrincipalFromWhenKeyNotInContext(t *testing.T) {

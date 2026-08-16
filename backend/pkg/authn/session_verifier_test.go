@@ -42,7 +42,10 @@ func TestNewSessionVerifier_MapsClaimsToPrincipal(t *testing.T) {
 	signer, verifier := newSessionSignerVerifier(t)
 	authTime := time.Date(2026, 3, 4, 9, 30, 12, 0, time.UTC)
 
-	token, err := signer.Mint("user-123", "22222222-2222-2222-2222-222222222222", authTime)
+	// A comfortably-future idle deadline: this test is about claims
+	// mapping through the adapter, not idle expiry, so the deadline just
+	// needs to be far enough out that it plays no part in the outcome.
+	token, err := signer.Mint("user-123", "22222222-2222-2222-2222-222222222222", authTime, time.Now().Add(time.Hour))
 	require.NoError(t, err)
 
 	tv := authn.NewSessionVerifier(verifier)
@@ -116,7 +119,10 @@ func TestMiddleware_RefusesExpiredAndTamperedSession(t *testing.T) {
 		c.JSON(http.StatusOK, gin.H{})
 	})
 
-	expired, err := shortSigner.Mint("user-123", "tenant-abc", time.Now())
+	// A comfortably-future idle deadline: this test is about token
+	// expiry (exp) and tampering, not idle expiry, so the deadline plays
+	// no part in the outcome either way.
+	expired, err := shortSigner.Mint("user-123", "tenant-abc", time.Now(), time.Now().Add(time.Hour))
 	require.NoError(t, err)
 	time.Sleep(10 * time.Millisecond)
 
@@ -129,7 +135,7 @@ func TestMiddleware_RefusesExpiredAndTamperedSession(t *testing.T) {
 	// A genuine, non-expired token, tampered after minting.
 	longSigner, err := session.NewSigner(priv, sessionTestKID, sessionTestIssuer, sessionTestTTL)
 	require.NoError(t, err)
-	good, err := longSigner.Mint("user-123", "tenant-abc", time.Now())
+	good, err := longSigner.Mint("user-123", "tenant-abc", time.Now(), time.Now().Add(time.Hour))
 	require.NoError(t, err)
 	tampered := good[:len(good)-4] + "AAAA"
 

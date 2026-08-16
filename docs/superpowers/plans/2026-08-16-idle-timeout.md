@@ -578,6 +578,75 @@ git commit -m "feat: end an idle session in this browser and say so on /login (#
 
 ---
 
+### Task 7b: Pin the cookie that D3's discriminator depends on
+
+**Added after Task 5's review.** Small, but it protects the spec's single most
+important rule.
+
+**Files:**
+- Modify: `apps/shell/lib/auth-exchange.ts`
+- Test: `apps/shell/lib/auth-exchange.test.ts`
+
+**The problem.** The backend distinguishes a renewal from a genuine login by
+whether the request carries the HMS session cookie (spec D3). Task 5 verified
+that it does today — `exchangeIdToken` calls `fetch("/api/v1/auth/login", …)`
+with a relative same-origin URL, and fetch's default credentials mode is
+`same-origin`, so the cookie is sent.
+
+But nothing states it and nothing tests it. A refactor to an absolute URL, a
+different origin, or `credentials: "omit"` would make **every renewal take the
+fresh-window branch**, so an untouched tab would extend itself forever — the
+exact failure D3 exists to prevent — **with every backend test still green.**
+
+This repo's ladder is compile error > boot failure > CI failure > documented
+convention. Right now this sits on the bottom rung, held up by a language
+default, and its failure mode is silent. Two lines move it to CI-failure level.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+it("sends the session cookie, because the backend's renewal-vs-login discriminator depends on it", async () => {
+  const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response(JSON.stringify({ ok: true }), { status: 200 }),
+  );
+  await exchangeIdToken("id-token", "11111111-1111-1111-1111-111111111111");
+
+  const [url, init] = fetchSpy.mock.calls[0];
+  expect(String(url).startsWith("/")).toBe(true);           // same-origin, relative
+  expect((init as RequestInit).credentials).toBe("same-origin");
+});
+```
+
+- [ ] **Step 2: Run and watch it fail**
+
+```bash
+pnpm --filter shell test -- auth-exchange
+```
+Expected: FAIL — `credentials` is `undefined`.
+
+- [ ] **Step 3: Make it explicit**
+
+Add `credentials: "same-origin"` to the `fetch` init, with a comment naming
+spec D3: the backend reads the session cookie on this request to decide whether
+this is a renewal (carry the idle deadline forward) or a genuine login (fresh
+window), so dropping the cookie silently disables the idle timeout while every
+backend test stays green.
+
+- [ ] **Step 4: Run and watch it pass**
+
+- [ ] **Step 5: Prove the test discriminates**
+
+Change it to `credentials: "omit"`. The test must FAIL. Restore.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/shell/lib/
+git commit -m "fix: pin the session cookie the idle-deadline discriminator depends on (#848)"
+```
+
+---
+
 ### Task 8: End-to-end proof, and the documentation loop
 
 **Files:**

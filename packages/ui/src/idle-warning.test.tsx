@@ -1,7 +1,25 @@
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithProviders } from "@hms/api/testing";
 import { IdleWarning } from "./idle-warning";
+
+// Harness for the focus-return test below: a real element the clinician
+// was focused on (e.g. a form field mid-consultation) BEFORE the warning
+// steals focus, so the test can assert focus actually comes back to it —
+// not just that the dialog no longer renders. `open` starts false and
+// flips on click (rather than being permanently open) so the harness
+// controls WHEN the dialog mounts relative to the trigger's own focus,
+// mirroring "something was focused, then the warning interrupted it".
+function FocusReturnHarness() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button onClick={() => setOpen(true)}>Before the warning</button>
+      {open && <IdleWarning secondsRemaining={120} onStay={() => setOpen(false)} />}
+    </>
+  );
+}
 
 describe("IdleWarning", () => {
   // Brief task-6-brief.md, Step 1 — verbatim.
@@ -55,5 +73,35 @@ describe("IdleWarning", () => {
     screen.getByRole("dialog").focus();
     await user.keyboard("{Escape}");
     expect(onStay).toHaveBeenCalledTimes(1);
+  });
+
+  // Minor review finding: nothing pinned that focus is RETURNED once the
+  // warning closes. This matters more than the trapping itself for a
+  // clinician who was mid-form when the warning interrupted them — losing
+  // their place afterward is its own small harm on top of the interruption.
+  // `IdleWarning` does not implement this itself; it relies on
+  // `@tesserix/web`'s `DialogContent`, which captures
+  // `document.activeElement` when it mounts and restores it on unmount
+  // (verified by reading `dialog.mjs`: no `DialogTrigger` is used here, so
+  // it falls through to `previousFocusRef.current?.focus()`). This test
+  // pins that upstream behaviour for THIS component's actual usage
+  // (unmounting on Stay) so a `@tesserix/web` upgrade that changes it is
+  // caught here, not discovered by a clinician losing their place.
+  it("returns focus to the previously focused element once Stay signed in closes the warning", async () => {
+    const { user } = renderWithProviders(<FocusReturnHarness />);
+    const trigger = screen.getByRole("button", { name: "Before the warning" });
+
+    // Clicking focuses `trigger` and, via its own onClick, mounts
+    // IdleWarning — so `trigger` is exactly what DialogContent's mount
+    // effect captures as "focused right before this dialog opened".
+    await user.click(trigger);
+    // The dialog steals focus onto its own first focusable element as
+    // soon as it mounts (DialogContent's own effect) — confirms the
+    // premise before checking the return.
+    expect(document.activeElement).not.toBe(trigger);
+
+    await user.click(screen.getByRole("button", { name: /stay signed in/i }));
+
+    expect(document.activeElement).toBe(trigger);
   });
 });

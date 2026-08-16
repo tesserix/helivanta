@@ -387,7 +387,8 @@ describe("HmsShell", () => {
       // the original deadline — the same call idle-timer.ts's
       // BroadcastChannel handler makes on receipt of another tab's
       // message.
-      const extendedDeadline = new Date(Date.now() + 20 * 60_000);
+      const extensionAt = Date.now();
+      const extendedDeadline = new Date(extensionAt + 20 * 60_000);
       act(() => {
         createdTrackers[0]?.noteDeadline(extendedDeadline);
       });
@@ -399,6 +400,125 @@ describe("HmsShell", () => {
       });
 
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      // CRITICAL review finding: it is not enough that the ORIGINAL
+      // warning was suppressed — the EXTENDED deadline gets its own
+      // warning later, and that one must render the correct ~2:00, not
+      // 0:00. A component that mirrored the deadline into its own ref
+      // (written only from THIS tab's own activity responses) would
+      // still hold the stale, already-past original deadline here, and
+      // Math.max(0, ...) would floor a negative remainder to 0:00 — a
+      // warning that claims the session is already gone while 2 real
+      // minutes remain.
+      const remainingToExtendedWarn = extendedDeadline.getTime() - WARNING_LEAD_MS - Date.now();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(remainingToExtendedWarn);
+      });
+
+      const dialog = screen.getByRole("dialog");
+      expect(dialog).toHaveTextContent(/2:00|1:59/);
+      expect(dialog).not.toHaveTextContent(/0:00/);
+    });
+
+    // Important review finding — D5's "or any interaction … the modal
+    // closes" was unimplemented: only the Stay button cleared the
+    // warning, so a qualifying keydown/scroll while the modal was open
+    // extended the session server-side but left the modal counting down
+    // to 0:00 and sitting there forever (onExpire is still a stub). A
+    // frozen modal over a live session teaches clinicians to ignore it —
+    // worse than never warning them.
+    it("clears the warning when a qualifying interaction extends the session while it is open", async () => {
+      vi.useFakeTimers();
+      let activityCalls = 0;
+      const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (url.includes("/auth/session/activity")) {
+          activityCalls += 1;
+          // First call (the mount seed) returns a deadline just past the
+          // warning lead time, so the modal opens quickly. A LATER call
+          // (the in-modal keydown below) returns a deadline a full 15
+          // minutes out, as a genuine extension would.
+          const d =
+            activityCalls === 1
+              ? new Date(Date.now() + WARNING_LEAD_MS + 65_000)
+              : new Date(Date.now() + 15 * 60_000);
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ idle_deadline: d.toISOString() }),
+          });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      // 65s: past both the warn point (WARNING_LEAD_MS + 65s - WARNING_LEAD_MS
+      // = 65s) AND the mount seed's debounce window (60s), so the
+      // keydown below is a genuine, undebounced qualifying interaction.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(65_000);
+      });
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+      await act(async () => {
+        window.dispatchEvent(new Event("keydown"));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    // Same finding, the cross-tab path: another tab's broadcast extending
+    // the deadline while THIS tab's modal is already open must also
+    // clear it, not just prevent a not-yet-shown one from appearing (the
+    // earlier test above).
+    it("clears the warning when another tab's broadcast extends the deadline while it is open", async () => {
+      vi.useFakeTimers();
+      const deadline = new Date(Date.now() + WARNING_LEAD_MS + 1_000);
+      stubActivityFetch(() => deadline);
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+      const extended = new Date(Date.now() + 20 * 60_000);
+      act(() => {
+        createdTrackers[0]?.noteDeadline(extended);
+      });
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    // Important review finding: the mount seed call reported activity to
+    // the server but never advanced the tracker's OWN debounce clock, so
+    // a qualifying interaction moments after mount (a clinician who
+    // starts typing or scrolling right away) fired a SECOND, redundant
+    // POST within the same debounce window — against the narrowly
+    // budgeted `Tight` rate-limit bucket the activity endpoint uses.
+    it("does not fire a second activity POST for a qualifying interaction immediately after the mount seed", async () => {
+      vi.useFakeTimers();
+      const fetchMock = stubActivityFetch(() => new Date(Date.now() + 15 * 60_000));
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      const callsAfterMount = fetchMock.mock.calls.filter((c) =>
+        String(c[0]).includes("/auth/session/activity"),
+      ).length;
+      expect(callsAfterMount).toBe(1);
+
+      await act(async () => {
+        window.dispatchEvent(new Event("keydown"));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      const callsAfterKeydown = fetchMock.mock.calls.filter((c) =>
+        String(c[0]).includes("/auth/session/activity"),
+      ).length;
+      expect(callsAfterKeydown).toBe(1);
     });
   });
 });

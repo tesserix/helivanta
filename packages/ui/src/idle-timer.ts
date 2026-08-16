@@ -47,10 +47,30 @@ interface DeadlineMessage {
 export interface IdleTrackerHandlers {
   /** A debounced, genuine interaction was observed — go tell the server. */
   onActivity: () => void;
-  /** The last known deadline is WARNING_LEAD_MS away. */
-  onWarn: () => void;
+  /**
+   * The last known deadline is WARNING_LEAD_MS away. Receives the EXACT
+   * deadline this warning is about, read from this tracker's own
+   * `deadline` closure variable at the moment the timer was scheduled —
+   * never left for the caller to source from a second copy that could
+   * drift out of sync with what this module actually scheduled from
+   * (review finding: a caller that mirrored the deadline into its own
+   * ref rendered a countdown to an already-superseded value after a
+   * cross-tab extension).
+   */
+  onWarn: (deadline: Date) => void;
   /** The last known deadline has passed. */
   onExpire: () => void;
+  /**
+   * Fires whenever `noteDeadline` actually applies a NEW (later)
+   * deadline — from this tab's own activity response, or from another
+   * tab's broadcast — regardless of whether a warning is currently
+   * scheduled or showing. Optional: most callers only need onWarn/
+   * onExpire; this exists for a caller that renders its own UI keyed off
+   * "is a warning currently up" and needs to react to the deadline
+   * moving out from under that UI (e.g. dismiss a warning modal that a
+   * DIFFERENT tab's activity just made stale).
+   */
+  onDeadlineChange?: (deadline: Date) => void;
 }
 
 export interface IdleTracker {
@@ -69,6 +89,17 @@ export interface IdleTracker {
    * schedule and resurrect a warning that was already cancelled.
    */
   noteDeadline: (deadline: Date) => void;
+  /**
+   * Sync the debounce clock (the same one `handleQualifyingEvent` reads)
+   * WITHOUT calling `onActivity`. For a caller that reports an initial
+   * activity signal itself on mount (HmsShell seeding idle_deadline
+   * before any interaction — #848 task 6) — without this, the very next
+   * qualifying DOM event within the debounce window fires a SECOND,
+   * redundant activity call milliseconds after the seed's own, against
+   * the narrowly-budgeted `Tight` rate-limit bucket the activity
+   * endpoint uses.
+   */
+  markActivity: () => void;
 }
 
 export function createIdleTracker(handlers: IdleTrackerHandlers): IdleTracker {
@@ -89,10 +120,17 @@ export function createIdleTracker(handlers: IdleTrackerHandlers): IdleTracker {
   function scheduleFromDeadline(): void {
     clearScheduled();
     if (!deadline) return;
+    // Captured into a local const, not read live off the closure
+    // variable inside the timeout callback below: by the time either
+    // timer fires, `deadline` is guaranteed to still equal this value
+    // (any later noteDeadline() call would have cleared these timers
+    // first), but binding it explicitly makes that guarantee obvious at
+    // the call site rather than relying on the reader to trace it.
+    const targetDeadline = deadline;
     const now = Date.now();
-    const warnInMs = Math.max(0, deadline.getTime() - WARNING_LEAD_MS - now);
-    const expireInMs = Math.max(0, deadline.getTime() - now);
-    warnTimer = setTimeout(() => handlers.onWarn(), warnInMs);
+    const warnInMs = Math.max(0, targetDeadline.getTime() - WARNING_LEAD_MS - now);
+    const expireInMs = Math.max(0, targetDeadline.getTime() - now);
+    warnTimer = setTimeout(() => handlers.onWarn(targetDeadline), warnInMs);
     expireTimer = setTimeout(() => handlers.onExpire(), expireInMs);
   }
 
@@ -106,6 +144,7 @@ export function createIdleTracker(handlers: IdleTrackerHandlers): IdleTracker {
     if (deadline && newDeadline.getTime() <= deadline.getTime()) return;
     deadline = newDeadline;
     scheduleFromDeadline();
+    handlers.onDeadlineChange?.(newDeadline);
     // Re-broadcast our own writes so every other tab reschedules from
     // the same deadline (D4). Messages this tab receives are re-noted
     // (see onmessage below) but not re-broadcast, so tabs don't relay
@@ -185,5 +224,12 @@ export function createIdleTracker(handlers: IdleTrackerHandlers): IdleTracker {
     channel = undefined;
   }
 
-  return { start, stop, noteDeadline: (d: Date) => noteDeadline(d, false) };
+  return {
+    start,
+    stop,
+    noteDeadline: (d: Date) => noteDeadline(d, false),
+    markActivity: () => {
+      lastActivityAt = Date.now();
+    },
+  };
 }

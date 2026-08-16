@@ -258,4 +258,86 @@ describe("createIdleTracker", () => {
     expect(onExpire).not.toHaveBeenCalled();
     t.stop();
   });
+
+  // CRITICAL review finding on #848 task 6: a caller (HmsShell) that kept
+  // its OWN copy of the deadline, written only from its own activity
+  // responses, rendered a stale countdown after a cross-tab extension —
+  // onWarn fired for the NEW (rescheduled) deadline, but the caller's own
+  // ref still held the OLD one. onWarn must hand the caller the exact
+  // deadline it is warning about, sourced from this module's own
+  // `deadline` variable, so there is no second copy of the truth left to
+  // drift.
+  it("passes the deadline being warned about to onWarn", () => {
+    vi.useFakeTimers();
+    const onWarn = vi.fn();
+    const t = createIdleTracker({ onActivity: vi.fn(), onWarn, onExpire: vi.fn() });
+    t.start();
+    const target = new Date(Date.now() + 5 * 60_000);
+    t.noteDeadline(target);
+    vi.advanceTimersByTime(3 * 60_000);
+    expect(onWarn).toHaveBeenCalledWith(target);
+    t.stop();
+  });
+
+  // Same finding, the cross-tab case specifically: tab A's own onWarn
+  // must reflect tab B's later deadline once B's broadcast rescheduled
+  // A's pending warning, not the deadline that was originally scheduled.
+  it("passes the EXTENDED deadline to onWarn after a later note replaces the original schedule", () => {
+    vi.useFakeTimers();
+    const onWarn = vi.fn();
+    const t = createIdleTracker({ onActivity: vi.fn(), onWarn, onExpire: vi.fn() });
+    t.start();
+    t.noteDeadline(new Date(Date.now() + 3 * 60_000));
+    const extended = new Date(Date.now() + 20 * 60_000);
+    t.noteDeadline(extended); // e.g. another tab's broadcast
+    vi.advanceTimersByTime(18 * 60_000);
+    expect(onWarn).toHaveBeenCalledTimes(1);
+    expect(onWarn).toHaveBeenCalledWith(extended);
+    t.stop();
+  });
+
+  it("calls onDeadlineChange whenever a later deadline is applied, including from a broadcast", () => {
+    vi.useFakeTimers();
+    const onDeadlineChange = vi.fn();
+    const t = createIdleTracker({
+      onActivity: vi.fn(),
+      onWarn: vi.fn(),
+      onExpire: vi.fn(),
+      onDeadlineChange,
+    });
+    t.start();
+    const first = new Date(Date.now() + 5 * 60_000);
+    t.noteDeadline(first);
+    expect(onDeadlineChange).toHaveBeenCalledWith(first);
+    // An earlier/equal note must NOT fire it again — noteDeadline ignores
+    // it entirely (D3: the server only ever moves the deadline forward).
+    onDeadlineChange.mockClear();
+    t.noteDeadline(new Date(first.getTime()));
+    t.noteDeadline(new Date(Date.now() + 1 * 60_000));
+    expect(onDeadlineChange).not.toHaveBeenCalled();
+    const later = new Date(Date.now() + 10 * 60_000);
+    t.noteDeadline(later);
+    expect(onDeadlineChange).toHaveBeenCalledWith(later);
+    t.stop();
+  });
+
+  it("markActivity syncs the debounce clock without calling onActivity", () => {
+    vi.useFakeTimers();
+    const onActivity = vi.fn();
+    const t = createIdleTracker({ onActivity, onWarn: vi.fn(), onExpire: vi.fn() });
+    t.start();
+    t.markActivity();
+    expect(onActivity).not.toHaveBeenCalled();
+    // A qualifying event immediately after must be debounced against the
+    // markActivity() call, exactly as it would be against a real
+    // onActivity firing — this is the whole point: a caller that reports
+    // its own "seed" activity out of band must not let the very next DOM
+    // event fire a second, redundant call within the same window.
+    window.dispatchEvent(new Event("keydown"));
+    expect(onActivity).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(ACTIVITY_DEBOUNCE_MS + 1);
+    window.dispatchEvent(new Event("keydown"));
+    expect(onActivity).toHaveBeenCalledTimes(1);
+    t.stop();
+  });
 });

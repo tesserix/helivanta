@@ -12,7 +12,7 @@ import {
 import { visibleZones, activeZone } from "./zones";
 import { ThemeToggle } from "./theme";
 import { endZitadelSession } from "./zitadel-session";
-import { createIdleTracker, type IdleTracker } from "./idle-timer";
+import { createIdleTracker, WARNING_LEAD_MS, type IdleTracker } from "./idle-timer";
 import { IdleWarning } from "./idle-warning";
 
 // Two-rail chrome in the tesserix-home AdminSidebar style. The zone rail is
@@ -110,16 +110,15 @@ export function HmsShell({
     activityRef.current = activity.mutateAsync;
   }, [activity.mutateAsync]);
 
-  // Latest known idle_deadline, readable outside the tracker's own closure
-  // (onWarn needs it to seed the warning modal below) and outside React
-  // render (it is written from a promise callback, not during render).
-  const deadlineRef = useRef<Date | undefined>(undefined);
   const trackerRef = useRef<IdleTracker | null>(null);
-  // The deadline the warning modal was opened against; the modal is shown
-  // whenever this is set. Kept separate from `deadlineRef` because the
-  // modal's own countdown must stay pinned to the deadline that triggered
-  // it, not silently rewritten if a later (still-in-the-past-relative-to-
-  // now) response arrives while it is open — see the ticking effect below.
+  // The deadline the warning modal is showing. `null` means no modal.
+  // Always set FROM onWarn's own parameter or onDeadlineChange's own
+  // parameter below — never mirrored into a second ref of our own first
+  // (review finding: a component-owned copy, written only from this
+  // tab's OWN activity responses, went stale the moment a DIFFERENT tab
+  // extended the session, and the modal rendered a countdown to an
+  // already-superseded deadline instead of the one it was actually
+  // scheduled against).
   const [warningDeadline, setWarningDeadline] = useState<Date | null>(null);
 
   // Reports genuine interaction to the server and folds the response back
@@ -131,9 +130,7 @@ export function HmsShell({
     void activityRef
       .current()
       .then((data) => {
-        const nextDeadline = new Date(data.idle_deadline);
-        deadlineRef.current = nextDeadline;
-        trackerRef.current?.noteDeadline(nextDeadline);
+        trackerRef.current?.noteDeadline(new Date(data.idle_deadline));
       })
       .catch((err: unknown) => {
         // A 401 here is NOT a transient failure — it means the
@@ -155,23 +152,37 @@ export function HmsShell({
   useEffect(() => {
     const tracker = createIdleTracker({
       onActivity: reportActivity,
-      onWarn: () => {
-        // D5: "Before showing it, the client re-checks the deadline it
-        // holds. Another tab may have extended the session, in which
-        // case the modal must not appear at all." In practice this is
-        // already guaranteed by createIdleTracker itself: noteDeadline
-        // (called here, from a broadcast, or from this tab's own
-        // activity) cancels and reschedules the pending onWarn timer the
-        // moment a LATER deadline is known (idle-timer.ts, "a later
-        // deadline from another tab cancels a pending warning" —
-        // exercised in idle-timer.test.ts and again end to end in
-        // hms-shell.test.tsx below), so onWarn simply never fires for a
-        // deadline that has already been superseded. deadlineRef.current
-        // is read here only as the value to render the modal FROM, not
-        // as an extra guard — there is nothing left to re-check.
-        if (deadlineRef.current) setWarningDeadline(deadlineRef.current);
-      },
+      // D5: "Before showing it, the client re-checks the deadline it
+      // holds. Another tab may have extended the session, in which case
+      // the modal must not appear at all." Guaranteed by
+      // createIdleTracker itself: noteDeadline (called here, from a
+      // broadcast, or from this tab's own activity) cancels and
+      // reschedules the pending onWarn timer the moment a LATER deadline
+      // is known, so onWarn simply never fires for a deadline that has
+      // already been superseded (idle-timer.ts, exercised in
+      // idle-timer.test.ts and again end to end in hms-shell.test.tsx
+      // below). `deadline` here is the tracker's OWN authoritative value
+      // for the warning that just fired, not a second copy this
+      // component keeps — see warningDeadline's doc comment above.
+      onWarn: (deadline) => setWarningDeadline(deadline),
       onExpire: () => {},
+      // D5's "or any interaction … the modal closes" (review finding):
+      // the deadline can move forward from THIS tab's own activity (a
+      // keydown/scroll fired while the modal happens to be open) or from
+      // ANOTHER tab's broadcast, and either must clear a currently-open
+      // warning — a modal frozen at 0:00 over a session that is actually
+      // fine teaches clinicians to ignore it, which is worse than never
+      // warning them. If the new deadline is still within the warning
+      // window (rare — an extension shorter than WARNING_LEAD_MS), the
+      // modal stays open but re-pins to the fresh value instead of
+      // silently going stale itself.
+      onDeadlineChange: (deadline) => {
+        setWarningDeadline((current) => {
+          if (!current) return current;
+          const stillWithinWarningWindow = deadline.getTime() - WARNING_LEAD_MS <= Date.now();
+          return stillWithinWarningWindow ? deadline : null;
+        });
+      },
     });
     trackerRef.current = tracker;
     tracker.start();
@@ -187,6 +198,15 @@ export function HmsShell({
     // activity endpoint every qualifying interaction already calls, not
     // a workaround for D2/D4's "only an explicit activity call moves the
     // deadline" rule.
+    //
+    // markActivity() FIRST, synchronously: it syncs the tracker's own
+    // debounce clock to "now" without itself calling onActivity, so a
+    // qualifying DOM event firing moments after mount (a clinician who
+    // starts typing or scrolling right away) is correctly debounced
+    // against this seed call instead of firing its own, redundant POST
+    // against the activity endpoint's narrowly-budgeted `Tight`
+    // rate-limit bucket (review finding).
+    tracker.markActivity();
     reportActivity();
 
     return () => {

@@ -70,11 +70,18 @@ check "lab      (4304)"  "http://localhost:4304/lab"      10 20
 # It goes straight against the API rather than through the shell: the
 # browser path is exercised end to end by the Playwright suite, and
 # duplicating it here would make this script depend on four Next dev
-# servers being warm to answer "is auth wired up". This verifies: a real Zitadel token (via the actual hosted
-# login UI, not a shortcut) → POST /v1/auth/login → an HMS session that
-# resolves a real permission on /v1/iam/me/permissions. Each hop is still
-# reported separately by scripts/zitadel-verify-login.mjs, because "the
-# stack is broken" is not actionable but "the session exchange failed" is.
+# servers being warm to answer "is auth wired up". This verifies: a real
+# Zitadel token (via a genuine authorization-code-plus-PKCE exchange
+# against Zitadel's own v2 APIs, not a shortcut — see
+# scripts/zitadel-verify-login.mjs's own comment on why driving the token
+# exchange itself, not just generating a callback_url, is the entire point)
+# → POST /v1/auth/login → an HMS session that resolves a real permission on
+# /v1/iam/me/permissions. Each hop is still reported separately by
+# scripts/zitadel-verify-login.mjs, because "the stack is broken" is not
+# actionable but "the token exchange failed" is — #854 Task 7 found a real
+# defect (Zitadel's oidc_config PUT silently resetting authMethodType) that
+# only broke at exactly that hop, invisible to every check that stopped
+# earlier.
 #
 # Deliberately NOT re-verified here: the browser redirect flow
 # (/login -> Zitadel -> /api/auth/callback) and silent renewal. Those are
@@ -85,7 +92,11 @@ node scripts/zitadel-verify-login.mjs || fail=1
 echo
 if [ "$fail" -eq 0 ]; then
   echo "All checks passed."
-  echo "Sign in at http://localhost:4301 — you will be redirected to Zitadel."
+  # The browser still transits Zitadel's /oauth/v2/authorize, but only as a
+  # 302 — since #854 the credential form that actually renders is HMS's own
+  # /login. Saying "you will be redirected to Zitadel" here read as though a
+  # hosted Zitadel page were expected, which would now be a defect.
+  echo "Sign in at http://localhost:4301 — the sign-in form is HMS's own /login."
   echo "Zitadel accounts, login-verified by 'make seed':"
   echo "  test@hms.dev       / HmsDev123!  (tenant_admin)"
   echo "  pharmacist@hms.dev / HmsDev123!  (pharmacist)"

@@ -24,7 +24,6 @@ import {
   DEV_SILENT_RENEW_REDIRECT_URI,
   managementAPI,
   readMachinePAT,
-  setLoginV2BaseUri,
 } from "./lib/zitadel.mjs";
 
 const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://localhost:20080";
@@ -41,6 +40,48 @@ const APP_NAME = "hms-web";
 // (design spec D4a).
 const REDIRECT_URIS = [DEV_REDIRECT_URI, DEV_SILENT_RENEW_REDIRECT_URI];
 const POST_LOGOUT_REDIRECT_URIS = [DEV_POST_LOGOUT_REDIRECT_URI];
+
+// hms-web's login redirect points at HMS's own login page instead of
+// Zitadel's stock hosted UI (#854 Task 1) — scoped to this ONE app via
+// Zitadel's per-app `loginVersion.loginV2.baseUri`, deliberately not the
+// instance-wide setting, because this Zitadel instance is shared with
+// every other Tesserix product and the instance-wide setting would move
+// login for all of them (see docker-compose.dev.yml's
+// ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED comment for why that
+// instance-wide flag must stay "false" for this per-app setting to take
+// effect at all). baseUri must be an ORIGIN WITH NO PATH — Zitadel appends
+// "/login" itself when building the redirect (confirmed live: baseUri
+// "http://localhost:4301/login" produced a redirect to
+// ".../login/login?authRequest=…", a double path segment).
+//
+// #854 Task 7, CRITICAL: this used to be set via its own SEPARATE PUT
+// carrying only `{loginVersion: {...}}}`, issued after the main
+// oidc_config PUT/create below. That broke every real login on this stack
+// silently for the lifetime of #854 Tasks 1 through 6: Zitadel's
+// `PUT .../oidc_config` is a FULL REPLACE, not a patch — any field omitted
+// from the body resets to its default, and `authMethodType`'s default
+// requires a client secret. The main PUT/create below explicitly sets
+// authMethodType to OIDC_AUTH_METHOD_TYPE_NONE (the public/PKCE client
+// hms-web needs — see its own comment), but the separate loginVersion-only
+// PUT that ran AFTER it silently reset authMethodType back away from NONE
+// every single `make up`, breaking the token exchange
+// (`/oauth/v2/token` → `invalid_client: empty client secret`) for every
+// login, seeded or human. `GET`ting the config back afterward looked fine
+// — protojson elides `authMethodType` from the response whenever it holds
+// certain values, the same elision trap
+// backend/internal/modules/iam/loginclient/client.go's LoginPolicy doc
+// comment documents for `forceMfa` — so nothing about reading the config
+// back revealed the break; only actually driving a token exchange did
+// (scripts/zitadel-verify-login.mjs, which is exactly what surfaced this).
+//
+// The fix is structural, not a fixed ordering: loginVersion is now part of
+// the SAME PUT/create call that sets every other field, so there is no
+// second call to omit anything from and nothing left to clobber. Do not
+// reintroduce a separate call for this — if a genuinely separate update is
+// ever unavoidable, it MUST read the full current config first (remembering
+// GET can itself elide authMethodType) and resend every field, not just
+// the one being changed.
+const LOGIN_VERSION = { loginV2: { baseUri: new URL(DEV_REDIRECT_URI).origin } };
 
 async function findProjectByName(pat, name) {
   const { result } = await managementAPI(ISSUER, pat, "/management/v1/projects/_search", {});
@@ -94,44 +135,12 @@ async function main() {
     const detail = await getApp(pat, project.id, app.id);
     clientId = detail.app?.oidcConfig?.clientId;
     console.log(`Reusing existing app "${APP_NAME}" (client_id=${clientId})`);
-    // #838 Task 7 added DEV_SILENT_RENEW_REDIRECT_URI after this app may
-    // already have been provisioned by an earlier `make dev-infra` run
-    // (Task 6's stock still only registered DEV_REDIRECT_URI). Updating
-    // unconditionally, every run, rather than only when a new app is
-    // created, is what makes a stack provisioned before this change pick
-    // up the silent-renew URI without a manual reset — the alternative
-    // (leaving an older dev stack permanently missing it) fails
-    // "redirect_uri not allowed" only the first time signinSilent() is
-    // ever called, which is exactly the kind of error that looks like a
-    // frontend bug rather than a stale provisioning run.
-    //
-    // PUT, not POST: unlike every other call in this file (create/_search,
-    // all genuinely POST per lib/zitadel.mjs's managementAPI doc comment),
-    // Zitadel's oidc_config update is a PUT. Raw fetch here rather than
-    // bending managementAPI's hardcoded POST to fit.
-    const updateRes = await fetch(
-      `${ISSUER}/management/v1/projects/${project.id}/apps/${app.id}/oidc_config`,
-      {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          redirectUris: REDIRECT_URIS,
-          responseTypes: ["OIDC_RESPONSE_TYPE_CODE"],
-          grantTypes: ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"],
-          appType: "OIDC_APP_TYPE_WEB",
-          authMethodType: "OIDC_AUTH_METHOD_TYPE_NONE",
-          postLogoutRedirectUris: POST_LOGOUT_REDIRECT_URIS,
-          devMode: true,
-        }),
-      },
-    );
-    if (!updateRes.ok) {
-      const body = await updateRes.json().catch(() => ({}));
-      throw new Error(
-        `updating oidc_config for app "${APP_NAME}" failed: HTTP ${updateRes.status} ${JSON.stringify(body)}`,
-      );
-    }
   } else {
+    // Created bare (no oidc_config fields beyond the minimum this endpoint
+    // accepts) — the single full PUT below, run unconditionally for BOTH
+    // branches, is what actually sets every field including loginVersion.
+    // See that PUT's own comment for why this is now the ONLY place any
+    // oidc_config field gets set, and why that matters.
     const created = await managementAPI(ISSUER, pat, `/management/v1/projects/${project.id}/apps/oidc`, {
       name: APP_NAME,
       redirectUris: REDIRECT_URIS,
@@ -158,19 +167,59 @@ async function main() {
     );
   }
 
-  // Point hms-web's login redirect at HMS's own login page instead of
-  // Zitadel's stock hosted UI (#854 Task 1) — scoped to this ONE app via
-  // Zitadel's per-app `loginVersion.loginV2.baseUri`, deliberately not the
-  // instance-wide setting, because this Zitadel instance is shared with
-  // every other Tesserix product and the instance-wide setting would move
-  // login for all of them. Runs unconditionally, every `make up`, same as
-  // the oidc_config update above — see setLoginV2BaseUri's doc comment in
-  // lib/zitadel.mjs for why this needs
-  // ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED=false (above, in
-  // docker-compose.dev.yml) to take effect at all, and why the origin
-  // passed here must have no path.
-  await setLoginV2BaseUri(ISSUER, pat, project.id, appId, new URL(DEV_REDIRECT_URI).origin);
-  console.log(`Set loginVersion.loginV2.baseUri=${new URL(DEV_REDIRECT_URI).origin} for "${APP_NAME}"`);
+  // The ONE call that sets every oidc_config field this app needs,
+  // including loginVersion — see LOGIN_VERSION's doc comment above for why
+  // this must never again be split into a separate call. Runs
+  // unconditionally, every `make up`, for both a freshly created app (the
+  // create call above accepts no loginVersion field at all — Login V2's
+  // per-app baseUri is only settable through oidc_config) and a reused
+  // one (#838 Task 7 added DEV_SILENT_RENEW_REDIRECT_URI after some stacks
+  // may already have been provisioned without it; updating unconditionally
+  // is what makes an older stack pick it up without a manual reset).
+  //
+  // PUT, not POST: unlike every other call in this file (create/_search,
+  // all genuinely POST per lib/zitadel.mjs's managementAPI doc comment),
+  // Zitadel's oidc_config update is a PUT. Raw fetch here rather than
+  // bending managementAPI's hardcoded POST to fit.
+  const updateRes = await fetch(
+    `${ISSUER}/management/v1/projects/${project.id}/apps/${appId}/oidc_config`,
+    {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        redirectUris: REDIRECT_URIS,
+        responseTypes: ["OIDC_RESPONSE_TYPE_CODE"],
+        grantTypes: ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"],
+        appType: "OIDC_APP_TYPE_WEB",
+        authMethodType: "OIDC_AUTH_METHOD_TYPE_NONE",
+        postLogoutRedirectUris: POST_LOGOUT_REDIRECT_URIS,
+        devMode: true,
+        loginVersion: LOGIN_VERSION,
+      }),
+    },
+  );
+  if (!updateRes.ok) {
+    const body = await updateRes.json().catch(() => ({}));
+    // Zitadel 400s this PUT with COMMAND-1m88i ("No changes") when every
+    // field in the body already matches what is persisted — reachable on
+    // every `make up` after the first, once this call has already put the
+    // config exactly where it belongs. That is success, not a failure: the
+    // whole point of this PUT is the config ending up in this state, and
+    // it already has. Any OTHER 400 (or non-400) is a real failure and
+    // still throws.
+    const errID = body?.details?.[0]?.id;
+    if (updateRes.status === 400 && errID === "COMMAND-1m88i") {
+      console.log(`oidc_config for "${APP_NAME}" already matches (no changes)`);
+    } else {
+      throw new Error(
+        `updating oidc_config for app "${APP_NAME}" failed: HTTP ${updateRes.status} ${JSON.stringify(body)}`,
+      );
+    }
+  } else {
+    console.log(
+      `Set oidc_config (authMethodType=NONE, loginVersion.loginV2.baseUri=${LOGIN_VERSION.loginV2.baseUri}) for "${APP_NAME}"`,
+    );
+  }
 
   writeFileSync(ENV_OUT_PATH, `ZITADEL_CLIENT_ID=${clientId}\n`);
   console.log(`Wrote ${ENV_OUT_PATH}`);

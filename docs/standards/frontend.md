@@ -446,7 +446,16 @@ pnpm turbo lint type-check test build
 cd e2e && npx playwright test
 ```
 
-All four `turbo` tasks and the Playwright run must be green.
+All four `turbo` tasks and the Playwright run must be green. That bare
+Playwright run deliberately covers 11 of the suite's 12 tests: the
+"idle-timeout" project (idle-timeout.spec.ts, #848) needs apps/shell's dev
+server swapped for a second instance pointed at a short-`IDLE_TIMEOUT`
+API, and Next.js 16 refuses a second `next dev` for the same project
+directory — so it cannot run alongside the main stack the other 11 tests
+assume is up. `make e2e`, run from the repo root, is what runs the whole
+suite: "specs"+"bulk" against the main stack, then a swap to the fixture
+for `--project=idle-timeout`, then a swap back (see `scripts/e2e.sh` and
+`e2e/playwright.config.ts`).
 
 ## 12. Env
 

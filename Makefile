@@ -295,8 +295,24 @@ test-web:
 test-scripts:
 	bash scripts/preflight.test.sh
 
+# `make e2e` runs the WHOLE suite in two phases, because idle-timeout.spec.ts's
+# fixture and the main stack's own shell cannot coexist (see the "Idle
+# timeout e2e fixture" comment above) — Next.js 16 refuses a second `next
+# dev` for the same project directory. A bare `playwright test` only ever
+# runs phase one: the "idle-timeout" project is deliberately left out of
+# Playwright's default project list (e2e/playwright.config.ts) so that
+# command stays honest about what it covers, instead of quietly failing
+# whenever the fixture happens to also be up.
+#
+# scripts/e2e.sh does the actual swap (stop shell -> start fixture -> run
+# the idle-timeout project -> stop fixture -> restart shell) behind an
+# EXIT trap, so a failure partway through still restores the shell and
+# frees the fixture's ports rather than leaving the developer stuck. It
+# assumes `make dev` (or `make up`) and `make seed` have already brought
+# up infra + API + shell + medicore — the same assumption "specs"/"bulk"
+# already make.
 e2e:
-	pnpm --filter @hms/e2e run test:e2e
+	HMS_API_PORT=$(HMS_API_PORT) HMS_IDLE_API_PORT=$(HMS_IDLE_API_PORT) HMS_IDLE_WEB_PORT=$(HMS_IDLE_WEB_PORT) bash scripts/e2e.sh
 
 new-module:
 	cd backend && ./scripts/new-module.sh $(NAME)

@@ -45,13 +45,39 @@ const BULK_SPECS = /(pagination|ratelimit)\.spec\.ts/;
 // assume is already up. A dedicated PROJECT — not just a dedicated test
 // file — is what lets it point `baseURL` at that second shell instance
 // without touching the other two projects' `http://localhost:4301`.
+//
+// That fixture cannot run ALONGSIDE the main stack, though: both it and
+// "specs"/"bulk" serve apps/shell via `next dev`, and Next.js 16 refuses a
+// second dev server for the same project directory outright ("Another
+// next dev server is already running" — reproduced live running this
+// suite). A bare `playwright test` therefore has to leave "idle-timeout"
+// out of its run so the command stays honest about what it actually
+// covers, while `--project=idle-timeout` still has to work for anyone (or
+// anything — see scripts/e2e.sh) that wants to run it deliberately against
+// the fixture. Playwright has no first-class "exclude this project from
+// the default run" switch, so PROJECT_FLAG_GIVEN below inspects argv for
+// an explicit `--project`; only a project-less invocation gets the
+// grepInvert filter that drops idle-timeout.spec.ts. `make e2e` is the
+// command that actually runs the whole suite: "specs"+"bulk" against the
+// main stack, then a swap to the fixture (Makefile's dev-api-idle-timeout
+// / dev-web-idle-timeout) for `--project=idle-timeout`, then a swap back —
+// see scripts/e2e.sh.
 const IDLE_TIMEOUT_SPEC = /idle-timeout\.spec\.ts/;
 const IDLE_TIMEOUT_BASE_URL = "http://localhost:4399"; // Makefile's HMS_IDLE_WEB_PORT
+const PROJECT_FLAG_GIVEN = process.argv.some(
+  (arg) => arg === "--project" || arg.startsWith("--project="),
+);
 
 export default defineConfig({
   testDir: "./tests",
   timeout: 60_000,
   use: { baseURL: "http://localhost:4301" },
+  // Only a project-less run (bare `playwright test`) gets filtered — an
+  // explicit `--project=idle-timeout` (or `=specs`/`=bulk`) is already
+  // scoped by Playwright's own project-name matching, and stacking
+  // grepInvert on top of that would filter idle-timeout.spec.ts OUT of
+  // the very project someone just asked for by name.
+  grepInvert: PROJECT_FLAG_GIVEN ? undefined : IDLE_TIMEOUT_SPEC,
   projects: [
     {
       name: "specs",

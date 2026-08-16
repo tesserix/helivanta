@@ -676,10 +676,20 @@ pnpm --filter e2e exec playwright test idle-timeout --reporter=list
 
 - [ ] **Step 3: Run the whole suite**
 
+The idle-timeout fixture (its own API + shell pair) cannot run alongside
+the main stack's own shell — Next.js 16 refuses a second `next dev` for
+the same project directory (`apps/shell`), reproduced live building this
+task. So there is no single `playwright test` invocation that runs all
+12 tests: `e2e/playwright.config.ts` deliberately excludes the
+"idle-timeout" project from a bare run, and `make e2e` (run from the repo
+root) is the command that runs both phases in order — "specs"+"bulk"
+against the main stack, then a swap to the fixture for
+`--project=idle-timeout`, then a swap back:
+
 ```bash
-pnpm --filter e2e exec playwright test --reporter=list
+make e2e
 ```
-Expected: 12 passed (the existing 11 plus this one).
+Expected: phase one reports 11 passed, phase two reports 1 passed (12 total, in two runs rather than one). A bare `pnpm --filter e2e exec playwright test --reporter=list` still runs, and still reports 11 passed — it excludes "idle-timeout" on purpose, not by omission.
 
 - [ ] **Step 4: Document**
 

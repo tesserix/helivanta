@@ -67,9 +67,9 @@ func TestFinalizeReturnsCallbackURL(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"callbackUrl":"http://localhost:4301/api/auth/callback?code=abc&state=s"}`))
 	})
-	got, err := c.Finalize(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.finalize(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
 	if err != nil {
-		t.Fatalf("Finalize() error = %v", err)
+		t.Fatalf("finalize() error = %v", err)
 	}
 	if got != "http://localhost:4301/api/auth/callback?code=abc&state=s" {
 		t.Errorf("callbackUrl = %q", got)
@@ -173,7 +173,7 @@ func TestAuthRequestEscapesAdversarialID(t *testing.T) {
 }
 
 // Same adversarial-id protection as TestAuthRequestEscapesAdversarialID,
-// but for Finalize's authRequestID parameter — a separate interpolation
+// but for finalize's authRequestID parameter — a separate interpolation
 // site (review finding 2 named both client.go:139 and client.go:189).
 func TestFinalizeEscapesAdversarialAuthRequestID(t *testing.T) {
 	const adversarial = "../../v2/users?x=1"
@@ -182,8 +182,8 @@ func TestFinalizeEscapesAdversarialAuthRequestID(t *testing.T) {
 		gotRequestURI = r.RequestURI
 		w.Write([]byte(`{"callbackUrl":"http://localhost:4301/api/auth/callback?code=abc&state=s"}`))
 	})
-	if _, err := c.Finalize(context.Background(), adversarial, Session{ID: "1", Token: "t"}); err != nil {
-		t.Fatalf("Finalize() error = %v", err)
+	if _, err := c.finalize(context.Background(), adversarial, Session{ID: "1", Token: "t"}); err != nil {
+		t.Fatalf("finalize() error = %v", err)
 	}
 	want := "/v2/oidc/auth_requests/" + url.PathEscape(adversarial)
 	if gotRequestURI != want {

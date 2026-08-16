@@ -123,7 +123,7 @@ type LoginPolicy struct {
 
 // AuthRequest fetches GET /v2/oidc/auth_requests/{id}. id is escaped with
 // url.PathEscape before being placed in the URL — see the do call in
-// Finalize for why this matters: it originates as a browser-supplied
+// finalize for why this matters: it originates as a browser-supplied
 // query parameter (spike §1, "/login?authRequest=V2_..."), not a value
 // this package minted itself.
 func (c *Client) AuthRequest(ctx context.Context, id string) (AuthRequest, error) {
@@ -169,12 +169,23 @@ func (c *Client) CreatePasswordSession(ctx context.Context, loginName, password 
 	return Session{ID: wire.SessionID, Token: wire.SessionToken}, nil
 }
 
-// Finalize hands the created session to the auth request (POST
+// finalize hands the created session to the auth request (POST
 // /v2/oidc/auth_requests/{id}, body shape from the spike §1) and returns
 // the callbackUrl Zitadel computes — the SAME callback
 // apps/shell/app/api/auth/callback/page.tsx already handles (spike §1),
 // so this method's return value needs no further transformation by the
 // caller; it can be redirected to as-is.
+//
+// It is UNEXPORTED on purpose, and that is the structural half of spec
+// D4. The spike §2 proved Zitadel issues an authorization code for a
+// password-only session even under a forceMfa policy — it does not
+// enforce MFA for a login client at all. So whether a session is
+// sufficient to finalize is HMS's decision, and the only way to reach
+// this call from outside the package is CompleteIfSufficient, which makes
+// that decision first. A future contributor adding a second completion
+// path has to defeat the package boundary deliberately rather than merely
+// forget a convention; archtest's TestFinalizeCallSiteIsUnique pins that
+// the HTTP call itself stays in this one file.
 //
 // authRequestID is escaped with url.PathEscape before being placed in the
 // URL. Like AuthRequest's id, it traces back to a browser query
@@ -186,7 +197,7 @@ func (c *Client) CreatePasswordSession(ctx context.Context, loginName, password 
 // and TestAuthRequestEscapesAdversarialID pin this against both an
 // adversarial id and a real spike-observed id, so the escaping cannot
 // quietly corrupt a legitimate id either.
-func (c *Client) Finalize(ctx context.Context, authRequestID string, s Session) (string, error) {
+func (c *Client) finalize(ctx context.Context, authRequestID string, s Session) (string, error) {
 	body := map[string]any{
 		"session": map[string]any{
 			"sessionId":    s.ID,

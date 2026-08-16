@@ -1,0 +1,116 @@
+package loginclient
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+)
+
+// Outcome says what HMS may do with a session it has just established: it
+// is the ONLY thing that decides whether the OIDC auth request gets
+// finalized. It exists as a type rather than a bool so that a third answer
+// (e.g. "prompt for a second factor here", once #41 lands) is an added
+// constant a compiler forces every switch to consider, not a second bool
+// someone can forget to read.
+type Outcome int
+
+const (
+	// OutcomeHandoff is the zero value ON PURPOSE. Anything that
+	// constructs a Result without deciding — a future code path, a
+	// partially-initialised struct, a test double — lands on "do not
+	// complete this login", which costs a redirect. The opposite default
+	// would cost an MFA bypass, and per spec D4 that asymmetry decides
+	// which value gets to be zero.
+	OutcomeHandoff Outcome = iota
+	// OutcomeComplete means the session satisfied everything HMS knows how
+	// to check and the auth request was finalized; CallbackURL is set.
+	OutcomeComplete
+)
+
+// String makes test failures and log lines name the outcome rather than
+// print "0"/"1" — the difference between the two is the difference between
+// a working login and an authentication bypass, so it must never be read
+// off an integer.
+func (o Outcome) String() string {
+	switch o {
+	case OutcomeHandoff:
+		return "handoff"
+	case OutcomeComplete:
+		return "complete"
+	default:
+		return fmt.Sprintf("Outcome(%d)", int(o))
+	}
+}
+
+// Result is what CompleteIfSufficient answers with. CallbackURL is set if
+// and only if Outcome is OutcomeComplete; on a handoff it is empty,
+// because there is deliberately nothing for the caller to redirect to —
+// the caller must send the browser to Zitadel's own login UI to collect
+// the factors HMS cannot.
+type Result struct {
+	Outcome     Outcome
+	CallbackURL string
+}
+
+// CompleteIfSufficient is the ONLY way to finalize an OIDC auth request
+// from outside this package: finalize itself is unexported, so a caller
+// cannot complete a login without this decision running first. That is
+// structural on purpose. The spike (§2 of
+// docs/superpowers/spikes/2026-08-16-zitadel-login-client.md) proved that
+// Zitadel, for a login client, issues an authorization code for a
+// password-only session even when the org policy sets forceMfa — it
+// neither refuses nor signals a missing factor. So the sufficiency
+// decision is HMS's, and a version of it that anyone could bypass by
+// calling the finalize endpoint directly would not be a control at all:
+// the failure is completely silent, every user's login still appears to
+// work while skipping a required factor.
+//
+// It fails closed. If the login policy cannot be READ, the answer is
+// handoff, not complete: LoginPolicy deliberately never returns a zero
+// value with a nil error (see its doc comment) precisely so an unreachable
+// Zitadel cannot be mistaken here for a policy that says "MFA off". A
+// handoff that was not strictly necessary costs the user one redirect; a
+// completion that was not warranted is an authentication bypass, and that
+// asymmetry decides the direction.
+//
+// KNOWN LIMITATION — read this before trusting the check to be more than
+// it is. This only enforces the ORGANISATION policy's forceMfa. If the org
+// does not force MFA but an individual user has voluntarily enrolled a
+// second factor, this returns OutcomeComplete on a password-only session
+// and that user's own factor is skipped. Closing that needs a per-user
+// enrolled-factor read, and the endpoint for it is not yet identified
+// (both /v2/users/{id}/authentication_factors and
+// /management/v1/users/{id}/auth_factors answered 404 on v4.15.3). That
+// work is tracked separately (#854 Task 8) and is NOT covered here.
+func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string, s Session) (Result, error) {
+	policy, err := c.LoginPolicy(ctx)
+	if err != nil {
+		// Deliberately not returned as an error: an unreadable policy is
+		// not a failed login, it is a login HMS is not qualified to
+		// complete, and handing off lets Zitadel's own UI finish the flow.
+		// But it must not be silent either — a Zitadel whose policy
+		// endpoint is broken would otherwise send every user through an
+		// unexplained redirect with nothing in the logs saying why. The
+		// error text is safe to log: this package never puts a credential,
+		// a session token or Zitadel's raw error body into one (see
+		// readZitadelErrorID).
+		slog.WarnContext(ctx, "login policy unreadable: handing off rather than completing the login (spec D4 fails closed)",
+			"err", err)
+		return Result{Outcome: OutcomeHandoff}, nil
+	}
+	if policy.ForceMFA {
+		// The session this package can build is password-only
+		// (CreatePasswordSession is its only session constructor), so
+		// under forceMfa it is by construction insufficient. When HMS
+		// learns to collect a second factor (#41), this is the branch that
+		// grows a "session already carries an MFA factor" case — it must
+		// not become a reason to delete the check.
+		return Result{Outcome: OutcomeHandoff}, nil
+	}
+
+	callbackURL, err := c.finalize(ctx, authRequestID, s)
+	if err != nil {
+		return Result{}, fmt.Errorf("loginclient: finalize after sufficiency check: %w", err)
+	}
+	return Result{Outcome: OutcomeComplete, CallbackURL: callbackURL}, nil
+}

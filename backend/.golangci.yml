@@ -50,6 +50,33 @@ linters:
             - "github.com/tesserix/hms/internal/modules/lab/contract"
             - "github.com/tesserix/hms/internal/modules/iam/contract"
             - "github.com/tesserix/hms/internal/modules/reference/contract"
+            # loginclient is NOT another module's internals — it lives
+            # under internal/modules/iam/ and is iam's own Zitadel
+            # login-client wrapper (#854 Task 2/4), consumed by iam's own
+            # HTTP handlers (loginui.go). The deny rule above matches on
+            # the "internal/modules" PREFIX, so it cannot distinguish "a
+            # different module" from "a subpackage of this same module" —
+            # without this entry, iam could not import its own
+            # subpackage at all. Task 3/4's tests reach it the same way
+            # (an external `iam_test`/`iam` package importing
+            # iam/loginclient), which the (unrelated) self-import nolint
+            # in login_test.go already covers for iam importing iam;
+            # this entry is what makes iam importing iam/loginclient
+            # possible in non-test code too.
+            #
+            # This entry reads WIDER than it actually permits: depguard
+            # cannot express "only iam may import iam/loginclient", so on
+            # its own this would also admit, say, pharmacy importing
+            # iam/loginclient — a real cross-module import, exactly what
+            # module-isolation exists to block. The compensating control
+            # is internal/archtest.TestModulesDoNotImportEachOther, which
+            # walks the real dependency graph module-by-module (not by
+            # path prefix) and fails on any module importing another
+            # module's non-contract package, loginclient included. This
+            # allow-list entry only has to be narrow enough to compile;
+            # TestModulesDoNotImportEachOther is what keeps it narrow
+            # enough to be correct.
+            - "github.com/tesserix/hms/internal/modules/iam/loginclient"
         no-logrus:
           deny:
             - pkg: "github.com/sirupsen/logrus"

@@ -48,6 +48,26 @@ export function useApiMutation<TData, TVars = void>(
     successToast?: string;
     invalidate?: unknown[][];
     onSuccess?: (data: TData) => void;
+    // suppressErrorToast opts a caller OUT of the automatic
+    // toast.error(error.message) below. Default false, because that
+    // toast is the right behaviour for almost every mutation in this
+    // codebase: it needs no per-component error UI to work.
+    //
+    // The one class of exception is a mutation that ALREADY renders its
+    // own dedicated, more specific error surface next to the fields it
+    // concerns — apps/shell/app/login/page.tsx's credential check is the
+    // motivating case: it shows the API's shared refusal message in a
+    // `role="alert"` paragraph next to the email/password fields (spec
+    // D5/D6), which is what a screen reader user focused on the form
+    // actually expects. Leaving the toast on top of that is not wrong,
+    // exactly, but it is the same message shown twice through two
+    // different channels for no reason, and review flagged it as
+    // confusing rather than helpful. This flag exists so that caller can
+    // suppress the toast WITHOUT losing every other useApiMutation
+    // behaviour (success toast, cache invalidation, onSuccess) or
+    // falling back to a hand-rolled useMutation that would drift from
+    // this hook's shared contract.
+    suppressErrorToast?: boolean;
   } = {},
 ): UseMutationResult<TData, Error, TVars> {
   const queryClient = useQueryClient();
@@ -61,7 +81,7 @@ export function useApiMutation<TData, TVars = void>(
       opts.onSuccess?.(data);
     },
     onError: (error) => {
-      toast.error(error.message);
+      if (!opts.suppressErrorToast) toast.error(error.message);
     },
   });
 }

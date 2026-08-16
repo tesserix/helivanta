@@ -27,8 +27,8 @@
 //
 // #838 Task 6 replaces the Firebase/GIP emulator seeding this file used to
 // do with Zitadel's. The load-bearing difference from the old version:
-// EVERY seeded account is verified by completing a REAL login through the
-// hosted UI, not by trusting the creation call's status code.
+// EVERY seeded account is verified by completing a REAL password check
+// against Zitadel, not by trusting the creation call's status code.
 // POST /v2/users/human returns 200 while silently discarding fields it
 // does not recognise (docs/superpowers/spikes/2026-08-15-zitadel-spike.md
 // "Task 0" — the exact trap that produced users who looked seeded and
@@ -36,20 +36,29 @@
 // accounts that fail later as every e2e spec timing out at the login
 // form, which reads like a broken application rather than a broken seed.
 //
+// #854 Task 7: that verification used to drive Zitadel's hosted login UI
+// with a headless Playwright browser (hostedUILogin). #854 Task 1
+// repointed hms-web's login redirect at HMS's own /login — and `make up`
+// runs this script (via `seed`) BEFORE the web app starts, so by the time
+// this ran there was nothing at :4301 for the redirect to reach at all.
+// verifyPasswordLogin (scripts/lib/zitadel.mjs) replaces the browser drive
+// with a direct call to Zitadel's v2 Session API, the same credential
+// check HMS's own backend performs — see its doc comment for the full
+// reasoning. This also means seeding no longer depends on the web app, or
+// any browser, existing.
+//
 // Usage: node scripts/seed-dev.mjs   (Zitadel + Postgres must be up and
 // migrated — `make seed` runs `make dev-infra` and `make migrate` first for
 // exactly this reason; dev-infra also runs scripts/zitadel-bootstrap.mjs,
 // which this script depends on for the client_id and machine PAT.)
 import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { chromium } from "@playwright/test";
 
 import {
-  DEV_REDIRECT_URI,
-  hostedUILogin,
   managementAPI,
-  readClientID,
+  readLoginClientPAT,
   readMachinePAT,
+  verifyPasswordLogin,
 } from "./lib/zitadel.mjs";
 
 const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://localhost:20080";
@@ -157,7 +166,7 @@ async function ensureUser(pat, email) {
 
 async function main() {
   const pat = readMachinePAT();
-  const clientId = readClientID();
+  const loginClientPAT = readLoginClientPAT();
   const { Client } = await import("pg");
   const pg = new Client({
     connectionString:
@@ -165,10 +174,6 @@ async function main() {
       "postgres://hms:hms@localhost:5432/hms?sslmode=disable",
   });
   await pg.connect();
-
-  // One shared browser for every hosted-UI login verification below — see
-  // hostedUILogin's doc comment on why this matters at 14 accounts.
-  const browser = await chromium.launch({ headless: true });
 
   try {
     for (const { email, memberships } of USERS) {
@@ -194,18 +199,10 @@ async function main() {
       // actually authenticate, not that the creation call returned 200.
       // Throws (and this script exits non-zero) on any failure — an
       // account that cannot log in is not seeded, whatever the API said.
-      await hostedUILogin({
-        issuer: ISSUER,
-        clientId,
-        redirectUri: DEV_REDIRECT_URI,
-        email,
-        password: PASSWORD,
-        browser,
-      });
-      console.log(`Verified ${email} completes a real hosted-UI login`);
+      await verifyPasswordLogin(ISSUER, loginClientPAT, email, PASSWORD);
+      console.log(`Verified ${email} completes a real password check`);
     }
   } finally {
-    await browser.close();
     await pg.end();
   }
 

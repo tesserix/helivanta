@@ -20,6 +20,7 @@ import (
 	"github.com/tesserix/hms/internal/config"
 	"github.com/tesserix/hms/internal/httpserver"
 	"github.com/tesserix/hms/internal/modules/iam"
+	"github.com/tesserix/hms/internal/modules/iam/loginclient"
 	"github.com/tesserix/hms/internal/platform"
 	"github.com/tesserix/hms/internal/platform/requestid"
 	"github.com/tesserix/hms/pkg/authn"
@@ -76,6 +77,26 @@ func run() error {
 	// client, where both are now actually wired to something.
 	sessionSeed, err := cfg.SessionSigningKeySeed()
 	if err != nil {
+		return err
+	}
+	// Resolved alongside the signing key, for the same reason: a missing
+	// login-client PAT is a configuration defect, not a runtime one, and
+	// it should surface before anything else costs time or a network
+	// round trip. See config.RequireZitadelLoginClientToken's doc
+	// comment for why this fails closed rather than booting with login
+	// silently broken — the SAME direction SessionSigningKeySeed already
+	// takes for a different secret, immediately above.
+	zitadelLoginClientToken, err := cfg.RequireZitadelLoginClientToken()
+	if err != nil {
+		return err
+	}
+	// Same class of check, same reason to run it here rather than on the
+	// hot path: a hosted-login URL misconfigured to share an origin with
+	// HMS's own frontend would loop every MFA-enrolled clinician forever
+	// through a handoff that always sends them right back — see
+	// config.RequireDistinctHostedLoginOrigin's doc comment for why
+	// nothing short of a boot refusal makes that loop unrepresentable.
+	if err := cfg.RequireDistinctHostedLoginOrigin(); err != nil {
 		return err
 	}
 	sessionKey := ed25519.NewKeyFromSeed(sessionSeed)
@@ -258,11 +279,56 @@ func run() error {
 	// bootstrap-owned for the same reason RateLimitConfig is: one
 	// construction path both production and internal/archtest read.
 	loginHandlers := iam.NewLoginHandlers(zitadelVerifier, fga, sessionSigner, cfg.SessionTTL, sessionSecureCookie, limiter, bootstrap.LoginRateLimitRule(cfg))
+
+	// zitadelLoginClient speaks Zitadel's v2 login-client API
+	// (internal/modules/iam/loginclient), authenticated with the PAT
+	// resolved (and refused-to-boot-without) above. baseURL is
+	// cfg.ZitadelIssuerURL — the SAME Zitadel origin zitadelVerifier's
+	// OIDC discovery uses — because loginclient's endpoints
+	// (/v2/sessions, /v2/oidc/auth_requests/…) live on Zitadel's core
+	// API, not a separate host. http.DefaultClient matches every other
+	// loginclient.New call site in this codebase (loginui_test.go's
+	// newZitadelTestClient uses the test server's own equivalent);
+	// loginclient.defaultTimeout bounds every call it makes, so this
+	// does not need its own per-request timeout.
+	zitadelLoginClient := loginclient.New(cfg.ZitadelIssuerURL, zitadelLoginClientToken, http.DefaultClient)
+	// loginUIHandlers backs HMS's own login form (plan #854 Task 4):
+	// three unauthenticated routes reading an auth request (GET
+	// /v1/auth/login/request/:id), checking a password (POST
+	// /v1/auth/login/password), and handing off to Zitadel's hosted UI
+	// when HMS cannot complete the login itself (POST
+	// /v1/auth/login/handoff/:id). All three reuse the SAME limiter
+	// instance as loginHandlers and V1Chain above (#841's rule: this
+	// file must construct exactly one ratelimit.Limiter, never a second)
+	// — see NewLoginUIHandlers' own doc comment on why sharing the
+	// limiter is still safe: each route keys its bucket under its own
+	// prefix (login_auth_request:, login_password:, login_handoff:) —
+	// distinct from each other AND from both LoginHandlers.Login's
+	// "login:" bucket and ratelimit.Middleware's Principal bucket, so
+	// none of the five can bleed into another's budget despite sharing
+	// one Limiter. The reason the buckets are separate: a shared key
+	// would let credential-guessing traffic exhaust the same budget as
+	// merely LOADING the login form, so an attacker (or one clinician
+	// mistyping their password repeatedly) could lock people out of the
+	// sign-in page itself — a self-inflicted denial of service on the
+	// sign-in path that buckets are distinct specifically to prevent.
+	// The Rule itself is bootstrap.LoginRateLimitRule(cfg) too — these
+	// endpoints do not yet warrant a budget shaped differently from
+	// POST /v1/auth/login's (all are "one browser tab's worth of login
+	// traffic"), so a second RATE_LIMIT_* knob would be configuration
+	// nobody has a reason to set independently; revisit if that changes.
+	loginUIHandlers := iam.NewLoginUIHandlers(zitadelLoginClient, cfg.ZitadelHostedLoginURL, limiter, bootstrap.LoginRateLimitRule(cfg))
+
 	// Mounted through bootstrap so the bypass is declared in one
 	// enumerable place and pinned by
 	// archtest.TestEveryEngineRouteIsDeclaredOrAllowlisted — a route on the
 	// raw engine otherwise escapes platform.Router entirely.
-	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login)
+	// authRequest/password/handoff are now the real loginUIHandlers
+	// methods (Task 5) — MountUnauthenticated's nil guard is what made
+	// `go run ./cmd/api` refuse to boot on this branch before this
+	// commit, per its own doc comment; this is the fix.
+	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login,
+		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Handoff)
 
 	for _, m := range registry.All() {
 		m.Routes(api, deps)

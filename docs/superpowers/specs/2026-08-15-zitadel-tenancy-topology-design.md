@@ -155,6 +155,36 @@ asks would be speculative.
 
 ### D5a — Login is hosted by Zitadel and branded, not rendered by HMS
 
+> **SUPERSEDED (2026-08-16) by `2026-08-16-hms-login-client-design.md` (#854).**
+> HMS now renders the login form itself, as Zitadel's **login client** for the
+> `hms-web` app. The reasoning below was not found to be wrong — it was priced
+> and overridden as a product decision, and its costs are real and now HMS's to
+> carry: credentials pass through an HMS page, and MFA, password reset, lockout
+> and federated-IdP handoff stop being inherited for free.
+>
+> Two parts of this decision **survive** and are still binding:
+>
+> - **The accessible-name contract below** (`Email`, `Password`, `Sign in`) — it
+>   now applies to HMS's own form, and the e2e suite still depends on it.
+> - **The hosted login still exists and is still reached**, as the handoff target
+>   for every case HMS does not implement (MFA required by org policy,
+>   `forceMfaLocalOnly`, a user's own voluntarily enrolled second factor, a
+>   federated IdP, or a login policy the API could not read and so fails closed
+>   on). It is no longer the ordinary path.
+>
+>   **A forced password change is NOT one of those cases**, though an earlier
+>   version of this block listed it. Verified live 2026-08-16 (#854 Task 8,
+>   spike §5): Zitadel signals `passwordChangeRequired` to a login client
+>   nowhere in the flow — session create, session read and finalize are
+>   byte-identical in shape to a normal user's — so HMS **completes** those
+>   logins rather than handing off. Tracked as
+>   [#856](https://github.com/tesserix/hms/issues/856).
+>
+> A finding from the superseding spike is worth reading here rather than only
+> there: **Zitadel does not enforce `forceMfa` for a login client** — it issued a
+> valid authorization code for a password-only session — so factor enforcement
+> became HMS's responsibility the moment this decision was reversed.
+
 HMS redirects to the Zitadel login app at `auth.tesserix.app`. The branding comes
 from a **design-system login component** (to be added) consumed by the
 `zitadel-login` build the platform team runs. **`apps/shell/app/login/page.tsx`

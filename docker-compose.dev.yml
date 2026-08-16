@@ -125,7 +125,27 @@ services:
       # production's aurora build is still unverified; only the split
       # topology itself (core + separate login service + reverse proxy) is
       # proven by this stack.
-      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "true"
+      #
+      # Deliberately "false", not "true" (#854 Task 1). `required=true` is
+      # the instance-wide migration forcing-switch: it makes EVERY app on
+      # the instance use Login V2 at Zitadel's own /ui/v2/login URL and
+      # silently overrides any per-app `loginVersion.loginV2.baseUri`
+      # (confirmed live against this exact stack — the PUT returns 200 and
+      # reads back correctly, but the redirect never moves while
+      # required=true; this is a known, currently-open upstream bug,
+      # zitadel/zitadel#10722, not a config mistake on our side). `false`
+      # does NOT turn Login V2 off — it just stops forcing the instance
+      # default on every app, so each app's own `loginVersion` setting
+      # decides. That per-app choice is exactly what keeps the hms-web
+      # redirect change (scripts/lib/zitadel.mjs's setLoginV2BaseUri) from
+      # moving login for any other Tesserix product on the shared instance.
+      # PRODUCTION NOTE: this same flip is required there too, and it is
+      # NOT a no-op — any other product currently getting Login V2
+      # implicitly from the instance-wide flag would fall back to ITS OWN
+      # per-app setting (or Login V1, if it has none configured) the moment
+      # `required` goes to false. That is a cross-product change and
+      # belongs to the platform team, not this task.
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "false"
       ZITADEL_FIRSTINSTANCE_ORG_NAME: HMS
       ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: admin@hms.localhost
       ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: HmsDevAdminPassw0rd!
@@ -176,6 +196,19 @@ services:
   # an absent PAT, and a fresh clone's first `make up` produced a login
   # nobody could use. Restarting login alone fixed it, which is what
   # identified the cause.
+  #
+  # #854 Task 5: the SAME file (and the SAME ordering trap) also gates
+  # HMS's own API process, which reads it into ZITADEL_LOGIN_CLIENT_TOKEN
+  # to drive Zitadel's login-client API directly
+  # (internal/modules/iam/loginui.go). The API is not a compose service —
+  # it runs via `go run ./cmd/api` from the Makefile's dev-api target, not
+  # docker-compose — so it cannot depend on this service the way
+  # zitadel-login below does; Makefile's dev-api target carries its own
+  # equivalent guard instead (a fail-closed "does the PAT file exist and
+  # is it non-empty" check, run before `go run` ever starts, mirroring
+  # this service's own polling loop), and dev-api only runs after
+  # `dev-infra` has waited on Zitadel's healthz, by which point
+  # provisioning has completed.
   zitadel-pat-ready:
     image: alpine:3.20
     volumes:
@@ -220,8 +253,13 @@ services:
 
   # Merges zitadel (everything except /ui/v2/login/*) and zitadel-login
   # (/ui/v2/login/*) under one origin — see dev/zitadel/Caddyfile's own
-  # comment for why this is mandatory, not cosmetic, once
-  # LOGINV2_REQUIRED=true.
+  # comment for why this is mandatory, not cosmetic. Still required with
+  # LOGINV2_REQUIRED=false (#854 Task 1): hms-web's per-app
+  # loginVersion.loginV2.baseUri sends the browser to HMS directly for the
+  # primary flow, but spec D3's fallback path still lands on Zitadel's own
+  # /ui/v2/login/login?authRequest=… (verified live: it 307s), and the
+  # Management Console app has no per-app override, so it still needs
+  # /ui/v2/login/* served through this origin.
   zitadel-proxy:
     image: caddy:2-alpine
     restart: unless-stopped

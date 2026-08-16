@@ -70,75 +70,62 @@ const PERMISSIONS_PROBE = "/api/v1/iam/me/permissions";
 const MAX_SIGN_IN_ATTEMPTS = 4;
 const RETRY_DELAY_MS = 1_100;
 
-// Drives Zitadel's REAL hosted login UI — /login (apps/shell) only
-// triggers the redirect; every field below lives on auth.tesserix.app
-// (or the local dev stack's equivalent), not on an HMS page. Design spec
-// D5a is explicit that the suite is written against Zitadel's own
-// markup, and that both spikes
-// (docs/superpowers/spikes/2026-08-15-zitadel-spike.md) already drove
-// this exact two-step form successfully — these selectors are lifted
-// from there (scripts/lib/zitadel.mjs's fillAndSubmit /
-// hostedUILogin), not re-guessed:
-//   1. a "Loginname" step — the label matches /Loginname|Email|Login Name/i
-//      across Zitadel's legacy `/ui/login` vs the split `zitadel-login`
-//      v2 service — followed by a /next|continue/i button.
-//   2. a separate "Password" step, reached only after step 1 submits,
-//      followed by a /continue/i button (not "Sign in" — that label
-//      belongs to the deleted HMS-rendered form this replaces, per D5a's
-//      own contract note: the suite is written against Zitadel's markup
-//      first, ours never existed here).
-async function fillAndSubmit(
-  page: Page,
-  labelPattern: RegExp,
-  value: string,
-  buttonPattern: RegExp,
-): Promise<void> {
-  const field = page.getByLabel(labelPattern).first();
-  const button = page.getByRole("button", { name: buttonPattern }).first();
-  await field.waitFor({ state: "visible", timeout: 15_000 });
-
-  // Mirrors scripts/lib/zitadel.mjs's fillAndSubmit retry: observed live
-  // during seeding that the login UI's own JS can still be attaching its
-  // input handler when Playwright's fill() sets the value, so a submit
-  // can land on a button that never un-disables. Re-filling once
-  // hydration catches up resolves it — a UI-timing race, not a wrong
-  // selector or credential (both of which fail every attempt).
-  const attempts = 3;
-  for (let attempt = 1; attempt <= attempts; attempt++) {
-    await field.fill(value);
-    try {
-      await button.click({ timeout: 10_000 });
-      return;
-    } catch (err) {
-      if (attempt === attempts) throw err;
-    }
-  }
-}
-
-// Drives the form once and reports whether the resulting session is
-// actually usable against the API.
+// Drives HMS's OWN credential form — apps/shell/app/login/page.tsx's
+// CredentialForm, reached at /login?authRequest=... after
+// RedirectLanding's Sign in button bounces the browser through Zitadel's
+// /oauth/v2/authorize and straight back (no hosted-UI page is ever
+// rendered in between; see this file's header comment). Design spec D6
+// makes the form's labels (`Email`, `Password`) and its submit button's
+// accessible name (`Sign in`) a CONTRACT — apps/shell/app/login/page.tsx
+// says so explicitly and warns not to rename them without updating this
+// file deliberately. Unlike Zitadel's old two-step hosted UI
+// (Loginname → next → Password → continue), this is ONE step: both
+// fields are on screen together and one submit finishes it.
 async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
-  await fillAndSubmit(page, /Loginname|Email|Login Name/i, user.email, /next|continue/i);
-  await page.waitForURL(/\/password\??/, { timeout: 20_000 });
-  await fillAndSubmit(page, /Password/i, user.password, /continue|login/i);
+  await page.getByLabel("Email").fill(user.email);
+  await page.getByLabel("Password").fill(user.password);
+  await page.getByRole("button", { name: "Sign in" }).click();
 
-  // Zitadel redirects back to apps/shell/app/api/auth/callback/page.tsx,
-  // which exchanges the id_token and only then replaces the URL with "/".
-  // Longer than the 5s default on purpose: this crosses a hosted-UI
-  // redirect, a PKCE token exchange against Zitadel, a second exchange
-  // against POST /v1/auth/login, a cookie write and a client-side
-  // redirect into a route the dev server may still be compiling — under
-  // four parallel workers that whole chain has been observed taking over
-  // five seconds. A timeout here is not a refused session — it throws
-  // past the retry loop below and fails the spec with a missing heading,
-  // which reads like a broken application rather than a slow one.
+  // The credential form's submit button is also named "Sign in" — same
+  // accessible name as RedirectLanding's landing-page button that
+  // startSignIn() clicked to get here. Waiting for the Email field to be
+  // visible before this function is ever called (see login()'s caller)
+  // is what disambiguates the two; by the time signInOnce() clicks
+  // "Sign in" here, it is unambiguously the form's submit, because only
+  // one such button exists on screen at a time.
+  //
+  // HMS's own page navigates on to apps/shell/app/api/auth/callback/page.tsx
+  // (via callback_url) or, for the handoff outcomes (MFA, forced
+  // password change, federated IdP — see CredentialForm's header
+  // comment), onward through Zitadel again before landing on the same
+  // callback. Longer than the 5s default on purpose: this can cross a
+  // POST to the API, a cookie write and a client-side redirect into a
+  // route the dev server may still be compiling — under four parallel
+  // workers that whole chain has been observed taking over five seconds.
+  // A timeout here is not a refused session — it throws past the retry
+  // loop below and fails the spec with a missing heading, which reads
+  // like a broken application rather than a slow one.
   await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible({
     timeout: 30_000,
   });
   return page.evaluate(async (url) => (await fetch(url)).ok, PERMISSIONS_PROBE);
 }
 
-// Clicks HMS's Sign in button if we are sitting on its landing page.
+// Clicks the landing page's Sign in button if we are sitting on it.
+//
+// TWO buttons on this suite's path share the exact accessible name
+// "Sign in": RedirectLanding's (this one — starts the round trip through
+// Zitadel's /oauth/v2/authorize and back) and CredentialForm's (the
+// form's own submit, clicked later by signInOnce()). They are never on
+// screen at the same time — the landing page's button disappears the
+// moment the browser leaves for Zitadel, and the form's button does not
+// exist until `?authRequest=` lands back on /login — so a bare
+// `getByRole("button", { name: "Sign in" })` here is unambiguous PROVIDED
+// this function is only ever called while still on the landing page.
+// login() enforces that ordering by waiting for the Email field (proof
+// the form, not the landing page, is now showing) before ever calling
+// signInOnce(); mixing the two up here would click whichever button
+// happens to exist, which is exactly the trap.
 //
 // Tolerant on purpose: after a sign-out the browser may already be
 // mid-redirect to Zitadel, in which case there is no button to click and
@@ -152,7 +139,7 @@ async function startSignIn(page: Page): Promise<void> {
   // and leave the caller waiting for a credential field that will never
   // appear. That was the first version of this helper, and it failed
   // exactly the two specs that sign out and back in.
-  if (!/localhost:4301/.test(page.url())) return; // already on Zitadel
+  if (!/localhost:4301/.test(page.url())) return; // mid-redirect through Zitadel
 
   const button = page.getByRole("button", { name: "Sign in" });
   await button.waitFor({ state: "visible", timeout: 20_000 });
@@ -186,8 +173,13 @@ export async function login(page: Page, user: Credentials = specAdmin()): Promis
   // So the suite must click it. Waiting for the real credential field after
   // the click is the provable claim ("the sign-in form is now showing") and
   // is host/port agnostic, unlike asserting a literal localhost:4301 URL.
+  // It is also what disambiguates startSignIn()'s and signInOnce()'s
+  // identically-named "Sign in" buttons (see startSignIn()'s comment):
+  // only proceeding once the Email field is visible guarantees the
+  // landing page's button is gone and the form's is what gets clicked
+  // next.
   await startSignIn(page);
-  await expect(page.getByLabel(/Loginname|Email|Login Name/i).first()).toBeVisible({
+  await expect(page.getByLabel("Email")).toBeVisible({
     timeout: 15_000,
   });
 

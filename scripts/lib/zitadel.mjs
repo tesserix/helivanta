@@ -1,21 +1,29 @@
 // Shared Zitadel helpers for scripts/seed-dev.mjs, scripts/zitadel-bootstrap.mjs
 // and scripts/zitadel-verify-login.mjs — one place holding the machine-API
-// call convention and the real hosted-UI login drive, so the three scripts
+// call convention and the real password-login drive, so the three scripts
 // cannot drift on how either is done.
+//
+// #854 Task 7: this used to drive Zitadel's REAL hosted login UI with a
+// headless Playwright browser (hostedUILogin/hostedUILoginOnce/
+// fillAndSubmit, now removed). #854 Task 1 repointed hms-web's login
+// redirect at HMS's own /login, which broke that approach for every
+// caller — see verifyPasswordLogin's and passwordLoginIDToken's doc
+// comments for the two different ways it broke and what replaced it.
+// Neither replacement needs a browser at all, so this file no longer
+// depends on Playwright.
 import crypto from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { chromium } from "@playwright/test";
 
 const SECRETS_DIR = fileURLToPath(new URL("../../dev/zitadel/secrets/", import.meta.url));
 
 // The redirect_uris registered on the hms-web app (scripts/zitadel-
 // bootstrap.mjs). apps/shell/app/api/auth/callback/page.tsx and
-// apps/shell/app/api/auth/silent-renew/page.tsx (#838 Task 7) are the
-// real handlers for the first two; hostedUILogin below still captures the
-// authorization code from the request itself rather than waiting for a
-// navigation, since that is more robust for a scripted login than relying
-// on the shell app being reachable at all during dev-infra/seeding.
+// apps/shell/app/api/auth/silent-renew/page.tsx (#838 Task 7) are the real
+// handlers for the first two; passwordLoginIDToken below never actually
+// navigates a browser there — it reads the authorization code out of the
+// finalize call's callbackUrl instead — so this redirect_uri does not need
+// the shell app to be reachable at all.
 export const DEV_REDIRECT_URI = "http://localhost:4301/api/auth/callback";
 export const DEV_SILENT_RENEW_REDIRECT_URI = "http://localhost:4301/api/auth/silent-renew";
 export const DEV_POST_LOGOUT_REDIRECT_URI = "http://localhost:4301/login";
@@ -62,6 +70,32 @@ export function readMachinePAT() {
       throw new Error(
         `${SECRETS_DIR}hms-seed.pat does not exist — Zitadel writes it at first ` +
           `boot; check 'docker compose -f docker-compose.dev.yml logs zitadel' ` +
+          `for a setup failure (the masterkey-length trap is the most likely ` +
+          `cause; see docker-compose.dev.yml's zitadel service comment)`,
+      );
+    }
+    throw err;
+  }
+}
+
+// readLoginClientPAT reads the SAME login-client PAT
+// backend/internal/modules/iam/loginclient/client.go authenticates its
+// Session API calls with in production (docker-compose.dev.yml's zitadel
+// service, FirstInstance.Org.LoginClient.PatPath; Makefile's
+// ZITADEL_LOGIN_CLIENT_PAT_FILE). verifyPasswordLogin below uses it,
+// deliberately, rather than the hms-seed-bot IAM_OWNER PAT readMachinePAT
+// returns: proving a seeded account authenticates with the SAME credential
+// class and the SAME Zitadel v2 Session API HMS's own backend uses is a
+// closer analog to production than an IAM_OWNER PAT would be, even though
+// an IAM_OWNER PAT can call the same endpoint.
+export function readLoginClientPAT() {
+  try {
+    return readFileSync(`${SECRETS_DIR}login-client.pat`, "utf8").trim();
+  } catch (err) {
+    if (err.code === "ENOENT") {
+      throw new Error(
+        `${SECRETS_DIR}login-client.pat does not exist — Zitadel writes it at ` +
+          `first boot; check 'docker compose -f docker-compose.dev.yml logs zitadel' ` +
           `for a setup failure (the masterkey-length trap is the most likely ` +
           `cause; see docker-compose.dev.yml's zitadel service comment)`,
       );
@@ -123,77 +157,103 @@ export async function managementAPI(issuer, pat, path, body) {
   }
 }
 
+// setLoginV2BaseUri used to live here as a SEPARATE partial PUT
+// (`{loginVersion: {...}}}` only) issued after zitadel-bootstrap.mjs's main
+// oidc_config PUT. Removed (#854 Task 7): `PUT .../oidc_config` is a FULL
+// REPLACE, not a patch, contrary to what this function's old doc comment
+// claimed — any field omitted from a PUT body resets to its default, and
+// that includes `authMethodType`, whose default requires a client secret.
+// The separate call silently reverted `authMethodType` away from the
+// public/PKCE `OIDC_AUTH_METHOD_TYPE_NONE` the main PUT had just set,
+// breaking the token exchange (`/oauth/v2/token` →
+// `invalid_client: empty client secret`) for every real login on this
+// stack, seeded or human, for the lifetime of #854 Tasks 1 through 6 — see
+// zitadel-bootstrap.mjs's LOGIN_VERSION comment for the full account of how
+// this was found and what replaced it: loginVersion is now set in the SAME
+// PUT as every other oidc_config field, so there is no second call left to
+// omit anything from.
+
 function b64url(buf) {
   return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-// fillAndSubmit fills labelPattern with value and clicks buttonPattern,
-// re-filling and retrying the click a bounded number of times if the
-// button stays disabled. Observed live (#838 Task 6, seeding 14 accounts
-// in one run): the first hosted-UI login against a freshly launched
-// browser succeeds first try, but a second login moments later in the
-// SAME browser can hit the submit button still disabled 30s later — the
-// login UI's own JS had not finished attaching its input handler to a
-// freshly-navigated page yet, so Playwright's fill() set the value before
-// anything was listening for it. Re-filling once hydration has caught up
-// resolves it; this is a UI-timing race, not a wrong selector or a wrong
-// credential (both of which fail every attempt, not just the retries).
-async function fillAndSubmit(page, labelPattern, value, buttonPattern) {
-  const field = page.getByLabel(labelPattern).first();
-  const button = page.getByRole("button", { name: buttonPattern }).first();
-  await field.waitFor({ state: "visible", timeout: 15_000 });
-
-  const attempts = 3;
-  for (let attempt = 1; attempt <= attempts; attempt++) {
-    await field.fill(value);
-    try {
-      await button.click({ timeout: 10_000 });
-      return;
-    } catch (err) {
-      if (attempt === attempts) throw err;
-    }
+// verifyPasswordLogin proves a seeded account can actually authenticate by
+// checking loginName+password against Zitadel's v2 Session API (POST
+// /v2/sessions) — the SAME call and the SAME class of credential (the
+// login-client PAT, via readLoginClientPAT) HMS's own backend uses
+// (backend/internal/modules/iam/loginclient/client.go's
+// CreatePasswordSession) to check a password on every real sign-in.
+//
+// This still verifies a REAL credential check, not a status code: POST
+// /management/v1/users/human/_import and /v2/users/human both return HTTP
+// 200 while silently discarding fields they do not recognise
+// (docs/superpowers/spikes/2026-08-15-zitadel-spike.md "Task 0"), so a 200
+// from account creation is not evidence the account can authenticate.
+// POST /v2/sessions with a password check is direct proof the password
+// Zitadel actually stored matches — it succeeds (200, sessionId +
+// sessionToken) only when the credential is genuinely correct, distinctly
+// fails on a wrong password (400, COMMAND-3M0fs) and on an unknown user
+// (404, QUERY-Dfbg2) — both observed live against this stack (2026-08-16)
+// — so this function still throws on exactly the cases a broken seed
+// should fail on.
+//
+// Replaces the old browser-driven hostedUILogin/hostedUILoginOnce/
+// fillAndSubmit (#854 Task 7, removed — see git history if the old
+// Playwright-driven approach is ever needed again). Those drove Zitadel's
+// REAL hosted login UI with a headless browser; #854 Task 1 repointed
+// hms-web's login redirect at HMS's own /login instead, which broke both
+// of that trio's callers the same way, for two different reasons:
+//
+//  - scripts/seed-dev.mjs runs during `make up`'s `seed` step, which is
+//    BEFORE the web app starts (`up` is `dev-infra seed`, then `dev-api
+//    dev-web`) — so the redirect target did not exist yet to drive at all.
+//  - scripts/zitadel-verify-login.mjs runs after the whole stack (`make
+//    verify-local`), so the redirect target DID exist, but its markup is
+//    HMS's own one-step Email/Password/Sign-in form, not Zitadel's
+//    two-step Loginname→next→Password→continue fillAndSubmit drove.
+//
+// The Session API sidesteps both: it is a direct HTTP call against
+// Zitadel with no redirect through anything HMS renders, so it needs
+// neither the web app to be up nor to know that app's markup. It also
+// drops Playwright, a headless Chromium launch, and ~20s of browser-driven
+// waiting per account from both callers.
+async function verifyPasswordLoginOnce(issuer, pat, email, password) {
+  const res = await fetch(`${issuer}/v2/sessions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      checks: { user: { loginName: email }, password: { password } },
+    }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      `password check for ${email} failed: HTTP ${res.status} ${JSON.stringify(json)} — ` +
+        `the account may not exist, or the password is wrong`,
+    );
   }
+  if (!json.sessionId || !json.sessionToken) {
+    throw new Error(
+      `password check for ${email} returned HTTP 200 with no sessionId/sessionToken: ${JSON.stringify(json)}`,
+    );
+  }
+  return { id: json.sessionId, token: json.sessionToken };
 }
 
-// hostedUILogin drives the REAL Zitadel-hosted login UI with a headless
-// browser and returns the resulting ID token — a completed authorization-
-// code-plus-PKCE exchange, not a management-API shortcut. This is
-// deliberate and load-bearing (#838 Task 6, and the plan's explicit
-// instruction): POST /management/v1/users/human/_import and
-// /v2/users/human both return HTTP 200 while silently discarding fields
-// they do not recognise (docs/superpowers/spikes/2026-08-15-zitadel-spike.md
-// "Task 0"), so a 200 status code is not evidence a seeded account can
-// actually authenticate. Only a completed login proves that.
-//
-// clientId must belong to a PUBLIC client (authMethodType NONE) — the one
-// scripts/zitadel-bootstrap.mjs provisions — since this performs PKCE with
-// no client secret, exactly as a browser would.
-//
-// browser is optional: a caller verifying many accounts in one run (see
-// scripts/seed-dev.mjs) can launch one Chromium instance and pass it to
-// every call, rather than paying process-launch cost per account — with
-// 14 accounts as of this writing (2 human + 2 per e2e spec file), that
-// launch cost is the difference between a few seconds and the better part
-// of a minute. Left unset, hostedUILogin launches and closes its own (the
-// single-call case: scripts/zitadel-verify-login.mjs).
-//
-// Retries once on any failure. Observed live (#838 Task 6): the same
-// account, same script, back-to-back runs, one succeeds and the very next
-// attempt times out waiting for the code redirect under a loaded dev
-// machine (four `next dev` servers, five-plus Docker containers, other Go
-// tests running) — a slow page load or slow submit, not a broken account
-// (a genuinely broken account fails EVERY attempt, retried or not). This
-// mirrors e2e/tests/support/login.ts's own retry, which exists for a
-// different specific race (the revocation watermark) but is the same
-// judgment call: retrying a real login is legitimate here because success
-// is still a complete, unmocked authorization-code-plus-PKCE exchange —
-// nothing about what is being proven weakens on a retry.
-export async function hostedUILogin(opts) {
+// verifyPasswordLogin wraps verifyPasswordLoginOnce with a bounded retry: a
+// genuinely broken account (wrong password, unknown user) fails every
+// attempt identically, so retrying weakens nothing about what is being
+// proven — it only absorbs a transient failure against a freshly booted
+// Zitadel instance under load from a `make up` also running migrations and
+// provisioning in parallel. Mirrors the same judgment
+// e2e/tests/support/login.ts's own retry makes, for a different specific
+// race.
+export async function verifyPasswordLogin(issuer, pat, email, password) {
   const maxAttempts = 2;
   let lastErr;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      return await hostedUILoginOnce(opts);
+      return await verifyPasswordLoginOnce(issuer, pat, email, password);
     } catch (err) {
       lastErr = err;
     }
@@ -201,7 +261,42 @@ export async function hostedUILogin(opts) {
   throw lastErr;
 }
 
-async function hostedUILoginOnce({ issuer, clientId, redirectUri, email, password, browser }) {
+// passwordLoginIDToken completes a REAL, unmocked authorization-code-plus-
+// PKCE exchange and returns the resulting ID token — the same property
+// hostedUILogin used to guarantee (see verifyPasswordLogin's doc comment on
+// why a completed login, not a 200 status, is what proves an account
+// works), but driven end to end through Zitadel's own v2 APIs instead of a
+// browser:
+//
+//  1. GET /oauth/v2/authorize with a PKCE challenge, followed manually
+//     (redirect: "manual") to read the auth request id off the Location
+//     header — this is EXACTLY the request a browser's first hop makes;
+//     the difference starts only at step 2.
+//  2. POST /v2/sessions with loginName+password (verifyPasswordLoginOnce)
+//     — the SAME password check HMS's own backend performs, and the SAME
+//     one a human typing into HMS's /login form triggers.
+//  3. POST /v2/oidc/auth_requests/{id} with that session — the SAME
+//     "finalize" call backend/internal/modules/iam/loginclient/client.go's
+//     (unexported) finalize makes — which returns a callbackUrl carrying a
+//     real authorization code, exactly as HMS's own POST
+//     /v1/auth/login/password does for a real browser.
+//  4. POST /oauth/v2/token with that code and the PKCE verifier — the same
+//     token exchange step 1's PKCE challenge exists to make possible.
+//
+// clientId must belong to a PUBLIC client (authMethodType NONE) — the one
+// scripts/zitadel-bootstrap.mjs provisions — since step 4 performs PKCE
+// with no client secret, exactly as a browser would. loginClientPAT
+// authenticates steps 2 and 3 (readLoginClientPAT) — this is a machine
+// credential, not the end user's, exactly as it is for HMS's real login
+// flow.
+export async function passwordLoginIDToken({
+  issuer,
+  clientId,
+  loginClientPAT,
+  redirectUri,
+  email,
+  password,
+}) {
   const verifier = b64url(crypto.randomBytes(32));
   const challenge = b64url(crypto.createHash("sha256").update(verifier).digest());
   const state = b64url(crypto.randomBytes(16));
@@ -215,44 +310,41 @@ async function hostedUILoginOnce({ issuer, clientId, redirectUri, email, passwor
   authUrl.searchParams.set("code_challenge_method", "S256");
   authUrl.searchParams.set("state", state);
 
-  const ownBrowser = browser ?? (await chromium.launch({ headless: true }));
-  let code = null;
-  try {
-    const page = await ownBrowser.newPage();
-    // The redirect to redirectUri is the proof, captured here rather than
-    // waited for as a navigation: the callback route does not exist yet
-    // (the browser flow is the Playwright suite's job, not this script's;
-    // seeding only), so letting Chromium actually navigate there would
-    // hit a connection error. The request event fires before that happens.
-    const gotCode = new Promise((resolve) => {
-      page.on("request", (req) => {
-        if (req.url().startsWith(redirectUri)) {
-          resolve(new URL(req.url()).searchParams.get("code"));
-        }
-      });
-    });
-
-    try {
-      await page.goto(authUrl.toString(), { waitUntil: "domcontentloaded", timeout: 25_000 });
-      await fillAndSubmit(page, /Loginname|Email|Login Name/i, email, /next|continue/i);
-      await page.waitForURL(/\/password\?/, { timeout: 20_000 });
-      await fillAndSubmit(page, /Password/i, password, /continue/i);
-      code = await Promise.race([
-        gotCode,
-        new Promise((resolve) => setTimeout(() => resolve(null), 20_000)),
-      ]);
-    } finally {
-      await page.close();
-    }
-  } finally {
-    if (!browser) await ownBrowser.close();
+  const authorizeRes = await fetch(authUrl.toString(), { redirect: "manual" });
+  const location = authorizeRes.headers.get("location");
+  const authRequestID = location && new URL(location, issuer).searchParams.get("authRequest");
+  if (!authRequestID) {
+    throw new Error(
+      `GET /oauth/v2/authorize did not redirect with an authRequest id: ` +
+        `HTTP ${authorizeRes.status}, Location=${location ?? "(none)"}`,
+    );
   }
 
-  if (!code) {
+  const session = await verifyPasswordLoginOnce(issuer, loginClientPAT, email, password);
+
+  const finalizeRes = await fetch(
+    `${issuer}/v2/oidc/auth_requests/${encodeURIComponent(authRequestID)}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${loginClientPAT}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ session: { sessionId: session.id, sessionToken: session.token } }),
+    },
+  );
+  const finalizeJson = await finalizeRes.json().catch(() => ({}));
+  if (!finalizeRes.ok || !finalizeJson.callbackUrl) {
     throw new Error(
-      `hosted-UI login for ${email} never reached ${redirectUri} with an authorization code — ` +
-        `the account may not exist, the password may be wrong, or the login UI's selectors drifted`,
+      `finalizing auth request ${authRequestID} for ${email} failed: ` +
+        `HTTP ${finalizeRes.status} ${JSON.stringify(finalizeJson)}`,
     );
+  }
+
+  const callbackUrl = new URL(finalizeJson.callbackUrl);
+  const code = callbackUrl.searchParams.get("code");
+  if (!code) {
+    throw new Error(`callbackUrl for ${email} carried no authorization code: ${finalizeJson.callbackUrl}`);
   }
 
   const tokenRes = await fetch(`${issuer}/oauth/v2/token`, {

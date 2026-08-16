@@ -665,6 +665,315 @@ func sourceCallsGormOpen(src []byte) (bool, error) {
 	return found, nil
 }
 
+// finalizeEndpointPath is the Zitadel OIDC endpoint that turns a session
+// into an authorization code. A POST here IS the completion of a login.
+const finalizeEndpointPath = "/v2/oidc/auth_requests/"
+
+// finalizeCallSite is the one file permitted to POST to that endpoint.
+// Not a map like the other allowlists in this file: the whole control is
+// that the set has exactly one element, so there is nothing here for a
+// contributor to append to.
+const finalizeCallSite = "internal/modules/iam/loginclient/client.go"
+
+// fileStringConsts collects every file-level `const`/`var` bound directly
+// to a string literal, so the path can be recognised when it has been
+// lifted out of the call into a named constant. Without this the detector
+// keys on the literal text at the call site, and `const p =
+// "/v2/oidc/auth_requests/"` followed by `http.NewRequest(http.MethodPost,
+// base+p+id, …)` — an ordinary, entirely innocent-looking refactor —
+// becomes invisible to it.
+//
+// It resolves one level, not arbitrary constant expressions: a path
+// assembled from two concatenated constants would still evade this. That
+// bound is deliberate (a full constant folder here would be its own source
+// of bugs) and it is why unexporting finalize, not this test, is the
+// primary control — see TestFinalizeCallSiteIsUnique.
+func fileStringConsts(f *ast.File) map[string]string {
+	out := map[string]string{}
+	for _, decl := range f.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || (gen.Tok != token.CONST && gen.Tok != token.VAR) {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			vs, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			for i, name := range vs.Names {
+				if i >= len(vs.Values) {
+					continue
+				}
+				lit, ok := vs.Values[i].(*ast.BasicLit)
+				if !ok || lit.Kind != token.STRING {
+					continue
+				}
+				if s, err := strconv.Unquote(lit.Value); err == nil {
+					out[name.Name] = s
+				}
+			}
+		}
+	}
+	return out
+}
+
+// stringValue returns the string e denotes, if it denotes one directly: a
+// string literal, or an identifier bound to one by consts.
+func stringValue(e ast.Expr, consts map[string]string) (string, bool) {
+	switch v := e.(type) {
+	case *ast.BasicLit:
+		if v.Kind != token.STRING {
+			return "", false
+		}
+		s, err := strconv.Unquote(v.Value)
+		return s, err == nil
+	case *ast.Ident:
+		s, ok := consts[v.Name]
+		return s, ok
+	}
+	return "", false
+}
+
+// exprMentions reports whether e, anywhere inside it, denotes a string
+// containing want. It recurses because the real call site builds its path
+// by concatenation — `"/v2/oidc/auth_requests/" + url.PathEscape(id)` — so
+// the string is never the argument node itself.
+func exprMentions(e ast.Expr, want string, consts map[string]string) bool {
+	found := false
+	ast.Inspect(e, func(n ast.Node) bool {
+		expr, ok := n.(ast.Expr)
+		if !ok {
+			return true
+		}
+		if s, ok := stringValue(expr, consts); ok && strings.Contains(s, want) {
+			found = true
+		}
+		return true
+	})
+	return found
+}
+
+// exprIsPOST reports whether e denotes the POST method — the
+// http.MethodPost constant (matched on the selector name, which is
+// unambiguous under any import alias), the bare "POST" string that
+// http.NewRequest is just as happy to take, or a local constant bound to
+// either.
+func exprIsPOST(e ast.Expr, consts map[string]string) bool {
+	if sel, ok := e.(*ast.SelectorExpr); ok && sel.Sel.Name == "MethodPost" {
+		return true
+	}
+	s, ok := stringValue(e, consts)
+	return ok && s == http.MethodPost
+}
+
+// callIsPOST reports whether call issues a POST, by either route: a method
+// ARGUMENT (http.NewRequest(http.MethodPost, …), c.do(ctx,
+// http.MethodPost, …)) or a method-named CALLEE, where POST is in the
+// helper's name and there is no method argument at all — http.Post(url,
+// …), hc.Post(…), resty's .Post(…). Keying only on the argument, as the
+// first version of this test did, meant http.Post reached the finalize
+// endpoint completely undetected: the single most natural way to write the
+// bypass was the one shape the control could not see.
+func callIsPOST(call *ast.CallExpr, consts map[string]string) bool {
+	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+		switch sel.Sel.Name {
+		case "Post", "PostForm":
+			return true
+		}
+	}
+	for _, arg := range call.Args {
+		if exprIsPOST(arg, consts) {
+			return true
+		}
+	}
+	return false
+}
+
+// sourcePostsToFinalizeEndpoint parses src and reports whether it contains
+// a single call expression that both issues a POST and carries the
+// finalize endpoint path. Requiring both in the SAME call is what keeps
+// this from firing on code that merely mentions the path, while catching
+// every spelling of the call the detector's own fixtures exercise
+// (TestSourcePostsToFinalizeEndpointCatchesEvasions).
+func sourcePostsToFinalizeEndpoint(src []byte) (bool, error) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, parser.SkipObjectResolution)
+	if err != nil {
+		return false, err
+	}
+	consts := fileStringConsts(f)
+	found := false
+	ast.Inspect(f, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if !callIsPOST(call, consts) {
+			return true
+		}
+		for _, arg := range call.Args {
+			if exprMentions(arg, finalizeEndpointPath, consts) {
+				found = true
+			}
+		}
+		return true
+	})
+	return found, nil
+}
+
+// TestSourcePostsToFinalizeEndpointCatchesEvasions is the discriminating
+// test for the detector itself, and it exists because the first version of
+// this control did NOT hold the line it claimed: review probed it and
+// found http.Post and a hoisted path constant both passed straight
+// through, while a harmless httptest.NewRequest in a _test.go was flagged.
+// The mutation that was supposed to have proven the detector — a
+// http.NewRequest("POST", literal+id, …) probe — differed from the real
+// call only in the helper's name, not in either feature the detector keys
+// on, so it proved nothing. These fixtures are the shapes that actually
+// evaded it.
+func TestSourcePostsToFinalizeEndpointCatchesEvasions(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want bool
+	}{
+		{"the real call shape: method argument plus a literal path", `package fixture
+
+func f(c *C, ctx Ctx, id string) { c.do(ctx, http.MethodPost, "/v2/oidc/auth_requests/"+id, nil) }
+`, true},
+		{"http.Post has no method argument at all", `package fixture
+
+func f(base, id string) { http.Post(base+"/v2/oidc/auth_requests/"+id, "application/json", nil) }
+`, true},
+		{"path hoisted into a file-level const", `package fixture
+
+const finalizePath = "/v2/oidc/auth_requests/"
+
+func f(base, id string) { http.NewRequest(http.MethodPost, base+finalizePath+id, nil) }
+`, true},
+		{"both evasions at once", `package fixture
+
+const finalizePath = "/v2/oidc/auth_requests/"
+
+func f(hc *http.Client, base, id string) { hc.Post(base+finalizePath+id, "application/json", nil) }
+`, true},
+		{"a bare POST string rather than the constant", `package fixture
+
+func f(base, id string) { http.NewRequest("POST", base+"/v2/oidc/auth_requests/"+id, nil) }
+`, true},
+		{"reading the auth request is a GET, not a completion", `package fixture
+
+func f(c *C, ctx Ctx, id string) { c.do(ctx, http.MethodGet, "/v2/oidc/auth_requests/"+id, nil) }
+`, false},
+		{"a fake Zitadel that only mentions the path is not a call site", `package fixture
+
+func handler(w W, r *R) {
+	if r.Method == http.MethodPost && r.URL.Path == "/v2/oidc/auth_requests/V2_1" {
+		w.Write(nil)
+	}
+}
+`, false},
+		{"POSTing somewhere else entirely", `package fixture
+
+func f(c *C, ctx Ctx) { c.do(ctx, http.MethodPost, "/v2/sessions", nil) }
+`, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := sourcePostsToFinalizeEndpoint([]byte(tc.src))
+			if err != nil {
+				t.Fatalf("parse fixture: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("sourcePostsToFinalizeEndpoint = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestFinalizeCallSiteIsUnique is the CI half of spec D4's structural
+// control; the other half is that loginclient.finalize is unexported, so
+// the only way to reach it from outside the package is
+// CompleteIfSufficient.
+//
+// Unexporting alone does not stop someone writing a fresh POST to the same
+// endpoint in a handler, and that is the dangerous shape: the spike (§2,
+// docs/superpowers/spikes/2026-08-16-zitadel-login-client.md) proved
+// Zitadel returns HTTP 200 and a valid authorization code for a
+// password-only session even under a forceMfa policy. A second call site
+// would therefore work perfectly — while silently skipping the factor
+// every user was supposed to present. Nothing observable would be wrong,
+// which is exactly why the control has to be mechanical.
+//
+// Two boundaries this does NOT cover, stated so nobody reads it as more
+// than it is:
+//
+//   - _test.go files are excluded. Test code does not ship, and a handler
+//     test legitimately stands up a fake Zitadel that receives this exact
+//     POST — flagging those would block Task 4 while protecting nothing.
+//   - The walk roots at backend/, so this proves the finalize call is
+//     unique WITHIN backend/ — not within the repository. A Next.js
+//     route handler in apps/shell could POST the endpoint directly with
+//     the login client PAT and this test would never see it. Nothing in
+//     the frontend does today; closing that properly means keeping the
+//     PAT out of the frontend's reach, which is a deployment/config
+//     control, not a Go arch test.
+//
+//     There IS one known call site outside the walk, and it is accepted
+//     rather than overlooked: scripts/lib/zitadel.mjs's
+//     `passwordLoginIDToken` POSTs the same endpoint with the
+//     login-client PAT to mint an ID token for LOCAL DEV VERIFICATION.
+//     It is not production code, ships in no image, and is not reachable
+//     from a request — but it is a real second place the finalize call
+//     is spelled out, so this test's guarantee must be read as "exactly
+//     one call site in backend/", never as "nothing outside
+//     CompleteIfSufficient finalises an auth request anywhere in this
+//     repo". Extending the walk to .mjs would flag that script on its
+//     first run and teach the next person to add an allowlist entry,
+//     which is a worse control than stating the boundary plainly here.
+func TestFinalizeCallSiteIsUnique(t *testing.T) {
+	root := "../.."
+	var callSites []string
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		if strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		// archtest's own source necessarily spells the endpoint out (this
+		// check, its constants, its doc comments). Excluding the package
+		// avoids the self-match rather than allowlisting it, which would
+		// otherwise read as "archtest may finalize logins".
+		if strings.HasPrefix(rel, "internal/archtest/") {
+			return nil
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		posts, err := sourcePostsToFinalizeEndpoint(src)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", rel, err)
+		}
+		if posts {
+			callSites = append(callSites, rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk repo: %v", err)
+	}
+	require.ElementsMatch(t, []string{finalizeCallSite}, callSites,
+		"the OIDC finalize call must stay behind CompleteIfSufficient (spec D4) — "+
+			"Zitadel does not enforce forceMfa for a login client")
+}
+
 // TestGormOpenIsOnlyCalledFromTheAllowlist protects a PHI control that is
 // otherwise invisible. GORM's logger renders executed SQL with parameter
 // values inlined — `INSERT INTO patients VALUES (2,'HQ-OPD-0001427','Suresh

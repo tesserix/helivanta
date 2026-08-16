@@ -453,6 +453,64 @@ effective global limit is N × configured — exact for the connection pool
 (per-process), and the trade ADR-0005 accepts until #7 fixes the replica
 count.
 
+### The login-client credential
+
+`ZITADEL_LOGIN_CLIENT_TOKEN` is an **instance-level** Zitadel PAT: its
+holder can finalise an OIDC auth request for *any* app on the shared
+Zitadel instance, not just HMS's own (`docs/superpowers/specs/2026-08-16-hms-login-client-design.md`
+D2). It is the most privileged secret HMS holds. It **must never appear
+in a frontend service or in a log** — it lives only in the Go API
+(`backend/internal/modules/iam/loginclient`), which loads it from env the
+same way every other secret does, and `loginclient.Client` never embeds
+it, a session token, or a raw Zitadel error body in an error string (see
+`readZitadelErrorID`'s doc comment in `client.go`) precisely so a log
+line built from one of its errors cannot leak it either.
+
+A missing `ZITADEL_LOGIN_CLIENT_TOKEN` is a **boot refusal**, not a
+degraded mode: without it the API cannot check a credential at all, and
+starting anyway would serve a login form that fails every submission. So
+is a missing **`HMS_WEB_ORIGIN`** outside `HMS_ENV=dev` — it is the
+origin HMS's own `/login` is served from, and
+`config.RequireDistinctHostedLoginOrigin` compares it against
+`ZITADEL_HOSTED_LOGIN_URL` to refuse a configuration where the handoff
+target points back at the page that just decided to hand off. That
+misconfiguration loops every MFA-enrolled clinician forever while every
+individual request succeeds — no non-2xx, no log line above INFO — so
+there is nothing for alerting to catch and it has to be caught at boot.
+Both are on the enforcement ladder's "boot failure" rung deliberately.
+
+The one call this credential can make that matters most — finalising an
+auth request — sits behind `loginclient.Client.CompleteIfSufficient`, the
+**only** path that can reach the unexported `finalize` call
+(`sufficiency.go`). A caller cannot skip the sufficiency decision (org
+`forceMfa` and `forceMfaLocalOnly`, and — since #854 Task 8 — the user's
+own enrolled second factors) by calling `finalize` directly, because
+nothing outside the package can name it. This is enforced by an arch
+test, not a convention: it asserts the Zitadel finalize call appears in
+exactly one call site **within `backend/`**, so a second Go call site
+added later fails CI rather than silently becoming a bypass.
+
+Two boundaries on that claim, stated so it is not read as more than it
+is. The arch test walks `backend/` only, and excludes `_test.go` files.
+Outside that scope there is exactly one **known and accepted** other call
+site: `scripts/lib/zitadel.mjs`'s `passwordLoginIDToken`, a dev-only
+verification helper that mints an ID token for local testing. It is not
+production code, does not ship, and is not reachable from a request — but
+it does POST the finalize endpoint with the login-client PAT, so "nothing
+outside `CompleteIfSufficient` finalises an auth request" is true of the
+Go API and not of the repository. Nothing in the frontend does; keeping
+it that way is a deployment/config control (keep the PAT out of the
+frontend's reach), not something a Go arch test can enforce.
+
+The org-policy half of the sufficiency decision reads **two** wire fields,
+not one: `forceMfa` and `forceMfaLocalOnly` (the latter a real, supported
+Zitadel configuration — "require MFA for local users, not federated
+ones"). They are registered in a single list (`mfaPolicyKeys`) that
+drives both the read and the rename/re-casing guard, so adding a third is
+a one-place change; a test pins that the read is genuinely list-driven,
+because a list that guards a key without reading it is a silent MFA
+bypass.
+
 ## 6. Events
 
 All cross-module data flows through NATS JetStream via

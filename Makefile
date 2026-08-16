@@ -136,6 +136,26 @@ RATE_LIMIT_PRINCIPAL_PER_MIN ?= 100000
 # key via .env can override it the same way every other HMS_* variable
 # here works.
 HMS_DEV_SESSION_SIGNING_KEY ?= X5yoi73f6FRR8XH2ZfRBjanOZLm/bkae0QV7wGJRuf8=
+
+# ZITADEL_LOGIN_CLIENT_PAT_FILE is written by Zitadel's first-instance
+# provisioning (docker-compose.dev.yml's zitadel service,
+# FirstInstance.Org.LoginClient.PatPath) — NOT by scripts/zitadel-bootstrap.mjs
+# the way zitadel.env is, so it exists as soon as the zitadel container has
+# finished its one-time FirstInstance run, independent of whether
+# dev-infra's bootstrap script has run yet. It carries the SAME ordering
+# trap docker-compose.dev.yml's zitadel-pat-ready service documents for
+# zitadel-login: on a fresh clone the file does not exist the instant the
+# zitadel container starts, only once provisioning completes. `make up`'s
+# dependency chain (dev-infra, which polls Zitadel's own /debug/healthz
+# before returning) means the file is already present by the time dev-api
+# runs it through `make -j2 dev-api dev-web` — but a developer invoking
+# `make dev-api` directly, before `make dev-infra` has ever completed, hits
+# the same missing-file case `dev-api`'s existing ZITADEL_CLIENT_ID check
+# just above guards against, so this fails the same fail-closed way rather
+# than booting the API with an empty PAT (which config.go's own
+# RequireZitadelLoginClientToken would then refuse anyway, just later and
+# with a less specific message).
+ZITADEL_LOGIN_CLIENT_PAT_FILE ?= dev/zitadel/secrets/login-client.pat
 dev-api:
 	@if [ -z "$${ZITADEL_CLIENT_ID:-$(ZITADEL_CLIENT_ID)}" ]; then \
 		echo "ZITADEL_CLIENT_ID is not set — run 'make dev-infra' first so" >&2; \
@@ -143,7 +163,14 @@ dev-api:
 		echo "write dev/zitadel/secrets/zitadel.env." >&2; \
 		exit 1; \
 	fi
-	cd backend && HMS_ENV=$${HMS_ENV:-dev} ZITADEL_ISSUER_URL=$${ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} ZITADEL_CLIENT_ID=$${ZITADEL_CLIENT_ID:-$(ZITADEL_CLIENT_ID)} SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-$(HMS_DEV_SESSION_SIGNING_KEY)} PORT=$${PORT:-$(HMS_API_PORT)} RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) go run ./cmd/api
+	@if [ -z "$${ZITADEL_LOGIN_CLIENT_TOKEN:-}" ] && [ ! -s "$(ZITADEL_LOGIN_CLIENT_PAT_FILE)" ]; then \
+		echo "$(ZITADEL_LOGIN_CLIENT_PAT_FILE) does not exist or is empty — run" >&2; \
+		echo "'make dev-infra' first so Zitadel's first-instance provisioning" >&2; \
+		echo "can write it (see docker-compose.dev.yml's zitadel-pat-ready" >&2; \
+		echo "service comment for why this can lag the container starting)." >&2; \
+		exit 1; \
+	fi
+	cd backend && HMS_ENV=$${HMS_ENV:-dev} ZITADEL_ISSUER_URL=$${ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} ZITADEL_CLIENT_ID=$${ZITADEL_CLIENT_ID:-$(ZITADEL_CLIENT_ID)} ZITADEL_LOGIN_CLIENT_TOKEN=$${ZITADEL_LOGIN_CLIENT_TOKEN:-$$(cat ../$(ZITADEL_LOGIN_CLIENT_PAT_FILE))} SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-$(HMS_DEV_SESSION_SIGNING_KEY)} PORT=$${PORT:-$(HMS_API_PORT)} RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) go run ./cmd/api
 
 dev-web:
 	@# Source dev/zitadel/secrets/zitadel.env at RECIPE RUN TIME, not via

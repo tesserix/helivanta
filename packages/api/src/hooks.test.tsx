@@ -15,6 +15,19 @@ function MutationProbe() {
   return <button onClick={() => m.mutate(undefined)}>go</button>;
 }
 
+function SilentMutationProbe() {
+  const m = useApiMutation(() => Promise.reject(new Error("shh")), { suppressErrorToast: true });
+  return (
+    <>
+      <button onClick={() => m.mutate(undefined)}>go</button>
+      {/* The caller's own error surface — proves suppressErrorToast does
+          not disable error reporting altogether, only the automatic
+          toast. */}
+      {m.error ? <p role="alert">{m.error.message}</p> : null}
+    </>
+  );
+}
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe("useApiQuery", () => {
@@ -38,5 +51,20 @@ describe("useApiMutation", () => {
     const { user } = renderWithProviders(<MutationProbe />);
     await user.click(screen.getByRole("button", { name: "go" }));
     await waitFor(() => expect(document.body.textContent).toContain("nope"));
+  });
+
+  // Review finding: a caller with its own dedicated error surface (the
+  // shell's login form) must be able to opt out of the automatic toast
+  // without losing error reporting altogether.
+  it("suppresses the toast when suppressErrorToast is set, without suppressing the error itself", async () => {
+    const { user } = renderWithProviders(<SilentMutationProbe />);
+    await user.click(screen.getByRole("button", { name: "go" }));
+
+    // The mutation's own error state still surfaces (the caller's alert).
+    expect(await screen.findByRole("alert")).toHaveTextContent("shh");
+    // sonner's toast region never received the message — the only signal
+    // of "shh" anywhere in the document is the caller's own alert.
+    const occurrences = document.body.textContent?.split("shh").length ?? 1;
+    expect(occurrences - 1).toBe(1);
   });
 });

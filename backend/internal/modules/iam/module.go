@@ -319,6 +319,35 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	// member of the ACTING admin's own tenant.
 	g.POST("/me/sign-out", authz.NoTenantMembership, rev.signOut)
 	g.POST("/subjects/:subject/revoke", PermCredentialRevoke, rev.adminRevoke)
+
+	m.registerActivity(r, deps)
+}
+
+// registerActivity mounts POST /v1/auth/session/activity (#848 Task 4,
+// spec D4) at /auth, a sibling of /iam under the SAME r ("/v1") this
+// module was handed — not nested under g ("/v1/iam") — because the
+// route belongs beside the other pre-session auth endpoints
+// (/v1/auth/login) by URL shape, even though, unlike login, it runs
+// INSIDE the authenticated chain: it re-mints an EXISTING session
+// rather than creating one, so it needs a live principal
+// authn.Middleware has already verified, and is declared through
+// platform.Router like any other route rather than mounted on the raw
+// engine the way login is (see bootstrap.MountUnauthenticated and
+// login.go's own doc comment on why login cannot be here).
+//
+// NoTenantMembership, the same self-service convention registerMe's
+// routes use just above (see its doc comment): this endpoint's only
+// job is proving a human is still at the keyboard and extending the
+// window that fact earns, which has nothing to do with what the caller
+// is a member of. A caller whose tenant membership was revoked mid-shift
+// must still be able to call it — the alternative would 404 an activity
+// signal from someone who is legitimately still present, for a reason
+// unrelated to whether they are present.
+func (m *Module) registerActivity(r *platform.Router, deps platform.Deps) {
+	act := newActivityHandlers(deps.SessionSigner, deps.SessionTTL, deps.SessionSecureCookie,
+		deps.IdleTimeout, deps.Limiter, deps.ActivityRateLimit)
+	auth := r.Group("/auth")
+	auth.POST("/session/activity", authz.NoTenantMembership, act.activity)
 }
 
 // Publishes declares the three events iam emits: member_granted and

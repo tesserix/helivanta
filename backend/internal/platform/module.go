@@ -6,6 +6,7 @@ import (
 
 	"github.com/tesserix/hms/pkg/authz"
 	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/hms/pkg/ratelimit"
 	"github.com/tesserix/hms/pkg/session"
 	"github.com/tesserix/hms/pkg/tenantdb"
 )
@@ -68,6 +69,29 @@ type Deps struct {
 	// Reconcile ensures a tenant's permission tuples match the registry.
 	// Set by main.go; nil in tests that do not exercise it.
 	Reconcile func(ctx context.Context, tenantID string) error
+	// IdleTimeout is cfg.IdleTimeout (#848 Task 4): the window POST
+	// /v1/auth/session/activity re-opens on every call it serves. The
+	// SAME value iam.LoginDeps.IdleTimeout feeds a genuine login with —
+	// there is exactly one idle window in this system, and the two
+	// endpoints that can ever grant a fresh one must agree on its
+	// length.
+	IdleTimeout time.Duration
+	// Limiter is the SAME ratelimit.Limiter instance cmd/api/main.go
+	// builds once for bootstrap.V1Chain and for iam.LoginDeps.Limiter
+	// (#841's rule: exactly one construction, reused everywhere it is
+	// needed) — threaded through Deps so a route registered via
+	// platform.Router (inside the authenticated chain, unlike login)
+	// can still apply its OWN budget on top of ratelimit.Middleware's
+	// Principal bucket. nil in tests that do not exercise a
+	// rate-limited route; ratelimit.Memory has no error return, so a
+	// nil Limiter is handled the same fail-open way
+	// iam.LoginHandlers.Login already does.
+	Limiter ratelimit.Limiter
+	// ActivityRateLimit is bootstrap.ActivityRateLimitRule(cfg): the
+	// budget POST /v1/auth/session/activity applies to Limiter above.
+	// See that function's doc comment for the exact numbers and the
+	// traffic shape they are sized against.
+	ActivityRateLimit ratelimit.Rule
 }
 
 // Module is the registration contract from issue #2.

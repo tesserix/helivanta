@@ -301,6 +301,8 @@ var noTenantMembershipAllowlist = map[string]string{
 	"GET /iam/me/tenants":     "answers 'where do I belong'; unusable if it required belonging",
 	"POST /iam/me/tenant":     "gates on membership itself before minting (iam/me.go switchTenant)",
 	"POST /iam/me/sign-out":   "a revoked member must still be able to end their own session (iam/signout.go signOut)",
+	"POST /auth/session/activity": "extends idle_deadline for a caller who is genuinely still present; " +
+		"has nothing to do with what they are a member of (#848 Task 4, iam/activity.go)",
 }
 
 // TestNoTenantMembershipAllowlist pins the set of routes permitted to
@@ -911,6 +913,7 @@ func f(c *C, ctx Ctx) { c.do(ctx, http.MethodPost, "/v2/sessions", nil) }
 //   - _test.go files are excluded. Test code does not ship, and a handler
 //     test legitimately stands up a fake Zitadel that receives this exact
 //     POST — flagging those would block Task 4 while protecting nothing.
+//
 //   - The walk roots at backend/, so this proves the finalize call is
 //     unique WITHIN backend/ — not within the repository. A Next.js
 //     route handler in apps/shell could POST the endpoint directly with

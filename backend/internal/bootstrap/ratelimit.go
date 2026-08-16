@@ -68,6 +68,35 @@ func LoginRateLimitRule(cfg config.Config) ratelimit.Rule {
 	return ratelimit.Rule{Rate: cfg.RateLimitLoginPerMin, Burst: 10, Per: time.Minute}
 }
 
+// ActivityRateLimitRule builds the budget for POST
+// /v1/auth/session/activity (#848 Task 4), keyed "activity:"+subject in
+// iam.activityHandlers.activity rather than folded into the Principal
+// rule above — see that field's doc comment for why sharing the bucket
+// would let this endpoint's traffic and a caller's ordinary API traffic
+// throttle each other.
+//
+// Unlike LoginRateLimitRule, this route DOES also pass through
+// ratelimit.Middleware's Principal bucket (it is registered inside the
+// authenticated /v1 chain, not mounted on the raw engine the way login
+// is) — this Rule is a SECOND, narrower budget layered on top, not a
+// replacement for that one.
+//
+// Sized against spec D4's actual traffic shape: a browser calls this
+// endpoint on genuine interaction, debounced to at most once per 60
+// seconds, and shared across every open tab via BroadcastChannel — so
+// one clinician's legitimate traffic is roughly 1/min regardless of how
+// many tabs are open (unlike login's traffic, which scales with tab
+// count because BroadcastChannel does not coordinate renewal). Rate=10/min
+// is an order of magnitude above that sustained rate, and Burst=3 comfortably
+// covers the BroadcastChannel-unavailable fallback (D4: "per-tab timers ...
+// more requests, same behaviour") for a small number of tabs firing within
+// the same second, while still bounding a flood far below the shared
+// Principal budget (RateLimitPrincipalPerMin, default 120/min) that every
+// other request from the same subject also draws from.
+func ActivityRateLimitRule(cfg config.Config) ratelimit.Rule {
+	return ratelimit.Rule{Rate: cfg.RateLimitActivityPerMin, Burst: 3, Per: time.Minute}
+}
+
 func RateLimitConfig(cfg config.Config) ratelimit.Config {
 	return ratelimit.Config{
 		Tenant: ratelimit.Rule{

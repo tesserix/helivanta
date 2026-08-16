@@ -198,6 +198,15 @@ type Config struct {
 	// docs/superpowers/specs/2026-08-16-login-rate-limit-design.md D2 for
 	// the arithmetic behind the default.
 	RateLimitLoginPerMin int
+	// RateLimitActivityPerMin bounds POST /v1/auth/session/activity
+	// (#848 Task 4), keyed on the authenticated subject — a separate
+	// knob from RateLimitPrincipalPerMin for the same shape of reason
+	// RateLimitLoginPerMin is: this endpoint's legitimate traffic (D4's
+	// 60-second debounce, shared across tabs) has nothing to do with
+	// ordinary API call volume, so a shared budget would let the two
+	// throttle each other. See bootstrap.ActivityRateLimitRule for the
+	// arithmetic behind the default.
+	RateLimitActivityPerMin int
 }
 
 func Load() Config {
@@ -241,6 +250,7 @@ func Load() Config {
 		RateLimitTenantPerMin:    getenvInt("RATE_LIMIT_TENANT_PER_MIN", 600),
 		RateLimitPrincipalPerMin: getenvInt("RATE_LIMIT_PRINCIPAL_PER_MIN", 120),
 		RateLimitLoginPerMin:     getenvInt("RATE_LIMIT_LOGIN_PER_MIN", 20),
+		RateLimitActivityPerMin:  getenvInt("RATE_LIMIT_ACTIVITY_PER_MIN", 10),
 	}
 }
 

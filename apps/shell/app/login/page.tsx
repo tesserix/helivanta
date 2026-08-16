@@ -1,11 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@tesserix/web";
+import {
+  AuthCardCentered,
+  AuthCardFooter,
+  AuthLayoutCentered,
+  Button,
+} from "@tesserix/web";
 import { SIGNED_OUT_MARK } from "@hms/ui";
 
 import { getUserManager } from "@/lib/oidc";
 
+// Uses @tesserix/web's AuthLayout chrome, deliberately WITHOUT its
+// credential parts. That family also ships the pieces for a full sign-in
+// form, and the temptation is to reach for them because they are right
+// there and would make this page look "complete". They must not be used
+// here: the moment HMS renders an email and password field it owns the
+// credential surface again, which blocks hospital SSO and puts clinicians'
+// passwords back through our frontend. This card holds one button, on
+// purpose. AuthSocialProviders is unused for the same class of reason —
+// HMS has no identity provider configured (spec D5, deferred until a
+// hospital asks), so a federated sign-in button would offer a path that
+// does not exist.
+//
 // Login is a redirect, not a form (design spec D5a). HMS renders no
 // password field: Zitadel's hosted login at NEXT_PUBLIC_ZITADEL_ISSUER_URL
 // owns the credential surface, MFA, password reset and lockout, so a
@@ -86,9 +103,9 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6 text-center">
-        <div className="space-y-2">
+    <AuthLayoutCentered>
+      <AuthCardCentered>
+        <div className="space-y-2 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">HMS</h1>
           <p className="text-sm text-muted-foreground">
             {signedOut ? "You are signed out." : "Sign in to continue."}
@@ -104,7 +121,13 @@ export default function LoginPage() {
             {error}
           </p>
         ) : null}
-      </div>
-    </main>
+
+        <AuthCardFooter>
+          <p className="text-xs text-muted-foreground">
+            You will be redirected to sign in securely.
+          </p>
+        </AuthCardFooter>
+      </AuthCardCentered>
+    </AuthLayoutCentered>
   );
 }

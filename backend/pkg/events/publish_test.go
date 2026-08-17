@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/helivanta/pkg/events"
 )
 
 // TestPublishInvalidEventID verifies that a malformed event ID returns an

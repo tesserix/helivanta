@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/tesserix/hms/internal/platform/requestid"
+	"github.com/tesserix/helivanta/internal/platform/requestid"
 )
 
 func OK(c *gin.Context, data any)       { c.JSON(http.StatusOK, data) }

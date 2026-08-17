@@ -4,10 +4,10 @@
 package pharmacy
 
 import (
-	pharmacycontract "github.com/tesserix/hms/internal/modules/pharmacy/contract"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 const (

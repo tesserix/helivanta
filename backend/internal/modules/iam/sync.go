@@ -7,10 +7,10 @@ import (
 
 	"gorm.io/gorm"
 
-	iamcontract "github.com/tesserix/hms/internal/modules/iam/contract"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/events"
+	iamcontract "github.com/tesserix/helivanta/internal/modules/iam/contract"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
 )
 
 type fgaSyncHandlers struct {

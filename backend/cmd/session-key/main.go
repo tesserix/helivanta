@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/tesserix/hms/internal/config"
+	"github.com/tesserix/helivanta/internal/config"
 )
 
 func main() {

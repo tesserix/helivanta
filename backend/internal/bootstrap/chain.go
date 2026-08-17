@@ -3,11 +3,11 @@ package bootstrap
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/tesserix/hms/internal/config"
-	"github.com/tesserix/hms/internal/platform/requestid"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/ratelimit"
+	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/internal/platform/requestid"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/ratelimit"
 )
 
 // V1Chain is the middleware chain mounted under /v1, in order. It exists

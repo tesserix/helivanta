@@ -6,9 +6,9 @@ import (
 
 	"gorm.io/gorm"
 
-	referencecontract "github.com/tesserix/hms/internal/modules/reference/contract"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/events"
+	referencecontract "github.com/tesserix/helivanta/internal/modules/reference/contract"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/events"
 )
 
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer {

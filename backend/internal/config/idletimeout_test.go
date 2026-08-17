@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/config"
+	"github.com/tesserix/helivanta/internal/config"
 )
 
 // TestRequireIdleTimeout_Zero_Refuses is the boot refusal itself: "0"

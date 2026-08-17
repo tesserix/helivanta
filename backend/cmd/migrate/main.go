@@ -10,10 +10,10 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/tesserix/hms/internal/bootstrap"
-	"github.com/tesserix/hms/internal/config"
-	"github.com/tesserix/hms/pkg/logging"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 func main() {

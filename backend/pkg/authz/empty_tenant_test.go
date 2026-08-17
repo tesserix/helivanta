@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 // TestEmptyTenantDeniesAgainstRealOpenFGA is plan Task 4's Step Zero,

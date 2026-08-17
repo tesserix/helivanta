@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/config"
+	"github.com/tesserix/helivanta/internal/config"
 )
 
 // TestRequireZitadelLoginClientToken_Unset_Refuses is the fail-fast boot

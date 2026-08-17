@@ -13,12 +13,12 @@
 package bootstrap
 
 import (
-	"github.com/tesserix/hms/internal/modules/iam"
-	"github.com/tesserix/hms/internal/modules/lab"
-	"github.com/tesserix/hms/internal/modules/medicore"
-	"github.com/tesserix/hms/internal/modules/pharmacy"
-	"github.com/tesserix/hms/internal/modules/reference"
-	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/helivanta/internal/modules/iam"
+	"github.com/tesserix/helivanta/internal/modules/lab"
+	"github.com/tesserix/helivanta/internal/modules/medicore"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/reference"
+	"github.com/tesserix/helivanta/internal/platform"
 )
 
 // Modules returns every registered module, in registration order. iam

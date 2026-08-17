@@ -3,7 +3,7 @@ package tenantdb
 import (
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/pagination"
 )
 
 // ApplyKeyset adds the ordering, the position predicate and the +1 probe

@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/session"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/session"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // TupleWriter is the subset of the authz client that modules may use to

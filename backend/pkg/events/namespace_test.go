@@ -6,7 +6,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/testinfra"
+	"github.com/tesserix/helivanta/internal/testinfra"
 )
 
 const pingSubject = "hms.in.reference.pinged.v1"

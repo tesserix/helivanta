@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tesserix/hms/internal/bootstrap"
-	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // TestAllMigrationsPassRLSLint applies every migration to a fresh

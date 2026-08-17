@@ -7,9 +7,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/bootstrap"
-	"github.com/tesserix/hms/internal/httpserver"
-	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/httpserver"
+	"github.com/tesserix/helivanta/internal/platform"
 )
 
 // TestEveryEngineRouteIsDeclaredOrAllowlisted closes the one hole in the

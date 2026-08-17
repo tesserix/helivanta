@@ -17,7 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/logging"
 )
 
 const phiMarker = "[REDACTED:phi]"

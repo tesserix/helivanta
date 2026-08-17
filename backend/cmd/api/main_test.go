@@ -9,8 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/httpserver"
-	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/helivanta/internal/httpserver"
+	"github.com/tesserix/helivanta/pkg/logging"
 )
 
 // TestGinRecoveryOutputIsRedacted proves the fix for the gin.Recovery() gap:

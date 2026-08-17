@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 func TestPermissionSetHas(t *testing.T) {

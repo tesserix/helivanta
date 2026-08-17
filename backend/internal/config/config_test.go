@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/config"
-	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/pkg/logging"
 )
 
 // The default must be production. A guard that defaults to permissive

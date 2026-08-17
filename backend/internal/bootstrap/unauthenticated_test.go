@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/bootstrap"
 )
 
 func stubHandler(c *gin.Context) { c.Status(http.StatusOK) }

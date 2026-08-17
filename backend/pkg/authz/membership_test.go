@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 type fakeMembershipChecker struct {

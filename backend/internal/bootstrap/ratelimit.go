@@ -3,8 +3,8 @@ package bootstrap
 import (
 	"time"
 
-	"github.com/tesserix/hms/internal/config"
-	"github.com/tesserix/hms/pkg/ratelimit"
+	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/pkg/ratelimit"
 )
 
 // RateLimitConfig builds the rate-limiting policy from cfg. cmd/api calls

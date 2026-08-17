@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/pagination"
 )
 
 const testTenant = "11111111-1111-1111-1111-111111111111"

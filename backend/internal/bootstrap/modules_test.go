@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/modules/iam"
+	"github.com/tesserix/helivanta/internal/modules/iam"
 )
 
 func TestModulesReturnsIAMFirst(t *testing.T) {

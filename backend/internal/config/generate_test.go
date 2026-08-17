@@ -8,7 +8,7 @@ import (
 	// NOTE the module path: it is hms/internal/config, NOT
 	// hms/backend/internal/config — the go.mod lives in backend/ and the
 	// module is named without that segment. Match signingkey_test.go.
-	"github.com/tesserix/hms/internal/config"
+	"github.com/tesserix/helivanta/internal/config"
 )
 
 // The generator's output must be accepted by the REAL validator, not by

@@ -13,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/logging"
 )
 
 func TestParseLevel(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/tesserix/hms/pkg/session"
+	"github.com/tesserix/helivanta/pkg/session"
 )
 
 // sessionTokenVerifier adapts *session.Verifier to the TokenVerifier

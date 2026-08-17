@@ -18,7 +18,7 @@ Cross-zone navigation is a hard navigation between separate Next apps (by design
 | TTL | 24 hours; older entries are ignored on hydration |
 | Trust model | Unchanged — presentation-only; the API remains the enforcement layer |
 
-Delivered as one vertical slice: backend change + `@hms/api`/`@hms/ui`/shell changes + tests on both sides, folded into a single PR closing #760.
+Delivered as one vertical slice: backend change + `@helivanta/api`/`@helivanta/ui`/shell changes + tests on both sides, folded into a single PR closing #760.
 
 ## Design
 

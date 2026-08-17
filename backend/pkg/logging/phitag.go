@@ -1,6 +1,6 @@
 package logging
 
-// Tag redaction: masking struct fields tagged `hmslog:"phi"` before slog
+// Tag redaction: masking struct fields tagged `helivantalog:"phi"` before slog
 // serialises them.
 //
 // This is the half of PHI redaction that patterns cannot do. A name, a date of
@@ -97,8 +97,8 @@ import (
 
 const (
 	// phiTagKey/phiTagValue are the struct tag this layer reads:
-	// `hmslog:"phi"`.
-	phiTagKey   = "hmslog"
+	// `helivantalog:"phi"`.
+	phiTagKey   = "helivantalog"
 	phiTagValue = "phi"
 
 	// phiMarkerJSON is the replacement, already JSON-encoded. It matches the
@@ -517,11 +517,11 @@ func collectFields(t reflect.Type, depth int, force bool, promoting map[reflect.
 		name := jsonEmittedName(tag)
 
 		// The phi tag is read as a comma-separated option list so a future
-		// `hmslog:"phi,<option>"` still masks. Comparing the whole tag against
-		// "phi" made `hmslog:"phi,strict"` silently mask nothing — a tag that
+		// `helivantalog:"phi,<option>"` still masks. Comparing the whole tag against
+		// "phi" made `helivantalog:"phi,strict"` silently mask nothing — a tag that
 		// looks like it is doing its job and is not.
-		hmsOpt, _, _ := strings.Cut(sf.Tag.Get(phiTagKey), ",")
-		phi := force || hmsOpt == phiTagValue
+		tagOpt, _, _ := strings.Cut(sf.Tag.Get(phiTagKey), ",")
+		phi := force || tagOpt == phiTagValue
 
 		// The promotion test uses the *effective* name, matching
 		// encoding/json: an embedded struct whose tag name was rejected has no
@@ -814,7 +814,7 @@ func skipValue(dec *json.Decoder, tok json.Token) error {
 }
 
 // NewPHITagHandler wraps inner so that attribute values whose type declares
-// `hmslog:"phi"` fields are masked before inner sees them.
+// `helivantalog:"phi"` fields are masked before inner sees them.
 //
 // Everything else passes through untouched — same record, same attributes,
 // same values — so a logger with this handler installed and one without emit

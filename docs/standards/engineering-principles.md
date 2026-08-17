@@ -4,7 +4,7 @@ Binding on every contributor, human or agent. The backend and frontend
 standards say *how* to write code here; this says *what standard of solution is
 acceptable at all*. Where a rule below conflicts with expedience, the rule wins.
 
-HMS is a multi-year enterprise build for hospitals. Its failure modes are
+Helivanta is a multi-year enterprise build for hospitals. Its failure modes are
 clinical and regulatory, not cosmetic: a wrong merge of two patient records is a
 patient-safety event, a cross-tenant read is a reportable breach under the DPDP
 Act, and an unaudited access is an accreditation finding. Code written to "get

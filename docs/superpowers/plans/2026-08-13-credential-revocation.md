@@ -180,7 +180,7 @@ This is the assertion that stops a future "simplification" from re-opening the p
 Modify `backend/pkg/authz/model.go`. Update the doc comment and add the type:
 
 ```go
-// modelJSON is the complete HMS authorization model. It deliberately
+// modelJSON is the complete Helivanta authorization model. It deliberately
 // contains no role names and no permission names: roles and permissions
 // are objects, and granting is a tuple write. This file changes only if
 // the *shape* of authorization changes (for example when per-record or
@@ -849,8 +849,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/tesserix/hms/internal/platform/respond"
-	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
 )
 
 // MembershipChecker answers whether a subject belongs to a tenant.
@@ -1431,7 +1431,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 const (
@@ -1660,12 +1660,12 @@ func TestBroadcastReachesEverySubscriber(t *testing.T) {
 	received := make(chan string, subscribers)
 	for range subscribers {
 		require.NoError(t, bus.StartBroadcasts(ctx, []Broadcast{{
-			Subject: "hms.in.iam.credential_revoked.v1",
+			Subject: "helivanta.in.iam.credential_revoked.v1",
 			Handle:  func(_ context.Context, evt Event) { received <- string(evt.Data) },
 		}}))
 	}
 
-	publishDirectly(t, bus, "hms.in.iam.credential_revoked.v1", Event{
+	publishDirectly(t, bus, "helivanta.in.iam.credential_revoked.v1", Event{
 		Type: "CredentialRevoked", Version: 1, Data: json.RawMessage(`{"subject":"uid-nurse"}`),
 	})
 
@@ -1802,7 +1802,7 @@ git commit -m "feat: add ephemeral broadcast subscriptions so every replica hear
 
 **Interfaces:**
 - Consumes: `iam.NewRevocationChecker` (Task 4), `events.Broadcast` (Task 5), `authz.NoTenantMembership` (Task 3).
-- Produces: `iam.SubjectCredentialRevoked = "hms.in.iam.credential_revoked.v1"`; `iam.CredentialRevokedData{Subject string}`; `iam.PermCredentialRevoke authz.Permission = "iam.credential.revoke"`.
+- Produces: `iam.SubjectCredentialRevoked = "helivanta.in.iam.credential_revoked.v1"`; `iam.CredentialRevokedData{Subject string}`; `iam.PermCredentialRevoke authz.Permission = "iam.credential.revoke"`.
 - **`iam.New` changes signature** from `New() *Module` to `New(checker *RevocationChecker) *Module`, storing it as `m.checker`. Every caller changes: `bootstrap.NewRegistry()`, and every `iam` test. This is deliberate — the module and the authentication middleware must share **one** checker instance, because the middleware reads the cache the module's broadcast handler invalidates. Two instances compile, pass most tests, and silently never invalidate the cache the request path actually consults.
 - `platform.Deps` deliberately does **not** gain the checker: `platform` must not import a module. It gains `TokenRevoker authn.TokenRevoker` only; the checker reaches `iam` through its constructor.
 - `platform.Module` gains `Broadcasts(deps Deps) []events.Broadcast`. Every other module returns nil — add the method to each, in the same file as its `Consumers`, so the interface stays satisfied.
@@ -1813,7 +1813,7 @@ git commit -m "feat: add ephemeral broadcast subscriptions so every replica hear
 
 ```go
 // TokenRevoker revokes a subject's refresh tokens at the identity
-// provider, so GIP agrees with the HMS watermark instead of quietly
+// provider, so GIP agrees with the Helivanta watermark instead of quietly
 // disagreeing. One method wide, for the same reason TokenMinter is.
 type TokenRevoker interface {
 	RevokeRefreshTokens(ctx context.Context, uid string) error
@@ -1896,14 +1896,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/platform/requestid"
-	"github.com/tesserix/hms/internal/platform/respond"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/platform/requestid"
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-const SubjectCredentialRevoked = "hms.in.iam.credential_revoked.v1"
+const SubjectCredentialRevoked = "helivanta.in.iam.credential_revoked.v1"
 
 // CredentialRevokedData is the v1 payload. It carries only the subject:
 // every replica needs to know which cache entry to drop, and nothing
@@ -1984,8 +1984,8 @@ func (h *revocationHandlers) adminRevoke(c *gin.Context) {
 // only at TTL, or an invalidation for a revocation that never happened.
 //
 // GIP is told after the commit: it is not transactional, and a GIP
-// failure must not roll back a revocation HMS has already decided on.
-// The HMS watermark is authoritative on the request path, so a GIP call
+// failure must not roll back a revocation Helivanta has already decided on.
+// The Helivanta watermark is authoritative on the request path, so a GIP call
 // that fails leaves the credential refused here regardless — it is
 // logged loudly rather than surfaced as a failure the caller might
 // retry into a double revoke.
@@ -2013,7 +2013,7 @@ func (h *revocationHandlers) revoke(c *gin.Context, subject string, at time.Time
 	if h.revoker != nil {
 		if err := h.revoker.RevokeRefreshTokens(c.Request.Context(), subject); err != nil {
 			requestid.Logger(c).ErrorContext(c.Request.Context(),
-				"HMS revoked the credential but GIP refresh-token revocation failed; the identity provider will keep issuing tokens this platform refuses",
+				"Helivanta revoked the credential but GIP refresh-token revocation failed; the identity provider will keep issuing tokens this platform refuses",
 				"err", err, "subject", subject)
 		}
 	}
@@ -2356,7 +2356,7 @@ PR body must carry: link to #781, the three defects and how each is closed, the 
 
 ## Known limitations (carry into the PR body)
 
-- A GIP-console-only account disable is not honoured until an HMS revoke is issued. There is no reconciliation job; that option was considered and declined (spec D1).
+- A GIP-console-only account disable is not honoured until a Helivanta revoke is issued. There is no reconciliation job; that option was considered and declined (spec D1).
 - Revocation is per subject, not per session or device. Signing out anywhere signs out everywhere (spec D5). Per-device revocation is #424.
 - Propagation is sub-second normally and bounded at 5 minutes when a replica misses the broadcast.
 - Admin revoke crosses tenant boundaries by construction, bounded by the acting-tenant membership gate and logged.

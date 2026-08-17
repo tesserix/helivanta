@@ -12,7 +12,7 @@
 > and `docs/standards/backend.md` for the authoritative contract. Task 8 and the
 > "Tags:" block below are preserved for history only.
 
-**Goal:** Give the HMS backend one JSON slog pipeline with tenant/subject correlation and PHI redaction, and mechanically protect the single clause that today prevents GORM from dumping patient rows into the logs.
+**Goal:** Give the Helivanta backend one JSON slog pipeline with tenant/subject correlation and PHI redaction, and mechanically protect the single clause that today prevents GORM from dumping patient rows into the logs.
 
 **Architecture:** Five parts were planned, sequenced so the urgent guard lands first in its own PR. Part A adds an arch test plus a captured-stderr property test around `tenantdb.Open`'s `logger.Silent`. Parts B–D build `backend/pkg/logging`: a JSON handler with `LOG_LEVEL` control, request-scoped correlation fields wired in the platform middleware chain, and **pattern redaction at the writer** (screening the serialised bytes slog actually emits). **Part E — tag redaction at the handler (`hmslog:"phi"`, for the names and dates patterns cannot match) — ships, but not as planned below: the reflection design in Task 8 was WITHDRAWN after review and replaced by the marshal-then-mask implementation under issue #778. See the banner above.**
 
@@ -21,7 +21,7 @@
 **Tech Stack:** Go 1.26, `log/slog`, `gorm.io/gorm`, `gin-gonic/gin`, `go/ast` (arch tests), `testify/require`, testcontainers via `internal/testutil`.
 
 **Spec:** `docs/superpowers/specs/2026-08-13-structured-logging-phi-redaction-design.md`
-**Issue:** [#678](https://github.com/tesserix/hms/issues/678) (already assigned to `mahesh-sangawar`)
+**Issue:** [#678](https://github.com/tesserix/helivanta/issues/678) (already assigned to `mahesh-sangawar`)
 
 ## Global Constraints
 
@@ -597,7 +597,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/logging"
 )
 
 func TestParseLevel(t *testing.T) {
@@ -794,7 +794,7 @@ plain text on stderr and none of it is redacted.
 
 - [ ] **Step 1: Wire `cmd/api`**
 
-In `backend/cmd/api/main.go`, add `"github.com/tesserix/hms/pkg/logging"` to the imports
+In `backend/cmd/api/main.go`, add `"github.com/tesserix/helivanta/pkg/logging"` to the imports
 and insert immediately after `cfg := config.Load()`, **before** the existing
 `slog.Info("resolved environment", ...)` line:
 
@@ -979,7 +979,7 @@ func TestEnrichIsScopedToTheRequest(t *testing.T) {
 ```
 
 Add to that file's imports: `"bytes"`, `"encoding/json"`, `"log/slog"`, `"strings"`,
-and `"github.com/tesserix/hms/pkg/authn"`.
+and `"github.com/tesserix/helivanta/pkg/authn"`.
 
 - [ ] **Step 2: Run and confirm failure**
 
@@ -991,7 +991,7 @@ Expected: build failure — `undefined: requestid.PrincipalMiddleware`, `request
 
 - [ ] **Step 3: Implement**
 
-In `backend/internal/platform/requestid/requestid.go`, add `"github.com/tesserix/hms/pkg/authn"`
+In `backend/internal/platform/requestid/requestid.go`, add `"github.com/tesserix/helivanta/pkg/authn"`
 to the imports and append:
 
 ```go
@@ -1143,7 +1143,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/logging"
 )
 
 func TestRedactPatterns(t *testing.T) {
@@ -1841,7 +1841,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/logging"
 )
 
 type patient struct {

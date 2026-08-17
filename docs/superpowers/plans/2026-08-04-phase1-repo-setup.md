@@ -1,16 +1,16 @@
-# HMS Phase 1 — Repo Setup Implementation Plan
+# Helivanta Phase 1 — Repo Setup Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Stand up the hms monorepo — pnpm/Turbo workspace, Go modular-monolith backend with a `reference` module proving authn → RLS-scoped DB → outbox → JetStream → consumer end-to-end, a shell Next.js app with GIP login, a medicore zone app, local dev stack, CI, and ADRs.
 
-**Architecture:** One repo: `apps/` (Next.js 16 multi-zone frontends), `backend/` (single Go module `github.com/tesserix/hms`, modular monolith per issue #2), `packages/` (shared JS config). Zones are path-mounted (`/medicore`) behind the shell's rewrites; all data access goes through the Go API at `/api/*`. Auth is Google Identity Platform (GIP) via Firebase SDKs; tenancy enforced with forced PostgreSQL RLS; cross-module data flows only via NATS JetStream events through a transactional outbox.
+**Architecture:** One repo: `apps/` (Next.js 16 multi-zone frontends), `backend/` (single Go module `github.com/tesserix/helivanta`, modular monolith per issue #2), `packages/` (shared JS config). Zones are path-mounted (`/medicore`) behind the shell's rewrites; all data access goes through the Go API at `/api/*`. Auth is Google Identity Platform (GIP) via Firebase SDKs; tenancy enforced with forced PostgreSQL RLS; cross-module data flows only via NATS JetStream events through a transactional outbox.
 
 **Tech Stack:** Go 1.26, Gin, GORM + PostgreSQL 16, NATS JetStream, Firebase Admin SDK (Go + Node), Next.js 16, React 19, Tailwind v4, `@tesserix/web` 1.8.x, pnpm + Turborepo, testcontainers-go, Playwright.
 
 ## Global Constraints
 
-- Go module path is exactly `github.com/tesserix/hms`, rooted at `backend/` (spec D1/issue #2).
+- Go module path is exactly `github.com/tesserix/helivanta`, rooted at `backend/` (spec D1/issue #2).
 - Backend module boundaries: `internal/modules/<name>` must never import another module's packages (spec D6).
 - Every table with a `tenant_id` column MUST have RLS enabled **and forced** with a policy carrying both `USING` and `WITH CHECK` (issue #2); the RLS linter test (Task 4) enforces this.
 - Runtime DB access only via `tenantdb.WithTenant` — no exported raw `*gorm.DB` from the app pool (issue #2).
@@ -117,13 +117,13 @@ playwright-report/
 `README.md` — replace contents with:
 
 ```markdown
-# HMS
+# Helivanta
 
-Hospital Management System platform — multi-zone monorepo.
+Helivanta — a hospital management system platform, multi-zone monorepo.
 
 - `apps/` — Next.js 16 zone apps (shell, medicore, pharmacy, lab) + mobile stubs
-- `backend/` — Go modular monolith (`github.com/tesserix/hms`)
-- `packages/` — shared JS config and HMS UI compositions
+- `backend/` — Go modular monolith (`github.com/tesserix/helivanta`)
+- `packages/` — shared JS config and Helivanta UI compositions
 - Design: `docs/superpowers/specs/2026-08-04-hms-repo-setup-design.md`
 - ADRs: `docs/adr/`
 
@@ -312,7 +312,7 @@ git commit -m "feat: local dev stack with postgres, nats, redis, openfga, gip em
 
 - [ ] **Step 1: Init module and stub packages**
 
-Run: `mkdir -p backend && cd backend && go mod init github.com/tesserix/hms && go get github.com/gin-gonic/gin@latest github.com/google/uuid@latest`
+Run: `mkdir -p backend && cd backend && go mod init github.com/tesserix/helivanta && go get github.com/gin-gonic/gin@latest github.com/google/uuid@latest`
 
 Create minimal stubs so `platform` compiles before Tasks 4/6 (each of those tasks replaces its stub):
 
@@ -403,8 +403,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 type fakeModule struct{ name string }
@@ -442,8 +442,8 @@ package platform
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // Deps is everything a module may depend on. Modules must not reach
@@ -569,9 +569,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tesserix/hms/internal/config"
-	"github.com/tesserix/hms/internal/httpserver"
-	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/internal/httpserver"
+	"github.com/tesserix/helivanta/internal/platform"
 )
 
 func main() {
@@ -718,8 +718,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 var testMigrations = []tenantdb.Migration{{
@@ -951,7 +951,7 @@ Replace `srv := httpserver.New(nil)` with:
 	})
 ```
 
-Add import `"github.com/tesserix/hms/pkg/tenantdb"`.
+Add import `"github.com/tesserix/helivanta/pkg/tenantdb"`.
 
 Run: `cd backend && go build ./...`
 Expected: builds clean.
@@ -998,7 +998,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authn"
 )
 
 type fakeVerifier struct{ p authn.Principal; err error }
@@ -1195,7 +1195,7 @@ git commit -m "feat: gip token verification middleware with tenant claim enforce
 - Consumes: `tenantdb.DB.Migrate` (Task 4) for the outbox/idempotency migrations; `events.Event`, `events.Consumer` (Task 3).
 - Produces:
   - `events.Migrations() []tenantdb.Migration` — creates `outbox_events` and `processed_events` (neither has a `tenant_id` column; tenant travels inside the envelope, so the RLS linter ignores them).
-  - `events.NewBus(natsURL string) (*Bus, error)` — connects, ensures stream `HMS` on `hms.>`.
+  - `events.NewBus(natsURL string) (*Bus, error)` — connects, ensures stream `HELIVANTA` on `helivanta.>`.
   - `(*Bus).Publish(tx *gorm.DB, subject string, evt Event) error` — inserts into the outbox inside the caller's transaction; assigns `evt.ID` (uuid) and `OccurredAt` if zero.
   - `(*Bus).RunDispatcher(ctx context.Context, db OutboxStore)` — polls unpublished rows, publishes with `Nats-Msg-Id` = event id, marks published. `OutboxStore` is the interface `WithSystem(ctx, fn func(tx *gorm.DB) error) error` implemented by tenantdb (added here).
   - `(*Bus).StartConsumers(ctx context.Context, db OutboxStore, consumers []Consumer) error` — durable pull subscription per consumer, idempotency via `processed_events`.
@@ -1266,9 +1266,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 func TestOutboxPublishDispatchConsume(t *testing.T) {
@@ -1287,7 +1287,7 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 	var handled atomic.Int32
 	require.NoError(t, bus.StartConsumers(ctx, db, []events.Consumer{{
 		Name:    "test-consumer",
-		Subject: "hms.in.reference.pinged.v1",
+		Subject: "helivanta.in.reference.pinged.v1",
 		Handle: func(ctx context.Context, evt events.Event) error {
 			handled.Add(1)
 			return nil
@@ -1297,7 +1297,7 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 
 	// Publish inside a transaction — commits to outbox, not to NATS.
 	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
-		return bus.Publish(tx, "hms.in.reference.pinged.v1", events.Event{
+		return bus.Publish(tx, "helivanta.in.reference.pinged.v1", events.Event{
 			Type: "ReferencePinged", Version: 1, TenantID: "t-1",
 			Data: json.RawMessage(`{"ping_id":"p-1"}`),
 		})
@@ -1335,10 +1335,10 @@ import (
 	"github.com/nats-io/nats.go"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-const StreamName = "HMS"
+const StreamName = "Helivanta"
 
 // OutboxStore is the slice of tenantdb the bus needs (system tables only).
 type OutboxStore interface {
@@ -1382,7 +1382,7 @@ func NewBus(natsURL string) (*Bus, error) {
 	}
 	_, err = js.AddStream(&nats.StreamConfig{
 		Name:      StreamName,
-		Subjects:  []string{"hms.>"},
+		Subjects:  []string{"helivanta.>"},
 		Retention: nats.LimitsPolicy,
 		MaxAge:    7 * 24 * time.Hour,
 	})
@@ -1543,7 +1543,7 @@ git commit -m "feat: transactional outbox event bus with jetstream dispatch and 
 
 - Consumes: `platform.Module`/`Deps` (Task 3), `tenantdb.WithTenant` (Task 4), `authn.Middleware`/`PrincipalFrom` (Task 5), `events.Bus.Publish` + `Consumer` (Task 6).
 - Produces: HTTP under authenticated group `/v1`:
-  - `POST /v1/reference/ping` `{"message": "..."}` → `202 {"id": "<uuid>"}` — writes row + outbox event `ReferencePinged` on `hms.in.reference.pinged.v1` in ONE transaction.
+  - `POST /v1/reference/ping` `{"message": "..."}` → `202 {"id": "<uuid>"}` — writes row + outbox event `ReferencePinged` on `helivanta.in.reference.pinged.v1` in ONE transaction.
   - `GET /v1/reference/pings` → `200 {"data": [...]}` (tenant-scoped).
   - `GET /v1/reference/pings/:id` → `200` or `404` (cross-tenant probes get 404, never 403 — issue #2).
   - Consumer `reference-receipts` records each event into `reference_ping_receipts`.
@@ -1567,12 +1567,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/modules/reference"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/modules/reference"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
 
@@ -1685,13 +1685,13 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-const SubjectPinged = "hms.in.reference.pinged.v1"
+const SubjectPinged = "helivanta.in.reference.pinged.v1"
 
 type Module struct{}
 
@@ -1913,7 +1913,7 @@ func run() error {
 }
 ```
 
-Imports: add `fmt`, `github.com/tesserix/hms/internal/modules/reference`, `github.com/tesserix/hms/pkg/authn`, `github.com/tesserix/hms/pkg/events`, `github.com/tesserix/hms/pkg/tenantdb`.
+Imports: add `fmt`, `github.com/tesserix/helivanta/internal/modules/reference`, `github.com/tesserix/helivanta/pkg/authn`, `github.com/tesserix/helivanta/pkg/events`, `github.com/tesserix/helivanta/pkg/tenantdb`.
 
 - [ ] **Step 6: Verify against the live dev stack**
 
@@ -2000,7 +2000,7 @@ Expected: workflow green.
 **Interfaces:**
 
 - Consumes: `@tesserix/web` 1.8.x (`AppShell` etc. — components imported from package root), Tailwind v4 pattern from mark8ly (`@import "tailwindcss"` + `@source` + `@tesserix/web/styles`).
-- Produces: `@hms/config` tsconfig base used by all apps; `HmsShell` client component (sidebar+header chrome) reused verbatim by zone apps; shell dev server on port 4301 with rewrites `/medicore/*→:4302`, `/api/*→:8080`.
+- Produces: `@helivanta/config` tsconfig base used by all apps; `HmsShell` client component (sidebar+header chrome) reused verbatim by zone apps; shell dev server on port 4301 with rewrites `/medicore/*→:4302`, `/api/*→:8080`.
 
 - [ ] **Step 1: Shared config package**
 
@@ -2008,7 +2008,7 @@ Expected: workflow green.
 
 ```json
 {
-  "name": "@hms/config",
+  "name": "@helivanta/config",
   "version": "0.0.0",
   "private": true,
   "files": ["tsconfig.base.json"]
@@ -2042,7 +2042,7 @@ Expected: workflow green.
 
 ```json
 {
-  "name": "@hms/shell",
+  "name": "@helivanta/shell",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -2061,7 +2061,7 @@ Expected: workflow green.
     "framer-motion": "^12.0.0"
   },
   "devDependencies": {
-    "@hms/config": "workspace:*",
+    "@helivanta/config": "workspace:*",
     "@tailwindcss/postcss": "^4.1.0",
     "@types/node": "^22",
     "@types/react": "^19",
@@ -2102,7 +2102,7 @@ export default nextConfig;
 
 ```json
 {
-  "extends": "@hms/config/tsconfig.base.json",
+  "extends": "@helivanta/config/tsconfig.base.json",
   "compilerOptions": {
     "plugins": [{ "name": "next" }],
     "paths": { "@/*": ["./*"] }
@@ -2155,7 +2155,7 @@ export function HmsShell({
   return (
     <div className="flex min-h-screen">
       <aside className="w-56 shrink-0 border-r bg-sidebar text-sidebar-foreground">
-        <div className="px-4 py-5 text-lg font-semibold">HMS</div>
+        <div className="px-4 py-5 text-lg font-semibold">Helivanta</div>
         <nav className="flex flex-col gap-1 px-2">
           {NAV.map((item) => (
             <a
@@ -2176,7 +2176,7 @@ export function HmsShell({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center justify-between border-b px-6">
           <span className="text-sm text-muted-foreground">
-            Hospital Management System
+            Helivanta
           </span>
           <a
             href="/logout"
@@ -2198,7 +2198,7 @@ export function HmsShell({
 import type { Metadata } from "next";
 import "./globals.css";
 
-export const metadata: Metadata = { title: "HMS" };
+export const metadata: Metadata = { title: "Helivanta" };
 
 export default function RootLayout({
   children,
@@ -2267,7 +2267,7 @@ API_URL=http://localhost:8080
 `apps/mobile/README.md`:
 
 ```markdown
-# HMS Mobile (stubs)
+# Helivanta Mobile (stubs)
 
 Reserved for Expo apps per spec D7 (issues #11, #566, #567): doctor,
 patient, nurse, pharmacist. They will share `packages/api-client` and
@@ -2276,7 +2276,7 @@ patient, nurse, pharmacist. They will share `packages/api-client` and
 
 - [ ] **Step 3: Install and verify build**
 
-Run: `NODE_AUTH_TOKEN=<PKG_READ_TOKEN from env or gh auth token> pnpm install && pnpm --filter @hms/shell build`
+Run: `NODE_AUTH_TOKEN=<PKG_READ_TOKEN from env or gh auth token> pnpm install && pnpm --filter @helivanta/shell build`
 Expected: build succeeds. (If `@tesserix/web` auth fails, export `NODE_AUTH_TOKEN` with a GitHub token that has `read:packages`.)
 
 - [ ] **Step 4: Commit**
@@ -2374,7 +2374,7 @@ export default function LoginPage() {
         onSubmit={onSubmit}
         className="w-full max-w-sm space-y-4 rounded-lg border p-6"
       >
-        <h1 className="text-xl font-semibold">Sign in to HMS</h1>
+        <h1 className="text-xl font-semibold">Sign in to Helivanta</h1>
         <label className="block text-sm">
           Email
           <input
@@ -2548,7 +2548,7 @@ main().catch((e) => {
 
 - [ ] **Step 6: Verify the full login flow manually**
 
-Run: `make dev-infra && make seed && pnpm --filter @hms/shell dev &` then:
+Run: `make dev-infra && make seed && pnpm --filter @helivanta/shell dev &` then:
 
 - `curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" http://localhost:4301/` → expected `307 http://localhost:4301/login` (guard works).
 - Browser: visit `http://localhost:4301/login`, sign in with `test@hms.dev` / `password123` → lands on dashboard with sidebar. Stop the dev server after.
@@ -2575,11 +2575,11 @@ git commit -m "feat: gip login with session cookie, route guard and dev seed"
 
 - [ ] **Step 1: Scaffold the zone**
 
-`apps/medicore/package.json` — same as shell's minus `firebase`, name `@hms/medicore`, ports 4302:
+`apps/medicore/package.json` — same as shell's minus `firebase`, name `@helivanta/medicore`, ports 4302:
 
 ```json
 {
-  "name": "@hms/medicore",
+  "name": "@helivanta/medicore",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -2597,7 +2597,7 @@ git commit -m "feat: gip login with session cookie, route guard and dev seed"
     "framer-motion": "^12.0.0"
   },
   "devDependencies": {
-    "@hms/config": "workspace:*",
+    "@helivanta/config": "workspace:*",
     "@tailwindcss/postcss": "^4.1.0",
     "@types/node": "^22",
     "@types/react": "^19",
@@ -2756,7 +2756,7 @@ export default function IpdPage() {
 
 - [ ] **Step 3: Verify zone stitching end-to-end**
 
-Run: `pnpm install && make dev-infra && make seed`, then in three terminals (or backgrounded): backend API with `FIREBASE_AUTH_EMULATOR_HOST=localhost:9099`, `pnpm --filter @hms/shell dev`, `pnpm --filter @hms/medicore dev`.
+Run: `pnpm install && make dev-infra && make seed`, then in three terminals (or backgrounded): backend API with `FIREBASE_AUTH_EMULATOR_HOST=localhost:9099`, `pnpm --filter @helivanta/shell dev`, `pnpm --filter @helivanta/medicore dev`.
 
 - Browser: log in at `http://localhost:4301/login`, click "OPD" in the sidebar → URL is `http://localhost:4301/medicore/opd` (served by the medicore app through the shell rewrite), identical sidebar, "Ping from OPD" adds a row that persists across reloads and shows on the IPD page too (same tenant, same API).
 - `curl -s -o /dev/null -w "%{http_code}" http://localhost:4301/api/v1/reference/pings` → `401` (API auth enforced through the rewrite chain).
@@ -2784,7 +2784,7 @@ git commit -m "feat: medicore zone with opd and ipd pages consuming reference ap
 **Interfaces:**
 
 - Consumes: full dev stack (Tasks 2, 7, 9–11), seed user `test@hms.dev`/`password123` (Task 10).
-- Produces: `pnpm --filter @hms/e2e test` running the cross-zone journey headlessly.
+- Produces: `pnpm --filter @helivanta/e2e test` running the cross-zone journey headlessly.
 
 - [ ] **Step 1: E2E package**
 
@@ -2792,7 +2792,7 @@ git commit -m "feat: medicore zone with opd and ipd pages consuming reference ap
 
 ```json
 {
-  "name": "@hms/e2e",
+  "name": "@helivanta/e2e",
   "version": "0.0.0",
   "private": true,
   "scripts": { "test": "playwright test" },
@@ -2843,7 +2843,7 @@ test("login, dashboard, cross-zone OPD ping", async ({ page }) => {
 
 - [ ] **Step 2: Run it**
 
-Run (with the full stack + seed up, as in Task 11 Step 3): `pnpm install && pnpm --filter @hms/e2e exec playwright install chromium && pnpm --filter @hms/e2e test`
+Run (with the full stack + seed up, as in Task 11 Step 3): `pnpm install && pnpm --filter @helivanta/e2e exec playwright install chromium && pnpm --filter @helivanta/e2e test`
 Expected: 1 passed.
 
 - [ ] **Step 3: Commit**
@@ -2878,8 +2878,8 @@ git commit -m "test: playwright smoke covering login and cross-zone opd journey"
 - **Context:** Issue #665 asked where product code lives. Issue #2 fixes the
   backend as one Go module. The frontend needs per-product team isolation
   without per-department domain sprawl.
-- **Decision:** `tesserix/hms` is a full monorepo: `apps/` (Next.js zones),
-  `backend/` (Go modular monolith `github.com/tesserix/hms`), `packages/`.
+- **Decision:** `tesserix/helivanta` is a full monorepo: `apps/` (Next.js zones),
+  `backend/` (Go modular monolith `github.com/tesserix/helivanta`), `packages/`.
   Zones map 1:1 to products (MediCore, PharmaConnect, LabConnect …) and are
   path-mounted (`/medicore`) behind the shell on one tenant domain. JS uses
   pnpm workspaces + Turborepo (deviation from mark8ly's npm — matches the
@@ -2899,7 +2899,7 @@ git commit -m "test: playwright smoke covering login and cross-zone opd journey"
 - **Context:** Foundational issues say "Keycloak/GIP" interchangeably. The
   org already runs per-product GIP tenants on tesseracthub-480811 with
   canonical onboarding scripts in tesserix-k8s (docs/identity/).
-- **Decision:** All HMS authentication uses GIP. Frontends use the Firebase
+- **Decision:** All Helivanta authentication uses GIP. Frontends use the Firebase
   Web/native SDKs (emulator locally); the Go API verifies GIP ID tokens via
   the Firebase Admin SDK and requires a `tenant_id` custom claim. Keycloak
   is not deployed. Where issues name Keycloak, read GIP.
@@ -2912,7 +2912,7 @@ git commit -m "test: playwright smoke covering login and cross-zone opd journey"
 `docs/deployment/tesserix-k8s-proposal.md`:
 
 ```markdown
-# tesserix-k8s changes for HMS (proposal)
+# tesserix-k8s changes for Helivanta (proposal)
 
 Phase 1 ships images only; this is the paste-ready plan for the infra PR.
 
@@ -2939,7 +2939,7 @@ under a new `hms` appGroup with the standard ci.yml/release.yml workflows.
 
 ## Identity
 
-Create GIP tenant(s) for HMS via scripts/identity/enable-tenant-google-idp.py.
+Create GIP tenant(s) for Helivanta via scripts/identity/enable-tenant-google-idp.py.
 ```
 
 - [ ] **Step 2: Add web job to CI**
@@ -2964,7 +2964,7 @@ web:
         NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
 ```
 
-Note: `PKG_READ_TOKEN` repo secret (GitHub token with `read:packages`) must exist — same convention as the other tesserix frontend repos. If it is missing, add it: `gh secret set PKG_READ_TOKEN --repo tesserix/hms`.
+Note: `PKG_READ_TOKEN` repo secret (GitHub token with `read:packages`) must exist — same convention as the other tesserix frontend repos. If it is missing, add it: `gh secret set PKG_READ_TOKEN --repo tesserix/helivanta`.
 
 - [ ] **Step 3: Verify and commit**
 

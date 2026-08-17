@@ -1,6 +1,6 @@
-# HMS Platform SDK — Documentation
+# Helivanta Platform SDK — Documentation
 
-The HMS platform ships ~9 backend services (Go) and ~6 web portals (React/Next.js) that must all behave identically on the concerns that cannot be allowed to diverge: **tenant/data isolation, security, privacy (PHI/DPDP), observability, and reliability**. The SDK is where those concerns are solved once, tested once, and consumed everywhere.
+The Helivanta platform ships ~9 backend services (Go) and ~6 web portals (React/Next.js) that must all behave identically on the concerns that cannot be allowed to diverge: **tenant/data isolation, security, privacy (PHI/DPDP), observability, and reliability**. The SDK is where those concerns are solved once, tested once, and consumed everywhere.
 
 | Document                           | Contents                                                                                                                                        |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -11,8 +11,8 @@ The HMS platform ships ~9 backend services (Go) and ~6 web portals (React/Next.j
 
 ## TL;DR
 
-- **Two SDKs**: `hms-go-sdk` (backend, evolving from `go-shared`) and `@tesserix/hms-*` (frontend, evolving from `design-system` / `@tesserix/web`).
+- **Two SDKs**: `helivanta-go-sdk` (backend, evolving from `go-shared`) and `@tesserix/helivanta-*` (frontend, evolving from `design-system` / `@tesserix/web`).
 - **Golden rule**: the SDK contains _generic platform capability only_ — never domain logic. "Audit event emitter" belongs; "prescription validation" never does.
 - **Non-negotiables enforced by the SDK, not by review**: tenant binding on every DB access (RLS), fail-closed authorization, PHI-redacted logs and telemetry, standard error envelope, audit emission for sensitive actions.
-- **Consumption**: versioned packages via GitHub Packages; services/apps are generated from starter templates (`create-hms-service`, `create-hms-app`) with everything wired.
+- **Consumption**: versioned packages via GitHub Packages; services/apps are generated from starter templates (`create-helivanta-service`, `create-helivanta-app`) with everything wired.
 - Work is tracked on the [Hospital Management System board](https://github.com/orgs/tesserix/projects/12) under **MVP 0 — Planning & SDK Foundation** (issues #664–#716).

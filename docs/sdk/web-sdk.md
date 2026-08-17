@@ -1,4 +1,4 @@
-# Frontend Web SDK (`@tesserix/hms-*`)
+# Frontend Web SDK (`@tesserix/helivanta-*`)
 
 pnpm workspace publishing scoped packages to GitHub Packages. Evolves from `design-system` / `@tesserix/web` (which remains a compatibility alias for existing consumers until migrated).
 Targets: React 19 portals (Vite/Next.js), TypeScript strict. Core logic framework-agnostic; React bindings thin (architecture §4.8).
@@ -6,24 +6,24 @@ Targets: React 19 portals (Vite/Next.js), TypeScript strict. Core logic framewor
 ## Package structure
 
 ```
-hms-web-sdk/
+helivanta-web-sdk/
 ├── packages/
-│   ├── core/          # @tesserix/hms-core        shared types, error envelope, result utils
-│   ├── tokens/        # @tesserix/hms-tokens      design tokens, theming, RTL primitives   (#697)
-│   ├── components/    # @tesserix/hms-components  component library                        (#698)
-│   ├── auth/          # @tesserix/hms-auth        BFF session client + guards              (#699)
-│   ├── api-client/    # @tesserix/hms-api         OpenAPI codegen toolchain + runtime      (#700)
-│   ├── telemetry/     # @tesserix/hms-telemetry   vitals, errors, PHI-safe analytics       (#701)
-│   ├── i18n/          # @tesserix/hms-i18n        i18n runtime + RTL switching             (#702)
-│   ├── a11y/          # @tesserix/hms-a11y        a11y utilities + lint rules              (#703)
-│   ├── flags/         # @tesserix/hms-flags       GrowthBook client                        (#704)
-│   ├── data/          # @tesserix/hms-data        TanStack Query defaults, offline cache   (#705)
-│   └── forms/         # @tesserix/hms-forms       schema-driven forms                      (#706)
+│   ├── core/          # @tesserix/helivanta-core        shared types, error envelope, result utils
+│   ├── tokens/        # @tesserix/helivanta-tokens      design tokens, theming, RTL primitives   (#697)
+│   ├── components/    # @tesserix/helivanta-components  component library                        (#698)
+│   ├── auth/          # @tesserix/helivanta-auth        BFF session client + guards              (#699)
+│   ├── api-client/    # @tesserix/helivanta-api         OpenAPI codegen toolchain + runtime      (#700)
+│   ├── telemetry/     # @tesserix/helivanta-telemetry   vitals, errors, PHI-safe analytics       (#701)
+│   ├── i18n/          # @tesserix/helivanta-i18n        i18n runtime + RTL switching             (#702)
+│   ├── a11y/          # @tesserix/helivanta-a11y        a11y utilities + lint rules              (#703)
+│   ├── flags/         # @tesserix/helivanta-flags       GrowthBook client                        (#704)
+│   ├── data/          # @tesserix/helivanta-data        TanStack Query defaults, offline cache   (#705)
+│   └── forms/         # @tesserix/helivanta-forms       schema-driven forms                      (#706)
 ├── apps/
 │   ├── storybook/     # component workshop + a11y checks                                   (#707)
 │   └── playground/    # sample app exercising every package (the SDK's own consumer)
 └── tools/
-    └── create-hms-app/ # portal scaffolder                                                 (#708)
+    └── create-helivanta-app/ # portal scaffolder                                                 (#708)
 ```
 
 ## Layering
@@ -99,7 +99,7 @@ Schema-driven rendering on `components` with sync/async validation, standard err
 
 Every component/story with theme + LTR/RTL toggles; getting-started and per-package guides; deployed on merge, versioned with releases; docs examples compile in CI (stale docs fail the build).
 
-### `create-hms-app` (#708)
+### `create-helivanta-app` (#708)
 
 Generates a portal wired with all packages, sample authenticated page/form/list with tests, CI, Dockerfile, Helm/ArgoCD stubs. Must pass lint, tests, axe and bundle budget unmodified.
 

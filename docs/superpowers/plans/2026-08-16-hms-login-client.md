@@ -1,12 +1,12 @@
-# HMS as Zitadel's Login Client — Implementation Plan
+# Helivanta as Zitadel's Login Client — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** HMS renders its own email/password login form, driving Zitadel's Session API as a login client, so no Zitadel-branded page is ever shown.
+**Goal:** Helivanta renders its own email/password login form, driving Zitadel's Session API as a login client, so no Zitadel-branded page is ever shown.
 
-**Architecture:** The `hms-web` OIDC app points its per-app login base URL at HMS's `/login`. The Go API (module `iam`, which already owns `POST /v1/auth/login`) holds the `IAM_LOGIN_CLIENT` credential and drives `GET /v2/oidc/auth_requests/{id}` → `POST /v2/sessions` → `POST /v2/oidc/auth_requests/{id}`. The returned `callbackUrl` is HMS's existing callback, so PKCE, the login exchange, session minting, renewal and sign-out are untouched.
+**Architecture:** The `helivanta-web` OIDC app points its per-app login base URL at Helivanta's `/login`. The Go API (module `iam`, which already owns `POST /v1/auth/login`) holds the `IAM_LOGIN_CLIENT` credential and drives `GET /v2/oidc/auth_requests/{id}` → `POST /v2/sessions` → `POST /v2/oidc/auth_requests/{id}`. The returned `callbackUrl` is Helivanta's existing callback, so PKCE, the login exchange, session minting, renewal and sign-out are untouched.
 
-**Tech Stack:** Go 1.26 + Gin, Next.js 16 + React 19, `@tesserix/web` auth components, `useZodForm`/`Field` from `@hms/ui`, Vitest, Playwright, Zitadel v4.15.3.
+**Tech Stack:** Go 1.26 + Gin, Next.js 16 + React 19, `@tesserix/web` auth components, `useZodForm`/`Field` from `@helivanta/ui`, Vitest, Playwright, Zitadel v4.15.3.
 
 **Spec:** `docs/superpowers/specs/2026-08-16-hms-login-client-design.md`
 **Spike (observed behaviour — trust this over any documentation):** `docs/superpowers/spikes/2026-08-16-zitadel-login-client.md`
@@ -21,7 +21,7 @@
 - **Accessible names are a contract** (spec D6): the field labels must be exactly `Email` and `Password`, and the submit button's accessible name exactly `Sign in`.
 - **slog only** (logrus banned); request-scoped logger via `requestid.Logger(c)`; wrap errors with `%w`.
 - **`respond.*` helpers for every response** — never `c.JSON` directly.
-- Frontend: `useZodForm` + `Field` from `@hms/ui`, `noValidate` on the form, inline zod errors. Native browser validation is banned. No raw `fetch`/`useState` polling in components.
+- Frontend: `useZodForm` + `Field` from `@helivanta/ui`, `noValidate` on the form, inline zod errors. Native browser validation is banned. No raw `fetch`/`useState` polling in components.
 - Before any task is done: `make lint-go` clean, `cd backend && ./scripts/coverage-gate.sh` green (70% floor), `go test -race ./...` green, and for frontend tasks `pnpm turbo lint type-check test build` green.
 - The dev Zitadel is at `http://localhost:20080`; the login-client PAT is `dev/zitadel/secrets/login-client.pat`; the seeded user is `test@hms.dev` / `HmsDev123!`.
 
@@ -31,7 +31,7 @@
 
 **This task can invalidate the whole approach. Do it first and stop if it fails.**
 
-Spec D1 scopes the change to the `hms-web` app so other Tesserix products on the shared Zitadel instance are unaffected. The per-app setting is documented but was **not** exercised in the spike. If only the instance-wide setting works, stop and report — the decision goes back to the platform team.
+Spec D1 scopes the change to the `helivanta-web` app so other Tesserix products on the shared Zitadel instance are unaffected. The per-app setting is documented but was **not** exercised in the spike. If only the instance-wide setting works, stop and report — the decision goes back to the platform team.
 
 **Files:**
 - Modify: `scripts/lib/zitadel.mjs` (the app-provisioning helper)
@@ -46,17 +46,17 @@ grep -n "oidc\|apps\|createApp\|updateApp" scripts/lib/zitadel.mjs | head -30
 Then read the live app config, to see exactly which fields an update must preserve:
 
 ```bash
-Z=http://localhost:20080; SEED=$(cat dev/zitadel/secrets/hms-seed.pat)
+Z=http://localhost:20080; SEED=$(cat dev/zitadel/secrets/helivanta-seed.pat)
 PROJECT=$(curl -s -X POST "$Z/management/v1/projects/_search" -H "Authorization: Bearer $SEED" -H 'Content-Type: application/json' -d '{}' | python3 -m json.tool)
 echo "$PROJECT"
 ```
 
 - [ ] **Step 2: Set the per-app login base URL and observe the redirect change**
 
-The `hms-web` app id and project id come from Step 1. The v1 management API updates an OIDC app's config with `PUT /management/v1/projects/{projectId}/apps/{appId}/oidc_config`; the login-version fields are `loginVersion.loginV2.baseUri`.
+The `helivanta-web` app id and project id come from Step 1. The v1 management API updates an OIDC app's config with `PUT /management/v1/projects/{projectId}/apps/{appId}/oidc_config`; the login-version fields are `loginVersion.loginV2.baseUri`.
 
 ```bash
-Z=http://localhost:20080; SEED=$(cat dev/zitadel/secrets/hms-seed.pat)
+Z=http://localhost:20080; SEED=$(cat dev/zitadel/secrets/helivanta-seed.pat)
 curl -s -w '\nHTTP %{http_code}\n' -X PUT \
   "$Z/management/v1/projects/$PROJECT_ID/apps/$APP_ID/oidc_config" \
   -H "Authorization: Bearer $SEED" -H 'Content-Type: application/json' \
@@ -78,7 +78,7 @@ Expected: `Location:` now points at `http://localhost:4301/login?authRequest=V2_
 
 - [ ] **Step 4: Make it reproducible from a fresh clone**
 
-Add the same call to `scripts/lib/zitadel.mjs` so `make up` configures it, immediately after the `hms-web` app is created/updated. Give it a comment naming #854 and stating that the per-app scope is deliberate because the instance is shared.
+Add the same call to `scripts/lib/zitadel.mjs` so `make up` configures it, immediately after the `helivanta-web` app is created/updated. Give it a comment naming #854 and stating that the per-app scope is deliberate because the instance is shared.
 
 - [ ] **Step 5: Prove it from scratch**
 
@@ -94,7 +94,7 @@ Then re-run Step 3's curl. Expected: the redirect points at `/login?authRequest=
 
 ```bash
 git add scripts/
-git commit -m "feat: point the hms-web app's login UI at HMS, per-app not instance-wide (#854)"
+git commit -m "feat: point the helivanta-web app's login UI at Helivanta, per-app not instance-wide (#854)"
 ```
 
 ---
@@ -290,7 +290,7 @@ git commit -m "feat: Zitadel login-client protocol wrapper (#854)"
 
 ### Task 3: Authentication sufficiency (spec D4) — the security core
 
-The spike proved Zitadel issues an authorization code for a **password-only** session even when the org policy sets `forceMfa`. So HMS must decide sufficiency itself, and the decision must be **structurally unavoidable**.
+The spike proved Zitadel issues an authorization code for a **password-only** session even when the org policy sets `forceMfa`. So Helivanta must decide sufficiency itself, and the decision must be **structurally unavoidable**.
 
 **Files:**
 - Create: `backend/internal/modules/iam/loginclient/sufficiency.go`
@@ -337,7 +337,7 @@ func countingZitadel(t *testing.T, policyJSON string, finalized *atomic.Bool) *C
 }
 
 // THE test this whole spec exists for. Zitadel will happily finalize a
-// password-only session under forceMfa (spike §2) — HMS must not ask it to.
+// password-only session under forceMfa (spike §2) — Helivanta must not ask it to.
 func TestCompleteIfSufficientDoesNotFinalizeWhenForceMFA(t *testing.T) {
 	var finalized atomic.Bool
 	c := countingZitadel(t, `{"policy":{"forceMfa":true}}`, &finalized)
@@ -455,7 +455,7 @@ Then add a second POST to that path in another file, re-run, confirm FAIL, and r
 
 ```bash
 git add backend/internal/modules/iam/loginclient/ backend/internal/archtest/
-git commit -m "feat: HMS enforces MFA sufficiency itself; Zitadel does not for a login client (#854)"
+git commit -m "feat: Helivanta enforces MFA sufficiency itself; Zitadel does not for a login client (#854)"
 ```
 
 ---
@@ -584,9 +584,9 @@ Set `MinFailedLoginDuration` to `0`. Re-run `TestPasswordFailureTimingIsEqualise
 Add to `bootstrap.UnauthenticatedRoutes`, each with its reason:
 
 ```go
-"GET /v1/auth/login/request/:id": "renders the login form before any HMS session exists",
+"GET /v1/auth/login/request/:id": "renders the login form before any Helivanta session exists",
 "POST /v1/auth/login/password":   "checks the credential that creates the session, so it cannot require one",
-"POST /v1/auth/login/handoff/:id": "hands an auth request to the hosted login when HMS cannot complete it",
+"POST /v1/auth/login/handoff/:id": "hands an auth request to the hosted login when Helivanta cannot complete it",
 ```
 
 and register them in `MountUnauthenticated`, extending its signature.
@@ -669,7 +669,7 @@ git commit -m "feat: wire the login client into the API and prove it against rea
 
 - [ ] **Step 1: Write the failing tests**
 
-Extend `login.test.tsx` using `renderWithProviders` from `@hms/api/testing`:
+Extend `login.test.tsx` using `renderWithProviders` from `@helivanta/api/testing`:
 
 ```tsx
 it("renders fields whose accessible names match the e2e contract", async () => {
@@ -707,10 +707,10 @@ pnpm --filter shell test -- login
 - [ ] **Step 3: Implement the form**
 
 - Read `authRequest` from the query string. **If it is absent, keep today's behaviour**: the landing page with a Sign in button that calls `signinRedirect({ prompt: "login" })` — that is how a user arriving at `/login` directly gets an auth request at all, and #847's reasons for a button (not a mount-time redirect) still hold.
-- With an `authRequest` present, render the credential form: `useZodForm` + `Field` from `@hms/ui`, `noValidate`, inline zod errors, labels exactly `Email` and `Password`, submit button exactly `Sign in`.
+- With an `authRequest` present, render the credential form: `useZodForm` + `Field` from `@helivanta/ui`, `noValidate`, inline zod errors, labels exactly `Email` and `Password`, submit button exactly `Sign in`.
 - Keep `AuthLayoutCentered` / `AuthCardCentered` / `AuthCardFooter` from `@tesserix/web`.
-- On submit call `POST /v1/auth/login/password` through `@hms/api`. On `callback_url`, navigate there. On `handoff_url`, navigate there. On refusal, one `role="alert"` message that never distinguishes which field was wrong.
-- **Rewrite the page's long header comment.** It currently states HMS renders no password field and that doing so would be wrong. That is now false. Replace it with: what this page is, that D5a was reversed by #854, that the accessible names are a contract, and — most importantly — that a password check alone is **not** sufficient authentication (spec D4), which is why the API may answer with a handoff and the page must honour it rather than treating it as an error.
+- On submit call `POST /v1/auth/login/password` through `@helivanta/api`. On `callback_url`, navigate there. On `handoff_url`, navigate there. On refusal, one `role="alert"` message that never distinguishes which field was wrong.
+- **Rewrite the page's long header comment.** It currently states Helivanta renders no password field and that doing so would be wrong. That is now false. Replace it with: what this page is, that D5a was reversed by #854, that the accessible names are a contract, and — most importantly — that a password check alone is **not** sufficient authentication (spec D4), which is why the API may answer with a handoff and the page must honour it rather than treating it as an error.
 - Keep the `SIGNED_OUT_MARK` handling exactly as it is.
 
 - [ ] **Step 4: Run and watch them pass**
@@ -729,7 +729,7 @@ pnpm turbo lint type-check test build
 
 ```bash
 git add apps/shell/
-git commit -m "feat: HMS renders its own login form (#854)"
+git commit -m "feat: Helivanta renders its own login form (#854)"
 ```
 
 ---
@@ -757,7 +757,7 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
 }
 ```
 
-Update the file's header comment: it currently says every field lives on `auth.tesserix.app` and that HMS's own form "never existed here". Both are now wrong. State that the form is HMS's own and that the accessible names are D6's contract.
+Update the file's header comment: it currently says every field lives on `auth.tesserix.app` and that Helivanta's own form "never existed here". Both are now wrong. State that the form is Helivanta's own and that the accessible names are D6's contract.
 
 Keep the retry loop, `MAX_SIGN_IN_ATTEMPTS`, the `auth_time` reasoning and the per-spec account derivation **exactly** as they are — none of that changes.
 
@@ -779,13 +779,13 @@ export NODE_AUTH_TOKEN=$(gh auth token)
 make up && make verify-local
 ```
 
-Expected: `All checks passed`, and signing in at http://localhost:4301 shows **HMS's** form with no Zitadel-branded page at any point.
+Expected: `All checks passed`, and signing in at http://localhost:4301 shows **Helivanta's** form with no Zitadel-branded page at any point.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add e2e/ docs/
-git commit -m "test: drive HMS's own login form in the e2e suite (#854)"
+git commit -m "test: drive Helivanta's own login form in the e2e suite (#854)"
 ```
 
 ---
@@ -800,7 +800,7 @@ git commit -m "test: drive HMS's own login form in the e2e suite (#854)"
 - [ ] **Step 1: Record what the implementation actually observed**
 
 The spec lists two unknowns. Resolve both, in writing:
-- **`passwordChangeRequired`** — provoke it (create a user via the `_import` endpoint with the flag set), record the real session-create response in the spike doc, and make the D3 table row factual rather than assumed. If it turns out HMS cannot detect it, say so plainly and file a follow-up issue.
+- **`passwordChangeRequired`** — provoke it (create a user via the `_import` endpoint with the flag set), record the real session-create response in the spike doc, and make the D3 table row factual rather than assumed. If it turns out Helivanta cannot detect it, say so plainly and file a follow-up issue.
 - **Per-user enrolled factors** — find the endpoint that lists a user's configured second factors, or record that it was not found and what was tried. If found, extend Task 3's sufficiency check to hand off when the user has factors even if the org does not force MFA, with a test proven to fail.
 
 - [ ] **Step 2: Note the credential in the backend standards**

@@ -1,29 +1,29 @@
-# Spike — HMS as Zitadel's login client (v4.15.3)
+# Spike — Helivanta as Zitadel's login client (v4.15.3)
 
 Run against the live dev stack on 2026-08-16, before any design was written.
 Every response below was **observed**, not read from documentation. Where a case
 was not exercised it says so rather than guessing.
 
 Stack: `ghcr.io/zitadel/zitadel:v4.15.3`, `LOGINV2_REQUIRED=true`, login client
-machine user `hms-login-client` (PAT at `dev/zitadel/secrets/login-client.pat`),
-org `HMS`, seeded user `test@hms.dev`.
+machine user `helivanta-login-client` (PAT at `dev/zitadel/secrets/login-client.pat`),
+org `Helivanta`, seeded user `test@hms.dev`.
 
 > **The stack no longer runs `LOGINV2_REQUIRED=true`.** #854 Task 1 flipped
 > `ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED` to `false` in
 > `docker-compose.dev.yml`, working around upstream
 > [zitadel/zitadel#10722](https://github.com/zitadel/zitadel/issues/10722):
 > with `required=true`, the instance-wide flag wins over the per-app
-> `loginVersion.loginV2.baseUri` this design depends on, so HMS's own
+> `loginVersion.loginV2.baseUri` this design depends on, so Helivanta's own
 > `/login` was never reached.
 >
 > **The flip is not a no-op**, and `docker-compose.dev.yml`'s own comment at
 > that setting says so: any other product getting Login V2 *implicitly* from
 > the instance-wide flag falls back to its own per-app setting — or to Login
 > V1, if it has none — the moment `required` goes to `false`. In dev that is
-> harmless (HMS is the only app configured here besides the Management
+> harmless (Helivanta is the only app configured here besides the Management
 > Console). On the shared instance it is a cross-product change and belongs to
 > the platform team. This qualifies spec D1's "another product's login must
-> not move": the *per-app base URI* is HMS's alone, but the instance-wide
+> not move": the *per-app base URI* is Helivanta's alone, but the instance-wide
 > `required` flag this workaround also needs is not, and the two were
 > conflated in D1 as originally written. See D1 for the corrected claim.
 >
@@ -45,7 +45,7 @@ POST /v2/oidc/auth_requests/V2_…          → 200 {callbackUrl: …/api/auth/c
 All four calls authenticate with the **login client PAT**. The auth request id
 carries a `V2_` prefix and is used verbatim.
 
-**The callback is HMS's existing one.** `callbackUrl` comes back as
+**The callback is Helivanta's existing one.** `callbackUrl` comes back as
 `http://localhost:4301/api/auth/callback?code=…&state=…` — the same shape
 `apps/shell/app/api/auth/callback/page.tsx` already handles. The browser starts
 the flow through `oidc-client-ts`'s `signinRedirect()`, which stores `state` and
@@ -69,10 +69,10 @@ Zitadel issued the authorization code anyway. It did not refuse, and it did not
 signal that a factor was missing.
 
 **Consequence for the design:** enforcing MFA is the login client's job, not
-Zitadel's. A password-only HMS login is safe only while nothing expects MFA — and
-the moment someone enables `forceMfa`, or #41 ships partially, HMS would bypass
+Zitadel's. A password-only Helivanta login is safe only while nothing expects MFA — and
+the moment someone enables `forceMfa`, or #41 ships partially, Helivanta would bypass
 it silently for every user with no error anywhere. This must be enforced
-structurally by HMS (read the policy, refuse or hand off), not left as a
+structurally by Helivanta (read the policy, refuse or hand off), not left as a
 convention.
 
 The org policy was restored to default afterwards; re-read confirms
@@ -106,7 +106,7 @@ The org policy was restored to default afterwards; re-read confirms
 Both the status code and a **~55× timing difference** are user-enumeration
 oracles. The timing gap is the password hash: an unknown user never reaches it.
 
-HMS must therefore return one identical response for both, *and* equalise the
+Helivanta must therefore return one identical response for both, *and* equalise the
 timing — mapping the status codes alone leaves the oracle intact and would look
 fixed. `failedAttempts` must never reach the browser.
 
@@ -118,7 +118,7 @@ account lockout: no number of failures ever locks the account, and a correct
 password always succeeds.
 
 > **Corrected 2026-08-16 (#854 Task 4, carried by
-> [#855](https://github.com/tesserix/hms/issues/855)).** This section
+> [#855](https://github.com/tesserix/helivanta/issues/855)).** This section
 > originally said attempts were "unlimited" and that "nothing acts on"
 > `failedAttempts`. **Both are wrong**, and were contradicted by a later
 > measurement against this same stack: 25 wrong-password attempts against
@@ -132,9 +132,9 @@ password always succeeds.
 > `MinFailedLoginDuration` in `backend/internal/modules/iam/loginui.go`.
 
 So there is still no *lockout*, and the request rate limiter (#841/#851) remains
-the only control HMS itself applies. That is a real gap and it exists **now**,
+the only control Helivanta itself applies. That is a real gap and it exists **now**,
 independent of this work — it is not introduced by the login client. Tracked as
-[#855](https://github.com/tesserix/hms/issues/855).
+[#855](https://github.com/tesserix/helivanta/issues/855).
 
 Also observed on the default policy: `passwordCheckLifetime: 864000s` (10 days),
 `secondFactorCheckLifetime: 64800s`, `allowRegister: true`,
@@ -147,6 +147,12 @@ the design's D2 table) silently drops unrecognised keys and answers 200 either
 way — a hard-won fact from earlier work on this project. The sibling import
 endpoint is the one that actually takes the flag:
 
+Preserved as evidence: the request/response bodies below are a literal
+transcript of what was actually sent on the wire during this spike, before
+the `hms` → `helivanta` rename. `pwchange-test@hms.dev` and `HmsDev123!`
+are left exactly as captured — rewriting them would make this document
+assert it observed something it did not.
+
 ```
 POST /management/v1/users/human/_import
   {"userName":"pwchange-test@hms.dev","profile":{...},
@@ -158,7 +164,7 @@ GET  /v2/users/386506687000870919
 ```
 
 With the flag confirmed set, a normal password login was driven all the way
-through both the raw Zitadel API and HMS's own endpoint:
+through both the raw Zitadel API and Helivanta's own endpoint:
 
 ```
 POST /v2/sessions        {checks:{user,password}}
@@ -173,23 +179,24 @@ POST /v2/oidc/auth_requests/{id}   {callbackKind, session:{sessionId,sessionToke
 → 200 {"callbackUrl":"http://localhost:4301/api/auth/callback?code=...&state=..."}
   — a REAL authorization code, issued anyway
 
-POST http://localhost:8080/v1/auth/login/password   (HMS's own endpoint)
+POST http://localhost:8080/v1/auth/login/password   (Helivanta's own endpoint)
   {"auth_request_id":"V2_...","login_name":"pwchange-test@hms.dev","password":"HmsDev123!"}
 → 200 {"callback_url":"http://localhost:4301/api/auth/callback?code=...&state=..."}
-  — HMS completed the login exactly as if nothing were different
+  — Helivanta completed the login exactly as if nothing were different
 ```
 
 **Zitadel does not signal `passwordChangeRequired` to a login client at any
 point in this flow** — not on session create, not on session read, not on
-finalize. There is no field in any of these responses for HMS to branch on.
-Consequently **HMS today silently completes a login for a user an admin
+finalize. There is no field in any of these responses for Helivanta to
+branch on.
+Consequently **Helivanta today silently completes a login for a user an admin
 flagged as needing a password change** — the same class of silent bypass §2
 found for `forceMfa`, except here there is no wire signal at all to read,
-where `forceMfa`'s failure at least left a policy HMS could consult. This is
+where `forceMfa`'s failure at least left a policy Helivanta could consult. This is
 recorded as a known limitation at the decision point in
 `backend/internal/modules/iam/loginclient/sufficiency.go`
 (`CompleteIfSufficient`'s KNOWN LIMITATIONS §1) and filed as
-[#856](https://github.com/tesserix/hms/issues/856) rather than fixed in this
+[#856](https://github.com/tesserix/helivanta/issues/856) rather than fixed in this
 task — closing it costs an extra round trip (a `users/{id}` read) on every
 login, which is a real product tradeoff, not a small fix.
 
@@ -237,7 +244,7 @@ POST /v2/users/{id}/authentication_factors/_search
 
 `GET .../authentication_methods` was chosen for the implementation (simple
 GET, no body) over the `_search` POST: both work, and the GET is the smaller
-surface for what HMS needs (just the type list, not per-factor state).
+surface for what Helivanta needs (just the type list, not per-factor state).
 `AUTHENTICATION_METHOD_TYPE_PASSWORD` is the one value that does not count as
 "a factor a password-only session cannot satisfy"; every other observed
 value (`_TOTP`, `_U2F`, `_PASSKEY`, `_IDP`, `_OTP_SMS`, `_OTP_EMAIL`,

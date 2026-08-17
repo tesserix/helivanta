@@ -89,7 +89,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/pagination"
 )
 
 const testTenant = "11111111-1111-1111-1111-111111111111"
@@ -156,7 +156,7 @@ Expected: FAIL to compile — package does not exist.
 - [ ] **Step 3: Implement `backend/pkg/pagination/pagination.go`**
 
 ```go
-// Package pagination owns the cursor and limit halves of the HMS list
+// Package pagination owns the cursor and limit halves of the Helivanta list
 // contract. It is deliberately pure: no GORM, no knowledge of any table,
 // and gin only to read query values — so the precision and tamper
 // properties can be tested without a database or an HTTP round trip.
@@ -446,7 +446,7 @@ package tenantdb
 import (
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/pagination"
 )
 
 // ApplyKeyset adds the ordering, the position predicate and the +1 probe
@@ -749,10 +749,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/tesserix/hms/internal/platform/respond"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/pagination"
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/pagination"
 )
 
 // Keyed is what a row must provide to be pageable: the two values the
@@ -1227,7 +1227,7 @@ Follow the existing `packages/api/src/hooks.test.tsx` for the wrapper and fetch 
 - [ ] **Step 2: Run and confirm failure**
 
 ```bash
-pnpm --filter @hms/api test -- paged
+pnpm --filter @helivanta/api test -- paged
 ```
 
 Expected: FAIL — `useApiPagedQuery` is not exported.
@@ -1285,7 +1285,7 @@ export function useApiPagedQuery<T>(key: unknown[], path: string) {
 - [ ] **Step 4: Run, then prove `hasMore` is server-driven**
 
 ```bash
-pnpm --filter @hms/api test -- paged
+pnpm --filter @helivanta/api test -- paged
 ```
 
 Expected: PASS. Then change `getNextPageParam` to infer from length (`last.data.length === 50 ? last.page.next_cursor : undefined`) and confirm a test with a full final page fails. Add that test if it does not already exist — it is the frontend mirror of the exact-boundary case. Restore.

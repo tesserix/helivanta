@@ -51,7 +51,7 @@
 
 **The one thing that fails silently here.** `arch_test.go:38` is:
 ```go
-const modulesPrefix = "github.com/tesserix/hms/internal/modules/"
+const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 ```
 `TestModulesDoNotImportEachOther` calls `packages.Load(..., modulesPrefix+"...")` and then loops over the result. If this **string constant** is not rewritten with the imports, `packages.Load` returns zero packages, the loop body never executes, and **the test passes while enforcing nothing** — the exact failure mode this codebase's principles single out. A tool that rewrites only import blocks would miss it.
 
@@ -61,15 +61,15 @@ const modulesPrefix = "github.com/tesserix/hms/internal/modules/"
 cd /Users/Mahesh.Sangawar/personal/tesserix-new/hms
 # -l lists matching files; rewrite them in place. This deliberately catches
 # STRING LITERALS as well as import lines — see the arch_test.go note above.
-grep -rl "github.com/tesserix/hms" --include="*.go" --include="go.mod" backend \
-  | xargs sed -i.bak "s|github.com/tesserix/hms|github.com/tesserix/helivanta|g"
+grep -rl "github.com/tesserix/helivanta" --include="*.go" --include="go.mod" backend \
+  | xargs sed -i.bak "s|github.com/tesserix/helivanta|github.com/tesserix/helivanta|g"
 find backend -name "*.bak" -delete
 ```
 
 - [ ] **Step 2: Confirm no occurrence survives**
 
 ```bash
-grep -rn "github.com/tesserix/hms" backend | wc -l    # expect: 0
+grep -rn "github.com/tesserix/helivanta" backend | wc -l    # expect: 0
 grep -n "modulesPrefix" backend/internal/archtest/arch_test.go
 ```
 Expected: `0`, and `modulesPrefix` now reads `github.com/tesserix/helivanta/internal/modules/`.
@@ -108,9 +108,9 @@ git commit -m "refactor: move go module path to github.com/tesserix/helivanta (#
 ### Task 2: Frontend packages
 
 **Files:**
-- Modify: `packages/{api,config,ui}/package.json` — `@hms/*` → `@helivanta/*`
+- Modify: `packages/{api,config,ui}/package.json` — `@helivanta/*` → `@helivanta/*`
 - Modify: `apps/{shell,medicore,pharmacy,lab}/package.json` — same
-- Modify: every `.ts`/`.tsx` importing `@hms/*` (64 files in `apps`, 26 in `packages`)
+- Modify: every `.ts`/`.tsx` importing `@helivanta/*` (64 files in `apps`, 26 in `packages`)
 - Modify: `tsconfig.json` path aliases, `turbo.json` if it names packages
 - Modify: `pnpm-workspace.yaml` if it names packages
 - Regenerate: `pnpm-lock.yaml`
@@ -126,15 +126,15 @@ All seven packages are `private: true` at version `0.0.0` (verified 2026-08-17),
 ```bash
 cd /Users/Mahesh.Sangawar/personal/tesserix-new/hms
 git ls-files apps packages e2e '*.json' '*.ts' '*.tsx' \
-  | xargs grep -l "@hms/" 2>/dev/null \
-  | xargs sed -i.bak 's|@hms/|@helivanta/|g'
+  | xargs grep -l "@helivanta/" 2>/dev/null \
+  | xargs sed -i.bak 's|@helivanta/|@helivanta/|g'
 find . -name "*.bak" -not -path "*/node_modules/*" -delete
 ```
 
 - [ ] **Step 2: Confirm and reinstall**
 
 ```bash
-grep -rn "@hms/" --include="*.ts" --include="*.tsx" --include="*.json" apps packages e2e | grep -v node_modules | wc -l   # expect: 0
+grep -rn "@helivanta/" --include="*.ts" --include="*.tsx" --include="*.json" apps packages e2e | grep -v node_modules | wc -l   # expect: 0
 pnpm install
 ```
 Expected: `0`, and a clean install regenerating `pnpm-lock.yaml`.
@@ -159,7 +159,7 @@ Expected: green.
 
 ```bash
 git add -A
-git commit -m "refactor: rename @hms/* workspace packages to @helivanta/* (#863)"
+git commit -m "refactor: rename @helivanta/* workspace packages to @helivanta/* (#863)"
 ```
 
 ---
@@ -268,11 +268,11 @@ Mechanical part first — code identifiers, module paths, package names, env var
 cd /Users/Mahesh.Sangawar/personal/tesserix-new/hms
 # perl, not sed — see Task 3 Step 1 on why \b is a silent no-op in BSD sed.
 git ls-files '*.md' | xargs perl -pi \
-  -e 's|github.com/tesserix/hms|github.com/tesserix/helivanta|g;' \
-  -e 's|\@hms/|\@helivanta/|g;' \
+  -e 's|github.com/tesserix/helivanta|github.com/tesserix/helivanta|g;' \
+  -e 's|\@helivanta/|\@helivanta/|g;' \
   -e 's|\bHMS_|HELIVANTA_|g;' \
-  -e 's|kv/data/hms/|kv/data/helivanta/|g;' \
-  -e 's|openbao-hms-api|openbao-helivanta-api|g;'
+  -e 's|kv/data/helivanta/|kv/data/helivanta/|g;' \
+  -e 's|openbao-helivanta-api|openbao-helivanta-api|g;'
 ```
 
 - [ ] **Step 2: Restore the two evidence lines**

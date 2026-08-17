@@ -4,7 +4,7 @@
 
 **Goal:** Cache the caller's permission set in localStorage so the zone rail and page panel render their full permitted entries as soon as the page hydrates after a hard cross-zone navigation, instead of waiting on `/iam/me/permissions`.
 
-**Architecture:** `GET /iam/me/permissions` additionally returns the caller's `subject` and `tenant_id`. A small pure module in `@hms/api` owns one localStorage key holding `{subject, tenantId, permissions, storedAt}` with a 24-hour TTL. `usePermissions` reads that entry after mount and feeds it to the existing React Query query as `placeholderData`, so cached permissions render while the real request is in flight; every fresh response overwrites the entry. The cache is cleared explicitly at login, logout, and tenant switch.
+**Architecture:** `GET /iam/me/permissions` additionally returns the caller's `subject` and `tenant_id`. A small pure module in `@helivanta/api` owns one localStorage key holding `{subject, tenantId, permissions, storedAt}` with a 24-hour TTL. `usePermissions` reads that entry after mount and feeds it to the existing React Query query as `placeholderData`, so cached permissions render while the real request is in flight; every fresh response overwrites the entry. The cache is cleared explicitly at login, logout, and tenant switch.
 
 **Tech Stack:** Go 1.26 + Gin (backend), React 19 + TanStack Query v5 (frontend), Vitest + Testing Library (frontend tests), Go `testing` + testify (backend tests).
 
@@ -12,10 +12,10 @@
 
 - Issue #760. Branch `feat/760-permissions-client-cache` (already checked out). PR body must include `Closes #760`.
 - Vertical slice: backend, frontend, and tests land together in one PR.
-- Data fetching goes through `useApiQuery`/`useApiMutation` from `@hms/api` only — no raw `fetch` in components (the shell login page and tenant picker session POSTs are the pre-existing sanctioned exception, see `docs/standards/frontend.md` section 3).
+- Data fetching goes through `useApiQuery`/`useApiMutation` from `@helivanta/api` only — no raw `fetch` in components (the shell login page and tenant picker session POSTs are the pre-existing sanctioned exception, see `docs/standards/frontend.md` section 3).
 - Permission gating stays convenience-only: the API is the enforcement layer. Never present this cache as a security boundary.
 - Styling: design tokens only, no hardcoded colors. No new npm dependencies.
-- Every new/changed panel component needs a Vitest test using `renderWithProviders` from `@hms/api/testing`.
+- Every new/changed panel component needs a Vitest test using `renderWithProviders` from `@helivanta/api/testing`.
 - Backend: `respond.*` helpers for every response; `slog` only; wrap errors with `%w`.
 - Commit messages: single line, conventional commits, no signatures.
 - Final gates before done: `pnpm turbo lint type-check test build` green; `make lint-go` clean; `cd backend && go test -race ./...` green; `cd backend && ./scripts/coverage-gate.sh` green (70% floor).
@@ -102,7 +102,7 @@ In `backend/internal/modules/iam/me.go`, replace the `/me/permissions` handler:
 			return
 		}
 		// subject and tenant_id travel with the permission set so the
-		// client-side cache in @hms/api can tell whose permissions it
+		// client-side cache in @helivanta/api can tell whose permissions it
 		// holds. The session cookie is httpOnly, so this response is the
 		// only place the browser can learn that identity — without it a
 		// cached set could be painted for the wrong user or tenant after
@@ -355,7 +355,7 @@ git commit -m "feat(api): add permissions cache module with TTL and corruption r
 
 **Interfaces:**
 - Consumes: `readPermissionsCache`, `writePermissionsCache`, `PermissionsCacheEntry` from Task 2; the `subject`/`tenant_id` response fields from Task 1.
-- Produces: `useApiQuery<T>(key, path, { poll?: boolean; placeholderData?: T })`; `usePermissions()` keeps its existing shape `{ permissions: Set<string>; isLoading: boolean; can: (p: string) => boolean }`; `@hms/api` additionally exports `clearPermissionsCache` for Task 4.
+- Produces: `useApiQuery<T>(key, path, { poll?: boolean; placeholderData?: T })`; `usePermissions()` keeps its existing shape `{ permissions: Set<string>; isLoading: boolean; can: (p: string) => boolean }`; `@helivanta/api` additionally exports `clearPermissionsCache` for Task 4.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -616,7 +616,7 @@ git commit -m "feat(api): paint nav from cached permissions while revalidating (
 - Modify: `apps/shell/app/login/page.tsx:24-39`
 
 **Interfaces:**
-- Consumes: `clearPermissionsCache` and `PERMISSIONS_CACHE_KEY`, both exported from `@hms/api` in Task 3. Tests assert against the exported constant — never a re-typed `"hms.permissions.v1"` literal.
+- Consumes: `clearPermissionsCache` and `PERMISSIONS_CACHE_KEY`, both exported from `@helivanta/api` in Task 3. Tests assert against the exported constant — never a re-typed `"hms.permissions.v1"` literal.
 - Produces: nothing downstream.
 
 - [ ] **Step 1: Write the failing shell test**
@@ -626,8 +626,8 @@ Create `packages/ui/src/hms-shell.test.tsx`:
 ```tsx
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "@hms/api/testing";
-import { PERMISSIONS_CACHE_KEY } from "@hms/api";
+import { renderWithProviders } from "@helivanta/api/testing";
+import { PERMISSIONS_CACHE_KEY } from "@helivanta/api";
 import { HmsShell } from "./hms-shell";
 
 function seedCache(permissions: string[]) {
@@ -687,7 +687,7 @@ Expected: FAIL on "clears the cached permissions when signing out" — the entry
 In `packages/ui/src/hms-shell.tsx`, add the import:
 
 ```tsx
-import { usePermissions, clearPermissionsCache } from "@hms/api";
+import { usePermissions, clearPermissionsCache } from "@helivanta/api";
 ```
 
 Add this handler inside `HmsShell`, next to the existing `usePersistedFlag` call:
@@ -737,7 +737,7 @@ Append to the existing `describe` in `apps/shell/components/tenant-picker.test.t
   });
 ```
 
-Add `PERMISSIONS_CACHE_KEY` to the file's existing `@hms/api` import (the test file already imports `renderWithProviders` from `@hms/api/testing`; the constant comes from `@hms/api`).
+Add `PERMISSIONS_CACHE_KEY` to the file's existing `@helivanta/api` import (the test file already imports `renderWithProviders` from `@helivanta/api/testing`; the constant comes from `@helivanta/api`).
 
 - [ ] **Step 6: Run test to verify it fails**
 
@@ -749,7 +749,7 @@ Expected: FAIL — the cache entry is still present after the switch.
 In `apps/shell/components/tenant-picker.tsx`, extend the import:
 
 ```tsx
-import { useApiMutation, useApiQuery, apiFetch, clearPermissionsCache } from "@hms/api";
+import { useApiMutation, useApiQuery, apiFetch, clearPermissionsCache } from "@helivanta/api";
 ```
 
 Replace the mutation's `onSuccess` options block:
@@ -779,7 +779,7 @@ Expected: PASS, including all pre-existing switch-sequence tests.
 In `apps/shell/app/login/page.tsx`, extend the import:
 
 ```tsx
-import { clearPermissionsCache } from "@hms/api";
+import { clearPermissionsCache } from "@helivanta/api";
 ```
 
 In `onSubmit`, replace the success tail so the cache is dropped before navigating:
@@ -849,7 +849,7 @@ Cross-zone navigation is a hard navigation between separate Next apps, so every 
 Vertical slice: backend, frontend, and tests together.
 
 - `GET /iam/me/permissions` now also returns the caller's `subject` and `tenant_id`, so the browser can tell whose permissions it holds (the session cookie is httpOnly).
-- New `permissions-cache` module in `@hms/api`: one localStorage key, 24h TTL, corruption and storage-unavailable both degrade to a cache miss.
+- New `permissions-cache` module in `@helivanta/api`: one localStorage key, 24h TTL, corruption and storage-unavailable both degrade to a cache miss.
 - `usePermissions` reads the cache in a layout effect (not during render, to avoid a hydration mismatch) and passes it as `placeholderData`; every fresh response overwrites the entry, so a revoked permission converges with no reload.
 - Cache cleared on sign-in, sign-out, and tenant switch.
 

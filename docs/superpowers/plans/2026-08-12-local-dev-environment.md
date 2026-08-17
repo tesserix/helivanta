@@ -258,7 +258,7 @@ Leave the rest of the file alone — the `case "$cwd" in` blocks still work, bec
 - [ ] **Step 6: Verify dev-down still works**
 
 Run: `bash -n scripts/dev-down.sh && ./scripts/dev-down.sh`
-Expected: exits 0, prints "All HMS ports are free." (or reports containers it stopped)
+Expected: exits 0, prints "All Helivanta ports are free." (or reports containers it stopped)
 
 - [ ] **Step 7: Add the make target**
 
@@ -482,7 +482,7 @@ check_ports() {
     else
       holder=$(port_holders "$port" | head -1)
       fail "port $port" \
-        "port $port held by pid ${holder:-unknown} ($(ps -p "${holder:-0}" -o comm= 2>/dev/null || echo unknown)) — stop it, or 'make down' if it is a stale HMS process"
+        "port $port held by pid ${holder:-unknown} ($(ps -p "${holder:-0}" -o comm= 2>/dev/null || echo unknown)) — stop it, or 'make down' if it is a stale Helivanta process"
     fi
   done
 }
@@ -798,8 +798,8 @@ Create `docs/adr/0003-local-dev-stack.md`, matching the house style of `0002-gip
   Redis, NATS with JetStream and OpenFGA are unchanged. Where #714 says
   Keycloak, read GIP; where it says CNPG, read Compose Postgres.
   A Kubernetes-shaped environment is issue #7's, not this one's: sandboxctl
-  requires a Dockerfile and a Helm chart, HMS has neither yet, and it ships
-  no OpenFGA and no GIP emulator — HMS's two most distinctive dependencies.
+  requires a Dockerfile and a Helm chart, Helivanta has neither yet, and it ships
+  no OpenFGA and no GIP emulator — Helivanta's two most distinctive dependencies.
 - **Consequences:** the edit-to-see cycle stays sub-second (`next dev` HMR
   and `go run`) rather than the build-push-sync minutes a GitOps loop costs.
   Two environments will eventually exist, and the deployment artifacts

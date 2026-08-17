@@ -1,6 +1,6 @@
 # Spike: Zitadel locally, observed tokens and verification behaviour
 
-- **Issue:** [#838](https://github.com/tesserix/hms/issues/838)
+- **Issue:** [#838](https://github.com/tesserix/helivanta/issues/838)
 - **Supports:** [ADR-0006](../../adr/0006-zitadel-not-gip.md)
 - **Date:** 2026-08-15
 - **Rule followed:** record what was actually observed, not what the docs
@@ -15,7 +15,7 @@
 `start-from-init` mode, backed by its own `postgres:16-alpine`, alongside the
 existing `hms-dev` stack — not inside it. Compose file:
 [`spike/zitadel-838/docker-compose.zitadel.yml`](../../../spike/zitadel-838/docker-compose.zitadel.yml).
-Ports follow the HMS shifted-port convention and do not collide with
+Ports follow the Helivanta shifted-port convention and do not collide with
 `hms-dev` (postgres 15432, GIP 19099):
 
 | Service | Port |
@@ -32,8 +32,8 @@ Bootstrap identity, `.env`-equivalent config, all inline in the compose file
 for reproducibility (throwaway masterkey, throwaway admin password — this is
 a local, single-use instance, deleted after this spike):
 
-- Org: `hms-spike`
-- Bootstrap human admin: `spike-admin@hms-spike.localhost` /
+- Org: `helivanta-spike`
+- Bootstrap human admin: `spike-admin@helivanta-spike.localhost` /
   `SpikeAdminPassw0rd!`
 
 ---
@@ -52,8 +52,8 @@ already pulled. `docker compose ps` while running:
 
 ```
 NAME                             IMAGE                             STATUS
-hms-spike-zitadel-zitadel-1      ghcr.io/zitadel/zitadel:v2.65.1   Up (healthy)
-hms-spike-zitadel-zitadel-db-1   postgres:16-alpine                Up (healthy)
+helivanta-spike-zitadel-zitadel-1      ghcr.io/zitadel/zitadel:v2.65.1   Up (healthy)
+helivanta-spike-zitadel-zitadel-db-1   postgres:16-alpine                Up (healthy)
 ```
 
 `hms-dev` containers, queried at the same time, unaffected:
@@ -111,7 +111,7 @@ admin and for the test user below.
 **Answer: done, twice** — once incidentally for the bootstrap admin (SSO
 carried the browser session straight through `/oauth/v2/authorize` on the
 first attempt), and once deliberately for a fresh test user
-(`test-clinician@hms-spike.localhost`), created via the Management API
+(`test-clinician@helivanta-spike.localhost`), created via the Management API
 (see Q6) and logged in via `prompt=login` to force a real credential
 challenge rather than reuse the admin's session.
 
@@ -164,7 +164,7 @@ Answering the three sub-questions directly:
   `principalFromToken` only requires it be a stable string — no UUID
   assumption is made on `Subject`, only on `tenant_id`, which per the ADR's
   decision no longer comes from the token at all).
-- **What else is there HMS could use?** Notably little in the ID token
+- **What else is there Helivanta could use?** Notably little in the ID token
   itself: `amr` (`["pwd"]` — auth method reference, useful for step-up/MFA
   policy later), `sid` (session ID, useful for back-channel logout), `azp`.
   **No `email`, `name`, or `profile` claims landed in the ID token**, even
@@ -182,19 +182,19 @@ $ curl http://localhost:20080/oidc/v1/userinfo -H "Authorization: Bearer $AT"
   "given_name": "Test",
   "family_name": "Clinician",
   "nickname": "spike-test-user",
-  "preferred_username": "test-clinician@hms-spike.localhost",
-  "email": "test-clinician@hms-spike.localhost",
+  "preferred_username": "test-clinician@helivanta-spike.localhost",
+  "email": "test-clinician@helivanta-spike.localhost",
   "email_verified": true
 }
 ```
 
 This is standard OIDC behaviour (userinfo is allowed to carry claims the ID
 token doesn't), but it means: **if the eventual design wants email/name in
-the HMS session without an extra round trip to `/oidc/v1/userinfo`, that
+the Helivanta session without an extra round trip to `/oidc/v1/userinfo`, that
 needs an explicit Zitadel instance/app setting** (there is one —
 "always add default claims to id_token" — **not verified this session**,
 time-boxed out). Not a blocker, since ADR-0006 already decided identity
-claims HMS needs (subject, tenant, auth_time) don't depend on this; flagging
+claims Helivanta needs (subject, tenant, auth_time) don't depend on this; flagging
 so the design spec doesn't assume email arrives for free.
 
 ## P0-4 — Verify the ID token from Go using `github.com/coreos/go-oidc/v3`, no vendor SDK
@@ -257,9 +257,9 @@ This is expected and important to state plainly: local JWT signature
 verification is a pure function of the token bytes and the (still-valid,
 unrotated) signing key. It has no way to reflect an account state change
 that happened after issuance. **This is exactly why ADR-0006's decision that
-HMS must own a revocation watermark from its own session is correct, not
+Helivanta must own a revocation watermark from its own session is correct, not
 just convenient** — Zitadel's ID token gives no live signal, by design (same
-as any stateless JWT, same as GIP's ID tokens before HMS's own watermark
+as any stateless JWT, same as GIP's ID tokens before Helivanta's own watermark
 existed).
 
 **The access token, checked against Zitadel server-side via userinfo, was
@@ -275,7 +275,7 @@ So Zitadel *does* enforce deactivation — but only for calls that touch it
 live (userinfo, and presumably the authorization/token endpoints for future
 logins), never for a bare local JWT check. The gap between "token still
 parses as valid" and "account no longer has standing" is real and is exactly
-the gap HMS's own watermark already closes for GIP; it will close it exactly
+the gap Helivanta's own watermark already closes for GIP; it will close it exactly
 the same way for Zitadel once #838's design lands.
 
 **Introspection was attempted and blocked for a structural reason, not a
@@ -291,7 +291,7 @@ HTTP 400
 ```
 
 **NOT VERIFIED:** whether Zitadel exposes a webhook/event stream on user
-deactivation (Zitadel does document "Actions"/event triggers) that HMS could
+deactivation (Zitadel does document "Actions"/event triggers) that Helivanta could
 subscribe to as an alternative/complement to userinfo polling. Not tested —
 time-boxed out. If the eventual design wants a push signal rather than
 learning about deactivation only when a token happens to be checked live,
@@ -394,7 +394,7 @@ Time remained for a brief look; not a thorough capacity study.
    parseable as anything else.
 4. **`profile`/`email` scopes don't land in the ID token by default** — they
    require a call to `/oidc/v1/userinfo`. If the design wants those claims
-   in the HMS session, decide now whether that round trip is acceptable or
+   in the Helivanta session, decide now whether that round trip is acceptable or
    whether the "always include profile claims" instance setting needs
    turning on (unverified in this spike).
 5. **Deactivation does not invalidate an already-issued ID token by local
@@ -466,7 +466,7 @@ seeded user, no browser involved in either:
 ```bash
 # 1. Machine user (once)
 POST /management/v1/users/machine
-  {"userName":"hms-seed-bot","name":"HMS Seed Bot","accessTokenType":"ACCESS_TOKEN_TYPE_BEARER"}
+  {"userName":"helivanta-seed-bot","name":"Helivanta Seed Bot","accessTokenType":"ACCESS_TOKEN_TYPE_BEARER"}
   → userId
 
 # 2. Grant it an org role — a fresh machine user has none (Q6, still true)
@@ -520,7 +520,7 @@ Every login below drove the **real** hosted login UI
 server-rendered HTML forms, not mocked) with Playwright (`chromium`,
 headless, from `e2e/`'s own installed browser — no new dependency added).
 Zitadel's first-party Console SPA is itself a PKCE client of the same
-`/oauth/v2/authorize` endpoint the real HMS login page will use, so driving
+`/oauth/v2/authorize` endpoint the real Helivanta login page will use, so driving
 it end to end and reading the token it stores is a real, complete
 authorization-code-plus-PKCE exchange, the same mechanism `e2e/tests/support/login.ts`
 drives against apps/shell — just captured from Console's `sessionStorage`
@@ -926,9 +926,9 @@ Both have `auth_time` present and distinct from `iat`. One observed cosmetic
 difference worth a note, not a concern: `sid` under the separate login
 service is a bare numeric string (`386364569368395779`); under the legacy
 bundled login it carries a `V1_` prefix (`V1_386363801240338435`). Nothing in
-HMS's design depends on `sid`'s shape.
+Helivanta's design depends on `sid`'s shape.
 
-**Read: what should HMS actually run locally/in CI?** `LOGINV2_REQUIRED=false`
+**Read: what should Helivanta actually run locally/in CI?** `LOGINV2_REQUIRED=false`
 (core-only, legacy `/ui/login`) is the materially simpler option and this
 spike proved it still works end-to-end on v4.15.3, traps and all. The
 tradeoff, stated plainly: it means local/CI would exercise a **different**

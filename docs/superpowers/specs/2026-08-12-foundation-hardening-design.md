@@ -1,7 +1,7 @@
 # Foundation hardening (Tier 0) — design
 
-Resolves: [#774](https://github.com/tesserix/hms/issues/774) Tier 0 — [DevEx]
-Foundation audit. Blocks [#70](https://github.com/tesserix/hms/issues/70)
+Resolves: [#774](https://github.com/tesserix/helivanta/issues/774) Tier 0 — [DevEx]
+Foundation audit. Blocks [#70](https://github.com/tesserix/helivanta/issues/70)
 patient registration.
 
 Date: 2026-08-12

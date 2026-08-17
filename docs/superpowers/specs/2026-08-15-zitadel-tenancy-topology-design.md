@@ -1,10 +1,10 @@
-# HMS on the shared Zitadel instance — tenancy topology
+# Helivanta on the shared Zitadel instance — tenancy topology
 
-**Issue:** [#838](https://github.com/tesserix/hms/issues/838).
+**Issue:** [#838](https://github.com/tesserix/helivanta/issues/838).
 **Status:** draft 2026-08-15.
-**Decides:** how HMS is provisioned on `auth.tesserix.app`, and where hospitals live.
+**Decides:** how Helivanta is provisioned on `auth.tesserix.app`, and where hospitals live.
 **Companion to:** `2026-08-15-zitadel-auth-design.md` (which decides the *protocol* —
-HMS mints its own session). This decides the *topology*.
+Helivanta mints its own session). This decides the *topology*.
 **Rests on:** `spikes/2026-08-15-zitadel-spike.md`, `spikes/2026-08-15-zitadel-topology.md`.
 Claims marked *(observed)* were seen against a running Zitadel v4.15.3.
 
@@ -14,10 +14,10 @@ Claims marked *(observed)* were seen against a running Zitadel v4.15.3.
 
 The platform team runs one Zitadel instance at `https://auth.tesserix.app`
 (v4.15.3, GKE `tesseract-prod-in-gke`). It is initialised but has no product
-topology: **HMS is the first product on it**, so whatever HMS does becomes the
+topology: **Helivanta is the first product on it**, so whatever Helivanta does becomes the
 convention kora, mark8ly and the rest inherit.
 
-HMS is multi-tenant where **a tenant is a hospital**, a clinician may work at
+Helivanta is multi-tenant where **a tenant is a hospital**, a clinician may work at
 more than one, membership is authoritative in OpenFGA, and `Principal.Subject`
 is the Zitadel `sub`.
 
@@ -37,21 +37,21 @@ most of what follows.
 
 ## Decisions
 
-### D1 — HMS is one organization, one project, one application
+### D1 — Helivanta is one organization, one project, one application
 
 ```
-Organization:  HMS              ← clinicians live here; an IdP would attach here
-  Project:     HMS              ← one product
-    App:       hms-web          ← the shell's OIDC client
-    Machine:   hms-seed         ← management API: seeding for dev and CI
+Organization:  Helivanta          ← clinicians live here; an IdP would attach here
+  Project:     Helivanta          ← one product
+    App:       helivanta-web      ← the shell's OIDC client
+    Machine:   helivanta-seed     ← management API: seeding for dev and CI
 ```
 
 Its own org rather than a project inside a shared one: products then cannot
 collide on users, policy or admin surface, the blast radius stays small while
-the team is new to the tool, and HMS's clinical-grade requirements do not become
+the team is new to the tool, and Helivanta's clinical-grade requirements do not become
 the floor every other product must meet.
 
-**This is a convention HMS is setting, not one it inherited.** The platform team
+**This is a convention Helivanta is setting, not one it inherited.** The platform team
 owns the instance and should bless or replace it; nothing in this document
 depends on the answer beyond the org's name.
 
@@ -64,16 +64,16 @@ in Zitadel at all. It carries the cost and returns none of the benefit.
 
 ### D2 — Hospitals are not Zitadel entities
 
-A hospital is an HMS tenant. Membership lives in OpenFGA. Zitadel does not know
+A hospital is a Helivanta tenant. Membership lives in OpenFGA. Zitadel does not know
 that Apollo exists.
 
 Adding a hospital is therefore one `INSERT` and some OpenFGA tuples — no org, no
 project, no client, no grant, no second system in the onboarding path, and no
 second registry of "which hospitals exist" to drift out of sync.
 
-This is only safe because of the companion spec: HMS mints its own session, so
+This is only safe because of the companion spec: Helivanta mints its own session, so
 Zitadel's structure is nearly irrelevant at runtime. Zitadel answers *who
-authenticated and when*; HMS decides *which hospital*, having checked OpenFGA.
+authenticated and when*; Helivanta decides *which hospital*, having checked OpenFGA.
 
 *Rejected: one organization per hospital.* This is Zitadel's canonical B2B shape
 and it does buy real things — per-hospital login policy, per-hospital admins,
@@ -93,30 +93,30 @@ more machinery than the domain needs today, and D5 keeps the door open.
 
 ### D3 — Zitadel authenticates, OpenFGA authorizes, and neither does the other's job
 
-**No roles and no grants are configured in Zitadel for HMS.** The project exists
+**No roles and no grants are configured in Zitadel for Helivanta.** The project exists
 to own the OIDC client.
 
-Zitadel's RBAC is flat: role names attached to a user, per project. HMS's
+Zitadel's RBAC is flat: role names attached to a user, per project. Helivanta's
 questions are relational — may this doctor see *this* patient, given the care
 team; may this pharmacist dispense in *this* hospital but only read in that one.
-Zitadel cannot express those; OpenFGA is built for them, and HMS already has its
+Zitadel cannot express those; OpenFGA is built for them, and Helivanta already has its
 permission matrix there with a role × permission test suite over it.
 
 Configuring both would be the failure this design is most alert to: two systems
 holding "who can do what", drifting, with whichever is consulted last winning.
-The companion spec already forbids roles in the HMS session for a related
+The companion spec already forbids roles in the Helivanta session for a related
 reason — a role in a token is a stale answer that survives until expiry.
 
 *Rejected: Zitadel project grants as a product-entitlement gate* ("may this
-person use HMS at all"). HMS already answers it — the login exchange refuses a
+person use Helivanta at all"). Helivanta already answers it — the login exchange refuses a
 subject who belongs to no tenant. A second gate means two places to grant access
 and one more way to be locked out for a reason nobody can find. If the platform
-team later wants central entitlement across products, HMS must still not
+team later wants central entitlement across products, Helivanta must still not
 *depend* on it.
 
 ### D4 — Identity is keyed on `sub` now; the audit trail must not be
 
-HMS keys identity on the Zitadel `sub`, as built. No indirection is introduced
+Helivanta keys identity on the Zitadel `sub`, as built. No indirection is introduced
 by #838.
 
 That is a reversal of an earlier recommendation in this conversation, on
@@ -126,14 +126,14 @@ SSO can be added to an org that already has password users without changing it
 than argued.
 
 **But `sub` must not become the permanent identity in the one place that cannot
-be rewritten.** This is not hypothetical: HMS is migrating identity providers
-*right now*, and GIP subjects and Zitadel subjects are unrelated values. Had HMS
+be rewritten.** This is not hypothetical: Helivanta is migrating identity providers
+*right now*, and GIP subjects and Zitadel subjects are unrelated values. Had Helivanta
 shipped an audit trail keyed on GIP subjects a year ago, this week's work would
 be silently corrupting it — resolving past accesses to the wrong person, or to
 nobody.
 
-**Constraint on [#54](https://github.com/tesserix/hms/issues/54) (audit trail,
-unstarted):** it must attribute actions to an HMS-owned identifier, with `sub`
+**Constraint on [#54](https://github.com/tesserix/helivanta/issues/54) (audit trail,
+unstarted):** it must attribute actions to a Helivanta-owned identifier, with `sub`
 as an attached credential rather than the key. Introducing that when #54 is
 designed costs an indirection; retrofitting it after audit data exists is not
 possible, because audit records cannot be rewritten.
@@ -144,7 +144,7 @@ possible, because audit records cannot be rewritten.
 has password users, then linking an existing user to it, leaves `sub` and
 `resourceOwner` unchanged. A config change, not a migration.
 
-Because links are per user, multiple IdPs on the HMS org can serve different
+Because links are per user, multiple IdPs on the Helivanta org can serve different
 hospitals' staff — a hospital demanding federation does not require its own
 organization. **NOT VERIFIED:** a complete login *through* a linked external
 IdP; only link-and-readback was exercised.
@@ -153,21 +153,21 @@ IdP; only link-and-readback was exercised.
 The capability is why Zitadel was chosen over GIP; building it before a customer
 asks would be speculative.
 
-### D5a — Login is hosted by Zitadel and branded, not rendered by HMS
+### D5a — Login is hosted by Zitadel and branded, not rendered by Helivanta
 
 > **SUPERSEDED (2026-08-16) by `2026-08-16-hms-login-client-design.md` (#854).**
-> HMS now renders the login form itself, as Zitadel's **login client** for the
-> `hms-web` app. The reasoning below was not found to be wrong — it was priced
-> and overridden as a product decision, and its costs are real and now HMS's to
-> carry: credentials pass through an HMS page, and MFA, password reset, lockout
+> Helivanta now renders the login form itself, as Zitadel's **login client** for the
+> `helivanta-web` app. The reasoning below was not found to be wrong — it was priced
+> and overridden as a product decision, and its costs are real and now Helivanta's to
+> carry: credentials pass through a Helivanta page, and MFA, password reset, lockout
 > and federated-IdP handoff stop being inherited for free.
 >
 > Two parts of this decision **survive** and are still binding:
 >
 > - **The accessible-name contract below** (`Email`, `Password`, `Sign in`) — it
->   now applies to HMS's own form, and the e2e suite still depends on it.
+>   now applies to Helivanta's own form, and the e2e suite still depends on it.
 > - **The hosted login still exists and is still reached**, as the handoff target
->   for every case HMS does not implement (MFA required by org policy,
+>   for every case Helivanta does not implement (MFA required by org policy,
 >   `forceMfaLocalOnly`, a user's own voluntarily enrolled second factor, a
 >   federated IdP, or a login policy the API could not read and so fails closed
 >   on). It is no longer the ordinary path.
@@ -176,22 +176,22 @@ asks would be speculative.
 >   version of this block listed it. Verified live 2026-08-16 (#854 Task 8,
 >   spike §5): Zitadel signals `passwordChangeRequired` to a login client
 >   nowhere in the flow — session create, session read and finalize are
->   byte-identical in shape to a normal user's — so HMS **completes** those
+>   byte-identical in shape to a normal user's — so Helivanta **completes** those
 >   logins rather than handing off. Tracked as
->   [#856](https://github.com/tesserix/hms/issues/856).
+>   [#856](https://github.com/tesserix/helivanta/issues/856).
 >
 > A finding from the superseding spike is worth reading here rather than only
 > there: **Zitadel does not enforce `forceMfa` for a login client** — it issued a
 > valid authorization code for a password-only session — so factor enforcement
-> became HMS's responsibility the moment this decision was reversed.
+> became Helivanta's responsibility the moment this decision was reversed.
 
-HMS redirects to the Zitadel login app at `auth.tesserix.app`. The branding comes
+Helivanta redirects to the Zitadel login app at `auth.tesserix.app`. The branding comes
 from a **design-system login component** (to be added) consumed by the
 `zitadel-login` build the platform team runs. **`apps/shell/app/login/page.tsx`
 is deleted, not ported.**
 
-Today HMS renders its own form and calls the identity provider's SDK directly,
-so a clinician's password is typed into an HMS page. Two reasons that must not
+Today Helivanta renders its own form and calls the identity provider's SDK directly,
+so a clinician's password is typed into a Helivanta page. Two reasons that must not
 carry over:
 
 - **It would block the capability Zitadel was chosen for.** When a hospital
@@ -200,7 +200,7 @@ carry over:
   handle MFA challenges, passkeys, password reset and lockout. That is
   reimplementing Zitadel's login app, on the surface where security defects are
   most expensive.
-- **Credentials stop passing through HMS.** A compromised HMS frontend cannot
+- **Credentials stop passing through Helivanta.** A compromised Helivanta frontend cannot
   harvest passwords it never receives. For a system holding patient records that
   is a real reduction in blast radius.
 
@@ -208,7 +208,7 @@ The cost is a redirect off-domain and back — the pattern users meet everywhere
 
 **Ship against the stock login UI first.** The branded component does not exist
 yet, and waiting for it would block the frontend for a cosmetic reason. Zitadel's
-stock login already works — MFA, password reset and lockout included — so HMS
+stock login already works — MFA, password reset and lockout included — so Helivanta
 points at it now and the branded build swaps in later. The redirect target does
 not change; only its appearance does. Nothing is thrown away, which is what makes
 this an interim *appearance* rather than an interim *solution*.
@@ -258,7 +258,7 @@ thirty modules, and the RLS lint **fails** any table whose `WITH CHECK` calls
 that function, so writes stay pinned to exactly one tenant however far reads
 widen.
 
-**Constraint on [#13](https://github.com/tesserix/hms/issues/13)/[#14](https://github.com/tesserix/hms/issues/14)
+**Constraint on [#13](https://github.com/tesserix/helivanta/issues/13)/[#14](https://github.com/tesserix/helivanta/issues/14)
 (tenant entity, unstarted):** model the parent relationship generically — a
 tenant may have a parent — and attach permissions to the parent role
 **explicitly**. Do not encode "parent implies read access to children" as a
@@ -276,14 +276,14 @@ already works.
 
 | Object | Name | Purpose |
 |---|---|---|
-| Organization | `HMS` | holds clinicians; where an IdP would attach |
-| Project | `HMS` | owns the client; **no roles defined** |
-| Application | `hms-web` | OIDC client for the shell — auth code + PKCE |
-| Machine user | `hms-seed` | management API for dev/CI seeding, with an org role |
+| Organization | `Helivanta` | holds clinicians; where an IdP would attach |
+| Project | `Helivanta` | owns the client; **no roles defined** |
+| Application | `helivanta-web` | OIDC client for the shell — auth code + PKCE |
+| Machine user | `helivanta-seed` | management API for dev/CI seeding, with an org role |
 
 Per-environment: dev runs its own local Zitadel (v4.15.3, matching production).
-Staging and production client registrations, redirect URIs and the `hms-seed`
-credential are platform-team operations, not HMS ones.
+Staging and production client registrations, redirect URIs and the `helivanta-seed`
+credential are platform-team operations, not Helivanta ones.
 
 ---
 
@@ -294,18 +294,18 @@ credential are platform-team operations, not HMS ones.
   If a convention already exists there, D1 should defer to it.
 - **NOT VERIFIED: a login through a linked external IdP.** D5 rests on link
   creation and readback, not a completed federated sign-in.
-- **The branded login UI does not exist yet, and HMS does not wait for it.**
+- **The branded login UI does not exist yet, and Helivanta does not wait for it.**
   Production serves `zitadel-login:v4.15.3-aurora.1`; the design-system login
-  component behind it is still to be written. Per D5a, HMS ships against the
+  component behind it is still to be written. Per D5a, Helivanta ships against the
   **stock** login UI, so this is not a blocker — but the branded build's first
   run against the e2e suite is the moment D5a's accessible-name contract is
   either honoured or found broken. That is a scheduled risk, not an unknown.
-- **HMS shares an instance.** An instance-wide Zitadel outage is a total
-  sign-in outage for every product at once. Existing HMS sessions survive until
+- **Helivanta shares an instance.** An instance-wide Zitadel outage is a total
+  sign-in outage for every product at once. Existing Helivanta sessions survive until
   renewal, which is a modest mitigation, not a plan.
 - **Subject uniqueness across products** is inherited from the instance. If the
   platform team later adopts a shared org, a person using two products keeps one
-  `sub` — fine for HMS, but it means HMS no longer solely controls who can
+  `sub` — fine for Helivanta, but it means Helivanta no longer solely controls who can
   attempt a login.
 
 ## Out of scope

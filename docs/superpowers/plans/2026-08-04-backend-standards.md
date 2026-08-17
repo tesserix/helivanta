@@ -1,4 +1,4 @@
-# HMS Backend Standards Implementation Plan
+# Helivanta Backend Standards Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -12,10 +12,10 @@
 
 ## Global Constraints
 
-- Go module `github.com/tesserix/hms` rooted at `backend/`; all backend commands run from `backend/`.
+- Go module `github.com/tesserix/helivanta` rooted at `backend/`; all backend commands run from `backend/`.
 - Modules in `internal/modules/*` must never import another module's package — after this plan, that is lint- AND test-enforced.
 - Migration IDs globally unique; every tenant table forced-RLS (existing `LintRLS` stays authoritative).
-- Event subjects `^hms\.[a-z]+\.[a-z]+\.[a-z_]+\.v\d+$`; consumer names `^[a-z]+-[a-z-]+$`.
+- Event subjects `^helivanta\.[a-z]+\.[a-z]+\.[a-z_]+\.v\d+$`; consumer names `^[a-z]+-[a-z-]+$`.
 - Status-code semantics: 404 for missing AND cross-tenant, 409 for state-transition conflicts (guarded UPDATE), 202 async creates, lists newest-first LIMIT 100.
 - Logging: slog only (logrus banned by depguard); errors wrap with `%w`; no panic/Fatal outside `main`.
 - Tests need Docker (testcontainers); full suite with `-race`. E2E and frontend untouched by this plan.
@@ -65,7 +65,7 @@ linters:
           files:
             - "**/internal/modules/**"
           deny:
-            - pkg: "github.com/tesserix/hms/internal/modules"
+            - pkg: "github.com/tesserix/helivanta/internal/modules"
               desc: "modules must not import other modules — cross-module data flows only via events (spec D3)"
         no-logrus:
           deny:
@@ -86,7 +86,7 @@ run:
   timeout: 5m
 ```
 
-Note on depguard module-isolation: depguard denies by import-path prefix, so `github.com/tesserix/hms/internal/modules` would also deny a module importing ITSELF and same-module subpackages. Current modules are single-package so this cannot trigger falsely today; the arch test in Task 2 carries the precise same-module allowance. If depguard's rule proves too coarse when a module gains subpackages, scope the deny per-module at that time — do not silently drop the rule.
+Note on depguard module-isolation: depguard denies by import-path prefix, so `github.com/tesserix/helivanta/internal/modules` would also deny a module importing ITSELF and same-module subpackages. Current modules are single-package so this cannot trigger falsely today; the arch test in Task 2 carries the precise same-module allowance. If depguard's rule proves too coarse when a module gains subpackages, scope the deny per-module at that time — do not silently drop the rule.
 
 - [ ] **Step 3: Run and fix violations**
 
@@ -159,15 +159,15 @@ import (
 
 	"golang.org/x/tools/go/packages"
 
-	"github.com/tesserix/hms/internal/modules/lab"
-	"github.com/tesserix/hms/internal/modules/medicore"
-	"github.com/tesserix/hms/internal/modules/pharmacy"
-	"github.com/tesserix/hms/internal/modules/reference"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/helivanta/internal/modules/lab"
+	"github.com/tesserix/helivanta/internal/modules/medicore"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/reference"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/events"
 )
 
-const modulesPrefix = "github.com/tesserix/hms/internal/modules/"
+const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 
 // allModules must list every registered module. cmd/api/main.go is the
 // runtime source of truth; keep them in sync (the generator prints a
@@ -219,7 +219,7 @@ func TestMigrationIDsAreGloballyUnique(t *testing.T) {
 }
 
 var (
-	subjectRe  = regexp.MustCompile(`^hms\.[a-z]+\.[a-z]+\.[a-z_]+\.v\d+$`)
+	subjectRe  = regexp.MustCompile(`^helivanta\.[a-z]+\.[a-z]+\.[a-z_]+\.v\d+$`)
 	consumerRe = regexp.MustCompile(`^[a-z]+-[a-z-]+$`)
 )
 
@@ -263,9 +263,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // TestAllMigrationsPassRLSLint applies every migration to a fresh
@@ -300,7 +300,7 @@ func TestAllMigrationsPassRLSLint(t *testing.T) {
 - [ ] **Step 3: Run the tests**
 
 Run: `cd backend && go test ./internal/archtest/ -v`
-Expected: PASS (all current code conforms). Sanity-check the isolation test bites: temporarily add `_ "github.com/tesserix/hms/internal/modules/medicore"` to pharmacy's module.go, re-run, watch it FAIL, revert.
+Expected: PASS (all current code conforms). Sanity-check the isolation test bites: temporarily add `_ "github.com/tesserix/helivanta/internal/modules/medicore"` to pharmacy's module.go, re-run, watch it FAIL, revert.
 
 - [ ] **Step 4: Verify golangci + suite**
 
@@ -348,7 +348,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/platform/respond"
+	"github.com/tesserix/helivanta/internal/platform/respond"
 )
 
 func run(h gin.HandlerFunc) *httptest.ResponseRecorder {
@@ -558,10 +558,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 const (
@@ -683,7 +683,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/platform/requestid"
+	"github.com/tesserix/helivanta/internal/platform/requestid"
 )
 
 func TestMiddlewareGeneratesAndEchoesIDs(t *testing.T) {
@@ -802,7 +802,7 @@ go test -race -count=1 -coverprofile=/tmp/hms-cover.out ./... >/tmp/hms-cover-ru
 fail=0
 while read -r pkg cov; do
   case "$pkg" in
-    github.com/tesserix/hms/internal/modules/*|github.com/tesserix/hms/pkg/*|github.com/tesserix/hms/internal/platform*) ;;
+    github.com/tesserix/helivanta/internal/modules/*|github.com/tesserix/helivanta/pkg/*|github.com/tesserix/helivanta/internal/platform*) ;;
     *) continue ;;
   esac
   pct="${cov%\%}"
@@ -828,7 +828,7 @@ echo "$out"
 fail=0
 while read -r pkg pct; do
   case "$pkg" in
-    github.com/tesserix/hms/internal/modules/*|github.com/tesserix/hms/pkg/*|github.com/tesserix/hms/internal/platform/*) ;;
+    github.com/tesserix/helivanta/internal/modules/*|github.com/tesserix/helivanta/pkg/*|github.com/tesserix/helivanta/internal/platform/*) ;;
     *) continue ;;
   esac
   p="${pct%\%}"
@@ -875,7 +875,7 @@ git commit -m "feat: per-package coverage gate at 70 percent for modules and pla
 **Interfaces:**
 
 - Consumes: the final-state medicore module + test shapes (post Tasks 3–4: respond helpers, TenantPrincipal, testutil.ModuleHarness).
-- Produces: `make new-module NAME=radiology` stamps `backend/internal/modules/radiology/{module.go,module_test.go}` with: `0001_radiology` migration creating `radiology_items` with full forced-RLS boilerplate + status CHECK column, routes (POST create → Accepted, GET list → OK with `{"data": ...}`, POST :id transition → guarded UPDATE with 404/409 via respond), a consumer stub named `radiology-intake` on a TODO-free placeholder subject `hms.in.radiology.item_created.v1`, publishing constant `SubjectItemCreated`, and tests using `testutil.ModuleHarness` covering create/list/isolation/transition-409. Prints follow-ups: register in `cmd/api/main.go` AND in `internal/archtest/arch_test.go` `allModules()`, rename the domain nouns, run the suite.
+- Produces: `make new-module NAME=radiology` stamps `backend/internal/modules/radiology/{module.go,module_test.go}` with: `0001_radiology` migration creating `radiology_items` with full forced-RLS boilerplate + status CHECK column, routes (POST create → Accepted, GET list → OK with `{"data": ...}`, POST :id transition → guarded UPDATE with 404/409 via respond), a consumer stub named `radiology-intake` on a TODO-free placeholder subject `helivanta.in.radiology.item_created.v1`, publishing constant `SubjectItemCreated`, and tests using `testutil.ModuleHarness` covering create/list/isolation/transition-409. Prints follow-ups: register in `cmd/api/main.go` AND in `internal/archtest/arch_test.go` `allModules()`, rename the domain nouns, run the suite.
 
 - [ ] **Step 1: Write the generator**
 
@@ -903,7 +903,7 @@ echo "3. Rename the placeholder 'item' domain to your real nouns"
 echo "4. cd backend && go test -race ./internal/modules/$NAME/ ./internal/archtest/"
 ```
 
-The module.go template is the medicore/pharmacy shape with `item` as the entity: table `<name>_items` (`id`, `tenant_id`, `name text`, `status CHECK ('pending','done') DEFAULT 'pending'`, `done_at timestamptz`, `created_at`) + forced RLS + `(tenant_id, created_at DESC)` index; `SubjectItemCreated = "hms.in.<name>.item_created.v1"`; POST `/<name>/items` (binding `name` required max=200) → create + publish in one WithTenant tx → `respond.Accepted(c, gin.H{"id": ...})`; GET `/<name>/items` → newest-first LIMIT 100 → `respond.OK(c, gin.H{"data": rows})`; POST `/<name>/items/:id/done` → First (404 via `respond.NotFound(c, "item")`), status guard (409 `respond.Conflict(c, "already done")`), guarded UPDATE `WHERE id = ? AND status = 'pending'` with RowsAffected==0 → 409, publish only on success; consumer stub `<name>-intake` on `SubjectItemCreated` inserting nothing (body `return nil` with a comment telling the developer to replace it — the stub must still satisfy the arch-test naming rules).
+The module.go template is the medicore/pharmacy shape with `item` as the entity: table `<name>_items` (`id`, `tenant_id`, `name text`, `status CHECK ('pending','done') DEFAULT 'pending'`, `done_at timestamptz`, `created_at`) + forced RLS + `(tenant_id, created_at DESC)` index; `SubjectItemCreated = "helivanta.in.<name>.item_created.v1"`; POST `/<name>/items` (binding `name` required max=200) → create + publish in one WithTenant tx → `respond.Accepted(c, gin.H{"id": ...})`; GET `/<name>/items` → newest-first LIMIT 100 → `respond.OK(c, gin.H{"data": rows})`; POST `/<name>/items/:id/done` → First (404 via `respond.NotFound(c, "item")`), status guard (409 `respond.Conflict(c, "already done")`), guarded UPDATE `WHERE id = ? AND status = 'pending'` with RowsAffected==0 → 409, publish only on success; consumer stub `<name>-intake` on `SubjectItemCreated` inserting nothing (body `return nil` with a comment telling the developer to replace it — the stub must still satisfy the arch-test naming rules).
 
 The module_test.go template mirrors pharmacy's post-Task-4 shape via `testutil.ModuleHarness` with tests: create+list+tenant-isolation, transition 404 (cross-tenant), 409 on repeat, outbox row for the subject.
 
@@ -977,7 +977,7 @@ Full document: docs/standards/backend.md
 - Modules never import other modules (lint + arch-test enforced). Cross-module data flows via events only.
 - Tenant data only via `WithTenant`; every tenant table gets the forced-RLS boilerplate; migration IDs `NNNN_<module>`, append-only.
 - Handlers: `authn.TenantPrincipal(c)` for identity; `respond.*` helpers for every response; 404 (never 403) for cross-tenant, 409 via status-guarded UPDATE, 202 for async creates.
-- Events: subjects `hms.<dir>.<module>.<event>.vN`; consumers `<module>-<purpose>`; publish through the outbox inside the business tx; handlers must be idempotent.
+- Events: subjects `helivanta.<dir>.<module>.<event>.vN`; consumers `<module>-<purpose>`; publish through the outbox inside the business tx; handlers must be idempotent.
 - slog only (logrus banned); request-scoped logger via `requestid.Logger(c)`; wrap errors with `%w`.
 - Before done: `make lint-go` clean, `cd backend && ./scripts/coverage-gate.sh` green (70% floor), `go test -race ./...` green.
 ```
@@ -987,10 +987,10 @@ Full document: docs/standards/backend.md
 ```markdown
 ---
 name: hms-backend
-description: Use when writing or modifying any HMS backend Go code (backend/**) — loads the binding standards, reference implementations, and enforcement gates.
+description: Use when writing or modifying any Helivanta backend Go code (backend/**) — loads the binding standards, reference implementations, and enforcement gates.
 ---
 
-# HMS backend standards
+# Helivanta backend standards
 
 Read `docs/standards/backend.md` for the full rules. Quick table:
 

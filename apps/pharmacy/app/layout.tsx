@@ -3,7 +3,7 @@ import { AppProviders } from "@helivanta/api";
 import { THEME_INIT_SCRIPT } from "@helivanta/ui";
 import "./globals.css";
 
-export const metadata: Metadata = { title: "HMS" };
+export const metadata: Metadata = { title: "Helivanta" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

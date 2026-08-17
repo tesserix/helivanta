@@ -1,12 +1,12 @@
-# Backend Go SDK (`hms-go-sdk`)
+# Backend Go SDK (`helivanta-go-sdk`)
 
-Module: `github.com/tesserix/hms-go-sdk` (single module; see architecture §4.2). Evolves from `go-shared`.
+Module: `github.com/tesserix/helivanta-go-sdk` (single module; see architecture §4.2). Evolves from `go-shared`.
 Target: Go 1.26+, consumed by every backend service via pinned versions.
 
 ## Package structure
 
 ```
-hms-go-sdk/
+helivanta-go-sdk/
 ├── config/          # typed config + secrets           (#677)
 ├── logging/         # slog + PHI redaction             (#678)
 ├── telemetry/       # OpenTelemetry setup              (#679)
@@ -114,7 +114,7 @@ httpkit.Fail(c, http.StatusNotFound, "PATIENT_NOT_FOUND", "patient does not exis
 Keycloak OIDC/JWT validation → typed `Principal` in context.
 
 ```go
-mw := authn.Middleware(authn.Config{Issuer: realmURL, Audience: "hms-api"})
+mw := authn.Middleware(authn.Config{Issuer: realmURL, Audience: "helivanta-api"})
 p := authn.PrincipalFrom(ctx)                     // Subject, Roles, TenantID, SessionID
 ```
 
@@ -224,7 +224,7 @@ Interfaces only + Razorpay implementation: create/capture, refund, mandate (UPI 
 
 Testcontainers for CNPG/Redis/NATS/Keycloak/OpenFGA with health-wait; fixtures: two seeded tenants, standard principals, FGA tuples; the **adversarial isolation harness** every service must run; golden-file + contract-test helpers.
 
-### `create-hms-service` template (#695)
+### `create-helivanta-service` template (#695)
 
 Not a package — a generator producing a service with every package wired, sample endpoint/event/test, Dockerfile, CI (from DevEx templates #709), Helm/ArgoCD stubs. The generated service passes lint, tests, scans, and ships dashboards (#716) unmodified.
 

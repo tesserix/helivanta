@@ -1,4 +1,4 @@
-# HMS frontend standards
+# Helivanta frontend standards
 
 Binding rules for every zone app (`apps/*`) and the shared packages
 (`packages/ui`, `packages/api`, `packages/config`). "Binding" means: code
@@ -9,7 +9,7 @@ new code in the same area.
 
 ## 1. Zone-app anatomy
 
-HMS is a set of independent Next.js apps ("zones") stitched together by
+Helivanta is a set of independent Next.js apps ("zones") stitched together by
 the shell at the HTTP layer, not by a monorepo import graph. Each zone
 owns a port, a `basePath`, and its own build.
 
@@ -23,7 +23,7 @@ owns a port, a `basePath`, and its own build.
 
 Every app's `next.config.ts` sets `output: "standalone"` (each zone
 builds and deploys as its own self-contained server) and
-`transpilePackages: ["@hms/ui", "@hms/api"]` (these are TypeScript
+`transpilePackages: ["@helivanta/ui", "@helivanta/api"]` (these are TypeScript
 source packages, not pre-built libraries, so Next has to compile them
 per-consumer). A zone app also declares a direct-hit `/api/:path*`
 rewrite so it works standalone when hit on its own port during local
@@ -69,7 +69,7 @@ changes:
 ```css
 @import "tailwindcss";
 @import "@tesserix/web/styles";
-@import "@hms/ui/styles.css";
+@import "@helivanta/ui/styles.css";
 
 /* Tailwind v4 must scan the design system for emitted class names. */
 @source "../node_modules/@tesserix/web/dist";
@@ -78,7 +78,7 @@ changes:
 @source "../../../packages/ui/src";
 ```
 
-The order matters: `@hms/ui/styles.css` imports last so its `!important`
+The order matters: `@helivanta/ui/styles.css` imports last so its `!important`
 token overrides (section 7) win over `@tesserix/web`'s defaults. The two
 `@source` lines exist because Tailwind v4's CSS-first config only scans
 files it's told about — omit either one and classes used only inside
@@ -102,17 +102,17 @@ page renders. `apps/pharmacy/app/page.tsx` renders `HmsShell` around
 `apps/pharmacy/components/dispense-list.tsx`.
 
 Server components must never call the Go API directly. Authentication in
-HMS is a browser session cookie (set by `auth-bff`-style login), and that
+Helivanta is a browser session cookie (set by `auth-bff`-style login), and that
 cookie only flows automatically on same-origin `fetch` calls made from
 the browser through a zone's `/api/*` rewrite. A server-side `fetch` in a
 page or layout runs on the Node server, has no cookie jar, and will hit
 the backend unauthenticated. Keep every data fetch client-side, through
-`@hms/api` (section 3).
+`@helivanta/api` (section 3).
 
 ## 3. Data fetching
 
 All server data flows through `useApiQuery` / `useApiMutation` from
-`@hms/api` (`packages/api/src/hooks.ts`), which wrap TanStack Query
+`@helivanta/api` (`packages/api/src/hooks.ts`), which wrap TanStack Query
 around the typed `apiFetch<T>` client (`packages/api/src/client.ts`).
 Raw `fetch`, `useState` + manual loading flags, or a hand-rolled
 `setInterval` for polling are not used in application components —
@@ -125,7 +125,7 @@ reason (install a freshly minted ID token as the `hms_session` cookie):
 login (`apps/shell/app/login/page.tsx`) and the tenant switcher
 (`apps/shell/components/tenant-picker.tsx`), which re-mints the session
 after the backend authorizes a switch. Anything that is not "exchange an
-ID token for the session cookie" goes through `@hms/api`.
+ID token for the session cookie" goes through `@helivanta/api`.
 
 `useApiQuery<T>(key, path, opts?)` takes a TanStack query key, the
 API path (appended to the fixed `/api/v1` prefix), and an optional
@@ -142,7 +142,7 @@ Reference implementation:
 `apps/medicore/components/visit-panel.tsx`. It queries `["visits"]`,
 submits a create mutation that toasts "Visit created" and invalidates
 `["visits"]`, and resets the form on success — the shape every
-create-and-list panel in HMS follows.
+create-and-list panel in Helivanta follows.
 
 **Collection endpoints are read with `useApiPagedQuery`, never `useApiQuery`.**
 Every collection endpoint returns `{data: [...], page: {next_cursor, has_more}}`
@@ -174,7 +174,7 @@ Reference implementations for the paginated shape:
 Forms use `useZodForm` (a `react-hook-form` + `@hookform/resolvers/zod`
 wrapper, `packages/ui/src/form.tsx`) paired with the `Field` component
 for label + input + inline error. Every `<form>` element sets
-`noValidate` — HMS disables native browser validation everywhere so the
+`noValidate` — Helivanta disables native browser validation everywhere so the
 only validation UI a user sees is the zod-driven inline error, never a
 browser's native "Please fill out this field" popup.
 
@@ -222,7 +222,7 @@ does not need a confirmation step at all.
 `alert()`, `confirm()`, and `prompt()` are banned outright — they block
 the main thread, can't be styled to match the app, and are unusable with
 a screen reader mid-flow. This is not just a style preference: `no-alert`
-is a hard ESLint error in `@hms/config` (`packages/config/eslint.config.mjs`),
+is a hard ESLint error in `@helivanta/config` (`packages/config/eslint.config.mjs`),
 so code that calls any of the three fails `pnpm turbo lint`. Native
 browser validation popups are banned for the same reason `noValidate` is
 mandatory (section 4) — they're outside the app's control and inconsistent
@@ -262,9 +262,9 @@ with its own literal path.
 ### Idle session tracking
 
 Interaction tracking for the idle-timeout feature (#848, design spec D2/
-D4/D7) lives in `@hms/ui` (`packages/ui/src/idle-timer.ts`), mounted once
+D4/D7) lives in `@helivanta/ui` (`packages/ui/src/idle-timer.ts`), mounted once
 by `HmsShell` (`packages/ui/src/hms-shell.tsx`) — **not** in `apps/shell`.
-Every HMS app (`apps/shell`, `apps/medicore`, `apps/pharmacy`,
+Every Helivanta app (`apps/shell`, `apps/medicore`, `apps/pharmacy`,
 `apps/lab`) renders `HmsShell`, so every zone app inherits the same
 tracker automatically; a shell-only tracker would count a clinician
 working inside a zone page as idle and sign them out mid-consultation.
@@ -335,7 +335,7 @@ falls back to its own unstyled default, which looks broken next to the
 rest of the app.
 
 Every zone's root layout wraps `children` in `AppProviders` from
-`@hms/api` — this is what mounts the shared `QueryClientProvider` and
+`@helivanta/api` — this is what mounts the shared `QueryClientProvider` and
 the `<Toaster />` that sections 3 and 5 depend on. `apps/pharmacy/app/layout.tsx`:
 
 ```tsx

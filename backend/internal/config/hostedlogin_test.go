@@ -10,7 +10,7 @@ import (
 
 // TestRequireDistinctHostedLoginOrigin_SameOrigin_Refuses is Finding 5's
 // core claim: a hosted-login URL misconfigured to share an origin with
-// HMS's own frontend must refuse to boot, because that origin collision
+// Helivanta's own frontend must refuse to boot, because that origin collision
 // is what turns every MFA handoff into an infinite loop with no error
 // anywhere (see the function's doc comment for the mechanism). Different
 // paths on the identical scheme+host still count as the same origin.
@@ -29,7 +29,7 @@ func TestRequireDistinctHostedLoginOrigin_SameOrigin_Refuses(t *testing.T) {
 
 // TestRequireDistinctHostedLoginOrigin_ExactSameURL_Refuses covers the
 // most literal misconfiguration: ZITADEL_HOSTED_LOGIN_URL copy-pasted as
-// HMS's own login page URL, path and all.
+// Helivanta's own login page URL, path and all.
 func TestRequireDistinctHostedLoginOrigin_ExactSameURL_Refuses(t *testing.T) {
 	t.Setenv("ZITADEL_HOSTED_LOGIN_URL", "http://localhost:4301/login")
 	t.Setenv("HELIVANTA_WEB_ORIGIN", "http://localhost:4301/login")
@@ -43,7 +43,7 @@ func TestRequireDistinctHostedLoginOrigin_ExactSameURL_Refuses(t *testing.T) {
 
 // TestRequireDistinctHostedLoginOrigin_DevDefaults_Accepted proves the
 // guard does not fight the dev stack's own defaults: Zitadel's hosted
-// login (localhost:20080) and HMS's own frontend (localhost:4301) are
+// login (localhost:20080) and Helivanta's own frontend (localhost:4301) are
 // different origins out of the box, with nothing overridden — but ONLY
 // inside HELIVANTA_ENV=dev, which this test sets explicitly rather than relying
 // on Load()'s own "unset defaults to production" behaviour (proven
@@ -61,7 +61,7 @@ func TestRequireDistinctHostedLoginOrigin_DevDefaults_Accepted(t *testing.T) {
 
 // TestRequireDistinctHostedLoginOrigin_UnsetOutsideDev_Refuses is
 // Finding 6's core claim: an EARLIER version of this file let
-// HELIVANTA_WEB_ORIGIN default to DevHMSWebOrigin unconditionally, which made
+// HELIVANTA_WEB_ORIGIN default to DevHelivantaWebOrigin unconditionally, which made
 // the guard inert in production — an unset HELIVANTA_WEB_ORIGIN there compared
 // the real ZITADEL_HOSTED_LOGIN_URL against "http://localhost:4301",
 // found no collision, and booted, leaving the redirect loop this guard
@@ -85,7 +85,7 @@ func TestRequireDistinctHostedLoginOrigin_UnsetOutsideDev_Refuses(t *testing.T) 
 			err := cfg.RequireDistinctHostedLoginOrigin()
 
 			require.Error(t, err)
-			require.ErrorIs(t, err, config.ErrNoHMSWebOrigin)
+			require.ErrorIs(t, err, config.ErrNoHelivantaWebOrigin)
 			require.Contains(t, err.Error(), "HELIVANTA_WEB_ORIGIN")
 		})
 	}

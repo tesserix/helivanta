@@ -4,8 +4,8 @@
 - **Context:** Issue #665 asked where product code lives. Issue #2 fixes the
   backend as one Go module. The frontend needs per-product team isolation
   without per-department domain sprawl.
-- **Decision:** `tesserix/hms` is a full monorepo: `apps/` (Next.js zones),
-  `backend/` (Go modular monolith `github.com/tesserix/hms`), `packages/`.
+- **Decision:** `tesserix/helivanta` is a full monorepo: `apps/` (Next.js zones),
+  `backend/` (Go modular monolith `github.com/tesserix/helivanta`), `packages/`.
   Zones map 1:1 to products (MediCore, PharmaConnect, LabConnect …) and are
   path-mounted (`/medicore`) behind the shell on one tenant domain. JS uses
   pnpm workspaces + Turborepo (deviation from mark8ly's npm — matches the

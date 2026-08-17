@@ -1,10 +1,10 @@
 # hms becomes helivanta, everywhere at once
 
-**Issue:** [#863](https://github.com/tesserix/hms/issues/863)
-**Blocks:** [#45](https://github.com/tesserix/hms/issues/45) Task 4 — secrets are
-deliberately not provisioned at `kv/data/hms/api/*` while that path is about to
+**Issue:** [#863](https://github.com/tesserix/helivanta/issues/863)
+**Blocks:** [#45](https://github.com/tesserix/helivanta/issues/45) Task 4 — secrets are
+deliberately not provisioned at `kv/data/helivanta/api/*` while that path is about to
 move.
-**Feeds:** [#824](https://github.com/tesserix/hms/issues/824) — `helivanta.app`
+**Feeds:** [#824](https://github.com/tesserix/helivanta/issues/824) — `helivanta.app`
 becomes the deployed origin, the Zitadel redirect URIs and the Cloudflare record.
 
 The product has a name and a domain: **Helivanta**, `helivanta.app`. Everything
@@ -22,11 +22,11 @@ be later.
 | Claim | How it was checked |
 |---|---|
 | 324 tracked files contain `hms` | `git ls-files \| xargs grep -ril hms` — 143 backend, 64 apps, 61 docs, 26 packages, 10 scripts, 8 e2e, plus root config |
-| 110 Go files / 364 lines carry the module path | `grep -rn "github.com/tesserix/hms" --include="*.go"` |
-| **All three `@hms/*` packages are private at `0.0.0`** | `packages/{api,config,ui}/package.json` — `private: true`, never published, so no external consumer breaks |
+| 110 Go files / 364 lines carry the module path | `grep -rn "github.com/tesserix/helivanta" --include="*.go"` |
+| **All three `@helivanta/*` packages are private at `0.0.0`** | `packages/{api,config,ui}/package.json` — `private: true`, never published, so no external consumer breaks |
 | **Production Zitadel has no HMS app** | No `hms`-named config objects in the prod `zitadel` namespace; the dev app is provisioned by `scripts/lib/zitadel.mjs` at first boot |
 | **Nothing is deployed** | No Dockerfile, chart or ArgoCD app (#824). There is no running configuration to migrate. |
-| OpenBao holds no HMS secrets | `namespace/hms`, `serviceaccount/hms-api` and `SecretStore/openbao-hms-api` exist but are empty — #45 Task 4 was held |
+| OpenBao holds no HMS secrets | `namespace/hms`, `serviceaccount/hms-api` and `SecretStore/openbao-helivanta-api` exist but are empty — #45 Task 4 was held |
 
 **The consequence that shapes this spec:** almost nothing here is a breaking
 change. No published package, no live deployment, no production IdP app, no
@@ -155,7 +155,7 @@ abandoned half-done. It was not: this is the line, and this is why.
 |---|---|---|
 | Zitadel app `hms-web`, client, org `HMS` | `helivanta-web`, org `Helivanta` | dev-only; provisioned by `scripts/lib/zitadel.mjs` at first boot, and prod has no HMS app |
 | k8s `namespace/hms`, `serviceaccount/hms-api` | `helivanta`, `helivanta-api` | created 2026-08-17, empty, nothing scheduled |
-| `kv/data/hms/api/*`, `SecretStore/openbao-hms-api` | `kv/data/helivanta/api/*`, `openbao-helivanta-api` | no secret was ever written; #45 Task 4 was held for exactly this |
+| `kv/data/helivanta/api/*`, `SecretStore/openbao-helivanta-api` | `kv/data/helivanta/api/*`, `openbao-helivanta-api` | no secret was ever written; #45 Task 4 was held for exactly this |
 | `tesserix-k8s` whitelist entry | `helivanta` / `helivanta-api` | one PR against the infra repo |
 
 **Renaming the Zitadel app mints a new client ID.** `NEXT_PUBLIC_ZITADEL_CLIENT_ID`
@@ -186,7 +186,7 @@ catch it.
    A passing arch suite proves nothing on its own here.
 
 3. **The gitleaks allowlist.** `.gitleaks.toml` and `docs/runbooks/secrets.md`
-   hardcode `kv/data/hms/*`. *Check:* the pinned scanner reports clean AND is
+   hardcode `kv/data/helivanta/*`. *Check:* the pinned scanner reports clean AND is
    observed still firing on a probe — clean alone is what an inert gate reports.
 
 4. **Zitadel dev bootstrap.** `scripts/lib/zitadel.mjs` and the compose stack

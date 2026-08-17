@@ -1,4 +1,4 @@
-# HMS Authorization — Final Whole-Branch Review Fix Wave
+# Helivanta Authorization — Final Whole-Branch Review Fix Wave
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development.
 > Steps use checkbox (`- [ ]`) syntax for tracking.

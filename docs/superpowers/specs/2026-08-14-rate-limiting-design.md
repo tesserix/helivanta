@@ -1,6 +1,6 @@
 # Per-tenant rate limiting — design
 
-**Issue:** [#689](https://github.com/tesserix/hms/issues/689) — Per-tenant rate
+**Issue:** [#689](https://github.com/tesserix/helivanta/issues/689) — Per-tenant rate
 limiting & quotas.
 **Status:** implemented 2026-08-14. See "As implemented" at the end for the
 places the code decided differently from this document.
@@ -41,7 +41,7 @@ what is real now and defers the rest explicitly rather than gesturing at it.
 
 **#689's "Redis-backed" premise is also re-examined rather than inherited.** It
 belongs to the `[Go SDK]` series that ADR-0004 records as describing a topology
-HMS does not have — a separately-versioned module consumed by ~30 services. HMS
+Helivanta does not have — a separately-versioned module consumed by ~30 services. Helivanta
 is one Go module with one deployable.
 
 ---

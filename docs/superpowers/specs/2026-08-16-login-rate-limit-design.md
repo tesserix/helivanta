@@ -1,6 +1,6 @@
 # Login exchange rate limit — design
 
-**Issue:** [#841](https://github.com/tesserix/hms/issues/841) — rate limit
+**Issue:** [#841](https://github.com/tesserix/helivanta/issues/841) — rate limit
 `POST /v1/auth/login`.
 **Status:** implemented 2026-08-16.
 **Related:** #689 (the general per-tenant/per-principal limiter this reuses),

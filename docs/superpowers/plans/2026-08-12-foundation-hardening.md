@@ -44,7 +44,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tesserix/hms/internal/config"
+	"github.com/tesserix/helivanta/internal/config"
 )
 
 // The default must be production. A guard that defaults to permissive
@@ -165,7 +165,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authn"
 )
 
 // firebase-admin-go checks FIREBASE_AUTH_EMULATOR_HOST when the client is
@@ -290,7 +290,7 @@ Replace with an explicit-only form:
 
 - [ ] **Step 7: Verify the frontend still builds and its tests pass**
 
-Run: `pnpm turbo type-check test --filter=@hms/shell`
+Run: `pnpm turbo type-check test --filter=@helivanta/shell`
 Expected: PASS
 
 - [ ] **Step 8: Commit**
@@ -432,7 +432,7 @@ func TestPanickingConsumerDoesNotKillTheProcess(t *testing.T) {
 	// Then publish one event through the outbox, drive the dispatcher,
 	// and assert:
 	//   1. the test reaches its assertions at all (no crash), and
-	//   2. the event is eventually dead-lettered on hms.dlq.<consumer>,
+	//   2. the event is eventually dead-lettered on helivanta.dlq.<consumer>,
 	//      using the same DLQ subscription dlq_test.go sets up.
 }
 ```
@@ -554,8 +554,8 @@ Create `backend/internal/bootstrap/migrations.go`:
 package bootstrap
 
 import (
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // PlatformMigrations returns the migrations owned by platform packages, in

@@ -1,6 +1,6 @@
 # Structured logging with PHI redaction — design
 
-Resolves: [#678](https://github.com/tesserix/hms/issues/678) — [Go SDK]
+Resolves: [#678](https://github.com/tesserix/helivanta/issues/678) — [Go SDK]
 Structured logging with PHI redaction
 
 Date: 2026-08-13
@@ -233,7 +233,7 @@ cheaper than the walker it replaced.
 reflection-based implementation was written, reviewed twice and withdrawn over
 five Critical defects; the withdrawn implementation is preserved on
 `backup/678-phitag-reflection`. What shipped under
-[#778](https://github.com/tesserix/hms/issues/778) is the *marshal-then-mask*
+[#778](https://github.com/tesserix/helivanta/issues/778) is the *marshal-then-mask*
 replacement described at the end of this section, in
 `backend/pkg/logging/phitag.go`. What follows describes the intent, then why the
 reflection approach was abandoned and what replaced it.

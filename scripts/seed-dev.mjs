@@ -51,7 +51,7 @@
 // migrated — `make seed` runs `make dev-infra` and `make migrate` first for
 // exactly this reason; dev-infra also runs scripts/zitadel-bootstrap.mjs,
 // which this script depends on for the client_id and machine PAT.)
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -60,6 +60,7 @@ import {
   readMachinePAT,
   verifyPasswordLogin,
 } from "./lib/zitadel.mjs";
+import { generateTOTP } from "./lib/totp.mjs";
 
 const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://localhost:20080";
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -73,6 +74,29 @@ const SECOND_TENANT_ID = "22222222-2222-2222-2222-222222222222";
 // lower, digit, symbol), mirroring the spike's own Password123! finding
 // that complexity, not the recipe, was the sensitivity to watch for.
 const PASSWORD = "HmsDev123!";
+
+// #867 Task 6: the one account beyond the human/per-spec pairs below that
+// carries a REAL, verified TOTP factor, so mfa.spec.ts can drive Zitadel's
+// actual second-factor check end to end instead of mocking it. Named like
+// the two human accounts above (not derived via specEmail) because it
+// belongs to exactly one spec file — nothing else ever signs in as it, so
+// the per-spec-account isolation specEmail exists for (see that function's
+// doc comment on the revocation watermark) is satisfied trivially, and a
+// name that reads as "the MFA account" is clearer than
+// e2e-mfa-admin@helivanta.dev would be for a spec that is fundamentally
+// about the factor check, not about roles or tenants.
+const MFA_EMAIL = "mfa@helivanta.dev";
+
+// Where the TOTP secret Zitadel hands back on enrolment gets recorded so
+// e2e/tests/support/totp.ts can compute a real code at test time. Lives
+// alongside the PAT files in dev/zitadel/secrets/ (gitignored — see that
+// directory's .gitignore entry) and is regenerated the same way they are:
+// wiped with the zitadel-db volume on `make reset`, rewritten from scratch
+// the next time this script enrols the account fresh. Deliberately never
+// logged to stdout — see ensureTOTPEnrolled below.
+const TOTP_SECRET_PATH = fileURLToPath(
+  new URL("../dev/zitadel/secrets/mfa-totp.secret", import.meta.url),
+);
 
 // The two-hospital membership set, shared by test@helivanta.dev and by every
 // generated per-spec admin. Every spec's admin gets BOTH memberships, not
@@ -119,6 +143,7 @@ function specSlugs() {
 const USERS = [
   { email: "test@helivanta.dev", memberships: ADMIN_MEMBERSHIPS },
   { email: "pharmacist@helivanta.dev", memberships: PHARMACIST_MEMBERSHIPS },
+  { email: MFA_EMAIL, memberships: PHARMACIST_MEMBERSHIPS },
   ...specSlugs().flatMap((slug) => [
     { email: specEmail(slug, "admin"), memberships: ADMIN_MEMBERSHIPS },
     { email: specEmail(slug, "pharmacist"), memberships: PHARMACIST_MEMBERSHIPS },
@@ -164,6 +189,89 @@ async function ensureUser(pat, email) {
   }
 }
 
+// hasVerifiedTOTP reads Zitadel's live state for the user rather than
+// trusting anything this script wrote earlier — the source of truth for
+// "is TOTP already enrolled" is Zitadel itself, not a file on disk. GET,
+// not POST (unlike every other call in this file): Zitadel's v2 API takes
+// this one as a plain GET, so it bypasses managementAPI (which always
+// POSTs — see that function's own doc comment).
+async function hasVerifiedTOTP(pat, userId) {
+  const res = await fetch(`${ISSUER}/v2/users/${userId}/authentication_methods`, {
+    headers: { Authorization: `Bearer ${pat}` },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      `GET authentication_methods for user ${userId} failed: HTTP ${res.status} ${JSON.stringify(json)}`,
+    );
+  }
+  return (json.authMethodTypes ?? []).includes("AUTHENTICATION_METHOD_TYPE_TOTP");
+}
+
+// ensureTOTPEnrolled gives MFA_EMAIL a REAL, Zitadel-verified TOTP factor
+// (#867 Task 6) using the seed PAT throughout — never the login-client
+// PAT, which the spike (docs/superpowers/spikes/2026-08-17-zitadel-login-
+// client-mfa.md §6) found can create a user but cannot delete one (403),
+// which is how that spike run left a user behind. Enrolment and cleanup
+// both belong to setup, not to the runtime login-client flow, so both use
+// the same PAT class as every other call in this script.
+//
+// Idempotent against Zitadel's OWN state (hasVerifiedTOTP), not against
+// this file's cached secret: Zitadel returns the `secret` from
+// `POST /v2/users/{id}/totp` exactly once, at enrolment. So if the account
+// already carries a verified TOTP method, this reuses the secret recorded
+// on the run that created it (TOTP_SECRET_PATH) rather than trying to
+// fetch it again — an account seeded once and left alone across ordinary
+// `make seed` re-runs keeps working without re-enrolling. A FULL
+// `make reset` wipes the zitadel-db volume, so the live check below goes
+// false again and this re-enrols from scratch, overwriting the stale file
+// with the freshly issued secret.
+//
+// Enrolment verification (POST /v2/users/{id}/totp/verify — spelled
+// exactly that way, NOT /totp/_verify, which 404s per the spike's §5)
+// needs a REAL code, not just the secret, so this computes one with the
+// same TOTP algorithm scripts/lib/totp.mjs implements — proving, before
+// the e2e suite ever runs, that the recorded secret actually produces
+// codes Zitadel accepts.
+async function ensureTOTPEnrolled(pat, userId, email) {
+  if (await hasVerifiedTOTP(pat, userId)) {
+    let secret;
+    try {
+      secret = readFileSync(TOTP_SECRET_PATH, "utf8").trim();
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+      throw new Error(
+        `${email} already has a verified TOTP method in Zitadel, but ${TOTP_SECRET_PATH} is ` +
+          `missing — Zitadel never re-exposes an enrolled secret, so mfa.spec.ts cannot compute ` +
+          `a code for this account. Run 'make down && RESET_YES=1 make reset && make up' to ` +
+          `re-provision it from scratch.`,
+      );
+    }
+    console.log(`${email} already has a verified TOTP method; reusing the recorded secret.`);
+    return secret;
+  }
+
+  const enrolled = await managementAPI(ISSUER, pat, `/v2/users/${userId}/totp`, {});
+  const secret = enrolled.secret;
+  if (!secret) {
+    throw new Error(
+      `POST /v2/users/${userId}/totp for ${email} returned no secret: ${JSON.stringify(enrolled)}`,
+    );
+  }
+
+  const code = generateTOTP(secret);
+  await managementAPI(ISSUER, pat, `/v2/users/${userId}/totp/verify`, { code });
+
+  // Not printed unconditionally: this is a real, working credential for a
+  // dev-only account, and stdout from `make seed` / `make up` can end up
+  // in CI logs or a pasted terminal. Written to the same gitignored
+  // secrets directory the PAT files live in, with the same restrictive
+  // mode.
+  writeFileSync(TOTP_SECRET_PATH, `${secret}\n`, { mode: 0o600 });
+  console.log(`Enrolled and verified TOTP for ${email} (secret recorded, not printed)`);
+  return secret;
+}
+
 async function main() {
   const pat = readMachinePAT();
   const loginClientPAT = readLoginClientPAT();
@@ -201,6 +309,15 @@ async function main() {
       // account that cannot log in is not seeded, whatever the API said.
       await verifyPasswordLogin(ISSUER, loginClientPAT, email, PASSWORD);
       console.log(`Verified ${email} completes a real password check`);
+
+      // #867 Task 6: only MFA_EMAIL gets a second factor — every other
+      // seeded account stays password-only, which is what the twelve
+      // existing e2e specs assume. Enrolment uses the seed PAT (pat), not
+      // loginClientPAT, for the reason ensureTOTPEnrolled's own doc
+      // comment gives.
+      if (email === MFA_EMAIL) {
+        await ensureTOTPEnrolled(pat, userId, email);
+      }
     }
   } finally {
     await pg.end();
@@ -210,6 +327,8 @@ async function main() {
   test@helivanta.dev       / ${PASSWORD}  (tenant_admin in ${TENANT_ID} — sees every zone;
                                     pharmacist in ${SECOND_TENANT_ID} — switch to see Pharmacy only)
   pharmacist@helivanta.dev / ${PASSWORD}  (pharmacist — sees Pharmacy only)
+  ${MFA_EMAIL}       / ${PASSWORD}  (pharmacist — TOTP-enrolled; e2e/tests/mfa.spec.ts's own
+                                    account, secret recorded in ${TOTP_SECRET_PATH})
   plus one e2e-<spec>-admin@helivanta.dev and one e2e-<spec>-pharmacist@helivanta.dev per
   Playwright spec file, so no two specs share a revocation subject.`);
 }

@@ -1,0 +1,223 @@
+package iam
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
+	"github.com/tesserix/helivanta/pkg/tenantdb"
+)
+
+// maxFactorAttempts bounds how many wrong TOTP codes a single login
+// attempt may submit before the server drops the Zitadel session
+// outright. Five, not three: mistyping a rolling six-digit code is
+// ordinary, and the server should tolerate an honest slip. Five, not
+// fifty: Zitadel applies a delay rather than a lockout (spec D6), so the
+// server's own cap is the only thing standing between a guesser and the
+// 10^6 code space — a limit that loose lets that space erode.
+const maxFactorAttempts = 5
+
+var (
+	errAttemptNotFound   = errors.New("login attempt not found")
+	errAttemptsExhausted = errors.New("login attempt exhausted its factor attempts")
+)
+
+// loginAttempt holds the Zitadel session between the password step and
+// the factor step. The browser is never given zitadelSessionToken (spec
+// D2); it only ever sees authRequestID.
+type loginAttempt struct {
+	AuthRequestID  string
+	SessionID      string
+	SessionToken   string
+	Subject        string
+	FactorAttempts int
+	ExpiresAt      time.Time
+}
+
+// loginAttemptRow is the GORM-mapped row for login_attempt. It is kept
+// separate from loginAttempt so the token field's column name is
+// explicit and the two never accidentally diverge in shape.
+type loginAttemptRow struct {
+	AuthRequestID  string    `gorm:"column:auth_request_id;primaryKey"`
+	SessionID      string    `gorm:"column:zitadel_session_id"`
+	SessionToken   string    `gorm:"column:zitadel_session_token"`
+	Subject        string    `gorm:"column:subject"`
+	FactorAttempts int       `gorm:"column:factor_attempts"`
+	ExpiresAt      time.Time `gorm:"column:expires_at"`
+}
+
+func (loginAttemptRow) TableName() string { return "login_attempt" }
+
+func (r loginAttemptRow) toDomain() loginAttempt { return loginAttempt(r) }
+
+// loginAttemptStore is the Postgres-backed store for login_attempt. It is
+// not tenant-scoped (see the 0004_iam migration comment in module.go), so
+// every query runs through WithSystem, never WithTenant.
+type loginAttemptStore struct {
+	db *tenantdb.DB
+}
+
+func newLoginAttemptStore(db *tenantdb.DB) *loginAttemptStore {
+	return &loginAttemptStore{db: db}
+}
+
+// Put upserts a, replacing any existing row for the same AuthRequestID
+// and resetting FactorAttempts to a's value (ordinarily 0). This is a
+// deliberate choice, not an oversight: a fresh password step submitted
+// for an auth_request_id that already has a pending attempt (a retried
+// or resumed login) legitimately supersedes it — the old Zitadel session
+// is being replaced by a new one, so the old row's guess count has
+// nothing left to protect. Zitadel mints auth_request_id, so a collision
+// against an UNRELATED login is not a realistic case this needs to
+// defend against; an INSERT-only Put would instead turn the ordinary
+// retried-login case into an opaque primary-key-violation error at the
+// handler (Task 3).
+func (s *loginAttemptStore) Put(ctx context.Context, a loginAttempt) error {
+	row := loginAttemptRow(a)
+	return s.db.WithSystem(ctx, func(tx *gorm.DB) error {
+		return tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "auth_request_id"}},
+			UpdateAll: true,
+		}).Create(&row).Error
+	})
+}
+
+// Get returns the attempt for authRequestID, treating an expired row as
+// not found and deleting it so expiry needs no separate cleanup job for
+// correctness (spec D6) — a background sweep is still useful for table
+// bloat, but nothing depends on it for correctness. This matters beyond
+// tidiness: every row holds a live Zitadel session token, so a row that
+// is never deleted is a slow leak of credentials into a table nothing
+// sweeps.
+func (s *loginAttemptStore) Get(ctx context.Context, authRequestID string) (loginAttempt, error) {
+	var row loginAttemptRow
+	var expired bool
+	// Same shape as BumpAndGet's exhaustion path: the closure must return
+	// nil on the expired branch too, or WithSystem's wrapping
+	// Transaction(fn) rolls the just-issued DELETE back along with
+	// everything else, and the row survives despite Get reporting
+	// errAttemptNotFound to the caller. Signal expiry via the `expired`
+	// flag, examined only after the transaction has committed.
+	err := s.db.WithSystem(ctx, func(tx *gorm.DB) error {
+		if err := tx.Where("auth_request_id = ?", authRequestID).First(&row).Error; err != nil {
+			return err
+		}
+		if row.ExpiresAt.Before(time.Now()) {
+			if err := tx.Delete(&loginAttemptRow{}, "auth_request_id = ?", authRequestID).Error; err != nil {
+				return err
+			}
+			expired = true
+		}
+		return nil
+	})
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		return loginAttempt{}, errAttemptNotFound
+	case err != nil:
+		return loginAttempt{}, fmt.Errorf("get login attempt: %w", err)
+	case expired:
+		return loginAttempt{}, errAttemptNotFound
+	}
+	return row.toDomain(), nil
+}
+
+// BumpAndGet increments factor_attempts and reads the new value in ONE
+// statement (UPDATE ... RETURNING). Two statements — an UPDATE followed
+// by a separate SELECT — would race under concurrent requests for the
+// same auth_request_id, and the race runs in the attacker's favor: two
+// concurrent guesses could both read the pre-increment count and both be
+// admitted, granting extra tries against a six-digit code.
+//
+// Call this ONLY after Zitadel has rejected a submitted code — it counts
+// wrong codes (spec D6), not attempts. A caller that bumps before
+// verifying (e.g. to reserve a slot, or bumps unconditionally regardless
+// of Zitadel's answer) silently shrinks the real budget from five to
+// four, because the eventual correct code still consumes one of the five
+// bumps this method hands out.
+//
+// When the incremented value reaches maxFactorAttempts, the row is
+// deleted in the same statement's transaction and errAttemptsExhausted is
+// returned, so the Zitadel session cannot be reused for a further guess.
+func (s *loginAttemptStore) BumpAndGet(ctx context.Context, authRequestID string) (loginAttempt, error) {
+	var row loginAttemptRow
+	var exhausted bool
+	// The exhaustion delete must COMMIT, not roll back with the sentinel
+	// error: WithSystem wraps this closure in a transaction and rolls it
+	// back on any non-nil return, which would undo the delete along with
+	// the increment. So the closure always returns nil on success (delete
+	// included) and reports exhaustion via the exhausted flag instead,
+	// examined only after the transaction has committed.
+	err := s.db.WithSystem(ctx, func(tx *gorm.DB) error {
+		err := tx.Raw(`
+			UPDATE login_attempt
+			SET factor_attempts = factor_attempts + 1
+			WHERE auth_request_id = ? AND expires_at > now()
+			RETURNING auth_request_id, zitadel_session_id, zitadel_session_token,
+			          subject, factor_attempts, expires_at`,
+			authRequestID).Scan(&row).Error
+		if err != nil {
+			return err
+		}
+		if row.AuthRequestID == "" {
+			return errAttemptNotFound
+		}
+		if row.FactorAttempts >= maxFactorAttempts {
+			if err := tx.Delete(&loginAttemptRow{}, "auth_request_id = ?", authRequestID).Error; err != nil {
+				return err
+			}
+			exhausted = true
+		}
+		return nil
+	})
+	// If the transaction itself fails to commit (infra failure, not a
+	// business outcome), `exhausted` and the incremented count are both
+	// discarded along with the rest of the transaction — the guess is
+	// not counted. This errs toward the attacker (an infra blip can hand
+	// back a free retry) rather than toward the legitimate user (who
+	// would otherwise lose a guess to a failure that was never their
+	// fault). Considered and accepted: an infra failure on this path is
+	// already an incident, and the alternative — persisting the count
+	// outside the guess's own transaction — would let a lost commit here
+	// count a guess that was never actually evaluated.
+	switch {
+	case errors.Is(err, errAttemptNotFound):
+		return loginAttempt{}, errAttemptNotFound
+	case err != nil:
+		return loginAttempt{}, fmt.Errorf("bump login attempt: %w", err)
+	case exhausted:
+		return loginAttempt{}, errAttemptsExhausted
+	}
+	return row.toDomain(), nil
+}
+
+// UpdateToken replaces the stored Zitadel session token for
+// authRequestID — Zitadel rotates the token on each factor submission
+// (spec D3), and the old token must stop being usable the moment a new
+// one is issued.
+func (s *loginAttemptStore) UpdateToken(ctx context.Context, authRequestID, token string) error {
+	return s.db.WithSystem(ctx, func(tx *gorm.DB) error {
+		res := tx.Model(&loginAttemptRow{}).
+			Where("auth_request_id = ?", authRequestID).
+			Update("zitadel_session_token", token)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return errAttemptNotFound
+		}
+		return nil
+	})
+}
+
+// Delete removes the attempt for authRequestID. Deleting an
+// already-absent row is not an error: the caller's intent (this attempt
+// must not exist) is already satisfied.
+func (s *loginAttemptStore) Delete(ctx context.Context, authRequestID string) error {
+	return s.db.WithSystem(ctx, func(tx *gorm.DB) error {
+		return tx.Delete(&loginAttemptRow{}, "auth_request_id = ?", authRequestID).Error
+	})
+}

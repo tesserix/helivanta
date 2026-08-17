@@ -2,8 +2,10 @@ package config
 
 import (
 	"log/slog"
+	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -207,6 +209,73 @@ type Config struct {
 	// throttle each other. See bootstrap.ActivityRateLimitRule for the
 	// arithmetic behind the default.
 	RateLimitActivityPerMin int
+	// RateLimitFactorPerMin bounds POST /v1/auth/login/factor (#867 Task
+	// 4), keyed on client IP (there is no verified subject yet — see
+	// iam.allowedByLimiter). A separate knob from RateLimitLoginPerMin
+	// for the same shape of reason that one is separate from
+	// RateLimitPrincipalPerMin: this route's traffic shape (a single
+	// six-digit code guess) has nothing to do with either general API
+	// traffic or password-check traffic, and it is a PRIMARY
+	// brute-force control, not a secondary one — see
+	// bootstrap.FactorRateLimitRule for the arithmetic behind the
+	// default.
+	RateLimitFactorPerMin int
+
+	// TrustedProxyCIDRs is the raw value of TRUSTED_PROXY_CIDRS, a
+	// comma-separated list of CIDR blocks — e.g. the production pod
+	// CIDR the Istio ingress gateway runs in — whose IMMEDIATE TCP peer
+	// this process trusts to have set X-Forwarded-For/X-Real-IP
+	// honestly (#867 Task 4 fix round 3, Finding C1).
+	//
+	// # Why this exists: every rate limit in this file is bypassable without it
+	//
+	// gin's default (httpserver.New wires this into
+	// (*gin.Engine).SetTrustedProxies) trusts EVERY proxy — 0.0.0.0/0 —
+	// which means gin.Context.ClientIP() honours a caller-supplied
+	// X-Forwarded-For unconditionally. Every rate limiter in this
+	// codebase that is keyed on client IP before a subject exists
+	// (LoginRateLimitRule, FactorRateLimitRule, iam.allowedByLimiter's
+	// three sibling routes) reads that same ClientIP() — so with gin's
+	// default, a caller sends a fresh X-Forwarded-For value on every
+	// request and gets a fresh full token-bucket burst every time,
+	// bypassing the limiter entirely. FactorRateLimitRule's own doc
+	// comment calls this limiter "what actually bounds the total number
+	// of attempts an attacker gets" against a six-digit TOTP code — that
+	// claim is false until the trusted-proxy boundary below is
+	// configured correctly for wherever this process actually runs.
+	//
+	// # Fail CLOSED: unset or empty means TRUST NOTHING, never "trust everything"
+	//
+	// This is the opposite direction from getenvInt/getenvDuration
+	// immediately below, deliberately: those are CAPACITY controls
+	// (docs/standards/engineering-principles.md §3) that must fail open
+	// so a mistyped value cannot take a hospital's API down, but an
+	// UNSET or EMPTY TrustedProxyCIDRs is not a mistype of a capacity
+	// number — it is "we do not know this process's network topology",
+	// and gin's own insecure default (trust every proxy) is exactly the
+	// wrong answer to that uncertainty. httpserver.New therefore calls
+	// (*gin.Engine).SetTrustedProxies(nil) whenever this slice is empty
+	// — NOT gin's default — which disables the X-Forwarded-For/
+	// X-Real-IP mechanism entirely and makes ClientIP() return the raw
+	// TCP RemoteAddr, unspoofable by any header. Failing closed here
+	// costs COARSER rate-limit buckets (every caller behind an untrusted
+	// reverse proxy collapses onto that proxy's own IP) — it never costs
+	// "no bound at all", which is what trusting everyone by default
+	// would risk.
+	//
+	// # Never hardcoded
+	//
+	// The production value (the GKE cluster's pod CIDR, where the Istio
+	// ingress gateway that terminates external traffic runs) is an
+	// operational fact about ONE deployment, not a constant this
+	// package should know — a second environment (a different cluster,
+	// a different CNI plugin, local dev behind a different proxy shape)
+	// needs a different value, and a value baked into source would
+	// silently stop matching reality the day infrastructure changes
+	// without anyone touching this file. See bootstrap/ratelimit.go's
+	// own doc comments for the same "operational fact belongs in
+	// config, not a constant" reasoning applied to rate-limit numbers.
+	TrustedProxyCIDRs []string
 }
 
 func Load() Config {
@@ -251,6 +320,9 @@ func Load() Config {
 		RateLimitPrincipalPerMin: getenvInt("RATE_LIMIT_PRINCIPAL_PER_MIN", 120),
 		RateLimitLoginPerMin:     getenvInt("RATE_LIMIT_LOGIN_PER_MIN", 20),
 		RateLimitActivityPerMin:  getenvInt("RATE_LIMIT_ACTIVITY_PER_MIN", 10),
+		RateLimitFactorPerMin:    getenvInt("RATE_LIMIT_FACTOR_PER_MIN", 10),
+
+		TrustedProxyCIDRs: getenvCIDRList("TRUSTED_PROXY_CIDRS"),
 	}
 }
 
@@ -308,6 +380,41 @@ func getenvDuration(k string, def time.Duration) time.Duration {
 		return def
 	}
 	return d
+}
+
+// getenvCIDRList parses k as a comma-separated list of CIDR blocks, for
+// TrustedProxyCIDRs (#867 Task 4 fix round 3, Finding C1). Unlike
+// getenvInt/getenvDuration above, there is no `def` parameter — an unset
+// variable returns nil, and nil is not a fallback value here, it IS the
+// fail-closed answer TrustedProxyCIDRs' own doc comment describes
+// ("trust nothing"). Each entry is independently validated with
+// net.ParseCIDR; an INDIVIDUAL malformed entry is dropped (logged) with
+// the surviving valid entries still applied — rather than discarding the
+// whole list — because a partially-wrong value (a typo in one of several
+// CIDRs) should still leave the operator's other, correctly-typed
+// entries in effect, and because the reverse (one bad entry silently
+// disabling every trust boundary) would fail OPEN in exactly the case
+// this function exists to keep closed. A list that is entirely garbage
+// still ends up empty, which is still fail-closed.
+func getenvCIDRList(k string) []string {
+	raw := os.Getenv(k)
+	if raw == "" {
+		return nil
+	}
+	var cidrs []string
+	for _, entry := range strings.Split(raw, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		if _, _, err := net.ParseCIDR(entry); err != nil {
+			slog.Warn("invalid CIDR in TRUSTED_PROXY_CIDRS entry; dropping this entry only",
+				"key", k, "value", entry, "err", err)
+			continue
+		}
+		cidrs = append(cidrs, entry)
+	}
+	return cidrs
 }
 
 // IsDev reports whether this process is running in a developer

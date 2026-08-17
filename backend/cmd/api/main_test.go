@@ -36,7 +36,7 @@ func TestGinRecoveryOutputIsRedacted(t *testing.T) {
 	gin.DefaultErrorWriter = logging.NewRedactingWriter(&buf)
 
 	gin.SetMode(gin.TestMode)
-	srv := httpserver.New(nil)
+	srv := httpserver.New(nil, nil)
 	srv.Engine.GET("/panic", func(c *gin.Context) {
 		panic("patient 9876543210 not found")
 	})

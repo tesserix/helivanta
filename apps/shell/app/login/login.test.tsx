@@ -39,24 +39,46 @@ function jsonResponse(status: number, body: unknown) {
 // exercising the auth-request-validation step itself, so those tests can
 // stay focused on what they actually assert without each reimplementing
 // this response.
+// Includes `policies` (#867, spec D5/D8): GET /v1/auth/login/request/:id
+// now answers with the neutral policy subset CredentialForm maps onto
+// @tesserix/web's AuthMethodPolicy. A TOTP-capable org is the default
+// here so the OTP-step tests below don't each have to restate it.
 function authRequestOkResponse() {
   return jsonResponse(200, {
     id: AUTH_REQUEST_ID,
     client_id: "helivanta-web",
     redirect_uri: "http://localhost:4301/api/auth/callback",
     scope: ["openid", "profile", "email"],
+    policies: {
+      allow_password: true,
+      require_mfa: false,
+      second_factors: ["totp"],
+      ignore_unknown_usernames: false,
+    },
   });
 }
 
-// Routes a stubbed fetch by path: GET .../auth/login/request/:id vs POST
-// .../auth/login/password, since ValidatedCredentialForm now calls the
-// former before CredentialForm ever calls the latter. Defaults both to a
-// success response so a test only has to override the one call it cares
+// Routes a stubbed fetch by path: GET .../auth/login/request/:id, POST
+// .../auth/login/password, and (#867) POST .../auth/login/factor, since
+// ValidatedCredentialForm now calls the first before CredentialForm ever
+// calls the second, and OtpStep only ever calls the third after a
+// `factor_required` outcome from the second. Defaults all three to a
+// success response so a test only has to override the call it cares
 // about.
-function stubAuthFlow(opts: { authRequest?: () => Response; password?: () => Response } = {}) {
+function stubAuthFlow(
+  opts: { authRequest?: () => Response; password?: () => Response; factor?: () => Response } = {},
+) {
   const fetchMock = vi.fn((url: string) => {
     if (url.includes("/auth/login/request/")) {
       return Promise.resolve((opts.authRequest ?? authRequestOkResponse)());
+    }
+    if (url.includes("/auth/login/factor")) {
+      return Promise.resolve(
+        (
+          opts.factor ??
+          (() => jsonResponse(200, { callback_url: "https://hms.example/api/auth/callback" }))
+        )(),
+      );
     }
     if (url.includes("/auth/login/password")) {
       return Promise.resolve(
@@ -482,6 +504,178 @@ describe("LoginPage", () => {
 
         await screen.findByText(/this sign-in attempt has expired; start again/i);
         expect(screen.queryByText(/you are signed out/i)).not.toBeInTheDocument();
+      });
+    });
+
+    // #867, spec D1/D8: the native TOTP step, reachable only after a
+    // `factor_required` outcome from POST /v1/auth/login/password.
+    describe("when the org requires a native second factor (OTP step)", () => {
+      async function submitCorrectCredentials(
+        user: ReturnType<typeof renderWithProviders>["user"],
+      ) {
+        await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
+        await user.type(screen.getByLabelText("Password"), "correct-password");
+        await user.click(screen.getByRole("button", { name: "Sign in" }));
+      }
+
+      // The same trap `handoff_url` documents (spec D3 of the login-client
+      // spec, restated for this outcome by spec D8): `factor_required`
+      // means the password was CORRECT. Rendering it as an error would
+      // send a clinician to reset a working password — this asserts the
+      // OTP step renders and NO alert/error role appears alongside it.
+      it("shows the OTP step, not an error, when a factor is required", async () => {
+        stubAuthFlow({
+          password: () => jsonResponse(200, { factor_required: ["totp"] }),
+        });
+
+        const { user } = renderWithProviders(<LoginPage />);
+        await submitCorrectCredentials(user);
+
+        expect(await screen.findByLabelText(/verification code/i)).toBeInTheDocument();
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      });
+
+      // Review finding 1, fix round 1: unlike AuthCredentialForm,
+      // AuthOtpStep does NOT set `noValidate` on its own <form> — and its
+      // <input> carries `pattern="\d{6}"` plus `maxLength`, both native-
+      // validation attributes. Without page.tsx passing `noValidate`
+      // through explicitly, pressing Enter on an incomplete code fires
+      // the browser's native validation popup, which docs/standards/
+      // frontend.md bans outright. Mirrors the credential-form pin above
+      // (`disables native browser validation`) rather than relying on
+      // that other test to prove this by proxy.
+      it("disables native browser validation on the OTP step", async () => {
+        stubAuthFlow({
+          password: () => jsonResponse(200, { factor_required: ["totp"] }),
+        });
+
+        const { user } = renderWithProviders(<LoginPage />);
+        await submitCorrectCredentials(user);
+
+        const codeField = await screen.findByLabelText(/verification code/i);
+        expect(codeField.closest("form")).toHaveAttribute("novalidate");
+      });
+
+      it("submits the code to POST /v1/auth/login/factor and navigates on a completed login", async () => {
+        const fetchMock = stubAuthFlow({
+          password: () => jsonResponse(200, { factor_required: ["totp"] }),
+          factor: () =>
+            jsonResponse(200, { callback_url: "https://hms.example/api/auth/callback?code=abc" }),
+        });
+        const assignSpy = vi.fn();
+        vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+
+        const { user } = renderWithProviders(<LoginPage />);
+        await submitCorrectCredentials(user);
+
+        const codeField = await screen.findByLabelText(/verification code/i);
+        await user.type(codeField, "123456");
+
+        await waitFor(() =>
+          expect(fetchMock).toHaveBeenCalledWith(
+            "/api/v1/auth/login/factor",
+            expect.objectContaining({
+              method: "POST",
+              body: JSON.stringify({
+                auth_request_id: AUTH_REQUEST_ID,
+                factor: "totp",
+                code: "123456",
+              }),
+            }),
+          ),
+        );
+        await waitFor(() =>
+          expect(assignSpy).toHaveBeenCalledWith("https://hms.example/api/auth/callback?code=abc"),
+        );
+      });
+
+      // Spec D5/D6: a wrong TOTP code answers with the SAME shared
+      // refusal wording a wrong password does, and — unlike an expired
+      // attempt — the clinician stays on the OTP step to retry (spec D6
+      // allows five wrong codes before exhaustion).
+      it("shows the shared refusal wording and keeps the OTP step visible for a wrong code", async () => {
+        stubAuthFlow({
+          password: () => jsonResponse(200, { factor_required: ["totp"] }),
+          factor: () =>
+            jsonResponse(401, {
+              error: "invalid_credentials",
+              message: "email or password is incorrect",
+            }),
+        });
+
+        const { user } = renderWithProviders(<LoginPage />);
+        await submitCorrectCredentials(user);
+
+        const codeField = await screen.findByLabelText(/verification code/i);
+        await user.type(codeField, "000000");
+
+        const alert = await screen.findByRole("alert");
+        expect(alert).toHaveTextContent(/email or password is incorrect/i);
+        expect(screen.getByLabelText(/verification code/i)).toBeInTheDocument();
+      });
+
+      // A missing/expired/exhausted login_attempt row (spec D6) returns
+      // the clinician to the SAME "start again" landing an expired auth
+      // request renders — not a second, differently-worded dead end.
+      it("returns to the start-again landing when the login attempt has expired", async () => {
+        stubAuthFlow({
+          password: () => jsonResponse(200, { factor_required: ["totp"] }),
+          factor: () =>
+            jsonResponse(400, {
+              error: "auth_request_invalid",
+              message: "this sign-in attempt has expired; start again",
+            }),
+        });
+
+        const { user } = renderWithProviders(<LoginPage />);
+        await submitCorrectCredentials(user);
+
+        const codeField = await screen.findByLabelText(/verification code/i);
+        await user.type(codeField, "000000");
+
+        expect(
+          await screen.findByText(/this sign-in attempt has expired; start again/i),
+        ).toBeInTheDocument();
+        expect(screen.queryByLabelText(/verification code/i)).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+      });
+
+      // Review finding 2, fix round 1: the `handoff` branch exists in
+      // checkFactor's type and in OtpStep's onSuccess switch (page.tsx),
+      // but was untested — exactly the shape a future refactor collapses
+      // into `default: showError`, the same trap the PASSWORD step's own
+      // handoff test (`navigates to the handoff url...` above) exists to
+      // guard against. Mirrors that test: a verified TOTP code can still
+      // hand off (loginui.go's `Factor` handler: CompleteAfterFactor
+      // re-runs the uncollectible/enrolled checks and can find the
+      // session insufficient even after a CORRECT code — e.g. enrollment
+      // changed between the password step and this one), and that is NOT
+      // a failure — no alert, straight navigation.
+      it("navigates to the handoff url when a verified factor still needs Zitadel's hosted login", async () => {
+        stubAuthFlow({
+          password: () => jsonResponse(200, { factor_required: ["totp"] }),
+          factor: () =>
+            jsonResponse(200, {
+              handoff_url: "http://localhost:20080/ui/v2/login?authRequest=V2_test-auth-request",
+            }),
+        });
+        const assignSpy = vi.fn();
+        vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+
+        const { user } = renderWithProviders(<LoginPage />);
+        await submitCorrectCredentials(user);
+
+        const codeField = await screen.findByLabelText(/verification code/i);
+        await user.type(codeField, "123456");
+
+        await waitFor(() =>
+          expect(assignSpy).toHaveBeenCalledWith(
+            "http://localhost:20080/ui/v2/login?authRequest=V2_test-auth-request",
+          ),
+        );
+        // Not treated as a refusal — no shared-refusal alert rendered,
+        // same assertion the password-step handoff test makes.
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
       });
     });
   });

@@ -229,12 +229,17 @@ func run() error {
 	// that true.
 	gin.DefaultErrorWriter = logging.NewRedactingWriter(gin.DefaultErrorWriter)
 
+	// cfg.TrustedProxyCIDRs (#867 Task 4 fix round 3, Finding C1): empty
+	// unless TRUSTED_PROXY_CIDRS is set, which httpserver.New treats as
+	// "trust no proxy" — see that function's own doc comment for why
+	// this must never fall through to gin's trust-everyone default.
 	srv := httpserver.New(
 		[]httpserver.ReadyCheck{
 			{Name: "postgres", Check: db.PingContext},
 			{Name: "nats", Check: bus.Ping},
 			{Name: "openfga", Check: fga.Ping},
 		},
+		cfg.TrustedProxyCIDRs,
 		requestid.Middleware(),
 	)
 	// sessionSecureCookie is the SAME value passed to iam.NewLoginHandlers
@@ -337,43 +342,52 @@ func run() error {
 	// loginclient.defaultTimeout bounds every call it makes, so this
 	// does not need its own per-request timeout.
 	zitadelLoginClient := loginclient.New(cfg.ZitadelIssuerURL, zitadelLoginClientToken, http.DefaultClient)
-	// loginUIHandlers backs Helivanta's own login form (plan #854 Task 4):
-	// three unauthenticated routes reading an auth request (GET
-	// /v1/auth/login/request/:id), checking a password (POST
-	// /v1/auth/login/password), and handing off to Zitadel's hosted UI
+	// loginUIHandlers backs Helivanta's own login form (plan #854 Task 4,
+	// #867 Task 4): four unauthenticated routes reading an auth request
+	// (GET /v1/auth/login/request/:id), checking a password (POST
+	// /v1/auth/login/password), checking a native TOTP factor (POST
+	// /v1/auth/login/factor), and handing off to Zitadel's hosted UI
 	// when Helivanta cannot complete the login itself (POST
-	// /v1/auth/login/handoff/:id). All three reuse the SAME limiter
-	// instance as loginHandlers and V1Chain above (#841's rule: this
-	// file must construct exactly one ratelimit.Limiter, never a second)
-	// — see NewLoginUIHandlers' own doc comment on why sharing the
-	// limiter is still safe: each route keys its bucket under its own
-	// prefix (login_auth_request:, login_password:, login_handoff:) —
-	// distinct from each other AND from both LoginHandlers.Login's
-	// "login:" bucket and ratelimit.Middleware's Principal bucket, so
-	// none of the five can bleed into another's budget despite sharing
-	// one Limiter. The reason the buckets are separate: a shared key
-	// would let credential-guessing traffic exhaust the same budget as
-	// merely LOADING the login form, so an attacker (or one clinician
+	// /v1/auth/login/handoff/:id). db is the SAME *tenantdb.DB every
+	// other module in this file shares — LoginUIHandlers uses it only
+	// for the login_attempt table (0004_iam), which is not tenant-scoped
+	// (see that migration's own comment in iam/module.go). AuthRequest,
+	// Password and Handoff reuse the SAME limiter instance as
+	// loginHandlers and V1Chain above (#841's rule: this file must
+	// construct exactly one ratelimit.Limiter, never a second) — see
+	// NewLoginUIHandlers' own doc comment on why sharing the limiter is
+	// still safe: each route keys its bucket under its own prefix
+	// (login_auth_request:, login_password:, login_handoff:) — distinct
+	// from each other AND from both LoginHandlers.Login's "login:"
+	// bucket and ratelimit.Middleware's Principal bucket, so none of the
+	// six can bleed into another's budget despite sharing one Limiter.
+	// The reason the buckets are separate: a shared key would let
+	// credential-guessing traffic exhaust the same budget as merely
+	// LOADING the login form, so an attacker (or one clinician
 	// mistyping their password repeatedly) could lock people out of the
 	// sign-in page itself — a self-inflicted denial of service on the
 	// sign-in path that buckets are distinct specifically to prevent.
-	// The Rule itself is bootstrap.LoginRateLimitRule(cfg) too — these
-	// endpoints do not yet warrant a budget shaped differently from
+	// AuthRequest/Password/Handoff's Rule is bootstrap.LoginRateLimitRule(cfg)
+	// — these three do not yet warrant a budget shaped differently from
 	// POST /v1/auth/login's (all are "one browser tab's worth of login
-	// traffic"), so a second RATE_LIMIT_* knob would be configuration
-	// nobody has a reason to set independently; revisit if that changes.
-	loginUIHandlers := iam.NewLoginUIHandlers(zitadelLoginClient, cfg.ZitadelHostedLoginURL, limiter, bootstrap.LoginRateLimitRule(cfg))
+	// traffic"). Factor is DIFFERENT and gets its OWN Rule,
+	// bootstrap.FactorRateLimitRule(cfg) — see that function's doc
+	// comment: it is a six-digit code-guessing surface and a PRIMARY
+	// brute-force control, not a page-load budget, so folding it into
+	// LoginRateLimitRule would size it for the wrong threat.
+	loginUIHandlers := iam.NewLoginUIHandlers(zitadelLoginClient, cfg.ZitadelHostedLoginURL, db,
+		limiter, bootstrap.LoginRateLimitRule(cfg), bootstrap.FactorRateLimitRule(cfg))
 
 	// Mounted through bootstrap so the bypass is declared in one
 	// enumerable place and pinned by
 	// archtest.TestEveryEngineRouteIsDeclaredOrAllowlisted — a route on the
 	// raw engine otherwise escapes platform.Router entirely.
-	// authRequest/password/handoff are now the real loginUIHandlers
-	// methods (Task 5) — MountUnauthenticated's nil guard is what made
-	// `go run ./cmd/api` refuse to boot on this branch before this
-	// commit, per its own doc comment; this is the fix.
+	// authRequest/password/handoff/factor are the real loginUIHandlers
+	// methods — MountUnauthenticated's nil guard is what makes
+	// `go run ./cmd/api` refuse to boot if any of the four is ever
+	// missing, per its own doc comment.
 	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login,
-		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Handoff)
+		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Handoff, loginUIHandlers.Factor)
 
 	for _, m := range registry.All() {
 		m.Routes(api, deps)

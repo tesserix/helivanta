@@ -3,12 +3,28 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { z } from "zod";
-import { AuthCardCentered, AuthCardFooter, AuthLayoutCentered, Button, Input } from "@tesserix/web";
+import {
+  AuthCardCentered,
+  AuthCardFooter,
+  AuthCredentialForm,
+  AuthLayoutCentered,
+  AuthOtpStep,
+  Button,
+  type AuthCredentialValues,
+  type AuthMethodPolicy,
+} from "@tesserix/web";
 import { ApiError, useApiMutation, useApiQuery } from "@helivanta/api";
-import { Field, IDLE_ENDED_MARK, SIGNED_OUT_MARK, useZodForm } from "@helivanta/ui";
+import { IDLE_ENDED_MARK, SIGNED_OUT_MARK } from "@helivanta/ui";
 
 import { getUserManager } from "@/lib/oidc";
-import { checkPassword, type AuthRequestInfo, type PasswordCheckResult } from "@/lib/login-client";
+import {
+  checkFactor,
+  checkPassword,
+  type AuthPoliciesInfo,
+  type AuthRequestInfo,
+  type FactorCheckResult,
+  type PasswordCheckResult,
+} from "@/lib/login-client";
 
 // Helivanta's own sign-in page (spec D2/D6, #854 — supersedes D5a of
 // 2026-08-15-zitadel-tenancy-topology-design.md). D5a said Helivanta must
@@ -37,46 +53,64 @@ import { checkPassword, type AuthRequestInfo, type PasswordCheckResult } from "@
 //    POST /v1/auth/login/password directly against our API.
 //
 // The credential form's accessible names — `Email`, `Password`, and a
-// button named `Sign in` — are a CONTRACT, not styling (spec D6).
-// e2e/tests/support/login.ts drives every one of this repo's eleven spec
+// button named `Sign in` — are a CONTRACT, not styling (spec D6/D7).
+// e2e/tests/support/login.ts drives every one of this repo's twelve spec
 // files by these exact names at the login step; renaming a label here
 // fails all of them simultaneously, in a way that reads like a broken
 // application rather than a renamed field. Do not "improve" the label
-// text without updating that contract deliberately.
+// text without updating that contract deliberately. #867 (spec D7) moved
+// the credential fields onto `@tesserix/web`'s `AuthCredentialForm`,
+// whose DEFAULT login-name label is `describeLoginName(methodPolicy)` and
+// does NOT say "Email" — CredentialForm below passes `loginNameLabel`,
+// `passwordLabel`, and `submitLabel` explicitly for exactly this reason.
+// The MFA step this same change adds (below) introduces NEW accessible
+// names of its own; they are new, not renamed, so nothing existing
+// depends on them yet, but the e2e spec added alongside this change pins
+// them, so treat them as the same kind of contract from here on.
 //
 // MOST IMPORTANT: a password check alone is NOT sufficient authentication
 // here (spec D4). Zitadel was observed, experimentally, NOT to enforce an
 // org's `forceMfa` policy for a login-client session — a password-only
 // session finalises with a valid authorization code even when a second
 // factor is required. So Helivanta's own API decides sufficiency itself, and
-// answers a submitted password with one of two shapes:
+// answers a submitted password with one of THREE shapes:
 //
 //  - `{ callback_url }` — the login is actually complete; navigate there.
 //  - `{ handoff_url }` — Helivanta cannot finish this login itself (MFA
 //    required by org policy, `forceMfaLocalOnly`, a user's own
-//    voluntarily enrolled second factor, a federated hospital IdP, or a
-//    policy the API could not read and so fails closed on). A forced
-//    password change is NOT among them, though an earlier version of
-//    this comment listed it: verified live 2026-08-16 (#854 Task 8,
-//    spike §5), Zitadel signals `passwordChangeRequired` to a login
-//    client nowhere in the flow, so the API COMPLETES those logins —
-//    tracked as #856. This is a NORMAL OUTCOME, not an error. The
-//    caller's password may have been entirely correct — this page must
-//    navigate to `handoff_url` exactly as it would `callback_url`, never
-//    render it as a failed sign-in. Treating a handoff as an error would
-//    strand a clinician who needs MFA at a dead end; treating it as
-//    success would silently skip a required factor.
+//    voluntarily enrolled second factor Helivanta cannot collect
+//    natively, a federated hospital IdP, or a policy the API could not
+//    read and so fails closed on). A forced password change is NOT among
+//    them, though an earlier version of this comment listed it: verified
+//    live 2026-08-16 (#854 Task 8, spike §5), Zitadel signals
+//    `passwordChangeRequired` to a login client nowhere in the flow, so
+//    the API COMPLETES those logins — tracked as #856. This is a NORMAL
+//    OUTCOME, not an error. The caller's password may have been entirely
+//    correct — this page must navigate to `handoff_url` exactly as it
+//    would `callback_url`, never render it as a failed sign-in. Treating
+//    a handoff as an error would strand a clinician who needs MFA at a
+//    dead end; treating it as success would silently skip a required
+//    factor.
+//  - `{ factor_required: ["totp"] }` — (#867, spec D1/D8) the password was
+//    correct and the org's policy requires a TOTP code, which Helivanta
+//    can now collect natively rather than handing off to Zitadel's hosted
+//    UI. This is the SAME "neither success nor failure" trap `handoff_url`
+//    documents above, one level deeper: rendering it as a failed sign-in
+//    would send a clinician to reset a password that was correct. See
+//    OtpStep below and login-client.ts's checkPassword doc comment.
 //
 // A genuinely refused credential (wrong password or unknown user) is a
-// THIRD, distinct outcome: the API answers both cases identically — same
+// FOURTH, distinct outcome: the API answers both cases identically — same
 // status, same body, same timing floor (spec D5) — specifically so a
 // caller cannot learn which hospital accounts exist by trying login
 // names. This page shows that ONE shared message in a single
 // `role="alert"` element and never renders a per-field error for it
 // (e.g. "no account with that email"), which would rebuild the same
-// enumeration oracle the backend just closed.
+// enumeration oracle the backend just closed. A wrong TOTP code (#867,
+// spec D5/D6) answers with the IDENTICAL wording, one level deeper, for
+// the same reason — see OtpStep below.
 //
-// A FOURTH outcome sits in front of all three of the above: the auth request
+// A FIFTH outcome sits in front of all of the above: the auth request
 // itself can be unknown, expired, or already used — reachable in normal
 // use, per the design spec, by nothing more unusual than a browser left
 // on this page overnight. ValidatedCredentialForm calls
@@ -88,7 +122,12 @@ import { checkPassword, type AuthRequestInfo, type PasswordCheckResult } from "@
 // mount-time check succeeding and the credential being submitted. Either
 // path renders the SAME "start again" affordance: RedirectLanding's own
 // Sign in button, which is a real, working control here — not just an
-// error message with nowhere to go.
+// error message with nowhere to go. #867 adds a SIXTH place this exact
+// same situation can be discovered: a `login_attempt` row (the server-
+// side record of an in-progress MFA check) can itself go stale between
+// the password step and the factor step — see OtpStep's `onExpired`,
+// which renders this identical landing rather than a second, different-
+// looking dead end.
 //
 // apps/shell/app/api/auth/callback/page.tsx is unchanged: it is still
 // the target both `callback_url` (this page) and Zitadel's hosted login
@@ -171,45 +210,137 @@ function ValidatedCredentialForm({ authRequestId }: { authRequestId: string }) {
     );
   }
 
-  return <CredentialForm authRequestId={authRequestId} />;
+  return <LoginFlow authRequestId={authRequestId} policies={authRequest.data.policies} />;
+}
+
+// Maps login-client.ts's wire-shaped `AuthPoliciesInfo` (snake_case,
+// unmodified from the backend — see that file's header comment on why it
+// carries no translation logic of its own) onto `@tesserix/web`'s
+// camelCase `AuthMethodPolicy`. This is the ONE reader of the org's login
+// policy on the frontend (spec D5's "one reader" reasoning: a second
+// mapping here, alongside loginclient's own read in Go, is exactly the
+// kind of drift-prone duplication D5 warns a future PR could reintroduce)
+// — it only decides what this page RENDERS, never what it allows;
+// loginclient.CompleteIfSufficient / CompleteAfterFactor on the backend
+// remain the sole enforcers, unchanged by this page either way.
+function toMethodPolicy(policies: AuthPoliciesInfo): AuthMethodPolicy {
+  return {
+    allowPassword: policies.allow_password,
+    requireMfa: policies.require_mfa,
+    secondFactors: policies.second_factors as AuthMethodPolicy["secondFactors"],
+    ignoreUnknownUsernames: policies.ignore_unknown_usernames,
+  };
+}
+
+type LoginStep = "credential" | "otp";
+
+// Owns the two-step flow a validated auth request can now be in (#867,
+// spec D1/D8): the credential step (unchanged in outcome, now rendered
+// via `@tesserix/web`'s AuthCredentialForm) and, reachable only after a
+// `factorRequired` outcome, the OTP step. `expiredMessage` is a THIRD
+// state this component can reach — not a step of the flow itself, but
+// the SAME "start again" landing ValidatedCredentialForm's own
+// mount-time check renders above: a pending `login_attempt` row (the
+// server-side record of an in-progress MFA check) can go stale between
+// the password step and the factor step exactly as the auth request
+// itself can go stale before either step, and both must reach the
+// identical RedirectLanding affordance rather than two different-looking
+// dead ends for what is, from a clinician's point of view, the same
+// situation: start again.
+function LoginFlow({
+  authRequestId,
+  policies,
+}: {
+  authRequestId: string;
+  policies: AuthPoliciesInfo;
+}) {
+  const [step, setStep] = useState<LoginStep>("credential");
+  const [expiredMessage, setExpiredMessage] = useState<string | null>(null);
+
+  if (expiredMessage) {
+    return <RedirectLanding message={expiredMessage} />;
+  }
+
+  if (step === "otp") {
+    return <OtpStep authRequestId={authRequestId} onExpired={setExpiredMessage} />;
+  }
+
+  return (
+    <CredentialForm
+      authRequestId={authRequestId}
+      policies={policies}
+      onFactorRequired={() => setStep("otp")}
+    />
+  );
 }
 
 const credentialsSchema = z.object({
-  email: z.string().min(1, "Enter your email").email("Enter a valid email address"),
+  loginName: z.string().min(1, "Enter your email").email("Enter a valid email address"),
   password: z.string().min(1, "Enter your password"),
 });
 
-type Credentials = z.infer<typeof credentialsSchema>;
-
-// The credential form itself (spec D2/D6). Renders only once
+// The credential step itself (spec D2/D6/D7). Renders only once
 // ValidatedCredentialForm's mount-time check confirms the auth request is
 // still good — see LoginPage's header comment for the full outcome
-// contract (`callback_url` / `handoff_url` / shared refusal / expired
-// request) this drives against.
-function CredentialForm({ authRequestId }: { authRequestId: string }) {
-  const form = useZodForm(credentialsSchema, { email: "", password: "" });
+// contract (`callback_url` / `handoff_url` / `factor_required` / shared
+// refusal / expired request) this drives against.
+//
+// Built on `@tesserix/web`'s AuthCredentialForm (#867, on top of #866)
+// rather than hand-rolled `Field`/`Input` elements. AuthCredentialForm is
+// a fully CONTROLLED component (`values` / `onValuesChange` / `onSubmit`,
+// not react-hook-form's `register`/`handleSubmit`), so validation here
+// runs as a plain `credentialsSchema.safeParse` on submit rather than
+// through `useZodForm` — `useZodForm` is built around the uncontrolled
+// register pattern this component does not use. AuthCredentialForm sets
+// its own `noValidate` and renders its own `role="alert"` error surfaces
+// (a per-field paragraph from its internal `AuthField`, and a form-level
+// one from its internal `AuthError`) — this component supplies the text
+// for those, not the markup.
+function CredentialForm({
+  authRequestId,
+  policies,
+  onFactorRequired,
+}: {
+  authRequestId: string;
+  policies: AuthPoliciesInfo;
+  onFactorRequired: () => void;
+}) {
+  const [values, setValues] = useState<AuthCredentialValues>({ loginName: "", password: "" });
+  const [loginNameError, setLoginNameError] = useState<string | undefined>();
+  const [passwordError, setPasswordError] = useState<string | undefined>();
 
-  const submit = useApiMutation<PasswordCheckResult, Credentials>(
-    (values) =>
+  const submit = useApiMutation<PasswordCheckResult, AuthCredentialValues>(
+    (submitted) =>
       checkPassword({
         authRequestId,
-        loginName: values.email,
-        password: values.password,
+        loginName: submitted.loginName,
+        password: submitted.password,
       }),
     {
-      // Both outcomes navigate — see the header comment on why a
-      // handoff is not treated as a failure. window.location.assign
-      // (not router.push): both URLs leave this Next.js app entirely,
-      // either to the same /api/auth/callback route Zitadel's own
-      // redirect also lands on, or to Zitadel's hosted login origin.
+      // `complete` and `handoff` both navigate — see the header comment
+      // on why a handoff is not treated as a failure. window.location.
+      // assign (not router.push): both URLs leave this Next.js app
+      // entirely, either to the same /api/auth/callback route Zitadel's
+      // own redirect also lands on, or to Zitadel's hosted login origin.
+      // `factorRequired` (#867) is the one outcome that stays inside
+      // this app — it hands control to LoginFlow's OTP step instead of
+      // navigating anywhere.
       onSuccess: (result) => {
-        window.location.assign(
-          result.outcome === "complete" ? result.callbackUrl : result.handoffUrl,
-        );
+        switch (result.outcome) {
+          case "complete":
+            window.location.assign(result.callbackUrl);
+            break;
+          case "handoff":
+            window.location.assign(result.handoffUrl);
+            break;
+          case "factorRequired":
+            onFactorRequired();
+            break;
+        }
       },
-      // The role="alert" paragraph below is this mutation's error surface
-      // — it sits next to the fields and is what a screen reader user
-      // focused on the form expects (spec D5/D6). useApiMutation's
+      // AuthCredentialForm's own `error` prop is this mutation's error
+      // surface (spec D5/D6) — it sits next to the fields and is what a
+      // screen reader user focused on the form expects. useApiMutation's
       // automatic toast.error(error.message) would show the EXACT SAME
       // text a second time through a second channel, which review
       // flagged as confusing rather than helpful. See
@@ -217,6 +348,19 @@ function CredentialForm({ authRequestId }: { authRequestId: string }) {
       suppressErrorToast: true,
     },
   );
+
+  function handleSubmit(submitted: AuthCredentialValues) {
+    const parsed = credentialsSchema.safeParse(submitted);
+    if (!parsed.success) {
+      const fieldErrors = parsed.error.flatten().fieldErrors;
+      setLoginNameError(fieldErrors.loginName?.[0]);
+      setPasswordError(fieldErrors.password?.[0]);
+      return;
+    }
+    setLoginNameError(undefined);
+    setPasswordError(undefined);
+    submit.mutate(submitted);
+  }
 
   return (
     <AuthLayoutCentered>
@@ -226,24 +370,13 @@ function CredentialForm({ authRequestId }: { authRequestId: string }) {
           <p className="text-sm text-muted-foreground">Sign in to continue.</p>
         </div>
 
-        <form
-          noValidate
-          className="space-y-4"
-          onSubmit={form.handleSubmit((values) => submit.mutate(values))}
-        >
-          <Field id="email" label="Email" error={form.formState.errors.email?.message}>
-            <Input id="email" type="email" autoComplete="username" {...form.register("email")} />
-          </Field>
-          <Field id="password" label="Password" error={form.formState.errors.password?.message}>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              {...form.register("password")}
-            />
-          </Field>
-
-          {submit.error ? (
+        <AuthCredentialForm
+          methodPolicy={toMethodPolicy(policies)}
+          values={values}
+          onValuesChange={setValues}
+          onSubmit={handleSubmit}
+          loading={submit.isPending}
+          error={
             // ONE message, deliberately not attached to either field —
             // see the header comment on spec D5. submit.error is
             // whatever ApiError.message the API answered with: the
@@ -251,21 +384,150 @@ function CredentialForm({ authRequestId }: { authRequestId: string }) {
             // alike, or (for the auth-request-expired / Zitadel-
             // unavailable cases) the API's own distinct, non-enumerating
             // wording for those.
-            <p role="alert" className="text-sm text-destructive">
-              {submit.error instanceof ApiError
-                ? submit.error.message
-                : "Sign-in failed. Please try again."}
-            </p>
-          ) : null}
-
-          <Button type="submit" className="w-full" disabled={submit.isPending}>
-            {submit.isPending ? "Signing in…" : "Sign in"}
-          </Button>
-        </form>
+            submit.error instanceof ApiError
+              ? submit.error.message
+              : submit.error
+                ? "Sign-in failed. Please try again."
+                : undefined
+          }
+          loginNameError={loginNameError}
+          passwordError={passwordError}
+          // These three accessible names are a CONTRACT, not styling
+          // (spec D6/D7) — see LoginPage's header comment. Passed
+          // explicitly because AuthCredentialForm's DEFAULT login-name
+          // label is `describeLoginName(methodPolicy)`, which does not
+          // say "Email"; relying on that default is the concrete way
+          // this contract breaks. Do not "improve" this text without
+          // updating that contract deliberately.
+          loginNameLabel="Email"
+          passwordLabel="Password"
+          submitLabel="Sign in"
+        />
 
         <AuthCardFooter>
           <p className="text-xs text-muted-foreground">
             Your credential is checked directly by Helivanta.
+          </p>
+        </AuthCardFooter>
+      </AuthCardCentered>
+    </AuthLayoutCentered>
+  );
+}
+
+// The native second-factor step (#867, spec D1/D7). Reachable only after
+// CredentialForm's `factorRequired` outcome — never rendered up front —
+// so the OTP prompt itself never becomes an enumeration oracle for "this
+// account has TOTP" (spec D5): nothing on this page reveals it before a
+// correct password.
+//
+// checkFactor's four outcomes (see its own doc comment in login-client.ts
+// for why there are four, not the three the design spec's D8 table
+// lists) map to visibly different behaviour here:
+//
+//  - `complete` / `handoff` both navigate away, exactly like
+//    CredentialForm's own `complete` / `handoff` handling above — a
+//    handoff after a CORRECT code (the user's enrollment changed between
+//    the password step and this one) is still not a failure.
+//  - `refused` (a wrong TOTP code, spec D5/D6) keeps THIS step visible
+//    with the shared refusal wording and clears the code so the
+//    clinician can retry — spec D6 allows five wrong codes before
+//    exhaustion, so staying here is the normal case, not a dead end.
+//  - `expired` (the `login_attempt` row missing, expired, or exhausted)
+//    hands control back to `onExpired`, which renders the SAME
+//    "start again" landing an expired auth request renders elsewhere on
+//    this page — the clinician must re-enter their password either way,
+//    and two different-looking dead ends for the same underlying
+//    situation would be confusing, not helpful.
+//
+// Anything else `checkFactor` does not model (e.g. Zitadel unreachable)
+// surfaces as a thrown `ApiError` — shown the same way, via `submit.
+// error`, without a state transition, exactly like CredentialForm's own
+// unmodeled-error fallback.
+function OtpStep({
+  authRequestId,
+  onExpired,
+}: {
+  authRequestId: string;
+  onExpired: (message: string) => void;
+}) {
+  const [code, setCode] = useState("");
+  // Set only on a `refused` outcome — a resolved mutation RESULT, not a
+  // thrown error (see checkFactor's doc comment on why refusal is
+  // modeled as data here, unlike checkPassword's). Cleared whenever the
+  // clinician edits the code again, so a stale refusal message never
+  // survives into a fresh attempt.
+  const [refusedMessage, setRefusedMessage] = useState<string | undefined>();
+
+  const submit = useApiMutation<FactorCheckResult, string>(
+    (submittedCode) => checkFactor({ authRequestId, factor: "totp", code: submittedCode }),
+    {
+      onSuccess: (result) => {
+        switch (result.outcome) {
+          case "complete":
+            window.location.assign(result.callbackUrl);
+            break;
+          case "handoff":
+            window.location.assign(result.handoffUrl);
+            break;
+          case "refused":
+            setRefusedMessage(result.message);
+            setCode("");
+            break;
+          case "expired":
+            onExpired(result.message);
+            break;
+        }
+      },
+      // Same reasoning as CredentialForm's suppressErrorToast above:
+      // AuthOtpStep's own `error` prop is this mutation's dedicated error
+      // surface.
+      suppressErrorToast: true,
+    },
+  );
+
+  return (
+    <AuthLayoutCentered>
+      <AuthCardCentered>
+        <div className="space-y-2 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight">Helivanta</h1>
+          <p className="text-sm text-muted-foreground">
+            Enter the 6-digit code from your authenticator app.
+          </p>
+        </div>
+
+        <AuthOtpStep
+          // Review finding, fix round 1: unlike AuthCredentialForm,
+          // AuthRegisterForm and AuthRecovery, AuthOtpStep does NOT set
+          // `noValidate` on its own `<form>` — and its `<input>` carries
+          // `pattern="\d{6}"` plus `maxLength`, both native-validation
+          // attributes. Without this prop, pressing Enter on an
+          // incomplete code fires the browser's native validation popup,
+          // which docs/standards/frontend.md bans outright (§4/§5). This
+          // IS accepted by AuthOtpStepProps (it extends
+          // `FormHTMLAttributes<HTMLFormElement>` and spreads `...props`
+          // onto the `<form>` — see @tesserix/web's source), so passing
+          // it here is sufficient; no DOM workaround needed.
+          noValidate
+          value={code}
+          onValueChange={(next) => {
+            setCode(next);
+            setRefusedMessage(undefined);
+          }}
+          onSubmit={(submittedCode) => submit.mutate(submittedCode)}
+          loading={submit.isPending}
+          error={
+            refusedMessage ??
+            (submit.error instanceof ApiError
+              ? submit.error.message
+              : submit.error
+                ? "Sign-in failed. Please try again."
+                : undefined)
+          }
+        />
+
+        <AuthCardFooter>
+          <p className="text-xs text-muted-foreground">
+            Your code is checked directly by Helivanta.
           </p>
         </AuthCardFooter>
       </AuthCardCentered>

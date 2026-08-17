@@ -83,7 +83,16 @@ const RETRY_DELAY_MS = 1_100;
 // fields are on screen together and one submit finishes it.
 async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
   await page.getByLabel("Email").fill(user.email);
-  await page.getByLabel("Password").fill(user.password);
+  // exact: true — @tesserix/web 2.2.1 (#866/#868) added a "Show password"
+  // toggle button to AuthCredentialForm's password field, and Playwright's
+  // getByLabel does SUBSTRING matching by default: "Password" matches that
+  // button's aria-label ("Show password") too, so an unqualified
+  // getByLabel("Password") resolves to two elements and throws Playwright's
+  // strict-mode violation. Observed live (#867 Task 6) failing every spec
+  // that reaches this line, not just the one being added — this is a
+  // locator fix, not a behavior change; the field's accessible name is
+  // still exactly "Password" (spec D6/D7's contract, unchanged).
+  await page.getByLabel("Password", { exact: true }).fill(user.password);
   await page.getByRole("button", { name: "Sign in" }).click();
 
   // The credential form's submit button is also named "Sign in" — same

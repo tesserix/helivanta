@@ -411,8 +411,15 @@ func TestRevocationPropagatesToAnotherReplica(t *testing.T) {
 	// (unlike the comment used to say) because outbox_events' own policy
 	// (0002_events_outbox_tenant, #835 Task 1) calls hms_tenant_visible.
 	iamMigs := New(nil).Migrations()
+	var revocationMig tenantdb.Migration
+	for _, m := range iamMigs {
+		if m.ID == "0003_iam" {
+			revocationMig = m
+		}
+	}
+	require.NotEmpty(t, revocationMig.ID, "precondition: 0003_iam is the revocation table migration")
 	migs := append(tenantdb.Migrations(), events.Migrations()...)
-	migs = append(migs, iamMigs[len(iamMigs)-1])
+	migs = append(migs, revocationMig)
 	require.NoError(t, db.Migrate(ctx, migs))
 
 	bus, err := events.NewBusInNamespace(testinfra.StartNATS(t), t.Name())

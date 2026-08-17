@@ -25,6 +25,15 @@ const (
 	// OutcomeComplete means the session satisfied everything Helivanta knows how
 	// to check and the auth request was finalized; CallbackURL is set.
 	OutcomeComplete
+	// OutcomeFactorRequired means the session is password-only, the user
+	// has enrolled TOTP and nothing ELSE Helivanta cannot collect, and
+	// Helivanta should prompt for a TOTP code natively rather than hand
+	// off to Zitadel's hosted UI. Factors names which factor(s) to
+	// collect (today, always exactly ["totp"]). It MUST be added after
+	// OutcomeComplete, never before OutcomeHandoff: OutcomeHandoff stays
+	// the iota zero value on purpose (see its own doc comment), and this
+	// is a third answer, not a replacement for either existing one.
+	OutcomeFactorRequired
 )
 
 // String makes test failures and log lines name the outcome rather than
@@ -37,25 +46,102 @@ func (o Outcome) String() string {
 		return "handoff"
 	case OutcomeComplete:
 		return "complete"
+	case OutcomeFactorRequired:
+		return "factor_required"
 	default:
 		return fmt.Sprintf("Outcome(%d)", int(o))
 	}
 }
 
-// Result is what CompleteIfSufficient answers with. CallbackURL is set if
-// and only if Outcome is OutcomeComplete; on a handoff it is empty,
-// because there is deliberately nothing for the caller to redirect to —
-// the caller must send the browser to Zitadel's own login UI to collect
-// the factors Helivanta cannot.
+// Result is what CompleteIfSufficient and CompleteAfterFactor answer with.
+// CallbackURL is set if and only if Outcome is OutcomeComplete; on a
+// handoff or a factor-required answer it is empty — on a handoff because
+// there is deliberately nothing for the caller to redirect to (the caller
+// must send the browser to Zitadel's own login UI to collect the factors
+// Helivanta cannot), and on factor-required because the login is not
+// finished yet. Factors is non-empty if and only if Outcome is
+// OutcomeFactorRequired; it names which factor(s) the caller must collect
+// next (today, always exactly ["totp"]).
 type Result struct {
 	Outcome     Outcome
 	CallbackURL string
+	Factors     []string
+}
+
+// sufficient is proof that a session was evaluated by one of this
+// package's two classification paths and found adequate to finalize.
+// finalize requires one as a parameter; a call that omits it does not
+// compile, which closes the gap #867 fix round 1 found: nothing
+// previously stopped a THIRD, future function in this package from
+// calling finalize directly and skipping every check below.
+//
+// STATE THE LIMIT OF THIS PLAINLY rather than oversell it: `sufficient`
+// is an unexported EMPTY struct, and Go permits the zero-value composite
+// literal `sufficient{}` from ANY code in this package regardless of
+// field visibility — there is no language feature that makes a struct
+// literal only constructible from specific functions within the SAME
+// package. A determined (or careless-in-a-specific-way) contributor could
+// still write `c.finalize(ctx, id, s, sufficient{})` next to a brand-new
+// check-free function, and it would compile. What this control actually
+// buys is narrower and still real: a function that calls finalize with
+// NO third argument at all — the far more likely shape of "someone added
+// a caller and forgot the check entirely" — is now a compile error
+// instead of a silent bypass a reviewer has to catch by reading call
+// sites. See CompleteIfSufficient's and CompleteAfterFactor's doc
+// comments for the two functions that legitimately produce one, and this
+// task's report
+// (.superpowers/sdd/2026-08-17-native-mfa-auth-components/task-3-report.md,
+// "Fix round 1 — Finding 3") for the actual compiler output proving both
+// halves of this claim: the omission IS a compile error, and a
+// hand-written `sufficient{}` DOES compile. The stronger, fully
+// structural fix — an archtest analogous to TestFinalizeCallSiteIsUnique
+// that pins `sufficient{` construction to exactly two call sites the same
+// way that test pins finalize's own POST — is proposed there rather than
+// implemented in this round: it needs a change in internal/archtest,
+// outside this round's scope.
+type sufficient struct{}
+
+// classifyEnrolledMethods reads sessionID's enrolled authentication
+// methods (enrolledMethodTypes, client.go) and classifies them into two
+// independent questions both CompleteIfSufficient and CompleteAfterFactor
+// need answered: totpEnrolled (did the user configure TOTP — the one
+// factor VerifyTOTP, Task 2, lets Helivanta collect natively?) and
+// uncollectible (did they ALSO configure anything else?). Per spec D1, a
+// user with both TOTP and, say, OTP_EMAIL enrolled must still hand off —
+// Helivanta can only collect one of the two, and completing on the
+// strength of the one it can collect would silently skip the other one
+// the user configured. This is shared, rather than inlined separately in
+// each caller, specifically so CompleteAfterFactor re-runs the SAME
+// uncollectible check CompleteIfSufficient did (#867 fix round 1, Finding
+// 2) instead of drifting from it.
+//
+// Fails closed like every other read in this file: an error from
+// enrolledMethodTypes means "cannot prove this session is sufficient",
+// not "no factor found", so callers must hand off rather than risk a
+// bypass on an unreadable answer.
+func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) (totpEnrolled, uncollectible bool, err error) {
+	methodTypes, err := c.enrolledMethodTypes(ctx, sessionID)
+	if err != nil {
+		return false, false, err
+	}
+	for _, methodType := range methodTypes {
+		switch methodType {
+		case passwordOnlyMethodType:
+			// Not a second factor at all — every session already has this.
+		case totpMethodType:
+			totpEnrolled = true
+		default:
+			uncollectible = true
+		}
+	}
+	return totpEnrolled, uncollectible, nil
 }
 
 // CompleteIfSufficient is the ONLY way to finalize an OIDC auth request
-// from outside this package: finalize itself is unexported, so a caller
-// cannot complete a login without this decision running first. That is
-// structural on purpose. The spike (§2 of
+// from outside this package: finalize itself is unexported and requires a
+// `sufficient` witness only this function and CompleteAfterFactor produce,
+// so a caller cannot complete a login without one of these two decisions
+// running first. That is structural on purpose. The spike (§2 of
 // docs/superpowers/spikes/2026-08-16-zitadel-login-client.md) proved that
 // Zitadel, for a login client, issues an authorization code for a
 // password-only session even when the org policy sets forceMfa — it
@@ -72,6 +158,22 @@ type Result struct {
 // handoff that was not strictly necessary costs the user one redirect; a
 // completion that was not warranted is an authentication bypass, and that
 // asymmetry decides the direction.
+//
+// # Enrolled-method classification runs BEFORE the policy check — #867 fix round 1, Finding 1
+//
+// An earlier version of this function checked policy.ForceMFA first and
+// returned OutcomeHandoff immediately when it was true, before ever
+// looking at what the user had enrolled. That silently missed the
+// headline case this whole spec (#867) exists for: an org that forces
+// MFA, with a user who has enrolled TOTP and nothing else, still got
+// handed off to Zitadel's hosted page instead of the native prompt — spec
+// D1's first row was simply never reached. It failed closed (no bypass),
+// but the feature did not fire for the case it was built for. Enrolled
+// methods are now classified FIRST: TOTP-only enrollment returns
+// OutcomeFactorRequired regardless of ForceMFA, because Helivanta can
+// satisfy that case itself once VerifyTOTP runs; ForceMFA only continues
+// to matter for the "nothing enrolled at all" case, where a password-only
+// session is insufficient and there is nothing to natively prompt for.
 //
 // KNOWN LIMITATIONS — read these before trusting the check to be more
 // than it is. Both are gaps in WHICH cases are covered, not in how the
@@ -112,6 +214,38 @@ type Result struct {
 //     rather than guessed at. Adding a second org to this instance
 //     REQUIRES fixing this first.
 func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string, s Session) (Result, error) {
+	// The org may not force MFA, but an individual user can still have
+	// VOLUNTARILY enrolled a second factor (spike "Per-user enrolled
+	// factors" §, #854 Task 8) — and if the org DOES force MFA, this same
+	// read is what tells TOTP-only enrollment apart from "nothing
+	// enrolled", which decides whether there is anything to natively
+	// prompt for at all. Either way this has to run before the policy
+	// check, not after (see this function's "classification runs BEFORE
+	// the policy check" doc section above).
+	totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
+	if err != nil {
+		slog.WarnContext(ctx, "enrolled-factor check unreadable: handing off rather than completing the login (fails closed, same as an unreadable policy)",
+			"err", err)
+		return Result{Outcome: OutcomeHandoff}, nil
+	}
+	if uncollectible {
+		// Whatever else CompleteIfSufficient learns, an uncollectible
+		// enrolled factor is decisive on its own (spec D1) — not worth
+		// spending a policy round trip on.
+		return Result{Outcome: OutcomeHandoff}, nil
+	}
+	if totpEnrolled {
+		// Ask for the factor natively instead of handing off — the
+		// headline case this whole spec exists for, and the one Finding 1
+		// found was unreachable when forceMfa was also true. Nothing is
+		// finalized here — the login completes only once
+		// CompleteAfterFactor confirms VerifyTOTP actually succeeded
+		// against this session, independent of what ForceMFA says.
+		return Result{Outcome: OutcomeFactorRequired, Factors: []string{"totp"}}, nil
+	}
+
+	// Nothing beyond a password is enrolled. Whether that is sufficient
+	// now depends entirely on the org's policy.
 	policy, err := c.LoginPolicy(ctx)
 	if err != nil {
 		// Deliberately not returned as an error: an unreadable policy is
@@ -129,35 +263,98 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 	}
 	if policy.ForceMFA {
 		// The session this package can build is password-only
-		// (CreatePasswordSession is its only session constructor), so
-		// under forceMfa it is by construction insufficient. When Helivanta
-		// learns to collect a second factor (#41), this is the branch that
-		// grows a "session already carries an MFA factor" case — it must
-		// not become a reason to delete the check.
+		// (CreatePasswordSession is its only session constructor), and
+		// nothing was enrolled that Helivanta could ask for natively (the
+		// TOTP-only case already returned above), so under forceMfa this
+		// session is insufficient with nothing left to offer but a
+		// handoff.
 		return Result{Outcome: OutcomeHandoff}, nil
 	}
 
-	// The org may not force MFA, but an individual user can still have
-	// VOLUNTARILY enrolled a second factor (spike "Per-user enrolled
-	// factors" §, #854 Task 8). A password-only session bypasses that
-	// factor unless Helivanta checks for it here — the org policy alone is not
-	// the whole story. Fails closed the same way the policy read above
-	// does: an error from HasEnrolledFactor means "cannot prove this
-	// session is sufficient", not "no factor found", so it hands off
-	// rather than risking a bypass on an unreadable answer.
-	hasFactor, err := c.HasEnrolledFactor(ctx, s.ID)
+	callbackURL, err := c.finalize(ctx, authRequestID, s, sufficient{})
+	if err != nil {
+		return Result{}, fmt.Errorf("loginclient: finalize after sufficiency check: %w", err)
+	}
+	return Result{Outcome: OutcomeComplete, CallbackURL: callbackURL}, nil
+}
+
+// CompleteAfterFactor is the second half of the OutcomeFactorRequired
+// flow: after CompleteIfSufficient asks for a TOTP code and the caller
+// checks one against the session (VerifyTOTP, Task 2), this function
+// decides whether that check actually succeeded and, only then, finalizes
+// the login.
+//
+// It re-evaluates BOTH questions CompleteIfSufficient did, not just the
+// TOTP-verified one, so it can never finalize a case CompleteIfSufficient
+// itself would have handed off:
+//
+//  1. Enrolled methods, again (#867 fix round 1, Finding 2). A session can
+//     reach OutcomeFactorRequired because TOTP was the only enrolled
+//     method at the time CompleteIfSufficient ran, but this call happens
+//     LATER — after the user round-trips through a native TOTP prompt —
+//     and this package does not control what happens to the user's
+//     enrollment in between. Checking only factors.TOTP here would
+//     finalize a user who has TOTP verified AND, say, OTP_EMAIL also
+//     enrolled: exactly the D1 case CompleteIfSufficient's own
+//     uncollectible check exists to catch. Trusting that the FIRST call
+//     already ruled this out is exactly the kind of drift-between-calls
+//     bug re-running the same classification closes.
+//  2. Verified session factors. It does NOT trust the caller's own
+//     account of what happened — a caller that merely believes VerifyTOTP
+//     succeeded is not proof the session itself carries a verified TOTP
+//     factor (a caller bug, a stale Session value from before a rotated
+//     token, or a race with a second request could all make that belief
+//     wrong). Instead it re-reads the session's ACTUAL verified factors
+//     (SessionFactors, Task 2) and finalizes only if that read reports
+//     TOTP true.
+//
+// This is what keeps finalize reachable solely through a sufficiency
+// decision even on this second path: finalize requires a `sufficient`
+// witness (see its doc comment and `sufficient`'s in this file) that only
+// CompleteIfSufficient and CompleteAfterFactor produce, and a
+// CompleteAfterFactor that finalized on the caller's say-so, or without
+// re-checking the uncollectible set, would be exactly the kind of bypass
+// that control exists to prevent.
+//
+// Fails closed the same way CompleteIfSufficient does: an unreadable
+// answer from either check means "cannot prove this session is
+// sufficient", not "it is not", so it hands off rather than risking a
+// bypass on an unreadable answer.
+func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, s Session) (Result, error) {
+	totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
 	if err != nil {
 		slog.WarnContext(ctx, "enrolled-factor check unreadable: handing off rather than completing the login (fails closed, same as an unreadable policy)",
 			"err", err)
 		return Result{Outcome: OutcomeHandoff}, nil
 	}
-	if hasFactor {
+	if uncollectible {
+		// Spec D1: an uncollectible factor is decisive regardless of what
+		// TOTP verification did or did not achieve — see this function's
+		// doc comment, Finding 2.
+		return Result{Outcome: OutcomeHandoff}, nil
+	}
+	if !totpEnrolled {
+		// The enrollment this call sees no longer matches what
+		// CompleteIfSufficient saw (TOTP was removed, or this path was
+		// reached without ever going through CompleteIfSufficient at
+		// all). Either way there is nothing here to natively verify
+		// against, so it hands off rather than guessing.
 		return Result{Outcome: OutcomeHandoff}, nil
 	}
 
-	callbackURL, err := c.finalize(ctx, authRequestID, s)
+	factors, err := c.SessionFactors(ctx, s.ID)
 	if err != nil {
-		return Result{}, fmt.Errorf("loginclient: finalize after sufficiency check: %w", err)
+		slog.WarnContext(ctx, "session factors unreadable: handing off rather than completing the login (fails closed, same as an unreadable policy)",
+			"err", err)
+		return Result{Outcome: OutcomeHandoff}, nil
+	}
+	if !factors.TOTP {
+		return Result{Outcome: OutcomeHandoff}, nil
+	}
+
+	callbackURL, err := c.finalize(ctx, authRequestID, s, sufficient{})
+	if err != nil {
+		return Result{}, fmt.Errorf("loginclient: finalize after factor verification: %w", err)
 	}
 	return Result{Outcome: OutcomeComplete, CallbackURL: callbackURL}, nil
 }

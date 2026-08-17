@@ -53,29 +53,51 @@ func countingZitadelWithFactors(t *testing.T, policyJSON, authMethodTypesJSON st
 	return New(srv.URL, "pat", srv.Client())
 }
 
-// clientWithEnrolledMethods wraps countingZitadelWithFactors with a fixed
-// non-forceMfa policy and a caller-supplied authMethodTypes list, for
-// tests that exercise Task 3's TOTP-classification branch of
-// CompleteIfSufficient rather than the forceMfa policy branch. It
-// discards the finalize-call tracking countingZitadelWithFactors takes —
-// those tests assert on the call counter directly; these assert on
-// Result's Outcome/Factors/CallbackURL instead, which already pin
-// finalize having been called or not.
-func clientWithEnrolledMethods(t *testing.T, methods []string) *Client {
+// clientWithEnrolledMethods wraps countingZitadelWithFactors with a
+// caller-supplied policy and authMethodTypes list, for tests that
+// exercise Task 3's TOTP-classification branch of CompleteIfSufficient
+// rather than needing to track finalize calls directly (though see
+// clientWithEnrolledMethodsAndFinalizeTracking below for the tests that
+// do). It discards the finalize-call tracking countingZitadelWithFactors
+// takes — most of these tests assert on Result's
+// Outcome/Factors/CallbackURL instead, which already pin finalize having
+// been called or not.
+func clientWithEnrolledMethods(t *testing.T, policyJSON string, methods []string) *Client {
+	t.Helper()
+	c, _ := clientWithEnrolledMethodsAndFinalizeTracking(t, policyJSON, methods)
+	return c
+}
+
+// clientWithEnrolledMethodsAndFinalizeTracking is
+// clientWithEnrolledMethods plus the finalize-call counter, for the tests
+// that assert directly on whether finalize ran (the same reason
+// countingZitadel exposes one) rather than relying solely on Outcome.
+func clientWithEnrolledMethodsAndFinalizeTracking(t *testing.T, policyJSON string, methods []string) (*Client, *atomic.Bool) {
 	t.Helper()
 	encoded, err := json.Marshal(methods)
 	require.NoError(t, err)
 	var finalized atomic.Bool
-	return countingZitadelWithFactors(t,
-		`{"policy":{"passwordCheckLifetime":"864000s"}}`,
-		string(encoded),
-		&finalized)
+	c := countingZitadelWithFactors(t, policyJSON, string(encoded), &finalized)
+	return c, &finalized
 }
+
+// nonForceMFAPolicy is the passwordCheckLifetime-anchored, forceMfa-absent
+// policy body most of this file's TOTP-classification tests use — see
+// LoginPolicy's doc comment (client.go) for why the anchor field must be
+// present for a fixture to exercise the intended branch rather than the
+// unrecognized-policy fail-closed path.
+const nonForceMFAPolicy = `{"policy":{"passwordCheckLifetime":"864000s"}}`
+
+// forceMFAPolicy is the same anchor with forceMfa explicit, for the tests
+// pinning #867 fix round 1's Finding 1: TOTP-only enrollment must ask for
+// the factor NATIVELY even when the org forces MFA — CompleteIfSufficient
+// must not need to reach (or care about) this policy at all in that case.
+const forceMFAPolicy = `{"policy":{"passwordCheckLifetime":"864000s","forceMfa":true}}`
 
 // A user with TOTP enrolled must now be PROMPTED, not handed off — that is
 // the whole point of this spec. Previously this returned OutcomeHandoff.
 func TestCompleteIfSufficient_TOTPEnrolledAsksForTheFactor(t *testing.T) {
-	c := clientWithEnrolledMethods(t, []string{"AUTHENTICATION_METHOD_TYPE_TOTP", "AUTHENTICATION_METHOD_TYPE_PASSWORD"})
+	c := clientWithEnrolledMethods(t, nonForceMFAPolicy, []string{"AUTHENTICATION_METHOD_TYPE_TOTP", "AUTHENTICATION_METHOD_TYPE_PASSWORD"})
 	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
 	require.NoError(t, err)
 	require.Equal(t, OutcomeFactorRequired, res.Outcome)
@@ -83,9 +105,42 @@ func TestCompleteIfSufficient_TOTPEnrolledAsksForTheFactor(t *testing.T) {
 	require.Empty(t, res.CallbackURL, "nothing to redirect to until the factor is verified")
 }
 
+// TestCompleteIfSufficient_ForceMFAWithTOTPEnrolledStillAsksForTheFactor
+// is #867 fix round 1's Finding 1: an EARLIER version of
+// CompleteIfSufficient checked policy.ForceMFA before classifying
+// enrolled methods, so this exact case — the headline case the whole spec
+// exists for — silently fell through to OutcomeHandoff instead of
+// prompting natively. It failed closed (no bypass), but the feature
+// never fired for an org that actually forces MFA, which is presumably
+// most orgs that bother enrolling TOTP in the first place.
+func TestCompleteIfSufficient_ForceMFAWithTOTPEnrolledStillAsksForTheFactor(t *testing.T) {
+	c := clientWithEnrolledMethods(t, forceMFAPolicy, []string{"AUTHENTICATION_METHOD_TYPE_TOTP", "AUTHENTICATION_METHOD_TYPE_PASSWORD"})
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
+	require.NoError(t, err)
+	require.Equal(t, OutcomeFactorRequired, res.Outcome, "TOTP-only enrollment must ask for the factor even when the org forces MFA")
+	require.Equal(t, []string{"totp"}, res.Factors)
+	require.Empty(t, res.CallbackURL)
+}
+
+// TestCompleteIfSufficient_ForceMFAWithNoEnrolledFactorStillHandsOff is
+// the companion case to the one above: a password-only session under
+// forceMfa, with NOTHING enrolled that Helivanta could natively prompt
+// for, still has nowhere to go but a handoff. Finding 1's reorder must
+// not turn this into a completion or a factor-required prompt for a
+// factor the user never configured.
+func TestCompleteIfSufficient_ForceMFAWithNoEnrolledFactorStillHandsOff(t *testing.T) {
+	c, finalized := clientWithEnrolledMethodsAndFinalizeTracking(t, forceMFAPolicy, []string{"AUTHENTICATION_METHOD_TYPE_PASSWORD"})
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
+	require.NoError(t, err)
+	require.Equal(t, OutcomeHandoff, res.Outcome)
+	require.Empty(t, res.Factors)
+	require.Empty(t, res.CallbackURL)
+	require.False(t, finalized.Load(), "finalize was called under forceMfa with no factor to offer: this is an MFA bypass")
+}
+
 // A factor Helivanta cannot collect still hands off (spec D1).
 func TestCompleteIfSufficient_OtpEmailStillHandsOff(t *testing.T) {
-	c := clientWithEnrolledMethods(t, []string{"AUTHENTICATION_METHOD_TYPE_OTP_EMAIL", "AUTHENTICATION_METHOD_TYPE_PASSWORD"})
+	c := clientWithEnrolledMethods(t, nonForceMFAPolicy, []string{"AUTHENTICATION_METHOD_TYPE_OTP_EMAIL", "AUTHENTICATION_METHOD_TYPE_PASSWORD"})
 	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
 	require.NoError(t, err)
 	require.Equal(t, OutcomeHandoff, res.Outcome)
@@ -108,7 +163,15 @@ func TestCompleteAfterFactor_FinalizesOnlyWhenSessionFactorsReportTOTP(t *testin
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
+			// CompleteAfterFactor now re-runs classifyEnrolledMethods
+			// before trusting SessionFactors (#867 fix round 1, Finding
+			// 2), so this single GET /v2/sessions/{id} response has to
+			// satisfy BOTH callers that hit it: sessionUserID (needs only
+			// factors.user.id) and SessionFactors (needs
+			// factors.password/totp). One fixture body does both.
 			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
+		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
+			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP"]}`))
 		case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v2/oidc/auth_requests/"):
 			w.Write([]byte(`{"callbackUrl":"http://localhost:4301/api/auth/callback?code=c&state=s"}`))
 		default:
@@ -126,13 +189,18 @@ func TestCompleteAfterFactor_FinalizesOnlyWhenSessionFactorsReportTOTP(t *testin
 
 // TestCompleteAfterFactor_HandsOffWhenTOTPNotVerified pins the fail-closed
 // direction: a session that has not actually verified TOTP (whatever the
-// caller believes happened) must never be finalized.
+// caller believes happened) must never be finalized. The enrolled-method
+// fixture still enrolls TOTP so this test genuinely exercises the
+// SessionFactors branch rather than failing closed one step earlier for
+// an unrelated reason (no TOTP enrolled at all).
 func TestCompleteAfterFactor_HandsOffWhenTOTPNotVerified(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
 			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"},"password":{"verifiedAt":"t"}}}}`))
+		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
+			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP"]}`))
 		default:
 			finalized.Store(true)
 			w.Write([]byte(`{"callbackUrl":"x"}`))
@@ -149,15 +217,27 @@ func TestCompleteAfterFactor_HandsOffWhenTOTPNotVerified(t *testing.T) {
 
 // TestCompleteAfterFactor_HandsOffWhenSessionFactorsUnreadable pins the
 // fail-closed direction for an unreadable SessionFactors answer, the same
-// way CompleteIfSufficient's own tests pin it for LoginPolicy and
-// HasEnrolledFactor: an unreadable answer must never be mistaken for
-// "TOTP verified".
+// way CompleteIfSufficient's own tests pin it for LoginPolicy and the
+// enrolled-methods check: an unreadable answer must never be mistaken for
+// "TOTP verified". classifyEnrolledMethods and SessionFactors both GET
+// /v2/sessions/{id}, so a request counter lets the FIRST hit (classifying
+// enrollment) succeed while the SECOND (SessionFactors itself) fails —
+// otherwise an unconditional failure on that path would trip
+// classification first and this test would no longer be exercising the
+// branch it is named for.
 func TestCompleteAfterFactor_HandsOffWhenSessionFactorsUnreadable(t *testing.T) {
 	var finalized atomic.Bool
+	var sessionGETs atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
+			if sessionGETs.Add(1) == 1 {
+				w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"}}}}`))
+				return
+			}
 			w.WriteHeader(http.StatusInternalServerError)
+		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
+			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP"]}`))
 		default:
 			finalized.Store(true)
 			w.Write([]byte(`{"callbackUrl":"x"}`))
@@ -258,12 +338,23 @@ func TestCompleteIfSufficientHandsOffWhenPolicyShapeIsUnrecognised(t *testing.T)
 func TestCompleteIfSufficientHandsOffWhenPolicyUnreadable(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/management/v1/policies/login" {
+		switch {
+		case r.URL.Path == "/management/v1/policies/login":
 			w.WriteHeader(http.StatusInternalServerError)
-			return
+		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
+			// Classification now runs BEFORE the policy read (#867 fix
+			// round 1, Finding 1), so this fixture must answer a
+			// password-only enrollment here to actually reach — and
+			// exercise — the policy-unreadable branch this test is named
+			// for, rather than failing closed one step earlier for an
+			// unrelated reason.
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"}}}}`))
+		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
+			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD"]}`))
+		default:
+			finalized.Store(true)
+			w.Write([]byte(`{"callbackUrl":"x"}`))
 		}
-		finalized.Store(true)
-		w.Write([]byte(`{"callbackUrl":"x"}`))
 	}))
 	t.Cleanup(srv.Close)
 	c := New(srv.URL, "pat", srv.Client())

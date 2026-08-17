@@ -70,7 +70,7 @@ func TestFinalizeReturnsCallbackURL(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"callbackUrl":"http://localhost:4301/api/auth/callback?code=abc&state=s"}`))
 	})
-	got, err := c.finalize(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.finalize(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, sufficient{})
 	if err != nil {
 		t.Fatalf("finalize() error = %v", err)
 	}
@@ -485,7 +485,7 @@ func TestFinalizeEscapesAdversarialAuthRequestID(t *testing.T) {
 		gotRequestURI = r.RequestURI
 		w.Write([]byte(`{"callbackUrl":"http://localhost:4301/api/auth/callback?code=abc&state=s"}`))
 	})
-	if _, err := c.finalize(context.Background(), adversarial, Session{ID: "1", Token: "t"}); err != nil {
+	if _, err := c.finalize(context.Background(), adversarial, Session{ID: "1", Token: "t"}, sufficient{}); err != nil {
 		t.Fatalf("finalize() error = %v", err)
 	}
 	want := "/v2/oidc/auth_requests/" + url.PathEscape(adversarial)

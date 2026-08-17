@@ -199,7 +199,22 @@ func (c *Client) CreatePasswordSession(ctx context.Context, loginName, password 
 // and TestAuthRequestEscapesAdversarialID pin this against both an
 // adversarial id and a real spike-observed id, so the escaping cannot
 // quietly corrupt a legitimate id either.
-func (c *Client) finalize(ctx context.Context, authRequestID string, s Session) (string, error) {
+//
+// # The _ sufficient parameter — #867 fix round 1
+//
+// finalize being unexported only stops a caller OUTSIDE this package;
+// nothing stopped a future function INSIDE this package from calling
+// finalize directly, skipping every check CompleteIfSufficient and
+// CompleteAfterFactor run (sufficiency.go). The required parameter of the
+// unexported type `sufficient` makes forgetting that check a COMPILE
+// ERROR rather than a gap a reviewer has to notice: a new function that
+// calls `c.finalize(ctx, id, s)` with no third argument does not compile,
+// full stop — see sufficiency.go's doc comment on `sufficient` for the
+// honest limit of what this actually proves (it stops ACCIDENTAL
+// omission; it does NOT stop a determined caller writing `sufficient{}`
+// by hand, which is a decorative-vs-real distinction this repo's
+// standards require stating plainly rather than glossing over).
+func (c *Client) finalize(ctx context.Context, authRequestID string, s Session, _ sufficient) (string, error) {
 	body := map[string]any{
 		"session": map[string]any{
 			"sessionId":    s.ID,
@@ -216,7 +231,13 @@ func (c *Client) finalize(ctx context.Context, authRequestID string, s Session) 
 }
 
 // VerifyTOTP checks a TOTP code against an existing session (PATCH
-// /v2/sessions/{id}, body shape from the spike §1). id is escaped with
+// /v2/sessions/{id}, body shape from the MFA spike §1 —
+// docs/superpowers/spikes/2026-08-17-zitadel-login-client-mfa.md, a
+// SEPARATE document from "the spike" this file's package doc anchors to
+// (docs/superpowers/spikes/2026-08-16-zitadel-login-client.md); every
+// citation in this method and SessionFactors below means the MFA spike,
+// stated explicitly because both documents number their sections
+// independently starting at §1). id is escaped with
 // url.PathEscape before being placed in the URL for the same reason as
 // finalize's authRequestID — but here the reasoning is defensive rather
 // than required: s.ID reaches this method from a login_attempt row this
@@ -226,10 +247,10 @@ func (c *Client) finalize(ctx context.Context, authRequestID string, s Session) 
 // in this file.
 //
 // PATCH is the correct method here — POST to a session id returns 405
-// (spike §3, confirmed live). The 405 was hit by mistake once during the
-// spike, which is exactly why this comment calls it out.
+// (MFA spike §3, confirmed live). The 405 was hit by mistake once during
+// the spike, which is exactly why this comment calls it out.
 //
-// # The token rotates on every check — spike §2
+// # The token rotates on every check — MFA spike §2
 //
 // The response to a successful PATCH carries a NEW sessionToken, not the
 // one that authenticated the request. This is the single most important
@@ -266,8 +287,8 @@ func (c *Client) VerifyTOTP(ctx context.Context, s Session, code string) (Sessio
 }
 
 // Factors reports which authentication factors a session has actually
-// verified — as opposed to HasEnrolledFactor, which reports what the user
-// has configured. An absent factor decodes to false, not an error: a
+// verified — as opposed to enrolledMethodTypes, which reports what the
+// user has configured. An absent factor decodes to false, not an error: a
 // password-only session (TOTP absent) is a legitimate, expected state
 // mid-login, and Task 3's sufficiency decision depends on being able to
 // tell that apart from a session that has verified TOTP.
@@ -276,9 +297,11 @@ type Factors struct {
 	TOTP     bool
 }
 
-// SessionFactors reads GET /v2/sessions/{id} (spike §1) and reports which
-// factors it has verified. sessionID is escaped with url.PathEscape for
-// the same defensive-not-required reason as VerifyTOTP's id.
+// SessionFactors reads GET /v2/sessions/{id} (MFA spike §1 — see
+// VerifyTOTP's doc comment for which document "MFA spike" means and why
+// that has to be stated explicitly here) and reports which factors it has
+// verified. sessionID is escaped with url.PathEscape for the same
+// defensive-not-required reason as VerifyTOTP's id.
 func (c *Client) SessionFactors(ctx context.Context, sessionID string) (Factors, error) {
 	var wire struct {
 		Session struct {
@@ -478,8 +501,9 @@ func (c *Client) LoginPolicy(ctx context.Context) (LoginPolicy, error) {
 
 // nonPasswordFactorPrefix is what an enrolled Zitadel authentication
 // method type looks like when it is NOT the password itself —
-// AUTHENTICATION_METHOD_TYPE_PASSWORD is the one value HasEnrolledFactor
-// must ignore; every other observed value (AUTHENTICATION_METHOD_TYPE_
+// AUTHENTICATION_METHOD_TYPE_PASSWORD is the one value
+// classifyEnrolledMethods (sufficiency.go) must ignore; every other
+// observed value (AUTHENTICATION_METHOD_TYPE_
 // OTP_EMAIL, _TOTP, _U2F, _PASSKEY, _IDP, _OTP_SMS, _RECOVERY_CODE — see
 // GET /v2/users/{id}/authentication_methods, verified live 2026-08-16
 // against v4.15.3 with the login-client PAT, spike §"Per-user enrolled
@@ -501,7 +525,7 @@ const totpMethodType = "AUTHENTICATION_METHOD_TYPE_TOTP"
 // session belongs to — CreateSessionResponse (POST /v2/sessions) does
 // NOT carry it (confirmed against the v4.15.3 proto and live: the create
 // response is only {details, sessionId, sessionToken}), so
-// HasEnrolledFactor needs this extra round trip to learn who to ask.
+// enrolledMethodTypes needs this extra round trip to learn who to ask.
 // Verified live 2026-08-16: the login-client PAT alone (no session
 // token) is sufficient to read an arbitrary session it created.
 func (c *Client) sessionUserID(ctx context.Context, sessionID string) (string, error) {
@@ -532,19 +556,28 @@ func (c *Client) sessionUserID(ctx context.Context, sessionID string) (string, e
 // session's own `factors` report (session.proto's Factors is what was
 // CHECKED in this one session, not what the user has available) — a
 // password-only session always has just a password factor even when the
-// user separately enrolled TOTP, which is exactly the gap HasEnrolledFactor
-// and CompleteIfSufficient's TOTP branch (sufficiency.go) both close. (An
-// earlier version of this comment pointed at "sufficiency.go's KNOWN
-// LIMITATIONS §1"; that section is password-change-required, an unrelated
-// and still-OPEN gap tracked as #856. This gap is CLOSED, so it is not in
-// that list at all.)
+// user separately enrolled TOTP, which is exactly the gap
+// classifyEnrolledMethods (sufficiency.go) closes for both
+// CompleteIfSufficient and CompleteAfterFactor. (An earlier version of
+// this comment pointed at "sufficiency.go's KNOWN LIMITATIONS §1"; that
+// section is password-change-required, an unrelated and still-OPEN gap
+// tracked as #856. This gap is CLOSED, so it is not in that list at all.)
 //
-// This exists to be called from CompleteIfSufficient's fail-closed path:
-// any error here (transport failure, unreadable body, empty id) must read
-// as "cannot prove the session is sufficient", not "no factor found" — so
-// it always returns a non-nil error alongside a nil slice rather than
-// ever answering an empty list by swallowing a failure. Callers must hand
-// off, not complete, when err != nil.
+// This exists to be called from CompleteIfSufficient's and
+// CompleteAfterFactor's fail-closed paths: any error here (transport
+// failure, unreadable body, empty id) must read as "cannot prove the
+// session is sufficient", not "no factor found" — so it always returns a
+// non-nil error alongside a nil slice rather than ever answering an empty
+// list by swallowing a failure. Callers must hand off, not complete, when
+// err != nil.
+//
+// There used to be a HasEnrolledFactor wrapper here that only answered
+// "anything besides password?" as a bool. #867 fix round 1 removed it:
+// once CompleteIfSufficient needed to tell TOTP apart from every other
+// enrolled type (not just "enrolled vs not"), the bool-returning wrapper
+// had no remaining caller — sufficiency.go's classifyEnrolledMethods reads
+// this method's slice directly instead of going through an intermediate
+// that would have thrown the distinction away.
 func (c *Client) enrolledMethodTypes(ctx context.Context, sessionID string) ([]string, error) {
 	userID, err := c.sessionUserID(ctx, sessionID)
 	if err != nil {
@@ -557,23 +590,6 @@ func (c *Client) enrolledMethodTypes(ctx context.Context, sessionID string) ([]s
 		return nil, err
 	}
 	return wire.AuthMethodTypes, nil
-}
-
-// HasEnrolledFactor answers whether the user behind sessionID has
-// configured any authentication method besides a password. See
-// enrolledMethodTypes for the wire shape and the fail-closed contract this
-// inherits from it.
-func (c *Client) HasEnrolledFactor(ctx context.Context, sessionID string) (bool, error) {
-	methodTypes, err := c.enrolledMethodTypes(ctx, sessionID)
-	if err != nil {
-		return false, err
-	}
-	for _, methodType := range methodTypes {
-		if methodType != passwordOnlyMethodType {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 // mfaPolicyKeys is every wire key LoginPolicy reads to decide ForceMFA —

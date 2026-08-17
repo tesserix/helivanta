@@ -282,6 +282,49 @@ of slice 1b.
 happen in one piped step, or in the `secret-service.tesserix.app` console
 directly, per the runbook.
 
+## D9 — The database is named `helivanta`; only the RLS-bound role keeps `hms`
+
+| Identifier | Production | Why |
+|---|---|---|
+| database | `helivanta` | No migration references it |
+| owner role (`ADMIN_DATABASE_URL`) | `helivanta` | Named only by bootstrap SQL, which this slice writes |
+| application role (`APP_DATABASE_URL`) | `hms_app` | **Unchanged** — migrations and every RLS policy name it |
+| RLS predicate | `hms_tenant_visible()` | **Unchanged** — same reason |
+
+The rebrand's D5 kept `hms_app` and `hms_tenant_visible()` because migrations
+are append-only, so renaming a role means a new migration mutating roles on
+live data plus every policy that names them. That argument is sound and it
+binds those two identifiers. **It does not reach the database or owner name**,
+which no migration mentions — `dev/init-db.sql` names the owner only in its
+`ALTER DEFAULT PRIVILEGES FOR ROLE hms` clause, which this slice rewrites
+anyway.
+
+`dev/init-db.sql` and `docker-compose.dev.yml` are updated in the same slice so
+dev and prod never diverge. Leaving dev on `hms` was rejected: a connection
+string copied between environments would then fail in a way that looks like bad
+credentials, and the handoff already records "presents as the app is broken" as
+the dominant local-dev failure mode. Changing dev is free — dev databases are
+disposable and `make reset` rebuilds them.
+
+This is the only moment the name is free. There is no data and no deployment;
+afterwards, renaming a database means a dump and restore against live patient
+records.
+
+**Database credentials come from OpenBao, not GCP Secret Manager.** dwellm8 —
+the precedent this slice otherwise follows closely — sources every CNPG role
+password from GCP Secret Manager via `gcpSecretName`. Helivanta cannot: #45's
+D4 fixed OpenBao as its store and `SecretStore/openbao-helivanta-api` is
+already `Valid`/`Ready` in the namespace. Role passwords therefore live under
+`kv/data/helivanta/postgres/*`, which the existing `read-helivanta` grant on
+`kv/data/helivanta/*` already covers, so no new policy is needed.
+
+The divergence from dwellm8 is deliberate and is recorded here because a
+reviewer comparing the two charts will otherwise read it as an oversight.
+Fleet decision [tesserix-k8s#208](https://github.com/tesserix/tesserix-k8s/issues/208)
+(OpenBao vs GCP Secret Manager) remains open; per #45's D4 that is irrelevant
+to Helivanta, because switching stores is a `SecretStore` edit and no Helivanta
+code knows which one is behind it.
+
 ---
 
 ## Errors and failure handling

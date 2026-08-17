@@ -33,7 +33,7 @@ linters:
           # files that have nothing to do with module isolation.
           list-mode: lax
           deny:
-            - pkg: "github.com/tesserix/hms/internal/modules"
+            - pkg: "github.com/tesserix/helivanta/internal/modules"
               desc: "modules must not import other modules — cross-module data flows only via events (spec D3)"
           allow:
             # The ONE exception: a module's contract package is its
@@ -45,11 +45,11 @@ linters:
             # entry only matters because it is more specific (longer) than
             # the deny entry above — that's what lets it carve out the
             # exception instead of widening it into an allowlist.
-            - "github.com/tesserix/hms/internal/modules/medicore/contract"
-            - "github.com/tesserix/hms/internal/modules/pharmacy/contract"
-            - "github.com/tesserix/hms/internal/modules/lab/contract"
-            - "github.com/tesserix/hms/internal/modules/iam/contract"
-            - "github.com/tesserix/hms/internal/modules/reference/contract"
+            - "github.com/tesserix/helivanta/internal/modules/medicore/contract"
+            - "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
+            - "github.com/tesserix/helivanta/internal/modules/lab/contract"
+            - "github.com/tesserix/helivanta/internal/modules/iam/contract"
+            - "github.com/tesserix/helivanta/internal/modules/reference/contract"
             # loginclient is NOT another module's internals — it lives
             # under internal/modules/iam/ and is iam's own Zitadel
             # login-client wrapper (#854 Task 2/4), consumed by iam's own
@@ -76,7 +76,7 @@ linters:
             # allow-list entry only has to be narrow enough to compile;
             # TestModulesDoNotImportEachOther is what keeps it narrow
             # enough to be correct.
-            - "github.com/tesserix/hms/internal/modules/iam/loginclient"
+            - "github.com/tesserix/helivanta/internal/modules/iam/loginclient"
         no-logrus:
           deny:
             - pkg: "github.com/sirupsen/logrus"

@@ -18,8 +18,8 @@ is_gated() {
     # safe only because a *separate mechanical check* guarantees there is
     # no behaviour behind the exempted name; if that arch test is ever
     # deleted, this exemption becomes a hole and must go with it.
-    github.com/tesserix/hms/internal/modules/*/contract) return 1 ;;
-    github.com/tesserix/hms/internal/modules/*|github.com/tesserix/hms/pkg/*|github.com/tesserix/hms/internal/platform|github.com/tesserix/hms/internal/platform/*) return 0 ;;
+    github.com/tesserix/helivanta/internal/modules/*/contract) return 1 ;;
+    github.com/tesserix/helivanta/internal/modules/*|github.com/tesserix/helivanta/pkg/*|github.com/tesserix/helivanta/internal/platform|github.com/tesserix/helivanta/internal/platform/*) return 0 ;;
     *) return 1 ;;
   esac
 }

@@ -547,8 +547,19 @@ the grants that `dev/init-db.sql` performs locally.
 
 **Interfaces:**
 - Consumes: the `-rw` Service and owner credentials from Task 4.
-- Produces: database `openfga` owned by role `openfga`; `hms_app` holding the
-  same grants `dev/init-db.sql` gives it. Task 6 and slice 1b depend on both.
+- Produces: database `openfga` **owned by role `helivanta`** (not by `openfga`),
+  with the `openfga` role granted CONNECT plus CREATE on the database and on
+  schema `public`; and `hms_app` holding the same grants `dev/init-db.sql` gives
+  it. Task 6 and slice 1b depend on both.
+
+  **Corrected 2026-08-17 after Task 5's review.** This line first said the
+  database is owned by role `openfga`. It is not, and should not be: dwellm8's
+  precedent has the app owner own it, and what actually matters is whether the
+  `openfga` role can migrate its own schema. That was proven by executing
+  `CREATE TABLE` / `INSERT` / `DROP TABLE` as the role, not inferred from
+  ownership — `has_database_privilege('openfga','openfga','CREATE')` is true and
+  the statements ran. Ownership was the wrong property to specify; the
+  capability is the right one.
 
 - [ ] **Step 1: Read the shared chart's contract**
 

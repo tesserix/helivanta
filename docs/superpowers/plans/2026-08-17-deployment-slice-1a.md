@@ -230,6 +230,8 @@ Expected: `app`, `api`, `openfga`.
 
 - [ ] **Step 2: Write the ExternalSecret template**
 
+**Use `apiVersion: external-secrets.io/v1beta1`.** Task 1 established that `v1` is not a served version on this cluster; `v1alpha1` and `v1beta1` are, with `v1beta1` as storage. The live `SecretStore/openbao-helivanta-api` and dwellm8's chart both use `v1beta1`.
+
 One `ExternalSecret` per role, each with
 `secretStoreRef: {name: openbao-helivanta-api, kind: SecretStore}`, a
 `refreshInterval` of `1h`, and a `target.template` producing both keys — CNPG's

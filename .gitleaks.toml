@@ -5,7 +5,9 @@
 # REAL secret added to those files later; a value allowlist exempts only
 # the exact known-benign string and keeps everything else caught.
 #
-# Baseline: 2026-08-17, 309 commits, 9 findings, all benign.
+# Baseline, dated: 2026-08-17, 309 commits at the time this was written
+# (the repo has grown since — treat "309" as when this was taken, not as
+# a live count), 9 findings, all benign.
 
 [extend]
 useDefault = true
@@ -22,10 +24,12 @@ regexes = [
   # break every developer's stack.
   '''^X5yoi73f6FRR8XH2ZfRBjanOZLm/bkae0QV7wGJRuf8=$''',
 
-  # PHI-redaction test fixtures. These are deliberately structured
-  # strings that pkg/logging's redactor must leave ALONE (a UUID contains
-  # a twelve-digit run, so a careless Aadhaar pattern would mask every
-  # tenant_id). They carry no credential; gitleaks flags them on entropy.
+  # PHI-redaction test fixtures. The all-ones UUID is the repo-wide test
+  # tenant id (testutil.TenantA, used in ~20 files); both values are
+  # deliberately structured strings that pkg/logging's redactor must
+  # leave ALONE (a UUID contains a twelve-digit run, so a careless
+  # Aadhaar pattern would mask every tenant_id). They carry no
+  # credential; gitleaks flags them on entropy.
   #
   # Anchored (^...$) so each regex matches ONLY the exact known-benign
   # value gitleaks extracts, not any string that merely contains it — an

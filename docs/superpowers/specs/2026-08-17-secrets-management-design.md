@@ -167,16 +167,15 @@ A `gitleaks` job in `.github/workflows/ci.yml`, failing the build on any
 finding. HMS has no secret scanning today and is about to hold its most
 privileged credential.
 
-**It probably needs an explicit exception, and that exception is the
-interesting part.** This repository *deliberately commits a real Ed25519 key* —
-`config.DevSessionSigningKey`. Whether gitleaks' default ruleset flags a bare
-base64 blob with no assignment keyword near it is **unverified** — gitleaks is
-not installed here and this has not been run. It is written as an expectation,
-not an observation, and the implementation's first step is to run the scanner
-and find out. If it does flag it, the exception is encoded as a narrow
-rule/path allowlist entry carrying the reason inline, never by disabling the
-rule or loosening the ruleset. If it does not, no exception is added and this
-paragraph's caution still applies to the next deliberate committed credential.
+**It needed an explicit exception, and that exception is the interesting
+part.** This repository *deliberately commits a real Ed25519 key* —
+`config.DevSessionSigningKey`. The scanner was run (`zricethezav/gitleaks`,
+2026-08-17, 309 commits) and it **does** flag it, along with the PHI-redaction
+test fixtures in `pkg/logging` — 9 findings total, all benign. The exception
+is encoded in `.gitleaks.toml` as a *value*-scoped allowlist on the specific
+finding regexes, never a rule/path allowlist: each entry is anchored to the
+exact known-benign literal gitleaks extracted, so nothing else committed to
+those same files or lines is exempted.
 
 The reason to be strict about how the exception is expressed is in the handoff:
 GitGuardian fires on the *word* "password" in field names and comments and

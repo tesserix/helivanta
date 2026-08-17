@@ -96,7 +96,7 @@ regexes = [
 
 Run:
 ```bash
-docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
+docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f detect \
   --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact
 ```
 Expected: `no leaks found`. If any of the 9 baseline findings still fire, the allowlist regex does not match the value the scanner actually extracted — fix the regex, do not widen it to a path.
@@ -120,7 +120,7 @@ precisely what an earlier draft of this step caused.
 # which is exactly what happened to an earlier draft of this step.
 PROBE=$(openssl rand -base64 30 | tr -d '\n=')
 printf 'aws_secret_access_key = "%s"\n' "$PROBE" > ./leak-probe.txt
-docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
+docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f detect \
   --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact --no-git
 ```
 Expected: **`leaks found: 1`** naming `leak-probe.txt`.
@@ -156,7 +156,7 @@ In `.github/workflows/ci.yml`, add as a sibling of the existing `go`, `web` and 
       # developer runs locally, so the two cannot drift.
       - name: gitleaks
         run: |
-          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f detect \
             --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact
 ```
 

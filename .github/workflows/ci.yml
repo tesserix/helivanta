@@ -75,7 +75,16 @@ jobs:
       # could not be supplied even if bought. Running the container
       # directly has a second advantage: CI runs the exact command a
       # developer runs locally, so the two cannot drift.
+      #
+      # Pinned by tag AND digest, not `:latest`. `.gitleaks.toml`'s
+      # allowlist relies on gitleaks MERGING our rule into the default
+      # ruleset rather than replacing it outright — true on v8.30.1, but
+      # that merge-vs-replace behaviour is version-dependent. A `:latest`
+      # float that changed it would silently disable the detector: the
+      # gate would keep reporting "no leaks found" forever instead of
+      # failing loudly. Pinning removes that failure mode; bump
+      # deliberately, then re-verify the allowlist still merges.
       - name: gitleaks
         run: |
-          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f detect \
             --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact

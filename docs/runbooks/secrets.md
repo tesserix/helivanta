@@ -61,11 +61,34 @@ this with `openssl` or any other tool — the guard in
 length value at boot, against the shared production instance, which is the
 worst place to debug a base64 length mismatch.
 
+> **Handle the printed value like a live credential — because it is one.**
+> `make secret-session-key` prints the key to your terminal. From the moment
+> it renders on screen it can end up in shell history, terminal scrollback
+> you later paste somewhere, a log file, a CI job's captured output, or a
+> chat/AI transcript — none of which are places a session-signing key
+> belongs.
+>
+> Prefer piping it so it never renders at all:
+> ```bash
+> make secret-session-key | pbcopy                # macOS — copies, doesn't print
+> ```
+> or pipe it directly into the console client you're writing it with, instead
+> of printing it and retyping/pasting it by hand.
+>
+> **If it leaks anyway:** regenerate and discard the old one. This is cheap
+> right now — nothing has been provisioned yet, so there is no live value to
+> invalidate. Once this key is provisioned, discarding a leaked value costs a
+> pod restart (rotation is restart-only, per D4 above). Do the cheap thing
+> while it's still cheap.
+
 Then write the printed value to `kv/data/hms/api/session-signing-key` via the
 secret-service console at `secret-service.tesserix.app` (create/update only —
-the console deliberately holds no `read` on `kv/data`, so writing a value
-there does not create a way to read it back). This write-back step is
-Task 4 and has not been executed as of this writing.
+by design the console is not meant to hold `read` on `kv/data`, so writing a
+value there is not meant to create a way to read it back; this is D7
+assertion (3) and **has not yet been verified** — Task 4 has not run. Treat
+it as the design intent, not a proven property, until that assertion is
+recorded as passed below). This write-back step is Task 4 and has not been
+executed as of this writing.
 
 ## Provisioning: `ZITADEL_LOGIN_CLIENT_TOKEN`
 

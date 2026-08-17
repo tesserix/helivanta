@@ -134,10 +134,18 @@ In `.github/workflows/ci.yml`, add as a sibling of the existing `go`, `web` and 
           # and then removed in a later commit is still caught. With the
           # default shallow clone it would not be.
           fetch-depth: 0
+      # The container, NOT gitleaks/gitleaks-action@v2. That action
+      # requires a paid GITLEAKS_LICENSE for ORGANISATION-owned repos,
+      # and tesserix/hms is private under the tesserix org — so the
+      # action would fail on licensing, not on findings. This repo is
+      # also on the GitHub Free plan with no org secrets, so a license
+      # could not be supplied even if bought. Running the container
+      # directly has a second advantage: CI runs the exact command a
+      # developer runs locally, so the two cannot drift.
       - name: gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITLEAKS_CONFIG: .gitleaks.toml
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
+            --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact
 ```
 
 - [ ] **Step 5: Verify the workflow file is valid YAML**

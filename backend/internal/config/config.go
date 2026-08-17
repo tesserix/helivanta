@@ -117,7 +117,7 @@ type Config struct {
 	// and the Verifier checks against. Safe to default: it is a label,
 	// not a secret, and an operator who cares can override it.
 	SessionIssuer string
-	// SessionTTL bounds how long an Helivanta session is honoured before it
+	// SessionTTL bounds how long a Helivanta session is honoured before it
 	// must be renewed, and — post-#838 (spec D4/D4a) — renewal is the
 	// login exchange re-run with a fresh Zitadel token, re-checking
 	// membership every time. So this ONE number is the upper bound on
@@ -144,7 +144,7 @@ type Config struct {
 	// widening the deactivation window in absolute terms.
 	SessionTTL time.Duration
 
-	// IdleTimeout is how long an Helivanta session stays usable with no human
+	// IdleTimeout is how long a Helivanta session stays usable with no human
 	// interaction at all (#848, spec D1/D2): the idle_deadline claim a
 	// genuinely new login mints is time.Now() + IdleTimeout, and
 	// authn.Middleware refuses every request at or past that instant.

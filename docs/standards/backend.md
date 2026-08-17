@@ -882,14 +882,14 @@ Redaction cannot corrupt a line into invalid JSON.
 — the seam #679 will wire to metrics; there's no metrics sink yet.
 
 **Names, dates of birth and addresses are masked by struct tag, not by
-pattern.** Tag a field `hmslog:"phi"` and `pkg/logging`'s handler replaces
+pattern.** Tag a field `helivantalog:"phi"` and `pkg/logging`'s handler replaces
 its value with `[REDACTED:phi]` before the record is serialised:
 
 ```go
 type Patient struct {
     ID   uuid.UUID `json:"id"`
-    Name string    `json:"name" hmslog:"phi"`
-    DOB  string    `json:"dob"  hmslog:"phi"`
+    Name string    `json:"name" helivantalog:"phi"`
+    DOB  string    `json:"dob"  helivantalog:"phi"`
 }
 ```
 
@@ -935,7 +935,7 @@ Three things it cannot see, by construction:
 - PHI already flattened into a string before it reaches slog
   (`fmt.Errorf("%s", name)`), where no type remains to carry a tag.
 
-A value with no `hmslog` tag anywhere in its type graph is left strictly
+A value with no `helivantalog` tag anywhere in its type graph is left strictly
 alone and renders byte-for-byte as it would without the handler.
 
 The tag layer is defence in depth, not the primary control. What keeps

@@ -15,7 +15,7 @@
   `WithTenant`/`WithSystem`/`WithAdmin`, `LintRLS`) — roughly 8,200 lines.
   The practice was settled before it was written down: #678
   "[Go SDK] Structured logging with PHI redaction" was closed by building
-  `pkg/logging` here, and #778 by adding the `hmslog:"phi"` tag to it.
+  `pkg/logging` here, and #778 by adding the `helivantalog:"phi"` tag to it.
   go-shared is also not neutral ground. It serves the marketplace product's
   ~30 microservices, whose auth (per-product GIP pools), tenancy model and
   release cadence are not Helivanta's. Helivanta is one Go module with one deployable.

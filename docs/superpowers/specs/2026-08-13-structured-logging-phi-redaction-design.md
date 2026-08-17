@@ -134,7 +134,7 @@ serialised line slog actually emits. Masked:
 - Indian mobile: `+91` forms and bare 10-digit numbers beginning 5-9
 - ABHA: 14 digits, with or without hyphens
 
-**Tag redaction stays at the value level**, because a `hmslog:"phi"` tag is
+**Tag redaction stays at the value level**, because a `helivantalog:"phi"` tag is
 visible on the Go value and gone by the time it is bytes. See Part E.
 
 ### Why the writer and not the handler — this was learned, not designed
@@ -246,7 +246,7 @@ to know they are PHI is for the type to say so:
 ```go
 type Patient struct {
     ID   string
-    Name string `hmslog:"phi"`
+    Name string `helivantalog:"phi"`
 }
 ```
 
@@ -297,7 +297,7 @@ reconstruct the value at all:
    `omitempty`, `-`, embedding, custom marshallers, cycles and DAGs, because
    `encoding/json` does all of it.
 2. Per type, cached, compute the set of **JSON paths** that carry
-   `hmslog:"phi"`, applying `encoding/json`'s own field-naming rules.
+   `helivantalog:"phi"`, applying `encoding/json`'s own field-naming rules.
 3. Walk the marshalled JSON and replace the values at those paths.
 
 Only step 2 reimplements anything, and it reimplements *naming* rather than
@@ -377,7 +377,7 @@ Changed:
 ## Known limitations
 
 - Pattern redaction cannot detect names, dates of birth, or addresses. Part E
-  masks them **only where a field is tagged** `hmslog:"phi"` — an untagged field
+  masks them **only where a field is tagged** `helivantalog:"phi"` — an untagged field
   is not PHI as far as the logger is concerned. Part A — keeping GORM's logger
   silent — remains what protects bulk patient rows, by preventing them from
   reaching the log stream at all.

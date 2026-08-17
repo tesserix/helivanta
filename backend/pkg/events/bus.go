@@ -14,14 +14,15 @@ import (
 	"github.com/nats-io/nats.go"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-const StreamName = "HMS"
+const StreamName = "HELIVANTA"
 
-// subjectRoot is the top of the subject space every HMS event lives under
-// (`hms.<dir>.<module>.<event>.vN`), and therefore what StreamName claims.
-const subjectRoot = "hms"
+// subjectRoot is the top of the subject space every Helivanta event lives
+// under (`helivanta.<dir>.<module>.<event>.vN`), and therefore what
+// StreamName claims.
+const subjectRoot = "helivanta"
 
 // namespaceUnsafe matches everything a NATS stream name and subject token
 // may not contain. Dots and wildcards would silently change the shape of
@@ -156,7 +157,8 @@ type Bus struct {
 	js nats.JetStreamContext
 
 	// ns namespaces this Bus's subject space. Empty in production, where
-	// the stream is HMS over `hms.>` exactly as it has always been. Tests
+	// the stream is HELIVANTA over `helivanta.>` exactly as it has always
+	// been (renamed from HMS/`hms.>` for the #863 rebrand). Tests
 	// set it so many of them can share one NATS server: JetStream refuses
 	// two streams with overlapping subjects, so isolation has to come from
 	// the subject space itself rather than from the stream name.

@@ -30,13 +30,13 @@ Established by reading the code on 2026-08-14. **The spec says "five subjects"; 
 
 | Subject | Publisher | Consumers | Payload type today |
 |---|---|---|---|
-| `hms.in.medicore.visit_created.v1` | medicore | pharmacy, lab | `VisitCreatedData` (medicore) + 2 private copies |
-| `hms.in.pharmacy.dispense_recorded.v1` | pharmacy | *none* | `dispenseRecordedData` (private) |
-| `hms.in.lab.result_ready.v1` | lab | *none* | `resultReadyData` (private) |
-| `hms.in.iam.member_granted.v1` | iam | iam (`iam-fga-sync`) | `MemberChangedData` |
-| `hms.in.iam.member_revoked.v1` | iam | iam (`iam-fga-sync-revoke`) | `MemberChangedData` |
-| `hms.in.iam.credential_revoked.v1` | iam | iam (broadcast) | `CredentialRevokedData` |
-| `hms.in.reference.pinged.v1` | reference | reference | `pingedData` (private) |
+| `helivanta.in.medicore.visit_created.v1` | medicore | pharmacy, lab | `VisitCreatedData` (medicore) + 2 private copies |
+| `helivanta.in.pharmacy.dispense_recorded.v1` | pharmacy | *none* | `dispenseRecordedData` (private) |
+| `helivanta.in.lab.result_ready.v1` | lab | *none* | `resultReadyData` (private) |
+| `helivanta.in.iam.member_granted.v1` | iam | iam (`iam-fga-sync`) | `MemberChangedData` |
+| `helivanta.in.iam.member_revoked.v1` | iam | iam (`iam-fga-sync-revoke`) | `MemberChangedData` |
+| `helivanta.in.iam.credential_revoked.v1` | iam | iam (broadcast) | `CredentialRevokedData` |
+| `helivanta.in.reference.pinged.v1` | reference | reference | `pingedData` (private) |
 
 Two events have **no consumers**. That is legal — the design says so explicitly — and the CI check in Task 4 must not fail them.
 
@@ -114,7 +114,7 @@ package contract
 
 // SubjectVisitCreated is published when a visit opens. Pharmacy and lab
 // consume it to open their pending work.
-const SubjectVisitCreated = "hms.in.medicore.visit_created.v1"
+const SubjectVisitCreated = "helivanta.in.medicore.visit_created.v1"
 
 // VisitCreatedData is the v1 payload of SubjectVisitCreated.
 //
@@ -132,7 +132,7 @@ type VisitCreatedData struct {
 Delete `SubjectVisitCreated` from `medicore/module.go:13` and `VisitCreatedData` from `medicore/visits.go`. Add the import to both files:
 
 ```go
-	medicorecontract "github.com/tesserix/hms/internal/modules/medicore/contract"
+	medicorecontract "github.com/tesserix/helivanta/internal/modules/medicore/contract"
 ```
 
 and use `medicorecontract.SubjectVisitCreated` / `medicorecontract.VisitCreatedData`.
@@ -154,7 +154,7 @@ Expected: FAIL in `pharmacy` and `lab` — they still declare their own copies, 
           files:
             - "**/internal/modules/**"
           deny:
-            - pkg: "github.com/tesserix/hms/internal/modules"
+            - pkg: "github.com/tesserix/helivanta/internal/modules"
               desc: "modules must not import other modules — cross-module data flows only via events (spec D3)"
           allow:
             # The ONE exception: a module's contract package is its
@@ -163,7 +163,7 @@ Expected: FAIL in `pharmacy` and `lab` — they still declare their own copies, 
             # enforces that it stays data only; without that test this
             # allowance would be a hole in module isolation rather than a
             # narrow exception to it (#827).
-            - "github.com/tesserix/hms/internal/modules/medicore/contract"
+            - "github.com/tesserix/helivanta/internal/modules/medicore/contract"
 ```
 
 **Only medicore's entry, at this point.** The other four contract packages do not exist until Task 3, and listing paths for packages that are not there would be an unverifiable claim in a config file — add each entry in the task that creates the package.
@@ -219,9 +219,9 @@ import (
 
 	"gorm.io/gorm"
 
-	medicorecontract "github.com/tesserix/hms/internal/modules/medicore/contract"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/events"
+	medicorecontract "github.com/tesserix/helivanta/internal/modules/medicore/contract"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/events"
 )
 
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
@@ -272,7 +272,7 @@ Record the exact output — this is the evidence the issue's primary acceptance 
 Temporarily add to `lab/consumers.go`:
 
 ```go
-	_ "github.com/tesserix/hms/internal/modules/medicore"
+	_ "github.com/tesserix/helivanta/internal/modules/medicore"
 ```
 
 Run:
@@ -453,7 +453,7 @@ package contract
 // dispense. No module consumes it today; publishing it is how the
 // dispense becomes visible to anything added later without changing
 // pharmacy.
-const SubjectDispenseRecorded = "hms.in.pharmacy.dispense_recorded.v1"
+const SubjectDispenseRecorded = "helivanta.in.pharmacy.dispense_recorded.v1"
 
 // DispenseRecordedData is the v1 payload of SubjectDispenseRecorded.
 type DispenseRecordedData struct {
@@ -475,7 +475,7 @@ package contract
 
 // SubjectResultReady is published when a lab result is recorded. No
 // module consumes it today.
-const SubjectResultReady = "hms.in.lab.result_ready.v1"
+const SubjectResultReady = "helivanta.in.lab.result_ready.v1"
 
 // ResultReadyData is the v1 payload of SubjectResultReady.
 type ResultReadyData struct {
@@ -496,14 +496,14 @@ package contract
 const (
 	// SubjectMemberGranted and SubjectMemberRevoked drive the FGA sync
 	// consumers that keep OpenFGA's tuples matching Postgres.
-	SubjectMemberGranted = "hms.in.iam.member_granted.v1"
-	SubjectMemberRevoked = "hms.in.iam.member_revoked.v1"
+	SubjectMemberGranted = "helivanta.in.iam.member_granted.v1"
+	SubjectMemberRevoked = "helivanta.in.iam.member_revoked.v1"
 
 	// SubjectCredentialRevoked is a broadcast, not a work queue: every
 	// replica receives it and drops its cached revocation watermark
 	// (#781). The durable truth is Postgres, so a dropped delivery
 	// degrades to the cache TTL rather than to incorrectness.
-	SubjectCredentialRevoked = "hms.in.iam.credential_revoked.v1" //nolint:gosec // an event subject name, not a credential value
+	SubjectCredentialRevoked = "helivanta.in.iam.credential_revoked.v1" //nolint:gosec // an event subject name, not a credential value
 
 )
 
@@ -537,7 +537,7 @@ package contract
 // SubjectPinged is published when a ping is recorded. reference consumes
 // its own event — it is the module that proves the platform wiring end
 // to end (issue #2).
-const SubjectPinged = "hms.in.reference.pinged.v1"
+const SubjectPinged = "helivanta.in.reference.pinged.v1"
 
 // PingedData is the v1 payload of SubjectPinged.
 type PingedData struct {
@@ -552,10 +552,10 @@ Delete `SubjectPinged` from `reference/module.go` and `pingedData` from `pings.g
 Task 1 added only medicore's entry, because the others did not exist. Add them now:
 
 ```yaml
-            - "github.com/tesserix/hms/internal/modules/pharmacy/contract"
-            - "github.com/tesserix/hms/internal/modules/lab/contract"
-            - "github.com/tesserix/hms/internal/modules/iam/contract"
-            - "github.com/tesserix/hms/internal/modules/reference/contract"
+            - "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
+            - "github.com/tesserix/helivanta/internal/modules/lab/contract"
+            - "github.com/tesserix/helivanta/internal/modules/iam/contract"
+            - "github.com/tesserix/helivanta/internal/modules/reference/contract"
 ```
 
 None of these four is imported across a module boundary today — every one is consumed by its own module, which needs no allowance. They are listed so that the first cross-module consumer of any of them is a code change in one place rather than a lint failure someone has to diagnose. If that reasoning does not hold when you get here (for example depguard rejects an unused allow entry), list only what is imported and say so in your report.
@@ -738,9 +738,9 @@ Expected: PASS. The two consumerless events (`dispense_recorded`, `result_ready`
 
 - [ ] **Step 5: Prove each of the three can fail**
 
-1. Change lab's consumer subject to `"hms.in.medicore.visit_created.v2"`. `TestEveryConsumedSubjectIsPublished` must fail naming the consumer and the subject. Restore.
+1. Change lab's consumer subject to `"helivanta.in.medicore.visit_created.v2"`. `TestEveryConsumedSubjectIsPublished` must fail naming the consumer and the subject. Restore.
 2. Add `medicorecontract.SubjectVisitCreated` to pharmacy's `Publishes()`. `TestNoSubjectIsPublishedByTwoModules` must fail naming both modules. Restore.
-3. Change medicore's `Publishes()` to `[]string{"hms.in.medicore.visit_created.v1"}` — the same value as a bare string. `TestPublishesUsesContractConstants` must **pass** (the string matches a contract constant), which shows this check verifies the *value*, not the *reference*. Then change it to `"hms.in.medicore.visit_created.v9"` and confirm it fails. Restore.
+3. Change medicore's `Publishes()` to `[]string{"helivanta.in.medicore.visit_created.v1"}` — the same value as a bare string. `TestPublishesUsesContractConstants` must **pass** (the string matches a contract constant), which shows this check verifies the *value*, not the *reference*. Then change it to `"helivanta.in.medicore.visit_created.v9"` and confirm it fails. Restore.
 
 Step 5.3 matters: it establishes exactly what the check does and does not prove, so the limitation is discovered here rather than believed away. Record it.
 
@@ -877,10 +877,10 @@ The generated module must produce `internal/modules/<name>/contract/events.go`:
 package contract
 
 // SubjectItemCreated is published when an item is created.
-const SubjectItemCreated = "hms.in.__NAME__.item_created.v1"
+const SubjectItemCreated = "helivanta.in.__NAME__.item_created.v1"
 
 // SubjectItemDone is published when an item transitions to done.
-const SubjectItemDone = "hms.in.__NAME__.item_done.v1"
+const SubjectItemDone = "helivanta.in.__NAME__.item_done.v1"
 
 // ItemCreatedData is the v1 payload of SubjectItemCreated.
 type ItemCreatedData struct {
@@ -975,9 +975,9 @@ No frontend change is expected; the gate runs to prove that.
 - [ ] **Step 2: Verify the events still flow end to end**
 
 ```bash
-export HMS_PG_PORT=15432 HMS_NATS_PORT=14222 HMS_NATS_MONITOR_PORT=18222 \
-  HMS_REDIS_PORT=16379 HMS_OPENFGA_PORT=18090 HMS_GIP_PORT=19099 \
-  HMS_API_PORT=18080 NODE_AUTH_TOKEN=$(gh auth token)
+export HELIVANTA_PG_PORT=15432 HELIVANTA_NATS_PORT=14222 HELIVANTA_NATS_MONITOR_PORT=18222 \
+  HELIVANTA_REDIS_PORT=16379 HELIVANTA_OPENFGA_PORT=18090 HELIVANTA_GIP_PORT=19099 \
+  HELIVANTA_API_PORT=18080 NODE_AUTH_TOKEN=$(gh auth token)
 make up && ./scripts/verify-local.sh
 pnpm --filter e2e exec playwright test --reporter=list
 ```

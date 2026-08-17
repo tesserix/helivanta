@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/tools/go/packages"
 
-	"github.com/tesserix/hms/internal/platform"
+	"github.com/tesserix/helivanta/internal/platform"
 )
 
 // TestEveryConsumedSubjectIsPublished closes the quiet half of #827. A

@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@hms/api/testing";
+import { renderWithProviders } from "@helivanta/api/testing";
 import { OrderList } from "./order-list";
 
 function jsonResponse(status: number, body: unknown) {

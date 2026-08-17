@@ -1,6 +1,6 @@
 # Event transport isolation and retention — design
 
-**Issue:** [#835](https://github.com/tesserix/hms/issues/835) — PHI leaves the RLS
+**Issue:** [#835](https://github.com/tesserix/helivanta/issues/835) — PHI leaves the RLS
 boundary in event payloads, and nothing ever prunes the outbox.
 **Status:** draft 2026-08-14.
 **Related:** #774 (Tier 2, the finding), #827/#829 (contract packages, merged),

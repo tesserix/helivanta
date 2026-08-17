@@ -4,11 +4,11 @@
 package medicore
 
 import (
-	medicorecontract "github.com/tesserix/hms/internal/modules/medicore/contract"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	medicorecontract "github.com/tesserix/helivanta/internal/modules/medicore/contract"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 const (

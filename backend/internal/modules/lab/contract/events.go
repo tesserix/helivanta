@@ -4,7 +4,7 @@ package contract
 
 // SubjectResultReady is published when a lab result is recorded. No
 // module consumes it today.
-const SubjectResultReady = "hms.in.lab.result_ready.v1"
+const SubjectResultReady = "helivanta.in.lab.result_ready.v1"
 
 // ResultReadyData is the v1 payload of SubjectResultReady.
 type ResultReadyData struct {

@@ -4,8 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { useEffect, useState, type ReactNode } from "react";
 
-// @hms/api must not depend on @hms/ui (the dependency runs the other way —
-// @hms/ui depends on @hms/api), so this mirrors @hms/ui/src/theme.tsx's
+// @helivanta/api must not depend on @helivanta/ui (the dependency runs the other way —
+// @helivanta/ui depends on @helivanta/api), so this mirrors @helivanta/ui/src/theme.tsx's
 // useThemeAttribute hook locally rather than importing it. Keep the
 // "data-theme" attribute name and "default"/"dark" values identical to that
 // contract if either copy changes.

@@ -11,8 +11,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/tesserix/hms/internal/modules/iam/loginclient"
-	"github.com/tesserix/hms/pkg/ratelimit"
+	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
+	"github.com/tesserix/helivanta/pkg/ratelimit"
 )
 
 const (
@@ -90,7 +90,7 @@ func zitadelHappyPath(t *testing.T) *loginclient.Client {
 	// GET /v2/sessions/{id} and GET /v2/users/{id}/authentication_methods
 	// back CompleteIfSufficient's per-user enrolled-factor check (#854
 	// Task 8) — a PASSWORD-ONLY user here, matching this fixture's name
-	// ("happy path": nothing HMS cannot handle), so the login still
+	// ("happy path": nothing Helivanta cannot handle), so the login still
 	// completes.
 	mux.HandleFunc("GET /v2/sessions/{id}", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"session":{"id":"sess-1","factors":{"user":{"id":"user-1"}}}}`))
@@ -164,8 +164,8 @@ func postPassword(t *testing.T, client *loginclient.Client, loginName, password 
 // by status, by body, AND by timing. Mapping the status alone leaves the
 // ~55x timing oracle the spike measured (0.72s vs 0.013s) fully intact.
 func TestPasswordFailuresAreIdenticalForWrongPasswordAndUnknownUser(t *testing.T) {
-	wrong := postPassword(t, zitadelWrongPassword(t), "test@hms.dev", "nope")
-	unknown := postPassword(t, zitadelUnknownUser(t), "nobody@hms.dev", "nope")
+	wrong := postPassword(t, zitadelWrongPassword(t), "test@helivanta.dev", "nope")
+	unknown := postPassword(t, zitadelUnknownUser(t), "nobody@helivanta.dev", "nope")
 
 	if wrong.Code != unknown.Code {
 		t.Errorf("status differs: wrong=%d unknown=%d", wrong.Code, unknown.Code)
@@ -211,11 +211,11 @@ func TestPasswordFailureTimingIsEqualised(t *testing.T) {
 	// floor, and land close to each other, regardless of how differently
 	// they started.
 	wrongStart := time.Now()
-	postPassword(t, zitadelWrongPassword(t), "test@hms.dev", "nope")
+	postPassword(t, zitadelWrongPassword(t), "test@helivanta.dev", "nope")
 	wrongElapsed := time.Since(wrongStart)
 
 	unknownStart := time.Now()
-	postPassword(t, zitadelUnknownUser(t), "nobody@hms.dev", "nope")
+	postPassword(t, zitadelUnknownUser(t), "nobody@helivanta.dev", "nope")
 	unknownElapsed := time.Since(unknownStart)
 
 	if wrongElapsed < MinFailedLoginDuration {
@@ -239,7 +239,7 @@ func TestPasswordFailureTimingIsEqualised(t *testing.T) {
 }
 
 func TestPasswordSuccessReturnsCallbackURL(t *testing.T) {
-	rec := postPassword(t, zitadelHappyPath(t), "test@hms.dev", "HmsDev123!")
+	rec := postPassword(t, zitadelHappyPath(t), "test@helivanta.dev", "HmsDev123!")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
@@ -249,7 +249,7 @@ func TestPasswordSuccessReturnsCallbackURL(t *testing.T) {
 }
 
 func TestPasswordUnderForceMFAReturnsHandoffNotSession(t *testing.T) {
-	rec := postPassword(t, zitadelForceMFA(t), "test@hms.dev", "HmsDev123!")
+	rec := postPassword(t, zitadelForceMFA(t), "test@helivanta.dev", "HmsDev123!")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
@@ -263,7 +263,7 @@ func TestPasswordUnderForceMFAReturnsHandoffNotSession(t *testing.T) {
 }
 
 func TestPasswordWhenZitadelIsDownReturns503NotBadCredentials(t *testing.T) {
-	rec := postPassword(t, zitadelDown(t), "test@hms.dev", "HmsDev123!")
+	rec := postPassword(t, zitadelDown(t), "test@helivanta.dev", "HmsDev123!")
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, want 503 — never a credentials error when the IdP is down", rec.Code)
 	}
@@ -277,7 +277,7 @@ func TestPasswordWhenZitadelIsDownReturns503NotBadCredentials(t *testing.T) {
 // redirect to the hosted login's home page, which would drop the OIDC
 // client/redirect/scope context entirely.
 func TestPasswordHandoffURLCarriesTheAuthRequestID(t *testing.T) {
-	rec := postPassword(t, zitadelForceMFA(t), "test@hms.dev", "HmsDev123!")
+	rec := postPassword(t, zitadelForceMFA(t), "test@helivanta.dev", "HmsDev123!")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), "authRequest="+loginUITestAuthRequestID)
 	require.Contains(t, rec.Body.String(), loginUITestHostedLoginBaseURL)
@@ -315,7 +315,7 @@ func TestPasswordRefusesOverBudget(t *testing.T) {
 	r.POST("/v1/auth/login/password", h.Password)
 
 	post := func() *httptest.ResponseRecorder {
-		body := `{"auth_request_id":"` + loginUITestAuthRequestID + `","login_name":"test@hms.dev","password":"HmsDev123!"}`
+		body := `{"auth_request_id":"` + loginUITestAuthRequestID + `","login_name":"test@helivanta.dev","password":"HmsDev123!"}`
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, "/v1/auth/login/password", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
@@ -437,7 +437,7 @@ func TestLoginUIRoutesDoNotShareEachOthersBudget(t *testing.T) {
 	// Drain Password's bucket for this IP (burst 1, so the second call
 	// is refused). The credential is deliberately wrong — this test is
 	// about budgets, not outcomes.
-	pwBody := `{"auth_request_id":"` + loginUITestAuthRequestID + `","login_name":"nobody@hms.dev","password":"wrong"}`
+	pwBody := `{"auth_request_id":"` + loginUITestAuthRequestID + `","login_name":"nobody@helivanta.dev","password":"wrong"}`
 	require.Equal(t, http.StatusUnauthorized, do(http.MethodPost, "/v1/auth/login/password", pwBody).Code)
 	require.Equal(t, http.StatusTooManyRequests, do(http.MethodPost, "/v1/auth/login/password", pwBody).Code,
 		"precondition: Password's own bucket must be drained for this IP")
@@ -479,7 +479,7 @@ func TestAuthRequestAndHandoffAdmitWhenLimiterUnavailable(t *testing.T) {
 // must fail OPEN, not block sign-in.
 func TestPasswordAdmitsWhenLimiterUnavailable(t *testing.T) {
 	for i := 0; i < 5; i++ {
-		rec := postPassword(t, zitadelHappyPath(t), "test@hms.dev", "HmsDev123!")
+		rec := postPassword(t, zitadelHappyPath(t), "test@helivanta.dev", "HmsDev123!")
 		require.Equal(t, http.StatusOK, rec.Code, "attempt %d: nil limiter must fail open, not deny", i+1)
 	}
 }

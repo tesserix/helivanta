@@ -7,10 +7,10 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/platform/respond"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/pagination"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 type medication struct {

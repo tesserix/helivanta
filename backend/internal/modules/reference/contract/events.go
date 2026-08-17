@@ -5,7 +5,7 @@ package contract
 // SubjectPinged is published when a ping is recorded. reference consumes
 // its own event — it is the module that proves the platform wiring end
 // to end (issue #2).
-const SubjectPinged = "hms.in.reference.pinged.v1"
+const SubjectPinged = "helivanta.in.reference.pinged.v1"
 
 // PingedData is the v1 payload of SubjectPinged.
 type PingedData struct {

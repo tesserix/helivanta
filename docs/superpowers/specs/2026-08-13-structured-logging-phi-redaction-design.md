@@ -1,6 +1,6 @@
 # Structured logging with PHI redaction — design
 
-Resolves: [#678](https://github.com/tesserix/hms/issues/678) — [Go SDK]
+Resolves: [#678](https://github.com/tesserix/helivanta/issues/678) — [Go SDK]
 Structured logging with PHI redaction
 
 Date: 2026-08-13
@@ -134,7 +134,7 @@ serialised line slog actually emits. Masked:
 - Indian mobile: `+91` forms and bare 10-digit numbers beginning 5-9
 - ABHA: 14 digits, with or without hyphens
 
-**Tag redaction stays at the value level**, because a `hmslog:"phi"` tag is
+**Tag redaction stays at the value level**, because a `helivantalog:"phi"` tag is
 visible on the Go value and gone by the time it is bytes. See Part E.
 
 ### Why the writer and not the handler — this was learned, not designed
@@ -233,7 +233,7 @@ cheaper than the walker it replaced.
 reflection-based implementation was written, reviewed twice and withdrawn over
 five Critical defects; the withdrawn implementation is preserved on
 `backup/678-phitag-reflection`. What shipped under
-[#778](https://github.com/tesserix/hms/issues/778) is the *marshal-then-mask*
+[#778](https://github.com/tesserix/helivanta/issues/778) is the *marshal-then-mask*
 replacement described at the end of this section, in
 `backend/pkg/logging/phitag.go`. What follows describes the intent, then why the
 reflection approach was abandoned and what replaced it.
@@ -246,7 +246,7 @@ to know they are PHI is for the type to say so:
 ```go
 type Patient struct {
     ID   string
-    Name string `hmslog:"phi"`
+    Name string `helivantalog:"phi"`
 }
 ```
 
@@ -297,7 +297,7 @@ reconstruct the value at all:
    `omitempty`, `-`, embedding, custom marshallers, cycles and DAGs, because
    `encoding/json` does all of it.
 2. Per type, cached, compute the set of **JSON paths** that carry
-   `hmslog:"phi"`, applying `encoding/json`'s own field-naming rules.
+   `helivantalog:"phi"`, applying `encoding/json`'s own field-naming rules.
 3. Walk the marshalled JSON and replace the values at those paths.
 
 Only step 2 reimplements anything, and it reimplements *naming* rather than
@@ -335,7 +335,7 @@ bytes as text and passing the result through exactly as valid (or invalid) as
 the input already was. Nothing is ever dropped; the fallback only changes how
 the line is scanned, not whether it is emitted. An unrecognised `LOG_LEVEL`
 degrades to `info` with a warning rather than refusing to boot — the opposite
-choice from the `HMS_ENV` guards, because a log level cannot compromise tenant
+choice from the `HELIVANTA_ENV` guards, because a log level cannot compromise tenant
 isolation and a hospital API should not fail to start over a typo.
 
 ## Testing
@@ -377,7 +377,7 @@ Changed:
 ## Known limitations
 
 - Pattern redaction cannot detect names, dates of birth, or addresses. Part E
-  masks them **only where a field is tagged** `hmslog:"phi"` — an untagged field
+  masks them **only where a field is tagged** `helivantalog:"phi"` — an untagged field
   is not PHI as far as the logger is concerned. Part A — keeping GORM's logger
   silent — remains what protects bulk patient rows, by preventing them from
   reaching the log stream at all.

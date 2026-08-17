@@ -1,8 +1,8 @@
-# ADR-0005: HMS stays a modular monolith; services are extracted on a trigger, not by default
+# ADR-0005: Helivanta stays a modular monolith; services are extracted on a trigger, not by default
 
 - **Status:** Accepted (2026-08-14). Relates to #674 (ADR process), #7, #45,
   #679, #8, #716.
-- **Context:** HMS is one Go module producing one deployable
+- **Context:** Helivanta is one Go module producing one deployable
   (`backend/cmd/api`), with five modules — `iam`, `medicore`, `pharmacy`,
   `lab`, `reference` — registered in `bootstrap.Modules()` and mounted under a
   single `/v1` router. The frontend is the opposite shape: five Next.js zone
@@ -44,7 +44,7 @@
   its own permissions. The boundaries exist today without paying the network
   tax.
 
-- **Decision:** HMS stays a modular monolith. Services are extracted
+- **Decision:** Helivanta stays a modular monolith. Services are extracted
   individually when a specific trigger fires, never as a wholesale migration.
 
   **Triggers that justify extracting a component into its own service:**
@@ -73,7 +73,7 @@
 
 - **Consequences:**
   - The `[Go SDK]` issue series (#676–#695) continues to describe a topology
-    HMS does not have; ADR-0004 already records that. This ADR extends the same
+    Helivanta does not have; ADR-0004 already records that. This ADR extends the same
     reasoning to the runtime shape, not just the packaging.
   - A future extraction is a lift of one module plus its contract package,
     against enforced boundaries — not a discovery exercise.

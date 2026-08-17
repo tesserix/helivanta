@@ -1,4 +1,4 @@
-# HMS Backend Standards & Guardrails
+# Helivanta Backend Standards & Guardrails
 
 Date: 2026-08-04
 Status: approved
@@ -6,7 +6,7 @@ Builds on: phase 2 backend (PR #755) and the frontend standards (PR #757 — sam
 
 ## Goal
 
-Codify how HMS backend modules are built so every contributor — human or
+Codify how Helivanta backend modules are built so every contributor — human or
 AI — produces the same patterns: machine-enforced lint and architecture
 guardrails, shared handler helpers that kill the copy-paste, one test
 scaffolding, a module generator, and docs/agent enforcement mirroring
@@ -43,7 +43,7 @@ the frontend standards.
 
 - `.golangci.yml` at `backend/`: enable errcheck, govet, staticcheck,
   revive, gosec, sqlclosecheck, misspell, unconvert, depguard.
-- depguard: deny `github.com/tesserix/hms/internal/modules/*` from
+- depguard: deny `github.com/tesserix/helivanta/internal/modules/*` from
   importing any *other* `internal/modules/*` package (self-imports
   allowed); deny `logrus` everywhere (slog only).
 - CI backend job adds `golangci-lint run` before tests. Existing
@@ -61,7 +61,7 @@ the frontend standards.
   collect `Migrations()` IDs plus `events.Migrations()`, fail on
   duplicates.
 - **Subject naming:** every consumer subject and published subject
-  constant matches `^hms\.[a-z]+\.[a-z]+\.[a-z_]+\.v\d+$`; consumer
+  constant matches `^helivanta\.[a-z]+\.[a-z]+\.[a-z_]+\.v\d+$`; consumer
   names match `^[a-z]+-[a-z-]+$`.
 - **RLS:** boot-time linter already exists; the arch test re-runs
   `LintRLS` against a migrated testcontainer to catch it at test time
@@ -138,4 +138,4 @@ the frontend standards.
   where authz middleware will slot in).
 - Distributed tracing/OTel and metrics endpoints (future phase).
 - Repository-layer abstraction changes (GORM usage stays as-is).
-- go-shared extraction (HMS keeps its own platform packages for now).
+- go-shared extraction (Helivanta keeps its own platform packages for now).

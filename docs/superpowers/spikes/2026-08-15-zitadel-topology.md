@@ -1,6 +1,6 @@
-# Spike: Zitadel topology for HMS on the shared instance — orgs, identity, provisioning
+# Spike: Zitadel topology for Helivanta on the shared instance — orgs, identity, provisioning
 
-- **Issue:** [#838](https://github.com/tesserix/hms/issues/838)
+- **Issue:** [#838](https://github.com/tesserix/helivanta/issues/838)
 - **Supports:** [ADR-0006](../../adr/0006-zitadel-not-gip.md), the [Zitadel auth design](2026-08-15-zitadel-auth-design.md) (D1–D7)
 - **Date:** 2026-08-15
 - **Rule followed:** separate OBSERVED (a command and its real output, run this
@@ -31,12 +31,12 @@ assumption stated in the brief.**
 
 ### Setup (OBSERVED, all against the local stack)
 
-1. Bootstrapped the local v4.15.3 instance's first org (`hms-spike-v4`,
+1. Bootstrapped the local v4.15.3 instance's first org (`helivanta-spike-v4`,
    `id=386374261784248323` — call it **org A**) by driving the real hosted
    login UI with Playwright for the bootstrap admin, capturing the access
    token from Console's own `sessionStorage` — the same method the existing
    spike doc used and justified (Console is itself a PKCE client of the same
-   `/oauth/v2/authorize` endpoint HMS's login page will use).
+   `/oauth/v2/authorize` endpoint Helivanta's login page will use).
 2. Created a second org, **org B** (`hospital-b`, `id=386374532367122435`),
    via `POST /management/v1/orgs` using that bearer token.
 3. Created a project in org B (`hospital-b-project`,
@@ -59,7 +59,7 @@ assumption stated in the brief.**
    POST /management/v1/users/grants/_search
    → {"roleKeys":["clinician"],"state":"USER_GRANT_STATE_ACTIVE",
       "orgId":"386374532367122435","orgName":"hospital-b",
-      "grantedOrgId":"386374261784248323","grantedOrgName":"hms-spike-v4"}
+      "grantedOrgId":"386374261784248323","grantedOrgName":"helivanta-spike-v4"}
    ```
 6. Created an OIDC web app **directly inside org B's project**
    (`clientId=386374881618493443`) — the client the org-A user will
@@ -126,10 +126,10 @@ asserted from docs. **An application cannot ask "which org is this token
 for" — it can only ask "what does userinfo say this user's roles are,
 aggregated across every org they hold a grant in" and then pick the entry
 matching whatever org it already believes it's operating in.** That means
-the app (HMS) must already know which hospital it's acting for by some
+the app (Helivanta) must already know which hospital it's acting for by some
 other means before this claim is useful — it cannot discover it from the
 token. This directly confirms D1's premise: **Zitadel genuinely has nothing
-to offer for "which tenant is this," and HMS's own OpenFGA-backed session is
+to offer for "which tenant is this," and Helivanta's own OpenFGA-backed session is
 not a workaround for a missing feature — it is the only workable design.**
 
 ### Does this require the `urn:zitadel:iam:org:id:{id}` scope — and what does requesting it do?
@@ -167,13 +167,13 @@ observed rather than inferred: the `org:id` scope checks the user's home
 org (`resourceOwner`) — a property fixed at user creation — not any grant or
 role. A project user-grant, however broad, does not satisfy it.**
 
-**Practical consequence for HMS:** don't reach for `org:id` at all. It
+**Practical consequence for Helivanta:** don't reach for `org:id` at all. It
 answers a different question ("restrict login to this org's own users") than
-the one HMS needs ("let this user act for a hospital they don't live in").
+the one Helivanta needs ("let this user act for a hospital they don't live in").
 The user-grant mechanism above is the right primitive, and it composes
 cleanly with zero redirects — which is good news, because D1 already decided
-HMS never sends this scope during normal operation (D3's re-mint is
-entirely local to HMS + OpenFGA). This finding matters for the topology
+Helivanta never sends this scope during normal operation (D3's re-mint is
+entirely local to Helivanta + OpenFGA). This finding matters for the topology
 question below more than for D1–D7, which already avoided the trap by
 accident.
 
@@ -255,27 +255,27 @@ should be spiked separately before any hospital-specific SSO ships.
 
 ---
 
-## Q3 — Recommended topology for HMS
+## Q3 — Recommended topology for Helivanta
 
 ### Recommendation, stated first
 
-**One Zitadel org for HMS as a product. Hospitals stay a pure HMS/OpenFGA
-concept — never a Zitadel org, never a Zitadel project-per-hospital. HMS
+**One Zitadel org for Helivanta as a product. Hospitals stay a pure Helivanta/OpenFGA
+concept — never a Zitadel org, never a Zitadel project-per-hospital. Helivanta
 keys identity on the Zitadel `sub` directly, with no internal-id
 indirection layer.** Each numbered point below is the reasoning, not a
 separate option to weigh evenly — this is a recommendation, not a survey.
 
-### Does HMS get its own org, or a project in a shared org?
+### Does Helivanta get its own org, or a project in a shared org?
 
-**HMS's own org**, distinct from whatever org kora, mark8ly, and
+**Helivanta's own org**, distinct from whatever org kora, mark8ly, and
 tesserix-home end up under. Reasoning:
 
 - Org is the boundary this spike found real teeth on: login policy,
-  IdP configuration, and org membership are all org-scoped (Q1, Q2). HMS
+  IdP configuration, and org membership are all org-scoped (Q1, Q2). Helivanta
   operates in a regulated clinical context; sharing an org with other
   products means sharing that policy surface, and a login-policy change
   made for a different product's needs (e.g. mark8ly wanting a different
-  password policy or MFA requirement) would apply to HMS's org too if they
+  password policy or MFA requirement) would apply to Helivanta's org too if they
   shared one.
 - Machine users and PATs (the seeding mechanism both spikes proved) are
   org-scoped by the `ORG_OWNER`-role grant pattern used throughout — a
@@ -290,13 +290,13 @@ tesserix-home end up under. Reasoning:
 **What would change my mind:** if whoever administers `auth.tesserix.app`
 already has a firm "one org per environment, one project per product"
 convention in place for the other products — **NOT VERIFIED, this spike did
-not and should not inspect production's existing org list** — HMS should
+not and should not inspect production's existing org list** — Helivanta should
 follow that existing convention rather than open a second pattern. Check
 before provisioning.
 
-### Do hospitals map to Zitadel orgs, or stay purely an HMS/OpenFGA concept?
+### Do hospitals map to Zitadel orgs, or stay purely a Helivanta/OpenFGA concept?
 
-**Purely HMS/OpenFGA.** This is the highest-value conclusion of this spike,
+**Purely Helivanta/OpenFGA.** This is the highest-value conclusion of this spike,
 and it reverses the framing implicit in the brief's Q1 (which assumed
 org-per-hospital was likely and asked whether it would fracture identity).
 
@@ -304,28 +304,28 @@ The case against org-per-hospital, each point grounded in what was
 observed above:
 
 1. **D1 already decided Zitadel answers "who," never "which hospital."**
-   Org-per-hospital would only earn its cost if HMS needed Zitadel to
+   Org-per-hospital would only earn its cost if Helivanta needed Zitadel to
    answer a tenant question — and D1, D2, D3 already committed to OpenFGA
-   and HMS's own session for that, before this spike ran. Org-per-hospital
+   and Helivanta's own session for that, before this spike ran. Org-per-hospital
    buys D1's design nothing.
 2. **The one place org boundaries have real teeth — the `org:id` scope —
    is actively hostile to a clinician working at two hospitals.** Q1 showed
    it enforces *home-org membership*, not grants, and fails login outright
    ("User could not be found") for a user who only holds a project grant on
-   the other org. A clinician's natural HMS shape — one identity, many
+   the other org. A clinician's natural Helivanta shape — one identity, many
    hospitals via FGA-style grants — is exactly the shape that scope
    refuses to authenticate. The safe pattern (user grants, no `org:id`
    scope) works, but it means org-per-hospital's supposed multi-tenancy
-   primitive is never actually exercised by HMS — it would be inert
+   primitive is never actually exercised by Helivanta — it would be inert
    infrastructure kept only for a feature (org-scoped login restriction)
-   that actively conflicts with HMS's clinician-usage pattern.
+   that actively conflicts with Helivanta's clinician-usage pattern.
 3. **Provisioning cost compounds per hospital for no return.** Q2 showed a
    fresh org has *no* login policy of its own and needs one explicitly
    created before IdP config is even possible. Org-per-hospital means every
-   hospital onboarding (a workflow HMS already treats as a first-class,
+   hospital onboarding (a workflow Helivanta already treats as a first-class,
    frequent operation — onboarding is explicitly named in the product's
    "Core Value") carries a Zitadel org-creation and login-policy-creation
-   step, for a boundary HMS's own tenant_id/RLS pattern
+   step, for a boundary Helivanta's own tenant_id/RLS pattern
    (`docs/standards/backend.md`) already provides at the application layer,
    the same way every other multi-tenant surface in this org (marketplace
    included) already does it.
@@ -346,13 +346,13 @@ observed above:
 from the business that hospital IT departments will self-administer their
 own clinician accounts directly in Zitadel Console — a real B2B
 delegated-admin pattern. Nothing in the product context here suggests
-that; HMS's own admin surface is the expected place hospital staff are
-managed, matching the existing HMS backend pattern of application-owned
+that; Helivanta's own admin surface is the expected place hospital staff are
+managed, matching the existing Helivanta backend pattern of application-owned
 tenant data. If that assumption is wrong, org-per-hospital becomes
 directly justified and this recommendation should be revisited before
 building anything on top of it.
 
-### Should HMS key identity on `sub` directly, or on its own internal id?
+### Should Helivanta key identity on `sub` directly, or on its own internal id?
 
 **On `sub` directly — same pattern as the GIP-era `Principal.Subject`, no
 new indirection.**
@@ -380,43 +380,43 @@ new indirection.**
   and the mapping table itself becomes a second thing that must never be
   lost.
 - **What would change my mind:** a concrete near-term plan for a clinician
-  to authenticate via two different credentials into the *same* HMS
+  to authenticate via two different credentials into the *same* Helivanta
   account (e.g., password today, hospital SSO added later, and the
   business wants both to resolve to one person without a forced
   re-registration) — Q2 shows this is a **link**, not a new user, so `sub`
   stays singular even in that case; the indirection layer would only earn
   its cost for a genuinely different scenario: two separate Zitadel
-  *user objects* that must be merged into one HMS identity post hoc (e.g.,
+  *user objects* that must be merged into one Helivanta identity post hoc (e.g.,
   after a botched dual-signup). That is a real but narrow failure mode, not
   the common case, and does not justify the indirection today.
 
-### What HMS needs provisioned to start
+### What Helivanta needs provisioned to start
 
 Minimal, matching what D1–D7 actually require and nothing org-per-hospital
 would have added:
 
-- **One org** for HMS (name TBD against whatever convention the shared
+- **One org** for Helivanta (name TBD against whatever convention the shared
   instance's other products settle on — **NOT VERIFIED**, don't assume).
 - **One project** inside it. No project roles need defining — D2
-  deliberately excludes roles from the HMS session, and D1/OpenFGA already
+  deliberately excludes roles from the Helivanta session, and D1/OpenFGA already
   own authorization, so Zitadel's project-role/grant machinery (exercised
-  in Q1 only to *test* cross-org behavior) is not something HMS's real
+  in Q1 only to *test* cross-org behavior) is not something Helivanta's real
   project needs to use.
 - **One OIDC web app** (auth-code + PKCE, public client, `authMethodType:
-  NONE`) for the browser-facing shell, redirect URIs to the real HMS shell
+  NONE`) for the browser-facing shell, redirect URIs to the real Helivanta shell
   callback. `devMode: true` only for local/dev instances, `false` in
   production (this spike's local app used `devMode: true` to allow the
   `localhost` HTTP redirect used for testing — production requires HTTPS
   redirect URIs and compliant OIDC config, which the existing spike doc's
   `noneCompliant`/`complianceProblems` response already demonstrates
   Zitadel checks for).
-- **One machine user + PAT**, org-scoped, for HMS's own seeding/admin
+- **One machine user + PAT**, org-scoped, for Helivanta's own seeding/admin
   scripts (`scripts/seed-dev.mjs`'s replacement, per the existing spike
-  doc's proven recipe) — least-privilege within HMS's own org, not an
+  doc's proven recipe) — least-privilege within Helivanta's own org, not an
   instance-level role.
 - **No IdP configuration at launch.** Q2 shows this is safe to defer; add
   it only when a specific integration is asked for.
-- **No custom login policy required at launch either**, unless HMS wants a
+- **No custom login policy required at launch either**, unless Helivanta wants a
   branding/behavior difference from the instance default — Q2 showed a
   fresh org has none by default and inherits the instance's; only IdP
   activation forced creating one in this spike's test path.
@@ -427,7 +427,7 @@ would have added:
 
 - Whether the org's actual production convention already has an
   established org/project pattern for other products (kora, mark8ly,
-  tesserix-home) that HMS should match instead of introducing its own
+  tesserix-home) that Helivanta should match instead of introducing its own
   — deliberately not inspected, per the "no production reads beyond public
   metadata" constraint.
 - A live login completed *through* a linked external IdP (Q2) — only the
@@ -435,8 +435,8 @@ would have added:
   hospital IdP round trip needs its own spike before shipping hospital SSO.
 - Whether Zitadel's project-level isolation inside a shared org is actually
   weaker than a dedicated org in some concrete way (used only as supporting
-  reasoning for "HMS gets its own org," not as an observed leak).
-- Whether an org can later be renamed/merged if the "HMS gets one org"
+  reasoning for "Helivanta gets its own org," not as an observed leak).
+- Whether an org can later be renamed/merged if the "Helivanta gets one org"
   decision needs revisiting — not tested, and not needed for this
   recommendation since the recommendation is to *avoid* creating
   per-hospital orgs in the first place.
@@ -450,7 +450,7 @@ would have added:
 avoided the `org:id`-scope trap (D1 explicitly rejects the "Zitadel actions
 injecting a tenant claim + org-scoped re-auth" approach, flagging the
 scope's action-reading behavior as unverified — this spike now independently
-shows that scope is worse than merely unverified for HMS's use case: it
+shows that scope is worse than merely unverified for Helivanta's use case: it
 actively refuses login for a grant-only cross-org user, which is the
 clinician-at-two-hospitals case D2 names directly). Nothing here overturns
 D1–D7; this spike answers the topology question those decisions deliberately
@@ -478,5 +478,5 @@ rather than concluding "safe, proceed."
   reuse its installed Playwright, and deleted after use, matching the prior
   spike's convention of not committing throwaway verification code
   (`/tmp/zitadel-verify-spike`, "not part of the repo; not committed").
-- Local stack containers (`hms-spike-zitadel-v4-*`) were left running for
+- Local stack containers (`helivanta-spike-zitadel-v4-*`) were left running for
   this session; `hms-dev` was confirmed untouched throughout via `docker ps`.

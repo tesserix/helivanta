@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { getUserManager } from "@/lib/oidc";
 
 // Loaded in a hidden iframe by oidc-client-ts's signinSilent()
-// (lib/renew.ts), never navigated to directly. Registered as hms-web's
+// (lib/renew.ts), never navigated to directly. Registered as helivanta-web's
 // silent_redirect_uri (scripts/zitadel-bootstrap.mjs; the path here MUST
 // match lib/oidc.ts's SILENT_RENEW_PATH).
 //

@@ -13,8 +13,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/platform/requestid"
-	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/helivanta/internal/platform/requestid"
+	"github.com/tesserix/helivanta/pkg/authn"
 )
 
 func TestMiddlewareGeneratesAndEchoesIDs(t *testing.T) {

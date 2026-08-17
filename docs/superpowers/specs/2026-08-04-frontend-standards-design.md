@@ -1,4 +1,4 @@
-# HMS Frontend Standards & Reusable Patterns
+# Helivanta Frontend Standards & Reusable Patterns
 
 Date: 2026-08-04
 Status: approved
@@ -6,7 +6,7 @@ Builds on: phase 2 (`2026-08-04-phase2-pharmacy-lab-zones-design.md`, merged PR 
 
 ## Goal
 
-Codify how HMS zone apps are built so every contributor — human or AI —
+Codify how Helivanta zone apps are built so every contributor — human or AI —
 produces the same patterns: one data-fetching stack, one form stack, one
 UX vocabulary, machine-enforced lint rules, a generator that stamps out
 correct new zones, and reference implementations to copy from.
@@ -17,7 +17,7 @@ correct new zones, and reference implementations to copy from.
   (ESLint/Prettier/Vitest in CI), documented where not
   (`docs/standards/frontend.md`), and agent-enforced via `CLAUDE.md` and
   a repo skill. A generator prevents drift at zone creation time.
-- **D2 — Data fetching is TanStack Query + a typed client** (`@hms/api`).
+- **D2 — Data fetching is TanStack Query + a typed client** (`@helivanta/api`).
   No raw `fetch` + `useState` + `setInterval` in components.
 - **D3 — Forms are react-hook-form + zod** with inline field errors.
   Native browser validation is disabled (`noValidate` everywhere).
@@ -27,34 +27,34 @@ correct new zones, and reference implementations to copy from.
 - **D5 — Frontend unit/component tests are Vitest + Testing Library**,
   wired into `turbo test` and CI, alongside the existing Playwright E2E.
 - **D6 — Tokens only.** No hardcoded colors/radii/shadows in app code;
-  everything comes from `@hms/ui/styles.css` + `@tesserix/web` tokens.
+  everything comes from `@helivanta/ui/styles.css` + `@tesserix/web` tokens.
 
 ## Deliverables
 
-### 1. `@hms/config` — shared tooling (grows from tsconfig-only)
+### 1. `@helivanta/config` — shared tooling (grows from tsconfig-only)
 
-- `eslint.config.mjs` flat-config base exported as `@hms/config/eslint`:
+- `eslint.config.mjs` flat-config base exported as `@helivanta/config/eslint`:
   `next/core-web-vitals`, `typescript-eslint`, `react-hooks`,
-  `jsx-a11y`, plus HMS rules:
+  `jsx-a11y`, plus Helivanta rules:
   - `no-alert` and `no-restricted-syntax` banning `window.alert`,
     `window.confirm`, `window.prompt`
   - `no-console` (allow `warn`/`error`)
   - `@typescript-eslint/no-explicit-any`
   - `no-restricted-syntax` banning `dangerouslySetInnerHTML` outside
     the sanitized helper (see deliverable 4)
-- `prettier.config.mjs` exported as `@hms/config/prettier`.
+- `prettier.config.mjs` exported as `@helivanta/config/prettier`.
 - `vitest.config` preset (jsdom, Testing Library setup) exported as
-  `@hms/config/vitest`.
+  `@helivanta/config/vitest`.
 - Every app gets real `lint`, `format:check`, `test` scripts; the CI
   web job runs `turbo lint type-check test build`.
 
-### 2. `@hms/api` — typed data layer (new package)
+### 2. `@helivanta/api` — typed data layer (new package)
 
 - `apiFetch<T>(path, init?)`: same-origin `/api/v1` client that parses
   the platform envelope (`{"data": T}` success, `{"error", "message"}`
   failure) and throws a typed `ApiError { code, message, status }`.
 - `AppProviders` (client component): mounts `QueryClientProvider` with
-  HMS defaults and the sonner `<Toaster/>`. Every zone layout wraps
+  Helivanta defaults and the sonner `<Toaster/>`. Every zone layout wraps
   children in it.
 - `useApiQuery(key, path, opts?)` and `useApiMutation(path, opts?)`
   wrappers: mutations toast errors by default (and optionally success);
@@ -64,7 +64,7 @@ correct new zones, and reference implementations to copy from.
   module load and fails fast; `NEXT_PUBLIC_` discipline documented;
   each app ships a checked-in `.env.example`.
 
-### 3. `@hms/ui` — UX conventions kit (grows)
+### 3. `@helivanta/ui` — UX conventions kit (grows)
 
 - `ConfirmDialog`: promise-based destructive-action confirmation built
   on `@tesserix/web` AlertDialog. The ONLY sanctioned confirmation UI;
@@ -95,13 +95,13 @@ Binding rules, each pointing at a reference implementation:
 - Zone-app anatomy: port table (shell 4301, medicore 4302, pharmacy
   4303, lab 4304, next free 4305+), `basePath`, `output: "standalone"`,
   `transpilePackages`, direct-hit `/api` rewrite, shell rewrite pair,
-  globals.css shape (both `@source` lines + `@hms/ui/styles.css`).
+  globals.css shape (both `@source` lines + `@helivanta/ui/styles.css`).
 - Server vs client components: pages/layouts are server components;
   interactivity lives in `components/*` client components; no data
   fetching in server components against the Go API (session cookie
-  flows through the browser; keep fetches client-side via @hms/api).
+  flows through the browser; keep fetches client-side via @helivanta/api).
 - Promotion rule: a component used (or clearly about to be used) by a
-  second app moves to `@hms/ui`.
+  second app moves to `@helivanta/ui`.
 - Chrome rules: all sidebar/cross-zone links are plain `<a>` (hard
   navigation, phase 1 spec D3); zone nav lives only in
   `packages/ui/src/zones.ts`.

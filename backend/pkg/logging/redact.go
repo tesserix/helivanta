@@ -206,7 +206,7 @@ func (rw *redactingWriter) Write(p []byte) (int, error) {
 // line, and the "fast path" it guards rarely fires on real traffic — most of
 // the cost this package pays is the parse-and-re-encode path, not the gate
 // itself. That trade was made deliberately: correctness on this package has
-// already cost four review rounds, HMS is a hospital API rather than a
+// already cost four review rounds, Helivanta is a hospital API rather than a
 // high-volume firehose, and redaction cost on a genuinely high-volume path
 // is exactly the kind of question #438's read-access audit exists to
 // evaluate if one ever appears. Chasing microseconds here by narrowing this

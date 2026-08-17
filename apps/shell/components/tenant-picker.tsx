@@ -1,6 +1,6 @@
 "use client";
 
-import { useApiMutation, useApiQuery, apiFetch, clearPermissionsCache } from "@hms/api";
+import { useApiMutation, useApiQuery, apiFetch, clearPermissionsCache } from "@helivanta/api";
 
 type Membership = { tenant_id: string; roles: string[]; current: boolean };
 
@@ -10,10 +10,10 @@ type SwitchResponse = { tenant_id: string };
  * Lets a clinician working at more than one hospital switch tenants.
  * Renders nothing for single-tenant users, which is almost everyone.
  *
- * This lives in the shell, not in `@hms/ui`, for the same reason
+ * This lives in the shell, not in `@helivanta/ui`, for the same reason
  * `onSignOut` does (see `packages/ui/src/hms-shell.tsx`) — historically
  * because completing a switch needed shell-owned Firebase client config;
- * that coupling is gone now (design spec D3: switching re-mints the HMS
+ * that coupling is gone now (design spec D3: switching re-mints the Helivanta
  * session server-side, no client-side token exchange at all), but the
  * shell remains the natural owner since it is where the dashboard and the
  * rest of the auth surface already live.
@@ -21,7 +21,7 @@ type SwitchResponse = { tenant_id: string };
  * The switch is one call: `POST /iam/me/tenant` re-checks membership (it
  * is the authority; this control only offers the choices the caller's own
  * `/iam/me/tenants` listing already named) and, on success, re-mints the
- * session and replaces the `hms_session` cookie itself via the response's
+ * session and replaces the `helivanta_session` cookie itself via the response's
  * Set-Cookie — the same way `POST /v1/auth/login` does for a fresh login.
  * There is no `custom_token` any more, and nothing for this component to
  * exchange: unlike the old GIP-backed design, a 200 here IS the switch.

@@ -32,9 +32,9 @@ SHELL_PORT=4301
 # it) — so the swap treats the whole zone-app layer as one unit to stop
 # and restore, not apps/shell alone.
 ZONE_PORTS=(4301 4302 4303 4304)
-API_PORT=${HMS_API_PORT:-8080}
-IDLE_API_PORT=${HMS_IDLE_API_PORT:-8099}
-IDLE_WEB_PORT=${HMS_IDLE_WEB_PORT:-4399}
+API_PORT=${HELIVANTA_API_PORT:-8080}
+IDLE_API_PORT=${HELIVANTA_IDLE_API_PORT:-8099}
+IDLE_WEB_PORT=${HELIVANTA_IDLE_WEB_PORT:-4399}
 
 LOG_DIR=$(mktemp -d "${TMPDIR:-/tmp}/hms-e2e.XXXXXX")
 

@@ -14,18 +14,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/config"
-	"github.com/tesserix/hms/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
-	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/ratelimit"
-	"github.com/tesserix/hms/pkg/session"
+	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/ratelimit"
+	"github.com/tesserix/helivanta/pkg/session"
 )
 
 const (
 	loginTestIssuer = "https://hms.test"
-	loginTestKID    = "hms-session-v1"
+	loginTestKID    = "helivanta-session-v1"
 	loginTestTTL    = 15 * time.Minute
 	// testIdleTimeout is stated here rather than read from
 	// config.Load(), which an ambient IDLE_TIMEOUT in a developer's or
@@ -123,7 +123,7 @@ func loginHarnessRL(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerL
 	r := gin.New()
 	// Mounted directly on the engine, exactly as cmd/api/main.go mounts
 	// it — outside any authn.Middleware/authz gate, because there is no
-	// HMS session yet for either of those to check.
+	// Helivanta session yet for either of those to check.
 	r.POST("/v1/auth/login", h.Login)
 	return r, verifier
 }
@@ -137,7 +137,7 @@ func doLogin(t *testing.T, r *gin.Engine, body string) *httptest.ResponseRecorde
 	return w
 }
 
-// sessionCookie extracts the HMS session cookie value from a login
+// sessionCookie extracts the Helivanta session cookie value from a login
 // response, failing the test if it is not present — every successful
 // login must set one.
 func sessionCookie(t *testing.T, w *httptest.ResponseRecorder) string {
@@ -215,7 +215,7 @@ func TestLogin_RefusesSubjectWithNoTenantMembership(t *testing.T) {
 
 // TestLogin_RefusalBodyDoesNotDistinguishNoAccountFromNoMembership is the
 // explicit non-disclosure proof: two subjects that ListRoles answers
-// identically for (empty bindings, whether that is because HMS has never
+// identically for (empty bindings, whether that is because Helivanta has never
 // heard of the subject or because every membership was revoked — a
 // distinction this handler structurally cannot see, since ListRoles is
 // its only signal) must produce byte-identical response bodies. If a
@@ -523,7 +523,7 @@ func newLoginEnv(t *testing.T) *loginEnv {
 	// equality check is what keeps this fixture honest if the shipped
 	// default ever moves.
 	require.Equal(t, config.DefaultIdleTimeout, testIdleTimeout,
-		"the D3 fixture must exercise the idle window HMS actually ships")
+		"the D3 fixture must exercise the idle window Helivanta actually ships")
 	cfg := config.Config{IdleTimeout: testIdleTimeout}
 	clock := time.Now()
 	h := iam.NewLoginHandlers(iam.LoginDeps{
@@ -555,7 +555,7 @@ func (e *loginEnv) freshWindow() time.Time { return e.clock.Add(e.cfg.IdleTimeou
 // standing in for the human signing in again at the terminal.
 func (e *loginEnv) reauthenticate(at time.Time) { *e.zitadelAuthTime = at }
 
-// login is a GENUINE sign-in: no HMS session cookie on the request, which
+// login is a GENUINE sign-in: no Helivanta session cookie on the request, which
 // is exactly how the handler tells it apart from a renewal.
 func (e *loginEnv) login(t *testing.T) string {
 	t.Helper()

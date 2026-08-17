@@ -1,11 +1,11 @@
-// Provisions HMS's Zitadel topology (tenancy topology design doc D1: one
+// Provisions Helivanta's Zitadel topology (tenancy topology design doc D1: one
 // org, one project, one OIDC app) against the local dev stack, then writes
 // dev/zitadel/secrets/zitadel.env so the Makefile can hand
 // backend/internal/config/config.go a real ZITADEL_CLIENT_ID.
 //
 // Run by `make dev-infra`, after docker-compose.dev.yml's zitadel service
-// reports healthy. Everything here is driven by the hms-seed-bot machine
-// PAT that Zitadel itself wrote to dev/zitadel/secrets/hms-seed.pat via
+// reports healthy. Everything here is driven by the helivanta-seed-bot machine
+// PAT that Zitadel itself wrote to dev/zitadel/secrets/helivanta-seed.pat via
 // FirstInstance.Org.Machine + PatPath at first boot — NO interactive
 // login, scripted or otherwise, is needed to reach this point. That closes
 // the one gap docs/superpowers/spikes/2026-08-15-zitadel-spike.md left
@@ -17,13 +17,13 @@
 // project/app by name and reuses them rather than erroring or duplicating,
 // the same convention scripts/seed-dev.mjs already uses for re-seeding.
 //
-// #848 Task 8 added a SECOND app, hms-web-idle-timeout: the idle-timeout
+// #848 Task 8 added a SECOND app, helivanta-web-idle-timeout: the idle-timeout
 // e2e spec needs its own shell instance on its own port (so it can run
 // against a short-IDLE_TIMEOUT API without weakening the 15-minute
 // default every other spec and production rely on — see the Makefile's
 // "Idle-timeout e2e fixture" comment), and Zitadel's per-app
 // `loginVersion.loginV2.baseUri` (see LOGIN_VERSION's doc comment below)
-// is a single origin — pointing hms-web's own baseUri at a second port
+// is a single origin — pointing helivanta-web's own baseUri at a second port
 // would make EVERY login, from EVERY app, render its interactive step on
 // whichever port won last. A second app, with its own baseUri and its
 // own redirect URIs, is the only way to keep the two isolated. Both apps
@@ -35,8 +35,8 @@ import { managementAPI, readMachinePAT } from "./lib/zitadel.mjs";
 const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://localhost:20080";
 const SECRETS_DIR = fileURLToPath(new URL("../dev/zitadel/secrets/", import.meta.url));
 
-const ORG_NAME = "HMS";
-const PROJECT_NAME = "HMS";
+const ORG_NAME = "Helivanta";
+const PROJECT_NAME = "Helivanta";
 
 async function findProjectByName(pat, name) {
   const { result } = await managementAPI(ISSUER, pat, "/management/v1/projects/_search", {});
@@ -69,10 +69,10 @@ async function getApp(pat, projectId, appId) {
 // Provisions (or reuses) ONE OIDC app in the given project and writes its
 // client_id to envOutPath as ZITADEL_CLIENT_ID=... — the shape every
 // consumer (Makefile, scripts/seed-dev.mjs's readClientID) already
-// expects, so hms-web-idle-timeout's separate secrets file is a drop-in
-// the same way hms-web's own zitadel.env already is.
+// expects, so helivanta-web-idle-timeout's separate secrets file is a drop-in
+// the same way helivanta-web's own zitadel.env already is.
 async function provisionApp(pat, project, { appName, redirectUris, postLogoutRedirectUris, envOutPath }) {
-  // hms-web's login redirect points at HMS's own login page instead of
+  // helivanta-web's login redirect points at Helivanta's own login page instead of
   // Zitadel's stock hosted UI (#854 Task 1) — scoped to this ONE app via
   // Zitadel's per-app `loginVersion.loginV2.baseUri`, deliberately not the
   // instance-wide setting, because this Zitadel instance is shared with
@@ -107,9 +107,9 @@ async function provisionApp(pat, project, { appName, redirectUris, postLogoutRed
       grantTypes: ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"],
       appType: "OIDC_APP_TYPE_WEB",
       // Public client, PKCE only — matches spec D5a: the browser talks to
-      // Zitadel directly, HMS's own session (not this OIDC client) is
+      // Zitadel directly, Helivanta's own session (not this OIDC client) is
       // what protects /v1 routes, so there is no confidential secret to
-      // hold or rotate for hms-web.
+      // hold or rotate for helivanta-web.
       authMethodType: "OIDC_AUTH_METHOD_TYPE_NONE",
       postLogoutRedirectUris,
       devMode: true,
@@ -137,7 +137,7 @@ async function provisionApp(pat, project, { appName, redirectUris, postLogoutRed
   // from the body resets to its default, and `authMethodType`'s default
   // requires a client secret. The main PUT/create above explicitly sets
   // authMethodType to OIDC_AUTH_METHOD_TYPE_NONE (the public/PKCE client
-  // hms-web needs — see its own comment), but a separate loginVersion-only
+  // helivanta-web needs — see its own comment), but a separate loginVersion-only
   // PUT that ran AFTER it silently reset authMethodType back away from NONE
   // every single `make up`, breaking the token exchange
   // (`/oauth/v2/token` → `invalid_client: empty client secret`) for every
@@ -216,7 +216,7 @@ async function main() {
     console.log(`Created project "${PROJECT_NAME}" (${project.id})`);
   }
 
-  // hms-web: the real app every human developer and every e2e spec other
+  // helivanta-web: the real app every human developer and every e2e spec other
   // than idle-timeout.spec.ts signs in through.
   //
   // The real redirect URIs #838 Task 7 (apps/shell) serves:
@@ -224,7 +224,7 @@ async function main() {
   // app/api/auth/silent-renew/page.tsx for the hidden-iframe renewal flow
   // (design spec D4a).
   const clientId = await provisionApp(pat, project, {
-    appName: "hms-web",
+    appName: "helivanta-web",
     redirectUris: [
       "http://localhost:4301/api/auth/callback",
       "http://localhost:4301/api/auth/silent-renew",
@@ -233,12 +233,12 @@ async function main() {
     envOutPath: `${SECRETS_DIR}zitadel.env`,
   });
 
-  // hms-web-idle-timeout: idle-timeout.spec.ts's OWN shell instance
-  // (Makefile's dev-web-idle-timeout, port HMS_IDLE_WEB_PORT). See this
+  // helivanta-web-idle-timeout: idle-timeout.spec.ts's OWN shell instance
+  // (Makefile's dev-web-idle-timeout, port HELIVANTA_IDLE_WEB_PORT). See this
   // file's header comment for why a short-IDLE_TIMEOUT spec needs a
-  // wholly separate OIDC app rather than reusing hms-web's.
+  // wholly separate OIDC app rather than reusing helivanta-web's.
   const idleTimeoutClientId = await provisionApp(pat, project, {
-    appName: "hms-web-idle-timeout",
+    appName: "helivanta-web-idle-timeout",
     redirectUris: [
       "http://localhost:4399/api/auth/callback",
       "http://localhost:4399/api/auth/silent-renew",
@@ -252,9 +252,9 @@ Zitadel provisioned:
   Issuer:        ${ISSUER}
   Org:           ${ORG_NAME}
   Project:       ${PROJECT_NAME}
-  App:           hms-web (client_id=${clientId})
-  App:           hms-web-idle-timeout (client_id=${idleTimeoutClientId})
-  Console admin: admin@hms.localhost / HmsDevAdminPassw0rd! (dev only — see
+  App:           helivanta-web (client_id=${clientId})
+  App:           helivanta-web-idle-timeout (client_id=${idleTimeoutClientId})
+  Console admin: admin@helivanta.localhost / HmsDevAdminPassw0rd! (dev only — see
                  docker-compose.dev.yml's zitadel service)
 `);
 }

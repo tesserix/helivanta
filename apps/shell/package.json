@@ -1,5 +1,5 @@
 {
-  "name": "@hms/shell",
+  "name": "@helivanta/shell",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -12,8 +12,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@hms/api": "workspace:*",
-    "@hms/ui": "workspace:*",
+    "@helivanta/api": "workspace:*",
+    "@helivanta/ui": "workspace:*",
     "@tesserix/web": "^1.8.0",
     "oidc-client-ts": "^3.5.0",
     "next": "^16.0.0",
@@ -23,7 +23,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@hms/config": "workspace:*",
+    "@helivanta/config": "workspace:*",
     "@tailwindcss/postcss": "^4.1.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
@@ -36,5 +36,5 @@
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   },
-  "prettier": "@hms/config/prettier"
+  "prettier": "@helivanta/config/prettier"
 }

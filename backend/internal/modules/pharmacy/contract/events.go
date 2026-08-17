@@ -6,7 +6,7 @@ package contract
 // dispense. No module consumes it today; publishing it is how the
 // dispense becomes visible to anything added later without changing
 // pharmacy.
-const SubjectDispenseRecorded = "hms.in.pharmacy.dispense_recorded.v1"
+const SubjectDispenseRecorded = "helivanta.in.pharmacy.dispense_recorded.v1"
 
 // DispenseRecordedData is the v1 payload of SubjectDispenseRecorded.
 type DispenseRecordedData struct {

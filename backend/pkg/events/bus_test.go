@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/testinfra"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/testinfra"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 func TestOutboxPublishDispatchConsume(t *testing.T) {
@@ -37,7 +37,7 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 	var handled atomic.Int32
 	require.NoError(t, bus.StartConsumers(ctx, db, []events.Consumer{{
 		Name:    "test-consumer",
-		Subject: "hms.in.reference.pinged.v1",
+		Subject: "helivanta.in.reference.pinged.v1",
 		Handle: func(ctx context.Context, tx *gorm.DB, evt events.Event) error {
 			handled.Add(1)
 			return nil
@@ -55,7 +55,7 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 
 	// Publish inside a transaction — commits to outbox, not to NATS.
 	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
-		return bus.Publish(tx, "hms.in.reference.pinged.v1", evt)
+		return bus.Publish(tx, "helivanta.in.reference.pinged.v1", evt)
 	}))
 
 	require.Eventually(t, func() bool { return handled.Load() == 1 },
@@ -76,7 +76,7 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 
 	payload, err := json.Marshal(evt)
 	require.NoError(t, err)
-	_, err = directJS.Publish(bus.Subject("hms.in.reference.pinged.v1"), payload)
+	_, err = directJS.Publish(bus.Subject("helivanta.in.reference.pinged.v1"), payload)
 	require.NoError(t, err)
 
 	require.Never(t, func() bool { return handled.Load() > 1 }, 3*time.Second, 200*time.Millisecond,
@@ -130,7 +130,7 @@ func TestConsumerTenantScopedWrite(t *testing.T) {
 
 	require.NoError(t, bus.StartConsumers(ctx, db, []events.Consumer{{
 		Name:    "tenant-write-consumer",
-		Subject: "hms.in.test.tenantwrite.v1",
+		Subject: "helivanta.in.test.tenantwrite.v1",
 		Handle: func(ctx context.Context, tx *gorm.DB, evt events.Event) error {
 			// Relies on the bus having set app.tenant_id from evt.TenantID.
 			return tx.Exec(`INSERT INTO consumer_widgets (tenant_id, note) VALUES (?, 'from-consumer')`,
@@ -148,7 +148,7 @@ func TestConsumerTenantScopedWrite(t *testing.T) {
 	// tenant-less CredentialRevoked broadcast, which really does publish
 	// from WithSystem.
 	require.NoError(t, db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
-		return bus.Publish(tx, "hms.in.test.tenantwrite.v1", events.Event{
+		return bus.Publish(tx, "helivanta.in.test.tenantwrite.v1", events.Event{
 			Type: "TenantWrite", Version: 1, TenantID: tenantA,
 			Data: json.RawMessage(`{}`),
 		})

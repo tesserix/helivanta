@@ -4,7 +4,7 @@ import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
-// Shared HMS flat config. Apps call hmsEslint(import.meta.dirname).
+// Shared Helivanta flat config. Apps call hmsEslint(import.meta.dirname).
 export function hmsEslint(rootDir) {
   return tseslint.config(
     { ignores: [".next/**", "node_modules/**", "dist/**", "coverage/**"] },
@@ -16,7 +16,7 @@ export function hmsEslint(rootDir) {
       rules: {
         ...nextPlugin.configs.recommended.rules,
         ...reactHooks.configs.recommended.rules,
-        // HMS UX vocabulary: browser dialogs are banned (spec D4).
+        // Helivanta UX vocabulary: browser dialogs are banned (spec D4).
         "no-alert": "error",
         "no-console": ["error", { allow: ["warn", "error"] }],
         "@typescript-eslint/no-explicit-any": "error",
@@ -27,7 +27,7 @@ export function hmsEslint(rootDir) {
           {
             selector:
               "JSXAttribute[name.name='dangerouslySetInnerHTML']:not([value.expression.callee.name='sanitizeHtml'])",
-            message: "Use sanitizeHtml from @hms/ui instead of raw dangerouslySetInnerHTML.",
+            message: "Use sanitizeHtml from @helivanta/ui instead of raw dangerouslySetInnerHTML.",
           },
         ],
       },

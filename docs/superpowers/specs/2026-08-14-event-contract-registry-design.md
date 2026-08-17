@@ -1,6 +1,6 @@
 # Event contract registry — design
 
-**Issue:** [#827](https://github.com/tesserix/hms/issues/827) — Event contracts
+**Issue:** [#827](https://github.com/tesserix/helivanta/issues/827) — Event contracts
 exist as three unlinked copies.
 **Status:** implemented 2026-08-14. Corrections made during implementation are
 marked *(corrected)* and collected under "What implementation changed" below.
@@ -14,7 +14,7 @@ ADR-0005.
 An event's subject and payload shape exist as independent copies in every module
 that touches them, with nothing linking publisher to consumer.
 
-`hms.in.medicore.visit_created.v1` is declared three times — `medicore/module.go:13`
+`helivanta.in.medicore.visit_created.v1` is declared three times — `medicore/module.go:13`
 (publisher), `pharmacy/module.go:15` and `lab/module.go:13` (each consumer's own
 copy). Its payload is declared three times too: `VisitCreatedData` in
 `medicore/visits.go:38`, and a private `visitCreatedData` in each of
@@ -64,7 +64,7 @@ renaming a field is already in the directory that defines the contract.
 
 **Why here and not a central package.** A `contract` package is not merely a
 convenient location — it is the **published interface** of a module. Per
-ADR-0005, HMS stays a modular monolith and extracts services only on a named
+ADR-0005, Helivanta stays a modular monolith and extracts services only on a named
 trigger; when that happens, `medicore/contract` lifts out as a shared library
 unchanged, because it already holds exactly what a consumer needs and nothing it
 must not have. A central `internal/contracts` would have to be untangled first —
@@ -87,7 +87,7 @@ Two rules each gain exactly one exception — an imported path ending in
 `/contract`:
 
 ```
-depguard  deny: github.com/tesserix/hms/internal/modules  (from within internal/modules)
+depguard  deny: github.com/tesserix/helivanta/internal/modules  (from within internal/modules)
           →  allow when the imported path ends in "/contract"
 
 TestModulesDoNotImportEachOther

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/config"
+	"github.com/tesserix/helivanta/internal/config"
 )
 
 // TestRequireZitadelLoginClientToken_Unset_Refuses is the fail-fast boot
@@ -53,7 +53,7 @@ func TestRequireZitadelLoginClientToken_Present_Accepted(t *testing.T) {
 }
 
 // TestRequireZitadelLoginClientToken_ErrorNeverContainsTheTokenValue is
-// the review's explicit ask: this is the most privileged credential HMS
+// the review's explicit ask: this is the most privileged credential Helivanta
 // holds (ZitadelLoginClientToken's doc comment), and it must never
 // appear in a log line or an error message. RequireZitadelLoginClientToken
 // has exactly one refusal branch (empty-after-trim), so there is no

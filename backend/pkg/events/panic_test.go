@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/testinfra"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/testinfra"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // A consumer handler panicking must dead-letter one event, not terminate
@@ -39,7 +39,7 @@ func TestPanickingConsumerDoesNotKillTheProcess(t *testing.T) {
 	defer cancel()
 
 	const consumerName = "panic-test-consumer"
-	const subject = "hms.in.reference.panictest.v1"
+	const subject = "helivanta.in.reference.panictest.v1"
 
 	require.NoError(t, bus.StartConsumers(ctx, db, []events.Consumer{{
 		Name:    consumerName,
@@ -57,7 +57,7 @@ func TestPanickingConsumerDoesNotKillTheProcess(t *testing.T) {
 	rawNC, err := nats.Connect(natsURL)
 	require.NoError(t, err)
 	defer rawNC.Close()
-	dlqSub, err := rawNC.SubscribeSync(bus.Subject("hms.dlq." + consumerName))
+	dlqSub, err := rawNC.SubscribeSync(bus.Subject("helivanta.dlq." + consumerName))
 	require.NoError(t, err)
 	defer func() { _ = dlqSub.Unsubscribe() }()
 

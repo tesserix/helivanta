@@ -1,4 +1,4 @@
-/** Shared HMS Prettier config. */
+/** Shared Helivanta Prettier config. */
 export default {
   semi: true,
   singleQuote: false,

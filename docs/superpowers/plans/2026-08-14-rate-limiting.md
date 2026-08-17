@@ -89,7 +89,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/ratelimit"
+	"github.com/tesserix/helivanta/pkg/ratelimit"
 )
 
 var defaultRule = ratelimit.Rule{Rate: 120, Burst: 20, Per: time.Minute}
@@ -664,8 +664,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/tesserix/hms/internal/platform/respond"
-	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
 )
 
 // Config is the whole limiting policy.
@@ -1034,9 +1034,9 @@ This spec belongs in the **`bulk` Playwright project**, sequenced after the othe
 - [ ] **Step 3: Run the full stack and the suite**
 
 ```bash
-export HMS_PG_PORT=15432 HMS_NATS_PORT=14222 HMS_NATS_MONITOR_PORT=18222 \
-  HMS_REDIS_PORT=16379 HMS_OPENFGA_PORT=18090 HMS_GIP_PORT=19099 \
-  HMS_API_PORT=18080 NODE_AUTH_TOKEN=$(gh auth token)
+export HELIVANTA_PG_PORT=15432 HELIVANTA_NATS_PORT=14222 HELIVANTA_NATS_MONITOR_PORT=18222 \
+  HELIVANTA_REDIS_PORT=16379 HELIVANTA_OPENFGA_PORT=18090 HELIVANTA_GIP_PORT=19099 \
+  HELIVANTA_API_PORT=18080 NODE_AUTH_TOKEN=$(gh auth token)
 make up && ./scripts/verify-local.sh
 pnpm --filter e2e exec playwright test --reporter=list
 ```

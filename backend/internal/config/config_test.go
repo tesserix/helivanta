@@ -8,15 +8,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/config"
-	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/pkg/logging"
 )
 
 // The default must be production. A guard that defaults to permissive
 // protects nothing, because the deployment that forgets to set the
 // variable is exactly the one that needed protecting.
 func TestEnvDefaultsToProduction(t *testing.T) {
-	t.Setenv("HMS_ENV", "")
+	t.Setenv("HELIVANTA_ENV", "")
 	cfg := config.Load()
 	require.Equal(t, "production", cfg.Env)
 	require.False(t, cfg.IsDev())
@@ -33,8 +33,8 @@ func TestIsDevOnlyForExactDev(t *testing.T) {
 		{"production", false},
 		{"staging", false},
 	} {
-		t.Setenv("HMS_ENV", tc.env)
-		require.Equal(t, tc.isDev, config.Load().IsDev(), "HMS_ENV=%q", tc.env)
+		t.Setenv("HELIVANTA_ENV", tc.env)
+		require.Equal(t, tc.isDev, config.Load().IsDev(), "HELIVANTA_ENV=%q", tc.env)
 	}
 }
 
@@ -112,7 +112,7 @@ func TestSessionTTLDefaultsAndFallsOpen(t *testing.T) {
 // not a secret — and proves it is overridable.
 func TestSessionIssuerDefaultsAndOverrides(t *testing.T) {
 	t.Setenv("SESSION_ISSUER", "")
-	require.Equal(t, "https://hms.local", config.Load().SessionIssuer)
+	require.Equal(t, "https://helivanta.local", config.Load().SessionIssuer)
 
 	t.Setenv("SESSION_ISSUER", "https://hms.example.org")
 	require.Equal(t, "https://hms.example.org", config.Load().SessionIssuer)

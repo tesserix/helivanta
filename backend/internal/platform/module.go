@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/session"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/session"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // TupleWriter is the subset of the authz client that modules may use to
@@ -43,7 +43,7 @@ type Deps struct {
 	Bus   *events.Bus
 	Authz TupleWriter
 	Roles RoleLister
-	// SessionSigner re-mints the HMS session for the one operation that
+	// SessionSigner re-mints the Helivanta session for the one operation that
 	// must change a caller's identity rather than read it: switching
 	// hospitals (#838, spec D3). Post-cutover this is the ONLY way a
 	// module can issue a credential — there is no more external identity

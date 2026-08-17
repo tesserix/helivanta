@@ -19,7 +19,7 @@ package contract
 
 // SubjectVisitCreated is published when a visit opens. Pharmacy and lab
 // consume it to open their pending work.
-const SubjectVisitCreated = "hms.in.medicore.visit_created.v1"
+const SubjectVisitCreated = "helivanta.in.medicore.visit_created.v1"
 
 // VisitCreatedData is the v1 payload of SubjectVisitCreated.
 //

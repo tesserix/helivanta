@@ -9,8 +9,8 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/testinfra"
-	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/helivanta/internal/testinfra"
+	"github.com/tesserix/helivanta/pkg/events"
 )
 
 // newTestBus gives a Bus namespaced to this test, sharing the one NATS
@@ -52,12 +52,12 @@ func TestBroadcastReachesEverySubscriber(t *testing.T) {
 	received := make(chan string, subscribers)
 	for range subscribers {
 		require.NoError(t, bus.StartBroadcasts(ctx, []events.Broadcast{{
-			Subject: "hms.in.iam.credential_revoked.v1",
+			Subject: "helivanta.in.iam.credential_revoked.v1",
 			Handle:  func(_ context.Context, evt events.Event) { received <- string(evt.Data) },
 		}}))
 	}
 
-	publishDirectly(t, bus, "hms.in.iam.credential_revoked.v1", events.Event{
+	publishDirectly(t, bus, "helivanta.in.iam.credential_revoked.v1", events.Event{
 		Type: "CredentialRevoked", Version: 1, Data: json.RawMessage(`{"subject":"uid-nurse"}`),
 	})
 
@@ -99,7 +99,7 @@ func TestBroadcastSurvivesAPanickingHandler(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)
 
-	const subject = "hms.in.iam.credential_revoked.v1"
+	const subject = "helivanta.in.iam.credential_revoked.v1"
 	delivered := make(chan string, 2)
 	require.NoError(t, bus.StartBroadcasts(ctx, []events.Broadcast{{
 		Subject: subject,
@@ -140,7 +140,7 @@ func TestBroadcastSurvivesAnUndecodableMessage(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)
 
-	const subject = "hms.in.iam.credential_revoked.v1"
+	const subject = "helivanta.in.iam.credential_revoked.v1"
 	delivered := make(chan string, 2)
 	require.NoError(t, bus.StartBroadcasts(ctx, []events.Broadcast{{
 		Subject: subject,

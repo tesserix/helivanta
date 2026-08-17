@@ -3,8 +3,8 @@ package iam
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/tesserix/hms/internal/platform/respond"
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 // SystemRole is a role seeded into every tenant. Because roles are data

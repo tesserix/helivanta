@@ -16,30 +16,30 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/tesserix/hms/internal/bootstrap"
-	"github.com/tesserix/hms/internal/config"
-	"github.com/tesserix/hms/internal/httpserver"
-	"github.com/tesserix/hms/internal/modules/iam"
-	"github.com/tesserix/hms/internal/modules/iam/loginclient"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/internal/platform/requestid"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/logging"
-	"github.com/tesserix/hms/pkg/ratelimit"
-	"github.com/tesserix/hms/pkg/session"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/internal/httpserver"
+	"github.com/tesserix/helivanta/internal/modules/iam"
+	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/platform/requestid"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/ratelimit"
+	"github.com/tesserix/helivanta/pkg/session"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-// sessionSigningKeyID is the `kid` HMS's session tokens carry until key
+// sessionSigningKeyID is the `kid` Helivanta's session tokens carry until key
 // rotation is designed (out of scope here, plan Task 2 / spec D5 — the
 // header exists from the start so rotation is not precluded later).
 // Fixed rather than derived from the key material itself: deriving it
 // from the key would make "kid" a second, redundant fingerprint of the
 // exact secret this whole package exists to keep out of logs and error
 // messages.
-const sessionSigningKeyID = "hms-session-v1"
+const sessionSigningKeyID = "helivanta-session-v1"
 
 func main() {
 	if err := run(); err != nil {
@@ -53,9 +53,9 @@ func run() error {
 	// Before anything else logs: until this runs, slog.Default() is the
 	// unconfigured text handler on stderr and nothing is redacted.
 	slog.SetDefault(logging.New(cfg.LogLevel))
-	// Logged once at boot because HMS_ENV silently gates production safety
+	// Logged once at boot because HELIVANTA_ENV silently gates production safety
 	// checks (see Config.IsDev) — a prod process accidentally started with
-	// HMS_ENV=dev would otherwise disable them with no signal anywhere.
+	// HELIVANTA_ENV=dev would otherwise disable them with no signal anywhere.
 	slog.Info("resolved environment", "env", cfg.Env, "is_dev", cfg.IsDev())
 
 	// Resolved before anything else that costs time or a network round
@@ -70,7 +70,7 @@ func run() error {
 	//
 	// Task 2 only decoded and validated the key here, deliberately not
 	// yet turned into a session.Signer/session.Verifier: nothing minted
-	// or checked an HMS session until Task 4 of
+	// or checked a Helivanta session until Task 4 of
 	// docs/superpowers/plans/2026-08-15-zitadel-auth.md landed the login
 	// endpoint and the request-path verifier that use it — see the
 	// Signer/Verifier construction just below run() builds the OpenFGA
@@ -104,7 +104,7 @@ func run() error {
 	}
 	// Same class of check, same reason to run it here rather than on the
 	// hot path: a hosted-login URL misconfigured to share an origin with
-	// HMS's own frontend would loop every MFA-enrolled clinician forever
+	// Helivanta's own frontend would loop every MFA-enrolled clinician forever
 	// through a handoff that always sends them right back — see
 	// config.RequireDistinctHostedLoginOrigin's doc comment for why
 	// nothing short of a boot refusal makes that loop unrepresentable.
@@ -114,7 +114,7 @@ func run() error {
 	sessionKey := ed25519.NewKeyFromSeed(sessionSeed)
 	// Logging a fingerprint of the PUBLIC key (never the private key,
 	// never the seed) confirms the key loaded, the same way "resolved
-	// environment" confirms HMS_ENV without printing a secret. The
+	// environment" confirms HELIVANTA_ENV without printing a secret. The
 	// public key itself is not secret either, but a fingerprint keeps
 	// this line short and avoids training anyone to expect a raw key
 	// value in a log line.
@@ -178,7 +178,7 @@ func run() error {
 	// (plan Task 3). Task 4 narrows where that verifier is used: it is
 	// ONLY the login endpoint's job now (see loginHandlers below) to
 	// look at a raw Zitadel token at all. Every ordinary /v1 request
-	// verifies an HMS session instead (requestVerifier, built from
+	// verifies a Helivanta session instead (requestVerifier, built from
 	// sessionVerifier just below) — that is what ends the interim state
 	// recorded in the plan's "Interim-state note" after Task 3, where
 	// Principal.TenantID could only ever be empty because nothing yet
@@ -188,7 +188,7 @@ func run() error {
 		return err
 	}
 
-	// sessionSigner mints HMS sessions (login, and Task 5's tenant
+	// sessionSigner mints Helivanta sessions (login, and Task 5's tenant
 	// switch); sessionVerifier checks them. Built from the SAME
 	// sessionKey decoded and refused-to-boot-without above, and the SAME
 	// sessionSigningKeyID logged there — a Signer and Verifier
@@ -273,7 +273,7 @@ func run() error {
 	// order and why it is load-bearing;
 	// internal/archtest.TestThrottledRequestMakesNoOpenFGACall pins it.
 	//
-	// requestVerifier (an HMS session, never a raw Zitadel token) is what
+	// requestVerifier (a Helivanta session, never a raw Zitadel token) is what
 	// gates every route in this group. limiter is constructed once, here,
 	// and reused everywhere a rate budget is needed: this chain (through
 	// ratelimit.Middleware, which is also where iam's POST
@@ -289,9 +289,9 @@ func run() error {
 
 	// POST /v1/auth/login is mounted directly on the raw engine — NOT
 	// through `api`/bootstrap.V1Chain above — because it is the endpoint
-	// that CREATES an HMS session (plan Task 4, spec D1) and so cannot
+	// that CREATES a Helivanta session (plan Task 4, spec D1) and so cannot
 	// itself require one: it verifies a caller-presented Zitadel ID
-	// token, not the HMS session requestVerifier checks. It shares the
+	// token, not the Helivanta session requestVerifier checks. It shares the
 	// /v1 URL prefix for API-path consistency but is structurally outside
 	// the authenticated chain — no authn.Middleware, no
 	// authz.RequireMembership, no rate-limit bucket keyed by a principal
@@ -337,11 +337,11 @@ func run() error {
 	// loginclient.defaultTimeout bounds every call it makes, so this
 	// does not need its own per-request timeout.
 	zitadelLoginClient := loginclient.New(cfg.ZitadelIssuerURL, zitadelLoginClientToken, http.DefaultClient)
-	// loginUIHandlers backs HMS's own login form (plan #854 Task 4):
+	// loginUIHandlers backs Helivanta's own login form (plan #854 Task 4):
 	// three unauthenticated routes reading an auth request (GET
 	// /v1/auth/login/request/:id), checking a password (POST
 	// /v1/auth/login/password), and handing off to Zitadel's hosted UI
-	// when HMS cannot complete the login itself (POST
+	// when Helivanta cannot complete the login itself (POST
 	// /v1/auth/login/handoff/:id). All three reuse the SAME limiter
 	// instance as loginHandlers and V1Chain above (#841's rule: this
 	// file must construct exactly one ratelimit.Limiter, never a second)

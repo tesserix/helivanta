@@ -1,8 +1,8 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { renderWithProviders } from "@hms/api/testing";
-import { SIGNED_OUT_MARK, IDLE_ENDED_MARK } from "@hms/ui";
+import { renderWithProviders } from "@helivanta/api/testing";
+import { SIGNED_OUT_MARK, IDLE_ENDED_MARK } from "@helivanta/ui";
 
 import LoginPage from "./page";
 
@@ -42,7 +42,7 @@ function jsonResponse(status: number, body: unknown) {
 function authRequestOkResponse() {
   return jsonResponse(200, {
     id: AUTH_REQUEST_ID,
-    client_id: "hms-web",
+    client_id: "helivanta-web",
     redirect_uri: "http://localhost:4301/api/auth/callback",
     scope: ["openid", "profile", "email"],
   });
@@ -238,7 +238,7 @@ describe("LoginPage", () => {
     });
 
     // Repo-wide: native browser validation is banned (docs/standards/
-    // frontend.md §4), so every HMS form must disable it explicitly. This
+    // frontend.md §4), so every Helivanta form must disable it explicitly. This
     // pins the login form to that rule rather than relying on the zod
     // validation tests below to prove it only indirectly.
     it("disables native browser validation", async () => {
@@ -274,7 +274,7 @@ describe("LoginPage", () => {
       });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@hms.dev");
+      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "wrong-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -302,7 +302,7 @@ describe("LoginPage", () => {
       });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@hms.dev");
+      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "wrong-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -327,7 +327,7 @@ describe("LoginPage", () => {
       vi.stubGlobal("location", { ...window.location, assign: assignSpy });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@hms.dev");
+      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "correct-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -351,7 +351,7 @@ describe("LoginPage", () => {
       vi.stubGlobal("location", { ...window.location, assign: assignSpy });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@hms.dev");
+      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "correct-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -367,7 +367,7 @@ describe("LoginPage", () => {
       vi.stubGlobal("location", { ...window.location, assign: vi.fn() });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@hms.dev");
+      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "correct-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -378,7 +378,7 @@ describe("LoginPage", () => {
             method: "POST",
             body: JSON.stringify({
               auth_request_id: AUTH_REQUEST_ID,
-              login_name: "clinician@hms.dev",
+              login_name: "clinician@helivanta.dev",
               password: "correct-password",
             }),
           }),
@@ -412,7 +412,7 @@ describe("LoginPage", () => {
 
       renderWithProviders(<LoginPage />);
 
-      expect(await screen.findByText("HMS")).toBeInTheDocument();
+      expect(await screen.findByText("Helivanta")).toBeInTheDocument();
       expect(screen.getByText(/loading/i)).toBeInTheDocument();
       expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
 

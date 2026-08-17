@@ -1,4 +1,4 @@
-# HMS backend standards
+# Helivanta backend standards
 
 Binding rules for every module under `backend/internal/modules/*` and the
 shared platform packages (`backend/internal/platform/*`, `backend/pkg/*`).
@@ -78,7 +78,7 @@ enforced twice, for different failure modes:
 
 - **Lint (fast, every save):** `backend/.golangci.yml`'s `depguard`
   `module-isolation` rule denies any import of
-  `github.com/tesserix/hms/internal/modules` from files under
+  `github.com/tesserix/helivanta/internal/modules` from files under
   `**/internal/modules/**`:
   ```yaml
   depguard:
@@ -87,7 +87,7 @@ enforced twice, for different failure modes:
         files:
           - "**/internal/modules/**"
         deny:
-          - pkg: "github.com/tesserix/hms/internal/modules"
+          - pkg: "github.com/tesserix/helivanta/internal/modules"
             desc: "modules must not import other modules — cross-module data flows only via events (spec D3)"
   ```
   A module's own `_test.go` package importing itself (e.g.
@@ -111,8 +111,8 @@ Instead it repeats medicore's subject string by value and consumes it:
 const (
 	// SubjectVisitCreated is medicore's subject, repeated by value —
 	// modules must not import each other (spec D6 / phase 1).
-	subjectVisitCreated     = "hms.in.medicore.visit_created.v1"
-	SubjectDispenseRecorded = "hms.in.pharmacy.dispense_recorded.v1"
+	subjectVisitCreated     = "helivanta.in.medicore.visit_created.v1"
+	SubjectDispenseRecorded = "helivanta.in.pharmacy.dispense_recorded.v1"
 )
 ```
 
@@ -391,7 +391,7 @@ including `/healthz`, stamping a request ID before auth runs so a 401 log
 line is still correlated. `authn.Middleware` reads a `Bearer` header or
 the `hms_session` cookie, verifies it via the injected `TokenVerifier`
 (`authn.NewSessionVerifier` over `pkg/session` in production, since #838 made
-the HMS session — not the IdP token — what a `/v1` request presents;
+the Helivanta session — not the IdP token — what a `/v1` request presents;
 `testutil.StaticVerifier` in tests), and sets the `authn.Principal` on the Gin context for
 `TenantPrincipal` to read later; a missing or invalid credential aborts
 with 401 before any module handler runs.
@@ -399,7 +399,7 @@ with 401 before any module handler runs.
 ### Idle session timeout
 
 `session.Claims.IdleDeadline` (carried through to `authn.Principal.IdleDeadline`)
-is how long an HMS session stays usable with no human interaction (#848,
+is how long a Helivanta session stays usable with no human interaction (#848,
 design spec D2). `authn.Middleware` (`backend/pkg/authn/authn.go`) enforces
 it fail-closed and unconditionally, on every `/v1` request, alongside the
 revocation-watermark check: `!time.Now().Before(p.IdleDeadline)` refuses
@@ -449,7 +449,7 @@ key, so draining it does not drain the budget every other route reads
 from. `Tight` is empty as of #838: its one entry, `POST
 /v1/iam/me/tenant`, was budgeted tighter because it minted a GIP custom
 token per call against project-wide Identity Platform quota. #838
-replaced that with an in-process HMS session re-mint (one Ed25519
+replaced that with an in-process Helivanta session re-mint (one Ed25519
 signature) plus one OpenFGA membership check — the same shape of cost
 every other authenticated route already pays through `authz.Middleware`'s
 own `Resolve` call — so there is no longer a shared external resource
@@ -488,8 +488,8 @@ count.
 
 `ZITADEL_LOGIN_CLIENT_TOKEN` is an **instance-level** Zitadel PAT: its
 holder can finalise an OIDC auth request for *any* app on the shared
-Zitadel instance, not just HMS's own (`docs/superpowers/specs/2026-08-16-hms-login-client-design.md`
-D2). It is the most privileged secret HMS holds. It **must never appear
+Zitadel instance, not just Helivanta's own (`docs/superpowers/specs/2026-08-16-hms-login-client-design.md`
+D2). It is the most privileged secret Helivanta holds. It **must never appear
 in a frontend service or in a log** — it lives only in the Go API
 (`backend/internal/modules/iam/loginclient`), which loads it from env the
 same way every other secret does, and `loginclient.Client` never embeds
@@ -500,8 +500,8 @@ line built from one of its errors cannot leak it either.
 A missing `ZITADEL_LOGIN_CLIENT_TOKEN` is a **boot refusal**, not a
 degraded mode: without it the API cannot check a credential at all, and
 starting anyway would serve a login form that fails every submission. So
-is a missing **`HMS_WEB_ORIGIN`** outside `HMS_ENV=dev` — it is the
-origin HMS's own `/login` is served from, and
+is a missing **`HELIVANTA_WEB_ORIGIN`** outside `HELIVANTA_ENV=dev` — it is the
+origin Helivanta's own `/login` is served from, and
 `config.RequireDistinctHostedLoginOrigin` compares it against
 `ZITADEL_HOSTED_LOGIN_URL` to refuse a configuration where the handoff
 target points back at the page that just decided to hand off. That
@@ -548,9 +548,9 @@ All cross-module data flows through NATS JetStream via
 `*events.Bus` (`backend/pkg/events/bus.go`), never a direct call.
 
 **Subjects** must match
-`^hms\.[a-z]+\.[a-z]+\.[a-z_]+\.v\d+$` (`archtest`'s `subjectRe`) —
+`^helivanta\.[a-z]+\.[a-z]+\.[a-z_]+\.v\d+$` (`archtest`'s `subjectRe`) —
 direction, module, event name, version:
-`hms.in.pharmacy.dispense_recorded.v1`. **Consumer names** must match
+`helivanta.in.pharmacy.dispense_recorded.v1`. **Consumer names** must match
 `^[a-z]+-[a-z-]+$` (`consumerRe`) — module prefix, purpose:
 `pharmacy-visit-intake`. Both are checked in CI by
 `TestConsumerContracts` and `TestPublishedSubjectConstants` in
@@ -631,7 +631,7 @@ func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 
 **DLQ behavior:** a message is redelivered up to `maxDeliver` (5) times
 on handler failure (`Nak`); once `NumDelivered >= maxDeliver`, `handleMsg`
-publishes the raw payload to `hms.dlq.<consumer>` and `Term`s the
+publishes the raw payload to `helivanta.dlq.<consumer>` and `Term`s the
 original instead of Nak-ing it forever. If the DLQ publish itself fails,
 the message is `Nak`'d (not `Term`'d) so the next redelivery gets another
 chance to dead-letter it — the alternative (`Term` unconditionally) would
@@ -854,7 +854,7 @@ process logger: a JSON handler on stdout, writing through a **redacting
 to `info` silently (the ordinary unset case, not a mistake). A mistyped log
 level cannot compromise tenant isolation, and a hospital's API must not
 fail to start over a typo — this is deliberately the opposite call from the
-`HMS_ENV` guards, which fail closed because a wrong value there could
+`HELIVANTA_ENV` guards, which fail closed because a wrong value there could
 silently disable a safety check.
 
 **Redaction happens at the writer, not the handler.** Every line `slog`'s
@@ -882,14 +882,14 @@ Redaction cannot corrupt a line into invalid JSON.
 — the seam #679 will wire to metrics; there's no metrics sink yet.
 
 **Names, dates of birth and addresses are masked by struct tag, not by
-pattern.** Tag a field `hmslog:"phi"` and `pkg/logging`'s handler replaces
+pattern.** Tag a field `helivantalog:"phi"` and `pkg/logging`'s handler replaces
 its value with `[REDACTED:phi]` before the record is serialised:
 
 ```go
 type Patient struct {
     ID   uuid.UUID `json:"id"`
-    Name string    `json:"name" hmslog:"phi"`
-    DOB  string    `json:"dob"  hmslog:"phi"`
+    Name string    `json:"name" helivantalog:"phi"`
+    DOB  string    `json:"dob"  helivantalog:"phi"`
 }
 ```
 
@@ -935,7 +935,7 @@ Three things it cannot see, by construction:
 - PHI already flattened into a string before it reaches slog
   (`fmt.Errorf("%s", name)`), where no type remains to carry a tag.
 
-A value with no `hmslog` tag anywhere in its type graph is left strictly
+A value with no `helivantalog` tag anywhere in its type graph is left strictly
 alone and renders byte-for-byte as it would without the handler.
 
 The tag layer is defence in depth, not the primary control. What keeps
@@ -1043,7 +1043,7 @@ func setup(t *testing.T) (*gin.Engine, *tenantdb.DB, context.Context) {
 (`backend/internal/modules/medicore/module_test.go`) — `testutil.TenantA`
 / `testutil.TenantB` are fixed UUID constants, and `StaticVerifier` maps
 a bearer token string straight to a tenant ID so tests never mint a
-real HMS session or call Zitadel. `testutil.Do(r, method, path, token, body)` issues an
+real Helivanta session or call Zitadel. `testutil.Do(r, method, path, token, body)` issues an
 authenticated JSON request against the harness router and returns the
 `httptest.ResponseRecorder`.
 
@@ -1270,7 +1270,7 @@ failing if `bootstrap.Modules()` and `allModules()` disagree on the
 module set — see section 1's two-places rule.
 
 **Tenant switching — production prerequisites.** `POST /v1/iam/me/tenant`
-(`backend/internal/modules/iam/me.go`) verifies the caller's current HMS
+(`backend/internal/modules/iam/me.go`) verifies the caller's current Helivanta
 session, checks membership of the target tenant in OpenFGA, and re-mints
 the session with `session.Signer.Mint` (`backend/pkg/session/signer.go`)
 — the SAME Ed25519 signer `cmd/api/main.go` builds for login, carried in

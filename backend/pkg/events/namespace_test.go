@@ -6,10 +6,10 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/testinfra"
+	"github.com/tesserix/helivanta/internal/testinfra"
 )
 
-const pingSubject = "hms.in.reference.pinged.v1"
+const pingSubject = "helivanta.in.reference.pinged.v1"
 
 // Production must be untouched by the namespacing: an empty namespace has
 // to give the stream and subjects the deployed system has always used, or
@@ -19,7 +19,7 @@ func TestEmptyNamespaceKeepsProductionSubjects(t *testing.T) {
 
 	require.Equal(t, StreamName, b.streamName())
 	require.Equal(t, pingSubject, b.Subject(pingSubject))
-	require.Equal(t, "hms.dlq.some-consumer", b.Subject("hms.dlq.some-consumer"))
+	require.Equal(t, "helivanta.dlq.some-consumer", b.Subject("helivanta.dlq.some-consumer"))
 }
 
 // A namespace becomes part of a stream name and a subject token, so it
@@ -40,9 +40,9 @@ func TestSanitizeNamespace(t *testing.T) {
 }
 
 // The point of the namespace: two buses on one NATS server do not see each
-// other's events. Without it they would share the single HMS stream over
-// `hms.>`, and every test's consumers would receive every other test's
-// events — the reason each test used to need its own container.
+// other's events. Without it they would share the single HELIVANTA stream
+// over `helivanta.>`, and every test's consumers would receive every other
+// test's events — the reason each test used to need its own container.
 func TestNamespacedBusesDoNotShareSubjects(t *testing.T) {
 	url := testinfra.StartNATS(t)
 

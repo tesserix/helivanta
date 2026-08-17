@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 // TestTenantOfObject pins the parse that every tenant-scoped delete

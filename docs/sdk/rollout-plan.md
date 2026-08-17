@@ -41,7 +41,7 @@ Gate: RFC approved ⇒ package issues unblocked.
 
 ### Wave 4 — Multipliers (weeks 9–12)
 
-#692 notify · #693 payments · #695 create-hms-service · #707 storybook/docs · #708 create-hms-app · #712 load harness · #715 preview envs
+#692 notify · #693 payments · #695 create-helivanta-service · #707 storybook/docs · #708 create-helivanta-app · #712 load harness · #715 preview envs
 Gate: a brand-new service and portal generated from templates pass all gates unmodified — **this is the MVP 0 exit criterion**, and MVP 1 product teams build on the templates from here.
 
 Planning items #669 (environments), #670 (security standards), #671 (test strategy), #675 (MVP 1 grooming) land alongside waves 1–3 as their consumers need them.

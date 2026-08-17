@@ -1,9 +1,9 @@
-// Package session mints and verifies the HMS session token: the
-// credential HMS itself issues once a Zitadel ID token has been
+// Package session mints and verifies the Helivanta session token: the
+// credential Helivanta itself issues once a Zitadel ID token has been
 // verified at login (spec docs/superpowers/specs/2026-08-15-zitadel-auth-design.md,
 // decision D2).
 //
-// This package is deliberately the whole of HMS's credential-issuing
+// This package is deliberately the whole of Helivanta's credential-issuing
 // surface for the session token, and nothing else may sign or verify
 // one. A defect here is an authentication bypass, not a bug: where a
 // choice is between clever and obvious, this package takes obvious.
@@ -26,7 +26,7 @@ type Claims struct {
 	// Subject is the stable opaque subject identifier from Zitadel,
 	// carried through unchanged.
 	Subject string
-	// TenantID is HMS's own fact, not Zitadel's — see spec D1. Set at
+	// TenantID is Helivanta's own fact, not Zitadel's — see spec D1. Set at
 	// mint time by whichever caller has already resolved the tenant
 	// (login, or tenant switch).
 	TenantID string
@@ -65,8 +65,8 @@ type Claims struct {
 	// distinct from AuthTime.
 	IssuedAt  time.Time
 	ExpiresAt time.Time
-	// Issuer identifies HMS as the token's issuer (not Zitadel — this
-	// is HMS's own credential, spec D1).
+	// Issuer identifies Helivanta as the token's issuer (not Zitadel — this
+	// is Helivanta's own credential, spec D1).
 	Issuer string
 }
 

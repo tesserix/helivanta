@@ -6,7 +6,7 @@ export class RenewalFailedError extends Error {}
 // RENEWAL_INTERVAL_MS must stay comfortably below the API's SessionTTL
 // (backend/internal/config/config.go, SESSION_TTL, default 15m) — this is
 // a client-side constant, not a value read from the server, because the
-// HMS session cookie is httpOnly and carries no client-readable expiry.
+// Helivanta session cookie is httpOnly and carries no client-readable expiry.
 // One third of the default TTL: frequent enough that a session is never
 // close to expiring under normal use, infrequent enough not to spam
 // Zitadel's silent-auth endpoint or OpenFGA. If SESSION_TTL is ever

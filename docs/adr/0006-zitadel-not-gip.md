@@ -1,7 +1,7 @@
 # ADR-0006: Zitadel, not Google Identity Platform
 
 - **Status:** Accepted (2026-08-15). **Supersedes [ADR-0002](0002-gip-not-keycloak.md).**
-- **Issue:** [#838](https://github.com/tesserix/hms/issues/838)
+- **Issue:** [#838](https://github.com/tesserix/helivanta/issues/838)
 
 ## Context
 
@@ -31,7 +31,7 @@ are the reason this is a decision and not a preference:
 
 ## Decision
 
-**All HMS authentication uses Zitadel.** It is standards-based OIDC/OAuth2:
+**All Helivanta authentication uses Zitadel.** It is standards-based OIDC/OAuth2:
 tokens are verified as ordinary OIDC ID tokens rather than through a vendor SDK,
 and the pieces we depend on are specified rather than proprietary.
 

@@ -30,10 +30,10 @@ cat > "$DIR/contract/events.go" <<'EOF'
 package contract
 
 // SubjectItemCreated is published when an item is created.
-const SubjectItemCreated = "hms.in.__NAME__.item_created.v1"
+const SubjectItemCreated = "helivanta.in.__NAME__.item_created.v1"
 
 // SubjectItemDone is published when an item transitions to done.
-const SubjectItemDone = "hms.in.__NAME__.item_done.v1"
+const SubjectItemDone = "helivanta.in.__NAME__.item_done.v1"
 
 // ItemCreatedData is the v1 payload of SubjectItemCreated.
 type ItemCreatedData struct {
@@ -64,14 +64,14 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	__NAME__contract "github.com/tesserix/hms/internal/modules/__NAME__/contract"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/internal/platform/respond"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/pagination"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	__NAME__contract "github.com/tesserix/helivanta/internal/modules/__NAME__/contract"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // TODO: rename these permissions to your real domain nouns before
@@ -297,11 +297,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/modules/__NAME__" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/modules/__NAME__" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 var do = testutil.Do
@@ -368,7 +368,7 @@ func TestItemDoneTransition(t *testing.T) {
 		var n int64
 		_ = db.WithSystem(ctx, func(tx *gorm.DB) error {
 			return tx.Raw(`SELECT count(*) FROM outbox_events
-				WHERE subject = 'hms.in.__NAME__.item_created.v1'`).Scan(&n).Error
+				WHERE subject = 'helivanta.in.__NAME__.item_created.v1'`).Scan(&n).Error
 		})
 		return n == 1
 	}, 10*time.Second, 200*time.Millisecond)
@@ -441,7 +441,7 @@ gofmt -w "$DIR"
 echo "Created $DIR. Follow-ups:"
 echo "1. Register ${NAME}.New() in internal/bootstrap/modules.go's Modules() (shared by cmd/api and cmd/migrate)"
 echo "2. Add ${NAME}.New() to allModules() in internal/archtest/arch_test.go"
-echo "3. Add \"github.com/tesserix/hms/internal/modules/$NAME/contract\" to the module-isolation allow list in backend/.golangci.yml — depguard's allow list names each contract package explicitly, so lint fails on the first cross-module import of yours until it's added"
+echo "3. Add \"github.com/tesserix/helivanta/internal/modules/$NAME/contract\" to the module-isolation allow list in backend/.golangci.yml — depguard's allow list names each contract package explicitly, so lint fails on the first cross-module import of yours until it's added"
 echo "4. Declare real permissions and the roles that hold them in Permissions() (docs/standards/backend.md section 11)"
 echo "5. Add those permissions/roles to approvedPermissionMatrix in internal/archtest/matrix_test.go"
 echo "6. Rename the placeholder 'item' domain to your real nouns"

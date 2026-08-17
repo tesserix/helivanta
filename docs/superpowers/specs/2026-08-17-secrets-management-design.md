@@ -1,27 +1,27 @@
-# HMS's boot secrets live in OpenBao, and nothing in HMS knows that
+# Helivanta's boot secrets live in OpenBao, and nothing in Helivanta knows that
 
-**Issue:** [#45](https://github.com/tesserix/hms/issues/45)
-**Scopes down:** #45 as filed. This slice covers HMS's **boot secrets** only.
+**Issue:** [#45](https://github.com/tesserix/helivanta/issues/45)
+**Scopes down:** #45 as filed. This slice covers Helivanta's **boot secrets** only.
 Per-tenant integration credentials, Temporal-orchestrated rotation, the
 metadata table and the credential API are explicitly **not** in it — see
 "Out of scope".
 **Corrects:** #45's `hms-in/{env}/{scope}/{name}` naming convention (D3), which
 was written for GCP Secret Manager and is incompatible with the store the fleet
 actually runs.
-**Depends on:** [#824](https://github.com/tesserix/hms/issues/824) (container
+**Depends on:** [#824](https://github.com/tesserix/helivanta/issues/824) (container
 images and deployment artefacts) for delivery. Nothing here can be *delivered*
-until HMS is deployable.
-**Adjacent:** [#713](https://github.com/tesserix/hms/issues/713) owns the broad
+until Helivanta is deployable.
+**Adjacent:** [#713](https://github.com/tesserix/helivanta/issues/713) owns the broad
 security-scanning pipeline; D5 takes only the secret-scanning gate.
 **Fleet decision:** [tesserix/tesserix-k8s#208](https://github.com/tesserix/tesserix-k8s/issues/208)
 (OpenBao vs GCP Secret Manager) is still open. **D4 is what makes that
-irrelevant to HMS.**
+irrelevant to Helivanta.**
 
-HMS refuses to boot without `SESSION_SIGNING_KEY` and
+Helivanta refuses to boot without `SESSION_SIGNING_KEY` and
 `ZITADEL_LOGIN_CLIENT_TOKEN`, and only developer-machine paths exist for
 either. This spec gives them a production home, a way to be provisioned, and a
 gate that stops them re-entering source control — without adding a single line
-of secret-store code to HMS.
+of secret-store code to Helivanta.
 
 ---
 
@@ -36,9 +36,9 @@ what the handoff assumes. Each was checked live, not read from documentation.
 | Its per-app pattern works today | `openbao-secret-store` (ClusterSecretStore) plus four namespaced SecretStores — `homechef-api`, `qdrant`, two `cloudflared` — all `Valid`/`Ready` |
 | A production Zitadel exists | `zitadel` namespace: 3 replicas `Running`, a `zitadel-login` (Login V2) deployment, its own ingress gateway, a bootstrap CronJob reconciling every ~30 min |
 | **There is no dev cluster** | The `tesseract-devtest-gke` kubeconfig context is stale: `dial tcp 34.151.129.108:443: connect: network is unreachable`. Confirmed by the product owner: prod only. |
-| **HMS is not deployed anywhere** | No Dockerfile in this repo; no chart, ArgoCD app, namespace or `namespaceWhitelist` entry for HMS in `tesserix-k8s` |
-| HMS's dev PATs are not in git | `git check-ignore` resolves `dev/zitadel/secrets/` from `.gitignore:21`; `git ls-files dev/` lists only `init-db.sql` and `Caddyfile` |
-| Both boot guards already refuse correctly | `config.SessionSigningKeySeed` refuses absent, malformed, and the committed dev key outside `HMS_ENV=dev`; `config.RequireZitadelLoginClientToken` refuses absent |
+| **Helivanta is not deployed anywhere** | No Dockerfile in this repo; no chart, ArgoCD app, namespace or `namespaceWhitelist` entry for Helivanta in `tesserix-k8s` |
+| Helivanta's dev PATs are not in git | `git check-ignore` resolves `dev/zitadel/secrets/` from `.gitignore:21`; `git ls-files dev/` lists only `init-db.sql` and `Caddyfile` |
+| Both boot guards already refuse correctly | `config.SessionSigningKeySeed` refuses absent, malformed, and the committed dev key outside `HELIVANTA_ENV=dev`; `config.RequireZitadelLoginClientToken` refuses absent |
 
 The last row is why this spec adds **no boot enforcement**: it already exists
 and is correct. What does not exist is where the values come from.
@@ -57,37 +57,37 @@ The handoff counts three boot-refusing values. Only two are **secrets**:
 |---|---|---|
 | `SESSION_SIGNING_KEY` | secret — mints every session; a leak is credential forgery | OpenBao |
 | `ZITADEL_LOGIN_CLIENT_TOKEN` | secret — instance-level; see D2 | OpenBao |
-| `HMS_WEB_ORIGIN` | **config** — a public origin string | deployment env (#824) |
+| `HELIVANTA_WEB_ORIGIN` | **config** — a public origin string | deployment env (#824) |
 
-`HMS_WEB_ORIGIN` refuses boot when unset, which is why it reads like a secret,
+`HELIVANTA_WEB_ORIGIN` refuses boot when unset, which is why it reads like a secret,
 but refusing to boot without a value and *being confidential* are different
-properties. It is the origin HMS's own frontend is served from — visible in
+properties. It is the origin Helivanta's own frontend is served from — visible in
 every browser address bar. Filing it as a secret would add a rotation surface
 and an access grant for a public string, and would quietly weaken the property
-that makes `kv/data/hms/*` easy to reason about: **everything in there is a
+that makes `kv/data/helivanta/*` easy to reason about: **everything in there is a
 credential**. A path that mixes credentials with configuration is one a reviewer
 stops reading carefully.
 
-## D2 — HMS provisions its own login-client machine user
+## D2 — Helivanta provisions its own login-client machine user
 
 `IAM_LOGIN_CLIENT` is an **instance-level** Zitadel role. A holder can finalise
 an OIDC auth request for any app on the instance, including other Tesserix
 products. The spike established Zitadel offers nothing narrower.
 
-HMS therefore gets its **own** machine user with its own PAT, rather than
+Helivanta therefore gets its **own** machine user with its own PAT, rather than
 sharing one with other products on the instance.
 
 **What this buys, stated precisely:**
 
-- **Independent revocation.** Revoking HMS's PAT after a suspected leak does not
+- **Independent revocation.** Revoking Helivanta's PAT after a suspected leak does not
   sign every other Tesserix product's users out.
 - **Attribution.** Zitadel's audit trail names which product's credential
   finalised a given auth request. With a shared PAT that question has no answer.
-- **Independent rotation.** HMS can rotate on its own schedule without a
+- **Independent rotation.** Helivanta can rotate on its own schedule without a
   cross-product coordination window.
 
 **What this does NOT buy, and must never be described as buying it.** The role
-is still instance-level. A leaked HMS PAT can still finalise an auth request for
+is still instance-level. A leaked Helivanta PAT can still finalise an auth request for
 any product on the instance. Path scoping (D3) bounds *who can read the secret*;
 it does nothing to bound *what the secret can do once read*. Those are different
 guarantees and conflating them is how a system acquires a control that is
@@ -100,27 +100,27 @@ without having to re-derive it from Zitadel's role model.
 
 **Open item.** Whether creating a machine user on the *shared* production
 instance needs the platform team's sign-off is unresolved. This spec's position:
-provisioning one is HMS's call, because it is additive and affects no other
+provisioning one is Helivanta's call, because it is additive and affects no other
 product's configuration — whereas flipping `loginV2.required` is explicitly not
-HMS's call, per the login-client spec's D1 and the upstream issue behind it.
+Helivanta's call, per the login-client spec's D1 and the upstream issue behind it.
 Confirm before the runbook is executed, not after.
 
 ## D3 — The path convention follows the live fleet model
 
 ```
-kv/data/hms/api/session-signing-key
-kv/data/hms/api/zitadel-login-client-token
+kv/data/helivanta/api/session-signing-key
+kv/data/helivanta/api/zitadel-login-client-token
 
-policy  read-hms          → read on kv/data/hms/*, read+list on kv/metadata/hms/*
+policy  read-hms          → read on kv/data/helivanta/*, read+list on kv/metadata/helivanta/*
 role    app-hms_hms-api   → ServiceAccount hms-api in namespace hms
-store   SecretStore openbao-hms-api in namespace hms
+store   SecretStore openbao-helivanta-api in namespace hms
 ```
 
 This **supersedes #45's `hms-in/{env}/{scope}/{name}`**. That convention was
 written when GCP Secret Manager was assumed, where a name is a flat string and
 the slashes are decoration. Under OpenBao they are not decoration: the leading
-path segment is the thing a policy grants on, so `kv/data/hms/*` is what makes a
-secret HMS's and nothing else's. Carrying #45's shape across would put `hms-in`
+path segment is the thing a policy grants on, so `kv/data/helivanta/*` is what makes a
+secret Helivanta's and nothing else's. Carrying #45's shape across would put `hms-in`
 in the policy-bearing position and `{env}` where the app segment belongs,
 breaking the correspondence every other app in the fleet follows
 (`kv/data/homechef/api/db`, `kv/data/ai-database/...`).
@@ -133,7 +133,7 @@ Recorded explicitly because inserting an env segment later would silently
 invalidate every policy prefix at once, and the failure mode is a policy that
 matches nothing while still applying cleanly.
 
-## D4 — No secret-store code enters HMS
+## D4 — No secret-store code enters Helivanta
 
 The delivery chain is:
 
@@ -141,18 +141,18 @@ The delivery chain is:
 OpenBao  →  ESO (as the hms-api ServiceAccount)  →  k8s Secret  →  env  →  config.Load
 ```
 
-Nothing after ESO knows what a vault is. HMS keeps reading `os.Getenv`, exactly
+Nothing after ESO knows what a vault is. Helivanta keeps reading `os.Getenv`, exactly
 as it does today. **No vendor SDK, no `secrets` package, no resolution layer.**
 
 This is the decision that makes the slice backend-agnostic *in fact* rather than
 as a claim. #208 may still choose GCP Secret Manager fleet-wide; if it does,
-HMS changes nothing, because switching backends is a `ClusterSecretStore` edit.
+Helivanta changes nothing, because switching backends is a `ClusterSecretStore` edit.
 An in-process resolution abstraction would invert that: it would be the one
-place a backend choice *did* reach HMS's code, while being justified as the
+place a backend choice *did* reach Helivanta's code, while being justified as the
 thing that prevents it.
 
 It is also the YAGNI call. A resolution layer with one backend and one consumer
-is speculative structure. [#677](https://github.com/tesserix/hms/issues/677)
+is speculative structure. [#677](https://github.com/tesserix/helivanta/issues/677)
 owns a config-and-secrets SDK package and can take it up when a second real case
 exists — noting that #677's title also says "GCP Secret Manager" and will need
 the same correction D3 applies here.
@@ -164,7 +164,7 @@ scope", and D6's note on why rotation stays retrofittable.
 ## D5 — A gitleaks gate, with one deliberate exception
 
 A `gitleaks` job in `.github/workflows/ci.yml`, failing the build on any
-finding. HMS has no secret scanning today and is about to hold its most
+finding. Helivanta has no secret scanning today and is about to hold its most
 privileged credential.
 
 **It needed an explicit exception, and that exception is the interesting
@@ -210,7 +210,7 @@ than assumed.** `session.Signer` already stamps `kid` into every token header
 and `session.Verifier` already reads it. Supporting a second key later is a pure
 code change — a verifier accepting a set of kids — with no token-format
 migration and no invalidation of tokens minted today. This is worth stating
-because the comparable question for [#54](https://github.com/tesserix/hms/issues/54)
+because the comparable question for [#54](https://github.com/tesserix/helivanta/issues/54)
 (audit-trail identity) genuinely *is* decided-now-or-never; this one is not, and
 a reader who has internalised #54's constraint would reasonably assume it
 applies here too.
@@ -222,10 +222,10 @@ Go side: in-repo tests, no OpenBao required — that is D4 working as intended.
 OpenBao side, three assertions against the **production** store, because
 (observed above) there is no other one:
 
-1. A read of `kv/data/hms/api/*` under HMS's grant **succeeds**.
-2. A read of another namespace's path (e.g. `kv/data/homechef/*`) under HMS's
+1. A read of `kv/data/helivanta/api/*` under Helivanta's grant **succeeds**.
+2. A read of another namespace's path (e.g. `kv/data/homechef/*`) under Helivanta's
    grant is **denied**.
-3. The `secret-service` console's policy **cannot read** HMS's values — it holds
+3. The `secret-service` console's policy **cannot read** Helivanta's values — it holds
    `create`/`update`/`delete` on `kv/data/*` and metadata access, deliberately no
    `read`.
 
@@ -249,8 +249,8 @@ before it is executed, and each is separately reversible:
 - an `hms` namespace and `hms-api` ServiceAccount (#824 needs both regardless)
 - a `read-hms` policy and an `app-hms_hms-api` Kubernetes auth role
 - a `namespaceWhitelist` entry, by pull request to `tesserix-k8s`
-- HMS's two secret values written into OpenBao
-- an HMS login-client machine user on the production Zitadel (D2's open item)
+- Helivanta's two secret values written into OpenBao
+- a Helivanta login-client machine user on the production Zitadel (D2's open item)
 
 ---
 
@@ -272,7 +272,7 @@ before it is executed, and each is separately reversible:
   rather than fixed — verifying a PAT at boot means a network call in the boot
   path, which trades a clear startup failure for a new startup dependency.
 - **A secret must never be logged.** Not newly enforced here.
-  [#840](https://github.com/tesserix/hms/issues/840) records that log redaction
+  [#840](https://github.com/tesserix/helivanta/issues/840) records that log redaction
   currently screens no secrets, which means this property rests on the
   convention that no call site formats these values — the login-client code is
   written that way today. Naming it here so it is not mistaken for something
@@ -301,7 +301,7 @@ before it is executed, and each is separately reversible:
   making every change additive and separately reversible, and by confirming each
   before execution — but the risk is real and is the direct consequence of the
   infrastructure as it stands.
-- **D2's residual.** A leaked HMS PAT is still instance-wide. Not closable with
+- **D2's residual.** A leaked Helivanta PAT is still instance-wide. Not closable with
   Zitadel's current role model.
 - **Rotation needs a pod restart** (D4). Acceptable for two boot secrets;
   it would not be acceptable for the per-tenant credentials #45 also describes,

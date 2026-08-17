@@ -11,12 +11,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/session"
+	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/session"
 )
 
 // fakeRoleLister fakes authz.Client's ListRoles from a static
@@ -288,7 +288,7 @@ func TestSwitchTenantRequiresMembership(t *testing.T) {
 }
 
 // TestSwitchTenantCarriesTheOriginalAuthTimeThrough is the whole point of
-// the endpoint: the response must set a new HMS session cookie that
+// the endpoint: the response must set a new Helivanta session cookie that
 // decodes to the caller's own subject, the TARGET tenant, and the
 // auth_time carried through UNCHANGED from the caller's original session
 // — not a fresh time.Now(). Without the last of these, a switch would

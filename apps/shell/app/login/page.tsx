@@ -4,24 +4,24 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { AuthCardCentered, AuthCardFooter, AuthLayoutCentered, Button, Input } from "@tesserix/web";
-import { ApiError, useApiMutation, useApiQuery } from "@hms/api";
-import { Field, IDLE_ENDED_MARK, SIGNED_OUT_MARK, useZodForm } from "@hms/ui";
+import { ApiError, useApiMutation, useApiQuery } from "@helivanta/api";
+import { Field, IDLE_ENDED_MARK, SIGNED_OUT_MARK, useZodForm } from "@helivanta/ui";
 
 import { getUserManager } from "@/lib/oidc";
 import { checkPassword, type AuthRequestInfo, type PasswordCheckResult } from "@/lib/login-client";
 
-// HMS's own sign-in page (spec D2/D6, #854 — supersedes D5a of
-// 2026-08-15-zitadel-tenancy-topology-design.md). D5a said HMS must
-// render no credential surface at all, because a compromised HMS
+// Helivanta's own sign-in page (spec D2/D6, #854 — supersedes D5a of
+// 2026-08-15-zitadel-tenancy-topology-design.md). D5a said Helivanta must
+// render no credential surface at all, because a compromised Helivanta
 // frontend would then have a password to harvest; that spec has been
-// DELIBERATELY REVERSED. Clinicians now sign in on a page with HMS's own
+// DELIBERATELY REVERSED. Clinicians now sign in on a page with Helivanta's own
 // theme, not Zitadel's stock hosted login — the Go API still holds the
 // only credential-checking secret (the `IAM_LOGIN_CLIENT` PAT,
 // backend/internal/modules/iam/loginui.go) and never hands it to the
 // browser, so this page collects a credential but never verifies one
 // itself. The trade-off D5a priced (a compromised frontend can now
 // harvest a submitted password) is accepted deliberately in exchange for
-// an HMS-branded sign-in; see the design spec for the full accounting.
+// a Helivanta-branded sign-in; see the design spec for the full accounting.
 //
 // This page has two states, switched on whether `?authRequest=` is on
 // the URL:
@@ -48,11 +48,11 @@ import { checkPassword, type AuthRequestInfo, type PasswordCheckResult } from "@
 // here (spec D4). Zitadel was observed, experimentally, NOT to enforce an
 // org's `forceMfa` policy for a login-client session — a password-only
 // session finalises with a valid authorization code even when a second
-// factor is required. So HMS's own API decides sufficiency itself, and
+// factor is required. So Helivanta's own API decides sufficiency itself, and
 // answers a submitted password with one of two shapes:
 //
 //  - `{ callback_url }` — the login is actually complete; navigate there.
-//  - `{ handoff_url }` — HMS cannot finish this login itself (MFA
+//  - `{ handoff_url }` — Helivanta cannot finish this login itself (MFA
 //    required by org policy, `forceMfaLocalOnly`, a user's own
 //    voluntarily enrolled second factor, a federated hospital IdP, or a
 //    policy the API could not read and so fails closed on). A forced
@@ -126,7 +126,7 @@ function AuthChromeLoading() {
     <AuthLayoutCentered>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">HMS</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Helivanta</h1>
           <p className="text-sm text-muted-foreground">Loading…</p>
         </div>
       </AuthCardCentered>
@@ -222,7 +222,7 @@ function CredentialForm({ authRequestId }: { authRequestId: string }) {
     <AuthLayoutCentered>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">HMS</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Helivanta</h1>
           <p className="text-sm text-muted-foreground">Sign in to continue.</p>
         </div>
 
@@ -265,7 +265,7 @@ function CredentialForm({ authRequestId }: { authRequestId: string }) {
 
         <AuthCardFooter>
           <p className="text-xs text-muted-foreground">
-            Your credential is checked directly by HMS.
+            Your credential is checked directly by Helivanta.
           </p>
         </AuthCardFooter>
       </AuthCardCentered>
@@ -342,7 +342,7 @@ function CredentialForm({ authRequestId }: { authRequestId: string }) {
 // spinner that immediately throws you at a login form.
 //
 // What this does NOT fix, and must not be mistaken for fixing: a clinician
-// who walks away without signing out. Their HMS session cookie is still
+// who walks away without signing out. Their Helivanta session cookie is still
 // valid, so the next person never reaches this page at all. That is #848
 // (idle timeout), and it is the control that actually covers the ward
 // terminal.
@@ -421,7 +421,7 @@ function RedirectLanding({ message }: { message?: string }) {
     <AuthLayoutCentered>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">HMS</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Helivanta</h1>
           <p className="text-sm text-muted-foreground">
             {message ??
               (idleEnded

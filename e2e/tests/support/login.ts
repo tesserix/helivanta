@@ -36,19 +36,19 @@ function specSlug(): string {
 // holds `pharmacist` in a second one, which is what makes the hospital
 // picker render and tenant switching observable.
 export function specAdmin(): Credentials {
-  return { email: `e2e-${specSlug()}-admin@hms.dev`, password: PASSWORD };
+  return { email: `e2e-${specSlug()}-admin@helivanta.dev`, password: PASSWORD };
 }
 
 // The spec's single-role user, for asserting that permission gating
 // actually withholds things. Everything the admin above can do, this
 // account mostly cannot.
 export function specPharmacist(): Credentials {
-  return { email: `e2e-${specSlug()}-pharmacist@hms.dev`, password: PASSWORD };
+  return { email: `e2e-${specSlug()}-pharmacist@helivanta.dev`, password: PASSWORD };
 }
 
 // The cheapest authenticated API call the browser can make. Reaching the
 // Go API is the only way to know a session is real: apps/shell's
-// middleware.ts admits any request carrying an `hms_session` cookie
+// middleware.ts admits any request carrying an `helivanta_session` cookie
 // without inspecting it, so the dashboard renders — heading and all —
 // for a session the API refuses on every call. Asserting on the heading
 // alone is precisely the proxy assertion
@@ -70,7 +70,7 @@ const PERMISSIONS_PROBE = "/api/v1/iam/me/permissions";
 const MAX_SIGN_IN_ATTEMPTS = 4;
 const RETRY_DELAY_MS = 1_100;
 
-// Drives HMS's OWN credential form — apps/shell/app/login/page.tsx's
+// Drives Helivanta's OWN credential form — apps/shell/app/login/page.tsx's
 // CredentialForm, reached at /login?authRequest=... after
 // RedirectLanding's Sign in button bounces the browser through Zitadel's
 // /oauth/v2/authorize and straight back (no hosted-UI page is ever
@@ -94,7 +94,7 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
   // "Sign in" here, it is unambiguously the form's submit, because only
   // one such button exists on screen at a time.
   //
-  // HMS's own page navigates on to apps/shell/app/api/auth/callback/page.tsx
+  // Helivanta's own page navigates on to apps/shell/app/api/auth/callback/page.tsx
   // (via callback_url) or, for the handoff outcomes (MFA, forced
   // password change, federated IdP — see CredentialForm's header
   // comment), onward through Zitadel again before landing on the same
@@ -131,9 +131,9 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
 // mid-redirect to Zitadel, in which case there is no button to click and
 // the credential form is on its way. Requiring the button unconditionally
 // would turn that ordinary race into a flake.
-// Zitadel's fixed local port (HMS_ZITADEL_PORT) — the one constant across
-// every HMS web+API pair the suite runs against. Checking for THIS,
-// rather than for HMS's own dev-server port, is what makes startSignIn
+// Zitadel's fixed local port (HELIVANTA_ZITADEL_PORT) — the one constant across
+// every Helivanta web+API pair the suite runs against. Checking for THIS,
+// rather than for Helivanta's own dev-server port, is what makes startSignIn
 // work under the "idle-timeout" Playwright project (#848 Task 8), which
 // points baseURL at a second shell instance on its own port
 // (e2e/playwright.config.ts) so it can run against a short-IDLE_TIMEOUT
@@ -144,7 +144,7 @@ const ZITADEL_ORIGIN_HOST = "localhost:20080";
 
 async function startSignIn(page: Page): Promise<void> {
   // Decide by where we actually ARE, not by racing a timeout. Since #847,
-  // sign-out lands on HMS's /login and STAYS there — nothing redirects
+  // sign-out lands on Helivanta's /login and STAYS there — nothing redirects
   // onward any more — so on that page the button is not optional and a
   // short "maybe it is already navigating" tolerance would simply give up
   // and leave the caller waiting for a credential field that will never
@@ -198,7 +198,7 @@ export async function login(page: Page, user: Credentials = specAdmin()): Promis
     if (await signInOnce(page, user)) return;
     // The session the callback minted carries a token the API refuses.
     // `clearCookies()` on a BrowserContext clears cookies for every
-    // origin in that context, not just HMS's — so this also drops
+    // origin in that context, not just Helivanta's — so this also drops
     // Zitadel's own SSO cookie, and the next /login redirect re-presents
     // a real credential prompt instead of silently carrying the same
     // (refused) identity through again.

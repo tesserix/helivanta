@@ -1,12 +1,12 @@
 // Seeds the local Zitadel with the dev users and grants each a role via
 // iam_members.
 //
-// Two of them are for humans: test@hms.dev (tenant_admin) and
-// pharmacist@hms.dev (pharmacist only). The second user is what makes
-// permission gating observable by hand — everything test@hms.dev can do,
-// pharmacist@hms.dev mostly cannot.
+// Two of them are for humans: test@helivanta.dev (tenant_admin) and
+// pharmacist@helivanta.dev (pharmacist only). The second user is what makes
+// permission gating observable by hand — everything test@helivanta.dev can do,
+// pharmacist@helivanta.dev mostly cannot.
 //
-// test@hms.dev additionally holds a *different* role (pharmacist) in a
+// test@helivanta.dev additionally holds a *different* role (pharmacist) in a
 // second hospital, which is what makes tenant switching demonstrable:
 // after switching, the same person must lose every zone tenant_admin gave
 // them in the first hospital. A second membership with the same role would
@@ -38,12 +38,12 @@
 //
 // #854 Task 7: that verification used to drive Zitadel's hosted login UI
 // with a headless Playwright browser (hostedUILogin). #854 Task 1
-// repointed hms-web's login redirect at HMS's own /login — and `make up`
+// repointed helivanta-web's login redirect at Helivanta's own /login — and `make up`
 // runs this script (via `seed`) BEFORE the web app starts, so by the time
 // this ran there was nothing at :4301 for the redirect to reach at all.
 // verifyPasswordLogin (scripts/lib/zitadel.mjs) replaces the browser drive
 // with a direct call to Zitadel's v2 Session API, the same credential
-// check HMS's own backend performs — see its doc comment for the full
+// check Helivanta's own backend performs — see its doc comment for the full
 // reasoning. This also means seeding no longer depends on the web app, or
 // any browser, existing.
 //
@@ -63,7 +63,7 @@ import {
 
 const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://localhost:20080";
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
-// St Mary's, the second hospital test@hms.dev works at. The e2e tenant
+// St Mary's, the second hospital test@helivanta.dev works at. The e2e tenant
 // switch journey (e2e/tests/tenant-switch.spec.ts) hard-codes this id.
 const SECOND_TENANT_ID = "22222222-2222-2222-2222-222222222222";
 
@@ -74,7 +74,7 @@ const SECOND_TENANT_ID = "22222222-2222-2222-2222-222222222222";
 // that complexity, not the recipe, was the sensitivity to watch for.
 const PASSWORD = "HmsDev123!";
 
-// The two-hospital membership set, shared by test@hms.dev and by every
+// The two-hospital membership set, shared by test@helivanta.dev and by every
 // generated per-spec admin. Every spec's admin gets BOTH memberships, not
 // just the spec that switches tenants today: a spec-scoped account whose
 // role set is narrower than the human account it replaced would quietly
@@ -89,7 +89,7 @@ const PHARMACIST_MEMBERSHIPS = [{ tenantId: TENANT_ID, role: "pharmacist" }];
 // implements the identical derivation on its side; if the two ever drift,
 // login fails loudly at sign-in rather than silently falling back to a
 // shared account, which is the failure mode worth having.
-const specEmail = (slug, kind) => `e2e-${slug}-${kind}@hms.dev`;
+const specEmail = (slug, kind) => `e2e-${slug}-${kind}@helivanta.dev`;
 
 // Reads the spec filenames rather than listing them, so adding a spec file
 // is all it takes to get an isolated account pair. A missing directory is
@@ -117,8 +117,8 @@ function specSlugs() {
 // first tenant ListRoles returns and the picker/switchTenant handle the
 // rest (spec D1/D3).
 const USERS = [
-  { email: "test@hms.dev", memberships: ADMIN_MEMBERSHIPS },
-  { email: "pharmacist@hms.dev", memberships: PHARMACIST_MEMBERSHIPS },
+  { email: "test@helivanta.dev", memberships: ADMIN_MEMBERSHIPS },
+  { email: "pharmacist@helivanta.dev", memberships: PHARMACIST_MEMBERSHIPS },
   ...specSlugs().flatMap((slug) => [
     { email: specEmail(slug, "admin"), memberships: ADMIN_MEMBERSHIPS },
     { email: specEmail(slug, "pharmacist"), memberships: PHARMACIST_MEMBERSHIPS },
@@ -207,10 +207,10 @@ async function main() {
   }
 
   console.log(`Seeded and login-verified:
-  test@hms.dev       / ${PASSWORD}  (tenant_admin in ${TENANT_ID} — sees every zone;
+  test@helivanta.dev       / ${PASSWORD}  (tenant_admin in ${TENANT_ID} — sees every zone;
                                     pharmacist in ${SECOND_TENANT_ID} — switch to see Pharmacy only)
-  pharmacist@hms.dev / ${PASSWORD}  (pharmacist — sees Pharmacy only)
-  plus one e2e-<spec>-admin@hms.dev and one e2e-<spec>-pharmacist@hms.dev per
+  pharmacist@helivanta.dev / ${PASSWORD}  (pharmacist — sees Pharmacy only)
+  plus one e2e-<spec>-admin@helivanta.dev and one e2e-<spec>-pharmacist@helivanta.dev per
   Playwright spec file, so no two specs share a revocation subject.`);
 }
 

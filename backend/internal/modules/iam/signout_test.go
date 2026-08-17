@@ -15,14 +15,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	iamcontract "github.com/tesserix/hms/internal/modules/iam/contract"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/internal/platform/requestid"
-	"github.com/tesserix/hms/internal/testinfra"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	iamcontract "github.com/tesserix/helivanta/internal/modules/iam/contract"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/platform/requestid"
+	"github.com/tesserix/helivanta/internal/testinfra"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // signoutTestTenantA/B mirror testutil.TenantA/TenantB's values. This
@@ -235,8 +235,8 @@ func (w *revocationWatcher) saw(subject string) bool {
 }
 
 // TestSignOutWritesTheWatermark used to also assert GIP was told
-// (RevokeRefreshTokens) — #838 removed that call entirely: HMS stores no
-// IdP credential to revoke (spec D4a), so the HMS watermark alone is now
+// (RevokeRefreshTokens) — #838 removed that call entirely: Helivanta stores no
+// IdP credential to revoke (spec D4a), so the Helivanta watermark alone is now
 // the whole of revocation. See TestModuleAndMiddlewareShareOneRevocationCheckerInstance
 // below for the proof that the watermark alone is sufficient to refuse a
 // live credential immediately, with no wait for GIP or any TTL.

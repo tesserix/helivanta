@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "@hms/api/testing";
-import { PERMISSIONS_CACHE_KEY } from "@hms/api";
+import { renderWithProviders } from "@helivanta/api/testing";
+import { PERMISSIONS_CACHE_KEY } from "@helivanta/api";
 import { TenantPicker } from "./tenant-picker";
 
 // Every network call the picker makes, in the order it made them, so a

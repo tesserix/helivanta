@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/platform/respond"
+	"github.com/tesserix/helivanta/internal/platform/respond"
 )
 
 func run(h gin.HandlerFunc) *httptest.ResponseRecorder {

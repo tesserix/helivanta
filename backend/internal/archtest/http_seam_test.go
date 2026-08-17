@@ -11,13 +11,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/bootstrap"
-	"github.com/tesserix/hms/internal/modules/medicore"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/internal/testinfra"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/modules/medicore"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testinfra"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // seamTenant is the one tenant this test reconciles. Distinct from the

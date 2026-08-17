@@ -1,4 +1,4 @@
-# HMS Authorization — OpenFGA Decision Layer
+# Helivanta Authorization — OpenFGA Decision Layer
 
 Date: 2026-08-11
 Status: approved
@@ -7,7 +7,7 @@ Resolves: issue #1 (OpenFGA as the single authorization decision point), repo-se
 
 ## Goal
 
-Every HMS route is currently reachable by any authenticated user in the
+Every Helivanta route is currently reachable by any authenticated user in the
 tenant. `Principal` is `{Subject, TenantID}` — no roles, no permissions,
 and not one line of Go references OpenFGA even though it has run in
 `docker-compose.dev.yml` since phase 1. A pharmacist can open IPD visits;
@@ -205,8 +205,8 @@ r.GET("/medications", authz.Public, handler)
 - Routes: grant, revoke, list members, list roles — all guarded by
   `iam.member.manage`; plus `GET /iam/me/permissions` and
   `GET /iam/me/tenants`, which any authenticated caller may reach.
-- Events: `hms.in.iam.member_granted.v1`, `hms.in.iam.member_revoked.v1`,
-  `hms.in.iam.role_changed.v1`. Consumer `iam-fga-sync` applies tuples
+- Events: `helivanta.in.iam.member_granted.v1`, `helivanta.in.iam.member_revoked.v1`,
+  `helivanta.in.iam.role_changed.v1`. Consumer `iam-fga-sync` applies tuples
   idempotently.
 
 ### `internal/platform/respond`
@@ -428,7 +428,7 @@ for cross-hospital, one stable *across* hospitals.
 Same problem as patient identity with different vocabulary, and with a hard
 dependency line back to this authorization phase.
 
-**Australia separates three concerns HMS currently collapses into one**, and
+**Australia separates three concerns Helivanta currently collapses into one**, and
 the separation is the lesson worth taking:
 
 | Identifier | Purpose | Lifecycle |

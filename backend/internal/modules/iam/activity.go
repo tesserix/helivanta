@@ -6,10 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/tesserix/hms/internal/platform/requestid"
-	"github.com/tesserix/hms/internal/platform/respond"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/session"
+	"github.com/tesserix/helivanta/internal/platform/requestid"
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/session"
 )
 
 // activityResponse is the ONLY channel that carries the new idle

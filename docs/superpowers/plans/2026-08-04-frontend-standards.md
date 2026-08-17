@@ -1,10 +1,10 @@
-# HMS Frontend Standards Implementation Plan
+# Helivanta Frontend Standards Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Machine-enforced frontend standards for all HMS zone apps: shared ESLint/Prettier/Vitest configs, a typed `@hms/api` data layer (TanStack Query + sonner), a UX kit (ConfirmDialog, RHF+zod forms, EmptyState, formatters), App Router conventions, a standards doc + CLAUDE.md + repo skill, a `new-zone` generator, and all existing panels migrated as reference implementations.
+**Goal:** Machine-enforced frontend standards for all Helivanta zone apps: shared ESLint/Prettier/Vitest configs, a typed `@helivanta/api` data layer (TanStack Query + sonner), a UX kit (ConfirmDialog, RHF+zod forms, EmptyState, formatters), App Router conventions, a standards doc + CLAUDE.md + repo skill, a `new-zone` generator, and all existing panels migrated as reference implementations.
 
-**Architecture:** `@hms/config` grows exported tool configs; new `@hms/api` workspace package owns fetch/query/env; `@hms/ui` grows the UX kit; each app wires lint/test scripts and App Router boundary files; docs + skill encode the non-mechanical rules; a generator stamps future zones.
+**Architecture:** `@helivanta/config` grows exported tool configs; new `@helivanta/api` workspace package owns fetch/query/env; `@helivanta/ui` grows the UX kit; each app wires lint/test scripts and App Router boundary files; docs + skill encode the non-mechanical rules; a generator stamps future zones.
 
 **Tech Stack:** ESLint 9 flat config, typescript-eslint 8, eslint-plugin-react-hooks, eslint-plugin-jsx-a11y, @next/eslint-plugin-next, Prettier 3, Vitest 3 + jsdom + Testing Library, @tanstack/react-query 5, sonner 2, react-hook-form 7 + zod 3.24 + @hookform/resolvers 3, dompurify 3.
 
@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - JS package manager pnpm via corepack, Node 22. Run `pnpm install` from repo root after changing any package.json.
-- Workspace names: `@hms/config`, `@hms/api`, `@hms/ui`, `@hms/shell`, `@hms/medicore`, `@hms/pharmacy`, `@hms/lab`.
+- Workspace names: `@helivanta/config`, `@helivanta/api`, `@helivanta/ui`, `@helivanta/shell`, `@helivanta/medicore`, `@helivanta/pharmacy`, `@helivanta/lab`.
 - Ports: shell 4301, medicore 4302, pharmacy 4303, lab 4304; next free zone port 4305+.
 - All cross-zone/sidebar links stay plain `<a>`; zone nav lives only in `packages/ui/src/zones.ts`.
 - Tokens only — no hardcoded colors in app code. `packages/ui/styles.css` documents two `@tesserix/web` pitfalls (`!important` for token overrides; unlayered `border-color` base rule) — do not "fix" them.
@@ -25,7 +25,7 @@
 
 ---
 
-### Task 1: `@hms/config` — ESLint, Prettier, Vitest presets wired into every app
+### Task 1: `@helivanta/config` — ESLint, Prettier, Vitest presets wired into every app
 
 **Files:**
 
@@ -35,13 +35,13 @@
 
 **Interfaces:**
 
-- Produces: `@hms/config/eslint` (flat-config array factory `hmsEslint(dirname)`), `@hms/config/prettier`, `@hms/config/vitest` (vitest `defineProject`-compatible preset object factory `hmsVitest(dirname)`), setup file registering jest-dom matchers. Apps consume via 3-line config files. Turbo gains `lint` and keeps `test`; CI web job runs `pnpm turbo lint type-check test build`.
+- Produces: `@helivanta/config/eslint` (flat-config array factory `hmsEslint(dirname)`), `@helivanta/config/prettier`, `@helivanta/config/vitest` (vitest `defineProject`-compatible preset object factory `hmsVitest(dirname)`), setup file registering jest-dom matchers. Apps consume via 3-line config files. Turbo gains `lint` and keeps `test`; CI web job runs `pnpm turbo lint type-check test build`.
 
 - [ ] **Step 1: Update `packages/config/package.json`**
 
 ```json
 {
-  "name": "@hms/config",
+  "name": "@helivanta/config",
   "version": "0.0.0",
   "private": true,
   "exports": {
@@ -74,7 +74,7 @@ import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
-// Shared HMS flat config. Apps call hmsEslint(import.meta.dirname).
+// Shared Helivanta flat config. Apps call hmsEslint(import.meta.dirname).
 export function hmsEslint(rootDir) {
   return tseslint.config(
     { ignores: [".next/**", "node_modules/**", "dist/**", "coverage/**"] },
@@ -86,7 +86,7 @@ export function hmsEslint(rootDir) {
       rules: {
         ...nextPlugin.configs.recommended.rules,
         ...reactHooks.configs.recommended.rules,
-        // HMS UX vocabulary: browser dialogs are banned (spec D4).
+        // Helivanta UX vocabulary: browser dialogs are banned (spec D4).
         "no-alert": "error",
         "no-console": ["error", { allow: ["warn", "error"] }],
         "@typescript-eslint/no-explicit-any": "error",
@@ -95,7 +95,7 @@ export function hmsEslint(rootDir) {
           {
             selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
             message:
-              "Use sanitizeHtml from @hms/ui instead of raw dangerouslySetInnerHTML.",
+              "Use sanitizeHtml from @helivanta/ui instead of raw dangerouslySetInnerHTML.",
           },
         ],
       },
@@ -108,7 +108,7 @@ export function hmsEslint(rootDir) {
 - [ ] **Step 3: Write `packages/config/prettier.config.mjs`**
 
 ```js
-/** Shared HMS Prettier config. */
+/** Shared Helivanta Prettier config. */
 export default {
   semi: true,
   singleQuote: false,
@@ -122,13 +122,13 @@ export default {
 `packages/config/vitest-preset.mjs`:
 
 ```js
-// Shared Vitest preset for HMS packages/apps (jsdom + Testing Library).
+// Shared Vitest preset for Helivanta packages/apps (jsdom + Testing Library).
 export function hmsVitest() {
   return {
     test: {
       environment: "jsdom",
       globals: true,
-      setupFiles: ["@hms/config/vitest-setup"],
+      setupFiles: ["@helivanta/config/vitest-setup"],
       passWithNoTests: true,
     },
   };
@@ -141,14 +141,14 @@ export function hmsVitest() {
 import "@testing-library/jest-dom/vitest";
 ```
 
-- [ ] **Step 5: Wire every app and @hms/ui**
+- [ ] **Step 5: Wire every app and @helivanta/ui**
 
 For EACH of `apps/shell`, `apps/medicore`, `apps/pharmacy`, `apps/lab`:
 
 Create `apps/<app>/eslint.config.mjs`:
 
 ```js
-import { hmsEslint } from "@hms/config/eslint";
+import { hmsEslint } from "@helivanta/config/eslint";
 
 export default hmsEslint(import.meta.dirname);
 ```
@@ -158,7 +158,7 @@ Create `apps/<app>/vitest.config.mts`:
 ```ts
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
-import { hmsVitest } from "@hms/config/vitest";
+import { hmsVitest } from "@helivanta/config/vitest";
 
 export default defineConfig({ plugins: [react()], ...hmsVitest() });
 ```
@@ -179,7 +179,7 @@ and add devDependencies:
     "@testing-library/user-event": "^14.5.2"
 ```
 
-(eslint itself resolves from `@hms/config`'s dependency via pnpm hoisting; if `eslint .` fails to resolve, add `"eslint": "^9.18.0"` to the app's devDependencies too.)
+(eslint itself resolves from `@helivanta/config`'s dependency via pnpm hoisting; if `eslint .` fails to resolve, add `"eslint": "^9.18.0"` to the app's devDependencies too.)
 
 For `packages/ui/package.json`: add the same `lint`/`test` scripts, the same vitest devDeps, an `eslint.config.mjs` (same 3 lines), and a `vitest.config.mts` (same content, plugin-react included).
 
@@ -214,7 +214,7 @@ git commit -m "feat: shared eslint, prettier and vitest configs wired into all a
 
 ---
 
-### Task 2: `@hms/api` — typed client, envelope, poll constant, env helper
+### Task 2: `@helivanta/api` — typed client, envelope, poll constant, env helper
 
 **Files:**
 
@@ -236,7 +236,7 @@ git commit -m "feat: shared eslint, prettier and vitest configs wired into all a
 
 ```json
 {
-  "name": "@hms/api",
+  "name": "@helivanta/api",
   "version": "0.0.0",
   "private": true,
   "exports": {
@@ -257,7 +257,7 @@ git commit -m "feat: shared eslint, prettier and vitest configs wired into all a
     "react": "^19.0.0"
   },
   "devDependencies": {
-    "@hms/config": "workspace:*",
+    "@helivanta/config": "workspace:*",
     "@testing-library/react": "^16.1.0",
     "@types/react": "^19",
     "@vitejs/plugin-react": "^4.3.4",
@@ -366,7 +366,7 @@ describe("defineEnv", () => {
 
 - [ ] **Step 3: Run tests to verify they fail**
 
-Run: `pnpm install && pnpm --filter @hms/api test`
+Run: `pnpm install && pnpm --filter @helivanta/api test`
 Expected: FAIL — `./client` / `./env` don't exist.
 
 - [ ] **Step 4: Implement**
@@ -450,7 +450,7 @@ export { defineEnv } from "./env";
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `pnpm --filter @hms/api test && pnpm --filter @hms/api type-check && pnpm --filter @hms/api lint`
+Run: `pnpm --filter @helivanta/api test && pnpm --filter @helivanta/api type-check && pnpm --filter @helivanta/api lint`
 Expected: PASS / clean.
 
 - [ ] **Step 6: Commit**
@@ -462,7 +462,7 @@ git commit -m "feat: hms api package with typed client, envelope errors and env 
 
 ---
 
-### Task 3: `@hms/api` — AppProviders, query/mutation hooks, testing utils
+### Task 3: `@helivanta/api` — AppProviders, query/mutation hooks, testing utils
 
 **Files:**
 
@@ -477,7 +477,7 @@ git commit -m "feat: hms api package with typed client, envelope errors and env 
   - `<AppProviders>{children}</AppProviders>` — client component mounting `QueryClientProvider` (staleTime 5s, retry 1) and sonner `<Toaster richColors position="top-right" />`.
   - `useApiQuery<T>(key: unknown[], path: string, opts?: { poll?: boolean })` — returns TanStack `useQuery` result; `poll: true` sets `refetchInterval: POLL_INTERVAL_MS`.
   - `useApiMutation<TData, TVars>(fn: (vars: TVars) => Promise<TData>, opts?: { successToast?: string; invalidate?: unknown[][]; onSuccess?: (d: TData) => void })` — toasts `error.message` on failure (`toast.error`), toasts `successToast` when given, invalidates the given query keys.
-  - `renderWithProviders(ui: ReactElement)` from `@hms/api/testing` — renders inside a fresh QueryClient (retry off) + Toaster for component tests.
+  - `renderWithProviders(ui: ReactElement)` from `@helivanta/api/testing` — renders inside a fresh QueryClient (retry off) + Toaster for component tests.
 
 - [ ] **Step 1: Write the failing hook test**
 
@@ -530,7 +530,7 @@ describe("useApiMutation", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @hms/api test`
+Run: `pnpm --filter @helivanta/api test`
 Expected: FAIL — `./hooks` / `./testing` missing.
 
 - [ ] **Step 3: Implement**
@@ -651,7 +651,7 @@ Add `@testing-library/user-event": "^14.5.2"` to `packages/api` devDependencies.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pnpm install && pnpm --filter @hms/api test && pnpm --filter @hms/api lint type-check`
+Run: `pnpm install && pnpm --filter @helivanta/api test && pnpm --filter @helivanta/api lint type-check`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -663,7 +663,7 @@ git commit -m "feat: app providers with react query and sonner plus typed hooks"
 
 ---
 
-### Task 4: `@hms/ui` UX kit — ConfirmDialog, form primitives, EmptyState, formatters, sanitizeHtml
+### Task 4: `@helivanta/ui` UX kit — ConfirmDialog, form primitives, EmptyState, formatters, sanitizeHtml
 
 **Files:**
 
@@ -791,7 +791,7 @@ describe("formatters", () => {
 
 - [ ] **Step 3: Run tests to verify they fail**
 
-Run: `pnpm install && pnpm --filter @hms/ui test`
+Run: `pnpm install && pnpm --filter @helivanta/ui test`
 Expected: FAIL — modules missing.
 
 - [ ] **Step 4: Implement**
@@ -865,7 +865,7 @@ import { useForm, type DefaultValues, type FieldValues } from "react-hook-form";
 import type { ReactNode } from "react";
 import type { z } from "zod";
 
-// HMS forms are react-hook-form + zod with inline errors (spec D3).
+// Helivanta forms are react-hook-form + zod with inline errors (spec D3).
 // Always set noValidate on the <form> — native validation is banned.
 export function useZodForm<S extends z.ZodType<FieldValues>>(
   schema: S,
@@ -972,7 +972,7 @@ Note: the sanitize module must NOT itself trip the lint ban — the ban targets 
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `pnpm --filter @hms/ui test && pnpm --filter @hms/ui lint type-check`
+Run: `pnpm --filter @helivanta/ui test && pnpm --filter @helivanta/ui lint type-check`
 Expected: PASS. If a `@tesserix/web` Dialog import fails at test time due to CSS imports, add `css: false`-style handling by mocking `@tesserix/web` styles — do NOT mock the components themselves.
 
 - [ ] **Step 6: Commit**
@@ -988,7 +988,7 @@ git commit -m "feat: ux kit with confirm dialog, zod forms, empty state and form
 
 **Files:**
 
-- Modify: `apps/{shell,medicore,pharmacy,lab}/app/layout.tsx`, `apps/{shell,medicore,pharmacy,lab}/package.json` (add `"@hms/api": "workspace:*"`, extend `transpilePackages` in next.config.ts to `["@hms/ui", "@hms/api"]`)
+- Modify: `apps/{shell,medicore,pharmacy,lab}/app/layout.tsx`, `apps/{shell,medicore,pharmacy,lab}/package.json` (add `"@helivanta/api": "workspace:*"`, extend `transpilePackages` in next.config.ts to `["@helivanta/ui", "@helivanta/api"]`)
 - Create per app: `app/error.tsx`, `app/loading.tsx`, `app/not-found.tsx`, `.env.example`
 - Create: `apps/shell/lib/env.ts` (typed env for the firebase vars)
 
@@ -1003,10 +1003,10 @@ In EACH app's `app/layout.tsx`, wrap children:
 
 ```tsx
 import type { Metadata } from "next";
-import { AppProviders } from "@hms/api";
+import { AppProviders } from "@helivanta/api";
 import "./globals.css";
 
-export const metadata: Metadata = { title: "HMS" };
+export const metadata: Metadata = { title: "Helivanta" };
 
 export default function RootLayout({
   children,
@@ -1023,7 +1023,7 @@ export default function RootLayout({
 }
 ```
 
-Add `"@hms/api": "workspace:*"` to each app's dependencies and change each `next.config.ts` to `transpilePackages: ["@hms/ui", "@hms/api"]`.
+Add `"@helivanta/api": "workspace:*"` to each app's dependencies and change each `next.config.ts` to `transpilePackages: ["@helivanta/ui", "@helivanta/api"]`.
 
 - [ ] **Step 2: Boundary files (identical content per app)**
 
@@ -1096,7 +1096,7 @@ export default function NotFound() {
 
 ```ts
 import { z } from "zod";
-import { defineEnv } from "@hms/api";
+import { defineEnv } from "@helivanta/api";
 
 // NEXT_PUBLIC_ vars are inlined at build time, so they must be read
 // statically (no dynamic process.env access).
@@ -1153,12 +1153,12 @@ git commit -m "feat: app providers, error and loading boundaries, typed env exam
 
 **Files:**
 
-- Modify: `apps/medicore/components/visit-panel.tsx`, `apps/medicore/components/ping-panel.tsx`, `apps/medicore/package.json` (add `"@hms/api": "workspace:*"` if Task 5 didn't, plus test devDeps already present)
+- Modify: `apps/medicore/components/visit-panel.tsx`, `apps/medicore/components/ping-panel.tsx`, `apps/medicore/package.json` (add `"@helivanta/api": "workspace:*"` if Task 5 didn't, plus test devDeps already present)
 - Test: `apps/medicore/components/visit-panel.test.tsx`
 
 **Interfaces:**
 
-- Consumes: `useApiQuery`, `useApiMutation`, `apiFetch` (`@hms/api`); `Field`, `useZodForm`, `EmptyState`, `formatTime` (`@hms/ui`); `Badge`, `Button`, `Input` (`@tesserix/web`); `renderWithProviders` (`@hms/api/testing`).
+- Consumes: `useApiQuery`, `useApiMutation`, `apiFetch` (`@helivanta/api`); `Field`, `useZodForm`, `EmptyState`, `formatTime` (`@helivanta/ui`); `Badge`, `Button`, `Input` (`@tesserix/web`); `renderWithProviders` (`@helivanta/api/testing`).
 - Produces: the reference form + list implementation the standards doc links to. E2E strings preserved: label "Patient name", button "Create visit".
 
 - [ ] **Step 1: Write the failing component test**
@@ -1168,7 +1168,7 @@ git commit -m "feat: app providers, error and loading boundaries, typed env exam
 ```tsx
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@hms/api/testing";
+import { renderWithProviders } from "@helivanta/api/testing";
 import { VisitPanel } from "./visit-panel";
 
 function jsonResponse(status: number, body: unknown) {
@@ -1235,7 +1235,7 @@ describe("VisitPanel", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @hms/medicore test`
+Run: `pnpm --filter @helivanta/medicore test`
 Expected: FAIL — panel still uses useState/fetch and native `required`.
 
 - [ ] **Step 3: Rewrite `visit-panel.tsx`**
@@ -1246,8 +1246,8 @@ Expected: FAIL — panel still uses useState/fetch and native `required`.
 import { z } from "zod";
 import { Badge, Button, Input } from "@tesserix/web";
 import { CalendarPlus } from "lucide-react";
-import { apiFetch, useApiMutation, useApiQuery } from "@hms/api";
-import { EmptyState, Field, formatTime, useZodForm } from "@hms/ui";
+import { apiFetch, useApiMutation, useApiQuery } from "@helivanta/api";
+import { EmptyState, Field, formatTime, useZodForm } from "@helivanta/ui";
 
 type Visit = {
   id: string;
@@ -1347,7 +1347,7 @@ Query `["pings"]` → `/reference/pings` (no polling), mutation POST `/reference
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `pnpm --filter @hms/medicore test && pnpm turbo lint type-check build --filter=@hms/medicore`
+Run: `pnpm --filter @helivanta/medicore test && pnpm turbo lint type-check build --filter=@helivanta/medicore`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -1368,7 +1368,7 @@ git commit -m "refactor: medicore panels on react query, zod forms and toasts"
 
 **Interfaces:**
 
-- Consumes: same `@hms/api` + `@hms/ui` surfaces as Task 6.
+- Consumes: same `@helivanta/api` + `@helivanta/ui` surfaces as Task 6.
 - Produces: queue reference implementations. E2E strings preserved: button "Dispense", text "Dispensed", label `Result for {patient}`, button "Save result", text `Result: WBC 6.1`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -1378,7 +1378,7 @@ git commit -m "refactor: medicore panels on react query, zod forms and toasts"
 ```tsx
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@hms/api/testing";
+import { renderWithProviders } from "@helivanta/api/testing";
 import { DispenseList } from "./dispense-list";
 
 function jsonResponse(status: number, body: unknown) {
@@ -1451,7 +1451,7 @@ describe("DispenseList", () => {
 ```tsx
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@hms/api/testing";
+import { renderWithProviders } from "@helivanta/api/testing";
 import { OrderList } from "./order-list";
 
 function jsonResponse(status: number, body: unknown) {
@@ -1511,7 +1511,7 @@ describe("OrderList", () => {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `pnpm --filter @hms/pharmacy test && pnpm --filter @hms/lab test`
+Run: `pnpm --filter @helivanta/pharmacy test && pnpm --filter @helivanta/lab test`
 Expected: FAIL (old implementations don't invalidate/refetch through React Query; assertions on fetch shape fail).
 
 - [ ] **Step 3: Rewrite the three components**
@@ -1524,7 +1524,7 @@ Expected: FAIL (old implementations don't invalidate/refetch through React Query
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pnpm --filter @hms/pharmacy test && pnpm --filter @hms/lab test && pnpm turbo lint type-check build`
+Run: `pnpm --filter @helivanta/pharmacy test && pnpm --filter @helivanta/lab test && pnpm turbo lint type-check build`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -1545,7 +1545,7 @@ git commit -m "refactor: pharmacy and lab panels on react query with toasts and 
 
 **Interfaces:**
 
-- Consumes: `useZodForm`, `Field` (`@hms/ui`); `Button`, `Input` (`@tesserix/web`). Firebase sign-in flow unchanged (`signInWithEmailAndPassword` + POST `/api/session`).
+- Consumes: `useZodForm`, `Field` (`@helivanta/ui`); `Button`, `Input` (`@tesserix/web`). Firebase sign-in flow unchanged (`signInWithEmailAndPassword` + POST `/api/session`).
 - Produces: E2E strings preserved: labels "Email"/"Password", button "Sign in". Dev prefill stays via `defaultValues` gated on `NODE_ENV !== "production"`.
 
 - [ ] **Step 1: Write the failing test**
@@ -1581,7 +1581,7 @@ describe("LoginPage", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @hms/shell test`
+Run: `pnpm --filter @helivanta/shell test`
 Expected: FAIL — current page uses controlled state + `required` attributes (native validation blocks submit, no role=alert).
 
 - [ ] **Step 3: Rewrite the form part of `login/page.tsx`**
@@ -1604,7 +1604,7 @@ Form element gets `noValidate onSubmit={form.handleSubmit(onSubmit)}`; fields us
 
 - [ ] **Step 4: Run tests, build, and the E2E**
 
-Run: `pnpm --filter @hms/shell test && pnpm turbo lint type-check build && cd e2e && npx playwright test`
+Run: `pnpm --filter @helivanta/shell test && pnpm turbo lint type-check build && cd e2e && npx playwright test`
 Expected: unit PASS, build green, E2E journey PASS against the running stack (restart `pnpm turbo dev` if it is not running).
 
 - [ ] **Step 5: Commit**
@@ -1631,8 +1631,8 @@ git commit -m "refactor: login form on react-hook-form and zod with inline error
 
 Sections (write full prose; the spec `docs/superpowers/specs/2026-08-04-frontend-standards-design.md` section 5 lists exact content — copy its bullet content and expand each into 2–5 sentences with code snippets where noted):
 
-1. **Zone-app anatomy** — port table (shell 4301, medicore 4302, pharmacy 4303, lab 4304, next zone 4305+), `basePath`, `output: "standalone"`, `transpilePackages: ["@hms/ui", "@hms/api"]`, direct-hit `/api/:path*` rewrite with `basePath: false`, the shell rewrite pair, globals.css required shape (show the exact current `apps/pharmacy/app/globals.css` content), `pnpm new-zone` pointer.
-2. **Server vs client components** — pages/layouts are server components; interactivity lives in `components/*` client components; data fetching happens client-side through `@hms/api` (session cookie flows via the browser; server components must not call the Go API).
+1. **Zone-app anatomy** — port table (shell 4301, medicore 4302, pharmacy 4303, lab 4304, next zone 4305+), `basePath`, `output: "standalone"`, `transpilePackages: ["@helivanta/ui", "@helivanta/api"]`, direct-hit `/api/:path*` rewrite with `basePath: false`, the shell rewrite pair, globals.css required shape (show the exact current `apps/pharmacy/app/globals.css` content), `pnpm new-zone` pointer.
+2. **Server vs client components** — pages/layouts are server components; interactivity lives in `components/*` client components; data fetching happens client-side through `@helivanta/api` (session cookie flows via the browser; server components must not call the Go API).
 3. **Data fetching** — `useApiQuery`/`useApiMutation` only; no raw fetch in components; polling via `{ poll: true }`; mutations invalidate their query keys; reference: `apps/medicore/components/visit-panel.tsx`.
 4. **Forms** — `useZodForm` + `Field`, `noValidate` mandatory, inline errors; reference: visit-panel and login page.
 5. **UX vocabulary** — sonner toasts for action feedback (success verbs match button verbs: "Create visit" → "Visit created"); `ConfirmDialog` only for destructive confirmations; banned: `alert`/`confirm`/`prompt`, native validation popups.
@@ -1647,17 +1647,17 @@ Sections (write full prose; the spec `docs/superpowers/specs/2026-08-04-frontend
 - [ ] **Step 2: Write `CLAUDE.md` (hms root)**
 
 ```markdown
-# HMS — agent rules
+# Helivanta — agent rules
 
 Binding rules for all frontend work. Full document: docs/standards/frontend.md
 
-- Data fetching: `useApiQuery`/`useApiMutation` from `@hms/api` only. Never raw fetch/useState/setInterval in components.
-- Forms: `useZodForm` + `Field` from `@hms/ui`, `noValidate` on every form, inline zod errors. Native browser validation is banned.
+- Data fetching: `useApiQuery`/`useApiMutation` from `@helivanta/api` only. Never raw fetch/useState/setInterval in components.
+- Forms: `useZodForm` + `Field` from `@helivanta/ui`, `noValidate` on every form, inline zod errors. Native browser validation is banned.
 - Feedback: sonner toasts (success verb matches the button verb). `ConfirmDialog` only for destructive confirmations. `alert`/`confirm`/`prompt` are lint errors.
 - Navigation: cross-zone and sidebar links are plain `<a>`. Zone nav lives only in `packages/ui/src/zones.ts`.
 - Styling: design tokens only — no hardcoded colors. Read the pitfall comments in `packages/ui/styles.css` before touching sidebar/border styles.
 - New zone apps: run `pnpm new-zone <name>`; never hand-copy an app.
-- Every new/changed panel component needs a Vitest test using `renderWithProviders` from `@hms/api/testing`.
+- Every new/changed panel component needs a Vitest test using `renderWithProviders` from `@helivanta/api/testing`.
 - Before done: `pnpm turbo lint type-check test build` green; keep `e2e/tests/smoke.spec.ts` selectors working.
 - Backend: modules under `backend/internal/modules/*` never import each other; tenant tables need forced RLS (see phase specs in docs/superpowers/specs/).
 ```
@@ -1667,16 +1667,16 @@ Binding rules for all frontend work. Full document: docs/standards/frontend.md
 ```markdown
 ---
 name: hms-frontend
-description: Use when writing or modifying any HMS frontend code (apps/*, packages/ui, packages/api) — loads the binding standards, reference implementations, and known pitfalls.
+description: Use when writing or modifying any Helivanta frontend code (apps/*, packages/ui, packages/api) — loads the binding standards, reference implementations, and known pitfalls.
 ---
 
-# HMS frontend standards
+# Helivanta frontend standards
 
 Read `docs/standards/frontend.md` for the full rules. The short version and where to copy from:
 
 | Concern       | Rule                                              | Reference                                     |
 | ------------- | ------------------------------------------------- | --------------------------------------------- |
-| Data          | useApiQuery/useApiMutation from @hms/api          | apps/medicore/components/visit-panel.tsx      |
+| Data          | useApiQuery/useApiMutation from @helivanta/api          | apps/medicore/components/visit-panel.tsx      |
 | Forms         | useZodForm + Field, noValidate, inline errors     | apps/shell/app/login/page.tsx                 |
 | Feedback      | sonner toasts; ConfirmDialog for destructive only | packages/ui/src/confirm-dialog.tsx            |
 | Empty/loading | EmptyState + app/loading.tsx skeletons            | apps/pharmacy/components/dispense-list.tsx    |
@@ -1707,7 +1707,7 @@ git commit -m "docs: frontend standards, agent rules and hms-frontend skill"
 **Interfaces:**
 
 - Consumes: the final-state file shapes from Tasks 1, 5 (an app's package.json, next.config.ts, tsconfig, postcss, globals.css, layout with AppProviders, error/loading/not-found, eslint.config.mjs, vitest.config.mts, .env.example).
-- Produces: `pnpm new-zone <name>` creates `apps/<name>` ready to `pnpm install && pnpm turbo build --filter=@hms/<name>`, and prints follow-ups.
+- Produces: `pnpm new-zone <name>` creates `apps/<name>` ready to `pnpm install && pnpm turbo build --filter=@helivanta/<name>`, and prints follow-ups.
 
 - [ ] **Step 1: Write the generator**
 
@@ -1716,8 +1716,8 @@ git commit -m "docs: frontend standards, agent rules and hms-frontend skill"
 1. `const name = process.argv[2]` — validate `/^[a-z][a-z0-9-]*$/`, refuse if `apps/<name>` exists.
 2. Port: scan `apps/*/package.json` `dev` scripts for `-p (\d+)`, take `max + 1`.
 3. Write these files from template literals (copy the EXACT current content of the pharmacy app as the template source at implementation time, substituting name/port/basePath):
-   - `package.json` (name `@hms/<name>`, dev/start `-p <port>`, same deps/devDeps as pharmacy including `@hms/api`, `@hms/ui`, test/lint scripts)
-   - `next.config.ts` (basePath `/<name>`, `transpilePackages: ["@hms/ui", "@hms/api"]`, direct-hit rewrite)
+   - `package.json` (name `@helivanta/<name>`, dev/start `-p <port>`, same deps/devDeps as pharmacy including `@helivanta/api`, `@helivanta/ui`, test/lint scripts)
+   - `next.config.ts` (basePath `/<name>`, `transpilePackages: ["@helivanta/ui", "@helivanta/api"]`, direct-hit rewrite)
    - `tsconfig.json`, `postcss.config.mjs`, `eslint.config.mjs`, `vitest.config.mts`, `.env.example`
    - `app/globals.css` (the standard shape), `app/layout.tsx` (AppProviders), `app/error.tsx`, `app/loading.tsx`, `app/not-found.tsx`
    - `app/page.tsx` — HmsShell wrapper with `active="/<name>"` and an example panel
@@ -1733,7 +1733,7 @@ Created apps/<name> on port <port>. Manual follow-ups:
    { source: "/<name>/:path*", destination: `${<NAME>_URL}/<name>/:path*` },
 2. packages/ui/src/zones.ts — add a Zone entry (icon + pages).
 3. README/Makefile — mention the new port.
-Then: pnpm install && pnpm turbo lint type-check test build --filter=@hms/<name>
+Then: pnpm install && pnpm turbo lint type-check test build --filter=@helivanta/<name>
 ```
 
 - [ ] **Step 2: Smoke-test the generator**
@@ -1743,7 +1743,7 @@ Run:
 ```bash
 pnpm new-zone testzone
 pnpm install
-pnpm turbo lint type-check test build --filter=@hms/testzone
+pnpm turbo lint type-check test build --filter=@helivanta/testzone
 ```
 
 Expected: all green. Then delete the scratch zone completely:

@@ -3,7 +3,7 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: use superpowers:subagent-driven-development.
 > Steps use checkbox (`- [ ]`) syntax.
 
-**Goal:** Replace GIP with Zitadel, with HMS issuing its own session, without
+**Goal:** Replace GIP with Zitadel, with Helivanta issuing its own session, without
 weakening a single invariant the last month of auth work established.
 
 **Spec:** `docs/superpowers/specs/2026-08-15-zitadel-auth-design.md`
@@ -66,7 +66,7 @@ subtly wrong will succeed and do something other than intended.
 
 ---
 
-## Task 1: the HMS session token
+## Task 1: the Helivanta session token
 
 **Files:** `backend/pkg/session/` (new: `session.go`, `session_test.go`)
 
@@ -104,7 +104,7 @@ The `auth_time` mutation matters beyond hygiene: resetting it would launder an
 old authentication into a fresh one and quietly defeat the revocation watermark.
 
 - [ ] **Step 4: gates and commit**
-`feat: add the HMS session token, signed asymmetrically with auth_time carried through (#838)`
+`feat: add the Helivanta session token, signed asymmetrically with auth_time carried through (#838)`
 
 ---
 
@@ -118,9 +118,9 @@ old authentication into a fresh one and quietly defeat the revocation watermark.
   is a forged-session vulnerability. Argue the direction in a comment at the
   decision point (§3) — this fails CLOSED, unlike `LOG_LEVEL`.
 - [ ] Dev uses a fixed local key, **refused outside dev**, mirroring the existing
-  `HMS_ENV` emulator guard. Test that guard.
+  `HELIVANTA_ENV` emulator guard. Test that guard.
 - [ ] **Prove it:** boot with no key → refuses, naming the variable. Boot with
-  the dev key and `HMS_ENV=production` → refuses.
+  the dev key and `HELIVANTA_ENV=production` → refuses.
 
 Commit: `feat: refuse to boot without a session signing key (#838)`
 
@@ -186,19 +186,19 @@ Commit: `feat: verify Zitadel ID tokens through standard OIDC (#838)`
 > the session supplies the tenant — but it is the kind of thing that would be
 > mystifying if hit during local development, so it is written down.
 
-## Task 4: login exchanges a Zitadel token for an HMS session
+## Task 4: login exchanges a Zitadel token for a Helivanta session
 
 **Files:** `backend/internal/modules/iam/`, `apps/shell/`
 
 - [ ] An endpoint taking a verified Zitadel ID token, resolving the caller's
-  tenants from OpenFGA, and minting an HMS session for the chosen tenant.
+  tenants from OpenFGA, and minting a Helivanta session for the chosen tenant.
 - [ ] **A user who is a member of no tenant is refused**, and the refusal says so
   without leaking whether the account exists.
 - [ ] Frontend: `apps/shell/lib/firebase.ts` → a Zitadel OIDC client; login page,
   `sign-out.ts` updated.
 - [ ] Cookie flags unchanged in strictness (httpOnly, secure, sameSite).
 
-Commit: `feat: exchange a verified Zitadel token for an HMS session (#838)`
+Commit: `feat: exchange a verified Zitadel token for a Helivanta session (#838)`
 
 ---
 
@@ -223,7 +223,7 @@ Commit: `feat: exchange a verified Zitadel token for an HMS session (#838)`
   calls an external service, so #689's reasoning for it no longer applies. Either
   re-justify the number or change it — do not inherit it silently.
 
-Commit: `feat: switch tenant by re-minting the HMS session, never the IdP token (#838)`
+Commit: `feat: switch tenant by re-minting the Helivanta session, never the IdP token (#838)`
 
 ---
 
@@ -293,7 +293,7 @@ Commit: `chore: remove the last GIP references (#838)`
   captured token is refused; deactivate a user in Zitadel and confirm they lose
   access within the TTL; stop Zitadel and confirm sign-in **fails closed** while
   existing sessions still work.
-- [ ] PR body: the three couplings and how each was replaced; that HMS now issues
+- [ ] PR body: the three couplings and how each was replaced; that Helivanta now issues
   credentials and what contains that; the TTL bound on upstream deactivation; the
   invariant table, each re-proven; which assertions were observed failing.
   `Closes #838`.
@@ -303,7 +303,7 @@ Commit: `chore: remove the last GIP references (#838)`
 ## Known limitations (carry into the PR)
 
 - **Upstream deactivation is bounded by the session TTL**, not immediate.
-- **HMS issues credentials** — new key-management surface; #45 is a dependency.
+- **Helivanta issues credentials** — new key-management surface; #45 is a dependency.
 - **Key rotation is not designed** — `kid` exists so it is not precluded. File it.
 - **We operate an IdP.** An outage is a total sign-in outage; existing sessions
   survive until renewal.

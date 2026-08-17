@@ -33,7 +33,7 @@ func NewWithWriter(w io.Writer, level string) *slog.Logger {
 	if !ok && strings.TrimSpace(level) != "" {
 		// Warn rather than fail: a mistyped log level cannot compromise
 		// tenant isolation, and a hospital's API should not refuse to boot
-		// over one. This is deliberately the opposite call from the HMS_ENV
+		// over one. This is deliberately the opposite call from the HELIVANTA_ENV
 		// guards, where a wrong value silently disables safety checks.
 		l.Warn("unrecognised LOG_LEVEL; defaulting to info", "value", level)
 	}

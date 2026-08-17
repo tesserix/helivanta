@@ -11,7 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/logging"
 )
 
 // --- duplicate emitted JSON names -------------------------------------------
@@ -23,7 +23,7 @@ import (
 // which is the same order-dependence class that sank the withdrawn design.
 
 type tagOnly struct {
-	Name string `json:"name" hmslog:"phi"`
+	Name string `json:"name" helivantalog:"phi"`
 }
 
 type conflictTaggedSecond struct {
@@ -108,13 +108,13 @@ type rejectedTagOuter struct {
 	shallowInner
 	// encoding/json rejects "नाम" and emits this field as "Data" at depth 0,
 	// which hides shallowInner.Data at depth 1.
-	Data string `json:"नाम" hmslog:"phi"`
+	Data string `json:"नाम" helivantalog:"phi"`
 }
 
 type rejectedTagOverMask struct {
 	// Rejected tag: this would be emitted as "Alias" at depth 0 — except that
 	// Other claims "Alias" from a tag, so encoding/json drops this field.
-	Alias string `json:"नाम" hmslog:"phi"`
+	Alias string `json:"नाम" helivantalog:"phi"`
 	Other string `json:"Alias"`
 }
 
@@ -146,7 +146,7 @@ func TestRejectedTagNameLosingToATaggedSiblingDoesNotOverMask(t *testing.T) {
 // --- M1: over-masking must not destroy an untagged sibling ------------------
 
 type overMaskSibling struct {
-	Alias string `json:"whatever" hmslog:"phi"`
+	Alias string `json:"whatever" helivantalog:"phi"`
 	Other string `json:"Alias"`
 }
 
@@ -173,7 +173,7 @@ type FuzzEmbedTagged struct {
 	Alias tagOnly `json:"Data"`
 }
 type FuzzEmbedPHI struct {
-	Note string `json:"Data" hmslog:"phi"`
+	Note string `json:"Data" helivantalog:"phi"`
 }
 
 type fuzzKind int
@@ -229,7 +229,7 @@ func fuzzField(kind fuzzKind, goName, jsonTag string) (reflect.StructField, []in
 		sf.Type = reflect.TypeOf("")
 	case kindPHIString:
 		sf.Type = reflect.TypeOf("")
-		tag = strings.TrimSpace(tag + ` hmslog:"phi"`)
+		tag = strings.TrimSpace(tag + ` helivantalog:"phi"`)
 	case kindPTStruct:
 		sf.Type = reflect.TypeOf(tagOnly{})
 		rest = []int{0}
@@ -353,7 +353,7 @@ func fillPublic(v reflect.Value) {
 		for i := range v.NumField() {
 			// Skip tagged positions: those are supposed to disappear, and
 			// filling them would make correct masking look like data loss.
-			if v.Type().Field(i).Tag.Get("hmslog") == "phi" {
+			if v.Type().Field(i).Tag.Get("helivantalog") == "phi" {
 				continue
 			}
 			if v.Field(i).CanSet() {

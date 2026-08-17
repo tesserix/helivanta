@@ -4,24 +4,24 @@
 
 > **⚠️ PART E: THE PLAN BELOW WAS WITHDRAWN; TAG REDACTION NOW SHIPS BY A DIFFERENT DESIGN.**
 >
-> Task 8 below (reflection-based `hmslog:"phi"` redaction) was implemented,
+> Task 8 below (reflection-based `helivantalog:"phi"` redaction) was implemented,
 > reviewed twice, found to carry five Critical defects, and **withdrawn**. Do not
-> resume it. `hmslog:"phi"` masking **does** ship, via the marshal-then-mask design
+> resume it. `helivantalog:"phi"` masking **does** ship, via the marshal-then-mask design
 > in issue #778: `encoding/json` renders the value, and the rendered bytes are
 > masked at the JSON paths the tags identify. See `backend/pkg/logging/phitag.go`
 > and `docs/standards/backend.md` for the authoritative contract. Task 8 and the
 > "Tags:" block below are preserved for history only.
 
-**Goal:** Give the HMS backend one JSON slog pipeline with tenant/subject correlation and PHI redaction, and mechanically protect the single clause that today prevents GORM from dumping patient rows into the logs.
+**Goal:** Give the Helivanta backend one JSON slog pipeline with tenant/subject correlation and PHI redaction, and mechanically protect the single clause that today prevents GORM from dumping patient rows into the logs.
 
-**Architecture:** Five parts were planned, sequenced so the urgent guard lands first in its own PR. Part A adds an arch test plus a captured-stderr property test around `tenantdb.Open`'s `logger.Silent`. Parts B–D build `backend/pkg/logging`: a JSON handler with `LOG_LEVEL` control, request-scoped correlation fields wired in the platform middleware chain, and **pattern redaction at the writer** (screening the serialised bytes slog actually emits). **Part E — tag redaction at the handler (`hmslog:"phi"`, for the names and dates patterns cannot match) — ships, but not as planned below: the reflection design in Task 8 was WITHDRAWN after review and replaced by the marshal-then-mask implementation under issue #778. See the banner above.**
+**Architecture:** Five parts were planned, sequenced so the urgent guard lands first in its own PR. Part A adds an arch test plus a captured-stderr property test around `tenantdb.Open`'s `logger.Silent`. Parts B–D build `backend/pkg/logging`: a JSON handler with `LOG_LEVEL` control, request-scoped correlation fields wired in the platform middleware chain, and **pattern redaction at the writer** (screening the serialised bytes slog actually emits). **Part E — tag redaction at the handler (`helivantalog:"phi"`, for the names and dates patterns cannot match) — ships, but not as planned below: the reflection design in Task 8 was WITHDRAWN after review and replaced by the marshal-then-mask implementation under issue #778. See the banner above.**
 
 **Why redaction is split across two layers** — this was learned during implementation, not designed up front. A single `slog.Handler` that inspected attribute *values* was built, reviewed adversarially and taken through two fix rounds; both rounds closed every finding and both introduced new leaks of the same class, because the handler screened a *proxy* for what slog would emit (`fmt.Sprint`, `%g`, a reflection-rebuilt struct, `MarshalText`) and slog then emitted something else. In the worst case the redactor itself published a patient's name that the type's own `MarshalJSON` had withheld. Screening the emitted bytes removes the guess entirely; reflection survives only where bytes genuinely cannot help, which is struct tags. See the spec's Part D for the full table.
 
 **Tech Stack:** Go 1.26, `log/slog`, `gorm.io/gorm`, `gin-gonic/gin`, `go/ast` (arch tests), `testify/require`, testcontainers via `internal/testutil`.
 
 **Spec:** `docs/superpowers/specs/2026-08-13-structured-logging-phi-redaction-design.md`
-**Issue:** [#678](https://github.com/tesserix/hms/issues/678) (already assigned to `mahesh-sangawar`)
+**Issue:** [#678](https://github.com/tesserix/helivanta/issues/678) (already assigned to `mahesh-sangawar`)
 
 ## Global Constraints
 
@@ -32,7 +32,7 @@
 - Before any task is done: `make lint-go` clean, `cd backend && ./scripts/coverage-gate.sh` green (70% floor), `cd backend && go test -race ./...` green.
 - Commit messages are single-line conventional commits, no attribution, no `--signoff`.
 - Local stack ports are non-default (5432/6379/8080 are taken by an unrelated project). Start it with:
-  `HMS_PG_PORT=15432 HMS_NATS_PORT=14222 HMS_NATS_MONITOR_PORT=18222 HMS_REDIS_PORT=16379 HMS_OPENFGA_PORT=18090 HMS_GIP_PORT=19099 HMS_API_PORT=18080 make up`
+  `HELIVANTA_PG_PORT=15432 HELIVANTA_NATS_PORT=14222 HELIVANTA_NATS_MONITOR_PORT=18222 HELIVANTA_REDIS_PORT=16379 HELIVANTA_OPENFGA_PORT=18090 HELIVANTA_GIP_PORT=19099 HELIVANTA_API_PORT=18080 make up`
 - CI is blocked org-wide by a billing/spending-limit issue. Record local verification output as a PR comment.
 - **Every test in this plan must be proven non-vacuous**: break the assertion or the guard, watch the test fail, restore. Steps that require this say so explicitly. Four inert assertions have already been found on this codebase.
 
@@ -46,7 +46,7 @@ amended version. Two changes:
    four leaks that motivated it. Tasks 6 and 7 implement the amended design; the
    original reflection-based implementation is preserved on the branch
    `backup/678-redaction-reflection` for reference and is not merged.
-2. **Part E was added** for `hmslog:"phi"` tag redaction. Issue #678's primary acceptance
+2. **Part E was added** for `helivantalog:"phi"` tag redaction. Issue #678's primary acceptance
    criterion is *"a handler logs a struct containing a field tagged as PHI → the PHI
    field is redacted"*, and its scope line reads *"redaction hooks for tagged PHI fields
    and known patterns"*. Pattern matching alone cannot satisfy that — a patient name
@@ -65,7 +65,7 @@ amended version. Two changes:
 |---|---|
 | `backend/pkg/logging/logging.go` | `New(level string) *slog.Logger` — level parsing, JSON handler, both redaction layers |
 | `backend/pkg/logging/redact.go` | The pattern set, `RedactString`, the byte-level redacting writer, the counter |
-| `backend/pkg/logging/phitag.go` | The `hmslog:"phi"` handler. **Not the design planned here** — the reflection walker was withdrawn; what exists is the marshal-then-mask implementation from #778: per-type JSON path set plus a token-level masking walk. |
+| `backend/pkg/logging/phitag.go` | The `helivantalog:"phi"` handler. **Not the design planned here** — the reflection walker was withdrawn; what exists is the marshal-then-mask implementation from #778: per-type JSON path set plus a token-level masking walk. |
 | `backend/pkg/logging/logging_test.go` | Level parsing, JSON shape, fallback, end-to-end redaction across every rendering slog produces |
 | `backend/pkg/logging/redact_test.go` | Pattern table, JSON-validity of the writer's output, number-token quoting, escape tracking, counter |
 | `backend/pkg/logging/phitag_test.go` (plus `phitag_internal_test.go`, `phitag_conflict_test.go`) | Shipped under #778: tagged struct, nested, collections, maps, groups, pre-bound attrs, self-marshalling passthrough, byte-identical passthrough for untagged types, and a differential fuzz against `encoding/json`'s field naming. |
@@ -597,7 +597,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/logging"
 )
 
 func TestParseLevel(t *testing.T) {
@@ -647,7 +647,7 @@ func TestNewRespectsLevel(t *testing.T) {
 
 // An unrecognised LOG_LEVEL degrades to info with a warning rather than
 // refusing to boot. A hospital's API must not fail to start over a typo in a
-// log level — the opposite of the HMS_ENV guards, where a wrong value would
+// log level — the opposite of the HELIVANTA_ENV guards, where a wrong value would
 // disable tenant isolation.
 func TestUnrecognisedLevelFallsBackToInfoAndWarns(t *testing.T) {
 	var buf bytes.Buffer
@@ -712,7 +712,7 @@ func NewWithWriter(w io.Writer, level string) *slog.Logger {
 	if !ok && strings.TrimSpace(level) != "" {
 		// Warn rather than fail: a mistyped log level cannot compromise
 		// tenant isolation, and a hospital's API should not refuse to boot
-		// over one. This is deliberately the opposite call from the HMS_ENV
+		// over one. This is deliberately the opposite call from the HELIVANTA_ENV
 		// guards, where a wrong value silently disables safety checks.
 		l.Warn("unrecognised LOG_LEVEL; defaulting to info", "value", level)
 	}
@@ -794,7 +794,7 @@ plain text on stderr and none of it is redacted.
 
 - [ ] **Step 1: Wire `cmd/api`**
 
-In `backend/cmd/api/main.go`, add `"github.com/tesserix/hms/pkg/logging"` to the imports
+In `backend/cmd/api/main.go`, add `"github.com/tesserix/helivanta/pkg/logging"` to the imports
 and insert immediately after `cfg := config.Load()`, **before** the existing
 `slog.Info("resolved environment", ...)` line:
 
@@ -821,8 +821,8 @@ except a failure in `config.Load()` itself, which cannot fail.
 
 ```bash
 cd /Users/Mahesh.Sangawar/personal/tesserix-new/hms
-HMS_PG_PORT=15432 HMS_NATS_PORT=14222 HMS_NATS_MONITOR_PORT=18222 HMS_REDIS_PORT=16379 \
-  HMS_OPENFGA_PORT=18090 HMS_GIP_PORT=19099 HMS_API_PORT=18080 make up
+HELIVANTA_PG_PORT=15432 HELIVANTA_NATS_PORT=14222 HELIVANTA_NATS_MONITOR_PORT=18222 HELIVANTA_REDIS_PORT=16379 \
+  HELIVANTA_OPENFGA_PORT=18090 HELIVANTA_GIP_PORT=19099 HELIVANTA_API_PORT=18080 make up
 ```
 
 Then confirm the boot lines are JSON, not text:
@@ -831,7 +831,7 @@ Then confirm the boot lines are JSON, not text:
 cd backend && LOG_LEVEL=debug PORT=18081 \
   APP_DATABASE_URL='postgres://hms_app:hms_app@localhost:15432/hms?sslmode=disable' \
   ADMIN_DATABASE_URL='postgres://hms:hms@localhost:15432/hms?sslmode=disable' \
-  NATS_URL=nats://localhost:14222 OPENFGA_URL=http://localhost:18090 HMS_ENV=dev \
+  NATS_URL=nats://localhost:14222 OPENFGA_URL=http://localhost:18090 HELIVANTA_ENV=dev \
   go run ./cmd/api 2>&1 | head -5
 ```
 
@@ -979,7 +979,7 @@ func TestEnrichIsScopedToTheRequest(t *testing.T) {
 ```
 
 Add to that file's imports: `"bytes"`, `"encoding/json"`, `"log/slog"`, `"strings"`,
-and `"github.com/tesserix/hms/pkg/authn"`.
+and `"github.com/tesserix/helivanta/pkg/authn"`.
 
 - [ ] **Step 2: Run and confirm failure**
 
@@ -991,7 +991,7 @@ Expected: build failure — `undefined: requestid.PrincipalMiddleware`, `request
 
 - [ ] **Step 3: Implement**
 
-In `backend/internal/platform/requestid/requestid.go`, add `"github.com/tesserix/hms/pkg/authn"`
+In `backend/internal/platform/requestid/requestid.go`, add `"github.com/tesserix/helivanta/pkg/authn"`
 to the imports and append:
 
 ```go
@@ -1143,7 +1143,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/logging"
 )
 
 func TestRedactPatterns(t *testing.T) {
@@ -1784,7 +1784,7 @@ git commit -m "feat: route the process logger through the redacting writer"
 
 ---
 
-## Task 8: `hmslog:"phi"` tag redaction — **WITHDRAWN as written; replaced under #778**
+## Task 8: `helivantalog:"phi"` tag redaction — **WITHDRAWN as written; replaced under #778**
 
 > **The steps below were withdrawn and must not be followed.** This task's
 > reflection-based design was implemented, taken through two adversarial review rounds,
@@ -1841,19 +1841,19 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/logging"
 )
 
 type patient struct {
 	ID    string
-	Name  string `hmslog:"phi"`
-	DOB   string `hmslog:"phi"`
+	Name  string `helivantalog:"phi"`
+	DOB   string `helivantalog:"phi"`
 	Ward  string
 	Notes notes
 }
 
 type notes struct {
-	Complaint string `hmslog:"phi"`
+	Complaint string `helivantalog:"phi"`
 	Triage    string
 }
 
@@ -1944,7 +1944,7 @@ func TestTagHandlerRedactsPreBoundAttrs(t *testing.T) {
 // fields publishes whatever its MarshalJSON deliberately omitted — which is
 // how the previous design published a patient's name.
 type selfMarshalling struct {
-	Name string `hmslog:"phi"`
+	Name string `helivantalog:"phi"`
 	Ref  string
 }
 
@@ -1970,7 +1970,7 @@ func TestTaggedRedactionIncrementsTheCounter(t *testing.T) {
 
 // Self-referential types must not hang the logger.
 type cyclic struct {
-	Name string `hmslog:"phi"`
+	Name string `helivantalog:"phi"`
 	Next *cyclic
 }
 
@@ -2008,14 +2008,14 @@ import (
 //
 //	type Patient struct {
 //	    ID   string
-//	    Name string `hmslog:"phi"`
+//	    Name string `helivantalog:"phi"`
 //	}
 //
 // This is the half of redaction that patterns cannot do. A name, a date of
 // birth and an address have no shape to match on; the only way to know they
 // are PHI is for the type to say so.
 const (
-	phiTag      = "hmslog"
+	phiTag      = "helivantalog"
 	phiTagValue = "phi"
 	phiMarker   = "[REDACTED:phi]"
 )
@@ -2029,7 +2029,7 @@ const maxPHIDepth = 16
 // reflective walk even when nothing in it is ever redacted, on every line.
 var taggedTypes sync.Map // reflect.Type -> bool
 
-// PHITagHandler masks struct fields tagged hmslog:"phi" before the record is
+// PHITagHandler masks struct fields tagged helivantalog:"phi" before the record is
 // serialised.
 //
 // It is deliberately narrow. It reflects only over values whose type carries a
@@ -2226,7 +2226,7 @@ committed under #778 instead (see the banner above).
 ```bash
 cd .. && make lint-go
 git add backend/pkg/logging/phitag.go backend/pkg/logging/phitag_test.go backend/pkg/logging/logging.go
-git commit -m "feat: mask struct fields tagged hmslog:phi, which patterns cannot catch"
+git commit -m "feat: mask struct fields tagged helivantalog:phi, which patterns cannot catch"
 ```
 
 ---
@@ -2254,7 +2254,7 @@ wrapped in a redacting handler. `cmd/api` and `cmd/migrate` install it with
 case-insensitive. An unrecognised value degrades to `info` with a warning and
 the process still boots: a mistyped log level cannot compromise tenant
 isolation, and a hospital's API must not fail to start over a typo. This is
-deliberately the opposite call from the `HMS_ENV` guards.
+deliberately the opposite call from the `HELIVANTA_ENV` guards.
 
 Every emitted line — message and attributes, recursively through groups,
 wrapped errors and struct fields — passes through redaction:
@@ -2262,7 +2262,7 @@ wrapped errors and struct fields — passes through redaction:
 - **Patterns:** Aadhaar (12 digits), ABHA (14 digits), Indian mobile (`+91`
   forms and bare 10-digit numbers beginning 5–9). Masked as
   `[REDACTED:aadhaar]` and so on.
-- **Tags:** the plan's reflection design was withdrawn, but `hmslog:"phi"` masking
+- **Tags:** the plan's reflection design was withdrawn, but `helivantalog:"phi"` masking
   **does** ship, by the marshal-then-mask design in #778 (`phitag.go`). Names, dates of
   birth and addresses are masked where a field is tagged. The authoritative contract —
   including the three things the layer cannot see — is
@@ -2353,7 +2353,7 @@ checkout races the sub-make and it reads the wrong Makefile.
 
 ## Known limitations (carry into the PR body)
 
-- Pattern redaction cannot detect names, dates of birth or addresses. The `hmslog:"phi"`
+- Pattern redaction cannot detect names, dates of birth or addresses. The `helivantalog:"phi"`
   tag layer (#778) covers them **only where a field is tagged**, and cannot see PHI
   reached through `any`, through a self-marshalling type, or already flattened into a
   string. The GORM guard (Tasks 1–2) is what protects the bulk case, by keeping

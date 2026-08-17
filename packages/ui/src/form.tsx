@@ -5,7 +5,7 @@ import { useForm, type DefaultValues, type FieldValues } from "react-hook-form";
 import type { ReactNode } from "react";
 import type { z } from "zod";
 
-// HMS forms are react-hook-form + zod with inline errors (spec D3).
+// Helivanta forms are react-hook-form + zod with inline errors (spec D3).
 // Always set noValidate on the <form> — native validation is banned.
 export function useZodForm<S extends z.ZodType<FieldValues>>(
   schema: S,

@@ -2,18 +2,18 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Give HMS's two boot secrets a production home in OpenBao, a way to be provisioned, and a gate that stops secrets entering source control — without adding any secret-store code to HMS.
+**Goal:** Give Helivanta's two boot secrets a production home in OpenBao, a way to be provisioned, and a gate that stops secrets entering source control — without adding any secret-store code to Helivanta.
 
-**Architecture:** ESO reads OpenBao as the `hms-api` ServiceAccount and projects a Kubernetes Secret; the deployment maps it to env; `config.Load` reads env exactly as today. HMS gains a key generator, a runbook, and a gitleaks gate. Nothing in HMS learns what a vault is.
+**Architecture:** ESO reads OpenBao as the `hms-api` ServiceAccount and projects a Kubernetes Secret; the deployment maps it to env; `config.Load` reads env exactly as today. Helivanta gains a key generator, a runbook, and a gitleaks gate. Nothing in Helivanta learns what a vault is.
 
 **Tech Stack:** Go 1.26, GitHub Actions, gitleaks, OpenBao (KV v2), External Secrets Operator, Zitadel v4.
 
 ## Global Constraints
 
 - **Spec:** `docs/superpowers/specs/2026-08-17-secrets-management-design.md`. Every decision reference below (D1–D7) is to that file.
-- **Two secrets, not three** (D1): `SESSION_SIGNING_KEY` and `ZITADEL_LOGIN_CLIENT_TOKEN`. `HMS_WEB_ORIGIN` is config and must NOT be put in OpenBao.
-- **No secret-store code in HMS** (D4): no vendor SDK, no `secrets` package, no resolution layer. Adding one fails this plan's intent even if tests pass.
-- **OpenBao paths** (D3), exactly: `kv/data/hms/api/session-signing-key`, `kv/data/hms/api/zitadel-login-client-token`. Policy `read-hms`. Role `app-hms_hms-api`. Namespace `hms`. ServiceAccount `hms-api`. No `{env}` segment.
+- **Two secrets, not three** (D1): `SESSION_SIGNING_KEY` and `ZITADEL_LOGIN_CLIENT_TOKEN`. `HELIVANTA_WEB_ORIGIN` is config and must NOT be put in OpenBao.
+- **No secret-store code in Helivanta** (D4): no vendor SDK, no `secrets` package, no resolution layer. Adding one fails this plan's intent even if tests pass.
+- **OpenBao paths** (D3), exactly: `kv/data/helivanta/api/session-signing-key`, `kv/data/helivanta/api/zitadel-login-client-token`. Policy `read-hms`. Role `app-hms_hms-api`. Namespace `hms`. ServiceAccount `hms-api`. No `{env}` segment.
 - **This slice adds no boot enforcement.** `config.SessionSigningKeySeed` and `config.RequireZitadelLoginClientToken` already refuse correctly and already have tests. Do not add duplicate coverage.
 - **Prove every assertion can fail** before trusting it, and check the mutation moves a value the assertion reads. A denial produced by a typo'd path is not evidence of a working policy.
 - **Commit messages:** single line, conventional commits, no signature, no `Co-Authored-By`.
@@ -49,7 +49,7 @@ Task 4 touches `tesserix-k8s` (separate repo) and the production cluster; it cre
 
 **Context the implementer needs.** A baseline scan was already run against this repo (2026-08-17, `zricethezav/gitleaks:latest`, 309 commits): **9 findings, all benign**, in two classes:
 
-1. The deliberately committed dev Ed25519 key `X5yoi73f6FRR8XH2ZfRBjanOZLm/bkae0QV7wGJRuf8=` — at `backend/internal/config/signingkey.go:22` and `Makefile:138` (and at historical line positions in older commits). It is committed on purpose; `SessionSigningKeySeed` refuses to honour it outside `HMS_ENV=dev`.
+1. The deliberately committed dev Ed25519 key `X5yoi73f6FRR8XH2ZfRBjanOZLm/bkae0QV7wGJRuf8=` — at `backend/internal/config/signingkey.go:22` and `Makefile:138` (and at historical line positions in older commits). It is committed on purpose; `SessionSigningKeySeed` refuses to honour it outside `HELIVANTA_ENV=dev`.
 2. PHI-redaction test fixtures flagged on entropy — repeating UUIDs like `11111111-1111-1111-1111-111111111111` and `ref_9876543210_x`, in `backend/pkg/logging/redact_test.go` and quoted in `docs/superpowers/plans/2026-08-13-structured-logging-phi-redaction.md`.
 
 **Allowlist by secret VALUE, never by file path.** A path allowlist on `Makefile` or `signingkey.go` would hide a real secret added to those files later. Scoping the exception to the known literal keeps every other secret in those same files caught. This is D5's whole point: an exception that is broad turns the gate into paperwork.
@@ -59,7 +59,7 @@ Task 4 touches `tesserix-k8s` (separate repo) and the production cluster; it cre
 Create `.gitleaks.toml`:
 
 ```toml
-# Secret scanning gate for HMS (#45, spec D5).
+# Secret scanning gate for Helivanta (#45, spec D5).
 #
 # Exceptions below are scoped to specific secret VALUES, never to file
 # paths. A path allowlist on Makefile or signingkey.go would exempt a
@@ -78,7 +78,7 @@ regexes = [
   # The dev Ed25519 seed, committed on purpose as
   # config.DevSessionSigningKey and mirrored in the Makefile's dev-api
   # target. It is not a leak: SessionSigningKeySeed REFUSES to honour it
-  # outside HMS_ENV=dev, so a production process cannot be tricked into
+  # outside HELIVANTA_ENV=dev, so a production process cannot be tricked into
   # signing with it. Removing it would not improve security and would
   # break every developer's stack.
   '''X5yoi73f6FRR8XH2ZfRBjanOZLm/bkae0QV7wGJRuf8=''',
@@ -148,7 +148,7 @@ In `.github/workflows/ci.yml`, add as a sibling of the existing `go`, `web` and 
           fetch-depth: 0
       # The container, NOT gitleaks/gitleaks-action@v2. That action
       # requires a paid GITLEAKS_LICENSE for ORGANISATION-owned repos,
-      # and tesserix/hms is private under the tesserix org — so the
+      # and tesserix/helivanta is private under the tesserix org — so the
       # action would fail on licensing, not on findings. This repo is
       # also on the GitHub Free plan with no org secrets, so a license
       # could not be supplied even if bought. Running the container
@@ -202,10 +202,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	// NOTE the module path: it is hms/internal/config, NOT
-	// hms/backend/internal/config — the go.mod lives in backend/ and the
+	// NOTE the module path: it is helivanta/internal/config, NOT
+	// helivanta/backend/internal/config — the go.mod lives in backend/ and the
 	// module is named without that segment. Match signingkey_test.go.
-	"github.com/tesserix/hms/internal/config"
+	"github.com/tesserix/helivanta/internal/config"
 )
 
 // The generator's output must be accepted by the REAL validator, not by
@@ -273,7 +273,7 @@ import (
 // debug a base64 length mismatch.
 //
 // crypto/rand only — never math/rand, and never a passphrase derivation.
-// This value is the entropy behind every HMS session; anything
+// This value is the entropy behind every Helivanta session; anything
 // predictable here is session forgery for every subject in every tenant.
 func GenerateSessionSigningKey() (string, error) {
 	seed := make([]byte, ed25519.SeedSize)
@@ -316,7 +316,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/tesserix/hms/internal/config"
+	"github.com/tesserix/helivanta/internal/config"
 )
 
 func main() {
@@ -384,30 +384,30 @@ git commit -m "feat: mint session signing keys in the format the validator accep
 
 Create `docs/runbooks/secrets.md`. It must contain, at minimum:
 
-**Inventory** — a table of the two secrets with, for each: the env var, the OpenBao path, what it authorises, and the blast radius if leaked. Plus an explicit row stating `HMS_WEB_ORIGIN` is **config, not a secret**, and belongs in the deployment env (D1) — recorded here because it refuses boot like a secret does and will otherwise be filed as one.
+**Inventory** — a table of the two secrets with, for each: the env var, the OpenBao path, what it authorises, and the blast radius if leaked. Plus an explicit row stating `HELIVANTA_WEB_ORIGIN` is **config, not a secret**, and belongs in the deployment env (D1) — recorded here because it refuses boot like a secret does and will otherwise be filed as one.
 
 **Delivery chain** (D4), verbatim:
 ```
 OpenBao → ESO (as the hms-api ServiceAccount) → k8s Secret → env → config.Load
 ```
-with the note that nothing after ESO knows what a vault is, and that switching stores is a `ClusterSecretStore` edit rather than an HMS change.
+with the note that nothing after ESO knows what a vault is, and that switching stores is a `ClusterSecretStore` edit rather than a Helivanta change.
 
 **Provisioning: SESSION_SIGNING_KEY**
 ```bash
 make secret-session-key            # prints the key, nothing else
-# then write it to kv/data/hms/api/session-signing-key (Task 4)
+# then write it to kv/data/helivanta/api/session-signing-key (Task 4)
 ```
 
-**Provisioning: ZITADEL_LOGIN_CLIENT_TOKEN** — steps to create an HMS-specific machine user with `IAM_LOGIN_CLIENT` on the production Zitadel and mint a PAT.
+**Provisioning: ZITADEL_LOGIN_CLIENT_TOKEN** — steps to create a Helivanta-specific machine user with `IAM_LOGIN_CLIENT` on the production Zitadel and mint a PAT.
 
 This section MUST carry D2's residual risk in the operator's own words:
 
 > The `IAM_LOGIN_CLIENT` role is **instance-level**. A holder can finalise an
 > OIDC auth request for any app on this Zitadel instance, including other
-> Tesserix products. HMS having its own machine user buys independent
+> Tesserix products. Helivanta having its own machine user buys independent
 > revocation, attribution, and independent rotation — it does **not** narrow
 > what the credential can do once read. Zitadel offers no narrower role.
-> Storing it under an HMS path bounds who can read it, not what it can do.
+> Storing it under a Helivanta path bounds who can read it, not what it can do.
 
 **Rotation** — state plainly that rotation currently requires a pod restart, because env is read once at boot (D4), and that this is accepted for boot secrets and not for the per-tenant credentials #45 also describes.
 
@@ -423,15 +423,15 @@ The naming convention in #45 (`hms-in/{env}/{scope}/{name}`) contradicts D3 and 
 
 ```bash
 gh issue comment 45 --body "$(cat <<'EOF'
-The naming convention in this issue's Recommended Solution (`hms-in/{env}/{scope}/{name}`) is superseded. It was written assuming GCP Secret Manager, where a name is a flat string. Under the OpenBao store the fleet actually runs, the leading path segment is what a policy grants on, so HMS follows the live fleet convention instead:
+The naming convention in this issue's Recommended Solution (`hms-in/{env}/{scope}/{name}`) is superseded. It was written assuming GCP Secret Manager, where a name is a flat string. Under the OpenBao store the fleet actually runs, the leading path segment is what a policy grants on, so Helivanta follows the live fleet convention instead:
 
 ```
-kv/data/hms/api/session-signing-key
-kv/data/hms/api/zitadel-login-client-token
-policy read-hms → kv/data/hms/*
+kv/data/helivanta/api/session-signing-key
+kv/data/helivanta/api/zitadel-login-client-token
+policy read-hms → kv/data/helivanta/*
 ```
 
-No `{env}` segment: environments are separated by cluster and namespace. See `docs/superpowers/specs/2026-08-17-secrets-management-design.md` D3 for the full reasoning, and D1 for why `HMS_WEB_ORIGIN` is config rather than a secret.
+No `{env}` segment: environments are separated by cluster and namespace. See `docs/superpowers/specs/2026-08-17-secrets-management-design.md` D3 for the full reasoning, and D1 for why `HELIVANTA_WEB_ORIGIN` is config rather than a secret.
 EOF
 )"
 ```
@@ -440,7 +440,7 @@ EOF
 
 ```bash
 git add docs/runbooks/secrets.md
-git commit -m "docs: secret inventory and provisioning runbook for HMS boot secrets (#45)"
+git commit -m "docs: secret inventory and provisioning runbook for Helivanta boot secrets (#45)"
 ```
 
 ---
@@ -455,8 +455,8 @@ git commit -m "docs: secret inventory and provisioning runbook for HMS boot secr
 
 > **ON HOLD as of 2026-08-17 — do not start.** The product was named
 > **Helivanta** and a full `hms` → `helivanta` rebrand was chosen
-> ([#863](https://github.com/tesserix/hms/issues/863)), which moves the very
-> paths this task would write to. Provisioning secrets at `kv/data/hms/api/*`
+> ([#863](https://github.com/tesserix/helivanta/issues/863)), which moves the very
+> paths this task would write to. Provisioning secrets at `kv/data/helivanta/api/*`
 > now would mean writing a credential at an address that is about to change,
 > for no gain — the assertions prove the same thing after the rename. The
 > namespace, ServiceAccount and SecretStore stay in place and empty. Resume
@@ -495,8 +495,8 @@ Open a pull request against `tesserix-k8s` adding to `charts/thirdparty/openbao/
 ```yaml
     - name: read-hms
       hcl: |
-        path "kv/data/hms/*"     { capabilities = ["read"] }
-        path "kv/metadata/hms/*" { capabilities = ["read", "list"] }
+        path "kv/data/helivanta/*"     { capabilities = ["read"] }
+        path "kv/metadata/helivanta/*" { capabilities = ["read", "list"] }
 ```
 under `bootstrap.policies`, and:
 ```yaml
@@ -519,13 +519,13 @@ Per that file's own comment, a new namespace also needs a `destinations` entry i
 
 - [ ] **Step 4: Write the two secret values**
 
-Generate the signing key with `make secret-session-key` and mint the Zitadel PAT per the runbook, then write both to `kv/data/hms/api/session-signing-key` and `kv/data/hms/api/zitadel-login-client-token`.
+Generate the signing key with `make secret-session-key` and mint the Zitadel PAT per the runbook, then write both to `kv/data/helivanta/api/session-signing-key` and `kv/data/helivanta/api/zitadel-login-client-token`.
 
 Neither value may be echoed into a shell history, a log, or this session's transcript. Pipe them; do not print them.
 
-- [ ] **Step 5: Assertion 1 — a read under HMS's grant succeeds**
+- [ ] **Step 5: Assertion 1 — a read under Helivanta's grant succeeds**
 
-Authenticate as the `hms-api` ServiceAccount and read `kv/data/hms/api/session-signing-key`.
+Authenticate as the `hms-api` ServiceAccount and read `kv/data/helivanta/api/session-signing-key`.
 Expected: the value is returned.
 
 - [ ] **Step 6: Assertion 2 — a cross-namespace read is denied, and the denial is real**
@@ -537,7 +537,7 @@ Expected: **permission denied**.
 
 Then prove the denial is the policy's doing and not an artefact:
 1. Confirm the same path **is** readable under a grant that legitimately has it — otherwise a typo'd path produces an identical-looking denial.
-2. Confirm the read succeeds under HMS's own prefix (Step 5 already shows this), so the credential itself is working.
+2. Confirm the read succeeds under Helivanta's own prefix (Step 5 already shows this), so the credential itself is working.
 
 Only both together establish that the policy is what refused. Record which of the two checks was run; if either was skipped, say so rather than claiming the assertion passed.
 
@@ -555,7 +555,7 @@ Write the three assertion outcomes into `docs/runbooks/secrets.md` under a "Veri
 
 ```bash
 git add docs/runbooks/secrets.md
-git commit -m "docs: record verified OpenBao grant scoping for HMS boot secrets (#45)"
+git commit -m "docs: record verified OpenBao grant scoping for Helivanta boot secrets (#45)"
 ```
 
 ---

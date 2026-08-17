@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/bootstrap"
-	"github.com/tesserix/hms/internal/config"
-	"github.com/tesserix/hms/pkg/ratelimit"
+	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/pkg/ratelimit"
 )
 
 // TestLoginRateLimitRuleMatchesDesign pins #841's Burst=10 (fixed, not

@@ -51,7 +51,7 @@ func countingZitadelWithFactors(t *testing.T, policyJSON, authMethodTypesJSON st
 }
 
 // THE test this whole spec exists for. Zitadel will happily finalize a
-// password-only session under forceMfa (spike §2) — HMS must not ask it to.
+// password-only session under forceMfa (spike §2) — Helivanta must not ask it to.
 func TestCompleteIfSufficientDoesNotFinalizeWhenForceMFA(t *testing.T) {
 	var finalized atomic.Bool
 	// passwordCheckLifetime is the anchor LoginPolicy's doc comment
@@ -123,7 +123,7 @@ func TestCompleteIfSufficientHandsOffWhenPolicyShapeIsUnrecognised(t *testing.T)
 				t.Fatalf("CompleteIfSufficient() error = %v, want a handoff not an error", err)
 			}
 			if finalized.Load() {
-				t.Fatal("finalize was called for a policy body HMS could not understand: a 200 that did not say 'MFA off' was read as if it had")
+				t.Fatal("finalize was called for a policy body Helivanta could not understand: a 200 that did not say 'MFA off' was read as if it had")
 			}
 			if got.Outcome != OutcomeHandoff {
 				t.Errorf("Outcome = %v, want OutcomeHandoff", got.Outcome)

@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/internal/testinfra"
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testinfra"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 // orphanRoleTuple is a membership tuple no iam_members row backs — the

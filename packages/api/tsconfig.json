@@ -1,5 +1,5 @@
 {
-  "extends": "@hms/config/tsconfig.base.json",
+  "extends": "@helivanta/config/tsconfig.base.json",
   "compilerOptions": {
     "jsx": "preserve",
     "noEmit": true,

@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/testinfra"
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/internal/testinfra"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 // TestMembershipIsDerivedFromRoleAssignment is the model-shape test for

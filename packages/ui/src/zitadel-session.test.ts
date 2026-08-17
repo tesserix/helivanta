@@ -35,7 +35,7 @@ describe("endZitadelSession", () => {
     UserManagerMock.mockClear();
     window.sessionStorage.clear();
     process.env.NEXT_PUBLIC_ZITADEL_ISSUER_URL = "https://issuer.example";
-    process.env.NEXT_PUBLIC_ZITADEL_CLIENT_ID = "hms-web";
+    process.env.NEXT_PUBLIC_ZITADEL_CLIENT_ID = "helivanta-web";
     vi.stubGlobal("location", { ...window.location, href: "" });
   });
 

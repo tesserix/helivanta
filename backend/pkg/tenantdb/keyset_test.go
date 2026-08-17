@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/pagination"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // keysetMigrations creates a scratch table under the SAME forced-RLS

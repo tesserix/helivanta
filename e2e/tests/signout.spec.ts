@@ -12,7 +12,7 @@ const ZITADEL_ORIGIN = "http://localhost:20080";
 // session alive (originally Firebase's IndexedDB store; now
 // oidc-client-ts's sessionStorage entry, apps/shell/lib/oidc.ts). A
 // stored id_token surviving sign-out could be replayed straight into
-// POST /v1/auth/login and rebuild a working `hms_session` cookie — on a
+// POST /v1/auth/login and rebuild a working `helivanta_session` cookie — on a
 // shared ward terminal, the previous user's session was recoverable
 // after they "logged out".
 //
@@ -39,19 +39,19 @@ test("a signed-out session cannot be reconstructed from the browser", async ({ p
   // server-side, not just that a click fired.
   await expect(page.getByRole("heading", { name: "Departments" })).not.toBeVisible();
 
-  // Sign-out ends: HMS dashboard -> Zitadel's end_session endpoint ->
+  // Sign-out ends: Helivanta dashboard -> Zitadel's end_session endpoint ->
   // back to /login, which is the registered post_logout_redirect_uri.
   //
   // Since #847 the chain STOPS there. /login is a landing page with a
   // Sign in button, not an automatic redirect — firing an authorization
   // request on arrival raced Zitadel's session teardown, after which a
   // DIFFERENT user could not sign in at all ("User not found in the
-  // system"). So the assertion is that we settle on HMS's own /login,
+  // system"). So the assertion is that we settle on Helivanta's own /login,
   // signed out, rather than being carried onward to Zitadel.
   await page.waitForURL(/localhost:4301\/login/, { timeout: 15_000 });
   await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
 
-  // Sign-out must end ZITADEL's SSO session, not merely HMS's own — or the
+  // Sign-out must end ZITADEL's SSO session, not merely Helivanta's own — or the
   // next person at a shared ward terminal is signed in silently as the
   // previous clinician. That defect was real and was fixed during #838
   // (packages/ui/src/zitadel-session.ts), so it needs an assertion that
@@ -96,7 +96,7 @@ test("a signed-out session cannot be reconstructed from the browser", async ({ p
   // plain script with no bundler, so a bare specifier import has nothing
   // to resolve against. `window.__hmsUserManager` (apps/shell/lib/oidc.ts,
   // dev/test builds only) hands back the exact UserManager instance the
-  // app itself uses — but only on an HMS page, and the browser is
+  // app itself uses — but only on a Helivanta page, and the browser is
   // currently on Zitadel's origin (the wait above), so this navigates
   // back to `/api/auth/callback` with NO `code`/`state` query params: the
   // one shell route that constructs a UserManager (setting

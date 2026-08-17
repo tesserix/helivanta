@@ -1,9 +1,9 @@
 ---
 name: hms-backend
-description: Use when writing or modifying any HMS backend Go code (backend/**) — loads the binding standards, reference implementations, and enforcement gates.
+description: Use when writing or modifying any Helivanta backend Go code (backend/**) — loads the binding standards, reference implementations, and enforcement gates.
 ---
 
-# HMS backend standards
+# Helivanta backend standards
 
 Read `docs/standards/backend.md` for the full rules. Quick table:
 

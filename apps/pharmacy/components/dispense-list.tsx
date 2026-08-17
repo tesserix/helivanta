@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { Badge, Button, Input } from "@tesserix/web";
 import { Pill } from "lucide-react";
-import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@hms/api";
-import { EmptyState, LoadMore, formatTime } from "@hms/ui";
+import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
+import { EmptyState, LoadMore, formatTime } from "@helivanta/ui";
 
 type Dispense = {
   id: string;

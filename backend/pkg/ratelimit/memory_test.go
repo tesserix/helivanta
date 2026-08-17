@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/ratelimit"
+	"github.com/tesserix/helivanta/pkg/ratelimit"
 )
 
 var defaultRule = ratelimit.Rule{Rate: 120, Burst: 20, Per: time.Minute}

@@ -13,7 +13,7 @@ import (
 // buys nothing: it is committed to source control and every developer
 // and CI runner shares it, so a session it mints can be forged by
 // anyone who has cloned this repo. That is fine ONLY because
-// SessionSigningKeySeed refuses to honor it outside HMS_ENV=dev — see
+// SessionSigningKeySeed refuses to honor it outside HELIVANTA_ENV=dev — see
 // the guard there, which mirrors the emulator-host guard the GIP
 // verifier carried before #838 deleted it, for the same
 // reason: a control that is silently unlockable by an env var needs a
@@ -27,15 +27,15 @@ const DevSessionSigningKey = "X5yoi73f6FRR8XH2ZfRBjanOZLm/bkae0QV7wGJRuf8="
 var ErrNoSessionSigningKey = errors.New("config: SESSION_SIGNING_KEY is not set")
 
 // ErrDevSessionSigningKeyOutsideDev is returned when the well-known dev
-// key (DevSessionSigningKey) is configured outside HMS_ENV=dev.
-var ErrDevSessionSigningKeyOutsideDev = errors.New("config: SESSION_SIGNING_KEY is the well-known dev key outside HMS_ENV=dev")
+// key (DevSessionSigningKey) is configured outside HELIVANTA_ENV=dev.
+var ErrDevSessionSigningKeyOutsideDev = errors.New("config: SESSION_SIGNING_KEY is the well-known dev key outside HELIVANTA_ENV=dev")
 
 // ErrMalformedSessionSigningKey is returned when SESSION_SIGNING_KEY is
 // set but is not valid base64, or does not decode to exactly a
 // 32-byte Ed25519 seed.
 var ErrMalformedSessionSigningKey = errors.New("config: SESSION_SIGNING_KEY is not a valid ed25519 seed")
 
-// SessionSigningKeySeed decodes and validates the Ed25519 seed HMS
+// SessionSigningKeySeed decodes and validates the Ed25519 seed Helivanta
 // signs and verifies its own session tokens with (spec D5, plan Task 2).
 //
 // # Why this refuses rather than falls back to anything
@@ -113,7 +113,7 @@ func (c Config) SessionSigningKeySeed() ([]byte, error) {
 			"%w: SESSION_SIGNING_KEY is set to the well-known dev key committed to "+
 				"this repository, which means anyone who has cloned it can mint a "+
 				"session for any subject in any tenant; unset it and provision a "+
-				"real key, or set HMS_ENV=dev if this really is a developer machine",
+				"real key, or set HELIVANTA_ENV=dev if this really is a developer machine",
 			ErrDevSessionSigningKeyOutsideDev,
 		)
 	}

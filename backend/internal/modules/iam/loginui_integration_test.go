@@ -19,10 +19,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/bootstrap"
-	"github.com/tesserix/hms/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
-	"github.com/tesserix/hms/internal/modules/iam/loginclient"
-	"github.com/tesserix/hms/pkg/ratelimit"
+	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
+	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
+	"github.com/tesserix/helivanta/pkg/ratelimit"
 )
 
 // This file proves iam.LoginUIHandlers end to end against the REAL local
@@ -89,7 +89,7 @@ func skipUnlessDevStackIsUp(t *testing.T) integrationEnv {
 		issuer:      issuer,
 		clientID:    clientID,
 		token:       token,
-		redirectURI: getenvOrDefault("HMS_DEV_REDIRECT_URI", "http://localhost:4301/api/auth/callback"),
+		redirectURI: getenvOrDefault("HELIVANTA_DEV_REDIRECT_URI", "http://localhost:4301/api/auth/callback"),
 	}
 }
 
@@ -100,8 +100,8 @@ type integrationEnv struct {
 	redirectURI string
 }
 
-// skipUnlessSeedPATIsAvailable resolves the hms-seed-bot IAM_OWNER PAT
-// (dev/zitadel/secrets/hms-seed.pat, same file scripts/lib/zitadel.mjs's
+// skipUnlessSeedPATIsAvailable resolves the helivanta-seed-bot IAM_OWNER PAT
+// (dev/zitadel/secrets/helivanta-seed.pat, same file scripts/lib/zitadel.mjs's
 // readMachinePAT reads) — the credential org-level policy ADMINISTRATION
 // calls need. This is deliberately a SEPARATE credential from
 // integrationEnv.token: the login-client PAT can READ the login policy
@@ -122,10 +122,10 @@ func skipUnlessSeedPATIsAvailable(t *testing.T) string {
 	t.Helper()
 	token := os.Getenv("ZITADEL_SEED_TOKEN")
 	if token == "" {
-		token = readFileTrimmed(t, "hms-seed.pat")
+		token = readFileTrimmed(t, "helivanta-seed.pat")
 	}
 	if token == "" {
-		t.Skip("dev/zitadel/secrets/hms-seed.pat not found and ZITADEL_SEED_TOKEN unset — " +
+		t.Skip("dev/zitadel/secrets/helivanta-seed.pat not found and ZITADEL_SEED_TOKEN unset — " +
 			"run `make dev-infra` to provision the local stack before running this test")
 	}
 	return token
@@ -196,7 +196,7 @@ func b64url(b []byte) string {
 // the browser's own eventual GET /oauth/v2/token code exchange — the
 // callback_url Password returns already contains a fresh code and state
 // (asserted below), and completing THAT exchange too would be testing
-// Zitadel's OIDC token endpoint, not HMS's login-client wiring.
+// Zitadel's OIDC token endpoint, not Helivanta's login-client wiring.
 func newAuthRequest(t *testing.T, env integrationEnv) string {
 	t.Helper()
 
@@ -310,17 +310,17 @@ func postPasswordReal(t *testing.T, r *gin.Engine, authRequestID, loginName, pas
 }
 
 // devSeededEmail/devSeededPassword are the account
-// docs/superpowers/plans/2026-08-16-hms-login-client.md and this task's
+// docs/superpowers/plans/2026-08-16-helivanta-login-client.md and this task's
 // own brief name as already seeded into the local dev stack
 // (scripts/seed-dev.mjs) — this test does not seed it itself.
 const (
-	devSeededEmail    = "test@hms.dev"
+	devSeededEmail    = "test@helivanta.dev"
 	devSeededPassword = "HmsDev123!"
 )
 
 // TestIntegration_PasswordSuccess_ReturnsCallbackURLWithCodeAndState is
 // step 1-3 of this task's brief: create a real auth request, check the
-// real seeded credential against it through HMS's own handler, and
+// real seeded credential against it through Helivanta's own handler, and
 // assert the resulting callback_url is a genuine, freshly-minted
 // authorization response — not just that SOME string came back. Shares
 // its assertion body with assertLoginSucceeds (used again by the
@@ -378,7 +378,7 @@ func TestIntegration_PasswordFailures_WrongPasswordAndUnknownUserAreByteIdentica
 
 	unknownStart := time.Now()
 	unknown := postPasswordReal(t, r, authRequestID,
-		fmt.Sprintf("nobody-%d@hms.dev", time.Now().UnixNano()), "irrelevant")
+		fmt.Sprintf("nobody-%d@helivanta.dev", time.Now().UnixNano()), "irrelevant")
 	unknownElapsed := time.Since(unknownStart)
 
 	// Asserting the two are merely EQUAL to each other is not enough — two
@@ -623,7 +623,7 @@ func TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting(t *testing.T) {
 // Zitadel login-policy field the unit tests now cover with fixtures, but
 // — for the exact same reason TestIntegration_ForceMFAPolicy_... exists
 // alongside the forceMfa unit fixtures — only a live read through the
-// real decode path can prove HMS actually treats a genuinely-configured
+// real decode path can prove Helivanta actually treats a genuinely-configured
 // forceMfaLocalOnly:true org as requiring MFA, not just that a
 // hand-written fixture says it should. See loginclient.LoginPolicy's
 // "forceMfaLocalOnly — a second, REAL field" doc comment for the
@@ -670,7 +670,7 @@ const importUserPath = "/management/v1/users/human/_import"
 // practice, not just this file's.
 func createImportedUser(t *testing.T, env integrationEnv, seedToken string) (userID, loginName string) {
 	t.Helper()
-	loginName = fmt.Sprintf("task8-test-%d@hms.dev", time.Now().UnixNano())
+	loginName = fmt.Sprintf("task8-test-%d@helivanta.dev", time.Now().UnixNano())
 	resp := managementAPICall(t, env, seedToken, http.MethodPost, importUserPath, map[string]any{
 		"userName": loginName,
 		"profile":  map[string]any{"firstName": "Task8", "lastName": "IntegrationTest"},

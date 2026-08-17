@@ -7,8 +7,8 @@ import (
 	fgaclient "github.com/openfga/go-sdk/client"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/testinfra"
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/internal/testinfra"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 const (

@@ -1,17 +1,17 @@
 # Idle timeout: a walked-away ward terminal must stop being signed in
 
-**Issue:** [#848](https://github.com/tesserix/hms/issues/848)
+**Issue:** [#848](https://github.com/tesserix/helivanta/issues/848)
 **Builds on:** `2026-08-15-zitadel-auth-design.md` (D2 session claims, D4a renewal),
-`2026-08-16-hms-login-client-design.md` (#854 — HMS now owns the login page)
+`2026-08-16-hms-login-client-design.md` (#854 — Helivanta now owns the login page)
 
 A clinician is called away mid-shift and does not sign out. The next person at
-the terminal is simply *in*, as them. Nothing today prevents it: the HMS session
+the terminal is simply *in*, as them. Nothing today prevents it: the Helivanta session
 cookie is still valid, so `/login` is never reached and no `prompt` value can
 intervene. #847 fixed the explicit sign-in paths and cannot cover this.
 
 The cost is not inconvenience. Every action is attributed to whoever the session
 says they are, so an inherited session puts the wrong name on clinical actions —
-and **[#54](https://github.com/tesserix/hms/issues/54)'s audit trail is only
+and **[#54](https://github.com/tesserix/helivanta/issues/54)'s audit trail is only
 trustworthy if this lands first.** In an accreditation review that is an
 access-control finding; in a patient-safety investigation it makes the record
 actively misleading rather than merely incomplete.
@@ -35,14 +35,14 @@ the two are independent clocks and D3 depends on them staying independent.
 
 ## D2 — Two clocks, and the browser may only move one of them
 
-There are now two independent expiries on an HMS session:
+There are now two independent expiries on a Helivanta session:
 
 | Clock | Meaning | Moved by |
 |---|---|---|
 | `exp` | this token's own lifetime (15m) | silent renewal, every 5m (D4a) |
 | `idle_deadline` | last human interaction + 15m | **only** an explicit activity call |
 
-`idle_deadline` is a new claim in the HMS session token, carried like `auth_time`
+`idle_deadline` is a new claim in the Helivanta session token, carried like `auth_time`
 is: **set once, carried forward across every re-mint, never quietly reset to
 `now`.** `authn.Middleware` refuses a token past its `idle_deadline` exactly as
 it already refuses one past `exp` or behind the #781 revocation watermark.
@@ -65,7 +65,7 @@ mouse.
 wrong, because everything looks like it works when it is broken.**
 
 D4a's renewal runs every 5 minutes against Zitadel to re-establish that the
-account is still good. It re-mints the HMS session. If that re-mint set
+account is still good. It re-mints the Helivanta session. If that re-mint set
 `idle_deadline = now + 15m`, an untouched tab would renew itself forever and the
 timeout would never fire — while the feature appeared to be implemented.
 
@@ -98,7 +98,7 @@ accepts a past deadline. Someone genuinely signing back in after a timeout is
 covered by the `auth_time` case, on the strength of the new authentication
 rather than the absence of a cookie.
 
-**Not covered — [#859](https://github.com/tesserix/hms/issues/859):** a cookie
+**Not covered — [#859](https://github.com/tesserix/helivanta/issues/859):** a cookie
 whose `exp` has lapsed (a machine that stopped renewing for longer than
 `SESSION_TTL` and was later woken) fails verification outright, so the deadline
 cannot be read and the request takes the fresh-window branch — a fresh window
@@ -140,7 +140,7 @@ clinician.
 `httpOnly` and carries nothing the client can read. That is how the browser knows
 when to warn (D5).
 
-**Tabs share one timer.** Every HMS app is served from one origin, so interaction
+**Tabs share one timer.** Every Helivanta app is served from one origin, so interaction
 is broadcast over a `BroadcastChannel`; a clinician reading in one tab keeps
 their other tabs alive, and only one activity call is made for all of them. Where
 `BroadcastChannel` is unavailable, each tab falls back to its own timer — more
@@ -163,7 +163,7 @@ have extended the session, in which case the modal must not appear at all.
 
 On expiry the client tears down **this browser's** session:
 
-1. clear the HMS session (the existing `/logout` route's cookie clearing), and
+1. clear the Helivanta session (the existing `/logout` route's cookie clearing), and
 2. end the Zitadel SSO session for this browser (`endZitadelSession`).
 
 Then land on `/login` with wording that says the session ended because of
@@ -184,12 +184,12 @@ instance-wide, so this also signs that browser out of other Tesserix products. O
 a ward terminal that is desirable.
 
 **This got cheaper with #854.** Re-authentication after a timeout now lands on
-HMS's own login form rather than a redirect to a hosted page, so "your session
+Helivanta's own login form rather than a redirect to a hosted page, so "your session
 ended, sign in again" is one page we control.
 
 ## D7 — Every app, not just the shell
 
-Interaction tracking and the warning modal live in **`@hms/ui`**, so
+Interaction tracking and the warning modal live in **`@helivanta/ui`**, so
 `apps/medicore`, `apps/pharmacy` and `apps/lab` get them by rendering `HmsShell`.
 
 This is not optional polish. A clinician working inside `/medicore` for twenty
@@ -199,7 +199,7 @@ appearing to implement it. `endZitadelSession` learned this exact lesson the har
 way: sign-out was shell-only, and the majority path (signing out from a zone
 page) silently did the wrong thing.
 
-The activity endpoint is HMS-only and needs no Zitadel client config, so unlike
+The activity endpoint is Helivanta-only and needs no Zitadel client config, so unlike
 renewal there is no reason for it to stay central.
 
 ---

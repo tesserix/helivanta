@@ -6,7 +6,7 @@ import (
 	"log/slog"
 )
 
-// Outcome says what HMS may do with a session it has just established: it
+// Outcome says what Helivanta may do with a session it has just established: it
 // is the ONLY thing that decides whether the OIDC auth request gets
 // finalized. It exists as a type rather than a bool so that a third answer
 // (e.g. "prompt for a second factor here", once #41 lands) is an added
@@ -22,7 +22,7 @@ const (
 	// would cost an MFA bypass, and per spec D4 that asymmetry decides
 	// which value gets to be zero.
 	OutcomeHandoff Outcome = iota
-	// OutcomeComplete means the session satisfied everything HMS knows how
+	// OutcomeComplete means the session satisfied everything Helivanta knows how
 	// to check and the auth request was finalized; CallbackURL is set.
 	OutcomeComplete
 )
@@ -46,7 +46,7 @@ func (o Outcome) String() string {
 // and only if Outcome is OutcomeComplete; on a handoff it is empty,
 // because there is deliberately nothing for the caller to redirect to —
 // the caller must send the browser to Zitadel's own login UI to collect
-// the factors HMS cannot.
+// the factors Helivanta cannot.
 type Result struct {
 	Outcome     Outcome
 	CallbackURL string
@@ -60,7 +60,7 @@ type Result struct {
 // Zitadel, for a login client, issues an authorization code for a
 // password-only session even when the org policy sets forceMfa — it
 // neither refuses nor signals a missing factor. So the sufficiency
-// decision is HMS's, and a version of it that anyone could bypass by
+// decision is Helivanta's, and a version of it that anyone could bypass by
 // calling the finalize endpoint directly would not be a control at all:
 // the failure is completely silent, every user's login still appears to
 // work while skipping a required factor.
@@ -87,7 +87,7 @@ type Result struct {
 //     produces a session create (POST /v2/sessions) and a finalize
 //     (POST /v2/oidc/auth_requests/{id}) that are BYTE-IDENTICAL in
 //     shape to a normal user's: no field on either response says the
-//     password must change. HMS's own POST /v1/auth/login/password
+//     password must change. Helivanta's own POST /v1/auth/login/password
 //     against this user returned 200 with a valid callback_url — the
 //     same as any other successful login. Zitadel does not signal this
 //     case to a login client at all, so there is nothing in this
@@ -95,12 +95,12 @@ type Result struct {
 //     #856, rather than fixed here: closing it needs
 //     either a users/{id} read before finalize (an extra round trip on
 //     every login) or Zitadel exposing the flag on the session/finalize
-//     response, which is outside HMS's control. Documented rather than
+//     response, which is outside Helivanta's control. Documented rather than
 //     silently accepted.
 //
 //  2. THE POLICY IS READ UNSCOPED. GET /management/v1/policies/login
 //     resolves against the login client PAT's own resource owner, because
-//     the request carries no x-zitadel-orgid header. HMS runs a single
+//     the request carries no x-zitadel-orgid header. Helivanta runs a single
 //     org today, so the policy read and the authenticating user are
 //     necessarily the same org. In a multi-org instance they would not
 //     be: a user in org B would be judged by org A's policy, and org B's
@@ -115,7 +115,7 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 	policy, err := c.LoginPolicy(ctx)
 	if err != nil {
 		// Deliberately not returned as an error: an unreadable policy is
-		// not a failed login, it is a login HMS is not qualified to
+		// not a failed login, it is a login Helivanta is not qualified to
 		// complete, and handing off lets Zitadel's own UI finish the flow.
 		// But it must not be silent either — a Zitadel whose policy
 		// endpoint is broken would otherwise send every user through an
@@ -130,7 +130,7 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 	if policy.ForceMFA {
 		// The session this package can build is password-only
 		// (CreatePasswordSession is its only session constructor), so
-		// under forceMfa it is by construction insufficient. When HMS
+		// under forceMfa it is by construction insufficient. When Helivanta
 		// learns to collect a second factor (#41), this is the branch that
 		// grows a "session already carries an MFA factor" case — it must
 		// not become a reason to delete the check.
@@ -140,7 +140,7 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 	// The org may not force MFA, but an individual user can still have
 	// VOLUNTARILY enrolled a second factor (spike "Per-user enrolled
 	// factors" §, #854 Task 8). A password-only session bypasses that
-	// factor unless HMS checks for it here — the org policy alone is not
+	// factor unless Helivanta checks for it here — the org policy alone is not
 	// the whole story. Fails closed the same way the policy read above
 	// does: an error from HasEnrolledFactor means "cannot prove this
 	// session is sufficient", not "no factor found", so it hands off

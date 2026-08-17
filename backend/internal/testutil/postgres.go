@@ -3,7 +3,7 @@ package testutil
 import (
 	"testing"
 
-	"github.com/tesserix/hms/internal/testinfra"
+	"github.com/tesserix/helivanta/internal/testinfra"
 )
 
 // StartPostgres boots postgres:16, creates the non-BYPASSRLS app role,

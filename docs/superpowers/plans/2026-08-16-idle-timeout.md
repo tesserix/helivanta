@@ -4,9 +4,9 @@
 
 **Goal:** A session with no human interaction for 15 minutes stops being usable, and the terminal returns to sign-in.
 
-**Architecture:** The HMS session token gains an `idle_deadline` claim, enforced server-side by `authn.Middleware`. It is set at genuine login, carried forward unchanged by every re-mint (renewal, tenant switch), and moved **only** by an explicit activity call the browser makes on real interaction. Interaction tracking and the warning modal live in `@hms/ui` so every zone app inherits them.
+**Architecture:** The Helivanta session token gains an `idle_deadline` claim, enforced server-side by `authn.Middleware`. It is set at genuine login, carried forward unchanged by every re-mint (renewal, tenant switch), and moved **only** by an explicit activity call the browser makes on real interaction. Interaction tracking and the warning modal live in `@helivanta/ui` so every zone app inherits them.
 
-**Tech Stack:** Go 1.26 + Gin, `golang-jwt/v5`, Ed25519 session tokens, Next.js 16 + React 19, `@hms/ui`, `@hms/api`, Vitest, Playwright.
+**Tech Stack:** Go 1.26 + Gin, `golang-jwt/v5`, Ed25519 session tokens, Next.js 16 + React 19, `@helivanta/ui`, `@helivanta/api`, Vitest, Playwright.
 
 **Spec:** `docs/superpowers/specs/2026-08-16-idle-timeout-design.md`
 **Issue:** #848
@@ -20,8 +20,8 @@
 - **`Mint` takes the deadline as an explicit parameter with no default** — a caller must state what it is doing. This is the structural enforcement of D3.
 - Interaction = `pointerdown`, `keydown`, real scroll. **Mouse movement alone does not count.**
 - A failed activity call must **never** sign a user out. The server-side deadline is the backstop.
-- Teardown on expiry is **this browser only**: clear the HMS session and end the Zitadel SSO session. **Never** subject-wide revocation (that is sign-out's semantics, #781).
-- New/changed panel components need a Vitest test using `renderWithProviders` from `@hms/api/testing`.
+- Teardown on expiry is **this browser only**: clear the Helivanta session and end the Zitadel SSO session. **Never** subject-wide revocation (that is sign-out's semantics, #781).
+- New/changed panel components need a Vitest test using `renderWithProviders` from `@helivanta/api/testing`.
 - `respond.*` helpers for every response; slog via `requestid.Logger(c)`; logrus banned; errors wrapped `%w`.
 - Every new route declares a permission via `*platform.Router`, or is added to `bootstrap.UnauthenticatedRoutes` with a reason.
 - Before done: `cd backend && go test -race ./...` green, `./scripts/coverage-gate.sh` exit 0, `make lint-go` clean, `pnpm turbo lint type-check test build` green.
@@ -127,7 +127,7 @@ Make `Verify` default an absent claim to `time.Now().Add(time.Hour)` instead of 
 
 ```bash
 git add backend/pkg/session/
-git commit -m "feat: HMS session tokens carry an idle deadline (#848)"
+git commit -m "feat: Helivanta session tokens carry an idle deadline (#848)"
 ```
 
 ---
@@ -234,7 +234,7 @@ assertion to make it compile.
 - Modify: `backend/internal/config/config.go` (`IdleTimeout`)
 - Test: `backend/internal/modules/iam/login_test.go`, `me_test.go`
 
-**The crux, which the implementer must understand before writing code:** renewal (spec D4a) is `POST /v1/auth/login` run again with a fresh Zitadel token — the *same handler* as a first login. So the handler cannot tell them apart by route. The discriminator is **the caller's existing HMS session cookie**:
+**The crux, which the implementer must understand before writing code:** renewal (spec D4a) is `POST /v1/auth/login` run again with a fresh Zitadel token — the *same handler* as a first login. So the handler cannot tell them apart by route. The discriminator is **the caller's existing Helivanta session cookie**:
 
 - A valid, non-idle-expired session cookie on the request ⇒ this is a re-mint (renewal). **Carry its `idle_deadline` forward unchanged.**
 - No cookie, or one that fails verification ⇒ a genuine new login. **Set `idle_deadline = now + IdleTimeout`.**
@@ -405,7 +405,7 @@ git commit -m "feat: an activity endpoint that extends the idle deadline (#848)"
 
 ---
 
-### Task 5: Interaction tracking in `@hms/ui`
+### Task 5: Interaction tracking in `@helivanta/ui`
 
 **Files:**
 - Create: `packages/ui/src/idle-timer.ts` (framework-free timer + broadcast logic)
@@ -471,7 +471,7 @@ it("a later deadline from another tab cancels a pending warning", () => {
 - [ ] **Step 2: Run and watch them fail**
 
 ```bash
-pnpm --filter @hms/ui test -- idle-timer
+pnpm --filter @helivanta/ui test -- idle-timer
 ```
 
 - [ ] **Step 3: Implement**
@@ -488,7 +488,7 @@ Remove the debounce. The burst test must FAIL with 50 calls. Restore.
 
 ```bash
 git add packages/ui/
-git commit -m "feat: shared idle interaction tracking for every HMS app (#848)"
+git commit -m "feat: shared idle interaction tracking for every Helivanta app (#848)"
 ```
 
 ---
@@ -559,7 +559,7 @@ it("says the session ended through inactivity, not that the user signed out", as
 
 - [ ] **Step 3: Implement**
 
-`onExpire` clears the HMS session (`POST /logout`) and then calls `endZitadelSession()`, setting `IDLE_ENDED_MARK` first — mirroring how `SIGNED_OUT_MARK` is set before `signoutRedirect()` navigates away. `/login` now distinguishes three states: idle-ended, signed out, and neither. Do not collapse them; #850 exists because claiming someone signed out when they did not is untrue, and this is the same class of lie.
+`onExpire` clears the Helivanta session (`POST /logout`) and then calls `endZitadelSession()`, setting `IDLE_ENDED_MARK` first — mirroring how `SIGNED_OUT_MARK` is set before `signoutRedirect()` navigates away. `/login` now distinguishes three states: idle-ended, signed out, and neither. Do not collapse them; #850 exists because claiming someone signed out when they did not is untrue, and this is the same class of lie.
 
 - [ ] **Step 4: Run and watch it pass**
 
@@ -588,7 +588,7 @@ important rule.
 - Test: `apps/shell/lib/auth-exchange.test.ts`
 
 **The problem.** The backend distinguishes a renewal from a genuine login by
-whether the request carries the HMS session cookie (spec D3). Task 5 verified
+whether the request carries the Helivanta session cookie (spec D3). Task 5 verified
 that it does today — `exchangeIdToken` calls `fetch("/api/v1/auth/login", …)`
 with a relative same-origin URL, and fetch's default credentials mode is
 `same-origin`, so the cookie is sent.
@@ -693,7 +693,7 @@ Expected: phase one reports 11 passed, phase two reports 1 passed (12 total, in 
 
 - [ ] **Step 4: Document**
 
-Add to `docs/standards/backend.md`: `idle_deadline` is carried forward by every re-mint and moved only by the activity endpoint, and `Mint` takes it explicitly so a caller must state its intent. Add to `docs/standards/frontend.md`: interaction tracking lives in `@hms/ui` so every zone app inherits it, and a failed activity call must never sign a user out.
+Add to `docs/standards/backend.md`: `idle_deadline` is carried forward by every re-mint and moved only by the activity endpoint, and `Mint` takes it explicitly so a caller must state its intent. Add to `docs/standards/frontend.md`: interaction tracking lives in `@helivanta/ui` so every zone app inherits it, and a failed activity call must never sign a user out.
 
 - [ ] **Step 5: Commit and open the PR**
 
@@ -709,7 +709,7 @@ PR body: what shipped, that renewal deliberately does not count as activity, tha
 
 ## Self-Review
 
-**Spec coverage:** D1 → Task 3 (config constant). D2 → Tasks 1, 2. D3 → Task 3, with a mandatory proven-failing test. D4 → Tasks 4, 5. D5 → Tasks 5, 6. D6 → Task 7. D7 → Tasks 5, 6 (both land in `@hms/ui`). Errors-and-failure section → Task 5 (failed call does not sign out) and Task 4 (401 handling). Testing section → Tasks 1–8.
+**Spec coverage:** D1 → Task 3 (config constant). D2 → Tasks 1, 2. D3 → Task 3, with a mandatory proven-failing test. D4 → Tasks 4, 5. D5 → Tasks 5, 6. D6 → Task 7. D7 → Tasks 5, 6 (both land in `@helivanta/ui`). Errors-and-failure section → Task 5 (failed call does not sign out) and Task 4 (401 handling). Testing section → Tasks 1–8.
 
 **Placeholders:** none. Where a codebase convention must be followed rather than invented (the dialog primitive, the self-service route declaration, test helper style), the plan names the file to read rather than guessing at an API.
 

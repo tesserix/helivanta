@@ -7,7 +7,7 @@ function request(headers: Record<string, string>, sessionCookie?: string): NextR
     method: "POST",
     headers: {
       ...headers,
-      ...(sessionCookie ? { cookie: `hms_session=${sessionCookie}` } : {}),
+      ...(sessionCookie ? { cookie: `helivanta_session=${sessionCookie}` } : {}),
     },
   });
 }
@@ -33,7 +33,7 @@ describe("POST /logout", () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(res.status).toBe(200);
-    expect(res.cookies.get("hms_session")?.value).toBe("");
+    expect(res.cookies.get("helivanta_session")?.value).toBe("");
   });
 
   // The literal regression test for #781: revoking server-side must
@@ -50,7 +50,7 @@ describe("POST /logout", () => {
     const res = await POST(request({ "sec-fetch-site": "same-origin" }, "a-session-token"));
 
     expect(res.status).toBe(502);
-    expect(res.cookies.get("hms_session")?.value).toBeUndefined();
+    expect(res.cookies.get("helivanta_session")?.value).toBeUndefined();
   });
 
   it("does not clear the cookie when the revoke call itself throws", async () => {
@@ -59,7 +59,7 @@ describe("POST /logout", () => {
     const res = await POST(request({ "sec-fetch-site": "same-origin" }, "a-session-token"));
 
     expect(res.status).toBe(502);
-    expect(res.cookies.get("hms_session")?.value).toBeUndefined();
+    expect(res.cookies.get("helivanta_session")?.value).toBeUndefined();
   });
 
   it("revokes server-side with the session bearer token, then clears the cookie", async () => {
@@ -76,6 +76,6 @@ describe("POST /logout", () => {
       }),
     );
     expect(res.status).toBe(200);
-    expect(res.cookies.get("hms_session")?.value).toBe("");
+    expect(res.cookies.get("helivanta_session")?.value).toBe("");
   });
 });

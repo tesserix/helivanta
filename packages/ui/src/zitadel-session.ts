@@ -1,16 +1,16 @@
 import { UserManager, WebStorageStateStore } from "oidc-client-ts";
 
 /**
- * Ends the browser's Zitadel SSO session, for whichever HMS app the
+ * Ends the browser's Zitadel SSO session, for whichever Helivanta app the
  * caller sits in.
  *
- * **Why this lives in `@hms/ui`, not only in `apps/shell`.** Sign-out was
+ * **Why this lives in `@helivanta/ui`, not only in `apps/shell`.** Sign-out was
  * first built shell-only (`apps/shell/lib/sign-out.ts`, wired as
  * `HmsShell`'s `onSignOut` prop) on the same reasoning as `tenantPicker`:
  * only the shell app carried Zitadel client config. That reasoning turned
  * out to be wrong for sign-out specifically, and the gap was found live,
  * not theorised: signing out from a ZONE page (`/medicore/opd`, say) hit
- * `HmsShell`'s built-in default, which revoked the HMS session but never
+ * `HmsShell`'s built-in default, which revoked the Helivanta session but never
  * touched Zitadel — so Zitadel's own SSO cookie survived, and the very
  * next login on that browser (even for a DIFFERENT identity) completed
  * silently with no credential prompt, reusing whoever's session was still
@@ -18,7 +18,7 @@ import { UserManager, WebStorageStateStore } from "oidc-client-ts";
  * sign-out design exists to prevent, and it was happening on the majority
  * path — most sign-outs happen from a zone page, not the dashboard.
  *
- * **How this can work without a UserManager per app.** Every HMS app is
+ * **How this can work without a UserManager per app.** Every Helivanta app is
  * served under the SAME browser origin via `next.config.ts`'s rewrites
  * (`apps/shell` proxies `/medicore`, `/pharmacy`, `/lab` to their own
  * dev servers), and oidc-client-ts keys its stored user in
@@ -47,7 +47,7 @@ function settings() {
   // inherits from (Makefile's comment on these vars explains the
   // dev-infra ordering), and each app's own build config must set the
   // same pair for production. Read directly rather than through
-  // `@hms/api`'s `defineEnv` (which throws on a missing value): a zone
+  // `@helivanta/api`'s `defineEnv` (which throws on a missing value): a zone
   // app that has not been wired with these yet must still render its
   // dashboard and every other feature — only sign-out's Zitadel-ending
   // step degrades, to the same-origin `/login` fallback below, not the

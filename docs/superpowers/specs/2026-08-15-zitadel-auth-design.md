@@ -1,6 +1,6 @@
-# Zitadel authentication and the HMS session — design
+# Zitadel authentication and the Helivanta session — design
 
-**Issue:** [#838](https://github.com/tesserix/hms/issues/838) — Replace Google
+**Issue:** [#838](https://github.com/tesserix/helivanta/issues/838) — Replace Google
 Identity Platform with Zitadel.
 **Status:** draft 2026-08-15.
 **Decides:** ADR-0006. **Rests on:** `docs/superpowers/spikes/2026-08-15-zitadel-spike.md`
@@ -47,16 +47,16 @@ That last point is the one that shapes this design.
 
 ## Decisions
 
-### D1 — Zitadel authenticates; HMS issues its own session
+### D1 — Zitadel authenticates; Helivanta issues its own session
 
-At login, HMS verifies the Zitadel ID token once, checks membership, and mints
-**its own short-lived session token**. Every subsequent request presents the HMS
+At login, Helivanta verifies the Zitadel ID token once, checks membership, and mints
+**its own short-lived session token**. Every subsequent request presents the Helivanta
 session, never the Zitadel token.
 
 This is not a convenience. Three independent reasons converge:
 
-- **Tenant is HMS's fact, not Zitadel's.** Membership lives in OpenFGA and is
-  reconciled by HMS. Asking the IdP to assert it means teaching an external
+- **Tenant is Helivanta's fact, not Zitadel's.** Membership lives in OpenFGA and is
+  reconciled by Helivanta. Asking the IdP to assert it means teaching an external
   system a fact we already own, then trusting its answer.
 - **There is nowhere else to put the tenant** *(observed)* — no stock claim
   says which org a token is for, so any Zitadel-side approach needs an action
@@ -64,20 +64,20 @@ This is not a convenience. Three independent reasons converge:
   the hosted login. A clinician moving between hospitals mid-shift should not
   hit a full re-auth.
 - **Revocation cannot be delegated anyway.** *(observed)* a deactivated user's
-  ID token still verifies, and introspection is closed to public clients. HMS
+  ID token still verifies, and introspection is closed to public clients. Helivanta
   must own a watermark regardless — and it already does (#781).
 
 It also closes a debt ADR-0002 itself recorded: "swap the raw-ID-token session
 cookie for … session cookies before production". The raw IdP token was never
 meant to be the session.
 
-**The cost, stated plainly: HMS becomes a credential issuer.** Signing keys to
+**The cost, stated plainly: Helivanta becomes a credential issuer.** Signing keys to
 generate, store, rotate; a second token format; and a bug in that path is an
 authentication bypass, not a defect. That cost is accepted here, and D5 is how
 it is contained.
 
 *Rejected: Zitadel actions injecting a tenant claim + org-scoped re-auth.* Keeps
-one issuer and no HMS keys, but makes every hospital switch a redirect, and
+one issuer and no Helivanta keys, but makes every hospital switch a redirect, and
 depends on an action reading the requested org scope — **NOT VERIFIED** in the
 spike.
 
@@ -86,7 +86,7 @@ subject — not at re-issuing for the same subject in another tenant. Still need
 a tenant claim from somewhere, and Zitadel recommends restricting it to
 confidential clients.
 
-### D2 — The HMS session carries exactly what `Principal` needs
+### D2 — The Helivanta session carries exactly what `Principal` needs
 
 `sub`, `tenant_id`, `auth_time`, `exp`, `iat`, `iss`. Nothing else — no email,
 no name, no roles.
@@ -101,11 +101,11 @@ means "when did this human last authenticate", and the revocation watermark
 compares against exactly that. Re-minting on tenant switch must not launder an
 old authentication into a fresh one.
 
-### D3 — Tenant switching re-mints the HMS session
+### D3 — Tenant switching re-mints the Helivanta session
 
 `POST /v1/iam/me/tenant` keeps its route and its tight rate-limit budget, but
 changes what it does: verify the caller's current session, check membership of
-the target tenant in OpenFGA, mint a new HMS session with the new `tenant_id`
+the target tenant in OpenFGA, mint a new Helivanta session with the new `tenant_id`
 and the **same `auth_time`**, set the cookie.
 
 No IdP round trip. No redirect. Consequently the `Tight` rate-limit entry for
@@ -114,19 +114,19 @@ protecting an FGA call and a signature. **The budget should be revisited when
 this lands** (#689 assumed the GIP exposure), and this spec does not silently
 inherit its reasoning.
 
-### D4 — Revocation stays HMS's, with an explicit upstream bound
+### D4 — Revocation stays Helivanta's, with an explicit upstream bound
 
 The #781 watermark is unchanged and remains authoritative: sign-out and admin
-revoke write a per-subject watermark, HMS sessions with an earlier `auth_time`
+revoke write a per-subject watermark, Helivanta sessions with an earlier `auth_time`
 are refused, and the broadcast invalidates every replica's cache. The
 `SubjectCredentialRevoked` event still publishes with **no tenant** — #835's
 outbox policy depends on that and it must stay true.
 
 What is genuinely new is **upstream deactivation**: a user disabled in Zitadel
-holds a valid HMS session until it expires *(observed: their ID token still
+holds a valid Helivanta session until it expires *(observed: their ID token still
 verified; introspection is unavailable to us)*.
 
-**Decision: HMS session TTL is the upper bound on upstream deactivation latency,
+**Decision: Helivanta session TTL is the upper bound on upstream deactivation latency,
 and that bound is stated rather than discovered.** Short TTL with silent renewal;
 renewal re-checks the Zitadel session, so a deactivated user fails at the next
 renewal rather than at the next login. The exact TTL is a number the plan must
@@ -137,39 +137,39 @@ account keeps working.
 *(observed)*, and a network call per request against the IdP recreates exactly
 the shared-resource exposure #689 exists to prevent.
 
-#### D4a — renewal re-runs the exchange; HMS stores no IdP token
+#### D4a — renewal re-runs the exchange; Helivanta stores no IdP token
 
 **Resolved 2026-08-15.** The paragraph above said "renewal re-checks the Zitadel
 session" without saying *with what credential*, and that gap had a security
-answer hiding in it. HMS verifies the Zitadel ID token at login and keeps
+answer hiding in it. Helivanta verifies the Zitadel ID token at login and keeps
 nothing; `userinfo` needs the **access** token. So an upstream re-check demands
-HMS hold an IdP credential — unless renewal is not a server-side operation at
+Helivanta hold an IdP credential — unless renewal is not a server-side operation at
 all.
 
 **Renewal is the login exchange, run again with a fresh Zitadel token.** The
 browser silently re-authenticates against Zitadel (`prompt=none` — its session
 cookie on `auth.tesserix.app` is what makes this silent) and posts the fresh ID
-token to the same exchange endpoint, naming the tenant it is currently in. HMS
+token to the same exchange endpoint, naming the tenant it is currently in. Helivanta
 verifies the token, re-checks membership in OpenFGA, and re-mints. There is no
 separate renewal endpoint and no separate mechanism to get wrong.
 
 The bound holds for the reason D4 claims: after the TTL, continuing requires a
 **fresh** Zitadel token, and a deactivated user cannot obtain one — Zitadel
 refuses the silent re-authentication. Deactivation therefore bites within one
-TTL without HMS ever asking Zitadel a question directly.
+TTL without Helivanta ever asking Zitadel a question directly.
 
 Two properties fall out of this that are worth having deliberately:
 
-- **HMS stores no refresh token.** A refresh token is long-lived and, for a
+- **Helivanta stores no refresh token.** A refresh token is long-lived and, for a
   clinical system, roughly as dangerous as a password. Not storing one removes a
   whole class of secret-at-rest, encryption and rotation obligation — and there
-  is nothing to steal from the HMS database that grants access to the IdP.
+  is nothing to steal from the Helivanta database that grants access to the IdP.
 - **Membership is re-checked every renewal**, so a *revoked member* also loses
   access within one TTL, not only a deactivated account. That bounds OpenFGA
   staleness with the same mechanism, for free.
 
 *Rejected: store the Zitadel refresh token server-side, encrypted.* A true
-upstream check at any moment, but it makes HMS the custodian of credentials to
+upstream check at any moment, but it makes Helivanta the custodian of credentials to
 another system, needs a store, encryption and rotation, and #45 does not exist
 yet. The security cost buys latency we do not need.
 
@@ -201,9 +201,9 @@ fall back to a default: an ephemeral key silently invalidates every session on
 restart, and a default key is a forged-session vulnerability. This is a data
 control and fails closed (§3), unlike `LOG_LEVEL`.
 
-**This makes #45 (secrets management) a hard dependency** — the first time HMS
+**This makes #45 (secrets management) a hard dependency** — the first time Helivanta
 has one. The plan must say what dev uses (a fixed local key, clearly marked and
-refused outside dev, mirroring the existing `HMS_ENV` emulator guard) and what
+refused outside dev, mirroring the existing `HELIVANTA_ENV` emulator guard) and what
 production requires.
 
 Key rotation is **out of scope here** and must be filed separately; the design
@@ -260,13 +260,13 @@ Each is an invariant won by earlier work, each re-proven rather than assumed:
 - **Upstream deactivation is bounded by the session TTL**, not immediate. Stated,
   not hidden; immediate would require per-request introspection, which is
   unavailable and would be its own outage risk.
-- **HMS now issues credentials.** New signing-key operational surface, and a new
+- **Helivanta now issues credentials.** New signing-key operational surface, and a new
   class of bug whose failure mode is authentication bypass.
 - **Key rotation is not designed here.**
 - **`email`/`name` need a `userinfo` call** *(observed)*, so any UI showing them
-  needs a fetch HMS does not do today.
+  needs a fetch Helivanta does not do today.
 - **We now operate an IdP** — ADR-0006's accepted cost. An IdP outage is a
-  total sign-in outage, though existing HMS sessions survive until renewal,
+  total sign-in outage, though existing Helivanta sessions survive until renewal,
   which is a modest resilience gain over today.
 - **Not verified in the spike:** whether Zitadel can push deactivation events
   (which would tighten D4), whether an instance setting forces profile/email

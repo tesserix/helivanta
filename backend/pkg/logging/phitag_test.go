@@ -17,7 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/logging"
 )
 
 const phiMarker = "[REDACTED:phi]"
@@ -31,8 +31,8 @@ const secretName = "SECRET-NAME-Anandi-Gopal"
 
 type patient struct {
 	ID     string `json:"id"`
-	Name   string `json:"name" hmslog:"phi"`
-	DOB    string `json:"dob,omitempty" hmslog:"phi"`
+	Name   string `json:"name" helivantalog:"phi"`
+	DOB    string `json:"dob,omitempty" helivantalog:"phi"`
 	Ward   string `json:"ward"`
 	Secret string `json:"-"`
 }
@@ -155,10 +155,10 @@ func TestUntaggedWrapperHoldingTaggedCollectionsIsMasked(t *testing.T) {
 
 type record struct {
 	Meta     string            `json:"meta"`
-	Patient  patient           `json:"patient" hmslog:"phi"`
-	Contacts []patient         `json:"contacts" hmslog:"phi"`
-	Extra    map[string]string `json:"extra" hmslog:"phi"`
-	Opaque   any               `json:"opaque" hmslog:"phi"`
+	Patient  patient           `json:"patient" helivantalog:"phi"`
+	Contacts []patient         `json:"contacts" helivantalog:"phi"`
+	Extra    map[string]string `json:"extra" helivantalog:"phi"`
+	Opaque   any               `json:"opaque" helivantalog:"phi"`
 }
 
 func TestTaggedSubtreesAreReplacedWholeAndTheirContentsSkipped(t *testing.T) {
@@ -193,7 +193,7 @@ type dashNamedField struct {
 	// form, which names a field "-" rather than omitting it. Exercising that
 	// distinction is the test.
 	Real string `json:"-,"`
-	Name string `json:"name" hmslog:"phi"`
+	Name string `json:"name" helivantalog:"phi"`
 }
 
 func TestFieldLiterallyNamedDashSurvives(t *testing.T) {
@@ -227,7 +227,7 @@ func TestRenamingDoesNotMaskAnUnrelatedTypeWithTheSameKey(t *testing.T) {
 // --- naming rules encoding/json owns and this layer must not diverge from ----
 
 type optionTag struct {
-	Name string `json:"name" hmslog:"phi,strict"`
+	Name string `json:"name" helivantalog:"phi,strict"`
 }
 
 func TestPHITagWithOptionsStillMasks(t *testing.T) {
@@ -238,7 +238,7 @@ type rejectedTagName struct {
 	// encoding/json rejects this tag name and falls back to the Go field name
 	// "Name". A path computed only from the tag would never match the key that
 	// is actually emitted.
-	Name string `json:"नाम" hmslog:"phi"`
+	Name string `json:"नाम" helivantalog:"phi"`
 }
 
 func TestTagNameRejectedByEncodingJSONStillMasks(t *testing.T) {
@@ -247,7 +247,7 @@ func TestTagNameRejectedByEncodingJSONStillMasks(t *testing.T) {
 }
 
 type htmlishTagName struct {
-	Weird string `json:"a<b>&c" hmslog:"phi"`
+	Weird string `json:"a<b>&c" helivantalog:"phi"`
 	Ok    string `json:"ok"`
 }
 
@@ -260,7 +260,7 @@ func TestPunctuationHeavyTagNamesAreMatchedAsSlogWritesThem(t *testing.T) {
 
 type jsonStringOption struct {
 	N    int64  `json:"n,string"`
-	Name string `json:"name" hmslog:"phi"`
+	Name string `json:"name" helivantalog:"phi"`
 }
 
 func TestJSONStringOptionIsUntouched(t *testing.T) {
@@ -272,11 +272,11 @@ func TestJSONStringOptionIsUntouched(t *testing.T) {
 // --- criterion: embedded structs, including unexported type names -----------
 
 type exportedEmbed struct {
-	Name string `json:"name" hmslog:"phi"`
+	Name string `json:"name" helivantalog:"phi"`
 }
 
 type unexportedEmbed struct {
-	Alias string `json:"alias" hmslog:"phi"`
+	Alias string `json:"alias" helivantalog:"phi"`
 }
 
 type withEmbeds struct {
@@ -293,7 +293,7 @@ type namedEmbed struct {
 }
 
 type embedTaggedWhole struct {
-	patient `hmslog:"phi"`
+	patient `helivantalog:"phi"`
 	Ward    string `json:"ward"`
 }
 
@@ -335,8 +335,8 @@ func (t textID) MarshalText() ([]byte, error) { return []byte("TEXT:" + t.raw), 
 type withMarshallers struct {
 	Code   codedID `json:"code"`
 	Text   textID  `json:"text"`
-	Hidden codedID `json:"hidden" hmslog:"phi"`
-	Name   string  `json:"name" hmslog:"phi"`
+	Hidden codedID `json:"hidden" helivantalog:"phi"`
+	Name   string  `json:"name" helivantalog:"phi"`
 }
 
 func TestCustomMarshallersAreNotReshapedButTaggedOnesAreMasked(t *testing.T) {
@@ -356,7 +356,7 @@ func TestCustomMarshallersAreNotReshapedButTaggedOnesAreMasked(t *testing.T) {
 // --- criterion: deep chains fail closed --------------------------------------
 
 type chain struct {
-	Name string `json:"name" hmslog:"phi"`
+	Name string `json:"name" helivantalog:"phi"`
 	Next *chain `json:"next,omitempty"`
 }
 
@@ -387,7 +387,7 @@ func TestOversizedValueFailsClosed(t *testing.T) {
 }
 
 type cyclic struct {
-	Name string  `json:"name" hmslog:"phi"`
+	Name string  `json:"name" helivantalog:"phi"`
 	Self *cyclic `json:"self,omitempty"`
 }
 
@@ -400,7 +400,7 @@ func TestCycleFailsClosed(t *testing.T) {
 }
 
 type unmarshallable struct {
-	Name string     `json:"name" hmslog:"phi"`
+	Name string     `json:"name" helivantalog:"phi"`
 	Fn   func() int `json:"fn"`
 }
 
@@ -411,7 +411,7 @@ func TestUnsupportedTypeFailsClosed(t *testing.T) {
 }
 
 type explodingMarshaller struct {
-	Name string `json:"name" hmslog:"phi"`
+	Name string `json:"name" helivantalog:"phi"`
 	Bad  boom   `json:"bad"`
 }
 
@@ -428,7 +428,7 @@ func TestFailingMarshallerFailsClosed(t *testing.T) {
 // --- criterion: shared-reference DAG ----------------------------------------
 
 type dagNode struct {
-	Name string     `json:"name" hmslog:"phi"`
+	Name string     `json:"name" helivantalog:"phi"`
 	Kids []*dagNode `json:"kids,omitempty"`
 }
 
@@ -465,22 +465,22 @@ func TestLargeSliceCompletesInBoundedTime(t *testing.T) {
 // --- criterion: mutual recursion, either order, under -race ------------------
 
 type mutualA struct {
-	Name string   `json:"name" hmslog:"phi"`
+	Name string   `json:"name" helivantalog:"phi"`
 	B    *mutualB `json:"b,omitempty"`
 }
 type mutualB struct {
-	Label string   `json:"label" hmslog:"phi"`
+	Label string   `json:"label" helivantalog:"phi"`
 	A     *mutualA `json:"a,omitempty"`
 }
 
 // A second, structurally identical pair. The type cache is process-wide, so
 // testing "either order" needs two pairs: one exercised A-first, one B-first.
 type mutualC struct {
-	Name string   `json:"name" hmslog:"phi"`
+	Name string   `json:"name" helivantalog:"phi"`
 	D    *mutualD `json:"d,omitempty"`
 }
 type mutualD struct {
-	Label string   `json:"label" hmslog:"phi"`
+	Label string   `json:"label" helivantalog:"phi"`
 	C     *mutualC `json:"c,omitempty"`
 }
 
@@ -506,11 +506,11 @@ func TestMutuallyRecursiveTypesMaskRegardlessOfOrder(t *testing.T) {
 }
 
 type raceA struct {
-	Name string `json:"name" hmslog:"phi"`
+	Name string `json:"name" helivantalog:"phi"`
 	B    *raceB `json:"b,omitempty"`
 }
 type raceB struct {
-	Label string `json:"label" hmslog:"phi"`
+	Label string `json:"label" helivantalog:"phi"`
 	A     *raceA `json:"a,omitempty"`
 }
 
@@ -629,7 +629,7 @@ func TestUntaggedValuesAreByteIdenticalInsideGroupsAndWithAttrs(t *testing.T) {
 // --- criterion: composition with the byte layer ------------------------------
 
 type contactable struct {
-	Name  string `json:"name" hmslog:"phi"`
+	Name  string `json:"name" helivantalog:"phi"`
 	Phone string `json:"phone"`
 	Ward  string `json:"ward"`
 }
@@ -667,7 +667,7 @@ func TestKeyOrderIsPreservedThroughMasking(t *testing.T) {
 
 func TestNumbersAreNotReformattedByMasking(t *testing.T) {
 	type numbers struct {
-		Name  string  `json:"name" hmslog:"phi"`
+		Name  string  `json:"name" helivantalog:"phi"`
 		Whole float64 `json:"whole"`
 		Big   int64   `json:"big"`
 		Frac  float64 `json:"frac"`

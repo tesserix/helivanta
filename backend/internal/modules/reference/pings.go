@@ -9,12 +9,12 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	referencecontract "github.com/tesserix/hms/internal/modules/reference/contract"
-	"github.com/tesserix/hms/internal/platform/respond"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/pagination"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	referencecontract "github.com/tesserix/helivanta/internal/modules/reference/contract"
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 type ping struct {

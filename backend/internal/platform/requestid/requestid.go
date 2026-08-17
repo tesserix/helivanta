@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authn"
 )
 
 const Key = "request_id"

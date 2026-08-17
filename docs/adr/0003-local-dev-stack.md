@@ -21,8 +21,8 @@
   Redis, NATS with JetStream and OpenFGA are unchanged. Where #714 says
   Keycloak, read GIP; where it says CNPG, read Compose Postgres.
   A Kubernetes-shaped environment is issue #7's, not this one's: sandboxctl
-  requires a Dockerfile and a Helm chart, HMS has neither yet, and it ships
-  no OpenFGA and no GIP emulator — HMS's two most distinctive dependencies.
+  requires a Dockerfile and a Helm chart, Helivanta has neither yet, and it ships
+  no OpenFGA and no GIP emulator — Helivanta's two most distinctive dependencies.
 - **Consequences:** the edit-to-see cycle stays sub-second (`next dev` HMR
   and `go run`) rather than the build-push-sync minutes a GitOps loop costs.
   Two environments will eventually exist, and the deployment artifacts

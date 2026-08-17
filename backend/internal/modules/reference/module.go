@@ -3,10 +3,10 @@
 package reference
 
 import (
-	referencecontract "github.com/tesserix/hms/internal/modules/reference/contract"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	referencecontract "github.com/tesserix/helivanta/internal/modules/reference/contract"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 type Module struct{}

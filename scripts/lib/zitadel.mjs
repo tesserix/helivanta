@@ -5,8 +5,8 @@
 //
 // #854 Task 7: this used to drive Zitadel's REAL hosted login UI with a
 // headless Playwright browser (hostedUILogin/hostedUILoginOnce/
-// fillAndSubmit, now removed). #854 Task 1 repointed hms-web's login
-// redirect at HMS's own /login, which broke that approach for every
+// fillAndSubmit, now removed). #854 Task 1 repointed helivanta-web's login
+// redirect at Helivanta's own /login, which broke that approach for every
 // caller — see verifyPasswordLogin's and passwordLoginIDToken's doc
 // comments for the two different ways it broke and what replaced it.
 // Neither replacement needs a browser at all, so this file no longer
@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 
 const SECRETS_DIR = fileURLToPath(new URL("../../dev/zitadel/secrets/", import.meta.url));
 
-// The redirect_uris registered on the hms-web app (scripts/zitadel-
+// The redirect_uris registered on the helivanta-web app (scripts/zitadel-
 // bootstrap.mjs). apps/shell/app/api/auth/callback/page.tsx and
 // apps/shell/app/api/auth/silent-renew/page.tsx (#838 Task 7) are the real
 // handlers for the first two; passwordLoginIDToken below never actually
@@ -46,7 +46,7 @@ export function readClientID() {
     if (err.code === "ENOENT") {
       throw new Error(
         `${SECRETS_DIR}zitadel.env does not exist — run 'make dev-infra' first ` +
-          `so scripts/zitadel-bootstrap.mjs can provision the HMS app`,
+          `so scripts/zitadel-bootstrap.mjs can provision the Helivanta app`,
       );
     }
     throw err;
@@ -58,17 +58,17 @@ export function readClientID() {
   return match[1].trim();
 }
 
-// readMachinePAT reads the hms-seed-bot IAM_OWNER PAT Zitadel itself wrote
+// readMachinePAT reads the helivanta-seed-bot IAM_OWNER PAT Zitadel itself wrote
 // at first boot (docker-compose.dev.yml's zitadel service,
 // FirstInstance.Org.Machine.Pat) — the credential scripts/seed-dev.mjs and
 // scripts/zitadel-bootstrap.mjs use for every management-API call.
 export function readMachinePAT() {
   try {
-    return readFileSync(`${SECRETS_DIR}hms-seed.pat`, "utf8").trim();
+    return readFileSync(`${SECRETS_DIR}helivanta-seed.pat`, "utf8").trim();
   } catch (err) {
     if (err.code === "ENOENT") {
       throw new Error(
-        `${SECRETS_DIR}hms-seed.pat does not exist — Zitadel writes it at first ` +
+        `${SECRETS_DIR}helivanta-seed.pat does not exist — Zitadel writes it at first ` +
           `boot; check 'docker compose -f docker-compose.dev.yml logs zitadel' ` +
           `for a setup failure (the masterkey-length trap is the most likely ` +
           `cause; see docker-compose.dev.yml's zitadel service comment)`,
@@ -83,9 +83,9 @@ export function readMachinePAT() {
 // Session API calls with in production (docker-compose.dev.yml's zitadel
 // service, FirstInstance.Org.LoginClient.PatPath; Makefile's
 // ZITADEL_LOGIN_CLIENT_PAT_FILE). verifyPasswordLogin below uses it,
-// deliberately, rather than the hms-seed-bot IAM_OWNER PAT readMachinePAT
+// deliberately, rather than the helivanta-seed-bot IAM_OWNER PAT readMachinePAT
 // returns: proving a seeded account authenticates with the SAME credential
-// class and the SAME Zitadel v2 Session API HMS's own backend uses is a
+// class and the SAME Zitadel v2 Session API Helivanta's own backend uses is a
 // closer analog to production than an IAM_OWNER PAT would be, even though
 // an IAM_OWNER PAT can call the same endpoint.
 export function readLoginClientPAT() {
@@ -180,7 +180,7 @@ function b64url(buf) {
 // verifyPasswordLogin proves a seeded account can actually authenticate by
 // checking loginName+password against Zitadel's v2 Session API (POST
 // /v2/sessions) — the SAME call and the SAME class of credential (the
-// login-client PAT, via readLoginClientPAT) HMS's own backend uses
+// login-client PAT, via readLoginClientPAT) Helivanta's own backend uses
 // (backend/internal/modules/iam/loginclient/client.go's
 // CreatePasswordSession) to check a password on every real sign-in.
 //
@@ -201,7 +201,7 @@ function b64url(buf) {
 // fillAndSubmit (#854 Task 7, removed — see git history if the old
 // Playwright-driven approach is ever needed again). Those drove Zitadel's
 // REAL hosted login UI with a headless browser; #854 Task 1 repointed
-// hms-web's login redirect at HMS's own /login instead, which broke both
+// helivanta-web's login redirect at Helivanta's own /login instead, which broke both
 // of that trio's callers the same way, for two different reasons:
 //
 //  - scripts/seed-dev.mjs runs during `make up`'s `seed` step, which is
@@ -209,11 +209,11 @@ function b64url(buf) {
 //    dev-web`) — so the redirect target did not exist yet to drive at all.
 //  - scripts/zitadel-verify-login.mjs runs after the whole stack (`make
 //    verify-local`), so the redirect target DID exist, but its markup is
-//    HMS's own one-step Email/Password/Sign-in form, not Zitadel's
+//    Helivanta's own one-step Email/Password/Sign-in form, not Zitadel's
 //    two-step Loginname→next→Password→continue fillAndSubmit drove.
 //
 // The Session API sidesteps both: it is a direct HTTP call against
-// Zitadel with no redirect through anything HMS renders, so it needs
+// Zitadel with no redirect through anything Helivanta renders, so it needs
 // neither the web app to be up nor to know that app's markup. It also
 // drops Playwright, a headless Chromium launch, and ~20s of browser-driven
 // waiting per account from both callers.
@@ -273,12 +273,12 @@ export async function verifyPasswordLogin(issuer, pat, email, password) {
 //     header — this is EXACTLY the request a browser's first hop makes;
 //     the difference starts only at step 2.
 //  2. POST /v2/sessions with loginName+password (verifyPasswordLoginOnce)
-//     — the SAME password check HMS's own backend performs, and the SAME
-//     one a human typing into HMS's /login form triggers.
+//     — the SAME password check Helivanta's own backend performs, and the SAME
+//     one a human typing into Helivanta's /login form triggers.
 //  3. POST /v2/oidc/auth_requests/{id} with that session — the SAME
 //     "finalize" call backend/internal/modules/iam/loginclient/client.go's
 //     (unexported) finalize makes — which returns a callbackUrl carrying a
-//     real authorization code, exactly as HMS's own POST
+//     real authorization code, exactly as Helivanta's own POST
 //     /v1/auth/login/password does for a real browser.
 //  4. POST /oauth/v2/token with that code and the PKCE verifier — the same
 //     token exchange step 1's PKCE challenge exists to make possible.
@@ -287,7 +287,7 @@ export async function verifyPasswordLogin(issuer, pat, email, password) {
 // scripts/zitadel-bootstrap.mjs provisions — since step 4 performs PKCE
 // with no client secret, exactly as a browser would. loginClientPAT
 // authenticates steps 2 and 3 (readLoginClientPAT) — this is a machine
-// credential, not the end user's, exactly as it is for HMS's real login
+// credential, not the end user's, exactly as it is for Helivanta's real login
 // flow.
 export async function passwordLoginIDToken({
   issuer,

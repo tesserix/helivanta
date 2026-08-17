@@ -15,7 +15,7 @@ var ErrNoZitadelLoginClientToken = errors.New("config: ZITADEL_LOGIN_CLIENT_TOKE
 // refuses with ErrNoZitadelLoginClientToken when it is empty.
 //
 // This mirrors SessionSigningKeySeed's shape and reasoning
-// (signingkey.go), applied to a different secret: HMS's own login form
+// (signingkey.go), applied to a different secret: Helivanta's own login form
 // (internal/modules/iam/loginui.go) cannot check a single credential or
 // finalize a single sign-in without a working loginclient.Client, so an
 // API that boots without this token would not be "login degraded" — it
@@ -36,12 +36,12 @@ var ErrNoZitadelLoginClientToken = errors.New("config: ZITADEL_LOGIN_CLIENT_TOKE
 // rather than here, is that the value itself never reaches a log line or
 // an HTTP response — see ZitadelLoginClientToken's doc comment on why
 // that property matters more for this credential than almost any other
-// HMS holds.
+// Helivanta holds.
 func (c Config) RequireZitadelLoginClientToken() (string, error) {
 	token := strings.TrimSpace(c.ZitadelLoginClientToken)
 	if token == "" {
 		return "", fmt.Errorf(
-			"%w: refusing to boot without one — HMS's own login form "+
+			"%w: refusing to boot without one — Helivanta's own login form "+
 				"(POST /v1/auth/login/password and its two sibling routes) "+
 				"cannot check a credential or finalize a sign-in without it, so "+
 				"every login attempt would 500 rather than one of them being "+

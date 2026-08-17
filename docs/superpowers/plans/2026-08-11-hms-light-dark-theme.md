@@ -1,4 +1,4 @@
-# HMS Light/Dark Theme — "Frost / Night" Implementation Plan
+# Helivanta Light/Dark Theme — "Frost / Night" Implementation Plan
 
 **Date:** 2026-08-11
 **Status:** Approved direction — locked by Mahesh
@@ -8,7 +8,7 @@
 
 ## Summary
 
-Re-skin the HMS web consoles with a two-theme token system: light = "Clinical Frost"
+Re-skin the Helivanta web consoles with a two-theme token system: light = "Clinical Frost"
 (cool near-white, deep teal accent), dark = "Graphite Night" (slate, brighter teal).
 The two-rail shell structure is unchanged. Theme follows the OS by default; a
 header toggle overrides it, persisted in localStorage. Department dashboard cards
@@ -32,7 +32,7 @@ get per-zone tinted icon chips.
   file's header comment before editing. The dark block must use
   `:root[data-theme="dark"], [data-theme="dark"]` selectors with `!important` on
   every declaration, placed AFTER the light block.
-- Tests use Vitest + `renderWithProviders` from `@hms/api/testing`.
+- Tests use Vitest + `renderWithProviders` from `@helivanta/api/testing`.
 - Existing behaviour to preserve: `visibleZones(can)` filtering, plain `<a>`
   navigation, localStorage rail/panel persistence.
 - Gates per task: `pnpm turbo lint type-check test` green for the touched packages;
@@ -44,7 +44,7 @@ get per-zone tinted icon chips.
 ## Task 1 — Token system in `packages/ui/styles.css`
 
 Replace the current light values and add a dark block. Keep the file's header
-comment (update its first paragraph: the palette is now HMS's own "Frost/Night"
+comment (update its first paragraph: the palette is now Helivanta's own "Frost/Night"
 system, no longer mirrored from tesserix-home; keep the specificity/alpha NOTE
 paragraphs verbatim). Keep the `.hms-sidebar-border` rule at the bottom unchanged.
 
@@ -70,7 +70,7 @@ Sidebar (light rails — this flips the current dark-slate rails to light):
 --sidebar-border: #EBEFF5;      --sidebar-ring: #0E7569;
 --sidebar-rail: #FFFFFF;
 ```
-HMS semantic tokens (new, same block):
+Helivanta semantic tokens (new, same block):
 ```
 --hms-accent: #0E7569;       --hms-accent-strong: #0A5A50;   --hms-accent-dim: #E3F2EF;
 --hms-good: #12915E;         --hms-warn: #B95E04;            --hms-crit: #C93B3B;
@@ -108,7 +108,7 @@ HMS semantic tokens (new, same block):
 (The `*-tint` dark values are the light-theme 12%-alpha tints pre-composited
 over the dark card `#161C22` — that is why they look muddy as raw hex; correct.)
 
-**Verify:** `pnpm turbo lint build --filter=@hms/ui` (or the package's own scripts)
+**Verify:** `pnpm turbo lint build --filter=@helivanta/ui` (or the package's own scripts)
 passes; grep confirms zero `rgba(` in styles.css.
 
 ---
@@ -143,7 +143,7 @@ In each of `apps/shell/app/layout.tsx`, `apps/medicore/app/layout.tsx`,
 `<html lang="en" data-theme="default">` as the SSR default and add as the first
 child of `<body>` (or in `<head>`):
 `<script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />`
-importing `THEME_INIT_SCRIPT` from `@hms/ui`. This prevents a light flash for
+importing `THEME_INIT_SCRIPT` from `@helivanta/ui`. This prevents a light flash for
 dark users. A brief comment on why it must run before paint.
 
 ### 2c. Shell restyle in `packages/ui/src/hms-shell.tsx` (styling only)

@@ -1,6 +1,6 @@
 # Local development environment — design
 
-Resolves: [#714](https://github.com/tesserix/hms/issues/714) — [DevEx] Local
+Resolves: [#714](https://github.com/tesserix/helivanta/issues/714) — [DevEx] Local
 development environment (CNPG, Redis, NATS, Keycloak, OpenFGA)
 
 Date: 2026-08-12
@@ -52,7 +52,7 @@ were raised while scoping this one.
 
 - **Kubernetes-shaped local environment** (sandboxctl, Dockerfiles, Helm charts,
   OpenFGA and GIP as subcharts) — issue #7. sandboxctl needs a Dockerfile and a
-  chart, and HMS has neither yet.
+  chart, and Helivanta has neither yet.
 - **Feature flags** (OpenFeature API with a GrowthBook provider, `flags.yaml`
   governance) — issues #9, #691, #704.
 - **Secrets backend** (External Secrets Operator with GCP Secret Manager or
@@ -77,7 +77,7 @@ acceptance criterion objects to.
 | Node >= 22 | `Node 22+ required (package.json engines), found <version>` |
 | pnpm present | `pnpm missing — run 'corepack enable'` |
 | `NODE_AUTH_TOKEN` set | `NODE_AUTH_TOKEN unset — export NODE_AUTH_TOKEN=$(gh auth token)` |
-| Ports free | `port 5432 held by pid <pid> (<command>) — stop it, or 'make down' if it is a stale HMS container` |
+| Ports free | `port 5432 held by pid <pid> (<command>) — stop it, or 'make down' if it is a stale Helivanta container` |
 
 Ports checked: 5432, 4222, 8222, 6379, 8090, 9099, 8080, 4301, 4302, 4303, 4304.
 
@@ -191,6 +191,6 @@ Changed:
 - OpenFGA uses the in-memory datastore, so tuples are lost on restart. Postgres
   remains the system of record and the API's reconciler rebuilds them on boot.
   This is existing, documented behaviour and is left alone.
-- Preflight checks the ports HMS uses. It cannot predict a port taken between
+- Preflight checks the ports Helivanta uses. It cannot predict a port taken between
   the check and the container start; that race is accepted.
 - `make reset` destroys local data by design. There is no backup step.

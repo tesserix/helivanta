@@ -16,13 +16,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/modules/lab" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/pagination"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/modules/lab" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 var (
@@ -60,7 +60,7 @@ func TestVisitIntakeCreatesPendingOrder(t *testing.T) {
 		data, _ := json.Marshal(map[string]string{
 			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
 		})
-		return busRef.Publish(tx, "hms.in.medicore.visit_created.v1", events.Event{
+		return busRef.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
 			Type: "VisitCreated", Version: 1, TenantID: testutil.TenantA, Data: data,
 		})
 	}))
@@ -88,7 +88,7 @@ func TestResultFlow(t *testing.T) {
 		data, _ := json.Marshal(map[string]string{
 			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
 		})
-		return busRef.Publish(tx, "hms.in.medicore.visit_created.v1", events.Event{
+		return busRef.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
 			Type: "VisitCreated", Version: 1, TenantID: testutil.TenantA, Data: data,
 		})
 	}))
@@ -130,7 +130,7 @@ func TestResultFlow(t *testing.T) {
 		var n int64
 		_ = db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 			return tx.Raw(`SELECT count(*) FROM outbox_events
-				WHERE subject = 'hms.in.lab.result_ready.v1'`).Scan(&n).Error
+				WHERE subject = 'helivanta.in.lab.result_ready.v1'`).Scan(&n).Error
 		})
 		return n == 1
 	}, 10*time.Second, 200*time.Millisecond)
@@ -155,7 +155,7 @@ func TestConcurrentResultYieldsExactlyOneWinner(t *testing.T) {
 		data, _ := json.Marshal(map[string]string{
 			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
 		})
-		return busRef.Publish(tx, "hms.in.medicore.visit_created.v1", events.Event{
+		return busRef.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
 			Type: "VisitCreated", Version: 1, TenantID: testutil.TenantA, Data: data,
 		})
 	}))

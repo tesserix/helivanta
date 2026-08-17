@@ -1,4 +1,4 @@
-# tesserix-k8s changes for HMS (proposal)
+# tesserix-k8s changes for Helivanta (proposal)
 
 Phase 1 ships images only; this is the paste-ready plan for the infra PR.
 
@@ -27,7 +27,7 @@ under a new `hms` appGroup with the standard ci.yml/release.yml workflows.
 
 ## Identity
 
-Provision the HMS org, project and `hms-web` client on the shared Zitadel at
-auth.tesserix.app (ADR-0006; topology in
+Provision the Helivanta org, project and `helivanta-web` client on the shared
+Zitadel at auth.tesserix.app (ADR-0006; topology in
 `docs/superpowers/specs/2026-08-15-zitadel-tenancy-topology-design.md`).
-Hospitals are NOT Zitadel entities — they are HMS tenants.
+Hospitals are NOT Zitadel entities — they are Helivanta tenants.

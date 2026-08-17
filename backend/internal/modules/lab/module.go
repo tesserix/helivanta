@@ -4,10 +4,10 @@
 package lab
 
 import (
-	labcontract "github.com/tesserix/hms/internal/modules/lab/contract"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	labcontract "github.com/tesserix/helivanta/internal/modules/lab/contract"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 const (

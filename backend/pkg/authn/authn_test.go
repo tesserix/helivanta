@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authn"
 )
 
 type fakeVerifier struct {
@@ -210,7 +210,7 @@ func TestMiddlewareRefusesASessionExactlyAtItsIdleDeadline(t *testing.T) {
 // TestMiddlewareRefusesAZeroIdleDeadline pins code review Finding 2: a
 // zero IdleDeadline is refused exactly like an already-past one, never
 // read as "no limit". session.Verifier already refuses to hand back a
-// Claims with no idle_deadline, so a Principal minted from a real HMS
+// Claims with no idle_deadline, so a Principal minted from a real Helivanta
 // session can never carry a zero value here — this test is what keeps
 // that true even if that guarantee is ever weakened or a different
 // TokenVerifier is mounted without it: a zero IdleDeadline must never

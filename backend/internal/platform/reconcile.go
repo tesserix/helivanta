@@ -7,8 +7,8 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // TupleReconciler is everything Reconcile needs: the write half modules

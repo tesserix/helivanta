@@ -8,10 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/tesserix/hms/internal/modules/iam/loginclient"
-	"github.com/tesserix/hms/internal/platform/requestid"
-	"github.com/tesserix/hms/internal/platform/respond"
-	"github.com/tesserix/hms/pkg/ratelimit"
+	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
+	"github.com/tesserix/helivanta/internal/platform/requestid"
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/ratelimit"
 )
 
 // MinFailedLoginDuration is the floor every FAILED password attempt must
@@ -26,7 +26,7 @@ import (
 // MEASURED 2026-08-16 against the real dev Zitadel (v4.15.3, PAT-backed
 // login-client API, `go run` a throwaway harness over
 // loginclient.Client.CreatePasswordSession — see this task's report for
-// the program): 25 wrong-password attempts against test@hms.dev,
+// the program): 25 wrong-password attempts against test@helivanta.dev,
 // spaced 4s apart so the sample reflects independent single attempts,
 // not sustained hammering. The first 9 landed in a tight 809-845ms
 // band (mean ~830ms) — consistent with the original spike's 0.72-0.78s,
@@ -97,13 +97,13 @@ const authRequestExpiredMessage = "this sign-in attempt has expired; start again
 // was never checked).
 const zitadelUnavailableMessage = "sign-in is temporarily unavailable; please try again"
 
-// LoginUIHandlers backs the three routes HMS's own login form drives
+// LoginUIHandlers backs the three routes Helivanta's own login form drives
 // directly against Zitadel's login-client API (plan #854 Task 4, spec
 // D5): reading an auth request, checking a password, and handing off to
-// Zitadel's hosted UI when HMS cannot complete the login itself. Like
+// Zitadel's hosted UI when Helivanta cannot complete the login itself. Like
 // LoginHandlers (login.go), all three are mounted OUTSIDE the
 // authenticated /v1 chain via bootstrap.MountUnauthenticated — there is
-// no HMS session, and for Password specifically no verified subject at
+// no Helivanta session, and for Password specifically no verified subject at
 // all, until AFTER it succeeds.
 type LoginUIHandlers struct {
 	client             *loginclient.Client
@@ -164,7 +164,7 @@ const (
 // INSTANCE-LEVEL login-client PAT's budget on a Zitadel shared with the
 // whole Tesserix fleet (docs/standards/backend.md, "The login-client
 // credential"), so an unlimited flood there degrades sign-in for every
-// product on the instance, not just HMS. #851 landed for exactly this
+// product on the instance, not just Helivanta. #851 landed for exactly this
 // class of gap on POST /v1/auth/login.
 //
 // # Keying
@@ -197,7 +197,7 @@ func (h *LoginUIHandlers) allowedByLimiter(c *gin.Context, bucket string) bool {
 }
 
 // authRequestResponse is what GET /v1/auth/login/request/:id answers
-// with: enough for HMS's own login form to render (which OIDC client is
+// with: enough for Helivanta's own login form to render (which OIDC client is
 // asking, where it will redirect, which scopes) without the form itself
 // having to speak Zitadel's wire protocol.
 type authRequestResponse struct {
@@ -211,7 +211,7 @@ type authRequestResponse struct {
 // first call, reading the OIDC auth request Zitadel created when the
 // browser hit /oauth/v2/authorize (Task 1), so the form knows what it is
 // signing the caller into before it renders anything. It cannot require
-// an HMS session — there is nothing yet to check one against, and this
+// a Helivanta session — there is nothing yet to check one against, and this
 // call is what tells the form whether the id it was given even makes
 // sense.
 //
@@ -245,7 +245,7 @@ func (h *LoginUIHandlers) AuthRequest(c *gin.Context) {
 // passwordRequest is the body POST /v1/auth/login/password accepts:
 // which auth request this check is for, and the credential to check
 // against Zitadel. LoginName is Zitadel's own term (spike §1/§3) for
-// what HMS's login form collects as an email address — kept as the wire
+// what Helivanta's login form collects as an email address — kept as the wire
 // name Zitadel expects, rather than renamed to "email", so a reader
 // tracing this field into loginclient.Client.CreatePasswordSession does
 // not have to reconcile two names for the same value.
@@ -263,9 +263,9 @@ type passwordSuccessResponse struct {
 	CallbackURL string `json:"callback_url"`
 }
 
-// passwordHandoffResponse is OutcomeHandoff's shape: nowhere for HMS to
+// passwordHandoffResponse is OutcomeHandoff's shape: nowhere for Helivanta to
 // redirect the caller to except Zitadel's own hosted login UI, which can
-// collect whatever HMS's own form cannot (an enrolled second factor,
+// collect whatever Helivanta's own form cannot (an enrolled second factor,
 // today; see loginclient.CompleteIfSufficient's KNOWN LIMITATIONS for
 // what that currently excludes).
 type passwordHandoffResponse struct {
@@ -343,10 +343,10 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 		return
 	}
 
-	// OutcomeHandoff: the session HMS built is insufficient (or the
+	// OutcomeHandoff: the session Helivanta built is insufficient (or the
 	// policy could not be read — CompleteIfSufficient fails closed
 	// either way), so hand the browser to Zitadel's own hosted login to
-	// finish what HMS cannot. This is NOT a failure — no timing floor,
+	// finish what Helivanta cannot. This is NOT a failure — no timing floor,
 	// no equalised message, no ambiguity about whether the password was
 	// even right, because it was.
 	requestid.Logger(c).InfoContext(c.Request.Context(), "login password succeeded but session insufficient",
@@ -426,26 +426,26 @@ func (h *LoginUIHandlers) respondLoginClientError(c *gin.Context, err error, sta
 	}
 }
 
-// handoffURL builds the URL a caller is sent to when HMS cannot complete
+// handoffURL builds the URL a caller is sent to when Helivanta cannot complete
 // their login itself: h.hostedLoginBaseURL (an origin+path with no query
 // string of its own — Task 1's finding that Zitadel APPENDS to whatever
 // baseUri is configured) plus the SAME authRequest id Zitadel's own
 // /oauth/v2/authorize redirect used, so its hosted UI resumes the exact
-// auth request HMS started checking rather than minting a new one.
+// auth request Helivanta started checking rather than minting a new one.
 func (h *LoginUIHandlers) handoffURL(authRequestID string) string {
 	return h.hostedLoginBaseURL + "?authRequest=" + url.QueryEscape(authRequestID)
 }
 
 // Handoff backs POST /v1/auth/login/handoff/:id: an explicit "hand this
 // auth request to Zitadel's hosted login" call, for a caller that
-// already knows HMS's own form cannot finish it (e.g. a "use another
+// already knows Helivanta's own form cannot finish it (e.g. a "use another
 // sign-in method" affordance) rather than discovering that only after a
 // Password attempt. It makes no Zitadel call of its own — there is
 // nothing to check, only a URL to build — so it has no failure mode
 // beyond a missing id, which gin's route match already guarantees is
 // non-empty for a matched :id segment.
 //
-// It still takes a rate-limit budget (spec D2). Being cheap for HMS to
+// It still takes a rate-limit budget (spec D2). Being cheap for Helivanta to
 // serve is not a reason to leave an unauthenticated route unlimited:
 // this one is mounted on the raw engine, so nothing else applies a
 // budget to it, and an entry in bootstrap.UnauthenticatedRoutes that is

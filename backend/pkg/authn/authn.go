@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const SessionCookie = "hms_session"
+const SessionCookie = "helivanta_session"
 
 const principalKey = "authn.principal"
 
@@ -24,7 +24,7 @@ var ErrNoAuthTime = errors.New("authn: token has no auth_time claim")
 
 type Principal struct {
 	Subject string `json:"subject"`
-	// TenantID is HMS's own fact, not the identity provider's (spec
+	// TenantID is Helivanta's own fact, not the identity provider's (spec
 	// docs/superpowers/specs/2026-08-15-zitadel-auth-design.md, decision
 	// D1) — Zitadel carries no claim asserting which organization a
 	// token was issued for.
@@ -37,7 +37,7 @@ type Principal struct {
 	// as "no tenant scoping needed": TenantPrincipal below still requires
 	// TenantID to parse as a UUID and 401s otherwise, so an empty
 	// TenantID still fails closed, exactly as a malformed one always has.
-	// Once Task 4 mints an HMS session carrying a real tenant_id (D2) and
+	// Once Task 4 mints a Helivanta session carrying a real tenant_id (D2) and
 	// wires ITS verifier into authn.Middleware, every Principal reaching
 	// TenantPrincipal will have a real tenant again; until then, no
 	// tenant-scoped route can be reached with a bare Zitadel token, by

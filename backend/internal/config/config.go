@@ -35,8 +35,8 @@ type Config struct {
 	// Access Token for a machine user holding the IAM_LOGIN_CLIENT role
 	// (docker-compose.dev.yml's zitadel service,
 	// FirstInstance.Org.LoginClient; plan #854 Task 4/5). This is the
-	// SINGLE MOST PRIVILEGED credential HMS holds: IAM_LOGIN_CLIENT is
-	// scoped to the whole Zitadel instance, not to HMS's own project, so
+	// SINGLE MOST PRIVILEGED credential Helivanta holds: IAM_LOGIN_CLIENT is
+	// scoped to the whole Zitadel instance, not to Helivanta's own project, so
 	// a holder can read and FINALIZE an OIDC auth request for ANY app on
 	// the instance — including other Tesserix products that share it.
 	// loginclient.Client uses it to call Zitadel's v2 login-client API
@@ -66,20 +66,20 @@ type Config struct {
 	// ZitadelHostedLoginURL is Zitadel's own hosted login origin+path
 	// (e.g. http://localhost:20080/ui/v2/login) — the target
 	// LoginUIHandlers.Handoff (and a Password call that resolves to
-	// OutcomeHandoff) redirect the browser to when HMS's own login form
+	// OutcomeHandoff) redirect the browser to when Helivanta's own login form
 	// cannot complete a sign-in itself (an enrolled second factor Zitadel
-	// requires but HMS does not yet collect). Task 1's finding
-	// (docs/superpowers/plans/2026-08-16-hms-login-client.md) is that
+	// requires but Helivanta does not yet collect). Task 1's finding
+	// (docs/superpowers/plans/2026-08-16-helivanta-login-client.md) is that
 	// Zitadel APPENDS its own "/login" segment to whatever baseUri is
 	// configured, so this must be an origin+path with NO query string of
 	// its own — see loginui.go's handoffURL. Safe to default: it is a
 	// well-known Zitadel URL, not a secret, and a wrong value fails
 	// loudly (a 404 from Zitadel) rather than opening a hole.
 	ZitadelHostedLoginURL string
-	// HMSWebOrigin is the raw value of HMS_WEB_ORIGIN — the origin
-	// (scheme + host, no path) HMS's OWN frontend is served from, the
+	// HelivantaWebOrigin is the raw value of HELIVANTA_WEB_ORIGIN — the origin
+	// (scheme + host, no path) Helivanta's OWN frontend is served from, the
 	// same origin scripts/lib/zitadel.mjs configures as Zitadel's
-	// per-app `loginVersion.loginV2.baseUri` for hms-web (spec D1), and
+	// per-app `loginVersion.loginV2.baseUri` for helivanta-web (spec D1), and
 	// the origin `/login?authRequest=…` renders on. It exists SOLELY so
 	// RequireDistinctHostedLoginOrigin (hostedlogin.go) has something to
 	// compare ZitadelHostedLoginURL against at boot — nothing on the
@@ -93,7 +93,7 @@ type Config struct {
 	// this field was, and that turned RequireDistinctHostedLoginOrigin
 	// into exactly the kind of control this codebase does not accept:
 	// one that looks present and does nothing under the conditions that
-	// matter. A silent `getenv("HMS_WEB_ORIGIN", DevHMSWebOrigin)`
+	// matter. A silent `getenv("HELIVANTA_WEB_ORIGIN", DevHelivantaWebOrigin)`
 	// default means an unset variable in PRODUCTION compares the real
 	// ZitadelHostedLoginURL against the DEV origin, finds no collision
 	// (they are never equal), and boots — the exact loop this guard
@@ -102,7 +102,7 @@ type Config struct {
 	// where the dev default is applied instead: only inside
 	// Config.IsDev(), the same guard DevSessionSigningKey needs and gets
 	// from SessionSigningKeySeed for the identical reason.
-	HMSWebOrigin string
+	HelivantaWebOrigin string
 
 	// SessionSigningKey is the raw, still-encoded value of
 	// SESSION_SIGNING_KEY — a base64 Ed25519 seed. Deliberately NOT
@@ -113,11 +113,11 @@ type Config struct {
 	// and it is SessionSigningKeySeed's job — not Load's — to turn
 	// "empty" into a boot refusal.
 	SessionSigningKey string
-	// SessionIssuer is the `iss` claim HMS's own session tokens carry
+	// SessionIssuer is the `iss` claim Helivanta's own session tokens carry
 	// and the Verifier checks against. Safe to default: it is a label,
 	// not a secret, and an operator who cares can override it.
 	SessionIssuer string
-	// SessionTTL bounds how long an HMS session is honoured before it
+	// SessionTTL bounds how long a Helivanta session is honoured before it
 	// must be renewed, and — post-#838 (spec D4/D4a) — renewal is the
 	// login exchange re-run with a fresh Zitadel token, re-checking
 	// membership every time. So this ONE number is the upper bound on
@@ -144,7 +144,7 @@ type Config struct {
 	// widening the deactivation window in absolute terms.
 	SessionTTL time.Duration
 
-	// IdleTimeout is how long an HMS session stays usable with no human
+	// IdleTimeout is how long a Helivanta session stays usable with no human
 	// interaction at all (#848, spec D1/D2): the idle_deadline claim a
 	// genuinely new login mints is time.Now() + IdleTimeout, and
 	// authn.Middleware refuses every request at or past that instant.
@@ -211,14 +211,14 @@ type Config struct {
 
 func Load() Config {
 	return Config{
-		Env:              getenv("HMS_ENV", "production"),
+		Env:              getenv("HELIVANTA_ENV", "production"),
 		Port:             getenv("PORT", "8080"),
 		LogLevel:         getenv("LOG_LEVEL", "info"),
 		AppDatabaseURL:   getenv("APP_DATABASE_URL", "postgres://hms_app:hms_app@localhost:5432/hms?sslmode=disable"),
 		AdminDatabaseURL: getenv("ADMIN_DATABASE_URL", "postgres://hms:hms@localhost:5432/hms?sslmode=disable"),
 		NATSURL:          getenv("NATS_URL", "nats://localhost:4222"),
 		OpenFGAURL:       getenv("OPENFGA_URL", "http://localhost:8090"),
-		OpenFGAStore:     getenv("OPENFGA_STORE", "hms"),
+		OpenFGAStore:     getenv("OPENFGA_STORE", "helivanta"),
 
 		ZitadelIssuerURL: getenv("ZITADEL_ISSUER_URL", "http://localhost:20080"),
 		ZitadelClientID:  getenv("ZITADEL_CLIENT_ID", ""),
@@ -228,19 +228,19 @@ func Load() Config {
 		// ZitadelLoginClientToken's doc comment on exactly why).
 		ZitadelLoginClientToken: os.Getenv("ZITADEL_LOGIN_CLIENT_TOKEN"),
 		ZitadelHostedLoginURL: getenv("ZITADEL_HOSTED_LOGIN_URL", "http://localhost:20080/ui/v2/login"),
-		// os.Getenv, not getenv(): see HMSWebOrigin's doc comment just
+		// os.Getenv, not getenv(): see HelivantaWebOrigin's doc comment just
 		// above — RequireDistinctHostedLoginOrigin (hostedlogin.go), not
 		// Load(), is where an unset value is resolved, and it resolves
-		// differently in dev (DevHMSWebOrigin) than everywhere else
+		// differently in dev (DevHelivantaWebOrigin) than everywhere else
 		// (a boot refusal), which a getenv() default here would make
 		// impossible to tell apart from an operator's real value.
-		HMSWebOrigin: os.Getenv("HMS_WEB_ORIGIN"),
+		HelivantaWebOrigin: os.Getenv("HELIVANTA_WEB_ORIGIN"),
 
 		// os.Getenv, not getenv(): getenv's whole purpose is supplying a
 		// default for an unset variable, and a signing key must never
 		// have one (see SessionSigningKeySeed's doc comment).
 		SessionSigningKey: os.Getenv("SESSION_SIGNING_KEY"),
-		SessionIssuer:     getenv("SESSION_ISSUER", "https://hms.local"),
+		SessionIssuer:     getenv("SESSION_ISSUER", "https://helivanta.local"),
 		SessionTTL:        getenvDuration("SESSION_TTL", 15*time.Minute),
 		// Read from its OWN variable, never derived from SESSION_TTL —
 		// see IdleTimeout's doc comment on why the two clocks must stay
@@ -312,6 +312,6 @@ func getenvDuration(k string, def time.Duration) time.Duration {
 
 // IsDev reports whether this process is running in a developer
 // environment. It defaults to false: the guards that consult it disable
-// production safety checks, so an unset or misspelled HMS_ENV must fail
+// production safety checks, so an unset or misspelled HELIVANTA_ENV must fail
 // closed rather than silently unlock them.
 func (c Config) IsDev() bool { return c.Env == "dev" }

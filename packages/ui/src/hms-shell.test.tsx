@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "@hms/api/testing";
-import { PERMISSIONS_CACHE_KEY } from "@hms/api";
+import { renderWithProviders } from "@helivanta/api/testing";
+import { PERMISSIONS_CACHE_KEY } from "@helivanta/api";
 import { HmsShell } from "./hms-shell";
 import { WARNING_LEAD_MS, type IdleTracker } from "./idle-timer";
 import { IDLE_ENDED_MARK, SIGNED_OUT_MARK } from "./zitadel-session";
@@ -118,7 +118,7 @@ describe("HmsShell", () => {
   });
 
   // Regresses #781: EVERY app — every zone, not only the shell — must
-  // revoke the HMS session server-side AND end Zitadel's own SSO session
+  // revoke the Helivanta session server-side AND end Zitadel's own SSO session
   // by default, with no `onSignOut` override needed any more. That used
   // to be shell-only; found broken live via the e2e suite (signing out
   // from a zone page left Zitadel's SSO cookie alive, so the next login —

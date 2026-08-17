@@ -1,4 +1,4 @@
-module github.com/tesserix/hms
+module github.com/tesserix/helivanta
 
 go 1.26.5
 

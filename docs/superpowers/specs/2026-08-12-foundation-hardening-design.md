@@ -1,7 +1,7 @@
 # Foundation hardening (Tier 0) — design
 
-Resolves: [#774](https://github.com/tesserix/hms/issues/774) Tier 0 — [DevEx]
-Foundation audit. Blocks [#70](https://github.com/tesserix/hms/issues/70)
+Resolves: [#774](https://github.com/tesserix/helivanta/issues/774) Tier 0 — [DevEx]
+Foundation audit. Blocks [#70](https://github.com/tesserix/helivanta/issues/70)
 patient registration.
 
 Date: 2026-08-12
@@ -42,7 +42,7 @@ telemetry, and encryption-at-rest posture.
 
 ### A1. An environment concept
 
-`config.Config` gains `Env`, read from `HMS_ENV`, **defaulting to
+`config.Config` gains `Env`, read from `HELIVANTA_ENV`, **defaulting to
 `production`**, with a `cfg.IsDev()` helper.
 
 The default is the whole point. A guard that defaults to permissive protects
@@ -50,7 +50,7 @@ nothing, because the deployment that forgets to set the variable is exactly the
 one that needed protecting. Defaulting to `production` means the failure lands
 on a developer, loudly and immediately, rather than on a hospital, silently.
 
-`make dev-api` and `internal/testutil` set `HMS_ENV=dev`. A bare
+`make dev-api` and `internal/testutil` set `HELIVANTA_ENV=dev`. A bare
 `go run ./cmd/api` against the emulator will refuse to start until the
 developer sets it, which is the intended cost.
 
@@ -71,7 +71,7 @@ parameter. When `FIREBASE_AUTH_EMULATOR_HOST` is set and the flag is false,
 construction returns an error naming the variable and stating that it disables
 signature verification. `cmd/api` passes `cfg.IsDev()`.
 
-A parameter rather than reading `HMS_ENV` inside the package: `pkg/` should not
+A parameter rather than reading `HELIVANTA_ENV` inside the package: `pkg/` should not
 reach into the process environment, and a parameter is testable without
 `t.Setenv`.
 
@@ -303,7 +303,7 @@ Changed:
 - `backend/scripts/new-module.sh` — new shape, concurrency test
 - `cmd/api`, `cmd/migrate`, `internal/testutil/harness.go`, both archtest files
 - `apps/shell/lib/firebase.ts` — remove the implicit emulator fallback
-- `Makefile` — `HMS_ENV=dev` for dev targets
+- `Makefile` — `HELIVANTA_ENV=dev` for dev targets
 
 ## Known limitations
 

@@ -1,10 +1,10 @@
-# HMS
+# Helivanta
 
-Hospital Management System platform — multi-zone monorepo.
+Helivanta — a hospital management system platform, multi-zone monorepo.
 
 - `apps/` — Next.js 16 zone apps (shell, medicore, pharmacy, lab) + mobile stubs
-- `backend/` — Go modular monolith (`github.com/tesserix/hms`)
-- `packages/` — shared JS config and HMS UI compositions
+- `backend/` — Go modular monolith (`github.com/tesserix/helivanta`)
+- `packages/` — shared JS config and Helivanta UI compositions
 - Design: `docs/superpowers/specs/2026-08-04-hms-repo-setup-design.md`
 - ADRs: `docs/adr/`
 
@@ -54,19 +54,19 @@ Seeded accounts (Zitadel, verified by a real hosted-UI login as part of
 
 | User                 | Password      | Tenant                 | Role           | Sees              |
 | -------------------- | ------------- | ---------------------- | -------------- | ----------------- |
-| `test@hms.dev`       | `HmsDev123!`  | `1111…1111` (default)  | `tenant_admin` | every zone        |
-| `test@hms.dev`       | `HmsDev123!`  | `2222…2222`            | `pharmacist`   | Pharmacy only     |
-| `pharmacist@hms.dev` | `HmsDev123!`  | `1111…1111`            | `pharmacist`   | Pharmacy only     |
+| `test@helivanta.dev`       | `HmsDev123!`  | `1111…1111` (default)  | `tenant_admin` | every zone        |
+| `test@helivanta.dev`       | `HmsDev123!`  | `2222…2222`            | `pharmacist`   | Pharmacy only     |
+| `pharmacist@helivanta.dev` | `HmsDev123!`  | `1111…1111`            | `pharmacist`   | Pharmacy only     |
 
-`test@hms.dev` is deliberately a member of **two** tenants so tenant
+`test@helivanta.dev` is deliberately a member of **two** tenants so tenant
 switching is exercisable end to end: OpenFGA
 already carries both memberships, and `POST /v1/iam/me/tenant` re-mints the
 session for either without an IdP round trip (spec D3).
 
 Sign in at http://localhost:4301/login. The shell redirects to Zitadel's
 hosted login (authorization code + PKCE), and the callback exchanges the ID
-token for an HMS session via `POST /v1/auth/login` — the API mints and sets
-the cookie, so the browser never holds an IdP token as its session.
+token for a Helivanta session via `POST /v1/auth/login` — the API mints and
+sets the cookie, so the browser never holds an IdP token as its session.
 
 The login page you land on is Zitadel's **stock** UI. Branding comes later
 from a design-system component consumed by the org's `zitadel-login` build
@@ -82,7 +82,7 @@ Stop everything with `make down`.
 `make up` provisions and seeds a local Zitadel v4.15.3 (spec
 `docs/superpowers/specs/2026-08-15-zitadel-auth-design.md`, topology
 `docs/superpowers/specs/2026-08-15-zitadel-tenancy-topology-design.md`):
-its own Postgres, an HMS org/project/OIDC app (`scripts/zitadel-bootstrap.mjs`,
+its own Postgres, a Helivanta org/project/OIDC app (`scripts/zitadel-bootstrap.mjs`,
 fully declarative — no browser step, even for the first machine credential),
 and the split `zitadel-login` service fronted by a Caddy reverse proxy
 (`dev/zitadel/Caddyfile`), matching production's topology rather than the
@@ -91,9 +91,9 @@ are what `make dev-api` (and therefore `make up`) passes the API; override
 `ZITADEL_ISSUER_URL` to point dev at a different instance.
 
 The API refuses to start with no `SESSION_SIGNING_KEY`, and refuses the
-well-known dev key (`HMS_DEV_SESSION_SIGNING_KEY`) outside `HMS_ENV=dev` —
+well-known dev key (`HELIVANTA_DEV_SESSION_SIGNING_KEY`) outside `HELIVANTA_ENV=dev` —
 otherwise a forged session would be accepted in what looks like production.
-`make dev-api` (and therefore `make up`) sets `HMS_ENV=dev` for you; a bare
+`make dev-api` (and therefore `make up`) sets `HELIVANTA_ENV=dev` for you; a bare
 `go run ./cmd/api` does not, so set it yourself when running the API outside
 `make`.
 
@@ -105,8 +105,8 @@ every other port is a host-side default only, overridable via `.env`:
 
     cp .env.example .env
     # .env
-    HMS_PG_PORT=15432   # something else already has 5432
-    HMS_REDIS_PORT=16379
+    HELIVANTA_PG_PORT=15432   # something else already has 5432
+    HELIVANTA_REDIS_PORT=16379
 
 Compose reads `.env` directly; `make` pulls the same file in (`-include
 .env`) so both sides always agree, and `make dev-api`/`make seed` pass
@@ -124,7 +124,7 @@ the containers themselves. See `.env.example` for the full variable list.
   migrate-only entrypoint with no NATS/OpenFGA dependency), so it works on
   a fresh clone with no API running — `iam_members` exists before seed
   writes to it. It also depends on `make dev-infra` having already run:
-  seeding reads the `hms-seed-bot` machine PAT and `ZITADEL_CLIENT_ID` from
+  seeding reads the `helivanta-seed-bot` machine PAT and `ZITADEL_CLIENT_ID` from
   `dev/zitadel/secrets/`, which `scripts/zitadel-bootstrap.mjs` writes.
 - `make seed` verifies every account by completing a REAL login through
   Zitadel's hosted UI (a headless Chromium via Playwright), not by trusting

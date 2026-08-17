@@ -13,7 +13,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/session"
+	"github.com/tesserix/helivanta/pkg/session"
 )
 
 const (

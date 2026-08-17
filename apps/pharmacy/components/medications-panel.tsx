@@ -3,8 +3,8 @@
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import { ClipboardList } from "lucide-react";
-import { apiFetch, useApiMutation, useApiPagedQuery } from "@hms/api";
-import { EmptyState, Field, LoadMore, useZodForm } from "@hms/ui";
+import { apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
+import { EmptyState, Field, LoadMore, useZodForm } from "@helivanta/ui";
 
 type Medication = { id: string; name: string; strength: string; created_at: string };
 

@@ -1,8 +1,8 @@
-# HMS Authorization (OpenFGA) Implementation Plan
+# Helivanta Authorization (OpenFGA) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make OpenFGA the single authorization decision point for HMS — every route declares a permission at compile time, permissions resolve in one FGA call per request, and an `iam` module owns tenant membership and roles as a rebuildable system of record.
+**Goal:** Make OpenFGA the single authorization decision point for Helivanta — every route declares a permission at compile time, permissions resolve in one FGA call per request, and an `iam` module owns tenant membership and roles as a rebuildable system of record.
 
 **Architecture:** Permissions are FGA *objects* (`perm:<tenantID>/<permission>`) granted to role objects (`role:<tenantID>/<key>`), so roles and permissions are data — the FGA model never changes when a zone, permission or role is added. `authz.Middleware` runs after `authn.Middleware` and resolves the caller's whole permission set for the token's tenant with one `ListObjects` call; `authz.Require(perm)` is then an in-memory lookup. `Module.Routes` takes a `*platform.Router` whose verb methods require an `authz.Permission` argument, making an undeclared route inexpressible. The `iam` module writes membership rows plus an outbox event in one transaction; the `iam-fga-sync` consumer applies tuples idempotently, so FGA is fully rebuildable from Postgres.
 
@@ -12,12 +12,12 @@
 
 ## Global Constraints
 
-- Go module path is exactly `github.com/tesserix/hms`, rooted at `backend/`.
+- Go module path is exactly `github.com/tesserix/helivanta`, rooted at `backend/`.
 - Modules must never import another module's packages (depguard + `internal/archtest`); cross-module data flows only via events.
 - Every table with a `tenant_id` column MUST have RLS enabled **and forced**, with a policy carrying both `USING` and `WITH CHECK`. `db.LintRLS` runs at boot and in every harness test.
 - Runtime DB access only via `tenantdb.WithTenant` / `WithSystem` — no exported raw `*gorm.DB`.
 - Migration IDs are globally unique and append-only. This phase adds exactly one: `0001_iam`.
-- Event subjects are `hms.<dir>.<module>.<event>.vN`; consumer names are `<module>-<purpose>`. This phase adds `hms.in.iam.member_granted.v1`, `hms.in.iam.member_revoked.v1`, and consumer `iam-fga-sync`.
+- Event subjects are `helivanta.<dir>.<module>.<event>.vN`; consumer names are `<module>-<purpose>`. This phase adds `helivanta.in.iam.member_granted.v1`, `helivanta.in.iam.member_revoked.v1`, and consumer `iam-fga-sync`.
 - Handlers use `authn.TenantPrincipal(c)` for identity and `respond.*` for every response. 404 (never 403) for cross-tenant; 403 only for "member of the tenant, lacking the permission".
 - **Fail closed:** any FGA error, timeout or unreachable store denies the request with `503 authz_unavailable`. Never fail open.
 - slog only (logrus banned); wrap errors with `%w`.
@@ -64,7 +64,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 func TestPermissionSetHas(t *testing.T) {
@@ -91,7 +91,7 @@ func TestSortedOnEmptySetIsEmptyNotNil(t *testing.T) {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cd backend && go test ./pkg/authz/`
-Expected: FAIL — `no required module provides package github.com/tesserix/hms/pkg/authz`
+Expected: FAIL — `no required module provides package github.com/tesserix/helivanta/pkg/authz`
 
 - [ ] **Step 3: Write the implementation**
 
@@ -254,8 +254,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/testinfra"
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/internal/testinfra"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 const (
@@ -349,7 +349,7 @@ Create `backend/pkg/authz/model.go`:
 ```go
 package authz
 
-// modelJSON is the complete HMS authorization model. It deliberately
+// modelJSON is the complete Helivanta authorization model. It deliberately
 // contains no role names and no permission names: roles and permissions
 // are objects, and granting is a tuple write. This file changes only if
 // the *shape* of authorization changes (for example when per-record or
@@ -630,8 +630,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 type fakeResolver struct {
@@ -761,8 +761,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/tesserix/hms/internal/platform/respond"
-	"github.com/tesserix/hms/pkg/authn"
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
 )
 
 const permissionsKey = "authz.permissions"
@@ -882,8 +882,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 func TestRouterAppliesRequireForDeclaredPermission(t *testing.T) {
@@ -947,7 +947,7 @@ package platform
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 // Router wraps a gin route group so that every route must declare the
@@ -1181,7 +1181,7 @@ func TestEveryDeclaredPermissionIsGranted(t *testing.T) {
 }
 ```
 
-Add `io/fs`, `path/filepath`, `github.com/gin-gonic/gin` and `github.com/tesserix/hms/pkg/authz` to the imports.
+Add `io/fs`, `path/filepath`, `github.com/gin-gonic/gin` and `github.com/tesserix/helivanta/pkg/authz` to the imports.
 
 > `m.Routes(r, platform.Deps{})` passes zero-value deps. That is safe because `Routes` only closes over `deps` inside handler bodies, which this test never invokes.
 
@@ -1228,8 +1228,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/modules/iam"
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/internal/modules/iam"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 func TestMigrationIDIsPhaseScoped(t *testing.T) {
@@ -1270,7 +1270,7 @@ Create `backend/internal/modules/iam/roles.go`:
 ```go
 package iam
 
-import "github.com/tesserix/hms/pkg/authz"
+import "github.com/tesserix/helivanta/pkg/authz"
 
 // SystemRole is a role seeded into every tenant. Because roles are data
 // rather than model relations, a tenant may define additional roles
@@ -1306,17 +1306,17 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 const PermMemberManage authz.Permission = "iam.member.manage"
 
 const (
-	SubjectMemberGranted = "hms.in.iam.member_granted.v1"
-	SubjectMemberRevoked = "hms.in.iam.member_revoked.v1"
+	SubjectMemberGranted = "helivanta.in.iam.member_granted.v1"
+	SubjectMemberRevoked = "helivanta.in.iam.member_revoked.v1"
 )
 
 type Module struct{}
@@ -1474,9 +1474,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/modules/iam"
-	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/internal/modules/iam"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 // recordingWriter captures tuple writes so tests can assert the consumer
@@ -1757,7 +1757,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 }
 ```
 
-Add `encoding/json`, `fmt`, `github.com/gin-gonic/gin`, `gorm.io/gorm`, `github.com/tesserix/hms/internal/platform/respond` and `github.com/tesserix/hms/pkg/authn` to the imports.
+Add `encoding/json`, `fmt`, `github.com/gin-gonic/gin`, `gorm.io/gorm`, `github.com/tesserix/helivanta/internal/platform/respond` and `github.com/tesserix/helivanta/pkg/authn` to the imports.
 
 - [ ] **Step 6: Write the sync consumer**
 
@@ -1773,9 +1773,9 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/events"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
 )
 
 // Consumers keeps OpenFGA in step with the membership tables. Postgres
@@ -1851,10 +1851,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 type grantingModule struct{ name string }
@@ -1928,8 +1928,8 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // GrantsFor returns every module's declared grants with RoleTenantAdmin
@@ -2052,9 +2052,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/modules/iam"
-	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/internal/modules/iam"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 func TestMePermissionsReturnsResolvedSetSorted(t *testing.T) {
@@ -2158,10 +2158,10 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/internal/platform/respond"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 type tenantMembership struct {
@@ -2303,7 +2303,7 @@ In `backend/internal/config/config.go`, add to `Config` and `Load`:
 
 ```go
 		OpenFGAURL:   getenv("OPENFGA_URL", "http://localhost:8090"),
-		OpenFGAStore: getenv("OPENFGA_STORE", "hms"),
+		OpenFGAStore: getenv("OPENFGA_STORE", "helivanta"),
 ```
 
 - [ ] **Step 2: Wire main.go**
@@ -2364,7 +2364,7 @@ then the server and routes:
 	}
 ```
 
-Add `github.com/tesserix/hms/internal/modules/iam` and `github.com/tesserix/hms/pkg/authz` to the imports.
+Add `github.com/tesserix/helivanta/internal/modules/iam` and `github.com/tesserix/helivanta/pkg/authz` to the imports.
 
 - [ ] **Step 3: Register iam in the arch test**
 
@@ -2467,10 +2467,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/modules/iam"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/internal/testinfra"
-	"github.com/tesserix/hms/pkg/authz"
+	"github.com/tesserix/helivanta/internal/modules/iam"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testinfra"
+	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 const (
@@ -2680,7 +2680,7 @@ describe("Can", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @hms/api test`
+Run: `pnpm --filter @helivanta/api test`
 Expected: FAIL — cannot resolve `./permissions`
 
 - [ ] **Step 3: Write the implementation**
@@ -2745,7 +2745,7 @@ export { Can, usePermissions } from "./permissions";
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `pnpm --filter @hms/api test && pnpm --filter @hms/api type-check`
+Run: `pnpm --filter @helivanta/api test && pnpm --filter @helivanta/api type-check`
 Expected: PASS
 
 - [ ] **Step 6: Commit**
@@ -2818,7 +2818,7 @@ describe("visibleZones", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @hms/ui test`
+Run: `pnpm --filter @helivanta/ui test`
 Expected: FAIL — `visibleZones` is not exported
 
 - [ ] **Step 3: Add permissions to the zone registry**
@@ -2856,7 +2856,7 @@ export function visibleZones(can: (permission: string) => boolean): Zone[] {
 
 - [ ] **Step 4: Use it in the shell**
 
-In `packages/ui/src/hms-shell.tsx`, replace the `ZONES` import with `visibleZones` plus `activeZone`, call `const { can } = usePermissions()` (import from `@hms/api`), and render `visibleZones(can)` in place of `ZONES` in both rails. Add `@hms/api` to `packages/ui/package.json` dependencies if it is not already there, then run `pnpm install` from the repo root.
+In `packages/ui/src/hms-shell.tsx`, replace the `ZONES` import with `visibleZones` plus `activeZone`, call `const { can } = usePermissions()` (import from `@helivanta/api`), and render `visibleZones(can)` in place of `ZONES` in both rails. Add `@helivanta/api` to `packages/ui/package.json` dependencies if it is not already there, then run `pnpm install` from the repo root.
 
 - [ ] **Step 5: Write the tenant picker test**
 
@@ -2865,7 +2865,7 @@ Create `packages/ui/src/tenant-picker.test.tsx`:
 ```tsx
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "@hms/api/testing";
+import { renderWithProviders } from "@helivanta/api/testing";
 import { TenantPicker } from "./tenant-picker";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -2914,7 +2914,7 @@ Create `packages/ui/src/tenant-picker.tsx`:
 ```tsx
 "use client";
 
-import { useApiMutation, useApiQuery, apiFetch } from "@hms/api";
+import { useApiMutation, useApiQuery, apiFetch } from "@helivanta/api";
 
 type Membership = { tenant_id: string; roles: string[] };
 
@@ -2968,7 +2968,7 @@ Export it from `packages/ui/src/index.ts` and render `<TenantPicker />` in the s
 
 - [ ] **Step 7: Gate the panel actions**
 
-In `apps/pharmacy/components/dispense-list.tsx`, wrap the dispense button in `<Can permission="pharmacy.dispense.fulfil">`; in `apps/lab/components/order-list.tsx` wrap the fulfil button in `<Can permission="lab.order.fulfil">`; in `apps/medicore/components/visit-panel.tsx` wrap the create-visit form in `<Can permission="medicore.visit.create">`. Import `Can` from `@hms/api`.
+In `apps/pharmacy/components/dispense-list.tsx`, wrap the dispense button in `<Can permission="pharmacy.dispense.fulfil">`; in `apps/lab/components/order-list.tsx` wrap the fulfil button in `<Can permission="lab.order.fulfil">`; in `apps/medicore/components/visit-panel.tsx` wrap the create-visit form in `<Can permission="medicore.visit.create">`. Import `Can` from `@helivanta/api`.
 
 Update each panel's existing test to stub `/iam/me/permissions` with the permission the assertion needs, since `Can` renders nothing while loading and the buttons would otherwise be absent.
 
@@ -3016,7 +3016,7 @@ Add an "Authorization" section to `docs/standards/backend.md` covering: every ro
 
 - [ ] **Step 2: Update the frontend standards**
 
-Add to `docs/standards/frontend.md`: permission gating uses `Can` / `usePermissions` from `@hms/api` and is a **convenience layer only**; every zone and page in `packages/ui/src/zones.ts` must declare a permission; never treat `can()` as a security boundary.
+Add to `docs/standards/frontend.md`: permission gating uses `Can` / `usePermissions` from `@helivanta/api` and is a **convenience layer only**; every zone and page in `packages/ui/src/zones.ts` must declare a permission; never treat `can()` as a security boundary.
 
 - [ ] **Step 3: Update CLAUDE.md**
 
@@ -3030,7 +3030,7 @@ Add to the backend rules section:
 and to the frontend rules section:
 
 ```
-- Permission gating uses `Can`/`usePermissions` from `@hms/api` and is convenience only — the API enforces. Every zone/page in `packages/ui/src/zones.ts` declares a permission.
+- Permission gating uses `Can`/`usePermissions` from `@helivanta/api` and is convenience only — the API enforces. Every zone/page in `packages/ui/src/zones.ts` declares a permission.
 ```
 
 - [ ] **Step 4: Update the skills**
@@ -3119,15 +3119,15 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/tesserix/hms/internal/config"
-	"github.com/tesserix/hms/internal/modules/iam"
-	"github.com/tesserix/hms/internal/modules/lab"
-	"github.com/tesserix/hms/internal/modules/medicore"
-	"github.com/tesserix/hms/internal/modules/pharmacy"
-	"github.com/tesserix/hms/internal/modules/reference"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/internal/modules/iam"
+	"github.com/tesserix/helivanta/internal/modules/lab"
+	"github.com/tesserix/helivanta/internal/modules/medicore"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/reference"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 func main() {
@@ -3218,7 +3218,7 @@ Create `scripts/verify-local.sh` (and `chmod +x` it):
 
 ```bash
 #!/usr/bin/env bash
-# Verifies that the whole HMS stack is up and healthy locally.
+# Verifies that the whole Helivanta stack is up and healthy locally.
 # Usage: make verify-local   (after `make dev` in another terminal)
 set -uo pipefail
 

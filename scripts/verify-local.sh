@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Verifies that the whole HMS stack is up and healthy locally.
+# Verifies that the whole Helivanta stack is up and healthy locally.
 # Usage: make verify-local   (after `make dev` in another terminal)
 set -uo pipefail
 
-# Same HMS_* host-port variables as the Makefile/preflight (see
+# Same HELIVANTA_* host-port variables as the Makefile/preflight (see
 # .env.example) — falls back to the stock ports when unset, so this still
 # works run standalone with no .env present.
-OPENFGA_PORT=${HMS_OPENFGA_PORT:-8090}
-ZITADEL_PORT=${HMS_ZITADEL_PORT:-20080}
-API_PORT=${HMS_API_PORT:-8080}
+OPENFGA_PORT=${HELIVANTA_OPENFGA_PORT:-8090}
+ZITADEL_PORT=${HELIVANTA_ZITADEL_PORT:-20080}
+API_PORT=${HELIVANTA_API_PORT:-8080}
 
 fail=0
 
@@ -75,7 +75,7 @@ check "lab      (4304)"  "http://localhost:4304/lab"      10 20
 # against Zitadel's own v2 APIs, not a shortcut — see
 # scripts/zitadel-verify-login.mjs's own comment on why driving the token
 # exchange itself, not just generating a callback_url, is the entire point)
-# → POST /v1/auth/login → an HMS session that resolves a real permission on
+# → POST /v1/auth/login → a Helivanta session that resolves a real permission on
 # /v1/iam/me/permissions. Each hop is still reported separately by
 # scripts/zitadel-verify-login.mjs, because "the stack is broken" is not
 # actionable but "the token exchange failed" is — #854 Task 7 found a real
@@ -93,13 +93,13 @@ echo
 if [ "$fail" -eq 0 ]; then
   echo "All checks passed."
   # The browser still transits Zitadel's /oauth/v2/authorize, but only as a
-  # 302 — since #854 the credential form that actually renders is HMS's own
+  # 302 — since #854 the credential form that actually renders is Helivanta's own
   # /login. Saying "you will be redirected to Zitadel" here read as though a
   # hosted Zitadel page were expected, which would now be a defect.
-  echo "Sign in at http://localhost:4301 — the sign-in form is HMS's own /login."
+  echo "Sign in at http://localhost:4301 — the sign-in form is Helivanta's own /login."
   echo "Zitadel accounts, login-verified by 'make seed':"
-  echo "  test@hms.dev       / HmsDev123!  (tenant_admin)"
-  echo "  pharmacist@hms.dev / HmsDev123!  (pharmacist)"
+  echo "  test@helivanta.dev       / HmsDev123!  (tenant_admin)"
+  echo "  pharmacist@helivanta.dev / HmsDev123!  (pharmacist)"
 else
   echo "Some checks failed. Common causes:"
   echo "  - 'make dev' not running, or still starting (Next.js takes ~20s)"

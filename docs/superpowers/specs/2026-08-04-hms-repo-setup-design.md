@@ -1,4 +1,4 @@
-# HMS Repo Setup — Multi-Zone Monorepo Design
+# Helivanta Repo Setup — Multi-Zone Monorepo Design
 
 **Date:** 2026-08-04
 **Status:** Approved (brainstorming session with Mahesh)
@@ -6,13 +6,13 @@
 
 ## Context
 
-The `tesserix/hms` repo is a greenfield Hospital Management System platform. The
+The `tesserix/helivanta` repo is a greenfield hospital management system platform. The
 product portfolio (issue #12) defines 11 products; v1 targets three product
 zones — MediCore (OPD + IPD), PharmaConnect (pharmacy), LabConnect (lab) —
 plus a shell app. The GitHub issues are the requirements corpus (753 issues);
 the foundational ones already fix the backend architecture:
 
-- **Issue #2**: one Go module `github.com/tesserix/hms`, modular monolith
+- **Issue #2**: one Go module `github.com/tesserix/helivanta`, modular monolith
   (`cmd/api`, `internal/modules/<domain>`, `pkg/`), CNPG PostgreSQL 16 with
   forced RLS, NATS JetStream with transactional outbox, Redis, OTel with PHI
   redaction, `make dev` local stack in ≤ 10 minutes.
@@ -78,7 +78,7 @@ ADR-0002). The org already standardizes on GIP per-product tenants on
 `tesseracthub-480811` (`tesserix-k8s/docs/identity/gip-tenant-google-idp.md`,
 `scripts/identity/enable-tenant-google-idp.py`).
 
-- Shell owns login against the HMS GIP tenant (Firebase Web SDK multi-tenant
+- Shell owns login against the Helivanta GIP tenant (Firebase Web SDK multi-tenant
   flow; OTP-first per UX issue #551) and mints the HttpOnly session cookie
   for `{tenant}.hms.app`.
 - Go `pkg/authn` verifies GIP JWTs (port from `go-shared` GIP middleware);
@@ -144,7 +144,7 @@ hms/                             # pnpm workspace + one Go module
 │   ├── pharmacy/                # "/pharmacy/*"
 │   ├── lab/                     # "/lab/*"
 │   └── mobile/                  # Expo app stubs (doctor, patient, nurse, pharmacist)
-├── backend/                     # github.com/tesserix/hms — Go modular monolith
+├── backend/                     # github.com/tesserix/helivanta — Go modular monolith
 │   ├── cmd/api/
 │   ├── internal/modules/
 │   │   ├── medicore/
@@ -157,7 +157,7 @@ hms/                             # pnpm workspace + one Go module
 │       ├── authz/               # OpenFGA client + Gin Require middleware
 │       └── events/              # outbox publisher + durable pull consumers
 ├── packages/
-│   ├── ui/                      # HMS-only compositions over @tesserix/web
+│   ├── ui/                      # Helivanta-only compositions over @tesserix/web
 │   │                            # (patient banner, vitals card, bed map, …)
 │   ├── api-client/              # OpenAPI-generated TS client (web + mobile)
 │   ├── registry/                # product-registry manifest → Go + TS codegen (issue #12)

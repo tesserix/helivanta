@@ -1,7 +1,7 @@
 "use client";
 
-import { usePermissions } from "@hms/api";
-import { HmsShell, visibleZones, type Zone, type ZoneHue } from "@hms/ui";
+import { usePermissions } from "@helivanta/api";
+import { HmsShell, visibleZones, type Zone, type ZoneHue } from "@helivanta/ui";
 import { TenantPicker } from "@/components/tenant-picker";
 
 // Per-page descriptions, keyed by href — the registry (packages/ui/src/zones.ts)
@@ -55,7 +55,7 @@ export default function Dashboard() {
   const { can } = usePermissions();
   const cards = cardsFor(visibleZones(can));
 
-  // No onSignOut override: HmsShell's own default now ends both the HMS
+  // No onSignOut override: HmsShell's own default now ends both the Helivanta
   // session and Zitadel's SSO session from every app, the shell's
   // dashboard included — see packages/ui/src/hms-shell.tsx's
   // handleSignOut and zitadel-session.ts.

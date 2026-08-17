@@ -13,12 +13,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/bootstrap"
-	"github.com/tesserix/hms/internal/config"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/authz"
-	"github.com/tesserix/hms/pkg/ratelimit"
-	"github.com/tesserix/hms/pkg/session"
+	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/ratelimit"
+	"github.com/tesserix/helivanta/pkg/session"
 )
 
 // chainNeverRevoked stands in for iam.RevocationChecker: this file is
@@ -56,7 +56,7 @@ func newChainHarness(t *testing.T) (*gin.Engine, *session.Signer) {
 	pub, priv, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
 	const (
-		kid    = "hms-session-v1"
+		kid    = "helivanta-session-v1"
 		issuer = "https://hms.test"
 	)
 	signer, err := session.NewSigner(priv, kid, issuer, 15*time.Minute)
@@ -79,7 +79,7 @@ func newChainHarness(t *testing.T) (*gin.Engine, *session.Signer) {
 }
 
 // TestV1ChainAcceptsAnHMSSession is the positive control: the exact
-// composition main.go wires up must still let a genuine HMS session
+// composition main.go wires up must still let a genuine Helivanta session
 // through, and must resolve the tenant it was minted for.
 func TestV1ChainAcceptsAnHMSSession(t *testing.T) {
 	e, signer := newChainHarness(t)
@@ -102,7 +102,7 @@ func TestV1ChainAcceptsAnHMSSession(t *testing.T) {
 
 // TestV1ChainRefusesRawZitadelToken is the mandatory Task 4 proof, at
 // the same wiring level main.go actually runs: a raw Zitadel ID
-// token — never minted by HMS, never touching session.Signer — must be
+// token — never minted by Helivanta, never touching session.Signer — must be
 // refused by the /v1 chain. Unlike pkg/authn's own
 // TestMiddleware_RefusesRawZitadelToken (same claim, narrower scope:
 // authn.Middleware + authn.NewSessionVerifier only), this test also

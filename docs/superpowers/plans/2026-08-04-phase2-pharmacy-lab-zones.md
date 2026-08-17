@@ -1,8 +1,8 @@
-# HMS Phase 2 — Pharmacy & Lab Zones Implementation Plan
+# Helivanta Phase 2 — Pharmacy & Lab Zones Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship pharmacy and lab zones with a real thin-slice domain (visits → pending dispenses/orders via JetStream), tenant-scoped event consumers, and a shared two-rail sidebar (`@hms/ui`) using tesserix-home's color tokens.
+**Goal:** Ship pharmacy and lab zones with a real thin-slice domain (visits → pending dispenses/orders via JetStream), tenant-scoped event consumers, and a shared two-rail sidebar (`@helivanta/ui`) using tesserix-home's color tokens.
 
 **Architecture:** Three new Go modules (`medicore`, `pharmacy`, `lab`) follow the `reference` module pattern; medicore publishes `visit_created`, pharmacy and lab consume it into pending work rows (the bus now sets the tenant GUC inside consumer transactions). Frontend: new workspace package `packages/ui` holds the two-rail chrome + zone registry + sidebar tokens; new zone apps `apps/pharmacy` (:4303) and `apps/lab` (:4304) are stitched via shell rewrites.
 
@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Go module path is exactly `github.com/tesserix/hms`, rooted at `backend/`.
+- Go module path is exactly `github.com/tesserix/helivanta`, rooted at `backend/`.
 - Backend module boundaries: `internal/modules/<name>` must never import another module's packages; cross-module data flows only via events.
 - Every table with a `tenant_id` column MUST have RLS enabled **and forced** with a policy carrying both `USING` and `WITH CHECK`; the RLS linter runs at boot and in tests.
 - Runtime DB access only via `tenantdb.WithTenant` / `WithSystem` — no exported raw `*gorm.DB`.
@@ -76,7 +76,7 @@ func TestConsumerTenantScopedWrite(t *testing.T) {
 
 	require.NoError(t, bus.StartConsumers(ctx, db, []events.Consumer{{
 		Name:    "tenant-write-consumer",
-		Subject: "hms.in.test.tenantwrite.v1",
+		Subject: "helivanta.in.test.tenantwrite.v1",
 		Handle: func(ctx context.Context, tx *gorm.DB, evt events.Event) error {
 			// Relies on the bus having set app.tenant_id from evt.TenantID.
 			return tx.Exec(`INSERT INTO consumer_widgets (tenant_id, note) VALUES (?, 'from-consumer')`,
@@ -86,7 +86,7 @@ func TestConsumerTenantScopedWrite(t *testing.T) {
 	go bus.RunDispatcher(ctx, db)
 
 	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
-		return bus.Publish(tx, "hms.in.test.tenantwrite.v1", events.Event{
+		return bus.Publish(tx, "helivanta.in.test.tenantwrite.v1", events.Event{
 			Type: "TenantWrite", Version: 1, TenantID: tenantA,
 			Data: json.RawMessage(`{}`),
 		})
@@ -160,7 +160,7 @@ git commit -m "feat: scope consumer transactions to the event tenant for rls wri
 - Produces:
   - `medicore.New() *Module` implementing `platform.Module` with `Name() == "medicore"`.
   - Routes: `POST /medicore/visits` body `{"patient_name": string (required, max 200), "department": "OPD"|"IPD"}` → `202 {"id": "<uuid>"}`; `GET /medicore/visits` → `200 {"data": [{id, patient_name, department, status, created_at}]}` newest-first, limit 100.
-  - Event `hms.in.medicore.visit_created.v1`, type `VisitCreated` v1, data `{"visit_id": string, "patient_name": string, "department": string}` — Tasks 3 and 4 consume this; the constant is `medicore.SubjectVisitCreated` but consumers repeat the string literal (modules must not import each other).
+  - Event `helivanta.in.medicore.visit_created.v1`, type `VisitCreated` v1, data `{"visit_id": string, "patient_name": string, "department": string}` — Tasks 3 and 4 consume this; the constant is `medicore.SubjectVisitCreated` but consumers repeat the string literal (modules must not import each other).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -181,12 +181,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/modules/medicore"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/modules/medicore"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
 
@@ -264,7 +264,7 @@ func TestCreateAndListVisits(t *testing.T) {
 		var n int64
 		_ = db.WithSystem(ctx, func(tx *gorm.DB) error {
 			return tx.Raw(`SELECT count(*) FROM outbox_events
-				WHERE subject = 'hms.in.medicore.visit_created.v1' AND published_at IS NOT NULL`).Scan(&n).Error
+				WHERE subject = 'helivanta.in.medicore.visit_created.v1' AND published_at IS NOT NULL`).Scan(&n).Error
 		})
 		return n == 1
 	}, 20*time.Second, 200*time.Millisecond)
@@ -304,13 +304,13 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-const SubjectVisitCreated = "hms.in.medicore.visit_created.v1"
+const SubjectVisitCreated = "helivanta.in.medicore.visit_created.v1"
 
 type Module struct{}
 
@@ -439,16 +439,16 @@ git commit -m "feat: medicore module with visits and visit_created event"
 
 **Interfaces:**
 
-- Consumes: same platform/authn/events surfaces as Task 2. Consumes the event subject string `"hms.in.medicore.visit_created.v1"` with data `{"visit_id","patient_name","department"}` (repeated literal — no import of medicore).
+- Consumes: same platform/authn/events surfaces as Task 2. Consumes the event subject string `"helivanta.in.medicore.visit_created.v1"` with data `{"visit_id","patient_name","department"}` (repeated literal — no import of medicore).
 - Produces:
   - `pharmacy.New() *Module`, `Name() == "pharmacy"`.
   - Routes: `POST /pharmacy/medications` `{"name": required max 200, "strength": max 100}` → `201 {"id"}`; `GET /pharmacy/medications` → `{"data":[...]}`; `GET /pharmacy/dispenses` → `{"data":[{id, visit_id, patient_name, medication, status, dispensed_at, created_at}]}`; `POST /pharmacy/dispenses/:id/dispense` `{"medication": required max 200}` → `200` on success, `404` unknown/cross-tenant id, `409 {"error":"conflict"}` if already dispensed.
   - Consumer `pharmacy-visit-intake` creating a pending dispense per visit (relies on Task 1's tenant GUC).
-  - Event `hms.in.pharmacy.dispense_recorded.v1`, type `DispenseRecorded` v1, data `{"dispense_id","visit_id"}`.
+  - Event `helivanta.in.pharmacy.dispense_recorded.v1`, type `DispenseRecorded` v1, data `{"dispense_id","visit_id"}`.
 
 - [ ] **Step 1: Write the failing test**
 
-`backend/internal/modules/pharmacy/module_test.go` — same `staticVerifier`/`setup`/`do` scaffolding as Task 2 Step 1 with these differences: import `"github.com/tesserix/hms/internal/modules/pharmacy"` instead of medicore and build `mod := pharmacy.New()`. Then:
+`backend/internal/modules/pharmacy/module_test.go` — same `staticVerifier`/`setup`/`do` scaffolding as Task 2 Step 1 with these differences: import `"github.com/tesserix/helivanta/internal/modules/pharmacy"` instead of medicore and build `mod := pharmacy.New()`. Then:
 
 ```go
 func TestVisitIntakeCreatesPendingDispense(t *testing.T) {
@@ -461,7 +461,7 @@ func TestVisitIntakeCreatesPendingDispense(t *testing.T) {
 		data, _ := json.Marshal(map[string]string{
 			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
 		})
-		return busRef.Publish(tx, "hms.in.medicore.visit_created.v1", events.Event{
+		return busRef.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
 			Type: "VisitCreated", Version: 1, TenantID: tenantA, Data: data,
 		})
 	}))
@@ -483,7 +483,7 @@ func TestDispenseFlow(t *testing.T) {
 		data, _ := json.Marshal(map[string]string{
 			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
 		})
-		return busRef.Publish(tx, "hms.in.medicore.visit_created.v1", events.Event{
+		return busRef.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
 			Type: "VisitCreated", Version: 1, TenantID: tenantA, Data: data,
 		})
 	}))
@@ -521,7 +521,7 @@ func TestDispenseFlow(t *testing.T) {
 		var n int64
 		_ = db.WithSystem(ctx, func(tx *gorm.DB) error {
 			return tx.Raw(`SELECT count(*) FROM outbox_events
-				WHERE subject = 'hms.in.pharmacy.dispense_recorded.v1'`).Scan(&n).Error
+				WHERE subject = 'helivanta.in.pharmacy.dispense_recorded.v1'`).Scan(&n).Error
 		})
 		return n == 1
 	}, 10*time.Second, 200*time.Millisecond)
@@ -566,17 +566,17 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 const (
 	// SubjectVisitCreated is medicore's subject, repeated by value —
 	// modules must not import each other (spec D6 / phase 1).
-	subjectVisitCreated      = "hms.in.medicore.visit_created.v1"
-	SubjectDispenseRecorded  = "hms.in.pharmacy.dispense_recorded.v1"
+	subjectVisitCreated      = "helivanta.in.medicore.visit_created.v1"
+	SubjectDispenseRecorded  = "helivanta.in.pharmacy.dispense_recorded.v1"
 )
 
 type Module struct{}
@@ -808,16 +808,16 @@ git commit -m "feat: pharmacy module with medications, dispenses and visit intak
 
 **Interfaces:**
 
-- Consumes: same surfaces as Task 3; event subject literal `"hms.in.medicore.visit_created.v1"`.
+- Consumes: same surfaces as Task 3; event subject literal `"helivanta.in.medicore.visit_created.v1"`.
 - Produces:
   - `lab.New() *Module`, `Name() == "lab"`.
   - Routes: `GET /lab/orders` → `{"data":[{id, visit_id, patient_name, test_name, status, result_value, resulted_at, created_at}]}`; `POST /lab/orders/:id/result` `{"result_value": required max 500}` → `200`, `404` unknown/cross-tenant, `409` already completed.
   - Consumer `lab-visit-intake` creating a pending order (test_name default `CBC`) per visit.
-  - Event `hms.in.lab.result_ready.v1`, type `ResultReady` v1, data `{"order_id","visit_id"}`.
+  - Event `helivanta.in.lab.result_ready.v1`, type `ResultReady` v1, data `{"order_id","visit_id"}`.
 
 - [ ] **Step 1: Write the failing test**
 
-`backend/internal/modules/lab/module_test.go` — same `staticVerifier`/`setup`/`do`/`busRef` scaffolding as Task 3 Step 1, importing `"github.com/tesserix/hms/internal/modules/lab"` and building `mod := lab.New()`. Tests:
+`backend/internal/modules/lab/module_test.go` — same `staticVerifier`/`setup`/`do`/`busRef` scaffolding as Task 3 Step 1, importing `"github.com/tesserix/helivanta/internal/modules/lab"` and building `mod := lab.New()`. Tests:
 
 ```go
 func TestVisitIntakeCreatesPendingOrder(t *testing.T) {
@@ -828,7 +828,7 @@ func TestVisitIntakeCreatesPendingOrder(t *testing.T) {
 		data, _ := json.Marshal(map[string]string{
 			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
 		})
-		return busRef.Publish(tx, "hms.in.medicore.visit_created.v1", events.Event{
+		return busRef.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
 			Type: "VisitCreated", Version: 1, TenantID: tenantA, Data: data,
 		})
 	}))
@@ -850,7 +850,7 @@ func TestResultFlow(t *testing.T) {
 		data, _ := json.Marshal(map[string]string{
 			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
 		})
-		return busRef.Publish(tx, "hms.in.medicore.visit_created.v1", events.Event{
+		return busRef.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
 			Type: "VisitCreated", Version: 1, TenantID: tenantA, Data: data,
 		})
 	}))
@@ -888,7 +888,7 @@ func TestResultFlow(t *testing.T) {
 		var n int64
 		_ = db.WithSystem(ctx, func(tx *gorm.DB) error {
 			return tx.Raw(`SELECT count(*) FROM outbox_events
-				WHERE subject = 'hms.in.lab.result_ready.v1'`).Scan(&n).Error
+				WHERE subject = 'helivanta.in.lab.result_ready.v1'`).Scan(&n).Error
 		})
 		return n == 1
 	}, 10*time.Second, 200*time.Millisecond)
@@ -921,15 +921,15 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 const (
-	subjectVisitCreated = "hms.in.medicore.visit_created.v1"
-	SubjectResultReady  = "hms.in.lab.result_ready.v1"
+	subjectVisitCreated = "helivanta.in.medicore.visit_created.v1"
+	SubjectResultReady  = "helivanta.in.lab.result_ready.v1"
 )
 
 type Module struct{}
@@ -1104,9 +1104,9 @@ git commit -m "feat: lab module with orders, results and visit intake"
 In `backend/cmd/api/main.go`, extend the imports with:
 
 ```go
-	"github.com/tesserix/hms/internal/modules/lab"
-	"github.com/tesserix/hms/internal/modules/medicore"
-	"github.com/tesserix/hms/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/lab"
+	"github.com/tesserix/helivanta/internal/modules/medicore"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 ```
 
 and replace the single registration block
@@ -1153,14 +1153,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tesserix/hms/internal/modules/lab"
-	"github.com/tesserix/hms/internal/modules/medicore"
-	"github.com/tesserix/hms/internal/modules/pharmacy"
-	"github.com/tesserix/hms/internal/platform"
-	"github.com/tesserix/hms/internal/testutil"
-	"github.com/tesserix/hms/pkg/authn"
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/internal/modules/lab"
+	"github.com/tesserix/helivanta/internal/modules/medicore"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 type staticVerifier map[string]string
@@ -1256,7 +1256,7 @@ git commit -m "feat: register phase 2 modules and add cross-module journey test"
 
 ---
 
-### Task 6: `packages/ui` — @hms/ui with two-rail sidebar, zone registry, tokens
+### Task 6: `packages/ui` — @helivanta/ui with two-rail sidebar, zone registry, tokens
 
 **Files:**
 
@@ -1265,10 +1265,10 @@ git commit -m "feat: register phase 2 modules and add cross-module journey test"
 **Interfaces:**
 
 - Produces (consumed by Tasks 7–9):
-  - `import { HmsShell } from "@hms/ui"` — props `{ active: string; children: React.ReactNode }` where `active` is the current absolute path (e.g. `/medicore/opd`). Server-component-safe (no hooks). Renders icon rail + secondary panel + header + `<main>`.
-  - `import { ZONES, activeZone } from "@hms/ui"` — `Zone = { key, label, icon, href, pages: {label, href}[] }`; `activeZone(path: string): Zone`.
-  - CSS: apps add `@import "@hms/ui/styles.css";` after `@tesserix/web/styles` and `@source "../../../packages/ui/src";` so Tailwind emits the package's classes.
-  - Apps must add `transpilePackages: ["@hms/ui"]` to `next.config.ts` (source package, no build step).
+  - `import { HmsShell } from "@helivanta/ui"` — props `{ active: string; children: React.ReactNode }` where `active` is the current absolute path (e.g. `/medicore/opd`). Server-component-safe (no hooks). Renders icon rail + secondary panel + header + `<main>`.
+  - `import { ZONES, activeZone } from "@helivanta/ui"` — `Zone = { key, label, icon, href, pages: {label, href}[] }`; `activeZone(path: string): Zone`.
+  - CSS: apps add `@import "@helivanta/ui/styles.css";` after `@tesserix/web/styles` and `@source "../../../packages/ui/src";` so Tailwind emits the package's classes.
+  - Apps must add `transpilePackages: ["@helivanta/ui"]` to `next.config.ts` (source package, no build step).
 
 - [ ] **Step 1: Package scaffolding**
 
@@ -1276,7 +1276,7 @@ git commit -m "feat: register phase 2 modules and add cross-module journey test"
 
 ```json
 {
-  "name": "@hms/ui",
+  "name": "@helivanta/ui",
   "version": "0.0.0",
   "private": true,
   "exports": {
@@ -1293,7 +1293,7 @@ git commit -m "feat: register phase 2 modules and add cross-module journey test"
     "react": "^19.0.0"
   },
   "devDependencies": {
-    "@hms/config": "workspace:*",
+    "@helivanta/config": "workspace:*",
     "@types/react": "^19",
     "typescript": "^5.7.0"
   }
@@ -1304,7 +1304,7 @@ git commit -m "feat: register phase 2 modules and add cross-module journey test"
 
 ```json
 {
-  "extends": "@hms/config/tsconfig.base.json",
+  "extends": "@helivanta/config/tsconfig.base.json",
   "compilerOptions": {
     "jsx": "preserve",
     "noEmit": true
@@ -1415,7 +1415,7 @@ export function HmsShell({
         <div className="flex h-16 items-center justify-center">
           <a
             href="/"
-            aria-label="HMS home"
+            aria-label="Helivanta home"
             className="flex h-9 w-9 items-center justify-center rounded-lg text-lg font-semibold text-sidebar-primary"
           >
             H
@@ -1490,7 +1490,7 @@ export function HmsShell({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center justify-between border-b px-6">
           <span className="text-sm text-muted-foreground">
-            Hospital Management System
+            Helivanta
           </span>
           <a
             href="/logout"
@@ -1518,7 +1518,7 @@ export { ZONES, activeZone, type Zone, type ZonePage } from "./zones";
 `packages/ui/styles.css` (values copied from tesserix-home `apps/web/app/globals.css` light theme):
 
 ```css
-/* HMS sidebar tokens — tesserix-home dark-slate rail on light content.
+/* Helivanta sidebar tokens — tesserix-home dark-slate rail on light content.
    Layer AFTER @tesserix/web/styles so these win. */
 :root,
 [data-theme="default"] {
@@ -1535,8 +1535,8 @@ export { ZONES, activeZone, type Zone, type ZonePage } from "./zones";
 
 - [ ] **Step 5: Install and type-check**
 
-Run: `pnpm install && pnpm --filter @hms/ui type-check`
-Expected: lockfile updated with `@hms/ui` + lucide-react; type-check passes. If the extended tsconfig lacks JSX/DOM settings, apply the fallback noted in Step 1.
+Run: `pnpm install && pnpm --filter @helivanta/ui type-check`
+Expected: lockfile updated with `@helivanta/ui` + lucide-react; type-check passes. If the extended tsconfig lacks JSX/DOM settings, apply the fallback noted in Step 1.
 
 - [ ] **Step 6: Commit**
 
@@ -1547,16 +1547,16 @@ git commit -m "feat: hms ui package with two-rail sidebar and zone registry"
 
 ---
 
-### Task 7: Migrate shell + medicore apps to @hms/ui
+### Task 7: Migrate shell + medicore apps to @helivanta/ui
 
 **Files:**
 
 - Delete: `apps/shell/components/hms-shell.tsx`, `apps/medicore/components/hms-shell.tsx`
-- Modify: `apps/shell/package.json`, `apps/medicore/package.json` (add `"@hms/ui": "workspace:*"` to dependencies), `apps/shell/next.config.ts`, `apps/medicore/next.config.ts` (add `transpilePackages: ["@hms/ui"]`), `apps/shell/app/globals.css`, `apps/medicore/app/globals.css`, `apps/shell/app/page.tsx`, `apps/medicore/app/opd/page.tsx`, `apps/medicore/app/ipd/page.tsx`
+- Modify: `apps/shell/package.json`, `apps/medicore/package.json` (add `"@helivanta/ui": "workspace:*"` to dependencies), `apps/shell/next.config.ts`, `apps/medicore/next.config.ts` (add `transpilePackages: ["@helivanta/ui"]`), `apps/shell/app/globals.css`, `apps/medicore/app/globals.css`, `apps/shell/app/page.tsx`, `apps/medicore/app/opd/page.tsx`, `apps/medicore/app/ipd/page.tsx`
 
 **Interfaces:**
 
-- Consumes: `HmsShell` from `@hms/ui` (Task 6).
+- Consumes: `HmsShell` from `@helivanta/ui` (Task 6).
 - Produces: both apps render the shared two-rail chrome; no local `hms-shell.tsx` copies remain in the repo.
 
 - [ ] **Step 1: Add the dependency and transpile config**
@@ -1564,13 +1564,13 @@ git commit -m "feat: hms ui package with two-rail sidebar and zone registry"
 In both `apps/shell/package.json` and `apps/medicore/package.json`, add to `dependencies`:
 
 ```json
-    "@hms/ui": "workspace:*",
+    "@helivanta/ui": "workspace:*",
 ```
 
 In both `next.config.ts` files, add inside the `nextConfig` object (top level, alongside `output`):
 
 ```ts
-  transpilePackages: ["@hms/ui"],
+  transpilePackages: ["@helivanta/ui"],
 ```
 
 Run: `pnpm install`
@@ -1580,7 +1580,7 @@ Run: `pnpm install`
 In BOTH `apps/shell/app/globals.css` and `apps/medicore/app/globals.css`, append after the existing `@source` line:
 
 ```css
-@import "@hms/ui/styles.css";
+@import "@helivanta/ui/styles.css";
 
 /* Scan the shared UI package for emitted class names. */
 @source "../../../packages/ui/src";
@@ -1590,22 +1590,22 @@ In BOTH `apps/shell/app/globals.css` and `apps/medicore/app/globals.css`, append
 
 - [ ] **Step 3: Swap imports and delete the copies**
 
-- `apps/shell/app/page.tsx`: change `import { HmsShell } from "@/components/hms-shell";` to `import { HmsShell } from "@hms/ui";` (rest unchanged).
+- `apps/shell/app/page.tsx`: change `import { HmsShell } from "@/components/hms-shell";` to `import { HmsShell } from "@helivanta/ui";` (rest unchanged).
 - `apps/medicore/app/opd/page.tsx` and `apps/medicore/app/ipd/page.tsx`: same import swap.
 - Delete `apps/shell/components/hms-shell.tsx` and `apps/medicore/components/hms-shell.tsx`.
 - Grep guard: `grep -rn "components/hms-shell" apps/ --include="*.tsx" --include="*.ts"` must return nothing.
 
 - [ ] **Step 4: Verify build**
 
-Run: `pnpm turbo type-check build --filter=@hms/shell --filter=@hms/medicore`
-(If the workspace package names differ — check the `"name"` field in each app's package.json, e.g. `@hms/medicore` — use those names.)
+Run: `pnpm turbo type-check build --filter=@helivanta/shell --filter=@helivanta/medicore`
+(If the workspace package names differ — check the `"name"` field in each app's package.json, e.g. `@helivanta/medicore` — use those names.)
 Expected: both apps type-check and build clean.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add apps/shell apps/medicore pnpm-lock.yaml
-git commit -m "refactor: shell and medicore consume shared two-rail chrome from @hms/ui"
+git commit -m "refactor: shell and medicore consume shared two-rail chrome from @helivanta/ui"
 ```
 
 ---
@@ -1619,18 +1619,18 @@ git commit -m "refactor: shell and medicore consume shared two-rail chrome from 
 
 **Interfaces:**
 
-- Consumes: `HmsShell` from `@hms/ui`; API routes `GET /api/v1/pharmacy/dispenses`, `POST /api/v1/pharmacy/dispenses/:id/dispense`, `GET/POST /api/v1/pharmacy/medications` (same-origin fetches; session cookie flows automatically).
+- Consumes: `HmsShell` from `@helivanta/ui`; API routes `GET /api/v1/pharmacy/dispenses`, `POST /api/v1/pharmacy/dispenses/:id/dispense`, `GET/POST /api/v1/pharmacy/medications` (same-origin fetches; session cookie flows automatically).
 - Produces: pharmacy zone at `/pharmacy` (port 4303) with Dispenses and Medications pages; shell stitches `/pharmacy/*`.
 
 - [ ] **Step 1: Clone the app scaffolding from medicore**
 
-Copy these files from `apps/medicore/` to `apps/pharmacy/`, then apply the listed edits: `tsconfig.json` (unchanged), `postcss.config.mjs` (unchanged), `app/layout.tsx` (unchanged), `app/globals.css` (use the Task 7 Step 2 version with the `@hms/ui` import — note the app is one level deep so the source path stays `../../../packages/ui/src`).
+Copy these files from `apps/medicore/` to `apps/pharmacy/`, then apply the listed edits: `tsconfig.json` (unchanged), `postcss.config.mjs` (unchanged), `app/layout.tsx` (unchanged), `app/globals.css` (use the Task 7 Step 2 version with the `@helivanta/ui` import — note the app is one level deep so the source path stays `../../../packages/ui/src`).
 
 `apps/pharmacy/package.json`:
 
 ```json
 {
-  "name": "@hms/pharmacy",
+  "name": "@helivanta/pharmacy",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -1640,14 +1640,14 @@ Copy these files from `apps/medicore/` to `apps/pharmacy/`, then apply the liste
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@hms/ui": "workspace:*",
+    "@helivanta/ui": "workspace:*",
     "@tesserix/web": "^1.8.0",
     "next": "^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@hms/config": "workspace:*",
+    "@helivanta/config": "workspace:*",
     "@tailwindcss/postcss": "^4.1.0",
     "@types/node": "^22",
     "@types/react": "^19",
@@ -1667,7 +1667,7 @@ const API_URL = process.env.API_URL ?? "http://localhost:8080";
 const nextConfig: NextConfig = {
   output: "standalone",
   basePath: "/pharmacy",
-  transpilePackages: ["@hms/ui"],
+  transpilePackages: ["@helivanta/ui"],
   async rewrites() {
     // Only used when hitting :4303 directly; via the shell the same
     // /api/* path is rewritten by the shell itself.
@@ -1689,7 +1689,7 @@ export default nextConfig;
 `apps/pharmacy/app/page.tsx`:
 
 ```tsx
-import { HmsShell } from "@hms/ui";
+import { HmsShell } from "@helivanta/ui";
 import { DispenseList } from "@/components/dispense-list";
 
 export default function DispensesPage() {
@@ -1705,7 +1705,7 @@ export default function DispensesPage() {
 `apps/pharmacy/app/medications/page.tsx`:
 
 ```tsx
-import { HmsShell } from "@hms/ui";
+import { HmsShell } from "@helivanta/ui";
 import { MedicationsPanel } from "@/components/medications-panel";
 
 export default function MedicationsPage() {
@@ -1950,7 +1950,7 @@ and in `rewrites()`, after the medicore entries:
 
 - [ ] **Step 4: Verify build**
 
-Run: `pnpm install && pnpm turbo type-check build --filter=@hms/pharmacy --filter=@hms/shell`
+Run: `pnpm install && pnpm turbo type-check build --filter=@helivanta/pharmacy --filter=@helivanta/shell`
 Expected: clean builds.
 
 - [ ] **Step 5: Commit**
@@ -1971,17 +1971,17 @@ git commit -m "feat: pharmacy zone app with dispenses and medications pages"
 
 **Interfaces:**
 
-- Consumes: `HmsShell` from `@hms/ui`; API routes `GET /api/v1/lab/orders`, `POST /api/v1/lab/orders/:id/result`.
+- Consumes: `HmsShell` from `@helivanta/ui`; API routes `GET /api/v1/lab/orders`, `POST /api/v1/lab/orders/:id/result`.
 - Produces: lab zone at `/lab` (port 4304) with the Orders page; shell stitches `/lab/*`.
 
 - [ ] **Step 1: App scaffolding**
 
-Clone scaffolding exactly as Task 8 Step 1 (tsconfig, postcss, layout, globals.css) with these substitutions: package name `@hms/lab`, ports 4304, `basePath: "/lab"`.
+Clone scaffolding exactly as Task 8 Step 1 (tsconfig, postcss, layout, globals.css) with these substitutions: package name `@helivanta/lab`, ports 4304, `basePath: "/lab"`.
 
 `apps/lab/package.json` — same shape as Task 8's with:
 
 ```json
-  "name": "@hms/lab",
+  "name": "@helivanta/lab",
   "scripts": {
     "dev": "next dev -p 4304",
     "build": "next build",
@@ -1997,7 +1997,7 @@ Clone scaffolding exactly as Task 8 Step 1 (tsconfig, postcss, layout, globals.c
 `apps/lab/app/page.tsx`:
 
 ```tsx
-import { HmsShell } from "@hms/ui";
+import { HmsShell } from "@helivanta/ui";
 import { OrderList } from "@/components/order-list";
 
 export default function OrdersPage() {
@@ -2145,7 +2145,7 @@ and in `rewrites()`, after the pharmacy entries:
 
 - [ ] **Step 4: Verify build**
 
-Run: `pnpm install && pnpm turbo type-check build --filter=@hms/lab --filter=@hms/shell`
+Run: `pnpm install && pnpm turbo type-check build --filter=@helivanta/lab --filter=@helivanta/shell`
 Expected: clean builds.
 
 - [ ] **Step 5: Commit**
@@ -2279,7 +2279,7 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
 `apps/medicore/app/opd/page.tsx`:
 
 ```tsx
-import { HmsShell } from "@hms/ui";
+import { HmsShell } from "@helivanta/ui";
 import { PingPanel } from "@/components/ping-panel";
 import { VisitPanel } from "@/components/visit-panel";
 
@@ -2298,7 +2298,7 @@ export default function OpdPage() {
 
 - [ ] **Step 3: Verify build**
 
-Run: `pnpm turbo type-check build --filter=@hms/medicore`
+Run: `pnpm turbo type-check build --filter=@helivanta/medicore`
 Expected: clean.
 
 - [ ] **Step 4: Commit**
@@ -2395,7 +2395,7 @@ git commit -m "test: e2e journey covering opd visit, pharmacy dispense and lab r
 Run: `cd backend && go test -race ./...`
 Expected: PASS.
 Run: `pnpm turbo lint type-check build` (from repo root; skip `lint` if no app defines it)
-Expected: PASS for shell, medicore, pharmacy, lab, @hms/ui.
+Expected: PASS for shell, medicore, pharmacy, lab, @helivanta/ui.
 
 - [ ] **Step 2: Boot infra + API + web**
 
@@ -2447,6 +2447,6 @@ git add -A && git commit -m "fix: phase 2 verification fixes"   # only if there 
 
 ## Self-review notes
 
-- Spec coverage: D4 → Task 1; medicore/pharmacy/lab modules → Tasks 2–4; registration + journey test → Task 5; `@hms/ui` chrome + tokens + registry (D3/D5) → Task 6; app migration → Task 7; new zones + shell rewrites → Tasks 8–9; OPD visit UI → Task 10; E2E journey → Task 11; local run verification (user request) → Task 12.
-- Naming consistency: `HmsShell{active}`, `ZONES`/`activeZone`, subjects `hms.in.medicore.visit_created.v1` / `hms.in.pharmacy.dispense_recorded.v1` / `hms.in.lab.result_ready.v1`, consumers `pharmacy-visit-intake` / `lab-visit-intake`, migration IDs `0001_medicore|pharmacy|lab` — used identically across tasks.
+- Spec coverage: D4 → Task 1; medicore/pharmacy/lab modules → Tasks 2–4; registration + journey test → Task 5; `@helivanta/ui` chrome + tokens + registry (D3/D5) → Task 6; app migration → Task 7; new zones + shell rewrites → Tasks 8–9; OPD visit UI → Task 10; E2E journey → Task 11; local run verification (user request) → Task 12.
+- Naming consistency: `HmsShell{active}`, `ZONES`/`activeZone`, subjects `helivanta.in.medicore.visit_created.v1` / `helivanta.in.pharmacy.dispense_recorded.v1` / `helivanta.in.lab.result_ready.v1`, consumers `pharmacy-visit-intake` / `lab-visit-intake`, migration IDs `0001_medicore|pharmacy|lab` — used identically across tasks.
 - Deliberate scope cuts (per spec): no consumers for `dispense_recorded`/`result_ready`, no mobile drawer, no OpenFGA.

@@ -1,8 +1,8 @@
 package bootstrap
 
 import (
-	"github.com/tesserix/hms/pkg/events"
-	"github.com/tesserix/hms/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // PlatformMigrations returns the migrations owned by platform packages, in

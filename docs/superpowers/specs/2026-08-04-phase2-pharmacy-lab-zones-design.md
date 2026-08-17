@@ -1,4 +1,4 @@
-# HMS Phase 2 — Pharmacy & Lab Zones, Two-Rail Chrome
+# Helivanta Phase 2 — Pharmacy & Lab Zones, Two-Rail Chrome
 
 Date: 2026-08-04
 Status: approved
@@ -20,7 +20,7 @@ the duplicated single-panel `HmsShell` with a shared two-rail sidebar
   visits module publishes `visit_created`; pharmacy and lab consume it
   to create pending work. The `reference` module stays untouched as the
   wiring exemplar.
-- **D3 — Two-rail chrome shared via `packages/ui` (`@hms/ui`).** Left
+- **D3 — Two-rail chrome shared via `packages/ui` (`@helivanta/ui`).** Left
   icon rail switches zones; secondary panel shows the active zone's
   pages. Ported from tesserix-home's `AdminSidebar`, including its
   dark-slate `--sidebar-*` tokens. Zone nav lives in one registry file.
@@ -63,7 +63,7 @@ Migration IDs are globally unique (`0001_medicore`, `0001_pharmacy`,
   `patient_name text`, `department text CHECK (department IN
 ('OPD','IPD'))`, `status text DEFAULT 'open'`, `created_at`.
 - `POST /medicore/visits` `{patient_name, department}` → creates the
-  visit and publishes `hms.in.medicore.visit_created.v1`
+  visit and publishes `helivanta.in.medicore.visit_created.v1`
   (`VisitCreated` v1, data: `{visit_id, patient_name, department}`) in
   the same transaction (outbox).
 - `GET /medicore/visits` → newest-first list (limit 100).
@@ -79,11 +79,11 @@ Migration IDs are globally unique (`0001_medicore`, `0001_pharmacy`,
 CHECK (status IN ('pending','dispensed')) DEFAULT 'pending'`,
   `dispensed_at timestamptz`, `created_at`.
 - Consumer `pharmacy-visit-intake` on
-  `hms.in.medicore.visit_created.v1`: inserts a pending dispense for
+  `helivanta.in.medicore.visit_created.v1`: inserts a pending dispense for
   the visit (idempotent via the platform's `processed_events` claim).
 - `POST /pharmacy/dispenses/:id/dispense` `{medication}` → flips a
   pending row to `dispensed`, stamps `dispensed_at`, publishes
-  `hms.in.pharmacy.dispense_recorded.v1` (`DispenseRecorded` v1, data:
+  `helivanta.in.pharmacy.dispense_recorded.v1` (`DispenseRecorded` v1, data:
   `{dispense_id, visit_id}`). 404 if not found (RLS makes cross-tenant
   identical to missing); 409 if already dispensed.
 - `GET /pharmacy/dispenses` → newest-first list.
@@ -95,10 +95,10 @@ CHECK (status IN ('pending','dispensed')) DEFAULT 'pending'`,
 CHECK (status IN ('pending','completed')) DEFAULT 'pending'`,
   `result_value text`, `resulted_at timestamptz`, `created_at`.
   Result value is embedded — no separate results table this phase.
-- Consumer `lab-visit-intake` on `hms.in.medicore.visit_created.v1`:
+- Consumer `lab-visit-intake` on `helivanta.in.medicore.visit_created.v1`:
   inserts a pending order for the visit.
 - `POST /lab/orders/:id/result` `{result_value}` → completes the order,
-  stamps `resulted_at`, publishes `hms.in.lab.result_ready.v1`
+  stamps `resulted_at`, publishes `helivanta.in.lab.result_ready.v1`
   (`ResultReady` v1, data: `{order_id, visit_id}`). 404 / 409 as above.
 - `GET /lab/orders` → newest-first list.
 
@@ -111,7 +111,7 @@ CHECK (status IN ('pending','completed')) DEFAULT 'pending'`,
   a pending pharmacy dispense AND a pending lab order appear for that
   tenant (and not for another tenant) via JetStream delivery.
 
-## Shared chrome: `packages/ui` (`@hms/ui`)
+## Shared chrome: `packages/ui` (`@helivanta/ui`)
 
 New workspace package `packages/ui`:
 
@@ -119,7 +119,7 @@ New workspace package `packages/ui`:
   ported from tesserix-home `AdminSidebar`, simplified: no mobile
   drawer, no collapsible groups, no tooltips dependency if `@tesserix/web`
   Tooltip is unavailable to the package (fall back to `title` attrs).
-  - Left rail (`w-16`, `bg-sidebar`): HMS mark, zone icons
+  - Left rail (`w-16`, `bg-sidebar`): Helivanta mark, zone icons
     (lucide-react: LayoutDashboard=Dashboard, HeartPulse=MediCore,
     Pill=Pharmacy, FlaskConical=Lab), sign-out at bottom.
   - Secondary panel (`w-56`, `bg-sidebar`): active zone label + flat
@@ -137,12 +137,12 @@ New workspace package `packages/ui`:
 --sidebar-primary:#ffffff; --sidebar-primary-foreground:#0f172a;
 --sidebar-accent:#1e293b; --sidebar-accent-foreground:#f1f5f9;
 --sidebar-border:#1e293b; --sidebar-ring:#ffffff;` (light theme;
-  HMS is light-only for now, matching phase 1).
-- Consumed as a source package (`"@hms/ui": "workspace:*"`, apps'
+  Helivanta is light-only for now, matching phase 1).
+- Consumed as a source package (`"@helivanta/ui": "workspace:*"`, apps'
   Tailwind `@source` includes `../../packages/ui/src`) — no build step,
   matching how zone apps already scan `@tesserix/web`.
 - The per-app `components/hms-shell.tsx` copies in shell and medicore
-  are deleted; all four apps render `HmsShell` from `@hms/ui` with
+  are deleted; all four apps render `HmsShell` from `@helivanta/ui` with
   `active` = current path.
 
 ## Zone apps

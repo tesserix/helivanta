@@ -16,9 +16,9 @@ set -uo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 . "$REPO_ROOT/scripts/lib/repo-owns.sh"
-# 8080 is HMS_API_PORT (see .env.example) — the four zone-app ports are
+# 8080 is HELIVANTA_API_PORT (see .env.example) — the four zone-app ports are
 # fixed Next.js dev-server ports, out of scope for the port variables.
-APP_PORTS=(4301 4302 4303 4304 "${HMS_API_PORT:-8080}")
+APP_PORTS=(4301 4302 4303 4304 "${HELIVANTA_API_PORT:-8080}")
 
 echo "Stopping infrastructure…"
 docker compose -f "$REPO_ROOT/docker-compose.dev.yml" down
@@ -59,7 +59,7 @@ done
 
 echo
 if [ "${#still_up[@]}" -eq 0 ]; then
-  echo "All HMS ports are free."
+  echo "All Helivanta ports are free."
 else
   echo "Still listening: ${still_up[*]}"
   [ "$skipped" -gt 0 ] && echo "(left alone because they do not belong to this repo — see SKIPPED above)"

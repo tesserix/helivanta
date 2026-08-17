@@ -1,6 +1,6 @@
 # SDK Architecture & Decisions
 
-Status: **Proposed** (fulfils issue [#664 — SDK architecture blueprint & package layout (RFC)](https://github.com/tesserix/hms/issues/664))
+Status: **Proposed** (fulfils issue [#664 — SDK architecture blueprint & package layout (RFC)](https://github.com/tesserix/helivanta/issues/664))
 Owners: Platform team. Reviewed decisions must be recorded as ADRs (#674).
 
 ---
@@ -58,13 +58,13 @@ We are building 9 backend products (MediCore, MediConnect, DoctorConnect, Pharma
 
 ### 4.1 Repository strategy — one SDK monorepo per language
 
-Fulfils #665. Decision: **two monorepos**: `hms-go-sdk` (Go modules) and `hms-web-sdk` (pnpm workspace publishing `@tesserix/hms-*`), seeded from `go-shared` and `design-system` respectively.
+Fulfils #665. Decision: **two monorepos**: `helivanta-go-sdk` (Go modules) and `helivanta-web-sdk` (pnpm workspace publishing `@tesserix/helivanta-*`), seeded from `go-shared` and `design-system` respectively.
 
 | Option                             | Pros                                                                                                                                      | Cons                                                                                                                                                 |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Monorepo per language** (chosen) | Atomic cross-package changes; one CI/release train; one place to review; easy internal refactors; matches changesets/Go workspace tooling | Repo grows large; coarse permissions; unrelated packages share release cadence unless tooling splits them (changesets/Go submodule tags handle this) |
 | Repo per package                   | Independent cadence and ownership per package                                                                                             | Cross-package changes need N coordinated PRs; version matrix explodes; discovery suffers; CI duplication                                             |
-| Everything inside `hms` app repo   | One repo total                                                                                                                            | Couples SDK releases to app history; consumers pull app code; breaks the "SDK is a product" model                                                    |
+| Everything inside `helivanta` app repo | One repo total                                                                                                                            | Couples SDK releases to app history; consumers pull app code; breaks the "SDK is a product" model                                                    |
 
 Migration note: `go-shared` history is kept (rename/import); `design-system` continues to own _visual_ primitives — the web SDK monorepo either absorbs it or depends on it (decide in #665's review; default: absorb, keep `@tesserix/web` as a compatibility alias for HomeChef until migrated).
 
@@ -72,7 +72,7 @@ Migration note: `go-shared` history is kept (rename/import); `design-system` con
 
 | Option                                                                        | Pros                                                                             | Cons                                                                                                                                                              |
 | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Single module `github.com/tesserix/hms-go-sdk`, packages beneath** (chosen) | One version to pin; internal packages can share helpers; simplest consumer story | A service importing only `logging` still resolves the full dependency graph (mitigated: Go compiles/links only what's imported; heavy deps kept in leaf packages) |
+| **Single module `github.com/tesserix/helivanta-go-sdk`, packages beneath** (chosen) | One version to pin; internal packages can share helpers; simplest consumer story | A service importing only `logging` still resolves the full dependency graph (mitigated: Go compiles/links only what's imported; heavy deps kept in leaf packages) |
 | Multi-module (module per package)                                             | Consumers take only the dep trees they use; independent versioning               | Version matrix ("logging v1.3 with tenant v1.1?") is exactly the confusion an SDK should remove; submodule tagging friction                                       |
 
 Revisit trigger: if a consumer demonstrably suffers from the unified dependency graph (e.g. a tiny cron job), split _that_ package out then — not before.
@@ -141,7 +141,7 @@ Cross-cutting concerns and their owning packages — details in [go-sdk.md](go-s
 | Observability           | `telemetry` (OTel), `logging`, `httpkit` (RED metrics), golden dashboards (DevEx #716)                      | `telemetry` (web vitals, error reporting)                                                            |
 | Reliability             | `events` (outbox, retries, DLQ), `httpkit` (timeouts), `cache`/`ratelimit` (breakers), `database` (pooling) | `data` (retry/backoff, offline cache), `flags` (kill switches)                                       |
 | Audit & compliance      | `audit` (hash-chained emitter)                                                                              | — (audit is server-side truth)                                                                       |
-| Consistency / DevEx     | `config`, `i18n`+`countryprofile`, `testkit`, `create-hms-service`                                          | `tokens`, `components`, `forms`, `i18n`, `api-client` codegen, `create-hms-app`                      |
+| Consistency / DevEx     | `config`, `i18n`+`countryprofile`, `testkit`, `create-helivanta-service`                                          | `tokens`, `components`, `forms`, `i18n`, `api-client` codegen, `create-helivanta-app`                      |
 
 **Explicitly OUT of the SDK** (with where it lives instead): domain models & workflows (product services); FHIR resource business mapping (MediCore); Helm charts & infra (tesserix-k8s); SQL schemas & RLS policies (tesserix-k8s `db-schema-bootstrap` — app repos never carry SQL); Keycloak realm config (identity infra); UI screens (portals).
 
@@ -150,8 +150,8 @@ Cross-cutting concerns and their owning packages — details in [go-sdk.md](go-s
 ## 6. Dependency rules
 
 ```
-product services ──▶ hms-go-sdk ──▶ third-party libs
-portals ──▶ @tesserix/hms-* ──▶ third-party libs
+product services ──▶ helivanta-go-sdk ──▶ third-party libs
+portals ──▶ @tesserix/helivanta-* ──▶ third-party libs
 ```
 
 - The SDK **never** imports product code, and packages never import "up" (e.g. `logging` cannot import `httpkit`).

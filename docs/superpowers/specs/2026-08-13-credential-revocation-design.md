@@ -1,6 +1,6 @@
 # Credential revocation — design
 
-**Issue:** [#781](https://github.com/tesserix/hms/issues/781) — Revocation must take
+**Issue:** [#781](https://github.com/tesserix/helivanta/issues/781) — Revocation must take
 effect on the next request.
 **Status:** implemented 2026-08-13. Where the implementation decided
 differently from the approved design, this document has been corrected rather
@@ -12,7 +12,7 @@ than left describing a design the code does not have; each such point is marked
 
 ## Problem
 
-Nothing in HMS can make an outstanding credential stop working. Three defects,
+Nothing in Helivanta can make an outstanding credential stop working. Three defects,
 each verified against the code on 2026-08-13, compose into one gap: **an access
 decision made at sign-in is never revisited.**
 
@@ -51,10 +51,10 @@ served on unguarded routes. Any two without the third leaves a working bypass.
 Each decision below was taken explicitly; the rejected alternative is recorded
 because the reasoning is what survives to the next decision.
 
-### D1 — HMS owns the revocation control plane; GIP is mirrored into it
+### D1 — Helivanta owns the revocation control plane; GIP is mirrored into it
 
 A `iam_credential_revocations` table holds a per-subject **watermark**. A token
-whose `auth_time` predates the subject's watermark is refused. HMS-initiated
+whose `auth_time` predates the subject's watermark is refused. Helivanta-initiated
 revocations write it directly and bite on the very next request, with **no
 identity-provider call on the request path**.
 
@@ -68,7 +68,7 @@ membership removal, which GIP knows nothing about.
 window is precisely what an incident responder is trying to close.
 
 **Accepted cost:** an account disabled in the GIP console alone is not honoured
-until an HMS revoke is issued. There is no reconciliation job. See Limitations.
+until a Helivanta revoke is issued. There is no reconciliation job. See Limitations.
 
 ### D2 — The watermark compares `auth_time`, never `iat`
 
@@ -100,7 +100,7 @@ employed.
 
 ### D4 — NATS broadcast for propagation, Postgres as the durable backstop
 
-Revocation writes the row and publishes `hms.in.iam.credential_revoked.v1`
+Revocation writes the row and publishes `helivanta.in.iam.credential_revoked.v1`
 through the existing outbox **inside the same transaction**. Every replica runs
 an ephemeral JetStream consumer, so all replicas receive every message rather
 than competing for it, and the consumers vanish with the pod rather than
@@ -427,9 +427,9 @@ intent.
 
 Stated rather than discovered later.
 
-- **A GIP-console-only account disable is not honoured** until an HMS revoke is
+- **A GIP-console-only account disable is not honoured** until a Helivanta revoke is
   issued. There is no reconciliation job; that option was considered and
-  declined (D1). The supported path for disabling an account is the HMS revoke
+  declined (D1). The supported path for disabling an account is the Helivanta revoke
   endpoint, which also calls GIP.
 - **Revocation is per subject, not per session or per device.** Signing out
   anywhere signs out everywhere (D5). Per-device revocation is #424.

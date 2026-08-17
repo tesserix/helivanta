@@ -1,4 +1,4 @@
-import { HmsShell } from "@hms/ui";
+import { HmsShell } from "@helivanta/ui";
 import { DispenseList } from "@/components/dispense-list";
 
 export default function DispensesPage() {

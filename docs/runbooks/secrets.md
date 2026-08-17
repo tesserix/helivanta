@@ -12,9 +12,9 @@ rotation, and the revocation/audit runbook are explicitly out of scope; see
 Helivanta has no Dockerfile, chart, or ArgoCD app yet (owned by
 [#824](https://github.com/tesserix/helivanta/issues/824)), so nothing in this
 runbook can be *delivered* to a running pod today. `SecretStore/openbao-helivanta-api`
-already exists in the `hms` namespace on the production cluster and reports
+already exists in the `helivanta` namespace on the production cluster and reports
 `Valid`/`Ready=True`, but that status is **not proof the grant works** — the
-`read-hms` OpenBao policy and the `app-hms_hms-api` auth role it depends on
+`read-helivanta` OpenBao policy and the `app-helivanta_helivanta-api` auth role it depends on
 have not been created (they are minted from the secret-service console, and
 that step has not happened). Whether the grant actually works is settled by
 a real read under it, which is a separate, not-yet-done task (see D7).
@@ -39,7 +39,7 @@ to reason about, and mixing in a config string would quietly weaken it.
 ## Delivery chain (D4)
 
 ```
-OpenBao → ESO (as the hms-api ServiceAccount) → k8s Secret → env → config.Load
+OpenBao → ESO (as the helivanta-api ServiceAccount) → k8s Secret → env → config.Load
 ```
 
 Nothing after ESO knows what a vault is — Helivanta keeps reading `os.Getenv`,

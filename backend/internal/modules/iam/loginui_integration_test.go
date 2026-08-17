@@ -314,7 +314,7 @@ func postPasswordReal(t *testing.T, r *gin.Engine, authRequestID, loginName, pas
 // own brief name as already seeded into the local dev stack
 // (scripts/seed-dev.mjs) — this test does not seed it itself.
 const (
-	devSeededEmail    = "test@hms.dev"
+	devSeededEmail    = "test@helivanta.dev"
 	devSeededPassword = "HmsDev123!"
 )
 
@@ -378,7 +378,7 @@ func TestIntegration_PasswordFailures_WrongPasswordAndUnknownUserAreByteIdentica
 
 	unknownStart := time.Now()
 	unknown := postPasswordReal(t, r, authRequestID,
-		fmt.Sprintf("nobody-%d@hms.dev", time.Now().UnixNano()), "irrelevant")
+		fmt.Sprintf("nobody-%d@helivanta.dev", time.Now().UnixNano()), "irrelevant")
 	unknownElapsed := time.Since(unknownStart)
 
 	// Asserting the two are merely EQUAL to each other is not enough — two
@@ -670,7 +670,7 @@ const importUserPath = "/management/v1/users/human/_import"
 // practice, not just this file's.
 func createImportedUser(t *testing.T, env integrationEnv, seedToken string) (userID, loginName string) {
 	t.Helper()
-	loginName = fmt.Sprintf("task8-test-%d@hms.dev", time.Now().UnixNano())
+	loginName = fmt.Sprintf("task8-test-%d@helivanta.dev", time.Now().UnixNano())
 	resp := managementAPICall(t, env, seedToken, http.MethodPost, importUserPath, map[string]any{
 		"userName": loginName,
 		"profile":  map[string]any{"firstName": "Task8", "lastName": "IntegrationTest"},

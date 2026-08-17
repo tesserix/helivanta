@@ -26,7 +26,7 @@ import (
 // MEASURED 2026-08-16 against the real dev Zitadel (v4.15.3, PAT-backed
 // login-client API, `go run` a throwaway harness over
 // loginclient.Client.CreatePasswordSession — see this task's report for
-// the program): 25 wrong-password attempts against test@hms.dev,
+// the program): 25 wrong-password attempts against test@helivanta.dev,
 // spaced 4s apart so the sample reflects independent single attempts,
 // not sustained hammering. The first 9 landed in a tight 809-845ms
 // band (mean ~830ms) — consistent with the original spike's 0.72-0.78s,

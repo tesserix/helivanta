@@ -54,11 +54,11 @@ Seeded accounts (Zitadel, verified by a real hosted-UI login as part of
 
 | User                 | Password      | Tenant                 | Role           | Sees              |
 | -------------------- | ------------- | ---------------------- | -------------- | ----------------- |
-| `test@hms.dev`       | `HmsDev123!`  | `1111…1111` (default)  | `tenant_admin` | every zone        |
-| `test@hms.dev`       | `HmsDev123!`  | `2222…2222`            | `pharmacist`   | Pharmacy only     |
-| `pharmacist@hms.dev` | `HmsDev123!`  | `1111…1111`            | `pharmacist`   | Pharmacy only     |
+| `test@helivanta.dev`       | `HmsDev123!`  | `1111…1111` (default)  | `tenant_admin` | every zone        |
+| `test@helivanta.dev`       | `HmsDev123!`  | `2222…2222`            | `pharmacist`   | Pharmacy only     |
+| `pharmacist@helivanta.dev` | `HmsDev123!`  | `1111…1111`            | `pharmacist`   | Pharmacy only     |
 
-`test@hms.dev` is deliberately a member of **two** tenants so tenant
+`test@helivanta.dev` is deliberately a member of **two** tenants so tenant
 switching is exercisable end to end: OpenFGA
 already carries both memberships, and `POST /v1/iam/me/tenant` re-mints the
 session for either without an IdP round trip (spec D3).

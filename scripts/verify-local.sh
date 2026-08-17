@@ -98,8 +98,8 @@ if [ "$fail" -eq 0 ]; then
   # hosted Zitadel page were expected, which would now be a defect.
   echo "Sign in at http://localhost:4301 — the sign-in form is HMS's own /login."
   echo "Zitadel accounts, login-verified by 'make seed':"
-  echo "  test@hms.dev       / HmsDev123!  (tenant_admin)"
-  echo "  pharmacist@hms.dev / HmsDev123!  (pharmacist)"
+  echo "  test@helivanta.dev       / HmsDev123!  (tenant_admin)"
+  echo "  pharmacist@helivanta.dev / HmsDev123!  (pharmacist)"
 else
   echo "Some checks failed. Common causes:"
   echo "  - 'make dev' not running, or still starting (Next.js takes ~20s)"

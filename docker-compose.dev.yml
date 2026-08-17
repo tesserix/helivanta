@@ -1,4 +1,4 @@
-name: hms-dev
+name: helivanta-dev
 services:
   postgres:
     image: postgres:16-alpine
@@ -57,7 +57,7 @@ services:
   # Zitadel replaces the Firebase/GIP emulator (#838). Own Postgres — v4
   # requires Postgres 17, CockroachDB support was dropped
   # (docs/superpowers/spikes/2026-08-15-zitadel-spike.md's v4.15.3
-  # re-verification) — and its own port range, shifted from both hms-dev's
+  # re-verification) — and its own port range, shifted from both helivanta-dev's
   # other services and the now-deleted spike/zitadel-838/ stack.
   zitadel-db:
     image: postgres:17-alpine

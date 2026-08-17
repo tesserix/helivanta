@@ -49,7 +49,7 @@ import {
 const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://localhost:20080";
 const API_URL = process.env.API_URL ?? "http://localhost:8080";
 
-const SEED_USER = "test@hms.dev";
+const SEED_USER = "test@helivanta.dev";
 // Must match scripts/seed-dev.mjs's PASSWORD — password123 (the old
 // GIP-emulator value) fails Zitadel's complexity policy outright, so any
 // account seed-dev.mjs actually created uses this value instead.

@@ -36,14 +36,14 @@ function specSlug(): string {
 // holds `pharmacist` in a second one, which is what makes the hospital
 // picker render and tenant switching observable.
 export function specAdmin(): Credentials {
-  return { email: `e2e-${specSlug()}-admin@hms.dev`, password: PASSWORD };
+  return { email: `e2e-${specSlug()}-admin@helivanta.dev`, password: PASSWORD };
 }
 
 // The spec's single-role user, for asserting that permission gating
 // actually withholds things. Everything the admin above can do, this
 // account mostly cannot.
 export function specPharmacist(): Credentials {
-  return { email: `e2e-${specSlug()}-pharmacist@hms.dev`, password: PASSWORD };
+  return { email: `e2e-${specSlug()}-pharmacist@helivanta.dev`, password: PASSWORD };
 }
 
 // The cheapest authenticated API call the browser can make. Reaching the

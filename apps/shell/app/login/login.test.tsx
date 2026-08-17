@@ -274,7 +274,7 @@ describe("LoginPage", () => {
       });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@hms.dev");
+      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "wrong-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -302,7 +302,7 @@ describe("LoginPage", () => {
       });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@hms.dev");
+      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "wrong-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -327,7 +327,7 @@ describe("LoginPage", () => {
       vi.stubGlobal("location", { ...window.location, assign: assignSpy });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@hms.dev");
+      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "correct-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -351,7 +351,7 @@ describe("LoginPage", () => {
       vi.stubGlobal("location", { ...window.location, assign: assignSpy });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@hms.dev");
+      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "correct-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -367,7 +367,7 @@ describe("LoginPage", () => {
       vi.stubGlobal("location", { ...window.location, assign: vi.fn() });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@hms.dev");
+      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "correct-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -378,7 +378,7 @@ describe("LoginPage", () => {
             method: "POST",
             body: JSON.stringify({
               auth_request_id: AUTH_REQUEST_ID,
-              login_name: "clinician@hms.dev",
+              login_name: "clinician@helivanta.dev",
               password: "correct-password",
             }),
           }),

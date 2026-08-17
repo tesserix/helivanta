@@ -26,7 +26,7 @@ func TestCreatePasswordSessionReturnsSessionOnSuccess(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"sessionId":"386477864129658887","sessionToken":"tok-abc"}`))
 	})
-	s, err := c.CreatePasswordSession(context.Background(), "test@hms.dev", "HmsDev123!")
+	s, err := c.CreatePasswordSession(context.Background(), "test@helivanta.dev", "HmsDev123!")
 	if err != nil {
 		t.Fatalf("CreatePasswordSession() error = %v", err)
 	}
@@ -41,7 +41,7 @@ func TestCreatePasswordSessionMapsWrongPasswordToErrBadCredentials(t *testing.T)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(`{"code":3,"message":"Password is invalid (COMMAND-3M0fs)","details":[{"@type":"type.googleapis.com/zitadel.v1.CredentialsCheckError","id":"COMMAND-3M0fs","message":"Password is invalid","failedAttempts":1}]}`))
 	})
-	_, err := c.CreatePasswordSession(context.Background(), "test@hms.dev", "wrong")
+	_, err := c.CreatePasswordSession(context.Background(), "test@helivanta.dev", "wrong")
 	if !errors.Is(err, ErrBadCredentials) {
 		t.Fatalf("error = %v, want ErrBadCredentials", err)
 	}
@@ -57,7 +57,7 @@ func TestCreatePasswordSessionMapsUnknownUserToErrUserNotFound(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(`{"code":5,"message":"User could not be found (QUERY-Dfbg2)"}`))
 	})
-	_, err := c.CreatePasswordSession(context.Background(), "nobody@hms.dev", "x")
+	_, err := c.CreatePasswordSession(context.Background(), "nobody@helivanta.dev", "x")
 	if !errors.Is(err, ErrUserNotFound) {
 		t.Fatalf("error = %v, want ErrUserNotFound", err)
 	}

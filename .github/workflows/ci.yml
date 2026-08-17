@@ -33,12 +33,15 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      # No NODE_AUTH_TOKEN: @tesserix/web is published to the PUBLIC npm
+      # registry as of 2.x, and the repo-local .npmrc that used to force the
+      # scope to GitHub Packages has been removed (#866). Keeping the token
+      # here would be worse than redundant — this repo is on the GitHub Free
+      # plan with no org secrets, so `secrets.PKG_READ_TOKEN` resolves to an
+      # empty string and an authenticated fetch against GHCR 401s.
       - run: pnpm install --frozen-lockfile
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
       - run: pnpm turbo lint format:check type-check test build
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
           # Zitadel's client id and issuer are client-visible by design, so a
           # placeholder is fine here. Replaces NEXT_PUBLIC_GIP_* which #838
           # deleted along with Firebase.

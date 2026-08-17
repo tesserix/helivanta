@@ -375,14 +375,34 @@ cd backend && go test ./internal/modules/iam/... -count=1
 ```
 Expected: green, including the pre-existing forceMfa and enrolled-factor tests.
 
-- [ ] **Step 5: Prove the arch test still pins the finalize call site**
+- [ ] **Step 5: Prove the arch test still pins the finalize WIRE CALL**
 
-Add a second call to the unexported `finalize` from somewhere else in the package (e.g. a temporary method), then:
+**Corrected during execution — the original instruction here was unfalsifiable.**
+It said to add a second call to the unexported `finalize` function and expect the
+arch test to fail. It does not, and cannot: `TestFinalizeCallSiteIsUnique`
+(`internal/archtest/arch_test.go:670-700`) walks the tree for source that
+**POSTs to `/v2/oidc/auth_requests/`** and permits exactly one file to do so. It
+pins the *wire request*, not calls to the Go identifier. The test's own comment
+says so — "unexporting finalize, not this test, is the primary control".
 
-Run: `cd backend && go test ./internal/archtest/ -v 2>&1 | grep -i finalize`
-Expected: **FAIL**, naming the extra call site.
+So the two controls are, precisely:
+1. `finalize` is unexported, so no package outside `loginclient` can finalize at all.
+2. This arch test ensures only `client.go` speaks to that Zitadel endpoint, so a
+   second package cannot hand-roll its own finalize POST and bypass sufficiency.
 
-If it passes, the arch test no longer constrains anything and that must be reported. Revert the temporary call.
+Neither one caps the number of in-package callers, and with `CompleteAfterFactor`
+there are now legitimately two. What keeps them safe is that each runs its own
+sufficiency check before finalizing — a property tests must assert directly,
+which Task 3's other tests do.
+
+Prove the control that actually exists: add a temporary raw
+`http.Post`/`c.do` to `/v2/oidc/auth_requests/...` in a **different file**
+(e.g. `sufficiency.go`), then:
+
+Run: `cd backend && go test ./internal/archtest/ -run TestFinalizeCallSiteIsUnique -v`
+Expected: **FAIL**, naming that file as an extra call site.
+
+If it passes, the arch test is inert and that must be reported. Revert the probe.
 
 - [ ] **Step 6: Commit**
 

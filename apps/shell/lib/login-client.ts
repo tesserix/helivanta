@@ -125,13 +125,21 @@ interface PasswordCheckResponse {
 //
 // `factorRequired` (#867, spec D1/D8) means the credential was CORRECT
 // and the org's policy requires a second factor Helivanta can now collect
-// natively (TOTP only, today — `factors` always answers `["totp"]`, but
-// the caller reads the array rather than assuming that, exactly as
-// `nonNilFactors`' own doc comment on the Go side expects). This is the
-// SAME "neither success nor failure" trap `handoff` documents above:
-// rendering it as a failed sign-in would send a clinician to reset a
-// password that was correct. The caller must transition to a factor-
-// collection step (checkFactor below), never show an error.
+// natively (TOTP only, today — `factors` always answers `["totp"]`, per
+// `nonNilFactors`' own doc comment on the Go side). This is the SAME
+// "neither success nor failure" trap `handoff` documents above: rendering
+// it as a failed sign-in would send a clinician to reset a password that
+// was correct. The caller must transition to a factor-collection step
+// (checkFactor below), never show an error.
+//
+// `factors` itself is NOT read by page.tsx today (review finding, fix
+// round 1): `CredentialForm` hardcodes `factor: "totp"` when it calls
+// `checkFactor`, per this task's own brief ("today it is always
+// `["totp"]`, so render the single step directly and do not build a
+// selector for one option"). The array survives the wire so a caller CAN
+// read it once a second native factor exists — see `@tesserix/web`'s
+// `AuthMfaSelector` for the component that would then consume it — but
+// nothing reads it yet, and this comment must not claim otherwise.
 export async function checkPassword(params: PasswordCheckParams): Promise<PasswordCheckResult> {
   const body = await apiFetch<PasswordCheckResponse>("/auth/login/password", {
     method: "POST",

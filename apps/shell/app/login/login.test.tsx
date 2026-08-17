@@ -535,6 +535,27 @@ describe("LoginPage", () => {
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();
       });
 
+      // Review finding 1, fix round 1: unlike AuthCredentialForm,
+      // AuthOtpStep does NOT set `noValidate` on its own <form> — and its
+      // <input> carries `pattern="\d{6}"` plus `maxLength`, both native-
+      // validation attributes. Without page.tsx passing `noValidate`
+      // through explicitly, pressing Enter on an incomplete code fires
+      // the browser's native validation popup, which docs/standards/
+      // frontend.md bans outright. Mirrors the credential-form pin above
+      // (`disables native browser validation`) rather than relying on
+      // that other test to prove this by proxy.
+      it("disables native browser validation on the OTP step", async () => {
+        stubAuthFlow({
+          password: () => jsonResponse(200, { factor_required: ["totp"] }),
+        });
+
+        const { user } = renderWithProviders(<LoginPage />);
+        await submitCorrectCredentials(user);
+
+        const codeField = await screen.findByLabelText(/verification code/i);
+        expect(codeField.closest("form")).toHaveAttribute("novalidate");
+      });
+
       it("submits the code to POST /v1/auth/login/factor and navigates on a completed login", async () => {
         const fetchMock = stubAuthFlow({
           password: () => jsonResponse(200, { factor_required: ["totp"] }),
@@ -617,6 +638,44 @@ describe("LoginPage", () => {
         ).toBeInTheDocument();
         expect(screen.queryByLabelText(/verification code/i)).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+      });
+
+      // Review finding 2, fix round 1: the `handoff` branch exists in
+      // checkFactor's type and in OtpStep's onSuccess switch (page.tsx),
+      // but was untested — exactly the shape a future refactor collapses
+      // into `default: showError`, the same trap the PASSWORD step's own
+      // handoff test (`navigates to the handoff url...` above) exists to
+      // guard against. Mirrors that test: a verified TOTP code can still
+      // hand off (loginui.go's `Factor` handler: CompleteAfterFactor
+      // re-runs the uncollectible/enrolled checks and can find the
+      // session insufficient even after a CORRECT code — e.g. enrollment
+      // changed between the password step and this one), and that is NOT
+      // a failure — no alert, straight navigation.
+      it("navigates to the handoff url when a verified factor still needs Zitadel's hosted login", async () => {
+        stubAuthFlow({
+          password: () => jsonResponse(200, { factor_required: ["totp"] }),
+          factor: () =>
+            jsonResponse(200, {
+              handoff_url: "http://localhost:20080/ui/v2/login?authRequest=V2_test-auth-request",
+            }),
+        });
+        const assignSpy = vi.fn();
+        vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+
+        const { user } = renderWithProviders(<LoginPage />);
+        await submitCorrectCredentials(user);
+
+        const codeField = await screen.findByLabelText(/verification code/i);
+        await user.type(codeField, "123456");
+
+        await waitFor(() =>
+          expect(assignSpy).toHaveBeenCalledWith(
+            "http://localhost:20080/ui/v2/login?authRequest=V2_test-auth-request",
+          ),
+        );
+        // Not treated as a refusal — no shared-refusal alert rendered,
+        // same assertion the password-step handoff test makes.
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
       });
     });
   });

@@ -496,6 +496,18 @@ function OtpStep({
         </div>
 
         <AuthOtpStep
+          // Review finding, fix round 1: unlike AuthCredentialForm,
+          // AuthRegisterForm and AuthRecovery, AuthOtpStep does NOT set
+          // `noValidate` on its own `<form>` — and its `<input>` carries
+          // `pattern="\d{6}"` plus `maxLength`, both native-validation
+          // attributes. Without this prop, pressing Enter on an
+          // incomplete code fires the browser's native validation popup,
+          // which docs/standards/frontend.md bans outright (§4/§5). This
+          // IS accepted by AuthOtpStepProps (it extends
+          // `FormHTMLAttributes<HTMLFormElement>` and spreads `...props`
+          // onto the `<form>` — see @tesserix/web's source), so passing
+          // it here is sufficient; no DOM workaround needed.
+          noValidate
           value={code}
           onValueChange={(next) => {
             setCode(next);

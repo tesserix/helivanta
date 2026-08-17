@@ -313,11 +313,47 @@ for s in app api openfga; do
 done
 ```
 
-Expected: three `ExternalSecret`s `SecretSynced`, and three **non-zero**
-lengths. A length of `0` is the failure this step exists to catch — the path
-resolved but the key did not, which some ESO versions still report as
-`SecretSynced`. Do not assert a specific length: the operator chose the values
-in the console, so a hardcoded expected length would fail for a correct secret.
+**A non-empty check is NOT sufficient, and this was learned the hard way.**
+Round 2 of this task found `remoteRef.property` missing, which makes ESO's Vault
+provider return the ENTIRE KV payload — so the projected password would be the
+literal `{"password":"..."}`. That is non-empty, so a length check passes, the
+`ExternalSecret` reports `SecretSynced`, and CNPG then reconciles the Postgres
+role to that JSON string. The failure would first appear in slice 1b as
+authentication errors against a database reporting healthy.
+
+So assert the value **cannot be a JSON envelope**, without assuming its exact
+length or alphabet — the operator chose the values in the console, and a
+hardcoded `{40}` would fail a correct 32-character password:
+
+```bash
+K=gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke
+for s in app api openfga; do
+  v=$(kubectl --context $K -n helivanta get secret helivanta-postgres-$s-credentials \
+        -o jsonpath='{.data.password}' | base64 -d)
+  if [ ${#v} -ge 32 ] && [ "${v#*\{}" = "$v" ] && [ "${v#*\"}" = "$v" ]; then
+    echo "postgres-$s: OK (${#v} chars, no JSON envelope)"
+  else
+    echo "postgres-$s: FAIL (${#v} chars, starts '${v%%${v#?}}') — likely the whole KV payload"
+  fi
+done
+```
+
+Also confirm the `username` key alongside it, since CNPG needs both:
+
+```bash
+for s in app api openfga; do
+  kubectl --context $K -n helivanta get secret helivanta-postgres-$s-credentials \
+    -o jsonpath="{.data.username}" | base64 -d | sed "s/^/postgres-$s username: /"; echo
+done
+```
+
+Expected usernames, in order: `helivanta`, `hms_app`, `openfga`.
+
+**The definitive proof is deferred to Task 4 on purpose.** No inspection of a
+Secret proves a credential works; only authenticating with it does. Task 4 Step 5
+connects as `hms_app` and Task 5 Step 5 writes as it — if the password were a
+JSON blob, those fail loudly. This step is the early, cheap discriminator; those
+are the real assertion.
 
 - [ ] **Step 5: Prove the grant boundary — the mutation**
 

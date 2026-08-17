@@ -410,6 +410,26 @@ type factorRequiredResponse struct {
 	Factors []string `json:"factor_required"`
 }
 
+// nonNilFactors guards against ever emitting {"factor_required":null}
+// (#867 fix round 1, Minor 4): encoding/json marshals a nil []string as
+// JSON `null`, not `[]`, and a naive browser-side `for (const f of
+// factor_required)` over `null` throws rather than iterating zero
+// times. loginclient.CompleteIfSufficient always sets Factors to a
+// real, non-empty slice (["totp"]) for OutcomeFactorRequired today —
+// see its own doc comment — so this never actually fires against the
+// current implementation; it exists so a FUTURE loginclient change that
+// leaves Factors nil for some new case fails safe (an empty array a
+// client can always range over) rather than reintroducing this
+// untested edge silently. TestNonNilFactorsNeverReturnsNil pins the
+// function directly, and TestFactorRequiredResponseJSONNeverEmitsNull
+// pins that the marshaled response actually reflects it.
+func nonNilFactors(factors []string) []string {
+	if factors == nil {
+		return []string{}
+	}
+	return factors
+}
+
 // Password backs POST /v1/auth/login/password: the login form's
 // credential check, and the ONLY place in this file that can complete a
 // login (loginclient.CompleteIfSufficient — see its own doc comment on
@@ -501,7 +521,7 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 		}
 		requestid.Logger(c).InfoContext(c.Request.Context(), "login password succeeded, factor required",
 			"auth_request_id", req.AuthRequestID, "outcome", "factor_required")
-		respond.OK(c, factorRequiredResponse{Factors: result.Factors})
+		respond.OK(c, factorRequiredResponse{Factors: nonNilFactors(result.Factors)})
 
 	default:
 		// OutcomeHandoff: the session Helivanta built is insufficient (or the
@@ -526,35 +546,62 @@ func failureOutcome(err error) string {
 	return "user_not_found"
 }
 
-// respondEqualisedFailure is spec D5's timing half: it waits until
-// MinFailedLoginDuration has elapsed since start, THEN responds with the
-// one fixed refusal both wrong-password and unknown-user answer with.
+// waitUntilFailureFloor blocks until MinFailedLoginDuration has elapsed
+// since start, THEN returns true — or returns false early if
+// c.Request.Context() is cancelled first (the caller disconnecting or
+// the request timing out), in which case the caller must write nothing
+// to c: the requester is already gone, so there is nobody left to
+// observe a response at all.
+//
+// Shared by respondEqualisedFailure (spec D5's wrong-password/
+// unknown-user/wrong-TOTP-code refusal) AND respondAttemptExpired
+// (#867 fix round 1, Finding/Minor 3): an unknown or expired
+// auth_request_id answers IMMEDIATELY with no Zitadel round trip, while
+// a genuinely EXHAUSTED attempt answers only after a real VerifyTOTP
+// call plus a BumpAndGet — both currently land on the identical
+// attempt-expired body, but without this shared floor they would
+// arrive at measurably different latencies, and that latency gap is
+// itself the same class of id-existence oracle D5's body equality
+// exists to deny (a prober who cannot see the body can still time it).
+// Applying the SAME floor, via the SAME helper, to both
+// respondEqualisedFailure and respondAttemptExpired is what keeps a
+// credential-adjacent refusal and an attempt-expired refusal from
+// drifting into two different timing profiles even as their bodies stay
+// deliberately different (spec D5's OTHER guarantee: attempt-expired
+// must not read as a credential refusal — see respondAttemptExpired's
+// own doc comment).
+//
 // Waiting before checking the elapsed time would double the wait on a
 // call that was already slow (e.g. the real wrong-password path, ~0.83s
 // on its own); waiting the REMAINDER keeps every failure landing at
 // approximately the same total latency regardless of how long the
 // Zitadel call itself took, which is the property the timing oracle
-// needs to be closed.
-//
-// The wait races against c.Request.Context() being cancelled (the
-// caller disconnecting or the request timing out) rather than a bare
-// time.Sleep, so an abandoned attempt does not hold a goroutine open for
-// the full floor. This cannot become a new timing signal of its own:
-// BOTH failure paths reach this exact same select, so whether it returns
-// early depends only on the CALLER's own disconnect, never on which
-// sentinel (bad credentials vs unknown user) occurred — the two remain
-// indistinguishable either way. Nothing is written to c on the
-// cancelled branch: the caller is already gone, so there is nobody left
-// to observe a response at all.
-func (h *LoginUIHandlers) respondEqualisedFailure(c *gin.Context, start time.Time) {
+// needs to be closed. The wait races against context cancellation
+// rather than a bare time.Sleep so an abandoned attempt does not hold a
+// goroutine open for the full floor — this cannot become a new timing
+// signal of its own, because every caller of this function reaches the
+// exact same select regardless of which sentinel or which internal
+// store state produced the call.
+func (h *LoginUIHandlers) waitUntilFailureFloor(c *gin.Context, start time.Time) bool {
 	if elapsed := time.Since(start); elapsed < MinFailedLoginDuration {
 		timer := time.NewTimer(MinFailedLoginDuration - elapsed)
 		defer timer.Stop()
 		select {
 		case <-timer.C:
 		case <-c.Request.Context().Done():
-			return
+			return false
 		}
+	}
+	return true
+}
+
+// respondEqualisedFailure is spec D5's timing half: it waits until
+// MinFailedLoginDuration has elapsed since start (waitUntilFailureFloor),
+// THEN responds with the one fixed refusal wrong-password, unknown-user,
+// AND wrong-TOTP-code all answer with.
+func (h *LoginUIHandlers) respondEqualisedFailure(c *gin.Context, start time.Time) {
+	if !h.waitUntilFailureFloor(c, start) {
+		return
 	}
 	respond.Error(c, http.StatusUnauthorized, "invalid_credentials", passwordFailureMessage)
 }
@@ -678,10 +725,12 @@ type factorRequest struct {
 func (h *LoginUIHandlers) Factor(c *gin.Context) {
 	// start is captured before binding and the rate-limit check for the
 	// exact same reason Password's is — see that handler's doc comment.
-	// respondEqualisedFailure is the ONLY path below that reads it; every
-	// other return (bad request, attempt-expired, success, handoff,
-	// unavailable) is deliberately NOT held to the floor, the same
-	// asymmetry Password observes.
+	// Both respondEqualisedFailure (wrong code) and respondAttemptExpired
+	// (unknown/expired/exhausted attempt — Finding/Minor 3) read it, so
+	// EVERY attempt-expired-or-refusal path below lands at the same
+	// floor; success, handoff, "unsupported factor", and "Zitadel
+	// unavailable" are deliberately NOT held to it, the same asymmetry
+	// Password observes.
 	start := time.Now()
 
 	var req factorRequest
@@ -719,7 +768,7 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 		// enumeration signal this function's doc comment warns about.
 		requestid.Logger(c).WarnContext(c.Request.Context(), "login factor: no pending attempt",
 			"auth_request_id", req.AuthRequestID)
-		h.respondAttemptExpired(c)
+		h.respondAttemptExpired(c, start)
 		return
 	}
 
@@ -798,13 +847,13 @@ func (h *LoginUIHandlers) bumpFactorAttempt(c *gin.Context, authRequestID string
 	case errors.Is(err, errAttemptsExhausted):
 		requestid.Logger(c).WarnContext(c.Request.Context(), "login factor attempts exhausted",
 			"auth_request_id", authRequestID)
-		h.respondAttemptExpired(c)
+		h.respondAttemptExpired(c, start)
 	case errors.Is(err, errAttemptNotFound):
 		// The row expired or was otherwise removed between Get and this
 		// bump (e.g. a concurrent request on the same auth_request_id
 		// already exhausted it). Same answer as any other missing
 		// attempt.
-		h.respondAttemptExpired(c)
+		h.respondAttemptExpired(c, start)
 	case err != nil:
 		respond.InternalErr(c, err, "sign-in could not be completed")
 	default:
@@ -836,6 +885,23 @@ func (h *LoginUIHandlers) deleteAttempt(c *gin.Context, authRequestID string) {
 // the same user-facing situation: start the sign-in over. Reusing the
 // exact literal keeps the two from drifting into two different wordings
 // for what is, from the browser's point of view, one failure mode.
-func (h *LoginUIHandlers) respondAttemptExpired(c *gin.Context) {
+//
+// It also takes the SAME MinFailedLoginDuration floor
+// (waitUntilFailureFloor) every Factor caller of this function reaches —
+// #867 fix round 1, Finding/Minor 3. Without it, an unknown
+// auth_request_id (store.Get misses immediately, no Zitadel call at
+// all) and a genuinely EXHAUSTED one (reached only after a real
+// VerifyTOTP round trip plus a BumpAndGet) would answer the identical
+// body at measurably different latencies — and that gap is itself an
+// id-existence oracle of exactly the shape spec D5's body-equality
+// guarantee exists to deny, just moved from the response bytes to the
+// response clock. This is a DELIBERATE cost on the common case (a
+// browser resuming a stale tab now waits out the floor too, not just a
+// credential refusal) accepted specifically to close that gap, not an
+// oversight.
+func (h *LoginUIHandlers) respondAttemptExpired(c *gin.Context, start time.Time) {
+	if !h.waitUntilFailureFloor(c, start) {
+		return
+	}
 	respond.Error(c, http.StatusBadRequest, "auth_request_invalid", authRequestExpiredMessage)
 }

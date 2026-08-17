@@ -2,6 +2,7 @@ package iam
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -627,21 +628,53 @@ func doFactor(t *testing.T, r *gin.Engine, authRequestID, factor, code string) *
 	return w
 }
 
+// factorSessionCreationToken/factorRotatedToken are the two tokens every
+// zitadelFactorRequired-based fixture below uses: the token session
+// creation (POST /v2/sessions) hands out, and the DIFFERENT token a
+// successful PATCH (VerifyTOTP) rotates to. Named constants rather than
+// inline literals so the finalize gate below (which must accept
+// EXACTLY factorRotatedToken, never factorSessionCreationToken) and
+// every test's assertions on h.store's persisted token all read the
+// same two strings — a copy-paste slip between "tok-mfa" and
+// "tok-mfa-rotated" typed independently in three or four places would
+// silently defeat the whole point of this fixture.
+const (
+	factorSessionCreationToken = "tok-mfa"
+	factorRotatedToken         = "tok-mfa-rotated"
+)
+
 // zitadelFactorRequired answers a password session for a user enrolled
 // in BOTH password and TOTP (spec D1's headline case) — Password's
 // CompleteIfSufficient therefore answers OutcomeFactorRequired rather
 // than completing or handing off. patchSessions serves PATCH
 // /v2/sessions/{id} (loginclient.VerifyTOTP) — callers below supply
 // either a success or a wrong-code response, the only thing that
-// differs between "good code" and "wrong code" test fixtures; every
-// other route this handler needs (session create, enrolled-method read,
-// session-factor read, finalize) is identical between the two, so it is
-// shared here rather than duplicated per fixture.
-func zitadelFactorRequired(t *testing.T, patchSessions http.HandlerFunc) *loginclient.Client {
+// differs between "good code" and "wrong code" test fixtures.
+// finalizeOutcome serves POST /v2/oidc/auth_requests/{id} — see
+// finalizeRequireRotatedToken below for the ONE variant used by every
+// caller in this file: it does not just answer a canned callback URL,
+// it INSPECTS the request body and refuses unless the session token
+// finalize was actually called with is factorRotatedToken.
+//
+// # Why finalize must inspect the token, not just answer unconditionally
+//
+// #867 fix round 1, Finding 1: an EARLIER version of this fixture's
+// finalize and GET /v2/sessions/{id} handlers ignored *http.Request
+// entirely — the same shape TestFactorGoodCodeReturnsCallbackAndDeletesRow
+// still calls "the D3 regression test" in its own doc comment, except
+// with a fixture that could not have proven any such thing: a reviewer
+// mutated Factor to finalize with the STALE, pre-verification token
+// (loginAttemptStore's own, never updated) and the test PASSED, because
+// nothing in the fixture ever looked at which token arrived. A test that
+// cannot fail against the exact defect it claims to guard is not a
+// guard. finalizeRequireRotatedToken exists so that mutation now fails
+// this test — see TestFactorGoodCodeReturnsCallbackAndDeletesRow's own
+// doc comment for the actual FAIL output this task's report records.
+func zitadelFactorRequired(t *testing.T, patchSessions, finalizeOutcome http.HandlerFunc) *loginclient.Client {
 	t.Helper()
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /v2/sessions", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"sessionId":"sess-mfa","sessionToken":"tok-mfa"}`))
+		_, _ = w.Write([]byte(`{"sessionId":"sess-mfa","sessionToken":"` + factorSessionCreationToken + `"}`))
 	})
 	// Read by classifyEnrolledMethods' sessionUserID (both during
 	// Password's CompleteIfSufficient and, later, Factor's
@@ -650,7 +683,11 @@ func zitadelFactorRequired(t *testing.T, patchSessions http.HandlerFunc) *loginc
 	// factors.user.id and a pre-populated factors.totp.verifiedAt: this
 	// is a stateless fixture, not a real Zitadel session, so it does not
 	// need to track whether verification "really" happened yet by the
-	// time of any individual read.
+	// time of any individual read. Not token-gated: unlike finalize and
+	// VerifyTOTP, this GET is authenticated with the login-client PAT
+	// (the Authorization header this test's http.Client always sends),
+	// never the Zitadel SESSION token, so there is no session-token
+	// argument for this fixture to check here.
 	mux.HandleFunc("GET /v2/sessions/{id}", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"session":{"id":"sess-mfa","factors":{"user":{"id":"user-mfa"},"totp":{"verifiedAt":"2026-01-01T00:00:00Z"}}}}`))
 	})
@@ -658,34 +695,93 @@ func zitadelFactorRequired(t *testing.T, patchSessions http.HandlerFunc) *loginc
 		_, _ = w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP"]}`))
 	})
 	mux.HandleFunc("PATCH /v2/sessions/{id}", patchSessions)
-	mux.HandleFunc("POST /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"callbackUrl":"https://hms.test/api/auth/callback?code=mfa&state=mfa"}`))
-	})
+	mux.HandleFunc("POST /v2/oidc/auth_requests/{id}", finalizeOutcome)
 	return newZitadelTestClient(t, mux)
 }
 
-// zitadelFactorGoodCode's PATCH answers success with a ROTATED token
-// (tok-mfa-rotated, deliberately different from tok-mfa the session was
-// created with) — this is what proves spec D3 end to end:
-// TestFactorGoodCodeReturnsCallbackAndDeletesRow would fail with a stale
-// "session token" error from finalize if Factor persisted or forwarded
-// the WRONG token.
+// finalizeRequireRotatedToken decodes finalize's request body (the SAME
+// shape loginclient.Client.finalize sends: {"session":{"sessionId",
+// "sessionToken"}}) and refuses with a 400 UNLESS sessionToken is
+// EXACTLY factorRotatedToken — answering the canned callback URL only
+// when the caller actually threaded the rotated token through. This is
+// what makes TestFactorGoodCodeReturnsCallbackAndDeletesRow able to fail
+// against the D3 stale-token defect (#867 fix round 1, Finding 1): a
+// Factor implementation that finalizes with attempt.SessionToken (the
+// ORIGINAL, pre-verification token) sends factorSessionCreationToken
+// here instead, which this handler now REJECTS.
+func finalizeRequireRotatedToken(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Session struct {
+			SessionID    string `json:"sessionId"`
+			SessionToken string `json:"sessionToken"`
+		} `json:"session"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	if body.Session.SessionToken != factorRotatedToken {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"message":"session token is stale (not the rotated token)","details":[{"id":"COMMAND-stale-token"}]}`))
+		return
+	}
+	_, _ = w.Write([]byte(`{"callbackUrl":"https://hms.test/api/auth/callback?code=mfa&state=mfa"}`))
+}
+
+// finalizeUnavailable always answers 503 regardless of body — used by
+// zitadelFactorGoodCodeFinalizeUnavailable so a test can observe the
+// STORE's persisted token directly (Finding 1's second, independent
+// check) without finalize ever succeeding or deleting the row.
+func finalizeUnavailable(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusServiceUnavailable)
+	_, _ = w.Write([]byte(`{"message":"internal","details":[{"id":"UNAVAIL-1"}]}`))
+}
+
+// zitadelFactorGoodCode's PATCH answers success with factorRotatedToken
+// — deliberately DIFFERENT from factorSessionCreationToken, the token
+// session creation handed out — and its finalize
+// (finalizeRequireRotatedToken) REJECTS any other token. This proves
+// spec D3 end to end: TestFactorGoodCodeReturnsCallbackAndDeletesRow
+// fails if Factor persists or forwards the WRONG token to
+// CompleteAfterFactor, because finalize would then be called with
+// factorSessionCreationToken and this fixture's finalize refuses it —
+// see zitadelFactorRequired's own doc comment for the mutation this
+// closes.
 func zitadelFactorGoodCode(t *testing.T) *loginclient.Client {
 	t.Helper()
 	return zitadelFactorRequired(t, func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"sessionToken":"tok-mfa-rotated"}`))
-	})
+		_, _ = w.Write([]byte(`{"sessionToken":"` + factorRotatedToken + `"}`))
+	}, finalizeRequireRotatedToken)
+}
+
+// zitadelFactorGoodCodeFinalizeUnavailable is zitadelFactorGoodCode's
+// PATCH (a correct code, rotating to factorRotatedToken) paired with a
+// finalize that ALWAYS answers 503 — independent of which token it
+// receives. This lets a test observe h.store directly after Factor's
+// call: UpdateToken must have already persisted the rotated token
+// BEFORE CompleteAfterFactor/finalize ever runs (loginui.go's own doc
+// comment on Factor: "Persisted BEFORE CompleteAfterFactor is called"),
+// and finalize failing for an UNRELATED reason (Zitadel unavailable)
+// must not roll that back or prevent it from having happened. This is
+// Finding 1's second, independent proof — it does not rely on
+// finalizeRequireRotatedToken's gate at all, so it catches the D3 defect
+// even in a hypothetical world where that gate had a bug of its own.
+func zitadelFactorGoodCodeFinalizeUnavailable(t *testing.T) *loginclient.Client {
+	t.Helper()
+	return zitadelFactorRequired(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"sessionToken":"` + factorRotatedToken + `"}`))
+	}, finalizeUnavailable)
 }
 
 // zitadelFactorBadCode's PATCH answers the spike's wrong-credential
 // shape (HTTP 400) every time — loginclient.VerifyTOTP maps this to
 // ErrBadCredentials, the same sentinel a wrong password produces.
+// finalize is never reached on this path (VerifyTOTP always fails
+// first), so its outcome does not matter; finalizeRequireRotatedToken is
+// reused anyway rather than inventing a third finalize fixture.
 func zitadelFactorBadCode(t *testing.T) *loginclient.Client {
 	t.Helper()
 	return zitadelFactorRequired(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(`{"message":"invalid credentials","details":[{"id":"COMMAND-totp"}]}`))
-	})
+	}, finalizeRequireRotatedToken)
 }
 
 // TestPasswordFactorRequiredRespondsWithFactorsOnly pins the FIRST half
@@ -731,12 +827,26 @@ func TestPasswordFactorRequiredWritesLoginAttemptRow(t *testing.T) {
 
 // TestFactorGoodCodeReturnsCallbackAndDeletesRow is the D3 regression
 // test the spec explicitly calls for: password → factor → finalize
-// succeeds. zitadelFactorGoodCode's PATCH deliberately returns a
-// DIFFERENT token than session creation did — if Factor finalized with
-// the STALE token (the D3 defect this task exists to avoid), finalize
-// would never be reached with a token Zitadel actually recognizes and
-// this test would fail. The row must also be gone afterwards: a
-// finalized attempt has nothing left to resume.
+// succeeds. zitadelFactorGoodCode's PATCH deliberately rotates to
+// factorRotatedToken (different from factorSessionCreationToken, the
+// token session creation returned), and its finalize
+// (finalizeRequireRotatedToken) REJECTS any request whose sessionToken
+// is not EXACTLY factorRotatedToken.
+//
+// #867 fix round 1, Finding 1: an earlier version of this test's
+// fixture did NOT actually enforce that — both GET /v2/sessions/{id}
+// and finalize ignored the request body entirely — so this test PASSED
+// even when a reviewer mutated Factor to finalize with the stale,
+// pre-verification token. That is fixed now: this test is PROVEN able
+// to catch that exact mutation (see this task's report for the FAIL
+// output, produced by temporarily reverting Factor to finalize with
+// `loginclient.Session{attempt.SessionID, attempt.SessionToken}` instead
+// of `verified`, then reverting).
+//
+// The row must also be gone afterwards: a finalized attempt has nothing
+// left to resume. TestFactorPersistsRotatedTokenBeforeFinalizeAttempt
+// below is this test's independent second proof — it observes h.store
+// directly rather than relying on finalizeRequireRotatedToken's gate.
 func TestFactorGoodCodeReturnsCallbackAndDeletesRow(t *testing.T) {
 	h := newFactorTestHandlers(t, zitadelFactorGoodCode(t))
 	r := newFactorRouter(h)
@@ -749,6 +859,36 @@ func TestFactorGoodCodeReturnsCallbackAndDeletesRow(t *testing.T) {
 
 	_, err := h.store.Get(context.Background(), loginUITestAuthRequestID)
 	require.ErrorIs(t, err, errAttemptNotFound, "a finalized attempt's row must be deleted")
+}
+
+// TestFactorPersistsRotatedTokenBeforeFinalizeAttempt is Finding 1's
+// SECOND, independent proof of spec D3 — deliberately NOT relying on
+// finalizeRequireRotatedToken's gate at all, so it still catches the D3
+// stale-token defect even in a hypothetical world where that gate had a
+// bug of its own. zitadelFactorGoodCodeFinalizeUnavailable's PATCH
+// rotates the token exactly like zitadelFactorGoodCode's does, but its
+// finalize always answers 503 regardless of which token it receives —
+// so Factor takes the "complete_after_factor" error path
+// (h.respondLoginClientError) rather than deleting the row, and this
+// test can read h.store directly to assert the token UpdateToken
+// actually persisted is factorRotatedToken, never
+// factorSessionCreationToken. loginui.go's own doc comment on Factor
+// states the ordering this pins: "Persisted BEFORE CompleteAfterFactor
+// is called" — this test is what proves that claim rather than merely
+// asserting it in prose.
+func TestFactorPersistsRotatedTokenBeforeFinalizeAttempt(t *testing.T) {
+	h := newFactorTestHandlers(t, zitadelFactorGoodCodeFinalizeUnavailable(t))
+	r := newFactorRouter(h)
+
+	require.Equal(t, http.StatusOK, doPassword(t, r, loginUITestAuthRequestID, "test@helivanta.dev", "HmsDev123!").Code)
+
+	w := doFactor(t, r, loginUITestAuthRequestID, "totp", "123456")
+	require.Equal(t, http.StatusServiceUnavailable, w.Code, w.Body.String())
+
+	attempt, err := h.store.Get(context.Background(), loginUITestAuthRequestID)
+	require.NoError(t, err, "finalize failing for an unrelated reason must not delete the row")
+	require.Equal(t, factorRotatedToken, attempt.SessionToken,
+		"the store must hold the ROTATED token, not the stale session-creation one, even when finalize itself fails")
 }
 
 // TestFactorWrongCodeMatchesWrongPasswordByteForByte is spec D5 extended
@@ -877,6 +1017,29 @@ func TestAuthRequestDoesNotExposeRequireMFALocalOnly(t *testing.T) {
 	require.Contains(t, w.Body.String(), `"require_mfa":true`)
 	require.NotContains(t, strings.ToLower(w.Body.String()), "requiremfalocalonly")
 	require.NotContains(t, w.Body.String(), "require_mfa_local_only")
+}
+
+// TestNonNilFactorsNeverReturnsNil pins nonNilFactors directly (#867 fix
+// round 1, Minor 4): a nil input must come back as a non-nil, empty
+// slice, and a real slice must pass through unchanged.
+func TestNonNilFactorsNeverReturnsNil(t *testing.T) {
+	got := nonNilFactors(nil)
+	require.NotNil(t, got, "nonNilFactors(nil) must not return nil")
+	require.Empty(t, got)
+
+	require.Equal(t, []string{"totp"}, nonNilFactors([]string{"totp"}))
+}
+
+// TestFactorRequiredResponseJSONNeverEmitsNull proves the actual byte
+// this endpoint would emit for a nil Factors slice is `[]`, not `null`
+// — the concrete, wire-level version of the guarantee
+// TestNonNilFactorsNeverReturnsNil pins at the function level. A naive
+// browser-side `for (const f of body.factor_required)` throws on
+// `null` but iterates zero times over `[]`.
+func TestFactorRequiredResponseJSONNeverEmitsNull(t *testing.T) {
+	b, err := json.Marshal(factorRequiredResponse{Factors: nonNilFactors(nil)})
+	require.NoError(t, err)
+	require.Equal(t, `{"factor_required":[]}`, string(b))
 }
 
 // TestFactorRejectsUnsupportedFactor proves the "factor" field is

@@ -106,7 +106,7 @@ func LoginRateLimitRule(cfg config.Config) ratelimit.Rule {
 // number of attempts an attacker gets is this limiter, not the per-row
 // counter underneath it.
 //
-// # The arithmetic
+// # The arithmetic — what this Rule actually buys, stated honestly
 //
 // A TOTP code is six digits, a 10^6 space. Zitadel applies a delay to
 // repeated failures rather than a hard lockout on this endpoint (spec
@@ -116,21 +116,86 @@ func LoginRateLimitRule(cfg config.Config) ratelimit.Rule {
 // RateLimitLoginPerMin's 20/min default, deliberately tighter, because
 // this route's legitimate traffic is a SINGLE TOTP submission per login
 // (occasionally two, for an honest mistype) rather than the multi-tab
-// renewal traffic LoginRateLimitRule's 20/min accommodates. At 10/min
-// sustained, exhausting the 10^6 code space end to end would take
-// roughly 10^6 / 10 ≈ 100,000 minutes (~69 days) of continuous,
-// undetected traffic from one caller — and loginAttemptStore's own
-// five-guess-per-attempt boundary (spec D6) forces the attacker to
-// restart the OIDC flow, and therefore this same rate limit's burst
-// window, every five guesses, so the SUSTAINED rate this Rule enforces
-// is what actually governs, not a one-time burst. Burst is fixed at 5,
-// matching maxFactorAttempts (loginattempt.go) — exactly one login
-// attempt's worth of wrong-code submissions in a single burst, no more:
-// a clinician legitimately mistyping a rolling code a few times in a row
-// must not be refused mid-attempt by the ROUTE limiter before
+// renewal traffic LoginRateLimitRule's 20/min accommodates. Burst is
+// fixed at 5, matching maxFactorAttempts (loginattempt.go) — exactly one
+// login attempt's worth of wrong-code submissions in a single burst, no
+// more: a clinician legitimately mistyping a rolling code a few times in
+// a row must not be refused mid-attempt by the ROUTE limiter before
 // loginAttemptStore's own five-guess counter would have stopped them
 // anyway, but there is no legitimate reason for a burst larger than the
 // per-attempt budget itself.
+//
+// An EARLIER version of this comment claimed 10/min "bounds the total
+// number of attempts an attacker gets" and framed the cost as 10^6/10 ≈
+// 69 days to EXHAUST the code space. Both statements were wrong, or at
+// least badly incomplete, and are corrected here rather than left to
+// mislead the next reader:
+//
+//  1. 69 days measures FULL enumeration (trying all 10^6 codes). An
+//     attacker does not need to try all of them — they need ONE hit.
+//     Zitadel's own 30-second TOTP validity window (with a small
+//     clock-skew tolerance either side) means at any instant there are
+//     effectively a handful of VALID codes out of 10^6, so a single
+//     random guess succeeds with probability on the order of a few in
+//     10^6. Expected time-to-success for a Bernoulli process is roughly
+//     HALF of full-enumeration time in the naive "one shot per code, no
+//     repeats" framing this comment originally used — the 69-day figure
+//     was never the right number to reason about attacker success with
+//     in the first place, and citing it as if it were the "cost" of an
+//     attack materially overstated how long this Rule holds.
+//  2. At the sustained rate this Rule actually admits — 10/min per IP,
+//     i.e. 600/hr, i.e. 14,400/day — an attacker running ONE IP against
+//     a 10^6 code space is attempting roughly 14,400/10^6 ≈ 1.4% of the
+//     space PER DAY. Over a month (~30 days) that is ≈ 1 − (1 −
+//     14,400/10^6)^30 ≈ 35% cumulative probability of a hit, not a
+//     69-day floor on success. This Rule slows a single-source attacker
+//     by roughly an order of magnitude versus no limiter at all; it does
+//     not make the attack impractical on its own.
+//  3. Because the bucket is keyed on c.ClientIP() (see
+//     iam.allowedByLimiter — there is no verified subject on this route
+//     to key on instead, until AFTER a factor check succeeds), this Rule
+//     is a PER-IP budget, not a per-account one. A distributed attacker
+//     running the SAME campaign from a hundred IPs gets roughly a
+//     hundred times the daily attempt budget against the SAME account —
+//     day-scale success probability for that attacker, not month-scale.
+//     This Rule does not, and structurally cannot on its own, "bound the
+//     total number of attempts an attacker gets" against one account; it
+//     only bounds the rate from any ONE source.
+//
+// # What would close the distributed-attacker gap, and why it is not built here
+//
+// loginAttemptStore's rows carry Subject (the login name a factor
+// attempt is FOR — loginui.go's Password handler), which is enough
+// information to key a SECOND, per-subject budget across auth_request_ids
+// — the one thing this per-IP Rule structurally cannot do. That is
+// deliberately NOT implemented in this fix round. #855 ("No account
+// lockout: password attempts against a known account are unlimited")
+// already covers exactly this failure class for the PASSWORD step —
+// #855's own acceptance criteria explicitly weigh "further attempts
+// refused regardless of source" against "a locked-out clinician needs a
+// documented, tested path back in during a shift" as a genuine,
+// unresolved product/clinical-workflow decision, not a mechanical one.
+// The TOTP factor step has the identical trade-off: a per-subject bound
+// or delay closes the distributed-guessing gap this comment now states
+// honestly, but it also hands an attacker who merely knows a clinician's
+// login name (no password, no factor — the login name alone) a way to
+// keep that SPECIFIC clinician locked out of a hospital system for as
+// long as they sustain traffic, which is a patient-safety-relevant
+// denial of service, not a security improvement, for a system with no
+// account-lockout policy by design (#855) and where Zitadel's OWN chosen
+// mitigation is a growing delay, never a hard lockout (MFA spike §3).
+// Building a per-subject control ad hoc inside this fix round, without
+// the same lockout-vs-availability design decision #855 already flags as
+// needing deliberate product input, would risk introducing a NEW
+// clinical-availability incident to close a guessing-speed gap — this
+// repository's engineering principles put "fail closed, correctness
+// over speed" ahead of quick patches, but do not license shipping an
+// under-designed control for a decision this consequential either. This
+// is an ACCEPTED, DOCUMENTED residual for #867 Task 4, not an oversight:
+// #855 is the right place to decide (and implement) an account-level
+// bound or delay that spans BOTH the password and the TOTP steps
+// consistently, and this comment now says so instead of implying the
+// per-IP Rule above already closes the gap.
 func FactorRateLimitRule(cfg config.Config) ratelimit.Rule {
 	return ratelimit.Rule{Rate: cfg.RateLimitFactorPerMin, Burst: 5, Per: time.Minute}
 }

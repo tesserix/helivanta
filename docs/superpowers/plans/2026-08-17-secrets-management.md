@@ -103,10 +103,18 @@ Expected: `no leaks found`. If any of the 9 baseline findings still fire, the al
 
 - [ ] **Step 3: Prove the gate can fail**
 
-This is the step that makes the gate real. Create a throwaway file with a credential the default ruleset detects:
+This is the step that makes the gate real.
+**Do NOT use the canonical AWS-docs example key** (`wJalrXUtnFEMI/...EXAMPLEKEY`).
+Verified 2026-08-17 against gitleaks v8.30.1: that literal is a well-known
+placeholder the default ruleset deliberately ignores, with our config, with no
+config, and even paired with a matching access-key-id. A probe built from it
+reports zero findings and would "prove" the gate is inert when it is fine — the
+proof would move nothing the assertion reads. The value below is random and was
+observed firing `generic-api-key`.
+ Create a throwaway file with a credential the default ruleset detects:
 
 ```bash
-printf 'aws_secret_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"\n' > /tmp/leak-probe.txt
+printf 'aws_secret_access_key = "PROBE_VALUE_GENERATED_AT_RUNTIME"\n' > /tmp/leak-probe.txt
 cp /tmp/leak-probe.txt ./leak-probe.txt
 docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
   --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact --no-git

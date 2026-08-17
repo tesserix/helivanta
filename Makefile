@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local preflight reset
+.PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed secret-session-key test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local preflight reset
 
 # Docker Compose reads .env in the project directory automatically for
 # ${VAR} substitution in docker-compose.dev.yml; Make does not read it on
@@ -268,6 +268,12 @@ dev-down: down
 
 migrate:
 	cd backend && go run ./cmd/migrate
+
+# Mints a SESSION_SIGNING_KEY in the exact format the API accepts (#45,
+# spec D6). Prints ONLY the key, so it can be piped into a secret store.
+# See docs/runbooks/secrets.md for where it goes.
+secret-session-key:
+	@cd backend && go run ./cmd/session-key
 
 # seed depends on migrate so `make dev-infra && make seed` works on a
 # fresh clone with no API running — seed writes into iam_members, which

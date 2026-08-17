@@ -1,0 +1,41 @@
+# Secret scanning gate for HMS (#45, spec D5).
+#
+# Exceptions below are scoped to specific secret VALUES, never to file
+# paths. A path allowlist on Makefile or signingkey.go would exempt a
+# REAL secret added to those files later; a value allowlist exempts only
+# the exact known-benign string and keeps everything else caught.
+#
+# Baseline, dated: 2026-08-17, 309 commits at the time this was written
+# (the repo has grown since — treat "309" as when this was taken, not as
+# a live count), 9 findings, all benign.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+[rules.allowlist]
+regexes = [
+  # The dev Ed25519 seed, committed on purpose as
+  # config.DevSessionSigningKey and mirrored in the Makefile's dev-api
+  # target. It is not a leak: SessionSigningKeySeed REFUSES to honour it
+  # outside HMS_ENV=dev, so a production process cannot be tricked into
+  # signing with it. Removing it would not improve security and would
+  # break every developer's stack.
+  '''^X5yoi73f6FRR8XH2ZfRBjanOZLm/bkae0QV7wGJRuf8=$''',
+
+  # PHI-redaction test fixtures. The all-ones UUID is the repo-wide test
+  # tenant id (testutil.TenantA, used in ~20 files); both values are
+  # deliberately structured strings that pkg/logging's redactor must
+  # leave ALONE (a UUID contains a twelve-digit run, so a careless
+  # Aadhaar pattern would mask every tenant_id). They carry no
+  # credential; gitleaks flags them on entropy.
+  #
+  # Anchored (^...$) so each regex matches ONLY the exact known-benign
+  # value gitleaks extracts, not any string that merely contains it — an
+  # unanchored '1{8}-1{4}-...' would also match a real UUID with a
+  # matching digit-run by coincidence, which is safe only by luck of
+  # which digit the fixture happens to use, not by construction.
+  '''^1{8}-1{4}-1{4}-1{4}-1{12}$''',
+  '''^ref_9876543210_x$''',
+]

@@ -112,7 +112,7 @@ func TestSessionTTLDefaultsAndFallsOpen(t *testing.T) {
 // not a secret — and proves it is overridable.
 func TestSessionIssuerDefaultsAndOverrides(t *testing.T) {
 	t.Setenv("SESSION_ISSUER", "")
-	require.Equal(t, "https://hms.local", config.Load().SessionIssuer)
+	require.Equal(t, "https://helivanta.local", config.Load().SessionIssuer)
 
 	t.Setenv("SESSION_ISSUER", "https://hms.example.org")
 	require.Equal(t, "https://hms.example.org", config.Load().SessionIssuer)

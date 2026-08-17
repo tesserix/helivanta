@@ -240,7 +240,7 @@ func Load() Config {
 		// default for an unset variable, and a signing key must never
 		// have one (see SessionSigningKeySeed's doc comment).
 		SessionSigningKey: os.Getenv("SESSION_SIGNING_KEY"),
-		SessionIssuer:     getenv("SESSION_ISSUER", "https://hms.local"),
+		SessionIssuer:     getenv("SESSION_ISSUER", "https://helivanta.local"),
 		SessionTTL:        getenvDuration("SESSION_TTL", 15*time.Minute),
 		// Read from its OWN variable, never derived from SESSION_TTL —
 		// see IdleTimeout's doc comment on why the two clocks must stay

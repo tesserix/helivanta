@@ -19,7 +19,7 @@ import (
 
 const (
 	sessionTestIssuer = "https://hms.test"
-	sessionTestKID    = "hms-session-v1"
+	sessionTestKID    = "helivanta-session-v1"
 	sessionTestTTL    = 15 * time.Minute
 )
 

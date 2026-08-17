@@ -118,7 +118,7 @@ func TestMigrationIDsAreGloballyUnique(t *testing.T) {
 }
 
 var (
-	subjectRe  = regexp.MustCompile(`^hms\.[a-z]+\.[a-z]+\.[a-z_]+\.v\d+$`)
+	subjectRe  = regexp.MustCompile(`^helivanta\.[a-z]+\.[a-z]+\.[a-z_]+\.v\d+$`)
 	consumerRe = regexp.MustCompile(`^[a-z]+-[a-z-]+$`)
 )
 

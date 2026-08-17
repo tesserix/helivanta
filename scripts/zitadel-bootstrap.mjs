@@ -36,7 +36,7 @@ const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://localhost:20080";
 const SECRETS_DIR = fileURLToPath(new URL("../dev/zitadel/secrets/", import.meta.url));
 
 const ORG_NAME = "Helivanta";
-const PROJECT_NAME = "HMS";
+const PROJECT_NAME = "Helivanta";
 
 async function findProjectByName(pat, name) {
   const { result } = await managementAPI(ISSUER, pat, "/management/v1/projects/_search", {});
@@ -254,7 +254,7 @@ Zitadel provisioned:
   Project:       ${PROJECT_NAME}
   App:           helivanta-web (client_id=${clientId})
   App:           helivanta-web-idle-timeout (client_id=${idleTimeoutClientId})
-  Console admin: admin@hms.localhost / HmsDevAdminPassw0rd! (dev only — see
+  Console admin: admin@helivanta.localhost / HmsDevAdminPassw0rd! (dev only — see
                  docker-compose.dev.yml's zitadel service)
 `);
 }

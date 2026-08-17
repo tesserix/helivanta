@@ -65,7 +65,7 @@ func TestCreateAndListVisits(t *testing.T) {
 		var n int64
 		_ = db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 			return tx.Raw(`SELECT count(*) FROM outbox_events
-				WHERE subject = 'hms.in.medicore.visit_created.v1' AND published_at IS NOT NULL`).Scan(&n).Error
+				WHERE subject = 'helivanta.in.medicore.visit_created.v1' AND published_at IS NOT NULL`).Scan(&n).Error
 		})
 		return n == 1
 	}, 20*time.Second, 200*time.Millisecond)

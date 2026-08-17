@@ -91,7 +91,7 @@ func TestPruneDeletesPublishedOutboxRows(t *testing.T) {
 	defer cancel()
 
 	tenantA := uuid.NewString()
-	const subject = "hms.in.test.prunepublished.v1"
+	const subject = "helivanta.in.test.prunepublished.v1"
 	var id uuid.UUID
 	require.NoError(t, db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
 		evt := Event{ID: uuid.NewString(), Type: "PrunePublishedTest", Version: 1, TenantID: tenantA, Data: json.RawMessage(`{}`)}
@@ -120,7 +120,7 @@ func TestPruneKeepsUnpublishedRows(t *testing.T) {
 	defer cancel()
 
 	tenantA := uuid.NewString()
-	const subject = "hms.in.test.pruneunpublished.v1"
+	const subject = "helivanta.in.test.pruneunpublished.v1"
 	var id uuid.UUID
 	require.NoError(t, db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
 		evt := Event{ID: uuid.NewString(), Type: "PruneUnpublishedTest", Version: 1, TenantID: tenantA, Data: json.RawMessage(`{}`)}
@@ -182,7 +182,7 @@ func TestPruneCannotResurrectADuplicate(t *testing.T) {
 	var attempts atomic.Int32
 	consumer := Consumer{
 		Name:    consumerName,
-		Subject: "hms.in.test.pruneduplicate.v1",
+		Subject: "helivanta.in.test.pruneduplicate.v1",
 		Handle: func(ctx context.Context, tx *gorm.DB, evt Event) error {
 			attempts.Add(1)
 			return nil

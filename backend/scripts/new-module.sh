@@ -30,10 +30,10 @@ cat > "$DIR/contract/events.go" <<'EOF'
 package contract
 
 // SubjectItemCreated is published when an item is created.
-const SubjectItemCreated = "hms.in.__NAME__.item_created.v1"
+const SubjectItemCreated = "helivanta.in.__NAME__.item_created.v1"
 
 // SubjectItemDone is published when an item transitions to done.
-const SubjectItemDone = "hms.in.__NAME__.item_done.v1"
+const SubjectItemDone = "helivanta.in.__NAME__.item_done.v1"
 
 // ItemCreatedData is the v1 payload of SubjectItemCreated.
 type ItemCreatedData struct {
@@ -368,7 +368,7 @@ func TestItemDoneTransition(t *testing.T) {
 		var n int64
 		_ = db.WithSystem(ctx, func(tx *gorm.DB) error {
 			return tx.Raw(`SELECT count(*) FROM outbox_events
-				WHERE subject = 'hms.in.__NAME__.item_created.v1'`).Scan(&n).Error
+				WHERE subject = 'helivanta.in.__NAME__.item_created.v1'`).Scan(&n).Error
 		})
 		return n == 1
 	}, 10*time.Second, 200*time.Millisecond)

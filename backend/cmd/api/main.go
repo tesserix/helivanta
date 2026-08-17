@@ -39,7 +39,7 @@ import (
 // from the key would make "kid" a second, redundant fingerprint of the
 // exact secret this whole package exists to keep out of logs and error
 // messages.
-const sessionSigningKeyID = "hms-session-v1"
+const sessionSigningKeyID = "helivanta-session-v1"
 
 func main() {
 	if err := run(); err != nil {

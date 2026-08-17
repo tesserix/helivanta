@@ -15,7 +15,7 @@ func TestPublishInvalidEventID(t *testing.T) {
 	var bus events.Bus
 
 	require.NotPanics(t, func() {
-		err := bus.Publish(nil, "hms.in.reference.pinged.v1", events.Event{
+		err := bus.Publish(nil, "helivanta.in.reference.pinged.v1", events.Event{
 			ID: "not-a-uuid",
 		})
 		require.Error(t, err)

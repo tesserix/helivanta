@@ -71,7 +71,7 @@ func TestDispatcherPublishesEveryTenant(t *testing.T) {
 	defer cancel()
 
 	tenantA, tenantB := uuid.NewString(), uuid.NewString()
-	const subject = "hms.in.test.dispatchall.v1"
+	const subject = "helivanta.in.test.dispatchall.v1"
 	sub := subscribeRaw(t, natsURL, bus, subject)
 
 	require.NoError(t, db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
@@ -116,7 +116,7 @@ func TestTenantlessEventStillPublishes(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	const subject = "hms.in.test.tenantless.v1"
+	const subject = "helivanta.in.test.tenantless.v1"
 	sub := subscribeRaw(t, natsURL, bus, subject)
 
 	// The real shape: iam/signout.go's revoke() publishes from inside
@@ -149,7 +149,7 @@ func TestOutboxRowIsInvisibleToAnotherTenant(t *testing.T) {
 	defer cancel()
 
 	tenantA, tenantB := uuid.NewString(), uuid.NewString()
-	const subject = "hms.in.test.crosstenant.v1"
+	const subject = "helivanta.in.test.crosstenant.v1"
 
 	require.NoError(t, db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
 		return bus.Publish(tx, subject, Event{Type: "CrossTenantTest", Version: 1, TenantID: tenantA, Data: json.RawMessage(`{}`)})
@@ -180,7 +180,7 @@ func TestOutboxRowIsInvisibleUnderWithSystem(t *testing.T) {
 	defer cancel()
 
 	tenantA := uuid.NewString()
-	const subject = "hms.in.test.systemreadprobe.v1"
+	const subject = "helivanta.in.test.systemreadprobe.v1"
 
 	require.NoError(t, db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
 		return bus.Publish(tx, subject, Event{Type: "SystemReadProbeTest", Version: 1, TenantID: tenantA, Data: json.RawMessage(`{}`)})
@@ -212,7 +212,7 @@ func TestTenantlessRowIsReadableByNobody(t *testing.T) {
 	defer cancel()
 
 	tenantA := uuid.NewString()
-	const subject = "hms.in.test.tenantlessreadprobe.v1"
+	const subject = "helivanta.in.test.tenantlessreadprobe.v1"
 	sub := subscribeRaw(t, natsURL, bus, subject)
 
 	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {

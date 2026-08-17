@@ -5,14 +5,14 @@ package contract
 const (
 	// SubjectMemberGranted and SubjectMemberRevoked drive the FGA sync
 	// consumers that keep OpenFGA's tuples matching Postgres.
-	SubjectMemberGranted = "hms.in.iam.member_granted.v1"
-	SubjectMemberRevoked = "hms.in.iam.member_revoked.v1"
+	SubjectMemberGranted = "helivanta.in.iam.member_granted.v1"
+	SubjectMemberRevoked = "helivanta.in.iam.member_revoked.v1"
 
 	// SubjectCredentialRevoked is a broadcast, not a work queue: every
 	// replica receives it and drops its cached revocation watermark
 	// (#781). The durable truth is Postgres, so a dropped delivery
 	// degrades to the cache TTL rather than to incorrectness.
-	SubjectCredentialRevoked = "hms.in.iam.credential_revoked.v1" //nolint:gosec // an event subject name, not a credential value
+	SubjectCredentialRevoked = "helivanta.in.iam.credential_revoked.v1" //nolint:gosec // an event subject name, not a credential value
 
 )
 

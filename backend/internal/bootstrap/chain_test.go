@@ -56,7 +56,7 @@ func newChainHarness(t *testing.T) (*gin.Engine, *session.Signer) {
 	pub, priv, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
 	const (
-		kid    = "hms-session-v1"
+		kid    = "helivanta-session-v1"
 		issuer = "https://hms.test"
 	)
 	signer, err := session.NewSigner(priv, kid, issuer, 15*time.Minute)

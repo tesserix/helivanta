@@ -25,7 +25,7 @@ import (
 
 const (
 	loginTestIssuer = "https://hms.test"
-	loginTestKID    = "hms-session-v1"
+	loginTestKID    = "helivanta-session-v1"
 	loginTestTTL    = 15 * time.Minute
 	// testIdleTimeout is stated here rather than read from
 	// config.Load(), which an ambient IDLE_TIMEOUT in a developer's or

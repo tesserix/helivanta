@@ -65,7 +65,7 @@ func TestVisitIntakeCreatesPendingDispense(t *testing.T) {
 		data, _ := json.Marshal(map[string]string{
 			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
 		})
-		return busRef.Publish(tx, "hms.in.medicore.visit_created.v1", events.Event{
+		return busRef.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
 			Type: "VisitCreated", Version: 1, TenantID: testutil.TenantA, Data: data,
 		})
 	}))
@@ -93,7 +93,7 @@ func TestDispenseFlow(t *testing.T) {
 		data, _ := json.Marshal(map[string]string{
 			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
 		})
-		return busRef.Publish(tx, "hms.in.medicore.visit_created.v1", events.Event{
+		return busRef.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
 			Type: "VisitCreated", Version: 1, TenantID: testutil.TenantA, Data: data,
 		})
 	}))
@@ -135,7 +135,7 @@ func TestDispenseFlow(t *testing.T) {
 		var n int64
 		_ = db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 			return tx.Raw(`SELECT count(*) FROM outbox_events
-				WHERE subject = 'hms.in.pharmacy.dispense_recorded.v1'`).Scan(&n).Error
+				WHERE subject = 'helivanta.in.pharmacy.dispense_recorded.v1'`).Scan(&n).Error
 		})
 		return n == 1
 	}, 10*time.Second, 200*time.Millisecond)
@@ -160,7 +160,7 @@ func TestConcurrentDispenseYieldsExactlyOneWinner(t *testing.T) {
 		data, _ := json.Marshal(map[string]string{
 			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
 		})
-		return busRef.Publish(tx, "hms.in.medicore.visit_created.v1", events.Event{
+		return busRef.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
 			Type: "VisitCreated", Version: 1, TenantID: testutil.TenantA, Data: data,
 		})
 	}))

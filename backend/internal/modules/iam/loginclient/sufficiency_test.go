@@ -14,11 +14,11 @@ import (
 
 // countingZitadel serves a login policy and records whether finalize was
 // called. It answers the session/authentication-methods routes
-// HasEnrolledFactor needs with a PASSWORD-ONLY user by default, so every
-// existing forceMfa-focused test in this file keeps exercising exactly
-// the policy branch it is named for rather than accidentally tripping
-// the enrolled-factor check added in #854 Task 8. Tests that need to
-// exercise the enrolled-factor branch itself use
+// classifyEnrolledMethods needs with a PASSWORD-ONLY user by default, so
+// every existing forceMfa-focused test in this file keeps exercising
+// exactly the policy branch it is named for rather than accidentally
+// tripping the enrolled-factor check added in #854 Task 8. Tests that
+// need to exercise the enrolled-factor branch itself use
 // countingZitadelWithFactors below.
 func countingZitadel(t *testing.T, policyJSON string, finalized *atomic.Bool) *Client {
 	t.Helper()
@@ -27,7 +27,7 @@ func countingZitadel(t *testing.T, policyJSON string, finalized *atomic.Bool) *C
 
 // countingZitadelWithFactors is countingZitadel with the
 // authentication_methods response under caller control, so tests can
-// assert HasEnrolledFactor's own branch of CompleteIfSufficient.
+// assert classifyEnrolledMethods's own branch of CompleteIfSufficient.
 // authMethodTypesJSON is the JSON array countingZitadel's fake
 // GET /v2/users/{id}/authentication_methods answers with — the ACTUAL
 // wire shape confirmed live 2026-08-16 against v4.15.3 (spike, "Per-user
@@ -252,6 +252,116 @@ func TestCompleteAfterFactor_HandsOffWhenSessionFactorsUnreadable(t *testing.T) 
 	require.False(t, finalized.Load(), "finalize was called while session factors were unreadable: fails open")
 }
 
+// TestCompleteAfterFactor_OtpEmailAlsoEnrolledStillHandsOff is #867 fix
+// round 2's Finding A(1): the re-reviewer verified — with a throwaway,
+// deliberately-discarded test — that CompleteAfterFactor's re-run of
+// classifyEnrolledMethods (fix round 1, Finding 2) actually catches a
+// session that has TOTP genuinely verified but ALSO has an uncollectible
+// factor (OTP_EMAIL) enrolled. That exact case is spec D1's reason for
+// existing: Helivanta can only collect one of the two factors the user
+// configured, so finalizing on TOTP's strength alone would silently skip
+// OTP_EMAIL. This test lands what the re-reviewer's throwaway probe
+// proved, so the behavior stays pinned rather than reverting silently the
+// next time someone touches this file. It asserts on the finalize call
+// counter, not merely the Outcome, per the coordinator's explicit
+// instruction — Outcome alone would not distinguish "correctly refused to
+// finalize" from "finalized, then also happened to report the wrong
+// Outcome by mistake".
+func TestCompleteAfterFactor_OtpEmailAlsoEnrolledStillHandsOff(t *testing.T) {
+	var finalized atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
+			// TOTP genuinely verified on the session — if
+			// CompleteAfterFactor looked only at SessionFactors.TOTP, this
+			// fixture alone would finalize.
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
+		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
+			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP","AUTHENTICATION_METHOD_TYPE_OTP_EMAIL"]}`))
+		default:
+			finalized.Store(true)
+			w.Write([]byte(`{"callbackUrl":"x"}`))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	c := New(srv.URL, "pat", srv.Client())
+
+	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	require.NoError(t, err)
+	require.Equal(t, OutcomeHandoff, got.Outcome)
+	require.False(t, finalized.Load(), "finalize was called for a session with TOTP verified AND an uncollectible factor (OTP_EMAIL) also enrolled: this is the exact D1 bypass Finding 2 exists to close")
+}
+
+// TestCompleteAfterFactor_HandsOffWhenEnrolledMethodsUnreadable pins
+// Finding A(2): an unreadable enrolled-methods answer inside
+// CompleteAfterFactor must hand off, the same fail-closed direction
+// CompleteIfSufficient already has pinned
+// (TestCompleteIfSufficientHandsOffWhenEnrolledFactorCheckUnreadable) —
+// now needed a second time because CompleteAfterFactor re-runs the same
+// check (fix round 1, Finding 2) rather than trusting the first call ever
+// ran.
+func TestCompleteAfterFactor_HandsOffWhenEnrolledMethodsUnreadable(t *testing.T) {
+	var finalized atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
+			// TOTP genuinely verified here on purpose: if the
+			// enrolled-methods-unreadable guard were ever accidentally
+			// removed, CompleteAfterFactor would fall through to
+			// SessionFactors, see TOTP true, and finalize — this fixture
+			// is what makes that mutation observable rather than the test
+			// passing by accident because SessionFactors also happened to
+			// report no TOTP.
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
+		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
+			w.WriteHeader(http.StatusInternalServerError)
+		default:
+			finalized.Store(true)
+			w.Write([]byte(`{"callbackUrl":"x"}`))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	c := New(srv.URL, "pat", srv.Client())
+
+	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	require.NoError(t, err)
+	require.Equal(t, OutcomeHandoff, got.Outcome)
+	require.False(t, finalized.Load(), "finalize was called while the enrolled-methods check was unreadable: fails open")
+}
+
+// TestCompleteAfterFactor_HandsOffWhenTOTPNoLongerEnrolled pins Finding
+// A(3): the re-reviewer named the !totpEnrolled branch as untested too.
+// This is the "enrollment changed between the two calls, or this path was
+// reached without CompleteIfSufficient ever running" case CompleteAfterFactor's
+// own doc comment describes — TOTP is no longer among the enrolled
+// methods at all, so there is nothing here to natively verify against
+// regardless of what SessionFactors would say.
+func TestCompleteAfterFactor_HandsOffWhenTOTPNoLongerEnrolled(t *testing.T) {
+	var finalized atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
+			// TOTP genuinely verified here on purpose — see the sibling
+			// unreadable-enrolled-methods test above for why: it makes
+			// removing the !totpEnrolled guard observable instead of the
+			// test passing by accident.
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
+		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
+			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD"]}`))
+		default:
+			finalized.Store(true)
+			w.Write([]byte(`{"callbackUrl":"x"}`))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	c := New(srv.URL, "pat", srv.Client())
+
+	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	require.NoError(t, err)
+	require.Equal(t, OutcomeHandoff, got.Outcome)
+	require.False(t, finalized.Load(), "finalize was called for a session with no TOTP enrolled at all: nothing to natively verify")
+}
+
 // THE test this whole spec exists for. Zitadel will happily finalize a
 // password-only session under forceMfa (spike §2) — Helivanta must not ask it to.
 func TestCompleteIfSufficientDoesNotFinalizeWhenForceMFA(t *testing.T) {
@@ -375,9 +485,10 @@ func TestCompleteIfSufficientHandsOffWhenPolicyUnreadable(t *testing.T) {
 // Task 8's proven-to-fail test: the org does NOT force MFA (same policy
 // body as TestCompleteIfSufficientFinalizesWhenNoMFARequired, which DOES
 // finalize), but the user has voluntarily enrolled a factor Helivanta
-// cannot collect — HasEnrolledFactor verified live 2026-08-16 against
-// v4.15.3 that GET /v2/users/{id}/authentication_methods reflects exactly
-// this shape for a user with a second factor. Before this task's change
+// cannot collect — verified live 2026-08-16 against v4.15.3 that
+// GET /v2/users/{id}/authentication_methods reflects exactly this shape
+// for a user with a second factor (the read this task's
+// classifyEnrolledMethods, sufficiency.go, is built on). Before this task's change
 // to CompleteIfSufficient, this test failed: the org-policy-only check
 // had no way to see the user's own factor and finalized anyway, which is
 // precisely the bypass spec D4/Task 8's KNOWN LIMITATIONS §1 (now
@@ -409,8 +520,8 @@ func TestCompleteIfSufficientHandsOffWhenUserHasEnrolledFactor(t *testing.T) {
 }
 
 // TestCompleteIfSufficientHandsOffWhenEnrolledFactorCheckUnreadable pins
-// the fail-closed direction for HasEnrolledFactor itself, the same way
-// TestCompleteIfSufficientHandsOffWhenPolicyUnreadable pins it for
+// the fail-closed direction for classifyEnrolledMethods itself, the same
+// way TestCompleteIfSufficientHandsOffWhenPolicyUnreadable pins it for
 // LoginPolicy: an unreadable answer must never be mistaken for "no
 // factor found".
 func TestCompleteIfSufficientHandsOffWhenEnrolledFactorCheckUnreadable(t *testing.T) {

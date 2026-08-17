@@ -895,8 +895,15 @@ func f(c *C, ctx Ctx) { c.do(ctx, http.MethodPost, "/v2/sessions", nil) }
 
 // TestFinalizeCallSiteIsUnique is the CI half of spec D4's structural
 // control; the other half is that loginclient.finalize is unexported, so
-// the only way to reach it from outside the package is
-// CompleteIfSufficient.
+// the only way to reach it from outside the package is through one of the
+// package's own sufficiency decisions — CompleteIfSufficient or (#867,
+// added after this comment was first written) CompleteAfterFactor.
+// finalize additionally requires a `sufficient` witness parameter that
+// only those two functions construct (see
+// internal/modules/iam/loginclient/sufficiency.go and
+// TestSufficientWitnessConstructionIsPinned below, which is this same
+// kind of control applied one level up, to witness construction rather
+// than to the wire POST itself).
 //
 // Unexporting alone does not stop someone writing a fresh POST to the same
 // endpoint in a handler, and that is the dangerous shape: the spike (§2,
@@ -972,8 +979,116 @@ func TestFinalizeCallSiteIsUnique(t *testing.T) {
 		t.Fatalf("walk repo: %v", err)
 	}
 	require.ElementsMatch(t, []string{finalizeCallSite}, callSites,
-		"the OIDC finalize call must stay behind CompleteIfSufficient (spec D4) — "+
+		"the OIDC finalize call must stay behind a sufficiency decision (CompleteIfSufficient or CompleteAfterFactor, spec D4) — "+
 			"Zitadel does not enforce forceMfa for a login client")
+}
+
+// sufficientWitnessTypeName is the unexported type
+// (internal/modules/iam/loginclient/sufficiency.go) finalize requires a
+// parameter of, so that constructing one is a precondition the compiler
+// enforces rather than a convention. See that file's own doc comment on
+// `sufficient` for why the type alone is not a complete control: Go
+// permits the zero-value composite literal `sufficient{}` from anywhere
+// in the defining package, so nothing stops a copy-paste of
+// `c.finalize(ctx, authRequestID, s, sufficient{})` into a brand-new,
+// check-free function — that compiles, and TestFinalizeCallSiteIsUnique
+// above does not catch it, because it matches POSTs to the finalize
+// endpoint, not constructions of this witness type. This is that missing
+// half: the same file-grained pinning TestFinalizeCallSiteIsUnique does
+// for the wire call, applied to `sufficient{` construction instead.
+const sufficientWitnessTypeName = "sufficient"
+
+// sufficientWitnessCallSite is the one file permitted to construct a
+// `sufficient` value: CompleteIfSufficient and CompleteAfterFactor both
+// live here, and both must run their own classification
+// (classifyEnrolledMethods, LoginPolicy, SessionFactors as applicable)
+// before doing so. Like finalizeCallSite, this is deliberately not a map
+// — the whole control is that the set has exactly one element.
+const sufficientWitnessCallSite = "internal/modules/iam/loginclient/sufficiency.go"
+
+// sourceConstructsSufficientWitness reports whether src contains a
+// composite literal of the unexported `sufficient` type — `sufficient{}`
+// or `sufficient{...}`, however many fields it later grows. It resolves
+// the type by NAME only, the same one-level-of-honesty
+// fileStringConsts/exprMentions above operate at: a value constructed via
+// a local alias (`type s = sufficient; s{}`) would evade this, but that
+// is a far more conspicuous rewrite than a straight copy-paste and is not
+// a shape this codebase's Go style uses anywhere today.
+func sourceConstructsSufficientWitness(src []byte) (bool, error) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, parser.SkipObjectResolution)
+	if err != nil {
+		return false, err
+	}
+	found := false
+	ast.Inspect(f, func(n ast.Node) bool {
+		lit, ok := n.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		if ident, ok := lit.Type.(*ast.Ident); ok && ident.Name == sufficientWitnessTypeName {
+			found = true
+		}
+		return true
+	})
+	return found, nil
+}
+
+// TestSufficientWitnessConstructionIsPinned is the CI half of the control
+// finalize's `sufficient` parameter starts (see that type's doc comment,
+// sufficiency.go): the parameter stops an accidental omission at compile
+// time, but nothing in the language stops a deliberate or copy-pasted
+// `sufficient{}` from being handed to finalize without ever calling
+// classifyEnrolledMethods/LoginPolicy/SessionFactors first. This test is
+// the mechanical backstop for exactly that gap — the same shape as
+// TestFinalizeCallSiteIsUnique, aimed one level up.
+//
+// Same two boundaries as TestFinalizeCallSiteIsUnique, for the same
+// reasons: _test.go files are excluded (client_test.go's two direct unit
+// tests of finalize legitimately construct `sufficient{}` to test its
+// wire behavior in isolation — see TestFinalizeReturnsCallbackURL and
+// TestFinalizeEscapesAdversarialAuthRequestID), and the walk roots at
+// backend/, so this proves uniqueness within backend/ only.
+func TestSufficientWitnessConstructionIsPinned(t *testing.T) {
+	root := "../.."
+	var callSites []string
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		if strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		// archtest's own source necessarily spells the type name out (this
+		// check, its constants, its doc comments). Excluding the package
+		// avoids the self-match rather than allowlisting it.
+		if strings.HasPrefix(rel, "internal/archtest/") {
+			return nil
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		constructs, err := sourceConstructsSufficientWitness(src)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", rel, err)
+		}
+		if constructs {
+			callSites = append(callSites, rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk repo: %v", err)
+	}
+	require.ElementsMatch(t, []string{sufficientWitnessCallSite}, callSites,
+		"a sufficient{} witness must only be constructed inside sufficiency.go's own evaluation functions (#867 fix round 2, Finding B) — "+
+			"finalize's witness parameter alone does not stop a copy-pasted, check-free construction of one")
 }
 
 // TestGormOpenIsOnlyCalledFromTheAllowlist protects a PHI control that is

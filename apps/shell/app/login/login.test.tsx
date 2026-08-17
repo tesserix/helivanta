@@ -1,8 +1,8 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { renderWithProviders } from "@hms/api/testing";
-import { SIGNED_OUT_MARK, IDLE_ENDED_MARK } from "@hms/ui";
+import { renderWithProviders } from "@helivanta/api/testing";
+import { SIGNED_OUT_MARK, IDLE_ENDED_MARK } from "@helivanta/ui";
 
 import LoginPage from "./page";
 

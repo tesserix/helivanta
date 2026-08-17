@@ -27,7 +27,7 @@ export function hmsEslint(rootDir) {
           {
             selector:
               "JSXAttribute[name.name='dangerouslySetInnerHTML']:not([value.expression.callee.name='sanitizeHtml'])",
-            message: "Use sanitizeHtml from @hms/ui instead of raw dangerouslySetInnerHTML.",
+            message: "Use sanitizeHtml from @helivanta/ui instead of raw dangerouslySetInnerHTML.",
           },
         ],
       },

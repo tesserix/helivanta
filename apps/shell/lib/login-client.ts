@@ -1,4 +1,4 @@
-import { apiFetch } from "@hms/api";
+import { apiFetch } from "@helivanta/api";
 
 // The wire shape GET /v1/auth/login/request/:id answers with —
 // authRequestResponse in loginui.go. Fetched directly via useApiQuery in

@@ -1,6 +1,6 @@
 import { act, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@hms/api/testing";
+import { renderWithProviders } from "@helivanta/api/testing";
 import { THEME_INIT_SCRIPT, THEME_STORAGE_KEY, ThemeToggle, useThemeAttribute } from "./theme";
 
 function stubMatchMedia(prefersDark: boolean) {

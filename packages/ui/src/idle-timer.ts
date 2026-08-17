@@ -7,7 +7,7 @@
  * and a couple of `window.dispatchEvent` calls, no DOM-rendering harness
  * required.
  *
- * **Why this lives in `@hms/ui`, not `apps/shell`.** Every HMS app
+ * **Why this lives in `@helivanta/ui`, not `apps/shell`.** Every HMS app
  * (`apps/medicore`, `apps/pharmacy`, `apps/lab`) renders `HmsShell`. A
  * clinician working inside `/medicore` for twenty minutes is ACTIVE — if
  * only the shell tracked interaction they would be signed out

@@ -5,7 +5,7 @@ const API_URL = process.env.API_URL ?? "http://localhost:8080";
 const nextConfig: NextConfig = {
   output: "standalone",
   basePath: "/pharmacy",
-  transpilePackages: ["@hms/ui", "@hms/api"],
+  transpilePackages: ["@helivanta/ui", "@helivanta/api"],
   async rewrites() {
     // Only used when hitting :4303 directly; via the shell the same
     // /api/* path is rewritten by the shell itself.

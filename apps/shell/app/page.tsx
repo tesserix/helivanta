@@ -1,7 +1,7 @@
 "use client";
 
-import { usePermissions } from "@hms/api";
-import { HmsShell, visibleZones, type Zone, type ZoneHue } from "@hms/ui";
+import { usePermissions } from "@helivanta/api";
+import { HmsShell, visibleZones, type Zone, type ZoneHue } from "@helivanta/ui";
 import { TenantPicker } from "@/components/tenant-picker";
 
 // Per-page descriptions, keyed by href — the registry (packages/ui/src/zones.ts)

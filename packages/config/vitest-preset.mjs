@@ -4,7 +4,7 @@ export function hmsVitest() {
     test: {
       environment: "jsdom",
       globals: true,
-      setupFiles: ["@hms/config/vitest-setup"],
+      setupFiles: ["@helivanta/config/vitest-setup"],
       passWithNoTests: true,
       server: {
         deps: {

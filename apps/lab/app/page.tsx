@@ -1,4 +1,4 @@
-import { HmsShell } from "@hms/ui";
+import { HmsShell } from "@helivanta/ui";
 import { OrderList } from "@/components/order-list";
 
 export default function OrdersPage() {

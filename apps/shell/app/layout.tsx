@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { AppProviders } from "@hms/api";
-import { THEME_INIT_SCRIPT } from "@hms/ui";
+import { AppProviders } from "@helivanta/api";
+import { THEME_INIT_SCRIPT } from "@helivanta/ui";
 import { SessionRenewal } from "@/components/session-renewal";
 import "./globals.css";
 

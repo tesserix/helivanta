@@ -1,6 +1,6 @@
 "use client";
 
-import { useApiMutation, useApiQuery, apiFetch, clearPermissionsCache } from "@hms/api";
+import { useApiMutation, useApiQuery, apiFetch, clearPermissionsCache } from "@helivanta/api";
 
 type Membership = { tenant_id: string; roles: string[]; current: boolean };
 
@@ -10,7 +10,7 @@ type SwitchResponse = { tenant_id: string };
  * Lets a clinician working at more than one hospital switch tenants.
  * Renders nothing for single-tenant users, which is almost everyone.
  *
- * This lives in the shell, not in `@hms/ui`, for the same reason
+ * This lives in the shell, not in `@helivanta/ui`, for the same reason
  * `onSignOut` does (see `packages/ui/src/hms-shell.tsx`) — historically
  * because completing a switch needed shell-owned Firebase client config;
  * that coupling is gone now (design spec D3: switching re-mints the HMS

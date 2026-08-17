@@ -8,7 +8,7 @@ import {
   usePermissions,
   useApiMutation,
   clearPermissionsCache,
-} from "@hms/api";
+} from "@helivanta/api";
 import { visibleZones, activeZone } from "./zones";
 import { ThemeToggle } from "./theme";
 import {
@@ -49,7 +49,7 @@ function usePersistedFlag(key: string, fallback: boolean) {
  * client-side token exchange is needed any more, but the call still
  * belongs to the shell app (`apps/shell/components/tenant-picker.tsx`),
  * consistent with `onSignOut` below. Keeping the control here would drag
- * app-specific plumbing into `@hms/ui` for no benefit. Zone apps pass
+ * app-specific plumbing into `@helivanta/ui` for no benefit. Zone apps pass
  * nothing and show no switcher; their users switch from the dashboard.
  */
 export function HmsShell({

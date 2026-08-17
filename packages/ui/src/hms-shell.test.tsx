@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "@hms/api/testing";
-import { PERMISSIONS_CACHE_KEY } from "@hms/api";
+import { renderWithProviders } from "@helivanta/api/testing";
+import { PERMISSIONS_CACHE_KEY } from "@helivanta/api";
 import { HmsShell } from "./hms-shell";
 import { WARNING_LEAD_MS, type IdleTracker } from "./idle-timer";
 import { IDLE_ENDED_MARK, SIGNED_OUT_MARK } from "./zitadel-session";

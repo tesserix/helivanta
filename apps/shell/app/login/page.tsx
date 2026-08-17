@@ -4,8 +4,8 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { AuthCardCentered, AuthCardFooter, AuthLayoutCentered, Button, Input } from "@tesserix/web";
-import { ApiError, useApiMutation, useApiQuery } from "@hms/api";
-import { Field, IDLE_ENDED_MARK, SIGNED_OUT_MARK, useZodForm } from "@hms/ui";
+import { ApiError, useApiMutation, useApiQuery } from "@helivanta/api";
+import { Field, IDLE_ENDED_MARK, SIGNED_OUT_MARK, useZodForm } from "@helivanta/ui";
 
 import { getUserManager } from "@/lib/oidc";
 import { checkPassword, type AuthRequestInfo, type PasswordCheckResult } from "@/lib/login-client";

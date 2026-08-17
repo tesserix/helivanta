@@ -3,8 +3,8 @@
 import { z } from "zod";
 import { Badge, Button, Input } from "@tesserix/web";
 import { CalendarPlus } from "lucide-react";
-import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@hms/api";
-import { EmptyState, Field, LoadMore, formatTime, useZodForm } from "@hms/ui";
+import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
+import { EmptyState, Field, LoadMore, formatTime, useZodForm } from "@helivanta/ui";
 
 type Visit = {
   id: string;

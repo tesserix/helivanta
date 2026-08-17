@@ -4,7 +4,7 @@ import { UserManager, WebStorageStateStore } from "oidc-client-ts";
  * Ends the browser's Zitadel SSO session, for whichever HMS app the
  * caller sits in.
  *
- * **Why this lives in `@hms/ui`, not only in `apps/shell`.** Sign-out was
+ * **Why this lives in `@helivanta/ui`, not only in `apps/shell`.** Sign-out was
  * first built shell-only (`apps/shell/lib/sign-out.ts`, wired as
  * `HmsShell`'s `onSignOut` prop) on the same reasoning as `tenantPicker`:
  * only the shell app carried Zitadel client config. That reasoning turned
@@ -47,7 +47,7 @@ function settings() {
   // inherits from (Makefile's comment on these vars explains the
   // dev-infra ordering), and each app's own build config must set the
   // same pair for production. Read directly rather than through
-  // `@hms/api`'s `defineEnv` (which throws on a missing value): a zone
+  // `@helivanta/api`'s `defineEnv` (which throws on a missing value): a zone
   // app that has not been wired with these yet must still render its
   // dashboard and every other feature — only sign-out's Zitadel-ending
   // step degrades, to the same-origin `/login` fallback below, not the

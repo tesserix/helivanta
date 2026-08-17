@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { useApiQuery } from "@hms/api";
+import { useApiQuery } from "@helivanta/api";
 import { renewSession, RENEWAL_INTERVAL_MS } from "@/lib/renew";
 import { AUTH_CALLBACK_PATH, SILENT_RENEW_PATH } from "@/lib/oidc";
 

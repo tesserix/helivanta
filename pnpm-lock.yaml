@@ -28,10 +28,10 @@ importers:
 
   apps/lab:
     dependencies:
-      '@hms/api':
+      '@helivanta/api':
         specifier: workspace:*
         version: link:../../packages/api
-      '@hms/ui':
+      '@helivanta/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@tesserix/web':
@@ -53,7 +53,7 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
-      '@hms/config':
+      '@helivanta/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@tailwindcss/postcss':
@@ -92,10 +92,10 @@ importers:
 
   apps/medicore:
     dependencies:
-      '@hms/api':
+      '@helivanta/api':
         specifier: workspace:*
         version: link:../../packages/api
-      '@hms/ui':
+      '@helivanta/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@tesserix/web':
@@ -120,7 +120,7 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
-      '@hms/config':
+      '@helivanta/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@tailwindcss/postcss':
@@ -159,10 +159,10 @@ importers:
 
   apps/pharmacy:
     dependencies:
-      '@hms/api':
+      '@helivanta/api':
         specifier: workspace:*
         version: link:../../packages/api
-      '@hms/ui':
+      '@helivanta/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@tesserix/web':
@@ -184,7 +184,7 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
-      '@hms/config':
+      '@helivanta/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@tailwindcss/postcss':
@@ -223,10 +223,10 @@ importers:
 
   apps/shell:
     dependencies:
-      '@hms/api':
+      '@helivanta/api':
         specifier: workspace:*
         version: link:../../packages/api
-      '@hms/ui':
+      '@helivanta/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@tesserix/web':
@@ -251,7 +251,7 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
-      '@hms/config':
+      '@helivanta/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@tailwindcss/postcss':
@@ -309,7 +309,7 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
-      '@hms/config':
+      '@helivanta/config':
         specifier: workspace:*
         version: link:../config
       '@testing-library/jest-dom':
@@ -381,7 +381,7 @@ importers:
 
   packages/ui:
     dependencies:
-      '@hms/api':
+      '@helivanta/api':
         specifier: workspace:*
         version: link:../api
       '@hookform/resolvers':
@@ -403,7 +403,7 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
-      '@hms/config':
+      '@helivanta/config':
         specifier: workspace:*
         version: link:../config
       '@tesserix/web':

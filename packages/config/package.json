@@ -1,5 +1,5 @@
 {
-  "name": "@hms/config",
+  "name": "@helivanta/config",
   "version": "0.0.0",
   "private": true,
   "exports": {
@@ -24,5 +24,5 @@
     "prettier": "^3.4.2",
     "vitest": "^3.0.0"
   },
-  "prettier": "@hms/config/prettier"
+  "prettier": "@helivanta/config/prettier"
 }

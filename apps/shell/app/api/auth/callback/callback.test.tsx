@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { PERMISSIONS_CACHE_KEY } from "@hms/api";
+import { PERMISSIONS_CACHE_KEY } from "@helivanta/api";
 import AuthCallbackPage from "./page";
 
 const signinRedirectCallback = vi.hoisted(() => vi.fn());

@@ -1,3 +1,3 @@
-import { hmsEslint } from "@hms/config/eslint";
+import { hmsEslint } from "@helivanta/config/eslint";
 
 export default hmsEslint(import.meta.dirname);

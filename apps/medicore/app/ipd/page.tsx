@@ -1,4 +1,4 @@
-import { HmsShell } from "@hms/ui";
+import { HmsShell } from "@helivanta/ui";
 import { PingPanel } from "@/components/ping-panel";
 
 export default function IpdPage() {

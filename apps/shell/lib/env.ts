@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineEnv } from "@hms/api";
+import { defineEnv } from "@helivanta/api";
 
 // NEXT_PUBLIC_ vars are inlined at build time, so they must be read
 // statically (no dynamic process.env access).

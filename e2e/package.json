@@ -1,5 +1,5 @@
 {
-  "name": "@hms/e2e",
+  "name": "@helivanta/e2e",
   "version": "0.0.0",
   "private": true,
   "scripts": {

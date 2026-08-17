@@ -2,8 +2,8 @@
 
 import { Activity } from "lucide-react";
 import { Button } from "@tesserix/web";
-import { apiFetch, useApiMutation, useApiPagedQuery } from "@hms/api";
-import { EmptyState, LoadMore, formatTime } from "@hms/ui";
+import { apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
+import { EmptyState, LoadMore, formatTime } from "@helivanta/ui";
 
 type Ping = { id: string; message: string; created_at: string };
 

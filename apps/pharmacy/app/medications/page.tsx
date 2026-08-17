@@ -1,4 +1,4 @@
-import { HmsShell } from "@hms/ui";
+import { HmsShell } from "@helivanta/ui";
 import { MedicationsPanel } from "@/components/medications-panel";
 
 export default function MedicationsPage() {

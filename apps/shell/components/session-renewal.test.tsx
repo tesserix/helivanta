@@ -1,6 +1,6 @@
 import { waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { renderWithProviders } from "@hms/api/testing";
+import { renderWithProviders } from "@helivanta/api/testing";
 import { RENEWAL_INTERVAL_MS } from "@/lib/renew";
 import { SessionRenewal } from "./session-renewal";
 

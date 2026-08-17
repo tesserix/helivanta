@@ -8,7 +8,7 @@
 // request goes through next.config.ts's same-origin /api rewrite, which
 // forwards the backend's Set-Cookie header untouched.
 //
-// Raw fetch, not `apiFetch` from @hms/api: this is the one auth route
+// Raw fetch, not `apiFetch` from @helivanta/api: this is the one auth route
 // outside the `/api/v1` envelope's error-shape contract that runs before
 // an HMS session exists — the same sanctioned exception the old
 // `/api/session` POST was (docs/standards/frontend.md §3). It is used by

@@ -453,6 +453,15 @@ git commit -m "docs: secret inventory and provisioning runbook for HMS boot secr
 - Consumes: `docs/runbooks/secrets.md` (Task 3), `make secret-session-key` (Task 2).
 - Produces: a verified grant; no code artefact.
 
+> **ON HOLD as of 2026-08-17 — do not start.** The product was named
+> **Helivanta** and a full `hms` → `helivanta` rebrand was chosen
+> ([#863](https://github.com/tesserix/hms/issues/863)), which moves the very
+> paths this task would write to. Provisioning secrets at `kv/data/hms/api/*`
+> now would mean writing a credential at an address that is about to change,
+> for no gain — the assertions prove the same thing after the rename. The
+> namespace, ServiceAccount and SecretStore stay in place and empty. Resume
+> this task after #863, substituting the renamed paths throughout.
+>
 > **STOP — this task mutates production.** There is no dev cluster; the
 > `tesseract-devtest-gke` context is unreachable. Every step below is additive
 > and separately reversible, but **each must be confirmed with the user before

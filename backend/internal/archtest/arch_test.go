@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -1034,6 +1035,57 @@ func sourceConstructsSufficientWitness(src []byte) (bool, error) {
 	return found, nil
 }
 
+// sufficientWitnessConstructingFuncNames reports the name of every
+// top-level function in src whose body constructs a `sufficient{...}`
+// composite literal — the FUNCTION-granular half of
+// TestSufficientWitnessConstructionIsPinned (#867 Task 4 fix round 2,
+// Finding M6). sourceConstructsSufficientWitness above, and the
+// file-level walk that uses it, only prove WHICH FILE constructs a
+// witness — sufficientWitnessCallSite names sufficiency.go as a WHOLE
+// file, so a brand-new, check-free function added INSIDE that same file
+// would construct `sufficient{}` and pass that check silently, the
+// identical gap TestFinalizeCallSiteIsUnique's file-level pinning has
+// for the wire call one level down. This walks each FuncDecl's body
+// independently (rather than the whole file in one ast.Inspect pass, the
+// way sourceConstructsSufficientWitness does) so a construction can be
+// attributed to the SPECIFIC enclosing function, and
+// TestSufficientWitnessConstructionIsPinned can assert the exact set of
+// functions rather than merely the file.
+func sufficientWitnessConstructingFuncNames(src []byte) ([]string, error) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, parser.SkipObjectResolution)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	for _, decl := range f.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Body == nil {
+			continue
+		}
+		constructs := false
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			lit, ok := n.(*ast.CompositeLit)
+			if !ok {
+				return true
+			}
+			if ident, ok := lit.Type.(*ast.Ident); ok && ident.Name == sufficientWitnessTypeName {
+				constructs = true
+			}
+			return true
+		})
+		if constructs {
+			seen[fn.Name.Name] = true
+		}
+	}
+	names := make([]string, 0, len(seen))
+	for name := range seen {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
 // TestSufficientWitnessConstructionIsPinned is the CI half of the control
 // finalize's `sufficient` parameter starts (see that type's doc comment,
 // sufficiency.go): the parameter stops an accidental omission at compile
@@ -1086,9 +1138,35 @@ func TestSufficientWitnessConstructionIsPinned(t *testing.T) {
 	if err != nil {
 		t.Fatalf("walk repo: %v", err)
 	}
+	// FILE-granular: no file other than sufficientWitnessCallSite may
+	// construct a `sufficient{}` witness at all. This alone does NOT
+	// prove the claim its message used to make ("...inside
+	// sufficiency.go's OWN EVALUATION FUNCTIONS") — a check-free function
+	// added INSIDE sufficiency.go would satisfy this exact assertion.
+	// See the FUNCTION-granular assertion immediately below, which is
+	// what actually proves that stronger claim (#867 Task 4 fix round 2,
+	// Finding M6: the message must not claim more than the test enforces).
 	require.ElementsMatch(t, []string{sufficientWitnessCallSite}, callSites,
-		"a sufficient{} witness must only be constructed inside sufficiency.go's own evaluation functions (#867 fix round 2, Finding B) — "+
+		"a sufficient{} witness must only be constructed inside sufficiency.go (#867 fix round 2, Finding B) — "+
 			"finalize's witness parameter alone does not stop a copy-pasted, check-free construction of one")
+
+	// FUNCTION-granular: within that one permitted file, a witness may
+	// ONLY be constructed inside CompleteIfSufficient or
+	// CompleteAfterFactor — the two functions that actually run
+	// classifyEnrolledMethods/LoginPolicy/SessionFactors before
+	// constructing one. Without this second assertion, a THIRD,
+	// check-free function added to sufficiency.go (e.g. a future
+	// convenience wrapper that skips the checks) would pass the
+	// file-granular assertion above silently — exactly the gap Finding
+	// M6 identified.
+	sufficiencySrc, err := os.ReadFile(filepath.Join(root, sufficientWitnessCallSite))
+	require.NoError(t, err)
+	funcs, err := sufficientWitnessConstructingFuncNames(sufficiencySrc)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"CompleteIfSufficient", "CompleteAfterFactor"}, funcs,
+		"a sufficient{} witness must only be constructed inside sufficiency.go's CompleteIfSufficient or "+
+			"CompleteAfterFactor (#867 Task 4 fix round 2, Finding M6) — a new function added anywhere else "+
+			"in this file, check-free, must not be able to construct one undetected")
 }
 
 // TestGormOpenIsOnlyCalledFromTheAllowlist protects a PHI control that is

@@ -99,16 +99,37 @@ const authRequestExpiredMessage = "this sign-in attempt has expired; start again
 // was never checked).
 const zitadelUnavailableMessage = "sign-in is temporarily unavailable; please try again"
 
-// loginAttemptTTL bounds how long a login_attempt row (and the live
-// Zitadel session token it holds) survives between the password step and
-// the factor step. Spec D6: "expires_at is short — the auth request
-// itself expires, and a pending factor step that outlives it is unusable
-// anyway." Five minutes matches Helivanta's own SESSION_TTL-adjacent
-// human-timescale windows elsewhere in this codebase and is generous
-// enough that a clinician reading a rolling TOTP code off an
-// authenticator app never races it, while still bounding how long a
-// stolen or abandoned row keeps a usable Zitadel session token alive in
-// the database.
+// loginAttemptTTL is the window after which a login_attempt row is
+// treated as EXPIRED ON READ — spec D6: "expires_at is short — the auth
+// request itself expires, and a pending factor step that outlives it is
+// unusable anyway." Five minutes matches Helivanta's own
+// SESSION_TTL-adjacent human-timescale windows elsewhere in this
+// codebase and is generous enough that a clinician reading a rolling
+// TOTP code off an authenticator app never races it.
+//
+// # This does NOT bound how long the row — or the live Zitadel session token it holds — actually survives in Postgres (#867 fix round 2, Finding I2)
+//
+// loginAttemptStore.Get (loginattempt.go) deletes an expired row only
+// when THAT SAME auth_request_id is read again and found past
+// expires_at — it is expiry-on-read, not a background sweep. A row
+// nobody ever reads again (a browser that abandons the factor step —
+// closes the tab, the clinician is pulled away mid-shift before
+// submitting a code) is NEVER read, so it is never deleted: the row, and
+// the live Zitadel session token it carries, remains in Postgres
+// indefinitely past loginAttemptTTL, not merely for it. An EARLIER
+// version of this comment claimed the TTL "bounds how long a stolen or
+// abandoned row keeps a usable Zitadel session token alive in the
+// database" — that was false; expiry-on-read makes the row unusable for
+// completing a login past the TTL (Get's own doc comment, spec D6), but
+// says nothing about how long the ROW ITSELF, or the token inside it,
+// persists at rest.
+//
+// login_attempt_expires_at_idx (0004_iam migration, module.go) exists as
+// if a periodic sweep were meant to use it, but none was ever written —
+// filed as #869 rather than built here, since a sweeper is its own
+// piece of work (cadence, verification, mirroring the existing
+// bus.RunPruner pattern in cmd/api/main.go) and this task's scope is the
+// HTTP layer, not background jobs.
 const loginAttemptTTL = 5 * time.Minute
 
 // LoginUIHandlers backs the four routes Helivanta's own login form drives
@@ -793,6 +814,24 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 		return
 	}
 
+	// respondLoginClientError's ErrAuthRequestInvalid branch answers
+	// WITHOUT the MinFailedLoginDuration floor (see its own doc comment:
+	// that branch is not a credential refusal, so the oracle the floor
+	// exists to close does not apply to it in general) — worth
+	// confirming that reasoning actually holds AT THIS SPECIFIC call
+	// site too, not just in the abstract (#867 fix round 2, Finding
+	// M5). It does: CompleteAfterFactor can only reach
+	// ErrAuthRequestInvalid through finalize (loginclient's own
+	// sufficiency.go), and finalize is only ever called from THIS branch
+	// after VerifyTOTP has ALREADY returned success two lines above.
+	// VerifyTOTP itself never produces ErrAuthRequestInvalid — a 4xx
+	// from PATCH /v2/sessions/{id} maps to ErrBadCredentials, handled in
+	// the branch above and always floored via bumpFactorAttempt. So
+	// reaching this unfloored fast path requires the caller to have
+	// ALREADY submitted the correct TOTP code; it is not a path an
+	// attacker who is still guessing codes can reach at all, and
+	// therefore not a timing oracle over the code itself the way an
+	// unfloored VerifyTOTP failure would be.
 	result, err := h.client.CompleteAfterFactor(c.Request.Context(), req.AuthRequestID, verified)
 	if err != nil {
 		h.respondLoginClientError(c, err, "complete_after_factor")
@@ -835,9 +874,20 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 // bumpFactorAttempt records a wrong TOTP code against authRequestID —
 // ONLY called after Zitadel has already rejected one, per
 // loginAttemptStore.BumpAndGet's own doc comment — and answers either
-// attempt-expired (the fifth wrong code, spec D6: the row and the
-// Zitadel session are both gone) or the shared equalised refusal (every
-// wrong code before the fifth).
+// attempt-expired (the fifth wrong code: the login_attempt ROW is
+// deleted, so this server can no longer resume the attempt) or the
+// shared equalised refusal (every wrong code before the fifth).
+//
+// "The row is deleted" is NOT the same claim as "the Zitadel session is
+// destroyed" (#867 fix round 2, Finding I3) — this file never calls
+// DELETE /v2/sessions/{id} or any equivalent, on exhaustion or anywhere
+// else. Deleting the row makes the session UNREACHABLE from this
+// server (there is nothing left holding its id/token), which is what
+// spec D6's body accurately calls the session being "abandoned" — but
+// the session itself keeps whatever lifetime Zitadel's own session
+// policy already gives it. An earlier version of this comment (and spec
+// D6's heading) said "the row and the Zitadel session are both gone",
+// which overstates what exhaustion actually does.
 func (h *LoginUIHandlers) bumpFactorAttempt(c *gin.Context, authRequestID string, start time.Time) {
 	requestid.Logger(c).WarnContext(c.Request.Context(), "login factor attempt failed",
 		"auth_request_id", authRequestID)

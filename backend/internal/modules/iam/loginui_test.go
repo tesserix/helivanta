@@ -960,6 +960,68 @@ func TestFactorUnknownAuthRequestIDReturnsAttemptExpiredNotRefusal(t *testing.T)
 		"an unknown auth_request_id must never answer the credential refusal")
 }
 
+// TestFactorAttemptExpiredTimingIsEqualised is Finding I4's proof (#867
+// fix round 2): the SAME shape as TestPasswordFailureTimingIsEqualised,
+// aimed at respondAttemptExpired instead of respondEqualisedFailure. An
+// EARLIER version of this file added waitUntilFailureFloor to
+// respondAttemptExpired (Finding/Minor 3, fix round 1) purely on the
+// strength of a doc-comment argument — no test anywhere read elapsed
+// time on ANY respondAttemptExpired path, so deleting that call passed
+// the entire suite. This test closes that gap the same way
+// TestPasswordFailureTimingIsEqualised closes it for
+// respondEqualisedFailure: it measures BOTH sides and the GAP between
+// them, not just that one side cleared the floor — see that test's own
+// doc comment for why a single-sided assertion is insufficient.
+//
+// The two paths compared:
+//   - unknown: store.Get misses immediately — no Zitadel round trip at
+//     all (zitadelFactorGoodCode's client is passed but never reached).
+//   - exhausted: reached only after four prior wrong codes, then a REAL
+//     VerifyTOTP round trip plus a real BumpAndGet on the fifth — only
+//     the FIFTH call's own latency is measured (exhaustedStart is taken
+//     immediately before it), so the first four calls' own floored
+//     waits do not inflate this test's measurement of the fifth.
+func TestFactorAttemptExpiredTimingIsEqualised(t *testing.T) {
+	hUnknown := newFactorTestHandlers(t, zitadelFactorGoodCode(t))
+	rUnknown := newFactorRouter(hUnknown)
+	unknownStart := time.Now()
+	doFactor(t, rUnknown, "V2_never_existed_timing_test", "totp", "000000")
+	unknownElapsed := time.Since(unknownStart)
+
+	hExhausted := newFactorTestHandlers(t, zitadelFactorBadCode(t))
+	rExhausted := newFactorRouter(hExhausted)
+	require.Equal(t, http.StatusOK,
+		doPassword(t, rExhausted, loginUITestAuthRequestID, "test@helivanta.dev", "HmsDev123!").Code)
+	for i := 1; i <= 4; i++ {
+		w := doFactor(t, rExhausted, loginUITestAuthRequestID, "totp", "000000")
+		require.Equal(t, http.StatusUnauthorized, w.Code, "precondition: wrong code %d must be the shared refusal", i)
+	}
+
+	exhaustedStart := time.Now()
+	fifth := doFactor(t, rExhausted, loginUITestAuthRequestID, "totp", "000000")
+	exhaustedElapsed := time.Since(exhaustedStart)
+	require.Equal(t, http.StatusBadRequest, fifth.Code, "precondition: the fifth wrong code must exhaust the attempt")
+
+	if unknownElapsed < MinFailedLoginDuration {
+		t.Errorf("unknown-id attempt-expired returned in %v, faster than the %v floor: timing oracle intact",
+			unknownElapsed, MinFailedLoginDuration)
+	}
+	if exhaustedElapsed < MinFailedLoginDuration {
+		t.Errorf("exhausted-attempt attempt-expired returned in %v, faster than the %v floor: timing oracle intact",
+			exhaustedElapsed, MinFailedLoginDuration)
+	}
+
+	gap := unknownElapsed - exhaustedElapsed
+	if gap < 0 {
+		gap = -gap
+	}
+	if gap > timingToleranceForEqualisedFailures {
+		t.Errorf("unknown-id (%v) and exhausted-attempt (%v) differ by %v, over the %v tolerance: "+
+			"the floor is not applying equally to both attempt-expired paths",
+			unknownElapsed, exhaustedElapsed, gap, timingToleranceForEqualisedFailures)
+	}
+}
+
 // TestAuthRequestPoliciesReflectForceMFA pins spec D5's one
 // enforcer-linked field: require_mfa mirrors LoginPolicy.ForceMFA
 // exactly, read the SAME way loginclient's own sufficiency decision

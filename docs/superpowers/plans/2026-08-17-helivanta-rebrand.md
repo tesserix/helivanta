@@ -13,7 +13,8 @@
 - **Spec:** `docs/superpowers/specs/2026-08-17-helivanta-rebrand-design.md`. D1–D8 refer to it.
 - **The identifier is `helivanta`** — the bare word, never `helivanta.app`. Case forms: `hms`→`helivanta`, `HMS`→`HELIVANTA` (env prefixes), `HMS`/`Hms` as the product name in prose→`Helivanta`.
 - **D1's acronym rule:** `HMS` expands to "Hospital Management System"; `Helivanta` expands to nothing. **The name renames, the category description stays.** Never produce "a helivanta platform" where the text meant the category. This cannot be done by `sed` alone.
-- **D5 — DATABASE IDENTIFIERS DO NOT RENAME.** `hms_app`, `hms_session`, `hms_tenant` and every role name inside `backend/internal/*/migrations/` stay exactly as they are. Migrations are append-only. Touching them fails this plan.
+- **D5 — DATABASE IDENTIFIERS DO NOT RENAME.** `hms_app` (Postgres role) and `hms_tenant_visible()` (the RLS predicate function) and every role name inside migrations stay exactly as they are. Migrations are append-only. Touching them fails this plan.
+- **`hms_session` DOES rename** — it is the HTTP session cookie (`backend/pkg/authn/authn.go:15`), NOT a database object. An earlier draft of D5 wrongly excluded it. Task 3 owns it. Free now (no deployment, no live sessions); a fleet-wide forced sign-out later.
 - **D2's evidence carve-out:** in `docs/superpowers/spikes/2026-08-16-zitadel-login-client.md`, the literal transcribed request bodies containing `pwchange-test@hms.dev` and `HmsDev123!` keep their original values — they record what was sent on the wire. Everything else in that file renames.
 - **UI copy `Email`, `Password`, `Sign in` MUST NOT CHANGE** (login-client spec D6). `e2e/tests/support/login.ts` drives sign-in by accessible name.
 - **Commit messages:** single line, conventional commits, no signature, no `Co-Authored-By`.

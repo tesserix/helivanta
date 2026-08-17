@@ -124,8 +124,20 @@ module path moves in the same change rather than "later".
 
 ## D5 — Database identifiers do NOT rename
 
-`hms_app`, `hms_session`, `hms_tenant`, and the role names inside migrations
-stay exactly as they are.
+`hms_app` (the Postgres role the application connects as) and
+`hms_tenant_visible()` (the RLS predicate function called by every tenant
+policy), plus the role names inside migrations, stay exactly as they are.
+
+**Corrected 2026-08-17, after Task 2's review surfaced it.** An earlier version
+of this list also named `hms_session`, described as a database identifier. It is
+not one: `hms_session` is the **HTTP session cookie name**
+(`backend/pkg/authn/authn.go:15`, `const SessionCookie = "hms_session"`), 45
+occurrences across backend, frontend and e2e. Excluding it was a mistake of fact,
+not of judgement — and it matters, because a cookie rename is **free right now**
+(nothing is deployed, so there is no live session to invalidate) and costs a
+fleet-wide forced sign-out once there is. That is exactly D3's argument for
+renaming the environment variables, and it applies here identically. The cookie
+**does** rename; see the plan's Task 3.
 
 Migrations are append-only (`docs/standards/backend.md`), so renaming a role
 means a *new* migration mutating roles on live data, plus every RLS policy and

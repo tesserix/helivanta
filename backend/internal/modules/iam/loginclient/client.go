@@ -215,6 +215,92 @@ func (c *Client) finalize(ctx context.Context, authRequestID string, s Session) 
 	return wire.CallbackURL, nil
 }
 
+// VerifyTOTP checks a TOTP code against an existing session (PATCH
+// /v2/sessions/{id}, body shape from the spike §2). id is escaped with
+// url.PathEscape before being placed in the URL for the same reason as
+// finalize's authRequestID — but here the reasoning is defensive rather
+// than required: s.ID reaches this method from a login_attempt row this
+// server itself wrote (Task 1), not from a browser-supplied query
+// parameter, so it is not attacker-influenced the way finalize's id is.
+// Escaping stays anyway for consistency with every other id-in-path call
+// in this file.
+//
+// PATCH is the correct method here — POST to a session id returns 405
+// (spike §2, confirmed live). The 405 was hit by mistake once during the
+// spike, which is exactly why this comment calls it out.
+//
+// # The token rotates on every check — spike §2
+//
+// The response to a successful PATCH carries a NEW sessionToken, not the
+// one that authenticated the request. This is the single most important
+// fact in this method: finalize (and any future check against this
+// session) needs session:{sessionId, sessionToken} with the NEWEST token,
+// so VerifyTOTP returns Session{ID: s.ID, Token: <token from THIS
+// response>} — never the input s. Returning the input session keeps the
+// stale creation token and makes finalize fail AFTER the clinician has
+// already entered a correct code, which reads to them as "my TOTP was
+// wrong" rather than the actual cause. TestVerifyTOTP_ReturnsTheRotatedToken
+// pins this by making the fake Zitadel return a token that differs from
+// the one it was given.
+//
+// A rejected code maps to the same ErrBadCredentials a wrong password
+// does (observed: HTTP 400) — deliberately: callers cannot tell a wrong
+// TOTP code from a wrong password by error type alone. The code itself,
+// and both the current and rotated tokens, are credentials and must never
+// reach an error string — the same discipline every other method in this
+// file already keeps.
+func (c *Client) VerifyTOTP(ctx context.Context, s Session, code string) (Session, error) {
+	body := map[string]any{
+		"sessionToken": s.Token,
+		"checks": map[string]any{
+			"totp": map[string]any{"code": code},
+		},
+	}
+	var wire struct {
+		SessionToken string `json:"sessionToken"`
+	}
+	if err := c.do(ctx, http.MethodPatch, "/v2/sessions/"+url.PathEscape(s.ID), body, &wire, ErrBadCredentials); err != nil {
+		return Session{}, err
+	}
+	return Session{ID: s.ID, Token: wire.SessionToken}, nil
+}
+
+// Factors reports which authentication factors a session has actually
+// verified — as opposed to HasEnrolledFactor, which reports what the user
+// has configured. An absent factor decodes to false, not an error: a
+// password-only session (TOTP absent) is a legitimate, expected state
+// mid-login, and Task 3's sufficiency decision depends on being able to
+// tell that apart from a session that has verified TOTP.
+type Factors struct {
+	Password bool
+	TOTP     bool
+}
+
+// SessionFactors reads GET /v2/sessions/{id} (spike §3) and reports which
+// factors it has verified. sessionID is escaped with url.PathEscape for
+// the same defensive-not-required reason as VerifyTOTP's id.
+func (c *Client) SessionFactors(ctx context.Context, sessionID string) (Factors, error) {
+	var wire struct {
+		Session struct {
+			Factors struct {
+				Password *struct {
+					VerifiedAt string `json:"verifiedAt"`
+				} `json:"password"`
+				TOTP *struct {
+					VerifiedAt string `json:"verifiedAt"`
+				} `json:"totp"`
+			} `json:"factors"`
+		} `json:"session"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/v2/sessions/"+url.PathEscape(sessionID), nil, &wire, ErrUnavailable); err != nil {
+		return Factors{}, err
+	}
+	return Factors{
+		Password: wire.Session.Factors.Password != nil,
+		TOTP:     wire.Session.Factors.TOTP != nil,
+	}, nil
+}
+
 // LoginPolicy reads the org's login policy (GET
 // /management/v1/policies/login). There is no meaningful 404 case for
 // this endpoint — a login policy always exists — so a 404 here falls

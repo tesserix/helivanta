@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func newTestClient(t *testing.T, h http.HandlerFunc) *Client {
@@ -371,6 +374,62 @@ func TestDoBoundsSuccessResponseSize(t *testing.T) {
 	if _, err := c.AuthRequest(context.Background(), "V2_1"); err == nil {
 		t.Fatal("AuthRequest() error = nil, want an error from a response body larger than maxSuccessBodyBytes")
 	}
+}
+
+// VerifyTOTP MUST return the token Zitadel sent back, not the one it was
+// given. Spec D3: finalize takes the newest token, and reusing the creation
+// token fails finalize AFTER a correct code — which the clinician reads as
+// "my TOTP was wrong".
+func TestVerifyTOTP_ReturnsTheRotatedToken(t *testing.T) {
+	var gotMethod, gotBody string
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"sessionToken":"ROTATED"}`))
+	})
+
+	out, err := c.VerifyTOTP(context.Background(), Session{ID: "s1", Token: "ORIGINAL"}, "123456")
+	require.NoError(t, err)
+	require.Equal(t, "ROTATED", out.Token, "the rotated token must be returned")
+	require.Equal(t, "s1", out.ID)
+	require.Equal(t, http.MethodPatch, gotMethod, "observed: POST to a session id is 405")
+	require.Contains(t, gotBody, `"totp"`)
+	require.Contains(t, gotBody, "ORIGINAL", "the CURRENT token authenticates the check")
+}
+
+func TestVerifyTOTP_WrongCodeIsBadCredentials(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"code":3,"message":"Invalid code"}`))
+	})
+	_, err := c.VerifyTOTP(context.Background(), Session{ID: "s", Token: "t"}, "000000")
+	require.ErrorIs(t, err, ErrBadCredentials)
+}
+
+func TestSessionFactors_ReportsVerifiedTOTP(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"session":{"factors":{
+            "password":{"verifiedAt":"2026-08-17T07:49:14Z"},
+            "totp":{"verifiedAt":"2026-08-17T07:49:14Z"}}}}`))
+	})
+	f, err := c.SessionFactors(context.Background(), "s1")
+	require.NoError(t, err)
+	require.True(t, f.Password)
+	require.True(t, f.TOTP)
+}
+
+// An absent factor must read as false, not as an error — a password-only
+// session is a legitimate state, and spec D4 relies on distinguishing it.
+func TestSessionFactors_AbsentTOTPIsFalse(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"session":{"factors":{"password":{"verifiedAt":"2026-08-17T07:49:14Z"}}}}`))
+	})
+	f, err := c.SessionFactors(context.Background(), "s1")
+	require.NoError(t, err)
+	require.True(t, f.Password)
+	require.False(t, f.TOTP)
 }
 
 // A real spike-observed auth request id (alphanumeric plus underscore)

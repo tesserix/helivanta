@@ -33,6 +33,13 @@ var UnauthenticatedRoutes = map[string]string{
 	"POST /v1/auth/login/password":    "checks the credential that creates the session, so it cannot require one",
 	"POST /v1/auth/login/handoff/:id": "hands an auth request to the hosted login when Helivanta cannot complete it",
 
+	// #867 Task 4: the native-MFA factor check. Reached only after
+	// Password answers factor_required — there is still no Helivanta
+	// session at this point, only a server-held Zitadel session the
+	// browser never sees (spec D2) — so it cannot require one either,
+	// same as its three siblings above.
+	"POST /v1/auth/login/factor": "checks the second factor that creates the session, so it cannot require one",
+
 	// Liveness and readiness. Deliberately outside /v1 and unlimited: a
 	// throttled or authenticated probe takes a healthy replica out of
 	// service, which is the failure mode these exist to prevent.
@@ -51,11 +58,12 @@ var UnauthenticatedRoutes = map[string]string{
 // but they are listed in UnauthenticatedRoutes because the arch test
 // enumerates the whole engine and must account for every route on it.
 //
-// authRequest, password and handoff (#854 Task 4, iam.LoginUIHandlers'
-// three methods) are accepted as plain gin.HandlerFunc rather than a
-// concrete *iam.LoginUIHandlers, the same way login is — this package
-// stays agnostic of any one module's types. Task 5 constructs the real
-// loginclient.Client and wires all three from cmd/api/main.go.
+// authRequest, password, handoff and factor (#854 Task 4 / #867 Task 4,
+// iam.LoginUIHandlers' four methods) are accepted as plain
+// gin.HandlerFunc rather than a concrete *iam.LoginUIHandlers, the same
+// way login is — this package stays agnostic of any one module's types.
+// cmd/api/main.go constructs the real loginclient.Client and wires all
+// four from there.
 //
 // Every argument is required — a nil PANICS at boot, deliberately. An
 // earlier version of this function accepted nil and simply skipped
@@ -67,27 +75,29 @@ var UnauthenticatedRoutes = map[string]string{
 // exactly the gap this control exists to prevent: a route that is
 // declared but not served is not a smaller version of the bypass, it is
 // login silently broken. A nil here — whether main.go has not been
-// updated yet for a route this list already promises, or a Task 5
-// wiring typo drops one of the three by accident — surfaces as a boot
-// failure instead, which per this repo's enforcement ladder (compile
-// error > boot failure > CI failure > documented convention) is the
-// correct rung: loud and at start-up, not silent and per-request.
-func MountUnauthenticated(e *gin.Engine, login, authRequest, password, handoff gin.HandlerFunc) {
+// updated yet for a route this list already promises, or a wiring typo
+// drops one of the four by accident — surfaces as a boot failure
+// instead, which per this repo's enforcement ladder (compile error >
+// boot failure > CI failure > documented convention) is the correct
+// rung: loud and at start-up, not silent and per-request.
+func MountUnauthenticated(e *gin.Engine, login, authRequest, password, handoff, factor gin.HandlerFunc) {
 	mustHandler("POST /v1/auth/login", login)
 	mustHandler("GET /v1/auth/login/request/:id", authRequest)
 	mustHandler("POST /v1/auth/login/password", password)
 	mustHandler("POST /v1/auth/login/handoff/:id", handoff)
+	mustHandler("POST /v1/auth/login/factor", factor)
 
 	e.POST("/v1/auth/login", login)
 	e.GET("/v1/auth/login/request/:id", authRequest)
 	e.POST("/v1/auth/login/password", password)
 	e.POST("/v1/auth/login/handoff/:id", handoff)
+	e.POST("/v1/auth/login/factor", factor)
 }
 
 // mustHandler panics naming which UnauthenticatedRoutes entry a nil
 // handler would have silently left unregistered. The route string, not
 // just "handler was nil", is what makes the panic actionable — this
-// function has four call sites, and a bare nil-pointer-shaped panic
+// function has five call sites, and a bare nil-pointer-shaped panic
 // would leave whoever hits it grepping the diff to find out which one.
 func mustHandler(route string, h gin.HandlerFunc) {
 	if h == nil {

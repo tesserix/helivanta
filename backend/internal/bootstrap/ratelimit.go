@@ -90,6 +90,51 @@ func LoginRateLimitRule(cfg config.Config) ratelimit.Rule {
 	return ratelimit.Rule{Rate: cfg.RateLimitLoginPerMin, Burst: 10, Per: time.Minute}
 }
 
+// FactorRateLimitRule builds the budget for POST /v1/auth/login/factor
+// (#867 Task 4), keyed on client IP the same way LoginRateLimitRule and
+// iam.LoginUIHandlers' other three routes are (iam.allowedByLimiter's
+// doc comment: there is no verified subject on any of these routes —
+// that is what the flow is establishing). It is its OWN Rule, drawn from
+// its OWN "login_factor:" bucket (iam/loginui.go), never folded into
+// LoginRateLimitRule's shared budget — see that constant's doc comment:
+// this is a PRIMARY control, not a secondary one, because
+// loginAttemptStore's five-guess-per-ATTEMPT counter (spec D6) only
+// bounds one Zitadel session's guesses. An attacker who already holds a
+// password can always start a fresh OIDC flow to mint a fresh
+// auth_request_id — and therefore a fresh five-guess budget — for as
+// many attempts as the ROUTE will admit. What actually bounds the total
+// number of attempts an attacker gets is this limiter, not the per-row
+// counter underneath it.
+//
+// # The arithmetic
+//
+// A TOTP code is six digits, a 10^6 space. Zitadel applies a delay to
+// repeated failures rather than a hard lockout on this endpoint (spec
+// D6), so nothing upstream of this limiter bounds a sustained guessing
+// campaign except this Rule and the five-per-attempt counter it sits on
+// top of. RATE_LIMIT_FACTOR_PER_MIN defaults to 10/min — half
+// RateLimitLoginPerMin's 20/min default, deliberately tighter, because
+// this route's legitimate traffic is a SINGLE TOTP submission per login
+// (occasionally two, for an honest mistype) rather than the multi-tab
+// renewal traffic LoginRateLimitRule's 20/min accommodates. At 10/min
+// sustained, exhausting the 10^6 code space end to end would take
+// roughly 10^6 / 10 ≈ 100,000 minutes (~69 days) of continuous,
+// undetected traffic from one caller — and loginAttemptStore's own
+// five-guess-per-attempt boundary (spec D6) forces the attacker to
+// restart the OIDC flow, and therefore this same rate limit's burst
+// window, every five guesses, so the SUSTAINED rate this Rule enforces
+// is what actually governs, not a one-time burst. Burst is fixed at 5,
+// matching maxFactorAttempts (loginattempt.go) — exactly one login
+// attempt's worth of wrong-code submissions in a single burst, no more:
+// a clinician legitimately mistyping a rolling code a few times in a row
+// must not be refused mid-attempt by the ROUTE limiter before
+// loginAttemptStore's own five-guess counter would have stopped them
+// anyway, but there is no legitimate reason for a burst larger than the
+// per-attempt budget itself.
+func FactorRateLimitRule(cfg config.Config) ratelimit.Rule {
+	return ratelimit.Rule{Rate: cfg.RateLimitFactorPerMin, Burst: 5, Per: time.Minute}
+}
+
 func RateLimitConfig(cfg config.Config) ratelimit.Config {
 	return ratelimit.Config{
 		Tenant: ratelimit.Rule{

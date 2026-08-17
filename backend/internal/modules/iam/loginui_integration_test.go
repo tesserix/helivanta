@@ -256,7 +256,7 @@ func newAuthRequest(t *testing.T, env integrationEnv) string {
 // an earlier version of this helper did while its comment claimed it
 // "wires the SAME route bootstrap.MountUnauthenticated mounts". That was
 // a replica: a change to the production path string, the HTTP method, or
-// the argument ORDER of MountUnauthenticated (which takes four
+// the argument ORDER of MountUnauthenticated (which takes five
 // interchangeable gin.HandlerFunc values, so swapping two compiles
 // cleanly) would leave this test green while production served the wrong
 // handler on the wrong route. This repo has an explicit lesson on
@@ -279,8 +279,11 @@ func newIntegrationRouter(t *testing.T, env integrationEnv) *gin.Engine {
 	// any real budget, and a nil limiter fails OPEN per allowedByLimiter's
 	// doc comment — exercising that same fail-open path other unit tests
 	// already cover directly (TestPasswordAdmitsWhenLimiterUnavailable)
-	// is not this test's job.
-	handlers := iam.NewLoginUIHandlers(client, "http://zitadel.invalid/ui/v2/login", nil, ratelimit.Rule{})
+	// is not this test's job. nil db: this file never exercises the
+	// OutcomeFactorRequired path (the dev-seeded user is password-only —
+	// devSeededEmail/devSeededPassword below), so LoginUIHandlers' store
+	// is never touched.
+	handlers := iam.NewLoginUIHandlers(client, "http://zitadel.invalid/ui/v2/login", nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -290,7 +293,7 @@ func newIntegrationRouter(t *testing.T, env integrationEnv) *gin.Engine {
 		c.Status(http.StatusInternalServerError)
 	}
 	bootstrap.MountUnauthenticated(r, notExercised,
-		handlers.AuthRequest, handlers.Password, handlers.Handoff)
+		handlers.AuthRequest, handlers.Password, handlers.Handoff, handlers.Factor)
 	return r
 }
 

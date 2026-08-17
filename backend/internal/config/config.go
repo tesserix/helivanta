@@ -207,6 +207,17 @@ type Config struct {
 	// throttle each other. See bootstrap.ActivityRateLimitRule for the
 	// arithmetic behind the default.
 	RateLimitActivityPerMin int
+	// RateLimitFactorPerMin bounds POST /v1/auth/login/factor (#867 Task
+	// 4), keyed on client IP (there is no verified subject yet — see
+	// iam.allowedByLimiter). A separate knob from RateLimitLoginPerMin
+	// for the same shape of reason that one is separate from
+	// RateLimitPrincipalPerMin: this route's traffic shape (a single
+	// six-digit code guess) has nothing to do with either general API
+	// traffic or password-check traffic, and it is a PRIMARY
+	// brute-force control, not a secondary one — see
+	// bootstrap.FactorRateLimitRule for the arithmetic behind the
+	// default.
+	RateLimitFactorPerMin int
 }
 
 func Load() Config {
@@ -251,6 +262,7 @@ func Load() Config {
 		RateLimitPrincipalPerMin: getenvInt("RATE_LIMIT_PRINCIPAL_PER_MIN", 120),
 		RateLimitLoginPerMin:     getenvInt("RATE_LIMIT_LOGIN_PER_MIN", 20),
 		RateLimitActivityPerMin:  getenvInt("RATE_LIMIT_ACTIVITY_PER_MIN", 10),
+		RateLimitFactorPerMin:    getenvInt("RATE_LIMIT_FACTOR_PER_MIN", 10),
 	}
 }
 

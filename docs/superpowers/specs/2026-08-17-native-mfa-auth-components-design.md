@@ -168,9 +168,19 @@ The adapter is therefore unused, deliberately. Two reasons:
    keeps meeting.
 
 Only fields the form needs cross the wire: `allowPassword`, `requireMfa`,
-`requireMfaLocalOnly`, `secondFactors`, `ignoreUnknownUsernames`. The policy is
-per-org, not per-user, so exposing it reveals nothing about whether a given
-account exists.
+`secondFactors`, `ignoreUnknownUsernames`. The policy is per-org, not per-user,
+so exposing it reveals nothing about whether a given account exists.
+
+**`requireMfaLocalOnly` is deliberately NOT exposed, even though the neutral
+shape has a slot for it.** `loginclient.LoginPolicy` models a single folded
+`ForceMFA`, set when *either* Zitadel key is true — that fold is D4 of the
+login-client spec, taken on the explicitly recorded assumption that every
+Helivanta user is local today because no external IdP is configured. Unfolding
+it here to populate two neutral fields would create a distinction Go does not
+make and cannot currently make correctly, and the component would then render
+from a value the enforcer never consults. `requireMfa` carries the folded
+result. If Helivanta ever federates a hospital IdP, D4 says the fold must be
+revisited — and this field is part of what has to change with it.
 
 **The MFA step is only ever revealed after a correct password.** Anything else
 would turn the prompt into an enumeration oracle — "this account has TOTP" is

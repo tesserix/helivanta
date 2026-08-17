@@ -6,10 +6,25 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
+
+// countLoginAttemptRows counts rows directly against Postgres, bypassing
+// the store's own read path entirely. Get returning errAttemptNotFound
+// is not proof the row is gone — that is exactly what Get returns
+// whether or not its own delete committed — so the exhaustion test below
+// must observe the table, not the store's opinion of it.
+func countLoginAttemptRows(t *testing.T, store *loginAttemptStore, ctx context.Context, authRequestID string) int64 {
+	t.Helper()
+	var n int64
+	require.NoError(t, store.db.WithSystem(ctx, func(tx *gorm.DB) error {
+		return tx.Table("login_attempt").Where("auth_request_id = ?", authRequestID).Count(&n).Error
+	}))
+	return n
+}
 
 // newTestLoginAttemptStore boots a real Postgres with only the
 // login_attempt table migrated — the store has no dependency on
@@ -74,6 +89,27 @@ func TestLoginAttempt_ExpiredIsNotFound(t *testing.T) {
 	}))
 	_, err := store.Get(ctx, "V2_old")
 	require.ErrorIs(t, err, errAttemptNotFound)
+}
+
+// TestLoginAttempt_ExpiredRowIsActuallyDeleted is the row-count proof
+// Finding 1 called for: Get returning errAttemptNotFound is not evidence
+// the row is gone, because that is exactly what Get returns whether or
+// not its internal delete committed. Every row holds a live Zitadel
+// session token (spec D2), so a delete that silently rolled back would
+// be a slow leak of credentials into a table nothing sweeps (spec D6
+// promises no cleanup job is needed for correctness).
+func TestLoginAttempt_ExpiredRowIsActuallyDeleted(t *testing.T) {
+	store, ctx := newTestLoginAttemptStore(t)
+	require.NoError(t, store.Put(ctx, loginAttempt{
+		AuthRequestID: "V2_leak", SessionID: "s", SessionToken: "t",
+		Subject: "u", ExpiresAt: time.Now().Add(-time.Second),
+	}))
+
+	_, err := store.Get(ctx, "V2_leak")
+	require.ErrorIs(t, err, errAttemptNotFound)
+
+	require.Equal(t, int64(0), countLoginAttemptRows(t, store, ctx, "V2_leak"),
+		"the expired row, and the Zitadel session token it carries, must actually be deleted — not just reported as not-found")
 }
 
 func TestLoginAttempt_UpdateTokenReplaces(t *testing.T) {

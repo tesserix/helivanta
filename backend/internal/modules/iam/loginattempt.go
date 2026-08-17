@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -64,22 +65,43 @@ func newLoginAttemptStore(db *tenantdb.DB) *loginAttemptStore {
 	return &loginAttemptStore{db: db}
 }
 
-// Put inserts a. Callers own authRequestID uniqueness; a collision (which
-// should not happen — Zitadel mints authRequestID) surfaces as a plain
-// error rather than being silently upserted.
+// Put upserts a, replacing any existing row for the same AuthRequestID
+// and resetting FactorAttempts to a's value (ordinarily 0). This is a
+// deliberate choice, not an oversight: a fresh password step submitted
+// for an auth_request_id that already has a pending attempt (a retried
+// or resumed login) legitimately supersedes it — the old Zitadel session
+// is being replaced by a new one, so the old row's guess count has
+// nothing left to protect. Zitadel mints auth_request_id, so a collision
+// against an UNRELATED login is not a realistic case this needs to
+// defend against; an INSERT-only Put would instead turn the ordinary
+// retried-login case into an opaque primary-key-violation error at the
+// handler (Task 3).
 func (s *loginAttemptStore) Put(ctx context.Context, a loginAttempt) error {
 	row := loginAttemptRow(a)
 	return s.db.WithSystem(ctx, func(tx *gorm.DB) error {
-		return tx.Create(&row).Error
+		return tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "auth_request_id"}},
+			UpdateAll: true,
+		}).Create(&row).Error
 	})
 }
 
 // Get returns the attempt for authRequestID, treating an expired row as
 // not found and deleting it so expiry needs no separate cleanup job for
-// correctness — a background sweep is still useful for table bloat, but
-// nothing depends on it for behavior.
+// correctness (spec D6) — a background sweep is still useful for table
+// bloat, but nothing depends on it for correctness. This matters beyond
+// tidiness: every row holds a live Zitadel session token, so a row that
+// is never deleted is a slow leak of credentials into a table nothing
+// sweeps.
 func (s *loginAttemptStore) Get(ctx context.Context, authRequestID string) (loginAttempt, error) {
 	var row loginAttemptRow
+	var expired bool
+	// Same shape as BumpAndGet's exhaustion path: the closure must return
+	// nil on the expired branch too, or WithSystem's wrapping
+	// Transaction(fn) rolls the just-issued DELETE back along with
+	// everything else, and the row survives despite Get reporting
+	// errAttemptNotFound to the caller. Signal expiry via the `expired`
+	// flag, examined only after the transaction has committed.
 	err := s.db.WithSystem(ctx, func(tx *gorm.DB) error {
 		if err := tx.Where("auth_request_id = ?", authRequestID).First(&row).Error; err != nil {
 			return err
@@ -88,17 +110,17 @@ func (s *loginAttemptStore) Get(ctx context.Context, authRequestID string) (logi
 			if err := tx.Delete(&loginAttemptRow{}, "auth_request_id = ?", authRequestID).Error; err != nil {
 				return err
 			}
-			return errAttemptNotFound
+			expired = true
 		}
 		return nil
 	})
 	switch {
-	case errors.Is(err, errAttemptNotFound):
-		return loginAttempt{}, errAttemptNotFound
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		return loginAttempt{}, errAttemptNotFound
 	case err != nil:
 		return loginAttempt{}, fmt.Errorf("get login attempt: %w", err)
+	case expired:
+		return loginAttempt{}, errAttemptNotFound
 	}
 	return row.toDomain(), nil
 }
@@ -109,6 +131,13 @@ func (s *loginAttemptStore) Get(ctx context.Context, authRequestID string) (logi
 // same auth_request_id, and the race runs in the attacker's favor: two
 // concurrent guesses could both read the pre-increment count and both be
 // admitted, granting extra tries against a six-digit code.
+//
+// Call this ONLY after Zitadel has rejected a submitted code — it counts
+// wrong codes (spec D6), not attempts. A caller that bumps before
+// verifying (e.g. to reserve a slot, or bumps unconditionally regardless
+// of Zitadel's answer) silently shrinks the real budget from five to
+// four, because the eventual correct code still consumes one of the five
+// bumps this method hands out.
 //
 // When the incremented value reaches maxFactorAttempts, the row is
 // deleted in the same statement's transaction and errAttemptsExhausted is
@@ -144,6 +173,16 @@ func (s *loginAttemptStore) BumpAndGet(ctx context.Context, authRequestID string
 		}
 		return nil
 	})
+	// If the transaction itself fails to commit (infra failure, not a
+	// business outcome), `exhausted` and the incremented count are both
+	// discarded along with the rest of the transaction — the guess is
+	// not counted. This errs toward the attacker (an infra blip can hand
+	// back a free retry) rather than toward the legitimate user (who
+	// would otherwise lose a guess to a failure that was never their
+	// fault). Considered and accepted: an infra failure on this path is
+	// already an incident, and the alternative — persisting the count
+	// outside the guess's own transaction — would let a lost commit here
+	// count a guess that was never actually evaluated.
 	switch {
 	case errors.Is(err, errAttemptNotFound):
 		return loginAttempt{}, errAttemptNotFound

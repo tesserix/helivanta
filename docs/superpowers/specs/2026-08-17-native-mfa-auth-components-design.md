@@ -187,10 +187,13 @@ would turn the prompt into an enumeration oracle — "this account has TOTP" is
 information about the account, and D5 of the login-client spec exists to deny
 exactly that class of signal.
 
-## D6 — Factor attempts are bounded per login attempt, and exhaustion destroys the session
+## D6 — Factor attempts are bounded per login attempt, and exhaustion abandons the session
 
 `factor_attempts` is incremented on every wrong code. At **five**, the
-`login_attempt` row is deleted and the Zitadel session is abandoned. The user
+`login_attempt` row is deleted and the Zitadel session is abandoned — *abandoned*,
+not revoked. Nothing calls `DELETE /v2/sessions/{id}`, so the session lives out
+its own lifetime, unreachable because the only token for it is gone. This
+section's heading originally said "destroys the session", which overclaimed. The user
 starts again from the credential form.
 
 Five, not three: a clinician mistyping a rolling six-digit code on a ward
@@ -230,9 +233,23 @@ they become a contract the moment it lands.
 |---|---|
 | `GET /v1/auth/login/request/:id` | Also returns the neutral `AuthPolicies` subset (D5) |
 | `POST /v1/auth/login/password` | Gains a third outcome: `factor_required` with the factor kinds to collect |
-| `POST /v1/auth/login/factor` | **New.** `{auth_request_id, factor:"totp", code}` → `callback_url`, a shared refusal, or `attempts_exhausted` |
+| `POST /v1/auth/login/factor` | **New.** `{auth_request_id, factor:"totp", code}` → `callback_url`, `handoff_url`, a shared refusal, or `auth_request_invalid` |
 
-All three remain unauthenticated, mounted via `bootstrap.MountUnauthenticated`
+**Corrected after implementation**, per CLAUDE.md's rule that superseded docs are
+fixed in the same change. Three drifts from what this section first claimed:
+
+1. The refusal-for-an-unusable-attempt wire shape is `auth_request_invalid`, not
+   `attempts_exhausted`. One shape covers "no such attempt", "expired" and
+   "exhausted" deliberately, so none is distinguishable from the others.
+2. **`handoff_url` is a real outcome of the factor endpoint**, originally omitted
+   here. `CompleteAfterFactor` returns `OutcomeHandoff` when the user's enrolled
+   methods include something Helivanta cannot collect, so a *correct* TOTP code
+   can still legitimately end in a handoff — reachable when enrollment changes
+   mid-flow. The Task 5 brief inherited this omission and would have shipped a
+   three-way client union that silently mishandled it; the implementer caught it.
+3. There are now **four** unauthenticated login routes, not three.
+
+All four remain unauthenticated, mounted via `bootstrap.MountUnauthenticated`
 and enumerated in `bootstrap.UnauthenticatedRoutes` with their reason — routes
 outside `platform.Router` get no rate limiting for free, so the new endpoint
 takes its own budget explicitly.

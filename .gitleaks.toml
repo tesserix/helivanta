@@ -20,12 +20,18 @@ regexes = [
   # outside HMS_ENV=dev, so a production process cannot be tricked into
   # signing with it. Removing it would not improve security and would
   # break every developer's stack.
-  '''X5yoi73f6FRR8XH2ZfRBjanOZLm/bkae0QV7wGJRuf8=''',
+  '''^X5yoi73f6FRR8XH2ZfRBjanOZLm/bkae0QV7wGJRuf8=$''',
 
   # PHI-redaction test fixtures. These are deliberately structured
   # strings that pkg/logging's redactor must leave ALONE (a UUID contains
   # a twelve-digit run, so a careless Aadhaar pattern would mask every
   # tenant_id). They carry no credential; gitleaks flags them on entropy.
-  '''1{8}-1{4}-1{4}-1{4}-1{12}''',
-  '''ref_9876543210_x''',
+  #
+  # Anchored (^...$) so each regex matches ONLY the exact known-benign
+  # value gitleaks extracts, not any string that merely contains it — an
+  # unanchored '1{8}-1{4}-...' would also match a real UUID with a
+  # matching digit-run by coincidence, which is safe only by luck of
+  # which digit the fixture happens to use, not by construction.
+  '''^1{8}-1{4}-1{4}-1{4}-1{12}$''',
+  '''^ref_9876543210_x$''',
 ]

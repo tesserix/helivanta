@@ -216,7 +216,7 @@ func (c *Client) finalize(ctx context.Context, authRequestID string, s Session) 
 }
 
 // VerifyTOTP checks a TOTP code against an existing session (PATCH
-// /v2/sessions/{id}, body shape from the spike §2). id is escaped with
+// /v2/sessions/{id}, body shape from the spike §1). id is escaped with
 // url.PathEscape before being placed in the URL for the same reason as
 // finalize's authRequestID — but here the reasoning is defensive rather
 // than required: s.ID reaches this method from a login_attempt row this
@@ -226,7 +226,7 @@ func (c *Client) finalize(ctx context.Context, authRequestID string, s Session) 
 // in this file.
 //
 // PATCH is the correct method here — POST to a session id returns 405
-// (spike §2, confirmed live). The 405 was hit by mistake once during the
+// (spike §3, confirmed live). The 405 was hit by mistake once during the
 // spike, which is exactly why this comment calls it out.
 //
 // # The token rotates on every check — spike §2
@@ -276,7 +276,7 @@ type Factors struct {
 	TOTP     bool
 }
 
-// SessionFactors reads GET /v2/sessions/{id} (spike §3) and reports which
+// SessionFactors reads GET /v2/sessions/{id} (spike §1) and reports which
 // factors it has verified. sessionID is escaped with url.PathEscape for
 // the same defensive-not-required reason as VerifyTOTP's id.
 func (c *Client) SessionFactors(ctx context.Context, sessionID string) (Factors, error) {
@@ -487,6 +487,16 @@ func (c *Client) LoginPolicy(ctx context.Context) (LoginPolicy, error) {
 // cannot satisfy.
 const passwordOnlyMethodType = "AUTHENTICATION_METHOD_TYPE_PASSWORD"
 
+// totpMethodType is the one non-password enrolled method type Helivanta
+// can natively ask a user to satisfy — VerifyTOTP (Task 2) checks exactly
+// this factor. Every other non-password value in nonPasswordFactorPrefix's
+// list (_OTP_EMAIL, _U2F, _PASSKEY, _IDP, _OTP_SMS, _RECOVERY_CODE) has no
+// corresponding collection path in Helivanta today, so its presence — even
+// alongside an enrolled TOTP — must still hand off to Zitadel's hosted UI
+// (spec D1): completing on the strength of the one factor Helivanta CAN
+// collect would silently skip the other one the user configured.
+const totpMethodType = "AUTHENTICATION_METHOD_TYPE_TOTP"
+
 // sessionUserID reads GET /v2/sessions/{id} to recover the user id a
 // session belongs to — CreateSessionResponse (POST /v2/sessions) does
 // NOT carry it (confirmed against the v4.15.3 proto and live: the create
@@ -513,43 +523,52 @@ func (c *Client) sessionUserID(ctx context.Context, sessionID string) (string, e
 	return wire.Session.Factors.User.ID, nil
 }
 
-// HasEnrolledFactor answers whether the user behind sessionID has
-// configured any authentication method besides a password — GET
-// /v2/users/{id}/authentication_methods, verified live 2026-08-16
-// against v4.15.3 with the login-client PAT: enrolling OTP_EMAIL on a
-// test user made authMethodTypes read
+// enrolledMethodTypes reads GET /v2/users/{id}/authentication_methods,
+// verified live 2026-08-16 against v4.15.3 with the login-client PAT:
+// enrolling OTP_EMAIL on a test user made authMethodTypes read
 // ["AUTHENTICATION_METHOD_TYPE_OTP_EMAIL","AUTHENTICATION_METHOD_TYPE_PASSWORD"],
 // where a password-only user reads just
 // ["AUTHENTICATION_METHOD_TYPE_PASSWORD"]. This is DIFFERENT from what a
 // session's own `factors` report (session.proto's Factors is what was
 // CHECKED in this one session, not what the user has available) — a
 // password-only session always has just a password factor even when the
-// user separately enrolled TOTP, which is exactly the gap this closes —
-// see the enrolled-factor branch of sufficiency.go's
-// CompleteIfSufficient, the sole caller. (An earlier version of this
-// comment pointed at "sufficiency.go's KNOWN LIMITATIONS §1"; that
-// section is password-change-required, an unrelated and still-OPEN gap
-// tracked as #856. This gap is CLOSED, so it is not in that list at
-// all.)
+// user separately enrolled TOTP, which is exactly the gap HasEnrolledFactor
+// and CompleteIfSufficient's TOTP branch (sufficiency.go) both close. (An
+// earlier version of this comment pointed at "sufficiency.go's KNOWN
+// LIMITATIONS §1"; that section is password-change-required, an unrelated
+// and still-OPEN gap tracked as #856. This gap is CLOSED, so it is not in
+// that list at all.)
 //
 // This exists to be called from CompleteIfSufficient's fail-closed path:
-// any error here (transport failure, unreadable body, empty id) must
-// read as "cannot prove the session is sufficient", not "no factor
-// found" — so it always returns a non-nil error together with false
-// rather than ever answering false by swallowing a failure. Callers must
-// hand off, not complete, when err != nil.
-func (c *Client) HasEnrolledFactor(ctx context.Context, sessionID string) (bool, error) {
+// any error here (transport failure, unreadable body, empty id) must read
+// as "cannot prove the session is sufficient", not "no factor found" — so
+// it always returns a non-nil error alongside a nil slice rather than
+// ever answering an empty list by swallowing a failure. Callers must hand
+// off, not complete, when err != nil.
+func (c *Client) enrolledMethodTypes(ctx context.Context, sessionID string) ([]string, error) {
 	userID, err := c.sessionUserID(ctx, sessionID)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	var wire struct {
 		AuthMethodTypes []string `json:"authMethodTypes"`
 	}
 	if err := c.do(ctx, http.MethodGet, "/v2/users/"+url.PathEscape(userID)+"/authentication_methods", nil, &wire, ErrUnavailable); err != nil {
+		return nil, err
+	}
+	return wire.AuthMethodTypes, nil
+}
+
+// HasEnrolledFactor answers whether the user behind sessionID has
+// configured any authentication method besides a password. See
+// enrolledMethodTypes for the wire shape and the fail-closed contract this
+// inherits from it.
+func (c *Client) HasEnrolledFactor(ctx context.Context, sessionID string) (bool, error) {
+	methodTypes, err := c.enrolledMethodTypes(ctx, sessionID)
+	if err != nil {
 		return false, err
 	}
-	for _, methodType := range wire.AuthMethodTypes {
+	for _, methodType := range methodTypes {
 		if methodType != passwordOnlyMethodType {
 			return true, nil
 		}

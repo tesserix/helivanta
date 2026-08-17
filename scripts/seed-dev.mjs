@@ -279,7 +279,7 @@ async function main() {
   const pg = new Client({
     connectionString:
       process.env.ADMIN_DATABASE_URL ??
-      "postgres://hms:hms@localhost:5432/hms?sslmode=disable",
+      "postgres://helivanta:helivanta@localhost:5432/helivanta?sslmode=disable",
   });
   await pg.connect();
 

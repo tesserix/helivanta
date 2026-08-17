@@ -4,15 +4,15 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: hms
-      POSTGRES_PASSWORD: hms
-      POSTGRES_DB: hms
+      POSTGRES_USER: helivanta
+      POSTGRES_PASSWORD: helivanta
+      POSTGRES_DB: helivanta
     ports: ["${HELIVANTA_PG_PORT:-5432}:5432"]
     volumes:
       - ./dev/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hms -d hms"]
+      test: ["CMD-SHELL", "pg_isready -U helivanta -d helivanta"]
       interval: 2s
       timeout: 2s
       retries: 30

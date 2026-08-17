@@ -36,8 +36,8 @@ HELIVANTA_API_PORT ?= 8080
 # to these exact values (on the stock ports) when the env var is unset, so
 # ?= only ever takes over here — a developer who has explicitly exported one
 # of these keeps their own value.
-APP_DATABASE_URL ?= postgres://hms_app:hms_app@localhost:$(HELIVANTA_PG_PORT)/hms?sslmode=disable
-ADMIN_DATABASE_URL ?= postgres://hms:hms@localhost:$(HELIVANTA_PG_PORT)/hms?sslmode=disable
+APP_DATABASE_URL ?= postgres://hms_app:hms_app@localhost:$(HELIVANTA_PG_PORT)/helivanta?sslmode=disable
+ADMIN_DATABASE_URL ?= postgres://helivanta:helivanta@localhost:$(HELIVANTA_PG_PORT)/helivanta?sslmode=disable
 NATS_URL ?= nats://localhost:$(HELIVANTA_NATS_PORT)
 OPENFGA_URL ?= http://localhost:$(HELIVANTA_OPENFGA_PORT)
 ZITADEL_ISSUER_URL ?= http://localhost:$(HELIVANTA_ZITADEL_PORT)

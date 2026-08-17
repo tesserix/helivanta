@@ -161,9 +161,29 @@ network policies first: "The namespace lock first, so nothing runs unprotected
 even briefly."
 
 `default-deny.yaml` denies all ingress and egress for `podSelector: {}`. The
-four `allow-*` templates then open exactly: intra-namespace traffic, DNS to
-`kube-system`, ingress from the `istio-ingress` namespace, and egress to
-443/TCP for external calls (Zitadel, OpenBao).
+`allow-*` templates then open: intra-namespace traffic, DNS to `kube-system`,
+ingress from the `istio-ingress` namespace, egress for external calls, ingress
+from `cnpg-system` on 8000, and HBONE on 15008.
+
+**Corrected 2026-08-17 after Task 2's review.** This step originally said the
+templates open "exactly" four things, omitting the last two. Both omissions
+were real and both are in `charts/apps/dwellm8-network-policies/templates/ingress.yaml`:
+
+- **`cnpg-system` on 8000** is load-bearing. The CNPG operator probes cluster
+  instances on that port, so without it the `Cluster` Task 4 creates never
+  becomes healthy — and the failure presents as a broken database, sending the
+  debugger to Postgres rather than to a network policy.
+- **HBONE 15008** costs nothing today because the namespace is not
+  ambient-meshed. It ships anyway, for the reason dwellm8 records in its
+  `values.yaml:29`: its absence is invisible until the day the namespace goes
+  ambient, which is the definition of a control that fails silently.
+
+**OpenBao egress is deliberately absent**, against this step's original
+parenthetical. OpenBao's own NetworkPolicy admits only `external-secrets` and
+`secret-service` as callers, so a direct egress rule from `helivanta` would be
+dead configuration — and ESO mediating the read is precisely what the secrets
+spec's D4 requires ("no secret-store code enters Helivanta"). The chart says so
+in a comment, so the next reader does not "fix" it by adding a rule.
 
 - [ ] **Step 4: Render both charts and validate the YAML**
 

@@ -35,7 +35,7 @@ func TestEveryEngineRouteIsDeclaredOrAllowlisted(t *testing.T) {
 	// The same shape cmd/api builds: httpserver.New owns /healthz and
 	// /readyz, every module registers through platform.Router on /v1, and
 	// bootstrap.MountUnauthenticated adds the deliberate bypasses.
-	srv := httpserver.New(nil)
+	srv := httpserver.New(nil, nil)
 	api := platform.NewRouter(srv.Engine.Group("/v1"), dryRouteRegistrationChecker{})
 	for _, m := range allModules() {
 		m.Routes(api, platform.Deps{})
@@ -79,7 +79,7 @@ func TestEveryEngineRouteIsDeclaredOrAllowlisted(t *testing.T) {
 func TestUnauthenticatedAllowlistHasNoDeadEntries(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	srv := httpserver.New(nil)
+	srv := httpserver.New(nil, nil)
 	api := platform.NewRouter(srv.Engine.Group("/v1"), dryRouteRegistrationChecker{})
 	for _, m := range allModules() {
 		m.Routes(api, platform.Deps{})

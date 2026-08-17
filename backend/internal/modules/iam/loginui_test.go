@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/tesserix/helivanta/internal/httpserver"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/pkg/ratelimit"
@@ -1163,5 +1164,75 @@ func TestFactorRefusesOverBudget(t *testing.T) {
 
 	w2 := post("V2_factor_budget_2")
 	require.Equal(t, http.StatusTooManyRequests, w2.Code)
+	require.NotEmpty(t, w2.Header().Get("Retry-After"))
+}
+
+// TestFactorRateLimitNotBypassableBySpoofedXForwardedFor is Finding C1's
+// proof (#867 Task 4 fix round 3): iam.allowedByLimiter keys every
+// bucket on gin.Context.ClientIP(), and — this is the point of routing
+// this test through httpserver.New rather than a bare gin.New() the way
+// every other test in this file does — ClientIP() honours a
+// caller-supplied X-Forwarded-For ONLY when the request's IMMEDIATE TCP
+// peer is a TRUSTED proxy. TestFactorRefusesOverBudget above already
+// proves the budget itself refuses; this test proves a caller cannot
+// buy a fresh budget per request just by sending a different
+// X-Forwarded-For value each time.
+//
+// httpserver.New(nil, nil) — no trusted proxy CIDRs — is what EVERY
+// environment gets unless TRUSTED_PROXY_CIDRS is explicitly set
+// (config.getenvCIDRList's fail-closed default): with nothing trusted,
+// ClientIP() ignores X-Forwarded-For entirely and always returns the
+// raw TCP RemoteAddr — httptest.NewRequest's default
+// ("192.0.2.1:1234"), left unchanged here so both calls present the
+// SAME peer, exactly what a real attacker's own TCP connection would
+// do regardless of which header value they claim.
+func TestFactorRateLimitNotBypassableBySpoofedXForwardedFor(t *testing.T) {
+	appDSN, adminDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.Open(appDSN, adminDSN)
+	require.NoError(t, err)
+	migs := New(nil).Migrations()
+	var loginAttemptMig *tenantdb.Migration
+	for i := range migs {
+		if migs[i].ID == "0004_iam" {
+			loginAttemptMig = &migs[i]
+		}
+	}
+	require.NotNil(t, loginAttemptMig)
+	require.NoError(t, db.Migrate(context.Background(), []tenantdb.Migration{*loginAttemptMig}))
+
+	limiter := ratelimit.NewMemory(100)
+	limit := ratelimit.Rule{Rate: 60, Burst: 10, Per: time.Minute}
+	factorLimit := ratelimit.Rule{Rate: 6, Burst: 1, Per: time.Minute}
+	h := NewLoginUIHandlers(zitadelFactorBadCode(t), loginUITestHostedLoginBaseURL, db, limiter, limit, factorLimit)
+
+	// The production wiring's own constructor — NOT gin.New() — so this
+	// test exercises the SAME SetTrustedProxies decision cmd/api/main.go
+	// makes, not a replica of it. No trusted proxies configured: the
+	// fail-closed default.
+	srv := httpserver.New(nil, nil)
+	srv.Engine.POST("/v1/auth/login/password", h.Password)
+	srv.Engine.POST("/v1/auth/login/factor", h.Factor)
+
+	post := func(authRequestID, spoofedXFF string) *httptest.ResponseRecorder {
+		require.Equal(t, http.StatusOK, doPassword(t, srv.Engine, authRequestID, "test@helivanta.dev", "HmsDev123!").Code)
+		w := httptest.NewRecorder()
+		body := `{"auth_request_id":"` + authRequestID + `","factor":"totp","code":"000000"}`
+		req := httptest.NewRequest(http.MethodPost, "/v1/auth/login/factor", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		// A DIFFERENT spoofed value on every call — the attack this test
+		// disproves. RemoteAddr is deliberately left at httptest's
+		// default rather than set explicitly, so every call in this
+		// test shares the SAME real peer.
+		req.Header.Set("X-Forwarded-For", spoofedXFF)
+		srv.Engine.ServeHTTP(w, req)
+		return w
+	}
+
+	w1 := post("V2_spoof_budget_1", "203.0.113.201")
+	require.Equal(t, http.StatusUnauthorized, w1.Code, w1.Body.String())
+
+	w2 := post("V2_spoof_budget_2", "198.51.100.77")
+	require.Equal(t, http.StatusTooManyRequests, w2.Code,
+		"a spoofed X-Forwarded-For value must not reset the factor rate-limit bucket when no proxy is trusted (Finding C1)")
 	require.NotEmpty(t, w2.Header().Get("Retry-After"))
 }

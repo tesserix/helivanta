@@ -229,12 +229,17 @@ func run() error {
 	// that true.
 	gin.DefaultErrorWriter = logging.NewRedactingWriter(gin.DefaultErrorWriter)
 
+	// cfg.TrustedProxyCIDRs (#867 Task 4 fix round 3, Finding C1): empty
+	// unless TRUSTED_PROXY_CIDRS is set, which httpserver.New treats as
+	// "trust no proxy" — see that function's own doc comment for why
+	// this must never fall through to gin's trust-everyone default.
 	srv := httpserver.New(
 		[]httpserver.ReadyCheck{
 			{Name: "postgres", Check: db.PingContext},
 			{Name: "nats", Check: bus.Ping},
 			{Name: "openfga", Check: fga.Ping},
 		},
+		cfg.TrustedProxyCIDRs,
 		requestid.Middleware(),
 	)
 	// sessionSecureCookie is the SAME value passed to iam.NewLoginHandlers

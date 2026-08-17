@@ -118,6 +118,52 @@ func TestSessionIssuerDefaultsAndOverrides(t *testing.T) {
 	require.Equal(t, "https://hms.example.org", config.Load().SessionIssuer)
 }
 
+// TestTrustedProxyCIDRsDefaultsToNilNotEverything is Finding C1's
+// fail-closed default (#867 Task 4 fix round 3): an unset
+// TRUSTED_PROXY_CIDRS must resolve to an EMPTY list, which
+// httpserver.New treats as "trust no proxy" — never gin's own
+// trust-everyone default. A default of ["0.0.0.0/0"] here, or any
+// non-empty fallback, would silently reopen the X-Forwarded-For
+// spoofing hole this field exists to close.
+func TestTrustedProxyCIDRsDefaultsToNilNotEverything(t *testing.T) {
+	t.Setenv("TRUSTED_PROXY_CIDRS", "")
+	cfg := config.Load()
+	require.Empty(t, cfg.TrustedProxyCIDRs)
+}
+
+// TestTrustedProxyCIDRsParsesCommaSeparatedList proves getenvCIDRList
+// actually reads and splits the environment variable, trimming
+// whitespace around each entry — without this,
+// TestTrustedProxyCIDRsDefaultsToNilNotEverything alone could not tell
+// a real parser apart from a function that always returns nil.
+func TestTrustedProxyCIDRsParsesCommaSeparatedList(t *testing.T) {
+	t.Setenv("TRUSTED_PROXY_CIDRS", "10.20.0.0/16, 10.30.0.0/20")
+	cfg := config.Load()
+	require.Equal(t, []string{"10.20.0.0/16", "10.30.0.0/20"}, cfg.TrustedProxyCIDRs)
+}
+
+// TestTrustedProxyCIDRsDropsOnlyTheMalformedEntry pins getenvCIDRList's
+// per-entry fail-closed behaviour: one malformed CIDR in a list must not
+// silently discard the operator's other, correctly-typed entries (which
+// would widen the trust boundary to nothing when SOME configuration was
+// clearly intended), and it must not be silently accepted either (which
+// would trust a value that is not actually a CIDR at all).
+func TestTrustedProxyCIDRsDropsOnlyTheMalformedEntry(t *testing.T) {
+	t.Setenv("TRUSTED_PROXY_CIDRS", "10.20.0.0/16,not-a-cidr,10.30.0.0/20")
+	cfg := config.Load()
+	require.Equal(t, []string{"10.20.0.0/16", "10.30.0.0/20"}, cfg.TrustedProxyCIDRs)
+}
+
+// TestTrustedProxyCIDRsAllMalformedYieldsEmptyNotError proves the
+// all-garbage case still lands on the SAME fail-closed answer as unset —
+// an empty list — rather than a boot failure or a silently-accepted
+// bogus trust boundary.
+func TestTrustedProxyCIDRsAllMalformedYieldsEmptyNotError(t *testing.T) {
+	t.Setenv("TRUSTED_PROXY_CIDRS", "not-a-cidr, also-not-one")
+	cfg := config.Load()
+	require.Empty(t, cfg.TrustedProxyCIDRs)
+}
+
 // TestDurationFallbackIsReadableInLogs asserts on the bytes actually
 // emitted, not on the call being made.
 //

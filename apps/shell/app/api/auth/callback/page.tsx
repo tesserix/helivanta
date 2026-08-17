@@ -7,7 +7,7 @@ import { getUserManager } from "@/lib/oidc";
 import { exchangeIdToken } from "@/lib/auth-exchange";
 
 // The redirect target Zitadel sends the browser back to after a
-// successful hosted login (registered as hms-web's redirect_uri,
+// successful hosted login (registered as helivanta-web's redirect_uri,
 // scripts/zitadel-bootstrap.mjs / scripts/lib/zitadel.mjs's
 // DEV_REDIRECT_URI — the path here MUST match, see lib/oidc.ts's
 // AUTH_CALLBACK_PATH).

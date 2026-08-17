@@ -10,7 +10,7 @@
 //
 // #854 Task 7: obtaining that real token used to drive Zitadel's hosted
 // login UI with a headless Playwright browser (hostedUILogin). #854 Task 1
-// repointed hms-web's login redirect at HMS's own /login, whose markup
+// repointed helivanta-web's login redirect at HMS's own /login, whose markup
 // (one-step Email/Password/Sign-in) that browser drive never matched.
 // passwordLoginIDToken (scripts/lib/zitadel.mjs) replaces it with the same
 // authorization-code-plus-PKCE exchange driven directly through Zitadel's
@@ -26,7 +26,7 @@
 // `POST /oauth/v2/token` exchange a real browser performs next
 // (apps/shell/app/api/auth/callback/page.tsx via oidc-client-ts). That
 // exchange was silently broken — Task 1's Zitadel app provisioning left
-// `hms-web` unable to complete it at all (invalid_client: empty client
+// `helivanta-web` unable to complete it at all (invalid_client: empty client
 // secret; see zitadel-bootstrap.mjs's LOGIN_VERSION comment for the full
 // story) — for the entire time between Task 1 landing and this task
 // finding it, and nothing before this script actually finishing the
@@ -96,14 +96,14 @@ async function main() {
     return step("POST /v1/auth/login", false, `HTTP ${loginRes.status} ${body}`);
   }
   const setCookie = loginRes.headers.get("set-cookie");
-  const match = setCookie?.match(/hms_session=([^;]+)/);
+  const match = setCookie?.match(/helivanta_session=([^;]+)/);
   if (!match) {
-    return step("POST /v1/auth/login", false, "200 but no hms_session cookie in the response");
+    return step("POST /v1/auth/login", false, "200 but no helivanta_session cookie in the response");
   }
-  step("POST /v1/auth/login", true, "minted an hms_session cookie");
+  step("POST /v1/auth/login", true, "minted an helivanta_session cookie");
 
   const meRes = await fetch(`${API_URL}/v1/iam/me/permissions`, {
-    headers: { Cookie: `hms_session=${match[1]}` },
+    headers: { Cookie: `helivanta_session=${match[1]}` },
   });
   const meBody = await meRes.text();
   if (meRes.status !== 200) {

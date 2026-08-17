@@ -2214,7 +2214,7 @@ pnpm --filter e2e exec playwright test tests/signout.spec.ts
 
 Expected: FAIL with `restored === "RESTORED"` — the current defect, reproduced.
 
-If the port set is busy, use the shifted ports: `HMS_PG_PORT=15432 HMS_NATS_PORT=14222 HMS_NATS_MONITOR_PORT=18222 HMS_REDIS_PORT=16379 HMS_OPENFGA_PORT=18090 HMS_GIP_PORT=19099 HMS_API_PORT=18080 make up`.
+If the port set is busy, use the shifted ports: `HELIVANTA_PG_PORT=15432 HELIVANTA_NATS_PORT=14222 HELIVANTA_NATS_MONITOR_PORT=18222 HELIVANTA_REDIS_PORT=16379 HELIVANTA_OPENFGA_PORT=18090 HELIVANTA_GIP_PORT=19099 HELIVANTA_API_PORT=18080 make up`.
 
 - [ ] **Step 3: Rewrite the logout route**
 

@@ -335,7 +335,7 @@ bytes as text and passing the result through exactly as valid (or invalid) as
 the input already was. Nothing is ever dropped; the fallback only changes how
 the line is scanned, not whether it is emitted. An unrecognised `LOG_LEVEL`
 degrades to `info` with a warning rather than refusing to boot — the opposite
-choice from the `HMS_ENV` guards, because a log level cannot compromise tenant
+choice from the `HELIVANTA_ENV` guards, because a log level cannot compromise tenant
 isolation and a hospital API should not fail to start over a typo.
 
 ## Testing

@@ -16,7 +16,7 @@ import (
 // protects nothing, because the deployment that forgets to set the
 // variable is exactly the one that needed protecting.
 func TestEnvDefaultsToProduction(t *testing.T) {
-	t.Setenv("HMS_ENV", "")
+	t.Setenv("HELIVANTA_ENV", "")
 	cfg := config.Load()
 	require.Equal(t, "production", cfg.Env)
 	require.False(t, cfg.IsDev())
@@ -33,8 +33,8 @@ func TestIsDevOnlyForExactDev(t *testing.T) {
 		{"production", false},
 		{"staging", false},
 	} {
-		t.Setenv("HMS_ENV", tc.env)
-		require.Equal(t, tc.isDev, config.Load().IsDev(), "HMS_ENV=%q", tc.env)
+		t.Setenv("HELIVANTA_ENV", tc.env)
+		require.Equal(t, tc.isDev, config.Load().IsDev(), "HELIVANTA_ENV=%q", tc.env)
 	}
 }
 

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 // "/api/auth" covers both app/api/auth/callback/page.tsx (the redirect
 // target Zitadel sends the browser back to) and
 // app/api/auth/silent-renew/page.tsx (loaded in a hidden iframe by
-// lib/renew.ts) — neither runs with an hms_session cookie yet, since
+// lib/renew.ts) — neither runs with an helivanta_session cookie yet, since
 // completing either IS what obtains one. "/api/session" (the old
 // Firebase-era route that set the cookie from a raw ID token) is gone;
 // the API sets the cookie itself now (design spec D1).
@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 // authenticated chain for the identical reason — see main.go's comment
 // on bootstrap.MountUnauthenticated). Both a first login
 // (app/api/auth/callback/page.tsx) and silent renewal (lib/renew.ts) call
-// it with a Zitadel ID token, never an hms_session, so this middleware
+// it with a Zitadel ID token, never an helivanta_session, so this middleware
 // must not demand one either — the exact bug that produced a
 // `role="alert"` reading "missing credentials" on every login attempt
 // before this exemption existed (login was calling the very route that
@@ -26,7 +26,7 @@ export function middleware(req: NextRequest) {
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
-  if (!req.cookies.get("hms_session")?.value) {
+  if (!req.cookies.get("helivanta_session")?.value) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: "unauthenticated", message: "missing credentials" },

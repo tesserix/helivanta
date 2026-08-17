@@ -91,9 +91,9 @@ are what `make dev-api` (and therefore `make up`) passes the API; override
 `ZITADEL_ISSUER_URL` to point dev at a different instance.
 
 The API refuses to start with no `SESSION_SIGNING_KEY`, and refuses the
-well-known dev key (`HMS_DEV_SESSION_SIGNING_KEY`) outside `HMS_ENV=dev` —
+well-known dev key (`HELIVANTA_DEV_SESSION_SIGNING_KEY`) outside `HELIVANTA_ENV=dev` —
 otherwise a forged session would be accepted in what looks like production.
-`make dev-api` (and therefore `make up`) sets `HMS_ENV=dev` for you; a bare
+`make dev-api` (and therefore `make up`) sets `HELIVANTA_ENV=dev` for you; a bare
 `go run ./cmd/api` does not, so set it yourself when running the API outside
 `make`.
 
@@ -105,8 +105,8 @@ every other port is a host-side default only, overridable via `.env`:
 
     cp .env.example .env
     # .env
-    HMS_PG_PORT=15432   # something else already has 5432
-    HMS_REDIS_PORT=16379
+    HELIVANTA_PG_PORT=15432   # something else already has 5432
+    HELIVANTA_REDIS_PORT=16379
 
 Compose reads `.env` directly; `make` pulls the same file in (`-include
 .env`) so both sides always agree, and `make dev-api`/`make seed` pass

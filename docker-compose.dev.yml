@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: hms
       POSTGRES_PASSWORD: hms
       POSTGRES_DB: hms
-    ports: ["${HMS_PG_PORT:-5432}:5432"]
+    ports: ["${HELIVANTA_PG_PORT:-5432}:5432"]
     volumes:
       - ./dev/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
       - pgdata:/var/lib/postgresql/data
@@ -21,7 +21,7 @@ services:
     image: nats:2.10-alpine
     restart: unless-stopped
     command: ["-js", "-sd", "/data"]
-    ports: ["${HMS_NATS_PORT:-4222}:4222", "${HMS_NATS_MONITOR_PORT:-8222}:8222"]
+    ports: ["${HELIVANTA_NATS_PORT:-4222}:4222", "${HELIVANTA_NATS_MONITOR_PORT:-8222}:8222"]
     volumes: [natsdata:/data]
     healthcheck:
       test: ["CMD-SHELL", "echo 'PING' | nc localhost 4222 | grep -q PONG"]
@@ -32,7 +32,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    ports: ["${HMS_REDIS_PORT:-6379}:6379"]
+    ports: ["${HELIVANTA_REDIS_PORT:-6379}:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
@@ -47,7 +47,7 @@ services:
       OPENFGA_DATASTORE_ENGINE: memory
     # Host side only — the healthcheck below talks to the container's own
     # 8080/8081, which never change.
-    ports: ["${HMS_OPENFGA_PORT:-8090}:8080"]
+    ports: ["${HELIVANTA_OPENFGA_PORT:-8090}:8080"]
     healthcheck:
       test: ["CMD", "/usr/local/bin/grpc_health_probe", "-addr=localhost:8081"]
       interval: 2s
@@ -66,7 +66,7 @@ services:
       POSTGRES_USER: zitadel
       POSTGRES_PASSWORD: zitadel
       POSTGRES_DB: zitadel
-    ports: ["${HMS_ZITADEL_PG_PORT:-5433}:5432"]
+    ports: ["${HELIVANTA_ZITADEL_PG_PORT:-5433}:5432"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U zitadel -d zitadel"]
       interval: 2s
@@ -78,7 +78,7 @@ services:
   # `start-from-init` provisions the whole HMS topology declaratively on
   # first boot, with NO interactive/browser step at all — verified
   # end-to-end for #838 Task 6 (the spike's "still NOT VERIFIED" first-PAT
-  # gap is closed): FirstInstance.Org.Machine creates hms-seed-bot with
+  # gap is closed): FirstInstance.Org.Machine creates helivanta-seed-bot with
   # IAM_OWNER and writes its PAT to PatPath; FirstInstance.Org.LoginClient
   # does the same for the zitadel-login service below with the
   # instance-level IAM_LOGIN_CLIENT role, via LoginClientPatPath. Both PAT
@@ -87,7 +87,7 @@ services:
   # from the host. Re-running `docker compose up` after the volumes already
   # exist is a no-op for this provisioning — FirstInstance only runs once.
   #
-  # HMS_DEV_ZITADEL_MASTERKEY must be EXACTLY 32 bytes — Zitadel does not
+  # HELIVANTA_DEV_ZITADEL_MASTERKEY must be EXACTLY 32 bytes — Zitadel does not
   # fail fast on a wrong-length key, it crash-loops with "masterkey must be
   # 32 bytes, but is N" on every restart attempt, which reads as a flaky
   # container rather than a one-line config mistake (reproduced live during
@@ -99,7 +99,7 @@ services:
     restart: unless-stopped
     command: >
       start-from-init
-      --masterkey "${HMS_DEV_ZITADEL_MASTERKEY}"
+      --masterkey "${HELIVANTA_DEV_ZITADEL_MASTERKEY}"
       --tlsMode disabled
     environment:
       ZITADEL_DATABASE_POSTGRES_HOST: zitadel-db
@@ -113,7 +113,7 @@ services:
       ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
       ZITADEL_EXTERNALSECURE: "false"
       ZITADEL_EXTERNALDOMAIN: localhost
-      ZITADEL_EXTERNALPORT: "${HMS_ZITADEL_PORT:-20080}"
+      ZITADEL_EXTERNALPORT: "${HELIVANTA_ZITADEL_PORT:-20080}"
       # Matches production's split-login topology (tenancy topology design
       # doc, D5a) rather than the simpler core-only "/ui/login" mode: dev
       # exercises the same split-service SHAPE production runs, so the day
@@ -136,7 +136,7 @@ services:
       # zitadel/zitadel#10722, not a config mistake on our side). `false`
       # does NOT turn Login V2 off — it just stops forcing the instance
       # default on every app, so each app's own `loginVersion` setting
-      # decides. That per-app choice is exactly what keeps the hms-web
+      # decides. That per-app choice is exactly what keeps the helivanta-web
       # redirect change (scripts/lib/zitadel.mjs's setLoginV2BaseUri) from
       # moving login for any other Tesserix product on the shared instance.
       # PRODUCTION NOTE: this same flip is required there too, and it is
@@ -146,16 +146,16 @@ services:
       # `required` goes to false. That is a cross-product change and
       # belongs to the platform team, not this task.
       ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "false"
-      ZITADEL_FIRSTINSTANCE_ORG_NAME: HMS
+      ZITADEL_FIRSTINSTANCE_ORG_NAME: Helivanta
       ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: admin@hms.localhost
       ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: HmsDevAdminPassw0rd!
       ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORDCHANGEREQUIRED: "false"
-      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: hms-seed-bot
-      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: HMS Seed Bot
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: helivanta-seed-bot
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: Helivanta Seed Bot
       ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2099-01-01T00:00:00Z"
-      ZITADEL_FIRSTINSTANCE_PATPATH: /secrets/hms-seed.pat
-      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_USERNAME: hms-login-client
-      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_NAME: HMS Login Client
+      ZITADEL_FIRSTINSTANCE_PATPATH: /secrets/helivanta-seed.pat
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_USERNAME: helivanta-login-client
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_NAME: Helivanta Login Client
       ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_PAT_EXPIRATIONDATE: "2099-01-01T00:00:00Z"
       ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH: /secrets/login-client.pat
     expose: ["8080"]
@@ -242,7 +242,7 @@ services:
       # (zitadel:8080) does not, and cannot, match localhost:20080 on its
       # own. This is the same header override the official Zitadel compose
       # uses (deploy/compose/docker-compose.yml's CUSTOM_REQUEST_HEADERS).
-      CUSTOM_REQUEST_HEADERS: "Host:localhost:${HMS_ZITADEL_PORT:-20080},X-Forwarded-Proto:http"
+      CUSTOM_REQUEST_HEADERS: "Host:localhost:${HELIVANTA_ZITADEL_PORT:-20080},X-Forwarded-Proto:http"
     volumes:
       - ./dev/zitadel/secrets:/secrets:ro
     depends_on:
@@ -254,7 +254,7 @@ services:
   # Merges zitadel (everything except /ui/v2/login/*) and zitadel-login
   # (/ui/v2/login/*) under one origin — see dev/zitadel/Caddyfile's own
   # comment for why this is mandatory, not cosmetic. Still required with
-  # LOGINV2_REQUIRED=false (#854 Task 1): hms-web's per-app
+  # LOGINV2_REQUIRED=false (#854 Task 1): helivanta-web's per-app
   # loginVersion.loginV2.baseUri sends the browser to HMS directly for the
   # primary flow, but spec D3's fallback path still lands on Zitadel's own
   # /ui/v2/login/login?authRequest=… (verified live: it 307s), and the
@@ -263,7 +263,7 @@ services:
   zitadel-proxy:
     image: caddy:2-alpine
     restart: unless-stopped
-    ports: ["${HMS_ZITADEL_PORT:-20080}:8080"]
+    ports: ["${HELIVANTA_ZITADEL_PORT:-20080}:8080"]
     volumes:
       - ./dev/zitadel/Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:

@@ -16,7 +16,7 @@ import (
 // default key.
 func TestSessionSigningKeySeed_Unset_Refuses(t *testing.T) {
 	t.Setenv("SESSION_SIGNING_KEY", "")
-	t.Setenv("HMS_ENV", "production")
+	t.Setenv("HELIVANTA_ENV", "production")
 
 	cfg := config.Load()
 	_, err := cfg.SessionSigningKeySeed()
@@ -28,14 +28,14 @@ func TestSessionSigningKeySeed_Unset_Refuses(t *testing.T) {
 
 // TestSessionSigningKeySeed_DevKeyOutsideDev_Refuses mirrors the
 // emulator-host guard the GIP verifier carried before #838 deleted it:
-// the well-known dev key must be refused unless HMS_ENV=dev, whether
-// HMS_ENV is unset (defaults to production, per TestEnvDefaultsToProduction)
+// the well-known dev key must be refused unless HELIVANTA_ENV=dev, whether
+// HELIVANTA_ENV is unset (defaults to production, per TestEnvDefaultsToProduction)
 // or set to "production" explicitly.
 func TestSessionSigningKeySeed_DevKeyOutsideDev_Refuses(t *testing.T) {
 	for _, env := range []string{"", "production", "staging"} {
-		t.Run("HMS_ENV="+env, func(t *testing.T) {
+		t.Run("HELIVANTA_ENV="+env, func(t *testing.T) {
 			t.Setenv("SESSION_SIGNING_KEY", config.DevSessionSigningKey)
-			t.Setenv("HMS_ENV", env)
+			t.Setenv("HELIVANTA_ENV", env)
 
 			cfg := config.Load()
 			_, err := cfg.SessionSigningKeySeed()
@@ -50,10 +50,10 @@ func TestSessionSigningKeySeed_DevKeyOutsideDev_Refuses(t *testing.T) {
 // TestSessionSigningKeySeed_DevKeyInDev_Accepted proves the guard above
 // is a guard and not an unconditional refusal: the same well-known dev
 // key must decode successfully to a real 32-byte Ed25519 seed when
-// HMS_ENV=dev.
+// HELIVANTA_ENV=dev.
 func TestSessionSigningKeySeed_DevKeyInDev_Accepted(t *testing.T) {
 	t.Setenv("SESSION_SIGNING_KEY", config.DevSessionSigningKey)
-	t.Setenv("HMS_ENV", "dev")
+	t.Setenv("HELIVANTA_ENV", "dev")
 
 	cfg := config.Load()
 	seed, err := cfg.SessionSigningKeySeed()
@@ -84,7 +84,7 @@ func TestSessionSigningKeySeed_Malformed_Refuses(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv("SESSION_SIGNING_KEY", value)
-			t.Setenv("HMS_ENV", "dev")
+			t.Setenv("HELIVANTA_ENV", "dev")
 
 			cfg := config.Load()
 			_, err := cfg.SessionSigningKeySeed()
@@ -104,7 +104,7 @@ func TestSessionSigningKeySeed_Malformed_Refuses(t *testing.T) {
 // with a more confusing message).
 func TestSessionSigningKeySeed_BlankAfterTrimming_TreatedAsUnset(t *testing.T) {
 	t.Setenv("SESSION_SIGNING_KEY", "   ")
-	t.Setenv("HMS_ENV", "production")
+	t.Setenv("HELIVANTA_ENV", "production")
 
 	cfg := config.Load()
 	_, err := cfg.SessionSigningKeySeed()
@@ -123,7 +123,7 @@ func TestSessionSigningKeySeed_RealKeyInProduction_Accepted(t *testing.T) {
 	seedValue := base64.StdEncoding.EncodeToString(priv.Seed())
 
 	t.Setenv("SESSION_SIGNING_KEY", seedValue)
-	t.Setenv("HMS_ENV", "production")
+	t.Setenv("HELIVANTA_ENV", "production")
 
 	cfg := config.Load()
 	seed, err := cfg.SessionSigningKeySeed()

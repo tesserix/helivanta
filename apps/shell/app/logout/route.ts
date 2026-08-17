@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SESSION_COOKIE = "hms_session";
+const SESSION_COOKIE = "helivanta_session";
 const API_URL = process.env.API_URL ?? "http://localhost:8080";
 
 /**

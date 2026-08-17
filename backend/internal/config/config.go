@@ -69,17 +69,17 @@ type Config struct {
 	// OutcomeHandoff) redirect the browser to when HMS's own login form
 	// cannot complete a sign-in itself (an enrolled second factor Zitadel
 	// requires but HMS does not yet collect). Task 1's finding
-	// (docs/superpowers/plans/2026-08-16-hms-login-client.md) is that
+	// (docs/superpowers/plans/2026-08-16-helivanta-login-client.md) is that
 	// Zitadel APPENDS its own "/login" segment to whatever baseUri is
 	// configured, so this must be an origin+path with NO query string of
 	// its own — see loginui.go's handoffURL. Safe to default: it is a
 	// well-known Zitadel URL, not a secret, and a wrong value fails
 	// loudly (a 404 from Zitadel) rather than opening a hole.
 	ZitadelHostedLoginURL string
-	// HMSWebOrigin is the raw value of HMS_WEB_ORIGIN — the origin
+	// HMSWebOrigin is the raw value of HELIVANTA_WEB_ORIGIN — the origin
 	// (scheme + host, no path) HMS's OWN frontend is served from, the
 	// same origin scripts/lib/zitadel.mjs configures as Zitadel's
-	// per-app `loginVersion.loginV2.baseUri` for hms-web (spec D1), and
+	// per-app `loginVersion.loginV2.baseUri` for helivanta-web (spec D1), and
 	// the origin `/login?authRequest=…` renders on. It exists SOLELY so
 	// RequireDistinctHostedLoginOrigin (hostedlogin.go) has something to
 	// compare ZitadelHostedLoginURL against at boot — nothing on the
@@ -93,7 +93,7 @@ type Config struct {
 	// this field was, and that turned RequireDistinctHostedLoginOrigin
 	// into exactly the kind of control this codebase does not accept:
 	// one that looks present and does nothing under the conditions that
-	// matter. A silent `getenv("HMS_WEB_ORIGIN", DevHMSWebOrigin)`
+	// matter. A silent `getenv("HELIVANTA_WEB_ORIGIN", DevHMSWebOrigin)`
 	// default means an unset variable in PRODUCTION compares the real
 	// ZitadelHostedLoginURL against the DEV origin, finds no collision
 	// (they are never equal), and boots — the exact loop this guard
@@ -211,7 +211,7 @@ type Config struct {
 
 func Load() Config {
 	return Config{
-		Env:              getenv("HMS_ENV", "production"),
+		Env:              getenv("HELIVANTA_ENV", "production"),
 		Port:             getenv("PORT", "8080"),
 		LogLevel:         getenv("LOG_LEVEL", "info"),
 		AppDatabaseURL:   getenv("APP_DATABASE_URL", "postgres://hms_app:hms_app@localhost:5432/hms?sslmode=disable"),
@@ -234,7 +234,7 @@ func Load() Config {
 		// differently in dev (DevHMSWebOrigin) than everywhere else
 		// (a boot refusal), which a getenv() default here would make
 		// impossible to tell apart from an operator's real value.
-		HMSWebOrigin: os.Getenv("HMS_WEB_ORIGIN"),
+		HMSWebOrigin: os.Getenv("HELIVANTA_WEB_ORIGIN"),
 
 		// os.Getenv, not getenv(): getenv's whole purpose is supplying a
 		// default for an unset variable, and a signing key must never
@@ -312,6 +312,6 @@ func getenvDuration(k string, def time.Duration) time.Duration {
 
 // IsDev reports whether this process is running in a developer
 // environment. It defaults to false: the guards that consult it disable
-// production safety checks, so an unset or misspelled HMS_ENV must fail
+// production safety checks, so an unset or misspelled HELIVANTA_ENV must fail
 // closed rather than silently unlock them.
 func (c Config) IsDev() bool { return c.Env == "dev" }

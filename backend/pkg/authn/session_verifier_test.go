@@ -238,7 +238,7 @@ func forgeRS256TokenShapedLikeZitadel(t *testing.T) string {
 	payload := map[string]any{
 		"sub":       "zitadel-user-1",
 		"iss":       "https://zitadel.local",
-		"aud":       []string{"hms-client"},
+		"aud":       []string{"helivanta-client"},
 		"auth_time": time.Now().Add(-time.Minute).Unix(),
 		"iat":       time.Now().Unix(),
 		"exp":       time.Now().Add(time.Hour).Unix(),

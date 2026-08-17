@@ -170,13 +170,13 @@ git commit -m "refactor: rename @hms/* workspace packages to @helivanta/* (#863)
 - Modify: `.env.example`, `docker-compose.dev.yml`, `Makefile`
 - Modify: `scripts/lib/zitadel.mjs` and any script referencing `hms-web`, `hms-client`, `hms-seed`, `hms-login`, org `HMS`
 - Modify: `.github/workflows/ci.yml` (build env vars)
-- Modify: Go/TS reading `HMS_*` (Task 1 and 2 left these as string literals)
+- Modify: Go/TS reading `HELIVANTA_*` (Task 1 and 2 left these as string literals)
 
 **Interfaces:**
 - Consumes: Tasks 1 and 2.
 - Produces: `HELIVANTA_*` env vars and `helivanta-*` Zitadel identifiers.
 
-**The 16 variables:** `HMS_API_PORT`, `HMS_DEV_REDIRECT_URI`, `HMS_DEV_SESSION_SIGNING_KEY`, `HMS_DEV_ZITADEL_MASTERKEY`, `HMS_ENV`, `HMS_IDLE_API_PORT`, `HMS_IDLE_WEB_PORT`, `HMS_NATS_MONITOR_PORT`, `HMS_NATS_PORT`, `HMS_OPENFGA_PORT`, `HMS_PG_PORT`, `HMS_REDIS_PORT`, `HMS_TEST_CONTAINER_TIMEOUT`, `HMS_WEB_ORIGIN`, `HMS_ZITADEL_PG_PORT`, `HMS_ZITADEL_PORT`.
+**The 16 variables:** `HELIVANTA_API_PORT`, `HELIVANTA_DEV_REDIRECT_URI`, `HELIVANTA_DEV_SESSION_SIGNING_KEY`, `HELIVANTA_DEV_ZITADEL_MASTERKEY`, `HELIVANTA_ENV`, `HELIVANTA_IDLE_API_PORT`, `HELIVANTA_IDLE_WEB_PORT`, `HELIVANTA_NATS_MONITOR_PORT`, `HELIVANTA_NATS_PORT`, `HELIVANTA_OPENFGA_PORT`, `HELIVANTA_PG_PORT`, `HELIVANTA_REDIS_PORT`, `HELIVANTA_TEST_CONTAINER_TIMEOUT`, `HELIVANTA_WEB_ORIGIN`, `HELIVANTA_ZITADEL_PG_PORT`, `HELIVANTA_ZITADEL_PORT`.
 
 **Renaming the Zitadel app mints a NEW client ID.** `NEXT_PUBLIC_ZITADEL_CLIENT_ID` changes with it. This is the single most likely thing to be missed, because a wrong client ID does not fail the build — CI's own comment in `ci.yml` records that `next build` succeeds with these unset and surfaces as a **runtime 500 on `/login`**. Only Step 5 catches it.
 
@@ -189,7 +189,7 @@ cd /Users/Mahesh.Sangawar/personal/tesserix-new/hms
 # `sed 's|\bHMS_|...|'` is a no-op you would only notice via the grep below.
 # Do NOT "fix" that by dropping the \b: an unbounded pattern is how D5's
 # database identifiers get mangled. perl honours \b on macOS and Linux both.
-git ls-files | xargs grep -l "HMS_" 2>/dev/null \
+git ls-files | xargs grep -l "HELIVANTA_" 2>/dev/null \
   | xargs perl -pi -e 's|\bHMS_|HELIVANTA_|g'
 grep -rn "\bHMS_" $(git ls-files) 2>/dev/null | wc -l    # expect: 0
 ```
@@ -233,7 +233,7 @@ If login fails with a 500 on `/login`, `NEXT_PUBLIC_ZITADEL_CLIENT_ID` is stale 
 
 ```bash
 git add -A
-git commit -m "refactor: rename HMS_* env vars and zitadel identifiers to helivanta (#863)"
+git commit -m "refactor: rename HELIVANTA_* env vars and zitadel identifiers to helivanta (#863)"
 ```
 
 ---

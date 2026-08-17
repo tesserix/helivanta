@@ -118,9 +118,9 @@ old authentication into a fresh one and quietly defeat the revocation watermark.
   is a forged-session vulnerability. Argue the direction in a comment at the
   decision point (§3) — this fails CLOSED, unlike `LOG_LEVEL`.
 - [ ] Dev uses a fixed local key, **refused outside dev**, mirroring the existing
-  `HMS_ENV` emulator guard. Test that guard.
+  `HELIVANTA_ENV` emulator guard. Test that guard.
 - [ ] **Prove it:** boot with no key → refuses, naming the variable. Boot with
-  the dev key and `HMS_ENV=production` → refuses.
+  the dev key and `HELIVANTA_ENV=production` → refuses.
 
 Commit: `feat: refuse to boot without a session signing key (#838)`
 

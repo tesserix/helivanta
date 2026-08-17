@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// DevHMSWebOrigin is the origin HMS_WEB_ORIGIN defaults to ONLY inside
+// DevHMSWebOrigin is the origin HELIVANTA_WEB_ORIGIN defaults to ONLY inside
 // Config.IsDev() (see resolveHMSWebOrigin) — the local dev stack's shell
 // origin, matching scripts/lib/zitadel.mjs's DEV_REDIRECT_URI so a fresh
 // clone's two independently-configured defaults still agree with each
@@ -21,13 +21,13 @@ const DevHMSWebOrigin = "http://localhost:4301"
 // HMSWebOrigin resolve to the same origin. See that function's doc
 // comment for what breaks if this is ever true.
 var ErrHostedLoginOriginMatchesWebOrigin = errors.New(
-	"config: ZITADEL_HOSTED_LOGIN_URL shares an origin with HMS_WEB_ORIGIN",
+	"config: ZITADEL_HOSTED_LOGIN_URL shares an origin with HELIVANTA_WEB_ORIGIN",
 )
 
-// ErrNoHMSWebOrigin is returned by resolveHMSWebOrigin when HMS_WEB_ORIGIN
+// ErrNoHMSWebOrigin is returned by resolveHMSWebOrigin when HELIVANTA_WEB_ORIGIN
 // is unset outside dev. See resolveHMSWebOrigin's doc comment for why an
 // unset value cannot simply fall back to DevHMSWebOrigin everywhere.
-var ErrNoHMSWebOrigin = errors.New("config: HMS_WEB_ORIGIN is not set")
+var ErrNoHMSWebOrigin = errors.New("config: HELIVANTA_WEB_ORIGIN is not set")
 
 // resolveHMSWebOrigin returns HMSWebOrigin, trimmed, or DevHMSWebOrigin
 // when it is unset AND c.IsDev() — never outside dev.
@@ -36,7 +36,7 @@ var ErrNoHMSWebOrigin = errors.New("config: HMS_WEB_ORIGIN is not set")
 // file, which had HMSWebOrigin default to DevHMSWebOrigin
 // unconditionally via Load()'s getenv(). That made
 // RequireDistinctHostedLoginOrigin inert exactly where it is needed
-// most: an unset HMS_WEB_ORIGIN in PRODUCTION compared the real
+// most: an unset HELIVANTA_WEB_ORIGIN in PRODUCTION compared the real
 // ZitadelHostedLoginURL against "http://localhost:4301", found no
 // collision (a real hosted-login URL is never literally
 // localhost:4301), and booted — the redirect loop this guard exists to
@@ -57,7 +57,7 @@ var ErrNoHMSWebOrigin = errors.New("config: HMS_WEB_ORIGIN is not set")
 // alternative is exactly the silent-passthrough this fix exists to
 // close.
 //
-// HMS_WEB_ORIGIN is consequently a NEW PRODUCTION PREREQUISITE as of
+// HELIVANTA_WEB_ORIGIN is consequently a NEW PRODUCTION PREREQUISITE as of
 // this fix: whatever deploys HMS's API (this repo does not own that —
 // see ZitadelLoginClientToken's PRODUCTION NOTE for the sibling case,
 // #45/tesserix-infra) must set it to HMS's real public origin
@@ -71,10 +71,10 @@ func (c Config) resolveHMSWebOrigin() (string, error) {
 		return DevHMSWebOrigin, nil
 	}
 	return "", fmt.Errorf(
-		"%w: refusing to boot without one outside HMS_ENV=dev — "+
+		"%w: refusing to boot without one outside HELIVANTA_ENV=dev — "+
 			"RequireDistinctHostedLoginOrigin cannot tell a real ZITADEL_HOSTED_LOGIN_URL "+
 			"apart from one misconfigured to loop every MFA-enrolled clinician back to "+
-			"HMS's own login page without HMS_WEB_ORIGIN to compare it against; set it to "+
+			"HMS's own login page without HELIVANTA_WEB_ORIGIN to compare it against; set it to "+
 			"HMS's own public origin (scheme + host, no path — e.g. https://hms.example.org)",
 		ErrNoHMSWebOrigin,
 	)
@@ -150,11 +150,11 @@ func (c Config) RequireDistinctHostedLoginOrigin() error {
 	}
 	web, err := url.Parse(hmsWebOrigin)
 	if err != nil {
-		return fmt.Errorf("config: HMS_WEB_ORIGIN is not a valid URL: %w", err)
+		return fmt.Errorf("config: HELIVANTA_WEB_ORIGIN is not a valid URL: %w", err)
 	}
 	if hosted.Scheme == web.Scheme && hosted.Host == web.Host {
 		return fmt.Errorf(
-			"%w: ZITADEL_HOSTED_LOGIN_URL=%q and HMS_WEB_ORIGIN=%q resolve to the "+
+			"%w: ZITADEL_HOSTED_LOGIN_URL=%q and HELIVANTA_WEB_ORIGIN=%q resolve to the "+
 				"same origin — refusing to boot: an MFA-enrolled clinician handed off "+
 				"from HMS's own login form would be sent right back to it, looping "+
 				"forever with no error anywhere; point ZITADEL_HOSTED_LOGIN_URL at "+

@@ -53,9 +53,9 @@ func run() error {
 	// Before anything else logs: until this runs, slog.Default() is the
 	// unconfigured text handler on stderr and nothing is redacted.
 	slog.SetDefault(logging.New(cfg.LogLevel))
-	// Logged once at boot because HMS_ENV silently gates production safety
+	// Logged once at boot because HELIVANTA_ENV silently gates production safety
 	// checks (see Config.IsDev) — a prod process accidentally started with
-	// HMS_ENV=dev would otherwise disable them with no signal anywhere.
+	// HELIVANTA_ENV=dev would otherwise disable them with no signal anywhere.
 	slog.Info("resolved environment", "env", cfg.Env, "is_dev", cfg.IsDev())
 
 	// Resolved before anything else that costs time or a network round
@@ -114,7 +114,7 @@ func run() error {
 	sessionKey := ed25519.NewKeyFromSeed(sessionSeed)
 	// Logging a fingerprint of the PUBLIC key (never the private key,
 	// never the seed) confirms the key loaded, the same way "resolved
-	// environment" confirms HMS_ENV without printing a secret. The
+	// environment" confirms HELIVANTA_ENV without printing a secret. The
 	// public key itself is not secret either, but a fingerprint keeps
 	// this line short and avoids training anyone to expect a raw key
 	// value in a log line.

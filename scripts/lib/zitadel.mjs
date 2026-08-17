@@ -5,7 +5,7 @@
 //
 // #854 Task 7: this used to drive Zitadel's REAL hosted login UI with a
 // headless Playwright browser (hostedUILogin/hostedUILoginOnce/
-// fillAndSubmit, now removed). #854 Task 1 repointed hms-web's login
+// fillAndSubmit, now removed). #854 Task 1 repointed helivanta-web's login
 // redirect at HMS's own /login, which broke that approach for every
 // caller — see verifyPasswordLogin's and passwordLoginIDToken's doc
 // comments for the two different ways it broke and what replaced it.
@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 
 const SECRETS_DIR = fileURLToPath(new URL("../../dev/zitadel/secrets/", import.meta.url));
 
-// The redirect_uris registered on the hms-web app (scripts/zitadel-
+// The redirect_uris registered on the helivanta-web app (scripts/zitadel-
 // bootstrap.mjs). apps/shell/app/api/auth/callback/page.tsx and
 // apps/shell/app/api/auth/silent-renew/page.tsx (#838 Task 7) are the real
 // handlers for the first two; passwordLoginIDToken below never actually
@@ -58,17 +58,17 @@ export function readClientID() {
   return match[1].trim();
 }
 
-// readMachinePAT reads the hms-seed-bot IAM_OWNER PAT Zitadel itself wrote
+// readMachinePAT reads the helivanta-seed-bot IAM_OWNER PAT Zitadel itself wrote
 // at first boot (docker-compose.dev.yml's zitadel service,
 // FirstInstance.Org.Machine.Pat) — the credential scripts/seed-dev.mjs and
 // scripts/zitadel-bootstrap.mjs use for every management-API call.
 export function readMachinePAT() {
   try {
-    return readFileSync(`${SECRETS_DIR}hms-seed.pat`, "utf8").trim();
+    return readFileSync(`${SECRETS_DIR}helivanta-seed.pat`, "utf8").trim();
   } catch (err) {
     if (err.code === "ENOENT") {
       throw new Error(
-        `${SECRETS_DIR}hms-seed.pat does not exist — Zitadel writes it at first ` +
+        `${SECRETS_DIR}helivanta-seed.pat does not exist — Zitadel writes it at first ` +
           `boot; check 'docker compose -f docker-compose.dev.yml logs zitadel' ` +
           `for a setup failure (the masterkey-length trap is the most likely ` +
           `cause; see docker-compose.dev.yml's zitadel service comment)`,
@@ -83,7 +83,7 @@ export function readMachinePAT() {
 // Session API calls with in production (docker-compose.dev.yml's zitadel
 // service, FirstInstance.Org.LoginClient.PatPath; Makefile's
 // ZITADEL_LOGIN_CLIENT_PAT_FILE). verifyPasswordLogin below uses it,
-// deliberately, rather than the hms-seed-bot IAM_OWNER PAT readMachinePAT
+// deliberately, rather than the helivanta-seed-bot IAM_OWNER PAT readMachinePAT
 // returns: proving a seeded account authenticates with the SAME credential
 // class and the SAME Zitadel v2 Session API HMS's own backend uses is a
 // closer analog to production than an IAM_OWNER PAT would be, even though
@@ -201,7 +201,7 @@ function b64url(buf) {
 // fillAndSubmit (#854 Task 7, removed — see git history if the old
 // Playwright-driven approach is ever needed again). Those drove Zitadel's
 // REAL hosted login UI with a headless browser; #854 Task 1 repointed
-// hms-web's login redirect at HMS's own /login instead, which broke both
+// helivanta-web's login redirect at HMS's own /login instead, which broke both
 // of that trio's callers the same way, for two different reasons:
 //
 //  - scripts/seed-dev.mjs runs during `make up`'s `seed` step, which is

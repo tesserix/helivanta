@@ -21,7 +21,7 @@ type SwitchResponse = { tenant_id: string };
  * The switch is one call: `POST /iam/me/tenant` re-checks membership (it
  * is the authority; this control only offers the choices the caller's own
  * `/iam/me/tenants` listing already named) and, on success, re-mints the
- * session and replaces the `hms_session` cookie itself via the response's
+ * session and replaces the `helivanta_session` cookie itself via the response's
  * Set-Cookie — the same way `POST /v1/auth/login` does for a fresh login.
  * There is no `custom_token` any more, and nothing for this component to
  * exchange: unlike the old GIP-backed design, a 200 here IS the switch.

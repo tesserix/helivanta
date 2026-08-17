@@ -203,7 +203,7 @@ control and fails closed (§3), unlike `LOG_LEVEL`.
 
 **This makes #45 (secrets management) a hard dependency** — the first time HMS
 has one. The plan must say what dev uses (a fixed local key, clearly marked and
-refused outside dev, mirroring the existing `HMS_ENV` emulator guard) and what
+refused outside dev, mirroring the existing `HELIVANTA_ENV` emulator guard) and what
 production requires.
 
 Key rotation is **out of scope here** and must be filed separately; the design

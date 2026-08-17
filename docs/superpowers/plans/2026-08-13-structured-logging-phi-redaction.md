@@ -32,7 +32,7 @@
 - Before any task is done: `make lint-go` clean, `cd backend && ./scripts/coverage-gate.sh` green (70% floor), `cd backend && go test -race ./...` green.
 - Commit messages are single-line conventional commits, no attribution, no `--signoff`.
 - Local stack ports are non-default (5432/6379/8080 are taken by an unrelated project). Start it with:
-  `HMS_PG_PORT=15432 HMS_NATS_PORT=14222 HMS_NATS_MONITOR_PORT=18222 HMS_REDIS_PORT=16379 HMS_OPENFGA_PORT=18090 HMS_GIP_PORT=19099 HMS_API_PORT=18080 make up`
+  `HELIVANTA_PG_PORT=15432 HELIVANTA_NATS_PORT=14222 HELIVANTA_NATS_MONITOR_PORT=18222 HELIVANTA_REDIS_PORT=16379 HELIVANTA_OPENFGA_PORT=18090 HELIVANTA_GIP_PORT=19099 HELIVANTA_API_PORT=18080 make up`
 - CI is blocked org-wide by a billing/spending-limit issue. Record local verification output as a PR comment.
 - **Every test in this plan must be proven non-vacuous**: break the assertion or the guard, watch the test fail, restore. Steps that require this say so explicitly. Four inert assertions have already been found on this codebase.
 
@@ -647,7 +647,7 @@ func TestNewRespectsLevel(t *testing.T) {
 
 // An unrecognised LOG_LEVEL degrades to info with a warning rather than
 // refusing to boot. A hospital's API must not fail to start over a typo in a
-// log level — the opposite of the HMS_ENV guards, where a wrong value would
+// log level — the opposite of the HELIVANTA_ENV guards, where a wrong value would
 // disable tenant isolation.
 func TestUnrecognisedLevelFallsBackToInfoAndWarns(t *testing.T) {
 	var buf bytes.Buffer
@@ -712,7 +712,7 @@ func NewWithWriter(w io.Writer, level string) *slog.Logger {
 	if !ok && strings.TrimSpace(level) != "" {
 		// Warn rather than fail: a mistyped log level cannot compromise
 		// tenant isolation, and a hospital's API should not refuse to boot
-		// over one. This is deliberately the opposite call from the HMS_ENV
+		// over one. This is deliberately the opposite call from the HELIVANTA_ENV
 		// guards, where a wrong value silently disables safety checks.
 		l.Warn("unrecognised LOG_LEVEL; defaulting to info", "value", level)
 	}
@@ -821,8 +821,8 @@ except a failure in `config.Load()` itself, which cannot fail.
 
 ```bash
 cd /Users/Mahesh.Sangawar/personal/tesserix-new/hms
-HMS_PG_PORT=15432 HMS_NATS_PORT=14222 HMS_NATS_MONITOR_PORT=18222 HMS_REDIS_PORT=16379 \
-  HMS_OPENFGA_PORT=18090 HMS_GIP_PORT=19099 HMS_API_PORT=18080 make up
+HELIVANTA_PG_PORT=15432 HELIVANTA_NATS_PORT=14222 HELIVANTA_NATS_MONITOR_PORT=18222 HELIVANTA_REDIS_PORT=16379 \
+  HELIVANTA_OPENFGA_PORT=18090 HELIVANTA_GIP_PORT=19099 HELIVANTA_API_PORT=18080 make up
 ```
 
 Then confirm the boot lines are JSON, not text:
@@ -831,7 +831,7 @@ Then confirm the boot lines are JSON, not text:
 cd backend && LOG_LEVEL=debug PORT=18081 \
   APP_DATABASE_URL='postgres://hms_app:hms_app@localhost:15432/hms?sslmode=disable' \
   ADMIN_DATABASE_URL='postgres://hms:hms@localhost:15432/hms?sslmode=disable' \
-  NATS_URL=nats://localhost:14222 OPENFGA_URL=http://localhost:18090 HMS_ENV=dev \
+  NATS_URL=nats://localhost:14222 OPENFGA_URL=http://localhost:18090 HELIVANTA_ENV=dev \
   go run ./cmd/api 2>&1 | head -5
 ```
 
@@ -2254,7 +2254,7 @@ wrapped in a redacting handler. `cmd/api` and `cmd/migrate` install it with
 case-insensitive. An unrecognised value degrades to `info` with a warning and
 the process still boots: a mistyped log level cannot compromise tenant
 isolation, and a hospital's API must not fail to start over a typo. This is
-deliberately the opposite call from the `HMS_ENV` guards.
+deliberately the opposite call from the `HELIVANTA_ENV` guards.
 
 Every emitted line — message and attributes, recursively through groups,
 wrapped errors and struct fields — passes through redaction:

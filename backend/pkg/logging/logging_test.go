@@ -63,7 +63,7 @@ func TestNewRespectsLevel(t *testing.T) {
 
 // An unrecognised LOG_LEVEL degrades to info with a warning rather than
 // refusing to boot. A hospital's API must not fail to start over a typo in a
-// log level — the opposite of the HMS_ENV guards, where a wrong value would
+// log level — the opposite of the HELIVANTA_ENV guards, where a wrong value would
 // disable tenant isolation.
 func TestUnrecognisedLevelFallsBackToInfoAndWarns(t *testing.T) {
 	var buf bytes.Buffer

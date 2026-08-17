@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const SessionCookie = "hms_session"
+const SessionCookie = "helivanta_session"
 
 const principalKey = "authn.principal"
 

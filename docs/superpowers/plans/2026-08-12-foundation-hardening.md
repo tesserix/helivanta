@@ -18,7 +18,7 @@
 - `make lint-go` must stay at 0 issues; `cd backend && ./scripts/coverage-gate.sh` must stay green (70% floor); `go test -race ./...` must pass.
 - Modules must not import each other — enforced by `TestModulesDoNotImportEachOther` and a depguard rule. `pkg/*` and `internal/platform/*` are not modules and may be imported freely.
 - Tests need Docker (testcontainers). The dev stack may occupy ports; tests use their own containers.
-- `HMS_ENV` defaults to `production`. Dev opts in explicitly.
+- `HELIVANTA_ENV` defaults to `production`. Dev opts in explicitly.
 
 ---
 
@@ -51,7 +51,7 @@ import (
 // protects nothing, because the deployment that forgets to set the
 // variable is exactly the one that needed protecting.
 func TestEnvDefaultsToProduction(t *testing.T) {
-	t.Setenv("HMS_ENV", "")
+	t.Setenv("HELIVANTA_ENV", "")
 	cfg := config.Load()
 	require.Equal(t, "production", cfg.Env)
 	require.False(t, cfg.IsDev())
@@ -68,8 +68,8 @@ func TestIsDevOnlyForExactDev(t *testing.T) {
 		{"production", false},
 		{"staging", false},
 	} {
-		t.Setenv("HMS_ENV", tc.env)
-		require.Equal(t, tc.isDev, config.Load().IsDev(), "HMS_ENV=%q", tc.env)
+		t.Setenv("HELIVANTA_ENV", tc.env)
+		require.Equal(t, tc.isDev, config.Load().IsDev(), "HELIVANTA_ENV=%q", tc.env)
 	}
 }
 ```
@@ -94,7 +94,7 @@ type Config struct {
 In `Load()`, as the first entry:
 
 ```go
-		Env: getenv("HMS_ENV", "production"),
+		Env: getenv("HELIVANTA_ENV", "production"),
 ```
 
 At the end of the file:
@@ -102,7 +102,7 @@ At the end of the file:
 ```go
 // IsDev reports whether this process is running in a developer
 // environment. It defaults to false: the guards that consult it disable
-// production safety checks, so an unset or misspelled HMS_ENV must fail
+// production safety checks, so an unset or misspelled HELIVANTA_ENV must fail
 // closed rather than silently unlock them.
 func (c Config) IsDev() bool { return c.Env == "dev" }
 ```
@@ -112,30 +112,30 @@ func (c Config) IsDev() bool { return c.Env == "dev" }
 Run: `cd backend && go test ./internal/config/ -v`
 Expected: PASS
 
-- [ ] **Step 5: Set HMS_ENV=dev for the dev targets**
+- [ ] **Step 5: Set HELIVANTA_ENV=dev for the dev targets**
 
 In the repo-root `Makefile`, `dev-api` currently reads:
 
 ```make
 dev-api:
-	cd backend && FIREBASE_AUTH_EMULATOR_HOST=$${FIREBASE_AUTH_EMULATOR_HOST:-localhost:$(HMS_GIP_PORT)} PORT=$${PORT:-$(HMS_API_PORT)} go run ./cmd/api
+	cd backend && FIREBASE_AUTH_EMULATOR_HOST=$${FIREBASE_AUTH_EMULATOR_HOST:-localhost:$(HELIVANTA_GIP_PORT)} PORT=$${PORT:-$(HELIVANTA_API_PORT)} go run ./cmd/api
 ```
 
-Add `HMS_ENV`:
+Add `HELIVANTA_ENV`:
 
 ```make
-# HMS_ENV=dev is required here: the API refuses to start with
+# HELIVANTA_ENV=dev is required here: the API refuses to start with
 # FIREBASE_AUTH_EMULATOR_HOST set outside dev, because the emulator makes
 # ID token signature verification a no-op.
 dev-api:
-	cd backend && HMS_ENV=$${HMS_ENV:-dev} FIREBASE_AUTH_EMULATOR_HOST=$${FIREBASE_AUTH_EMULATOR_HOST:-localhost:$(HMS_GIP_PORT)} PORT=$${PORT:-$(HMS_API_PORT)} go run ./cmd/api
+	cd backend && HELIVANTA_ENV=$${HELIVANTA_ENV:-dev} FIREBASE_AUTH_EMULATOR_HOST=$${FIREBASE_AUTH_EMULATOR_HOST:-localhost:$(HELIVANTA_GIP_PORT)} PORT=$${PORT:-$(HELIVANTA_API_PORT)} go run ./cmd/api
 ```
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add backend/internal/config/config.go backend/internal/config/config_test.go Makefile
-git commit -m "feat: HMS_ENV defaulting to production, with IsDev for the safety guards"
+git commit -m "feat: HELIVANTA_ENV defaulting to production, with IsDev for the safety guards"
 ```
 
 ---
@@ -241,7 +241,7 @@ func newAuthClient(ctx context.Context, projectID string, allowEmulator bool) (*
 		return nil, fmt.Errorf(
 			"authn: FIREBASE_AUTH_EMULATOR_HOST=%q is set outside a dev environment; "+
 				"the emulator makes ID token signature verification a no-op, so any "+
-				"forged token would be accepted. Unset it, or set HMS_ENV=dev", host)
+				"forged token would be accepted. Unset it, or set HELIVANTA_ENV=dev", host)
 	}
 	app, err := firebase.NewApp(ctx, &firebase.Config{ProjectID: projectID})
 	if err != nil {
@@ -1112,13 +1112,13 @@ Expected: all green.
 
 ```bash
 cd backend
-HMS_ENV=production FIREBASE_AUTH_EMULATOR_HOST=localhost:19099 go run ./cmd/api 2>&1 | head -3
+HELIVANTA_ENV=production FIREBASE_AUTH_EMULATOR_HOST=localhost:19099 go run ./cmd/api 2>&1 | head -3
 ```
 Expected: refuses to start, naming `FIREBASE_AUTH_EMULATOR_HOST`. (Use whichever emulator port your stack runs on.)
 
 ```bash
 cd backend
-HMS_ENV=dev APP_DATABASE_URL="$ADMIN_DATABASE_URL" go run ./cmd/api 2>&1 | head -3
+HELIVANTA_ENV=dev APP_DATABASE_URL="$ADMIN_DATABASE_URL" go run ./cmd/api 2>&1 | head -3
 ```
 Expected: refuses to start, naming the bypass capability.
 
@@ -1143,7 +1143,7 @@ Closes #774 Tier 0. Unblocks #70.
 
 Eight findings from the five-specialist foundation audit, in three groups.
 
-**Fail-fast guards.** `HMS_ENV` (defaulting to `production`) gates two new refusals: constructing a GIP client with `FIREBASE_AUTH_EMULATOR_HOST` set outside dev — the emulator makes ID token signature verification a no-op, so a forged token would be accepted — and opening an app database pool whose role can bypass RLS, which would silently serve every tenant's data with every test still green. Consumer and dispatcher panics are now contained, so a malformed payload dead-letters one event instead of terminating the API for all tenants.
+**Fail-fast guards.** `HELIVANTA_ENV` (defaulting to `production`) gates two new refusals: constructing a GIP client with `FIREBASE_AUTH_EMULATOR_HOST` set outside dev — the emulator makes ID token signature verification a no-op, so a forged token would be accepted — and opening an app database pool whose role can bypass RLS, which would silently serve every tenant's data with every test still green. Consumer and dispatcher panics are now contained, so a malformed payload dead-letters one event instead of terminating the API for all tenants.
 
 **RLS correctness.** The tenancy predicate moves into `hms_tenant_visible(uuid)`, adopted by every module's policies via a per-module migration, so widening it for hospital groups later is one function replacement rather than an ALTER POLICY per table across thirty modules. `WITH CHECK` deliberately stays pinned to strict equality — reads may widen, writes must not. `LintRLS` inverts: it now enumerates every table and subtracts an allowlist, so a module that forgets `tenant_id` entirely fails, which the old direction could not see. `reference_ping_receipts` gains the tenant column it always needed.
 
@@ -1161,7 +1161,7 @@ Eight findings from the five-specialist foundation audit, in three groups.
 
 - Five modules were converted rather than just the generator template. Leaving four on closures and the template on methods is the two-patterns-forever problem this is meant to prevent.
 - `outbox_events` stays on the lint allowlist. It holds patient names outside RLS, which is real, but giving it a `tenant_id` changes the dispatcher's access path — tracked on #774 Tier 2.
-- `HMS_ENV` defaulting to `production` means a bare `go run ./cmd/api` against the emulator now refuses until you set it. `make dev-api` sets it.
+- `HELIVANTA_ENV` defaulting to `production` means a bare `go run ./cmd/api` against the emulator now refuses until you set it. `make dev-api` sets it.
 BODY
 )"
 ```

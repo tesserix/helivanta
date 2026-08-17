@@ -63,7 +63,7 @@ const BULK_SPECS = /(pagination|ratelimit)\.spec\.ts/;
 // / dev-web-idle-timeout) for `--project=idle-timeout`, then a swap back —
 // see scripts/e2e.sh.
 const IDLE_TIMEOUT_SPEC = /idle-timeout\.spec\.ts/;
-const IDLE_TIMEOUT_BASE_URL = "http://localhost:4399"; // Makefile's HMS_IDLE_WEB_PORT
+const IDLE_TIMEOUT_BASE_URL = "http://localhost:4399"; // Makefile's HELIVANTA_IDLE_WEB_PORT
 const PROJECT_FLAG_GIVEN = process.argv.some(
   (arg) => arg === "--project" || arg.startsWith("--project="),
 );

@@ -38,7 +38,7 @@ what the handoff assumes. Each was checked live, not read from documentation.
 | **There is no dev cluster** | The `tesseract-devtest-gke` kubeconfig context is stale: `dial tcp 34.151.129.108:443: connect: network is unreachable`. Confirmed by the product owner: prod only. |
 | **HMS is not deployed anywhere** | No Dockerfile in this repo; no chart, ArgoCD app, namespace or `namespaceWhitelist` entry for HMS in `tesserix-k8s` |
 | HMS's dev PATs are not in git | `git check-ignore` resolves `dev/zitadel/secrets/` from `.gitignore:21`; `git ls-files dev/` lists only `init-db.sql` and `Caddyfile` |
-| Both boot guards already refuse correctly | `config.SessionSigningKeySeed` refuses absent, malformed, and the committed dev key outside `HMS_ENV=dev`; `config.RequireZitadelLoginClientToken` refuses absent |
+| Both boot guards already refuse correctly | `config.SessionSigningKeySeed` refuses absent, malformed, and the committed dev key outside `HELIVANTA_ENV=dev`; `config.RequireZitadelLoginClientToken` refuses absent |
 
 The last row is why this spec adds **no boot enforcement**: it already exists
 and is correct. What does not exist is where the values come from.
@@ -57,9 +57,9 @@ The handoff counts three boot-refusing values. Only two are **secrets**:
 |---|---|---|
 | `SESSION_SIGNING_KEY` | secret — mints every session; a leak is credential forgery | OpenBao |
 | `ZITADEL_LOGIN_CLIENT_TOKEN` | secret — instance-level; see D2 | OpenBao |
-| `HMS_WEB_ORIGIN` | **config** — a public origin string | deployment env (#824) |
+| `HELIVANTA_WEB_ORIGIN` | **config** — a public origin string | deployment env (#824) |
 
-`HMS_WEB_ORIGIN` refuses boot when unset, which is why it reads like a secret,
+`HELIVANTA_WEB_ORIGIN` refuses boot when unset, which is why it reads like a secret,
 but refusing to boot without a value and *being confidential* are different
 properties. It is the origin HMS's own frontend is served from — visible in
 every browser address bar. Filing it as a secret would add a rotation surface

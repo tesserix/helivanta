@@ -21,7 +21,7 @@ import (
 
 // startupTimeoutEnv overrides how long a container may take to become
 // ready. Point it at a larger value on a slow or heavily loaded machine.
-const startupTimeoutEnv = "HMS_TEST_CONTAINER_TIMEOUT"
+const startupTimeoutEnv = "HELIVANTA_TEST_CONTAINER_TIMEOUT"
 
 // defaultStartupTimeout is deliberately far above the time a container
 // needs when it starts alone (a few seconds). `go test ./...` runs up to

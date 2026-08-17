@@ -89,7 +89,7 @@ func skipUnlessDevStackIsUp(t *testing.T) integrationEnv {
 		issuer:      issuer,
 		clientID:    clientID,
 		token:       token,
-		redirectURI: getenvOrDefault("HMS_DEV_REDIRECT_URI", "http://localhost:4301/api/auth/callback"),
+		redirectURI: getenvOrDefault("HELIVANTA_DEV_REDIRECT_URI", "http://localhost:4301/api/auth/callback"),
 	}
 }
 
@@ -100,8 +100,8 @@ type integrationEnv struct {
 	redirectURI string
 }
 
-// skipUnlessSeedPATIsAvailable resolves the hms-seed-bot IAM_OWNER PAT
-// (dev/zitadel/secrets/hms-seed.pat, same file scripts/lib/zitadel.mjs's
+// skipUnlessSeedPATIsAvailable resolves the helivanta-seed-bot IAM_OWNER PAT
+// (dev/zitadel/secrets/helivanta-seed.pat, same file scripts/lib/zitadel.mjs's
 // readMachinePAT reads) — the credential org-level policy ADMINISTRATION
 // calls need. This is deliberately a SEPARATE credential from
 // integrationEnv.token: the login-client PAT can READ the login policy
@@ -122,10 +122,10 @@ func skipUnlessSeedPATIsAvailable(t *testing.T) string {
 	t.Helper()
 	token := os.Getenv("ZITADEL_SEED_TOKEN")
 	if token == "" {
-		token = readFileTrimmed(t, "hms-seed.pat")
+		token = readFileTrimmed(t, "helivanta-seed.pat")
 	}
 	if token == "" {
-		t.Skip("dev/zitadel/secrets/hms-seed.pat not found and ZITADEL_SEED_TOKEN unset — " +
+		t.Skip("dev/zitadel/secrets/helivanta-seed.pat not found and ZITADEL_SEED_TOKEN unset — " +
 			"run `make dev-infra` to provision the local stack before running this test")
 	}
 	return token
@@ -310,7 +310,7 @@ func postPasswordReal(t *testing.T, r *gin.Engine, authRequestID, loginName, pas
 }
 
 // devSeededEmail/devSeededPassword are the account
-// docs/superpowers/plans/2026-08-16-hms-login-client.md and this task's
+// docs/superpowers/plans/2026-08-16-helivanta-login-client.md and this task's
 // own brief name as already seeded into the local dev stack
 // (scripts/seed-dev.mjs) — this test does not seed it itself.
 const (

@@ -16,7 +16,7 @@ import (
 // paths on the identical scheme+host still count as the same origin.
 func TestRequireDistinctHostedLoginOrigin_SameOrigin_Refuses(t *testing.T) {
 	t.Setenv("ZITADEL_HOSTED_LOGIN_URL", "http://localhost:4301/login")
-	t.Setenv("HMS_WEB_ORIGIN", "http://localhost:4301")
+	t.Setenv("HELIVANTA_WEB_ORIGIN", "http://localhost:4301")
 
 	cfg := config.Load()
 	err := cfg.RequireDistinctHostedLoginOrigin()
@@ -24,7 +24,7 @@ func TestRequireDistinctHostedLoginOrigin_SameOrigin_Refuses(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, config.ErrHostedLoginOriginMatchesWebOrigin)
 	require.Contains(t, err.Error(), "ZITADEL_HOSTED_LOGIN_URL")
-	require.Contains(t, err.Error(), "HMS_WEB_ORIGIN")
+	require.Contains(t, err.Error(), "HELIVANTA_WEB_ORIGIN")
 }
 
 // TestRequireDistinctHostedLoginOrigin_ExactSameURL_Refuses covers the
@@ -32,7 +32,7 @@ func TestRequireDistinctHostedLoginOrigin_SameOrigin_Refuses(t *testing.T) {
 // HMS's own login page URL, path and all.
 func TestRequireDistinctHostedLoginOrigin_ExactSameURL_Refuses(t *testing.T) {
 	t.Setenv("ZITADEL_HOSTED_LOGIN_URL", "http://localhost:4301/login")
-	t.Setenv("HMS_WEB_ORIGIN", "http://localhost:4301/login")
+	t.Setenv("HELIVANTA_WEB_ORIGIN", "http://localhost:4301/login")
 
 	cfg := config.Load()
 	err := cfg.RequireDistinctHostedLoginOrigin()
@@ -45,13 +45,13 @@ func TestRequireDistinctHostedLoginOrigin_ExactSameURL_Refuses(t *testing.T) {
 // guard does not fight the dev stack's own defaults: Zitadel's hosted
 // login (localhost:20080) and HMS's own frontend (localhost:4301) are
 // different origins out of the box, with nothing overridden — but ONLY
-// inside HMS_ENV=dev, which this test sets explicitly rather than relying
+// inside HELIVANTA_ENV=dev, which this test sets explicitly rather than relying
 // on Load()'s own "unset defaults to production" behaviour (proven
 // separately by TestRequireDistinctHostedLoginOrigin_UnsetOutsideDev_Refuses
 // immediately below, which is the review finding this pair exists to
 // pin both directions of).
 func TestRequireDistinctHostedLoginOrigin_DevDefaults_Accepted(t *testing.T) {
-	t.Setenv("HMS_ENV", "dev")
+	t.Setenv("HELIVANTA_ENV", "dev")
 
 	cfg := config.Load()
 	err := cfg.RequireDistinctHostedLoginOrigin()
@@ -61,23 +61,23 @@ func TestRequireDistinctHostedLoginOrigin_DevDefaults_Accepted(t *testing.T) {
 
 // TestRequireDistinctHostedLoginOrigin_UnsetOutsideDev_Refuses is
 // Finding 6's core claim: an EARLIER version of this file let
-// HMS_WEB_ORIGIN default to DevHMSWebOrigin unconditionally, which made
-// the guard inert in production — an unset HMS_WEB_ORIGIN there compared
+// HELIVANTA_WEB_ORIGIN default to DevHMSWebOrigin unconditionally, which made
+// the guard inert in production — an unset HELIVANTA_WEB_ORIGIN there compared
 // the real ZITADEL_HOSTED_LOGIN_URL against "http://localhost:4301",
 // found no collision, and booted, leaving the redirect loop this guard
 // exists to make unrepresentable fully possible with nothing anywhere
-// reporting it. Covers every non-dev value HMS_ENV can plausibly hold,
+// reporting it. Covers every non-dev value HELIVANTA_ENV can plausibly hold,
 // including simply being unset (Load()'s own default, per
 // TestEnvDefaultsToProduction in config_test.go) — mirroring the same
 // table SessionSigningKeySeed's dev-key guard already runs
 // (signingkey_test.go) for the identical class of check.
 func TestRequireDistinctHostedLoginOrigin_UnsetOutsideDev_Refuses(t *testing.T) {
 	for _, env := range []string{"", "production", "staging"} {
-		t.Run("HMS_ENV="+env, func(t *testing.T) {
-			t.Setenv("HMS_ENV", env)
-			t.Setenv("HMS_WEB_ORIGIN", "")
+		t.Run("HELIVANTA_ENV="+env, func(t *testing.T) {
+			t.Setenv("HELIVANTA_ENV", env)
+			t.Setenv("HELIVANTA_WEB_ORIGIN", "")
 			// A real-looking hosted-login URL, so the ONLY thing this
-			// test can be failing on is the missing HMS_WEB_ORIGIN, not
+			// test can be failing on is the missing HELIVANTA_WEB_ORIGIN, not
 			// an incidental origin collision with some other default.
 			t.Setenv("ZITADEL_HOSTED_LOGIN_URL", "https://auth.tesserix.app/ui/v2/login")
 
@@ -86,7 +86,7 @@ func TestRequireDistinctHostedLoginOrigin_UnsetOutsideDev_Refuses(t *testing.T) 
 
 			require.Error(t, err)
 			require.ErrorIs(t, err, config.ErrNoHMSWebOrigin)
-			require.Contains(t, err.Error(), "HMS_WEB_ORIGIN")
+			require.Contains(t, err.Error(), "HELIVANTA_WEB_ORIGIN")
 		})
 	}
 }
@@ -98,7 +98,7 @@ func TestRequireDistinctHostedLoginOrigin_UnsetOutsideDev_Refuses(t *testing.T) 
 // configuration.
 func TestRequireDistinctHostedLoginOrigin_DifferentHost_Accepted(t *testing.T) {
 	t.Setenv("ZITADEL_HOSTED_LOGIN_URL", "https://auth.tesserix.app/ui/v2/login")
-	t.Setenv("HMS_WEB_ORIGIN", "https://hms.tesserix.app")
+	t.Setenv("HELIVANTA_WEB_ORIGIN", "https://hms.tesserix.app")
 
 	cfg := config.Load()
 	err := cfg.RequireDistinctHostedLoginOrigin()
@@ -112,7 +112,7 @@ func TestRequireDistinctHostedLoginOrigin_DifferentHost_Accepted(t *testing.T) {
 // other's server for this purpose), so this must not false-positive.
 func TestRequireDistinctHostedLoginOrigin_SameHostDifferentScheme_Accepted(t *testing.T) {
 	t.Setenv("ZITADEL_HOSTED_LOGIN_URL", "https://hms.tesserix.app/ui/v2/login")
-	t.Setenv("HMS_WEB_ORIGIN", "http://hms.tesserix.app")
+	t.Setenv("HELIVANTA_WEB_ORIGIN", "http://hms.tesserix.app")
 
 	cfg := config.Load()
 	err := cfg.RequireDistinctHostedLoginOrigin()
@@ -126,7 +126,7 @@ func TestRequireDistinctHostedLoginOrigin_SameHostDifferentScheme_Accepted(t *te
 // proven distinct from anything, so it must not be treated as safe.
 func TestRequireDistinctHostedLoginOrigin_MalformedURL_Refuses(t *testing.T) {
 	t.Setenv("ZITADEL_HOSTED_LOGIN_URL", "http://[::1]:namedport/login")
-	t.Setenv("HMS_WEB_ORIGIN", "http://localhost:4301")
+	t.Setenv("HELIVANTA_WEB_ORIGIN", "http://localhost:4301")
 
 	cfg := config.Load()
 	err := cfg.RequireDistinctHostedLoginOrigin()

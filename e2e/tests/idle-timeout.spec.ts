@@ -22,7 +22,7 @@ import { login } from "./support/login";
 // cookie without any interference from whatever the BROWSER's own
 // idle-tracking JS (packages/ui/src/idle-timer.ts) is concurrently doing
 // with that same cookie.
-const IDLE_API_URL = "http://localhost:8099"; // Makefile's HMS_IDLE_API_PORT
+const IDLE_API_URL = "http://localhost:8099"; // Makefile's HELIVANTA_IDLE_API_PORT
 const IDLE_TIMEOUT_SECONDS = 20; // Makefile's IDLE_TIMEOUT_TEST_VALUE
 // Comfortably past the deadline (server clock, real wall time — nothing
 // here is mocked) without inflating the run unnecessarily. The dominant
@@ -46,7 +46,7 @@ test("an untouched session is refused after IDLE_TIMEOUT and returns to a real s
   );
   expect(initialCheck, "a freshly minted session must be accepted").toBe(true);
 
-  // Capture the exact `hms_session` cookie value NOW, before any waiting.
+  // Capture the exact `helivanta_session` cookie value NOW, before any waiting.
   // This is what step 3 below interrogates directly — capturing it here,
   // rather than re-reading it after the wait, is what keeps that
   // assertion honest: if it were re-read afterwards it could just as
@@ -57,8 +57,8 @@ test("an untouched session is refused after IDLE_TIMEOUT and returns to a real s
   // specifically — only that a cleared cookie is rejected, which is a
   // different and much weaker claim.
   const cookies = await page.context().cookies(page.url());
-  const sessionCookie = cookies.find((c) => c.name === "hms_session");
-  expect(sessionCookie, "no hms_session cookie after a successful sign-in").toBeTruthy();
+  const sessionCookie = cookies.find((c) => c.name === "helivanta_session");
+  expect(sessionCookie, "no helivanta_session cookie after a successful sign-in").toBeTruthy();
   const capturedSession = sessionCookie!.value;
 
   // --- 2. Do nothing past the window -------------------------------------
@@ -68,7 +68,7 @@ test("an untouched session is refused after IDLE_TIMEOUT and returns to a real s
 
   // --- 3. The next API call is refused — assert against the API ---------
   // CRITICAL (this file's whole reason to exist): apps/shell/middleware.ts
-  // admits any request carrying an `hms_session` cookie without
+  // admits any request carrying an `helivanta_session` cookie without
   // inspecting it, so the dashboard renders — heading and all — for a
   // session the API refuses on every call. Asserting on that heading, or
   // on a `/login` redirect the BROWSER's own idle-tracker JS might
@@ -85,7 +85,7 @@ test("an untouched session is refused after IDLE_TIMEOUT and returns to a real s
   // refuses THIS token, not merely that some cookie, cleared by some
   // other path, no longer works.
   const refused = await request.get(`${IDLE_API_URL}${PERMISSIONS_PATH}`, {
-    headers: { Cookie: `hms_session=${capturedSession}` },
+    headers: { Cookie: `helivanta_session=${capturedSession}` },
   });
   expect(refused.status(), "the API must refuse a session past its idle_deadline").toBe(401);
   const body = (await refused.json()) as { error?: string };

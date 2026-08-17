@@ -500,7 +500,7 @@ line built from one of its errors cannot leak it either.
 A missing `ZITADEL_LOGIN_CLIENT_TOKEN` is a **boot refusal**, not a
 degraded mode: without it the API cannot check a credential at all, and
 starting anyway would serve a login form that fails every submission. So
-is a missing **`HMS_WEB_ORIGIN`** outside `HMS_ENV=dev` — it is the
+is a missing **`HELIVANTA_WEB_ORIGIN`** outside `HELIVANTA_ENV=dev` — it is the
 origin HMS's own `/login` is served from, and
 `config.RequireDistinctHostedLoginOrigin` compares it against
 `ZITADEL_HOSTED_LOGIN_URL` to refuse a configuration where the handoff
@@ -854,7 +854,7 @@ process logger: a JSON handler on stdout, writing through a **redacting
 to `info` silently (the ordinary unset case, not a mistake). A mistyped log
 level cannot compromise tenant isolation, and a hospital's API must not
 fail to start over a typo — this is deliberately the opposite call from the
-`HMS_ENV` guards, which fail closed because a wrong value there could
+`HELIVANTA_ENV` guards, which fail closed because a wrong value there could
 silently disable a safety check.
 
 **Redaction happens at the writer, not the handler.** Every line `slog`'s

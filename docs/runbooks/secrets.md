@@ -25,9 +25,9 @@ a real read under it, which is a separate, not-yet-done task (see D7).
 |---|---|---|---|
 | `SESSION_SIGNING_KEY` | `kv/data/hms/api/session-signing-key` | Signs and verifies every HMS session token (Ed25519 seed) | Credential forgery — holder can mint valid sessions for any user, indistinguishable from a real login, until the key is rotated |
 | `ZITADEL_LOGIN_CLIENT_TOKEN` | `kv/data/hms/api/zitadel-login-client-token` | PAT for HMS's `IAM_LOGIN_CLIENT` machine user; lets HMS's own login form check credentials and finalise sign-ins against production Zitadel | Instance-level (D2): a leaked PAT can finalise an OIDC auth request for **any** app on the shared Zitadel instance, not just HMS. HMS holding its own machine user buys independent revocation, attribution, and rotation — it does not narrow what the credential can do once read |
-| `HMS_WEB_ORIGIN` | **not in OpenBao — see below** | The public origin HMS's own frontend is served from | N/A — see below |
+| `HELIVANTA_WEB_ORIGIN` | **not in OpenBao — see below** | The public origin HMS's own frontend is served from | N/A — see below |
 
-**`HMS_WEB_ORIGIN` is config, not a secret (D1).** It refuses boot when unset,
+**`HELIVANTA_WEB_ORIGIN` is config, not a secret (D1).** It refuses boot when unset,
 which is why it is easy to mistake for one, but it is a public origin string —
 visible in every browser address bar — not a confidential value. It belongs
 in the deployment environment (#824), not under `kv/data/hms/*`. It is

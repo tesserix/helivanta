@@ -89,7 +89,7 @@ renames.
 
 ## D3 — Environment variables become `HELIVANTA_*`
 
-All 16, including `HMS_ENV` and `HMS_WEB_ORIGIN`.
+All 16, including `HELIVANTA_ENV` and `HELIVANTA_WEB_ORIGIN`.
 
 Free now for the reason D-observed records: nothing is deployed, so there is no
 running configuration to migrate. After #824 ships a deployment this stops being
@@ -100,9 +100,9 @@ The cost is local and real: every developer's `.env` breaks. `.env.example`,
 that a fresh clone works, and the PR body tells existing developers what to
 rename in their own `.env`.
 
-**`HMS_ENV` deserves a specific note.** `config.IsDev()` compares it to `"dev"`
+**`HELIVANTA_ENV` deserves a specific note.** `config.IsDev()` compares it to `"dev"`
 and defaults to false so that an unset or misspelled value fails closed. A
-rename that leaves a stale `HMS_ENV=dev` in someone's shell does not silently
+rename that leaves a stale `HELIVANTA_ENV=dev` in someone's shell does not silently
 unlock dev behaviour — it fails closed into production mode, which is the safe
 direction and is why this rename cannot open a hole.
 

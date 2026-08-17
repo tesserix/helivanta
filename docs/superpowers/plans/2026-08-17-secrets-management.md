@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - **Spec:** `docs/superpowers/specs/2026-08-17-secrets-management-design.md`. Every decision reference below (D1–D7) is to that file.
-- **Two secrets, not three** (D1): `SESSION_SIGNING_KEY` and `ZITADEL_LOGIN_CLIENT_TOKEN`. `HMS_WEB_ORIGIN` is config and must NOT be put in OpenBao.
+- **Two secrets, not three** (D1): `SESSION_SIGNING_KEY` and `ZITADEL_LOGIN_CLIENT_TOKEN`. `HELIVANTA_WEB_ORIGIN` is config and must NOT be put in OpenBao.
 - **No secret-store code in HMS** (D4): no vendor SDK, no `secrets` package, no resolution layer. Adding one fails this plan's intent even if tests pass.
 - **OpenBao paths** (D3), exactly: `kv/data/hms/api/session-signing-key`, `kv/data/hms/api/zitadel-login-client-token`. Policy `read-hms`. Role `app-hms_hms-api`. Namespace `hms`. ServiceAccount `hms-api`. No `{env}` segment.
 - **This slice adds no boot enforcement.** `config.SessionSigningKeySeed` and `config.RequireZitadelLoginClientToken` already refuse correctly and already have tests. Do not add duplicate coverage.
@@ -49,7 +49,7 @@ Task 4 touches `tesserix-k8s` (separate repo) and the production cluster; it cre
 
 **Context the implementer needs.** A baseline scan was already run against this repo (2026-08-17, `zricethezav/gitleaks:latest`, 309 commits): **9 findings, all benign**, in two classes:
 
-1. The deliberately committed dev Ed25519 key `X5yoi73f6FRR8XH2ZfRBjanOZLm/bkae0QV7wGJRuf8=` — at `backend/internal/config/signingkey.go:22` and `Makefile:138` (and at historical line positions in older commits). It is committed on purpose; `SessionSigningKeySeed` refuses to honour it outside `HMS_ENV=dev`.
+1. The deliberately committed dev Ed25519 key `X5yoi73f6FRR8XH2ZfRBjanOZLm/bkae0QV7wGJRuf8=` — at `backend/internal/config/signingkey.go:22` and `Makefile:138` (and at historical line positions in older commits). It is committed on purpose; `SessionSigningKeySeed` refuses to honour it outside `HELIVANTA_ENV=dev`.
 2. PHI-redaction test fixtures flagged on entropy — repeating UUIDs like `11111111-1111-1111-1111-111111111111` and `ref_9876543210_x`, in `backend/pkg/logging/redact_test.go` and quoted in `docs/superpowers/plans/2026-08-13-structured-logging-phi-redaction.md`.
 
 **Allowlist by secret VALUE, never by file path.** A path allowlist on `Makefile` or `signingkey.go` would hide a real secret added to those files later. Scoping the exception to the known literal keeps every other secret in those same files caught. This is D5's whole point: an exception that is broad turns the gate into paperwork.
@@ -78,7 +78,7 @@ regexes = [
   # The dev Ed25519 seed, committed on purpose as
   # config.DevSessionSigningKey and mirrored in the Makefile's dev-api
   # target. It is not a leak: SessionSigningKeySeed REFUSES to honour it
-  # outside HMS_ENV=dev, so a production process cannot be tricked into
+  # outside HELIVANTA_ENV=dev, so a production process cannot be tricked into
   # signing with it. Removing it would not improve security and would
   # break every developer's stack.
   '''X5yoi73f6FRR8XH2ZfRBjanOZLm/bkae0QV7wGJRuf8=''',
@@ -384,7 +384,7 @@ git commit -m "feat: mint session signing keys in the format the validator accep
 
 Create `docs/runbooks/secrets.md`. It must contain, at minimum:
 
-**Inventory** — a table of the two secrets with, for each: the env var, the OpenBao path, what it authorises, and the blast radius if leaked. Plus an explicit row stating `HMS_WEB_ORIGIN` is **config, not a secret**, and belongs in the deployment env (D1) — recorded here because it refuses boot like a secret does and will otherwise be filed as one.
+**Inventory** — a table of the two secrets with, for each: the env var, the OpenBao path, what it authorises, and the blast radius if leaked. Plus an explicit row stating `HELIVANTA_WEB_ORIGIN` is **config, not a secret**, and belongs in the deployment env (D1) — recorded here because it refuses boot like a secret does and will otherwise be filed as one.
 
 **Delivery chain** (D4), verbatim:
 ```
@@ -431,7 +431,7 @@ kv/data/hms/api/zitadel-login-client-token
 policy read-hms → kv/data/hms/*
 ```
 
-No `{env}` segment: environments are separated by cluster and namespace. See `docs/superpowers/specs/2026-08-17-secrets-management-design.md` D3 for the full reasoning, and D1 for why `HMS_WEB_ORIGIN` is config rather than a secret.
+No `{env}` segment: environments are separated by cluster and namespace. See `docs/superpowers/specs/2026-08-17-secrets-management-design.md` D3 for the full reasoning, and D1 for why `HELIVANTA_WEB_ORIGIN` is config rather than a secret.
 EOF
 )"
 ```

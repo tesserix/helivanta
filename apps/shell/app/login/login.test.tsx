@@ -42,7 +42,7 @@ function jsonResponse(status: number, body: unknown) {
 function authRequestOkResponse() {
   return jsonResponse(200, {
     id: AUTH_REQUEST_ID,
-    client_id: "hms-web",
+    client_id: "helivanta-web",
     redirect_uri: "http://localhost:4301/api/auth/callback",
     scope: ["openid", "profile", "email"],
   });

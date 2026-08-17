@@ -38,7 +38,7 @@
 //
 // #854 Task 7: that verification used to drive Zitadel's hosted login UI
 // with a headless Playwright browser (hostedUILogin). #854 Task 1
-// repointed hms-web's login redirect at HMS's own /login — and `make up`
+// repointed helivanta-web's login redirect at HMS's own /login — and `make up`
 // runs this script (via `seed`) BEFORE the web app starts, so by the time
 // this ran there was nothing at :4301 for the redirect to reach at all.
 // verifyPasswordLogin (scripts/lib/zitadel.mjs) replaces the browser drive

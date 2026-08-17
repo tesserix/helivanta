@@ -48,7 +48,7 @@ export function specPharmacist(): Credentials {
 
 // The cheapest authenticated API call the browser can make. Reaching the
 // Go API is the only way to know a session is real: apps/shell's
-// middleware.ts admits any request carrying an `hms_session` cookie
+// middleware.ts admits any request carrying an `helivanta_session` cookie
 // without inspecting it, so the dashboard renders — heading and all —
 // for a session the API refuses on every call. Asserting on the heading
 // alone is precisely the proxy assertion
@@ -131,7 +131,7 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
 // mid-redirect to Zitadel, in which case there is no button to click and
 // the credential form is on its way. Requiring the button unconditionally
 // would turn that ordinary race into a flake.
-// Zitadel's fixed local port (HMS_ZITADEL_PORT) — the one constant across
+// Zitadel's fixed local port (HELIVANTA_ZITADEL_PORT) — the one constant across
 // every HMS web+API pair the suite runs against. Checking for THIS,
 // rather than for HMS's own dev-server port, is what makes startSignIn
 // work under the "idle-timeout" Playwright project (#848 Task 8), which

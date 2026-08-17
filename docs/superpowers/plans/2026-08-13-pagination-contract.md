@@ -1398,9 +1398,9 @@ test("a ward with more than one page reads to completion", async ({ page }) => {
 - [ ] **Step 2: Run the full stack and the E2E**
 
 ```bash
-export HMS_PG_PORT=15432 HMS_NATS_PORT=14222 HMS_NATS_MONITOR_PORT=18222 \
-  HMS_REDIS_PORT=16379 HMS_OPENFGA_PORT=18090 HMS_GIP_PORT=19099 \
-  HMS_API_PORT=18080 NODE_AUTH_TOKEN=$(gh auth token)
+export HELIVANTA_PG_PORT=15432 HELIVANTA_NATS_PORT=14222 HELIVANTA_NATS_MONITOR_PORT=18222 \
+  HELIVANTA_REDIS_PORT=16379 HELIVANTA_OPENFGA_PORT=18090 HELIVANTA_GIP_PORT=19099 \
+  HELIVANTA_API_PORT=18080 NODE_AUTH_TOKEN=$(gh auth token)
 make up && ./scripts/verify-local.sh
 pnpm --filter e2e exec playwright test
 ```

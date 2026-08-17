@@ -16,7 +16,7 @@ declare global {
 }
 
 // AUTH_CALLBACK_PATH and SILENT_RENEW_PATH must match the redirect URIs
-// scripts/zitadel-bootstrap.mjs registers on the hms-web app
+// scripts/zitadel-bootstrap.mjs registers on the helivanta-web app
 // (scripts/lib/zitadel.mjs's DEV_REDIRECT_URI /
 // DEV_SILENT_RENEW_REDIRECT_URI) — a mismatch is refused by Zitadel at
 // /oauth/v2/authorize with "redirect_uri not allowed", not silently
@@ -43,7 +43,7 @@ function settings(): UserManagerSettings {
     // also where middleware.ts sends any unauthenticated request, so a
     // login this page then re-triggers reads correctly either way.
     post_logout_redirect_uri: absoluteUrl("/login"),
-    // Authorization code + PKCE (spec D1/D5a; hms-web is provisioned as a
+    // Authorization code + PKCE (spec D1/D5a; helivanta-web is provisioned as a
     // public client, authMethodType NONE, in scripts/zitadel-bootstrap.mjs).
     // oidc-client-ts generates a fresh code_verifier per signinRedirect()
     // call, derives its S256 code_challenge, and stores the verifier

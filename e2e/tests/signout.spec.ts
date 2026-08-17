@@ -12,7 +12,7 @@ const ZITADEL_ORIGIN = "http://localhost:20080";
 // session alive (originally Firebase's IndexedDB store; now
 // oidc-client-ts's sessionStorage entry, apps/shell/lib/oidc.ts). A
 // stored id_token surviving sign-out could be replayed straight into
-// POST /v1/auth/login and rebuild a working `hms_session` cookie — on a
+// POST /v1/auth/login and rebuild a working `helivanta_session` cookie — on a
 // shared ward terminal, the previous user's session was recoverable
 // after they "logged out".
 //

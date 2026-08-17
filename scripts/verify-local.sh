@@ -3,12 +3,12 @@
 # Usage: make verify-local   (after `make dev` in another terminal)
 set -uo pipefail
 
-# Same HMS_* host-port variables as the Makefile/preflight (see
+# Same HELIVANTA_* host-port variables as the Makefile/preflight (see
 # .env.example) — falls back to the stock ports when unset, so this still
 # works run standalone with no .env present.
-OPENFGA_PORT=${HMS_OPENFGA_PORT:-8090}
-ZITADEL_PORT=${HMS_ZITADEL_PORT:-20080}
-API_PORT=${HMS_API_PORT:-8080}
+OPENFGA_PORT=${HELIVANTA_OPENFGA_PORT:-8090}
+ZITADEL_PORT=${HELIVANTA_ZITADEL_PORT:-20080}
+API_PORT=${HELIVANTA_API_PORT:-8080}
 
 fail=0
 

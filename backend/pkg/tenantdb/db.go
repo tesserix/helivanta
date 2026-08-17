@@ -202,6 +202,12 @@ var lintAllowlist = map[string]bool{
 	// table holds no tenant data and no PHI: subject, timestamp, reason,
 	// actor. See backend/internal/modules/iam/revocation.go.
 	"iam_credential_revocations": true,
+	// login_attempt holds the Zitadel session between the password step
+	// and the factor step. Login happens BEFORE a tenant is selected, so
+	// there is no tenant_id to scope on — the same argument
+	// iam_credential_revocations makes above. See
+	// backend/internal/modules/iam/loginattempt.go.
+	"login_attempt": true,
 }
 
 // LintRLS returns every table that is not properly tenant-isolated, each

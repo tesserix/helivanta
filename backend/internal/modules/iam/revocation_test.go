@@ -26,9 +26,14 @@ func revocationHarness(t *testing.T) (*tenantdb.DB, context.Context) {
 	require.NoError(t, err)
 
 	migs := New(nil).Migrations()
-	revocationMig := migs[len(migs)-1]
-	require.Equal(t, "0003_iam", revocationMig.ID, "precondition: the last iam migration is the revocation table")
-	require.NoError(t, db.Migrate(context.Background(), []tenantdb.Migration{revocationMig}))
+	var revocationMig *tenantdb.Migration
+	for i := range migs {
+		if migs[i].ID == "0003_iam" {
+			revocationMig = &migs[i]
+		}
+	}
+	require.NotNil(t, revocationMig, "precondition: 0003_iam is the revocation table migration")
+	require.NoError(t, db.Migrate(context.Background(), []tenantdb.Migration{*revocationMig}))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	t.Cleanup(cancel)

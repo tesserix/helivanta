@@ -133,6 +133,29 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  actor      text NOT NULL,
 			  updated_at timestamptz NOT NULL DEFAULT now()
 			);`,
+	}, {
+		// login_attempt holds the Zitadel session between the password step and
+		// the factor step, because spec D2 forbids handing a Zitadel session
+		// token to the browser.
+		//
+		// DELIBERATELY NOT TENANT-SCOPED, and deliberately WITHOUT the forced-RLS
+		// boilerplate every tenant table in this repo carries: login happens
+		// BEFORE a tenant is selected, so there is no tenant_id to scope on and
+		// inventing one would mean fabricating a value the user has not chosen
+		// yet. A reviewer applying the RLS convention here by reflex produces a
+		// policy that matches nothing.
+		ID: "0004_iam",
+		SQL: `
+CREATE TABLE IF NOT EXISTS login_attempt (
+  auth_request_id       text PRIMARY KEY,
+  zitadel_session_id    text        NOT NULL,
+  zitadel_session_token text        NOT NULL,
+  subject               text        NOT NULL,
+  factor_attempts       int         NOT NULL DEFAULT 0,
+  expires_at            timestamptz NOT NULL
+);
+CREATE INDEX IF NOT EXISTS login_attempt_expires_at_idx ON login_attempt (expires_at);
+`,
 	}}
 }
 

@@ -109,13 +109,17 @@ Verified 2026-08-17 against gitleaks v8.30.1: that literal is a well-known
 placeholder the default ruleset deliberately ignores, with our config, with no
 config, and even paired with a matching access-key-id. A probe built from it
 reports zero findings and would "prove" the gate is inert when it is fine — the
-proof would move nothing the assertion reads. The value below is random and was
-observed firing `generic-api-key`.
+proof would move nothing the assertion reads. The probe below is GENERATED, not hardcoded: a literal written into this
+file becomes a committed secret the gate flags on its next run — which is
+precisely what an earlier draft of this step caused.
  Create a throwaway file with a credential the default ruleset detects:
 
 ```bash
-printf 'aws_secret_access_key = "PROBE_VALUE_GENERATED_AT_RUNTIME"\n' > /tmp/leak-probe.txt
-cp /tmp/leak-probe.txt ./leak-probe.txt
+# Generate the probe value; do NOT hardcode one. A literal committed here
+# is itself a secret-shaped string the gate will flag on the next run —
+# which is exactly what happened to an earlier draft of this step.
+PROBE=$(openssl rand -base64 30 | tr -d '\n=')
+printf 'aws_secret_access_key = "%s"\n' "$PROBE" > ./leak-probe.txt
 docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
   --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact --no-git
 ```

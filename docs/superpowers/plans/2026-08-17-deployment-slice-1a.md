@@ -30,8 +30,14 @@ External Secrets Operator against OpenBao, Kyverno (TIG policies, pre-existing).
   not recreate it.
 - **Secret store is OpenBao, never GCP Secret Manager** (spec D9). dwellm8's
   charts use `gcpSecretName`; Helivanta's must not.
-- **OpenBao paths:** `kv/data/helivanta/postgres/*`, covered by the existing
-  `read-helivanta` grant on `kv/data/helivanta/*`.
+- **OpenBao paths:** `kv/data/helivanta/helivanta-api/postgres-{app,api,openfga}`.
+  **Corrected 2026-08-17** from `kv/data/helivanta/postgres/*`, which nothing
+  grants. The `openbao` chart generates each app's policy as
+  `kv/data/<namespace>/<app-name>/*` (`charts/thirdparty/openbao/templates/bootstrap-configmap.yaml:166`),
+  and the live `SecretStore/openbao-helivanta-api` authenticates with role
+  `app-helivanta_helivanta-api` — so the ONLY readable prefix is
+  `kv/data/helivanta/helivanta-api/*`. Verified against the live SecretStore
+  spec and the whole policy block; no broader `helivanta` grant exists.
 - **Database:** `helivanta`. **Owner role:** `helivanta`. **Application role:**
   `hms_app` — unchanged, because migrations and every RLS policy name it
   (spec D9, rebrand spec D5). **RLS predicate:** `hms_tenant_visible()`,
@@ -230,23 +236,41 @@ a missing Secret leaves a role with a password nobody holds.
 - [ ] **Step 1: Write the three secrets into OpenBao — by the human operator**
 
 **This step is not performed by an agent.** No secret value may pass through an
-agent session (Global Constraints). Generate and write in one piped step so the
-value never lands in a shell history or a transcript:
+agent session (Global Constraints).
 
-```bash
-for role in app api openfga; do
-  bao kv put "kv/helivanta/postgres/${role}" \
-    password="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 40)"
-done
+**Use the `secret-service.tesserix.app` console.** `docs/runbooks/secrets.md`
+(lines 85 and 112) makes this the documented write path for every Helivanta
+secret, and the console's policy is create/update with deliberately **no**
+`read` on `kv/data` — which is assertion 3 of #45's D7. Both
+`secret-service-api` and `secret-service-web` are running in the cluster and
+the hostname resolves through the existing `*.tesserix.app` Cloudflare route.
+
+Write three paths, each with a single key `password`:
+
+```
+kv/data/helivanta/helivanta-api/postgres-app      → password (owner role `helivanta`)
+kv/data/helivanta/helivanta-api/postgres-api      → password (application role `hms_app`)
+kv/data/helivanta/helivanta-api/postgres-openfga  → password (OpenFGA datastore role)
 ```
 
-Confirm presence **without** printing values:
+In the console form these are: Namespace `helivanta`, Apps `helivanta-api`
+(the existing app — selecting it needs no whitelisting pull request), Secret
+name `postgres-app` / `postgres-api` / `postgres-openfga`. The role must live in
+the secret name because the path is `<namespace>/<app>/<secret name>` and the
+app segment is what the policy is scoped to.
 
-```bash
-bao kv list kv/helivanta/postgres
-```
+**Corrected 2026-08-17.** This step originally gave a `bao kv put` loop. That
+was written without checking the runbook, and the CLI path is worse here for a
+reason worth recording: OpenBao's services are all `ClusterIP` with no external
+ingress, so a CLI write needs a port-forward *plus* a human-usable token — and
+the chart configures Kubernetes auth, which binds ServiceAccounts rather than
+people. Obtaining a human token means reaching for a privileged credential to
+do a job the console already has exactly the right, narrower grant for. The
+console is not merely more convenient; it is the least-privilege path.
 
-Expected: `app`, `api`, `openfga`.
+Step 4 asserts each projected password is **non-empty**, not that it is any
+particular length, because the operator chooses the value in the console. Use at
+least 32 characters.
 
 - [ ] **Step 2: Write the ExternalSecret template**
 
@@ -289,8 +313,11 @@ for s in app api openfga; do
 done
 ```
 
-Expected: three `ExternalSecret`s `SecretSynced`, and three lengths of `40`.
-A length of `0` means the path resolved but the key did not.
+Expected: three `ExternalSecret`s `SecretSynced`, and three **non-zero**
+lengths. A length of `0` is the failure this step exists to catch — the path
+resolved but the key did not, which some ESO versions still report as
+`SecretSynced`. Do not assert a specific length: the operator chose the values
+in the console, so a hardcoded expected length would fail for a correct secret.
 
 - [ ] **Step 5: Prove the grant boundary — the mutation**
 

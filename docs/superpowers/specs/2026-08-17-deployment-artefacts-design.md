@@ -315,8 +315,33 @@ the precedent this slice otherwise follows closely — sources every CNPG role
 password from GCP Secret Manager via `gcpSecretName`. Helivanta cannot: #45's
 D4 fixed OpenBao as its store and `SecretStore/openbao-helivanta-api` is
 already `Valid`/`Ready` in the namespace. Role passwords therefore live under
-`kv/data/helivanta/postgres/*`, which the existing `read-helivanta` grant on
-`kv/data/helivanta/*` already covers, so no new policy is needed.
+`kv/data/helivanta/helivanta-api/postgres-{app,api,openfga}`.
+
+**Corrected 2026-08-17, during slice 1a.** This paragraph first said the
+passwords live under `kv/data/helivanta/postgres/*`, "which the existing
+`read-helivanta` grant on `kv/data/helivanta/*` already covers". **No such grant
+exists.** The `openbao` chart generates one policy per whitelisted app, scoped to
+`kv/data/<namespace>/<app-name>/*`
+(`charts/thirdparty/openbao/templates/bootstrap-configmap.yaml:166`), and the
+live `SecretStore/openbao-helivanta-api` authenticates with role
+`app-helivanta_helivanta-api`. The only readable prefix is therefore
+`kv/data/helivanta/helivanta-api/*`; `helivanta` appears nowhere else in the
+policy block. Secrets written to the original path would have synced to nothing.
+
+**The same error is in #45's shipped runbook and in that spec's D3, and it is
+worse there.** Both give the boot secrets as `kv/data/helivanta/api/session-signing-key`
+and `.../api/zitadel-login-client-token`. Under the real policy the app segment
+must be `helivanta-api`, not `api` — so #45's Task 4, executed exactly as
+documented, writes both boot secrets where the pod cannot read them. Because
+nothing consumes them until a deployment exists, the failure would first appear
+during slice 1b as an opaque ESO permission error, with the runbook appearing to
+have been followed correctly. `docs/runbooks/secrets.md` and that spec's D3 must
+be corrected before #45 Task 4 is executed.
+
+The general lesson is the one this repository keeps relearning: a path
+convention written in prose enforces nothing, and this one disagreed with the
+template that actually mints the policy for a full day without anything
+noticing.
 
 The divergence from dwellm8 is deliberate and is recorded here because a
 reviewer comparing the two charts will otherwise read it as an oversight.

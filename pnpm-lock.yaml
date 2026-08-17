@@ -35,8 +35,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@tesserix/web':
-        specifier: ^1.8.0
-        version: 1.8.0(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
+        specifier: ^2.2.1
+        version: 2.2.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@19.2.8)
@@ -99,8 +99,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@tesserix/web':
-        specifier: ^1.8.0
-        version: 1.8.0(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
+        specifier: ^2.2.1
+        version: 2.2.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
       framer-motion:
         specifier: ^12.0.0
         version: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -166,8 +166,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@tesserix/web':
-        specifier: ^1.8.0
-        version: 1.8.0(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
+        specifier: ^2.2.1
+        version: 2.2.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@19.2.8)
@@ -230,8 +230,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@tesserix/web':
-        specifier: ^1.8.0
-        version: 1.8.0(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
+        specifier: ^2.2.1
+        version: 2.2.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
       framer-motion:
         specifier: ^12.0.0
         version: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -407,8 +407,8 @@ importers:
         specifier: workspace:*
         version: link:../config
       '@tesserix/web':
-        specifier: ^1.8.0
-        version: 1.8.0(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
+        specifier: ^2.2.1
+        version: 2.2.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
       '@testing-library/jest-dom':
         specifier: ^6.6.3
         version: 6.10.0(@testing-library/dom@10.4.1)
@@ -1721,20 +1721,20 @@ packages:
       react: ^18 || ^19
 
   '@tesserix/hooks@1.0.0':
-    resolution: {integrity: sha512-1MxiKUtiI7NPfmh41GYn5Bfrziwv8gcKt3v5161jXmqJ/Qbwh/T+oEKV8hWvKzMp0XJqEV8W6gS5uLp7eLA2Kg==, tarball: https://npm.pkg.github.com/download/@tesserix/hooks/1.0.0/60c67e981047356fc504bcf1378154d843a6e44d}
+    resolution: {integrity: sha512-wddwrjuDkR0yu93DbhkqyZwhVcUZkJ03PNQYjGRi3jok5FjMh6SaLooIY1q+tyV0JvCxPOPkGdTSNaeqj597aQ==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
 
   '@tesserix/tokens@1.0.0':
-    resolution: {integrity: sha512-grimAfdmmFAo5f0+rTyZ06PrtNCUkgaTGQ7lRR4E5dsbBhhthIKpw/d7mm8X42cOCVke6FIoHu0vG6JDJHBsiw==, tarball: https://npm.pkg.github.com/download/@tesserix/tokens/1.0.0/8d0661040a60420abea18bdd61a2701d166a9f17}
+    resolution: {integrity: sha512-d28KWQxt/QnNRiWzrkqxC1row+A3Oq1OYrt++0rDQFyJVhZ3+Vv9sDmtyxySyP0OLrS7zlpUgs6blJUpgzN2Mg==}
 
   '@tesserix/utils@1.0.0':
-    resolution: {integrity: sha512-9adoLCg82aWWGnMEDXT+a/1aYk5k9D5HuCYHNID9CJl4m/DXxSu0g603GwkKC7/TomWsRYlU5N3yDVIHvnOL/A==, tarball: https://npm.pkg.github.com/download/@tesserix/utils/1.0.0/a3b6095d050faff9a1a2c11e259cbee82c6e4009}
+    resolution: {integrity: sha512-kKxY38ClYLulU/MGIkuBJbnfn9Ra09CR3mdC8NgTPSEx9qa9e8i2v5QJ1rHNHtaqRdjHyGiR/iPDRzxYObwYmg==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
 
-  '@tesserix/web@1.8.0':
-    resolution: {integrity: sha512-wa1/FQjyK9x7WDJJ9DTre3uCjMbon8L456nZYf4ZzUTjKoS9dZoVKzAIfhjylFSnj3MsvbNxpC9rxy5pbSjuQg==, tarball: https://npm.pkg.github.com/download/@tesserix/web/1.8.0/da2f899d446e4290d5c75223cdd75faa72112a30}
+  '@tesserix/web@2.2.1':
+    resolution: {integrity: sha512-aGHJ5S2XRZX62G+3OimoQyKNla+IgRVdH8dkjfjB54Sqi1BoWKg16JgrJ1TKS40ZGRicYlJWZd1MO5kd1nsHEg==}
     peerDependencies:
       framer-motion: ^11.0.0 || ^12.0.0
       react: ^19.0.0
@@ -4678,7 +4678,7 @@ snapshots:
       '@tesserix/hooks': 1.0.0(react@19.2.8)
       react: 19.2.8
 
-  '@tesserix/web@1.8.0(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)':
+  '@tesserix/web@2.2.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(framer-motion@12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)':
     dependencies:
       '@radix-ui/react-avatar': 1.2.6(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@radix-ui/react-checkbox': 1.3.11(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

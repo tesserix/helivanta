@@ -235,8 +235,8 @@ func (w *revocationWatcher) saw(subject string) bool {
 }
 
 // TestSignOutWritesTheWatermark used to also assert GIP was told
-// (RevokeRefreshTokens) — #838 removed that call entirely: HMS stores no
-// IdP credential to revoke (spec D4a), so the HMS watermark alone is now
+// (RevokeRefreshTokens) — #838 removed that call entirely: Helivanta stores no
+// IdP credential to revoke (spec D4a), so the Helivanta watermark alone is now
 // the whole of revocation. See TestModuleAndMiddlewareShareOneRevocationCheckerInstance
 // below for the proof that the watermark alone is sufficient to refuse a
 // live credential immediately, with no wait for GIP or any TTL.

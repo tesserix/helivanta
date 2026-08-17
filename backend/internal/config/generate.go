@@ -19,7 +19,7 @@ import (
 // debug a base64 length mismatch.
 //
 // crypto/rand only — never math/rand, and never a passphrase derivation.
-// This value is the entropy behind every HMS session; anything
+// This value is the entropy behind every Helivanta session; anything
 // predictable here is session forgery for every subject in every tenant.
 func GenerateSessionSigningKey() (string, error) {
 	seed := make([]byte, ed25519.SeedSize)

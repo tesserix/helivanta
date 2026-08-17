@@ -16,7 +16,7 @@ import (
 var ErrNoVerificationKey = errors.New("session: no verification key configured")
 
 // ErrInvalidToken is returned for every way a token can fail to be a
-// genuine, current HMS session — bad signature, wrong/forged
+// genuine, current Helivanta session — bad signature, wrong/forged
 // algorithm, wrong issuer, wrong kid, expired, malformed, or missing a
 // required claim. Deliberately one error for all of these: a caller
 // checking *why* a token was refused, in order to decide differently,
@@ -25,7 +25,7 @@ var ErrNoVerificationKey = errors.New("session: no verification key configured")
 // authenticated."
 var ErrInvalidToken = errors.New("session: invalid token")
 
-// Verifier checks HMS session tokens minted by the Signer holding the
+// Verifier checks Helivanta session tokens minted by the Signer holding the
 // matching private key.
 type Verifier struct {
 	key    ed25519.PublicKey
@@ -52,7 +52,7 @@ func NewVerifier(key ed25519.PublicKey, kid, issuer string) (*Verifier, error) {
 }
 
 // Verify parses and validates raw, returning the claims it carried, or
-// a wrapped ErrInvalidToken if raw is not a live, genuine HMS session
+// a wrapped ErrInvalidToken if raw is not a live, genuine Helivanta session
 // signed by this Verifier's key.
 //
 // Verify does NOT enforce IdleDeadline — it only refuses a token that

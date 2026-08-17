@@ -70,7 +70,7 @@ func TestNewSessionVerifier_MapsClaimsToPrincipal(t *testing.T) {
 
 // TestMiddleware_RefusesARealIdleExpiredSession is the end-to-end
 // complement to TestNewSessionVerifier_MapsClaimsToPrincipal (code
-// review Finding 1): it mints a REAL HMS session token with a past
+// review Finding 1): it mints a REAL Helivanta session token with a past
 // idle_deadline, verifies it through the REAL session.Verifier and the
 // REAL NewSessionVerifier adapter, and drives it through the REAL
 // Middleware — no fakeVerifier, no hand-built Principal anywhere in this
@@ -102,14 +102,14 @@ func TestMiddleware_RefusesARealIdleExpiredSession(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: authn.SessionCookie, Value: token})
 	r.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusUnauthorized, w.Code, "a real HMS session past its idle deadline must be refused on the request path")
+	require.Equal(t, http.StatusUnauthorized, w.Code, "a real Helivanta session past its idle deadline must be refused on the request path")
 	require.Contains(t, w.Body.String(), "session_idle", "the refusal must be distinguishable as idle, not a generic credential failure")
 }
 
 // TestMiddleware_AdmitsARealSessionInsideItsIdleDeadline is the test
 // that actually catches a deleted `IdleDeadline: claims.IdleDeadline`
 // mapping line (code review Finding 1), because the refusal test above
-// cannot: it mints a REAL HMS session with a FUTURE idle_deadline and
+// cannot: it mints a REAL Helivanta session with a FUTURE idle_deadline and
 // drives it through the REAL Middleware+NewSessionVerifier composition,
 // expecting 200. If the mapping line were deleted, Principal.IdleDeadline
 // would always be the zero value regardless of what the token actually
@@ -134,7 +134,7 @@ func TestMiddleware_AdmitsARealSessionInsideItsIdleDeadline(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: authn.SessionCookie, Value: token})
 	r.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusOK, w.Code, "a real HMS session well inside its idle deadline must be admitted on the request path")
+	require.Equal(t, http.StatusOK, w.Code, "a real Helivanta session well inside its idle deadline must be admitted on the request path")
 }
 
 // TestNewSessionVerifier_RefusesInvalidToken proves errors from
@@ -153,7 +153,7 @@ func TestNewSessionVerifier_RefusesInvalidToken(t *testing.T) {
 // token (right issuer string even, right claim names) and confirms the
 // session-backed TokenVerifier the /v1 chain now uses refuses it
 // outright — not because the issuer string looks wrong, but because it
-// is signed with the wrong algorithm/key entirely: an HMS
+// is signed with the wrong algorithm/key entirely: a Helivanta
 // session.Verifier only ever trusts EdDSA under its own Ed25519 key, and
 // a Zitadel ID token is RS256 under Zitadel's key.
 func TestMiddleware_RefusesRawZitadelToken(t *testing.T) {
@@ -177,7 +177,7 @@ func TestMiddleware_RefusesRawZitadelToken(t *testing.T) {
 }
 
 // TestMiddleware_RefusesExpiredAndTamperedSession is the mandatory proof
-// that an expired or tampered HMS session is refused on the request
+// that an expired or tampered Helivanta session is refused on the request
 // path — the request-path equivalent of pkg/session's own unit tests,
 // exercised here through the actual Middleware+TokenVerifier composition
 // the /v1 chain runs, not just the verifier in isolation.
@@ -209,7 +209,7 @@ func TestMiddleware_RefusesExpiredAndTamperedSession(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/p", nil)
 	req.AddCookie(&http.Cookie{Name: authn.SessionCookie, Value: expired})
 	r.ServeHTTP(w, req)
-	require.Equal(t, http.StatusUnauthorized, w.Code, "an expired HMS session must be refused on the request path")
+	require.Equal(t, http.StatusUnauthorized, w.Code, "an expired Helivanta session must be refused on the request path")
 
 	// A genuine, non-expired token, tampered after minting.
 	longSigner, err := session.NewSigner(priv, sessionTestKID, sessionTestIssuer, sessionTestTTL)
@@ -222,7 +222,7 @@ func TestMiddleware_RefusesExpiredAndTamperedSession(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/p", nil)
 	req.AddCookie(&http.Cookie{Name: authn.SessionCookie, Value: tampered})
 	r.ServeHTTP(w, req)
-	require.Equal(t, http.StatusUnauthorized, w.Code, "a tampered HMS session must be refused on the request path")
+	require.Equal(t, http.StatusUnauthorized, w.Code, "a tampered Helivanta session must be refused on the request path")
 }
 
 // forgeRS256TokenShapedLikeZitadel builds a real RS256 JWT carrying

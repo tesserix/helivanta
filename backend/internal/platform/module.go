@@ -43,7 +43,7 @@ type Deps struct {
 	Bus   *events.Bus
 	Authz TupleWriter
 	Roles RoleLister
-	// SessionSigner re-mints the HMS session for the one operation that
+	// SessionSigner re-mints the Helivanta session for the one operation that
 	// must change a caller's identity rather than read it: switching
 	// hospitals (#838, spec D3). Post-cutover this is the ONLY way a
 	// module can issue a credential — there is no more external identity

@@ -238,7 +238,7 @@ describe("LoginPage", () => {
     });
 
     // Repo-wide: native browser validation is banned (docs/standards/
-    // frontend.md §4), so every HMS form must disable it explicitly. This
+    // frontend.md §4), so every Helivanta form must disable it explicitly. This
     // pins the login form to that rule rather than relying on the zod
     // validation tests below to prove it only indirectly.
     it("disables native browser validation", async () => {
@@ -412,7 +412,7 @@ describe("LoginPage", () => {
 
       renderWithProviders(<LoginPage />);
 
-      expect(await screen.findByText("HMS")).toBeInTheDocument();
+      expect(await screen.findByText("Helivanta")).toBeInTheDocument();
       expect(screen.getByText(/loading/i)).toBeInTheDocument();
       expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
 

@@ -14,9 +14,9 @@ import (
 // This is what ends the interim state the Zitadel verifier left behind
 // (see zitadel.go's Principal.TenantID doc comment, and the plan's
 // "Interim-state note" after Task 3): from here on, the authenticated
-// /v1 chain verifies the HMS session HMS itself minted at login (plan
+// /v1 chain verifies the Helivanta session Helivanta itself minted at login (plan
 // Task 4, spec D1), never a raw Zitadel ID token — so Principal.TenantID
-// is HMS's own fact again, not the empty placeholder the Zitadel
+// is Helivanta's own fact again, not the empty placeholder the Zitadel
 // verifier had to leave it as.
 type sessionTokenVerifier struct {
 	verifier *session.Verifier
@@ -28,7 +28,7 @@ type sessionTokenVerifier struct {
 // A raw Zitadel ID token presented here is refused, structurally rather
 // than by a check this code has to remember to make: v.Verify pins both
 // the signing algorithm (Ed25519 only — session/verifier.go) and the
-// issuer (cfg.SessionIssuer, HMS's own, never Zitadel's), and a Zitadel
+// issuer (cfg.SessionIssuer, Helivanta's own, never Zitadel's), and a Zitadel
 // ID token is signed RS256 by Zitadel's key under Zitadel's issuer. It
 // fails signature verification (wrong algorithm entirely) before the
 // issuer mismatch is ever reached.

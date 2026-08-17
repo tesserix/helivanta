@@ -13,7 +13,7 @@ type SwitchResponse = { tenant_id: string };
  * This lives in the shell, not in `@helivanta/ui`, for the same reason
  * `onSignOut` does (see `packages/ui/src/hms-shell.tsx`) — historically
  * because completing a switch needed shell-owned Firebase client config;
- * that coupling is gone now (design spec D3: switching re-mints the HMS
+ * that coupling is gone now (design spec D3: switching re-mints the Helivanta
  * session server-side, no client-side token exchange at all), but the
  * shell remains the natural owner since it is where the dashboard and the
  * rest of the auth surface already live.

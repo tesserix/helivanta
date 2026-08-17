@@ -52,11 +52,11 @@ function settings(): UserManagerSettings {
     // value directly, and can't accidentally skip them.
     response_type: "code",
     scope: "openid profile email",
-    // userinfo is never called — spec D1/D2: the HMS session carries
+    // userinfo is never called — spec D1/D2: the Helivanta session carries
     // exactly sub/tenant_id/auth_time/exp/iat/iss, no email or name, so
     // there is nothing here that would need it.
     loadUserInfo: false,
-    // D4a, load-bearing: HMS stores no IdP refresh token. Leaving
+    // D4a, load-bearing: Helivanta stores no IdP refresh token. Leaving
     // useRefreshToken at its default (false) and never requesting the
     // `offline_access` scope means oidc-client-ts never asks Zitadel for
     // one in the first place — renewal (lib/renew.ts) is driven entirely

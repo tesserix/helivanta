@@ -16,7 +16,7 @@ import (
 )
 
 // loginRequest is the body POST /v1/auth/login accepts: a Zitadel ID
-// token to exchange for an HMS session, and an optional tenant_id
+// token to exchange for a Helivanta session, and an optional tenant_id
 // choosing which tenant to mint the session for when the subject belongs
 // to more than one. Omitted, the first tenant — by ListRoles' own
 // deterministic tenant-then-role sort — is used; the caller can switch
@@ -28,12 +28,12 @@ type loginRequest struct {
 }
 
 // noAccessibleTenantMessage is returned, byte-for-byte, whether the
-// subject has never held a role anywhere in HMS or once held one and
+// subject has never held a role anywhere in Helivanta or once held one and
 // lost it, and also when the caller named a specific tenant_id it does
 // not belong to. All three are indistinguishable at the one signal this
 // handler has — OpenFGA's ListRoles returning bindings that do not cover
 // the case — and the message must stay that way rather than leaking
-// which one happened: this endpoint runs before any HMS session exists,
+// which one happened: this endpoint runs before any Helivanta session exists,
 // so its refusal is the only information a caller who does not belong
 // anywhere ever gets about their own account.
 //
@@ -55,13 +55,13 @@ const noAccessibleTenantMessage = "no accessible hospital for this account"
 // LoginHandlers backs POST /v1/auth/login, spec D1
 // (docs/superpowers/specs/2026-08-15-zitadel-auth-design.md): verify a
 // Zitadel ID token once, resolve tenant membership from OpenFGA, mint an
-// HMS session.
+// Helivanta session.
 //
 // This is deliberately NOT registered through Module.Routes /
 // platform.Router the way every other iam route is: it is the one
-// endpoint that runs BEFORE an HMS session exists, so it can be gated by
+// endpoint that runs BEFORE a Helivanta session exists, so it can be gated by
 // neither authn.Middleware (there is nothing yet to verify — the
-// credential presented here is a Zitadel token, not an HMS session) nor
+// credential presented here is a Zitadel token, not a Helivanta session) nor
 // authz.RequireMembership (membership is exactly what this handler
 // itself determines, and minting is the very thing the check gates).
 // cmd/api/main.go mounts Login directly on the raw engine, outside
@@ -71,7 +71,7 @@ type LoginHandlers struct {
 	verifier authn.TokenVerifier
 	roles    platform.RoleLister
 	signer   *session.Signer
-	// sessions verifies the caller's EXISTING HMS session cookie, if it
+	// sessions verifies the caller's EXISTING Helivanta session cookie, if it
 	// sent one. It is not an authentication gate — this endpoint has no
 	// session to authenticate — it is how Login tells a silent renewal
 	// apart from a genuine sign-in, which is the whole of spec D3. See
@@ -100,7 +100,7 @@ type LoginHandlers struct {
 	// secureCookie mirrors the `secure` cookie flag apps/shell's
 	// app/api/session/route.ts used to set (secure only outside
 	// development) — see this field's use in Login for the exact
-	// mapping. The API now sets this cookie itself (spec D1: HMS mints
+	// mapping. The API now sets this cookie itself (spec D1: Helivanta mints
 	// its own session, and it is the only thing holding the signing
 	// key), where the shell used to.
 	secureCookie bool
@@ -135,7 +135,7 @@ type LoginDeps struct {
 	// Roles resolves tenant membership from OpenFGA exactly the way
 	// meHandlers.tenants does (see roles' doc comment on Deps.Roles).
 	Roles platform.RoleLister
-	// Signer mints the HMS session itself.
+	// Signer mints the Helivanta session itself.
 	Signer *session.Signer
 	// Sessions verifies the caller's existing session cookie — the
 	// renewal-vs-login discriminator (spec D3, see idleDeadlineFor).
@@ -184,9 +184,9 @@ func NewLoginHandlers(d LoginDeps) *LoginHandlers {
 }
 
 // Login verifies req.IDToken as a Zitadel ID token, resolves the
-// caller's HMS tenant memberships from OpenFGA, and — provided the
+// caller's Helivanta tenant memberships from OpenFGA, and — provided the
 // caller belongs to at least one tenant, and to the requested one if
-// named — mints an HMS session and sets it as the response's session
+// named — mints a Helivanta session and sets it as the response's session
 // cookie.
 //
 // Every step before the mint is the gate: the membership check runs to
@@ -321,8 +321,8 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	// secure now comes from config (h.secureCookie) rather than a
 	// NODE_ENV check, but resolves the same way — true outside
 	// development. The cookie's value changes from a raw Zitadel ID
-	// token to an HMS session token, and it is now the API, not the
-	// Next.js shell, that sets it: HMS is the only thing holding the
+	// token to a Helivanta session token, and it is now the API, not the
+	// Next.js shell, that sets it: Helivanta is the only thing holding the
 	// signing key (spec D1), so minting and cookie-setting belong in the
 	// same place.
 	c.SetSameSite(http.SameSiteLaxMode)
@@ -343,7 +343,7 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 // renew itself forever, the timeout would never fire, and every test
 // asserting "renewal works" would still pass.
 //
-// THE DISCRIMINATOR is the caller's own existing HMS session cookie. A
+// THE DISCRIMINATOR is the caller's own existing Helivanta session cookie. A
 // renewal always carries one (the browser attaches it automatically; it
 // is httpOnly and same-origin), and that cookie already holds the
 // deadline this session is running against. So:

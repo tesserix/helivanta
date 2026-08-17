@@ -218,7 +218,7 @@ func Load() Config {
 		AdminDatabaseURL: getenv("ADMIN_DATABASE_URL", "postgres://hms:hms@localhost:5432/hms?sslmode=disable"),
 		NATSURL:          getenv("NATS_URL", "nats://localhost:4222"),
 		OpenFGAURL:       getenv("OPENFGA_URL", "http://localhost:8090"),
-		OpenFGAStore:     getenv("OPENFGA_STORE", "hms"),
+		OpenFGAStore:     getenv("OPENFGA_STORE", "helivanta"),
 
 		ZitadelIssuerURL: getenv("ZITADEL_ISSUER_URL", "http://localhost:20080"),
 		ZitadelClientID:  getenv("ZITADEL_CLIENT_ID", ""),

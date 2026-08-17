@@ -1,5 +1,5 @@
 // Package loginclient speaks the Zitadel v2 "login client" HTTP calls
-// HMS's own login page needs to drive a session end to end: read an OIDC
+// Helivanta's own login page needs to drive a session end to end: read an OIDC
 // auth request, create a password-checked session, finalize the auth
 // request into a callback URL, read the org login policy, and (Task 8)
 // read which authentication methods a user has enrolled. It makes NO
@@ -53,7 +53,7 @@ var (
 // defaultTimeout bounds every call this client makes. Zitadel's own
 // observed latency for a WRONG password is ~0.7s (the password hash is
 // actually computed); 10s leaves generous room above that without letting
-// a stalled Zitadel hang HMS's login handler indefinitely.
+// a stalled Zitadel hang Helivanta's login handler indefinitely.
 const defaultTimeout = 10 * time.Second
 
 // maxSuccessBodyBytes bounds every 2xx response body this client decodes.
@@ -78,7 +78,7 @@ type Client struct {
 	hc      *http.Client
 }
 
-// New builds a Client against baseURL (Zitadel's own origin, not HMS's),
+// New builds a Client against baseURL (Zitadel's own origin, not Helivanta's),
 // authenticating with token (the login client PAT). hc is used as-is when
 // non-nil so callers can inject their own transport (tests use
 // httptest.Server's own client); a nil hc gets one built with
@@ -94,7 +94,7 @@ func New(baseURL, token string, hc *http.Client) *Client {
 // AuthRequest is the subset of Zitadel's GET /v2/oidc/auth_requests/{id}
 // response this client needs: enough to know which OIDC client and
 // redirect the browser arrived for, and which scopes it asked for. Fields
-// Zitadel returns that HMS has no use for (e.g. prompt, app) are dropped
+// Zitadel returns that Helivanta has no use for (e.g. prompt, app) are dropped
 // at the wire-decoding boundary rather than carried through.
 type AuthRequest struct {
 	ID          string
@@ -118,7 +118,7 @@ type Session struct {
 // sufficiency.go (Task 3) needs to decide whether a password-only session
 // is enough to finalize — see the spike §2: Zitadel does NOT itself
 // refuse to finalize a password-only session against a forceMfa policy,
-// so HMS must read this and enforce it structurally.
+// so Helivanta must read this and enforce it structurally.
 type LoginPolicy struct {
 	ForceMFA bool
 }
@@ -182,7 +182,7 @@ func (c *Client) CreatePasswordSession(ctx context.Context, loginName, password 
 // D4. The spike §2 proved Zitadel issues an authorization code for a
 // password-only session even under a forceMfa policy — it does not
 // enforce MFA for a login client at all. So whether a session is
-// sufficient to finalize is HMS's decision, and the only way to reach
+// sufficient to finalize is Helivanta's decision, and the only way to reach
 // this call from outside the package is CompleteIfSufficient, which makes
 // that decision first. A future contributor adding a second completion
 // path has to defeat the package boundary deliberately rather than merely
@@ -275,7 +275,7 @@ func (c *Client) finalize(ctx context.Context, authRequestID string, s Session) 
 // `{"policy":{"passwordCheckLifetime":"864000s","force_mfa":true}}`
 // anchors as recognized AND has no field literally named "forceMfa", so
 // naively reading `wire.Policy["forceMfa"]` as absent-therefore-false
-// would silently complete a login Zitadel is telling HMS requires MFA.
+// would silently complete a login Zitadel is telling Helivanta requires MFA.
 // That is the exact fail-open Task 3 was written to close, re-opened by
 // the anchor fix above if nothing else changed.
 //
@@ -304,18 +304,18 @@ func (c *Client) finalize(ctx context.Context, authRequestID string, s Session) 
 // federated ones") answers with `forceMfa` elided entirely (per the
 // section above) and `forceMfaLocalOnly:true` present. Reading only
 // `forceMfa` therefore missed a REAL, supported way to require MFA — not
-// a hypothetical drift, a config an operator can set today. HMS folds
+// a hypothetical drift, a config an operator can set today. Helivanta folds
 // `forceMfaLocalOnly` into the SAME ForceMFA bool
 // (`forceMfa || forceMfaLocalOnly`) rather than modeling it separately,
 // on a documented, narrow assumption: `forceMfaLocalOnly` strictly means
-// "force MFA for non-federated (local) users", and EVERY HMS user is
-// local today — no external IdP is configured (spec D5) — so for HMS's
+// "force MFA for non-federated (local) users", and EVERY Helivanta user is
+// local today — no external IdP is configured (spec D5) — so for Helivanta's
 // purposes the two fields currently mean the same thing. This is an
-// assumption, not a derived fact: if HMS ever configures an external
+// assumption, not a derived fact: if Helivanta ever configures an external
 // IdP, this fold-together stops being correct for federated users and
 // must be revisited (a future CompleteIfSufficient would need to know
 // which kind of session it is evaluating, not just read one bool). Not
-// built now because HMS has no federated login path to get it wrong on
+// built now because Helivanta has no federated login path to get it wrong on
 // yet — see docs/standards/engineering-principles.md on not building for
 // a case that cannot occur.
 //
@@ -354,7 +354,7 @@ func (c *Client) LoginPolicy(ctx context.Context) (LoginPolicy, error) {
 	if _, anchored := wire.Policy["passwordCheckLifetime"]; !anchored {
 		// ErrUnavailable rather than a new sentinel: from the caller's
 		// point of view an answer it cannot interpret and no answer at all
-		// are the same situation — Zitadel did not tell HMS whether MFA is
+		// are the same situation — Zitadel did not tell Helivanta whether MFA is
 		// required — and both must reach the same fail-closed branch.
 		return LoginPolicy{}, fmt.Errorf("GET /management/v1/policies/login: 200 without a recognizable policy object: %w", ErrUnavailable)
 	}
@@ -601,7 +601,7 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any, not
 			return fmt.Errorf("%s %s: status %d id=%s: %w", method, path, resp.StatusCode, errID, notFound)
 		default:
 			// Covers 5xx and any other unexpected status (e.g. 401/403 —
-			// a login client PAT problem is an operational failure HMS
+			// a login client PAT problem is an operational failure Helivanta
 			// cannot resolve per-request, not a credential refusal for
 			// the end user).
 			return fmt.Errorf("%s %s: status %d id=%s: %w", method, path, resp.StatusCode, errID, ErrUnavailable)

@@ -288,7 +288,7 @@ func TestSwitchTenantRequiresMembership(t *testing.T) {
 }
 
 // TestSwitchTenantCarriesTheOriginalAuthTimeThrough is the whole point of
-// the endpoint: the response must set a new HMS session cookie that
+// the endpoint: the response must set a new Helivanta session cookie that
 // decodes to the caller's own subject, the TARGET tenant, and the
 // auth_time carried through UNCHANGED from the caller's original session
 // — not a fresh time.Now(). Without the last of these, a switch would

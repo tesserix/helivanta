@@ -16,7 +16,7 @@ import (
 // that "mostly" has a key.
 var ErrNoSigningKey = errors.New("session: no signing key configured")
 
-// Signer mints HMS session tokens.
+// Signer mints Helivanta session tokens.
 //
 // Ed25519 (EdDSA) only, deliberately — spec D5: asymmetric signing so
 // that a verifier, which only ever holds the public key, can never
@@ -59,7 +59,7 @@ func NewSigner(key ed25519.PrivateKey, kid, issuer string, ttl time.Duration) (*
 	return &Signer{key: key, kid: kid, issuer: issuer, ttl: ttl}, nil
 }
 
-// Mint issues a new HMS session token for subject in tenantID.
+// Mint issues a new Helivanta session token for subject in tenantID.
 //
 // authTime is carried through into the token's auth_time claim
 // UNMODIFIED — it is never set to time.Now() here. authTime means "when

@@ -25,7 +25,7 @@ type revocationHandlers struct {
 
 // signOut ends every session for the calling subject, on every device.
 //
-// HMS session tokens carry no session identifier, so revocation is
+// Helivanta session tokens carry no session identifier, so revocation is
 // necessarily by subject — see the design spec's D5 (the #838 Zitadel
 // design; the original decision predates it under GIP but the reasoning
 // is unchanged: neither identity provider's token format is asked to
@@ -89,9 +89,9 @@ func (h *revocationHandlers) adminRevoke(c *gin.Context) {
 // transaction. Splitting them would allow a watermark that propagates
 // only at TTL, or an invalidation for a revocation that never happened.
 //
-// This is the WHOLE of revocation, post-#838: the HMS watermark is
+// This is the WHOLE of revocation, post-#838: the Helivanta watermark is
 // authoritative and there is no separate upstream call to make.
-// HMS stores no Zitadel credential to revoke (spec D4a — renewal is the
+// Helivanta stores no Zitadel credential to revoke (spec D4a — renewal is the
 // login exchange re-run with a fresh Zitadel token, not a server-side
 // refresh of a stored one), so unlike the old GIP-backed design there is
 // nothing left to "tell" after the commit. A subject whose watermark

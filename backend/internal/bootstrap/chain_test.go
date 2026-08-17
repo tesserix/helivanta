@@ -79,7 +79,7 @@ func newChainHarness(t *testing.T) (*gin.Engine, *session.Signer) {
 }
 
 // TestV1ChainAcceptsAnHMSSession is the positive control: the exact
-// composition main.go wires up must still let a genuine HMS session
+// composition main.go wires up must still let a genuine Helivanta session
 // through, and must resolve the tenant it was minted for.
 func TestV1ChainAcceptsAnHMSSession(t *testing.T) {
 	e, signer := newChainHarness(t)
@@ -102,7 +102,7 @@ func TestV1ChainAcceptsAnHMSSession(t *testing.T) {
 
 // TestV1ChainRefusesRawZitadelToken is the mandatory Task 4 proof, at
 // the same wiring level main.go actually runs: a raw Zitadel ID
-// token — never minted by HMS, never touching session.Signer — must be
+// token — never minted by Helivanta, never touching session.Signer — must be
 // refused by the /v1 chain. Unlike pkg/authn's own
 // TestMiddleware_RefusesRawZitadelToken (same claim, narrower scope:
 // authn.Middleware + authn.NewSessionVerifier only), this test also

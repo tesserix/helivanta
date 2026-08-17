@@ -118,7 +118,7 @@ describe("HmsShell", () => {
   });
 
   // Regresses #781: EVERY app — every zone, not only the shell — must
-  // revoke the HMS session server-side AND end Zitadel's own SSO session
+  // revoke the Helivanta session server-side AND end Zitadel's own SSO session
   // by default, with no `onSignOut` override needed any more. That used
   // to be shell-only; found broken live via the e2e suite (signing out
   // from a zone page left Zitadel's SSO cookie alive, so the next login —

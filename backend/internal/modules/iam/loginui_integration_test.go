@@ -196,7 +196,7 @@ func b64url(b []byte) string {
 // the browser's own eventual GET /oauth/v2/token code exchange — the
 // callback_url Password returns already contains a fresh code and state
 // (asserted below), and completing THAT exchange too would be testing
-// Zitadel's OIDC token endpoint, not HMS's login-client wiring.
+// Zitadel's OIDC token endpoint, not Helivanta's login-client wiring.
 func newAuthRequest(t *testing.T, env integrationEnv) string {
 	t.Helper()
 
@@ -320,7 +320,7 @@ const (
 
 // TestIntegration_PasswordSuccess_ReturnsCallbackURLWithCodeAndState is
 // step 1-3 of this task's brief: create a real auth request, check the
-// real seeded credential against it through HMS's own handler, and
+// real seeded credential against it through Helivanta's own handler, and
 // assert the resulting callback_url is a genuine, freshly-minted
 // authorization response — not just that SOME string came back. Shares
 // its assertion body with assertLoginSucceeds (used again by the
@@ -623,7 +623,7 @@ func TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting(t *testing.T) {
 // Zitadel login-policy field the unit tests now cover with fixtures, but
 // — for the exact same reason TestIntegration_ForceMFAPolicy_... exists
 // alongside the forceMfa unit fixtures — only a live read through the
-// real decode path can prove HMS actually treats a genuinely-configured
+// real decode path can prove Helivanta actually treats a genuinely-configured
 // forceMfaLocalOnly:true org as requiring MFA, not just that a
 // hand-written fixture says it should. See loginclient.LoginPolicy's
 // "forceMfaLocalOnly — a second, REAL field" doc comment for the

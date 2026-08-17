@@ -1,4 +1,4 @@
-// Provisions HMS's Zitadel topology (tenancy topology design doc D1: one
+// Provisions Helivanta's Zitadel topology (tenancy topology design doc D1: one
 // org, one project, one OIDC app) against the local dev stack, then writes
 // dev/zitadel/secrets/zitadel.env so the Makefile can hand
 // backend/internal/config/config.go a real ZITADEL_CLIENT_ID.
@@ -72,7 +72,7 @@ async function getApp(pat, projectId, appId) {
 // expects, so helivanta-web-idle-timeout's separate secrets file is a drop-in
 // the same way helivanta-web's own zitadel.env already is.
 async function provisionApp(pat, project, { appName, redirectUris, postLogoutRedirectUris, envOutPath }) {
-  // helivanta-web's login redirect points at HMS's own login page instead of
+  // helivanta-web's login redirect points at Helivanta's own login page instead of
   // Zitadel's stock hosted UI (#854 Task 1) — scoped to this ONE app via
   // Zitadel's per-app `loginVersion.loginV2.baseUri`, deliberately not the
   // instance-wide setting, because this Zitadel instance is shared with
@@ -107,7 +107,7 @@ async function provisionApp(pat, project, { appName, redirectUris, postLogoutRed
       grantTypes: ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"],
       appType: "OIDC_APP_TYPE_WEB",
       // Public client, PKCE only — matches spec D5a: the browser talks to
-      // Zitadel directly, HMS's own session (not this OIDC client) is
+      // Zitadel directly, Helivanta's own session (not this OIDC client) is
       // what protects /v1 routes, so there is no confidential secret to
       // hold or rotate for helivanta-web.
       authMethodType: "OIDC_AUTH_METHOD_TYPE_NONE",

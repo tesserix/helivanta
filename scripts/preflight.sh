@@ -157,7 +157,7 @@ check_ports() {
     else
       holder=$(port_holders "$port" | head -1)
       fail "port $port" \
-        "port $port held by pid ${holder:-unknown} ($(ps -p "${holder:-0}" -o comm= 2>/dev/null || echo unknown)) — stop it, or 'make down' if it is a stale HMS process"
+        "port $port held by pid ${holder:-unknown} ($(ps -p "${holder:-0}" -o comm= 2>/dev/null || echo unknown)) — stop it, or 'make down' if it is a stale Helivanta process"
     fi
   done
 }

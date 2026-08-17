@@ -35,7 +35,7 @@ var ErrDevSessionSigningKeyOutsideDev = errors.New("config: SESSION_SIGNING_KEY 
 // 32-byte Ed25519 seed.
 var ErrMalformedSessionSigningKey = errors.New("config: SESSION_SIGNING_KEY is not a valid ed25519 seed")
 
-// SessionSigningKeySeed decodes and validates the Ed25519 seed HMS
+// SessionSigningKeySeed decodes and validates the Ed25519 seed Helivanta
 // signs and verifies its own session tokens with (spec D5, plan Task 2).
 //
 // # Why this refuses rather than falls back to anything

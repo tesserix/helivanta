@@ -100,7 +100,7 @@ const (
 )
 
 // NewSessionSignerForTest builds a real Ed25519 Signer/Verifier pair for
-// tests that need a WORKING HMS session re-mint — the tenant-switch route
+// tests that need a WORKING Helivanta session re-mint — the tenant-switch route
 // (internal/modules/iam/me.go), specifically. It is deliberately not
 // wired into NewHarness's defaults the way Writer/Roles/Membership are:
 // HarnessOptions.SessionSigner left nil is exactly the deployment mistake

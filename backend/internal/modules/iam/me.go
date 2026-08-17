@@ -139,7 +139,7 @@ func (h *meHandlers) tenants(c *gin.Context) {
 	respond.OK(c, gin.H{"data": groupByTenant(bindings, p.TenantID)})
 }
 
-// switchTenant re-mints the caller's OWN HMS session for another tenant
+// switchTenant re-mints the caller's OWN Helivanta session for another tenant
 // they are a member of (#838, spec D3). Everything before the mint is
 // the gate; only past it does anything get issued, and no IdP round
 // trip happens at all — this is the difference from the old GIP-backed
@@ -158,7 +158,7 @@ func (h *meHandlers) switchTenant(c *gin.Context) {
 	}
 	// req.TenantID is compared raw, with no casing normalization:
 	// Principal.TenantID is canonicalized (lowercase uuid.String())
-	// by session.Verifier's parse of the HMS session (pkg/session), so
+	// by session.Verifier's parse of the Helivanta session (pkg/session), so
 	// every FGA role tuple written by the iam-fga-sync consumer — and
 	// therefore every binding ListRoles returns — is already
 	// canonical. A client round-tripping the value it received from
@@ -236,7 +236,7 @@ func (h *meHandlers) switchTenant(c *gin.Context) {
 // groupByTenant turns FGA role bindings into the response shape, one
 // entry per tenant listing every role key held there. Tenant ids are
 // compared raw, not normalized: Principal.TenantID is canonicalized at
-// the HMS session parse boundary (pkg/session/verifier.go), so every grant the
+// the Helivanta session parse boundary (pkg/session/verifier.go), so every grant the
 // iam-fga-sync consumer applies — and therefore every binding this
 // resolves to — already carries the same lowercase uuid.String() form,
 // regardless of when it was granted. Grouping by first-appearance order
@@ -293,7 +293,7 @@ func respondRolesUnavailable(c *gin.Context, err error) {
 		"authz_unavailable", "authorization is temporarily unavailable")
 }
 
-// respondMintUnavailable fails closed when HMS itself cannot re-mint the
+// respondMintUnavailable fails closed when Helivanta itself cannot re-mint the
 // session (no signer configured, or Signer.Mint refused): the caller
 // keeps the tenant they had. It is a distinct code from authz_unavailable
 // because the membership decision itself succeeded — only the credential

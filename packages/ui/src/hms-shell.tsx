@@ -44,7 +44,7 @@ function usePersistedFlag(key: string, fallback: boolean) {
 
 /**
  * `tenantPicker` is a slot rendered in the content header rather than a
- * component this package owns. Switching hospitals re-mints the HMS
+ * component this package owns. Switching hospitals re-mints the Helivanta
  * session server-side (`POST /v1/iam/me/tenant`, design spec D3) — no
  * client-side token exchange is needed any more, but the call still
  * belongs to the shell app (`apps/shell/components/tenant-picker.tsx`),
@@ -162,7 +162,7 @@ export function HmsShell({
         await fetch("/logout", { method: "POST" });
       } catch {
         // Same reasoning as handleSignOut below: the browser must still
-        // end up on a signed-out-looking page even if the HMS session
+        // end up on a signed-out-looking page even if the Helivanta session
         // revoke call itself is unreachable.
       }
       // endZitadelSession() itself does the sessionStorage.setItem for
@@ -321,7 +321,7 @@ export function HmsShell({
   // round-trip so a slow or failed revoke can never leave stale
   // permissions visible.
   //
-  // The default path ends BOTH sessions — the HMS one (POST /logout) and
+  // The default path ends BOTH sessions — the Helivanta one (POST /logout) and
   // Zitadel's own SSO cookie (zitadel-session.ts's endZitadelSession) —
   // from EVERY app, not only the shell's dashboard. That used to be
   // shell-only, on the same "only the shell carries Zitadel client
@@ -372,7 +372,7 @@ export function HmsShell({
           <div className="flex h-16 items-center justify-center">
             <a
               href="/"
-              aria-label="HMS home"
+              aria-label="Helivanta home"
               className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-primary"
             >
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-(--hms-accent) to-(--hms-accent-strong) text-(--sidebar-primary-foreground)">

@@ -9,7 +9,7 @@
 -include .env
 
 # Written by scripts/zitadel-bootstrap.mjs (run from `dev-infra`, below)
-# once the HMS org/project/app exist in the local Zitadel — ZITADEL_CLIENT_ID
+# once the Helivanta org/project/app exist in the local Zitadel — ZITADEL_CLIENT_ID
 # cannot be a fixed default the way the other HELIVANTA_* ports are, because
 # Zitadel assigns it at creation time. Absent on a fresh clone before the
 # first `make dev-infra`/`make up`; -include swallows that the same way it
@@ -100,7 +100,7 @@ dev-infra: preflight
 	@printf 'Waiting for Zitadel on :$(HELIVANTA_ZITADEL_PORT)…'
 	@until curl -fsS --max-time 2 http://localhost:$(HELIVANTA_ZITADEL_PORT)/debug/healthz >/dev/null 2>&1; do printf '.'; sleep 1; done
 	@echo ' ready.'
-	@# Provisions the HMS org/project/app once (idempotent — see the
+	@# Provisions the Helivanta org/project/app once (idempotent — see the
 	@# script's own doc comment) and writes
 	@# dev/zitadel/secrets/zitadel.env, which the -include near the top of
 	@# this file picks up for dev-api/seed below.
@@ -117,7 +117,7 @@ dev-infra: preflight
 # There is no third, tighter budget for POST /v1/iam/me/tenant anymore
 # (RATE_LIMIT_MINT_PER_MIN, removed #838 Task 5): that route used to mint a
 # GIP custom token against Identity Platform's project-wide quota, and now
-# re-mints the HMS session in-process — the same cost every other
+# re-mints the Helivanta session in-process — the same cost every other
 # authenticated route already pays through authz.Middleware. See
 # backend/internal/bootstrap/ratelimit.go's doc comment for the full
 # reasoning; it is not silently carried forward here.
@@ -159,7 +159,7 @@ ZITADEL_LOGIN_CLIENT_PAT_FILE ?= dev/zitadel/secrets/login-client.pat
 dev-api:
 	@if [ -z "$${ZITADEL_CLIENT_ID:-$(ZITADEL_CLIENT_ID)}" ]; then \
 		echo "ZITADEL_CLIENT_ID is not set — run 'make dev-infra' first so" >&2; \
-		echo "scripts/zitadel-bootstrap.mjs can provision the HMS app and" >&2; \
+		echo "scripts/zitadel-bootstrap.mjs can provision the Helivanta app and" >&2; \
 		echo "write dev/zitadel/secrets/zitadel.env." >&2; \
 		exit 1; \
 	fi

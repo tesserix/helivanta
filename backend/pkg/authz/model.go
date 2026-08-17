@@ -1,6 +1,6 @@
 package authz
 
-// modelJSON is the complete HMS authorization model. It deliberately
+// modelJSON is the complete Helivanta authorization model. It deliberately
 // contains no role names and no permission names: roles and permissions
 // are objects, and granting is a tuple write. This file changes only if
 // the *shape* of authorization changes (for example when per-record or

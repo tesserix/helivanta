@@ -59,7 +59,7 @@ done
 
 echo
 if [ "${#still_up[@]}" -eq 0 ]; then
-  echo "All HMS ports are free."
+  echo "All Helivanta ports are free."
 else
   echo "Still listening: ${still_up[*]}"
   [ "$skipped" -gt 0 ] && echo "(left alone because they do not belong to this repo — see SKIPPED above)"

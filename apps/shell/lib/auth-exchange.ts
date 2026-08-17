@@ -1,6 +1,6 @@
 // exchangeIdToken posts a Zitadel ID token to POST /v1/auth/login
 // (backend/internal/modules/iam/login.go), which verifies it, resolves
-// tenant membership from OpenFGA, and — on success — mints the HMS
+// tenant membership from OpenFGA, and — on success — mints the Helivanta
 // session and sets it as this response's Set-Cookie. The API is the only
 // thing holding the signing key (design spec D1), so this route, unlike
 // the old apps/shell/app/api/session/route.ts it replaces, never touches
@@ -10,7 +10,7 @@
 //
 // Raw fetch, not `apiFetch` from @helivanta/api: this is the one auth route
 // outside the `/api/v1` envelope's error-shape contract that runs before
-// an HMS session exists — the same sanctioned exception the old
+// a Helivanta session exists — the same sanctioned exception the old
 // `/api/session` POST was (docs/standards/frontend.md §3). It is used by
 // both the login callback (app/api/auth/callback/page.tsx) and silent
 // renewal (lib/renew.ts).
@@ -31,7 +31,7 @@ export async function exchangeIdToken(
       tenantId ? { id_token: idToken, tenant_id: tenantId } : { id_token: idToken },
     ),
     // Spec D3: the backend tells a renewal from a genuine login by whether
-    // THIS request carries the HMS session cookie — carrying it forward
+    // THIS request carries the Helivanta session cookie — carrying it forward
     // means "carry idle_deadline forward too"; its absence means "mint a
     // fresh window". fetch's default credentials mode is already
     // "same-origin" (this URL is relative/same-origin), so this is

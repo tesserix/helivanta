@@ -8,7 +8,7 @@ describe("exchangeIdToken", () => {
   });
 
   // Spec D3's discriminator (a renewal carries idle_deadline forward; a
-  // genuine login gets a fresh one) depends on the backend seeing the HMS
+  // genuine login gets a fresh one) depends on the backend seeing the Helivanta
   // session cookie on THIS request. That only happens today because the
   // URL is relative/same-origin AND fetch's credentials mode is explicitly
   // "same-origin" — nothing enforces either fact, so this pins both.

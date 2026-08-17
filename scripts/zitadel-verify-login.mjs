@@ -1,16 +1,16 @@
 // The API-level auth round trip scripts/verify-local.sh drives (#838 Task
-// 6): a real Zitadel token → POST /v1/auth/login → an HMS session that
+// 6): a real Zitadel token → POST /v1/auth/login → a Helivanta session that
 // works on a /v1 route. Deliberately API-level, not through the shell's
 // old /api/session route, which #838 deleted: the API now mints and sets
 // (Task 6 is dev stack/seeding only; the frontend is a separate follow-on),
 // so that route no longer exists on the path a Zitadel token can take. This
 // script proves the part of the chain that IS wired today: Zitadel issues a
-// real token, the API verifies it and mints a real HMS session, and that
+// real token, the API verifies it and mints a real Helivanta session, and that
 // session actually resolves a permission through OpenFGA.
 //
 // #854 Task 7: obtaining that real token used to drive Zitadel's hosted
 // login UI with a headless Playwright browser (hostedUILogin). #854 Task 1
-// repointed helivanta-web's login redirect at HMS's own /login, whose markup
+// repointed helivanta-web's login redirect at Helivanta's own /login, whose markup
 // (one-step Email/Password/Sign-in) that browser drive never matched.
 // passwordLoginIDToken (scripts/lib/zitadel.mjs) replaces it with the same
 // authorization-code-plus-PKCE exchange driven directly through Zitadel's

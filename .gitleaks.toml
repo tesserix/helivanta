@@ -1,4 +1,4 @@
-# Secret scanning gate for HMS (#45, spec D5).
+# Secret scanning gate for Helivanta (#45, spec D5).
 #
 # Exceptions below are scoped to specific secret VALUES, never to file
 # paths. A path allowlist on Makefile or signingkey.go would exempt a

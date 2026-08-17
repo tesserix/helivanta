@@ -2303,7 +2303,7 @@ In `backend/internal/config/config.go`, add to `Config` and `Load`:
 
 ```go
 		OpenFGAURL:   getenv("OPENFGA_URL", "http://localhost:8090"),
-		OpenFGAStore: getenv("OPENFGA_STORE", "hms"),
+		OpenFGAStore: getenv("OPENFGA_STORE", "helivanta"),
 ```
 
 - [ ] **Step 2: Wire main.go**

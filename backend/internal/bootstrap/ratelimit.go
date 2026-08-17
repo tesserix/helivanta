@@ -25,7 +25,7 @@ import (
 // tighter than every other route because it minted a GIP custom token
 // per call against Identity Platform's project-wide quota — exhausting
 // that quota broke sign-in for every hospital, not just the caller's.
-// #838 replaced that mint with an in-process HMS session re-mint (an
+// #838 replaced that mint with an in-process Helivanta session re-mint (an
 // Ed25519 signature, no network call) plus one OpenFGA membership
 // check — the SAME shape of cost every other authenticated route
 // already pays through authz.Middleware's own Resolve call. There is no

@@ -92,9 +92,9 @@ test("pharmacist can dispense a visit created by admin", async ({ page }) => {
   // apps/shell/app/logout/route.ts and #781. Every zone renders the same
   // HmsShell sign-out control, including the medicore page we're on.
   await page.getByRole("button", { name: "Sign out" }).last().click();
-  // Sign-out (lib/sign-out.ts) is a MULTI-HOP redirect chain: HMS
+  // Sign-out (lib/sign-out.ts) is a MULTI-HOP redirect chain: Helivanta
   // dashboard -> Zitadel's end_session endpoint (which is what actually
-  // clears Zitadel's own SSO cookie) -> back to HMS's /login -> /login's
+  // clears Zitadel's own SSO cookie) -> back to Helivanta's /login -> /login's
   // own effect immediately redirects onward to Zitadel's authorize
   // endpoint. Calling login() (which itself starts with a fresh
   // page.goto("/")) before that chain has fully settled does not merely
@@ -107,7 +107,7 @@ test("pharmacist can dispense a visit created by admin", async ({ page }) => {
   // and reached the dashboard as admin without ever calling login() at
   // all.
   //
-  // Since #847 the chain settles on HMS's own /login landing page — it no
+  // Since #847 the chain settles on Helivanta's own /login landing page — it no
   // longer carries on to Zitadel by itself. The unambiguous "chain
   // finished" signal is therefore that page's Sign in button rendering.
   //

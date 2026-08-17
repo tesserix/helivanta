@@ -75,7 +75,7 @@ services:
     volumes:
       - zitadeldata:/var/lib/postgresql/data
 
-  # `start-from-init` provisions the whole HMS topology declaratively on
+  # `start-from-init` provisions the whole Helivanta topology declaratively on
   # first boot, with NO interactive/browser step at all — verified
   # end-to-end for #838 Task 6 (the spike's "still NOT VERIFIED" first-PAT
   # gap is closed): FirstInstance.Org.Machine creates helivanta-seed-bot with
@@ -198,7 +198,7 @@ services:
   # identified the cause.
   #
   # #854 Task 5: the SAME file (and the SAME ordering trap) also gates
-  # HMS's own API process, which reads it into ZITADEL_LOGIN_CLIENT_TOKEN
+  # Helivanta's own API process, which reads it into ZITADEL_LOGIN_CLIENT_TOKEN
   # to drive Zitadel's login-client API directly
   # (internal/modules/iam/loginui.go). The API is not a compose service —
   # it runs via `go run ./cmd/api` from the Makefile's dev-api target, not
@@ -255,7 +255,7 @@ services:
   # (/ui/v2/login/*) under one origin — see dev/zitadel/Caddyfile's own
   # comment for why this is mandatory, not cosmetic. Still required with
   # LOGINV2_REQUIRED=false (#854 Task 1): helivanta-web's per-app
-  # loginVersion.loginV2.baseUri sends the browser to HMS directly for the
+  # loginVersion.loginV2.baseUri sends the browser to Helivanta directly for the
   # primary flow, but spec D3's fallback path still lands on Zitadel's own
   # /ui/v2/login/login?authRequest=… (verified live: it 307s), and the
   # Management Console app has no per-app override, so it still needs

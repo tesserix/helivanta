@@ -1,4 +1,4 @@
-// Package pagination owns the cursor and limit halves of the HMS list
+// Package pagination owns the cursor and limit halves of the Helivanta list
 // contract. It is deliberately pure: no GORM, no knowledge of any table,
 // and gin only to read query values — so the precision and tamper
 // properties can be tested without a database or an HTTP round trip.

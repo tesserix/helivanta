@@ -21,17 +21,17 @@ import (
 // the network, with no principal, no tenant and no permission check. It
 // must be a route that *cannot* work any other way.
 var UnauthenticatedRoutes = map[string]string{
-	// Creates the HMS session, so it cannot require one: it verifies a
-	// caller-presented Zitadel ID token, not the HMS session the /v1
+	// Creates the Helivanta session, so it cannot require one: it verifies a
+	// caller-presented Zitadel ID token, not the Helivanta session the /v1
 	// chain checks (#838, spec D1).
-	"POST /v1/auth/login": "creates the HMS session and therefore cannot require one",
+	"POST /v1/auth/login": "creates the Helivanta session and therefore cannot require one",
 
-	// #854 Task 4: HMS's own login form drives these three directly
-	// against Zitadel's login-client API, all before any HMS session
+	// #854 Task 4: Helivanta's own login form drives these three directly
+	// against Zitadel's login-client API, all before any Helivanta session
 	// exists — the same reason POST /v1/auth/login above is here.
-	"GET /v1/auth/login/request/:id":  "renders the login form before any HMS session exists",
+	"GET /v1/auth/login/request/:id":  "renders the login form before any Helivanta session exists",
 	"POST /v1/auth/login/password":    "checks the credential that creates the session, so it cannot require one",
-	"POST /v1/auth/login/handoff/:id": "hands an auth request to the hosted login when HMS cannot complete it",
+	"POST /v1/auth/login/handoff/:id": "hands an auth request to the hosted login when Helivanta cannot complete it",
 
 	// Liveness and readiness. Deliberately outside /v1 and unlimited: a
 	// throttled or authenticated probe takes a healthy replica out of

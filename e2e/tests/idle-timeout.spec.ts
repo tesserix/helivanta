@@ -98,7 +98,7 @@ test("an untouched session is refused after IDLE_TIMEOUT and returns to a real s
   // The open page's own idle-tracker (mounted via HmsShell, independent
   // of the direct check above) reaches the same deadline on its own
   // client-side timer and runs its own teardown
-  // (packages/ui/src/hms-shell.tsx's endIdleSession) — ending the HMS
+  // (packages/ui/src/hms-shell.tsx's endIdleSession) — ending the Helivanta
   // session, ending this browser's Zitadel SSO session, and navigating
   // here. That is a SEPARATE code path from step 3's direct probe, and
   // both must hold for the feature to be real: the server enforces the
@@ -112,7 +112,7 @@ test("an untouched session is refused after IDLE_TIMEOUT and returns to a real s
   ).toBeVisible();
 
   // --- 5. Signing in again requires credentials --------------------------
-  // login() drives HMS's own credential form end to end (Email + Password
+  // login() drives Helivanta's own credential form end to end (Email + Password
   // fields, "Sign in" submit) and only resolves once the API accepts the
   // resulting session — RedirectLanding's signIn() forces `prompt=login`
   // on every attempt (apps/shell/app/login/page.tsx), so this can only

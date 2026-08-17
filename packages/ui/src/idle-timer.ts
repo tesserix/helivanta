@@ -7,7 +7,7 @@
  * and a couple of `window.dispatchEvent` calls, no DOM-rendering harness
  * required.
  *
- * **Why this lives in `@helivanta/ui`, not `apps/shell`.** Every HMS app
+ * **Why this lives in `@helivanta/ui`, not `apps/shell`.** Every Helivanta app
  * (`apps/medicore`, `apps/pharmacy`, `apps/lab`) renders `HmsShell`. A
  * clinician working inside `/medicore` for twenty minutes is ACTIVE — if
  * only the shell tracked interaction they would be signed out
@@ -26,7 +26,7 @@ export const ACTIVITY_DEBOUNCE_MS = 60_000;
 // How far ahead of idle_deadline the warning modal (task 6) fires (D5).
 export const WARNING_LEAD_MS = 120_000;
 
-// Every HMS app shares this origin, so a single named channel is enough
+// Every Helivanta app shares this origin, so a single named channel is enough
 // for every tab and every zone app to agree on one deadline (D4: "Tabs
 // share one timer").
 const BROADCAST_CHANNEL_NAME = "hms.session";

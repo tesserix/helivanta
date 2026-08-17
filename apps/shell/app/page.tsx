@@ -55,7 +55,7 @@ export default function Dashboard() {
   const { can } = usePermissions();
   const cards = cardsFor(visibleZones(can));
 
-  // No onSignOut override: HmsShell's own default now ends both the HMS
+  // No onSignOut override: HmsShell's own default now ends both the Helivanta
   // session and Zitadel's SSO session from every app, the shell's
   // dashboard included — see packages/ui/src/hms-shell.tsx's
   // handleSignOut and zitadel-session.ts.

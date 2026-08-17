@@ -233,7 +233,7 @@ func TestLoginPolicyRejectsARenamedOrRecasedForceMFA(t *testing.T) {
 // through supported Zitadel configuration, not upstream drift. See
 // LoginPolicy's "forceMfaLocalOnly — a second, REAL field" doc comment
 // section for the fold-together decision and its documented assumption
-// (every HMS user is local today).
+// (every Helivanta user is local today).
 func TestLoginPolicyTreatsForceMFALocalOnlyAsRequiringMFA(t *testing.T) {
 	// forceMfa absent entirely, matching the real elision shape — the
 	// realistic body a Zitadel org with forceMfaLocalOnly configured and

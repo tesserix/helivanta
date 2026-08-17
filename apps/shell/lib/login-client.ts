@@ -9,7 +9,7 @@ import { apiFetch } from "@helivanta/api";
 // same pattern every other read in this codebase follows, e.g.
 // apps/medicore/components/visit-panel.tsx's `useApiQuery<Visit[]>(...)`).
 //
-// HMS's login form reads this on mount, before rendering the credential
+// Helivanta's login form reads this on mount, before rendering the credential
 // fields, so that an auth request that is already unknown, expired, or
 // already used (a browser left on the login page overnight — spec D3's
 // "errors and failure handling" section calls this reachable in normal
@@ -27,7 +27,7 @@ export interface AuthRequestInfo {
 
 // Typed wrapper around POST /v1/auth/login/password
 // (backend/internal/modules/iam/loginui.go), the credential check that
-// drives Zitadel's login-client API on HMS's behalf (spec D2, #854). This
+// drives Zitadel's login-client API on Helivanta's behalf (spec D2, #854). This
 // is NOT the raw-fetch exception documented in
 // docs/standards/frontend.md §3 (that one is exchangeIdToken in
 // lib/auth-exchange.ts, which posts to POST /v1/auth/login and installs
@@ -37,7 +37,7 @@ export interface AuthRequestInfo {
 //
 // checkPassword deliberately returns a DISCRIMINATED union rather than an
 // object with two optional fields. The backend answers with exactly one
-// of `callback_url` (login is complete) or `handoff_url` (HMS cannot
+// of `callback_url` (login is complete) or `handoff_url` (Helivanta cannot
 // finish this login itself — see the outcome comment below) and never
 // both; the union makes "read the wrong field" a compile error at every
 // call site instead of a `undefined` that only surfaces at runtime.
@@ -60,7 +60,7 @@ interface PasswordCheckResponse {
   handoff_url?: string;
 }
 
-// checkPassword is the ONLY thing HMS's login form does with a
+// checkPassword is the ONLY thing Helivanta's login form does with a
 // credential: hand it to the API and act on the answer. A `handoff`
 // outcome is NOT a failure — spec D4 is explicit that Zitadel does not
 // enforce MFA for a login client, so the API decides sufficiency itself

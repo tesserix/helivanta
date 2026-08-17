@@ -273,21 +273,47 @@ A length of `0` means the path resolved but the key did not.
 - [ ] **Step 5: Prove the grant boundary — the mutation**
 
 The positive read succeeding proves nothing about scope; an over-broad policy
-behaves identically. This mirrors #45's D7(2), which names this as the
-assertion that can silently be wrong.
+behaves identically on every positive test. This mirrors #45's D7(2), which
+names this as the assertion that can silently be wrong.
 
-Temporarily point one ExternalSecret at another namespace's path
-(`kv/data/homechef/api/db`), apply, and observe it fail:
+The probe must target a path **outside** `kv/data/helivanta/*` — pointing it at
+our own path only repeats Step 4. But it must not target another product's real
+secret. If the policy is over-broad, this test does not report a failure; it
+*succeeds*, and a real cross-product credential is now in a session log. A test
+whose failure mode is a secret disclosure is the wrong test.
+
+An unused path does not work either, and this is the trap #45's D7 names
+explicitly: a read of a path that does not exist returns **not found**, not
+**permission denied**. The probe would then pass while proving nothing about
+the policy.
+
+So the operator writes a worthless canary at a path outside the grant, first —
+the `secret-service` console policy holds `create`/`update` on `kv/data/*` and
+deliberately no `read`, so this is within its rights:
+
+```bash
+bao kv put kv/scope-probe/helivanta-denial canary="not-a-secret"
+```
+
+Then point one ExternalSecret at `kv/data/scope-probe/helivanta-denial`, apply,
+and read the condition:
 
 ```bash
 kubectl --context $K -n helivanta get externalsecret helivanta-postgres-api-credentials \
   -o jsonpath='{.status.conditions[*].message}{"\n"}'
 ```
 
-Expected: a permission-denied message from OpenBao. Then revert the path,
-re-apply, and confirm it returns to `SecretSynced`. **Both halves are required**
-— a denial you have not seen revert could be a malformed path rather than a
-working policy.
+Expected: a **permission-denied** message from OpenBao — not a 404, which would
+mean the canary write did not land and the test is inert. Then revert the path,
+re-apply, and confirm it returns to `SecretSynced`.
+
+**All three halves are required.** The canary must exist (or a denial proves
+nothing), the read must be refused (the actual assertion), and the revert must
+restore `SecretSynced` (or the "denial" may just be a broken manifest). If the
+read instead *succeeds* and returns `not-a-secret`, the `read-helivanta` policy
+is over-broad — stop, and fix the policy before any real secret is written.
+
+Delete the canary afterwards: `bao kv metadata delete kv/scope-probe/helivanta-denial`.
 
 - [ ] **Step 6: Commit**
 
@@ -745,8 +771,9 @@ git commit -m "refactor: rename dev database and owner role to helivanta"
 - JetStream proven enabled (Task 6 Step 4).
 - OpenFGA proven to survive a restart (Task 6 Step 5).
 - The namespace proven to deny cross-namespace traffic (Task 7 Step 4).
-- The OpenBao grant proven to deny another namespace's path, and proven to
-  recover (Task 3 Step 5).
+- The OpenBao grant proven to deny an existing path outside `kv/data/helivanta/*`,
+  and proven to recover (Task 3 Step 5) — probed with a disposable canary, never
+  another product's real secret.
 - A fresh `make reset && make up` works on the renamed dev database.
 
 Slice 1b is planned only after this is met, because it depends on values this

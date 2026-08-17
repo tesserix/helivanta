@@ -74,7 +74,22 @@ identifier — and that cost is paid on every read by every reader, forever,
 while the historical-accuracy cost is paid once by whoever cares about
 provenance, who has `git log` and this spec.
 
-**One narrow carve-out, and it is about evidence, not naming.** Literal
+**Ruling, 2026-08-17.** During Task 4 the question arose again for *other*
+spikes, which also contain transcribed artifacts: a `docker ps` listing in
+`spikes/2026-08-15-zitadel-spike.md` and a literal Zitadel API response body in
+`spikes/2026-08-15-zitadel-topology.md`. The product owner ruled that **those
+are rewritten**, and only the two login-client lines below stay.
+
+The consequence is stated rather than hidden: those two files now show container
+names and a `grantedOrgName` that were never produced by any real run. The
+tradeoff accepted is the one D2 rests on throughout — a reader hitting a stale
+name pays a cost on every read, while the provenance cost is paid once by
+someone who has `git log`. The carve-out below therefore is **not** a general
+"evidence is sacred" principle; it is a deliberate, bounded exception for the
+one document the handoff instructs readers to trust over Zitadel's own
+documentation.
+
+**The carve-out itself, narrow and enumerated.** Literal
 transcripts of observed API requests and responses keep their original values.
 In `spikes/2026-08-16-zitadel-login-client.md` exactly two lines are affected:
 a request body containing `pwchange-test@hms.dev` and one containing

@@ -13,7 +13,7 @@ Charts and ArgoCD Applications live in `tesserix-k8s` per ADR-0001. Istio owns
 path routing; the shell never proxies a sibling zone. Promotion is Kargo via a
 `deploy` branch. Design: `docs/superpowers/specs/2026-08-17-deployment-artefacts-design.md`.
 
-**Tech Stack:** Go 1.26.5, Node 22, pnpm 10.17.1, Docker buildx, GitHub Actions,
+**Tech Stack:** Go 1.26.6, Node 22, pnpm 10.17.1, Docker buildx, GitHub Actions,
 Helm, ArgoCD, Kargo, Istio, cloudflared, Cosign, Syft, Trivy.
 
 ## Prerequisites — human-executed, and they gate different tasks
@@ -187,7 +187,7 @@ mandatory outside dev.
 
 - [ ] **Step 1: Write the multi-stage Dockerfile**
 
-Builder on `golang:1.26.5` pinned by digest; final stage
+Builder on `golang:1.26.6` pinned by digest; final stage
 `gcr.io/distroless/static-debian12:nonroot`. `CGO_ENABLED=0`, and
 `-ldflags "-s -w -X main.version=$VERSION -X main.commit=$COMMIT"`.
 
@@ -337,11 +337,20 @@ fleet's first signed image. The justification is asymmetry, not rigour: a
 signature binds to a digest, so an image promoted unsigned must be *rebuilt* to
 be signed, and a rebuilt digest is a different artifact than the one tested.
 
-- [ ] **Step 3: Prove the Trivy gate fails — the mutation**
+- [x] **Step 3: Prove the Trivy gate fails — the mutation**
 
 Open a throwaway PR pinning a base image with a known fixable CRITICAL and
 observe the check **fail**. A gate nobody has watched reject anything is not
 known to be a gate.
+
+**Satisfied without the mutation, by the real thing.** The first run after the
+CI billing restore failed the gate on eight HIGH Go stdlib CVEs
+(CVE-2026-56862, -56860, -56859, -56858, -56853, -46600, -39821, -33818), all
+fixed in 1.26.6 — which is why the tech stack above says 1.26.6 and not the
+1.26.5 this plan was written against. Rebuilding on the bumped toolchain
+returned the scan to zero findings across debian, `app/api` and `app/migrate`.
+A throwaway PR would now prove strictly less than what was observed in
+production CI, so it is not worth opening.
 
 - [ ] **Step 4: Prove the signature exists**
 
@@ -542,7 +551,9 @@ running pod.
 - A forged `X-Forwarded-For` proven **not** to buy a fresh rate-limit budget.
 - `tesserix.app` and `mark8ly.com` proven unaffected by the cloudflared change.
 - A Kargo promotion proven to move the running digest.
-- Trivy gate proven to fail a deliberately vulnerable base image.
+- Trivy gate proven to fail a deliberately vulnerable base image. **Done** — it
+  rejected eight real HIGH stdlib CVEs before any image reached a cluster, and
+  passed again once the Go toolchain moved to 1.26.6.
 
 ## Out of scope
 

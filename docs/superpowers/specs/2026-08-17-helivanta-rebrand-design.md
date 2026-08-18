@@ -2,7 +2,7 @@
 
 **Issue:** [#863](https://github.com/tesserix/helivanta/issues/863)
 **Blocks:** [#45](https://github.com/tesserix/helivanta/issues/45) Task 4 — secrets are
-deliberately not provisioned at `kv/data/helivanta/api/*` while that path is about to
+deliberately not provisioned at `kv/data/helivanta/helivanta-api/*` while that path is about to
 move.
 **Feeds:** [#824](https://github.com/tesserix/helivanta/issues/824) — `helivanta.app`
 becomes the deployed origin, the Zitadel redirect URIs and the Cloudflare record.
@@ -170,7 +170,7 @@ abandoned half-done. It was not: this is the line, and this is why.
 |---|---|---|
 | Zitadel app `hms-web`, client, org `HMS` | `helivanta-web`, org `Helivanta` | dev-only; provisioned by `scripts/lib/zitadel.mjs` at first boot, and prod has no HMS app |
 | k8s `namespace/hms`, `serviceaccount/hms-api` | `helivanta`, `helivanta-api` | created 2026-08-17, empty, nothing scheduled |
-| `kv/data/helivanta/api/*`, `SecretStore/openbao-helivanta-api` | `kv/data/helivanta/api/*`, `openbao-helivanta-api` | no secret was ever written; #45 Task 4 was held for exactly this |
+| `kv/data/hms/hms-api/*`, `SecretStore/openbao-hms-api` | `kv/data/helivanta/helivanta-api/*`, `openbao-helivanta-api` | no secret was ever written; #45 Task 4 was held for exactly this |
 | `tesserix-k8s` whitelist entry | `helivanta` / `helivanta-api` | one PR against the infra repo |
 
 **Renaming the Zitadel app mints a new client ID.** `NEXT_PUBLIC_ZITADEL_CLIENT_ID`

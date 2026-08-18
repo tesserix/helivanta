@@ -23,8 +23,8 @@ a real read under it, which is a separate, not-yet-done task (see D7).
 
 | Env var | OpenBao path | What it authorises | Blast radius if leaked |
 |---|---|---|---|
-| `SESSION_SIGNING_KEY` | `kv/data/helivanta/api/session-signing-key` | Signs and verifies every Helivanta session token (Ed25519 seed) | Credential forgery — holder can mint valid sessions for any user, indistinguishable from a real login, until the key is rotated |
-| `ZITADEL_LOGIN_CLIENT_TOKEN` | `kv/data/helivanta/api/zitadel-login-client-token` | PAT for Helivanta's `IAM_LOGIN_CLIENT` machine user; lets Helivanta's own login form check credentials and finalise sign-ins against production Zitadel | Instance-level (D2): a leaked PAT can finalise an OIDC auth request for **any** app on the shared Zitadel instance, not just Helivanta. Helivanta holding its own machine user buys independent revocation, attribution, and rotation — it does not narrow what the credential can do once read |
+| `SESSION_SIGNING_KEY` | `kv/data/helivanta/helivanta-api/session-signing-key` | Signs and verifies every Helivanta session token (Ed25519 seed) | Credential forgery — holder can mint valid sessions for any user, indistinguishable from a real login, until the key is rotated |
+| `ZITADEL_LOGIN_CLIENT_TOKEN` | `kv/data/helivanta/helivanta-api/zitadel-login-client-token` | PAT for Helivanta's `IAM_LOGIN_CLIENT` machine user; lets Helivanta's own login form check credentials and finalise sign-ins against production Zitadel | Instance-level (D2): a leaked PAT can finalise an OIDC auth request for **any** app on the shared Zitadel instance, not just Helivanta. Helivanta holding its own machine user buys independent revocation, attribution, and rotation — it does not narrow what the credential can do once read |
 | `HELIVANTA_WEB_ORIGIN` | **not in OpenBao — see below** | The public origin Helivanta's own frontend is served from | N/A — see below |
 
 **`HELIVANTA_WEB_ORIGIN` is config, not a secret (D1).** It refuses boot when unset,
@@ -81,14 +81,57 @@ worst place to debug a base64 length mismatch.
 > pod restart (rotation is restart-only, per D4 above). Do the cheap thing
 > while it's still cheap.
 
-Then write the printed value to `kv/data/helivanta/api/session-signing-key` via the
+Then write the printed value to `kv/data/helivanta/helivanta-api/session-signing-key` via the
 secret-service console at `secret-service.tesserix.app` (create/update only —
 by design the console is not meant to hold `read` on `kv/data`, so writing a
 value there is not meant to create a way to read it back; this is D7
-assertion (3) and **has not yet been verified** — Task 4 has not run. Treat
-it as the design intent, not a proven property, until that assertion is
-recorded as passed below). This write-back step is Task 4 and has not been
+assertion (3) and **has still not been independently verified** — the console's
+own UI asserts it, which is not the same as having tested it. Treat it as
+design intent, not a proven property). This write-back step is Task 4 and has not been
 executed as of this writing.
+
+## The grant, and what has actually been proven about it
+
+**The path shape is not free — it is dictated by the store.** The `openbao`
+chart generates one policy per whitelisted app, scoped to
+`kv/data/<namespace>/<app-name>/*`, and names the policy and Kubernetes auth
+role `app-<namespace>_<app-name>`. Helivanta's only whitelisted app is
+`helivanta-api`, so **the sole readable prefix is
+`kv/data/helivanta/helivanta-api/*`**. The app segment cannot be chosen freely:
+a secret written to `kv/data/helivanta/api/...` or `kv/data/helivanta/postgres/...`
+is invisible to the pod.
+
+**This runbook gave the wrong paths until 2026-08-18.** They read
+`kv/data/helivanta/api/*`. Following it exactly would have written both boot
+secrets where nothing can read them — and nothing would have failed at write
+time, because the console accepts any path. The first symptom would have been an
+opaque External Secrets permission error during deployment, with the runbook
+apparently followed correctly.
+
+In the `secret-service` console the three fields map to the path as
+**Namespace** / **Apps** / **Secret name**, so the values are `helivanta`,
+`helivanta-api`, and the secret's own name. Selecting the existing
+`helivanta-api` app needs no whitelisting pull request; if the console offers to
+open one, the app segment is wrong.
+
+Two of D7's three assertions were proven during #824 slice 1a, using the
+Postgres role passwords rather than these boot secrets:
+
+1. **A read under the grant succeeds** — three ExternalSecrets reached
+   `SecretSynced` with real values projected. ✅
+2. **A read outside the grant is refused** — `kv/data/helivanta/scope-probe/denial`
+   returned `403 permission denied`. The path *existed* (a disposable canary was
+   written there and its whitelisting PR deliberately left unmerged), so the
+   refusal is a policy decision and not a 404. ✅ This is the assertion that can
+   silently be wrong: an over-broad policy passes every positive test
+   identically.
+3. **The console cannot read values back** — still unverified. ❌
+
+One further trap, found the same way: an ExternalSecret's `remoteRef` needs
+`property: <key>` as well as `key: <path>`. Without it, ESO returns the entire
+KV payload, so the projected value is `{"password":"..."}` rather than the
+secret. That is non-empty and reports `SecretSynced`, so a presence check passes
+while the credential is unusable.
 
 ## Provisioning: `ZITADEL_LOGIN_CLIENT_TOKEN`
 
@@ -109,7 +152,7 @@ second thing able to do so.
 3. Grant it the `IAM_LOGIN_CLIENT` role at the instance level. Zitadel offers
    no narrower role — see the residual risk below before proceeding.
 4. Generate a personal access token (PAT) for that machine user.
-5. Write the PAT to `kv/data/helivanta/api/zitadel-login-client-token` via the
+5. Write the PAT to `kv/data/helivanta/helivanta-api/zitadel-login-client-token` via the
    secret-service console at `secret-service.tesserix.app`, the same way as
    the session signing key above.
 

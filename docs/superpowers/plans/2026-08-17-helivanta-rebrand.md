@@ -317,7 +317,7 @@ git commit -m "docs: rename hms to helivanta across documentation (#863)"
 
 **Interfaces:**
 - Consumes: the path convention from Task 4's docs.
-- Produces: `kv/data/helivanta/api/*`, `namespace/helivanta`, `serviceaccount/helivanta-api`.
+- Produces: `kv/data/helivanta/helivanta-api/*`, `namespace/helivanta`, `serviceaccount/helivanta-api`.
 
 The live objects hold **no secrets** — #45 Task 4 was deliberately held for this. Renaming is therefore create-new plus delete-old, not a migration.
 

@@ -108,13 +108,43 @@ Confirm before the runbook is executed, not after.
 ## D3 — The path convention follows the live fleet model
 
 ```
-kv/data/helivanta/api/session-signing-key
-kv/data/helivanta/api/zitadel-login-client-token
+kv/data/helivanta/helivanta-api/session-signing-key
+kv/data/helivanta/helivanta-api/zitadel-login-client-token
 
-policy  read-hms          → read on kv/data/helivanta/*, read+list on kv/metadata/helivanta/*
-role    app-hms_hms-api   → ServiceAccount hms-api in namespace hms
-store   SecretStore openbao-helivanta-api in namespace hms
+policy  app-helivanta_helivanta-api  → read on kv/data/helivanta/helivanta-api/*
+                                     → read+list on kv/metadata/helivanta/helivanta-api/*
+role    app-helivanta_helivanta-api  → ServiceAccount helivanta-api in namespace helivanta
+store   SecretStore openbao-helivanta-api in namespace helivanta
 ```
+
+**Corrected 2026-08-18, after the grant was exercised for the first time
+during #824 slice 1a.** This block originally gave the paths as
+`kv/data/helivanta/api/*` and the policy as `read-hms` granting
+`kv/data/helivanta/*`. **All three were wrong**, and the error was invisible
+because nothing had ever read the path.
+
+The `openbao` chart does not take a hand-written policy. It generates one per
+whitelisted app from `namespaceWhitelist`, scoped to
+`kv/data/<namespace>/<app-name>/*`
+(`charts/thirdparty/openbao/templates/bootstrap-configmap.yaml`), and names both
+the policy and the Kubernetes auth role `app-<namespace>_<app-name>`. The only
+app whitelisted for this namespace is `helivanta-api`, and the live
+`SecretStore/openbao-helivanta-api` authenticates with role
+`app-helivanta_helivanta-api` — so the sole readable prefix is
+`kv/data/helivanta/helivanta-api/*`. The string `helivanta` appears nowhere else
+in the chart's policy block; there is no broader grant to fall back on.
+
+**Consequence had this not been caught:** secrets written per the old paths
+would have been unreadable by the pod. Nothing would have failed at write time
+— the console accepts any path — and the failure would have surfaced during
+deployment as an opaque External Secrets permission error, with the runbook
+appearing to have been followed correctly.
+
+**Proven, not inferred:** a read under the grant succeeds (three ExternalSecrets
+`SecretSynced` with real values), and a read of `kv/data/helivanta/scope-probe/denial`
+— a path that exists, whose whitelisting PR was deliberately left unmerged — is
+refused with `403 permission denied`. The denial is a policy decision rather
+than a 404, which is the distinction D7 insists on.
 
 This **supersedes #45's `hms-in/{env}/{scope}/{name}`**. That convention was
 written when GCP Secret Manager was assumed, where a name is a flat string and
@@ -222,7 +252,7 @@ Go side: in-repo tests, no OpenBao required — that is D4 working as intended.
 OpenBao side, three assertions against the **production** store, because
 (observed above) there is no other one:
 
-1. A read of `kv/data/helivanta/api/*` under Helivanta's grant **succeeds**.
+1. A read of `kv/data/helivanta/helivanta-api/*` under Helivanta's grant **succeeds**.
 2. A read of another namespace's path (e.g. `kv/data/homechef/*`) under Helivanta's
    grant is **denied**.
 3. The `secret-service` console's policy **cannot read** Helivanta's values — it holds

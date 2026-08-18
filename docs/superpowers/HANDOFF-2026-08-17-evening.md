@@ -84,7 +84,7 @@ a version that *replaced* rather than *merged* the default rule would silently
 disable the detector and report `no leaks found` forever.
 
 **Task 4 (proving the OpenBao grant) is deliberately unstarted.** Nothing has
-been written to `kv/data/helivanta/api/*`. It was held first for the rebrand and
+been written to `kv/data/helivanta/helivanta-api/*`. It was held first for the rebrand and
 now for #824.
 
 ### #863 — the rebrand
@@ -204,7 +204,7 @@ actual request rather than inheriting today's inference.
 
 ### 2. #45 Task 4 — provision the boot secrets
 
-Paths are `kv/data/helivanta/api/session-signing-key` and
+Paths are `kv/data/helivanta/helivanta-api/session-signing-key` and
 `.../zitadel-login-client-token`. The runbook has the steps. **No secret value
 should pass through an agent session** — generate and write in one piped step, or
 enter it in the `secret-service.tesserix.app` console directly.

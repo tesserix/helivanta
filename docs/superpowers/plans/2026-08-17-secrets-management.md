@@ -4,7 +4,7 @@
 
 **Goal:** Give Helivanta's two boot secrets a production home in OpenBao, a way to be provisioned, and a gate that stops secrets entering source control — without adding any secret-store code to Helivanta.
 
-**Architecture:** ESO reads OpenBao as the `hms-api` ServiceAccount and projects a Kubernetes Secret; the deployment maps it to env; `config.Load` reads env exactly as today. Helivanta gains a key generator, a runbook, and a gitleaks gate. Nothing in Helivanta learns what a vault is.
+**Architecture:** ESO reads OpenBao as the `helivanta-api` ServiceAccount and projects a Kubernetes Secret; the deployment maps it to env; `config.Load` reads env exactly as today. Helivanta gains a key generator, a runbook, and a gitleaks gate. Nothing in Helivanta learns what a vault is.
 
 **Tech Stack:** Go 1.26, GitHub Actions, gitleaks, OpenBao (KV v2), External Secrets Operator, Zitadel v4.
 
@@ -388,7 +388,7 @@ Create `docs/runbooks/secrets.md`. It must contain, at minimum:
 
 **Delivery chain** (D4), verbatim:
 ```
-OpenBao → ESO (as the hms-api ServiceAccount) → k8s Secret → env → config.Load
+OpenBao → ESO (as the helivanta-api ServiceAccount) → k8s Secret → env → config.Load
 ```
 with the note that nothing after ESO knows what a vault is, and that switching stores is a `ClusterSecretStore` edit rather than a Helivanta change.
 
@@ -428,8 +428,9 @@ The naming convention in this issue's Recommended Solution (`hms-in/{env}/{scope
 ```
 kv/data/helivanta/helivanta-api/session-signing-key
 kv/data/helivanta/helivanta-api/zitadel-login-client-token
-policy read-hms → kv/data/helivanta/*
 ```
+
+The app segment is not a free choice: the openbao chart generates one policy per whitelisted app, scoped to `kv/data/<namespace>/<app-name>/*`, so `helivanta-api` is the only readable prefix. A secret written to `kv/data/helivanta/api/...` is invisible to the pod, and nothing fails at write time.
 
 No `{env}` segment: environments are separated by cluster and namespace. See `docs/superpowers/specs/2026-08-17-secrets-management-design.md` D3 for the full reasoning, and D1 for why `HELIVANTA_WEB_ORIGIN` is config rather than a secret.
 EOF
@@ -480,42 +481,53 @@ kubectl --context $K get clustersecretstore,secretstore -A
 ```
 Expected: `openbao-0/1/2` `1/1 Running`; `openbao-secret-store` and the four existing per-app stores `Valid`/`Ready`. If this differs from the spec's observed-state table, stop and re-establish the facts before changing anything.
 
-- [ ] **Step 2: Create the namespace and ServiceAccount**
+- [ ] **Step 2: Verify the namespace and ServiceAccount — do NOT create them**
+
+**Rewritten 2026-08-18.** This step originally ran `kubectl create namespace hms`
+and `create serviceaccount hms-api -n hms`. Both names are pre-rebrand, and both
+objects already exist under the correct names — they were created on 2026-08-17
+and are now managed by #824 slice 1a's chart. Creating anything here is wrong.
 
 ```bash
-kubectl --context $K create namespace hms
-kubectl --context $K create serviceaccount hms-api -n hms
+K=gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke
+kubectl --context $K get ns helivanta
+kubectl --context $K -n helivanta get sa helivanta-api
+kubectl --context $K -n helivanta get secretstore openbao-helivanta-api
 ```
-Both are additive and are needed by #824 regardless. Reversal: `kubectl delete namespace hms`.
 
-- [ ] **Step 3: Add the OpenBao policy, auth role and whitelist entry**
+Expected: all three exist, and the SecretStore reports `Valid`/`Ready`. If any
+is missing, stop — slice 1a is not in the state this task assumes.
 
-Open a pull request against `tesserix-k8s` adding to `charts/thirdparty/openbao/values.yaml`:
+- [ ] **Step 3: Verify the grant — do NOT add a policy**
 
-```yaml
-    - name: read-hms
-      hcl: |
-        path "kv/data/helivanta/*"     { capabilities = ["read"] }
-        path "kv/metadata/helivanta/*" { capabilities = ["read", "list"] }
+**Rewritten 2026-08-18, and this correction is the important one.** This step
+originally told the operator to open a pull request adding a hand-written
+`read-hms` policy granting `path "kv/data/helivanta/*"`, plus a matching auth
+role and whitelist entry.
+
+**Doing that today would widen the grant and silently undo a proven security
+property.** The `openbao` chart does not take hand-written per-app policies. It
+*generates* one from `namespaceWhitelist`, scoped to
+`kv/data/<namespace>/<app-name>/*`, and names the policy and role
+`app-<namespace>_<app-name>`
+(`charts/thirdparty/openbao/templates/bootstrap-configmap.yaml`). The whitelist
+entry for `helivanta` / `helivanta-api` already exists, as does the
+`destinations` entry in `argocd/prod/projects/security.yaml`.
+
+Adding a second, broader `kv/data/helivanta/*` policy on top would make paths
+outside `helivanta-api/` readable — including the `scope-probe` path used to
+prove the boundary, which currently returns `403 permission denied`. The
+scoping would still *look* correct in the values file while no longer holding.
+
+So verify, and add nothing:
+
+```bash
+kubectl --context $K -n helivanta get secretstore openbao-helivanta-api \
+  -o jsonpath='{.spec.provider.vault.auth.kubernetes.role}{"\n"}'
 ```
-under `bootstrap.policies`, and:
-```yaml
-    - name: read-hms
-      serviceAccounts: ["hms-api"]
-      namespaces: ["hms"]
-      policies: ["read-hms"]
-      ttl: 1h
-```
-under `bootstrap.kubernetesRoles`, and:
-```yaml
-  - namespace: hms
-    apps:
-      - name: hms-api
-        serviceAccount: hms-api
-```
-under `namespaceWhitelist`.
 
-Per that file's own comment, a new namespace also needs a `destinations` entry in `argocd/prod/projects/security.yaml`, or ArgoCD refuses to render its store. Add it in the same PR.
+Expected: `app-helivanta_helivanta-api`. That role's policy grants exactly
+`kv/data/helivanta/helivanta-api/*` and its metadata equivalent — nothing more.
 
 - [ ] **Step 4: Write the two secret values**
 
@@ -525,14 +537,31 @@ Neither value may be echoed into a shell history, a log, or this session's trans
 
 - [ ] **Step 5: Assertion 1 — a read under Helivanta's grant succeeds**
 
-Authenticate as the `hms-api` ServiceAccount and read `kv/data/helivanta/helivanta-api/session-signing-key`.
+Authenticate as the `helivanta-api` ServiceAccount and read
+`kv/data/helivanta/helivanta-api/session-signing-key`.
 Expected: the value is returned.
+
+Note the app segment is `helivanta-api`, not `api`. It is dictated by the
+generated policy (Step 3) and cannot be chosen.
 
 - [ ] **Step 6: Assertion 2 — a cross-namespace read is denied, and the denial is real**
 
 This is **the assertion that matters**: an over-broad policy behaves identically to a correct one on every positive test, so only the denial distinguishes them.
 
-Under the same `hms-api` grant, read `kv/data/homechef/*`.
+Under the same `helivanta-api` grant, read an existing path **outside**
+`kv/data/helivanta/helivanta-api/*`.
+
+**Do not read another product's real secret** — the original version of this
+step named `kv/data/homechef/*`. If the policy is over-broad this test does not
+fail, it *succeeds*, and a live cross-product credential lands in a session log.
+A test whose failure mode is a secret disclosure is the wrong test.
+
+Instead write a worthless canary at a path outside the grant and read that.
+`kv/data/helivanta/scope-probe/denial` already exists for this purpose, with its
+whitelisting pull request deliberately left unmerged so `scope-probe` has no
+policy. The path existing is what makes the result meaningful: a **404 proves
+nothing**, only a `403 permission denied` distinguishes a bounded policy from a
+mistyped path.
 Expected: **permission denied**.
 
 Then prove the denial is the policy's doing and not an artefact:

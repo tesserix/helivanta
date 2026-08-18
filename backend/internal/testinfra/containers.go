@@ -118,8 +118,8 @@ func sharedPostgres(t *testing.T) (host, port string) {
 		// Roles are cluster-wide, so the app role is created once here;
 		// the privileges it needs are per database and are granted in
 		// newDatabase below.
-		if _, _, err := pgCont.Exec(ctx, []string{"psql", "-U", "hms", "-d", "hms", "-c",
-			`CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;`}); err != nil {
+		if err := runSQL(ctx, "hms",
+			`CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;`); err != nil {
 			pgErr = fmt.Errorf("create app role: %w", err)
 			return
 		}
@@ -158,6 +158,35 @@ func StartPostgres(t *testing.T) (string, string) {
 	return dsn("hms_app", "hms_app"), dsn("hms", "hms")
 }
 
+// runSQL executes a psql command inside the Postgres container and reports
+// failure properly.
+//
+// The subtlety it exists to remove: testcontainers' Exec returns
+// (exitCode, output, err), and err reports only whether the exec mechanism
+// worked — starting the process, talking to the daemon. A psql that runs
+// fine and then REJECTS the SQL exits non-zero with err still nil. Reading
+// only err therefore treats "the GRANT was refused" as success and lets the
+// harness hand out a database that was never set up; the test then fails
+// later, somewhere unrelated, with a symptom that looks nothing like the
+// cause. See TestRunSQLReportsAFailedStatement.
+//
+// psql exits non-zero for a failing statement even inside a multi-statement
+// -c (verified against postgres:16-alpine), so the exit code is the whole
+// signal — but it is only a signal if somebody reads it.
+func runSQL(ctx context.Context, database, sql string) error {
+	code, out, err := pgCont.Exec(ctx, []string{"psql", "-U", "hms", "-d", database, "-c", sql})
+	if err != nil {
+		return fmt.Errorf("exec psql on %s: %w", database, err)
+	}
+	if code != 0 {
+		// psql's own message is the only thing that explains WHICH
+		// statement was refused, so it has to travel with the error.
+		body, _ := io.ReadAll(out)
+		return fmt.Errorf("psql exited %d on %s: %s", code, database, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
 // newDatabase creates an empty database owned by hms and grants hms_app
 // the same privileges it holds in dev.
 func newDatabase(t *testing.T) string {
@@ -167,25 +196,29 @@ func newDatabase(t *testing.T) string {
 
 	// CREATE DATABASE cannot run inside a transaction block, and psql
 	// wraps a multi-statement -c in one, so it gets an -c of its own.
-	if _, _, err := pgCont.Exec(ctx, []string{"psql", "-U", "hms", "-d", "hms", "-c",
-		`CREATE DATABASE ` + name + ` OWNER hms;`}); err != nil {
+	if err := runSQL(ctx, "hms", `CREATE DATABASE `+name+` OWNER hms;`); err != nil {
 		t.Fatalf("create database %s: %v", name, err)
 	}
-	if _, _, err := pgCont.Exec(ctx, []string{"psql", "-U", "hms", "-d", name, "-c", `
+	// If this is skipped the database still exists and still accepts
+	// connections, so the harness looks healthy and the failure lands much
+	// later as a bare "permission denied" from whichever test happens to
+	// write first. runSQL is what stops that being silent.
+	if err := runSQL(ctx, name, `
 		GRANT USAGE ON SCHEMA public TO hms_app;
 		ALTER DEFAULT PRIVILEGES FOR ROLE hms IN SCHEMA public
 		  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hms_app;
 		ALTER DEFAULT PRIVILEGES FOR ROLE hms IN SCHEMA public
-		  GRANT USAGE, SELECT ON SEQUENCES TO hms_app;`}); err != nil {
+		  GRANT USAGE, SELECT ON SEQUENCES TO hms_app;`); err != nil {
 		t.Fatalf("grant on %s: %v", name, err)
 	}
 
 	t.Cleanup(func() {
-		// Best effort. FORCE closes the pools the test left open; if the
-		// drop still fails the database simply dies with the container,
-		// so a failure here must not fail an otherwise passing test.
-		_, _, _ = pgCont.Exec(context.Background(), []string{"psql", "-U", "hms", "-d", "hms", "-c",
-			`DROP DATABASE IF EXISTS ` + name + ` WITH (FORCE);`})
+		// Best effort, and the ONLY place here that may ignore psql's exit
+		// code — deliberately, not by the oversight runSQL exists to
+		// prevent. FORCE closes the pools the test left open; if the drop
+		// still fails the database simply dies with the container, so a
+		// failure here must not fail an otherwise passing test.
+		_ = runSQL(context.Background(), "hms", `DROP DATABASE IF EXISTS `+name+` WITH (FORCE);`)
 	})
 	return name
 }

@@ -8,12 +8,12 @@
 # published tarball and no dist/ to install from. A build context of
 # apps/shell alone could not resolve them at all.
 #
-# Both stages pinned by digest, not just tag: node:22.21.1-alpine is mutable
+# Both stages pinned by digest, not just tag: node:22.23.2-alpine is mutable
 # upstream — the tag can be repointed — but the digest is what actually built
 # this image, so a rebuild months from now reproduces the same Node and the
 # same musl userland instead of silently picking up whatever the tag has
 # since become. Same reasoning as Dockerfile.api's golang pin.
-FROM node:22.21.1-alpine@sha256:0340fa682d72068edf603c305bfbc10e23219fb0e40df58d9ea4d6f33a9798bf AS builder
+FROM node:22.23.2-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS builder
 
 # pnpm 10.17.1 via corepack, matching package.json's `packageManager` field
 # exactly. Pinned rather than `corepack enable pnpm` + whatever floats,
@@ -122,14 +122,14 @@ RUN mkdir -p /src/apps/shell/public
 # workspace, the source, the TypeScript toolchain or pnpm's store. Three
 # COPYs is the whole image.
 #
-# node:22.21.1-alpine rather than distroless (Dockerfile.api's choice)
+# node:22.23.2-alpine rather than distroless (Dockerfile.api's choice)
 # because Next's standalone server is a Node program, not a static binary —
 # it needs a Node runtime, and the officially-built one is the one Next is
 # tested against. The cost is that this image DOES have a shell, unlike the
 # API image. That is what makes the build-arg verification in the Makefile's
 # image-shell target possible at all.
 # ---------------------------------------------------------------------------
-FROM node:22.21.1-alpine@sha256:0340fa682d72068edf603c305bfbc10e23219fb0e40df58d9ea4d6f33a9798bf AS runtime
+FROM node:22.23.2-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS runtime
 
 WORKDIR /app
 
@@ -139,6 +139,26 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # whatever HOSTNAME says, and its own default of localhost binds only the
 # container's loopback — the process starts, logs "Ready", and every request
 # from outside the container (kubelet probes included) is refused.
+# Remove the npm/npx that ship inside the Node base image.
+#
+# Not a size optimisation. Trivy fails this image on eight CRITICAL/HIGH
+# findings and EVERY ONE of them is in /usr/local/lib/node_modules/npm/*
+# (tar, sigstore, picomatch, ip-address, brace-expansion) — npm's own
+# bundled dependency tree, not this application's. Verified by grouping the
+# scan by package path: zero findings come from apps/shell or packages/*.
+#
+# Nothing at runtime uses npm. The Next standalone server is started with
+# plain `node apps/shell/server.js`; pnpm and corepack are builder-stage
+# only. So this is not a suppression of a real risk, it is deleting a
+# package manager that has no business being in a serving image — the
+# vulnerabilities go with it because the code does.
+#
+# Deliberately NOT a .trivyignore: an ignore file would keep the vulnerable
+# code in the image and hide it from the next scan too.
+RUN rm -rf /usr/local/lib/node_modules/npm \
+           /usr/local/bin/npm \
+           /usr/local/bin/npx
+
 ENV HOSTNAME=0.0.0.0
 ENV PORT=4301
 

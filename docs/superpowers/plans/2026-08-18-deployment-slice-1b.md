@@ -368,7 +368,14 @@ Expected: verification succeeds. Record that this proves the signature is
 
 ### Task 5: The API chart and Application
 
-**Blocked on P2** — the pod refuses to boot without both secrets.
+**DONE 2026-08-18.** The API is running in production: 2/2 replicas, ArgoCD
+`Synced/Healthy`, both pods in the Service endpoints, migrate hook `Completed`.
+P2's blocker was cleared the same day. Work landed in `tesserix-k8s` as #411
+(activation), #415 (client id + session issuer), #416 (CPU limits) and #417
+(Zitadel issuer). See "What the live deployment exposed" at the end of this
+task — the chart was authored carefully and still carried five defects that
+only a running pod could find.
+
 Work in `tesserix-k8s`.
 
 **Files:**
@@ -382,11 +389,11 @@ Work in `tesserix-k8s`.
 - Produces: Service `helivanta-api.helivanta.svc.cluster.local:8080`. Task 6
   routes `/api/*` to it.
 
-- [ ] **Step 1: Read the live references**
+- [x] **Step 1: Read the live references**
 
 `charts/apps/homechef-api/` and `charts/apps/dwellm8-api/`. Follow their shape.
 
-- [ ] **Step 2: Wire config and secrets**
+- [x] **Step 2: Wire config and secrets**
 
 Env from the Service DNS in Global Constraints. Two ExternalSecrets reading
 `kv/data/helivanta/helivanta-api/{session-signing-key,zitadel-login-client-token}`
@@ -401,7 +408,7 @@ writing it. The secrets written in P2 must carry those exact field names.
 runs in. Task 9 confirms or corrects it against a live request; until then it is
 an inference.
 
-- [ ] **Step 3: Probes and shutdown**
+- [x] **Step 3: Probes and shutdown**
 
 `livenessProbe` → `/healthz`, `readinessProbe` → `/readyz`. `/readyz` already
 iterates real checks and 503s naming the failure (`internal/httpserver/server.go:75-84`).
@@ -409,30 +416,110 @@ iterates real checks and 503s naming the failure (`internal/httpserver/server.go
 `terminationGracePeriodSeconds` **above** the server's shutdown timeout. A grace
 period shorter than the drain makes Task 2's SIGTERM handling decorative.
 
-- [ ] **Step 4: Migrations as a pre-upgrade hook**
+- [x] **Step 4: Migrations as a pre-upgrade hook**
 
 `backend/cmd/migrate` runs as a Helm `pre-upgrade`/`pre-install` hook Job, not an
 initContainer: a failed migration then fails the release and the previous
 ReplicaSet keeps serving, rather than crash-looping a new pod with the error
 visible only in container logs.
 
-- [ ] **Step 5: Prove readiness discriminates — the mutation**
+- [x] **Step 5: Prove readiness discriminates — the mutation**
 
 Scale `helivanta-nats` to zero, then confirm `/readyz` returns **503 naming
 `nats`** and the pod leaves the Service endpoints. Restore. A readiness probe
 that returns 200 while a dependency is down is worse than none — it routes
 traffic into a broken pod.
 
-- [ ] **Step 6: Prove the boot guard fires in the real deployment**
+- [x] **Step 6: Prove the boot guard fires in the real deployment**
 
 Remove `TRUSTED_PROXY_CIDRS` from the chart, deploy, and watch the pod refuse to
 start with the message naming the variable. Then set `none` and watch it start.
 Then set the real CIDR. All three, observed — the middle one is what
 distinguishes a working sentinel from a guard that refuses everything.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ---
+
+---
+
+#### What the live deployment exposed
+
+Every item below was a written assumption that read as verified and was not.
+Recorded because the pattern, not the individual bugs, is the lesson: each cited
+real evidence for a claim that evidence did not support.
+
+1. **`image.tag: main-149ca6a` had never been published.** A placeholder chosen
+   when CI was billing-blocked and no tag existed. Repointed to `main-7789671`.
+2. **The migrate Job named a `helivanta-migrate` image that will never exist.**
+   #876 had already moved `cmd/migrate` into the API image so migrations cannot
+   skew from the app. The Job now runs `.Values.image`, one digest carrying both
+   binaries.
+3. **`command: ["/migrate"]` — the binary is at `/app/migrate`.** Distroless has
+   no shell, so there is no PATH fallback.
+4. **`ghcr-secret` did not exist in the namespace.** helivanta-api is the first
+   PRIVATE image pulled into `helivanta`; everything slice 1a deployed comes from
+   public mirrors. Added as an ExternalSecret from `gcp-secret-store`, matching
+   every sibling namespace — deliberately not OpenBao, since that credential is
+   fleet-wide and copying it would fork one secret into two that rotate apart.
+5. **The namespace quota could not admit the migrate pod.**
+   `helivanta-resource-quota`'s LimitRange sets `max.cpu: 4`, and the API server
+   DERIVES `default.cpu` from it, so every container without its own limit is
+   admitted at `limits.cpu=4`. That chart accepted the derived cap on the
+   reasoning that it "forbids nothing `max` already allowed" — true of the
+   LimitRange alone, false once the ResourceQuota's 8-CPU ceiling is included:
+   the namespace then holds exactly TWO such containers. As a **PreSync** hook
+   the failure wedged the entire Application, not one workload. Fixed by
+   declaring explicit CPU limits here rather than lowering the namespace default,
+   which exists to give a restarted Postgres the ceiling instead of half a core.
+6. **`zitadel.clientId: ""` was a HARD boot requirement.** The chart said "NOT a
+   boot-time guard: the pod will start ... but every token verification will
+   fail". `cmd/api` exits at `authn: zitadel client ID is required`
+   (`backend/pkg/authn/zitadel.go:46`).
+7. **In-cluster Zitadel DNS could never work.** The chart used
+   `http://zitadel.zitadel.svc.cluster.local:8080`, justified by Zitadel's
+   NetworkPolicy admitting every mesh namespace on 8080 — which establishes
+   reachability and nothing more. Zitadel is multi-tenant and resolves the
+   instance from the HOST HEADER, so it answered `404 Instance not found
+   (ExternalDomain is auth.tesserix.app)`. It also has to be the public value
+   regardless: that is the `iss` on the tokens this API verifies.
+
+Also caught, silently wrong rather than fatal: **`SESSION_ISSUER` was unset**, so
+the first pod stamped `https://helivanta.local` on its sessions —
+`config.go:312`'s default, described there as "a label, not a secret", which is
+why nothing failed. Fixed while zero sessions existed, the only moment it is free
+to change.
+
+**Operational note.** A stuck PreSync hook pins the ArgoCD operation to the
+revision it began with, so later fixes cannot reach it — the sync sat wedged for
+~40 minutes at revision `5a7b412` while the fix waited at `50d1d11c`. Terminating
+the operation (removing `.operation` from the Application) let auto-sync restart
+at current `main`.
+
+#### Verification, as performed
+
+**Step 5 — readiness discriminates.** Baseline `/readyz` → `200
+{"status":"ready"}`. Scaled `helivanta-nats` to zero → `/readyz` → **503
+`{"failed":"nats","status":"unready"}`**, naming the failed dependency; Service
+endpoints emptied; `/healthz` stayed **200** and no pod restarted, so liveness
+correctly ignored the dependency. NATS restored, endpoints returned.
+
+**Step 6 — the boot guard discriminates.** All three states observed: **unset** →
+refuses, naming the variable and explaining that an unset value collapses every
+caller behind a shared ingress into one rate-limit bucket; **`none`** → starts,
+`api listening port=8080`; **real CIDR** → the running production Deployment.
+The middle state is the one that matters — without it the guard is only known to
+refuse something, not to discriminate.
+
+Deviation, stated: Step 6 was run as throwaway Pods cloned from the live
+Deployment's pod spec with that one variable changed, not by editing the chart
+and deploying three times. Same image, same env, and it avoids cycling production
+through three releases while ArgoCD self-heal reverts each one. Both probe pods
+were deleted afterwards.
+
+**Still an inference:** `TRUSTED_PROXY_CIDRS=10.20.0.0/16`. Step 6 proves the
+guard works, not that the value is correct. Only Task 9, tracing a live request
+through the Istio ingress, settles that.
 
 ### Task 6: The shell chart, and Istio routing
 

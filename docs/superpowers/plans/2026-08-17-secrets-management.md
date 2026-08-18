@@ -454,14 +454,21 @@ git commit -m "docs: secret inventory and provisioning runbook for Helivanta boo
 - Consumes: `docs/runbooks/secrets.md` (Task 3), `make secret-session-key` (Task 2).
 - Produces: a verified grant; no code artefact.
 
-> **ON HOLD as of 2026-08-17 — do not start.** The product was named
-> **Helivanta** and a full `hms` → `helivanta` rebrand was chosen
-> ([#863](https://github.com/tesserix/helivanta/issues/863)), which moves the very
-> paths this task would write to. Provisioning secrets at `kv/data/helivanta/helivanta-api/*`
-> now would mean writing a credential at an address that is about to change,
-> for no gain — the assertions prove the same thing after the rename. The
-> namespace, ServiceAccount and SecretStore stay in place and empty. Resume
-> this task after #863, substituting the renamed paths throughout.
+> **HOLD LIFTED 2026-08-18.** This task was held on 2026-08-17 because the
+> `hms` → `helivanta` rebrand ([#863](https://github.com/tesserix/helivanta/issues/863))
+> was about to move the very paths it writes to, and provisioning a credential
+> at an address that was about to change bought nothing. Both conditions the
+> hold named are now met: #863 is closed and verified landed on `main`, and
+> #873 substituted the renamed paths throughout this plan and
+> `docs/runbooks/secrets.md`. The paths below are the post-rebrand ones —
+> `kv/data/helivanta/helivanta-api/{session-signing-key,zitadel-login-client-token}`.
+> Follow the runbook rather than memory: the pre-#873 paths were wrong, and
+> anything remembered from before that correction will write to the wrong
+> address.
+>
+> This task is **P2** of deployment slice 1b
+> (`docs/superpowers/plans/2026-08-18-deployment-slice-1b.md`) and gates that
+> plan's Task 5 — the API pod refuses to boot without both secrets.
 >
 > **STOP — this task mutates production.** There is no dev cluster; the
 > `tesseract-devtest-gke` context is unreachable. Every step below is additive

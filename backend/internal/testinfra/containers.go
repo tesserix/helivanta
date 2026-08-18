@@ -193,6 +193,52 @@ func runSQL(ctx context.Context, database, sql string) error {
 	return nil
 }
 
+// pgForensics describes the server's actual state, for the failure path only.
+//
+// It exists because of an intermittent CI failure that has resisted
+// reproduction: CREATE DATABASE reports exit 0, and the GRANT two statements
+// later cannot connect because the database "does not exist". Everything
+// cheap has been ruled out — names come from an atomic counter so they cannot
+// collide, each package binary gets its own container, this file holds the
+// only DROP, and Exec's exit code was measured truthful at 120-way
+// concurrency. What is left needs evidence from the moment it happens, on a
+// loaded runner, which is not something a local rerun can supply.
+//
+// So the next occurrence must arrive already explained rather than merely
+// noticed. Best effort by construction: this runs when the test is failing
+// anyway, so it must never mask the original error or fail in its own right.
+func pgForensics(ctx context.Context, name string) string {
+	var b strings.Builder
+	b.WriteString("\n--- postgres forensics for " + name + " ---")
+	for _, probe := range []struct{ label, sql string }{
+		// Does the server think it exists? Distinguishes "never created"
+		// from "created then removed".
+		{"database present", `SELECT count(*) FROM pg_database WHERE datname = '` + name + `'`},
+		// Every database, so a name we did not expect (or a missing
+		// neighbour) is visible.
+		{"all databases", `SELECT string_agg(datname, ' ' ORDER BY oid) FROM pg_database`},
+		// If this moved, the server restarted underneath the run and the
+		// data directory is the thing to look at, not this code.
+		{"server started", `SELECT pg_postmaster_start_time()`},
+		// A backend that reconnected to a NEW server would show a low
+		// number here relative to how long the binary has been running.
+		{"backends", `SELECT count(*) FROM pg_stat_activity`},
+	} {
+		code, out, err := pgCont.Exec(ctx,
+			[]string{"psql", "-U", "hms", "-d", "hms", "-tAc", probe.sql},
+			tcexec.Multiplexed())
+		switch {
+		case err != nil:
+			b.WriteString("\n  " + probe.label + ": probe failed: " + err.Error())
+		default:
+			body, _ := io.ReadAll(out)
+			b.WriteString(fmt.Sprintf("\n  %s (exit %d): %s",
+				probe.label, code, strings.TrimSpace(string(body))))
+		}
+	}
+	return b.String()
+}
+
 // newDatabase creates an empty database owned by hms and grants hms_app
 // the same privileges it holds in dev.
 func newDatabase(t *testing.T) string {
@@ -203,7 +249,7 @@ func newDatabase(t *testing.T) string {
 	// CREATE DATABASE cannot run inside a transaction block, and psql
 	// wraps a multi-statement -c in one, so it gets an -c of its own.
 	if err := runSQL(ctx, "hms", `CREATE DATABASE `+name+` OWNER hms;`); err != nil {
-		t.Fatalf("create database %s: %v", name, err)
+		t.Fatalf("create database %s: %v%s", name, err, pgForensics(ctx, name))
 	}
 	// If this is skipped the database still exists and still accepts
 	// connections, so the harness looks healthy and the failure lands much
@@ -215,7 +261,7 @@ func newDatabase(t *testing.T) string {
 		  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hms_app;
 		ALTER DEFAULT PRIVILEGES FOR ROLE hms IN SCHEMA public
 		  GRANT USAGE, SELECT ON SEQUENCES TO hms_app;`); err != nil {
-		t.Fatalf("grant on %s: %v", name, err)
+		t.Fatalf("grant on %s: %v%s", name, err, pgForensics(ctx, name))
 	}
 
 	t.Cleanup(func() {

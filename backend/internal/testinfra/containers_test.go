@@ -197,3 +197,27 @@ func TestRunSQLAcceptsAWorkingStatement(t *testing.T) {
 
 	require.NoError(t, runSQL(t.Context(), "hms", `SELECT 1;`))
 }
+
+// The forensics exist to answer one question at the moment of failure: was
+// the database never created, or created and then removed? A dump that
+// cannot tell those apart would be decoration, so this pins the
+// discrimination rather than merely asserting some text came back.
+func TestPGForensicsDistinguishesMissingFromPresent(t *testing.T) {
+	sharedPostgres(t)
+	ctx := t.Context()
+
+	missing := pgForensics(ctx, "definitely_not_a_database")
+	require.Contains(t, missing, "database present (exit 0): 0",
+		"a database that was never created must report a count of 0")
+
+	present := newDatabase(t)
+	found := pgForensics(ctx, present)
+	require.Contains(t, found, "database present (exit 0): 1",
+		"a database that exists must report a count of 1")
+	require.Contains(t, found, present,
+		"the all-databases list must name it, so a missing neighbour is visible too")
+
+	// The server-restart discriminator has to carry a real timestamp: if it
+	// silently returned empty, a restart would look identical to no restart.
+	require.Regexp(t, `server started \(exit 0\): \d{4}-\d{2}-\d{2} `, found)
+}

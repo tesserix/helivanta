@@ -191,6 +191,25 @@ Builder on `golang:1.26.5` pinned by digest; final stage
 `gcr.io/distroless/static-debian12:nonroot`. `CGO_ENABLED=0`, and
 `-ldflags "-s -w -X main.version=$VERSION -X main.commit=$COMMIT"`.
 
+**Corrected 2026-08-18.** This step originally said to ship only `cmd/api` and
+to exclude `cmd/migrate`. That was wrong and left a hole: **Task 5's Helm
+pre-upgrade hook needs a migrate binary, and no task in this plan produced
+one.** It was found only when the chart author went looking for an image to run
+and discovered none existed.
+
+Ship **both** `cmd/api` and `cmd/migrate` into the same image
+(helivanta#876). One image makes version skew structurally impossible — the
+migrations and the API that expects them are the same artifact, so an operator
+cannot run migrations from a different build than the app. For a database
+holding patient records that is a correctness property, not a convenience.
+
+`cmd/session-key` stays excluded: it mints signing keys and has no business in
+a container serving production traffic.
+
+The image grows from 44.5MB to 80.1MB as a result, which is larger than it
+sounds worth stating — the migrate binary statically embeds every module's
+migration set.
+
 Distroless `nonroot` runs as UID 65532 and has no shell — which is the point,
 and also means you cannot `exec` into it to debug. Say so in a comment.
 

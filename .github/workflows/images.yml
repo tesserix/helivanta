@@ -34,15 +34,31 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
+  # Workflow-level IMAGE_NAME predates the second image and is consumed
+  # unqualified throughout build-helivanta-api. build-helivanta-shell
+  # redeclares IMAGE_NAME in its own job-level `env:`, which shadows this
+  # for that job only. Chosen over renaming this to IMAGE_NAME_API: a
+  # rename would touch ten `${{ env.IMAGE_NAME }}` references inside a job
+  # that has already published a real signed image, purely for symmetry.
+  # Job-level env is the documented GitHub precedence rule (job overrides
+  # workflow), not a trick, and it keeps the proven job byte-identical.
   IMAGE_NAME: tesserix/helivanta/helivanta-api
 
 jobs:
-  # SCOPE NOTE (#824 slice 1b, Task 4): only helivanta-api is built here.
-  # helivanta-shell (Dockerfile.shell) is blocked on a human prerequisite -
-  # NEXT_PUBLIC_ZITADEL_CLIENT_ID must be minted by provisioning a Zitadel
-  # app on production, and Next inlines it at build time, so the Dockerfile
-  # cannot exist yet. When it lands, add a sibling job (or a matrix entry)
-  # here - do not restructure this workflow to accommodate it.
+  # SCOPE NOTE (#824 slice 1b): two images are built here, helivanta-api and
+  # helivanta-shell, as two independent sibling jobs. The shell was blocked
+  # until #888 - NEXT_PUBLIC_ZITADEL_CLIENT_ID had to be minted by
+  # provisioning a Zitadel app on production, and Next inlines it at build
+  # time, so Dockerfile.shell could not exist until it was. That prerequisite
+  # is met; the client id is now a literal in build-helivanta-shell below.
+  #
+  # The duplication between the two jobs is deliberate and should stay.
+  # build-helivanta-api has published a real signed image to GHCR, so it is
+  # proven end to end; folding both into a `strategy.matrix` would rewrite
+  # every step of a working job to save roughly forty lines, and the two
+  # images are not actually symmetric anyway (the shell needs six build-args
+  # and a different base image, the api needs none). A third image should be
+  # a third sibling job, not the trigger for a matrix refactor.
   build-helivanta-api:
     name: Build and Push helivanta-api
     runs-on: ubuntu-latest
@@ -185,6 +201,207 @@ jobs:
           echo "**Architecture:** AMD64" >> "$GITHUB_STEP_SUMMARY"
           echo "**Branch:** ${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"
           echo "**Commit:** ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "**Docker Image:** Pushed to ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Tags:**" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Docker Image:** Built successfully (not pushed)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  build-helivanta-shell:
+    name: Build and Push helivanta-shell
+    runs-on: ubuntu-latest
+
+    env:
+      # Shadows the workflow-level IMAGE_NAME for this job only - see the
+      # comment on that block above for why the api job keeps the bare name.
+      IMAGE_NAME: tesserix/helivanta/helivanta-shell
+
+      # --- Build-time configuration, baked irreversibly into the image ---
+      #
+      # These six values are the same defaults as the `image-shell` Makefile
+      # target, and they MUST stay in step with it: Dockerfile.shell declares
+      # every one of them as an ARG with no default, precisely so an unset
+      # value fails the build instead of silently baking next.config.ts's
+      # localhost fallbacks. A workflow that omitted one would not go red -
+      # it would publish an image whose rewrite table points at the pod's own
+      # loopback.
+      #
+      # NEXT_PUBLIC_ZITADEL_CLIENT_ID IS NOT A SECRET, and must not be moved
+      # into `secrets`. It is a public OIDC client identifier: Next inlines
+      # it into the client bundle, and it is visible in the query string of
+      # every authorize redirect in the user's address bar. Two concrete
+      # reasons it belongs here as a literal:
+      #   1. This repo is on the GitHub Free plan with no org secrets. An
+      #      undefined `secrets.*` reference resolves to the EMPTY STRING,
+      #      not an error - the same trap ci.yml's `web` job documents for
+      #      PKG_READ_TOKEN. An empty client id would produce a green build
+      #      and an image that cannot complete OIDC.
+      #   2. Even a correctly-populated secret would be pointless: the value
+      #      is compiled into a public artifact seconds later.
+      SHELL_ZITADEL_ISSUER_URL: https://auth.tesserix.app
+      SHELL_ZITADEL_CLIENT_ID: '386782591925092979'
+      SHELL_API_URL: http://helivanta-api.helivanta.svc.cluster.local:8080
+      # The zone apps are not deployed until slice 2. These are the
+      # in-cluster Service DNS names they WILL have. Until then /medicore,
+      # /pharmacy and /lab 502 on an unresolvable host - deliberately chosen
+      # over localhost, which would proxy those paths back to the shell
+      # itself and look like it worked. See Dockerfile.shell.
+      SHELL_MEDICORE_URL: http://helivanta-medicore.helivanta.svc.cluster.local:4302
+      SHELL_PHARMACY_URL: http://helivanta-pharmacy.helivanta.svc.cluster.local:4303
+      SHELL_LAB_URL: http://helivanta-lab.helivanta.svc.cluster.local:4304
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # No `:latest` - same reasoning as the api job: charts in
+          # tesserix-k8s pin an explicit tag, and a floating `:latest` means
+          # what runs is not what any tag names.
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-,enable=${{ github.event_name != 'pull_request' }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.title=helivanta-shell
+            org.opencontainers.image.description=Helivanta shell frontend (Next.js)
+
+      - name: Compute cache ref
+        id: cache
+        run: echo "ref=$(echo '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        id: build_push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.shell
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          # On a PR nothing is pushed; load the image locally so Trivy can
+          # scan it (catches base-image CVEs before merge, not only after).
+          load: ${{ github.event_name == 'pull_request' }}
+          provenance: false
+          tags: ${{ github.event_name == 'pull_request' && 'local/helivanta-shell:pr-scan' || steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_ZITADEL_ISSUER_URL=${{ env.SHELL_ZITADEL_ISSUER_URL }}
+            NEXT_PUBLIC_ZITADEL_CLIENT_ID=${{ env.SHELL_ZITADEL_CLIENT_ID }}
+            API_URL=${{ env.SHELL_API_URL }}
+            MEDICORE_URL=${{ env.SHELL_MEDICORE_URL }}
+            PHARMACY_URL=${{ env.SHELL_PHARMACY_URL }}
+            LAB_URL=${{ env.SHELL_LAB_URL }}
+          cache-from: type=registry,ref=${{ steps.cache.outputs.ref }}
+          # cache write needs GHCR auth (skipped on PRs); read-only cache-from still works
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0},mode=max', steps.cache.outputs.ref) || '' }}
+
+      # --- Security scanning (gated: fails the build on fixable CRITICAL/HIGH) ---
+      - name: Run Trivy vulnerability scanner (PR)
+        if: github.event_name == 'pull_request'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: local/helivanta-shell:pr-scan
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Run Trivy vulnerability scanner
+        id: trivy
+        if: github.event_name != 'pull_request'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build_push.outputs.digest }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Upload Trivy results to GitHub Security tab
+        if: always() && github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+          # Explicit, because two jobs now upload SARIF for the same commit.
+          # upload-sarif does derive a distinct analysis key from the job
+          # name on its own, so this is belt-and-braces rather than a fix -
+          # but it pins the separation to a name we control instead of to
+          # the job name, which someone may rename.
+          category: trivy-helivanta-shell
+        continue-on-error: true
+
+      # --- SBOM (pushes only) ---
+      - name: Generate SBOM with Syft
+        if: github.event_name != 'pull_request'
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build_push.outputs.digest }}
+          format: spdx-json
+          output-file: helivanta-shell-sbom.spdx.json
+          upload-artifact: true
+
+      # --- Cosign keyless signing (pushes only) ---
+      # Nothing verifies this yet - see the long note on the api job's
+      # signing steps above. Signed for the same reason: a signature binds
+      # to a digest, so an image promoted unsigned cannot be signed
+      # retroactively without rebuilding it into a different artifact.
+      - name: Install Cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image with Cosign (keyless)
+        if: github.event_name != 'pull_request'
+        env:
+          COSIGN_EXPERIMENTAL: '1'
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          DIGEST: ${{ steps.build_push.outputs.digest }}
+        run: |
+          cosign sign --yes "${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
+
+      - name: Build Summary
+        if: always()
+        run: |
+          echo "## Build Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Application:** helivanta-shell" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Architecture:** AMD64" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Branch:** ${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Commit:** ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Baked build args (build-time, not overridable by the pod):**" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "NEXT_PUBLIC_ZITADEL_ISSUER_URL=${{ env.SHELL_ZITADEL_ISSUER_URL }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "NEXT_PUBLIC_ZITADEL_CLIENT_ID=${{ env.SHELL_ZITADEL_CLIENT_ID }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "API_URL=${{ env.SHELL_API_URL }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "MEDICORE_URL=${{ env.SHELL_MEDICORE_URL }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "PHARMACY_URL=${{ env.SHELL_PHARMACY_URL }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "LAB_URL=${{ env.SHELL_LAB_URL }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
           if [[ "${{ github.event_name }}" != "pull_request" ]]; then

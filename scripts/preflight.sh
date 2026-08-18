@@ -25,6 +25,13 @@ PREFLIGHT_PORTS=${PREFLIGHT_PORTS:-"${HELIVANTA_PG_PORT:-5432} ${HELIVANTA_NATS_
 GO_MIN=1.26
 NODE_MIN=22
 
+# Read from backend/go.mod rather than hardcoding: the patch version moved
+# 1.26.5 -> 1.26.6 to clear HIGH stdlib CVEs the image scan caught, and the
+# hardcoded copy here silently became a lie. GO_MIN stays major.minor, which
+# is what version_at_least actually gates on.
+GO_MOD_VERSION=$(sed -n 's/^go \([0-9][0-9.]*\).*/\1/p' "$REPO_ROOT/backend/go.mod" 2>/dev/null)
+GO_MOD_VERSION=${GO_MOD_VERSION:-$GO_MIN}
+
 # Zitadel does not fail fast on a wrong-length masterkey — it crash-loops
 # on every restart instead (docker-compose.dev.yml's zitadel service
 # comment has the full story, reproduced live while wiring this stack up).
@@ -67,11 +74,11 @@ check_go() {
   local have
   have=$(go version 2>/dev/null | sed -n 's/.*go\([0-9][0-9.]*\).*/\1/p')
   if [ -z "$have" ]; then
-    fail "go $GO_MIN+" "Go $GO_MIN+ required (backend/go.mod: 1.26.5), not found — https://go.dev/dl/"
+    fail "go $GO_MIN+" "Go $GO_MIN+ required (backend/go.mod: $GO_MOD_VERSION), not found — https://go.dev/dl/"
   elif version_at_least "$have" "$GO_MIN"; then
     ok "go $have"
   else
-    fail "go $GO_MIN+" "Go $GO_MIN+ required (backend/go.mod: 1.26.5), found $have"
+    fail "go $GO_MIN+" "Go $GO_MIN+ required (backend/go.mod: $GO_MOD_VERSION), found $have"
   fi
 }
 

@@ -41,11 +41,22 @@ COPY backend/ ./
 # are deliberately NOT part of this image — migrate runs separately as a
 # Helm hook (a later task), and session-key is a one-off local operator
 # tool. Shipping either alongside the API binary would put a
-# schema-mutating and a key-minting command inside the same container image
-# that serves production traffic, reachable by anyone who could get a shell
-# in — except this image has no shell (see below), so the real risk it
-# avoids is a distinct binary an attacker could ship files into or invoke
-# via a future debug/exec sidecar.
+# cmd/session-key is deliberately NOT shipped: it mints signing keys and has
+# no business in a container that serves production traffic.
+#
+# cmd/migrate IS shipped, and that reverses an earlier decision. The chart
+# runs migrations as a Helm pre-upgrade hook Job, which needs an image
+# containing the binary — and shipping it HERE rather than as a separate
+# image makes version skew structurally impossible: the migrations and the
+# API that expects them are the same artifact, so an operator cannot deploy
+# an API built from one commit against migrations built from another. For a
+# database holding patient records that is a correctness property, not a
+# convenience. It also halves the supply-chain surface — one image to build,
+# scan, sign and promote.
+#
+# The cost is a binary the API pod never executes. That is bounded: this
+# image has no shell (see the final stage), so /app/migrate cannot be invoked
+# without an explicit command override in a pod spec.
 ARG VERSION=dev
 ARG COMMIT=unknown
 RUN CGO_ENABLED=0 GOOS=linux go build \
@@ -53,6 +64,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
     -o /out/api \
     ./cmd/api
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags "-s -w" \
+    -o /out/migrate \
+    ./cmd/migrate
 
 # distroless/static-debian12:nonroot ships no shell, no package manager, and
 # no libc — just enough to run a statically-linked binary as UID/GID 65532.
@@ -65,6 +82,10 @@ FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /app
 COPY --from=builder /out/api /app/api
+
+# The migration runner. The API pod never executes this; the chart's
+# pre-upgrade hook Job runs it with command: ["/app/migrate"].
+COPY --from=builder /out/migrate /app/migrate
 
 # The base image's own USER directive already runs the container as
 # 65532:65532 ("nonroot") — nothing to set here. Left unset deliberately

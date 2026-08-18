@@ -163,3 +163,37 @@ func TestWaitStrategyCarriesInnerStrategyTimeout(t *testing.T) {
 	bare := wait.ForListeningPort("4222/tcp")
 	require.Nil(t, bare.Timeout(), "a bare strategy is expected to carry no timeout of its own")
 }
+
+// psql reports a failed statement through its EXIT CODE, not through the
+// error testcontainers' Exec returns — that error only reports whether the
+// exec mechanism itself worked. Every call site here used to read
+// `if _, _, err := pgCont.Exec(...)`, discarding the exit code, so a psql
+// command that failed left err nil and the harness carried on against a
+// database that had never been set up.
+//
+// That is not hypothetical: it surfaced on PR #878 as
+// TestCrossTenantWriteIsRejectedNotMalformed failing with "permission denied
+// for table outbox_events" — a privilege error from a GRANT that had silently
+// not applied, in a test whose entire job is to distinguish an RLS rejection
+// from other failures. A security regression guard that can fail for a reason
+// unrelated to the control it guards is not guarding it.
+//
+// This asserts the exit code is actually consulted. Without that check the
+// call returns nil and this test fails.
+func TestRunSQLReportsAFailedStatement(t *testing.T) {
+	sharedPostgres(t)
+
+	err := runSQL(t.Context(), "hms", `GRANT USAGE ON SCHEMA public TO no_such_role_exists;`)
+
+	require.Error(t, err, "a psql command that fails must be reported, not swallowed")
+	require.Contains(t, err.Error(), "no_such_role_exists",
+		"the error must carry psql's own output, or the cause is invisible at the call site")
+}
+
+// The success path must stay quiet, so the check above cannot be satisfied by
+// something that simply always errors.
+func TestRunSQLAcceptsAWorkingStatement(t *testing.T) {
+	sharedPostgres(t)
+
+	require.NoError(t, runSQL(t.Context(), "hms", `SELECT 1;`))
+}

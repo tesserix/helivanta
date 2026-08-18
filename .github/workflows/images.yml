@@ -1,0 +1,199 @@
+name: Images - Build, Scan, Sign, Publish
+
+# Deliberately NOT path-filtered, unlike the fleet's mature pattern
+# (homechef-api-build.yml). HomeChef path-filters its builds and therefore
+# needs a separate `homechef-ensure-image-tags` workflow to carry unchanged
+# images forward before advancing its `deploy` branch. That workflow's own
+# header documents three ways it has wedged production: a GAR pull-through
+# mirror caching a tag->digest mapping for an image that was then
+# re-pointed, a `cancel-in-progress: false` concurrency deadlock that
+# silently stopped advancing `deploy` with nothing failing to say so, and
+# negative-cached 404s for not-yet-pushed tags.
+#
+# Helivanta builds every image on every `main` commit instead - no path
+# filters, no carry-forward workflow. That deletes the failure class rather
+# than managing it, and it is affordable because ADR-0001 states one PR
+# spans frontend and backend, so most commits would rebuild both anyway.
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+      - 'feature/**'
+      - 'bugfix/**'
+      - 'hotfix/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: tesserix/helivanta/helivanta-api
+
+jobs:
+  # SCOPE NOTE (#824 slice 1b, Task 4): only helivanta-api is built here.
+  # helivanta-shell (Dockerfile.shell) is blocked on a human prerequisite -
+  # NEXT_PUBLIC_ZITADEL_CLIENT_ID must be minted by provisioning a Zitadel
+  # app on production, and Next inlines it at build time, so the Dockerfile
+  # cannot exist yet. When it lands, add a sibling job (or a matrix entry)
+  # here - do not restructure this workflow to accommodate it.
+  build-helivanta-api:
+    name: Build and Push helivanta-api
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # No `:latest` - charts/apps/console/values.yaml in tesserix-k8s
+          # pins an explicit tag, and floating `:latest` is the anti-pattern
+          # HomeChef's own workflow comment forbids: what runs is then not
+          # what any tag names.
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-,enable=${{ github.event_name != 'pull_request' }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.title=helivanta-api
+            org.opencontainers.image.description=Helivanta backend API service
+
+      - name: Compute cache ref
+        id: cache
+        run: echo "ref=$(echo '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        id: build_push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.api
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          # On a PR nothing is pushed; load the image locally so Trivy can
+          # scan it (catches base-image CVEs before merge, not only after).
+          load: ${{ github.event_name == 'pull_request' }}
+          provenance: false
+          tags: ${{ github.event_name == 'pull_request' && 'local/helivanta-api:pr-scan' || steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ steps.cache.outputs.ref }}
+          # cache write needs GHCR auth (skipped on PRs); read-only cache-from still works
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0},mode=max', steps.cache.outputs.ref) || '' }}
+
+      # --- Security scanning (gated: fails the build on fixable CRITICAL/HIGH) ---
+      # On a PR: scan the locally-loaded image and fail the check on a fixable
+      # CRITICAL/HIGH, so a vulnerable base image or dependency is caught before
+      # merge. Table output goes to the Actions log (the Security tab is
+      # per-default-branch, so SARIF upload stays push-only below).
+      - name: Run Trivy vulnerability scanner (PR)
+        if: github.event_name == 'pull_request'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: local/helivanta-api:pr-scan
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Run Trivy vulnerability scanner
+        id: trivy
+        if: github.event_name != 'pull_request'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build_push.outputs.digest }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Upload Trivy results to GitHub Security tab
+        if: always() && github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+        continue-on-error: true
+
+      # --- SBOM (pushes only) ---
+      - name: Generate SBOM with Syft
+        if: github.event_name != 'pull_request'
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build_push.outputs.digest }}
+          format: spdx-json
+          output-file: helivanta-api-sbom.spdx.json
+          upload-artifact: true
+
+      # --- Cosign keyless signing (pushes only) ---
+      #
+      # NOTHING VERIFIES THIS YET. The production cluster
+      # (gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke) runs
+      # three TIG governance ClusterPolicies and no `verifyImages` policy,
+      # and `grep -rli cosign` across tesserix-k8s returns nothing -
+      # helivanta-api is the fleet's first signed image. No admission
+      # controller checks this signature before a pod using this image is
+      # scheduled. Do not infer that signing implies enforcement.
+      #
+      # Signed anyway because of asymmetry, not rigour: a signature binds to
+      # a digest, so an image promoted unsigned cannot be signed
+      # retroactively - it must be rebuilt, and a rebuilt digest is a
+      # different artifact than the one that was tested. Signing now keeps
+      # the option open for a future `verifyImages` policy without having to
+      # go back and re-sign everything already shipped.
+      - name: Install Cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image with Cosign (keyless)
+        if: github.event_name != 'pull_request'
+        env:
+          COSIGN_EXPERIMENTAL: '1'
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          DIGEST: ${{ steps.build_push.outputs.digest }}
+        run: |
+          cosign sign --yes "${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
+
+      - name: Build Summary
+        if: always()
+        run: |
+          echo "## Build Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Application:** helivanta-api" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Architecture:** AMD64" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Branch:** ${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Commit:** ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "**Docker Image:** Pushed to ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Tags:**" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Docker Image:** Built successfully (not pushed)" >> "$GITHUB_STEP_SUMMARY"
+          fi

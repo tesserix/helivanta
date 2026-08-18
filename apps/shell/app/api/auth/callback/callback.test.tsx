@@ -53,7 +53,9 @@ describe("AuthCallbackPage", () => {
 
     render(<AuthCallbackPage />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("No matching state found in storage");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No matching state found in storage",
+    );
     expect(fetchMock).not.toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
@@ -101,13 +103,18 @@ describe("AuthCallbackPage", () => {
       vi.fn().mockResolvedValue({
         ok: false,
         status: 404,
-        json: async () => ({ error: "not_found", message: "no accessible hospital for this account" }),
+        json: async () => ({
+          error: "not_found",
+          message: "no accessible hospital for this account",
+        }),
       }),
     );
 
     render(<AuthCallbackPage />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("no accessible hospital for this account");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "no accessible hospital for this account",
+    );
     expect(replace).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });

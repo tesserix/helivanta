@@ -27,9 +27,15 @@ function stubFetch(currentTenantId = "t1", switchResult: "ok" | "not-member" = "
     }
     if (url.endsWith("/iam/me/tenant")) {
       if (switchResult === "not-member") {
-        return { ok: false, status: 404, json: async () => ({ error: "not_found", message: "tenant not found" }) };
+        return {
+          ok: false,
+          status: 404,
+          json: async () => ({ error: "not_found", message: "tenant not found" }),
+        };
       }
-      const body = init?.body ? (JSON.parse(init.body as string) as { tenant_id: string }) : { tenant_id: "" };
+      const body = init?.body
+        ? (JSON.parse(init.body as string) as { tenant_id: string })
+        : { tenant_id: "" };
       return { ok: true, status: 200, json: async () => ({ tenant_id: body.tenant_id }) };
     }
     throw new Error(`unexpected fetch: ${url}`);

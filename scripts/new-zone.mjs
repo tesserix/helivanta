@@ -54,7 +54,7 @@ function writeFile(path, content) {
 
 function packageJson(name, port) {
   return `{
-  "name": "@hms/${name}",
+  "name": "@helivanta/${name}",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -67,9 +67,9 @@ function packageJson(name, port) {
     "test": "vitest run"
   },
   "dependencies": {
-    "@hms/api": "workspace:*",
-    "@hms/ui": "workspace:*",
-    "@tesserix/web": "^1.8.0",
+    "@helivanta/api": "workspace:*",
+    "@helivanta/ui": "workspace:*",
+    "@tesserix/web": "^2.2.1",
     "lucide-react": "^0.469.0",
     "next": "^16.0.0",
     "react": "^19.0.0",
@@ -77,7 +77,7 @@ function packageJson(name, port) {
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@hms/config": "workspace:*",
+    "@helivanta/config": "workspace:*",
     "@tailwindcss/postcss": "^4.1.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
@@ -90,7 +90,7 @@ function packageJson(name, port) {
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   },
-  "prettier": "@hms/config/prettier"
+  "prettier": "@helivanta/config/prettier"
 }
 `;
 }
@@ -103,7 +103,7 @@ const API_URL = process.env.API_URL ?? "http://localhost:8080";
 const nextConfig: NextConfig = {
   output: "standalone",
   basePath: "/${name}",
-  transpilePackages: ["@hms/ui", "@hms/api"],
+  transpilePackages: ["@helivanta/ui", "@helivanta/api"],
   async rewrites() {
     // Only used when hitting the zone port directly; via the shell the same
     // /api/* path is rewritten by the shell itself.
@@ -123,7 +123,7 @@ export default nextConfig;
 
 function tsconfigJson() {
   return `{
-  "extends": "@hms/config/tsconfig.base.json",
+  "extends": "@helivanta/config/tsconfig.base.json",
   "compilerOptions": {
     "plugins": [{ "name": "next" }],
     "paths": { "@/*": ["./*"] },
@@ -141,7 +141,7 @@ function postcssConfig() {
 }
 
 function eslintConfig() {
-  return `import { hmsEslint } from "@hms/config/eslint";
+  return `import { hmsEslint } from "@helivanta/config/eslint";
 
 export default hmsEslint(import.meta.dirname);
 `;
@@ -150,7 +150,7 @@ export default hmsEslint(import.meta.dirname);
 function vitestConfig() {
   return `import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
-import { hmsVitest } from "@hms/config/vitest";
+import { hmsVitest } from "@helivanta/config/vitest";
 
 export default defineConfig({ plugins: [react()], ...hmsVitest() });
 `;
@@ -165,7 +165,7 @@ API_URL=http://localhost:8080
 function globalsCss() {
   return `@import "tailwindcss";
 @import "@tesserix/web/styles";
-@import "@hms/ui/styles.css";
+@import "@helivanta/ui/styles.css";
 
 /* Tailwind v4 must scan the design system for emitted class names. */
 @source "../node_modules/@tesserix/web/dist";
@@ -177,7 +177,7 @@ function globalsCss() {
 
 function layoutTsx() {
   return `import type { Metadata } from "next";
-import { AppProviders } from "@hms/api";
+import { AppProviders } from "@helivanta/api";
 import "./globals.css";
 
 export const metadata: Metadata = { title: "Helivanta" };
@@ -247,7 +247,7 @@ function notFoundTsx() {
 }
 
 function pageTsx(name) {
-  return `import { HmsShell } from "@hms/ui";
+  return `import { HmsShell } from "@helivanta/ui";
 import { ExamplePanel } from "@/components/example-panel";
 
 export default function ${pascalCase(name)}Page() {
@@ -264,8 +264,8 @@ function examplePanelTsx(name) {
   return `"use client";
 
 import { Inbox } from "lucide-react";
-import { useApiQuery } from "@hms/api";
-import { EmptyState } from "@hms/ui";
+import { useApiQuery } from "@helivanta/api";
+import { EmptyState } from "@helivanta/ui";
 
 type ExampleItem = { id: string; name: string };
 
@@ -305,7 +305,7 @@ export function ExamplePanel() {
 function examplePanelTestTsx() {
   return `import { screen } from "@testing-library/react";
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { renderWithProviders } from "@hms/api/testing";
+import { renderWithProviders } from "@helivanta/api/testing";
 import { ExamplePanel } from "./example-panel";
 
 function jsonResponse(status: number, body: unknown) {
@@ -343,7 +343,7 @@ function printFollowUps(name, port) {
    { source: "/${name}/:path*", destination: \`\${${envVar}}/${name}/:path*\` },
 2. packages/ui/src/zones.ts — add a Zone entry (icon + pages).
 3. README/Makefile — mention the new port.
-Then: pnpm install && pnpm turbo lint type-check test build --filter=@hms/${name}`);
+Then: pnpm install && pnpm turbo lint type-check test build --filter=@helivanta/${name}`);
 }
 
 function main() {

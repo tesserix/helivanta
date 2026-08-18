@@ -103,7 +103,7 @@ if [ "$fail" -eq 0 ]; then
 else
   echo "Some checks failed. Common causes:"
   echo "  - 'make dev' not running, or still starting (Next.js takes ~20s)"
-  echo "  - NODE_AUTH_TOKEN unset: export NODE_AUTH_TOKEN=\$(gh auth token)"
+  echo "  - dependencies not installed: run 'pnpm install'"
   echo "  - Docker not running (infra and backend tests both need it)"
   echo "  - /readyz failing on openfga: check 'docker compose -f docker-compose.dev.yml logs openfga'"
 fi

@@ -114,25 +114,12 @@ make_shim "$good" pnpm        'echo "10.17.1"'
 
 run_preflight() { # run_preflight PATHDIR [ENV=VAL ...]
   local dir="$1"; shift
-  env PATH="$dir:$PATH" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="$(free_port)" \
+  env PATH="$dir:$PATH" PREFLIGHT_PORTS="$(free_port)" \
     "$@" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1
 }
 
 out=$(run_preflight "$good"); status=$?
 assert_status "clean environment exits 0" 0 "$status"
-
-# node_modules present (the common case: token rotated, nothing to install)
-# — a missing token is a warning, not a blocker.
-out=$(run_preflight "$good" NODE_AUTH_TOKEN=); status=$?
-assert_status "missing NODE_AUTH_TOKEN with node_modules present exits 0" 0 "$status"
-assert_contains "missing NODE_AUTH_TOKEN still names the fix" "$out" 'gh auth token'
-
-# node_modules absent — an install is actually coming, so the token is fatal.
-no_node_modules="$TMP/no-node-modules"
-out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN= PREFLIGHT_PORTS="$(free_port)" \
-  NODE_MODULES_DIR="$no_node_modules" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
-assert_status "missing NODE_AUTH_TOKEN with node_modules absent exits 1" 1 "$status"
-assert_contains "missing NODE_AUTH_TOKEN+no node_modules names the fix" "$out" 'gh auth token'
 
 old="$TMP/bin-oldgo"
 make_shim "$old" docker 'exit 0'
@@ -158,18 +145,17 @@ make_shim "$nodocker" node   'echo "v20.11.0"'
 # preflight.sh's own logic. /usr/sbin (macOS) and /usr/bin (Linux) are where
 # lsof lives, which port_is_ours needs; sed/sort/head/ps come from /usr/bin
 # and /bin.
-out=$(env PATH="$nodocker:/usr/bin:/bin:/usr/sbin:/sbin" NODE_AUTH_TOKEN= \
+out=$(env PATH="$nodocker:/usr/bin:/bin:/usr/sbin:/sbin" \
   PREFLIGHT_PORTS="$(free_port)" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
 assert_status "several problems exit 1" 1 "$status"
 assert_contains "reports docker"    "$out" 'Docker is not running'
 assert_contains "reports go"        "$out" 'Go 1.26+'
 assert_contains "reports node"      "$out" 'Node 22+'
 assert_contains "reports pnpm"      "$out" 'corepack enable'
-assert_contains "reports the token" "$out" 'NODE_AUTH_TOKEN'
 
 busy_port=$(free_port)
 busy_pid=$(listen_from "$TMP" "$busy_port")
-out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="$busy_port" \
+out=$(env PATH="$good:$PATH" PREFLIGHT_PORTS="$busy_port" \
   bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
 assert_status "occupied foreign port exits 1" 1 "$status"
 assert_contains "names the occupied port" "$out" "$busy_port"
@@ -178,13 +164,23 @@ assert_contains "names the fix"           "$out" "make down"
 # A missing lsof must be reported, not silently treated as "no port
 # holders found, so every port is free" — that would fail open exactly in
 # the scenario #714 exists to catch (a foreign process quietly squatting on
-# a port we need). Build a PATH with no lsof anywhere on it: real sed/sort/
-# head (port_is_ours and version_at_least need them) plus /bin for
-# bash/ps/cat, but never /usr/bin or /usr/sbin, which is where lsof lives
-# on both macOS and Linux.
+# a port we need).
+#
+# The PATH for this case must therefore be EXACTLY one directory: $nolsof,
+# holding a symlink to every real tool preflight.sh and repo-owns.sh use,
+# plus the usual shims. Appending any real system bin dir instead — this
+# test used to append /bin, on the theory that lsof only ever lives in
+# /usr/bin or /usr/sbin — puts lsof straight back on the PATH on Ubuntu,
+# where /bin is a SYMLINK to /usr/bin (the usr-merge). Preflight then passes
+# and all three assertions below fail on CI while passing on macOS, where
+# /bin is still a real directory. Symlink the tools, never a directory.
 nolsof="$TMP/bin-nolsof"
 mkdir -p "$nolsof"
-for tool in sed sort head; do
+# bash: the script is invoked as `bash ...` and every shim's shebang is
+# `/usr/bin/env bash`. dirname: REPO_ROOT in both scripts. sed/sort/head:
+# version_at_least and cwd_of. wc/tr: the masterkey length check. grep:
+# compose_owns_port. ps: the port-holder message. env: the shim shebangs.
+for tool in bash env dirname sed sort head wc tr grep ps; do
   ln -s "$(command -v "$tool")" "$nolsof/$tool"
 done
 make_shim "$nolsof" docker 'exit 0'
@@ -192,7 +188,13 @@ make_shim "$nolsof" go     'echo "go version go1.26.5 darwin/arm64"'
 make_shim "$nolsof" node   'echo "v22.11.0"'
 make_shim "$nolsof" pnpm   'echo "10.17.1"'
 
-out=$(env PATH="$nolsof:/bin" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="12345" \
+# Guard the guard: if lsof is reachable through this PATH the case below
+# proves nothing, so say so loudly rather than reporting a green pass.
+if PATH="$nolsof" command -v lsof >/dev/null 2>&1; then
+  t_fail "the no-lsof PATH must not contain lsof"
+fi
+
+out=$(env PATH="$nolsof" PREFLIGHT_PORTS="12345" \
   bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
 assert_status "missing lsof exits 1" 1 "$status"
 assert_contains "missing lsof is reported" "$out" 'lsof missing'
@@ -208,7 +210,7 @@ echo "PREFLIGHT_PORTS (host-port overrides):"
 # confirm each shows up as a checked port.
 p_pg=$(free_port); p_nats=$(free_port); p_natsmon=$(free_port)
 p_redis=$(free_port); p_fga=$(free_port); p_zitadel=$(free_port); p_zitadelpg=$(free_port); p_api=$(free_port)
-out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN=token \
+out=$(env PATH="$good:$PATH" \
   HELIVANTA_PG_PORT="$p_pg" HELIVANTA_NATS_PORT="$p_nats" HELIVANTA_NATS_MONITOR_PORT="$p_natsmon" \
   HELIVANTA_REDIS_PORT="$p_redis" HELIVANTA_OPENFGA_PORT="$p_fga" HELIVANTA_ZITADEL_PORT="$p_zitadel" \
   HELIVANTA_ZITADEL_PG_PORT="$p_zitadelpg" \
@@ -227,12 +229,12 @@ echo "HELIVANTA_DEV_ZITADEL_MASTERKEY length check:"
 # this check exists is that Zitadel itself does NOT fail fast on this, it
 # crash-loops instead (see docker-compose.dev.yml's zitadel service
 # comment), so a silently-passing check here would be worse than none.
-out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="$(free_port)" \
+out=$(env PATH="$good:$PATH" PREFLIGHT_PORTS="$(free_port)" \
   HELIVANTA_DEV_ZITADEL_MASTERKEY="tooShort" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
 assert_status "a masterkey that is not 32 bytes exits 1" 1 "$status"
 assert_contains "the wrong length is reported" "$out" "is 8 bytes, want exactly 32"
 
-out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="$(free_port)" \
+out=$(env PATH="$good:$PATH" PREFLIGHT_PORTS="$(free_port)" \
   HELIVANTA_DEV_ZITADEL_MASTERKEY="HmsDevZitadelMasterKey32BytesXXX" \
   bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
 assert_status "the real 32-byte default exits 0" 0 "$status"
@@ -245,7 +247,7 @@ echo "PREFLIGHT_SKIP (Makefile):"
 # must not silently disable preflight for every `make up`/`make dev-infra`.
 # Only a deliberate command-line `make ... PREFLIGHT_SKIP=1` — reset-dev.sh's
 # use — may skip it.
-out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="$(free_port)" \
+out=$(env PATH="$good:$PATH" PREFLIGHT_PORTS="$(free_port)" \
   PREFLIGHT_SKIP=1 make -C "$REPO_ROOT" preflight 2>&1); status=$?
 assert_status "ambient PREFLIGHT_SKIP=1 still runs preflight, exits 0 on a clean env" 0 "$status"
 case "$out" in
@@ -253,7 +255,7 @@ case "$out" in
   *) t_ok "ambient PREFLIGHT_SKIP=1 must not skip preflight" ;;
 esac
 
-out=$(env PATH="$good:$PATH" NODE_AUTH_TOKEN=token PREFLIGHT_PORTS="$(free_port)" \
+out=$(env PATH="$good:$PATH" PREFLIGHT_PORTS="$(free_port)" \
   make -C "$REPO_ROOT" preflight PREFLIGHT_SKIP=1 2>&1); status=$?
 assert_status "command-line PREFLIGHT_SKIP=1 exits 0" 0 "$status"
 assert_contains "command-line PREFLIGHT_SKIP=1 skips preflight" "$out" "Preflight skipped"

@@ -10,11 +10,9 @@ Helivanta — a hospital management system platform, multi-zone monorepo.
 
 ## Quick start
 
-Requires Docker, Go 1.26, Node 22 (`corepack enable`).
-
-Set `NODE_AUTH_TOKEN` to a GitHub token with `read:packages`
-(`export NODE_AUTH_TOKEN=$(gh auth token)`) — required for `@tesserix/web`
-from GitHub Packages.
+Requires Docker, Go 1.26, Node 22 (`corepack enable`). No registry
+credentials: `@tesserix/web` is published to the public npm registry, so
+`pnpm install` on a fresh clone needs nothing but network access.
 
     pnpm install
     make up             # infra + migrations + seed + API (8080) + all four zone apps
@@ -33,7 +31,7 @@ steps are still available if you want them: `make dev-infra`, `make
 migrate`, `make seed`, `make dev-api`, `make dev-web`.
 
 `make up` runs `scripts/preflight.sh` first. It checks Docker, Compose v2,
-Go, Node, pnpm, `NODE_AUTH_TOKEN`, the Zitadel dev masterkey's length, and
+Go, Node, pnpm, the Zitadel dev masterkey's length, `lsof`, and
 every port the stack uses, and reports **every** problem at once with the
 fix for each — a fresh machine usually has more than one. A port held by
 this repo's own containers or processes is not a conflict, so re-running

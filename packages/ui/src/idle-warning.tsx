@@ -77,8 +77,8 @@ export function IdleWarning({ secondsRemaining, onStay }: IdleWarningProps) {
           <DialogTitle>Still there?</DialogTitle>
           <DialogDescription>
             This session will end in{" "}
-            <span className="font-medium tabular-nums text-foreground">{countdown}</span> because
-            of inactivity. Select &ldquo;Stay signed in&rdquo; to keep working.
+            <span className="font-medium tabular-nums text-foreground">{countdown}</span> because of
+            inactivity. Select &ldquo;Stay signed in&rdquo; to keep working.
           </DialogDescription>
         </DialogHeader>
         <p aria-live="polite" className="sr-only">

@@ -42,10 +42,7 @@ describe("POST /logout", () => {
   // still live server-side is exactly the failure this endpoint exists to
   // prevent.
   it("does not clear the cookie when server-side revocation fails", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: false, status: 500 }),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
 
     const res = await POST(request({ "sec-fetch-site": "same-origin" }, "a-session-token"));
 

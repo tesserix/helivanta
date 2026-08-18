@@ -29,7 +29,14 @@ describe("MedicationsPanel", () => {
           200,
           page(
             added
-              ? [{ id: "m-1", name: "Paracetamol", strength: "500mg", created_at: "2026-08-04T04:00:00Z" }]
+              ? [
+                  {
+                    id: "m-1",
+                    name: "Paracetamol",
+                    strength: "500mg",
+                    created_at: "2026-08-04T04:00:00Z",
+                  },
+                ]
               : [],
           ),
         ),
@@ -55,8 +62,18 @@ describe("MedicationsPanel", () => {
   });
 
   it("loads the next page on click, then hides Load more once the list is complete", async () => {
-    const first = { id: "m-1", name: "Paracetamol", strength: "500mg", created_at: "2026-08-04T04:00:00Z" };
-    const second = { id: "m-2", name: "Ibuprofen", strength: "200mg", created_at: "2026-08-04T03:00:00Z" };
+    const first = {
+      id: "m-1",
+      name: "Paracetamol",
+      strength: "500mg",
+      created_at: "2026-08-04T04:00:00Z",
+    };
+    const second = {
+      id: "m-2",
+      name: "Ibuprofen",
+      strength: "200mg",
+      created_at: "2026-08-04T03:00:00Z",
+    };
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       if (url.includes("cursor=")) {
         return Promise.resolve(jsonResponse(200, page([second])));

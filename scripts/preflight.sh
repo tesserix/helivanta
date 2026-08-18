@@ -3,9 +3,9 @@
 # touches Docker.
 #
 # Reports EVERY problem it finds, not the first. A fresh clone on a new
-# laptop typically has more than one thing wrong — no NODE_AUTH_TOKEN, an
-# old Node, something already on 8080 — and discovering them one failed
-# boot at a time is precisely the experience issue #714 objects to.
+# laptop typically has more than one thing wrong — an old Node, no pnpm,
+# something already on 8080 — and discovering them one failed boot at a
+# time is precisely the experience issue #714 objects to.
 #
 # A port held by our own containers or our own processes is not a conflict:
 # `make up` is documented as safe to re-run and seeding is idempotent, so a
@@ -14,10 +14,6 @@ set -uo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 . "$REPO_ROOT/scripts/lib/repo-owns.sh"
-
-# Overridable so the test harness can simulate a fresh clone with no
-# node_modules yet, without touching the repo's real one.
-NODE_MODULES_DIR=${NODE_MODULES_DIR:-$REPO_ROOT/node_modules}
 
 # Built from the HELIVANTA_* host-port variables (see .env.example) so an
 # overridden port is actually checked, instead of preflight passing a stale
@@ -43,7 +39,6 @@ ZITADEL_MASTERKEY_CHECK=${HELIVANTA_DEV_ZITADEL_MASTERKEY:-HmsDevZitadelMasterKe
 FAILURES=""
 
 ok()   { printf '  ok    %s\n' "$1"; }
-warn() { printf '  warn  %s\n' "$1"; }
 fail() { printf '  FAIL  %s\n' "$1"; FAILURES="${FAILURES}  - $2
 "; }
 
@@ -111,22 +106,11 @@ check_zitadel_masterkey() {
   fi
 }
 
-# `up`, `dev-infra` and `reset` never run `pnpm install` — the token is only
-# needed to *install* @tesserix/web from GitHub Packages. So a missing token
-# is only fatal when node_modules doesn't exist yet and an install is
-# actually coming; otherwise it's a warning, since every developer's gh
-# token rotates sooner or later and that shouldn't block a stack that
-# doesn't need to install anything.
-check_node_auth_token() {
-  if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
-    ok "NODE_AUTH_TOKEN"
-  elif [ ! -d "$NODE_MODULES_DIR" ]; then
-    fail "NODE_AUTH_TOKEN" \
-      "NODE_AUTH_TOKEN unset and node_modules is missing — pnpm install needs it for @tesserix/web from GitHub Packages — export NODE_AUTH_TOKEN=\$(gh auth token)"
-  else
-    warn "NODE_AUTH_TOKEN unset — fine unless you need to (re)run pnpm install — export NODE_AUTH_TOKEN=\$(gh auth token) first if you do"
-  fi
-}
+# Nothing here checks a registry token. @tesserix/web moved to the PUBLIC npm
+# registry (#866/#868) and the repo-local .npmrc that pinned the scope to
+# GitHub Packages is gone, so `pnpm install` on a fresh clone needs no
+# credentials at all. A check that demanded one would block onboarding for a
+# token nobody needs — the opposite of what this script is for.
 
 # port_is_ours (scripts/lib/repo-owns.sh) shells out to lsof, and reads an
 # empty result — its normal behaviour when lsof is simply absent — as "no
@@ -169,7 +153,6 @@ main() {
   check_go
   check_node
   check_pnpm
-  check_node_auth_token
   check_zitadel_masterkey
   check_lsof
   check_ports

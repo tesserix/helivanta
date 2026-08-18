@@ -1,0 +1,183 @@
+# Shell frontend image (#824 slice 1b, Task 3).
+#
+# Build context is the REPO ROOT, and here that is not a convention, it is a
+# requirement: apps/shell is one member of a pnpm workspace and depends on
+# @helivanta/api and @helivanta/ui via `workspace:*`. Those are consumed as
+# TypeScript SOURCE (see their package.json `exports`, which point at
+# src/index.ts, and next.config.ts's `transpilePackages`) — there is no
+# published tarball and no dist/ to install from. A build context of
+# apps/shell alone could not resolve them at all.
+#
+# Both stages pinned by digest, not just tag: node:22.21.1-alpine is mutable
+# upstream — the tag can be repointed — but the digest is what actually built
+# this image, so a rebuild months from now reproduces the same Node and the
+# same musl userland instead of silently picking up whatever the tag has
+# since become. Same reasoning as Dockerfile.api's golang pin.
+FROM node:22.21.1-alpine@sha256:0340fa682d72068edf603c305bfbc10e23219fb0e40df58d9ea4d6f33a9798bf AS builder
+
+# pnpm 10.17.1 via corepack, matching package.json's `packageManager` field
+# exactly. Pinned rather than `corepack enable pnpm` + whatever floats,
+# because pnpm's lockfile format is version-sensitive and --frozen-lockfile
+# below is only a real guarantee if the resolver reading it is the one that
+# wrote it.
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable && corepack prepare pnpm@10.17.1 --activate
+
+WORKDIR /src
+
+# Manifests first, source second. The dependency graph changes far less
+# often than application code, so this layer is only invalidated when a
+# package.json or the lockfile actually changes — editing a React component
+# does not re-run a full pnpm install.
+#
+# Every workspace member's package.json has to be here, not just the ones
+# the shell needs: pnpm validates the whole workspace against the lockfile
+# before it installs anything, and a missing importer makes
+# --frozen-lockfile fail. (apps/mobile is deliberately absent — it is a
+# README placeholder with no package.json, so pnpm-workspace.yaml's
+# `apps/*` glob does not match it as a package.)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/shell/package.json ./apps/shell/
+COPY packages/api/package.json ./packages/api/
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/config/package.json ./packages/config/
+COPY e2e/package.json ./e2e/
+
+# `--filter @helivanta/shell...` installs the shell and its workspace
+# dependency closure ONLY. Without it a plain install also pulls the root's
+# Playwright and the e2e package — hundreds of megabytes of browser test
+# tooling downloaded into a builder that will never run a test.
+# --frozen-lockfile makes the build fail rather than silently resolve a new
+# version if pnpm-lock.yaml and the manifests have drifted apart.
+RUN pnpm install --frozen-lockfile --filter @helivanta/shell...
+
+COPY apps/shell ./apps/shell
+COPY packages ./packages
+
+# ---------------------------------------------------------------------------
+# Build-time configuration. ALL of these are baked into the output and none
+# can be changed by the pod's environment afterwards, which is the single
+# most important fact about this image.
+#
+# NEXT_PUBLIC_* are inlined by Next.js into the CLIENT bundle at build time —
+# they become string literals in .next/static/chunks/*.js. Setting them in a
+# Deployment's `env:` does nothing at all. apps/shell/lib/env.ts validates
+# both through defineEnv with no fallbacks (issuer must parse as a URL,
+# client id must be non-empty), so a build without them FAILS here rather
+# than producing an image that 500s on /login. That is deliberate: the
+# alternative is a green build that cannot complete OIDC.
+#
+# API_URL / MEDICORE_URL / PHARMACY_URL / LAB_URL are read in
+# apps/shell/next.config.ts to construct the rewrite table, which Next
+# freezes into the build output. They are server-side (no NEXT_PUBLIC_
+# prefix) but they are still build-time, for that reason — same trap, less
+# obvious. next.config.ts defaults each to a localhost port for `next dev`;
+# if a build arg fails to reach this stage the localhost default bakes in
+# silently and the rewrites become unreachable-but-plausible config in
+# production. Hence: no defaults here. An unset ARG produces an empty
+# destination and a loud failure, not a quiet localhost one.
+#
+# The zone URLs in particular are NOT yet backed by anything. apps/medicore,
+# apps/pharmacy and apps/lab are not deployed — they land in slice 2. What
+# is baked is the in-cluster Service DNS those apps WILL have, following the
+# naming already in use for helivanta-api and helivanta-postgres. Until
+# slice 2, requests to /medicore, /pharmacy and /lab fail DNS resolution and
+# the shell returns 502 for those paths; every other path is unaffected.
+# That is the honest failure: an unresolvable name that becomes correct the
+# moment the zone ships. Baking localhost instead would make the shell
+# proxy those paths to itself — a wrong answer that looks like a working
+# one, and the trap this comment exists to prevent anyone re-introducing.
+# ---------------------------------------------------------------------------
+ARG NEXT_PUBLIC_ZITADEL_ISSUER_URL
+ARG NEXT_PUBLIC_ZITADEL_CLIENT_ID
+ARG API_URL
+ARG MEDICORE_URL
+ARG PHARMACY_URL
+ARG LAB_URL
+
+ENV NEXT_PUBLIC_ZITADEL_ISSUER_URL=${NEXT_PUBLIC_ZITADEL_ISSUER_URL}
+ENV NEXT_PUBLIC_ZITADEL_CLIENT_ID=${NEXT_PUBLIC_ZITADEL_CLIENT_ID}
+ENV API_URL=${API_URL}
+ENV MEDICORE_URL=${MEDICORE_URL}
+ENV PHARMACY_URL=${PHARMACY_URL}
+ENV LAB_URL=${LAB_URL}
+
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+RUN pnpm --filter @helivanta/shell build
+
+# apps/shell has no public/ directory today. Creating it here rather than
+# making the runtime COPY conditional keeps that COPY unconditional and
+# correct: if someone adds apps/shell/public/favicon.ico tomorrow it is
+# served with no change to this file, and if nobody does, the runtime stage
+# gets an empty directory instead of a build failure.
+RUN mkdir -p /src/apps/shell/public
+
+# ---------------------------------------------------------------------------
+# Runtime. `output: "standalone"` (apps/shell/next.config.ts) has already
+# traced the exact set of node_modules files the server actually requires
+# and copied them into .next/standalone, so the runtime stage never sees the
+# workspace, the source, the TypeScript toolchain or pnpm's store. Three
+# COPYs is the whole image.
+#
+# node:22.21.1-alpine rather than distroless (Dockerfile.api's choice)
+# because Next's standalone server is a Node program, not a static binary —
+# it needs a Node runtime, and the officially-built one is the one Next is
+# tested against. The cost is that this image DOES have a shell, unlike the
+# API image. That is what makes the build-arg verification in the Makefile's
+# image-shell target possible at all.
+# ---------------------------------------------------------------------------
+FROM node:22.21.1-alpine@sha256:0340fa682d72068edf603c305bfbc10e23219fb0e40df58d9ea4d6f33a9798bf AS runtime
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+# HOSTNAME=0.0.0.0 is required, not cosmetic: Next's standalone server binds
+# whatever HOSTNAME says, and its own default of localhost binds only the
+# container's loopback — the process starts, logs "Ready", and every request
+# from outside the container (kubelet probes included) is refused.
+ENV HOSTNAME=0.0.0.0
+ENV PORT=4301
+
+# API_URL is declared a SECOND time, in this stage, and that is not a
+# duplicate of the builder's ARG — it is a different mechanism for a
+# different consumer, found by grepping the built output for localhost:
+#
+#   apps/shell/app/logout/route.ts reads `process.env.API_URL` at REQUEST
+#   time, not build time (Next does not inline non-NEXT_PUBLIC_ vars into
+#   server code; the built chunk still literally contains
+#   `process.env.API_URL??"http://localhost:8080"`).
+#
+# So next.config.ts's rewrites are frozen at build time while this one
+# route resolves at runtime, from the same variable name. Without this
+# line the image would build clean, serve every page, and POST logout to
+# localhost:8080 INSIDE the pod. Baking it as an ENV gives the same
+# default; unlike the rewrite table, a Deployment can still override it.
+ARG API_URL
+ENV API_URL=${API_URL}
+
+# The standalone bundle keeps the workspace's directory shape, so the server
+# entry point is apps/shell/server.js relative to this WORKDIR, not
+# ./server.js. .next/static and public are the two things Next deliberately
+# does NOT trace into standalone (they are served, not required), so they
+# are copied separately, into the paths the server resolves relative to
+# itself.
+COPY --from=builder --chown=node:node /src/apps/shell/.next/standalone ./
+COPY --from=builder --chown=node:node /src/apps/shell/.next/static ./apps/shell/.next/static
+COPY --from=builder --chown=node:node /src/apps/shell/public ./apps/shell/public
+
+# The `node` user (uid/gid 1000) ships with the base image. Nothing in this
+# image is written at runtime — Next serves from the read-only bundle — so
+# root buys nothing and costs the usual.
+USER node
+
+EXPOSE 4301
+
+# Exec form: node IS PID 1, with no /bin/sh -c in between to swallow SIGTERM
+# before the server's own shutdown handling sees it. Same reasoning as
+# Dockerfile.api's ENTRYPOINT, and the reason `docker run --entrypoint=""`
+# is how the verification steps get a shell in here instead.
+ENTRYPOINT ["node", "apps/shell/server.js"]

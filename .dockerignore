@@ -4,16 +4,44 @@
 # a layer. Dockerfile.api only COPYs backend/, but this file is not scoped
 # to that Dockerfile: it is the one thing standing between "developer runs
 # docker build from repo root" and a live secret ending up in an image.
+#
+# The `**/` forms are not belt-and-braces: .dockerignore patterns are
+# anchored at the context root, so the bare `.env` lines below only ever
+# matched the repo-root file. apps/shell/.env.local exists on developer
+# machines (written for `make dev-web`, holding localhost:20080 and the
+# local Zitadel client id) and WAS being copied into Dockerfile.shell's
+# builder, where Next.js loaded it — observed live as "Environments:
+# .env.local" in the build log. Build args happened to take precedence, so
+# it produced a correct image and a false sense of safety; a build that
+# omitted one would have silently picked up the localhost value instead of
+# failing. Every app directory gets the same treatment.
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
 dev/zitadel/secrets/
 
-# Node/Next.js build artefacts — irrelevant to the Go image, large, and
-# frequently present locally.
+# Node/Next.js build artefacts. These patterns are anchored at the context
+# root, so `node_modules/` alone only ever excluded the top-level one — which
+# was enough while Dockerfile.api was the only Dockerfile here, and is not
+# enough now that Dockerfile.shell builds the pnpm workspace. The `**/`
+# variants matter for correctness, not just image size: pnpm's per-package
+# node_modules are symlink farms pointing into the root store, so copying
+# apps/shell/node_modules into the builder would overlay dangling links on
+# top of the install Dockerfile.shell just performed.
+#
+# Excluding .next/ and *.tsbuildinfo the same way keeps a developer's local
+# `next dev` output — built with localhost URLs and whatever client id their
+# dev Zitadel assigned — from being copied over a production build.
 node_modules/
+**/node_modules/
 .next/
+**/.next/
 .turbo/
+**/.turbo/
+**/*.tsbuildinfo
 apps/**/dist/
 packages/**/dist/
 

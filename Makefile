@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed secret-session-key test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local preflight reset image-api
+.PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed secret-session-key test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local preflight reset image-api image-shell
 
 # Docker Compose reads .env in the project directory automatically for
 # ${VAR} substitution in docker-compose.dev.yml; Make does not read it on
@@ -338,3 +338,48 @@ image-api:
 		--build-arg VERSION=$(VERSION) \
 		--build-arg COMMIT=$(COMMIT) \
 		-t $(IMAGE_API_TAG) .
+
+# Builds the shell frontend image (Dockerfile.shell, #824 slice 1b Task 3),
+# also from the REPO ROOT as build context — apps/shell is a pnpm workspace
+# member whose @helivanta/ui and @helivanta/api dependencies are consumed as
+# TypeScript source, so the workspace IS the build context. See
+# Dockerfile.shell's own header.
+#
+# Every value below is baked into the image and cannot be changed by the
+# pod's environment afterwards. The two NEXT_PUBLIC_ ones are inlined into
+# the client bundle; the URL ones are frozen into next.config.ts's rewrite
+# table. So these defaults are PRODUCTION values, unlike the localhost
+# defaults the rest of this file carries for `make dev-web` — an image is
+# not a dev server, and a local-looking default here ships to the cluster.
+#
+# Note these deliberately do NOT reuse the NEXT_PUBLIC_ZITADEL_* variables
+# defined near the top of this file. Those resolve to the LOCAL Zitadel
+# (dev/zitadel/secrets/zitadel.env, whatever client id a developer's own
+# stack was provisioned with) and are exported into every recipe. Inheriting
+# them here would mean `make image-shell` on a developer machine with a dev
+# stack up silently produces an image pointing at http://localhost:20080.
+IMAGE_SHELL_TAG ?= helivanta-shell:local
+IMAGE_SHELL_ZITADEL_ISSUER_URL ?= https://auth.tesserix.app
+IMAGE_SHELL_ZITADEL_CLIENT_ID ?= 386782591925092979
+IMAGE_SHELL_API_URL ?= http://helivanta-api.helivanta.svc.cluster.local:8080
+
+# The zone apps are NOT deployed — they land in slice 2. These are the
+# in-cluster Service DNS names they will have, following the convention
+# helivanta-api and helivanta-postgres already use, on each zone's own
+# listen port (4302/4303/4304, see each app's package.json). Until slice 2
+# lands, /medicore, /pharmacy and /lab return 502 from an unresolvable host.
+# That is chosen over localhost, which would make the shell proxy those
+# paths back to itself and look like it worked.
+IMAGE_SHELL_MEDICORE_URL ?= http://helivanta-medicore.helivanta.svc.cluster.local:4302
+IMAGE_SHELL_PHARMACY_URL ?= http://helivanta-pharmacy.helivanta.svc.cluster.local:4303
+IMAGE_SHELL_LAB_URL ?= http://helivanta-lab.helivanta.svc.cluster.local:4304
+
+image-shell:
+	docker build -f Dockerfile.shell \
+		--build-arg NEXT_PUBLIC_ZITADEL_ISSUER_URL=$(IMAGE_SHELL_ZITADEL_ISSUER_URL) \
+		--build-arg NEXT_PUBLIC_ZITADEL_CLIENT_ID=$(IMAGE_SHELL_ZITADEL_CLIENT_ID) \
+		--build-arg API_URL=$(IMAGE_SHELL_API_URL) \
+		--build-arg MEDICORE_URL=$(IMAGE_SHELL_MEDICORE_URL) \
+		--build-arg PHARMACY_URL=$(IMAGE_SHELL_PHARMACY_URL) \
+		--build-arg LAB_URL=$(IMAGE_SHELL_LAB_URL) \
+		-t $(IMAGE_SHELL_TAG) .

@@ -12,113 +12,113 @@
 :root[data-theme="default"],
 [data-theme="default"] {
   /* Content surface */
-  --background: #F4F6F9 !important;
-  --foreground: #0F1728 !important;
-  --card: #FFFFFF !important;
-  --card-foreground: #0F1728 !important;
-  --popover: #FFFFFF !important;
-  --popover-foreground: #0F1728 !important;
+  --background: #f4f6f9 !important;
+  --foreground: #0f1728 !important;
+  --card: #ffffff !important;
+  --card-foreground: #0f1728 !important;
+  --popover: #ffffff !important;
+  --popover-foreground: #0f1728 !important;
 
-  --primary: #0E7569 !important;
-  --primary-foreground: #FFFFFF !important;
+  --primary: #0e7569 !important;
+  --primary-foreground: #ffffff !important;
 
-  --secondary: #F0F3F7 !important;
-  --secondary-foreground: #3A4557 !important;
+  --secondary: #f0f3f7 !important;
+  --secondary-foreground: #3a4557 !important;
 
-  --muted: #F6F8FB !important;
+  --muted: #f6f8fb !important;
   --muted-foreground: #647082 !important;
 
-  --accent: #E3F2EF !important;
-  --accent-foreground: #0A5A50 !important;
+  --accent: #e3f2ef !important;
+  --accent-foreground: #0a5a50 !important;
 
-  --destructive: #C93B3B !important;
-  --destructive-foreground: #FFFFFF !important;
+  --destructive: #c93b3b !important;
+  --destructive-foreground: #ffffff !important;
 
-  --border: #E5EAF1 !important;
-  --input: #E5EAF1 !important;
-  --ring: #0E7569 !important;
+  --border: #e5eaf1 !important;
+  --input: #e5eaf1 !important;
+  --ring: #0e7569 !important;
 
   /* Sidebar — light rails */
-  --sidebar: #FAFBFD !important;
-  --sidebar-foreground: #0F1728 !important;
-  --sidebar-primary: #0E7569 !important;
-  --sidebar-primary-foreground: #FFFFFF !important;
-  --sidebar-accent: #F0F3F7 !important;
-  --sidebar-accent-foreground: #0F1728 !important;
-  --sidebar-border: #EBEFF5 !important;
-  --sidebar-ring: #0E7569 !important;
-  --sidebar-rail: #FFFFFF !important;
+  --sidebar: #fafbfd !important;
+  --sidebar-foreground: #0f1728 !important;
+  --sidebar-primary: #0e7569 !important;
+  --sidebar-primary-foreground: #ffffff !important;
+  --sidebar-accent: #f0f3f7 !important;
+  --sidebar-accent-foreground: #0f1728 !important;
+  --sidebar-border: #ebeff5 !important;
+  --sidebar-ring: #0e7569 !important;
+  --sidebar-rail: #ffffff !important;
 
   /* Helivanta semantic tokens */
-  --hms-accent: #0E7569 !important;
-  --hms-accent-strong: #0A5A50 !important;
-  --hms-accent-dim: #E3F2EF !important;
-  --hms-good: #12915E !important;
-  --hms-warn: #B95E04 !important;
-  --hms-crit: #C93B3B !important;
-  --hms-rose: #C13B5E !important;
-  --hms-rose-tint: #FBEDF1 !important;
-  --hms-amber: #A16207 !important;
-  --hms-amber-tint: #FBF3E4 !important;
-  --hms-violet: #5B5BD6 !important;
-  --hms-violet-tint: #EEEEFB !important;
-  --hms-track: #E7EBF1 !important;
+  --hms-accent: #0e7569 !important;
+  --hms-accent-strong: #0a5a50 !important;
+  --hms-accent-dim: #e3f2ef !important;
+  --hms-good: #12915e !important;
+  --hms-warn: #b95e04 !important;
+  --hms-crit: #c93b3b !important;
+  --hms-rose: #c13b5e !important;
+  --hms-rose-tint: #fbedf1 !important;
+  --hms-amber: #a16207 !important;
+  --hms-amber-tint: #fbf3e4 !important;
+  --hms-violet: #5b5bd6 !important;
+  --hms-violet-tint: #eeeefb !important;
+  --hms-track: #e7ebf1 !important;
 }
 
 :root[data-theme="dark"],
 [data-theme="dark"] {
   /* Content surface */
-  --background: #0F1317 !important;
-  --foreground: #E8EDF2 !important;
-  --card: #161C22 !important;
-  --card-foreground: #E8EDF2 !important;
-  --popover: #161C22 !important;
-  --popover-foreground: #E8EDF2 !important;
+  --background: #0f1317 !important;
+  --foreground: #e8edf2 !important;
+  --card: #161c22 !important;
+  --card-foreground: #e8edf2 !important;
+  --popover: #161c22 !important;
+  --popover-foreground: #e8edf2 !important;
 
-  --primary: #45C4B4 !important;
-  --primary-foreground: #06211D !important;
+  --primary: #45c4b4 !important;
+  --primary-foreground: #06211d !important;
 
-  --secondary: #1B222A !important;
-  --secondary-foreground: #E8EDF2 !important;
+  --secondary: #1b222a !important;
+  --secondary-foreground: #e8edf2 !important;
 
-  --muted: #1B222A !important;
-  --muted-foreground: #8B96A3 !important;
+  --muted: #1b222a !important;
+  --muted-foreground: #8b96a3 !important;
 
-  --accent: #182B2D !important;
-  --accent-foreground: #45C4B4 !important;
+  --accent: #182b2d !important;
+  --accent-foreground: #45c4b4 !important;
 
-  --destructive: #F87171 !important;
-  --destructive-foreground: #0F1317 !important;
+  --destructive: #f87171 !important;
+  --destructive-foreground: #0f1317 !important;
 
-  --border: #232B34 !important;
-  --input: #232B34 !important;
-  --ring: #45C4B4 !important;
+  --border: #232b34 !important;
+  --input: #232b34 !important;
+  --ring: #45c4b4 !important;
 
   /* Sidebar — dark rails */
-  --sidebar: #12161B !important;
-  --sidebar-foreground: #E8EDF2 !important;
-  --sidebar-primary: #45C4B4 !important;
-  --sidebar-primary-foreground: #06211D !important;
-  --sidebar-accent: #1B222A !important;
-  --sidebar-accent-foreground: #E8EDF2 !important;
-  --sidebar-border: #1C232B !important;
-  --sidebar-ring: #45C4B4 !important;
-  --sidebar-rail: #0B0E11 !important;
+  --sidebar: #12161b !important;
+  --sidebar-foreground: #e8edf2 !important;
+  --sidebar-primary: #45c4b4 !important;
+  --sidebar-primary-foreground: #06211d !important;
+  --sidebar-accent: #1b222a !important;
+  --sidebar-accent-foreground: #e8edf2 !important;
+  --sidebar-border: #1c232b !important;
+  --sidebar-ring: #45c4b4 !important;
+  --sidebar-rail: #0b0e11 !important;
 
   /* Helivanta semantic tokens */
-  --hms-accent: #45C4B4 !important;
-  --hms-accent-strong: #5FD8C8 !important;
-  --hms-accent-dim: #182B2D !important;
-  --hms-good: #4ADE80 !important;
-  --hms-warn: #FBBF24 !important;
-  --hms-crit: #F87171 !important;
-  --hms-rose: #F17E9C !important;
+  --hms-accent: #45c4b4 !important;
+  --hms-accent-strong: #5fd8c8 !important;
+  --hms-accent-dim: #182b2d !important;
+  --hms-good: #4ade80 !important;
+  --hms-warn: #fbbf24 !important;
+  --hms-crit: #f87171 !important;
+  --hms-rose: #f17e9c !important;
   --hms-rose-tint: #302831 !important;
-  --hms-amber: #F2C464 !important;
-  --hms-amber-tint: #30302A !important;
-  --hms-violet: #9D9DF0 !important;
-  --hms-violet-tint: #26273B !important;
-  --hms-track: #232B34 !important;
+  --hms-amber: #f2c464 !important;
+  --hms-amber-tint: #30302a !important;
+  --hms-violet: #9d9df0 !important;
+  --hms-violet-tint: #26273b !important;
+  --hms-track: #232b34 !important;
 
   /* --radius is only defined under [data-theme="default"] by @tesserix/web;
      guard it here so it's never undefined in dark mode if a future

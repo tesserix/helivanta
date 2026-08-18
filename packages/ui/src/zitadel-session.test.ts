@@ -48,14 +48,16 @@ describe("endZitadelSession", () => {
   });
 
   it("sets exactly IDLE_ENDED_MARK, and never SIGNED_OUT_MARK, when asked for the idle mark", async () => {
-    const { endZitadelSession, IDLE_ENDED_MARK, SIGNED_OUT_MARK } = await import("./zitadel-session");
+    const { endZitadelSession, IDLE_ENDED_MARK, SIGNED_OUT_MARK } =
+      await import("./zitadel-session");
     await endZitadelSession(IDLE_ENDED_MARK);
     expect(window.sessionStorage.getItem(IDLE_ENDED_MARK)).toBe("1");
     expect(window.sessionStorage.getItem(SIGNED_OUT_MARK)).toBeNull();
   });
 
   it("sets exactly SIGNED_OUT_MARK, and never IDLE_ENDED_MARK, when asked for the sign-out mark", async () => {
-    const { endZitadelSession, IDLE_ENDED_MARK, SIGNED_OUT_MARK } = await import("./zitadel-session");
+    const { endZitadelSession, IDLE_ENDED_MARK, SIGNED_OUT_MARK } =
+      await import("./zitadel-session");
     await endZitadelSession(SIGNED_OUT_MARK);
     expect(window.sessionStorage.getItem(SIGNED_OUT_MARK)).toBe("1");
     expect(window.sessionStorage.getItem(IDLE_ENDED_MARK)).toBeNull();
@@ -65,7 +67,8 @@ describe("endZitadelSession", () => {
   // (hms-shell.tsx's D6 teardown on a non-`session_idle` 401) must be
   // able to end the session without stamping either mark.
   it("sets no mark at all when the caller passes none", async () => {
-    const { endZitadelSession, IDLE_ENDED_MARK, SIGNED_OUT_MARK } = await import("./zitadel-session");
+    const { endZitadelSession, IDLE_ENDED_MARK, SIGNED_OUT_MARK } =
+      await import("./zitadel-session");
     await endZitadelSession(undefined);
     expect(window.sessionStorage.getItem(IDLE_ENDED_MARK)).toBeNull();
     expect(window.sessionStorage.getItem(SIGNED_OUT_MARK)).toBeNull();
@@ -88,7 +91,8 @@ describe("endZitadelSession", () => {
 
   it("falls back to a same-origin /login redirect, setting no mark, when Zitadel config is unreachable", async () => {
     delete process.env.NEXT_PUBLIC_ZITADEL_ISSUER_URL;
-    const { endZitadelSession, IDLE_ENDED_MARK, SIGNED_OUT_MARK } = await import("./zitadel-session");
+    const { endZitadelSession, IDLE_ENDED_MARK, SIGNED_OUT_MARK } =
+      await import("./zitadel-session");
 
     const result = await endZitadelSession(IDLE_ENDED_MARK);
 

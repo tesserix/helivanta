@@ -27,7 +27,9 @@ describe("PingPanel", () => {
       return Promise.resolve(
         jsonResponse(
           200,
-          page(sent ? [{ id: "p-1", message: "OPD ping", created_at: "2026-08-04T04:00:00Z" }] : []),
+          page(
+            sent ? [{ id: "p-1", message: "OPD ping", created_at: "2026-08-04T04:00:00Z" }] : [],
+          ),
         ),
       );
     });

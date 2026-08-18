@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/testcontainers/testcontainers-go"
+	tcexec "github.com/testcontainers/testcontainers-go/exec"
 	tcnats "github.com/testcontainers/testcontainers-go/modules/nats"
 	tcopenfga "github.com/testcontainers/testcontainers-go/modules/openfga"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -174,7 +175,12 @@ func StartPostgres(t *testing.T) (string, string) {
 // -c (verified against postgres:16-alpine), so the exit code is the whole
 // signal — but it is only a signal if somebody reads it.
 func runSQL(ctx context.Context, database, sql string) error {
-	code, out, err := pgCont.Exec(ctx, []string{"psql", "-U", "hms", "-d", database, "-c", sql})
+	// exec.Multiplexed() demultiplexes docker's stream framing. Without it
+	// the returned reader still carries the 8-byte per-frame headers, and
+	// psql's message reaches the error prefixed with control bytes — which
+	// is exactly when someone is reading it under pressure.
+	code, out, err := pgCont.Exec(ctx, []string{"psql", "-U", "hms", "-d", database, "-c", sql},
+		tcexec.Multiplexed())
 	if err != nil {
 		return fmt.Errorf("exec psql on %s: %w", database, err)
 	}

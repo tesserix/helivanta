@@ -154,10 +154,17 @@ func TestTrustedProxyCIDRsDropsOnlyTheMalformedEntry(t *testing.T) {
 	require.Equal(t, []string{"10.20.0.0/16", "10.30.0.0/20"}, cfg.TrustedProxyCIDRs)
 }
 
-// TestTrustedProxyCIDRsAllMalformedYieldsEmptyNotError proves the
-// all-garbage case still lands on the SAME fail-closed answer as unset —
-// an empty list — rather than a boot failure or a silently-accepted
-// bogus trust boundary.
+// TestTrustedProxyCIDRsAllMalformedYieldsEmptyNotError proves that
+// Load()'s PARSING of the all-garbage case still lands on the SAME
+// fail-closed answer as unset — an empty list — rather than a partially
+// or fully accepted bogus trust boundary. This is unchanged by #824 Task
+// 1's boot guard: Load() itself still never fails. What DOES change is
+// that "empty list" is no longer the end of the story — outside
+// HELIVANTA_ENV=dev, RequireTrustedProxyCIDRs (trustedproxy.go) turns
+// this exact case into a boot refusal, distinct from the unset case, by
+// re-reading the raw env var Load() already discarded. See that
+// function's doc comment for why parsing and boot-enforcement are
+// deliberately split across two functions.
 func TestTrustedProxyCIDRsAllMalformedYieldsEmptyNotError(t *testing.T) {
 	t.Setenv("TRUSTED_PROXY_CIDRS", "not-a-cidr, also-not-one")
 	cfg := config.Load()

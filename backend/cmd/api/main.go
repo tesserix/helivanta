@@ -111,6 +111,16 @@ func run() error {
 	if err := cfg.RequireDistinctHostedLoginOrigin(); err != nil {
 		return err
 	}
+	// Same class of check, same reason to run it here: an unconfigured
+	// trust boundary is a configuration defect, not a runtime one, and it
+	// should surface before anything else costs time or a network round
+	// trip. See config.RequireTrustedProxyCIDRs' doc comment for why an
+	// unset TRUSTED_PROXY_CIDRS outside HELIVANTA_ENV=dev must refuse boot
+	// rather than silently run in the coarse, hospital-wide-rate-limit-
+	// bucket mode #870's raw-TCP-peer fallback produces.
+	if err := cfg.RequireTrustedProxyCIDRs(); err != nil {
+		return err
+	}
 	sessionKey := ed25519.NewKeyFromSeed(sessionSeed)
 	// Logging a fingerprint of the PUBLIC key (never the private key,
 	// never the seed) confirms the key loaded, the same way "resolved

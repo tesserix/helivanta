@@ -57,7 +57,11 @@ Tasks 1, 2 and 4 need neither and can start immediately.
   chart generates app policies as `kv/data/<ns>/<app-name>/*`; the app segment
   cannot be chosen. Never add a hand-written broad policy.
 - **`remoteRef` needs `property:` as well as `key:`.** Without it ESO returns
-  the whole KV payload — non-empty, `SecretSynced`, and unusable.
+  the whole KV payload — non-empty, `SecretSynced`, and unusable. The values are
+  `session_signing_key` and `zitadel_login_client_token` — **underscores**,
+  where the path segment uses hyphens. Not `password`: that is
+  `helivanta-postgres`'s field, and reusing it here fails at deploy time, not
+  write time.
 - **No secret value passes through an agent session.**
 - **Every control is proven by mutation.** Each task names the mutation that
   must make it fail.
@@ -386,7 +390,11 @@ Work in `tesserix-k8s`.
 
 Env from the Service DNS in Global Constraints. Two ExternalSecrets reading
 `kv/data/helivanta/helivanta-api/{session-signing-key,zitadel-login-client-token}`
-via `SecretStore/openbao-helivanta-api`, **each with `property:` set**.
+via `SecretStore/openbao-helivanta-api`, **each with `property:` set** —
+`session_signing_key` and `zitadel_login_client_token` respectively. Already
+authored in `tesserix-k8s:charts/apps/helivanta-api/templates/externalsecret.yaml`
+(PR #411, deliberately not activated); this step activates it rather than
+writing it. The secrets written in P2 must carry those exact field names.
 
 `HELIVANTA_WEB_ORIGIN=https://helivanta.app`.
 **`TRUSTED_PROXY_CIDRS=10.20.0.0/16`** — the pod CIDR the Istio ingress gateway

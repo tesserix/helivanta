@@ -110,9 +110,58 @@ apparently followed correctly.
 
 In the `secret-service` console the three fields map to the path as
 **Namespace** / **Apps** / **Secret name**, so the values are `helivanta`,
-`helivanta-api`, and the secret's own name. Selecting the existing
-`helivanta-api` app needs no whitelisting pull request; if the console offers to
-open one, the app segment is wrong.
+`helivanta-api`, and the secret's own name.
+
+> **The console's "Continuing opens a pull request… whitelisting 1 app" notice
+> is unconditional — it is not a signal.** An earlier version of this runbook
+> said that seeing it meant the app segment was wrong. That was incorrect and
+> cost a provisioning attempt. The string is static copy in
+> `apps/web/components/new-secret.tsx`, rendered whenever the form is valid;
+> the console never checks whether the app is whitelisted already.
+>
+> `helivanta`/`helivanta-api` **is** already whitelisted
+> (`tesserix-k8s:charts/thirdparty/openbao/values.yaml`, `namespaceWhitelist` →
+> `helivanta` → `apps` → `name: helivanta-api`, `serviceAccount: helivanta-api`),
+> so the grant needs nothing further. Do not use the notice to judge whether the
+> path is right — check the whitelist.
+>
+> **Do not click Continue for an already-whitelisted app.** `gitops.AddApp` is
+> idempotent, but `ProposeAll` has no empty-diff guard (`commitProject` does),
+> so it commits the unchanged file and opens an **empty** pull request titled
+> `chore(openbao): grant helivanta/helivanta-api`. It grants nothing — the
+> hazard is that it lands beside
+> [tesserix-k8s#392](https://github.com/tesserix/tesserix-k8s/pull/392)
+> (`chore(openbao): grant helivanta/scope-probe`), which has the same generated
+> title shape and **must never be merged**: merging it creates the policy that
+> produces the 403 proving this grant is bounded, and an over-broad policy
+> passes every positive test identically. Two near-identical `grant helivanta/…`
+> PRs, one mergeable and one that must never be, is how the wrong one gets
+> merged during a tidy-up.
+>
+> Write the value directly instead — that is `PUT /api/secrets/*path`, the
+> console's "write a version with its keys" step, which does not depend on the
+> whitelist flow.
+
+### The key name inside each secret
+
+Each secret's payload needs a specific **field name**, because the chart's
+ExternalSecret selects it with `remoteRef.property`. Without a matching
+property ESO projects the whole KV payload — non-empty, `SecretSynced`, and
+unusable, so a presence check passes while the credential is broken.
+
+| Secret path | Field name (`property`) |
+|---|---|
+| `kv/data/helivanta/helivanta-api/session-signing-key` | `session_signing_key` |
+| `kv/data/helivanta/helivanta-api/zitadel-login-client-token` | `zitadel_login_client_token` |
+
+Source of truth is the chart that reads them:
+`tesserix-k8s:charts/apps/helivanta-api/templates/externalsecret.yaml`.
+
+**The path uses hyphens; the field name uses underscores.** They sit adjacent in
+the same `remoteRef` block and are not the same string. And `password` — the
+field name in `helivanta-postgres`, and the one in the `{"password":"..."}`
+example below — is **wrong for these two**; it belongs to that other chart. As
+with a wrong path, nothing fails at write time.
 
 Two of D7's three assertions were proven during #824 slice 1a, using the
 Postgres role passwords rather than these boot secrets:
@@ -132,6 +181,11 @@ One further trap, found the same way: an ExternalSecret's `remoteRef` needs
 KV payload, so the projected value is `{"password":"..."}` rather than the
 secret. That is non-empty and reports `SecretSynced`, so a presence check passes
 while the credential is unusable.
+
+That example is from the **Postgres** role passwords, whose payloads really do
+carry a `password` field. Do not generalise it to the two boot secrets — theirs
+are `session_signing_key` and `zitadel_login_client_token` (see "The key name
+inside each secret" above).
 
 ## Provisioning: `ZITADEL_LOGIN_CLIENT_TOKEN`
 

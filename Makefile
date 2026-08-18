@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed secret-session-key test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local preflight reset
+.PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed secret-session-key test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local preflight reset image-api
 
 # Docker Compose reads .env in the project directory automatically for
 # ${VAR} substitution in docker-compose.dev.yml; Make does not read it on
@@ -322,3 +322,19 @@ e2e:
 
 new-module:
 	cd backend && ./scripts/new-module.sh $(NAME)
+
+# Builds the backend API image (Dockerfile.api, #824 slice 1b Task 2) from
+# the REPO ROOT as build context — see Dockerfile.api's own top comment for
+# why, given the Go module actually lives under backend/. VERSION/COMMIT
+# default to `git describe`/the short SHA so a plain `make image-api` still
+# stamps something traceable to a commit; either can be overridden
+# (`make image-api VERSION=v1.2.3`) for a real release build.
+IMAGE_API_TAG ?= helivanta-api:local
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+
+image-api:
+	docker build -f Dockerfile.api \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg COMMIT=$(COMMIT) \
+		-t $(IMAGE_API_TAG) .

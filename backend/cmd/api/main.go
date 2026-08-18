@@ -41,6 +41,16 @@ import (
 // messages.
 const sessionSigningKeyID = "helivanta-session-v1"
 
+// version and commit are stamped at build time via -ldflags
+// "-X main.version=... -X main.commit=..." (see ../../../Dockerfile.api).
+// They default to these values for `go run`/`go test`, where no linker
+// flags are supplied, so a local dev boot never reports a misleadingly
+// specific version.
+var (
+	version = "dev"
+	commit  = "unknown"
+)
+
 func main() {
 	if err := run(); err != nil {
 		slog.Error("fatal", "err", err)
@@ -53,6 +63,7 @@ func run() error {
 	// Before anything else logs: until this runs, slog.Default() is the
 	// unconfigured text handler on stderr and nothing is redacted.
 	slog.SetDefault(logging.New(cfg.LogLevel))
+	slog.Info("starting", "version", version, "commit", commit)
 	// Logged once at boot because HELIVANTA_ENV silently gates production safety
 	// checks (see Config.IsDev) — a prod process accidentally started with
 	// HELIVANTA_ENV=dev would otherwise disable them with no signal anywhere.

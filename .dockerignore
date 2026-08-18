@@ -1,0 +1,25 @@
+# Keeps the build context small AND, more importantly, keeps local secrets
+# out of any image built from this repo root — .dockerignore is evaluated
+# before the first COPY, so none of these ever reach the daemon, let alone
+# a layer. Dockerfile.api only COPYs backend/, but this file is not scoped
+# to that Dockerfile: it is the one thing standing between "developer runs
+# docker build from repo root" and a live secret ending up in an image.
+.env
+.env.*
+!.env.example
+dev/zitadel/secrets/
+
+# Node/Next.js build artefacts — irrelevant to the Go image, large, and
+# frequently present locally.
+node_modules/
+.next/
+.turbo/
+apps/**/dist/
+packages/**/dist/
+
+.git/
+*.log
+coverage/
+test-results/
+playwright-report/
+backend/bin/

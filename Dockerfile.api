@@ -1,0 +1,81 @@
+# Backend API image (#824 slice 1b, Task 2).
+#
+# Build context is the REPO ROOT, not backend/ — even though the Go module
+# lives at backend/go.mod. Two reasons: (1) the module has no dependency
+# outside backend/ (no `replace` directives, nothing reaches up past its own
+# tree), so nothing outside backend/ actually needs to be in the build
+# context; but (2) every other build/verify entry point in this repo (make
+# targets, CI) is invoked from the repo root, and a root-context build lets
+# `docker build -f Dockerfile.api .` be run the same way from the same place
+# as everything else, with .dockerignore (also at the root) as the one place
+# that decides what can leak into any image built here — not a second,
+# backend-local .dockerignore that could drift from it.
+#
+# Builder pinned by digest, not tag: golang:1.26.5 is mutable — the tag can
+# be repointed upstream — but the digest is what actually built this image,
+# so a rebuild six months from now reproduces the same toolchain instead of
+# silently picking up whatever the tag now resolves to.
+FROM golang:1.26.5@sha256:705e964a93a2fd2e75c7d59bb7d781b57e30f12293ffde5175c69229e18fb678 AS builder
+
+WORKDIR /src
+
+# Dependency layer cached separately from source: go.sum changes far less
+# often than application code, so this layer only re-runs when a dependency
+# actually changes.
+COPY backend/go.mod backend/go.sum ./
+RUN go mod download
+
+COPY backend/ ./
+
+# Stamped via -X main.version / main.commit — see backend/cmd/api/main.go's
+# `version`/`commit` vars, which default to "dev"/"unknown" for `go run` and
+# `go test`, where no linker flags are supplied. VERSION/COMMIT default here
+# too, so an un-parameterised `docker build` still produces a working,
+# clearly-labelled image rather than failing on an unset build arg.
+#
+# CGO_ENABLED=0 is required, not just an optimisation: the final stage
+# (distroless/static) ships no libc, so a cgo-linked binary would fail to
+# start with "no such file or directory" on its own dynamic loader.
+#
+# Only cmd/api is built here. backend/cmd/migrate and backend/cmd/session-key
+# are deliberately NOT part of this image — migrate runs separately as a
+# Helm hook (a later task), and session-key is a one-off local operator
+# tool. Shipping either alongside the API binary would put a
+# schema-mutating and a key-minting command inside the same container image
+# that serves production traffic, reachable by anyone who could get a shell
+# in — except this image has no shell (see below), so the real risk it
+# avoids is a distinct binary an attacker could ship files into or invoke
+# via a future debug/exec sidecar.
+ARG VERSION=dev
+ARG COMMIT=unknown
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
+    -o /out/api \
+    ./cmd/api
+
+# distroless/static-debian12:nonroot ships no shell, no package manager, and
+# no libc — just enough to run a statically-linked binary as UID/GID 65532.
+# That is the point of this base image, not an oversight: it is also why
+# nobody can `docker exec -it ... sh` into a running container built from
+# this Dockerfile to poke around. Debugging this image means reading its
+# logs, or reproducing the failure in the builder stage / locally with
+# `go run`, not shelling in.
+FROM gcr.io/distroless/static-debian12:nonroot
+
+WORKDIR /app
+COPY --from=builder /out/api /app/api
+
+# The base image's own USER directive already runs the container as
+# 65532:65532 ("nonroot") — nothing to set here. Left unset deliberately
+# rather than repeating `USER nonroot`, so there is exactly one place
+# (the base image tag) that decides the identity this image runs as.
+
+EXPOSE 8080
+
+# Exec form: the binary IS PID 1, with no /bin/sh -c wrapper in between to
+# intercept or swallow SIGTERM before main.go's signal.NotifyContext (see
+# main.go:136) ever sees it. A shell-form or CMD-based ENTRYPOINT here would
+# put a shell at PID 1 instead — and distroless has no shell to do that
+# with anyway, so this is also the only form that could ever work.
+ENTRYPOINT ["/app/api"]

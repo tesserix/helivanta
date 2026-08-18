@@ -175,10 +175,28 @@ func StartPostgres(t *testing.T) (string, string) {
 // -c (verified against postgres:16-alpine), so the exit code is the whole
 // signal — but it is only a signal if somebody reads it.
 func runSQL(ctx context.Context, database, sql string) error {
-	// exec.Multiplexed() demultiplexes docker's stream framing. Without it
-	// the returned reader still carries the 8-byte per-frame headers, and
-	// psql's message reaches the error prefixed with control bytes — which
-	// is exactly when someone is reading it under pressure.
+	// tcexec.Multiplexed() is LOAD-BEARING. Do not remove it as cosmetic.
+	//
+	// Two things depend on it. The obvious one: it strips docker's 8-byte
+	// per-frame stream headers, without which psql's message reaches the
+	// error prefixed with control bytes, exactly when someone is reading it
+	// under pressure.
+	//
+	// The other is ordering. Exec starts the process with ExecAttach and
+	// then POLLS ExecInspect for `!Running`; if the daemon has not yet
+	// marked the exec running, the first poll can see Running=false with
+	// ExitCode=0 and report success for a process that never ran. Multiplexed
+	// blocks until the output stream EOFs, which cannot happen before the
+	// process has run, so the window closes.
+	//
+	// Honesty about the evidence: that window is UNPROVEN as the cause of
+	// the intermittent "database does not exist" failure pgForensics exists
+	// to catch. 840 attempts (idle, 120-way concurrent, and under container
+	// churn) produced no premature exit code. What is on record is only a
+	// timeline — the failure appeared on the one CI run whose runSQL checked
+	// the exit code WITHOUT this option, and has not appeared since it was
+	// added. Suggestive, not conclusive. Keep the option; do not treat its
+	// presence as proof the defect is fixed.
 	code, out, err := pgCont.Exec(ctx, []string{"psql", "-U", "hms", "-d", database, "-c", sql},
 		tcexec.Multiplexed())
 	if err != nil {

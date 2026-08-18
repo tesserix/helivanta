@@ -265,7 +265,7 @@ The actual order is:
    no Helivanta app at all — the dev one is created by
    `scripts/lib/zitadel.mjs` at first boot. This mints the client ID D4 bakes
    into the shell image, so it must happen **before** the image is built.
-2. The two boot secrets are written to `kv/data/helivanta/api/*` (#45 Task 4).
+2. The two boot secrets are written to `kv/data/helivanta/helivanta-api/*` (#45 Task 4).
    This is a write to OpenBao; it needs no pod, only the grant that already
    exists.
 3. The deployment consumes them via the existing `SecretStore`.
@@ -335,8 +335,10 @@ must be `helivanta-api`, not `api` — so #45's Task 4, executed exactly as
 documented, writes both boot secrets where the pod cannot read them. Because
 nothing consumes them until a deployment exists, the failure would first appear
 during slice 1b as an opaque ESO permission error, with the runbook appearing to
-have been followed correctly. `docs/runbooks/secrets.md` and that spec's D3 must
-be corrected before #45 Task 4 is executed.
+have been followed correctly. `docs/runbooks/secrets.md` and that spec's D3 were
+corrected on 2026-08-18, before #45 Task 4 ran — the runbook now also records
+that the app segment is dictated by the store rather than chosen, and which of
+D7's three assertions have actually been proven.
 
 The general lesson is the one this repository keeps relearning: a path
 convention written in prose enforces nothing, and this one disagreed with the

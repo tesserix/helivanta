@@ -232,8 +232,8 @@ func pgForensics(ctx context.Context, name string) string {
 			b.WriteString("\n  " + probe.label + ": probe failed: " + err.Error())
 		default:
 			body, _ := io.ReadAll(out)
-			b.WriteString(fmt.Sprintf("\n  %s (exit %d): %s",
-				probe.label, code, strings.TrimSpace(string(body))))
+			fmt.Fprintf(&b, "\n  %s (exit %d): %s",
+				probe.label, code, strings.TrimSpace(string(body)))
 		}
 	}
 	return b.String()

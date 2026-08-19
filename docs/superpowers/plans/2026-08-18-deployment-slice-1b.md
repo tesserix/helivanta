@@ -610,18 +610,69 @@ Against the deployed stack at `https://helivanta.app`. A wrong Zitadel client ID
 passes every build and fails only here (rebrand spec D6). Not a curl — a real
 OIDC round trip.
 
-- [ ] **Step 2: Read the actual `X-Forwarded-For` at an app pod**
+- [x] **Step 2: Read the actual `X-Forwarded-For` at an app pod** — DONE 2026-08-19
+
+Read via the limiter's own `client_ip` field rather than by adding a probe
+endpoint: `allowedByLimiter` logs `c.ClientIP()` on refusal, which is the exact
+value the rate-limit bucket is keyed on — the thing under test, not a proxy for
+it. Bursting `GET /v1/auth/login/request/:id` with a bogus id takes a rate-limit
+budget while touching no account, so nothing risked the Zitadel 10-attempt
+lockout.
+
+**Observed: `104.30.167.39`** — verified against `api.ipify.org` to be the
+prober's real egress IP, and outside Cloudflare's published ranges
+(`104.16.0.0/13`, `104.24.0.0/14` do not cover `104.30`). So `ClientIP()`
+resolves the TRUE caller through the whole chain, not a Cloudflare edge or an
+in-cluster hop.
+
+Note: the API pod carries NO Istio sidecar (`containers: api` only), so its
+immediate TCP peer is the ingress gateway pod directly. Had a sidecar been
+injected, the peer would have been a loopback address outside
+`10.20.0.0/16`, gin would have distrusted the chain, and every caller would
+have collapsed into one bucket. Worth re-checking if sidecar injection is ever
+enabled for this namespace.
 
 The verified request path is `browser → Cloudflare edge → cloudflared POD
 (10.20.x) → istio-ingressgateway → app pod` — **two in-cluster hops**, because
 cloudflared runs inside the cluster. Log or echo the header as received.
 
-- [ ] **Step 3: Confirm or CORRECT `10.20.0.0/16`**
+- [x] **Step 3: Confirm or CORRECT `10.20.0.0/16`** — CONFIRMED 2026-08-19
+
+The inference was right. `TRUSTED_PROXY_CIDRS=10.20.0.0/16` is live and
+correct: Step 2's observation is only possible if gin walked X-Forwarded-For
+past both in-cluster hops and stopped at the first untrusted entry. No chart
+change needed. Recording that it was confirmed by observation rather than left
+as an inference is the whole point of this step.
 
 If the observed header disagrees with the inference, change the chart. The
 inference is not the deliverable; the observation is.
 
-- [ ] **Step 4: Prove the limiter is no longer bypassable — the mutation**
+- [x] **Step 4: Prove the limiter is no longer bypassable — the mutation** — DONE 2026-08-19
+
+Both halves, in one run, in this order deliberately: exhaust the real bucket
+first, then try to escape it.
+
+| Burst | Requests | Result |
+|---|---|---|
+| A — no `X-Forwarded-For` | 25 | 429s appear after ~18 — the limiter DOES trigger |
+| B — unique forged `X-Forwarded-For` per request (`203.0.113.1..10`) | 10 | still refused; **zero** new buckets |
+
+Status codes alone were ambiguous (token refill explains some 200-class
+responses in B), so the decision came from the logs, which record the computed
+key:
+
+```
+distinct client_ip values in rate-limit events:
+  104.30.167.39   11 events
+```
+
+**One** value across both bursts. Ten forged addresses produced no bucket of
+their own. Had forging worked, B's refusals would name `203.0.113.x`.
+
+Burst A is the half that matters as much: without it, "B was refused" would
+also be the reading if the limiter refused everything unconditionally.
+
+This is #870's fix confirmed against a running pod for the first time.
 
 Send a burst with a **forged `X-Forwarded-For`** and confirm it does **not** get
 a fresh token bucket. Then send a burst without one and confirm it does hit the

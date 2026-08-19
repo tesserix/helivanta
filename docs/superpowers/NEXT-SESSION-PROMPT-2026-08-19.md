@@ -22,7 +22,8 @@ only one left, and it is blocked — see the top blocker below.
 2. `docs/superpowers/plans/2026-08-18-deployment-slice-1b.md` — the plan. Task 5
    carries a written account of the five defects the first live deployment
    exposed; the pattern in it is more useful than the individual bugs.
-3. `gh issue view 893` — the bootstrap path. Partially done, code uncommitted.
+3. `gh issue view 893` — the bootstrap path. Committed and pushed; needs
+   review and a PR.
 
 ## Blockers, in order
 
@@ -41,23 +42,38 @@ SET app.tenant_id = '<uuid>'; SELECT count(*);          -- 1
 
 So a real membership row exists and reconciles to nothing.
 
-**The dangerous part.** `reconcile.go:189-193` prunes tuples for tenants with no
-members. The reconciler reads zero members, so if tuples ever exist by another
-route (the `iam-fga-sync` consumer writes them for grants via
-`POST /v1/iam/members`) then **the next API restart deletes all of them** and
-logs a successful prune. Nothing is lost yet only because no membership has ever
-been granted through the API. Treat a zero-member read as suspect, not as
-"every tenant legitimately lost its last member".
+**What this actually breaks — corrected 2026-08-19.** An earlier draft of this
+handoff said the reconciler would prune every tuple on the next restart. It will
+not: `reconcile.go:243-251` already guards exactly this case. If zero *usable*
+memberships are read while OpenFGA still holds tuples, `Reconcile` refuses to
+prune and returns an error naming this very cause — "ADMIN_DATABASE_URL pointed
+at a role that does not bypass RLS". The guard has been in place since #759
+(`5926c0f`), is on `main`, and is covered by
+`TestReconcileRefusesToPruneOnGlobalEmptyMembershipRead` and
+`TestReconcileRefusesToPruneOnAllUnknownRoleKeys`
+(`reconcile_prune_test.go:100`, `:127`). No tuple is at risk. Do not go looking
+for silent deletion; it will not come.
+
+The real failure mode is the opposite signature, and it is worse to be surprised
+by. `cmd/api/main.go:239-241` returns that error straight out of boot. So today,
+with no memberships granted through the API, OpenFGA holds no tuples, the guard
+does not trip, and reconcile is merely a no-op — authorization silently does
+nothing. **The moment one membership is granted through `POST /v1/iam/members`,
+the `iam-fga-sync` consumer writes tuples, and from then on the API fails to
+start.** Fail-closed and the correct direction, but it converts a silent no-op
+into a total outage at the next restart, with nothing lost to point at as the
+cause. That is why this is the top blocker, and it is a reason to fix it before
+granting anything, not after.
 
 Why nothing caught it: `dev/init-db.sql` constrains `hms_app` as
 `NOSUPERUSER NOBYPASSRLS` but says nothing about the owner, which in dev is the
 Postgres image superuser and in production is a plain CNPG owner. The test
 harness reproduces dev.
 
-### 2. #893 — first `tenant_admin` bootstrap (code written, NOT committed)
+### 2. #893 — first `tenant_admin` bootstrap (committed and pushed, no PR yet)
 
-Branch `feat/893-bootstrap-first-admin` holds uncommitted work:
-`backend/cmd/bootstrap/` (new), plus edits to `pkg/authz/authz.go`
+Branch `feat/893-bootstrap-first-admin` is pushed to origin. The work is commit
+`c98952e`: `backend/cmd/bootstrap/` (new), plus edits to `pkg/authz/authz.go`
 (`SystemRoles()`), `authz_test.go`, and `internal/archtest/arch_test.go`.
 
 It **works against production** — already used to write the first row:
@@ -83,8 +99,9 @@ Still open on it, from the implementing agent's own report:
 - the UUID check catches malformed, not wrong. There is no `tenants` table, so
   nothing ever catches a well-formed wrong tenant.
 
-Tests are written and mutation-proven. `golangci-lint` clean. Needs review, a
-commit and a PR.
+Tests are written and mutation-proven. `golangci-lint` clean. It works against
+production and carries the three gaps above, so it wants a fresh review rather
+than a tired merge — open the PR against `main` and review it cold.
 
 ### 3. Everything else
 

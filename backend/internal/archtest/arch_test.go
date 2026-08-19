@@ -1135,7 +1135,7 @@ const sufficientWitnessTypeName = "sufficient"
 // sufficientWitnessCallSite is the one file permitted to construct a
 // `sufficient` value: CompleteIfSufficient and CompleteAfterFactor both
 // live here, and both must run their own classification
-// (classifyEnrolledMethods, LoginPolicy, SessionFactors as applicable)
+// (classifyEnrolledMethods, loginPolicy, SessionFactors as applicable)
 // before doing so. Like finalizeCallSite, this is deliberately not a map
 // — the whole control is that the set has exactly one element.
 const sufficientWitnessCallSite = "internal/modules/iam/loginclient/sufficiency.go"
@@ -1224,7 +1224,7 @@ func sufficientWitnessConstructingFuncNames(src []byte) ([]string, error) {
 // sufficiency.go): the parameter stops an accidental omission at compile
 // time, but nothing in the language stops a deliberate or copy-pasted
 // `sufficient{}` from being handed to finalize without ever calling
-// classifyEnrolledMethods/LoginPolicy/SessionFactors first. This test is
+// classifyEnrolledMethods/loginPolicy/SessionFactors first. This test is
 // the mechanical backstop for exactly that gap — the same shape as
 // TestFinalizeCallSiteIsUnique, aimed one level up.
 //
@@ -1286,7 +1286,7 @@ func TestSufficientWitnessConstructionIsPinned(t *testing.T) {
 	// FUNCTION-granular: within that one permitted file, a witness may
 	// ONLY be constructed inside CompleteIfSufficient or
 	// CompleteAfterFactor — the two functions that actually run
-	// classifyEnrolledMethods/LoginPolicy/SessionFactors before
+	// classifyEnrolledMethods/loginPolicy/SessionFactors before
 	// constructing one. Without this second assertion, a THIRD,
 	// check-free function added to sufficiency.go (e.g. a future
 	// convenience wrapper that skips the checks) would pass the
@@ -1341,6 +1341,15 @@ func TestSufficientWitnessConstructionIsPinned(t *testing.T) {
 // (TestInstanceLoginPolicyForDisplaySendsNoOrgHeader) — a package-wide
 // walk would have to allowlist both, which is a weaker control than
 // naming the one file that must never reference it.
+//
+// Being scoped to sufficiency.go names the one edit shape that would slip
+// past this test: extracting the policy read into a separate helper file
+// that CompleteIfSufficient calls would move the reference to
+// InstanceLoginPolicyForDisplay outside sufficiency.go and this test would
+// not see it. (The finalize decision itself cannot escape that way,
+// because finalize needs a sufficient{} witness, and
+// TestSufficientWitnessConstructionIsPinned above pins that construction
+// to this file repo-wide regardless of which file reads the policy.)
 func TestSufficiencyNeverReferencesInstanceLoginPolicyForDisplay(t *testing.T) {
 	root := "../.."
 	src, err := os.ReadFile(filepath.Join(root, sufficientWitnessCallSite))

@@ -210,4 +210,4 @@ what the real instance actually sends.
   assumption safe to violate. It adds no org selection, discovery or routing.
 - **#856 and #901.** Same file, separately tracked.
 - **Making the display read org-aware** (D3's residual) — needs a login-form
-  flow change; filed as a follow-up.
+  flow change; filed as a follow-up, #917.

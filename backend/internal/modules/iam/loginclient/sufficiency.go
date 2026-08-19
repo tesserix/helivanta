@@ -19,8 +19,9 @@ const (
 	// constructs a Result without deciding — a future code path, a
 	// partially-initialised struct, a test double — lands on "do not
 	// complete this login", which costs a redirect. The opposite default
-	// would cost an MFA bypass, and per spec D4 that asymmetry decides
-	// which value gets to be zero.
+	// would cost an MFA bypass, and per D4 of
+	// docs/superpowers/specs/2026-08-16-hms-login-client-design.md that
+	// asymmetry decides which value gets to be zero.
 	OutcomeHandoff Outcome = iota
 	// OutcomeComplete means the session satisfied everything Helivanta knows how
 	// to check and the auth request was finalized; CallbackURL is set.
@@ -166,7 +167,7 @@ func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) 
 // work while skipping a required factor.
 //
 // It fails closed. If the login policy cannot be READ, the answer is
-// handoff, not complete: LoginPolicy deliberately never returns a zero
+// handoff, not complete: loginPolicy deliberately never returns a zero
 // value with a nil error (see its doc comment) precisely so an unreachable
 // Zitadel cannot be mistaken here for a policy that says "MFA off". A
 // handoff that was not strictly necessary costs the user one redirect; a
@@ -213,14 +214,22 @@ func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) 
 //     response, which is outside Helivanta's control. Documented rather than
 //     silently accepted.
 //
-// THE POLICY READ IS NOW ORG-SCOPED (#913). It used to be read unscoped —
-// against the login client PAT's own resource owner, regardless of which
-// org the authenticating user actually belonged to, on the mistaken
-// belief that Helivanta ran a single org and the two were therefore
-// always the same. That belief stopped being true (the instance gained a
-// second and third org) and the unscoped read became a live bypass: a
-// user in an org that forces MFA could be judged by a different org's
-// policy and completed on a password-only session. The read below is now
+// # The policy read is now org-scoped (#913)
+//
+// It used to be read unscoped — against the login client PAT's own
+// resource owner, regardless of which org the authenticating user
+// actually belonged to, on the mistaken belief that Helivanta ran a
+// single org and the two were therefore always the same. That belief
+// stopped being true: the PRODUCTION instance gained a second and third
+// org, verified 2026-08-19 (#913) — three orgs exist there today, only
+// one of which (TESSERIX) has any Helivanta users. The unscoped read
+// became a live bypass: a user in an org that forces MFA could be judged
+// by a different org's policy and completed on a password-only session.
+// The LOCAL DEV instance, by contrast, still holds exactly one org
+// (Helivanta) as of the same date — a different instance, with org ids in
+// a visibly different range from production's — which is why no local
+// test can observe this condition without creating a second org itself,
+// as the integration test does. The read below is now
 // scoped with c.LoginPolicyForOrg(ctx, subject.OrgID), where subject came
 // off the SAME GET /v2/sessions/{id} response classifyEnrolledMethods
 // already read above — no additional round trip — and an absent org id

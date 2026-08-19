@@ -178,8 +178,9 @@ func (c *Client) CreatePasswordSession(ctx context.Context, loginName, password 
 // so this method's return value needs no further transformation by the
 // caller; it can be redirected to as-is.
 //
-// It is UNEXPORTED on purpose, and that is the structural half of spec
-// D4. The spike §2 proved Zitadel issues an authorization code for a
+// It is UNEXPORTED on purpose, and that is the structural half of D4
+// (docs/superpowers/specs/2026-08-16-hms-login-client-design.md). The
+// spike §2 proved Zitadel issues an authorization code for a
 // password-only session even under a forceMfa policy — it does not
 // enforce MFA for a login client at all. So whether a session is
 // sufficient to finalize is Helivanta's decision, and the only way to reach
@@ -338,8 +339,9 @@ func (c *Client) SessionFactors(ctx context.Context, sessionID string) (Factors,
 //
 // Every error path returns a zero LoginPolicy{} alongside a non-nil
 // error, and NEVER a zero value with err == nil: ForceMFA's zero value is
-// false, which reads as "no MFA required". Spec D4's fail-closed
-// requirement means a caller that cannot read this policy must be able to
+// false, which reads as "no MFA required". D4's fail-closed requirement
+// (docs/superpowers/specs/2026-08-16-hms-login-client-design.md) means a
+// caller that cannot read this policy must be able to
 // see that it could not, rather than being handed a value
 // indistinguishable from a real "MFA off" answer.
 // TestLoginPolicyErrorsRatherThanReportingNoMFA pins this.
@@ -546,14 +548,16 @@ func (c *Client) LoginPolicyForOrg(ctx context.Context, orgID string) (LoginPoli
 // against the wrong org, and the login form may then advertise "no MFA"
 // to a user whose real org forces it. That is a cosmetic wrong hint, not
 // a bypass: the enforcement decision is made by LoginPolicyForOrg, called
-// from CompleteIfSufficient once the user's actual org is known (or will
-// be, once Task 2 threads it through), and that call always resolves
-// against the right org regardless of what this method told the form.
-// This is exactly today's (pre-#913-fix) behaviour for the display case,
-// so this change makes it no worse there. Making the display read
-// org-aware needs a login-form flow change — re-reading the policy once
-// the login name is known — and is filed as a follow-up rather than done
-// here; see the design spec's "Out of scope" section.
+// from CompleteIfSufficient now that the user's actual org is known, and
+// that call always resolves against the right org regardless of what this
+// method told the form. CompleteIfSufficient no longer calls this method
+// at all — Task 2 (#913) replaced that call — so the enforcement path is
+// fully org-scoped today; only this display read remains unscoped. This
+// is exactly today's (pre-#913-fix) behaviour for the display case, so
+// this change makes it no worse there. Making the display read org-aware
+// needs a login-form flow change — re-reading the policy once the login
+// name is known — and is filed as a follow-up rather than done here: see
+// the design spec's "Out of scope" section and follow-up issue #917.
 //
 // The name is deliberately unmistakable for the enforcer's: a future
 // contributor reaching for A login policy inside sufficiency.go must not
@@ -702,8 +706,8 @@ func (c *Client) enrolledMethodTypes(ctx context.Context, userID string) ([]stri
 	return wire.AuthMethodTypes, nil
 }
 
-// mfaPolicyKeys is every wire key LoginPolicy reads to decide ForceMFA —
-// forceMfa and forceMfaLocalOnly today. LoginPolicy's single loop over
+// mfaPolicyKeys is every wire key loginPolicy reads to decide ForceMFA —
+// forceMfa and forceMfaLocalOnly today. loginPolicy's single loop over
 // this list does BOTH the rename guard (refuseIfKeyRenamedOrRecased) and
 // the read (readMFABool) for every entry, and OR-s the results into
 // ForceMFA, so a THIRD MFA-forcing field discovered later (see the KNOWN
@@ -721,7 +725,7 @@ var mfaPolicyKeys = []string{"forceMfa", "forceMfaLocalOnly"}
 
 // refuseIfKeyRenamedOrRecased scans policy for any key that NORMALIZES
 // (normalizePolicyKey) to the same form as wantKey but is not spelled
-// exactly wantKey — see LoginPolicy's "Rename/re-casing detection" doc
+// exactly wantKey — see loginPolicy's "Rename/re-casing detection" doc
 // comment for the full reasoning and the live verification that this
 // does not false-positive between forceMfa and forceMfaLocalOnly (their
 // normalized forms, "forcemfa" and "forcemfalocalonly", differ).
@@ -740,8 +744,8 @@ func refuseIfKeyRenamedOrRecased(policy map[string]any, wantKey string) error {
 	return nil
 }
 
-// readMFABool reads policy[key] as the bool LoginPolicy needs it to be:
-// absent decodes to false (the elision case — see LoginPolicy's doc
+// readMFABool reads policy[key] as the bool loginPolicy needs it to be:
+// absent decodes to false (the elision case — see loginPolicy's doc
 // comment), present-but-not-a-bool refuses the same way a rename does,
 // present-and-bool returns as is.
 func readMFABool(policy map[string]any, key string) (bool, error) {
@@ -758,11 +762,11 @@ func readMFABool(policy map[string]any, key string) (bool, error) {
 }
 
 // normalizePolicyKey collapses a JSON object key to the form
-// LoginPolicy's rename/re-casing check compares against: lowercased,
+// loginPolicy's rename/re-casing check compares against: lowercased,
 // underscores stripped. "forceMfa", "force_mfa", "ForceMFA", and
 // "FORCE_MFA" all normalize to "forcemfa"; "forceMfaLocalOnly" normalizes
 // to "forcemfalocalonly" — a DIFFERENT string, so it is never mistaken
-// for a renamed forceMfa (verified live, see LoginPolicy's doc comment).
+// for a renamed forceMfa (verified live, see loginPolicy's doc comment).
 // Unrelated keys ("allowUsernamePassword", "passwordCheckLifetime") do
 // not collide with either.
 func normalizePolicyKey(key string) string {
@@ -790,8 +794,9 @@ type zitadelError struct {
 // *http.Request directly — see requestOption's doc comment for why that
 // shape is rejected rather than merely discouraged. LoginPolicyForOrg is
 // the first caller that needs this; it will not be the last (org-scoped
-// user reads, org-scoped policy writes are named in spec D4 as expected
-// future callers).
+// user reads, org-scoped policy writes are named in D4 of
+// docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md as
+// expected future callers).
 type requestOptions struct {
 	orgID string
 }
@@ -800,7 +805,7 @@ type requestOptions struct {
 // shape is DELIBERATE: func(*requestOptions), not func(*http.Request). A
 // func(*http.Request) option would let a future option set or overwrite
 // ANY header on the request — including Authorization, which do already
-// sets from the login client PAT a few lines below where opts are applied.
+// sets from the login client PAT a few lines above where opts are applied.
 // That would make "an option quietly clobbers the auth header" a bug a
 // reviewer has to keep checking for by hand; requestOptions makes it
 // unrepresentable instead — do is the only code that ever turns a
@@ -808,7 +813,9 @@ type requestOptions struct {
 type requestOption func(*requestOptions)
 
 // withOrgID scopes a request to a specific Zitadel org via the
-// x-zitadel-orgid header (spec D4). do sets the header itself from the
+// x-zitadel-orgid header (D4 of
+// docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md). do
+// sets the header itself from the
 // accumulated orgID — see requestOption's doc comment for why the header
 // name and value are do's decision, not an option's. LoginPolicyForOrg is
 // the only caller today, and it refuses an empty org id itself, before

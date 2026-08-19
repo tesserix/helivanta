@@ -103,7 +103,17 @@ jobs:
             # between "the commit Kargo promoted" and "the image that runs",
             # and a mismatch there surfaces as an ImagePullBackOff with no
             # indication which of the two is wrong.
-            type=sha,format=long,enable=${{ github.event_name != 'pull_request' }}
+            #
+            # `prefix=` (EMPTY) is load-bearing. docker/metadata-action's
+            # `type=sha` defaults to `prefix=sha-`, so this line published
+            # `sha-<40>` on its first real run while the Kargo Stage writes
+            # the BARE id from `commitFrom(...).ID`. The tag the Stage names
+            # would not have existed, the pod would have pulled a 404, and the
+            # GAR pull-through mirror would have negative-cached it into an
+            # ImagePullBackOff that does not recover — the exact failure this
+            # tag was added to avoid. Caught by reading the published tag list
+            # rather than trusting the action's default.
+            type=sha,format=long,prefix=,enable=${{ github.event_name != 'pull_request' }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.title=helivanta-api
@@ -309,7 +319,17 @@ jobs:
             # between "the commit Kargo promoted" and "the image that runs",
             # and a mismatch there surfaces as an ImagePullBackOff with no
             # indication which of the two is wrong.
-            type=sha,format=long,enable=${{ github.event_name != 'pull_request' }}
+            #
+            # `prefix=` (EMPTY) is load-bearing. docker/metadata-action's
+            # `type=sha` defaults to `prefix=sha-`, so this line published
+            # `sha-<40>` on its first real run while the Kargo Stage writes
+            # the BARE id from `commitFrom(...).ID`. The tag the Stage names
+            # would not have existed, the pod would have pulled a 404, and the
+            # GAR pull-through mirror would have negative-cached it into an
+            # ImagePullBackOff that does not recover — the exact failure this
+            # tag was added to avoid. Caught by reading the published tag list
+            # rather than trusting the action's default.
+            type=sha,format=long,prefix=,enable=${{ github.event_name != 'pull_request' }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.title=helivanta-shell

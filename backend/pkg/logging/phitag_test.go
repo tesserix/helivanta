@@ -440,14 +440,45 @@ func buildDAG(levels int) *dagNode {
 	return cur
 }
 
+// dagDepth is 17, not 20 (#897).
+//
+// The property under test is that a shared-reference DAG does not wedge the
+// caller, and depth is the wrong dial to prove it with — each level DOUBLES
+// the work, because JSON has no reference sharing and a DAG must be expanded
+// into a tree. Measured with json.Marshal alone, no masking involved:
+//
+//	depth 14   5.4ms    1.4 MB    2^14 paths
+//	depth 17  27.8ms     11 MB    2^17 paths
+//	depth 20 161.7ms     88 MB    2^20 paths
+//
+// At 20 the bound below was not a margin, it was a coin toss: five consecutive
+// CI runs landed between 10.03s and 10.33s against a 10s limit, on a runner
+// slower than any developer machine. Every one of those failures was a red
+// `go` job carrying no information about the commit that triggered it, which
+// costs more than the coverage the extra three levels bought.
+//
+// 17 keeps the same claim — 2^17 = 131,072 expanded paths still proves the
+// masker walks an expanded DAG without wedging — with roughly 5x headroom
+// instead of a deficit. What it deliberately does NOT do is raise the bound:
+// that would keep the wall-clock proxy and widen the blind spot rather than
+// narrow it.
+//
+// The hazard this test was watching for is real and is filed separately as
+// #904: nothing bounds what the masking path will marshal, so a struct with
+// references shared ~25 deep emits a multi-gigabyte log line. Shrinking this
+// fixture makes CI honest; it does not address that, and must not be read as
+// having done so.
+const dagDepth = 17
+
 func TestSharedReferenceDAGCompletesInBoundedTime(t *testing.T) {
 	start := time.Now()
-	line := logged(t, "v", buildDAG(20))
+	line := logged(t, "v", buildDAG(dagDepth))
 	elapsed := time.Since(start)
 	require.NotContains(t, line, secretName)
 	require.Contains(t, line, `"v":"`+phiMarker+`"`)
-	require.Less(t, elapsed, 10*time.Second, "a 20-node shared-reference DAG must not wedge the caller")
-	t.Logf("20-node DAG masked in %s", elapsed)
+	require.Less(t, elapsed, 10*time.Second,
+		"a %d-level shared-reference DAG must not wedge the caller", dagDepth)
+	t.Logf("%d-level DAG masked in %s", dagDepth, elapsed)
 }
 
 func TestLargeSliceCompletesInBoundedTime(t *testing.T) {

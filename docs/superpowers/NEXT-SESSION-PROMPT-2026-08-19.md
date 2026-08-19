@@ -86,8 +86,18 @@ role    tenant_admin
 
 It uses `WithTenant`, not `WithAdmin`, so the RLS policy is **satisfied rather
 than bypassed** and the write is provably scoped to the named tenant. An earlier
-revision used `WithAdmin` and was refused by production. That fix also removed
-the need for an archtest allowlist exception.
+revision used `WithAdmin` and was refused by production.
+
+That fix was reported as also removing the need for an archtest allowlist
+exception. **It did not, and the branch was red on `make test` when picked up
+the next morning.** `cmd/bootstrap/main.go` is clean, but `main_test.go` still
+reads back on the admin pool, and `TestWithAdminIsOnlyCalledFromTheAllowlist`
+does not exempt `_test.go`. The test is right to do it — under `WithTenant` a
+row written to the *wrong* tenant is invisible, so the `require.Empty` guarding
+"an unknown role leaves no row behind" would pass on precisely the bug it
+exists to catch. The entry is now in `withAdminAllowlist` with that reasoning
+attached. Note the shape: a claim about a *control* that was never run against
+the control.
 
 Still open on it, from the implementing agent's own report:
 - it writes a row but publishes **no event**, so tuples only appear at the next

@@ -324,10 +324,17 @@ func (c *Client) SessionFactors(ctx context.Context, sessionID string) (Factors,
 	}, nil
 }
 
-// LoginPolicy reads the org's login policy (GET
-// /management/v1/policies/login). There is no meaningful 404 case for
-// this endpoint — a login policy always exists — so a 404 here falls
-// through to ErrUnavailable rather than being given a dedicated sentinel.
+// loginPolicy reads a login policy (GET /management/v1/policies/login),
+// scoped by whatever opts the caller supplies — org-scoped via withOrgID,
+// or unscoped (the login client PAT's own resource owner) when opts is
+// empty. It is unexported: the two exported wrappers below,
+// LoginPolicyForOrg and InstanceLoginPolicyForDisplay, are the only ways to
+// reach it, so the body-parsing, anchor-check and rename-guard behaviour
+// documented below cannot drift between the enforcement path and the
+// display-only path (D3) — both go through the exact same decode. There is
+// no meaningful 404 case for this endpoint — a login policy always exists
+// — so a 404 here falls through to ErrUnavailable rather than being given
+// a dedicated sentinel.
 //
 // Every error path returns a zero LoginPolicy{} alongside a non-nil
 // error, and NEVER a zero value with err == nil: ForceMFA's zero value is
@@ -453,11 +460,11 @@ func (c *Client) SessionFactors(ctx context.Context, sessionID string) (Factors,
 // TestLoginPolicyRejectsARenamedOrRecasedForceMFA, and
 // TestLoginPolicyTreatsForceMFALocalOnlyAsRequiringMFA pin this file's
 // half.
-func (c *Client) LoginPolicy(ctx context.Context) (LoginPolicy, error) {
+func (c *Client) loginPolicy(ctx context.Context, opts ...requestOption) (LoginPolicy, error) {
 	var wire struct {
 		Policy map[string]any `json:"policy"`
 	}
-	if err := c.do(ctx, http.MethodGet, "/management/v1/policies/login", nil, &wire, ErrUnavailable); err != nil {
+	if err := c.do(ctx, http.MethodGet, "/management/v1/policies/login", nil, &wire, ErrUnavailable, opts...); err != nil {
 		return LoginPolicy{}, err
 	}
 	if _, anchored := wire.Policy["passwordCheckLifetime"]; !anchored {
@@ -497,6 +504,67 @@ func (c *Client) LoginPolicy(ctx context.Context) (LoginPolicy, error) {
 		forceMFA = forceMFA || forced
 	}
 	return LoginPolicy{ForceMFA: forceMFA}, nil
+}
+
+// LoginPolicyForOrg reads orgID's login policy, scoped with the
+// x-zitadel-orgid header (D4/D2 of
+// docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md).
+// This is the ENFORCEMENT path — the login policy this package treats as
+// authoritative for a real login decision must resolve against the
+// authenticating user's own org, never against the login client PAT's own
+// resource owner. That distinction is the entire fix for #913: an
+// unscoped read let a user in one org be judged by a different org's
+// policy, and completed a password-only login that org's own policy
+// required MFA for.
+//
+// orgID == "" refuses BEFORE any HTTP request is made, returning an error
+// wrapping ErrUnavailable, rather than falling back to an unscoped read.
+// A fallback is exactly the bug this method exists to close, and it would
+// reproduce it for precisely the callers hardest to notice — whichever
+// caller failed to determine an org id (a session response whose shape
+// drifted, say) would silently get today's wrong-org answer back instead
+// of a visible failure. ErrUnavailable rather than a new sentinel: from
+// the caller's point of view "no org id to scope this with" and "Zitadel
+// did not answer" are the same situation — Helivanta cannot say whether
+// MFA is required — and both must reach CompleteIfSufficient's existing
+// fail-closed branch (spec D2).
+func (c *Client) LoginPolicyForOrg(ctx context.Context, orgID string) (LoginPolicy, error) {
+	if orgID == "" {
+		return LoginPolicy{}, fmt.Errorf("loginclient: LoginPolicyForOrg called with an empty org id, refusing rather than reading an unscoped policy: %w", ErrUnavailable)
+	}
+	return c.loginPolicy(ctx, withOrgID(orgID))
+}
+
+// InstanceLoginPolicyForDisplay reads the login-client PAT's own resource
+// owner's login policy, UNSCOPED — no x-zitadel-orgid header. It exists
+// for exactly one caller today: loginui.go's AuthRequest handler, which
+// reads the policy BEFORE the user has typed a login name (spec D3), so
+// there is no user org yet to scope this to. That is not an omission —
+// there is no correct value to pass at that point in the flow.
+//
+// KNOWN LIMITATION (spec D3): on a multi-org instance this can resolve
+// against the wrong org, and the login form may then advertise "no MFA"
+// to a user whose real org forces it. That is a cosmetic wrong hint, not
+// a bypass: the enforcement decision is made by LoginPolicyForOrg, called
+// from CompleteIfSufficient once the user's actual org is known (or will
+// be, once Task 2 threads it through), and that call always resolves
+// against the right org regardless of what this method told the form.
+// This is exactly today's (pre-#913-fix) behaviour for the display case,
+// so this change makes it no worse there. Making the display read
+// org-aware needs a login-form flow change — re-reading the policy once
+// the login name is known — and is filed as a follow-up rather than done
+// here; see the design spec's "Out of scope" section.
+//
+// The name is deliberately unmistakable for the enforcer's: a future
+// contributor reaching for A login policy inside sufficiency.go must not
+// be able to grab this unscoped one by accident. sufficiency.go's
+// CompleteIfSufficient calls this method today ONLY as an interim step
+// (see the TODO(#913 Task 2) comment on that call site) — Task 2 replaces
+// it with LoginPolicyForOrg once the session's org id is available, and
+// Task 3 adds the archtest that forbids this method from sufficiency.go
+// once that replacement has landed.
+func (c *Client) InstanceLoginPolicyForDisplay(ctx context.Context) (LoginPolicy, error) {
+	return c.loginPolicy(ctx)
 }
 
 // nonPasswordFactorPrefix is what an enrolled Zitadel authentication
@@ -673,6 +741,42 @@ type zitadelError struct {
 	} `json:"details"`
 }
 
+// requestOptions accumulates per-request settings that do — and only do —
+// applies to the outgoing *http.Request. It exists so a caller can scope a
+// single call (e.g. x-zitadel-orgid for LoginPolicyForOrg) without do
+// taking a header map, and without a requestOption being able to reach the
+// *http.Request directly — see requestOption's doc comment for why that
+// shape is rejected rather than merely discouraged. LoginPolicyForOrg is
+// the first caller that needs this; it will not be the last (org-scoped
+// user reads, org-scoped policy writes are named in spec D4 as expected
+// future callers).
+type requestOptions struct {
+	orgID string
+}
+
+// requestOption mutates requestOptions before do builds the request. The
+// shape is DELIBERATE: func(*requestOptions), not func(*http.Request). A
+// func(*http.Request) option would let a future option set or overwrite
+// ANY header on the request — including Authorization, which do already
+// sets from the login client PAT a few lines below where opts are applied.
+// That would make "an option quietly clobbers the auth header" a bug a
+// reviewer has to keep checking for by hand; requestOptions makes it
+// unrepresentable instead — do is the only code that ever turns a
+// requestOptions field into a header value.
+type requestOption func(*requestOptions)
+
+// withOrgID scopes a request to a specific Zitadel org via the
+// x-zitadel-orgid header (spec D4). do sets the header itself from the
+// accumulated orgID — see requestOption's doc comment for why the header
+// name and value are do's decision, not an option's. LoginPolicyForOrg is
+// the only caller today, and it refuses an empty org id itself, before
+// ever constructing this option (spec D2) — withOrgID does not defend
+// against an empty orgID a second time, because no path in this package
+// can reach it with one.
+func withOrgID(orgID string) requestOption {
+	return func(o *requestOptions) { o.orgID = orgID }
+}
+
 // do issues one request against the Zitadel API and decodes a 2xx JSON
 // response into out (skipped entirely when out is nil, for endpoints
 // whose response body carries nothing the caller needs). notFound is the
@@ -680,14 +784,16 @@ type zitadelError struct {
 // for the session endpoint, ErrAuthRequestInvalid for the auth-request
 // endpoints, ErrUnavailable for the policy endpoint) because the SAME
 // status code means a different failure depending on which resource was
-// being addressed.
+// being addressed. opts is variadic so the existing call sites that need
+// no per-request scoping are unchanged — this keeps the org-scoping diff
+// about the security fix rather than about churn across every call site.
 //
 // The response body is parsed only far enough to pull an error id via
 // readZitadelErrorID on every non-2xx path — it is never embedded raw —
 // so no path in this package can accidentally surface a
 // credential-adjacent detail (like failedAttempts) in a returned error
 // string.
-func (c *Client) do(ctx context.Context, method, path string, body, out any, notFound error) error {
+func (c *Client) do(ctx context.Context, method, path string, body, out any, notFound error, opts ...requestOption) error {
 	var reqBody io.Reader
 	if body != nil {
 		encoded, err := json.Marshal(body)
@@ -703,6 +809,14 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any, not
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Content-Type", "application/json")
+
+	var ro requestOptions
+	for _, opt := range opts {
+		opt(&ro)
+	}
+	if ro.orgID != "" {
+		req.Header.Set("x-zitadel-orgid", ro.orgID)
+	}
 
 	resp, err := c.hc.Do(req)
 	if err != nil {

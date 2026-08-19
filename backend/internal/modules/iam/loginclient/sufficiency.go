@@ -246,7 +246,13 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 
 	// Nothing beyond a password is enrolled. Whether that is sufficient
 	// now depends entirely on the org's policy.
-	policy, err := c.LoginPolicy(ctx)
+	// TODO(#913 Task 2): scope this to the session's org — replace with
+	// c.LoginPolicyForOrg(ctx, subject.OrgID) once classifyEnrolledMethods
+	// returns the session's org id alongside its two booleans (design spec
+	// D1). Using the unscoped display read here for now keeps behaviour
+	// identical to before this task; it is still the #913 bug, not yet
+	// fixed at this call site.
+	policy, err := c.InstanceLoginPolicyForDisplay(ctx)
 	if err != nil {
 		// Deliberately not returned as an error: an unreadable policy is
 		// not a failed login, it is a login Helivanta is not qualified to

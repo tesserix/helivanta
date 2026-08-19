@@ -368,7 +368,7 @@ func (h *LoginUIHandlers) AuthRequest(c *gin.Context) {
 		return
 	}
 
-	policy, err := h.client.LoginPolicy(c.Request.Context())
+	policy, err := h.client.InstanceLoginPolicyForDisplay(c.Request.Context())
 	if err != nil {
 		h.respondLoginClientError(c, err, "auth_request_policy")
 		return

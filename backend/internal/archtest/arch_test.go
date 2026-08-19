@@ -373,10 +373,24 @@ func TestEveryCollectionGETIsPaginated(t *testing.T) {
 // definition and its direct test). Extending this list is a real
 // RLS-bypass decision, not a convenience; it belongs in code review, not a
 // casual addition here.
+//
+// cmd/bootstrap/main_test.go is the one _test.go entry, and it is here for
+// the opposite reason to the others: not because the code under test needs
+// the bypass, but because the ASSERTIONS do. cmd/bootstrap/main.go itself
+// uses WithTenant — deliberately, so its write is scoped by the RLS policy
+// rather than exempt from it. Its tests then check that a rejected input
+// left NO row behind, and under WithTenant a row written to the wrong
+// tenant is invisible, so require.Empty would pass on exactly the bug it
+// guards. Reading back on the admin pool is what lets those assertions
+// fail. The _test.go suffix is not itself a reason for an entry here: a
+// test that uses WithAdmin to SET UP request-path behaviour is hiding the
+// same bypass this rule exists to surface, which is why test files are
+// allowlisted one at a time rather than excluded as a class.
 var withAdminAllowlist = map[string]bool{
 	"internal/platform/reconcile.go": true,
 	"pkg/events/bus.go":              true,
 	"pkg/events/retention.go":        true,
+	"cmd/bootstrap/main_test.go":     true,
 }
 
 // withAdminAllowedDir reports whether path sits under a directory that's
@@ -921,6 +935,7 @@ func f(c *C, ctx Ctx) { c.do(ctx, http.MethodPost, "/v2/sessions", nil) }
 //   - _test.go files are excluded. Test code does not ship, and a handler
 //     test legitimately stands up a fake Zitadel that receives this exact
 //     POST — flagging those would block Task 4 while protecting nothing.
+//
 //   - The walk roots at backend/, so this proves the finalize call is
 //     unique WITHIN backend/ — not within the repository. A Next.js
 //     route handler in apps/shell could POST the endpoint directly with

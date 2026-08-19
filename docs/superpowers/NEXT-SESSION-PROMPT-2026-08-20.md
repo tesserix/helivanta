@@ -7,10 +7,9 @@ Sibling repos you will need: `../tesserix-k8s` (charts and ArgoCD),
 
 ## Where things stand
 
-**Slice 1b is complete and #824 is closed.** A merchant— sorry, a clinician —
-can sign in at `https://helivanta.app`, and authorization actually resolves.
-That sentence was not true yesterday morning, and every clause of it was
-separately broken.
+**Slice 1b is complete and #824 is closed.** A user can sign in at
+`https://helivanta.app`, and authorization actually resolves. That sentence was
+not true yesterday morning, and every clause of it was separately broken.
 
 Working and verified against production on 2026-08-19:
 

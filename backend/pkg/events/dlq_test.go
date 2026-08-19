@@ -26,8 +26,8 @@ func TestHandleMsgDeadLettersAfterMaxDeliver(t *testing.T) {
 	ackWait = 200 * time.Millisecond
 	defer func() { ackWait = prevAckWait }()
 
-	appDSN, adminDSN := testinfra.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 	// tenantdb.Migrations() first: outbox_events' policy
 	// (0002_events_outbox_tenant) calls hms_tenant_visible.

@@ -31,7 +31,13 @@ var testMigrations = []tenantdb.Migration{{
 		CREATE POLICY tenant_isolation ON widgets
 		  USING (hms_tenant_visible(tenant_id))
 		  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
-		CREATE INDEX ON widgets (tenant_id, created_at DESC);`,
+		CREATE INDEX ON widgets (tenant_id, created_at DESC);
+		-- BYPASSRLS confers no table privileges, and the harness grants the
+		-- system role none, so every fixture that a cross-tenant reader will
+		-- touch must grant it explicitly — exactly as the real migrations do
+		-- (#894). A fixture that omits this fails with "permission denied",
+		-- which is the same error production would give.
+		GRANT SELECT, INSERT, UPDATE, DELETE ON widgets TO helivanta_system;`,
 }}
 
 type widget struct {
@@ -43,8 +49,8 @@ type widget struct {
 func (widget) TableName() string { return "widgets" }
 
 func openMigrated(t *testing.T) *tenantdb.DB {
-	appDSN, adminDSN := testutil.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testutil.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 	// hms_tenant_visible is a platform migration (owned by this package but
 	// applied like any module's); widgets' policy calls it, so it must exist
@@ -84,7 +90,22 @@ func TestTenantIsolation(t *testing.T) {
 // back empty — see its doc). This is what the permission reconciler
 // relies on to enumerate every tenant's memberships in one boot-time
 // pass, with no single tenant to scope the read by.
-func TestWithAdminBypassesRLSAcrossTenants(t *testing.T) {
+// The pair below replaces TestWithAdminBypassesRLSAcrossTenants, which
+// asserted that WithAdmin "must bypass RLS to see every tenant's rows".
+// That was the written form of the assumption behind #894, and it passed
+// only because the old harness's owner was the container image's
+// superuser. Against production's plain CNPG owner the same call returned
+// zero rows — no error, nothing to notice.
+//
+// They are deliberately two tests, not one: the property is that the two
+// pools DIFFER, and a single test asserting only the system pool's reach
+// would still pass if WithAdmin silently gained a bypass.
+
+// FORCE ROW LEVEL SECURITY binds the table owner — that is the entire
+// reason it is chosen over plain ENABLE — so the admin pool, which
+// connects as the owner, sees nothing outside the tenant GUC it never
+// sets. This is the behaviour production always had.
+func TestWithAdminDoesNotBypassRLS(t *testing.T) {
 	db := openMigrated(t)
 	ctx := context.Background()
 	tenantA, tenantB := uuid.NewString(), uuid.NewString()
@@ -100,9 +121,60 @@ func TestWithAdminBypassesRLSAcrossTenants(t *testing.T) {
 	require.NoError(t, db.WithAdmin(ctx, func(tx *gorm.DB) error {
 		return tx.Order("name").Find(&viaAdmin).Error
 	}))
-	require.Len(t, viaAdmin, 2, "WithAdmin must bypass RLS to see every tenant's rows")
-	require.Equal(t, "a-widget", viaAdmin[0].Name)
-	require.Equal(t, "b-widget", viaAdmin[1].Name)
+	require.Empty(t, viaAdmin,
+		"WithAdmin connects as the schema OWNER, and FORCE RLS binds the owner; "+
+			"if this ever sees rows again, the owner has regained BYPASSRLS or "+
+			"superuser and every tenancy guarantee in this package is void")
+}
+
+// The system pool is the one that may cross tenants, and the only one.
+func TestWithAllTenantsSeesEveryTenantsRows(t *testing.T) {
+	db := openMigrated(t)
+	ctx := context.Background()
+	tenantA, tenantB := uuid.NewString(), uuid.NewString()
+
+	require.NoError(t, db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
+		return tx.Create(&widget{TenantID: uuid.MustParse(tenantA), Name: "a-widget"}).Error
+	}))
+	require.NoError(t, db.WithTenant(ctx, tenantB, func(tx *gorm.DB) error {
+		return tx.Create(&widget{TenantID: uuid.MustParse(tenantB), Name: "b-widget"}).Error
+	}))
+
+	var viaSystem []widget
+	require.NoError(t, db.WithAllTenants(ctx, func(tx *gorm.DB) error {
+		return tx.Order("name").Find(&viaSystem).Error
+	}))
+	require.Len(t, viaSystem, 2, "WithAllTenants must see every tenant's rows")
+	require.Equal(t, "a-widget", viaSystem[0].Name)
+	require.Equal(t, "b-widget", viaSystem[1].Name)
+}
+
+// Open (as opposed to OpenWithSystem) leaves the system pool nil, and
+// WithAllTenants must then FAIL rather than quietly running on the admin
+// pool. A fallback would reproduce #894 exactly: a cross-tenant read that
+// returns zero rows and reports success.
+func TestWithAllTenantsFailsWithoutASystemPool(t *testing.T) {
+	appDSN, adminDSN, _ := testutil.StartPostgres(t)
+	db, err := tenantdb.Open(appDSN, adminDSN)
+	require.NoError(t, err)
+
+	err = db.WithAllTenants(context.Background(), func(*gorm.DB) error {
+		t.Fatal("fn must not run without a system pool")
+		return nil
+	})
+	require.ErrorContains(t, err, "no system pool")
+}
+
+// A system DSN pointing at a role that cannot bypass RLS is the exact
+// misconfiguration #894 was, so it must be refused at open time rather
+// than discovered as "permissions stopped working" much later.
+func TestOpenWithSystemRefusesANonBypassRole(t *testing.T) {
+	appDSN, adminDSN, _ := testutil.StartPostgres(t)
+
+	// The app role is NOBYPASSRLS — the same shape production's owner has.
+	_, err := tenantdb.OpenWithSystem(appDSN, adminDSN, appDSN)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "cannot bypass row-level security")
 }
 
 func TestWithTenantRejectsBadTenantID(t *testing.T) {
@@ -117,14 +189,22 @@ func TestMigrateIsIdempotent(t *testing.T) {
 }
 
 // Tenant isolation rests entirely on APP_DATABASE_URL naming a role that
-// cannot bypass RLS. Nothing asserted that at runtime, and the two
-// default DSNs differ only by username — so pasting the admin URL into
+// cannot bypass RLS. Nothing asserted that at runtime, and the default
+// DSNs differ only by username — so pasting the wrong URL into
 // APP_DATABASE_URL silently disabled isolation with every test still
 // green. Open must refuse.
+//
+// The role passed here is the SYSTEM one since #894, and the swap makes
+// the test sharper rather than merely keeping it compiling: the admin
+// role it used to name cannot bypass RLS at all any more, so this would
+// have been asserting that Open rejects a role that was already harmless.
+// There are now three DSNs differing only by username, one of which
+// genuinely does disable isolation — the misconfiguration this guards is
+// likelier than when it was written, not less.
 func TestOpenRefusesAppPoolThatCanBypassRLS(t *testing.T) {
-	_, adminDSN := testutil.StartPostgres(t)
+	_, adminDSN, systemDSN := testutil.StartPostgres(t)
 
-	_, err := tenantdb.Open(adminDSN, adminDSN)
+	_, err := tenantdb.Open(systemDSN, adminDSN)
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "bypass")
@@ -412,14 +492,14 @@ func TestOpenNeverLogsQueryParameters(t *testing.T) {
 	const mrn = "HQ-OPD-0001427"
 	const controlSentinel = "capture-control-sentinel"
 
-	appDSN, adminDSN := testutil.StartPostgres(t)
+	appDSN, adminDSN, systemDSN := testutil.StartPostgres(t)
 	tenantID := uuid.NewString()
 
 	var insertErr error
 	out := captureStdoutStderr(t, func() {
 		fmt.Fprintln(os.Stderr, controlSentinel)
 
-		db, err := tenantdb.Open(appDSN, adminDSN)
+		db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 		if err != nil {
 			insertErr = err
 			return

@@ -157,7 +157,15 @@ var membersMigration = []tenantdb.Migration{{
 		ALTER TABLE iam_members FORCE ROW LEVEL SECURITY;
 		CREATE POLICY tenant_isolation ON iam_members
 		  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
-		  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`,
+		  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+		-- Mirrors iam's 0005_iam. Without it this fixture fails with
+		-- "permission denied for table iam_members" — which is not a
+		-- fixture bug but the real one: BYPASSRLS confers no table
+		-- privileges, so the system role needs an explicit GRANT. The
+		-- harness deliberately grants it nothing (see testinfra), so a
+		-- table that forgets this line here is a table the reconciler
+		-- could not read in production either.
+		GRANT SELECT ON iam_members TO helivanta_system;`,
 }}
 
 const (
@@ -167,8 +175,8 @@ const (
 
 func openMigratedDB(t *testing.T) *tenantdb.DB {
 	t.Helper()
-	appDSN, adminDSN := testinfra.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 	require.NoError(t, db.Migrate(context.Background(), membersMigration))
 	return db

@@ -232,7 +232,7 @@ func Reconcile(ctx context.Context, reg *Registry, db *tenantdb.DB, w TupleRecon
 	}
 
 	var members []membership
-	err = db.WithAdmin(ctx, func(tx *gorm.DB) error {
+	err = db.WithAllTenants(ctx, func(tx *gorm.DB) error {
 		return tx.Raw(`SELECT tenant_id::text AS tenant_id, subject, role_key FROM iam_members`).
 			Scan(&members).Error
 	})

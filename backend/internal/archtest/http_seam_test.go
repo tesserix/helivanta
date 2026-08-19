@@ -45,7 +45,13 @@ var iamMembersSeamMigration = tenantdb.Migration{
 		ALTER TABLE iam_members FORCE ROW LEVEL SECURITY;
 		CREATE POLICY tenant_isolation ON iam_members
 		  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
-		  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`,
+		  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+		-- BYPASSRLS confers no table privileges, and the harness grants the
+		-- system role none, so every fixture that a cross-tenant reader will
+		-- touch must grant it explicitly — exactly as the real migrations do
+		-- (#894). A fixture that omits this fails with "permission denied",
+		-- which is the same error production would give.
+		GRANT SELECT ON iam_members TO helivanta_system;`,
 }
 
 // seamVerifier is a minimal authn.TokenVerifier: the raw bearer token IS
@@ -86,8 +92,8 @@ func newSeamHarness(t *testing.T) *gin.Engine {
 	t.Helper()
 	ctx := context.Background()
 
-	appDSN, adminDSN := testinfra.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 
 	mod := medicore.New()

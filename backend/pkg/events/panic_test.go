@@ -23,8 +23,8 @@ import (
 // tenant. If the recover is missing, this test does not fail — the test
 // binary crashes, which is the point.
 func TestPanickingConsumerDoesNotKillTheProcess(t *testing.T) {
-	appDSN, adminDSN := testinfra.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 	// tenantdb.Migrations() first: outbox_events' policy
 	// (0002_events_outbox_tenant) calls hms_tenant_visible.

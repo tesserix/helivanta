@@ -62,8 +62,9 @@ type PruneResult struct {
 //     on the shorter window reintroduces duplicate processing on
 //     redelivery (see processedRetention's comment).
 //
-// Prune runs on WithAdmin, not WithSystem — and this is the one thing in
-// this function that is not optional. outbox_events carries forced row-
+// Prune runs on WithAllTenants, not WithSystem — and this is the one thing
+// in this function that is not optional. (It said WithAdmin until #894;
+// see below.) outbox_events carries forced row-
 // level security since 0002_events_outbox_tenant (#835 Task 1), and
 // WithSystem sets no tenant GUC. A DELETE run under WithSystem would match
 // zero rows in every tenant's outbox — and every tenant-less row is, by
@@ -72,14 +73,20 @@ type PruneResult struct {
 // anywhere: exactly the trap TestPruneDeletesPublishedOutboxRows exists to
 // pin, by asserting the row count actually drops rather than that the call
 // returns nil. processed_events carries no RLS (it stays allowlisted, spec
-// D2), so WithAdmin is not strictly required for that half — but using one
-// admin transaction for both keeps this function a single privilege path
-// instead of splitting WithSystem/WithAdmin per statement for no
-// operational benefit.
+// D2), so the bypass is not strictly required for that half — but using
+// one transaction for both keeps this function a single privilege path
+// instead of splitting it per statement for no operational benefit.
+//
+// #894: this called WithAdmin, which names the schema OWNER — and FORCE
+// ROW LEVEL SECURITY binds the owner. So the DELETE this comment warns
+// about ("matches zero rows in every tenant's outbox and reports success")
+// is exactly what Prune did in production. The hazard was identified
+// correctly and the mitigation chosen for it had the same defect, because
+// WithAdmin's own documentation said it bypassed RLS and it did not.
 func (b *Bus) Prune(ctx context.Context, db OutboxStore) (PruneResult, error) {
 	var res PruneResult
 	now := time.Now().UTC()
-	err := db.WithAdmin(ctx, func(tx *gorm.DB) error {
+	err := db.WithAllTenants(ctx, func(tx *gorm.DB) error {
 		outboxCutoff := now.Add(-streamMaxAge)
 		outboxResult := tx.Exec(`DELETE FROM outbox_events
 			WHERE published_at IS NOT NULL AND published_at < ?`, outboxCutoff)

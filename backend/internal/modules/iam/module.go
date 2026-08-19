@@ -156,6 +156,31 @@ CREATE TABLE IF NOT EXISTS login_attempt (
 );
 CREATE INDEX IF NOT EXISTS login_attempt_expires_at_idx ON login_attempt (expires_at);
 `,
+	}, {
+		// #894. platform.Reconcile reads iam_members across every tenant to
+		// turn memberships into OpenFGA tuples, and it is the only reader
+		// that does — SELECT is all it needs, so SELECT is all it gets.
+		//
+		// The system role's table privileges live in migrations, per table, beside
+		// the table they concern — not in the harness and not in a values file.
+		//
+		// BYPASSRLS decides whether the row POLICIES apply; it confers no table
+		// privileges whatsoever. helivanta_system therefore authenticates fine and
+		// then fails every statement with "permission denied for table", which
+		// reads nothing like the missing GRANT that caused it. Confirmed against
+		// production the moment the role was created: rolbypassrls was true and
+		// has_table_privilege(...,'iam_members','SELECT') was false.
+		//
+		// Grants are explicit per table rather than ALL TABLES or ALTER DEFAULT
+		// PRIVILEGES, deliberately. This role already bypasses tenant isolation
+		// completely; the table list is the only thing left bounding what it can
+		// reach, so a new tenant table should NOT become readable by it merely by
+		// existing. A future whole-system reader adds its own grant here, and that
+		// line is the reviewable moment.
+		ID: "0005_iam",
+		SQL: `
+			GRANT SELECT ON iam_members TO helivanta_system;
+`,
 	}}
 }
 

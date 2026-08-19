@@ -387,10 +387,48 @@ func TestEveryCollectionGETIsPaginated(t *testing.T) {
 // same bypass this rule exists to surface, which is why test files are
 // allowlisted one at a time rather than excluded as a class.
 var withAdminAllowlist = map[string]bool{
+	// #894 emptied this of its cross-tenant callers. reconcile.go,
+	// events/bus.go and events/retention.go were all here because they
+	// must read across tenants — which WithAdmin never actually did, since
+	// it connects as the schema owner and FORCE RLS binds the owner. They
+	// use WithAllTenants now; see withAllTenantsAllowlist below.
+	//
+	// Nothing remains. Every caller that reached for WithAdmin wanted to
+	// cross tenants, and none of them ever could — so an empty allowlist
+	// is the honest state, not an oversight. WithAdmin is still used
+	// inside pkg/tenantdb (Migrate, LintRLS, its own tests), which
+	// withAdminAllowedDir covers.
+}
+
+// withAllTenantsAllowlist names the files permitted to call
+// tenantdb.DB.WithAllTenants — the system pool, whose role holds
+// BYPASSRLS and is the only way to cross tenant boundaries.
+//
+// These three are the whole-system operations that have no single tenant
+// to scope to: the authorization reconciler, the outbox dispatcher, and
+// the outbox/ledger pruner. Each enumerates every tenant's rows in one
+// pass by definition.
+//
+// This list is a tighter control than the one it replaces, and should stay
+// that way: WithAdmin's privilege was ambient (owner rights on a pool used
+// for migrations), whereas this one is a single role attribute that exists
+// for these three callers alone. Adding a file here is an RLS-bypass
+// decision and belongs in code review, not a casual addition.
+var withAllTenantsAllowlist = map[string]bool{
 	"internal/platform/reconcile.go": true,
 	"pkg/events/bus.go":              true,
 	"pkg/events/retention.go":        true,
-	"cmd/bootstrap/main_test.go":     true,
+	// The one _test.go entry, here because the ASSERTIONS need the bypass
+	// rather than the code under test. cmd/bootstrap/main.go uses
+	// WithTenant — its write is scoped by the policy, not exempt from it —
+	// and its tests then check that a rejected input left NO row behind.
+	// Under WithTenant a row written to the wrong tenant is invisible, so
+	// require.Empty would pass on precisely the bug it guards. The
+	// _test.go suffix is not itself a reason for an entry: a test using a
+	// privileged pool to SET UP request-path behaviour hides the same
+	// bypass this rule exists to surface, which is why test files are
+	// allowlisted one at a time.
+	"cmd/bootstrap/main_test.go": true,
 }
 
 // withAdminAllowedDir reports whether path sits under a directory that's
@@ -411,7 +449,7 @@ func withAdminAllowedDir(path string) bool {
 // via go/ast instead of go/parser's token stream means both forms
 // resolve to the same *ast.SelectorExpr node regardless of how the call
 // is eventually invoked.
-func sourceReferencesWithAdmin(src []byte) (bool, error) {
+func sourceReferencesMethod(src []byte, method string) (bool, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", src, parser.SkipObjectResolution)
 	if err != nil {
@@ -419,12 +457,92 @@ func sourceReferencesWithAdmin(src []byte) (bool, error) {
 	}
 	found := false
 	ast.Inspect(f, func(n ast.Node) bool {
-		if sel, ok := n.(*ast.SelectorExpr); ok && sel.Sel.Name == "WithAdmin" {
+		if sel, ok := n.(*ast.SelectorExpr); ok && sel.Sel.Name == method {
 			found = true
 		}
 		return true
 	})
 	return found, nil
+}
+
+// sourceReferencesWithAdmin is retained as a named wrapper because its
+// own table-driven unit test below documents the two call shapes this
+// must catch, and that documentation is about WithAdmin specifically.
+func sourceReferencesWithAdmin(src []byte) (bool, error) {
+	return sourceReferencesMethod(src, "WithAdmin")
+}
+
+// privilegedPoolRule describes one "this method may only be called from
+// these files" check. Both pool bypasses are expressed through it so the
+// two rules cannot drift apart in how they scan, only in what they allow.
+type privilegedPoolRule struct {
+	method    string
+	allowlist map[string]bool
+	allowDir  func(string) bool
+	message   string
+}
+
+// assertPoolMethodIsAllowlisted walks the backend and fails for any file
+// outside the rule's allowlist that references the method at all — as a
+// call or as a bare method value.
+func assertPoolMethodIsAllowlisted(t *testing.T, rule privilegedPoolRule) {
+	t.Helper()
+	root := "../.."
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		// archtest's own source necessarily mentions these names (the
+		// checks, the allowlists, the doc comments); excluding the package
+		// avoids that self-match rather than allowlisting it, which would
+		// otherwise read as "archtest may call them".
+		if strings.HasPrefix(rel, "internal/archtest/") {
+			return nil
+		}
+		if rule.allowlist[rel] || (rule.allowDir != nil && rule.allowDir(rel)) {
+			return nil
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		found, err := sourceReferencesMethod(src, rule.method)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", rel, err)
+		}
+		if found {
+			t.Errorf("%s references %s. %s", rel, rule.method, rule.message)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+}
+
+// TestWithAllTenantsIsOnlyCalledFromTheAllowlist guards the system pool,
+// which is the codebase's ONLY actual RLS bypass since #894.
+//
+// It matters more than the WithAdmin rule it sits beside, because this
+// privilege really works: a handler that reached for WithAllTenants would
+// genuinely serve every tenant's rows, whereas the same mistake with
+// WithAdmin merely returned nothing. The rule that was load-bearing in
+// intention is now load-bearing in fact.
+func TestWithAllTenantsIsOnlyCalledFromTheAllowlist(t *testing.T) {
+	assertPoolMethodIsAllowlisted(t, privilegedPoolRule{
+		method:    "WithAllTenants",
+		allowlist: withAllTenantsAllowlist,
+		allowDir:  withAdminAllowedDir, // pkg/tenantdb/ owns the method and its tests
+		message: "That runs on the system pool, whose role holds BYPASSRLS, so it sees " +
+			"every tenant's rows in every table. Request-path code must use WithTenant. " +
+			"If you genuinely need a whole-system read, bring it to review — don't add " +
+			"this file to withAllTenantsAllowlist in arch_test.go on your own.",
+	})
 }
 
 // TestWithAdminIsOnlyCalledFromTheAllowlist guards the one RLS bypass in

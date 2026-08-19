@@ -34,8 +34,8 @@ func countLoginAttemptRows(t *testing.T, store *loginAttemptStore, ctx context.C
 // Mirrors revocationHarness in revocation_test.go.
 func newTestLoginAttemptStore(t *testing.T) (*loginAttemptStore, context.Context) {
 	t.Helper()
-	appDSN, adminDSN := testinfra.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 
 	migs := New(nil).Migrations()

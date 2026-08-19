@@ -1,5 +1,11 @@
 # SDK Architecture & Decisions
 
+> **Read [ADR-0004](../adr/0004-hms-owns-its-platform-packages.md) first.** The
+> layout and design decisions below still describe the system — `backend/pkg/`
+> is organised exactly as §4.2 through §4.8 argue. What ADR-0004 reversed is
+> *distribution*: §4.1, §4.9 and §7 describe a published SDK that was never
+> built and will not be. Those three sections carry their own notices.
+
 Status: **Proposed** (fulfils issue [#664 — SDK architecture blueprint & package layout (RFC)](https://github.com/tesserix/helivanta/issues/664))
 Owners: Platform team. Reviewed decisions must be recorded as ADRs (#674).
 
@@ -57,6 +63,15 @@ We are building 9 backend products (MediCore, MediConnect, DoctorConnect, Pharma
 ## 4. Key decisions (with pros/cons)
 
 ### 4.1 Repository strategy — one SDK monorepo per language
+
+> **SUPERSEDED by [ADR-0004](../adr/0004-hms-owns-its-platform-packages.md)
+> (Accepted 2026-08-13).** Helivanta owns its platform packages in
+> `backend/pkg/`; there is no SDK monorepo, nothing is published, and
+> `backend/go.mod` has no `go-shared` requirement. ADR-0004 names this
+> document's issue cohort (#676–#695) explicitly: *"None of that describes
+> what was built."* The section below is kept because the options it weighs
+> are still the record of why the question was live — not because it
+> describes the system.
 
 Fulfils #665. Decision: **two monorepos**: `helivanta-go-sdk` (Go modules) and `helivanta-web-sdk` (pnpm workspace publishing `@tesserix/helivanta-*`), seeded from `go-shared` and `design-system` respectively.
 
@@ -125,6 +140,15 @@ Single JSON error envelope (code, message, requestId, details[]) produced by the
 
 ### 4.9 Distribution — GitHub Packages, pinned versions, no floating tags
 
+> **SUPERSEDED by [ADR-0004](../adr/0004-hms-owns-its-platform-packages.md)
+> (Accepted 2026-08-13).** Helivanta owns its platform packages in
+> `backend/pkg/`; there is no SDK monorepo, nothing is published, and
+> `backend/go.mod` has no `go-shared` requirement. ADR-0004 names this
+> document's issue cohort (#676–#695) explicitly: *"None of that describes
+> what was built."* The section below is kept because the options it weighs
+> are still the record of why the question was live — not because it
+> describes the system.
+
 Consistent with the existing `@tesserix/web` + `PKG_READ_TOKEN` pattern. Pros: already operational, private, org-scoped. Cons: token management in CI (already solved via GCP Secret Manager). Floating (`latest`, `v1`) consumption is banned — every consumer pins exact versions; upgrades arrive as PRs (renovate-style automation later).
 
 ---
@@ -158,7 +182,17 @@ portals ──▶ @tesserix/helivanta-* ──▶ third-party libs
 - Allowed intra-SDK edges are documented per package (see go-sdk.md §"Layering"); cycles are CI-blocked.
 - Product repos may not import the third-party libs the SDK wraps for wrapped concerns (lint rule): e.g. no direct `jwt` parsing, no raw `slog.New`, no direct `pgxpool.New`. Direct use of _unwrapped_ libs is fine.
 
-## 7. Versioning & releases (summary — full policy in #668)
+## 7. Versioning & releases
+
+> **SUPERSEDED by [ADR-0004](../adr/0004-hms-owns-its-platform-packages.md).**
+> Nothing here is versioned or released. ADR-0004's stated consequence is the
+> absence of exactly this: *"a platform package and every consumer of it change
+> in one PR… no version bump, no `repository_dispatch`, no fleet upgrade."*
+>
+> This section previously read "full policy in #668" and sent readers to an
+> issue describing a publishing model that does not exist — which is what kept
+> that issue alive. `@tesserix/web` is unaffected: it remains its own repo with
+> its own release process (ADR-0001, unchanged).
 
 - Semver per language ecosystem; **breaking = major**, including behavioural tightenings (e.g. a new redaction rule is _minor_; removing a redaction escape hatch is _major_).
 - Go: tags on the single module; Web: changesets per package with automated changelogs.

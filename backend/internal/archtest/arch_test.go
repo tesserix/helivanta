@@ -921,6 +921,7 @@ func f(c *C, ctx Ctx) { c.do(ctx, http.MethodPost, "/v2/sessions", nil) }
 //   - _test.go files are excluded. Test code does not ship, and a handler
 //     test legitimately stands up a fake Zitadel that receives this exact
 //     POST — flagging those would block Task 4 while protecting nothing.
+//
 //   - The walk roots at backend/, so this proves the finalize call is
 //     unique WITHIN backend/ — not within the repository. A Next.js
 //     route handler in apps/shell could POST the endpoint directly with

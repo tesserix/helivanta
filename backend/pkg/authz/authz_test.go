@@ -35,3 +35,27 @@ func TestSortedIsDeterministic(t *testing.T) {
 func TestSortedOnEmptySetIsEmptyNotNil(t *testing.T) {
 	require.Equal(t, []string{}, authz.NewPermissionSet().Sorted())
 }
+
+// TestSystemRolesMatchesKnownRole pins the two exports to each other.
+// SystemRoles exists so a caller can PRINT the valid roles (cmd/bootstrap
+// rejecting a typo'd -role); if it ever disagreed with KnownRole, that
+// message would tell an operator a role is valid which the validator then
+// rejects, or omit one it accepts.
+func TestSystemRolesMatchesKnownRole(t *testing.T) {
+	roles := authz.SystemRoles()
+	require.NotEmpty(t, roles)
+	for _, r := range roles {
+		require.True(t, authz.KnownRole(r), "SystemRoles listed %q but KnownRole rejects it", r)
+	}
+	require.False(t, authz.KnownRole("tenant_admn"))
+}
+
+// TestSystemRolesCannotBeMutatedByCallers: the returned slice is a copy,
+// so a caller that sorts or appends to it cannot corrupt the list every
+// KnownRole call reads.
+func TestSystemRolesCannotBeMutatedByCallers(t *testing.T) {
+	authz.SystemRoles()[0] = "not_a_role"
+
+	require.True(t, authz.KnownRole(authz.RoleTenantAdmin))
+	require.Equal(t, authz.RoleTenantAdmin, authz.SystemRoles()[0])
+}

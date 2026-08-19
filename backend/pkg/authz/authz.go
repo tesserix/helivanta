@@ -66,6 +66,16 @@ func KnownRole(r Role) bool {
 	return false
 }
 
+// SystemRoles returns every seeded system role, in declaration order.
+// It exists so that code which must SHOW an operator the valid roles —
+// cmd/bootstrap's rejection message for an unknown -role — reads the
+// same list KnownRole validates against, instead of hand-copying it and
+// drifting the day a sixth role is added. The slice is a copy, so a
+// caller cannot mutate the source of truth.
+func SystemRoles() []Role {
+	return append([]Role(nil), systemRoles...)
+}
+
 // Grant declares that a permission is held by the listed system roles.
 // Modules return these from Permissions(); the reconciler turns them
 // into tuples. RoleTenantAdmin is implicit — the reconciler grants it

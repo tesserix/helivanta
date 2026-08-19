@@ -38,6 +38,10 @@ HELIVANTA_API_PORT ?= 8080
 # of these keeps their own value.
 APP_DATABASE_URL ?= postgres://hms_app:hms_app@localhost:$(HELIVANTA_PG_PORT)/helivanta?sslmode=disable
 ADMIN_DATABASE_URL ?= postgres://helivanta:helivanta@localhost:$(HELIVANTA_PG_PORT)/helivanta?sslmode=disable
+# The BYPASSRLS role from dev/init-db.sql. cmd/api refuses to boot without
+# it, and refuses to boot if it names a role that cannot actually bypass
+# RLS — there is no fallback to ADMIN_DATABASE_URL by design (#894).
+SYSTEM_DATABASE_URL ?= postgres://helivanta_system:helivanta_system@localhost:$(HELIVANTA_PG_PORT)/helivanta?sslmode=disable
 NATS_URL ?= nats://localhost:$(HELIVANTA_NATS_PORT)
 OPENFGA_URL ?= http://localhost:$(HELIVANTA_OPENFGA_PORT)
 ZITADEL_ISSUER_URL ?= http://localhost:$(HELIVANTA_ZITADEL_PORT)
@@ -61,7 +65,7 @@ NEXT_PUBLIC_ZITADEL_ISSUER_URL ?= $(ZITADEL_ISSUER_URL)
 NEXT_PUBLIC_ZITADEL_CLIENT_ID ?= $(ZITADEL_CLIENT_ID)
 
 export HELIVANTA_PG_PORT HELIVANTA_NATS_PORT HELIVANTA_NATS_MONITOR_PORT HELIVANTA_REDIS_PORT HELIVANTA_OPENFGA_PORT HELIVANTA_ZITADEL_PORT HELIVANTA_ZITADEL_PG_PORT HELIVANTA_API_PORT
-export APP_DATABASE_URL ADMIN_DATABASE_URL NATS_URL OPENFGA_URL ZITADEL_ISSUER_URL
+export APP_DATABASE_URL ADMIN_DATABASE_URL SYSTEM_DATABASE_URL NATS_URL OPENFGA_URL ZITADEL_ISSUER_URL
 export API_URL
 export ZITADEL_CLIENT_ID
 export NEXT_PUBLIC_ZITADEL_ISSUER_URL NEXT_PUBLIC_ZITADEL_CLIENT_ID

@@ -27,8 +27,8 @@ const (
 // migration changes.
 func openMigratedDB(t *testing.T) *tenantdb.DB {
 	t.Helper()
-	appDSN, adminDSN := testinfra.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 
 	registry, err := bootstrap.NewRegistry(nil)
@@ -41,14 +41,21 @@ func openMigratedDB(t *testing.T) *tenantdb.DB {
 	return db
 }
 
-// memberRoles returns every role_key held by subject in tenantID, read
-// on the admin pool so that a row which exists but is invisible to the
-// app pool still shows up — a test that could not see a wrongly-written
-// row would report "wrote nothing" for the exact bug it is guarding.
+// memberRoles returns every role_key held by subject in tenantID, read on
+// the SYSTEM pool so that a row which exists but is invisible to the app
+// pool still shows up — a test that could not see a wrongly-written row
+// would report "wrote nothing" for the exact bug it is guarding.
+//
+// It read on the admin pool until #894, which is the same mistake the
+// production code made: the admin pool connects as the schema owner, and
+// iam_members is FORCE ROW LEVEL SECURITY, so that read returned nothing
+// once the harness stopped making the owner a superuser. The assertions
+// below need a pool that genuinely crosses tenants, and only the system
+// pool does.
 func memberRoles(t *testing.T, db *tenantdb.DB, tenantID, subj string) []string {
 	t.Helper()
 	var roles []string
-	err := db.WithAdmin(context.Background(), func(tx *gorm.DB) error {
+	err := db.WithAllTenants(context.Background(), func(tx *gorm.DB) error {
 		return tx.Raw(
 			`SELECT role_key FROM iam_members WHERE tenant_id = ?::uuid AND subject = ? ORDER BY role_key`,
 			tenantID, subj).Scan(&roles).Error
@@ -101,7 +108,7 @@ func TestGrantRejectsMalformedTenant(t *testing.T) {
 	require.ErrorContains(t, err, "not a UUID")
 
 	var count int64
-	require.NoError(t, db.WithAdmin(t.Context(), func(tx *gorm.DB) error {
+	require.NoError(t, db.WithAllTenants(t.Context(), func(tx *gorm.DB) error {
 		return tx.Raw(`SELECT count(*) FROM iam_members`).Scan(&count).Error
 	}))
 	require.Zero(t, count, "a malformed tenant must not reach the database at all")

@@ -116,12 +116,36 @@ func sharedPostgres(t *testing.T) (host, port string) {
 			pgErr = fmt.Errorf("start postgres: %w", pgErr)
 			return
 		}
-		// Roles are cluster-wide, so the app role is created once here;
-		// the privileges it needs are per database and are granted in
+		// Roles are cluster-wide, so they are created once here; the
+		// privileges they need are per database and are granted in
 		// newDatabase below.
-		if err := runSQL(ctx, "hms",
-			`CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;`); err != nil {
-			pgErr = fmt.Errorf("create app role: %w", err)
+		//
+		// THE OWNER IS NOT THE BOOTSTRAP SUPERUSER (#894). `hms` is the
+		// image's POSTGRES_USER and is unavoidably a superuser — Postgres
+		// refuses to strip SUPERUSER from the bootstrap role ("the
+		// bootstrap user must have the SUPERUSER attribute"), so the owner
+		// has to be a DIFFERENT role rather than a demoted `hms`. That is
+		// also production's shape: CNPG has a `postgres` superuser and
+		// `helivanta` as a plain owner.
+		//
+		// This matters because `iam_members` and `outbox_events` are FORCE
+		// ROW LEVEL SECURITY, and FORCE binds the table OWNER — that is the
+		// whole reason it is chosen over plain ENABLE. When the harness's
+		// owner was the image superuser, every cross-tenant read the admin
+		// pool made succeeded here and returned zero rows in production.
+		// Three call sites shipped on that assumption with every test
+		// green. dev/init-db.sql constrained `hms_app` and said nothing
+		// about the owner; that omission is the whole bug, because it left
+		// the divergence inexpressible.
+		//
+		// `hms` remains the harness's own plumbing (creating databases,
+		// roles and grants) and is never handed to code under test.
+		if err := runSQL(ctx, "hms", `
+			CREATE ROLE hms_owner LOGIN PASSWORD 'hms_owner' NOSUPERUSER NOBYPASSRLS;
+			CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;
+			CREATE ROLE hms_system LOGIN PASSWORD 'hms_system' NOSUPERUSER BYPASSRLS;
+			GRANT hms_owner TO hms;`); err != nil {
+			pgErr = fmt.Errorf("create roles: %w", err)
 			return
 		}
 		h, err := pgCont.Host(ctx)
@@ -144,19 +168,29 @@ func sharedPostgres(t *testing.T) (host, port string) {
 	return pgShared.host, pgShared.port
 }
 
-// StartPostgres returns (appDSN, adminDSN) for a database of this test's
-// own, on a Postgres server shared with the rest of the binary. The two
-// roles mirror dev/init-db.sql: hms owns the schema, hms_app is the
-// non-BYPASSRLS role the application connects as, which is what makes the
-// forced-RLS policies meaningful under test.
-func StartPostgres(t *testing.T) (string, string) {
+// StartPostgres returns (appDSN, adminDSN, systemDSN) for a database of
+// this test's own, on a Postgres server shared with the rest of the binary.
+//
+// The three roles mirror PRODUCTION, not dev (#894):
+//
+//   - hms_owner  — owns the schema. NOSUPERUSER, NOBYPASSRLS, so FORCE ROW
+//     LEVEL SECURITY binds it exactly as it binds CNPG's `helivanta`.
+//   - hms_app    — the non-BYPASSRLS role the application connects as.
+//   - hms_system — BYPASSRLS, the only role that may cross tenants.
+//
+// All three are returned unconditionally so a test cannot accidentally
+// exercise a two-pool shape production never runs. The previous signature
+// returned the image's SUPERUSER as the admin DSN, which is why a
+// whole-system read that returns zero rows in production returned every
+// row here.
+func StartPostgres(t *testing.T) (string, string, string) {
 	t.Helper()
 	host, port := sharedPostgres(t)
 	name := newDatabase(t)
 	dsn := func(user, pass string) string {
 		return "postgres://" + user + ":" + pass + "@" + host + ":" + port + "/" + name + "?sslmode=disable"
 	}
-	return dsn("hms_app", "hms_app"), dsn("hms", "hms")
+	return dsn("hms_app", "hms_app"), dsn("hms_owner", "hms_owner"), dsn("hms_system", "hms_system")
 }
 
 // runSQL executes a psql command inside the Postgres container and reports
@@ -266,19 +300,37 @@ func newDatabase(t *testing.T) string {
 
 	// CREATE DATABASE cannot run inside a transaction block, and psql
 	// wraps a multi-statement -c in one, so it gets an -c of its own.
-	if err := runSQL(ctx, "hms", `CREATE DATABASE `+name+` OWNER hms;`); err != nil {
+	if err := runSQL(ctx, "hms", `CREATE DATABASE `+name+` OWNER hms_owner;`); err != nil {
 		t.Fatalf("create database %s: %v%s", name, err, pgForensics(ctx, name))
 	}
 	// If this is skipped the database still exists and still accepts
 	// connections, so the harness looks healthy and the failure lands much
 	// later as a bare "permission denied" from whichever test happens to
 	// write first. runSQL is what stops that being silent.
+	// postgres_fdw is installed here, by the bootstrap superuser, because
+	// CREATE EXTENSION requires one and the owner deliberately is not one
+	// any more (#894). Only TestLintRLSFlagsForeignTable needs it — it
+	// proves LintRLS catches a foreign table, which is a genuine way to
+	// smuggle data past RLS — and without this that test fails with
+	// "permission denied to create extension", which looks like a bug in
+	// LintRLS rather than missing harness setup. USAGE on the wrapper is
+	// what then lets the owner CREATE SERVER.
+	//
+	// hms_system gets the same table grants as hms_app. BYPASSRLS decides
+	// whether the ROW POLICIES apply; it grants no table privileges of its
+	// own, so without these the system pool authenticates fine and then
+	// fails every statement with "permission denied for table" — a symptom
+	// that reads nothing like the missing GRANT that caused it.
 	if err := runSQL(ctx, name, `
-		GRANT USAGE ON SCHEMA public TO hms_app;
-		ALTER DEFAULT PRIVILEGES FOR ROLE hms IN SCHEMA public
-		  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hms_app;
-		ALTER DEFAULT PRIVILEGES FOR ROLE hms IN SCHEMA public
-		  GRANT USAGE, SELECT ON SEQUENCES TO hms_app;`); err != nil {
+		CREATE EXTENSION IF NOT EXISTS postgres_fdw;
+		GRANT USAGE ON FOREIGN DATA WRAPPER postgres_fdw TO hms_owner;
+		ALTER SCHEMA public OWNER TO hms_owner;
+		GRANT USAGE, CREATE ON SCHEMA public TO hms_owner;
+		GRANT USAGE ON SCHEMA public TO hms_app, hms_system;
+		ALTER DEFAULT PRIVILEGES FOR ROLE hms_owner IN SCHEMA public
+		  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hms_app, hms_system;
+		ALTER DEFAULT PRIVILEGES FOR ROLE hms_owner IN SCHEMA public
+		  GRANT USAGE, SELECT ON SEQUENCES TO hms_app, hms_system;`); err != nil {
 		t.Fatalf("grant on %s: %v%s", name, err, pgForensics(ctx, name))
 	}
 

@@ -52,8 +52,8 @@ func (keysetRow) TableName() string { return "keyset_rows" }
 // ApplyKeyset's tests against.
 func keysetHarness(t *testing.T) (db *tenantdb.DB, ctx context.Context, tenantID string) {
 	t.Helper()
-	appDSN, adminDSN := testutil.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testutil.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 	ctx = context.Background()
 	require.NoError(t, db.Migrate(ctx, tenantdb.Migrations()))

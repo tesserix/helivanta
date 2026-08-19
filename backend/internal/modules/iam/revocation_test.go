@@ -21,8 +21,8 @@ import (
 // module's migrations here would only be noise.
 func revocationHarness(t *testing.T) (*tenantdb.DB, context.Context) {
 	t.Helper()
-	appDSN, adminDSN := testinfra.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 
 	migs := New(nil).Migrations()

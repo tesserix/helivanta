@@ -13,15 +13,27 @@ import (
 
 var ErrInvalidTenant = errors.New("tenantdb: tenant id is not a valid uuid")
 
-// DB owns two pools: app (non-BYPASSRLS role, all runtime access) and
-// admin (the migration role, used for migrations and other privileged
-// boot-time/ops operations — see Migrate, LintRLS, WithAdmin). There is
-// no exported raw *gorm.DB.
+// DB owns up to three pools, each connecting as a role with a different
+// privilege, because the three needs are genuinely different:
+//
+//   - app    — the non-BYPASSRLS role. All runtime request access.
+//   - admin  — the schema OWNER. DDL: migrations and LintRLS. Owning the
+//     tables is not the same as seeing every tenant's rows, and under
+//     FORCE ROW LEVEL SECURITY it explicitly is not (#894).
+//   - system — a role holding BYPASSRLS and no DDL. The only way to read
+//     or write across every tenant at once. Nil unless OpenWithSystem
+//     was used; WithAllTenants then fails loudly rather than falling back.
+//
+// There is no exported raw *gorm.DB.
 type DB struct {
-	app   *gorm.DB
-	admin *gorm.DB
+	app    *gorm.DB
+	admin  *gorm.DB
+	system *gorm.DB
 }
 
+// Open opens the app and admin pools. Callers that never cross tenant
+// boundaries — cmd/migrate, cmd/bootstrap — want this; WithAllTenants on
+// the result returns an error rather than silently degrading.
 func Open(appDSN, adminDSN string) (*DB, error) {
 	// logger.Silent is a PHI control, not a noise preference. GORM's logger
 	// renders the executed SQL with parameter values inlined — verified
@@ -59,6 +71,82 @@ func Open(appDSN, adminDSN string) (*DB, error) {
 		return nil, err
 	}
 	return &DB{app: app, admin: admin}, nil
+}
+
+// OpenWithSystem opens Open's two pools plus the system pool, and refuses
+// to return unless that pool's role can actually bypass RLS.
+//
+// That assertion is the point of this function (#894). Its absence is what
+// let three whole-system call sites run for weeks against a role that
+// could not see past FORCE ROW LEVEL SECURITY: every query succeeded and
+// returned zero rows, so the reconciler wrote no tuples, the outbox never
+// drained, and the pruner deleted nothing — each of them logging success.
+// A cross-tenant pool that cannot cross tenants has no safe degraded mode,
+// so this fails at boot with the role name rather than at 3am with a
+// missing permission.
+//
+// It is the exact mirror of assertNoRLSBypass, which fails when the APP
+// pool CAN bypass. Between them, each pool is pinned to the privilege its
+// callers assume, and neither assumption can drift silently again.
+func OpenWithSystem(appDSN, adminDSN, systemDSN string) (*DB, error) {
+	db, err := Open(appDSN, adminDSN)
+	if err != nil {
+		return nil, err
+	}
+	if systemDSN == "" {
+		return nil, errors.New("tenantdb: SYSTEM_DATABASE_URL is empty; " +
+			"the reconciler, outbox drainer and retention pruner all read across " +
+			"every tenant and cannot use the admin pool, whose role is bound by " +
+			"FORCE ROW LEVEL SECURITY like any other")
+	}
+	system, err := gorm.Open(postgres.Open(systemDSN),
+		&gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	if err != nil {
+		return nil, fmt.Errorf("open system pool: %w", err)
+	}
+	sqlDB, err := system.DB()
+	if err != nil {
+		return nil, err
+	}
+	sqlDB.SetMaxOpenConns(5)
+	sqlDB.SetMaxIdleConns(2)
+	if err := assertRLSBypass(system); err != nil {
+		return nil, err
+	}
+	db.system = system
+	return db, nil
+}
+
+// assertRLSBypass fails when the system pool's role CANNOT see through
+// row-level security — the inverse of assertNoRLSBypass, and the guard
+// whose absence produced #894.
+//
+// superuser counts as bypass here because it is one, but it is not what
+// this should be pointed at: a role holding BYPASSRLS alone is the whole
+// design, so the privilege stays auditable to one attribute on one role.
+func assertRLSBypass(g *gorm.DB) error {
+	var caps struct {
+		Bypass bool
+		Super  bool
+	}
+	result := g.Raw(`SELECT rolbypassrls AS bypass, rolsuper AS super
+		FROM pg_roles WHERE rolname = current_user`).Scan(&caps)
+	if result.Error != nil {
+		return fmt.Errorf("probe system role capabilities: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("tenantdb: could not determine system role capabilities " +
+			"(current_user matched no row in pg_roles); refusing to assume it can " +
+			"cross tenant boundaries")
+	}
+	if !caps.Bypass && !caps.Super {
+		return fmt.Errorf("tenantdb: SYSTEM_DATABASE_URL connects as a role that "+
+			"cannot bypass row-level security (bypassrls=%v superuser=%v). Every "+
+			"cross-tenant read would return zero rows WITHOUT error — no tuples "+
+			"reconciled, no outbox drained, no retention pruned, all reporting "+
+			"success. Point it at the BYPASSRLS role", caps.Bypass, caps.Super)
+	}
+	return nil
 }
 
 // assertNoRLSBypass fails when the pool's role can see through row-level
@@ -161,20 +249,52 @@ func (d *DB) WithSystem(ctx context.Context, fn func(tx *gorm.DB) error) error {
 	return d.app.WithContext(ctx).Transaction(fn)
 }
 
-// WithAdmin runs fn in a transaction on the admin pool, which connects
-// as the migration role and therefore bypasses RLS entirely — it sees
-// every tenant's rows in every table. This is the same privileged class
-// of operation Migrate and LintRLS already are (both also run on the
-// admin pool outside WithTenant/WithSystem); WithAdmin exists so a third
-// kind of whole-system, boot-time operation — enumerating tenants and
-// memberships across the fleet, which by definition cannot be scoped to
-// one tenant's GUC — doesn't have to either weaken WithSystem's
-// documented guarantee or reach around DB entirely. It is for
-// process-startup/ops code (the reconciler), never for request-path
-// handlers; nothing in the type system enforces that boundary, the same
-// as Migrate and LintRLS today.
+// WithAdmin runs fn in a transaction on the admin pool, which connects as
+// the schema OWNER. That is a DDL privilege, not a visibility one: it is
+// the same privileged class Migrate and LintRLS are, and it exists for
+// them.
+//
+// IT DOES NOT BYPASS RLS. This comment previously said it did — "bypasses
+// RLS entirely — it sees every tenant's rows in every table" — and that
+// sentence was false wherever it mattered (#894). Owning a table and
+// seeing every row in it are different things, and under FORCE ROW LEVEL
+// SECURITY they are explicitly different: FORCE binds the owner too,
+// which is the entire reason it is chosen over plain ENABLE. The claim
+// held only in dev and under the old test harness, where the owner was
+// the Postgres image's superuser; in production CNPG creates a plain
+// owner and every cross-tenant read returned zero rows, without error,
+// for as long as anyone looked.
+//
+// For reads or writes that must cross tenants, use WithAllTenants. It is
+// for process-startup/ops code, never for request-path handlers; nothing
+// in the type system enforces that boundary, the same as Migrate and
+// LintRLS today — internal/archtest does.
 func (d *DB) WithAdmin(ctx context.Context, fn func(tx *gorm.DB) error) error {
 	return d.admin.WithContext(ctx).Transaction(fn)
+}
+
+// WithAllTenants runs fn in a transaction on the system pool, whose role
+// holds BYPASSRLS — so it is the only way to read or write across every
+// tenant at once. For process-startup and ops code (the reconciler, the
+// outbox drainer, the retention pruner); never for request handlers.
+//
+// It exists because WithAdmin cannot do this and never could (#894). The
+// admin pool connects as the schema OWNER, and both iam_members and
+// outbox_events are FORCE ROW LEVEL SECURITY, which binds the owner —
+// that being exactly why FORCE was chosen over ENABLE. WithAdmin's own
+// comment claimed the opposite for months; it was true in dev, where the
+// owner is the image superuser, and false in production, where CNPG
+// creates a plain owner. Nothing failed, because a policy that hides
+// every row returns zero rows, not an error.
+//
+// A nil system pool is an error, never a fallback to admin: falling back
+// would restore precisely the silent-zero-rows behaviour this replaces.
+func (d *DB) WithAllTenants(ctx context.Context, fn func(tx *gorm.DB) error) error {
+	if d.system == nil {
+		return errors.New("tenantdb: no system pool; this DB was opened with Open, " +
+			"not OpenWithSystem, so it cannot read across tenants")
+	}
+	return d.system.WithContext(ctx).Transaction(fn)
 }
 
 // lintAllowlist names the tables that legitimately carry no tenant_id.

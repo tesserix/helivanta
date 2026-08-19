@@ -86,8 +86,8 @@ func newSeamHarness(t *testing.T) *gin.Engine {
 	t.Helper()
 	ctx := context.Background()
 
-	appDSN, adminDSN := testinfra.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 
 	mod := medicore.New()

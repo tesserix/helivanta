@@ -157,7 +157,13 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	db, err := tenantdb.Open(cfg.AppDatabaseURL, cfg.AdminDatabaseURL)
+	// OpenWithSystem, not Open: this binary reconciles authorization,
+	// drains the outbox and prunes retention, and all three read across
+	// every tenant. It refuses to boot if SYSTEM_DATABASE_URL is missing
+	// or names a role that cannot bypass RLS — deliberately, because the
+	// degraded mode is invisible (#894): those three operations would each
+	// return zero rows, change nothing, and log success indefinitely.
+	db, err := tenantdb.OpenWithSystem(cfg.AppDatabaseURL, cfg.AdminDatabaseURL, cfg.SystemDatabaseURL)
 	if err != nil {
 		return err
 	}

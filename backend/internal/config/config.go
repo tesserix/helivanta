@@ -15,9 +15,13 @@ type Config struct {
 	LogLevel         string
 	AppDatabaseURL   string
 	AdminDatabaseURL string
-	NATSURL          string
-	OpenFGAURL       string
-	OpenFGAStore     string
+	// SystemDatabaseURL names the BYPASSRLS role. Only cmd/api needs it —
+	// it is the only binary that reconciles, drains the outbox or prunes
+	// retention, which are the three operations that cross tenants (#894).
+	SystemDatabaseURL string
+	NATSURL           string
+	OpenFGAURL        string
+	OpenFGAStore      string
 
 	// ZitadelIssuerURL and ZitadelClientID configure the standard-OIDC
 	// verifier in pkg/authn/zitadel.go (spike
@@ -285,9 +289,15 @@ func Load() Config {
 		LogLevel:         getenv("LOG_LEVEL", "info"),
 		AppDatabaseURL:   getenv("APP_DATABASE_URL", "postgres://hms_app:hms_app@localhost:5432/helivanta?sslmode=disable"),
 		AdminDatabaseURL: getenv("ADMIN_DATABASE_URL", "postgres://helivanta:helivanta@localhost:5432/helivanta?sslmode=disable"),
-		NATSURL:          getenv("NATS_URL", "nats://localhost:4222"),
-		OpenFGAURL:       getenv("OPENFGA_URL", "http://localhost:8090"),
-		OpenFGAStore:     getenv("OPENFGA_STORE", "helivanta"),
+		// The dev default names a role dev/init-db.sql creates with
+		// BYPASSRLS. There is deliberately no fallback to
+		// ADMIN_DATABASE_URL: that role is the schema owner, FORCE RLS
+		// binds it, and every cross-tenant read would return zero rows
+		// while reporting success — which is #894 exactly.
+		SystemDatabaseURL: getenv("SYSTEM_DATABASE_URL", "postgres://helivanta_system:helivanta_system@localhost:5432/helivanta?sslmode=disable"),
+		NATSURL:           getenv("NATS_URL", "nats://localhost:4222"),
+		OpenFGAURL:        getenv("OPENFGA_URL", "http://localhost:8090"),
+		OpenFGAStore:      getenv("OPENFGA_STORE", "helivanta"),
 
 		ZitadelIssuerURL: getenv("ZITADEL_ISSUER_URL", "http://localhost:20080"),
 		ZitadelClientID:  getenv("ZITADEL_CLIENT_ID", ""),
@@ -296,7 +306,7 @@ func Load() Config {
 		// below — this PAT must never have a default (see
 		// ZitadelLoginClientToken's doc comment on exactly why).
 		ZitadelLoginClientToken: os.Getenv("ZITADEL_LOGIN_CLIENT_TOKEN"),
-		ZitadelHostedLoginURL: getenv("ZITADEL_HOSTED_LOGIN_URL", "http://localhost:20080/ui/v2/login"),
+		ZitadelHostedLoginURL:   getenv("ZITADEL_HOSTED_LOGIN_URL", "http://localhost:20080/ui/v2/login"),
 		// os.Getenv, not getenv(): see HelivantaWebOrigin's doc comment just
 		// above — RequireDistinctHostedLoginOrigin (hostedlogin.go), not
 		// Load(), is where an unset value is resolved, and it resolves

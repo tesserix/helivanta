@@ -35,8 +35,8 @@ func hostPortAndDatabase(t *testing.T, dsn string) (hostPort, database string) {
 // The point of sharing: two callers land on the same server, so a package
 // boots Postgres once rather than once per test (#765).
 func TestStartPostgresReusesOneServer(t *testing.T) {
-	_, adminA := StartPostgres(t)
-	_, adminB := StartPostgres(t)
+	_, adminA, _ := StartPostgres(t)
+	_, adminB, _ := StartPostgres(t)
 
 	hostA, dbA := hostPortAndDatabase(t, adminA)
 	hostB, dbB := hostPortAndDatabase(t, adminB)
@@ -49,8 +49,8 @@ func TestStartPostgresReusesOneServer(t *testing.T) {
 // caller has to be invisible to another, or tests would contaminate each
 // other in ways that only show up as ordering-dependent failures.
 func TestStartPostgresIsolatesCallers(t *testing.T) {
-	_, adminA := StartPostgres(t)
-	_, adminB := StartPostgres(t)
+	_, adminA, _ := StartPostgres(t)
+	_, adminB, _ := StartPostgres(t)
 
 	dbA := openDSN(t, adminA)
 	dbB := openDSN(t, adminB)
@@ -79,7 +79,7 @@ func TestStartOpenFGAReusesOneServer(t *testing.T) {
 // only mean anything if it cannot bypass them. Creating it once per server
 // rather than once per database must not change that.
 func TestAppRoleCannotBypassRLS(t *testing.T) {
-	_, adminDSN := StartPostgres(t)
+	_, adminDSN, _ := StartPostgres(t)
 	admin := openDSN(t, adminDSN)
 
 	var bypassRLS bool
@@ -91,7 +91,7 @@ func TestAppRoleCannotBypassRLS(t *testing.T) {
 // that happened to be created first — those grants are per database even
 // though the role itself is cluster-wide.
 func TestAppRoleCanUseANewDatabase(t *testing.T) {
-	appDSN, adminDSN := StartPostgres(t)
+	appDSN, adminDSN, _ := StartPostgres(t)
 	admin := openDSN(t, adminDSN)
 	require.NoError(t, admin.Exec(`CREATE TABLE widgets (id int)`).Error)
 	require.NoError(t, admin.Exec(`INSERT INTO widgets VALUES (1)`).Error)
@@ -220,4 +220,54 @@ func TestPGForensicsDistinguishesMissingFromPresent(t *testing.T) {
 	// The server-restart discriminator has to carry a real timestamp: if it
 	// silently returned empty, a restart would look identical to no restart.
 	require.Regexp(t, `server started \(exit 0\): \d{4}-\d{2}-\d{2} `, found)
+}
+
+// The harness's whole value in #894 rests on its roles having PRODUCTION's
+// attributes rather than dev's, and that is a property of the harness
+// itself — so it is asserted here rather than assumed by every test that
+// depends on it.
+//
+// Before #894 the admin DSN named the image's POSTGRES_USER, a superuser.
+// FORCE ROW LEVEL SECURITY binds the table owner, which is exactly why it
+// is chosen over ENABLE — but it cannot bind a superuser, so every
+// cross-tenant read succeeded here and returned zero rows against CNPG's
+// plain owner. Three call sites shipped on that difference with a green
+// suite. This test is what makes the difference expressible.
+func TestHarnessRolesMatchProductionAttributes(t *testing.T) {
+	t.Parallel()
+	appDSN, adminDSN, systemDSN := StartPostgres(t)
+
+	for _, tc := range []struct {
+		name       string
+		dsn        string
+		wantBypass bool
+		why        string
+	}{
+		{"app", appDSN, false,
+			"the request path must never see another tenant's rows"},
+		{"owner", adminDSN, false,
+			"FORCE RLS binds the owner in production; a superuser owner here hides that"},
+		{"system", systemDSN, true,
+			"cross-tenant reads are this role's entire reason to exist"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var caps struct {
+				Rolname string
+				Bypass  bool
+				Super   bool
+			}
+			g := openDSN(t, tc.dsn)
+			require.NoError(t, g.Raw(`SELECT rolname, rolbypassrls AS bypass, rolsuper AS super
+				FROM pg_roles WHERE rolname = current_user`).Scan(&caps).Error)
+
+			require.Equal(t, tc.wantBypass, caps.Bypass,
+				"role %q bypassrls: %s", caps.Rolname, tc.why)
+			// No role the code under test connects as may be a superuser:
+			// superuser bypasses RLS regardless of rolbypassrls, so a
+			// superuser here would make the assertion above vacuous.
+			require.False(t, caps.Super,
+				"role %q must not be a superuser: superuser bypasses RLS whatever "+
+					"rolbypassrls says, which is what made the old harness green", caps.Rolname)
+		})
+	}
 }

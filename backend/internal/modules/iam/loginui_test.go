@@ -581,8 +581,8 @@ func TestHandoff_ReturnsURLCarryingTheID(t *testing.T) {
 // would panic the moment either method touched it.
 func newFactorTestHandlers(t *testing.T, client *loginclient.Client) *LoginUIHandlers {
 	t.Helper()
-	appDSN, adminDSN := testinfra.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 
 	migs := New(nil).Migrations()
@@ -1126,8 +1126,8 @@ func TestFactorRejectsUnsupportedFactor(t *testing.T) {
 // one with its OWN Rule, per #867's plan ("a six-digit guessing endpoint
 // must not share a budget with anything else").
 func TestFactorRefusesOverBudget(t *testing.T) {
-	appDSN, adminDSN := testinfra.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 	migs := New(nil).Migrations()
 	var loginAttemptMig *tenantdb.Migration
@@ -1187,8 +1187,8 @@ func TestFactorRefusesOverBudget(t *testing.T) {
 // SAME peer, exactly what a real attacker's own TCP connection would
 // do regardless of which header value they claim.
 func TestFactorRateLimitNotBypassableBySpoofedXForwardedFor(t *testing.T) {
-	appDSN, adminDSN := testinfra.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 	migs := New(nil).Migrations()
 	var loginAttemptMig *tenantdb.Migration

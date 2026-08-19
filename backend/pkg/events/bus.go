@@ -43,16 +43,21 @@ var ackWait = 30 * time.Second
 
 // OutboxStore is the slice of tenantdb the bus needs (system tables only).
 //
-// WithAdmin is here deliberately, not as a convenience: it is what forces
-// drainOnce to be able to compile only against a store that offers the
-// admin-pool, RLS-bypassing path (see drainOnce's comment for why it needs
-// it). Adding this method is itself part of Task 1 (#835) — a store that
-// only implements WithSystem can no longer satisfy this interface, so the
-// migration that puts RLS on outbox_events and the dispatcher's move off
-// WithSystem cannot land apart.
+// WithAllTenants is here deliberately, not as a convenience: it is what
+// forces drainOnce to compile only against a store offering the
+// RLS-bypassing path (see drainOnce's comment for why it needs it). A
+// store that only implements WithSystem cannot satisfy this interface, so
+// the migration that puts RLS on outbox_events and the dispatcher's move
+// off WithSystem cannot land apart (#835 Task 1).
+//
+// It was WithAdmin until #894. That method names the schema OWNER, which
+// FORCE ROW LEVEL SECURITY binds like any other role — so the interface
+// compiled, the drain ran, and it read zero rows in production on every
+// tick. The interface did its job; the method it named did not do what
+// its own documentation claimed.
 type OutboxStore interface {
 	WithSystem(ctx context.Context, fn func(tx *gorm.DB) error) error
-	WithAdmin(ctx context.Context, fn func(tx *gorm.DB) error) error
+	WithAllTenants(ctx context.Context, fn func(tx *gorm.DB) error) error
 }
 
 func Migrations() []tenantdb.Migration {
@@ -356,18 +361,26 @@ func (b *Bus) drainSafely(ctx context.Context, db OutboxStore) {
 }
 
 func (b *Bus) drainOnce(ctx context.Context, db OutboxStore) error {
-	// WithAdmin, not WithSystem (trap 1, design spec D1): 0002_events_outbox_tenant
-	// put row-level security on outbox_events, and WithSystem sets no
-	// tenant GUC. Every row's tenant_isolation policy would then evaluate
-	// current_setting('app.tenant_id', true) as NULL, match nothing, and
-	// this select would silently return zero rows on every tick — the
-	// whole event bus stops platform-wide with no error anywhere.
-	// WithAdmin runs on the admin pool, which bypasses RLS entirely, and
-	// this is the one call site allowed to (see withAdminAllowlist in
-	// internal/archtest/arch_test.go). TestDispatcherPublishesEveryTenant
-	// in outbox_rls_test.go pins this: reverting this line to WithSystem
-	// must make that test observe zero published events, not an error.
-	return db.WithAdmin(ctx, func(tx *gorm.DB) error {
+	// WithAllTenants, not WithSystem (trap 1, design spec D1):
+	// 0002_events_outbox_tenant put row-level security on outbox_events,
+	// and WithSystem sets no tenant GUC. Every row's tenant_isolation
+	// policy would then evaluate current_setting('app.tenant_id', true) as
+	// NULL, match nothing, and this select would silently return zero rows
+	// on every tick — the whole event bus stops platform-wide with no
+	// error anywhere.
+	//
+	// And not WithAdmin, which is what this said until #894. The admin
+	// pool connects as the schema OWNER, and FORCE ROW LEVEL SECURITY
+	// binds the owner — so that spelling had the identical failure mode it
+	// was written to avoid, undetected because the test harness's owner
+	// was a superuser and production's is not. WithAllTenants runs on the
+	// system pool, whose role holds BYPASSRLS and is asserted to at boot
+	// (tenantdb.assertRLSBypass).
+	//
+	// TestDispatcherPublishesEveryTenant in outbox_rls_test.go pins this:
+	// reverting this line to WithSystem — or to WithAdmin — must make that
+	// test observe zero published events, not an error.
+	return db.WithAllTenants(ctx, func(tx *gorm.DB) error {
 		var rows []outboxRow
 		if err := tx.Raw(`SELECT id, subject, payload FROM outbox_events
 			WHERE published_at IS NULL ORDER BY created_at LIMIT 100

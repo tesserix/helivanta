@@ -128,8 +128,8 @@ type signoutHarnessConfig struct {
 func newSignoutHarness(t *testing.T, cfg signoutHarnessConfig) (*gin.Engine, *tenantdb.DB, *RevocationChecker, *events.Bus) {
 	t.Helper()
 
-	appDSN, adminDSN := testinfra.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
@@ -397,8 +397,8 @@ func TestModuleAndMiddlewareShareOneRevocationCheckerInstance(t *testing.T) {
 // two DIFFERENT checker instances legitimately exist and propagation must
 // close the gap between them.
 func TestRevocationPropagatesToAnotherReplica(t *testing.T) {
-	appDSN, adminDSN := testinfra.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

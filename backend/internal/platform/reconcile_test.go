@@ -167,8 +167,8 @@ const (
 
 func openMigratedDB(t *testing.T) *tenantdb.DB {
 	t.Helper()
-	appDSN, adminDSN := testinfra.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 	require.NoError(t, db.Migrate(context.Background(), membersMigration))
 	return db

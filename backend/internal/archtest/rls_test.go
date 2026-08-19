@@ -14,8 +14,8 @@ import (
 // database and re-runs the boot-time RLS linter, so an unprotected
 // tenant table fails in CI, not at deploy.
 func TestAllMigrationsPassRLSLint(t *testing.T) {
-	appDSN, adminDSN := testutil.StartPostgres(t)
-	db, err := tenantdb.Open(appDSN, adminDSN)
+	appDSN, adminDSN, systemDSN := testutil.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}

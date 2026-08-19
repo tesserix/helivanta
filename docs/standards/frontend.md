@@ -442,11 +442,20 @@ perfectly well for a session the API refuses on every call.
 Before calling any frontend change done, run:
 
 ```bash
-pnpm turbo lint type-check test build
+pnpm turbo lint type-check test build format:check
+```
+
+`format:check` is the fifth task and is easy to leave off — this document
+listed four until 2026-08-19, and CI's `web` job failed on `main` because of
+exactly that: the four-task command was run, reported green, and a prettier
+violation reached `main` unnoticed while Actions were unavailable to catch it.
+The `web` job runs all five, so a locally-green four is not the gate.
+
+```bash
 cd e2e && npx playwright test
 ```
 
-All four `turbo` tasks and the Playwright run must be green. That bare
+All five `turbo` tasks and the Playwright run must be green. That bare
 Playwright run deliberately covers 11 of the suite's 12 tests: the
 "idle-timeout" project (idle-timeout.spec.ts, #848) needs apps/shell's dev
 server swapped for a second instance pointed at a short-`IDLE_TIMEOUT`

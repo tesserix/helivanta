@@ -101,8 +101,9 @@ type Result struct {
 // outside this round's scope.
 type sufficient struct{}
 
-// classifyEnrolledMethods reads sessionID's enrolled authentication
-// methods (enrolledMethodTypes, client.go) and classifies them into two
+// classifyEnrolledMethods reads sessionID's subject (sessionSubject,
+// client.go) and its enrolled authentication methods
+// (enrolledMethodTypes, client.go), and classifies the latter into two
 // independent questions both CompleteIfSufficient and CompleteAfterFactor
 // need answered: totpEnrolled (did the user configure TOTP — the one
 // factor VerifyTOTP, Task 2, lets Helivanta collect natively?) and
@@ -115,14 +116,27 @@ type sufficient struct{}
 // uncollectible check CompleteIfSufficient did (#867 fix round 1, Finding
 // 2) instead of drifting from it.
 //
-// Fails closed like every other read in this file: an error from
-// enrolledMethodTypes means "cannot prove this session is sufficient",
-// not "no factor found", so callers must hand off rather than risk a
-// bypass on an unreadable answer.
-func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) (totpEnrolled, uncollectible bool, err error) {
-	methodTypes, err := c.enrolledMethodTypes(ctx, sessionID)
+// The returned subject is what lets CompleteIfSufficient scope its policy
+// read to the authenticating user's own org (design spec D1,
+// docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md)
+// without a second GET /v2/sessions/{id} — this method's ONE call to
+// sessionSubject is the ONLY session read either caller performs. Both
+// CompleteIfSufficient and CompleteAfterFactor call this method, but only
+// CompleteIfSufficient uses the subject's OrgID; CompleteAfterFactor
+// discards it because it reads no policy.
+//
+// Fails closed like every other read in this file: an error from either
+// sessionSubject or enrolledMethodTypes means "cannot prove this session
+// is sufficient", not "no factor found", so callers must hand off rather
+// than risk a bypass on an unreadable answer.
+func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) (subject sessionSubject, totpEnrolled, uncollectible bool, err error) {
+	subject, err = c.sessionSubject(ctx, sessionID)
 	if err != nil {
-		return false, false, err
+		return sessionSubject{}, false, false, err
+	}
+	methodTypes, err := c.enrolledMethodTypes(ctx, subject.UserID)
+	if err != nil {
+		return sessionSubject{}, false, false, err
 	}
 	for _, methodType := range methodTypes {
 		switch methodType {
@@ -134,7 +148,7 @@ func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) 
 			uncollectible = true
 		}
 	}
-	return totpEnrolled, uncollectible, nil
+	return subject, totpEnrolled, uncollectible, nil
 }
 
 // CompleteIfSufficient is the ONLY way to finalize an OIDC auth request
@@ -175,11 +189,10 @@ func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) 
 // to matter for the "nothing enrolled at all" case, where a password-only
 // session is insufficient and there is nothing to natively prompt for.
 //
-// KNOWN LIMITATIONS — read these before trusting the check to be more
-// than it is. Both are gaps in WHICH cases are covered, not in how the
-// covered cases behave, and neither is silently assumed: they are stated
-// here because the alternative is a future reader taking this for a
-// complete MFA gate.
+// KNOWN LIMITATIONS — read this before trusting the check to be more than
+// it is. This is a gap in WHICH cases are covered, not in how the covered
+// case behaves, and it is not silently assumed: it is stated here because
+// the alternative is a future reader taking this for a complete MFA gate.
 //
 //  1. PASSWORD-CHANGE-REQUIRED IS NOT CHECKED. Verified live 2026-08-16
 //     (#854 Task 8): a user imported via
@@ -200,19 +213,23 @@ func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) 
 //     response, which is outside Helivanta's control. Documented rather than
 //     silently accepted.
 //
-//  2. THE POLICY IS READ UNSCOPED. GET /management/v1/policies/login
-//     resolves against the login client PAT's own resource owner, because
-//     the request carries no x-zitadel-orgid header. Helivanta runs a single
-//     org today, so the policy read and the authenticating user are
-//     necessarily the same org. In a multi-org instance they would not
-//     be: a user in org B would be judged by org A's policy, and org B's
-//     forceMfa would never reach the branch above — failing OPEN for that
-//     user. Scoping it needs the session's own org id and confirmation
-//     that Zitadel honours the header on this endpoint; the spike
-//     recorded neither (it captured only `factors: {user, password}` from
-//     the session response, not an organizationId), so it is documented
-//     rather than guessed at. Adding a second org to this instance
-//     REQUIRES fixing this first.
+// THE POLICY READ IS NOW ORG-SCOPED (#913). It used to be read unscoped —
+// against the login client PAT's own resource owner, regardless of which
+// org the authenticating user actually belonged to, on the mistaken
+// belief that Helivanta ran a single org and the two were therefore
+// always the same. That belief stopped being true (the instance gained a
+// second and third org) and the unscoped read became a live bypass: a
+// user in an org that forces MFA could be judged by a different org's
+// policy and completed on a password-only session. The read below is now
+// scoped with c.LoginPolicyForOrg(ctx, subject.OrgID), where subject came
+// off the SAME GET /v2/sessions/{id} response classifyEnrolledMethods
+// already read above — no additional round trip — and an absent org id
+// on that response refuses the policy read (LoginPolicyForOrg's own
+// empty-org guard) rather than silently falling back to an unscoped one,
+// landing in the same fail-closed handoff branch immediately below as
+// every other unreadable-policy case. See design spec
+// docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md for
+// the full history and the live-verified facts this rests on.
 func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string, s Session) (Result, error) {
 	// The org may not force MFA, but an individual user can still have
 	// VOLUNTARILY enrolled a second factor (spike "Per-user enrolled
@@ -222,7 +239,7 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 	// prompt for at all. Either way this has to run before the policy
 	// check, not after (see this function's "classification runs BEFORE
 	// the policy check" doc section above).
-	totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
+	subject, totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
 	if err != nil {
 		slog.WarnContext(ctx, "enrolled-factor check unreadable: handing off rather than completing the login (fails closed, same as an unreadable policy)",
 			"err", err)
@@ -245,14 +262,18 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 	}
 
 	// Nothing beyond a password is enrolled. Whether that is sufficient
-	// now depends entirely on the org's policy.
-	// TODO(#913 Task 2): scope this to the session's org — replace with
-	// c.LoginPolicyForOrg(ctx, subject.OrgID) once classifyEnrolledMethods
-	// returns the session's org id alongside its two booleans (design spec
-	// D1). Using the unscoped display read here for now keeps behaviour
-	// identical to before this task; it is still the #913 bug, not yet
-	// fixed at this call site.
-	policy, err := c.InstanceLoginPolicyForDisplay(ctx)
+	// now depends entirely on the AUTHENTICATING USER'S OWN ORG's policy —
+	// subject.OrgID came off the same GET /v2/sessions/{id} response
+	// classifyEnrolledMethods already read above, so scoping this call
+	// costs no additional round trip (design spec D1,
+	// docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md).
+	// LoginPolicyForOrg refuses an empty subject.OrgID before issuing any
+	// request (spec D2) and returns an ErrUnavailable-wrapped error, which
+	// lands in the SAME fail-closed branch immediately below as every
+	// other unreadable-policy case — there is deliberately no second,
+	// separate empty-org check here: one control point, not two that can
+	// drift apart.
+	policy, err := c.LoginPolicyForOrg(ctx, subject.OrgID)
 	if err != nil {
 		// Deliberately not returned as an error: an unreadable policy is
 		// not a failed login, it is a login Helivanta is not qualified to
@@ -327,7 +348,12 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 // sufficient", not "it is not", so it hands off rather than risking a
 // bypass on an unreadable answer.
 func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, s Session) (Result, error) {
-	totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
+	// classifyEnrolledMethods also returns the session's subject (its org
+	// id alongside the user id), which this function deliberately
+	// discards: CompleteAfterFactor reads no policy — see this function's
+	// doc comment — so it has no use for the org id CompleteIfSufficient
+	// needs to scope LoginPolicyForOrg with (design spec D1).
+	_, totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
 	if err != nil {
 		slog.WarnContext(ctx, "enrolled-factor check unreadable: handing off rather than completing the login (fails closed, same as an unreadable policy)",
 			"err", err)

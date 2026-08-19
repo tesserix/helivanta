@@ -558,11 +558,12 @@ func (c *Client) LoginPolicyForOrg(ctx context.Context, orgID string) (LoginPoli
 // The name is deliberately unmistakable for the enforcer's: a future
 // contributor reaching for A login policy inside sufficiency.go must not
 // be able to grab this unscoped one by accident. sufficiency.go's
-// CompleteIfSufficient calls this method today ONLY as an interim step
-// (see the TODO(#913 Task 2) comment on that call site) — Task 2 replaces
-// it with LoginPolicyForOrg once the session's org id is available, and
-// Task 3 adds the archtest that forbids this method from sufficiency.go
-// once that replacement has landed.
+// CompleteIfSufficient no longer calls this method at all — Task 2 (#913)
+// replaced that call with LoginPolicyForOrg(ctx, subject.OrgID), once
+// classifyEnrolledMethods started returning the session's org id
+// alongside its two booleans — and Task 3 adds the archtest that forbids
+// this method from ever being referenced by sufficiency.go again, so a
+// future contributor who reaches for it there fails CI, not review.
 func (c *Client) InstanceLoginPolicyForDisplay(ctx context.Context) (LoginPolicy, error) {
 	return c.loginPolicy(ctx)
 }
@@ -589,30 +590,69 @@ const passwordOnlyMethodType = "AUTHENTICATION_METHOD_TYPE_PASSWORD"
 // collect would silently skip the other one the user configured.
 const totpMethodType = "AUTHENTICATION_METHOD_TYPE_TOTP"
 
-// sessionUserID reads GET /v2/sessions/{id} to recover the user id a
-// session belongs to — CreateSessionResponse (POST /v2/sessions) does
-// NOT carry it (confirmed against the v4.15.3 proto and live: the create
-// response is only {details, sessionId, sessionToken}), so
-// enrolledMethodTypes needs this extra round trip to learn who to ask.
-// Verified live 2026-08-16: the login-client PAT alone (no session
-// token) is sufficient to read an arbitrary session it created.
-func (c *Client) sessionUserID(ctx context.Context, sessionID string) (string, error) {
+// sessionSubject is who a session's password factor authenticated, and
+// which org they authenticate as (design spec D1,
+// docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md).
+// Both fields come off the SAME GET /v2/sessions/{id} response
+// (factors.user.{id,organizationId}) that classifyEnrolledMethods
+// (sufficiency.go) already has to read to learn who to ask about enrolled
+// methods — carrying OrgID alongside UserID here, rather than reading it
+// separately, is what keeps CompleteIfSufficient's org-scoped policy read
+// (#913) from costing a second Zitadel round trip per login.
+//
+// OrgID is NOT validated for emptiness anywhere this type is produced
+// (see the sessionSubject method's doc comment) — only UserID is, because
+// only UserID has every caller of this type depending on it being
+// non-empty. Validating OrgID here too would duplicate the ONE place that
+// actually needs to refuse an empty org id, LoginPolicyForOrg (spec D2):
+// CompleteAfterFactor's call path never reads a policy at all and would
+// pay for a check its own caller has no use for.
+type sessionSubject struct {
+	UserID string
+	OrgID  string
+}
+
+// sessionSubject reads GET /v2/sessions/{id} to recover the session's
+// user id and org id — CreateSessionResponse (POST /v2/sessions) does
+// NOT carry either (confirmed against the v4.15.3 proto and live: the
+// create response is only {details, sessionId, sessionToken}), so
+// classifyEnrolledMethods (sufficiency.go) needs this extra round trip to
+// learn both. Verified live: the login-client PAT alone (no session
+// token) is sufficient to read an arbitrary session it created
+// (2026-08-16), and that same response carries
+// factors.user.organizationId beside factors.user.id (2026-08-19, #913 —
+// the spike had recorded only `factors: {user, password}` and never this
+// field, which is why it was believed absent when sufficiency.go's KNOWN
+// LIMITATIONS §2 was first written).
+//
+// Only UserID is checked for emptiness and fails closed with
+// ErrUnavailable, matching the fail-closed contract every other read in
+// this file has for its callers (see enrolledMethodTypes's own doc
+// comment): an error here must mean "cannot prove this session is
+// sufficient", not "no user found". OrgID is returned exactly as the wire
+// reported it, including empty — deliberately unchecked here; see
+// sessionSubject's (the type's) doc comment for why.
+func (c *Client) sessionSubject(ctx context.Context, sessionID string) (sessionSubject, error) {
 	var wire struct {
 		Session struct {
 			Factors struct {
 				User struct {
-					ID string `json:"id"`
+					ID             string `json:"id"`
+					OrganizationID string `json:"organizationId"`
 				} `json:"user"`
 			} `json:"factors"`
 		} `json:"session"`
 	}
 	if err := c.do(ctx, http.MethodGet, "/v2/sessions/"+url.PathEscape(sessionID), nil, &wire, ErrUnavailable); err != nil {
-		return "", err
+		return sessionSubject{}, err
 	}
 	if wire.Session.Factors.User.ID == "" {
-		return "", fmt.Errorf("GET /v2/sessions/%s: no factors.user.id in response: %w", sessionID, ErrUnavailable)
+		return sessionSubject{}, fmt.Errorf("GET /v2/sessions/%s: no factors.user.id in response: %w", sessionID, ErrUnavailable)
 	}
-	return wire.Session.Factors.User.ID, nil
+	return sessionSubject{
+		UserID: wire.Session.Factors.User.ID,
+		OrgID:  wire.Session.Factors.User.OrganizationID,
+	}, nil
 }
 
 // enrolledMethodTypes reads GET /v2/users/{id}/authentication_methods,
@@ -631,13 +671,19 @@ func (c *Client) sessionUserID(ctx context.Context, sessionID string) (string, e
 // section is password-change-required, an unrelated and still-OPEN gap
 // tracked as #856. This gap is CLOSED, so it is not in that list at all.)
 //
+// Takes userID rather than a session id: classifyEnrolledMethods already
+// resolves the session to a sessionSubject (this file's sessionSubject
+// method) to learn the org id CompleteIfSufficient needs, so this method
+// no longer needs to make that same GET /v2/sessions/{id} call itself —
+// doing so would be a second, redundant session read per login.
+//
 // This exists to be called from CompleteIfSufficient's and
 // CompleteAfterFactor's fail-closed paths: any error here (transport
-// failure, unreadable body, empty id) must read as "cannot prove the
-// session is sufficient", not "no factor found" — so it always returns a
-// non-nil error alongside a nil slice rather than ever answering an empty
-// list by swallowing a failure. Callers must hand off, not complete, when
-// err != nil.
+// failure, unreadable body) must read as "cannot prove the session is
+// sufficient", not "no factor found" — so it always returns a non-nil
+// error alongside a nil slice rather than ever answering an empty list by
+// swallowing a failure. Callers must hand off, not complete, when err !=
+// nil.
 //
 // There used to be a HasEnrolledFactor wrapper here that only answered
 // "anything besides password?" as a bool. #867 fix round 1 removed it:
@@ -646,11 +692,7 @@ func (c *Client) sessionUserID(ctx context.Context, sessionID string) (string, e
 // had no remaining caller — sufficiency.go's classifyEnrolledMethods reads
 // this method's slice directly instead of going through an intermediate
 // that would have thrown the distinction away.
-func (c *Client) enrolledMethodTypes(ctx context.Context, sessionID string) ([]string, error) {
-	userID, err := c.sessionUserID(ctx, sessionID)
-	if err != nil {
-		return nil, err
-	}
+func (c *Client) enrolledMethodTypes(ctx context.Context, userID string) ([]string, error) {
 	var wire struct {
 		AuthMethodTypes []string `json:"authMethodTypes"`
 	}
@@ -742,7 +784,7 @@ type zitadelError struct {
 }
 
 // requestOptions accumulates per-request settings that do — and only do —
-// applies to the outgoing *http.Request. It exists so a caller can scope a
+// apply to the outgoing *http.Request. It exists so a caller can scope a
 // single call (e.g. x-zitadel-orgid for LoginPolicyForOrg) without do
 // taking a header map, and without a requestOption being able to reach the
 // *http.Request directly — see requestOption's doc comment for why that

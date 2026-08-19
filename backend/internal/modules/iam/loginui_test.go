@@ -112,7 +112,11 @@ func zitadelHappyPath(t *testing.T) *loginclient.Client {
 	// ("happy path": nothing Helivanta cannot handle), so the login still
 	// completes.
 	mux.HandleFunc("GET /v2/sessions/{id}", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"session":{"id":"sess-1","factors":{"user":{"id":"user-1"}}}}`))
+		// organizationId is required from #913 Task 2 on: CompleteIfSufficient
+		// scopes its policy read to this field (loginclient/sufficiency.go),
+		// and an absent value refuses the policy read rather than completing —
+		// omitting it here would turn this "happy path" fixture into a handoff.
+		_, _ = w.Write([]byte(`{"session":{"id":"sess-1","factors":{"user":{"id":"user-1","organizationId":"org-1"}}}}`))
 	})
 	mux.HandleFunc("GET /v2/users/{id}/authentication_methods", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD"]}`))
@@ -690,7 +694,12 @@ func zitadelFactorRequired(t *testing.T, patchSessions, finalizeOutcome http.Han
 	// never the Zitadel SESSION token, so there is no session-token
 	// argument for this fixture to check here.
 	mux.HandleFunc("GET /v2/sessions/{id}", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"session":{"id":"sess-mfa","factors":{"user":{"id":"user-mfa"},"totp":{"verifiedAt":"2026-01-01T00:00:00Z"}}}}`))
+		// organizationId included for the same reason zitadelHappyPath's
+		// carries one (#913 Task 2) — this fixture's TOTP-only enrollment
+		// makes CompleteIfSufficient return before ever reading a policy, so
+		// it is not load-bearing here, but every fake session response in
+		// this package now matches what the real instance actually sends.
+		_, _ = w.Write([]byte(`{"session":{"id":"sess-mfa","factors":{"user":{"id":"user-mfa","organizationId":"org-1"},"totp":{"verifiedAt":"2026-01-01T00:00:00Z"}}}}`))
 	})
 	mux.HandleFunc("GET /v2/users/{id}/authentication_methods", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP"]}`))

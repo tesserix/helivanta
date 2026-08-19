@@ -39,7 +39,7 @@ func countingZitadelWithFactors(t *testing.T, policyJSON, authMethodTypesJSON st
 		case r.URL.Path == "/management/v1/policies/login":
 			w.Write([]byte(policyJSON))
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
-			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"}}}}`))
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"}}}}`))
 		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
 			w.Write([]byte(`{"authMethodTypes":` + authMethodTypesJSON + `}`))
 		case r.Method == http.MethodPost && len(r.URL.Path) > len("/v2/oidc/auth_requests/"):
@@ -169,7 +169,7 @@ func TestCompleteAfterFactor_FinalizesOnlyWhenSessionFactorsReportTOTP(t *testin
 			// satisfy BOTH callers that hit it: sessionUserID (needs only
 			// factors.user.id) and SessionFactors (needs
 			// factors.password/totp). One fixture body does both.
-			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
 		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
 			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP"]}`))
 		case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v2/oidc/auth_requests/"):
@@ -198,7 +198,7 @@ func TestCompleteAfterFactor_HandsOffWhenTOTPNotVerified(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
-			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"},"password":{"verifiedAt":"t"}}}}`))
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"},"password":{"verifiedAt":"t"}}}}`))
 		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
 			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP"]}`))
 		default:
@@ -232,7 +232,7 @@ func TestCompleteAfterFactor_HandsOffWhenSessionFactorsUnreadable(t *testing.T) 
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
 			if sessionGETs.Add(1) == 1 {
-				w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"}}}}`))
+				w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"}}}}`))
 				return
 			}
 			w.WriteHeader(http.StatusInternalServerError)
@@ -275,7 +275,7 @@ func TestCompleteAfterFactor_OtpEmailAlsoEnrolledStillHandsOff(t *testing.T) {
 			// TOTP genuinely verified on the session — if
 			// CompleteAfterFactor looked only at SessionFactors.TOTP, this
 			// fixture alone would finalize.
-			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
 		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
 			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP","AUTHENTICATION_METHOD_TYPE_OTP_EMAIL"]}`))
 		default:
@@ -312,7 +312,7 @@ func TestCompleteAfterFactor_HandsOffWhenEnrolledMethodsUnreadable(t *testing.T)
 			// is what makes that mutation observable rather than the test
 			// passing by accident because SessionFactors also happened to
 			// report no TOTP.
-			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
 		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
 			w.WriteHeader(http.StatusInternalServerError)
 		default:
@@ -345,7 +345,7 @@ func TestCompleteAfterFactor_HandsOffWhenTOTPNoLongerEnrolled(t *testing.T) {
 			// unreadable-enrolled-methods test above for why: it makes
 			// removing the !totpEnrolled guard observable instead of the
 			// test passing by accident.
-			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
 		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
 			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD"]}`))
 		default:
@@ -458,7 +458,7 @@ func TestCompleteIfSufficientHandsOffWhenPolicyUnreadable(t *testing.T) {
 			// exercise — the policy-unreadable branch this test is named
 			// for, rather than failing closed one step earlier for an
 			// unrelated reason.
-			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"}}}}`))
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"}}}}`))
 		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
 			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD"]}`))
 		default:
@@ -549,5 +549,102 @@ func TestCompleteIfSufficientHandsOffWhenEnrolledFactorCheckUnreadable(t *testin
 	}
 	if finalized.Load() {
 		t.Fatal("finalize was called while the enrolled-factor check was unreadable: fails open")
+	}
+}
+
+// TestCompleteIfSufficientHandsOffWhenSessionHasNoOrgID is #913 Task 2's
+// central proof: a session whose factors.user carries no organizationId
+// at all must never reach a completed login. This is the case KNOWN
+// LIMITATIONS §2 (now deleted from CompleteIfSufficient's doc comment)
+// used to warn about — before this task, a missing org id simply meant
+// the unscoped InstanceLoginPolicyForDisplay read ran instead, silently
+// judging this user by whichever org the login client PAT's own resource
+// owner happened to be. Now LoginPolicyForOrg refuses an empty org id
+// BEFORE issuing any HTTP request (spec D2) rather than falling back to
+// an unscoped read, so this test also asserts the policy endpoint is
+// never even hit — not merely that the outcome happens to be a handoff.
+//
+// Verification: mutating sessionSubject to default a missing
+// organizationId to some non-empty value (e.g. the login client's own
+// resource owner, or a hardcoded org id) would make LoginPolicyForOrg
+// stop refusing, the policy endpoint assertion below would fire, and this
+// test would fail — reintroducing #913 for exactly the session shape
+// hardest to notice.
+func TestCompleteIfSufficientHandsOffWhenSessionHasNoOrgID(t *testing.T) {
+	var finalized atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/management/v1/policies/login":
+			t.Fatal("policy endpoint hit with no org id to scope the request: LoginPolicyForOrg must refuse before ever issuing this request (spec D2)")
+		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
+			// No organizationId at all on factors.user — the shape this
+			// test is named for. Password-only enrollment so the flow
+			// reaches the policy-scoping decision rather than failing
+			// closed one step earlier for an unrelated reason.
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1"}}}}`))
+		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
+			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD"]}`))
+		default:
+			finalized.Store(true)
+			w.Write([]byte(`{"callbackUrl":"x"}`))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	c := New(srv.URL, "pat", srv.Client())
+
+	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	if err != nil {
+		t.Fatalf("CompleteIfSufficient() error = %v, want a handoff not an error", err)
+	}
+	if got.Outcome != OutcomeHandoff {
+		t.Errorf("Outcome = %v, want OutcomeHandoff when the session carries no organizationId", got.Outcome)
+	}
+	if finalized.Load() {
+		t.Fatal("finalize was called for a session with no organizationId: this is the #913 bypass")
+	}
+}
+
+// TestCompleteIfSufficientScopesThePolicyReadToTheSessionsOrg is spec D5's
+// unit-level proof that the org id LoginPolicyForOrg puts on the wire is
+// the one the SESSION response reported, not a value this package might
+// otherwise be tempted to hardcode (e.g. the login client's own resource
+// owner, or a constant left over from an earlier draft). orgIDFromSession
+// is deliberately distinctive — nothing else in this file's fixtures uses
+// it — so a hardcoded org id anywhere on this call path makes gotOrgHeader
+// wrong rather than accidentally matching.
+//
+// Verification: mutating CompleteIfSufficient to call
+// c.InstanceLoginPolicyForDisplay(ctx) (the pre-#913-fix unscoped read)
+// instead of c.LoginPolicyForOrg(ctx, subject.OrgID) makes gotOrgHeader
+// empty — InstanceLoginPolicyForDisplay sets no x-zitadel-orgid header at
+// all — and this test fails.
+func TestCompleteIfSufficientScopesThePolicyReadToTheSessionsOrg(t *testing.T) {
+	const orgIDFromSession = "org-289838195028398512-distinctive"
+	var gotOrgHeader string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/management/v1/policies/login":
+			gotOrgHeader = r.Header.Get("x-zitadel-orgid")
+			w.Write([]byte(`{"policy":{"passwordCheckLifetime":"864000s"}}`))
+		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"` + orgIDFromSession + `"}}}}`))
+		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
+			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD"]}`))
+		default:
+			w.Write([]byte(`{"callbackUrl":"http://localhost:4301/api/auth/callback?code=c&state=s"}`))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	c := New(srv.URL, "pat", srv.Client())
+
+	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	if err != nil {
+		t.Fatalf("CompleteIfSufficient() error = %v", err)
+	}
+	if got.Outcome != OutcomeComplete {
+		t.Fatalf("Outcome = %v, want OutcomeComplete", got.Outcome)
+	}
+	if gotOrgHeader != orgIDFromSession {
+		t.Errorf("x-zitadel-orgid = %q, want %q: the policy request must be scoped to the org the SESSION reported, not a hardcoded value", gotOrgHeader, orgIDFromSession)
 	}
 }

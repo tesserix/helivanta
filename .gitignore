@@ -19,3 +19,6 @@ next-env.d.ts
 # scripts/zitadel-bootstrap.mjs provisions from them. Live dev secrets,
 # regenerated per stack, never committed.
 dev/zitadel/secrets/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+graft/

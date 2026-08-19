@@ -806,43 +806,28 @@ func TestIntegration_UserEnrolledFactor_HandsOffInsteadOfCompleting(t *testing.T
 	assertHandsOffWithoutCallback(t, w, "per-user enrolled factor (otp_email)")
 }
 
-// createOrgPath and orgPathPrefix are Zitadel's v1 management-API org
-// endpoints (#913 Task 4). Every other resource this file creates
-// (import user, login policy) uses the SAME /management/v1/... family,
-// so org create/delete/read follow it too rather than mixing in the v2
-// endpoints deleteAndVerifyUser uses for users — that split exists for
-// users because Task 8's own spike work found a SPECIFIC reason
-// (v1's human/_import is the only endpoint that accepts a password at
-// creation time; v2's DELETE /v2/users/{id} was separately confirmed
-// live) to prefer v2 for the delete half. No equivalent reason is known
-// for orgs, so this stays uniformly v1 rather than inventing a second
-// split with no evidence behind it.
+// createOrgPath is Zitadel's v1 org-creation endpoint (#913 Task 4).
+// Confirmed live during this task's fix round 1 (see the #913 Task 4
+// report for the exact run): POST /management/v1/orgs with
+// {"name": ...} returns the new org's id at resp["id"] — the same shape
+// scripts/zitadel-bootstrap.mjs's POST /management/v1/projects (a
+// sibling v1 top-level resource) was already observed to return
+// (`created.id`, scripts/zitadel-bootstrap.mjs:214-215), which is what
+// this shape was originally inferred from before it was confirmed
+// directly against this endpoint.
 //
-// # UNVERIFIED WIRE SHAPE — this is a guess, not an observed fact
-//
-// Nothing else in this repo creates a Zitadel org: this dev stack's ONE
-// org (TESSERIX, the seed PAT's own resource owner) is provisioned by
-// Zitadel itself at first boot (FirstInstance.Org, docker-compose.dev.yml),
-// never by application code — so, unlike every other endpoint this file
-// touches, there is no prior scripts/*.mjs or *_test.go call this borrows
-// its shape from BYTE FOR BYTE. What follows is inferred by PATTERN from
-// a call this repo DOES make and has observed: scripts/zitadel-bootstrap.mjs's
-// `POST /management/v1/projects` (a sibling v1 top-level resource,
-// created the same way) returns its new id as `created.id` — read there
-// (this file's directory listing was checked to confirm that usage
-// exists, not merely remembered) — so `POST /management/v1/orgs` is
-// assumed to follow the SAME response shape: {"id": "..."}. If Zitadel
-// actually nests it (e.g. {"org": {"id": "..."}}) or names it
-// differently ("orgId"), the require.NotEmptyf below fails LOUDLY with
-// the full decoded body, not silently proceeding with an empty orgID
-// that would make every downstream call in this test target "no org"
-// (today's unscoped behaviour) rather than the org this test just tried
-// to create — which would make
-// TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting
-// pass or fail for a reason that has nothing to do with #913.
+// Deletion and the post-delete verification do NOT stay in this v1
+// family — see deleteAndVerifyOrg's own doc comment for what was
+// actually observed there, and why it differs from create's.
+const createOrgPath = "/management/v1/orgs"
+
+// adminOrgDeletePathPrefix and adminOrgSearchPath are Zitadel's INSTANCE
+// admin org-management endpoints (#913 Task 4 fix round 1) —
+// deleteAndVerifyOrg's own doc comment records what was observed on the
+// v1 org-management path that was tried first and does not work.
 const (
-	createOrgPath = "/management/v1/orgs"
-	orgPathPrefix = "/management/v1/orgs/"
+	adminOrgDeletePathPrefix = "/admin/v1/orgs/"
+	adminOrgSearchPath       = "/admin/v1/orgs/_search"
 )
 
 // createOrgWithUser provisions a throwaway second org plus one human user
@@ -860,65 +845,124 @@ const (
 // the order a human operator would use by hand, and the one least likely
 // to leave an orphaned user behind if the org's own delete were to fail
 // partway for an unrelated reason.
+//
+// Fix round 1: t.Cleanup is ALSO now registered before orgID is asserted
+// non-empty, not after. The POST above already creates a REAL org in the
+// shared dev instance the instant it succeeds, regardless of whether the
+// response body then parses the way this code expects — the earlier
+// ordering (assert first, register cleanup second) meant a parse failure
+// called require.NotEmptyf's FailNow before t.Cleanup ever ran, leaking
+// the org with no programmatic handle to find it again. orgName is
+// included in the cleanup's own diagnostic AND in the assertion failure
+// message for the same reason: it is the one identifying string a human
+// would have to find and delete that org by hand if this ever fires.
 func createOrgWithUser(t *testing.T, env integrationEnv, seedToken string) (orgID, loginName string) {
 	t.Helper()
 
 	orgName := fmt.Sprintf("helivanta-task4-second-org-%d", time.Now().UnixNano())
 	resp := managementAPICall(t, env, seedToken, "", http.MethodPost, createOrgPath, map[string]any{"name": orgName})
 	orgID, _ = resp["id"].(string)
+
+	t.Cleanup(func() {
+		if orgID == "" {
+			t.Logf("createOrgWithUser: org id never resolved from the create response — a real org "+
+				"named %q was still created by the POST and cannot be cleaned up programmatically "+
+				"without its id; find and delete it by hand (POST %s with {\"queries\":[]} to find "+
+				"it, DELETE %s<id> to remove it)", orgName, adminOrgSearchPath, adminOrgDeletePathPrefix)
+			return
+		}
+		deleteAndVerifyOrg(t, env, seedToken, orgID)
+	})
 	require.NotEmptyf(t, orgID,
-		"POST %s response carried no \"id\" field — the org-creation wire shape guessed in this "+
-			"helper's doc comment is wrong; inspect this body to find the real field and fix "+
-			"createOrgWithUser before re-running: %v", createOrgPath, resp)
-	t.Cleanup(func() { deleteAndVerifyOrg(t, env, seedToken, orgID) })
+		"POST %s response carried no \"id\" field: %v (org name %q — the only handle available to "+
+			"find and delete the now-orphaned org by hand; see the t.Cleanup registered just above "+
+			"this assertion, which already logged the same thing)", createOrgPath, resp, orgName)
 
 	_, loginName = createImportedUser(t, env, seedToken, orgID)
 	return orgID, loginName
 }
 
-// deleteAndVerifyOrg deletes a throwaway org and reads it back to PROVE
-// the delete took, matching deleteAndVerifyUser's and
+// deleteAndVerifyOrg deletes a throwaway org and confirms its id is gone
+// from the instance's org list, matching deleteAndVerifyUser's and
 // resetOrgLoginPolicy's "verify the restore, never trust the 200"
 // discipline (#913 Task 4).
 //
-// The verify step's exact PASS condition is itself an UNVERIFIED guess:
-// this repo has never observed what GET /management/v1/orgs/{id}
-// returns for a deleted org. Two shapes are plausible from general
-// Zitadel v1 behaviour — a 404 (matching deleteAndVerifyUser's v2
-// observation) or a 200 with the org's state field reporting removal —
-// so this checks for EITHER rather than committing to one guess and
-// risking a false failure on a live run. What it refuses to accept
-// silently is a 200 with a state this code does not recognize as
-// "removed": that path fails loudly with the full body printed, rather
-// than treating an unrecognized 200 as success by default — the same
-// "recognize it or fail closed" posture LoginPolicy's own rename/re-cased
-// guard takes in client.go, applied here to a different unverified shape.
+// OBSERVED live against the dev stack during this task's fix round 1
+// (full detail in the #913 Task 4 report):
+//
+//   - DELETE /management/v1/orgs/{id} — the v1 path every other org call
+//     in this file otherwise uses — does NOT exist: HTTP 404
+//     {"code":5,"message":"Not Found"}. The working call is
+//     DELETE /admin/v1/orgs/{id}: HTTP 200. Org removal lives on
+//     Zitadel's INSTANCE admin surface, not the org-management v1 API
+//     used for policy/user administration inside an org — consistent
+//     with orgs being provisioned/removed at the instance level (the
+//     same reason FirstInstance.Org bootstraps TESSERIX at instance
+//     init, never through an org-scoped call).
+//   - GET /management/v1/orgs/me with x-zitadel-orgid set to the
+//     just-deleted org still answers HTTP 200 with the FULL org body —
+//     no state field, nothing distinguishing it from a live org. A
+//     GET-and-check-state verification (this function's first version)
+//     can therefore never fire either branch it was written to detect;
+//     it was not merely untested, it was WRONG, and was replaced by the
+//     search below after observing this live.
+//   - POST /admin/v1/orgs/_search with body {"queries":[]} DOES reflect
+//     the delete: the deleted org's id is eventually absent from the
+//     returned result[]. Confirmed live by listing after deleting two
+//     throwaway orgs left over from earlier runs of this test by hand —
+//     only the pre-existing Helivanta org (id 386688258337210375)
+//     remained.
+//   - "Eventually" is load-bearing, also confirmed live (#913 Task 4 fix
+//     round 2): the FIRST live run of this test with a single
+//     immediate post-DELETE search failed — the deleted org still came
+//     back with state ORG_STATE_ACTIVE in that one search, then was
+//     genuinely gone moments later when checked by hand. Zitadel's
+//     command (DELETE) and query (_search) sides are separate
+//     projections; the 200 from DELETE only proves the command was
+//     accepted, not that the search projection has caught up yet. This
+//     is the SAME judgment scripts/lib/zitadel.mjs's verifyPasswordLogin
+//     doc comment already makes for a different Zitadel race ("mirrors
+//     the same judgment e2e/tests/support/login.ts's own retry makes")
+//     — a bounded retry absorbs a transient projection lag without
+//     weakening what is actually being proven: a permanently-present org
+//     after every attempt is exhausted still fails loudly below.
+//
+// This is therefore the verification used: search, retrying with a
+// bounded, short-interval poll, until the deleted id is absent from the
+// result set or the attempts run out.
 func deleteAndVerifyOrg(t *testing.T, env integrationEnv, seedToken, orgID string) {
 	t.Helper()
-	managementAPICall(t, env, seedToken, "", http.MethodDelete, orgPathPrefix+orgID, nil)
+	managementAPICall(t, env, seedToken, "", http.MethodDelete, adminOrgDeletePathPrefix+orgID, nil)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, env.issuer+orgPathPrefix+orgID, nil)
-	require.NoError(t, err)
-	req.Header.Set("Authorization", "Bearer "+seedToken)
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		// The deleteAndVerifyUser shape: gone means gone, no body worth
-		// decoding.
-		return
+	const (
+		maxAttempts  = 10
+		pollInterval = 200 * time.Millisecond
+	)
+	var lastSeen map[string]any
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		got := managementAPICall(t, env, seedToken, "", http.MethodPost, adminOrgSearchPath, map[string]any{"queries": []any{}})
+		results, _ := got["result"].([]any)
+		lastSeen = nil
+		for _, raw := range results {
+			org, _ := raw.(map[string]any)
+			if id, _ := org["id"].(string); id == orgID {
+				lastSeen = org
+				break
+			}
+		}
+		if lastSeen == nil {
+			return
+		}
+		if attempt < maxAttempts {
+			time.Sleep(pollInterval)
+		}
 	}
-	var parsed map[string]any
-	_ = json.NewDecoder(resp.Body).Decode(&parsed) // best-effort, for the failure message only
-	org, _ := parsed["org"].(map[string]any)
-	state, _ := org["state"].(string)
-	require.Equalf(t, "ORG_STATE_REMOVED", state,
-		"org %s still readable (HTTP 200, state %q) after DELETE %s — either cleanup did not take, "+
-			"or this helper's guess at the removed-org state name/shape is wrong (see deleteAndVerifyOrg's "+
-			"doc comment): %v", orgID, state, orgPathPrefix+orgID, parsed)
+	require.Failf(t, "org still present after delete",
+		"org %s still appears in POST %s's result[] after DELETE %s%s and %d attempts over ~%v — "+
+			"cleanup did not take (this is past the projection-lag window observed live; see "+
+			"deleteAndVerifyOrg's doc comment): %v",
+		orgID, adminOrgSearchPath, adminOrgDeletePathPrefix, orgID, maxAttempts,
+		time.Duration(maxAttempts)*pollInterval, lastSeen)
 }
 
 // secondOrgPolicyReadFailureContext is prepended to every assertLoginSucceeds
@@ -926,14 +970,22 @@ func deleteAndVerifyOrg(t *testing.T, env integrationEnv, seedToken, orgID strin
 // second half — see that test's own doc comment for why THIS assertion,
 // not the handoff one before it, is what actually proves the org-scoped
 // policy read resolved to a real value rather than an error.
+//
+// #913 Task 4's fix round 1 confirmed live that the login-client PAT CAN
+// read a second org's policy via x-zitadel-orgid (this exact assertion
+// completed with a real callback_url on that run) — so a failure here on
+// a LATER run points at a genuine regression in the scoped read, not at
+// the permission-boundary question this message used to warn was still
+// open.
 const secondOrgPolicyReadFailureContext = "SECOND-ORG LOGIN DID NOT SUCCEED AFTER forceMfa WAS RESET TO false ON " +
 	"THAT ORG. This is design doc D5's load-bearing assertion, not a redundant check: if the login-client " +
-	"PAT is refused when it tries to read another org's policy via x-zitadel-orgid (open question (a) in " +
-	"the #913 Task 4 report), the read errors, CompleteIfSufficient's fail-closed branch hands off " +
-	"REGARDLESS of the actual policy value, and the EARLIER assertHandsOffWithoutCallback call in this same " +
-	"test would have passed for the WRONG reason — proving nothing about #913's fix, only that errors fail " +
-	"closed (which was already true before the fix). A genuinely completed login here is the only thing " +
-	"that proves the scoped read resolved forceMfa's real value instead of merely erroring. "
+	"PAT were ever refused reading ANOTHER org's policy, the read would error, CompleteIfSufficient's " +
+	"fail-closed branch would hand off REGARDLESS of the actual policy value, and the EARLIER " +
+	"assertHandsOffWithoutCallback call in this same test would pass for the WRONG reason — proving " +
+	"nothing about #913's fix, only that errors fail closed (which was already true before the fix). A " +
+	"genuinely completed login here is what proves the scoped read resolved forceMfa's real value instead " +
+	"of merely erroring; this was CONFIRMED live in #913 Task 4's fix round 1 — a failure here now most " +
+	"likely means a regression, not an unresolved permission question. "
 
 // TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting is
 // design doc D5's live proof for #913: every other MFA test in this file
@@ -959,20 +1011,26 @@ const secondOrgPolicyReadFailureContext = "SECOND-ORG LOGIN DID NOT SUCCEED AFTE
 //     forceMfa:false — and completes the password-only session: a real
 //     callback_url for a user whose own org says MFA is mandatory. THAT
 //     is the exact authentication-bypass design doc D5 exists to catch
-//     end to end, not just in a fixture. assertHandsOffWithoutCallback
-//     below is what fails on that unpatched behaviour — a handoff_url
-//     with no callback_url is the ONLY passing shape once #913's fix
+//     end to end, not just in a fixture, and it was reproduced live in
+//     #913 Task 4's fix round 1 by temporarily reverting sufficiency.go's
+//     scoped read to InstanceLoginPolicyForDisplay(ctx): this assertion
+//     failed with a genuine authorization code in callback_url, exactly
+//     as this comment predicts. assertHandsOffWithoutCallback below is
+//     what fails on that unpatched behaviour — a handoff_url with no
+//     callback_url is the ONLY passing shape once #913's fix
 //     (LoginPolicyForOrg scoped by the session's own
-//     factors.user.organizationId) is in place.
+//     factors.user.organizationId) is in place, and that shape WAS
+//     observed on the fixed code in the same run.
 //  4. The org's policy is then reset to forceMfa:false and the SAME user
 //     logs in again — assertLoginSucceeds, with
 //     secondOrgPolicyReadFailureContext explaining exactly what a
-//     failure here would mean (see that const's doc comment, and D5's
-//     own "Two live unknowns" section): without this half, a login-client
-//     PAT that is refused when reading ANOTHER org's policy would still
-//     make step 3 pass — fail-closed, but for the wrong reason, and
-//     silently non-functional for every real second-org user on this
-//     instance.
+//     failure here would mean (see that const's doc comment): without
+//     this half, a login-client PAT that is refused when reading ANOTHER
+//     org's policy would still make step 3 pass — fail-closed, but for
+//     the wrong reason, and silently non-functional for every real
+//     second-org user on this instance. This assertion PASSED live
+//     (real callback_url with code/state) in the same run, which is what
+//     resolves live unknown (a) below.
 //
 // # This test MUTATES a THROWAWAY org's policy, not the shared default org
 //
@@ -988,37 +1046,28 @@ const secondOrgPolicyReadFailureContext = "SECOND-ORG LOGIN DID NOT SUCCEED AFTE
 // job is narrower: leaving one fewer throwaway org behind, not protecting
 // shared instance state.
 //
-// # Two live unknowns this test cannot resolve from this environment
+// # Both of D5's live unknowns are RESOLVED — observed live, #913 Task 4 fix round 1
 //
-// Both are documented in depth on the helpers this test calls
-// (managementAPICall, setOrgLoginPolicy, createImportedUser,
-// createOrgWithUser) and in the #913 Task 4 report (docs
-// .superpowers/sdd/2026-08-20-login-policy-org-scope/task-4-report.md):
-// this test was written and go-vet-verified, but NEVER RUN, because the
-// local dev Zitadel stack could not be started in this environment
-// (Docker was unavailable). Whoever runs this first should watch for:
+// Full detail, including the exact commands and their output, is in the
+// #913 Task 4 report
+// (.superpowers/sdd/2026-08-20-login-policy-org-scope/task-4-report.md).
+// Both were open questions when this test was first written (before
+// Docker could run the local dev stack in that session) and are now
+// answered from a real run against the live dev Zitadel:
 //
-//   - The login-client PAT being refused when it reads the SECOND org's
-//     policy (secondOrgPolicyReadFailureContext explains the exact
-//     failure mode this produces, and why assertion 4 — not 3 — is what
-//     catches it).
-//   - Whether the Helivanta OIDC app's project admits a user from a
-//     second org at all. If Zitadel's project settings require an
-//     explicit org grant before a second-org user can sign in to this
-//     app, this test does NOT provision one — no live call in this repo
-//     has ever exercised the project-grant endpoint, and guessing its
-//     request shape blind (unlike the org-creation guess above, which at
-//     least has a same-family sibling call to pattern-match against)
-//     risks adding a SECOND wrong guess on top of a real unknown rather
-//     than surfacing it clearly. If that is the blocker, it surfaces as
-//     an assertHandsOffWithoutCallback failure with a body that is
-//     neither "handoff_url present" nor a clean password-mismatch shape
-//     — read the printed body, not just the require message, to tell
-//     that apart from an MFA-related failure, and provision the grant
-//     (POST /management/v1/projects/{id}/grants against the Helivanta
-//     project, granting it to secondOrgID — verify the exact body
-//     against Zitadel's own API reference, not this comment) before
-//     re-running.
+//   - (a) The login-client PAT CAN read a second org's policy via
+//     x-zitadel-orgid. Proven by assertion 4 above completing with a
+//     real callback_url: a refusal would have errored into
+//     CompleteIfSufficient's fail-closed branch instead, and this
+//     assertion would have failed with secondOrgPolicyReadFailureContext's
+//     message.
+//   - (b) No project org-grant is required. The second-org user signed
+//     in to the Helivanta app with nothing provisioned beyond
+//     createOrgWithUser's own org+user creation. Design doc D5 says "if
+//     a project org-grant is required, the test provisions it
+//     explicitly" — that was conditional, the condition was observed
+//     false, and provisioning nothing IS this test's answer to D5's
+//     question, not an unaddressed requirement.
 func TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting(t *testing.T) {
 	env := skipUnlessDevStackIsUp(t)
 	seedToken := skipUnlessSeedPATIsAvailable(t)

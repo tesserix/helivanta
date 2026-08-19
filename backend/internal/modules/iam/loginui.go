@@ -301,8 +301,17 @@ func (h *LoginUIHandlers) allowedByLimiter(c *gin.Context, bucket string, rule r
 //     field, so a stale or invented value here cannot weaken it.
 //   - RequireMFA IS read from LoginPolicy.ForceMFA — the one field the
 //     enforcer (loginclient.CompleteIfSufficient / CompleteAfterFactor)
-//     actually consults, so this is the one field where "what renders"
-//     and "what is enforced" are structurally the same read.
+//     actually consults. It is NOT, however, the same READ: this handler
+//     has no authenticated user yet, so it fetches the policy unscoped
+//     via InstanceLoginPolicyForDisplay (loginclient/client.go), which
+//     resolves against the login-client PAT's own resource owner, not
+//     any particular org. The enforcer scopes its own read to the
+//     authenticating user's org via LoginPolicyForOrg once a session
+//     exists (design spec D1/D2/D3,
+//     docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md).
+//     On a multi-org instance the two reads can disagree — this value is
+//     advisory only, a hint for what the form renders before anything is
+//     known, and enforces nothing.
 //
 // requireMfaLocalOnly has NO field here at all, deliberately — see spec
 // D5: LoginPolicy already folds it into ForceMFA
@@ -339,17 +348,27 @@ type authRequestResponse struct {
 // call is what tells the form whether the id it was given even makes
 // sense.
 //
-// It also reads the org's login policy (#867, spec D5) so the form can
-// decide up front whether to advertise an MFA step, without that
-// decision ever being the thing that actually enforces one —
+// It also reads A login policy (#867, spec D5) so the form can decide up
+// front whether to advertise an MFA step, without that decision ever
+// being the thing that actually enforces one —
 // loginclient.CompleteIfSufficient / CompleteAfterFactor remain the only
-// enforcers, unchanged by this read. An unreadable policy fails the same
-// way an unreadable policy fails everywhere else in this file
-// (respondLoginClientError, ErrUnavailable → 503): there is no safe
-// default to render when Helivanta cannot tell whether MFA is required,
-// and a form that rendered "MFA not required" on a read failure would be
-// exactly the fail-OPEN spec D4 exists to prevent, just moved one call
-// earlier.
+// enforcers, unchanged by this read. That read is deliberately UNSCOPED
+// (InstanceLoginPolicyForDisplay, not LoginPolicyForOrg): no login name
+// has been typed yet at this point in the flow, so there is no
+// authenticated user and therefore no org to scope the read to — not an
+// omission, there is no correct value to pass here (design spec D3,
+// docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md).
+// On a multi-org instance this means the hint this endpoint renders CAN
+// be wrong: it may tell the form "no MFA" for a login name that, once
+// typed, turns out to belong to an org that forces it. That is a
+// cosmetic wrong hint, not a bypass — enforcement never depends on it.
+// An unreadable policy still fails the same way an unreadable policy
+// fails everywhere else in this file (respondLoginClientError,
+// ErrUnavailable → 503): there is no safe default to render when
+// Helivanta cannot tell whether MFA is required, and a form that
+// rendered "MFA not required" on a read failure would be exactly the
+// fail-OPEN spec D4 (2026-08-16 login-client design) exists to prevent,
+// just moved one call earlier.
 //
 // It DOES take a rate-limit budget (spec D2): every call makes an
 // unauthenticated Zitadel round trip on the instance-level login-client

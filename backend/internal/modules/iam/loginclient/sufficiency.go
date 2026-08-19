@@ -284,7 +284,7 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 		// error text is safe to log: this package never puts a credential,
 		// a session token or Zitadel's raw error body into one (see
 		// readZitadelErrorID).
-		slog.WarnContext(ctx, "login policy unreadable: handing off rather than completing the login (spec D4 fails closed)",
+		slog.WarnContext(ctx, "login policy unreadable: handing off rather than completing the login (login-client design spec D4 fails closed, docs/superpowers/specs/2026-08-16-hms-login-client-design.md)",
 			"err", err)
 		return Result{Outcome: OutcomeHandoff}, nil
 	}

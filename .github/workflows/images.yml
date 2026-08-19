@@ -91,6 +91,19 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=sha,prefix={{branch}}-,enable=${{ github.event_name != 'pull_request' }}
+            # The FULL 40-char sha, additionally (#824 Task 8). Kargo's prod
+            # Stage derives image.tag from `commitFrom(...).ID`, which is the
+            # whole commit id — so an image must be reachable under exactly
+            # that string. The `main-<sha7>` tag above stays: it is what the
+            # charts pin today and what a human reads in a rollout. This adds
+            # a second name for the same digest rather than renaming anything.
+            #
+            # The alternative was truncating the id inside a Kargo expression
+            # to rebuild `main-<sha7>`. Rejected: it puts a string operation
+            # between "the commit Kargo promoted" and "the image that runs",
+            # and a mismatch there surfaces as an ImagePullBackOff with no
+            # indication which of the two is wrong.
+            type=sha,format=long,enable=${{ github.event_name != 'pull_request' }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.title=helivanta-api
@@ -284,6 +297,19 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=sha,prefix={{branch}}-,enable=${{ github.event_name != 'pull_request' }}
+            # The FULL 40-char sha, additionally (#824 Task 8). Kargo's prod
+            # Stage derives image.tag from `commitFrom(...).ID`, which is the
+            # whole commit id — so an image must be reachable under exactly
+            # that string. The `main-<sha7>` tag above stays: it is what the
+            # charts pin today and what a human reads in a rollout. This adds
+            # a second name for the same digest rather than renaming anything.
+            #
+            # The alternative was truncating the id inside a Kargo expression
+            # to rebuild `main-<sha7>`. Rejected: it puts a string operation
+            # between "the commit Kargo promoted" and "the image that runs",
+            # and a mismatch there surfaces as an ImagePullBackOff with no
+            # indication which of the two is wrong.
+            type=sha,format=long,enable=${{ github.event_name != 'pull_request' }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.title=helivanta-shell
@@ -414,3 +440,57 @@ jobs:
           else
             echo "**Docker Image:** Built successfully (not pushed)" >> "$GITHUB_STEP_SUMMARY"
           fi
+
+  # ===========================================================================
+  # advance-deploy — the branch Kargo watches (#824 Task 8)
+  # ===========================================================================
+  #
+  # Fast-forwards `deploy` to the commit whose images have just been published.
+  # Kargo's Warehouse subscribes to THIS branch, never to `main`.
+  #
+  # Why not `main`. Kargo would create Freight the moment a commit lands, which
+  # is before the images for it exist. The Stage then writes that tag onto the
+  # Applications, the pods try to pull it, and the GAR pull-through mirror
+  # NEGATIVE-CACHES the resulting 404 — an ImagePullBackOff that does not
+  # recover when the image later appears, because the mirror keeps serving the
+  # cached miss. Kora's warehouse records this as a real incident, not a
+  # theoretical one (tesserix/kora#161), and DevAI hit the neighbouring
+  # tag-discovery version of it on 2026-06-09.
+  #
+  # `needs` both build jobs and the default `success()` condition together are
+  # what make the branch mean "every image for this commit is pullable". If
+  # either build fails, `deploy` simply does not move: the previous commit stays
+  # promotable and production keeps running what it was running. That is the
+  # correct direction — a failed build should stall a rollout, never advance one.
+  #
+  # HomeChef needs a separate `ensure-image-tags` workflow to carry unchanged
+  # images forward before advancing its own `deploy`, because it path-filters
+  # its builds. This workflow deliberately does not path-filter (see the file
+  # header), so every commit rebuilds every image and there is nothing to carry
+  # forward — the whole class of "deploy advanced past an image that was never
+  # rebuilt" does not exist here.
+  advance-deploy:
+    name: Advance deploy branch
+    runs-on: ubuntu-latest
+    needs: [build-helivanta-api, build-helivanta-shell]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward deploy to this commit
+        run: |
+          set -euo pipefail
+          # --force-with-lease is deliberately NOT used, and neither is a plain
+          # force. `deploy` is only ever moved by this job, always to a commit
+          # that is already an ancestor-or-descendant on main, so a fast-forward
+          # push is the honest operation: if it is ever REJECTED, `deploy` has
+          # diverged from main by some route nobody intended, and the right
+          # answer is a failed job somebody reads — not a force that overwrites
+          # whatever that was.
+          git push origin "${GITHUB_SHA}:refs/heads/deploy"
+          echo "deploy -> ${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"

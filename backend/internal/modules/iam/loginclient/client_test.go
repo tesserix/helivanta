@@ -101,9 +101,9 @@ func TestLoginPolicyReportsForceMFA(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfa":true}}`))
 	})
-	p, err := c.LoginPolicy(context.Background())
+	p, err := c.LoginPolicyForOrg(context.Background(), "org-fixture")
 	if err != nil {
-		t.Fatalf("LoginPolicy() error = %v", err)
+		t.Fatalf("LoginPolicyForOrg() error = %v", err)
 	}
 	if !p.ForceMFA {
 		t.Error("ForceMFA = false, want true")
@@ -115,8 +115,8 @@ func TestLoginPolicyErrorsRatherThanReportingNoMFA(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
-	if _, err := c.LoginPolicy(context.Background()); err == nil {
-		t.Fatal("LoginPolicy() error = nil, want an error so the caller can fail closed")
+	if _, err := c.LoginPolicyForOrg(context.Background(), "org-fixture"); err == nil {
+		t.Fatal("LoginPolicyForOrg() error = nil, want an error so the caller can fail closed")
 	}
 }
 
@@ -144,9 +144,9 @@ func TestLoginPolicyRejectsBodiesItCannotUnderstand(t *testing.T) {
 			c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 				w.Write([]byte(body))
 			})
-			got, err := c.LoginPolicy(context.Background())
+			got, err := c.LoginPolicyForOrg(context.Background(), "org-fixture")
 			if err == nil {
-				t.Fatalf("LoginPolicy() = %+v, error = nil; a body without a recognizable policy object must not read as MFA off", got)
+				t.Fatalf("LoginPolicyForOrg() = %+v, error = nil; a body without a recognizable policy object must not read as MFA off", got)
 			}
 			if !errors.Is(err, ErrUnavailable) {
 				t.Errorf("error = %v, want ErrUnavailable so it reaches the same fail-closed branch as an unreachable Zitadel", err)
@@ -162,9 +162,9 @@ func TestLoginPolicyAcceptsAnExplicitFalse(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfa":false}}`))
 	})
-	p, err := c.LoginPolicy(context.Background())
+	p, err := c.LoginPolicyForOrg(context.Background(), "org-fixture")
 	if err != nil {
-		t.Fatalf("LoginPolicy() error = %v, want an explicit false to be accepted", err)
+		t.Fatalf("LoginPolicyForOrg() error = %v, want an explicit false to be accepted", err)
 	}
 	if p.ForceMFA {
 		t.Error("ForceMFA = true, want false")
@@ -183,9 +183,9 @@ func TestLoginPolicyTreatsAbsentForceMFAAsFalseWhenPolicyIsRecognizable(t *testi
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"policy":{"allowUsernamePassword":true,"allowRegister":true,"isDefault":true,` + policyAnchor + `}}`))
 	})
-	p, err := c.LoginPolicy(context.Background())
+	p, err := c.LoginPolicyForOrg(context.Background(), "org-fixture")
 	if err != nil {
-		t.Fatalf("LoginPolicy() error = %v, want an absent-but-recognizable forceMfa to be accepted as false", err)
+		t.Fatalf("LoginPolicyForOrg() error = %v, want an absent-but-recognizable forceMfa to be accepted as false", err)
 	}
 	if p.ForceMFA {
 		t.Error("ForceMFA = true, want false")
@@ -215,9 +215,9 @@ func TestLoginPolicyRejectsARenamedOrRecasedForceMFA(t *testing.T) {
 			c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 				w.Write([]byte(body))
 			})
-			got, err := c.LoginPolicy(context.Background())
+			got, err := c.LoginPolicyForOrg(context.Background(), "org-fixture")
 			if err == nil {
-				t.Fatalf("LoginPolicy() = %+v, error = nil; a renamed/re-cased/retyped forceMfa must not read as MFA off", got)
+				t.Fatalf("LoginPolicyForOrg() = %+v, error = nil; a renamed/re-cased/retyped forceMfa must not read as MFA off", got)
 			}
 			if !errors.Is(err, ErrUnavailable) {
 				t.Errorf("error = %v, want ErrUnavailable so it reaches the same fail-closed branch as an unreachable Zitadel", err)
@@ -245,9 +245,9 @@ func TestLoginPolicyTreatsForceMFALocalOnlyAsRequiringMFA(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfaLocalOnly":true}}`))
 	})
-	p, err := c.LoginPolicy(context.Background())
+	p, err := c.LoginPolicyForOrg(context.Background(), "org-fixture")
 	if err != nil {
-		t.Fatalf("LoginPolicy() error = %v, want forceMfaLocalOnly to be read, not refused", err)
+		t.Fatalf("LoginPolicyForOrg() error = %v, want forceMfaLocalOnly to be read, not refused", err)
 	}
 	if !p.ForceMFA {
 		t.Error("ForceMFA = false, want true: forceMfaLocalOnly:true must require MFA")
@@ -286,9 +286,9 @@ func TestLoginPolicyReadsEveryKeyInMFAPolicyKeys(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfaHypothetical":true}}`))
 	})
-	p, err := c.LoginPolicy(context.Background())
+	p, err := c.LoginPolicyForOrg(context.Background(), "org-fixture")
 	if err != nil {
-		t.Fatalf("LoginPolicy() error = %v, want the newly registered key to be read, not refused", err)
+		t.Fatalf("LoginPolicyForOrg() error = %v, want the newly registered key to be read, not refused", err)
 	}
 	if !p.ForceMFA {
 		t.Error("ForceMFA = false, want true: a key registered in mfaPolicyKeys must be READ into ForceMFA, " +
@@ -309,9 +309,9 @@ func TestLoginPolicyForceMFAAndForceMFALocalOnlyDoNotFalsePositiveOnEachOther(t 
 		c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfaLocalOnly":false}}`))
 		})
-		p, err := c.LoginPolicy(context.Background())
+		p, err := c.LoginPolicyForOrg(context.Background(), "org-fixture")
 		if err != nil {
-			t.Fatalf("LoginPolicy() error = %v, want a lone forceMfaLocalOnly:false to be accepted", err)
+			t.Fatalf("LoginPolicyForOrg() error = %v, want a lone forceMfaLocalOnly:false to be accepted", err)
 		}
 		if p.ForceMFA {
 			t.Error("ForceMFA = true, want false")
@@ -321,9 +321,9 @@ func TestLoginPolicyForceMFAAndForceMFALocalOnlyDoNotFalsePositiveOnEachOther(t 
 		c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfa":false}}`))
 		})
-		p, err := c.LoginPolicy(context.Background())
+		p, err := c.LoginPolicyForOrg(context.Background(), "org-fixture")
 		if err != nil {
-			t.Fatalf("LoginPolicy() error = %v, want a lone forceMfa:false to be accepted", err)
+			t.Fatalf("LoginPolicyForOrg() error = %v, want a lone forceMfa:false to be accepted", err)
 		}
 		if p.ForceMFA {
 			t.Error("ForceMFA = true, want false")
@@ -348,14 +348,95 @@ func TestLoginPolicyRejectsARenamedOrRecasedForceMFALocalOnly(t *testing.T) {
 			c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 				w.Write([]byte(body))
 			})
-			got, err := c.LoginPolicy(context.Background())
+			got, err := c.LoginPolicyForOrg(context.Background(), "org-fixture")
 			if err == nil {
-				t.Fatalf("LoginPolicy() = %+v, error = nil; a renamed/re-cased/retyped forceMfaLocalOnly must not read as MFA off", got)
+				t.Fatalf("LoginPolicyForOrg() = %+v, error = nil; a renamed/re-cased/retyped forceMfaLocalOnly must not read as MFA off", got)
 			}
 			if !errors.Is(err, ErrUnavailable) {
 				t.Errorf("error = %v, want ErrUnavailable so it reaches the same fail-closed branch as an unreachable Zitadel", err)
 			}
 		})
+	}
+}
+
+// TestLoginPolicyForOrgSetsOrgHeaderOnTheWire is the wire-level half of
+// spec D4/D2: LoginPolicyForOrg must put the exact x-zitadel-orgid header
+// Zitadel expects on the actual outgoing request, not merely accept an
+// orgID parameter and do nothing with it. Asserted by the fake server
+// reading r.Header.Get, not by inspecting the client — a client-side
+// assertion could pass against an implementation that recorded the org id
+// somewhere but never attached it to the request Zitadel actually
+// receives.
+//
+// Verification: mutating withOrgID to set no header makes this test fail
+// (confirmed, then reverted — see this task's report).
+func TestLoginPolicyForOrgSetsOrgHeaderOnTheWire(t *testing.T) {
+	var gotOrgHeader string
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		gotOrgHeader = r.Header.Get("x-zitadel-orgid")
+		w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfa":true}}`))
+	})
+	p, err := c.LoginPolicyForOrg(context.Background(), "289838195028398512")
+	if err != nil {
+		t.Fatalf("LoginPolicyForOrg() error = %v", err)
+	}
+	if !p.ForceMFA {
+		t.Error("ForceMFA = false, want true")
+	}
+	if gotOrgHeader != "289838195028398512" {
+		t.Errorf("x-zitadel-orgid header = %q, want %q", gotOrgHeader, "289838195028398512")
+	}
+}
+
+// TestLoginPolicyForOrgEmptyOrgIDRefusesBeforeAnyRequest pins spec D2: an
+// empty org id must not fall back to an unscoped read — the exact bug
+// #913 exists to close. It is not enough for the call to merely return an
+// error; an implementation that made the unscoped request anyway and then
+// failed for an unrelated reason would also satisfy "returns an error",
+// so this test additionally asserts the fake server's handler was never
+// invoked at all, via a counter that must stay at zero.
+//
+// Verification: mutating the empty-org guard in LoginPolicyForOrg to fall
+// through to loginPolicy makes this test fail on the invocation-count
+// assertion (confirmed, then reverted — see this task's report).
+func TestLoginPolicyForOrgEmptyOrgIDRefusesBeforeAnyRequest(t *testing.T) {
+	invocations := 0
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		invocations++
+		w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfa":false}}`))
+	})
+	_, err := c.LoginPolicyForOrg(context.Background(), "")
+	if err == nil {
+		t.Fatal("LoginPolicyForOrg(ctx, \"\") error = nil, want an error")
+	}
+	if !errors.Is(err, ErrUnavailable) {
+		t.Errorf("error = %v, want ErrUnavailable so it reaches the same fail-closed branch as an unreadable policy", err)
+	}
+	if invocations != 0 {
+		t.Errorf("fake Zitadel invoked %d times, want 0: an empty org id must refuse before any HTTP call is made", invocations)
+	}
+}
+
+// TestInstanceLoginPolicyForDisplaySendsNoOrgHeader pins the other half of
+// D3: the display-only read (loginui.go's AuthRequest handler, called
+// before a login name — and therefore an org — is known) must send NO
+// x-zitadel-orgid header at all, not an empty one. r.Header.Values
+// distinguishes "header absent" from "header present with an empty
+// value" the way r.Header.Get alone cannot (Get("x-zitadel-orgid") on an
+// absent header and on one explicitly set to "" both return ""), which is
+// exactly the distinction this test needs to prove do's opts loop is
+// skipped entirely rather than run with a zero-value requestOptions.
+func TestInstanceLoginPolicyForDisplaySendsNoOrgHeader(t *testing.T) {
+	var gotValues []string
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		gotValues = r.Header.Values("x-zitadel-orgid")
+		w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfa":false}}`))
+	})
+	if _, err := c.InstanceLoginPolicyForDisplay(context.Background()); err != nil {
+		t.Fatalf("InstanceLoginPolicyForDisplay() error = %v", err)
+	}
+	if len(gotValues) != 0 {
+		t.Errorf("x-zitadel-orgid header values = %v, want absent entirely", gotValues)
 	}
 }
 

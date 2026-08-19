@@ -569,7 +569,7 @@ This configmap is **fleet-wide**. After the change, confirm `tesserix.app` and
 `mark8ly.com` **still resolve and still serve**, not merely that
 `helivanta.app` does. A regression here affects other products.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ---
 
@@ -579,24 +579,59 @@ This configmap is **fleet-wide**. After the change, confirm `tesserix.app` and
 - Create: Kargo `Warehouse` + `Stage` for helivanta (follow `kargo-manifests`)
 - Modify: `argocd/prod/apps/helivanta-app-of-apps.yaml` if needed
 
-- [ ] **Step 1: Promote from the git commit graph, not tag discovery**
+- [x] **Step 1: Promote from the git commit graph, not tag discovery** — DONE 2026-08-19
 
 HomeChef records why: Artifact Registry paginates tag lists at 100, so
 `NewestBuild` promoted a stale page and **flapped production backwards**. Use
 the `deploy`-branch model.
 
-- [ ] **Step 2: Confirm `ignoreDifferences` is already in place**
+- [x] **Step 2: Confirm `ignoreDifferences` is already in place** — CONFIRMED, it was
 
 The app-of-apps carries it on `/spec/source/helm/parameters` (added in slice
 1a). Without it, Kargo's writes and git fight, and a stale `image.tag` becomes
 unremovable — dwellm8's recorded failure.
 
-- [ ] **Step 3: Prove a promotion moves the running digest**
+- [x] **Step 3: Prove a promotion moves the running digest** — PROVEN 2026-08-19
 
-Merge a trivial change, watch the tag advance, and confirm the **running pod's
-image digest** changed. A `Synced` Application is not evidence.
+Merged #909 (a docs fix), then followed it the whole way with no hand-editing:
 
-- [ ] **Step 4: Commit**
+| | tag | digest |
+|---|---|---|
+| before | `main-8d52639` | `sha256:6a95303c…43617` |
+| after  | `b162aa48…`     | `sha256:7574408e…08618` |
+
+The chain, each link observed rather than assumed: images published for
+`b162aa4` → `advance-deploy` fast-forwarded `deploy` to it → the Warehouse
+created Freight `bdc90d4` → Promotion `prod.01m0d64scbz684hxj0yg4448cs.bdc90d4`
+reported `Succeeded` → Kargo wrote
+`image.tag=b162aa4838be8ce4a7c4835c16adfffa495c24a4` onto BOTH Applications →
+pods rolled → **the digest changed**. Migrate Job succeeded on the new image,
+both Applications `Synced`/`Healthy`, `helivanta.app/login` still 200.
+
+Task 8 spanned THREE repos, not the one the plan lists:
+tesserix/helivanta#906 (the `deploy` branch and full-sha tag),
+tesserix/tesserix-k8s#495 (`authorized-stage`), and
+tesserix/kargo-manifests#16 (Project, Warehouse, Stage) — Kargo projects live
+in `kargo-manifests`, discovered by an ApplicationSet from `projects/*`.
+
+TWO defects were caught during the rollout, both by reading live objects rather
+than trusting green checks:
+
+1. **The full-sha tag published as `sha-<40>`, not `<40>`.** `docker/metadata-
+   action`'s `type=sha` defaults to `prefix=sha-`, while the Stage names the
+   bare id from `commitFrom(...).ID`. The tag it named would not have existed,
+   the pod would have pulled a 404, and the GAR mirror would have negative-
+   cached it into an ImagePullBackOff that does not recover — the exact failure
+   #906's comments were written to prevent. #906 was fully green and shipped
+   it; fixed in #908. Green CI said the workflow ran, not that it produced the
+   name something else depends on.
+2. **The first Promotion errored** with "Application helivanta-api is not
+   authorized", because the app-of-apps was still `Synced` at a revision
+   predating #495. `Synced` was true about a revision, not about the change —
+   the third time that shape appeared this session. Kargo does not retry a
+   terminal Promotion; the next commit produced fresh Freight and it succeeded.
+
+- [x] **Step 4: Commit**
 
 ---
 
@@ -682,7 +717,7 @@ entirely.
 This is what #870 fixed in code and what has never been confirmed against a
 running pod.
 
-- [ ] **Step 5: Record the result in the spec and close #824**
+- [x] **Step 5: Record the result in the spec and close #824**
 
 ---
 

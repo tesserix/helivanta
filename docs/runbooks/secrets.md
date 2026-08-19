@@ -163,6 +163,50 @@ field name in `helivanta-postgres`, and the one in the `{"password":"..."}`
 example below — is **wrong for these two**; it belongs to that other chart. As
 with a wrong path, nothing fails at write time.
 
+**The console stores the key name verbatim, so type it exactly.** Whatever you
+enter as the key when writing a version becomes the payload field name; the
+console neither normalises the case nor checks it against any chart. Entering
+the env-var spelling `SESSION_SIGNING_KEY` — the natural instinct, since that is
+what the value ends up as in the pod — produces a payload ESO cannot select with
+`property: session_signing_key`. Observed on 2026-08-18: the first write landed
+as `SESSION_SIGNING_KEY` and needed two further versions to correct.
+
+Lowercase is the convention that works here, and `helivanta-postgres` is the
+precedent: its payloads carry `password`, matching its chart's
+`property: password`, and its three ExternalSecrets are `SecretSynced`.
+
+This particular mistake at least fails **loudly** — with `property` set and no
+matching field, ESO reports key-not-found and the ExternalSecret never reaches
+`SecretSynced`. The silent variant is *omitting* `property`, which projects the
+whole payload instead. Do not rely on the loud one: nothing in the console
+prevents the quiet variants, and the pod is where you would find out.
+
+**Verify after writing, before deploying.** The grant itself is the cheapest way
+to check, and it never exposes the value — log in as the app's own role and ask
+for metadata and field names only:
+
+```bash
+K=gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke
+kubectl --context $K create token helivanta-api -n helivanta --duration=10m \
+| kubectl --context $K -n openbao exec -i openbao-0 -- sh -c '
+read -r JWT
+export BAO_TOKEN=$(bao write -field=token auth/kubernetes/login \
+  role=app-helivanta_helivanta-api jwt="$JWT")
+bao kv list -mount=kv helivanta/helivanta-api/
+bao kv metadata get -mount=kv helivanta/helivanta-api/session-signing-key'
+```
+
+`custom_metadata` reports the key name, so a wrong one is visible without
+reading anything. The same login doubles as proof the grant works for this
+path — D7 assertion (1), previously demonstrated only on the Postgres paths.
+
+For `session-signing-key` the format is also worth confirming, since
+`backend/internal/config/signingkey.go` refuses boot on a wrong length and a
+crash-looping pod against production is an expensive place to learn that. Pipe
+the field through `wc -c` rather than printing it: the encoded value must be 44
+characters and must `base64 -d` to exactly 32 bytes. Verified good on
+2026-08-18.
+
 Two of D7's three assertions were proven during #824 slice 1a, using the
 Postgres role passwords rather than these boot secrets:
 

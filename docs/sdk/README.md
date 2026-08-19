@@ -1,5 +1,17 @@
 # Helivanta Platform SDK — Documentation
 
+> **Read [ADR-0004](../adr/0004-hms-owns-its-platform-packages.md) first
+> (Accepted 2026-08-13).** These documents describe a separately-published SDK
+> — two monorepos, GitHub Packages, `create-helivanta-service` scaffolds. That
+> is not what was built and not what is planned. Helivanta owns its platform
+> packages in `backend/pkg/`; `backend/go.mod` has no `go-shared` requirement;
+> the scaffold is `make new-module NAME=<name>`.
+>
+> ADR-0004 names this cohort directly: *"Where an issue says `[Go SDK]`, read
+> `backend/pkg/`; where it says 'service repo', read 'module'."* The design
+> reasoning in these documents still holds — the distribution model does not.
+
+
 The Helivanta platform ships ~9 backend services (Go) and ~6 web portals (React/Next.js) that must all behave identically on the concerns that cannot be allowed to diverge: **tenant/data isolation, security, privacy (PHI/DPDP), observability, and reliability**. The SDK is where those concerns are solved once, tested once, and consumed everywhere.
 
 | Document                           | Contents                                                                                                                                        |

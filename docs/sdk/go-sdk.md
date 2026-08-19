@@ -1,5 +1,17 @@
 # Backend Go SDK (`helivanta-go-sdk`)
 
+> **Read [ADR-0004](../adr/0004-hms-owns-its-platform-packages.md) first
+> (Accepted 2026-08-13).** These documents describe a separately-published SDK
+> — two monorepos, GitHub Packages, `create-helivanta-service` scaffolds. That
+> is not what was built and not what is planned. Helivanta owns its platform
+> packages in `backend/pkg/`; `backend/go.mod` has no `go-shared` requirement;
+> the scaffold is `make new-module NAME=<name>`.
+>
+> ADR-0004 names this cohort directly: *"Where an issue says `[Go SDK]`, read
+> `backend/pkg/`; where it says 'service repo', read 'module'."* The design
+> reasoning in these documents still holds — the distribution model does not.
+
+
 Module: `github.com/tesserix/helivanta-go-sdk` (single module; see architecture §4.2). Evolves from `go-shared`.
 Target: Go 1.26+, consumed by every backend service via pinned versions.
 

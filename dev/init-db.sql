@@ -33,10 +33,15 @@ CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;
 CREATE ROLE helivanta_system LOGIN PASSWORD 'helivanta_system' NOSUPERUSER BYPASSRLS;
 
 GRANT USAGE ON SCHEMA public TO hms_app, helivanta_system;
--- BYPASSRLS decides whether the row POLICIES apply; it grants no table
--- privileges of its own. Without these grants the system pool connects
--- fine and then fails every statement with "permission denied for table".
+-- helivanta_system gets NO blanket table grant here, deliberately.
+--
+-- BYPASSRLS confers no table privileges of its own, so the role does need
+-- explicit GRANTs — but they belong in the MIGRATIONS, per table, beside
+-- the table they concern (see iam 0005 and events 0004). Granting them
+-- here would give a dev database privileges production does not have,
+-- which is the shape of #894 itself: an environment more permissive than
+-- production keeps working while production fails.
 ALTER DEFAULT PRIVILEGES FOR ROLE helivanta IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hms_app, helivanta_system;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hms_app;
 ALTER DEFAULT PRIVILEGES FOR ROLE helivanta IN SCHEMA public
-  GRANT USAGE, SELECT ON SEQUENCES TO hms_app, helivanta_system;
+  GRANT USAGE, SELECT ON SEQUENCES TO hms_app;

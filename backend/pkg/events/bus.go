@@ -154,6 +154,32 @@ func Migrations() []tenantdb.Migration {
 			  USING (hms_tenant_visible(tenant_id))
 			  WITH CHECK (tenant_id IS NULL
 			              OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);`,
+	}, {
+		// #894. drainOnce and Prune are the only cross-tenant callers here,
+		// and each privilege below is one of them needing it — nothing is
+		// granted speculatively:
+		//
+		//   outbox_events    SELECT ... FOR UPDATE and UPDATE (drainOnce
+		//                    marks rows published), DELETE (Prune).
+		//   processed_events SELECT and DELETE (Prune). SELECT is not
+		//                    optional despite Prune only deleting: Postgres
+		//                    requires SELECT on any column named in a
+		//                    DELETE's WHERE clause, and Prune's is
+		//                    `processed_at < $1`.
+		//
+		// BYPASSRLS confers no table privileges of its own, so without this
+		// the system pool connects and then fails every statement with
+		// "permission denied for table" — the drainer would stop
+		// platform-wide, which is the same outcome #894 already produced by
+		// a different route.
+		//
+		// Explicit per table rather than ALL TABLES: this role bypasses
+		// tenant isolation entirely, so its table list is the only bound
+		// left on what it can reach.
+		ID: "0004_events_system_grants",
+		SQL: `
+			GRANT SELECT, UPDATE, DELETE ON outbox_events TO helivanta_system;
+			GRANT SELECT, DELETE ON processed_events TO helivanta_system;`,
 	}}
 }
 

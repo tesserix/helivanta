@@ -31,7 +31,13 @@ var testMigrations = []tenantdb.Migration{{
 		CREATE POLICY tenant_isolation ON widgets
 		  USING (hms_tenant_visible(tenant_id))
 		  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
-		CREATE INDEX ON widgets (tenant_id, created_at DESC);`,
+		CREATE INDEX ON widgets (tenant_id, created_at DESC);
+		-- BYPASSRLS confers no table privileges, and the harness grants the
+		-- system role none, so every fixture that a cross-tenant reader will
+		-- touch must grant it explicitly — exactly as the real migrations do
+		-- (#894). A fixture that omits this fails with "permission denied",
+		-- which is the same error production would give.
+		GRANT SELECT, INSERT, UPDATE, DELETE ON widgets TO helivanta_system;`,
 }}
 
 type widget struct {

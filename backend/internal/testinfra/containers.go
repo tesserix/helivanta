@@ -143,7 +143,7 @@ func sharedPostgres(t *testing.T) (host, port string) {
 		if err := runSQL(ctx, "hms", `
 			CREATE ROLE hms_owner LOGIN PASSWORD 'hms_owner' NOSUPERUSER NOBYPASSRLS;
 			CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;
-			CREATE ROLE hms_system LOGIN PASSWORD 'hms_system' NOSUPERUSER BYPASSRLS;
+			CREATE ROLE helivanta_system LOGIN PASSWORD 'helivanta_system' NOSUPERUSER BYPASSRLS;
 			GRANT hms_owner TO hms;`); err != nil {
 			pgErr = fmt.Errorf("create roles: %w", err)
 			return
@@ -176,7 +176,7 @@ func sharedPostgres(t *testing.T) (host, port string) {
 //   - hms_owner  — owns the schema. NOSUPERUSER, NOBYPASSRLS, so FORCE ROW
 //     LEVEL SECURITY binds it exactly as it binds CNPG's `helivanta`.
 //   - hms_app    — the non-BYPASSRLS role the application connects as.
-//   - hms_system — BYPASSRLS, the only role that may cross tenants.
+//   - helivanta_system — BYPASSRLS, the only role that may cross tenants.
 //
 // All three are returned unconditionally so a test cannot accidentally
 // exercise a two-pool shape production never runs. The previous signature
@@ -190,7 +190,7 @@ func StartPostgres(t *testing.T) (string, string, string) {
 	dsn := func(user, pass string) string {
 		return "postgres://" + user + ":" + pass + "@" + host + ":" + port + "/" + name + "?sslmode=disable"
 	}
-	return dsn("hms_app", "hms_app"), dsn("hms_owner", "hms_owner"), dsn("hms_system", "hms_system")
+	return dsn("hms_app", "hms_app"), dsn("hms_owner", "hms_owner"), dsn("helivanta_system", "helivanta_system")
 }
 
 // runSQL executes a psql command inside the Postgres container and reports
@@ -316,21 +316,27 @@ func newDatabase(t *testing.T) string {
 	// LintRLS rather than missing harness setup. USAGE on the wrapper is
 	// what then lets the owner CREATE SERVER.
 	//
-	// hms_system gets the same table grants as hms_app. BYPASSRLS decides
-	// whether the ROW POLICIES apply; it grants no table privileges of its
-	// own, so without these the system pool authenticates fine and then
-	// fails every statement with "permission denied for table" — a symptom
-	// that reads nothing like the missing GRANT that caused it.
+	// helivanta_system is deliberately NOT granted anything here.
+	//
+	// BYPASSRLS decides whether the row POLICIES apply; it confers no table
+	// privileges at all, so the system role needs explicit GRANTs — and
+	// those live in the MIGRATIONS, per table, next to the table they
+	// concern. Granting them here instead would hand the harness a
+	// privilege production does not have, which is precisely the shape of
+	// #894: a harness that is more permissive than production keeps passing
+	// while production fails. Verified against the live database — the role
+	// existed with bypassrls and `has_table_privilege(...,'iam_members',
+	// 'SELECT')` was false.
 	if err := runSQL(ctx, name, `
 		CREATE EXTENSION IF NOT EXISTS postgres_fdw;
 		GRANT USAGE ON FOREIGN DATA WRAPPER postgres_fdw TO hms_owner;
 		ALTER SCHEMA public OWNER TO hms_owner;
 		GRANT USAGE, CREATE ON SCHEMA public TO hms_owner;
-		GRANT USAGE ON SCHEMA public TO hms_app, hms_system;
+		GRANT USAGE ON SCHEMA public TO hms_app, helivanta_system;
 		ALTER DEFAULT PRIVILEGES FOR ROLE hms_owner IN SCHEMA public
-		  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hms_app, hms_system;
+		  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hms_app;
 		ALTER DEFAULT PRIVILEGES FOR ROLE hms_owner IN SCHEMA public
-		  GRANT USAGE, SELECT ON SEQUENCES TO hms_app, hms_system;`); err != nil {
+		  GRANT USAGE, SELECT ON SEQUENCES TO hms_app;`); err != nil {
 		t.Fatalf("grant on %s: %v%s", name, err, pgForensics(ctx, name))
 	}
 

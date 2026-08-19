@@ -75,14 +75,21 @@ const RETRY_DELAY_MS = 1_100;
 // RedirectLanding's Sign in button bounces the browser through Zitadel's
 // /oauth/v2/authorize and straight back (no hosted-UI page is ever
 // rendered in between; see this file's header comment). Design spec D6
-// makes the form's labels (`Email`, `Password`) and its submit button's
+// makes the form's labels (`Email or username`, `Password`) and its submit
+// button's
 // accessible name (`Sign in`) a CONTRACT — apps/shell/app/login/page.tsx
 // says so explicitly and warns not to rename them without updating this
 // file deliberately. Unlike Zitadel's old two-step hosted UI
 // (Loginname → next → Password → continue), this is ONE step: both
 // fields are on screen together and one submit finishes it.
+// `exact: true` on the login-name label is deliberate (#899). The label
+// widened from "Email" to "Email or username", and Playwright's getByLabel
+// substring-matches by default — so the OLD selector would still have
+// matched the NEW label and this contract would have gone on passing while
+// silently no longer pinning anything. Matching exactly is what keeps a
+// future rename a visible failure here rather than a quiet drift.
 async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
-  await page.getByLabel("Email").fill(user.email);
+  await page.getByLabel("Email or username", { exact: true }).fill(user.email);
   // exact: true — @tesserix/web 2.2.1 (#866/#868) added a "Show password"
   // toggle button to AuthCredentialForm's password field, and Playwright's
   // getByLabel does SUBSTRING matching by default: "Password" matches that
@@ -97,7 +104,7 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
 
   // The credential form's submit button is also named "Sign in" — same
   // accessible name as RedirectLanding's landing-page button that
-  // startSignIn() clicked to get here. Waiting for the Email field to be
+  // startSignIn() clicked to get here. Waiting for the login-name field to be
   // visible before this function is ever called (see login()'s caller)
   // is what disambiguates the two; by the time signInOnce() clicks
   // "Sign in" here, it is unambiguously the form's submit, because only
@@ -131,7 +138,7 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
 // exist until `?authRequest=` lands back on /login — so a bare
 // `getByRole("button", { name: "Sign in" })` here is unambiguous PROVIDED
 // this function is only ever called while still on the landing page.
-// login() enforces that ordering by waiting for the Email field (proof
+// login() enforces that ordering by waiting for the login-name field (proof
 // the form, not the landing page, is now showing) before ever calling
 // signInOnce(); mixing the two up here would click whichever button
 // happens to exist, which is exactly the trap.
@@ -195,11 +202,13 @@ export async function login(page: Page, user: Credentials = specAdmin()): Promis
   // is host/port agnostic, unlike asserting a literal localhost:4301 URL.
   // It is also what disambiguates startSignIn()'s and signInOnce()'s
   // identically-named "Sign in" buttons (see startSignIn()'s comment):
-  // only proceeding once the Email field is visible guarantees the
+  // only proceeding once the login-name field is visible guarantees the
   // landing page's button is gone and the form's is what gets clicked
   // next.
   await startSignIn(page);
-  await expect(page.getByLabel("Email")).toBeVisible({
+  await expect(
+    page.getByLabel("Email or username", { exact: true }),
+  ).toBeVisible({
     timeout: 15_000,
   });
 

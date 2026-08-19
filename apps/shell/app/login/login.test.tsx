@@ -254,7 +254,7 @@ describe("LoginPage", () => {
     it("renders fields whose accessible names match the e2e contract", async () => {
       stubAuthFlow();
       renderWithProviders(<LoginPage />);
-      expect(await screen.findByLabelText("Email")).toBeInTheDocument();
+      expect(await screen.findByLabelText("Email or username")).toBeInTheDocument();
       expect(screen.getByLabelText("Password")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
     });
@@ -266,20 +266,57 @@ describe("LoginPage", () => {
     it("disables native browser validation", async () => {
       stubAuthFlow();
       renderWithProviders(<LoginPage />);
-      const email = await screen.findByLabelText("Email");
+      const email = await screen.findByLabelText("Email or username");
       expect(email.closest("form")).toHaveAttribute("novalidate");
     });
 
-    it("shows an inline error and does not submit when the email is empty", async () => {
+    it("shows an inline error and does not submit when the login name is empty", async () => {
       const fetchMock = stubAuthFlow();
 
       const { user } = renderWithProviders(<LoginPage />);
       await user.click(await screen.findByRole("button", { name: "Sign in" }));
 
-      expect(await screen.findByText(/enter your email/i)).toBeInTheDocument();
+      expect(await screen.findByText(/enter your email or username/i)).toBeInTheDocument();
       // The auth-request GET is allowed (it is how the form got here at
       // all); the credential POST specifically must never have fired.
       expect(fetchMock).not.toHaveBeenCalledWith("/api/v1/auth/login/password", expect.anything());
+    });
+
+    // #899. The field carries a Zitadel LOGIN NAME, and Zitadel derives
+    // login names from `userName` — so `dr.patel` is a valid, reachable
+    // account on an instance whose org domain policy does not force a
+    // domain suffix, which this one does not.
+    //
+    // The schema previously carried `.email()`, which refused such a login
+    // name in the browser and never sent the request: the operator read
+    // "Enter a valid email address" from Helivanta while holding
+    // credentials Zitadel would have accepted. This asserts on the REQUEST
+    // actually leaving — the value reaching the API is the only thing that
+    // proves the client stopped substituting its own judgement for the
+    // identity provider's. Asserting merely that the error text is absent
+    // would pass just as well if the form silently swallowed the submit.
+    it("submits a login name that is not an email address", async () => {
+      const fetchMock = stubAuthFlow();
+      vi.stubGlobal("location", { ...window.location, assign: vi.fn() });
+
+      const { user } = renderWithProviders(<LoginPage />);
+      await user.type(await screen.findByLabelText("Email or username"), "dr.patel");
+      await user.type(screen.getByLabelText("Password"), "correct-horse");
+      await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          "/api/v1/auth/login/password",
+          expect.objectContaining({
+            method: "POST",
+            body: JSON.stringify({
+              auth_request_id: AUTH_REQUEST_ID,
+              login_name: "dr.patel",
+              password: "correct-horse",
+            }),
+          }),
+        ),
+      );
     });
 
     // Spec D5: a wrong password and an unknown user answer identically, so
@@ -296,7 +333,7 @@ describe("LoginPage", () => {
       });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
+      await user.type(await screen.findByLabelText("Email or username"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "wrong-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -324,7 +361,7 @@ describe("LoginPage", () => {
       });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
+      await user.type(await screen.findByLabelText("Email or username"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "wrong-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -349,7 +386,7 @@ describe("LoginPage", () => {
       vi.stubGlobal("location", { ...window.location, assign: assignSpy });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
+      await user.type(await screen.findByLabelText("Email or username"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "correct-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -373,7 +410,7 @@ describe("LoginPage", () => {
       vi.stubGlobal("location", { ...window.location, assign: assignSpy });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
+      await user.type(await screen.findByLabelText("Email or username"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "correct-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -389,7 +426,7 @@ describe("LoginPage", () => {
       vi.stubGlobal("location", { ...window.location, assign: vi.fn() });
 
       const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
+      await user.type(await screen.findByLabelText("Email or username"), "clinician@helivanta.dev");
       await user.type(screen.getByLabelText("Password"), "correct-password");
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -412,7 +449,7 @@ describe("LoginPage", () => {
       const fetchMock = stubAuthFlow();
       renderWithProviders(<LoginPage />);
 
-      await screen.findByLabelText("Email");
+      await screen.findByLabelText("Email or username");
       expect(fetchMock).toHaveBeenCalledWith(
         `/api/v1/auth/login/request/${AUTH_REQUEST_ID}`,
         expect.anything(),
@@ -436,10 +473,10 @@ describe("LoginPage", () => {
 
       expect(await screen.findByText("Helivanta")).toBeInTheDocument();
       expect(screen.getByText(/loading/i)).toBeInTheDocument();
-      expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Email or username")).not.toBeInTheDocument();
 
       resolveAuthRequest(authRequestOkResponse());
-      expect(await screen.findByLabelText("Email")).toBeInTheDocument();
+      expect(await screen.findByLabelText("Email or username")).toBeInTheDocument();
     });
 
     // Review finding 1 — this is the spec requirement the earlier
@@ -461,7 +498,7 @@ describe("LoginPage", () => {
         expect(
           await screen.findByText(/this sign-in attempt has expired; start again/i),
         ).toBeInTheDocument();
-        expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
+        expect(screen.queryByLabelText("Email or username")).not.toBeInTheDocument();
         expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
       });
 
@@ -513,7 +550,7 @@ describe("LoginPage", () => {
       async function submitCorrectCredentials(
         user: ReturnType<typeof renderWithProviders>["user"],
       ) {
-        await user.type(await screen.findByLabelText("Email"), "clinician@helivanta.dev");
+        await user.type(await screen.findByLabelText("Email or username"), "clinician@helivanta.dev");
         await user.type(screen.getByLabelText("Password"), "correct-password");
         await user.click(screen.getByRole("button", { name: "Sign in" }));
       }

@@ -52,8 +52,9 @@ import {
 //    a real auth request id. This renders the credential form and drives
 //    POST /v1/auth/login/password directly against our API.
 //
-// The credential form's accessible names — `Email`, `Password`, and a
-// button named `Sign in` — are a CONTRACT, not styling (spec D6/D7).
+// The credential form's accessible names — `Email or username`,
+// `Password`, and a button named `Sign in` — are a CONTRACT, not styling
+// (spec D6/D7). The first was `Email` until #899; see credentialsSchema.
 // e2e/tests/support/login.ts drives every one of this repo's twelve spec
 // files by these exact names at the login step; renaming a label here
 // fails all of them simultaneously, in a way that reads like a broken
@@ -61,7 +62,7 @@ import {
 // text without updating that contract deliberately. #867 (spec D7) moved
 // the credential fields onto `@tesserix/web`'s `AuthCredentialForm`,
 // whose DEFAULT login-name label is `describeLoginName(methodPolicy)` and
-// does NOT say "Email" — CredentialForm below passes `loginNameLabel`,
+// is policy-derived — CredentialForm below passes `loginNameLabel`,
 // `passwordLabel`, and `submitLabel` explicitly for exactly this reason.
 // The MFA step this same change adds (below) introduces NEW accessible
 // names of its own; they are new, not renamed, so nothing existing
@@ -274,8 +275,31 @@ function LoginFlow({
   );
 }
 
+// The login-name field carries a ZITADEL LOGIN NAME, not an email address.
+// Zitadel derives login names from a user's `userName` (suffixed with an org
+// domain only when the org's domain policy sets `userLoginMustBeDomain`,
+// which this instance does not), so a perfectly valid account can have the
+// login name `dr.patel` and never be reachable by any email at all.
+//
+// This previously carried `.email()`. That rejected such accounts in the
+// BROWSER, before any request was made, so the operator saw "Enter a valid
+// email address" from Helivanta while holding correct credentials that
+// Zitadel would have accepted — a client-side rule the identity provider
+// does not have (#899). `@tesserix/web`'s AuthCredentialForm agrees: its
+// login-name input is `autoComplete="username"` with no `type="email"`.
+//
+// `.min(1)` stays and is doing real work — an empty submit must still be
+// caught here rather than spending a round trip to be refused. Only the
+// FORMAT assertion was wrong.
+//
+// Deliberately no format validation replaces it. Anything that decides
+// which login names are plausible re-creates, in the client, the
+// enumeration oracle the backend closes on purpose (see this file's header
+// comment on the shared refusal message): a rule that rejects `dr.patel`
+// but accepts `a@b.c` tells an attacker which shapes exist. Format is
+// Zitadel's to judge, and its answer is deliberately unreadable to us.
 const credentialsSchema = z.object({
-  loginName: z.string().min(1, "Enter your email").email("Enter a valid email address"),
+  loginName: z.string().min(1, "Enter your email or username"),
   password: z.string().min(1, "Enter your password"),
 });
 
@@ -395,11 +419,18 @@ function CredentialForm({
           // These three accessible names are a CONTRACT, not styling
           // (spec D6/D7) — see LoginPage's header comment. Passed
           // explicitly because AuthCredentialForm's DEFAULT login-name
-          // label is `describeLoginName(methodPolicy)`, which does not
-          // say "Email"; relying on that default is the concrete way
-          // this contract breaks. Do not "improve" this text without
-          // updating that contract deliberately.
-          loginNameLabel="Email"
+          // label is `describeLoginName(methodPolicy)`, which is derived
+          // from policy rather than fixed; relying on that default is the
+          // concrete way this contract breaks. Do not "improve" this text
+          // without updating that contract deliberately.
+          //
+          // Changed from "Email" in #899, together with
+          // e2e/tests/support/login.ts, because the field accepts any
+          // Zitadel login name and a label reading "Email" told the
+          // operator the opposite — of the two ways to reconcile label
+          // and behaviour, widening the label is the one that does not
+          // lock out valid accounts.
+          loginNameLabel="Email or username"
           passwordLabel="Password"
           submitLabel="Sign in"
         />

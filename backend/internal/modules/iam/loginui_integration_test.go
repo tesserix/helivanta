@@ -331,7 +331,7 @@ const (
 // after a policy restore) rather than duplicating it.
 func TestIntegration_PasswordSuccess_ReturnsCallbackURLWithCodeAndState(t *testing.T) {
 	env := skipUnlessDevStackIsUp(t)
-	assertLoginSucceeds(t, env)
+	assertLoginSucceeds(t, env, devSeededEmail, devSeededPassword, "")
 }
 
 // TestIntegration_PasswordFailures_WrongPasswordAndUnknownUserAreByteIdentical
@@ -417,7 +417,19 @@ func TestIntegration_PasswordFailures_WrongPasswordAndUnknownUserAreByteIdentica
 // goes through loginclient.Client or a direct OIDC endpoint, neither of
 // which this credential (the seed PAT, not the login-client PAT) is
 // for.
-func managementAPICall(t *testing.T, env integrationEnv, seedToken, method, path string, body map[string]any) map[string]any {
+//
+// orgID scopes the call to a specific org via the x-zitadel-orgid header
+// (#913 Task 4) — the SAME header name loginclient.withOrgID sets on the
+// production path (client.go's `do`), reused here rather than
+// reinvented, so a wire-level drift in that header name would break both
+// the production code and this test's setup in the same way rather than
+// only one of them silently. An empty orgID sends no header at all,
+// preserving every call site that existed before Task 4 byte-for-byte —
+// this was previously "unscoped, always"; it is now "unscoped when the
+// caller passes no org", which is the same behaviour for every existing
+// caller. Zitadel resolves an unscoped seed-PAT call against the seed
+// bot's own org (TESSERIX in this dev stack), exactly as before.
+func managementAPICall(t *testing.T, env integrationEnv, seedToken, orgID, method, path string, body map[string]any) map[string]any {
 	t.Helper()
 	var reqBody io.Reader
 	if body != nil {
@@ -431,13 +443,16 @@ func managementAPICall(t *testing.T, env integrationEnv, seedToken, method, path
 	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+seedToken)
 	req.Header.Set("Content-Type", "application/json")
+	if orgID != "" {
+		req.Header.Set("x-zitadel-orgid", orgID)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	var parsed map[string]any
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&parsed))
 	require.Truef(t, resp.StatusCode >= 200 && resp.StatusCode < 300,
-		"%s %s = HTTP %d: %v", method, path, resp.StatusCode, parsed)
+		"%s %s (org=%q) = HTTP %d: %v", method, path, orgID, resp.StatusCode, parsed)
 	return parsed
 }
 
@@ -471,13 +486,28 @@ func baseCustomLoginPolicy() map[string]any {
 // {"forceMfaLocalOnly": true}) — shared by both the forceMfa and
 // forceMfaLocalOnly integration tests so the two do not maintain two
 // near-duplicate field lists that could silently drift apart.
-func setOrgLoginPolicy(t *testing.T, env integrationEnv, seedToken string, override map[string]any) {
+//
+// orgID scopes the write to a specific org (#913 Task 4,
+// TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting);
+// "" preserves every pre-Task-4 caller's behaviour of writing the seed
+// PAT's own org's policy. Whether the seed PAT's ADMINISTRATION
+// permission — proven live against its OWN org (this file's header
+// comment on skipUnlessSeedPATIsAvailable) — also lets it write ANOTHER
+// org's policy via x-zitadel-orgid is inferred from symmetry with the
+// login-client PAT's confirmed READ behaviour on the same header (design
+// doc "What was unknown, and is not any more" #1), not separately
+// observed for a WRITE with THIS credential. If it is refused, this call
+// fails loudly here (managementAPICall's non-2xx require.Truef), before
+// TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting
+// ever reaches its own assertions — a clear, attributable failure rather
+// than a confusing one three calls downstream.
+func setOrgLoginPolicy(t *testing.T, env integrationEnv, seedToken, orgID string, override map[string]any) {
 	t.Helper()
 	policy := baseCustomLoginPolicy()
 	for k, v := range override {
 		policy[k] = v
 	}
-	managementAPICall(t, env, seedToken, http.MethodPost, loginPolicyPath, policy)
+	managementAPICall(t, env, seedToken, orgID, http.MethodPost, loginPolicyPath, policy)
 }
 
 // resetOrgLoginPolicy restores the org's default login policy, and is
@@ -494,21 +524,25 @@ func setOrgLoginPolicy(t *testing.T, env integrationEnv, seedToken string, overr
 // that silently no-ops or leaves a different custom policy behind fails
 // loudly here rather than being discovered by the next developer's login
 // mysteriously requiring MFA.
-func resetOrgLoginPolicy(t *testing.T, env integrationEnv, seedToken string) {
+//
+// orgID scopes both the GET and the DELETE to a specific org (#913 Task
+// 4), matching setOrgLoginPolicy's own orgID parameter — see that
+// function's doc comment for the same live-write assumption this shares.
+func resetOrgLoginPolicy(t *testing.T, env integrationEnv, seedToken, orgID string) {
 	t.Helper()
-	got := managementAPICall(t, env, seedToken, http.MethodGet, loginPolicyPath, nil)
+	got := managementAPICall(t, env, seedToken, orgID, http.MethodGet, loginPolicyPath, nil)
 	if policy, _ := got["policy"].(map[string]any); policy != nil {
 		if isDefault, _ := policy["isDefault"].(bool); isDefault {
 			return
 		}
 	}
 
-	managementAPICall(t, env, seedToken, http.MethodDelete, loginPolicyPath, nil)
+	managementAPICall(t, env, seedToken, orgID, http.MethodDelete, loginPolicyPath, nil)
 
-	got = managementAPICall(t, env, seedToken, http.MethodGet, loginPolicyPath, nil)
+	got = managementAPICall(t, env, seedToken, orgID, http.MethodGet, loginPolicyPath, nil)
 	policy, _ := got["policy"].(map[string]any)
 	isDefault, _ := policy["isDefault"].(bool)
-	require.Truef(t, isDefault, "org login policy after DELETE %s is not back to default: %v", loginPolicyPath, got)
+	require.Truef(t, isDefault, "org login policy (org=%q) after DELETE %s is not back to default: %v", orgID, loginPolicyPath, got)
 }
 
 // assertHandsOffWithoutCallback is the shared assertion both the
@@ -537,22 +571,37 @@ func assertHandsOffWithoutCallback(t *testing.T, w *httptest.ResponseRecorder, p
 // restored, closes that gap: a real callback_url with code/state proves
 // the policy read path still resolves to "recognized, MFA off" for the
 // default policy, not just "produced a handoff for some reason".
-func assertLoginSucceeds(t *testing.T, env integrationEnv) {
+//
+// loginName/password generalize this beyond devSeededEmail/devSeededPassword
+// (#913 Task 4) — TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting
+// calls this against a second-org user, not the dev-seeded one, to prove
+// spec D5's other half: that the ORG-SCOPED policy read genuinely
+// resolves to "recognized, MFA off" for a real org, not just for the
+// login client's own org.
+//
+// failureContext is prepended, verbatim, to every require message this
+// function raises — empty for the pre-Task-4 callers (their failure is
+// self-explanatory: "login broke"), but load-bearing for the cross-org
+// call: see that test's own doc comment on why a failure here can mean
+// something very different from "the feature is broken" and must say so
+// at the point of failure, not just in a comment two hundred lines away
+// that nobody reads mid-CI-run.
+func assertLoginSucceeds(t *testing.T, env integrationEnv, loginName, password, failureContext string) {
 	t.Helper()
 	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
-	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
+	w := postPasswordReal(t, r, authRequestID, loginName, password)
 
-	require.Equalf(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
+	require.Equalf(t, http.StatusOK, w.Code, "%sbody: %s", failureContext, w.Body.String())
 	var body struct {
 		CallbackURL string `json:"callback_url"`
 	}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
 	callback, err := url.Parse(body.CallbackURL)
-	require.NoErrorf(t, err, "callback_url %q did not parse as a URL", body.CallbackURL)
+	require.NoErrorf(t, err, "%scallback_url %q did not parse as a URL", failureContext, body.CallbackURL)
 	q := callback.Query()
-	require.NotEmptyf(t, q.Get("code"), "callback_url %q carried no code param after policy restore", body.CallbackURL)
-	require.NotEmptyf(t, q.Get("state"), "callback_url %q carried no state param after policy restore", body.CallbackURL)
+	require.NotEmptyf(t, q.Get("code"), "%scallback_url %q carried no code param after policy restore", failureContext, body.CallbackURL)
+	require.NotEmptyf(t, q.Get("state"), "%scallback_url %q carried no state param after policy restore", failureContext, body.CallbackURL)
 }
 
 // TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting is Finding
@@ -609,16 +658,16 @@ func TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting(t *testing.T) {
 	env := skipUnlessDevStackIsUp(t)
 	seedToken := skipUnlessSeedPATIsAvailable(t)
 
-	setOrgLoginPolicy(t, env, seedToken, map[string]any{"forceMfa": true})
-	t.Cleanup(func() { resetOrgLoginPolicy(t, env, seedToken) })
+	setOrgLoginPolicy(t, env, seedToken, "", map[string]any{"forceMfa": true})
+	t.Cleanup(func() { resetOrgLoginPolicy(t, env, seedToken, "") })
 
 	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
 	assertHandsOffWithoutCallback(t, w, "forceMfa")
 
-	resetOrgLoginPolicy(t, env, seedToken)
-	assertLoginSucceeds(t, env)
+	resetOrgLoginPolicy(t, env, seedToken, "")
+	assertLoginSucceeds(t, env, devSeededEmail, devSeededPassword, "")
 }
 
 // TestIntegration_ForceMFALocalOnlyPolicy_HandsOffInsteadOfCompleting is
@@ -644,16 +693,16 @@ func TestIntegration_ForceMFALocalOnlyPolicy_HandsOffInsteadOfCompleting(t *test
 	// forceMfa stays false — that is the whole point: this policy must
 	// require MFA through forceMfaLocalOnly ALONE, the exact shape
 	// Finding 4 found reachable through supported Zitadel configuration.
-	setOrgLoginPolicy(t, env, seedToken, map[string]any{"forceMfa": false, "forceMfaLocalOnly": true})
-	t.Cleanup(func() { resetOrgLoginPolicy(t, env, seedToken) })
+	setOrgLoginPolicy(t, env, seedToken, "", map[string]any{"forceMfa": false, "forceMfaLocalOnly": true})
+	t.Cleanup(func() { resetOrgLoginPolicy(t, env, seedToken, "") })
 
 	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
 	assertHandsOffWithoutCallback(t, w, "forceMfaLocalOnly")
 
-	resetOrgLoginPolicy(t, env, seedToken)
-	assertLoginSucceeds(t, env)
+	resetOrgLoginPolicy(t, env, seedToken, "")
+	assertLoginSucceeds(t, env, devSeededEmail, devSeededPassword, "")
 }
 
 const importUserPath = "/management/v1/users/human/_import"
@@ -671,10 +720,21 @@ const importUserPath = "/management/v1/users/human/_import"
 // the same "verify the restore, don't trust the 200" discipline
 // resetOrgLoginPolicy already applies to policy state — this repo's
 // practice, not just this file's.
-func createImportedUser(t *testing.T, env integrationEnv, seedToken string) (userID, loginName string) {
+//
+// orgID scopes the import to a specific org (#913 Task 4) via
+// managementAPICall's own orgID parameter; "" preserves every pre-Task-4
+// caller's behaviour of importing into the seed PAT's own org. The seed
+// PAT is IAM_OWNER-scoped (skipUnlessSeedPATIsAvailable's doc comment),
+// which per Zitadel's own permission model is an INSTANCE-wide role, not
+// an org-membership one — importing into an org other than the seed
+// bot's own is expected to be within that role's reach, but (like
+// setOrgLoginPolicy's org-scoped WRITE) this specific combination was
+// not separately observed live before this change; a refusal here fails
+// loudly via managementAPICall's own non-2xx check.
+func createImportedUser(t *testing.T, env integrationEnv, seedToken, orgID string) (userID, loginName string) {
 	t.Helper()
 	loginName = fmt.Sprintf("task8-test-%d@helivanta.dev", time.Now().UnixNano())
-	resp := managementAPICall(t, env, seedToken, http.MethodPost, importUserPath, map[string]any{
+	resp := managementAPICall(t, env, seedToken, orgID, http.MethodPost, importUserPath, map[string]any{
 		"userName": loginName,
 		"profile":  map[string]any{"firstName": "Task8", "lastName": "IntegrationTest"},
 		"email":    map[string]any{"email": loginName, "isEmailVerified": true},
@@ -737,11 +797,242 @@ func TestIntegration_UserEnrolledFactor_HandsOffInsteadOfCompleting(t *testing.T
 	env := skipUnlessDevStackIsUp(t)
 	seedToken := skipUnlessSeedPATIsAvailable(t)
 
-	userID, loginName := createImportedUser(t, env, seedToken)
-	managementAPICall(t, env, seedToken, http.MethodPost, "/v2/users/"+userID+"/otp_email", map[string]any{})
+	userID, loginName := createImportedUser(t, env, seedToken, "")
+	managementAPICall(t, env, seedToken, "", http.MethodPost, "/v2/users/"+userID+"/otp_email", map[string]any{})
 
 	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, loginName, devSeededPassword)
 	assertHandsOffWithoutCallback(t, w, "per-user enrolled factor (otp_email)")
+}
+
+// createOrgPath and orgPathPrefix are Zitadel's v1 management-API org
+// endpoints (#913 Task 4). Every other resource this file creates
+// (import user, login policy) uses the SAME /management/v1/... family,
+// so org create/delete/read follow it too rather than mixing in the v2
+// endpoints deleteAndVerifyUser uses for users — that split exists for
+// users because Task 8's own spike work found a SPECIFIC reason
+// (v1's human/_import is the only endpoint that accepts a password at
+// creation time; v2's DELETE /v2/users/{id} was separately confirmed
+// live) to prefer v2 for the delete half. No equivalent reason is known
+// for orgs, so this stays uniformly v1 rather than inventing a second
+// split with no evidence behind it.
+//
+// # UNVERIFIED WIRE SHAPE — this is a guess, not an observed fact
+//
+// Nothing else in this repo creates a Zitadel org: this dev stack's ONE
+// org (TESSERIX, the seed PAT's own resource owner) is provisioned by
+// Zitadel itself at first boot (FirstInstance.Org, docker-compose.dev.yml),
+// never by application code — so, unlike every other endpoint this file
+// touches, there is no prior scripts/*.mjs or *_test.go call this borrows
+// its shape from BYTE FOR BYTE. What follows is inferred by PATTERN from
+// a call this repo DOES make and has observed: scripts/zitadel-bootstrap.mjs's
+// `POST /management/v1/projects` (a sibling v1 top-level resource,
+// created the same way) returns its new id as `created.id` — read there
+// (this file's directory listing was checked to confirm that usage
+// exists, not merely remembered) — so `POST /management/v1/orgs` is
+// assumed to follow the SAME response shape: {"id": "..."}. If Zitadel
+// actually nests it (e.g. {"org": {"id": "..."}}) or names it
+// differently ("orgId"), the require.NotEmptyf below fails LOUDLY with
+// the full decoded body, not silently proceeding with an empty orgID
+// that would make every downstream call in this test target "no org"
+// (today's unscoped behaviour) rather than the org this test just tried
+// to create — which would make
+// TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting
+// pass or fail for a reason that has nothing to do with #913.
+const (
+	createOrgPath = "/management/v1/orgs"
+	orgPathPrefix = "/management/v1/orgs/"
+)
+
+// createOrgWithUser provisions a throwaway second org plus one human user
+// inside it (#913 Task 4, design doc D5 steps 1-2): a second-org user is
+// exactly what proves the login-client PAT's policy read is scoped to
+// the AUTHENTICATING USER's org, not the login client's own org — a
+// forceMfa flip on the seed PAT's own org (what every OTHER test in this
+// file mutates) cannot distinguish "scoped correctly" from "always reads
+// the same org" the way a genuinely different org can.
+//
+// t.Cleanup for the org is registered BEFORE createImportedUser runs, so
+// it is the LAST cleanup to fire (Go's t.Cleanup is LIFO): the imported
+// user's own t.Cleanup (registered inside createImportedUser, after this
+// one) deletes the user first, then this one deletes the now-empty org —
+// the order a human operator would use by hand, and the one least likely
+// to leave an orphaned user behind if the org's own delete were to fail
+// partway for an unrelated reason.
+func createOrgWithUser(t *testing.T, env integrationEnv, seedToken string) (orgID, loginName string) {
+	t.Helper()
+
+	orgName := fmt.Sprintf("helivanta-task4-second-org-%d", time.Now().UnixNano())
+	resp := managementAPICall(t, env, seedToken, "", http.MethodPost, createOrgPath, map[string]any{"name": orgName})
+	orgID, _ = resp["id"].(string)
+	require.NotEmptyf(t, orgID,
+		"POST %s response carried no \"id\" field — the org-creation wire shape guessed in this "+
+			"helper's doc comment is wrong; inspect this body to find the real field and fix "+
+			"createOrgWithUser before re-running: %v", createOrgPath, resp)
+	t.Cleanup(func() { deleteAndVerifyOrg(t, env, seedToken, orgID) })
+
+	_, loginName = createImportedUser(t, env, seedToken, orgID)
+	return orgID, loginName
+}
+
+// deleteAndVerifyOrg deletes a throwaway org and reads it back to PROVE
+// the delete took, matching deleteAndVerifyUser's and
+// resetOrgLoginPolicy's "verify the restore, never trust the 200"
+// discipline (#913 Task 4).
+//
+// The verify step's exact PASS condition is itself an UNVERIFIED guess:
+// this repo has never observed what GET /management/v1/orgs/{id}
+// returns for a deleted org. Two shapes are plausible from general
+// Zitadel v1 behaviour — a 404 (matching deleteAndVerifyUser's v2
+// observation) or a 200 with the org's state field reporting removal —
+// so this checks for EITHER rather than committing to one guess and
+// risking a false failure on a live run. What it refuses to accept
+// silently is a 200 with a state this code does not recognize as
+// "removed": that path fails loudly with the full body printed, rather
+// than treating an unrecognized 200 as success by default — the same
+// "recognize it or fail closed" posture LoginPolicy's own rename/re-cased
+// guard takes in client.go, applied here to a different unverified shape.
+func deleteAndVerifyOrg(t *testing.T, env integrationEnv, seedToken, orgID string) {
+	t.Helper()
+	managementAPICall(t, env, seedToken, "", http.MethodDelete, orgPathPrefix+orgID, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, env.issuer+orgPathPrefix+orgID, nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+seedToken)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		// The deleteAndVerifyUser shape: gone means gone, no body worth
+		// decoding.
+		return
+	}
+	var parsed map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&parsed) // best-effort, for the failure message only
+	org, _ := parsed["org"].(map[string]any)
+	state, _ := org["state"].(string)
+	require.Equalf(t, "ORG_STATE_REMOVED", state,
+		"org %s still readable (HTTP 200, state %q) after DELETE %s — either cleanup did not take, "+
+			"or this helper's guess at the removed-org state name/shape is wrong (see deleteAndVerifyOrg's "+
+			"doc comment): %v", orgID, state, orgPathPrefix+orgID, parsed)
+}
+
+// secondOrgPolicyReadFailureContext is prepended to every assertLoginSucceeds
+// failure message in TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting's
+// second half — see that test's own doc comment for why THIS assertion,
+// not the handoff one before it, is what actually proves the org-scoped
+// policy read resolved to a real value rather than an error.
+const secondOrgPolicyReadFailureContext = "SECOND-ORG LOGIN DID NOT SUCCEED AFTER forceMfa WAS RESET TO false ON " +
+	"THAT ORG. This is design doc D5's load-bearing assertion, not a redundant check: if the login-client " +
+	"PAT is refused when it tries to read another org's policy via x-zitadel-orgid (open question (a) in " +
+	"the #913 Task 4 report), the read errors, CompleteIfSufficient's fail-closed branch hands off " +
+	"REGARDLESS of the actual policy value, and the EARLIER assertHandsOffWithoutCallback call in this same " +
+	"test would have passed for the WRONG reason — proving nothing about #913's fix, only that errors fail " +
+	"closed (which was already true before the fix). A genuinely completed login here is the only thing " +
+	"that proves the scoped read resolved forceMfa's real value instead of merely erroring. "
+
+// TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting is
+// design doc D5's live proof for #913: every other MFA test in this file
+// (TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting,
+// TestIntegration_ForceMFALocalOnlyPolicy_HandsOffInsteadOfCompleting)
+// flips the login CLIENT's own org's policy and logs in as
+// devSeededEmail, a user IN that same org — which can prove the policy
+// read reaches Zitadel and is decoded correctly, but CANNOT prove the
+// read is scoped to the authenticating user's org rather than always
+// resolving to the login client's own org, because in those two tests
+// the two orgs are the same org. This test makes them different orgs on
+// purpose:
+//
+//  1. createOrgWithUser provisions a throwaway second org and a human
+//     user inside it.
+//  2. setOrgLoginPolicy(..., secondOrgID, ...) sets forceMfa:true on
+//     THAT org — the login client's own org (TESSERIX) is left entirely
+//     untouched, still at its default forceMfa:false.
+//  3. The second-org user logs in through the real
+//     POST /v1/auth/login/password. On the PRE-#913 code (the unscoped
+//     GET /management/v1/policies/login, no x-zitadel-orgid at all) this
+//     read resolves against the login client's OWN org — sees
+//     forceMfa:false — and completes the password-only session: a real
+//     callback_url for a user whose own org says MFA is mandatory. THAT
+//     is the exact authentication-bypass design doc D5 exists to catch
+//     end to end, not just in a fixture. assertHandsOffWithoutCallback
+//     below is what fails on that unpatched behaviour — a handoff_url
+//     with no callback_url is the ONLY passing shape once #913's fix
+//     (LoginPolicyForOrg scoped by the session's own
+//     factors.user.organizationId) is in place.
+//  4. The org's policy is then reset to forceMfa:false and the SAME user
+//     logs in again — assertLoginSucceeds, with
+//     secondOrgPolicyReadFailureContext explaining exactly what a
+//     failure here would mean (see that const's doc comment, and D5's
+//     own "Two live unknowns" section): without this half, a login-client
+//     PAT that is refused when reading ANOTHER org's policy would still
+//     make step 3 pass — fail-closed, but for the wrong reason, and
+//     silently non-functional for every real second-org user on this
+//     instance.
+//
+// # This test MUTATES a THROWAWAY org's policy, not the shared default org
+//
+// Unlike TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting (whose
+// own doc comment explains at length why mutating the SHARED default
+// org's policy needs three separate safeguards), this test's
+// setOrgLoginPolicy call targets an org t.Cleanup deletes at the end of
+// this test — no other test, and no developer's own concurrent dev
+// session, reads or writes this org's policy at any point, so none of
+// those three safeguards apply here. t.Cleanup is still registered
+// immediately after the policy is set (before any assertion), on the
+// same "a failed assertion must not skip cleanup" principle, but its
+// job is narrower: leaving one fewer throwaway org behind, not protecting
+// shared instance state.
+//
+// # Two live unknowns this test cannot resolve from this environment
+//
+// Both are documented in depth on the helpers this test calls
+// (managementAPICall, setOrgLoginPolicy, createImportedUser,
+// createOrgWithUser) and in the #913 Task 4 report (docs
+// .superpowers/sdd/2026-08-20-login-policy-org-scope/task-4-report.md):
+// this test was written and go-vet-verified, but NEVER RUN, because the
+// local dev Zitadel stack could not be started in this environment
+// (Docker was unavailable). Whoever runs this first should watch for:
+//
+//   - The login-client PAT being refused when it reads the SECOND org's
+//     policy (secondOrgPolicyReadFailureContext explains the exact
+//     failure mode this produces, and why assertion 4 — not 3 — is what
+//     catches it).
+//   - Whether the Helivanta OIDC app's project admits a user from a
+//     second org at all. If Zitadel's project settings require an
+//     explicit org grant before a second-org user can sign in to this
+//     app, this test does NOT provision one — no live call in this repo
+//     has ever exercised the project-grant endpoint, and guessing its
+//     request shape blind (unlike the org-creation guess above, which at
+//     least has a same-family sibling call to pattern-match against)
+//     risks adding a SECOND wrong guess on top of a real unknown rather
+//     than surfacing it clearly. If that is the blocker, it surfaces as
+//     an assertHandsOffWithoutCallback failure with a body that is
+//     neither "handoff_url present" nor a clean password-mismatch shape
+//     — read the printed body, not just the require message, to tell
+//     that apart from an MFA-related failure, and provision the grant
+//     (POST /management/v1/projects/{id}/grants against the Helivanta
+//     project, granting it to secondOrgID — verify the exact body
+//     against Zitadel's own API reference, not this comment) before
+//     re-running.
+func TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting(t *testing.T) {
+	env := skipUnlessDevStackIsUp(t)
+	seedToken := skipUnlessSeedPATIsAvailable(t)
+
+	secondOrgID, loginName := createOrgWithUser(t, env, seedToken)
+
+	setOrgLoginPolicy(t, env, seedToken, secondOrgID, map[string]any{"forceMfa": true})
+	t.Cleanup(func() { resetOrgLoginPolicy(t, env, seedToken, secondOrgID) })
+
+	r := newIntegrationRouter(t, env)
+	authRequestID := newAuthRequest(t, env)
+	w := postPasswordReal(t, r, authRequestID, loginName, devSeededPassword)
+	assertHandsOffWithoutCallback(t, w, "forceMfa (second org, not the login client's own org)")
+
+	resetOrgLoginPolicy(t, env, seedToken, secondOrgID)
+	assertLoginSucceeds(t, env, loginName, devSeededPassword, secondOrgPolicyReadFailureContext)
 }

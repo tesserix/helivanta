@@ -550,7 +550,10 @@ describe("LoginPage", () => {
       async function submitCorrectCredentials(
         user: ReturnType<typeof renderWithProviders>["user"],
       ) {
-        await user.type(await screen.findByLabelText("Email or username"), "clinician@helivanta.dev");
+        await user.type(
+          await screen.findByLabelText("Email or username"),
+          "clinician@helivanta.dev",
+        );
         await user.type(screen.getByLabelText("Password"), "correct-password");
         await user.click(screen.getByRole("button", { name: "Sign in" }));
       }

@@ -54,8 +54,10 @@ async function signInAndReachOtpStep(page: Page): Promise<void> {
   await landingButton.waitFor({ state: "visible", timeout: 20_000 });
   await landingButton.click();
 
-  await expect(page.getByLabel("Email")).toBeVisible({ timeout: 15_000 });
-  await page.getByLabel("Email").fill(MFA_EMAIL);
+  await expect(
+    page.getByLabel("Email or username", { exact: true }),
+  ).toBeVisible({ timeout: 15_000 });
+  await page.getByLabel("Email or username", { exact: true }).fill(MFA_EMAIL);
   // exact: true — see support/login.ts's signInOnce for why an unqualified
   // getByLabel("Password") is ambiguous against @tesserix/web 2.2.1's
   // "Show password" toggle button.

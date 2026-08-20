@@ -44,7 +44,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil).SetUserStateChecker(nil), reference.New(), medicore.New(), pharmacy.New(), lab.New()}
+	return []platform.Module{iam.New(nil), reference.New(), medicore.New(), pharmacy.New(), lab.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under

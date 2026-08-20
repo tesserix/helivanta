@@ -224,6 +224,17 @@ type Config struct {
 	// bootstrap.FactorRateLimitRule for the arithmetic behind the
 	// default.
 	RateLimitFactorPerMin int
+	// RateLimitRenewPerMin bounds POST /v1/auth/renew (#916 Task 2
+	// Review Round 1, IMPORTANT 3), keyed on the authenticated subject.
+	// A separate knob from RateLimitPrincipalPerMin because one call to
+	// this route is one call to Zitadel's core API on the instance-wide
+	// login-client PAT — a shared external resource this route uniquely
+	// threatens, the exact criterion RateLimitLoginPerMin's own doc
+	// comment (and the tenant-switch history bootstrap.ratelimit.go
+	// records) uses to decide a route needs its own budget rather than
+	// drawing from Principal. See bootstrap.RenewRateLimitRule for the
+	// arithmetic behind the default.
+	RateLimitRenewPerMin int
 
 	// TrustedProxyCIDRs is the raw value of TRUSTED_PROXY_CIDRS, a
 	// comma-separated list of CIDR blocks — e.g. the production pod
@@ -331,6 +342,7 @@ func Load() Config {
 		RateLimitLoginPerMin:     getenvInt("RATE_LIMIT_LOGIN_PER_MIN", 20),
 		RateLimitActivityPerMin:  getenvInt("RATE_LIMIT_ACTIVITY_PER_MIN", 10),
 		RateLimitFactorPerMin:    getenvInt("RATE_LIMIT_FACTOR_PER_MIN", 10),
+		RateLimitRenewPerMin:     getenvInt("RATE_LIMIT_RENEW_PER_MIN", 6),
 
 		TrustedProxyCIDRs: getenvCIDRList("TRUSTED_PROXY_CIDRS"),
 	}

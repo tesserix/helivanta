@@ -53,19 +53,6 @@ type Deps struct {
 	// the switch route fails closed rather than issuing nothing and
 	// claiming success — mirroring the old Tokens field's nil behaviour.
 	SessionSigner *session.Signer
-	// SessionVerifier decodes an existing Helivanta session cookie back
-	// into its claims. Set by main.go from the SAME sessionVerifier
-	// instance bootstrap.V1Chain's requestVerifier wraps
-	// (authn.NewSessionVerifier) — #916's renewal route (iam/renew.go)
-	// needs it to re-read a request's raw cookie, independently of the
-	// authn.Principal authn.Middleware already parked on the context,
-	// because resolveIdleDeadline (iam/login.go) is shared VERBATIM with
-	// Login and takes a *session.Verifier as one of its parameters. A
-	// second Verifier built from a different key/kid would silently
-	// disagree with the one that already authenticated the request, and
-	// nil in tests that do not exercise renewal, in which case the route
-	// fails closed rather than issuing nothing and claiming success.
-	SessionVerifier *session.Verifier
 	// SessionTTL is the lifetime stamped on a re-minted session cookie.
 	// Must be the same value cfg.SessionTTL feeds iam.NewLoginHandlers
 	// (cmd/api/main.go) — two different TTLs for the same signer would

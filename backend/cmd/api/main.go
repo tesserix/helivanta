@@ -300,15 +300,7 @@ func run() error {
 		Bus:           bus,
 		Authz:         fga,
 		Roles:         fga,
-		SessionSigner: sessionSigner,
-		// SessionVerifier is the SAME sessionVerifier requestVerifier
-		// wraps for the /v1 chain below (see requestVerifier's own
-		// comment) — #916's renewal route (iam/renew.go) needs it to
-		// carry idle_deadline forward through resolveIdleDeadline, the
-		// exact logic Login shares with it. A second Verifier built from
-		// a different key/kid would silently disagree with the one that
-		// already authenticated the request.
-		SessionVerifier:     sessionVerifier,
+		SessionSigner:       sessionSigner,
 		SessionTTL:          cfg.SessionTTL,
 		SessionSecureCookie: sessionSecureCookie,
 		Reconcile: func(ctx context.Context, tenantID string) error {

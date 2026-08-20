@@ -200,6 +200,31 @@ func FactorRateLimitRule(cfg config.Config) ratelimit.Rule {
 	return ratelimit.Rule{Rate: cfg.RateLimitFactorPerMin, Burst: 5, Per: time.Minute}
 }
 
+// RenewRateLimitRule builds the budget for POST /v1/auth/renew (#916
+// Task 2 Review Round 1, IMPORTANT 3), keyed on the authenticated
+// subject via the SAME Tight mechanism POST /v1/auth/session/activity
+// uses. This route reintroduces exactly the "shared external resource a
+// route uniquely threatens" shape the tenant-switch history above (see
+// this file's opening comment) says a Tight entry is FOR: one
+// authenticated call here is one call to Zitadel's core API
+// (loginclient.Client.UserState) on the instance-wide login-client PAT,
+// not an in-process operation the way the re-mint and OpenFGA calls the
+// tenant-switch route settled into are. At the shared Principal budget's
+// 120/min default, a single principal calling this route in a loop
+// drives 120 Zitadel calls/min — and because renew fails CLOSED on a
+// Zitadel error (spec D3), pressuring Zitadel into 5xx by exhausting its
+// side of that traffic evicts every clinician within one SessionTTL, not
+// just the caller. Legitimate traffic is roughly 0.2/min per active
+// session (renew_at = SessionTTL/3, default 5 minutes). Rate=6/min,
+// Burst=2: three orders of magnitude of headroom over legitimate use,
+// while bounding the worst case to single digits of Zitadel calls per
+// minute per subject instead of 120 — and, same as activity's own Tight
+// entry, keeps this route's Zitadel-bound traffic from sharing a bucket
+// with ordinary page-load API calls in either direction.
+func RenewRateLimitRule(cfg config.Config) ratelimit.Rule {
+	return ratelimit.Rule{Rate: cfg.RateLimitRenewPerMin, Burst: 2, Per: time.Minute}
+}
+
 func RateLimitConfig(cfg config.Config) ratelimit.Config {
 	return ratelimit.Config{
 		Tenant: ratelimit.Rule{
@@ -212,6 +237,7 @@ func RateLimitConfig(cfg config.Config) ratelimit.Config {
 			"POST /v1/auth/session/activity": {
 				Rate: cfg.RateLimitActivityPerMin, Burst: 3, Per: time.Minute,
 			},
+			"POST /v1/auth/renew": RenewRateLimitRule(cfg),
 		},
 		Exempt: map[string]string{
 			"POST /v1/iam/me/sign-out":              "a clinician on a shared ward terminal must always be able to end their session",

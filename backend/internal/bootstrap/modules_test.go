@@ -1,12 +1,25 @@
 package bootstrap
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/helivanta/internal/modules/iam"
+	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 )
+
+// fakeUserStateChecker is a minimal iam.UserStateChecker for
+// TestNewRegistryGivesIAMTheExactUserStateCheckerPassedIn below — this
+// test is only about instance identity (require.Same), never about what
+// UserState actually answers, so a zero-value stub with no behaviour is
+// enough.
+type fakeUserStateChecker struct{}
+
+func (*fakeUserStateChecker) UserState(context.Context, string) (loginclient.UserState, error) {
+	return loginclient.UserStateActive, nil
+}
 
 func TestModulesReturnsIAMFirst(t *testing.T) {
 	mods := Modules(nil, nil)
@@ -53,4 +66,32 @@ func TestNewRegistryGivesIAMTheExactCheckerPassedIn(t *testing.T) {
 	require.NotNil(t, found, "iam module must be registered")
 	require.Same(t, checker, found.CheckerForTest(),
 		"bootstrap.NewRegistry must hand the iam module the exact checker instance the caller passed in")
+}
+
+// TestNewRegistryGivesIAMTheExactUserStateCheckerPassedIn mirrors
+// TestNewRegistryGivesIAMTheExactCheckerPassedIn exactly, for the same
+// reason and against the same blast radius, worse: cmd/api/main.go
+// constructs exactly ONE *loginclient.Client (zitadelLoginClient) and
+// must hand that same instance to bootstrap.NewRegistry, which threads
+// it into iam.Module.SetUserStateChecker. Dropping that
+// .SetUserStateChecker(userState) call entirely compiles, and go test
+// ./... stays green, while POST /v1/auth/renew 503s for every clinician
+// on every renewal — #916's own symptom, reintroduced by a silent wiring
+// regression instead of a SameSite cookie policy (Review Round 1,
+// IMPORTANT 2).
+func TestNewRegistryGivesIAMTheExactUserStateCheckerPassedIn(t *testing.T) {
+	userState := &fakeUserStateChecker{}
+
+	reg, err := NewRegistry(nil, userState)
+	require.NoError(t, err)
+
+	var found *iam.Module
+	for _, m := range reg.All() {
+		if im, ok := m.(*iam.Module); ok {
+			found = im
+		}
+	}
+	require.NotNil(t, found, "iam module must be registered")
+	require.Same(t, userState, found.UserStateCheckerForTest(),
+		"bootstrap.NewRegistry must hand the iam module the exact userState checker instance the caller passed in")
 }

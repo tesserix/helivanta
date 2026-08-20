@@ -75,6 +75,20 @@ func (m *Module) Name() string { return "iam" }
 // in internal/bootstrap.
 func (m *Module) CheckerForTest() *RevocationChecker { return m.checker }
 
+// UserStateCheckerForTest exposes the module's Zitadel state checker for
+// the same reason CheckerForTest exists (Review Round 1, IMPORTANT 2):
+// bootstrap.Modules threads userState into SetUserStateChecker, and
+// nothing previously asserted that wiring actually landed. Two
+// separately-constructed *loginclient.Client instances would compile and
+// pass every other test while POST /v1/auth/renew quietly used the
+// wrong one — or, dropping the .SetUserStateChecker(userState) call
+// entirely, every renewal would 503 for every clinician (#916's own
+// symptom, from a different cause) with go test ./... still green. See
+// TestNewRegistryGivesIAMTheExactUserStateCheckerPassedIn in
+// internal/bootstrap, which mirrors
+// TestNewRegistryGivesIAMTheExactCheckerPassedIn exactly.
+func (m *Module) UserStateCheckerForTest() UserStateChecker { return m.userState }
+
 // Permissions declares iam.member.manage and iam.credential.revoke.
 // Neither lists a role: tenant_admin is implicit, and revoking a
 // person's credentials platform-wide is not an authority any clinical
@@ -426,23 +440,27 @@ func (m *Module) registerActivity(r *platform.Router, deps platform.Deps) {
 // verification code duplicated here.
 //
 // authz.NoTenantMembership, not authz.Public: both decline to declare a
-// permission, but only NoTenantMembership ALSO skips
-// authz.RequireMembership — platform.Router's own membership gate,
-// backed by authz.MembershipChecker.IsMember (pkg/authz/tenant.go), a
-// DIFFERENT mechanism from the one this endpoint is required to reuse
+// permission — authz.Middleware's OpenFGA Resolve call still runs on
+// this route either way, regardless of which one is chosen, so the
+// choice here is NOT about avoiding a second call to OpenFGA. What
+// NoTenantMembership additionally skips is authz.RequireMembership —
+// platform.Router's own membership GATE, backed by
+// authz.MembershipChecker.IsMember (pkg/authz/tenant.go), a DIFFERENT
+// mechanism from the one this endpoint is required to reuse
 // (platform.RoleLister.ListRoles + hasBindingForTenant — the exact
 // check Login performs, see renewalHandlers.renew). Marking this route
-// Public would run RequireMembership FIRST, giving the request a second,
-// differently-shaped membership check ahead of the one the design brief
-// asks for — disagreeing with it on status code (403 vs. this handler's
-// 404) and therefore on what a mismatch discloses. NoTenantMembership
-// keeps renewalHandlers.renew the ONLY membership check this route
-// makes, the same reason sign-out and the activity endpoint both take
-// it: a route that must run its own bespoke membership logic should not
-// also pay for a second, generic one ahead of it.
+// Public would run RequireMembership FIRST, giving the request a
+// second, differently-shaped membership CHECK ahead of the one the
+// design brief asks for — disagreeing with it on status code (403 vs.
+// this handler's 404) and therefore on what a mismatch discloses.
+// NoTenantMembership keeps renewalHandlers.renew the ONLY membership
+// check this route makes, the same reason sign-out and the activity
+// endpoint both take it: a route that must run its own bespoke
+// membership logic should not also pay for a second, generic gate ahead
+// of it.
 func (m *Module) registerRenewal(r *platform.Router, deps platform.Deps) {
-	h := newRenewalHandlers(deps.SessionVerifier, deps.SessionSigner, deps.Roles, m.userState,
-		deps.SessionTTL, deps.IdleTimeout, deps.SessionSecureCookie)
+	h := newRenewalHandlers(deps.SessionSigner, deps.Roles, m.userState,
+		deps.SessionTTL, deps.SessionSecureCookie)
 	auth := r.Group("/auth")
 	auth.POST("/renew", authz.NoTenantMembership, h.renew)
 }

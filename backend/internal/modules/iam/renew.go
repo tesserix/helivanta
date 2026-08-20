@@ -36,6 +36,20 @@ type UserStateChecker interface {
 // to SESSION_TTL) left open.
 const renewalFraction = 3
 
+// renewAtFloor bounds renewResponse.RenewAt from below. SESSION_TTL has
+// no boot-time floor (config.go's getenvDuration + RequireIdleTimeout's
+// own comment on why a bad value must not stop the API booting) and
+// renewalFraction's derivation is only sound for a plausible TTL — a
+// misconfigured SESSION_TTL=3s (a "3m" typo an operator could plausibly
+// make) would otherwise produce renew_at = now+1s, and every connected
+// client would poll this endpoint, and therefore Zitadel's core API,
+// once a second forever. Fixed Review Round 1 finding "Also fix": floor
+// at the point of use rather than at config load, because THIS is the
+// one place a too-small interval actually causes harm (a hot polling
+// loop against an external, rate-limited dependency), not the TTL value
+// itself.
+const renewAtFloor = 30 * time.Second
+
 // renewResponse is POST /v1/auth/renew's success body. RenewAt is the
 // ONE channel (spec D5) that tells the browser when to call this
 // endpoint again; the client obeys it rather than a constant of its own,
@@ -62,37 +76,47 @@ type renewResponse struct {
 // /v1/auth/session/activity — is what satisfies the design brief's
 // first refusal condition ("absent, invalid, expired, or past
 // idle_deadline") with no verification code duplicated here.
+//
+// OPERATIONAL NOTE (Review Round 1, "Also fix"): the Zitadel state
+// check below fails CLOSED, on purpose (spec D3). That means a Zitadel
+// outage lasting longer than SESSION_TTL logs out every clinician mid-
+// consultation — the SAME user-visible harm #916 exists to prevent, from
+// a different cause (Zitadel unreachable rather than a cookie that never
+// travels). This is not a bug this task introduces or a behaviour this
+// task should change: D3 is explicit that a refused renewal is the
+// correct answer to an unreadable Zitadel response. It is recorded here
+// so Task 4's e2e coverage and the eventual runbook can acknowledge it
+// as a known, deliberate failure mode rather than rediscover it during
+// an incident.
 type renewalHandlers struct {
-	sessions     *session.Verifier
 	signer       *session.Signer
 	roles        platform.RoleLister
 	userState    UserStateChecker
 	ttl          time.Duration
-	idleTimeout  time.Duration
 	secureCookie bool
-	// now is the clock this handler reads for RenewAt and for
-	// resolveIdleDeadline's "fresh" fallback branch — time.Now in
-	// production, injectable for the same one reason
-	// LoginHandlers.now is (see its doc comment): a test needs to
-	// observe time moving between a login and a renewal.
+	// now is the clock this handler reads for RenewAt. time.Now in
+	// production; renew_test.go injects it directly (same package) to
+	// assert an EXACT RenewAt value rather than one within a tolerance
+	// window.
 	now func() time.Time
 }
 
-func newRenewalHandlers(sessions *session.Verifier, signer *session.Signer, roles platform.RoleLister,
-	userState UserStateChecker, ttl, idleTimeout time.Duration, secureCookie bool,
+func newRenewalHandlers(signer *session.Signer, roles platform.RoleLister,
+	userState UserStateChecker, ttl time.Duration, secureCookie bool,
 ) *renewalHandlers {
 	return &renewalHandlers{
-		sessions: sessions, signer: signer, roles: roles, userState: userState,
-		ttl: ttl, idleTimeout: idleTimeout, secureCookie: secureCookie, now: time.Now,
+		signer: signer, roles: roles, userState: userState,
+		ttl: ttl, secureCookie: secureCookie, now: time.Now,
 	}
 }
 
 // renew re-checks everything a renewal must prove and, only past every
 // check, re-mints the caller's session. Order matches the design brief:
-// Zitadel state, then OpenFGA membership, then mint — the same "check to
-// completion, mint last" shape Login's own doc comment insists on and
-// for the same reason: minting first and refusing after would hand out
-// exactly the session each check exists to withhold.
+// cookie presence, then Zitadel state, then OpenFGA membership, then
+// mint — the same "check to completion, mint last" shape Login's own
+// doc comment insists on and for the same reason: minting first and
+// refusing after would hand out exactly the session each check exists
+// to withhold.
 func (h *renewalHandlers) renew(c *gin.Context) {
 	p, tenantUUID, ok := authn.TenantPrincipal(c)
 	if !ok {
@@ -100,6 +124,32 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 	}
 	tenantID := tenantUUID.String()
 	logger := requestid.Logger(c)
+
+	// --- Review Round 1 CRITICAL fix: the cookie IS this endpoint's
+	// credential, by definition (see the type doc comment). But
+	// authn.Middleware (pkg/authn/authn.go) authenticates from
+	// Authorization: Bearer IN PREFERENCE TO the cookie when both are
+	// present, and accepts a Helivanta session JWT there too. A bearer-
+	// presented token still produces a valid, idle-deadline-checked
+	// authn.Principal — so without this check, a caller could replay an
+	// exfiltrated session token as a bearer header on a timer and renew
+	// forever, because (before this fix) the carry-forward logic below
+	// read idle_deadline from a SEPARATE re-read of c.Cookie, which is
+	// simply absent for a bearer-only request and so fell through to a
+	// FRESH now+idleTimeout window on every call — the exact "stolen
+	// cookie" case authn.go's own idle-timeout comment calls out as
+	// something that "fails closed here", silently not doing so for this
+	// one route. Refusing a renewal that presents no session cookie at
+	// all closes that shape outright, independently of the fix below
+	// that stops trusting a second, independently-read credential for
+	// the deadline in the first place.
+	if _, err := c.Cookie(authn.SessionCookie); err != nil {
+		logger.WarnContext(c.Request.Context(),
+			"renew: no session cookie presented; refusing (bearer-only renewal is not a shape this endpoint serves)",
+			"subject", p.Subject)
+		respond.Unauthenticated(c, "renewal requires the session cookie")
+		return
+	}
 
 	// --- Spec D3: is the subject still active upstream in Zitadel? ---
 	//
@@ -116,6 +166,8 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 	// as the very outage this check exists to be robust against. A
 	// refused renewal costs one re-login the next time Zitadel answers;
 	// there is no symmetric way back from granting the other direction.
+	// See the type doc comment's OPERATIONAL NOTE for the corollary this
+	// direction accepts.
 	if h.userState == nil {
 		logger.ErrorContext(c.Request.Context(),
 			"renew: no zitadel user-state checker configured; refusing to renew")
@@ -164,26 +216,34 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 		return
 	}
 
-	// --- Re-mint, carrying idle_deadline forward through the SAME
-	// resolveIdleDeadline Login uses (login.go), never a second copy of
-	// the carry-forward rule (spec D4 point 1, #848 spec D3). The
-	// principal passed in is THIS renewal's own subject/auth_time —
-	// identical to what the cookie already carries, since there is no
-	// fresh Zitadel round trip on this path to produce anything else —
-	// so resolveIdleDeadline's carry branch is the one that always fires
-	// here; its other branches exist for Login's genuine-login case and
-	// are deliberately left unreachable rather than special-cased away,
-	// which is what makes this a true reuse and not a rewrite. ---
-	if h.signer == nil || h.sessions == nil {
-		logger.ErrorContext(c.Request.Context(), "renew: no session signer/verifier configured; refusing to mint")
+	// --- Re-mint, carrying idle_deadline forward from THE ALREADY-
+	// VERIFIED PRINCIPAL — p.IdleDeadline — rather than by independently
+	// re-reading and re-verifying c.Cookie a second time (Review Round 1
+	// CRITICAL fix; this file used to call login.go's
+	// resolveIdleDeadline, which read the raw cookie on its own). p is
+	// the SAME claim, off the SAME token that authn.Middleware already
+	// verified and already proved is still in the future (the idle gate
+	// above it in the chain would have refused it otherwise) — reading
+	// it from the principal is strictly more correct than a second,
+	// independent read that can silently disagree with what actually
+	// authenticated this request, and it removes this handler's
+	// dependency on *session.Verifier entirely. Login's own
+	// idleDeadlineFor is NOT reused here: that function exists to
+	// discriminate a genuine login from a renewal by comparing a FRESH
+	// Zitadel principal against an OLD cookie — a distinction that does
+	// not exist on this endpoint, which never sees a fresh IdP
+	// credential at all. p.IdleDeadline is simply the deadline this
+	// session is already running against; carrying it through
+	// unconditionally IS the correct behaviour here, not an
+	// approximation of Login's richer decision. ---
+	now := h.now()
+	if h.signer == nil {
+		logger.ErrorContext(c.Request.Context(), "renew: no session signer configured; refusing to mint")
 		respond.Error(c, http.StatusServiceUnavailable,
 			"session_unavailable", "could not renew the session")
 		return
 	}
-	now := h.now()
-	deadline := resolveIdleDeadline(c, h.sessions, h.idleTimeout,
-		authn.Principal{Subject: p.Subject, AuthTime: p.AuthTime}, now)
-	token, err := h.signer.Mint(p.Subject, tenantID, p.AuthTime, deadline)
+	token, err := h.signer.Mint(p.Subject, tenantID, p.AuthTime, p.IdleDeadline)
 	if err != nil {
 		logger.ErrorContext(c.Request.Context(), "renew: mint session failed", "err", err)
 		respond.Error(c, http.StatusServiceUnavailable,
@@ -196,8 +256,12 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(authn.SessionCookie, token, int(h.ttl.Seconds()), "/", "", h.secureCookie, true)
 
+	renewAfter := h.ttl / renewalFraction
+	if renewAfter < renewAtFloor {
+		renewAfter = renewAtFloor
+	}
 	respond.OK(c, renewResponse{
 		TenantID: tenantID,
-		RenewAt:  now.Add(h.ttl / renewalFraction).UTC(),
+		RenewAt:  now.Add(renewAfter).UTC(),
 	})
 }

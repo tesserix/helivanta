@@ -1,0 +1,70 @@
+name: SCRATCH - DNS probe (delete before merge)
+
+on:
+  push:
+    branches:
+      - fix/920-e2e-in-ci
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: os-release
+        run: cat /etc/os-release
+
+      - name: resolv.conf and hosts
+        run: |
+          echo "--- /etc/resolv.conf ---"
+          cat /etc/resolv.conf || true
+          echo "--- /etc/hosts ---"
+          cat /etc/hosts || true
+
+      - name: systemd-resolved status
+        run: systemctl is-active systemd-resolved || true
+
+      - name: getent hosts (before /etc/hosts fix)
+        continue-on-error: true
+        run: |
+          echo "--- helivanta.localhost ---"
+          getent hosts helivanta.localhost; echo "exit: $?"
+          echo "--- auth.tesserix.localhost ---"
+          getent hosts auth.tesserix.localhost; echo "exit: $?"
+
+      - name: node dns.lookup (before fix)
+        continue-on-error: true
+        run: node -e "require('dns').lookup('auth.tesserix.localhost', (e,a,f) => console.log({e: e && e.code, a, f}))"
+
+      - name: curl against local listener (before fix)
+        continue-on-error: true
+        run: |
+          python3 -m http.server 8931 --bind 127.0.0.1 &
+          SERVER_PID=$!
+          sleep 1
+          echo "--- curl helivanta.localhost:8931 ---"
+          curl -sS -o /dev/null -w 'http_code=%{http_code} exit=%{exitcode}\n' http://helivanta.localhost:8931/ || echo "curl failed exit=$?"
+          kill $SERVER_PID || true
+
+      - name: add /etc/hosts entries
+        run: |
+          echo "127.0.0.1 helivanta.localhost auth.tesserix.localhost" | sudo tee -a /etc/hosts
+          cat /etc/hosts
+
+      - name: getent hosts (after /etc/hosts fix)
+        continue-on-error: true
+        run: |
+          echo "--- helivanta.localhost ---"
+          getent hosts helivanta.localhost; echo "exit: $?"
+          echo "--- auth.tesserix.localhost ---"
+          getent hosts auth.tesserix.localhost; echo "exit: $?"
+
+      - name: node dns.lookup (after fix)
+        run: node -e "require('dns').lookup('auth.tesserix.localhost', (e,a,f) => console.log({e: e && e.code, a, f}))"
+
+      - name: curl against local listener (after fix)
+        run: |
+          python3 -m http.server 8932 --bind 127.0.0.1 &
+          SERVER_PID=$!
+          sleep 1
+          echo "--- curl helivanta.localhost:8932 ---"
+          curl -sS -o /dev/null -w 'http_code=%{http_code} exit=%{exitcode}\n' http://helivanta.localhost:8932/ || echo "curl failed exit=$?"
+          kill $SERVER_PID || true

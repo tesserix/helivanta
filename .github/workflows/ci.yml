@@ -255,6 +255,15 @@ jobs:
           lsof -nP -iTCP:4301 -sTCP:LISTEN; echo "rc=$?"
           echo "--- ss"
           ss -ltnp
+          echo "--- lsof any listener"
+          lsof -nP -iTCP -sTCP:LISTEN | head -20; echo "rc=$?"
+          echo "--- lsof version"
+          lsof -v 2>&1 | head -4
+          echo "--- lsof on the shell's next-server pid"
+          NS=$(pgrep -f 'next-server' | head -1); echo "pid=$NS"
+          lsof -p "$NS" 2>&1 | head -8; echo "rc=$?"
+          echo "--- proc mount"
+          grep ' /proc ' /proc/self/mountinfo
           echo "--- ps"
           ps -eo pid,ppid,user,args | grep -i 'next\|turbo\|go run' | head -30
 

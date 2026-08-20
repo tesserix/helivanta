@@ -144,9 +144,12 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 	// that stops trusting a second, independently-read credential for
 	// the deadline in the first place.
 	if _, err := c.Cookie(authn.SessionCookie); err != nil {
+		// Review Round 2, N3: no "subject" field here — requestid.Logger(c)
+		// (PrincipalMiddleware) already attaches it to every line this
+		// logger emits; a second, explicit "subject" field would just
+		// duplicate the key in the emitted JSON.
 		logger.WarnContext(c.Request.Context(),
-			"renew: no session cookie presented; refusing (bearer-only renewal is not a shape this endpoint serves)",
-			"subject", p.Subject)
+			"renew: no session cookie presented; refusing (bearer-only renewal is not a shape this endpoint serves)")
 		respond.Unauthenticated(c, "renewal requires the session cookie")
 		return
 	}
@@ -177,15 +180,16 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 	}
 	state, err := h.userState.UserState(c.Request.Context(), p.Subject)
 	if err != nil {
+		// Same N3 reasoning as above: no redundant "subject" field —
+		// requestid.Logger(c) already carries it.
 		logger.ErrorContext(c.Request.Context(), "renew: zitadel user state unreadable, refusing (fail closed)",
-			"err", err, "subject", p.Subject)
+			"err", err)
 		respond.Error(c, http.StatusServiceUnavailable,
 			"identity_unavailable", "could not verify account status")
 		return
 	}
 	if !state.IsActive() {
-		logger.WarnContext(c.Request.Context(), "renew: subject no longer active upstream, refusing",
-			"subject", p.Subject)
+		logger.WarnContext(c.Request.Context(), "renew: subject no longer active upstream, refusing")
 		respond.Unauthenticated(c, "account is no longer active")
 		return
 	}

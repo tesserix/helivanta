@@ -296,10 +296,10 @@ func run() error {
 	// negating cfg.IsDev().
 	sessionSecureCookie := !cfg.IsDev()
 	deps := platform.Deps{
-		DB:            db,
-		Bus:           bus,
-		Authz:         fga,
-		Roles:         fga,
+		DB:                  db,
+		Bus:                 bus,
+		Authz:               fga,
+		Roles:               fga,
 		SessionSigner:       sessionSigner,
 		SessionTTL:          cfg.SessionTTL,
 		SessionSecureCookie: sessionSecureCookie,

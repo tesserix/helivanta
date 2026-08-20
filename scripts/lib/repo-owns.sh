@@ -119,6 +119,14 @@ compose_owns_port() {
 
 # port_is_ours PORT — true when free, or held only by our processes or our
 # containers.
+#
+# ERREXIT INVARIANT, stated because it is otherwise unwritten: the assignment
+# below is not `set -e` safe. lsof exits 1 for a free port, so under `set -e`
+# `pids=$(port_holders …)` would abort the caller on the most ordinary answer
+# there is. Its only current caller is preflight.sh, which runs
+# `set -uo pipefail` WITHOUT -e. A future caller with errexit on must either
+# keep it out of a bare assignment (`pids=$(port_holders "$p") || true` loses
+# rc 2, so prefer `if ! pids=$(…); then`) or this function needs rewriting.
 port_is_ours() {
   local pid pids rc
   pids=$(port_holders "$1"); rc=$?

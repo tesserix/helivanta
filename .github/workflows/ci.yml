@@ -58,6 +58,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # NOT because the port control uses it — since #920 that is `ss` on
+      # Linux (scripts/lib/repo-owns.sh's port_tool), and iproute2 ships in
+      # the runner image. lsof is needed here for two narrower things
+      # preflight.test.sh exercises: the NEGATIVE CONTROL in the paren-comm
+      # regression test, which asserts raw lsof still cannot see a
+      # `next-server (v16.2.12)` listener, and cwd_of's non-Linux fallback.
+      # Without it the negative control would silently not run.
       - name: Ensure lsof is present
         run: command -v lsof || (sudo apt-get update && sudo apt-get install -y lsof)
       - run: make test-scripts
@@ -260,14 +267,13 @@ jobs:
           done
 
       - name: make e2e
-        # STEP-level, and this is the one that matters. A JOB-level
-        # `timeout-minutes` CANCELS the job, and `failure()` is false under
-        # cancellation — so with only the job bound, the #923 hang (the exact
-        # scenario the bound exists for) would skip every diagnostic step
-        # below and read as a bare "job exceeded the maximum execution time".
-        # A step timeout FAILS the step instead: the job stays alive, the
-        # dumps run, and the artifact uploads. The job-level 30 stays as the
-        # backstop for a hang anywhere outside this step.
+        # STEP-level, so a #923 hang is attributed to THIS step rather than
+        # to the job. A job-level timeout cancels the job, and while the dumps
+        # below survive that (see their own comment), the run then reads as a
+        # bare "exceeded the maximum execution time" with no step named. A
+        # step timeout fails the step instead: the job stays alive, finishes
+        # normally, and the failure points at `make e2e`. The job-level 30
+        # stays as the backstop for a hang anywhere outside this step.
         #
         # 20 minutes against a measured 4m30s for this step inside a 9m54s
         # job — a 4x margin, and still inside the job budget with room for
@@ -280,22 +286,35 @@ jobs:
       # what distinguish "zitadel-login is wedged on a stale PAT" from "a
       # spec genuinely failed".
       #
-      # The condition is `!success() || cancelled()`, and every part of it is
-      # load-bearing:
+      # The condition is `!success() || cancelled()`, and the mechanism is
+      # worth stating correctly because the obvious guess is wrong.
       #
-      #   - A JOB-level timeout CANCELS the job, and a step whose `if` does
-      #     not mention `cancelled()` (or `always()`) is SKIPPED under
-      #     cancellation — `failure()` and `!cancelled()` alike. So a bare
-      #     `if: failure()` would skip all of this in exactly the scenario
-      #     the 30-minute bound exists for. Naming `cancelled()` is what
-      #     keeps these steps eligible to run at all in the grace period.
-      #   - `!success()` covers the normal case, which is now the COMMON one:
-      #     the step-level `timeout-minutes: 20` on `make e2e` turns a hang
-      #     into a step FAILURE rather than a job cancellation, so the job
-      #     stays alive and these steps run with time to finish.
-      #   - Together they stay silent on a green run — `!success()` is false
-      #     and `cancelled()` is false — so a passing build does not dump
-      #     Zitadel's logs at anyone.
+      # GitHub does not scan the `if` text for `cancelled()`. It EVALUATES the
+      # expression with the job status set to Cancelled — under which
+      # `success()`, `failure()` and `!cancelled()` are all false, which is
+      # why steps written that way skip. The only textual special case runs
+      # the other way: an `if` containing no status-check function gets
+      # `success() &&` implicitly prepended.
+      #
+      # So `!success()` ALONE is already true under cancellation, and is what
+      # actually does the work here — on a step failure and on a job
+      # cancellation alike. `|| cancelled()` is logically redundant; it is
+      # kept only because it says out loud that this step is meant to survive
+      # a cancelled job. Neither clause fires on a green run, so a passing
+      # build does not dump Zitadel's logs at anyone.
+      #
+      # Consequence worth recording: a hang in `dev-infra` or `seed` — steps
+      # with no timeout of their own — hits the JOB bound, cancels the job,
+      # and these dumps STILL run, inside the default 5-minute cancel-timeout
+      # (they take about a second). The step-level `timeout-minutes` on
+      # `make e2e` above buys a better headline, not the diagnostics
+      # themselves. Step timeouts on the earlier steps would be a
+      # nice-to-have, not a correctness fix.
+      #
+      # These run `docker compose` directly rather than through make, so the
+      # HELIVANTA_* variables make exports are unset and compose warns about a
+      # blank masterkey. Harmless here: `ps` and `logs` read container state,
+      # they do not (re)create anything from the substituted value.
       - name: Dump container state on failure
         if: ${{ !success() || cancelled() }}
         run: docker compose -f docker-compose.dev.yml ps

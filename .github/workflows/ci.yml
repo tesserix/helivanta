@@ -247,6 +247,7 @@ jobs:
       # answered HTTP, so the fixture swap silently stopped nothing.
       - name: DEBUG port holders
         run: |
+          set +e
           id
           echo "--- lsof -t"
           lsof -nP -iTCP:4301 -sTCP:LISTEN -t; echo "lsof rc=$?"

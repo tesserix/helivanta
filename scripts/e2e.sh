@@ -151,6 +151,20 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# The stale-instance guard, before anything else. Zitadel writes its
+# instance domain ONCE at first provisioning and answers "Instance not
+# found" to any other host afterwards — the failure #916 Task 4 introduced
+# by moving the IdP off `localhost`. preflight.sh has the only legible
+# diagnosis of it, but it only ran on `make dev` / `make up`, and the
+# developer most likely to hit this is precisely the one who pulls this
+# branch and runs `make e2e` against a stack whose volume predates it:
+# every login in phase 1 would fail against a Zitadel that answers healthz
+# perfectly well, with nothing anywhere naming the hostname as the cause.
+#
+# Only this one check: the ports preflight would otherwise inspect are held
+# by the very stack this script requires to be up.
+bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-instance-domain
+
 require_port_up "$SHELL_PORT" "http://$WEB_HOST:$SHELL_PORT/login" "main shell"
 require_port_up "$API_PORT" "http://localhost:$API_PORT/healthz" "main API"
 

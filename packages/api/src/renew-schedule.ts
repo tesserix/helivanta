@@ -77,11 +77,24 @@ export function loadRenewAt(): Date | undefined {
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
-// clearRenewAt drops the stored schedule. Called from packages/ui's
-// HmsShell on BOTH teardown paths — an explicit sign-out and an idle
-// timeout — beside clearPermissionsCache, for the same reason that one is
-// called there: #781's rule is that a signed-out session must not be
-// reconstructable from anything the browser kept.
+// clearRenewAt drops the stored schedule. There are THREE paths that end a
+// session in the browser, and it is called on all three — beside
+// clearPermissionsCache, for the same reason that one is called there:
+// #781's rule is that a finished session must not be reconstructable from
+// anything the browser kept.
+//
+//  1. An explicit sign-out (packages/ui's HmsShell, handleSignOut).
+//  2. An idle timeout (the same file's endIdleSession).
+//  3. A renewal the backend affirmatively refused —
+//     apps/shell/components/session-renewal.tsx's RenewalFailedError
+//     branch, which then navigates to /login. That path was previously an
+//     unstated EXCEPTION to the claim below: it cleared nothing at all.
+//
+// Paths 1 and 2 also POST /logout and end Zitadel's own SSO session; path 3
+// does neither, on purpose — see its own comment for why (the backend has
+// already ended the session, and a refused renewal is not a sign-out). So
+// the claim below is about BROWSER-HELD state specifically, which is the
+// scope #781 gives it.
 //
 // This value is not a credential and holds no PHI — it is one timestamp,
 // and the next login overwrites it — so leaving it would not have been a

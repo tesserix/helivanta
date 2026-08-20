@@ -30,7 +30,7 @@ import { login } from "./support/login";
 //     session on the idle clock before the TTL clock could prove anything —
 //     which is also why this cannot share the idle-timeout fixture.
 //
-// WHY NINETY SECONDS IS ENOUGH — and why it used to have to be six
+// WHY THREE MINUTES IS ENOUGH — and why it used to have to be six
 // minutes. This spec originally ran a 6-minute SESSION_TTL because
 // apps/shell scheduled its FIRST renewal from a hardcoded 5-minute client
 // constant (FALLBACK_RENEWAL_INTERVAL_MS, apps/shell/lib/renew.ts): POST
@@ -79,6 +79,17 @@ const X_BUDGET_SECONDS = SESSION_TTL_SECONDS - SESSION_TTL_SECONDS / 3;
 // dominant cost here is the wait itself, not this margin.
 const PAST_TTL_MS = (SESSION_TTL_SECONDS + 25) * 1000;
 
+// WHAT THIS SPEC DOES NOT COVER, stated so nobody reads more into a green
+// run than it earns: it proves the loop RUNS, not that it keeps
+// rescheduling. renewAtFor answers 60s here, so renewals are due at t+60s,
+// t+120s and t+180s — but a regression where the loop fires ONCE and never
+// schedules again would still pass every assertion below, because the
+// single renewal at t+60s mints a cookie good until t+240s and the
+// checks all happen at t+205s. Closing that would mean waiting past
+// t+240s, and the wall time is already this suite's dominant cost;
+// nextRenewalDelayMs's rescheduling is pinned by unit tests
+// (apps/shell/components/session-renewal.test.tsx) instead, which is the
+// right level for it.
 const PERMISSIONS_PATH = "/v1/iam/me/permissions"; // no /api prefix: called directly, not via the shell's rewrite
 const SESSION_COOKIE = "helivanta_session";
 

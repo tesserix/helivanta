@@ -389,7 +389,7 @@ chain into a test.**
 `requestid.Middleware()` (section 8) runs earlier still, on every route
 including `/healthz`, stamping a request ID before auth runs so a 401 log
 line is still correlated. `authn.Middleware` reads a `Bearer` header or
-the `hms_session` cookie, verifies it via the injected `TokenVerifier`
+the `helivanta_session` cookie, verifies it via the injected `TokenVerifier`
 (`authn.NewSessionVerifier` over `pkg/session` in production, since #838 made
 the Helivanta session — not the IdP token — what a `/v1` request presents;
 `testutil.StaticVerifier` in tests), and sets the `authn.Principal` on the Gin context for

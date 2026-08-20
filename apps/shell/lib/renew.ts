@@ -75,10 +75,13 @@ export interface RenewalResult {
 // comment for why a fixed fallback was chosen over remembering the last
 // known server cadence. It mirrors the value this file's own comment
 // used to hardcode as RENEWAL_INTERVAL_MS before D5: one third of the
-// API's default SESSION_TTL (15m, backend/internal/config/config.go),
-// which is also exactly renewAtFloor's `renewalFraction` in
-// renew.go — so an environment running the default TTL sees the SAME
-// cadence whether or not this fallback ever fires.
+// API's default SESSION_TTL (15m, backend/internal/config/config.go) —
+// which is exactly what renew.go's renewAtFor computes for that TTL,
+// `SESSION_TTL / renewalFraction` (renewalFraction is 3). So an
+// environment running the default TTL sees the SAME cadence whether or
+// not this fallback ever fires. On any OTHER SESSION_TTL the two diverge —
+// that is the point of the server sending `renew_at` at all, and why
+// this value is a fallback rather than the schedule.
 export const FALLBACK_RENEWAL_INTERVAL_MS = 5 * 60 * 1000;
 
 // MIN/MAX_RENEWAL_DELAY_MS bound whatever `renew_at` the server sends

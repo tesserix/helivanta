@@ -31,12 +31,19 @@ import { UserManager, WebStorageStateStore } from "oidc-client-ts";
  * here sees the id_token the shell's login flow stored, and
  * `signoutRedirect()` can build a real `id_token_hint`, from any zone.
  *
- * **What this deliberately does NOT do.** No login, callback, or silent
- * renewal — those still only make sense centrally, in the shell, which
- * owns the redirect_uri/silent_redirect_uri Zitadel is configured with.
- * This module only ever calls `signoutRedirect()` and `removeUser()`, the
- * two operations that need no redirect target other than
- * `post_logout_redirect_uri` (which every app already agrees is `/login`).
+ * **What this deliberately does NOT do.** No login and no callback — those
+ * still only make sense centrally, in the shell, which owns the
+ * `redirect_uri` Zitadel is configured with. This module only ever calls
+ * `signoutRedirect()` and `removeUser()`, the two operations that need no
+ * redirect target other than `post_logout_redirect_uri` (which every app
+ * already agrees is `/login`).
+ *
+ * Renewal is not on that list any more, and the distinction is worth
+ * keeping straight: there is no `silent_redirect_uri` anywhere in this
+ * system for the shell or anyone else to own. #916 deleted the hidden-
+ * iframe silent-renew flow, its page and its Zitadel registration —
+ * renewal is a server-side POST /v1/auth/renew that never touches Zitadel
+ * through the browser at all (backend/internal/modules/iam/renew.go).
  */
 let manager: UserManager | undefined;
 

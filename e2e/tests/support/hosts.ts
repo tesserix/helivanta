@@ -1,3 +1,6 @@
+// Side-effect import — MUST come first; see the note on WEB_HOST below.
+import "./load-env";
+
 // The hostnames this harness actually runs against — read from the SAME
 // environment variables the Makefile and docker-compose.dev.yml use, so
 // there is exactly one place the topology is decided (#916 Task 4).
@@ -19,7 +22,14 @@
 // reads the live values from here instead.
 //
 // `make e2e` forwards these explicitly (Makefile), and they are exported
-// for every recipe besides.
+// for every recipe besides. The `./load-env` import above is what makes the
+// OTHER entry point — a bare `pnpm --filter e2e exec playwright test`, which
+// scripts/verify-local.sh advertises and which involves no Make at all —
+// read the same `.env` the Makefile does, instead of falling back to the
+// defaults below and reporting green about a topology that is not running.
+// It must stay the FIRST import in this file: ES modules evaluate their
+// dependencies in import order, so anything that reads process.env before it
+// would read the pre-.env environment.
 export const WEB_HOST = process.env.HELIVANTA_WEB_HOST ?? "helivanta.localhost";
 export const ZITADEL_HOST = process.env.HELIVANTA_ZITADEL_HOST ?? "auth.tesserix.localhost";
 export const ZITADEL_PORT = process.env.HELIVANTA_ZITADEL_PORT ?? "20080";

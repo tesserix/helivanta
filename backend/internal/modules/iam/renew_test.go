@@ -291,15 +291,32 @@ func TestRenewViaBearerHeaderOnlyIsRefused(t *testing.T) {
 		"the missing-cookie refusal must happen before any Zitadel call, not after")
 }
 
-// TestRenewIgnoresAStaleCookieWhenBearerAuthenticates closes the related
-// case the reviewer named: a cookie for tenant A alongside a bearer
-// header for tenant B, same subject. authn.Middleware authenticates from
-// the bearer (its own preference order), so the principal is tenant B's
-// — the re-minted session must carry B's OWN deadline, never inherit
-// A's stale cookie value. This is what proves the fix is "read the
-// deadline off the already-verified principal", not merely "require a
-// cookie header to be present somewhere on the request".
-func TestRenewIgnoresAStaleCookieWhenBearerAuthenticates(t *testing.T) {
+// TestRenewRefusesABearerHeaderEvenAlongsideALiveCookie is the structural
+// half of the shape control, and it is the assertion the final
+// whole-branch review demanded be inverted.
+//
+// It used to assert a 200. The reasoning then was that a bearer-
+// authenticated renewal was ACCEPTABLE so long as it carried the
+// bearer principal's own deadline forward rather than minting a fresh
+// window — which is true as far as correctness goes, and is still
+// pinned by TestRenewCarriesIdleDeadlineForwardExactly below. But it
+// meant the refusal one function up (TestRenewViaBearerHeaderOnlyIsRefused)
+// rested on nothing but the ABSENCE of a cookie header, and the
+// reviewer proved that a caller only had to attach any junk cookie
+// alongside the bearer token to be served a re-minted session:
+//
+//	Authorization: Bearer <token>
+//	Cookie: helivanta_session=not-a-token-at-all
+//	=> 200, Set-Cookie: helivanta_session=<fresh>
+//
+// So renew.go now refuses on the bearer header itself, and this test
+// asserts that refusal on the harder input: a bearer for tenant B
+// alongside a GENUINE, still-live cookie for tenant A, same subject.
+// authn.Middleware prefers the bearer (its own preference order), so
+// this request authenticates perfectly well — and is still refused,
+// because a bearer-authenticated renewal is not a shape this endpoint
+// serves. Nothing about the cookie's validity rescues it.
+func TestRenewRefusesABearerHeaderEvenAlongsideALiveCookie(t *testing.T) {
 	roles := stubRoleLister{"user-1": {
 		{TenantID: renewTestTenantA, Role: authz.RoleNurse},
 		{TenantID: renewTestTenantB, Role: authz.RoleNurse},
@@ -319,15 +336,45 @@ func TestRenewIgnoresAStaleCookieWhenBearerAuthenticates(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+bearerB)
 	env.r.ServeHTTP(w, req)
 
+	require.Equal(t, http.StatusUnauthorized, w.Code, w.Body.String())
+	_, ok := renewSessionCookie(w)
+	require.False(t, ok,
+		"a request carrying Authorization: Bearer must be refused outright — a present cookie header "+
+			"says nothing about WHICH credential authenticated the request, which is exactly the hole "+
+			"a cookie-presence check left open")
+	require.Equal(t, 0, userState.calls,
+		"the shape refusal must happen before any Zitadel call, not after")
+}
+
+// TestRenewOnTheCookiePathStillCarriesTheDeadlineForward is the other
+// half, kept deliberately beside the refusal above: closing the bearer
+// shape must not be mistaken for what makes this endpoint safe. The
+// CORRECTNESS control is that the re-mint takes idle_deadline off the
+// already-verified principal, so the window can never be extended by
+// renewing — and that has to keep holding on the one path this endpoint
+// does serve, with the same "nearly out" deadline the reviewer's probe
+// used. TestRenewCarriesIdleDeadlineForwardExactly asserts the same
+// property on a comfortable deadline; this one pins it at the boundary
+// where extending it would be most valuable to an attacker.
+func TestRenewOnTheCookiePathStillCarriesTheDeadlineForward(t *testing.T) {
+	roles := stubRoleLister{"user-1": {{TenantID: renewTestTenantA, Role: authz.RoleNurse}}}
+	userState := &stubUserState{}
+	env := newRenewEnv(t, roles, userState, renewTestTTL)
+
+	authTime := time.Now().Add(-2 * time.Minute).UTC().Truncate(time.Second)
+	almostOut := time.Now().Add(30 * time.Second).UTC().Truncate(time.Second)
+	current := env.mint(t, "user-1", renewTestTenantA, authTime, almostOut)
+
+	w := doRenew(env.r, current)
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 	newCookie, ok := renewSessionCookie(w)
 	require.True(t, ok)
 	claims, err := env.verifier.Verify(newCookie)
 	require.NoError(t, err)
-	require.Equal(t, renewTestTenantB, claims.TenantID,
-		"must renew the BEARER-authenticated tenant (the one that actually authenticated the request), not the stale cookie's")
-	require.True(t, claims.IdleDeadline.Equal(freshB),
-		"must carry forward tenant B's own deadline, not tenant A's stale cookie value")
+	require.Equal(t, renewTestTenantA, claims.TenantID)
+	require.True(t, claims.IdleDeadline.Equal(almostOut),
+		"the re-minted session must carry the SAME idle_deadline (%s), not a fresh window — got %s",
+		almostOut, claims.IdleDeadline)
 }
 
 // --- spec D3: fail closed on the Zitadel state check ------------------
@@ -540,7 +587,17 @@ func TestLoginAndRenewAgreeOnRenewAt(t *testing.T) {
 	roles := stubRoleLister{subject: {{TenantID: renewTestTenantA, Role: authz.RoleNurse}}}
 	env := newRenewEnv(t, roles, &stubUserState{}, ttl)
 	env.h.now = clock
-	cookie := env.mint(t, subject, renewTestTenantA, authTime, frozen.Add(time.Hour))
+	// The idle deadline comes from REAL wall time, not from `frozen`:
+	// authn.Middleware's idle gate reads time.Now() and cannot be
+	// injected, so a deadline derived from the frozen instant is only in
+	// the future while real time happens to be inside `frozen`..`frozen+1h`.
+	// It was — this test was written at 2026-08-20 ~04:10 UTC — and the
+	// suite then started failing with "precondition: the renewal itself
+	// must succeed" (401) the moment real time passed 05:05:06 UTC, from a
+	// clock rather than from any change. The frozen clock is injected for
+	// exactly one purpose (env.h.now, which is what renewAtFor reads) and
+	// must not be reused for values a real, uninjectable clock judges.
+	cookie := env.mint(t, subject, renewTestTenantA, authTime, time.Now().Add(time.Hour))
 	renewRes := doRenew(env.r, cookie)
 	require.Equal(t, http.StatusOK, renewRes.Code, "precondition: the renewal itself must succeed")
 

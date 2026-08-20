@@ -201,6 +201,18 @@ The bound holds for the reason D4 claims: after the TTL, continuing requires a
 refuses the silent re-authentication. Deactivation therefore bites within one
 TTL without Helivanta ever asking Zitadel a question directly.
 
+> **The last sentence no longer describes the implementation — see the
+> amendment above.** It was true only of the browser-driven mechanism this
+> paragraph describes, which never ran. Under #916, Helivanta *does* ask
+> Zitadel a question directly: every `POST /v1/auth/renew` calls
+> `GET /v2/users/{id}` on the instance-level login-client PAT and refuses the
+> renewal unless the subject is still active
+> (`backend/internal/modules/iam/renew.go`). **The bound itself is unchanged**
+> — deactivation still bites within one TTL — and the property this paragraph
+> was really protecting is also unchanged: the direct question is asked with
+> Helivanta's *own* instance credential, never with a stored *user* token, so
+> "Helivanta stores no refresh token" below still holds exactly as written.
+
 Two properties fall out of this that are worth having deliberately:
 
 - **Helivanta stores no refresh token.** A refresh token is long-lived and, for a

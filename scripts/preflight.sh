@@ -178,11 +178,29 @@ check_zitadel_instance_domain() {
     *issuer*)
       ok "zitadel instance domain (${ZITADEL_HOST_CHECK})"
       ;;
-    *)
-      # Answering healthz but not a recognisable discovery document —
-      # mid-provisioning, most likely. Not a hostname problem, and not
-      # something to block a developer on.
+    "")
+      # No body at all: the request did not complete (a connection reset
+      # mid-boot, a proxy that hung up). healthz answered a moment ago, so
+      # this is a Zitadel still coming up, not a host it does not know —
+      # "Instance not found" is a body, and a 404 with one would have
+      # matched the case above. This is the ONLY shape treated as
+      # provisioning.
       ok "zitadel instance domain (still provisioning on ${ZITADEL_HOST_CHECK})"
+      ;;
+    *)
+      # Anything else: a body that is neither a discovery document nor a
+      # recognised error. Review finding — this used to share the
+      # provisioning branch, which made the default answer of a fail-closed
+      # guard "assume it is fine". That is fail-OPEN inside a control whose
+      # entire job is to catch one unreadable misconfiguration: a Zitadel
+      # that starts answering the not-found case with different wording, or
+      # an intercepting proxy returning its own error page, would silently
+      # print `ok` and hand the developer back the bare 404 this check
+      # exists to translate. Unrecognised now means FAIL, and the message
+      # quotes what actually came back so the next reader can decide
+      # whether it is a new error shape or a new success shape.
+      fail "zitadel instance domain" \
+        "Zitadel answered /debug/healthz on '${ZITADEL_HOST_CHECK}' but its OIDC discovery document at ${base}/.well-known/openid-configuration was not recognisable (no \`issuer\` field, and not the 'Instance not found' error either). This check cannot confirm the instance is provisioned for this host, and it refuses to guess — see check_zitadel_instance_domain in this file. Response body was: $(printf '%s' "${body}" | head -c 200)"
       ;;
   esac
 }

@@ -123,8 +123,11 @@ whole Zitadel configuration — `ZITADEL_ISSUER_URL`,
 `ZITADEL_HOSTED_LOGIN_URL` and `HELIVANTA_WEB_ORIGIN` are all derived from
 these two variables in the Makefile and exported, so no hardcoded dev
 default in `backend/internal/config/` can answer for a stale host —
-`scripts/e2e.sh`, and the e2e suite via `e2e/tests/support/hosts.ts`), so an
-override is honoured end to end. Verified rather than asserted: the whole
+`scripts/e2e.sh`, `scripts/lib/zitadel.mjs`'s dev redirect URIs, and the e2e
+suite via `e2e/tests/support/hosts.ts` — which reads `.env` itself
+(`load-env.ts`) so the guard sees your override even on the Make-less
+`pnpm --filter e2e exec playwright test` path), so an override is honoured end
+to end. Verified rather than asserted: the whole
 stack was re-provisioned on a third hostname and `make e2e` passed all three
 phases against it. What you
 may **not** do is point both at the same registrable domain: that returns the

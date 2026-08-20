@@ -608,6 +608,32 @@ describe("HmsShell", () => {
       expect(endZitadelSession).toHaveBeenCalledTimes(1);
     });
 
+    // The idle path is the SECOND of the three teardown paths that must
+    // leave nothing of this session in the browser
+    // (packages/api/src/renew-schedule.ts's clearRenewAt comment lists all
+    // three). Only the sign-out path was asserted before this — and a
+    // component that cleared on sign-out but not on idle timeout would
+    // have passed every existing test while leaving the previous
+    // clinician's renewal schedule behind on a ward terminal that timed
+    // out unattended, which is the very scenario #848 is about.
+    it("drops the stored renewal schedule when the idle timer expires", async () => {
+      vi.useFakeTimers();
+      storeRenewAt(new Date(Date.now() + 60_000).toISOString());
+      expect(window.sessionStorage.getItem(RENEW_AT_KEY)).not.toBeNull();
+      stubActivityFetch(() => new Date(Date.now() + 5_000));
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      expect(
+        window.sessionStorage.getItem(RENEW_AT_KEY),
+        "an idle timeout ends the session, so the schedule it left behind goes with it",
+      ).toBeNull();
+    });
+
     // D6 explicitly forbids subject-wide revocation here — that is
     // sign-out's #781 semantics. Nothing in this teardown path may call
     // anything resembling a global/subject revoke; the only server call is

@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { renewSession, nextRenewalDelayMs, RenewalUnavailableError } from "@/lib/renew";
-import { loadRenewAt, storeRenewAt } from "@helivanta/api";
+import { clearPermissionsCache, clearRenewAt, loadRenewAt, storeRenewAt } from "@helivanta/api";
 import { AUTH_CALLBACK_PATH } from "@/lib/oidc";
 
 // PUBLIC_PATHS mirrors middleware.ts's own list, minus "/login" (which
@@ -124,7 +124,7 @@ export function SessionRenewal() {
           if (cancelled) return;
           // Persist BEFORE scheduling, so a reload between now and the
           // next tick resumes from the newest server answer rather than
-          // from whatever login left behind (lib/renew-schedule.ts).
+          // from whatever login left behind (packages/api/src/renew-schedule.ts).
           storeRenewAt(renewAt);
           scheduleNext(nextRenewalDelayMs(renewAt));
         })
@@ -140,6 +140,32 @@ export function SessionRenewal() {
           // rather than silently keep a possibly-dead session running.
           // Neither RenewalFailedError nor an unexpected error carries
           // any data this branch needs beyond "log out".
+          //
+          // Drop the browser-held session state first. #781's rule — and
+          // renew-schedule.ts's own clearRenewAt comment — is that a
+          // finished session must not be reconstructable from anything
+          // the browser kept, and this is a third teardown path beside
+          // HmsShell's sign-out and idle-timeout ones. Without these two
+          // calls a clinician's cached permission set and renewal
+          // schedule survived into whoever signed in next on a shared
+          // ward terminal, and the "no exceptions" claim in
+          // renew-schedule.ts was simply untrue of this path.
+          clearPermissionsCache();
+          clearRenewAt();
+          // What this path deliberately does NOT do, and why — stated so
+          // the difference from HmsShell's teardown is a decision rather
+          // than an omission:
+          //   - No POST /logout. The backend has ALREADY ended this
+          //     session; that is what the 401/404 being handled here
+          //     means. Asking it to revoke a session it just refused
+          //     would answer 401 and change nothing.
+          //   - No endZitadelSession(). A refused renewal is not a
+          //     sign-out: the same human is still at the keyboard and is
+          //     being sent to /login to authenticate again. Ending
+          //     Zitadel's SSO session here would force a full credential
+          //     prompt on every transient membership change, and
+          //     HmsShell's sign-out button remains the way to leave a
+          //     shared workstation.
           window.location.href = "/login";
         });
     };
@@ -148,7 +174,7 @@ export function SessionRenewal() {
     // (#916 Task 4, F3) — POST /v1/auth/login now returns `renew_at`
     // from the same helper POST /v1/auth/renew uses
     // (backend/.../iam/renew.go's renewAtFor), and the auth-callback
-    // page stored it (lib/renew-schedule.ts) before navigating here.
+    // page stored it (packages/api/src/renew-schedule.ts) before navigating here.
     //
     // This closes the one interval spec D5 did not. Previously this line
     // read `nextRenewalDelayMs(undefined)` — the bounded five-minute

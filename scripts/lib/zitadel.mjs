@@ -29,12 +29,31 @@ const SECRETS_DIR = fileURLToPath(new URL("../../dev/zitadel/secrets/", import.m
 // renewal no longer touches Zitadel through the browser at all.
 // helivanta.localhost, not localhost (#916 Task 4, design spec D6): dev
 // serves the app and the IdP on different registrable domains so the
-// cross-site condition production runs under is actually exercised. Keep
-// these in step with scripts/zitadel-bootstrap.mjs's WEB_HOST and the
-// Makefile's HELIVANTA_WEB_HOST — Zitadel rejects an authorization request
-// whose redirect_uri is not registered byte-for-byte.
-export const DEV_REDIRECT_URI = "http://helivanta.localhost:4301/api/auth/callback";
-export const DEV_POST_LOGOUT_REDIRECT_URI = "http://helivanta.localhost:4301/login";
+// cross-site condition production runs under is actually exercised.
+//
+// DERIVED from HELIVANTA_WEB_HOST, not written out. Zitadel rejects an
+// authorization request whose redirect_uri is not registered
+// byte-for-byte, so these two strings must equal the ones
+// scripts/zitadel-bootstrap.mjs registers — and that script builds its
+// own from HELIVANTA_WEB_HOST. These used to be literals under a comment
+// asking the reader to "keep them in step", which is a documented
+// convention, the weakest rung of this repo's enforcement ladder: an
+// override of HELIVANTA_WEB_HOST moved the registration and left THESE
+// behind, so scripts/zitadel-verify-login.mjs (their only consumer) would
+// fail its token exchange on a host mismatch. It also made README.md's
+// and .env.example's claim that "every consumer reads these variables
+// rather than a literal ... so an override is honoured end to end"
+// untrue of exactly one consumer. Deriving it makes the claim true and
+// removes the thing to remember.
+//
+// The port stays literal: 4301 is apps/shell's fixed dev port (package
+// scripts, the Makefile, e2e/tests/support/hosts.ts's SHELL_PORT), not a
+// configurable.
+const WEB_HOST = process.env.HELIVANTA_WEB_HOST ?? "helivanta.localhost";
+const DEV_WEB_ORIGIN = `http://${WEB_HOST}:4301`;
+
+export const DEV_REDIRECT_URI = `${DEV_WEB_ORIGIN}/api/auth/callback`;
+export const DEV_POST_LOGOUT_REDIRECT_URI = `${DEV_WEB_ORIGIN}/login`;
 
 // readClientID prefers an explicit ZITADEL_CLIENT_ID from the environment
 // (an operator override), otherwise reads it straight from

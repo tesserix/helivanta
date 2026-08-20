@@ -308,6 +308,50 @@ out=$(run_preflight "$good"); status=$?
 assert_status "no Zitadel answering exits 0" 0 "$status"
 assert_contains "a cold stack is reported as such" "$out" "not running yet"
 
+# The tightened fallback (final #916 review). A body that is neither a
+# discovery document nor the known "Instance not found" error used to take
+# the SAME branch as "still provisioning" and print `ok` — fail-open inside
+# a fail-closed guard. An intercepting proxy's error page, or Zitadel
+# rewording the not-found message, would have silently satisfied the very
+# check that exists to translate that failure. Unrecognised is now a FAILURE,
+# and this proves it.
+unknown="$TMP/bin-unknown"
+make_shim "$unknown" docker 'exit 0'
+make_shim "$unknown" go     'echo "go version go1.26.5 darwin/arm64"'
+make_shim "$unknown" node   'echo "v22.11.0"'
+make_shim "$unknown" pnpm   'echo "10.17.1"'
+make_shim "$unknown" curl   'case "$*" in
+  *debug/healthz*)        exit 0 ;;
+  *openid-configuration*) echo "<html>502 Bad Gateway</html>"; exit 0 ;;
+esac
+exit 1'
+
+out=$(env PATH="$unknown:$PATH" HELIVANTA_ZITADEL_HOST="auth.example.localhost" \
+  bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-instance-domain 2>&1); status=$?
+assert_status "an unrecognisable discovery response exits 1" 1 "$status"
+assert_contains "the unrecognisable response is not called provisioning" "$out" "was not recognisable"
+assert_contains "the actual body is quoted back" "$out" "502 Bad Gateway"
+
+# The one shape that IS still treated as provisioning: healthz answers but
+# the discovery request produced no body at all (a connection reset while
+# Zitadel is still coming up). Kept narrow deliberately — "Instance not
+# found" is a body, so a stale volume can never land here.
+booting="$TMP/bin-booting"
+make_shim "$booting" docker 'exit 0'
+make_shim "$booting" go     'echo "go version go1.26.5 darwin/arm64"'
+make_shim "$booting" node   'echo "v22.11.0"'
+make_shim "$booting" pnpm   'echo "10.17.1"'
+make_shim "$booting" curl   'case "$*" in
+  *debug/healthz*)        exit 0 ;;
+  *openid-configuration*) exit 52 ;;
+esac
+exit 1'
+
+out=$(env PATH="$booting:$PATH" HELIVANTA_ZITADEL_HOST="auth.example.localhost" \
+  bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-instance-domain 2>&1); status=$?
+assert_status "an empty discovery response is still treated as provisioning" 0 "$status"
+assert_contains "provisioning is reported as such" "$out" "still provisioning"
+
 # `bash scripts/preflight.sh --only zitadel-instance-domain` is what
 # `make dev-infra` runs between its healthz wait and
 # scripts/zitadel-bootstrap.mjs — the one moment the stale instance is

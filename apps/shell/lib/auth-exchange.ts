@@ -33,7 +33,7 @@
 // OPTIONAL on this type, deliberately: an older API, or any response
 // whose body loses the field, must degrade to the documented fallback
 // cadence rather than throw out of the sign-in path. See
-// lib/renew-schedule.ts for why the value has to survive the navigation
+// packages/api/src/renew-schedule.ts for why the value has to survive the navigation
 // that follows this call, and backend/internal/modules/iam/renew.go's
 // renewAtFor for the single place both endpoints compute it.
 export interface LoginResult {

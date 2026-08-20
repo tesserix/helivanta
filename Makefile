@@ -447,19 +447,21 @@ test-web:
 test-scripts:
 	bash scripts/preflight.test.sh
 
-# `make e2e` runs the WHOLE suite in two phases, because idle-timeout.spec.ts's
-# fixture and the main stack's own shell cannot coexist (see the "Idle
-# timeout e2e fixture" comment above) — Next.js 16 refuses a second `next
-# dev` for the same project directory. A bare `playwright test` only ever
-# runs phase one: the "idle-timeout" project is deliberately left out of
+# `make e2e` runs the WHOLE suite in THREE phases, because both fixture
+# shells (idle-timeout.spec.ts's and session-renewal.spec.ts's) and the main
+# stack's own shell cannot coexist — Next.js 16 refuses a second `next dev`
+# for the same project directory. See the "Idle timeout e2e fixture" and
+# "Session-renewal e2e fixture" comments above. A bare `playwright test` only
+# ever runs phase one: both fixture projects are deliberately left out of
 # Playwright's default project list (e2e/playwright.config.ts) so that
 # command stays honest about what it covers, instead of quietly failing
-# whenever the fixture happens to also be up.
+# whenever a fixture happens to also be up.
 #
-# scripts/e2e.sh does the actual swap (stop shell -> start fixture -> run
-# the idle-timeout project -> stop fixture -> restart shell) behind an
-# EXIT trap, so a failure partway through still restores the shell and
-# frees the fixture's ports rather than leaving the developer stuck. It
+# scripts/e2e.sh does the actual swaps (stop the zone apps -> start a fixture
+# -> run its project -> stop the fixture, once per fixture -> restart the
+# zone apps) behind an EXIT trap, so a failure partway through still restores
+# the shell and frees the fixtures' ports rather than leaving the developer
+# stuck. It also runs preflight's stale-Zitadel-instance check first. It
 # assumes `make dev` (or `make up`) and `make seed` have already brought
 # up infra + API + shell + medicore — the same assumption "specs"/"bulk"
 # already make.

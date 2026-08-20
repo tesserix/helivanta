@@ -77,15 +77,33 @@ import (
 // above are. See
 // docs/superpowers/specs/2026-08-16-login-rate-limit-design.md D2 for the
 // full arithmetic: Rate/6 sizes a burst to "one page load's worth of
-// parallel requests", which is not this endpoint's traffic shape. This
-// endpoint's legitimate bursts come from #838 D4a's silent renewal
-// (RENEWAL_INTERVAL_MS, 5 minutes) firing from every open shell tab —
-// tabs opened close together renew in a synchronized cluster every 5
-// minutes for as long as they stay open, and 10 is a generous bound on
-// how many tabs one clinician has open at once. Rate=20/min (default)
-// refills a fully-drained 10-token burst in 30s, comfortably inside that
-// 5-minute gap, while staying an order of magnitude above the ~2/min a
-// heavy 10-tab clinician actually sustains.
+// parallel requests", which is not this endpoint's traffic shape.
+//
+// The justification for the NUMBER changed in #916, and is restated here
+// rather than left pointing at a mechanism that no longer exists. It used
+// to read: bursts come from #838 D4a's silent renewal (RENEWAL_INTERVAL_MS,
+// 5 minutes) firing from every open shell tab. That traffic is gone — #916
+// moved renewal onto POST /v1/auth/renew (RenewRateLimitRule below), the
+// browser-side renewal flow and its constant were deleted, and nothing
+// calls THIS route on a timer any more.
+//
+// What actually bursts against POST /v1/auth/login now, per SUBJECT (this
+// bucket's key), is a cluster of genuine sign-in exchanges by one human:
+// signing in on a workstation, a tablet and a phone around the start of a
+// shift; a re-login on a browser whose previous Helivanta session cookie is
+// still live (the case iam.LoginHandlers.idleDeadlineFor exists to
+// discriminate); the auth-callback route re-running its exchange after a
+// reload or a transient failure. Each is one request, seconds apart, and
+// 10 is a generous bound on how many a single clinician produces in one
+// cluster. Rate=20/min (default) refills a fully-drained burst in 30s.
+//
+// The number is deliberately NOT lowered alongside the new reasoning: this
+// bucket keys on a subject who has ALREADY passed Zitadel authentication,
+// so it is not the brute-force control (that is FactorRateLimitRule below,
+// keyed on client IP, and the spec's D2 is explicit about the division),
+// and the cost of sizing it too tightly is refusing a clinician's genuine
+// sign-in. Changing it would need its own evidence, which #916 did not
+// produce.
 func LoginRateLimitRule(cfg config.Config) ratelimit.Rule {
 	return ratelimit.Rule{Rate: cfg.RateLimitLoginPerMin, Burst: 10, Per: time.Minute}
 }
@@ -220,18 +238,27 @@ func FactorRateLimitRule(cfg config.Config) ratelimit.Rule {
 // comment reasoned per session ("~0.2/min per active session") and sized
 // Burst from that, which is the wrong quantity for a per-subject bucket
 // and is corrected here rather than left to mislead the next reader.
-// This route is the direct successor of the traffic
-// LoginRateLimitRule's own doc comment already documents (see above):
-// the shell's renewal loop moves from POST /v1/auth/login onto this
-// endpoint, and that comment's own reasoning applies unchanged — "tabs
-// opened close together renew in a synchronized cluster ... 10 is a
-// generous bound on how many tabs one clinician has open at once".
-// Unlike POST /v1/auth/session/activity, whose Burst=3 leans on a 60s
-// cross-tab BroadcastChannel debounce (spec D4), today's renewal client
-// (apps/shell/lib/renew.ts) has NO cross-tab coordination — every open
-// tab independently calls this endpoint on its own timer, so a burst
-// sized for "one page load's worth of requests" would 429 a clinician
-// with several tabs open in the same synchronized cluster. A 429 here
+// The traffic this Burst is sized against is the shell's renewal loop,
+// which #916 moved off POST /v1/auth/login and onto this endpoint. Read
+// it from the client that produces it, not from LoginRateLimitRule's
+// comment above: that comment's renewal reasoning described the
+// mechanism #916 DELETED, and citing it here as still-authoritative
+// would be borrowing a justification that is no longer true of either
+// route.
+//
+// The live facts, each checkable at its own definition: every open shell
+// tab runs its own timer (apps/shell/components/session-renewal.tsx,
+// whose doc comment states the absence of cross-tab coordination as a
+// deliberate choice made against THIS budget), each tab fires one
+// request per renew_at interval, and the interval is the server's own
+// SESSION_TTL/3 (renew.go's renewAtFor), bounded client-side to
+// 30s..30m (apps/shell/lib/renew.ts). Tabs opened close together
+// therefore renew in a synchronized cluster, and 10 is a generous bound
+// on how many tabs one clinician has open at once. Unlike POST
+// /v1/auth/session/activity, whose Burst=3 leans on a 60s cross-tab
+// BroadcastChannel debounce (spec D4), nothing debounces these — so a
+// burst sized for "one page load's worth of requests" would 429 a
+// clinician with several tabs open in the same cluster. A 429 here
 // that Task 3's client treats as a renewal failure is a bounce to
 // /login — the exact harm #916 exists to prevent, reintroduced by this
 // rate limit. Burst=10 matches LoginRateLimitRule's own number and its

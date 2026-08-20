@@ -3,6 +3,7 @@ package iam
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,20 +26,36 @@ type UserStateChecker interface {
 }
 
 // renewalFraction is the divisor renewResponse.RenewAt uses: renew when
-// 1/3 of THIS session's own TTL has elapsed. 3 is not arbitrary — it
-// reproduces the margin the codebase already shipped and proved workable
-// (a 5-minute browser renewal interval against SESSION_TTL's 15-minute
-// default: 15/5 = 3), expressed as a ratio of the server's own SessionTTL
+// 1/3 of THIS session's own TTL has elapsed. 3 is not arbitrary, but it
+// is INHERITED rather than evidenced: it is the ratio the codebase
+// already shipped (a 5-minute browser renewal interval against
+// SESSION_TTL's 15-minute default: 15/5 = 3). Being exact about what
+// that does and does not establish matters here — the browser-driven
+// renewal the ratio came from never once succeeded in production (see
+// renewalHandlers' doc comment below: the cross-site SameSite=Lax round
+// trip always failed), so nothing about 3 was ever proved workable by
+// use. What recommends it is that it leaves two thirds of the TTL as
+// margin for a renewal to fail and be retried before the session lapses,
+// and that keeping the shipped ratio changes one thing at a time.
+//
+// What IS new is expressing it as a ratio of the server's own SessionTTL
 // rather than as a fixed client-side duration, so it keeps holding at
 // whatever SESSION_TTL an operator configures — the exact coupling spec
-// D5 calls for, closing the gap RENEWAL_INTERVAL_MS
-// (apps/shell/lib/renew.ts:16, a hardcoded constant with nothing tying it
-// to SESSION_TTL) left open.
+// D5 calls for, closing the gap the retired client-side constant
+// (RENEWAL_INTERVAL_MS in apps/shell/lib/renew.ts, deleted by this
+// branch; its bounded successor is FALLBACK_RENEWAL_INTERVAL_MS) left
+// open by having nothing tying it to SESSION_TTL at all.
 const renewalFraction = 3
 
 // renewAtFloor bounds renewResponse.RenewAt from below. SESSION_TTL has
-// no boot-time floor (config.go's getenvDuration + RequireIdleTimeout's
-// own comment on why a bad value must not stop the API booting) and
+// no boot-time floor at all: config.go's getenvDuration accepts any
+// parseable duration, and — unlike IDLE_TIMEOUT right beside it, which
+// RequireIdleTimeout (config/idletimeout.go) REFUSES TO BOOT on when it
+// is non-positive, precisely so the operator sees it at the deploy —
+// nothing rejects an implausible SESSION_TTL anywhere. That asymmetry is
+// tracked as #921, and it is why this floor has to exist here; see
+// renewAtFor below for the same contrast stated from the other side.
+//
 // renewalFraction's derivation is only sound for a plausible TTL — a
 // misconfigured SESSION_TTL=3s (a "3m" typo an operator could plausibly
 // make) would otherwise produce renew_at = now+1s, and every connected
@@ -112,11 +129,11 @@ func newRenewalHandlers(signer *session.Signer, roles platform.RoleLister,
 
 // renew re-checks everything a renewal must prove and, only past every
 // check, re-mints the caller's session. Order matches the design brief:
-// cookie presence, then Zitadel state, then OpenFGA membership, then
-// mint — the same "check to completion, mint last" shape Login's own
-// doc comment insists on and for the same reason: minting first and
-// refusing after would hand out exactly the session each check exists
-// to withhold.
+// credential shape (the cookie, and only the cookie), then Zitadel
+// state, then OpenFGA membership, then mint — the same "check to
+// completion, mint last" shape Login's own doc comment insists on and for
+// the same reason: minting first and refusing after would hand out
+// exactly the session each check exists to withhold.
 func (h *renewalHandlers) renew(c *gin.Context) {
 	p, tenantUUID, ok := authn.TenantPrincipal(c)
 	if !ok {
@@ -125,31 +142,67 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 	tenantID := tenantUUID.String()
 	logger := requestid.Logger(c)
 
-	// --- Review Round 1 CRITICAL fix: the cookie IS this endpoint's
-	// credential, by definition (see the type doc comment). But
+	// --- THE SHAPE CONTROL (Review Round 1 CRITICAL fix; made structural
+	// in the final whole-branch review). The cookie IS this endpoint's
+	// credential, by definition — see the type doc comment. But
 	// authn.Middleware (pkg/authn/authn.go) authenticates from
-	// Authorization: Bearer IN PREFERENCE TO the cookie when both are
-	// present, and accepts a Helivanta session JWT there too. A bearer-
-	// presented token still produces a valid, idle-deadline-checked
-	// authn.Principal — so without this check, a caller could replay an
-	// exfiltrated session token as a bearer header on a timer and renew
-	// forever, because (before this fix) the carry-forward logic below
-	// read idle_deadline from a SEPARATE re-read of c.Cookie, which is
-	// simply absent for a bearer-only request and so fell through to a
-	// FRESH now+idleTimeout window on every call — the exact "stolen
-	// cookie" case authn.go's own idle-timeout comment calls out as
-	// something that "fails closed here", silently not doing so for this
-	// one route. Refusing a renewal that presents no session cookie at
-	// all closes that shape outright, independently of the fix below
-	// that stops trusting a second, independently-read credential for
-	// the deadline in the first place.
-	if _, err := c.Cookie(authn.SessionCookie); err != nil {
+	// `Authorization: Bearer` IN PREFERENCE TO the cookie whenever both
+	// are present, and it accepts a Helivanta session JWT there too. So a
+	// bearer-presented token still produces a valid, idle-deadline-checked
+	// authn.Principal, and a caller replaying an exfiltrated session token
+	// as a bearer header on a timer would be renewing on a credential this
+	// endpoint never meant to serve.
+	//
+	// An earlier version of this check tested only that a session COOKIE
+	// was present and claimed that "closes that shape outright". It did
+	// not, and the reviewer proved it: `Authorization: Bearer <token>`
+	// alongside any junk `Cookie: helivanta_session=...` satisfied a
+	// presence test and returned 200 with a re-minted cookie. Presence of
+	// one credential says nothing about WHICH credential authenticated the
+	// request. What actually decides that is authn.Middleware's preference
+	// order, so the refusal has to be stated against the bearer header
+	// itself.
+	//
+	// Two checks, doing two different jobs, and it is worth keeping them
+	// apart rather than collapsing them:
+	//
+	//   - This one is the SHAPE control: a bearer-authenticated renewal is
+	//     not a shape this endpoint serves, so it is refused outright
+	//     rather than served-but-narrowed. Refusing an unrecognised shape
+	//     is the fail-closed direction (engineering-principles.md §3), and
+	//     no legitimate caller is affected: the only client of this route
+	//     is the browser's own same-origin POST, which never sets an
+	//     Authorization header (apps/shell/lib/renew.ts), and every
+	//     internal caller of the API uses the routes it was built for, not
+	//     a session-renewal endpoint.
+	//   - The CORRECTNESS control is further down: the re-mint carries
+	//     idle_deadline forward from p.IdleDeadline, the already-verified
+	//     principal. That is what makes the window unextendable no matter
+	//     which credential got here, and it is the control that makes the
+	//     residual risk small — this refusal narrows the surface, it is not
+	//     what makes the surface safe.
+	if strings.HasPrefix(c.GetHeader("Authorization"), "Bearer ") {
 		// Review Round 2, N3: no "subject" field here — requestid.Logger(c)
 		// (PrincipalMiddleware) already attaches it to every line this
 		// logger emits; a second, explicit "subject" field would just
 		// duplicate the key in the emitted JSON.
 		logger.WarnContext(c.Request.Context(),
-			"renew: no session cookie presented; refusing (bearer-only renewal is not a shape this endpoint serves)")
+			"renew: Authorization: Bearer presented; refusing (the session cookie is this endpoint's only credential)")
+		respond.Unauthenticated(c, "renewal requires the session cookie")
+		return
+	}
+
+	// The positive half of the same rule: the cookie must actually be
+	// here. Kept as its own check rather than folded into the one above —
+	// a request with neither credential cannot have authenticated at all
+	// today (authn.Middleware would have refused it), but a future auth
+	// source (mTLS, a signed header from an internal mesh) would reach
+	// this handler with a principal and no cookie, and "this endpoint
+	// renews the cookie it was presented" should refuse that too rather
+	// than mint one out of nothing.
+	if _, err := c.Cookie(authn.SessionCookie); err != nil {
+		logger.WarnContext(c.Request.Context(),
+			"renew: no session cookie presented; refusing (the session cookie is this endpoint's only credential)")
 		respond.Unauthenticated(c, "renewal requires the session cookie")
 		return
 	}

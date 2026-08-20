@@ -6,7 +6,7 @@ import {
   RenewalUnavailableError,
   FALLBACK_RENEWAL_INTERVAL_MS,
 } from "@/lib/renew";
-import { loadRenewAt, storeRenewAt } from "@helivanta/api";
+import { PERMISSIONS_CACHE_KEY, loadRenewAt, storeRenewAt } from "@helivanta/api";
 import { SessionRenewal } from "./session-renewal";
 
 // setTimeout is spied on GLOBALLY, so other library internals (react-query,
@@ -35,6 +35,10 @@ describe("SessionRenewal", () => {
     // must be cleared between tests or one test's login schedule seeds
     // the next test's first timer (#916 Task 4, F3).
     window.sessionStorage.clear();
+    // Same reasoning for the permissions cache, which lives in
+    // localStorage (packages/api/src/permissions-cache.ts) and is cleared
+    // by the same teardown path asserted below.
+    window.localStorage.clear();
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -135,6 +139,48 @@ describe("SessionRenewal", () => {
     callback();
 
     await waitFor(() => expect(locationSpy).toHaveBeenCalledWith("/login"));
+    setTimeoutSpy.mockRestore();
+  });
+
+  // #781's rule — "a finished session must not be reconstructable from
+  // anything the browser kept" — applies to THIS teardown path too, not
+  // only to HmsShell's sign-out and idle-timeout ones. It did not hold
+  // here: the RenewalFailedError branch navigated to /login having
+  // cleared nothing, so the previous clinician's cached permission set and
+  // renewal schedule survived into whoever signed in next on a shared ward
+  // terminal — and packages/api/src/renew-schedule.ts's clearRenewAt
+  // comment claimed the property held "with no exceptions". Asserted here
+  // rather than trusted to the comment.
+  it("clears the browser-held session state before sending the user to /login", async () => {
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+    renewSession.mockRejectedValue(new RenewalFailedError("account is no longer active"));
+    vi.stubGlobal("location", { set href(_v: string) {} });
+    storeRenewAt(new Date(Date.now() + 60_000).toISOString());
+    window.localStorage.setItem(PERMISSIONS_CACHE_KEY, JSON.stringify(["lab.order.read"]));
+    expect(loadRenewAt(), "precondition: a schedule is stored").toBeDefined();
+
+    renderWithProviders(<SessionRenewal />);
+    // The stored schedule above means the first timer is ~60s, not the
+    // 5-minute fallback the other failure test matches on.
+    const [callback] = await waitFor(() => {
+      const call = setTimeoutSpy.mock.calls.find(
+        ([, delay]) => typeof delay === "number" && delay > 50_000 && delay <= 60_000,
+      ) as [() => void, number] | undefined;
+      expect(call).toBeDefined();
+      return call!;
+    });
+    callback();
+
+    await waitFor(() => {
+      expect(
+        loadRenewAt(),
+        "the renewal schedule must not survive a session the backend has ended",
+      ).toBeUndefined();
+      expect(
+        window.localStorage.getItem(PERMISSIONS_CACHE_KEY),
+        "the cached permission set must not survive into the next user on this browser",
+      ).toBeNull();
+    });
     setTimeoutSpy.mockRestore();
   });
 

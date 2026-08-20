@@ -169,7 +169,19 @@ restore_web() {
     # "/" rather than "/login": only apps/shell serves a login page
     # directly, the other three zone apps redirect an unauthenticated
     # request there — either way a response means the dev server is up.
-    wait_for_port "http://$WEB_HOST:$port/" "zone app on :$port" "$web_pid"
+    #
+    # `|| return 1` EXPLICITLY, not left to errexit. cleanup() calls this
+    # function as an operand of an `||` list, and POSIX says `-e` is ignored
+    # for every command in an AND-OR list but the last — bash applies that
+    # suppression inside the subshell and into every function it calls, so a
+    # failing wait_for_port here would neither abort nor be noticed. Two
+    # things went wrong because of that, both observed: the loop polled all
+    # four ports instead of stopping at the first failure (4 x
+    # WAIT_FOR_PORT_TIMEOUT = 12 minutes inside a 30-minute job), and this
+    # function's status became merely the LAST port's, so ":4301 dead,
+    # :4302-4304 alive" returned 0 and the run went green with apps/shell
+    # never restored (#920).
+    wait_for_port "http://$WEB_HOST:$port/" "zone app on :$port" "$web_pid" || return 1
   done
 }
 
@@ -229,9 +241,18 @@ cleanup() {
   #   - An ERR trap does not cover it either. ERR is not inherited by shell
   #     functions without `set -E`, and this path IS a function; and
   #     stop_port_if_ours calls `exit 1` outright, which no ERR trap sees.
-  #   - A subshell turns BOTH shapes — a command failing under `set -e`, and
-  #     an outright `exit 1` — into an ordinary non-zero status this function
-  #     can test. That is the only one of the three that fires.
+  #   - A subshell contains an `exit`: stop_port_if_ours's outright `exit 1`
+  #     becomes an ordinary non-zero status this function can test, instead
+  #     of tearing down the whole script. That is what the subshells below
+  #     are for, and it is ALL they are for.
+  #
+  # What the subshell does NOT do is convert a command that fails under
+  # `set -e`. Errexit is ignored for every command in an AND-OR list except
+  # the last, and bash pushes that suppression into the subshell and into the
+  # functions it calls — so `( restore_web ) || cleanup_status=1` runs
+  # restore_web with errexit effectively off. Propagation there has to be
+  # explicit, and it is: restore_web's own loop ends in `|| return 1`. Any
+  # future function called from here owes the same.
   #
   # Two subshells rather than one, so a failing teardown_fixture still leaves
   # restore_web to run: the developer gets their zone apps back even when the

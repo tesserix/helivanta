@@ -11,11 +11,7 @@ test("seeded admin sees every zone", async ({ page }) => {
   // under Playwright's default substring name matching even though both
   // surfaces now apply the same visibleZones(can) permission filter.
   const zoneNav = page.getByRole("navigation", { name: "Zones" });
-  // TEMPORARY (#920 Task 4 / D6): "Radiology" is not a Helivanta zone, so
-  // this assertion FAILS on purpose. It exists for exactly one CI run, to
-  // prove the e2e job goes red on a real test failure — every red so far has
-  // been an environmental one. Reverted in the next commit.
-  for (const zone of ["MediCore", "Pharmacy", "Lab", "Radiology"]) {
+  for (const zone of ["MediCore", "Pharmacy", "Lab"]) {
     await expect(zoneNav.getByRole("link", { name: zone })).toBeVisible();
   }
 });

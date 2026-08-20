@@ -18,7 +18,8 @@ import { login } from "./support/login";
 // Runs in its own Playwright PROJECT ("renewal", e2e/playwright.config.ts)
 // against its OWN API + shell pair (`make dev-api-renewal` /
 // `make dev-web-renewal`, see the Makefile's "Session-renewal e2e fixture"
-// comment), booted with SESSION_TTL=6m and IDLE_TIMEOUT left at its
+// comment), booted with SESSION_TTL=3m (the Makefile's
+// SESSION_TTL_TEST_VALUE) and IDLE_TIMEOUT left at its
 // 15-minute default. Both halves of that are load-bearing:
 //
 //   - A SHORT SESSION_TTL is the only way to observe a session outliving
@@ -36,30 +37,54 @@ import { login } from "./support/login";
 // /v1/auth/login returned no `renew_at`, so the server's schedule governed
 // every renewal EXCEPT the first, and any SESSION_TTL under five minutes
 // killed every session before the first renewal fired. That was a real
-// production defect — config.go applies no minimum to SESSION_TTL — and it
+// production defect — config.go applies no minimum to SESSION_TTL (#921) —
+// and it
 // was fixed rather than worked around (#916 Task 4, F3): login now returns
 // `renew_at` from renewAtFor, the SAME helper the renewal endpoint uses,
 // and the shell seeds its first timer from it.
 //
-// With the cadence genuinely server-driven from the first tick, a 90s TTL
-// is the smallest value that leaves real margin against both floors:
-// renewAtFor answers TTL/3 = 30s, which is exactly renewAtFloor and exactly
-// the client's MIN_RENEWAL_DELAY_MS, so renewals land at t+30s, t+60s and
-// t+90s while the login cookie dies at t+90s.
+// With the cadence genuinely server-driven from the first tick the TTL can
+// be far shorter than six minutes. renewAtFor answers TTL/3 = 60s here, so
+// renewals land at t+60s, t+120s and t+180s while the login cookie dies at
+// t+180s.
 const RENEWAL_API_URL = "http://localhost:8098"; // Makefile's HELIVANTA_RENEWAL_API_PORT
-const SESSION_TTL_SECONDS = 90; // Makefile's SESSION_TTL_TEST_VALUE
+const SESSION_TTL_SECONDS = 3 * 60; // Makefile's SESSION_TTL_TEST_VALUE
+
+// THE MARGIN THIS SPEC DEPENDS ON, stated so a future failure is
+// diagnosable instead of mysterious.
+//
+// Call X the gap between the API minting the login cookie and
+// components/session-renewal.tsx actually mounting in the browser: a
+// redirect through the auth-callback route, a React mount, and — on a cold
+// CI runner — a first-request `next dev` compile of the dashboard route.
+// The first renewal fires at approximately
+//     max(mint + SESSION_TTL/3, mount + MIN_RENEWAL_DELAY_MS)
+// because nextRenewalDelayMs clamps an already-past `renew_at` up to
+// MIN_RENEWAL_DELAY_MS (30s) rather than firing immediately. For that
+// renewal to land while the login cookie is still valid, X must satisfy
+//     X < SESSION_TTL - SESSION_TTL/3
+// which at SESSION_TTL=3m is a budget of TWO MINUTES.
+//
+// This was briefly SESSION_TTL=90s, which left a 60-second budget — and
+// blowing it does NOT fail as "renewal was late". It fails at step 4 as
+// "no helivanta_session cookie", which is indistinguishable from a genuine
+// renewal defect. A harness whose flake looks exactly like the bug it
+// exists to catch is worse than a slower one, so the TTL was raised rather
+// than the margin argued away. X is a few seconds on a warm machine.
+const X_BUDGET_SECONDS = SESSION_TTL_SECONDS - SESSION_TTL_SECONDS / 3;
+
 // Past the original cookie's expiry, with enough margin that a slow
 // renewal round trip (a real HTTP call, a real Zitadel user-state check and
 // a real OpenFGA membership check) cannot be mistaken for a failure. The
 // dominant cost here is the wait itself, not this margin.
-const PAST_TTL_MS = (SESSION_TTL_SECONDS + 20) * 1000;
+const PAST_TTL_MS = (SESSION_TTL_SECONDS + 25) * 1000;
 
 const PERMISSIONS_PATH = "/v1/iam/me/permissions"; // no /api prefix: called directly, not via the shell's rewrite
 const SESSION_COOKIE = "helivanta_session";
 
-// One real sign-in plus a ~110s real-time wait, plus headroom for a cold
+// One real sign-in plus a ~205s real-time wait, plus headroom for a cold
 // `next dev` compile on the fixture's first request.
-test.setTimeout(300_000);
+test.setTimeout(420_000);
 
 async function sessionCookieValue(page: import("@playwright/test").Page): Promise<string> {
   const cookies = await page.context().cookies(page.url());
@@ -73,8 +98,28 @@ test("an idle signed-in clinician is STILL authenticated after a renewal interva
   request,
 }) => {
   // --- 1. Sign in, and capture the session this login minted -----------
+  const signInStartedAt = Date.now();
   await login(page);
+  const signInSeconds = (Date.now() - signInStartedAt) / 1000;
   const originalSession = await sessionCookieValue(page);
+
+  // The X budget, asserted rather than assumed — see X_BUDGET_SECONDS
+  // above. login() resolves only once the API has accepted the session, so
+  // its wall time is an upper bound on the mint-to-mount gap this spec
+  // depends on. Checking it HERE means an over-budget run fails with a
+  // message naming the real cause, instead of failing 205 seconds later at
+  // step 4 as "no helivanta_session cookie" — which is exactly what a
+  // genuine renewal defect looks like. This assertion is about the
+  // HARNESS, not the product: if it fires, raise SESSION_TTL_TEST_VALUE
+  // (Makefile) rather than loosening anything below it.
+  expect(
+    signInSeconds,
+    `signing in took ${signInSeconds.toFixed(1)}s, which exceeds this fixture's ` +
+      `${X_BUDGET_SECONDS}s budget for the gap between the login mint and SessionRenewal ` +
+      `mounting (SESSION_TTL - SESSION_TTL/3). The first renewal cannot land before the ` +
+      `login cookie expires, so the rest of this spec would fail as "no session cookie" and ` +
+      `read as a renewal defect. Raise SESSION_TTL_TEST_VALUE in the Makefile.`,
+  ).toBeLessThan(X_BUDGET_SECONDS);
 
   const initialCheck = await page.evaluate(
     async (url) => (await fetch(url)).ok,

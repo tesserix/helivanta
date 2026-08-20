@@ -118,9 +118,15 @@ than assuming it.
 
 Override via `HELIVANTA_WEB_HOST` / `HELIVANTA_ZITADEL_HOST` if these names
 collide with something on your machine — every consumer reads those variables
-rather than a literal (compose, `scripts/zitadel-bootstrap.mjs`, the backend's
-dev defaults, `scripts/e2e.sh`, and the e2e suite via
-`e2e/tests/support/hosts.ts`), so an override is honoured end to end. What you
+rather than a literal (compose, `scripts/zitadel-bootstrap.mjs`, the API's
+whole Zitadel configuration — `ZITADEL_ISSUER_URL`,
+`ZITADEL_HOSTED_LOGIN_URL` and `HELIVANTA_WEB_ORIGIN` are all derived from
+these two variables in the Makefile and exported, so no hardcoded dev
+default in `backend/internal/config/` can answer for a stale host —
+`scripts/e2e.sh`, and the e2e suite via `e2e/tests/support/hosts.ts`), so an
+override is honoured end to end. Verified rather than asserted: the whole
+stack was re-provisioned on a third hostname and `make e2e` passed all three
+phases against it. What you
 may **not** do is point both at the same registrable domain: that returns the
 harness to same-site and makes #916's class of defect invisible again.
 `cross-site-harness.spec.ts` derives the hosts it probes from the running

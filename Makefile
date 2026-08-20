@@ -82,6 +82,27 @@ NATS_URL ?= nats://localhost:$(HELIVANTA_NATS_PORT)
 OPENFGA_URL ?= http://localhost:$(HELIVANTA_OPENFGA_PORT)
 ZITADEL_ISSUER_URL ?= http://$(HELIVANTA_ZITADEL_HOST):$(HELIVANTA_ZITADEL_PORT)
 
+# Derived from the SAME host as the issuer, and exported below, so that
+# overriding HELIVANTA_ZITADEL_HOST actually moves the whole IdP rather than
+# half of it (#916 Task 4 fix round 2). backend/internal/config/config.go
+# carries a hardcoded dev default for this variable; before this line, an
+# override moved ZITADEL_ISSUER_URL and left hosted login pointed at
+# auth.tesserix.localhost, so sign-in broke for anyone who took the
+# documented override at its word. The claim came first and the wiring
+# second — fixed by making the claim true, not by softening it.
+ZITADEL_HOSTED_LOGIN_URL ?= http://$(HELIVANTA_ZITADEL_HOST):$(HELIVANTA_ZITADEL_PORT)/ui/v2/login
+
+# Same reasoning for the APP's origin. config.DevHelivantaWebOrigin
+# (backend/internal/config/hostedlogin.go) is likewise a hardcoded
+# helivanta.localhost:4301, and its only consumer is the boot-time
+# RequireDistinctHostedLoginOrigin assertion — so a stale value there
+# WEAKENS a guard rather than breaking login, which is quieter and
+# therefore worth closing too. Deriving and exporting it means the guard
+# compares the origins this stack actually serves. The dev-api-renewal
+# recipe sets its own value (its shell runs on a different port); a
+# recipe-level assignment still wins over this export.
+HELIVANTA_WEB_ORIGIN ?= http://$(HELIVANTA_WEB_HOST):4301
+
 # API_URL is what each app's next.config.ts rewrites /api to (server side).
 API_URL ?= http://localhost:$(HELIVANTA_API_PORT)
 
@@ -105,6 +126,7 @@ export HELIVANTA_PG_PORT HELIVANTA_NATS_PORT HELIVANTA_NATS_MONITOR_PORT HELIVAN
 # resolves to the same value every recipe here uses.
 export HELIVANTA_WEB_HOST HELIVANTA_ZITADEL_HOST
 export APP_DATABASE_URL ADMIN_DATABASE_URL SYSTEM_DATABASE_URL NATS_URL OPENFGA_URL ZITADEL_ISSUER_URL
+export ZITADEL_HOSTED_LOGIN_URL HELIVANTA_WEB_ORIGIN
 export API_URL
 export ZITADEL_CLIENT_ID
 export NEXT_PUBLIC_ZITADEL_ISSUER_URL NEXT_PUBLIC_ZITADEL_CLIENT_ID
@@ -143,6 +165,13 @@ dev-infra: preflight
 	@printf 'Waiting for Zitadel on http://$(HELIVANTA_ZITADEL_HOST):$(HELIVANTA_ZITADEL_PORT)…'
 	@until curl -fsS --max-time 2 http://$(HELIVANTA_ZITADEL_HOST):$(HELIVANTA_ZITADEL_PORT)/debug/healthz >/dev/null 2>&1; do printf '.'; sleep 1; done
 	@echo ' ready.'
+	@# /debug/healthz above is instance-INDEPENDENT: it answers 200 on a
+	@# volume provisioned for a DIFFERENT host, and the bootstrap below then
+	@# dies with a bare 'HTTP 404 {"code":5,"message":"Instance not found"}'.
+	@# `preflight` at the top of this recipe cannot catch that on the common
+	@# path — it runs before compose starts Zitadel, so it sees nothing
+	@# answering and passes. Here, and only here, the information exists.
+	@bash scripts/preflight.sh --only zitadel-instance-domain
 	@# Provisions the Helivanta org/project/app once (idempotent — see the
 	@# script's own doc comment) and writes
 	@# dev/zitadel/secrets/zitadel.env, which the -include near the top of
@@ -301,10 +330,22 @@ dev-web-idle-timeout:
 # so anything under five minutes killed the session before the first
 # renewal fired. Login now returns `renew_at` from the same helper the
 # renewal endpoint uses, so the cadence is server-driven from the first
-# tick and 90s is enough — renewAtFor answers TTL/3 = 30s (exactly
-# renewAtFloor and exactly the client's MIN_RENEWAL_DELAY_MS), so renewals
-# land at t+30s/t+60s/t+90s while the ORIGINAL cookie dies at t+90s. A
-# session still working at t+110s can only be a re-minted one.
+# tick and the TTL can be far shorter.
+#
+# THREE MINUTES, not the 90s this was briefly set to. The margin that
+# matters is X, the gap between the login mint and SessionRenewal
+# mounting in the browser (a redirect, a React mount, and on a cold CI
+# runner a first-request `next dev` compile). The first renewal lands at
+# roughly max(mint+TTL/3, mount+30s), so the spec only holds while
+# X < TTL - TTL/3. At 90s that left a 60-SECOND budget for X, and blowing
+# it fails as "no helivanta_session cookie" — indistinguishable from a
+# genuine renewal defect, which is the worst possible way for a harness to
+# flake. At 3m the budget is 120s, and renewAtFor answers TTL/3 = 60s, so
+# renewals land at t+60/120/180s while the ORIGINAL cookie dies at t+180s.
+# A session still working at t+205s can only be a re-minted one.
+# e2e/tests/session-renewal.spec.ts names that budget (X_BUDGET_SECONDS)
+# and ASSERTS on it right after sign-in, so an over-budget machine fails
+# saying so instead of failing 200 seconds later as "no session cookie".
 #
 # SESSION_TTL_TEST_VALUE is baked into this recipe rather than read from
 # SESSION_TTL, for the same reason IDLE_TIMEOUT_TEST_VALUE is above: a
@@ -318,7 +359,7 @@ dev-web-idle-timeout:
 # this cannot share the idle-timeout fixture above.
 HELIVANTA_RENEWAL_API_PORT ?= 8098
 HELIVANTA_RENEWAL_WEB_PORT ?= 4398
-SESSION_TTL_TEST_VALUE ?= 90s
+SESSION_TTL_TEST_VALUE ?= 3m
 ZITADEL_RENEWAL_ENV_FILE ?= dev/zitadel/secrets/zitadel-renewal.env
 
 dev-api-renewal:

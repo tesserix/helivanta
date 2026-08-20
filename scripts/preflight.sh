@@ -147,6 +147,18 @@ check_zitadel_masterkey() {
 # that ANSWERS, and answers "Instance not found" for the configured host, is
 # a failure: that is unambiguously a stale volume, never a cold start.
 check_zitadel_instance_domain() {
+  # scripts/reset-dev.sh sets this. Its whole job is to DROP the volume and
+  # re-provision on the configured host, so a stale instance is this
+  # command's expected input, not a reason to refuse it. Without the escape
+  # hatch the check deadlocks the user: the failure message says "run
+  # RESET_YES=1 make reset", and reset-dev.sh runs preflight before it
+  # destroys anything, so that command would refuse for the very reason it
+  # was being run. A control that blocks its own remedy is a worse defect
+  # than the one it catches.
+  if [ "${PREFLIGHT_SKIP_ZITADEL_INSTANCE:-}" = "1" ]; then
+    ok "zitadel instance domain (skipped — this run re-provisions it)"
+    return
+  fi
   local base="http://${ZITADEL_HOST_CHECK}:${ZITADEL_PORT_CHECK}"
   if ! curl -fsS --max-time 3 "${base}/debug/healthz" >/dev/null 2>&1; then
     ok "zitadel instance domain (not running yet — will be provisioned on ${ZITADEL_HOST_CHECK})"
@@ -238,9 +250,39 @@ main() {
   return 0
 }
 
+# run_one CHECK — run a single named check and exit non-zero if it failed.
+#
+# Exists for `make dev-infra`, which needs check_zitadel_instance_domain at a
+# moment `make up`'s preflight cannot cover it: preflight runs BEFORE
+# `docker compose up`, so on the `make down` -> pull -> `make dev-infra`
+# path Zitadel is not answering yet and the check correctly reports "not
+# running yet — will be provisioned". The stale instance only becomes
+# observable once the container is up, which is after the healthz wait and
+# before scripts/zitadel-bootstrap.mjs — exactly where dev-infra calls this.
+# Re-probing there costs one HTTP request and turns the bare
+# `HTTP 404 {"code":5,"message":"Instance not found"}` into the message
+# check_zitadel_instance_domain already writes.
+run_one() {
+  case "$1" in
+    zitadel-instance-domain) check_zitadel_instance_domain ;;
+    *) echo "preflight: unknown check '$1'" >&2; return 2 ;;
+  esac
+  if [ -n "$FAILURES" ]; then
+    echo
+    echo "Cannot continue — fix this first:"
+    printf '%s' "$FAILURES"
+    return 1
+  fi
+  return 0
+}
+
 # Guarded so the test harness can source this file and call one check at a
 # time without running the whole suite.
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  if [ "${1:-}" = "--only" ]; then
+    run_one "${2:-}"
+    exit $?
+  fi
   main "$@"
   exit $?
 fi

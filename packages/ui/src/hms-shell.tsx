@@ -8,6 +8,7 @@ import {
   usePermissions,
   useApiMutation,
   clearPermissionsCache,
+  clearRenewAt,
 } from "@helivanta/api";
 import { visibleZones, activeZone } from "./zones";
 import { ThemeToggle } from "./theme";
@@ -157,6 +158,9 @@ export function HmsShell({
   const endIdleSession = useCallback((mark: SessionEndMark | undefined) => {
     if (tornDownRef.current) return;
     tornDownRef.current = true;
+    // Same reasoning as handleSignOut's call below: an idle timeout ends
+    // this session too, so the schedule it left behind goes with it.
+    clearRenewAt();
     void (async () => {
       try {
         await fetch("/logout", { method: "POST" });
@@ -344,6 +348,13 @@ export function HmsShell({
   async function handleSignOut(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     clearPermissionsCache();
+    // #781's rule is that a signed-out session must not be reconstructable
+    // from anything the browser kept. The stored renewal schedule (#916
+    // Task 4's F3) is not a credential and carries no PHI — one timestamp,
+    // overwritten by the next login — so leaving it would not have been a
+    // vulnerability. It is dropped so "the browser keeps nothing from the
+    // previous session" stays a statement with no exceptions.
+    clearRenewAt();
     if (onSignOut) {
       await onSignOut();
       return;

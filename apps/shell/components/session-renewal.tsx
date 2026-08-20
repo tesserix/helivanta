@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { renewSession, nextRenewalDelayMs, RenewalUnavailableError } from "@/lib/renew";
-import { loadRenewAt, storeRenewAt } from "@/lib/renew-schedule";
+import { loadRenewAt, storeRenewAt } from "@helivanta/api";
 import { AUTH_CALLBACK_PATH } from "@/lib/oidc";
 
 // PUBLIC_PATHS mirrors middleware.ts's own list, minus "/login" (which
@@ -156,7 +156,7 @@ export function SessionRenewal() {
     // renewal EXCEPT the first. Any deployment with SESSION_TTL under
     // about five minutes lost every session before its first renewal
     // fired, silently, because config.go applies no minimum to
-    // SESSION_TTL. Nothing coupled the two; that is exactly the gap D5
+    // SESSION_TTL (#921). Nothing coupled the two; that is exactly the gap D5
     // claimed to have closed structurally.
     //
     // loadRenewAt() returning undefined still yields the identical old

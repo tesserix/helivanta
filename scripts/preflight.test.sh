@@ -111,6 +111,12 @@ make_shim "$good" docker      'exit 0'
 make_shim "$good" go          'echo "go version go1.26.5 darwin/arm64"'
 make_shim "$good" node        'echo "v22.11.0"'
 make_shim "$good" pnpm        'echo "10.17.1"'
+# No Zitadel answering. check_zitadel_instance_domain treats that as a fresh
+# clone (its own doc comment says why that must not be a failure), so every
+# case below that is not ABOUT that check is unaffected by it — and, more
+# importantly, is not silently coupled to whether this machine happens to
+# have a dev stack up on auth.tesserix.localhost:20080 right now.
+make_shim "$good" curl        'exit 1'
 
 run_preflight() { # run_preflight PATHDIR [ENV=VAL ...]
   local dir="$1"; shift
@@ -126,6 +132,7 @@ make_shim "$old" docker 'exit 0'
 make_shim "$old" go     'echo "go version go1.24.2 darwin/arm64"'
 make_shim "$old" node   'echo "v22.11.0"'
 make_shim "$old" pnpm   'echo "10.17.1"'
+make_shim "$old" curl   'exit 1'
 
 out=$(run_preflight "$old"); status=$?
 assert_status "old Go exits 1" 1 "$status"
@@ -136,6 +143,7 @@ nodocker="$TMP/bin-nodocker"
 make_shim "$nodocker" docker 'exit 1'
 make_shim "$nodocker" go     'echo "go version go1.24.2 darwin/arm64"'
 make_shim "$nodocker" node   'echo "v20.11.0"'
+make_shim "$nodocker" curl   'exit 1'
 
 # This case relies on pnpm being ABSENT, so the PATH must be hermetic — the
 # shim dir plus only the system directories preflight genuinely needs — not
@@ -238,6 +246,102 @@ out=$(env PATH="$good:$PATH" PREFLIGHT_PORTS="$(free_port)" \
   HELIVANTA_DEV_ZITADEL_MASTERKEY="HmsDevZitadelMasterKey32BytesXXX" \
   bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
 assert_status "the real 32-byte default exits 0" 0 "$status"
+
+echo
+echo "zitadel instance domain check:"
+
+# The sibling of the masterkey case above, and it exists for the same reason:
+# Zitadel does not fail legibly on this class of misconfiguration. A volume
+# provisioned for one HELIVANTA_ZITADEL_HOST answers /debug/healthz 200 on ANY
+# host — that endpoint is instance-independent — and then every management
+# call dies with a bare `HTTP 404 {"code":5,"message":"Instance not found"}`,
+# naming neither the host nor the fix. So the check must be proven able to
+# FAIL, not merely present.
+#
+# curl is shimmed rather than reached over the network: these tests must run
+# identically on a laptop with a dev stack up, a laptop with none, and a CI
+# runner with no Docker at all.
+
+# A Zitadel that is up (healthz 200) but was provisioned for a DIFFERENT
+# host — the exact state `RESET_YES=1 make reset` exists to fix.
+stale="$TMP/bin-stale"
+make_shim "$stale" docker 'exit 0'
+make_shim "$stale" go     'echo "go version go1.26.5 darwin/arm64"'
+make_shim "$stale" node   'echo "v22.11.0"'
+make_shim "$stale" pnpm   'echo "10.17.1"'
+make_shim "$stale" curl   'case "$*" in
+  *debug/healthz*)          exit 0 ;;
+  *openid-configuration*)   echo "{\"code\":5,\"message\":\"Instance not found\"}"; exit 0 ;;
+esac
+exit 1'
+
+out=$(env PATH="$stale:$PATH" PREFLIGHT_PORTS="$(free_port)" \
+  HELIVANTA_ZITADEL_HOST="auth.example.localhost" \
+  bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
+assert_status "a stale Zitadel instance domain exits 1" 1 "$status"
+assert_contains "the unrecognised host is named" "$out" "does not recognise the host 'auth.example.localhost'"
+assert_contains "the fix is named"               "$out" "RESET_YES=1 make reset"
+assert_contains "the symptom it prevents is named" "$out" "Instance not found"
+
+# The can-PASS half. Without it the case above would also be satisfied by a
+# check that failed unconditionally.
+live="$TMP/bin-live"
+make_shim "$live" docker 'exit 0'
+make_shim "$live" go     'echo "go version go1.26.5 darwin/arm64"'
+make_shim "$live" node   'echo "v22.11.0"'
+make_shim "$live" pnpm   'echo "10.17.1"'
+make_shim "$live" curl   'case "$*" in
+  *debug/healthz*)        exit 0 ;;
+  *openid-configuration*) echo "{\"issuer\":\"http://auth.example.localhost:20080\"}"; exit 0 ;;
+esac
+exit 1'
+
+out=$(env PATH="$live:$PATH" PREFLIGHT_PORTS="$(free_port)" \
+  HELIVANTA_ZITADEL_HOST="auth.example.localhost" \
+  bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
+assert_status "a Zitadel provisioned for the configured host exits 0" 0 "$status"
+assert_contains "the healthy host is named" "$out" "zitadel instance domain (auth.example.localhost)"
+
+# A Zitadel that is not running at all is a fresh clone, not a failure —
+# demanding a live one here would block the very command that starts it.
+out=$(run_preflight "$good"); status=$?
+assert_status "no Zitadel answering exits 0" 0 "$status"
+assert_contains "a cold stack is reported as such" "$out" "not running yet"
+
+# `bash scripts/preflight.sh --only zitadel-instance-domain` is what
+# `make dev-infra` runs between its healthz wait and
+# scripts/zitadel-bootstrap.mjs — the one moment the stale instance is
+# actually observable. Its exit status is the whole point, so it is asserted
+# directly rather than inferred from the full-suite cases above.
+out=$(env PATH="$stale:$PATH" HELIVANTA_ZITADEL_HOST="auth.example.localhost" \
+  bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-instance-domain 2>&1); status=$?
+assert_status "--only zitadel-instance-domain exits 1 on a stale volume" 1 "$status"
+assert_contains "--only reports the same cause" "$out" "RESET_YES=1 make reset"
+
+out=$(env PATH="$live:$PATH" HELIVANTA_ZITADEL_HOST="auth.example.localhost" \
+  bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-instance-domain 2>&1); status=$?
+assert_status "--only zitadel-instance-domain exits 0 on a healthy instance" 0 "$status"
+
+out=$(env PATH="$good:$PATH" bash "$REPO_ROOT/scripts/preflight.sh" --only no-such-check 2>&1); status=$?
+assert_status "--only with an unknown check name exits 2" 2 "$status"
+
+# The remedy must not be blocked by the check that names it.
+# scripts/reset-dev.sh runs preflight BEFORE it drops the volume, and the
+# failure message above says to run `RESET_YES=1 make reset` — so without
+# PREFLIGHT_SKIP_ZITADEL_INSTANCE the only documented fix would refuse to
+# run for exactly the reason it was invoked. Asserted on reset-dev.sh's own
+# behaviour, not just on the variable, so removing the variable from that
+# script fails here.
+out=$(env PATH="$stale:$PATH" PREFLIGHT_PORTS="$(free_port)" \
+  HELIVANTA_ZITADEL_HOST="auth.example.localhost" \
+  PREFLIGHT_SKIP_ZITADEL_INSTANCE=1 \
+  bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
+assert_status "PREFLIGHT_SKIP_ZITADEL_INSTANCE=1 lets a stale instance pass" 0 "$status"
+assert_contains "the skip says so out loud" "$out" "skipped — this run re-provisions it"
+
+assert_contains "reset-dev.sh sets the skip when it runs preflight" \
+  "$(cat "$REPO_ROOT/scripts/reset-dev.sh")" \
+  'PREFLIGHT_SKIP_ZITADEL_INSTANCE=1 "$REPO_ROOT/scripts/preflight.sh"'
 
 echo
 echo "PREFLIGHT_SKIP (Makefile):"

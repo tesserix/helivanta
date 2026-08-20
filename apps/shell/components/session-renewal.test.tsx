@@ -6,7 +6,7 @@ import {
   RenewalUnavailableError,
   FALLBACK_RENEWAL_INTERVAL_MS,
 } from "@/lib/renew";
-import { loadRenewAt, storeRenewAt } from "@/lib/renew-schedule";
+import { loadRenewAt, storeRenewAt } from "@helivanta/api";
 import { SessionRenewal } from "./session-renewal";
 
 // setTimeout is spied on GLOBALLY, so other library internals (react-query,

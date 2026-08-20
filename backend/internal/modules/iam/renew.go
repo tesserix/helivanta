@@ -282,7 +282,8 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 // (apps/shell/lib/renew.ts's FALLBACK_RENEWAL_INTERVAL_MS). D5 was
 // therefore closed for renewals 2..n and wide open for renewal 1: with
 // SESSION_TTL below ~5 minutes — which config.go accepts silently,
-// having no minimum guard, unlike RequireIdleTimeout beside it — every
+// having no minimum guard, unlike RequireIdleTimeout beside it (#921) —
+// every
 // session died before its first renewal ever fired. That is verbatim
 // the sentence D5 was written to eliminate, and no test could see it
 // because no test ran a short TTL.

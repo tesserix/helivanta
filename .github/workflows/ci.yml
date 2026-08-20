@@ -238,15 +238,33 @@ jobs:
       # minutes" with nothing naming a cause. These two dumps are what
       # distinguish "zitadel-login is wedged on a stale PAT" from "a spec
       # genuinely failed". `if: failure()` covers the timeout kill too.
+      #
+      # These run `docker compose` directly rather than through make, so the
+      # HELIVANTA_* variables make exports are unset and compose warns about a
+      # blank masterkey. Harmless here: `ps` and `logs` read container state,
+      # they do not (re)create anything from the substituted value.
       - name: Dump container state on failure
         if: failure()
         run: docker compose -f docker-compose.dev.yml ps
-      - name: Dump zitadel-login logs on failure
+      # zitadel-login is the container #923 hangs in — but it can only hang
+      # once it exists, and it does not exist until zitadel itself has
+      # provisioned. So core's log is dumped alongside it: a crash-loop there
+      # is otherwise reported only as "zitadel-pat-ready didn't complete".
+      - name: Dump Zitadel logs on failure
         if: failure()
-        run: docker compose -f docker-compose.dev.yml logs zitadel-login
+        run: docker compose -f docker-compose.dev.yml logs --tail=120 zitadel zitadel-login zitadel-pat-ready
+      # An explicit branch, not `|| true`: a failure before the stack ever
+      # started leaves no log, and that is information, not an error to
+      # swallow. Suppressing the exit code would also suppress a genuine
+      # read failure on a log that DOES exist.
       - name: Dump API and web logs on failure
         if: failure()
-        run: cat /tmp/hms-stack.log
+        run: |
+          if [ -f /tmp/hms-stack.log ]; then
+            cat /tmp/hms-stack.log
+          else
+            echo '/tmp/hms-stack.log does not exist — the run failed before the API and zone apps were started.'
+          fi
 
       # playwright-report/ holds the HTML report; test-results/ holds the
       # traces retained for failed tests (e2e/playwright.config.ts). Both are

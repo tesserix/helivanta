@@ -121,10 +121,7 @@ export default defineConfig({
   // experience for the CI one. `open: "never"` keeps a local failure from
   // hijacking a browser window.
   use: { baseURL: BASE_URL, trace: "retain-on-failure" },
-  reporter: [
-    [process.env.CI ? "dot" : "list"],
-    ["html", { open: "never" }],
-  ],
+  reporter: [[process.env.CI ? "dot" : "list"], ["html", { open: "never" }]],
   // Only a project-less run (bare `playwright test`) gets filtered — an
   // explicit `--project=idle-timeout` (or `=specs`/`=bulk`) is already
   // scoped by Playwright's own project-name matching, and stacking

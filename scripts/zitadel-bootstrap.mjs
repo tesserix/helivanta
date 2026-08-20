@@ -219,16 +219,18 @@ async function main() {
   // helivanta-web: the real app every human developer and every e2e spec other
   // than idle-timeout.spec.ts signs in through.
   //
-  // The real redirect URIs #838 Task 7 (apps/shell) serves:
-  // app/api/auth/callback/page.tsx for the full redirect flow,
-  // app/api/auth/silent-renew/page.tsx for the hidden-iframe renewal flow
-  // (design spec D4a).
+  // The real redirect URI #838 Task 7 (apps/shell) serves:
+  // app/api/auth/callback/page.tsx for the full redirect flow. There
+  // used to be a second one, app/api/auth/silent-renew/page.tsx, for a
+  // hidden-iframe renewal flow (design spec D4a) — deleted by #916
+  // (design spec D1): that flow depended on Zitadel's SameSite=Lax
+  // session cookie travelling on a cross-site iframe request, which it
+  // never did. Renewal is now a same-origin POST /v1/auth/renew that
+  // never touches Zitadel through the browser at all (lib/renew.ts), so
+  // it needs no redirect_uri here.
   const clientId = await provisionApp(pat, project, {
     appName: "helivanta-web",
-    redirectUris: [
-      "http://localhost:4301/api/auth/callback",
-      "http://localhost:4301/api/auth/silent-renew",
-    ],
+    redirectUris: ["http://localhost:4301/api/auth/callback"],
     postLogoutRedirectUris: ["http://localhost:4301/login"],
     envOutPath: `${SECRETS_DIR}zitadel.env`,
   });
@@ -239,10 +241,7 @@ async function main() {
   // wholly separate OIDC app rather than reusing helivanta-web's.
   const idleTimeoutClientId = await provisionApp(pat, project, {
     appName: "helivanta-web-idle-timeout",
-    redirectUris: [
-      "http://localhost:4399/api/auth/callback",
-      "http://localhost:4399/api/auth/silent-renew",
-    ],
+    redirectUris: ["http://localhost:4399/api/auth/callback"],
     postLogoutRedirectUris: ["http://localhost:4399/login"],
     envOutPath: `${SECRETS_DIR}zitadel-idle-timeout.env`,
   });

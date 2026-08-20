@@ -17,15 +17,17 @@ import { fileURLToPath } from "node:url";
 
 const SECRETS_DIR = fileURLToPath(new URL("../../dev/zitadel/secrets/", import.meta.url));
 
-// The redirect_uris registered on the helivanta-web app (scripts/zitadel-
-// bootstrap.mjs). apps/shell/app/api/auth/callback/page.tsx and
-// apps/shell/app/api/auth/silent-renew/page.tsx (#838 Task 7) are the real
-// handlers for the first two; passwordLoginIDToken below never actually
+// The redirect_uri registered on the helivanta-web app (scripts/zitadel-
+// bootstrap.mjs). apps/shell/app/api/auth/callback/page.tsx (#838 Task 7)
+// is the real handler; passwordLoginIDToken below never actually
 // navigates a browser there — it reads the authorization code out of the
 // finalize call's callbackUrl instead — so this redirect_uri does not need
-// the shell app to be reachable at all.
+// the shell app to be reachable at all. There used to be a second
+// exported constant here, DEV_SILENT_RENEW_REDIRECT_URI, for the
+// hidden-iframe renewal flow's silent-renew page — deleted along with
+// that page and its Zitadel-app registration by #916 (design spec D1):
+// renewal no longer touches Zitadel through the browser at all.
 export const DEV_REDIRECT_URI = "http://localhost:4301/api/auth/callback";
-export const DEV_SILENT_RENEW_REDIRECT_URI = "http://localhost:4301/api/auth/silent-renew";
 export const DEV_POST_LOGOUT_REDIRECT_URI = "http://localhost:4301/login";
 
 // readClientID prefers an explicit ZITADEL_CLIENT_ID from the environment

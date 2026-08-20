@@ -4,28 +4,56 @@
 // backend/internal/modules/iam/renew.go's `renew` handler) or 404 (the
 // tenant this session is bound to is no longer accessible — the same
 // "no accessible tenant" answer Login uses, see respondNoAccessibleTenant
-// in login.go). Both are the backend telling the caller, on purpose, that
-// re-authenticating visibly is the correct next step. The caller
-// (components/session-renewal.tsx) treats this, and only this, as "send
-// the user to /login".
+// in login.go), or any other 4xx this endpoint has not been seen to
+// return. Both known cases are the backend telling the caller, on
+// purpose, that re-authenticating visibly is the correct next step. The
+// caller (components/session-renewal.tsx) treats this, and only this, as
+// "send the user to /login".
 export class RenewalFailedError extends Error {}
 
-// RenewalUnavailableError means the backend could not answer the
-// question at all, not that it answered "no": a 503 (renew.go returns
-// this for `identity_unavailable`, `authz_unavailable`, and
-// `session_unavailable` — Zitadel or OpenFGA was unreachable, or the
-// session signer was not configured; each of those is deliberately
-// fail-closed per spec D3, refusing rather than granting a renewal it
-// cannot verify), a 429 (RenewRateLimitRule,
-// backend/internal/bootstrap/ratelimit.go, Burst=10 per subject), or a
-// network-level failure reaching this same-origin endpoint at all
-// (offline, a mid-deploy blip on the Next.js server itself).
+// RenewalUnavailableError means the backend (or something in front of
+// it) could not answer the question at all, not that it answered "no":
 //
-// This is intentionally NOT treated as "log the user out" — see the long
-// comment in session-renewal.tsx for why treating it that way would
-// reproduce #916's own harm (mass, simultaneous eviction) from a
-// different cause (an availability blip instead of a cookie that never
-// travels).
+// - 503 — renew.go's own `identity_unavailable` / `authz_unavailable` /
+//   `session_unavailable`: Zitadel or OpenFGA was unreachable, or the
+//   session signer was not configured, each deliberately fail-closed per
+//   spec D3.
+// - 429 — RenewRateLimitRule (backend/internal/bootstrap/ratelimit.go,
+//   Burst=10 per subject).
+// - 408 — a request timeout, from whatever sits between the browser and
+//   this handler.
+// - ANY 5xx (500/502/504/…) — Review Round 1 CRITICAL finding: a bare
+//   500 (a panic caught by gin.Recovery, cmd/api/main.go, or
+//   respond.InternalErr from an unrelated middleware) and a 502/504 (an
+//   ingress or load balancer mid-rolling-deploy, or a gateway timeout on
+//   a slow Zitadel call) never reach renew.go's own deliberate 503
+//   translation — they are a DIFFERENT layer failing in a way renew.go
+//   never gets a chance to categorize. The routine event most likely to
+//   produce one of these is an ordinary rolling deploy of the API: every
+//   pod briefly returns connection-refused/timeouts to the Next.js
+//   rewrite proxy (next.config.ts's `/api/:path*` → `${API_URL}/:path*`),
+//   which itself then answers the browser with a 5xx of its own — this
+//   never reaches the browser as a network-level fetch failure, so it
+//   MUST be classified by status code, not assumed away as
+//   "unreachable = catch block". Treating an unenumerated 5xx as a
+//   verdict (the pre-fix behaviour) would mean every rolling deploy logs
+//   out every clinician with a shell tab open, simultaneously, mid-
+//   consultation — exactly the harm this task exists to prevent.
+//
+// This is why the classification below is `>= 500` rather than an
+// allow-list of the two statuses renew.go happens to document today:
+// the safe default for a status this client has not been told the
+// meaning of is "the server could not answer", not "log out everyone".
+// A 4xx this endpoint has never been seen to return is still classified
+// as RenewalFailedError (see that class's own comment) — 4xx is
+// conventionally "the request was wrong", which renewal's own retries
+// cannot fix by trying again, unlike a 5xx, which is conventionally "the
+// server ran into a problem" and IS worth retrying.
+//
+// A network-level failure to reach this same-origin endpoint at all
+// (offline, a mid-deploy blip on the Next.js server itself, before any
+// HTTP status even exists) lands here too — see renewSession's own
+// catch block.
 export class RenewalUnavailableError extends Error {}
 
 export interface RenewalResult {
@@ -38,10 +66,14 @@ export interface RenewalResult {
   renewAt: Date | undefined;
 }
 
-// FALLBACK_RENEWAL_INTERVAL_MS is used in exactly two cases: (1) the
-// very first renewal after mount, before any server response exists to
-// derive a cadence from, and (2) a 200 OK response whose `renew_at` is
-// missing or unparseable. It mirrors the value this file's own comment
+// FALLBACK_RENEWAL_INTERVAL_MS is used in three cases: (1) the very
+// first renewal after mount, before any server response exists to
+// derive a cadence from, (2) a 200 OK response whose `renew_at` (or
+// whose body entirely — see the res.json() try/catch below) is
+// missing/unparseable, and (3) EVERY RenewalUnavailableError retry
+// (session-renewal.tsx), deliberately — see that file's retry-cadence
+// comment for why a fixed fallback was chosen over remembering the last
+// known server cadence. It mirrors the value this file's own comment
 // used to hardcode as RENEWAL_INTERVAL_MS before D5: one third of the
 // API's default SESSION_TTL (15m, backend/internal/config/config.go),
 // which is also exactly renewAtFloor's `renewalFraction` in
@@ -96,13 +128,15 @@ export function nextRenewalDelayMs(
 // request — it never does, which is #916's whole defect.
 //
 // Raw fetch, not `apiFetch` from @helivanta/api: this is the renewal
-// counterpart to auth-exchange.ts's exchangeIdToken, which documents the
-// same reasoning — this route sits alongside POST /v1/auth/login as an
-// auth-lifecycle call outside the ordinary `/api/v1` panel-data pattern
-// (docs/standards/frontend.md §3's sanctioned raw-fetch exception), and
-// it must NOT go through TanStack Query's retry/cache machinery: a
-// renewal is a scheduled side effect on its own timer
-// (components/session-renewal.tsx), not data a component reads.
+// counterpart to auth-exchange.ts's exchangeIdToken — both are
+// auth-lifecycle calls (POST /v1/auth/login, POST /v1/auth/renew) that
+// sit outside the ordinary `/api/v1` panel-data pattern
+// docs/standards/frontend.md §3 sanctions for exactly this reason (see
+// that section's own text after Review Round 1: the exception is no
+// longer just "install the session cookie", it explicitly names
+// renew.ts). This must also NOT go through TanStack Query's
+// retry/cache machinery: a renewal is a scheduled side effect on its own
+// timer (components/session-renewal.tsx), not data a component reads.
 //
 // credentials: "same-origin" is required, not fetch's default-by-luck:
 // see auth-exchange.ts's identical note on why this is asserted rather
@@ -116,27 +150,27 @@ export async function renewSession(): Promise<RenewalResult> {
     });
   } catch (err) {
     // The endpoint itself could not be reached at all (offline, a
-    // mid-deploy blip on this Next.js server) — the same "could not
-    // answer" bucket as a 503 from the backend, not a verdict that the
-    // session is over.
+    // mid-deploy blip on this Next.js server BEFORE it could even
+    // produce an HTTP response) — the same "could not answer" bucket as
+    // a 5xx/503/429 below, not a verdict that the session is over.
     throw new RenewalUnavailableError(
       err instanceof Error ? err.message : "renewal request failed to reach the server",
     );
   }
 
-  // 429 (RenewRateLimitRule) and 503 (renew.go's identity_unavailable /
-  // authz_unavailable / session_unavailable, each fail-closed per D3) are
-  // both "try again", never "log out" — see RenewalUnavailableError's
-  // doc comment.
-  if (res.status === 429 || res.status === 503) {
+  // 429 (RenewRateLimitRule), 408 (a request timeout), and every 5xx —
+  // not only renew.go's own 503 — are "try again", never "log out". See
+  // RenewalUnavailableError's doc comment for exactly why the 5xx case
+  // must be `>= 500` rather than an allow-list of 503 alone.
+  if (res.status === 429 || res.status === 408 || res.status >= 500) {
     throw new RenewalUnavailableError(`renewal temporarily unavailable (status ${res.status})`);
   }
 
   if (!res.ok) {
     // Every remaining non-2xx from this endpoint (401 unauthenticated,
-    // 404 no accessible tenant) is the backend affirmatively refusing —
-    // see RenewalFailedError's doc comment for exactly which statuses
-    // land here and why.
+    // 404 no accessible tenant, or an as-yet-unseen 4xx) is the backend
+    // affirmatively refusing — see RenewalFailedError's doc comment for
+    // exactly which statuses land here and why.
     let message = "Session renewal failed.";
     try {
       const body: unknown = await res.json();
@@ -154,7 +188,22 @@ export async function renewSession(): Promise<RenewalResult> {
     throw new RenewalFailedError(message);
   }
 
-  const body = (await res.json()) as { tenant_id?: string; renew_at?: string };
+  // Also fix (Minor 5): a 200 OK with a non-JSON body must not throw out
+  // of this function as an uncaught SyntaxError — RenewalResult's own
+  // doc comment says a malformed-but-200 response still means the
+  // session WAS renewed (renew.go already set the cookie before writing
+  // the body) and must fall back to a default cadence, not to a logout.
+  // Without this try/catch, session-renewal.tsx's .catch would see a
+  // SyntaxError (neither RenewalFailedError nor RenewalUnavailableError)
+  // and take the "log out" branch AFTER the renewal had already
+  // succeeded.
+  let body: { tenant_id?: string; renew_at?: string } = {};
+  try {
+    body = (await res.json()) as { tenant_id?: string; renew_at?: string };
+  } catch {
+    // non-JSON 200 body — the renewal itself still succeeded (the
+    // Set-Cookie already landed); just fall through with no renew_at.
+  }
   const parsed = body.renew_at ? new Date(body.renew_at) : undefined;
   const renewAt = parsed && !Number.isNaN(parsed.getTime()) ? parsed : undefined;
   return { renewAt };

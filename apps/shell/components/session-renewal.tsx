@@ -54,27 +54,55 @@ function isPublicPath(pathname: string): boolean {
 //     decided this session is over: the cookie is missing/invalid/
 //     expired, the subject was deactivated in Zitadel, or tenant
 //     membership was revoked. Re-authenticating visibly is correct.
-//  3. RenewalUnavailableError (429/503/network failure) — the backend
-//     could not answer the question, it did not answer "no". Critically,
-//     renew.go's Zitadel/OpenFGA checks are fail-closed BY DESIGN (spec
-//     D3): an outage on either dependency makes every renewal, from
-//     every connected clinician, come back exactly like this. Treating
+//  3. RenewalUnavailableError (429/408/any 5xx/network failure) — the
+//     backend, or something in front of it, could not answer the
+//     question, it did not answer "no". Critically, renew.go's
+//     Zitadel/OpenFGA checks are fail-closed BY DESIGN (spec D3): an
+//     outage on either dependency makes every renewal, from every
+//     connected clinician, come back exactly like this — and the same
+//     is true of the far more routine case of an ordinary rolling
+//     deploy of the API, which the Next.js rewrite proxy turns into a
+//     5xx from the shell's own server, never a network-level fetch
+//     failure (see renew.ts's RenewalUnavailableError comment). Treating
 //     case 3 the same as case 2 — which is what this component used to
 //     do, back when the only way renewal failed WAS an auth reason —
-//     would mean a Zitadel or OpenFGA blip lasting longer than one
-//     renewal interval evicts every signed-in clinician simultaneously,
+//     would mean an outage OR a routine deploy, lasting longer than one
+//     renewal interval, evicts every signed-in clinician simultaneously,
 //     mid-consultation. That is the SAME user-visible harm #916 exists
 //     to prevent, reproduced from a different cause. So case 3 does NOT
 //     redirect; it retries at the bounded fallback interval instead.
 //
-//     This is not an unbounded retry-forever: the session cookie this
-//     endpoint runs on has its own `exp`, set at the last successful
-//     renewal (or login) and never extended while renewals keep failing.
-//     If the outage outlasts the cookie's remaining lifetime, the very
-//     next renewal attempt naturally moves from "unreadable" to
-//     "invalid/expired" and lands in case 2 instead — the backend's own
-//     fail-closed bound (case 2) already gives this retry loop a ceiling
-//     without this component needing to count attempts itself.
+//     The retry-termination bound differs by sub-case, and both are
+//     worth stating precisely rather than one glossing the other:
+//
+//     - An HTTP-status failure (429/408/5xx — renewSession got a
+//       response) is bounded by the session cookie's own `exp`, set at
+//       the last successful renewal (or login) and never extended while
+//       renewals keep failing. If the outage/deploy outlasts the
+//       cookie's remaining lifetime, the very next renewal attempt
+//       naturally moves from "unreadable" to "invalid/expired" (a 401)
+//       and lands in case 2 instead — the backend's own fail-closed
+//       bound already gives this retry loop a ceiling without this
+//       component needing to count attempts itself.
+//     - A pure network failure (renewSession's fetch() itself rejects —
+//       offline, DNS down, the Next.js server unreachable before it can
+//       even produce a status code) has NO such backstop: no request
+//       ever reaches the backend to expire anything against, so this
+//       retries at FALLBACK_RENEWAL_INTERVAL_MS indefinitely until
+//       connectivity returns. That is correct here, not a bug — the
+//       alternative is guessing a client-side timeout for "how long is
+//       too long to be offline", which is exactly the kind of
+//       unenumerated judgement call this file's whole point is to avoid
+//       making silently.
+//
+//     Every RenewalUnavailableError retry — both sub-cases — uses
+//     FALLBACK_RENEWAL_INTERVAL_MS rather than remembering the last
+//     server-given cadence: a shorter retry would poll harder against
+//     whatever is already unavailable, and RenewRateLimitRule's
+//     Burst=10 (see the cross-tab comment above) is sized against
+//     roughly this cadence, not a tighter one — a faster retry loop
+//     across several open tabs would risk 429ing itself into a second,
+//     self-inflicted RenewalUnavailableError.
 export function SessionRenewal() {
   const pathname = usePathname();
   const skip = isPublicPath(pathname);

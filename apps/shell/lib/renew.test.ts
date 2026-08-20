@@ -14,6 +14,13 @@ function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status });
 }
 
+function nonJsonResponse(status: number): Response {
+  return new Response("<html>not json</html>", {
+    status,
+    headers: { "content-type": "text/html" },
+  });
+}
+
 describe("renewSession", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -145,6 +152,76 @@ describe("renewSession", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("network error")));
 
     await expect(renewSession()).rejects.toBeInstanceOf(RenewalUnavailableError);
+  });
+
+  // Fix round 1, CRITICAL 1: a bare 500 (gin.Recovery on a panic, or the
+  // Next.js rewrite proxy answering on the API's behalf when API_URL is
+  // unreachable during a rolling deploy) never reaches renew.go's own
+  // deliberate 503 translation — it is a DIFFERENT layer failing. This
+  // must classify as "could not answer", not "log out", or a routine
+  // API deploy evicts every clinician with a shell tab open.
+  it("throws RenewalUnavailableError, not RenewalFailedError, on 500", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse(500, { error: "internal", message: "boom" })),
+    );
+
+    await expect(renewSession()).rejects.toBeInstanceOf(RenewalUnavailableError);
+    await expect(renewSession()).rejects.not.toBeInstanceOf(RenewalFailedError);
+  });
+
+  // 502/504 — an ingress or load balancer mid-rolling-deploy, or a
+  // gateway timeout on a slow Zitadel call. Same bucket as 500: this
+  // client must classify by "is this a 5xx" rather than an allow-list of
+  // the one status renew.go happens to document.
+  it.each([502, 504])(
+    "throws RenewalUnavailableError, not RenewalFailedError, on %i",
+    async (status) => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(status, {})));
+
+      await expect(renewSession()).rejects.toBeInstanceOf(RenewalUnavailableError);
+      await expect(renewSession()).rejects.not.toBeInstanceOf(RenewalFailedError);
+    },
+  );
+
+  // 408 (a request timeout) is also "try again", not "log out".
+  it("throws RenewalUnavailableError, not RenewalFailedError, on 408", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse(408, { error: "timeout", message: "timed out" })),
+    );
+
+    await expect(renewSession()).rejects.toBeInstanceOf(RenewalUnavailableError);
+    await expect(renewSession()).rejects.not.toBeInstanceOf(RenewalFailedError);
+  });
+
+  // The classification boundary the other direction: an unenumerated
+  // 4xx (never seen in practice, but not a 429/408) must stay
+  // RenewalFailedError, not silently widen into the retry bucket —
+  // 4xx conventionally means "the request itself was wrong", which a
+  // retry cannot fix.
+  it("throws RenewalFailedError, not RenewalUnavailableError, on an unenumerated 4xx (400)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse(400, { error: "invalid_request", message: "bad" })),
+    );
+
+    await expect(renewSession()).rejects.toBeInstanceOf(RenewalFailedError);
+    await expect(renewSession()).rejects.not.toBeInstanceOf(RenewalUnavailableError);
+  });
+
+  // Also fix (Minor 5): a 200 OK whose BODY is not JSON at all (not just
+  // a malformed renew_at field) must not throw — renew.go had already
+  // set the Set-Cookie before writing the body, so the renewal itself
+  // succeeded. This must resolve, falling back to renewAt undefined, not
+  // reject as an uncaught SyntaxError that session-renewal.tsx would
+  // otherwise treat as "log out" AFTER the session was already renewed.
+  it("resolves with renewAt undefined when a 200 response body is not JSON at all", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(nonJsonResponse(200)));
+
+    const result = await renewSession();
+
+    expect(result.renewAt).toBeUndefined();
   });
 });
 

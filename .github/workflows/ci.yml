@@ -93,24 +93,26 @@ jobs:
             --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact
   e2e:
     runs-on: ubuntu-latest
-    # 45 minutes, and the number is a fail-closed bound rather than a
-    # guess at the happy path.
+    # 30 minutes, and the number is a fail-closed bound rather than a guess.
     #
-    # The floor: MEASUREMENT PENDING — filled in from the first green run.
-    # Session-renewal alone spends ~3.5 minutes deliberately waiting out a
-    # session TTL, so a chunk of that is wall-clock this job can never
-    # optimise away.
+    # The floor is MEASURED, not estimated: the first green run of this job
+    # took 9m54s end to end (run 32360454402 — 10:45:17 to 10:55:11), of
+    # which session-renewal.spec.ts spends ~3.5 minutes deliberately waiting
+    # out a short SESSION_TTL. That part is wall-clock the job can never
+    # optimise away. The design spec's "roughly 8-10 minutes" estimate is
+    # replaced by that figure.
     #
     # The ceiling: `make e2e` has a documented UNBOUNDED hang (#923 —
-    # zitadel-login latches a stale PAT and waits forever). Without a
-    # timeout that hang burns GitHub's own 6-hour job limit. 45m sits
-    # comfortably above the expected runtime and far below the 66-minute figure the
-    # design spec set as the outer acceptable bound, so a hang is killed
-    # within the hour instead of at hour six.
+    # zitadel-login latches a stale PAT and waits forever). With no timeout,
+    # that hang burns GitHub's own 6-hour job limit. 30m is a 3x margin over
+    # the measured run — room for a cold Docker pull, a slower runner, or a
+    # suite that grows — and far below the 66 minutes the design spec set as
+    # the outer acceptable bound, so a hang dies in half an hour instead of
+    # at hour six.
     #
-    # If this ever starts timing out on legitimately slower runs, the fix
-    # is to find out WHY the suite got slower — not to raise this number.
-    timeout-minutes: 45
+    # If this ever starts timing out on legitimately slower runs, the fix is
+    # to find out WHY the suite got slower — not to raise this number.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 

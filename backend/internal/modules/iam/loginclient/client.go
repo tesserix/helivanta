@@ -39,7 +39,12 @@ var (
 	// the point it logs which one actually happened, not lost here.
 	ErrBadCredentials = errors.New("loginclient: bad credentials")
 	// ErrUserNotFound is returned for an unknown loginName (observed:
-	// HTTP 404, QUERY-Dfbg2).
+	// HTTP 404, QUERY-Dfbg2). UserState also passes this as do's notFound
+	// sentinel for GET /v2/users/{id}, but never lets it escape as an
+	// error to its own caller — a 404 there means the user was deleted
+	// upstream, which UserState maps to UserStateInactive with a nil
+	// error instead (see UserState's doc comment for why that collapses
+	// cleanly with an explicit USER_STATE_INACTIVE).
 	ErrUserNotFound = errors.New("loginclient: user not found")
 	// ErrAuthRequestInvalid is returned when Zitadel does not recognize
 	// the auth request id — either it never existed, already completed,
@@ -704,6 +709,117 @@ func (c *Client) enrolledMethodTypes(ctx context.Context, userID string) ([]stri
 		return nil, err
 	}
 	return wire.AuthMethodTypes, nil
+}
+
+// UserState is the answer to "is this subject still active upstream in
+// Zitadel", modeled as its own type rather than a bare bool on purpose —
+// see the UserState method's doc comment below for the full argument. Its
+// zero value, userStateUnset, is never returned alongside a nil error by
+// that method; only UserStateActive and UserStateInactive are, and
+// IsActive is defined for every value so a caller that forgets to check
+// the error still gets "not active" rather than a false "active" out of
+// the zero value — the same fail-closed shape LoginPolicy's ForceMFA
+// established for this package (see loginPolicy's doc comment) applied to
+// a type that cannot silently zero-value its way to "active" the way a
+// bool could.
+type UserState int
+
+const (
+	// userStateUnset is UserState's zero value — unexported because no
+	// caller outside this package has any legitimate reason to construct
+	// or compare against it; every path that can produce it also produces
+	// a non-nil error, so a caller only ever observes it by mishandling
+	// that error.
+	userStateUnset UserState = iota
+	// UserStateActive is USER_STATE_ACTIVE, verified live against dev
+	// Zitadel v4.15.3 on 2026-08-20 as the state a normal user reads.
+	UserStateActive
+	// UserStateInactive covers both USER_STATE_INACTIVE (verified live:
+	// deactivating a user via POST /v2/users/{id}/deactivate flips the
+	// same GET this method makes from USER_STATE_ACTIVE to this value)
+	// and a 404 from the same GET (the user was deleted upstream, not
+	// merely deactivated) — see the UserState method's doc comment for
+	// why those two upstream conditions are deliberately collapsed into
+	// one caller-visible answer rather than kept apart.
+	UserStateInactive
+)
+
+// IsActive reports whether s represents a subject Zitadel still considers
+// active. It is false for UserStateInactive AND for the unexported zero
+// value userStateUnset — the latter matters only if a caller manages to
+// observe a UserState without checking the UserState method's error
+// return first, which should not happen, but IsActive still answers
+// "not active" rather than panicking or, worse, reading true, if it does.
+func (s UserState) IsActive() bool {
+	return s == UserStateActive
+}
+
+// UserState reads GET /v2/users/{id} with the login-client PAT and reports
+// whether id is still active upstream. Verified live against dev Zitadel
+// v4.15.3 on 2026-08-20: the login-client PAT is permitted for this read
+// (HTTP 200, no new credential needed — the same PAT every other method in
+// this file already uses); the response nests state on the user object
+// ({"user":{"userId":...,"state":...,"username":...,"human":{...}}});
+// a normal user's read is "USER_STATE_ACTIVE"; and deactivating that same
+// user (POST /v2/users/{id}/deactivate) flips the SAME read to
+// "USER_STATE_INACTIVE" — the live proof that this check can actually
+// fail, which is what makes it a control and not decoration. This is the
+// one new Zitadel read server-side renewal needs (design spec D1/D3,
+// docs/superpowers/specs/2026-08-20-server-side-session-renewal-design.md):
+// today's browser-driven renewal never re-checks this at all, because
+// Zitadel's session cookie is SameSite=Lax and the hidden iframe that was
+// supposed to carry it never sends it (spec D2).
+//
+// id is escaped with url.PathEscape before being placed in the URL, same
+// as every other id-in-path call in this file (see AuthRequest's doc
+// comment for the escaping rationale) — defensive here, not required: id
+// reaches this method from this server's own session/principal state, not
+// a browser-supplied parameter.
+//
+// A 404 maps to UserStateInactive, with a NIL error, not to ErrUnavailable
+// — a 404 here means the user was deleted upstream, and a deleted user
+// must never renew any more than an explicitly deactivated one does; that
+// answer is exactly as definite as an explicit USER_STATE_INACTIVE, so it
+// gets the same caller-visible value rather than being folded into the
+// "cannot tell" error branch below.
+//
+// Every OTHER failure path — transport error, a 5xx, a 200 body with no
+// recognizable state field, or a state string this method does not
+// recognize — returns userStateUnset alongside a non-nil error wrapping
+// ErrUnavailable, never UserStateActive and never UserStateInactive. This
+// is the crux of the fail-closed contract the brief calls for: an
+// unreadable answer is not evidence of "not active" any more than it is
+// evidence of "active" — collapsing it into UserStateInactive would let a
+// caller that only calls IsActive() (and does not separately check err)
+// end an active clinician's session on a transient Zitadel blip, while
+// collapsing it into UserStateActive is the literal authentication bypass
+// this method exists to prevent. Treating an unrecognized state string
+// (Zitadel could add one) as an error rather than as active follows the
+// same reasoning: assuming an unknown value is fine is exactly the wrong
+// default for the one call standing between a deactivated clinician and a
+// live session.
+func (c *Client) UserState(ctx context.Context, id string) (UserState, error) {
+	var wire struct {
+		User struct {
+			State string `json:"state"`
+		} `json:"user"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/v2/users/"+url.PathEscape(id), nil, &wire, ErrUserNotFound); err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			return UserStateInactive, nil
+		}
+		return userStateUnset, err
+	}
+	switch wire.User.State {
+	case "USER_STATE_ACTIVE":
+		return UserStateActive, nil
+	case "USER_STATE_INACTIVE":
+		return UserStateInactive, nil
+	case "":
+		return userStateUnset, fmt.Errorf("GET /v2/users/%s: 200 response with no recognizable state field: %w", id, ErrUnavailable)
+	default:
+		return userStateUnset, fmt.Errorf("GET /v2/users/%s: unrecognized state %q: %w", id, wire.User.State, ErrUnavailable)
+	}
 }
 
 // mfaPolicyKeys is every wire key loginPolicy reads to decide ForceMFA —

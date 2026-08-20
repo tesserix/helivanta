@@ -574,3 +574,139 @@ func TestFinalizeEscapesAdversarialAuthRequestID(t *testing.T) {
 		t.Errorf("request URI = %q, want %q (adversarial id must not add path segments or a query string)", gotRequestURI, want)
 	}
 }
+
+// Verified live against dev Zitadel v4.15.3 on 2026-08-20: a normal user's
+// GET /v2/users/{id} reads state "USER_STATE_ACTIVE".
+func TestUserStateReportsActive(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer test-pat" {
+			t.Errorf("Authorization = %q, want Bearer test-pat", got)
+		}
+		w.Write([]byte(`{"user":{"userId":"1","state":"USER_STATE_ACTIVE","username":"a@helivanta.dev"}}`))
+	})
+	s, err := c.UserState(context.Background(), "1")
+	if err != nil {
+		t.Fatalf("UserState() error = %v", err)
+	}
+	if !s.IsActive() {
+		t.Errorf("IsActive() = false, want true for USER_STATE_ACTIVE")
+	}
+}
+
+// Verified live against dev Zitadel v4.15.3 on 2026-08-20: POST
+// /v2/users/{id}/deactivate flips the SAME read from USER_STATE_ACTIVE to
+// USER_STATE_INACTIVE — this is the live proof the check can actually fail.
+func TestUserStateReportsInactive(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"user":{"userId":"1","state":"USER_STATE_INACTIVE","username":"a@helivanta.dev"}}`))
+	})
+	s, err := c.UserState(context.Background(), "1")
+	if err != nil {
+		t.Fatalf("UserState() error = %v", err)
+	}
+	if s.IsActive() {
+		t.Errorf("IsActive() = true, want false for USER_STATE_INACTIVE")
+	}
+}
+
+// A 404 (user deleted upstream) must be reported as "not active", with a
+// NIL error — a deleted user must never renew, and a caller checking err
+// before IsActive() must not see this as a transport failure.
+func TestUserStateMapsNotFoundToInactiveNotError(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"code":5,"message":"User could not be found (QUERY-Dfbg2)"}`))
+	})
+	s, err := c.UserState(context.Background(), "deleted-user")
+	if err != nil {
+		t.Fatalf("UserState() error = %v, want nil (a 404 is a definite answer, not a failure)", err)
+	}
+	if s.IsActive() {
+		t.Errorf("IsActive() = true, want false for a deleted (404) user")
+	}
+}
+
+// A 5xx must be an error, never a silent "not active" or "active" answer —
+// fail closed rather than let a transient Zitadel outage end a live session.
+func TestUserState5xxIsError(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	s, err := c.UserState(context.Background(), "1")
+	if !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("error = %v, want ErrUnavailable", err)
+	}
+	if s.IsActive() {
+		t.Errorf("IsActive() = true on an error return, want false")
+	}
+}
+
+// A transport failure (connection refused) must be an error for the same
+// fail-closed reason as a 5xx — Zitadel being unreachable is not evidence
+// of anything about the subject's state.
+func TestUserStateTransportFailureIsError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("handler should not be reached: server is closed before the request")
+	}))
+	c := New(srv.URL, "test-pat", srv.Client())
+	srv.Close()
+
+	s, err := c.UserState(context.Background(), "1")
+	if !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("error = %v, want ErrUnavailable", err)
+	}
+	if s.IsActive() {
+		t.Errorf("IsActive() = true on a transport failure, want false")
+	}
+}
+
+// A 200 with no recognizable state field must be an error, not a silent
+// pass to either state — see UserState's doc comment: an unrecognized
+// shape is treated the same as an unreadable one, never as "active".
+func TestUserStateNoStateFieldIsError(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"user":{"userId":"1","username":"a@helivanta.dev"}}`))
+	})
+	s, err := c.UserState(context.Background(), "1")
+	if !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("error = %v, want ErrUnavailable for a body with no state field", err)
+	}
+	if s.IsActive() {
+		t.Errorf("IsActive() = true on an error return, want false")
+	}
+}
+
+// An unrecognized USER_STATE_* value must be an error, not "active" —
+// Zitadel could add a new state, and assuming any unknown value is fine is
+// the wrong default for the check standing between a deactivated clinician
+// and a live session.
+func TestUserStateUnrecognizedStateIsError(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"user":{"userId":"1","state":"USER_STATE_LOCKED","username":"a@helivanta.dev"}}`))
+	})
+	s, err := c.UserState(context.Background(), "1")
+	if !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("error = %v, want ErrUnavailable for an unrecognized state value", err)
+	}
+	if s.IsActive() {
+		t.Errorf("IsActive() = true on an error return, want false")
+	}
+}
+
+// id is escaped with url.PathEscape before being placed in the URL, same
+// as every other id-in-path call in this file.
+func TestUserStateEscapesAdversarialID(t *testing.T) {
+	const adversarial = "../../v2/oidc/auth_requests?x=1"
+	var gotRequestURI string
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		gotRequestURI = r.RequestURI
+		w.Write([]byte(`{"user":{"userId":"1","state":"USER_STATE_ACTIVE"}}`))
+	})
+	if _, err := c.UserState(context.Background(), adversarial); err != nil {
+		t.Fatalf("UserState() error = %v", err)
+	}
+	want := "/v2/users/" + url.PathEscape(adversarial)
+	if gotRequestURI != want {
+		t.Errorf("request URI = %q, want %q (adversarial id must not add path segments or a query string)", gotRequestURI, want)
+	}
+}

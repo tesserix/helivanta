@@ -214,7 +214,10 @@ jobs:
             # No -f: a 404 or a 3xx still proves the server answered. Only
             # "could not connect" counts as not ready — same rule
             # scripts/e2e.sh's own wait_for_port applies.
-            until curl -sS --max-time 2 "$url" >/dev/null 2>&1; do
+            # --max-time 10, not e2e.sh's 2: this is the request that PAYS
+            # for the first-request compile, so it has to be willing to wait
+            # for it rather than abandon it every second.
+            until curl -sS --max-time 10 "$url" >/dev/null 2>&1; do
               waited=$((waited + 1))
               if [ "$waited" -ge 180 ]; then
                 echo
@@ -227,7 +230,15 @@ jobs:
             echo ' ready.'
           }
           wait_for http://localhost:8080/healthz "API"
-          for port in 4301 4302 4303 4304; do
+          # The EXACT URLs scripts/e2e.sh's own require_port_up probes, not
+          # just the ports. `next dev` compiles a route on FIRST REQUEST, and
+          # e2e.sh allows 2 seconds — so a shell that answers "/" instantly
+          # can still miss that budget on "/login", which is what failed here
+          # before this line existed (run 32357162146: ":4301 is not
+          # answering at .../login"). Requesting it here pays the compile
+          # once, in a step whose whole job is to wait.
+          wait_for "http://helivanta.localhost:4301/login" "shell /login"
+          for port in 4302 4303 4304; do
             wait_for "http://helivanta.localhost:$port/" "zone app on :$port"
           done
 

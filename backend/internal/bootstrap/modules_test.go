@@ -9,23 +9,23 @@ import (
 )
 
 func TestModulesReturnsIAMFirst(t *testing.T) {
-	mods := Modules(nil)
+	mods := Modules(nil, nil)
 	require.NotEmpty(t, mods)
 	require.Equal(t, "iam", mods[0].Name(), "iam must register first: it owns tenant membership")
 }
 
 func TestModulesHasNoDuplicateNames(t *testing.T) {
 	seen := map[string]bool{}
-	for _, m := range Modules(nil) {
+	for _, m := range Modules(nil, nil) {
 		require.False(t, seen[m.Name()], "duplicate module name %q", m.Name())
 		seen[m.Name()] = true
 	}
 }
 
 func TestNewRegistryRegistersEveryModule(t *testing.T) {
-	reg, err := NewRegistry(nil)
+	reg, err := NewRegistry(nil, nil)
 	require.NoError(t, err)
-	require.Len(t, reg.All(), len(Modules(nil)))
+	require.Len(t, reg.All(), len(Modules(nil, nil)))
 }
 
 // TestNewRegistryGivesIAMTheExactCheckerPassedIn is the wiring guard for
@@ -41,7 +41,7 @@ func TestNewRegistryRegistersEveryModule(t *testing.T) {
 func TestNewRegistryGivesIAMTheExactCheckerPassedIn(t *testing.T) {
 	checker := iam.NewRevocationChecker(nil)
 
-	reg, err := NewRegistry(checker)
+	reg, err := NewRegistry(checker, nil)
 	require.NoError(t, err)
 
 	var found *iam.Module

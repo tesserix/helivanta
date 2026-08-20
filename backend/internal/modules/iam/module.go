@@ -45,9 +45,27 @@ const PermCredentialRevoke authz.Permission = "iam.credential.revoke" //nolint:g
 // nothing on the request path ever reads (#781).
 type Module struct {
 	checker *RevocationChecker
+	// userState re-checks a subject's Zitadel state on renewal (#916,
+	// design spec D3). See SetUserStateChecker.
+	userState UserStateChecker
 }
 
 func New(checker *RevocationChecker) *Module { return &Module{checker: checker} }
+
+// SetUserStateChecker wires the Zitadel login-client state re-check
+// POST /v1/auth/renew needs (#916, design spec D3). It is a separate
+// setter, not a New parameter, so the ~20 existing call sites that build
+// a Module via New(nil) purely to exercise a different route (me_test.go,
+// routes_test.go, activity_test.go, internal/archtest's allModules(), …)
+// keep compiling unchanged — mirroring how checker itself is nil at
+// every one of those call sites already. Only cmd/api/main.go calls this
+// in production. Left unset, renew fails closed (503) rather than
+// silently admitting — see renewalHandlers.renew's own comment on the
+// nil-userState branch.
+func (m *Module) SetUserStateChecker(u UserStateChecker) *Module {
+	m.userState = u
+	return m
+}
 
 func (m *Module) Name() string { return "iam" }
 
@@ -369,6 +387,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.POST("/subjects/:subject/revoke", PermCredentialRevoke, rev.adminRevoke)
 
 	m.registerActivity(r, deps)
+	m.registerRenewal(r, deps)
 }
 
 // registerActivity mounts POST /v1/auth/session/activity (#848 Task 4,
@@ -395,6 +414,37 @@ func (m *Module) registerActivity(r *platform.Router, deps platform.Deps) {
 	act := newActivityHandlers(deps.SessionSigner, deps.SessionTTL, deps.SessionSecureCookie, deps.IdleTimeout)
 	auth := r.Group("/auth")
 	auth.POST("/session/activity", authz.NoTenantMembership, act.activity)
+}
+
+// registerRenewal mounts POST /v1/auth/renew (#916, design spec D1/D3)
+// beside /v1/auth/session/activity — same reasoning, same placement:
+// inside the authenticated /v1 chain, under /auth rather than nested
+// under g ("/v1/iam"), so authn.Middleware's cookie verification, the
+// #781 revocation check and the idle-deadline gate ALL run before this
+// handler, satisfying the design brief's first refusal condition
+// ("absent, invalid, expired, or past idle_deadline") with no
+// verification code duplicated here.
+//
+// authz.NoTenantMembership, not authz.Public: both decline to declare a
+// permission, but only NoTenantMembership ALSO skips
+// authz.RequireMembership — platform.Router's own membership gate,
+// backed by authz.MembershipChecker.IsMember (pkg/authz/tenant.go), a
+// DIFFERENT mechanism from the one this endpoint is required to reuse
+// (platform.RoleLister.ListRoles + hasBindingForTenant — the exact
+// check Login performs, see renewalHandlers.renew). Marking this route
+// Public would run RequireMembership FIRST, giving the request a second,
+// differently-shaped membership check ahead of the one the design brief
+// asks for — disagreeing with it on status code (403 vs. this handler's
+// 404) and therefore on what a mismatch discloses. NoTenantMembership
+// keeps renewalHandlers.renew the ONLY membership check this route
+// makes, the same reason sign-out and the activity endpoint both take
+// it: a route that must run its own bespoke membership logic should not
+// also pay for a second, generic one ahead of it.
+func (m *Module) registerRenewal(r *platform.Router, deps platform.Deps) {
+	h := newRenewalHandlers(deps.SessionVerifier, deps.SessionSigner, deps.Roles, m.userState,
+		deps.SessionTTL, deps.IdleTimeout, deps.SessionSecureCookie)
+	auth := r.Group("/auth")
+	auth.POST("/renew", authz.NoTenantMembership, h.renew)
 }
 
 // Publishes declares the three events iam emits: member_granted and

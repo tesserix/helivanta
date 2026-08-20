@@ -330,8 +330,21 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	respond.OK(c, gin.H{"tenant_id": tenantID})
 }
 
-// idleDeadlineFor decides the idle_deadline this mint carries. It is the
-// load-bearing decision of #848 — spec D3, "the single most important
+// idleDeadlineFor is a thin wrapper binding this handler's own sessions
+// verifier and idleTimeout to resolveIdleDeadline below — see that
+// function for the full decision (spec D3) and why it is a package-level
+// function rather than a method: POST /v1/auth/renew (renew.go, #916)
+// carries idle_deadline forward through the EXACT SAME call, not a
+// second copy that could silently drift from this one. #916's design
+// spec (docs/superpowers/specs/2026-08-20-server-side-session-renewal-design.md,
+// D4 point 1) is explicit that this reuse, not a reimplementation, is
+// what keeps the guarantee real.
+func (h *LoginHandlers) idleDeadlineFor(c *gin.Context, principal authn.Principal, now time.Time) time.Time {
+	return resolveIdleDeadline(c, h.sessions, h.idleTimeout, principal, now)
+}
+
+// resolveIdleDeadline decides the idle_deadline a re-mint carries. It is
+// the load-bearing decision of #848 — spec D3, "the single most important
 // rule in this spec, and the one most likely to be got wrong, because
 // everything looks like it works when it is broken".
 //
@@ -410,14 +423,22 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 // Verifier refuses, structurally unusable as an authentication result;
 // that is a design decision rather than a patch, which is why it is a
 // separate issue and not a TODO here.
-func (h *LoginHandlers) idleDeadlineFor(c *gin.Context, principal authn.Principal, now time.Time) time.Time {
-	fresh := now.Add(h.idleTimeout)
+//
+// sessions and idleTimeout are passed explicitly rather than read off a
+// receiver so both LoginHandlers.idleDeadlineFor (a genuine login or a
+// browser-driven renewal, pre-#916) and renewalHandlers.renew (POST
+// /v1/auth/renew, #916) can call the identical logic from their own,
+// differently-shaped structs without either duplicating it.
+func resolveIdleDeadline(c *gin.Context, sessions *session.Verifier, idleTimeout time.Duration,
+	principal authn.Principal, now time.Time,
+) time.Time {
+	fresh := now.Add(idleTimeout)
 
 	raw, err := c.Cookie(authn.SessionCookie)
 	if err != nil || raw == "" {
 		return fresh
 	}
-	claims, err := h.sessions.Verify(raw)
+	claims, err := sessions.Verify(raw)
 	if err != nil {
 		// Not logged at error level and never surfaced to the caller: an
 		// unverifiable cookie on a login request is ordinary (a session

@@ -31,7 +31,7 @@ func openMigratedDB(t *testing.T) *tenantdb.DB {
 	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 
-	registry, err := bootstrap.NewRegistry(nil)
+	registry, err := bootstrap.NewRegistry(nil, nil)
 	require.NoError(t, err)
 	migs := bootstrap.PlatformMigrations()
 	for _, m := range registry.All() {

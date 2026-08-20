@@ -272,7 +272,10 @@ jobs:
         # 20 minutes against a measured 4m30s for this step inside a 9m54s
         # job — a 4x margin, and still inside the job budget with room for
         # the dumps to finish.
-        timeout-minutes: 20
+        # TEMPORARY (#920 fix round 1): 1 minute, to PROVE a step timeout
+        # fails the step rather than cancelling the job, so the diagnostic
+        # dumps below actually run. Reverted to 20 in the next commit.
+        timeout-minutes: 1
         run: make e2e
 
       # A hang (#923) otherwise reads as a bare "the job running exceeded the

@@ -147,11 +147,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # scripts/lib/repo-owns.sh resolves port holders with lsof, and
-      # scripts/e2e.sh depends on it for every fixture swap. Same step the
-      # `scripts` job already carries, for the same reason.
-      - name: Ensure lsof is present
-        run: command -v lsof || (sudo apt-get update && sudo apt-get install -y lsof)
+      # scripts/lib/repo-owns.sh resolves port holders with `ss` on Linux —
+      # NOT lsof, which cannot see a `next dev` server at all (see port_tool
+      # there). scripts/e2e.sh depends on that for every fixture swap, and a
+      # missing `ss` would make the swap silently stop nothing. Asserted
+      # rather than installed: iproute2 is part of the runner image, and if a
+      # future image drops it this must fail loudly here rather than quietly
+      # take the broken path ten minutes later.
+      - name: Assert ss is present
+        run: command -v ss
 
       # Browser binaries only, keyed on the resolved @playwright/test version
       # in the lockfile. Safe to cache because it is versioned content that
@@ -208,22 +212,33 @@ jobs:
       # No `|| true` and no fallback: if the stack never comes up, this step
       # fails and the run is red.
       - name: Wait for the stack
+        # Wall clock for the whole step, on top of the per-URL deadline
+        # below: five URLs at 300s each would be 25 minutes, which is most of
+        # the job budget. Ten minutes is far more than the ~90s this takes in
+        # practice and still leaves the e2e step its own 20.
+        timeout-minutes: 10
         run: |
           set -euo pipefail
+          # A DEADLINE, not an iteration count. The loop below is `curl` plus
+          # `sleep 1`, and against a server that accepts and then stalls —
+          # exactly the `next dev` first-request compile this step exists to
+          # pay for — each iteration costs the full curl timeout. Counting
+          # iterations would make "300s" mean up to 55 minutes, and the
+          # timeout message would name a number that never elapsed.
           wait_for() {
-            local url=$1 label=$2 waited=0
+            local url=$1 label=$2 deadline=$((SECONDS + 300))
             printf 'Waiting for %s (%s)…' "$label" "$url"
             # No -f: a 404 or a 3xx still proves the server answered. Only
             # "could not connect" counts as not ready — same rule
             # scripts/e2e.sh's own wait_for_port applies.
+            #
             # --max-time 10, not e2e.sh's 2: this is the request that PAYS
             # for the first-request compile, so it has to be willing to wait
             # for it rather than abandon it every second.
             until curl -sS --max-time 10 "$url" >/dev/null 2>&1; do
-              waited=$((waited + 1))
-              if [ "$waited" -ge 180 ]; then
+              if [ "$SECONDS" -ge "$deadline" ]; then
                 echo
-                echo "Timed out after 180s waiting for $label at $url." >&2
+                echo "Timed out after 300s waiting for $label at $url." >&2
                 exit 1
               fi
               printf '.'
@@ -245,19 +260,44 @@ jobs:
           done
 
       - name: make e2e
+        # STEP-level, and this is the one that matters. A JOB-level
+        # `timeout-minutes` CANCELS the job, and `failure()` is false under
+        # cancellation — so with only the job bound, the #923 hang (the exact
+        # scenario the bound exists for) would skip every diagnostic step
+        # below and read as a bare "job exceeded the maximum execution time".
+        # A step timeout FAILS the step instead: the job stays alive, the
+        # dumps run, and the artifact uploads. The job-level 30 stays as the
+        # backstop for a hang anywhere outside this step.
+        #
+        # 20 minutes against a measured 4m30s for this step inside a 9m54s
+        # job — a 4x margin, and still inside the job budget with room for
+        # the dumps to finish.
+        timeout-minutes: 20
         run: make e2e
 
-      # A hang (#923) otherwise reads as a bare "job cancelled after 45
-      # minutes" with nothing naming a cause. These two dumps are what
-      # distinguish "zitadel-login is wedged on a stale PAT" from "a spec
-      # genuinely failed". `if: failure()` covers the timeout kill too.
+      # A hang (#923) otherwise reads as a bare "the job running exceeded the
+      # maximum execution time" with nothing naming a cause. These dumps are
+      # what distinguish "zitadel-login is wedged on a stale PAT" from "a
+      # spec genuinely failed".
       #
-      # These run `docker compose` directly rather than through make, so the
-      # HELIVANTA_* variables make exports are unset and compose warns about a
-      # blank masterkey. Harmless here: `ps` and `logs` read container state,
-      # they do not (re)create anything from the substituted value.
+      # The condition is `!success() || cancelled()`, and every part of it is
+      # load-bearing:
+      #
+      #   - A JOB-level timeout CANCELS the job, and a step whose `if` does
+      #     not mention `cancelled()` (or `always()`) is SKIPPED under
+      #     cancellation — `failure()` and `!cancelled()` alike. So a bare
+      #     `if: failure()` would skip all of this in exactly the scenario
+      #     the 30-minute bound exists for. Naming `cancelled()` is what
+      #     keeps these steps eligible to run at all in the grace period.
+      #   - `!success()` covers the normal case, which is now the COMMON one:
+      #     the step-level `timeout-minutes: 20` on `make e2e` turns a hang
+      #     into a step FAILURE rather than a job cancellation, so the job
+      #     stays alive and these steps run with time to finish.
+      #   - Together they stay silent on a green run — `!success()` is false
+      #     and `cancelled()` is false — so a passing build does not dump
+      #     Zitadel's logs at anyone.
       - name: Dump container state on failure
-        if: failure()
+        if: ${{ !success() || cancelled() }}
         run: docker compose -f docker-compose.dev.yml ps
       # zitadel-login is the container #923 hangs in — but it can only hang
       # once it exists, and it does not exist until zitadel itself has
@@ -267,14 +307,14 @@ jobs:
       # container that fails at boot fails repeatedly, and every repeat is a
       # consequence of the FIRST one. A tail shows only the consequences.
       - name: Dump Zitadel logs on failure
-        if: failure()
+        if: ${{ !success() || cancelled() }}
         run: docker compose -f docker-compose.dev.yml logs zitadel zitadel-login zitadel-pat-ready
       # An explicit branch, not `|| true`: a failure before the stack ever
       # started leaves no log, and that is information, not an error to
       # swallow. Suppressing the exit code would also suppress a genuine
       # read failure on a log that DOES exist.
       - name: Dump API and web logs on failure
-        if: failure()
+        if: ${{ !success() || cancelled() }}
         run: |
           if [ -f /tmp/hms-stack.log ]; then
             cat /tmp/hms-stack.log
@@ -287,7 +327,7 @@ jobs:
       # written per playwright invocation and scripts/e2e.sh stops at the first
       # failing phase, so what lands here is the failing phase's evidence.
       - name: Upload Playwright report and traces
-        if: failure()
+        if: ${{ !success() || cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report

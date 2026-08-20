@@ -16,6 +16,10 @@ set -uo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 . "$REPO_ROOT/scripts/lib/repo-owns.sh"
+# This script KILLS processes based on who holds a port. Without the
+# platform's port tool every port looks free, and it would report "All
+# Helivanta ports are free" while five orphans kept running (#920).
+require_port_tool
 # 8080 is HELIVANTA_API_PORT (see .env.example) — the four zone-app ports are
 # fixed Next.js dev-server ports, out of scope for the port variables.
 APP_PORTS=(4301 4302 4303 4304 "${HELIVANTA_API_PORT:-8080}")

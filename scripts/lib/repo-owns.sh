@@ -38,27 +38,65 @@ pid_is_ours() {
   esac
 }
 
-# port_holders PORT — PIDs listening on the port, one per line.
+# port_tool — the ONE tool this platform is allowed to use, chosen by
+# PLATFORM rather than by what happens to be installed.
 #
-# `ss` first, lsof only where there is no `ss` (macOS). This is not a
-# preference, it is a correctness fix: lsof 4.95.0 — the version on Ubuntu
-# 24.04 and on GitHub's runner image — SILENTLY OMITS a process whose
-# /proc comm contains spaces and parentheses, which is exactly how Next.js
-# names its dev server: `next-server (v16.2.12)`. Measured on the runner
-# with four of them listening on 4301-4304 plus the Go API on 8080:
+# That distinction is the whole point. lsof 4.95.0 — the version on Ubuntu
+# 24.04 and on GitHub's runner image — SILENTLY OMITS a process whose /proc
+# comm contains spaces and parentheses, which is exactly how Next.js names
+# its dev server: `next-server (v16.2.12)`. Measured on the runner with four
+# of them listening on 4301-4304 plus the Go API on 8080,
 # `lsof -nP -iTCP -sTCP:LISTEN` listed ONLY the Go API, while `ss -ltnp`
-# listed all five with their pids.
+# listed all five with their pids. Reproduced independently in a bare
+# ubuntu:24.04 container against a listener renamed to that exact string.
 #
-# An empty answer here is read by every caller as "nobody holds this port",
-# so that omission is a fail-OPEN in an ownership control: scripts/e2e.sh's
+# An empty answer is read by every caller as "nobody holds this port", so
+# that omission is a fail-OPEN in an ownership control: scripts/e2e.sh's
 # fixture swap stopped nothing at all and then died on Next's "Another next
 # dev server is already running", and dev-down.sh would likewise leave the
 # zone apps running while reporting success (#920).
 #
-# macOS has no `ss` and its lsof does not have this bug, so the fallback
-# there is the correct tool, not a degraded one.
+# Selecting on `command -v ss` instead would restore that bug the moment
+# this ran on a Linux box without iproute2 (a slim container, a devcontainer,
+# some self-hosted runners): the lsof branch would be chosen, preflight would
+# report a cheerful "ok", and the control would be doing nothing again. On
+# Linux the answer is `ss` or an error — never a quiet downgrade. macOS has
+# no `ss`, and its lsof does not have the bug, so lsof is the correct tool
+# there rather than a degraded one.
+port_tool() {
+  case "$(uname -s)" in
+    Darwin) echo lsof ;;
+    *) echo ss ;;
+  esac
+}
+
+# have_port_tool — true when this platform's required tool is installed.
+have_port_tool() {
+  command -v "$(port_tool)" >/dev/null 2>&1
+}
+
+# require_port_tool — fail fast, for scripts that ACT on the answer
+# (dev-down.sh kills processes, e2e.sh swaps fixtures). preflight.sh
+# deliberately does not use this: it reports every problem it finds rather
+# than exiting on the first.
+require_port_tool() {
+  have_port_tool && return 0
+  echo "$(port_tool) is required on $(uname -s) to see which process holds a port, and it is not installed." >&2
+  echo "Without it every port looks free, and this script would act on that. Run 'bash scripts/preflight.sh' for the fix." >&2
+  exit 1
+}
+
+# port_holders PORT — PIDs listening on the port, one per line.
+#
+# Returns 2, loudly, when the platform's tool is missing rather than
+# printing nothing: "nothing" is indistinguishable from "the port is free",
+# and that is the exact fail-open shape above.
 port_holders() {
-  if command -v ss >/dev/null 2>&1; then
+  if ! have_port_tool; then
+    echo "port_holders: $(port_tool) is not installed — refusing to answer 'nobody holds :$1', which is what an empty result would mean." >&2
+    return 2
+  fi
+  if [ "$(port_tool)" = ss ]; then
     # -H drops the header; the sport filter is ss's own, so no port-number
     # substring can match by accident (":4301" vs ":14301").
     ss -H -ltnp "sport = :$1" 2>/dev/null \
@@ -82,8 +120,15 @@ compose_owns_port() {
 # port_is_ours PORT — true when free, or held only by our processes or our
 # containers.
 port_is_ours() {
-  local pid
-  for pid in $(port_holders "$1"); do
+  local pid pids rc
+  pids=$(port_holders "$1"); rc=$?
+  # Only rc 2 — "the tool is missing" — is an error. lsof exits 1 when it
+  # simply finds no match, which is the ordinary "this port is free" answer
+  # and must NOT be read as a failure. Distinguishing them is the whole
+  # point: a missing tool answers "not ours" so preflight fails closed,
+  # rather than printing `ok port 5432` for a port it cannot see into at all.
+  [ "$rc" = 2 ] && return 1
+  for pid in $pids; do
     pid_is_ours "$pid" && continue
     compose_owns_port "$1" && continue
     return 1

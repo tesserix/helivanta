@@ -54,9 +54,9 @@ async function signInAndReachOtpStep(page: Page): Promise<void> {
   await landingButton.waitFor({ state: "visible", timeout: 20_000 });
   await landingButton.click();
 
-  await expect(
-    page.getByLabel("Email or username", { exact: true }),
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByLabel("Email or username", { exact: true })).toBeVisible({
+    timeout: 15_000,
+  });
   await page.getByLabel("Email or username", { exact: true }).fill(MFA_EMAIL);
   // exact: true — see support/login.ts's signInOnce for why an unqualified
   // getByLabel("Password") is ambiguous against @tesserix/web 2.2.1's
@@ -111,14 +111,10 @@ test("a correct TOTP code completes sign-in, provable against the API", async ({
   // session — minted from a genuinely verified TOTP factor, against the
   // live Zitadel, with the token rotation this task exists to guard —
   // exists and is accepted.
-  const accepted = await page.evaluate(
-    async (url) => (await fetch(url)).ok,
-    PERMISSIONS_PROBE,
+  const accepted = await page.evaluate(async (url) => (await fetch(url)).ok, PERMISSIONS_PROBE);
+  expect(accepted, "a session finalized via a correct TOTP code must be accepted by the API").toBe(
+    true,
   );
-  expect(
-    accepted,
-    "a session finalized via a correct TOTP code must be accepted by the API",
-  ).toBe(true);
 });
 
 // Spec D5/D6, extended to the factor step: a wrong TOTP code answers with
@@ -141,9 +137,10 @@ test("a wrong TOTP code keeps the clinician on the OTP step with the shared refu
   // Guaranteed wrong: a sibling 30-second step's code, not a guessed
   // literal that could coincidentally equal the real one.
   const wrongCode = generateTOTP(secret, Date.now() - 10 * 60 * 1000);
-  expect(wrongCode, "the sibling-step code must differ from the real one to be a genuine wrong guess").not.toBe(
-    correctCode,
-  );
+  expect(
+    wrongCode,
+    "the sibling-step code must differ from the real one to be a genuine wrong guess",
+  ).not.toBe(correctCode);
 
   await page.getByLabel(/verification code/i).fill(wrongCode);
 

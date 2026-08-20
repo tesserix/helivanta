@@ -1,16 +1,9 @@
 #!/usr/bin/env node
-/* eslint-disable no-console */
 // Zero-dependency generator that stamps a standards-compliant zone app under
 // apps/<name>, mirroring the shape of apps/pharmacy (package.json, next.config,
 // tsconfig, eslint/vitest configs, AppProviders layout, boundary files, and a
 // minimal example panel + test).
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = join(import.meta.dirname, "..");
@@ -366,14 +359,8 @@ function main() {
   writeFile(join(appDir, "app/not-found.tsx"), notFoundTsx());
   writeFile(join(appDir, "app/page.tsx"), pageTsx(name));
 
-  writeFile(
-    join(appDir, "components/example-panel.tsx"),
-    examplePanelTsx(name),
-  );
-  writeFile(
-    join(appDir, "components/example-panel.test.tsx"),
-    examplePanelTestTsx(),
-  );
+  writeFile(join(appDir, "components/example-panel.tsx"), examplePanelTsx(name));
+  writeFile(join(appDir, "components/example-panel.test.tsx"), examplePanelTestTsx());
 
   printFollowUps(name, port);
 }

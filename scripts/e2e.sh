@@ -44,6 +44,11 @@ RENEWAL_WEB_PORT=${HELIVANTA_RENEWAL_WEB_PORT:-4398}
 # localhost (#916 Task 4).
 WEB_HOST=${HELIVANTA_WEB_HOST:-helivanta.localhost}
 
+# This script ACTS on port ownership — it stops the zone apps to free :4301
+# for a fixture. A missing platform port tool makes every port look free, so
+# refuse up front rather than "successfully" stopping nothing (#920).
+require_port_tool
+
 LOG_DIR=$(mktemp -d "${TMPDIR:-/tmp}/hms-e2e.XXXXXX")
 
 # require_port_up / wait_for_port both curl WITHOUT -f: a 404 (medicore's
@@ -93,22 +98,55 @@ stop_port_if_ours() {
   done
 }
 
-# wait_for_port URL LABEL — polls instead of sleeping a fixed amount;
-# `next dev` can take anywhere from 10-60s to come up.
+# wait_for_port URL LABEL [PID] — polls instead of sleeping a fixed amount.
+#
+# WALL CLOCK, not an iteration count. The loop used to run N iterations of
+# `curl --max-time 2` + `sleep 1`, so "60s" actually meant up to 180s — and
+# against a server that ACCEPTS and then stalls (a `next dev` paying for its
+# first-request compile, which is the case this function exists for) each
+# iteration costs the full curl timeout. At 180 iterations that would have
+# been ~9 minutes per call, six calls per run, against a 30-minute job
+# budget. Now the number in the message is the number that elapses.
+#
+# 180s rather than the original 60: a 2-core CI runner also hosting Postgres,
+# NATS, Redis, OpenFGA, Zitadel and a Go API takes longer to boot `next dev`
+# than a laptop does. It is a CEILING, not a wait — the loop exits the moment
+# the URL answers, so a fast machine pays nothing for it.
+#
+# PID is optional and is what makes the ceiling rarely matter: when the
+# process being waited on has already exited (Next.js refusing a second dev
+# server for the same project directory, say — the #920 failure), there is
+# nothing to wait for, so say so at once instead of burning the ceiling.
+WAIT_FOR_PORT_TIMEOUT=${WAIT_FOR_PORT_TIMEOUT:-180}
 wait_for_port() {
-  local url=$1 label=$2 waited=0
+  local url=$1 label=$2 pid=${3:-} deadline=$((SECONDS + WAIT_FOR_PORT_TIMEOUT))
   printf 'Waiting for %s (%s)…' "$label" "$url"
   until curl -sS --max-time 2 "$url" >/dev/null 2>&1; do
-    waited=$((waited + 1))
-    if [ "$waited" -ge 60 ]; then
+    if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
       echo
-      echo "Timed out after 60s waiting for $label at $url." >&2
+      echo "$label exited before it ever answered at $url — see its log above." >&2
+      return 1
+    fi
+    if [ "$SECONDS" -ge "$deadline" ]; then
+      echo
+      echo "Timed out after ${WAIT_FOR_PORT_TIMEOUT}s waiting for $label at $url." >&2
       return 1
     fi
     printf '.'
     sleep 1
   done
   echo ' ready.'
+}
+
+# start_bg LABEL COMMAND... — run a make target in the background, logging to
+# $LOG_DIR/LABEL.log, and print its pid. The pid is the point: the previous
+# `( … & )` form discarded it, so a fixture that died on startup was
+# indistinguishable from one still booting and cost the full wait ceiling.
+start_bg() {
+  local label=$1
+  shift
+  ( cd "$REPO_ROOT" && exec nohup "$@" >"$LOG_DIR/$label.log" 2>&1 ) &
+  echo $!
 }
 
 web_restored=0
@@ -124,13 +162,26 @@ restore_web() {
     return 0
   fi
   echo "Restoring main zone apps (make dev-web) ..."
-  (cd "$REPO_ROOT" && nohup make dev-web >"$LOG_DIR/dev-web.log" 2>&1 &)
+  local web_pid
+  web_pid=$(start_bg dev-web make dev-web)
   local port
   for port in "${ZONE_PORTS[@]}"; do
     # "/" rather than "/login": only apps/shell serves a login page
     # directly, the other three zone apps redirect an unauthenticated
     # request there — either way a response means the dev server is up.
-    wait_for_port "http://$WEB_HOST:$port/" "zone app on :$port"
+    #
+    # `|| return 1` EXPLICITLY, not left to errexit. cleanup() calls this
+    # function as an operand of an `||` list, and POSIX says `-e` is ignored
+    # for every command in an AND-OR list but the last — bash applies that
+    # suppression inside the subshell and into every function it calls, so a
+    # failing wait_for_port here would neither abort nor be noticed. Two
+    # things went wrong because of that, both observed: the loop polled all
+    # four ports instead of stopping at the first failure (4 x
+    # WAIT_FOR_PORT_TIMEOUT = 12 minutes inside a 30-minute job), and this
+    # function's status became merely the LAST port's, so ":4301 dead,
+    # :4302-4304 alive" returned 0 and the run went green with apps/shell
+    # never restored (#920).
+    wait_for_port "http://$WEB_HOST:$port/" "zone app on :$port" "$web_pid" || return 1
   done
 }
 
@@ -141,11 +192,80 @@ teardown_fixture() {
   stop_port_if_ours "$RENEWAL_API_PORT" "dev-api-renewal"
 }
 
+# dump_logs — prints whatever the backgrounded `make` invocations wrote.
+# Those processes are started with nohup into $LOG_DIR, so on a failure their
+# output is the ONLY account of why a fixture never bound its port — and
+# until this existed the script deleted it unread, leaving nothing but
+# "Timed out after 60s". That is exactly the case this suite is most likely
+# to fail in on a machine nobody can attach to (CI, #920).
+logs_dumped=0
+dump_logs() {
+  # Idempotent: cleanup dumps on a failed RUN, and its re-armed EXIT trap
+  # dumps again if the cleanup path itself fails. One account, not two.
+  if [ "$logs_dumped" = 1 ]; then
+    return 0
+  fi
+  logs_dumped=1
+  local f
+  for f in "$LOG_DIR"/*.log; do
+    [ -e "$f" ] || continue
+    echo "----- $(basename "$f") -----" >&2
+    # In full, not a tail. A `next dev` or `go run` that fails at BOOT puts
+    # the cause in the first lines and then may print nothing else, or may
+    # print pages of unrelated banner; a tail shows the consequence and hides
+    # the cause. Same argument .github/workflows/ci.yml makes for dumping
+    # Zitadel's logs whole.
+    cat "$f" >&2
+  done
+}
+
 cleanup() {
   local status=$?
   trap - EXIT
-  teardown_fixture
-  restore_web
+  if [ "$status" != 0 ]; then
+    dump_logs
+  fi
+  # The cleanup path can fail on its own, and that failed SILENTLY in the
+  # worst case: all 17 tests pass, so status is 0 and the dump above is
+  # skipped; then restore_web's `make dev-web` will not come back up, the
+  # script dies with $LOG_DIR populated and never read, and the run is red
+  # with no account of why. Exactly what dump_logs exists for.
+  #
+  # Each half runs in its own SUBSHELL and its status is TESTED. Three
+  # approaches were tried before this one and two of them do not work:
+  #
+  #   - Re-arming an EXIT trap here does nothing. Bash does not re-enter the
+  #     EXIT trap from within the EXIT trap handler, so a `trap … EXIT` set
+  #     inside this function never fires. Demonstrated on bash 5.2 (the CI
+  #     runner) and 3.2 (macOS): the second handler's output never appears.
+  #   - An ERR trap does not cover it either. ERR is not inherited by shell
+  #     functions without `set -E`, and this path IS a function; and
+  #     stop_port_if_ours calls `exit 1` outright, which no ERR trap sees.
+  #   - A subshell contains an `exit`: stop_port_if_ours's outright `exit 1`
+  #     becomes an ordinary non-zero status this function can test, instead
+  #     of tearing down the whole script. That is what the subshells below
+  #     are for, and it is ALL they are for.
+  #
+  # What the subshell does NOT do is convert a command that fails under
+  # `set -e`. Errexit is ignored for every command in an AND-OR list except
+  # the last, and bash pushes that suppression into the subshell and into the
+  # functions it calls — so `( restore_web ) || cleanup_status=1` runs
+  # restore_web with errexit effectively off. Propagation there has to be
+  # explicit, and it is: restore_web's own loop ends in `|| return 1`. Any
+  # future function called from here owes the same.
+  #
+  # Two subshells rather than one, so a failing teardown_fixture still leaves
+  # restore_web to run: the developer gets their zone apps back even when the
+  # fixture teardown could not finish.
+  local cleanup_status=0
+  ( teardown_fixture ) || cleanup_status=1
+  ( restore_web ) || cleanup_status=1
+  if [ "$cleanup_status" != 0 ]; then
+    dump_logs
+    if [ "$status" = 0 ]; then
+      status=1
+    fi
+  fi
   rm -rf "$LOG_DIR"
   exit $status
 }
@@ -178,10 +298,10 @@ for port in "${ZONE_PORTS[@]}"; do
 done
 
 echo "Starting idle-timeout fixture…"
-(cd "$REPO_ROOT" && nohup make dev-api-idle-timeout >"$LOG_DIR/dev-api-idle-timeout.log" 2>&1 &)
-(cd "$REPO_ROOT" && nohup make dev-web-idle-timeout >"$LOG_DIR/dev-web-idle-timeout.log" 2>&1 &)
-wait_for_port "http://localhost:$IDLE_API_PORT/healthz" "dev-api-idle-timeout"
-wait_for_port "http://$WEB_HOST:$IDLE_WEB_PORT/login" "dev-web-idle-timeout"
+idle_api_pid=$(start_bg dev-api-idle-timeout make dev-api-idle-timeout)
+idle_web_pid=$(start_bg dev-web-idle-timeout make dev-web-idle-timeout)
+wait_for_port "http://localhost:$IDLE_API_PORT/healthz" "dev-api-idle-timeout" "$idle_api_pid"
+wait_for_port "http://$WEB_HOST:$IDLE_WEB_PORT/login" "dev-web-idle-timeout" "$idle_web_pid"
 
 pnpm --filter e2e exec playwright test --project=idle-timeout
 
@@ -195,10 +315,10 @@ teardown_fixture
 # rule, which teardown_fixture above has just satisfied.
 echo "Phase 3/3 — session-renewal against its own API + shell…"
 echo "Starting session-renewal fixture…"
-(cd "$REPO_ROOT" && nohup make dev-api-renewal >"$LOG_DIR/dev-api-renewal.log" 2>&1 &)
-(cd "$REPO_ROOT" && nohup make dev-web-renewal >"$LOG_DIR/dev-web-renewal.log" 2>&1 &)
-wait_for_port "http://localhost:$RENEWAL_API_PORT/healthz" "dev-api-renewal"
-wait_for_port "http://$WEB_HOST:$RENEWAL_WEB_PORT/login" "dev-web-renewal"
+renewal_api_pid=$(start_bg dev-api-renewal make dev-api-renewal)
+renewal_web_pid=$(start_bg dev-web-renewal make dev-web-renewal)
+wait_for_port "http://localhost:$RENEWAL_API_PORT/healthz" "dev-api-renewal" "$renewal_api_pid"
+wait_for_port "http://$WEB_HOST:$RENEWAL_WEB_PORT/login" "dev-web-renewal" "$renewal_web_pid"
 
 pnpm --filter e2e exec playwright test --project=renewal
 

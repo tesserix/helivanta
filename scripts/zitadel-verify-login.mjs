@@ -98,7 +98,11 @@ async function main() {
   const setCookie = loginRes.headers.get("set-cookie");
   const match = setCookie?.match(/helivanta_session=([^;]+)/);
   if (!match) {
-    return step("POST /v1/auth/login", false, "200 but no helivanta_session cookie in the response");
+    return step(
+      "POST /v1/auth/login",
+      false,
+      "200 but no helivanta_session cookie in the response",
+    );
   }
   step("POST /v1/auth/login", true, "minted an helivanta_session cookie");
 

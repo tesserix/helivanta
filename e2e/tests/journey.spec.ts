@@ -7,9 +7,7 @@ import { login, specAdmin, specPharmacist } from "./support/login";
 // permission for — in the sidebar, on the dashboard, and when navigating
 // directly to a route the UI would otherwise hide the action on.
 
-test("admin creates a visit and it lands in pharmacy and lab", async ({
-  page,
-}) => {
+test("admin creates a visit and it lands in pharmacy and lab", async ({ page }) => {
   await login(page, specAdmin());
 
   const patient = `Journey Patient ${Date.now()}`;
@@ -56,9 +54,7 @@ test("pharmacist sees only the pharmacy zone, in the sidebar and on the dashboar
   await expect(dashboard.locator('a[href="/lab"]')).toHaveCount(0);
 });
 
-test("pharmacist cannot create a visit even by navigating directly", async ({
-  page,
-}) => {
+test("pharmacist cannot create a visit even by navigating directly", async ({ page }) => {
   await login(page, specPharmacist());
   await page.goto("/medicore/opd");
   await page.waitForLoadState("networkidle");
@@ -67,9 +63,7 @@ test("pharmacist cannot create a visit even by navigating directly", async ({
   // in apps/medicore/components/visit-panel.tsx); the API is the real
   // enforcement point, so the form must be absent rather than merely
   // disabled.
-  await expect(page.getByRole("button", { name: "Create visit" })).toHaveCount(
-    0,
-  );
+  await expect(page.getByRole("button", { name: "Create visit" })).toHaveCount(0);
 });
 
 test("pharmacist can dispense a visit created by admin", async ({ page }) => {
@@ -127,11 +121,6 @@ test("pharmacist can dispense a visit created by admin", async ({ page }) => {
   await expect(page.getByText(patient).first()).toBeVisible({
     timeout: 30_000,
   });
-  await page
-    .locator("li", { hasText: patient })
-    .getByRole("button", { name: "Dispense" })
-    .click();
-  await expect(
-    page.locator("li", { hasText: patient }).getByText(/Dispensed/),
-  ).toBeVisible();
+  await page.locator("li", { hasText: patient }).getByRole("button", { name: "Dispense" }).click();
+  await expect(page.locator("li", { hasText: patient }).getByText(/Dispensed/)).toBeVisible();
 });

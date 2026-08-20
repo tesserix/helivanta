@@ -15,9 +15,7 @@ const SECOND_TENANT_ID = "22222222-2222-2222-2222-222222222222";
 // The permission-resolution endpoint answers for whichever tenant the
 // session's token claims, so it is the most direct read of "which
 // hospital am I actually in" available to the browser.
-async function permissions(
-  page: import("@playwright/test").Page,
-): Promise<string[]> {
+async function permissions(page: import("@playwright/test").Page): Promise<string[]> {
   // The switch reloads the page, and the poll below reads permissions
   // across exactly that window — so an evaluate can be torn down mid-flight
   // with "Execution context was destroyed". That is a navigation, not an

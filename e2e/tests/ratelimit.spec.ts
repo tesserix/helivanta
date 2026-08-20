@@ -55,9 +55,7 @@ type Flood = {
   meanRoundTripMs: number;
 };
 
-test("draining the login budget is refused with a Retry-After that is honest", async ({
-  page,
-}) => {
+test("draining the login budget is refused with a Retry-After that is honest", async ({ page }) => {
   // Login alone can take 30s under parallel workers (see support/login.ts),
   // and the flood below is bounded at MAX_ATTEMPTS round trips on top.
   test.setTimeout(180_000);
@@ -92,8 +90,7 @@ test("draining the login budget is refused with a Retry-After that is honest", a
 
       let firstStatus = 0;
       const startedAt = performance.now();
-      const mean = (attempts: number) =>
-        Math.round((performance.now() - startedAt) / attempts);
+      const mean = (attempts: number) => Math.round((performance.now() - startedAt) / attempts);
 
       for (let i = 0; i < maxAttempts; i++) {
         const res = await attempt();
@@ -138,10 +135,7 @@ test("draining the login budget is refused with a Retry-After that is honest", a
   // Not merely present: a header of "0" is present and truthy-as-a-string,
   // and a client told to retry after zero seconds retries immediately,
   // turning the limiter into an amplifier.
-  expect(
-    flood.retryAfter,
-    "a refusal must tell the client when to retry",
-  ).toBeTruthy();
+  expect(flood.retryAfter, "a refusal must tell the client when to retry").toBeTruthy();
   const retryAfterSeconds = Number(flood.retryAfter);
   expect(retryAfterSeconds).toBeGreaterThan(0);
 

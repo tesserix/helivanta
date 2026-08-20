@@ -83,7 +83,11 @@ async function getApp(pat, projectId, appId) {
 // consumer (Makefile, scripts/seed-dev.mjs's readClientID) already
 // expects, so helivanta-web-idle-timeout's separate secrets file is a drop-in
 // the same way helivanta-web's own zitadel.env already is.
-async function provisionApp(pat, project, { appName, redirectUris, postLogoutRedirectUris, envOutPath }) {
+async function provisionApp(
+  pat,
+  project,
+  { appName, redirectUris, postLogoutRedirectUris, envOutPath },
+) {
   // helivanta-web's login redirect points at Helivanta's own login page instead of
   // Zitadel's stock hosted UI (#854 Task 1) — scoped to this ONE app via
   // Zitadel's per-app `loginVersion.loginV2.baseUri`, deliberately not the
@@ -112,20 +116,25 @@ async function provisionApp(pat, project, { appName, redirectUris, postLogoutRed
     // branches, is what actually sets every field including loginVersion.
     // See that PUT's own comment for why this is now the ONLY place any
     // oidc_config field gets set, and why that matters.
-    const created = await managementAPI(ISSUER, pat, `/management/v1/projects/${project.id}/apps/oidc`, {
-      name: appName,
-      redirectUris,
-      responseTypes: ["OIDC_RESPONSE_TYPE_CODE"],
-      grantTypes: ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"],
-      appType: "OIDC_APP_TYPE_WEB",
-      // Public client, PKCE only — matches spec D5a: the browser talks to
-      // Zitadel directly, Helivanta's own session (not this OIDC client) is
-      // what protects /v1 routes, so there is no confidential secret to
-      // hold or rotate for helivanta-web.
-      authMethodType: "OIDC_AUTH_METHOD_TYPE_NONE",
-      postLogoutRedirectUris,
-      devMode: true,
-    });
+    const created = await managementAPI(
+      ISSUER,
+      pat,
+      `/management/v1/projects/${project.id}/apps/oidc`,
+      {
+        name: appName,
+        redirectUris,
+        responseTypes: ["OIDC_RESPONSE_TYPE_CODE"],
+        grantTypes: ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"],
+        appType: "OIDC_APP_TYPE_WEB",
+        // Public client, PKCE only — matches spec D5a: the browser talks to
+        // Zitadel directly, Helivanta's own session (not this OIDC client) is
+        // what protects /v1 routes, so there is no confidential secret to
+        // hold or rotate for helivanta-web.
+        authMethodType: "OIDC_AUTH_METHOD_TYPE_NONE",
+        postLogoutRedirectUris,
+        devMode: true,
+      },
+    );
     clientId = created.clientId;
     appId = created.appId;
     console.log(`Created app "${appName}" (client_id=${clientId})`);
@@ -173,20 +182,23 @@ async function provisionApp(pat, project, { appName, redirectUris, postLogoutRed
   // all genuinely POST per lib/zitadel.mjs's managementAPI doc comment),
   // Zitadel's oidc_config update is a PUT. Raw fetch here rather than
   // bending managementAPI's hardcoded POST to fit.
-  const updateRes = await fetch(`${ISSUER}/management/v1/projects/${project.id}/apps/${appId}/oidc_config`, {
-    method: "PUT",
-    headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      redirectUris,
-      responseTypes: ["OIDC_RESPONSE_TYPE_CODE"],
-      grantTypes: ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"],
-      appType: "OIDC_APP_TYPE_WEB",
-      authMethodType: "OIDC_AUTH_METHOD_TYPE_NONE",
-      postLogoutRedirectUris,
-      devMode: true,
-      loginVersion,
-    }),
-  });
+  const updateRes = await fetch(
+    `${ISSUER}/management/v1/projects/${project.id}/apps/${appId}/oidc_config`,
+    {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        redirectUris,
+        responseTypes: ["OIDC_RESPONSE_TYPE_CODE"],
+        grantTypes: ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"],
+        appType: "OIDC_APP_TYPE_WEB",
+        authMethodType: "OIDC_AUTH_METHOD_TYPE_NONE",
+        postLogoutRedirectUris,
+        devMode: true,
+        loginVersion,
+      }),
+    },
+  );
   if (!updateRes.ok) {
     const body = await updateRes.json().catch(() => ({}));
     // Zitadel 400s this PUT with COMMAND-1m88i ("No changes") when every
@@ -223,7 +235,9 @@ async function main() {
   if (project) {
     console.log(`Reusing existing project "${PROJECT_NAME}" (${project.id})`);
   } else {
-    const created = await managementAPI(ISSUER, pat, "/management/v1/projects", { name: PROJECT_NAME });
+    const created = await managementAPI(ISSUER, pat, "/management/v1/projects", {
+      name: PROJECT_NAME,
+    });
     project = { id: created.id };
     console.log(`Created project "${PROJECT_NAME}" (${project.id})`);
   }

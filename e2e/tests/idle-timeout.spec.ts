@@ -89,10 +89,9 @@ test("an untouched session is refused after IDLE_TIMEOUT and returns to a real s
   });
   expect(refused.status(), "the API must refuse a session past its idle_deadline").toBe(401);
   const body = (await refused.json()) as { error?: string };
-  expect(
-    body.error,
-    "refusal must be tagged session_idle, not a different 401 (spec D6)",
-  ).toBe("session_idle");
+  expect(body.error, "refusal must be tagged session_idle, not a different 401 (spec D6)").toBe(
+    "session_idle",
+  );
 
   // --- 4. The browser lands on /login with the inactivity wording -------
   // The open page's own idle-tracker (mounted via HmsShell, independent
@@ -107,9 +106,7 @@ test("an untouched session is refused after IDLE_TIMEOUT and returns to a real s
   // did the former would leave the previous clinician's dashboard
   // frozen on screen even though every API call against it now fails.
   await page.waitForURL(/\/login/, { timeout: 20_000 });
-  await expect(
-    page.getByText("Your session ended after a period of inactivity."),
-  ).toBeVisible();
+  await expect(page.getByText("Your session ended after a period of inactivity.")).toBeVisible();
 
   // --- 5. Signing in again requires credentials --------------------------
   // login() drives Helivanta's own credential form end to end (Email + Password

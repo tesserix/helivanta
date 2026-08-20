@@ -19,6 +19,12 @@ assert_status() { # assert_status NAME WANT GOT
   fi
 }
 
+assert_equals() { # assert_equals NAME WANT GOT
+  if [ "$2" = "$3" ]; then t_ok "$1"; else
+    t_fail "$1"; printf '        want [%s], got [%s]\n' "$2" "$3"
+  fi
+}
+
 assert_contains() { # assert_contains NAME HAYSTACK NEEDLE
   case "$2" in
     *"$3"*) t_ok "$1" ;;
@@ -151,7 +157,7 @@ make_shim "$nodocker" curl   'exit 1'
 # environment (e.g. installed globally via nvm/corepack), making this
 # assertion pass or fail depending on the developer's machine rather than on
 # preflight.sh's own logic. /usr/sbin (macOS) and /usr/bin (Linux) are where
-# lsof lives, which port_is_ours needs; sed/sort/head/ps come from /usr/bin
+# the port tool lives, which port_is_ours needs; sed/sort/head/ps come from /usr/bin
 # and /bin.
 out=$(env PATH="$nodocker:/usr/bin:/bin:/usr/sbin:/sbin" \
   PREFLIGHT_PORTS="$(free_port)" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
@@ -169,10 +175,12 @@ assert_status "occupied foreign port exits 1" 1 "$status"
 assert_contains "names the occupied port" "$out" "$busy_port"
 assert_contains "names the fix"           "$out" "make down"
 
-# A missing lsof must be reported, not silently treated as "no port
-# holders found, so every port is free" — that would fail open exactly in
-# the scenario #714 exists to catch (a foreign process quietly squatting on
-# a port we need).
+# A missing port-lookup tool must be reported, not silently treated as "no
+# port holders found, so every port is free" — that would fail open exactly
+# in the scenario #714 exists to catch (a foreign process quietly squatting
+# on a port we need). Either `ss` or lsof satisfies preflight (repo-owns.sh's
+# port_holders prefers ss on Linux, see its comment), so BOTH have to be off
+# the PATH for this case to prove anything.
 #
 # The PATH for this case must therefore be EXACTLY one directory: $nolsof,
 # holding a symlink to every real tool preflight.sh and repo-owns.sh use,
@@ -187,8 +195,10 @@ mkdir -p "$nolsof"
 # bash: the script is invoked as `bash ...` and every shim's shebang is
 # `/usr/bin/env bash`. dirname: REPO_ROOT in both scripts. sed/sort/head:
 # version_at_least and cwd_of. wc/tr: the masterkey length check. grep:
-# compose_owns_port. ps: the port-holder message. env: the shim shebangs.
-for tool in bash env dirname sed sort head wc tr grep ps; do
+# compose_owns_port. cut: port_holders' ss parsing. uname: port_tool's
+# platform selection. ls: the secrets-dir mode check. ps: the port-holder
+# message. env: the shim shebangs.
+for tool in bash env dirname sed sort head wc tr grep cut ps uname ls; do
   ln -s "$(command -v "$tool")" "$nolsof/$tool"
 done
 make_shim "$nolsof" docker 'exit 0'
@@ -196,17 +206,120 @@ make_shim "$nolsof" go     'echo "go version go1.26.5 darwin/arm64"'
 make_shim "$nolsof" node   'echo "v22.11.0"'
 make_shim "$nolsof" pnpm   'echo "10.17.1"'
 
-# Guard the guard: if lsof is reachable through this PATH the case below
-# proves nothing, so say so loudly rather than reporting a green pass.
-if PATH="$nolsof" command -v lsof >/dev/null 2>&1; then
-  t_fail "the no-lsof PATH must not contain lsof"
-fi
+# Guard the guard: if either tool is reachable through this PATH the case
+# below proves nothing, so say so loudly rather than reporting a green pass.
+for tool in lsof ss; do
+  if PATH="$nolsof" command -v "$tool" >/dev/null 2>&1; then
+    t_fail "the no-port-tool PATH must not contain $tool"
+  fi
+done
 
 out=$(env PATH="$nolsof" PREFLIGHT_PORTS="12345" \
   bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
-assert_status "missing lsof exits 1" 1 "$status"
-assert_contains "missing lsof is reported" "$out" 'lsof missing'
-assert_contains "missing lsof names the fix" "$out" 'apt-get install -y lsof'
+# The tool, and therefore the message, is chosen by PLATFORM — see
+# repo-owns.sh's port_tool. Asserting on the platform's own answer rather
+# than on a hardcoded name is what keeps this test meaningful on both.
+case "$(uname -s)" in
+  Darwin) want_tool=lsof; want_fix='brew install lsof' ;;
+  *)      want_tool=ss;   want_fix='apt-get install -y iproute2' ;;
+esac
+assert_status "missing port tool exits 1" 1 "$status"
+assert_contains "missing port tool is reported" "$out" "$want_tool missing"
+assert_contains "missing port tool names the fix" "$out" "$want_fix"
+
+echo
+echo "port_holders (the lsof-cannot-see-next-dev defect, #920):"
+
+# THE regression test for the rewrite. Tool-absent vs tool-present, which is
+# all the cases above cover, would stay green through a revert to lsof: the
+# listener fixture at the top of this file is `python3`, a comm with no
+# spaces or parentheses — precisely the shape lsof handles fine.
+#
+# lsof 4.95.0 omits a process whose comm has spaces and parens. So the
+# fixture here is a copy of python3 renamed to the exact string Next.js uses
+# for its dev server. Reproduced in a bare ubuntu:24.04 container: raw
+# `lsof -nP -iTCP:PORT -sTCP:LISTEN -t` prints nothing and exits 1, while
+# port_holders returns the pid.
+#
+# Not applicable on macOS, and that is stated out loud rather than skipped
+# silently: port_tool selects lsof there deliberately, macOS lsof does not
+# have this defect, and /usr/bin/python3 is an xcode-select shim that
+# dispatches on argv[0] — renaming it breaks it, so the fixture cannot even
+# be built. Linux is where the defect lives and Linux is where CI runs this.
+if [ "$(uname -s)" = Darwin ]; then
+  echo "  n/a   paren-named comm defect is lsof-on-Linux only; port_tool selects lsof on Darwin, which does not have it"
+else
+  nextdir="$TMP/nextbin"
+  mkdir -p "$nextdir"
+  nextbin="$nextdir/next-server (v16.2.12)"
+  cp "$(command -v python3)" "$nextbin"
+  nextport=$(free_port)
+  ( cd "$TMP" && exec "$nextbin" -c "
+import socket, sys, time
+s = socket.socket()
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(('127.0.0.1', int(sys.argv[1])))
+s.listen(1)
+time.sleep(300)
+" "$nextport" ) >/dev/null 2>&1 &
+  nextpid=$!
+  sleep 1
+
+  # Guard the guard: if this listener is not actually running, everything
+  # below would pass for the wrong reason (an empty answer matching an empty
+  # expectation is not what is being asserted, but a dead fixture would still
+  # make the whole case meaningless).
+  kill -0 "$nextpid" 2>/dev/null || t_fail "the paren-named listener fixture did not start"
+
+  assert_equals "port_holders sees a comm with spaces and parens" \
+    "$nextpid" "$(port_holders "$nextport")"
+  assert_equals "cwd_of works on it too" "$TMP" "$(cwd_of "$nextpid")"
+
+  # And prove the test can fail: the tool the rewrite replaced must NOT see
+  # it. If a future lsof fixes this, THIS assertion is the one that should be
+  # revisited — not the two above.
+  #
+  # A MISSING lsof fails, rather than skipping. Skipping would drop the only
+  # negative control in this file on exactly the machine most likely to lack
+  # lsof (a slim Linux box), and the two assertions above would go on passing
+  # with nothing proving they can fail — the same "reports healthy while
+  # checking less" shape this whole case exists to catch.
+  if command -v lsof >/dev/null 2>&1; then
+    assert_equals "raw lsof cannot see it (the defect this guards)" \
+      "" "$(lsof -nP -iTCP:"$nextport" -sTCP:LISTEN -t 2>/dev/null)"
+  else
+    t_fail "lsof is not installed — the negative control cannot run, so nothing here proves the two assertions above can fail (sudo apt-get install -y lsof)"
+  fi
+
+  kill "$nextpid" 2>/dev/null
+fi
+
+echo
+echo "zitadel secrets dir:"
+
+# The daemon-created, root-owned bind-mount source (#920). Absent and
+# owned-by-us are both fine — `make dev-infra` creates or chmods it. Only a
+# directory owned by someone else without world-write is unfixable from
+# here, which is exactly what `docker compose up` leaves behind.
+secrets_ok="$TMP/secrets-ok"
+mkdir -p "$secrets_ok"
+out=$(HELIVANTA_SECRETS_DIR="$secrets_ok" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1)
+assert_contains "a directory we own passes" "$out" 'zitadel secrets dir (owned by you'
+
+out=$(HELIVANTA_SECRETS_DIR="$TMP/nope" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1)
+assert_contains "an absent directory passes" "$out" 'zitadel secrets dir (absent'
+
+# /usr stands in for the daemon-created directory: root-owned, 0755, present
+# on both platforms. Running as root would make it "ours" and prove nothing,
+# so say so rather than passing.
+if [ -O /usr ]; then
+  t_fail "this case cannot run as root — /usr must not be owned by the test user"
+else
+  out=$(HELIVANTA_SECRETS_DIR=/usr bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
+  assert_status "a foreign non-writable directory fails" 1 "$status"
+  assert_contains "and names the daemon as the cause" "$out" 'bind-mount source as root'
+  assert_contains "and names the fix" "$out" 'sudo rm -rf /usr'
+fi
 
 echo
 echo "PREFLIGHT_PORTS (host-port overrides):"

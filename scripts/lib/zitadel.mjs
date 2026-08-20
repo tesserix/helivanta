@@ -247,7 +247,10 @@ function b64url(buf) {
 async function verifyPasswordLoginOnce(issuer, pat, email, password) {
   const res = await fetch(`${issuer}/v2/sessions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${pat}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       checks: { user: { loginName: email }, password: { password } },
     }),
@@ -357,7 +360,9 @@ export async function passwordLoginIDToken({
         Authorization: `Bearer ${loginClientPAT}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ session: { sessionId: session.id, sessionToken: session.token } }),
+      body: JSON.stringify({
+        session: { sessionId: session.id, sessionToken: session.token },
+      }),
     },
   );
   const finalizeJson = await finalizeRes.json().catch(() => ({}));
@@ -371,7 +376,9 @@ export async function passwordLoginIDToken({
   const callbackUrl = new URL(finalizeJson.callbackUrl);
   const code = callbackUrl.searchParams.get("code");
   if (!code) {
-    throw new Error(`callbackUrl for ${email} carried no authorization code: ${finalizeJson.callbackUrl}`);
+    throw new Error(
+      `callbackUrl for ${email} carried no authorization code: ${finalizeJson.callbackUrl}`,
+    );
   }
 
   const tokenRes = await fetch(`${issuer}/oauth/v2/token`, {
@@ -387,10 +394,14 @@ export async function passwordLoginIDToken({
   });
   const tokenJson = await tokenRes.json();
   if (!tokenRes.ok) {
-    throw new Error(`token exchange for ${email} failed: HTTP ${tokenRes.status} ${JSON.stringify(tokenJson)}`);
+    throw new Error(
+      `token exchange for ${email} failed: HTTP ${tokenRes.status} ${JSON.stringify(tokenJson)}`,
+    );
   }
   if (!tokenJson.id_token) {
-    throw new Error(`token exchange for ${email} returned no id_token: ${JSON.stringify(tokenJson)}`);
+    throw new Error(
+      `token exchange for ${email} returned no id_token: ${JSON.stringify(tokenJson)}`,
+    );
   }
   return tokenJson.id_token;
 }

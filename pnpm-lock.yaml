@@ -290,12 +290,21 @@ importers:
 
   e2e:
     devDependencies:
+      '@helivanta/config':
+        specifier: workspace:*
+        version: link:../packages/config
       '@playwright/test':
         specifier: ^1.57.0
         version: 1.62.1
       '@types/node':
         specifier: ^22
         version: 22.20.1
+      eslint:
+        specifier: ^9.18.0
+        version: 9.39.5(jiti@2.7.0)
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
 
   packages/api:
     dependencies:
@@ -442,6 +451,18 @@ importers:
       vitest:
         specifier: ^3.0.0
         version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)
+
+  scripts:
+    devDependencies:
+      '@helivanta/config':
+        specifier: workspace:*
+        version: link:../packages/config
+      eslint:
+        specifier: ^9.18.0
+        version: 9.39.5(jiti@2.7.0)
+      globals:
+        specifier: ^14.0.0
+        version: 14.0.0
 
 packages:
 

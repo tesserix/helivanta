@@ -23,11 +23,19 @@ APP_PORTS=(4301 4302 4303 4304 "${HELIVANTA_API_PORT:-8080}")
 echo "Stopping infrastructure…"
 docker compose -f "$REPO_ROOT/docker-compose.dev.yml" down
 
+# AFTER compose, deliberately. This script does two independent halves, and
+# only the second one depends on knowing who holds a port. Guarding at the
+# top would make a Linux box without iproute2 refuse to stop the CONTAINERS
+# too — failing a half that was never broken. Compose teardown first, then
+# fail closed on the half that would otherwise report "All Helivanta ports
+# are free" while five orphans kept running (#920).
+require_port_tool
+
 echo "Stopping app processes…"
 killed=0
 skipped=0
 for port in "${APP_PORTS[@]}"; do
-  for pid in $(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null); do
+  for pid in $(port_holders "$port"); do
     cwd=$(cwd_of "$pid")
     if pid_is_ours "$pid"; then
       kill "$pid" 2>/dev/null && killed=$((killed + 1))
@@ -44,7 +52,7 @@ done
 if [ "$killed" -gt 0 ]; then
   sleep 3
   for port in "${APP_PORTS[@]}"; do
-    for pid in $(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null); do
+    for pid in $(port_holders "$port"); do
       pid_is_ours "$pid" || continue
       kill -9 "$pid" 2>/dev/null
       printf '  forced   pid %-7s port %s\n' "$pid" "$port"
@@ -54,7 +62,7 @@ fi
 
 still_up=()
 for port in "${APP_PORTS[@]}"; do
-  lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1 && still_up+=("$port")
+  [ -n "$(port_holders "$port")" ] && still_up+=("$port")
 done
 
 echo

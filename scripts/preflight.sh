@@ -211,27 +211,73 @@ check_zitadel_instance_domain() {
 # credentials at all. A check that demanded one would block onboarding for a
 # token nobody needs — the opposite of what this script is for.
 
-# port_is_ours (scripts/lib/repo-owns.sh) shells out to lsof, and reads an
-# empty result — its normal behaviour when lsof is simply absent — as "no
-# holder found, port is free". Without this check that makes every port
-# check pass open: a foreign Postgres on 5432 would print "ok port 5432"
+# port_is_ours (scripts/lib/repo-owns.sh) needs one specific tool per
+# platform — `ss` on Linux, lsof on macOS; see port_tool there for why the
+# Linux answer is not "whichever is installed". Without it every port check
+# would pass open: a foreign Postgres on 5432 would print "ok port 5432"
 # right before compose dies with exactly the cryptic error #714 exists to
 # eliminate. Must run before check_ports, and check_ports must not run its
 # real logic if this failed.
-check_lsof() {
-  if command -v lsof >/dev/null 2>&1; then
-    ok "lsof"
+check_port_tool() {
+  local tool fix
+  tool=$(port_tool)
+  if have_port_tool; then
+    ok "$tool"
+    return
+  fi
+  case "$tool" in
+    ss) fix="sudo apt-get install -y iproute2 (Debian/Ubuntu)" ;;
+    *)  fix="brew install lsof (macOS; present by default)" ;;
+  esac
+  fail "$tool" \
+    "$tool missing — port checks can't detect what holds a port without it on $(uname -s), and this platform must use $tool specifically (see scripts/lib/repo-owns.sh's port_tool) — $fix"
+}
+
+# The bind mount Zitadel writes its PAT files into. `make dev-infra` creates
+# it 0777 before compose can, because a MISSING bind-mount source is created
+# by the Docker daemon as root:0755 — and Zitadel, which runs as its own
+# non-root user, then dies with `open /secrets/helivanta-seed.pat: permission
+# denied` AFTER it has already pushed the instance-domain event. Every
+# restart afterwards reports the consequence instead
+# (`Errors.Instance.Domain.AlreadyExists`), forever, on a container that
+# never serves a request. Diagnosed from exactly that log on a Linux CI
+# runner (#920).
+#
+# This check exists because that fix lives on ONE path. Any other route to
+# `docker compose up` — a developer running compose directly, a future
+# script, a rebased branch that loses the mkdir — recreates the root-owned
+# directory and reproduces the undiagnosable loop. Enforcement order says
+# boot failure beats documented convention: this makes every path either fix
+# it or name it.
+#
+# Absent is NOT a failure: that is a fresh clone, and dev-infra creates it.
+# Present-and-ours is not a failure either — dev-infra's chmod can still fix
+# the mode. Only a directory this user cannot chmod AND that is not already
+# world-writable is unfixable from here, and that is precisely the
+# daemon-created case.
+HELIVANTA_SECRETS_DIR=${HELIVANTA_SECRETS_DIR:-$REPO_ROOT/dev/zitadel/secrets}
+check_zitadel_secrets_dir() {
+  local dir=$HELIVANTA_SECRETS_DIR
+  if [ ! -e "$dir" ]; then
+    ok "zitadel secrets dir (absent — 'make dev-infra' creates it writable)"
+  elif [ ! -d "$dir" ]; then
+    fail "zitadel secrets dir" \
+      "$dir exists but is not a directory — docker-compose.dev.yml bind-mounts it into three containers; remove it"
+  elif [ -O "$dir" ]; then
+    ok "zitadel secrets dir (owned by you — dev-infra can set the mode)"
+  elif [ "$(ls -ld "$dir" | cut -c9)" = w ]; then
+    ok "zitadel secrets dir (world-writable)"
   else
-    fail "lsof" \
-      "lsof missing — port checks can't detect what holds a port without it — brew install lsof (macOS; present by default) or sudo apt-get install -y lsof (Debian/Ubuntu)"
+    fail "zitadel secrets dir" \
+      "$dir is owned by another user and is not world-writable, so the Zitadel container cannot write its PAT files there. This is what the Docker daemon leaves behind when it creates a missing bind-mount source as root. Zitadel does not fail legibly on it: it dies mid-provisioning with 'permission denied' and then crash-loops on 'Errors.Instance.Domain.AlreadyExists' forever. Fix: 'sudo rm -rf $dir' and re-run 'make dev-infra', which recreates it writable"
   fi
 }
 
 check_ports() {
-  # Without lsof, port_is_ours can't see any holder and would report every
-  # port "ok" even when a foreign process has it — fail open. check_lsof
-  # above already recorded the failure; skip the misleading "ok" lines here.
-  command -v lsof >/dev/null 2>&1 || return 0
+  # Without the platform's port tool, port_is_ours answers "not ours" for
+  # every port and this would print a wall of failures that all say the same
+  # thing. check_port_tool above already recorded the real cause.
+  have_port_tool || return 0
 
   local port holder
   for port in $PREFLIGHT_PORTS; do
@@ -254,7 +300,8 @@ main() {
   check_pnpm
   check_zitadel_masterkey
   check_zitadel_instance_domain
-  check_lsof
+  check_zitadel_secrets_dir
+  check_port_tool
   check_ports
 
   if [ -n "$FAILURES" ]; then

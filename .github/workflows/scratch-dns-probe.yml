@@ -32,7 +32,8 @@ jobs:
 
       - name: node dns.lookup (before fix)
         continue-on-error: true
-        run: node -e "require('dns').lookup('auth.tesserix.localhost', (e,a,f) => console.log({e: e && e.code, a, f}))"
+        run: |
+          node -e "require('dns').lookup('auth.tesserix.localhost', (e,a,f) => console.log({e: e && e.code, a, f}))"
 
       - name: curl against local listener (before fix)
         continue-on-error: true
@@ -58,7 +59,8 @@ jobs:
           getent hosts auth.tesserix.localhost; echo "exit: $?"
 
       - name: node dns.lookup (after fix)
-        run: node -e "require('dns').lookup('auth.tesserix.localhost', (e,a,f) => console.log({e: e && e.code, a, f}))"
+        run: |
+          node -e "require('dns').lookup('auth.tesserix.localhost', (e,a,f) => console.log({e: e && e.code, a, f}))"
 
       - name: curl against local listener (after fix)
         run: |

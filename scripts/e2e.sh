@@ -213,23 +213,38 @@ cleanup() {
   if [ "$status" != 0 ]; then
     dump_logs
   fi
-  # The cleanup path can fail on its own, and until this re-armed trap that
-  # failed SILENTLY in the worst case: all 17 tests pass, status is 0 so the
-  # dump above is skipped, and then restore_web's `make dev-web` will not
-  # come back up. The script dies with $LOG_DIR populated and never read —
-  # green suite, red job, no account of why. Exactly what dump_logs exists
-  # for.
+  # The cleanup path can fail on its own, and that failed SILENTLY in the
+  # worst case: all 17 tests pass, so status is 0 and the dump above is
+  # skipped; then restore_web's `make dev-web` will not come back up, the
+  # script dies with $LOG_DIR populated and never read, and the run is red
+  # with no account of why. Exactly what dump_logs exists for.
   #
-  # An EXIT trap, not an ERR one: ERR is not inherited by shell functions
-  # without `set -E`, and this whole path IS a function. It also has to cover
-  # `exit` rather than only a failing command — stop_port_if_ours calls
-  # `exit 1` outright when a stranger holds a port, which no ERR trap would
-  # see. dump_logs is idempotent, so a failure AFTER an already-dumped
-  # failure does not print twice.
-  trap 'dump_logs; rm -rf "$LOG_DIR"' EXIT
-  teardown_fixture
-  restore_web
-  trap - EXIT
+  # Each half runs in its own SUBSHELL and its status is TESTED. Three
+  # approaches were tried before this one and two of them do not work:
+  #
+  #   - Re-arming an EXIT trap here does nothing. Bash does not re-enter the
+  #     EXIT trap from within the EXIT trap handler, so a `trap … EXIT` set
+  #     inside this function never fires. Demonstrated on bash 5.2 (the CI
+  #     runner) and 3.2 (macOS): the second handler's output never appears.
+  #   - An ERR trap does not cover it either. ERR is not inherited by shell
+  #     functions without `set -E`, and this path IS a function; and
+  #     stop_port_if_ours calls `exit 1` outright, which no ERR trap sees.
+  #   - A subshell turns BOTH shapes — a command failing under `set -e`, and
+  #     an outright `exit 1` — into an ordinary non-zero status this function
+  #     can test. That is the only one of the three that fires.
+  #
+  # Two subshells rather than one, so a failing teardown_fixture still leaves
+  # restore_web to run: the developer gets their zone apps back even when the
+  # fixture teardown could not finish.
+  local cleanup_status=0
+  ( teardown_fixture ) || cleanup_status=1
+  ( restore_web ) || cleanup_status=1
+  if [ "$cleanup_status" != 0 ]; then
+    dump_logs
+    if [ "$status" = 0 ]; then
+      status=1
+    fi
+  fi
   rm -rf "$LOG_DIR"
   exit $status
 }

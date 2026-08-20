@@ -11,26 +11,45 @@ on:
 # constraint — without this, pushing three times in five minutes leaves three
 # stacks building in parallel and the two obsolete answers still arrive.
 #
-# This deliberately applies to ALL FIVE jobs, not just e2e: `github.workflow`
-# is workflow-scoped, and per-job groups are not a thing. That is the right
-# call anyway — a superseded `go` or `web` result is no more useful than a
-# superseded `e2e` one.
+# Workflow-level rather than per-job, and that IS a choice — GitHub does
+# support `jobs.<job_id>.concurrency`, so scoping this to `e2e` alone was
+# available. It is not taken because a superseded `go`, `web`, `scripts` or
+# `secrets` result is no more useful than a superseded `e2e` one: they are
+# all answers about a commit nobody is looking at any more. One group for the
+# workflow also keeps the five jobs cancelling as a unit, rather than leaving
+# four stale jobs finishing around a cancelled fifth.
 #
-# It interacts correctly with the diagnostic dumps: a cancelled run's dump
-# steps DO run (their `if` names `cancelled()`), spend about a second, and
-# exit. Noise in a run nobody reads, not a failure.
+# Interaction with the diagnostic dump steps: their `if` names `cancelled()`,
+# which is the documented condition for running on a cancelled job, so a
+# superseded run is expected to dump and exit harmlessly. That behaviour is
+# REASONED, NOT OBSERVED — see the dump steps' own comment in the `e2e` job,
+# which owns the claim and states the evidence. Do not read this line as
+# settling it.
 #
 # Cancellation is switched OFF on main, and that needs the expression below
 # rather than the ref simply differing: two pushes to main share
 # `refs/heads/main`, so a plain `cancel-in-progress: true` WOULD have the
 # newer push kill the older one's run. On a PR branch that is what we want —
 # only the tip matters. On the trunk it is not: each main commit's run is the
-# record of what was actually verified at that commit, and a fast follow-up
-# push would erase the answer for the commit underneath it. Grouping still
-# applies on main; only the killing stops.
+# record of what was actually verified at that commit.
+#
+# What `false` buys is narrower than "every main run survives", and the
+# difference is worth stating so nobody relies on the stronger claim: GitHub
+# keeps the run that is IN PROGRESS and still cancels a PENDING one when a
+# newer run queues into the same group. Three rapid pushes to main leave A
+# running, C queued and B cancelled — B's commit gets no record. Only serial
+# pushes are fully covered. Closing that would mean dropping the group on
+# main entirely, which trades this for unbounded parallel stacks.
+#
+# `false` is also not free of failure modes in this fleet: images.yml's
+# header records a `cancel-in-progress: false` concurrency DEADLOCK that
+# "silently stopped advancing `deploy` with nothing failing to say so". That
+# risk lives in queue-serialised deploy pipelines, not in a check workflow
+# whose jobs always terminate — but it is the reason this is scoped to main
+# rather than applied everywhere.
 #
 # (On `pull_request` events `github.ref` is `refs/pull/N/merge`, distinct per
-# PR, so PRs never contend with each other.)
+# PR, so PRs never contend with each other and always take the `true` branch.)
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}

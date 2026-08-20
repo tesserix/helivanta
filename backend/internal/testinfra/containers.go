@@ -379,9 +379,50 @@ func StartNATS(t *testing.T) string {
 func startNATS(t *testing.T) (string, error) {
 	t.Helper()
 	ctx := context.Background()
+	// wait.ForListeningPort alone (the module's own default, and this
+	// file's previous strategy) is a bare TCP-accept check, and NATS opens
+	// its client port BEFORE it is actually ready to serve a handshake.
+	// Measured on this exact image (#926):
+	//
+	//   [INF] Listening for client connections on 0.0.0.0:4222   <- port check returns HERE
+	//   [ERR] Address "0.0.0.0" can not be resolved properly
+	//   [INF] Server is ready                                    <- actually ready HERE
+	//   [INF] Cluster name is my_cluster
+	//
+	// A client (nats.Connect in bus.go) that dials inside that window gets
+	// its socket accepted and then dropped mid-handshake, which surfaces as
+	// io.EOF out of readOp — not connection-refused, not a timeout. The
+	// window is normally too narrow to hit, but this file's own comment on
+	// startupTimeout explains why a `go test ./...` run is exactly the
+	// contended, many-containers-booting-at-once case that widens it (#926).
+	//
+	// wait.ForLog("Server is ready") on its own would close that window,
+	// and is the same shape Postgres already uses in this file. ForAll with
+	// the port check kept alongside it is chosen instead, for the same
+	// reason OpenFGA below keeps its own explicit strategy rather than
+	// inheriting the module's: it costs nothing extra (the port is normally
+	// open microseconds before the log line) and it keeps failure modes
+	// distinguishable — "port never opened" vs "port opened, server never
+	// declared ready" point at different problems (container never started,
+	// vs. started but the log format changed under us) and collapsing them
+	// into one strategy would make a future regression harder to diagnose
+	// from CI output alone.
+	//
+	// wait.ForHTTP("/healthz").WithPort("8222/tcp") was also considered —
+	// confirmed available on this image, monitoring is on by default
+	// (monitor_port: 8222) — but rejected here: it would need its own
+	// PortEndpoint plumbing this module does not expose ready-made, for no
+	// evidence-backed gain over the log line, which is the server's own,
+	// unambiguous statement of the same fact. 8222/tcp IS exposed by
+	// tcnats.Run (nats.go's defaultOptions includes it in
+	// WithExposedPorts), so the HTTP option remains available later if the
+	// log line ever proves unreliable.
 	nats, err := tcnats.Run(ctx, "nats:2.10-alpine",
 		testcontainers.WithWaitStrategyAndDeadline(startupTimeout(t),
-			wait.ForListeningPort("4222/tcp").WithStartupTimeout(startupTimeout(t))),
+			wait.ForAll(
+				wait.ForListeningPort("4222/tcp").WithStartupTimeout(startupTimeout(t)),
+				wait.ForLog("Server is ready").WithStartupTimeout(startupTimeout(t)),
+			)),
 	)
 	if err != nil {
 		return "", fmt.Errorf("start nats: %w", err)

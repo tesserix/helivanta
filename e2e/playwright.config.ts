@@ -107,7 +107,24 @@ const PROJECT_FLAG_GIVEN = process.argv.some(
 export default defineConfig({
   testDir: "./tests",
   timeout: 60_000,
-  use: { baseURL: BASE_URL },
+  // A failed run has to be diagnosable from the artifact alone. CI runs
+  // this suite headless on a machine nobody can attach to (.github/
+  // workflows/ci.yml's `e2e` job), so a bare "expected X, got Y" line is
+  // the whole evidence unless a trace is kept. `retain-on-failure` writes
+  // one only for tests that failed — there are no retries anywhere (that
+  // is deliberate, see the design spec's D2), so `on-first-retry` would
+  // never produce a single trace here.
+  //
+  // The HTML reporter is added rather than swapped in: Playwright's
+  // default `list`/`dot` line reporter is what a developer reads in the
+  // terminal, and dropping it to gain the artifact would trade the local
+  // experience for the CI one. `open: "never"` keeps a local failure from
+  // hijacking a browser window.
+  use: { baseURL: BASE_URL, trace: "retain-on-failure" },
+  reporter: [
+    [process.env.CI ? "dot" : "list"],
+    ["html", { open: "never" }],
+  ],
   // Only a project-less run (bare `playwright test`) gets filtered — an
   // explicit `--project=idle-timeout` (or `=specs`/`=bulk`) is already
   // scoped by Playwright's own project-name matching, and stacking

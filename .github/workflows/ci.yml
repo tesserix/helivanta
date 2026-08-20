@@ -91,3 +91,173 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f detect \
             --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact
+  e2e:
+    runs-on: ubuntu-latest
+    # 45 minutes, and the number is a fail-closed bound rather than a
+    # guess at the happy path.
+    #
+    # The floor: MEASUREMENT PENDING — filled in from the first green run.
+    # Session-renewal alone spends ~3.5 minutes deliberately waiting out a
+    # session TTL, so a chunk of that is wall-clock this job can never
+    # optimise away.
+    #
+    # The ceiling: `make e2e` has a documented UNBOUNDED hang (#923 —
+    # zitadel-login latches a stale PAT and waits forever). Without a
+    # timeout that hang burns GitHub's own 6-hour job limit. 45m sits
+    # comfortably above the expected runtime and far below the 66-minute figure the
+    # design spec set as the outer acceptable bound, so a hang is killed
+    # within the hour instead of at hour six.
+    #
+    # If this ever starts timing out on legitimately slower runs, the fix
+    # is to find out WHY the suite got slower — not to raise this number.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      # *.localhost DOES resolve on ubuntu-24.04 without this — systemd-resolved
+      # synthesizes it (verified live on image 20260810.271.1: `getent hosts
+      # helivanta.localhost` answers, exit 0). But it answers ::1, IPv6 ONLY.
+      # curl survived that via happy-eyeballs fallback to 127.0.0.1; nothing
+      # guarantees the rest of the chain does, and that chain is long — Node
+      # scripts, a Go API, four `next dev` servers and Chromium, each with its
+      # own address-family behaviour. A service bound to 127.0.0.1 and a client
+      # that resolves only ::1 fail as a bare ECONNREFUSED that nobody
+      # attributes to address family.
+      #
+      # This line was verified to pin Node's dns.lookup to IPv4 (family 4). It
+      # is one line of redundancy against an opaque, hard-to-diagnose failure.
+      - name: Pin the stack's hostnames to IPv4 loopback
+        run: echo '127.0.0.1 helivanta.localhost auth.tesserix.localhost' | sudo tee -a /etc/hosts
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          # The `go` job above omits this and its cache silently never
+          # hits: setup-go looks for go.sum at the REPO ROOT by default,
+          # and this repo's Go module lives under backend/. Not copying
+          # that here (fixing the `go` job is out of scope for #920).
+          cache-dependency-path: backend/go.sum
+
+      - run: pnpm install --frozen-lockfile
+
+      # scripts/lib/repo-owns.sh resolves port holders with lsof, and
+      # scripts/e2e.sh depends on it for every fixture swap. Same step the
+      # `scripts` job already carries, for the same reason.
+      - name: Ensure lsof is present
+        run: command -v lsof || (sudo apt-get update && sudo apt-get install -y lsof)
+
+      # Browser binaries only, keyed on the resolved @playwright/test version
+      # in the lockfile. Safe to cache because it is versioned content that
+      # cannot go stale independently of the key: a Playwright bump changes
+      # pnpm-lock.yaml, which changes the key, which misses. Deliberately NOT
+      # caching anything the stack's own state depends on — no Docker volumes,
+      # no dev/zitadel/secrets, no seeded database. Zitadel writes its instance
+      # domain once at first provisioning, so a restored volume would be exactly
+      # the stale-instance failure scripts/preflight.sh exists to catch.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      # Runs unconditionally even on a cache hit: --with-deps also installs the
+      # apt libraries Chromium needs, which live outside the cached path.
+      - run: pnpm --filter e2e exec playwright install --with-deps chromium
+
+      # The prerequisite chain, via the SAME make targets a developer runs.
+      # dev-infra is preflight -> compose up (postgres/nats/redis/openfga, then
+      # the four zitadel services) -> healthz poll -> the stale-instance
+      # preflight check -> scripts/zitadel-bootstrap.mjs. `seed` depends on
+      # `migrate`. Reimplementing any of it inline would create a CI-only copy
+      # that drifts from the developer path without anyone noticing.
+      #
+      # No secrets, and none are possible: every credential here is either a
+      # committed literal (HELIVANTA_DEV_ZITADEL_MASTERKEY, the compose
+      # postgres/redis passwords, HELIVANTA_DEV_SESSION_SIGNING_KEY — all only
+      # usable because HELIVANTA_ENV=dev is required alongside them) or is
+      # generated locally at first boot (login-client.pat by Zitadel's own
+      # first-instance provisioning, the client ids by zitadel-bootstrap.mjs).
+      # If a step here ever appears to need a GitHub secret, that means a real
+      # credential leaked into the dev path — fix that, do not add the secret.
+      - name: Bring up dev infra
+        run: make dev-infra
+      - name: Migrate and seed
+        run: make seed
+
+      # `make up`'s own final line, verbatim, backgrounded. up itself is
+      # dev-infra + seed (both already run above, in the foreground where their
+      # failures are legible) followed by exactly this. Running `make up` here
+      # instead would put the whole chain behind one background process, so a
+      # bootstrap failure would surface only as the wait below timing out.
+      - name: Start API and zone apps
+        run: nohup make -j2 dev-api dev-web > /tmp/hms-stack.log 2>&1 &
+
+      # scripts/e2e.sh REQUIRES the stack to already answer — it fails fast
+      # rather than waiting, because a developer running `make e2e` has
+      # already run `make dev`. CI has no such human step, so the wait lives
+      # here. Polling, not sleeping: `go run ./cmd/api` compiles first and
+      # `next dev` compiles a route on first request, and both are much
+      # slower on a cold runner than on a warm laptop.
+      #
+      # No `|| true` and no fallback: if the stack never comes up, this step
+      # fails and the run is red.
+      - name: Wait for the stack
+        run: |
+          set -euo pipefail
+          wait_for() {
+            local url=$1 label=$2 waited=0
+            printf 'Waiting for %s (%s)…' "$label" "$url"
+            # No -f: a 404 or a 3xx still proves the server answered. Only
+            # "could not connect" counts as not ready — same rule
+            # scripts/e2e.sh's own wait_for_port applies.
+            until curl -sS --max-time 2 "$url" >/dev/null 2>&1; do
+              waited=$((waited + 1))
+              if [ "$waited" -ge 180 ]; then
+                echo
+                echo "Timed out after 180s waiting for $label at $url." >&2
+                exit 1
+              fi
+              printf '.'
+              sleep 1
+            done
+            echo ' ready.'
+          }
+          wait_for http://localhost:8080/healthz "API"
+          for port in 4301 4302 4303 4304; do
+            wait_for "http://helivanta.localhost:$port/" "zone app on :$port"
+          done
+
+      - name: make e2e
+        run: make e2e
+
+      # A hang (#923) otherwise reads as a bare "job cancelled after 45
+      # minutes" with nothing naming a cause. These two dumps are what
+      # distinguish "zitadel-login is wedged on a stale PAT" from "a spec
+      # genuinely failed". `if: failure()` covers the timeout kill too.
+      - name: Dump container state on failure
+        if: failure()
+        run: docker compose -f docker-compose.dev.yml ps
+      - name: Dump zitadel-login logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.dev.yml logs zitadel-login
+      - name: Dump API and web logs on failure
+        if: failure()
+        run: cat /tmp/hms-stack.log
+
+      # playwright-report/ holds the HTML report; test-results/ holds the
+      # traces retained for failed tests (e2e/playwright.config.ts). Both are
+      # written per playwright invocation and scripts/e2e.sh stops at the first
+      # failing phase, so what lands here is the failing phase's evidence.
+      - name: Upload Playwright report and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7

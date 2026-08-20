@@ -250,9 +250,12 @@ jobs:
       # once it exists, and it does not exist until zitadel itself has
       # provisioned. So core's log is dumped alongside it: a crash-loop there
       # is otherwise reported only as "zitadel-pat-ready didn't complete".
+      # Full logs, not a --tail slice: `restart: unless-stopped` means a
+      # container that fails at boot fails repeatedly, and every repeat is a
+      # consequence of the FIRST one. A tail shows only the consequences.
       - name: Dump Zitadel logs on failure
         if: failure()
-        run: docker compose -f docker-compose.dev.yml logs --tail=120 zitadel zitadel-login zitadel-pat-ready
+        run: docker compose -f docker-compose.dev.yml logs zitadel zitadel-login zitadel-pat-ready
       # An explicit branch, not `|| true`: a failure before the stack ever
       # started leaves no log, and that is information, not an error to
       # swallow. Suppressing the exit code would also suppress a genuine

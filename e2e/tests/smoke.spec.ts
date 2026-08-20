@@ -45,13 +45,8 @@ test("login, OPD visit, pharmacy dispense, lab result", async ({ page }) => {
   await expect(page.getByText(patient).first()).toBeVisible({
     timeout: 30_000,
   });
-  await page
-    .locator("li", { hasText: patient })
-    .getByRole("button", { name: "Dispense" })
-    .click();
-  await expect(
-    page.locator("li", { hasText: patient }).getByText(/Dispensed/),
-  ).toBeVisible();
+  await page.locator("li", { hasText: patient }).getByRole("button", { name: "Dispense" }).click();
+  await expect(page.locator("li", { hasText: patient }).getByText(/Dispensed/)).toBeVisible();
 
   // Lab zone: pending order for the same visit; record a result.
   await page.goto("/lab");

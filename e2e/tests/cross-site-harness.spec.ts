@@ -155,7 +155,13 @@ test.describe("the e2e harness reproduces production's cross-site app/IdP relati
     const idpPort = portOf(idp);
     const app = await startApp(`http://localhost:${idpPort}`);
     try {
-      const travelled = await laxCookieTravels(page, "localhost", portOf(app), "localhost", idpPort);
+      const travelled = await laxCookieTravels(
+        page,
+        "localhost",
+        portOf(app),
+        "localhost",
+        idpPort,
+      );
       expect(
         travelled,
         "two different PORTS on localhost are one site, so a SameSite=Lax cookie is sent — " +

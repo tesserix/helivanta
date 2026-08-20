@@ -151,9 +151,10 @@ test("an idle signed-in clinician is STILL authenticated after a renewal interva
   // failing sends session-renewal.tsx to /login (window.location.href),
   // mid-consultation. Asserted FIRST because it is the claim the issue was
   // filed about; steps 4-6 then prove it is true for the right reason.
-  expect(page.url(), "the idle session was evicted to /login — renewal did not happen").not.toContain(
-    "/login",
-  );
+  expect(
+    page.url(),
+    "the idle session was evicted to /login — renewal did not happen",
+  ).not.toContain("/login");
   await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
 
   // --- 4. The cookie in the browser is a DIFFERENT one -----------------

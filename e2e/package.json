@@ -3,10 +3,17 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint .",
+    "format:check": "prettier --check . --ignore-path ../.prettierignore"
   },
   "devDependencies": {
+    "@helivanta/config": "workspace:*",
     "@playwright/test": "^1.57.0",
-    "@types/node": "^22"
-  }
+    "@types/node": "^22",
+    "eslint": "^9.18.0",
+    "typescript": "^5.7.0"
+  },
+  "prettier": "@helivanta/config/prettier"
 }

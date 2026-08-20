@@ -43,8 +43,7 @@ test("a ward with more than one page reads to completion", async ({ page }) => {
   // Zero-padded so no name is a prefix of another: an unpadded "-1" is a
   // substring of "-10".."-19", and the exact-once count below would read
   // eleven matches as eleven duplicates.
-  const patient = (i: number) =>
-    `Page Patient ${stamp}-${String(i).padStart(2, "0")}`;
+  const patient = (i: number) => `Page Patient ${stamp}-${String(i).padStart(2, "0")}`;
 
   const nameField = page.getByLabel("Patient name");
   for (let i = 0; i < SEEDED; i++) {

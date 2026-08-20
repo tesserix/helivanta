@@ -216,9 +216,7 @@ export async function login(page: Page, user: Credentials = specAdmin()): Promis
   // landing page's button is gone and the form's is what gets clicked
   // next.
   await startSignIn(page);
-  await expect(
-    page.getByLabel("Email or username", { exact: true }),
-  ).toBeVisible({
+  await expect(page.getByLabel("Email or username", { exact: true })).toBeVisible({
     timeout: 15_000,
   });
 

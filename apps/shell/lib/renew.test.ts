@@ -1,76 +1,177 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, afterEach, vi } from "vitest";
 
-const signinSilent = vi.hoisted(() => vi.fn());
-const getUserManager = vi.hoisted(() => vi.fn());
-vi.mock("./oidc", () => ({ getUserManager }));
+import {
+  renewSession,
+  nextRenewalDelayMs,
+  RenewalFailedError,
+  RenewalUnavailableError,
+  FALLBACK_RENEWAL_INTERVAL_MS,
+  MIN_RENEWAL_DELAY_MS,
+  MAX_RENEWAL_DELAY_MS,
+} from "./renew";
 
-import { renewSession, RenewalFailedError } from "./renew";
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), { status });
+}
 
 describe("renewSession", () => {
-  beforeEach(() => {
-    signinSilent.mockReset();
-    getUserManager.mockReturnValue({ signinSilent });
-  });
-
-  // THE mutation-discriminating test for "silent renew reuses a stale
-  // tenant": exchangeIdToken must be called with EXACTLY the
-  // currentTenantId the caller passed in, never omitted (which would let
-  // POST /v1/auth/login fall back to the caller's first tenant binding —
-  // design spec D4a's explicit failure mode: a routine renewal silently
-  // moving a multi-hospital clinician back to whichever tenant sorts
-  // first, discarding the hospital they actually switched to).
-  it("re-mints the session for exactly the tenant it was told, never a default", async () => {
-    signinSilent.mockResolvedValue({ id_token: "fresh-id-token" });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ tenant_id: "t2" }) }),
-    );
-
-    await renewSession("t2");
-
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/v1/auth/login",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ id_token: "fresh-id-token", tenant_id: "t2" }),
-      }),
-    );
+  afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("refuses to run without a tenant id, rather than silently omitting it", async () => {
-    await expect(renewSession("")).rejects.toBeInstanceOf(RenewalFailedError);
-    expect(signinSilent).not.toHaveBeenCalled();
+  // The load-bearing shape of the new endpoint: no body, no token, and
+  // the existing session cookie carried same-origin — spec D1/D5. This
+  // is the mutation-discriminating test for "renewal still depends on
+  // the browser holding an IdP credential": if renewSession ever grew a
+  // body again, this assertion on the exact init object would fail.
+  it("POSTs to /api/v1/auth/renew with no body, same-origin credentials", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse(200, { tenant_id: "t1", renew_at: "2026-08-20T12:05:00Z" }));
+
+    await renewSession();
+
+    expect(fetchSpy).toHaveBeenCalledWith("/api/v1/auth/renew", {
+      method: "POST",
+      credentials: "same-origin",
+    });
   });
 
-  // D4/D4a's whole point: a deactivated account or a revoked membership
-  // must fail the silent re-authentication, and that failure must surface
-  // as a distinguishable error the caller (components/session-renewal.tsx)
-  // can act on — not be swallowed or retried into an infinite loop.
-  it("surfaces a Zitadel silent re-authentication failure as RenewalFailedError", async () => {
-    signinSilent.mockRejectedValue(new Error("login_required"));
-
-    await expect(renewSession("t1")).rejects.toThrow(RenewalFailedError);
-  });
-
-  it("surfaces a refused exchange (e.g. membership revoked since the last renewal) as RenewalFailedError", async () => {
-    signinSilent.mockResolvedValue({ id_token: "fresh-id-token" });
+  it("parses renew_at from a successful response", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-        json: async () => ({ error: "not_found", message: "tenant not found" }),
-      }),
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse(200, { tenant_id: "t1", renew_at: "2026-08-20T12:05:00Z" }),
+        ),
     );
 
-    await expect(renewSession("t1")).rejects.toThrow(RenewalFailedError);
-    vi.unstubAllGlobals();
+    const result = await renewSession();
+
+    expect(result.renewAt).toEqual(new Date("2026-08-20T12:05:00Z"));
   });
 
-  it("treats a silent re-authentication that returns no id_token as a failure", async () => {
-    signinSilent.mockResolvedValue({ id_token: undefined });
+  // A 200 with a missing/unparseable renew_at is still a SUCCESSFUL
+  // renewal (the cookie was set) — it must not throw. The caller falls
+  // back to a default cadence via nextRenewalDelayMs, not to a logout.
+  it("resolves with renewAt undefined when the response omits renew_at", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, { tenant_id: "t1" })));
 
-    await expect(renewSession("t1")).rejects.toThrow(RenewalFailedError);
+    const result = await renewSession();
+
+    expect(result.renewAt).toBeUndefined();
+  });
+
+  it("resolves with renewAt undefined when renew_at is not a parseable date", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse(200, { tenant_id: "t1", renew_at: "not-a-date" })),
+    );
+
+    const result = await renewSession();
+
+    expect(result.renewAt).toBeUndefined();
+  });
+
+  // The judgement call this task turns on: 401 (renew.go's cookie-
+  // missing / inactive-subject / expired-idle-deadline refusals) means
+  // the session is genuinely over.
+  it("throws RenewalFailedError on 401", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse(401, { error: "unauthenticated", message: "account is no longer active" }),
+        ),
+    );
+
+    await expect(renewSession()).rejects.toBeInstanceOf(RenewalFailedError);
+  });
+
+  // 404 is renew.go's respondNoAccessibleTenant — membership revoked
+  // since the last renewal. Also genuinely over.
+  it("throws RenewalFailedError on 404", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse(404, { error: "not_found", message: "no accessible tenant" }),
+        ),
+    );
+
+    await expect(renewSession()).rejects.toBeInstanceOf(RenewalFailedError);
+  });
+
+  // 503 is renew.go's fail-closed answer to an unreadable Zitadel/
+  // OpenFGA/signer dependency (identity_unavailable, authz_unavailable,
+  // session_unavailable) — the server could not answer, it did not
+  // answer "no". Must NOT be treated the same as a 401/404.
+  it("throws RenewalUnavailableError, not RenewalFailedError, on 503", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse(503, {
+          error: "identity_unavailable",
+          message: "could not verify account status",
+        }),
+      ),
+    );
+
+    await expect(renewSession()).rejects.toBeInstanceOf(RenewalUnavailableError);
+    await expect(renewSession()).rejects.not.toBeInstanceOf(RenewalFailedError);
+  });
+
+  // 429 is RenewRateLimitRule — also "try again", never "log out".
+  it("throws RenewalUnavailableError, not RenewalFailedError, on 429", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse(429, { error: "rate_limited", message: "too many requests" }),
+        ),
+    );
+
+    await expect(renewSession()).rejects.toBeInstanceOf(RenewalUnavailableError);
+    await expect(renewSession()).rejects.not.toBeInstanceOf(RenewalFailedError);
+  });
+
+  // A network-level failure to even reach the same-origin endpoint is
+  // the same "could not answer" bucket as a 503, not a verdict.
+  it("throws RenewalUnavailableError when the request itself fails", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("network error")));
+
+    await expect(renewSession()).rejects.toBeInstanceOf(RenewalUnavailableError);
+  });
+});
+
+describe("nextRenewalDelayMs", () => {
+  const now = () => new Date("2026-08-20T12:00:00Z").getTime();
+
+  it("uses the fallback interval when renewAt is undefined", () => {
+    expect(nextRenewalDelayMs(undefined, now)).toBe(FALLBACK_RENEWAL_INTERVAL_MS);
+  });
+
+  it("uses the server-provided delay when it falls within the bounds", () => {
+    const renewAt = new Date("2026-08-20T12:07:00Z"); // 7 minutes out
+    expect(nextRenewalDelayMs(renewAt, now)).toBe(7 * 60 * 1000);
+  });
+
+  // Proves the floor actually clamps: a renewAt in the past (clock skew,
+  // or a renewal response that arrived late) must not produce a
+  // near-zero/negative delay that would retry-storm the endpoint.
+  it("clamps a past or near-immediate renewAt to MIN_RENEWAL_DELAY_MS", () => {
+    const renewAt = new Date("2026-08-20T11:59:00Z"); // 1 minute in the past
+    expect(nextRenewalDelayMs(renewAt, now)).toBe(MIN_RENEWAL_DELAY_MS);
+  });
+
+  // Proves the ceiling actually clamps: a misconfigured, very long
+  // SESSION_TTL must not produce an unbounded sleep.
+  it("clamps a far-future renewAt to MAX_RENEWAL_DELAY_MS", () => {
+    const renewAt = new Date("2026-08-21T00:00:00Z"); // 12 hours out
+    expect(nextRenewalDelayMs(renewAt, now)).toBe(MAX_RENEWAL_DELAY_MS);
   });
 });

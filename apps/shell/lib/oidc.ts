@@ -15,14 +15,12 @@ declare global {
   }
 }
 
-// AUTH_CALLBACK_PATH and SILENT_RENEW_PATH must match the redirect URIs
+// AUTH_CALLBACK_PATH must match the redirect URI
 // scripts/zitadel-bootstrap.mjs registers on the helivanta-web app
-// (scripts/lib/zitadel.mjs's DEV_REDIRECT_URI /
-// DEV_SILENT_RENEW_REDIRECT_URI) — a mismatch is refused by Zitadel at
-// /oauth/v2/authorize with "redirect_uri not allowed", not silently
-// accepted.
+// (scripts/lib/zitadel.mjs's DEV_REDIRECT_URI) — a mismatch is refused by
+// Zitadel at /oauth/v2/authorize with "redirect_uri not allowed", not
+// silently accepted.
 export const AUTH_CALLBACK_PATH = "/api/auth/callback";
-export const SILENT_RENEW_PATH = "/api/auth/silent-renew";
 
 let manager: UserManager | undefined;
 
@@ -35,7 +33,6 @@ function settings(): UserManagerSettings {
     authority: env.NEXT_PUBLIC_ZITADEL_ISSUER_URL,
     client_id: env.NEXT_PUBLIC_ZITADEL_CLIENT_ID,
     redirect_uri: absoluteUrl(AUTH_CALLBACK_PATH),
-    silent_redirect_uri: absoluteUrl(SILENT_RENEW_PATH),
     // Sign-out (packages/ui/src/hms-shell.tsx's default handleSignOut, via
     // zitadel-session.ts's endZitadelSession) always ends in an
     // RP-initiated logout redirect to Zitadel's end_session endpoint;
@@ -59,9 +56,14 @@ function settings(): UserManagerSettings {
     // D4a, load-bearing: Helivanta stores no IdP refresh token. Leaving
     // useRefreshToken at its default (false) and never requesting the
     // `offline_access` scope means oidc-client-ts never asks Zitadel for
-    // one in the first place — renewal (lib/renew.ts) is driven entirely
-    // by re-running signinSilent() (prompt=none against Zitadel's own
-    // auth.tesserix.app session cookie), never a refresh_token grant.
+    // one in the first place. This UserManager is no longer involved in
+    // renewal at all (spec D1/D5, #916): renewal is a same-origin
+    // POST /v1/auth/renew carrying only the existing Helivanta session
+    // cookie (lib/renew.ts), never a Zitadel round trip through the
+    // browser. automaticSilentRenew stays false because there is no
+    // Zitadel-driven silent renewal left to automate — this UserManager
+    // now exists solely for the initial signinRedirect() (login/page.tsx)
+    // and its signinRedirectCallback() (app/api/auth/callback/page.tsx).
     automaticSilentRenew: false,
     // sessionStorage, not localStorage: the stored value includes the
     // raw id_token, and a tab-scoped lifetime is the more conservative

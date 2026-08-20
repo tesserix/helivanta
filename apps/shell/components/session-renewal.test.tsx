@@ -1,17 +1,20 @@
 import { waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
-import { RENEWAL_INTERVAL_MS } from "@/lib/renew";
+import {
+  RenewalFailedError,
+  RenewalUnavailableError,
+  FALLBACK_RENEWAL_INTERVAL_MS,
+} from "@/lib/renew";
 import { SessionRenewal } from "./session-renewal";
 
-// setInterval is spied on GLOBALLY, so other library internals (react-query,
+// setTimeout is spied on GLOBALLY, so other library internals (react-query,
 // jsdom timers, etc.) calling it with unrelated delays would otherwise be
 // mistaken for this component's own schedule if the test just took
-// `mock.calls[0]`. Filtering for the exact RENEWAL_INTERVAL_MS delay is
-// what makes these tests target THIS component's interval specifically.
-function findRenewalCall(spy: { mock: { calls: unknown[][] } }) {
-  return spy.mock.calls.find(([, delay]) => delay === RENEWAL_INTERVAL_MS) as
-    [() => void, number] | undefined;
+// `mock.calls[0]`. Filtering for a delay this component actually uses is
+// what makes these tests target THIS component's schedule specifically.
+function findScheduledCall(spy: { mock: { calls: unknown[][] } }, delayMs: number) {
+  return spy.mock.calls.find(([, delay]) => delay === delayMs) as [() => void, number] | undefined;
 }
 
 const renewSession = vi.hoisted(() => vi.fn());
@@ -23,19 +26,6 @@ vi.mock("@/lib/renew", async () => {
 const usePathname = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ usePathname }));
 
-function stubTenantsFetch(currentTenantId = "t1") {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        data: [{ tenant_id: currentTenantId, roles: ["doctor"], current: true }],
-      }),
-    }),
-  );
-}
-
 describe("SessionRenewal", () => {
   beforeEach(() => {
     renewSession.mockReset();
@@ -45,66 +35,135 @@ describe("SessionRenewal", () => {
     vi.unstubAllGlobals();
   });
 
-  it("does not query for a tenant on /login", async () => {
+  it("does not schedule a renewal on /login", async () => {
     usePathname.mockReturnValue("/login");
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
 
     renderWithProviders(<SessionRenewal />);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS)).toBeUndefined();
+    expect(renewSession).not.toHaveBeenCalled();
+    setTimeoutSpy.mockRestore();
   });
 
-  it("does not query for a tenant on the auth callback or silent-renew routes", async () => {
+  it("does not schedule a renewal on the auth callback route", async () => {
     usePathname.mockReturnValue("/api/auth/callback");
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
 
     renderWithProviders(<SessionRenewal />);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS)).toBeUndefined();
+    expect(renewSession).not.toHaveBeenCalled();
+    setTimeoutSpy.mockRestore();
   });
 
-  // Proves the schedule itself is wired correctly (interval length, and
-  // that its callback is renewSession bound to the caller's ACTUAL
-  // current tenant, read from the same current:true flag TenantPicker
-  // uses) without waiting on a real 5-minute timer: the interval's
-  // callback is invoked directly, exactly as the browser's timer would.
-  it("schedules renewal for the caller's current tenant at RENEWAL_INTERVAL_MS", async () => {
-    stubTenantsFetch("t2");
-    renewSession.mockResolvedValue(undefined);
-    const setIntervalSpy = vi.spyOn(window, "setInterval");
+  it("schedules the first renewal at the bounded fallback interval", async () => {
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+    renewSession.mockResolvedValue({ renewAt: undefined });
 
     renderWithProviders(<SessionRenewal />);
-    await waitFor(() => expect(findRenewalCall(setIntervalSpy)).toBeDefined());
+    await waitFor(() =>
+      expect(findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS)).toBeDefined(),
+    );
 
-    const [callback] = findRenewalCall(setIntervalSpy)!;
-    (callback as () => void)();
-    await waitFor(() => expect(renewSession).toHaveBeenCalledWith("t2"));
+    const [callback] = findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS)!;
+    callback();
+    await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(1));
 
-    setIntervalSpy.mockRestore();
+    setTimeoutSpy.mockRestore();
   });
 
-  it("falls back to a visible login when a scheduled renewal fails", async () => {
-    stubTenantsFetch("t1");
-    renewSession.mockRejectedValue(new Error("login_required"));
+  // Spec D5: the NEXT renewal is scheduled from the server's renew_at
+  // hint, not a client-invented constant.
+  it("schedules the next renewal from the server's renew_at hint", async () => {
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+    const fiveMinutesMs = 5 * 60 * 1000;
+    renewSession.mockResolvedValue({ renewAt: new Date(Date.now() + fiveMinutesMs) });
+
+    renderWithProviders(<SessionRenewal />);
+    const [firstCallback] = await waitFor(() => {
+      const call = findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS);
+      expect(call).toBeDefined();
+      return call!;
+    });
+
+    setTimeoutSpy.mockClear();
+    firstCallback();
+    await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(1));
+
+    await waitFor(() => {
+      const rescheduled = setTimeoutSpy.mock.calls.find(
+        ([, delay]) => typeof delay === "number" && Math.abs(delay - fiveMinutesMs) < 1000,
+      );
+      expect(rescheduled).toBeDefined();
+    });
+
+    setTimeoutSpy.mockRestore();
+  });
+
+  // The genuine "session is over" case: a RenewalFailedError (401/404)
+  // sends the user to a visible re-auth.
+  it("redirects to /login when renewal fails with RenewalFailedError", async () => {
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+    renewSession.mockRejectedValue(new RenewalFailedError("account is no longer active"));
     const locationSpy = vi.fn();
     vi.stubGlobal("location", {
       set href(v: string) {
         locationSpy(v);
       },
     });
-    const setIntervalSpy = vi.spyOn(window, "setInterval");
 
     renderWithProviders(<SessionRenewal />);
-    await waitFor(() => expect(findRenewalCall(setIntervalSpy)).toBeDefined());
+    const [callback] = await waitFor(() => {
+      const call = findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS);
+      expect(call).toBeDefined();
+      return call!;
+    });
+    callback();
 
-    const [callback] = findRenewalCall(setIntervalSpy)!;
-    (callback as () => void)();
     await waitFor(() => expect(locationSpy).toHaveBeenCalledWith("/login"));
+    setTimeoutSpy.mockRestore();
+  });
 
-    setIntervalSpy.mockRestore();
+  // The judgement call this task turns on: a RenewalUnavailableError
+  // (503 fail-closed on a Zitadel/OpenFGA outage, or 429 rate-limited)
+  // must NOT log the user out — it must retry instead. Mass-evicting
+  // every clinician on an availability blip is the exact harm #916
+  // exists to prevent, reproduced from a different cause.
+  it("does NOT redirect to /login when renewal fails with RenewalUnavailableError, and retries instead", async () => {
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+    renewSession.mockRejectedValue(
+      new RenewalUnavailableError("renewal temporarily unavailable (status 503)"),
+    );
+    const locationSpy = vi.fn();
+    vi.stubGlobal("location", {
+      set href(v: string) {
+        locationSpy(v);
+      },
+    });
+
+    renderWithProviders(<SessionRenewal />);
+    const [callback] = await waitFor(() => {
+      const call = findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS);
+      expect(call).toBeDefined();
+      return call!;
+    });
+    setTimeoutSpy.mockClear();
+    callback();
+
+    await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(1));
+    // Gave the rejection's microtask a turn to run before asserting the
+    // negative — otherwise this would trivially pass before the .catch
+    // handler has even executed.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(locationSpy).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS)).toBeDefined(),
+    );
+
+    setTimeoutSpy.mockRestore();
   });
 });

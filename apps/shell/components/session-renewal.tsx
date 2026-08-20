@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { renewSession, nextRenewalDelayMs, RenewalUnavailableError } from "@/lib/renew";
+import { loadRenewAt, storeRenewAt } from "@/lib/renew-schedule";
 import { AUTH_CALLBACK_PATH } from "@/lib/oidc";
 
 // PUBLIC_PATHS mirrors middleware.ts's own list, minus "/login" (which
@@ -121,6 +122,10 @@ export function SessionRenewal() {
       renewSession()
         .then(({ renewAt }) => {
           if (cancelled) return;
+          // Persist BEFORE scheduling, so a reload between now and the
+          // next tick resumes from the newest server answer rather than
+          // from whatever login left behind (lib/renew-schedule.ts).
+          storeRenewAt(renewAt);
           scheduleNext(nextRenewalDelayMs(renewAt));
         })
         .catch((err: unknown) => {
@@ -139,10 +144,26 @@ export function SessionRenewal() {
         });
     };
 
-    // First renewal has no prior server response to derive a cadence
-    // from, so it uses the bounded fallback — the same value the old
-    // hardcoded RENEWAL_INTERVAL_MS held.
-    scheduleNext(nextRenewalDelayMs(undefined));
+    // The FIRST renewal is scheduled from the server's own answer too
+    // (#916 Task 4, F3) — POST /v1/auth/login now returns `renew_at`
+    // from the same helper POST /v1/auth/renew uses
+    // (backend/.../iam/renew.go's renewAtFor), and the auth-callback
+    // page stored it (lib/renew-schedule.ts) before navigating here.
+    //
+    // This closes the one interval spec D5 did not. Previously this line
+    // read `nextRenewalDelayMs(undefined)` — the bounded five-minute
+    // fallback — which meant the server's SESSION_TTL governed every
+    // renewal EXCEPT the first. Any deployment with SESSION_TTL under
+    // about five minutes lost every session before its first renewal
+    // fired, silently, because config.go applies no minimum to
+    // SESSION_TTL. Nothing coupled the two; that is exactly the gap D5
+    // claimed to have closed structurally.
+    //
+    // loadRenewAt() returning undefined still yields the identical old
+    // behaviour through the identical code path, so the fallback keeps
+    // its other two documented cases (a 200 with no parseable
+    // `renew_at`, and every RenewalUnavailableError retry) unchanged.
+    scheduleNext(nextRenewalDelayMs(loadRenewAt()));
 
     return () => {
       cancelled = true;

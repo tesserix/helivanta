@@ -3,6 +3,8 @@ import type { AddressInfo } from "node:net";
 
 import { expect, test } from "@playwright/test";
 
+import { ZITADEL_ORIGIN } from "./support/hosts";
+
 // #916 Task 4, design spec D6 — the guard on the harness itself.
 //
 // #916 was a production defect no test could have caught, and THAT is the
@@ -25,9 +27,18 @@ import { expect, test } from "@playwright/test";
 // tesserix.localhost are distinct registrable domains — and a claim about
 // the browser is exactly the kind of thing that must be proven rather than
 // assumed. This spec proves it, both directions, so the property the whole
-// topology exists for cannot silently regress: someone who "simplifies" the
-// harness back onto one registrable domain fails here rather than
-// rediscovering #916 in production.
+// topology exists for cannot silently regress.
+//
+// CRITICALLY, it derives the two hosts it probes from the RUNNING
+// CONFIGURATION — the project's own `baseURL` for the app, and
+// tests/support/hosts.ts's ZITADEL_ORIGIN (HELIVANTA_ZITADEL_HOST) for the
+// IdP — never from string literals. An earlier version hardcoded both
+// names, which made it unable to observe the very thing it guards: setting
+// HELIVANTA_WEB_HOST and HELIVANTA_ZITADEL_HOST back to `localhost` and
+// re-running `make dev-infra` re-registers the redirect URIs, so login
+// keeps working, the whole suite silently returns to same-site, and a spec
+// named "…are cross-site" goes on reporting green. Reading the live values
+// is what turns this from a restatement of an assumption into a control.
 //
 // Deliberately self-contained: two throwaway HTTP servers rather than the
 // real stack, because the claim under test is about the BROWSER's
@@ -93,27 +104,38 @@ async function laxCookieTravels(
 }
 
 test.describe("the e2e harness reproduces production's cross-site app/IdP relationship", () => {
-  // The claim that MATTERS: on the hostnames this harness actually uses, a
-  // SameSite=Lax IdP cookie is withheld from an app-origin iframe request —
-  // so the harness can see #916's class of defect.
-  test("helivanta.localhost and auth.tesserix.localhost are cross-site", async ({ page }) => {
+  // The claim that MATTERS: on the hostnames THIS RUN is configured with,
+  // a SameSite=Lax IdP cookie is withheld from an app-origin iframe
+  // request — so the harness can see #916's class of defect.
+  test("the configured app and IdP hosts are cross-site", async ({ page, baseURL }) => {
+    // Read from the running configuration, never hardcoded — see this
+    // file's header for why that distinction is the whole point.
+    expect(baseURL, "the project must define a baseURL for this guard to read").toBeTruthy();
+    const appHost = new URL(baseURL!).hostname;
+    const idpHost = new URL(ZITADEL_ORIGIN).hostname;
+
+    // Fails loudly rather than probing two identical hosts and reporting
+    // a confusing cookie result: identical hosts are trivially same-site,
+    // and the message should name the misconfiguration, not its symptom.
+    expect(
+      appHost,
+      `the app and the IdP are configured on the SAME host (${appHost}). They must be on ` +
+        "different registrable domains or this suite cannot see #916's class of defect — see " +
+        "HELIVANTA_WEB_HOST / HELIVANTA_ZITADEL_HOST in the Makefile.",
+    ).not.toBe(idpHost);
+
     const idp = await startIdp();
     const idpPort = portOf(idp);
-    const app = await startApp(`http://auth.tesserix.localhost:${idpPort}`);
+    const app = await startApp(`http://${idpHost}:${idpPort}`);
     try {
-      const travelled = await laxCookieTravels(
-        page,
-        "helivanta.localhost",
-        portOf(app),
-        "auth.tesserix.localhost",
-        idpPort,
-      );
+      const travelled = await laxCookieTravels(page, appHost, portOf(app), idpHost, idpPort);
       expect(
         travelled,
-        "helivanta.localhost and auth.tesserix.localhost must be CROSS-SITE — a SameSite=Lax " +
+        `${appHost} (the app) and ${idpHost} (the IdP) must be CROSS-SITE — a SameSite=Lax ` +
           "cookie set on the IdP must NOT be sent on an iframe request from the app origin. " +
           "If this fails the harness is same-site again and #916's class of defect is invisible " +
-          "to every test in this suite.",
+          "to every test in this suite. Ports do not make two hosts different sites; only a " +
+          "different registrable domain does.",
       ).toBe(false);
     } finally {
       idp.close();

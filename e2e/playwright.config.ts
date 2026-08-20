@@ -1,5 +1,12 @@
 import { defineConfig } from "@playwright/test";
 
+import {
+  IDLE_TIMEOUT_WEB_PORT,
+  RENEWAL_WEB_PORT,
+  SHELL_PORT,
+  webOrigin,
+} from "./tests/support/hosts";
+
 // Assumes infra + API + shell + medicore already running (make dev, make seed).
 // The "idle-timeout" project additionally assumes
 // `make dev-api-idle-timeout` and `make dev-web-idle-timeout` are running —
@@ -76,19 +83,23 @@ const IDLE_TIMEOUT_SPEC = /idle-timeout\.spec\.ts/;
 // project-less run filters it out below.
 const RENEWAL_SPEC = /session-renewal\.spec\.ts/;
 
-// The app's host. NOT localhost (#916 Task 4, design spec D6): the whole
-// point of this harness change is that the app and the IdP
-// (auth.tesserix.localhost, HELIVANTA_ZITADEL_HOST) sit on DIFFERENT
-// registrable domains, so browser requests between them are cross-site
-// exactly as they are in production (helivanta.app vs auth.tesserix.app).
-// A "site" is scheme + registrable domain and ports are not part of it, so
-// the old localhost:4301 / localhost:20080 pair was same-site and could
-// never have exercised #916. cross-site-harness.spec.ts proves the
-// property this constant exists for rather than assuming it.
-const WEB_HOST = "helivanta.localhost"; // Makefile's HELIVANTA_WEB_HOST
-const BASE_URL = `http://${WEB_HOST}:4301`;
-const IDLE_TIMEOUT_BASE_URL = `http://${WEB_HOST}:4399`; // Makefile's HELIVANTA_IDLE_WEB_PORT
-const RENEWAL_BASE_URL = `http://${WEB_HOST}:4398`; // Makefile's HELIVANTA_RENEWAL_WEB_PORT
+// Every base URL is built from tests/support/hosts.ts, which reads
+// HELIVANTA_WEB_HOST from the environment — the SAME variable the Makefile
+// and docker-compose.dev.yml use. Not localhost (#916 Task 4, design spec
+// D6): the app and the IdP sit on DIFFERENT registrable domains so browser
+// requests between them are cross-site exactly as they are in production
+// (helivanta.app vs auth.tesserix.app). A "site" is scheme + registrable
+// domain and ports are not part of it, so the old localhost:4301 /
+// localhost:20080 pair was same-site and could never have exercised #916.
+//
+// cross-site-harness.spec.ts derives the hosts it probes from THIS
+// baseURL and from the configured issuer, so it asserts about the stack
+// that is actually running rather than about two string literals — an
+// override that collapses the two onto one registrable domain fails there
+// instead of silently re-blinding the suite.
+const BASE_URL = webOrigin(SHELL_PORT);
+const IDLE_TIMEOUT_BASE_URL = webOrigin(IDLE_TIMEOUT_WEB_PORT);
+const RENEWAL_BASE_URL = webOrigin(RENEWAL_WEB_PORT);
 const PROJECT_FLAG_GIVEN = process.argv.some(
   (arg) => arg === "--project" || arg.startsWith("--project="),
 );

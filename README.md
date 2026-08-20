@@ -114,14 +114,24 @@ perfectly here, and #916 reached production with no test able to fail.
 `helivanta.localhost` and `tesserix.localhost` are distinct registrable domains,
 so dev now reproduces production's relationship;
 `e2e/tests/cross-site-harness.spec.ts` proves it against a real browser rather
-than assuming it. Override via `HELIVANTA_WEB_HOST` / `HELIVANTA_ZITADEL_HOST`
-if these names collide with something on your machine, but do **not** collapse
-them onto one registrable domain — that re-blinds the whole suite, and that spec
-fails if you try.
+than assuming it.
 
-Changing `HELIVANTA_ZITADEL_HOST` on an already-provisioned stack needs a
-`make reset`: Zitadel writes its instance domain once, at first-instance time,
-and will not recognise a new one afterwards.
+Override via `HELIVANTA_WEB_HOST` / `HELIVANTA_ZITADEL_HOST` if these names
+collide with something on your machine — every consumer reads those variables
+rather than a literal (compose, `scripts/zitadel-bootstrap.mjs`, the backend's
+dev defaults, `scripts/e2e.sh`, and the e2e suite via
+`e2e/tests/support/hosts.ts`), so an override is honoured end to end. What you
+may **not** do is point both at the same registrable domain: that returns the
+harness to same-site and makes #916's class of defect invisible again.
+`cross-site-harness.spec.ts` derives the hosts it probes from the running
+configuration and fails if you try, so this is a control rather than a request.
+
+Changing `HELIVANTA_ZITADEL_HOST` on an already-provisioned stack needs
+`RESET_YES=1 make reset`: Zitadel writes its instance domain once, at
+first-instance time, and answers "Instance not found" to any other host
+afterwards. `scripts/preflight.sh` checks for exactly that and tells you, so
+`make up` fails with the cause and the fix rather than with a bare
+`HTTP 404 Instance not found` from the bootstrap script.
 
 Ports (defaults): shell 4301, medicore 4302, pharmacy 4303, lab 4304, API
 8080, Postgres 5432, NATS 4222 (monitoring 8222), Redis 6379, OpenFGA 8090,

@@ -2,6 +2,8 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { ZITADEL_HOST } from "./hosts";
+
 export type Credentials = { email: string; password: string };
 
 // MUST match scripts/seed-dev.mjs's PASSWORD constant exactly — it seeds
@@ -157,14 +159,14 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
 // projects' own pages as "mid-redirect through Zitadel" and never click
 // Sign in.
 //
-// The host is auth.tesserix.localhost, not localhost (#916 Task 4, design
-// spec D6): the IdP deliberately sits on a DIFFERENT registrable domain
-// from the app (helivanta.localhost) so every browser request between them
-// is cross-site, as it is in production. Matching on the host alone — not
-// the whole origin — keeps this working if HELIVANTA_ZITADEL_PORT is
-// shifted in a developer's .env, which is why the port is included here
-// only as part of the default host:port string the stock stack serves.
-const ZITADEL_ORIGIN_HOST = "auth.tesserix.localhost";
+// Read from hosts.ts (HELIVANTA_ZITADEL_HOST) rather than hardcoded, so an
+// override of that variable does not break every spec's sign-in for a
+// reason unrelated to what it tests (#916 Task 4). The IdP deliberately
+// sits on a DIFFERENT registrable domain from the app so every browser
+// request between them is cross-site, as it is in production. Matching on
+// the HOST alone — not the whole origin — keeps this working when
+// HELIVANTA_ZITADEL_PORT is shifted in a developer's .env.
+const ZITADEL_ORIGIN_HOST = ZITADEL_HOST;
 
 async function startSignIn(page: Page): Promise<void> {
   // Decide by where we actually ARE, not by racing a timeout. Since #847,

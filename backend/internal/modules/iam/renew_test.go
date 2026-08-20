@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -476,4 +477,122 @@ func TestRenewAtHasAFloorForATinySessionTTL(t *testing.T) {
 	require.WithinDuration(t, want, body.RenewAt, 5*time.Second,
 		"renew_at must be floored at %v for a too-small SESSION_TTL (tinyTTL/3 = 1s here), "+
 			"not left at an un-throttled ttl/3 value", renewAtFloor)
+}
+
+// --- #916 Task 4, F3: the login/renew schedule coupling ------------------
+
+// fixedClockVerifier is a TokenVerifier that accepts one canned raw
+// token and answers with one canned Principal — enough to drive
+// LoginHandlers.Login without a Zitadel, which is all the test below
+// needs.
+type fixedClockVerifier struct {
+	subject  string
+	authTime time.Time
+}
+
+func (v fixedClockVerifier) Verify(_ context.Context, _ string) (authn.Principal, error) {
+	return authn.Principal{Subject: v.subject, AuthTime: v.authTime}, nil
+}
+
+// TestLoginAndRenewAgreeOnRenewAt is what makes spec D5's coupling
+// STRUCTURAL rather than merely parallel (#916 Task 4, F3).
+//
+// D5's claim is that the browser renews on the SERVER's schedule rather
+// than on a constant it invented. That held for renewals 2..n — POST
+// /v1/auth/renew has always answered with `renew_at` — and was simply
+// absent for renewal 1: POST /v1/auth/login returned only `tenant_id`,
+// so apps/shell seeded its first timer from a hardcoded five-minute
+// client constant. Any SESSION_TTL below ~5 minutes therefore expired
+// every session before its first renewal, silently, because config.go
+// applies no minimum to SESSION_TTL (contrast RequireIdleTimeout beside
+// it) and no test ran a short one.
+//
+// Login now answers with `renew_at` too. The risk that replaces the old
+// one is DRIFT: two endpoints computing "when to renew next" that agree
+// today and diverge the first time renewalFraction or renewAtFloor is
+// tuned on one side only. So this test does not check that Login's value
+// looks plausible, or that it equals a formula restated here — either
+// would keep passing through exactly that drift. It drives BOTH REAL
+// HANDLERS against ONE frozen clock and ONE TTL and asserts the two
+// wire-format values are byte-identical.
+//
+// It can fail: point either handler at its own copy of the arithmetic
+// and change one constant, and this goes red. Proven by mutation while
+// writing it — see the task report.
+func TestLoginAndRenewAgreeOnRenewAt(t *testing.T) {
+	// Deliberately NOT time.Now(): a frozen, shared clock is the whole
+	// point — two handlers reading real wall time would produce values
+	// that differ by microseconds and force a tolerance window, and a
+	// tolerance window is precisely what would hide a drift of less than
+	// the tolerance.
+	frozen := time.Date(2026, 8, 20, 4, 5, 6, 0, time.UTC)
+	clock := func() time.Time { return frozen }
+
+	// A TTL whose third is comfortably above renewAtFloor, so this test
+	// pins the PROPORTIONAL branch of renewAtFor. The floor branch is
+	// covered separately by TestRenewAtHasAFloorForATinySessionTTL.
+	const ttl = 21 * time.Minute
+
+	subject := "user-renew-at-agreement"
+	authTime := frozen.Add(-time.Minute)
+
+	// --- The renewal endpoint's answer ---
+	roles := stubRoleLister{subject: {{TenantID: renewTestTenantA, Role: authz.RoleNurse}}}
+	env := newRenewEnv(t, roles, &stubUserState{}, ttl)
+	env.h.now = clock
+	cookie := env.mint(t, subject, renewTestTenantA, authTime, frozen.Add(time.Hour))
+	renewRes := doRenew(env.r, cookie)
+	require.Equal(t, http.StatusOK, renewRes.Code, "precondition: the renewal itself must succeed")
+
+	var renewBody struct {
+		RenewAt string `json:"renew_at"`
+	}
+	require.NoError(t, json.Unmarshal(renewRes.Body.Bytes(), &renewBody))
+	require.NotEmpty(t, renewBody.RenewAt, "precondition: renew must actually emit renew_at")
+
+	// --- The login endpoint's answer, same clock, same TTL ---
+	// Its own key pair: Login only has to MINT here, and nothing in this
+	// test decodes its cookie — the assertion is on the response body.
+	loginPub, loginPriv, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+	loginSigner, err := session.NewSigner(loginPriv, renewTestKID, renewTestIssuer, ttl)
+	require.NoError(t, err)
+	loginVerifier, err := session.NewVerifier(loginPub, renewTestKID, renewTestIssuer)
+	require.NoError(t, err)
+
+	loginHandlers := NewLoginHandlers(LoginDeps{
+		Zitadel:      fixedClockVerifier{subject: subject, authTime: authTime},
+		Roles:        roles,
+		Signer:       loginSigner,
+		Sessions:     loginVerifier,
+		TTL:          ttl,
+		IdleTimeout:  time.Hour,
+		SecureCookie: true,
+		Now:          clock,
+	})
+	gin.SetMode(gin.TestMode)
+	lr := gin.New()
+	lr.POST("/v1/auth/login", loginHandlers.Login)
+
+	loginRec := httptest.NewRecorder()
+	loginReq := httptest.NewRequest(http.MethodPost, "/v1/auth/login",
+		strings.NewReader(`{"id_token":"any-token-the-fake-verifier-accepts"}`))
+	loginReq.Header.Set("Content-Type", "application/json")
+	lr.ServeHTTP(loginRec, loginReq)
+	require.Equal(t, http.StatusOK, loginRec.Code,
+		"precondition: the login itself must succeed; body=%s", loginRec.Body.String())
+
+	var loginBody struct {
+		RenewAt string `json:"renew_at"`
+	}
+	require.NoError(t, json.Unmarshal(loginRec.Body.Bytes(), &loginBody))
+
+	// Byte-identical on the WIRE, not merely equal as parsed time.Time:
+	// the client reads the string, so a formatting divergence (a
+	// different location, a truncated precision) is a real divergence
+	// even when the instants match.
+	require.Equal(t, renewBody.RenewAt, loginBody.RenewAt,
+		"POST /v1/auth/login and POST /v1/auth/renew must answer the SAME renew_at for the "+
+			"same clock and the same SESSION_TTL — they share renewAtFor precisely so a change "+
+			"to renewalFraction or renewAtFloor cannot be applied to one and forgotten on the other")
 }

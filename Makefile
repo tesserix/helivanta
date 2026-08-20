@@ -48,9 +48,22 @@ HELIVANTA_API_PORT ?= 8080
 # e2e/tests/cross-site-harness.spec.ts.
 #
 # Overridable for the same reason the ports are (a machine where these
-# names already mean something else), but overriding them to a SHARED
-# registrable domain re-blinds the harness; cross-site-harness.spec.ts
-# fails if you do.
+# names already mean something else): every consumer reads these variables
+# rather than a literal — the compose file, the bootstrap script, the
+# backend's dev defaults, scripts/e2e.sh, and the e2e suite itself through
+# e2e/tests/support/hosts.ts. `make e2e` forwards them explicitly.
+#
+# What is NOT overridable is the PROPERTY: point both at the same
+# registrable domain and the harness goes back to same-site, where #916's
+# whole class of defect is invisible. That is enforced, not merely asked
+# for — cross-site-harness.spec.ts derives the hosts it probes from the
+# running configuration and fails if they share a site.
+#
+# Changing HELIVANTA_ZITADEL_HOST on an EXISTING stack additionally needs
+# `make reset`: Zitadel writes its instance domain once, at first-instance
+# provisioning, and answers "Instance not found" to any other host
+# afterwards. scripts/preflight.sh's check_zitadel_instance_domain catches
+# that before `make up` gets far enough to fail obscurely.
 HELIVANTA_WEB_HOST ?= helivanta.localhost
 HELIVANTA_ZITADEL_HOST ?= auth.tesserix.localhost
 
@@ -280,12 +293,18 @@ dev-web-idle-timeout:
 # e2e/tests/session-renewal.spec.ts has to observe a session SURVIVING past
 # its own SESSION_TTL, which is only possible if a renewal actually
 # happened. That needs a SESSION_TTL short enough to expire inside a test
-# run and long enough that apps/shell's first renewal — scheduled at
-# FALLBACK_RENEWAL_INTERVAL_MS, 5 minutes, apps/shell/lib/renew.ts — still
-# lands comfortably inside it. Six minutes is the smallest value with real
-# margin on both sides: the first renewal fires at t+5m with a minute of
-# the original cookie's life left, and the ORIGINAL cookie is dead by
-# t+6m, so a session still working at t+6m10s can only be a re-minted one.
+# run.
+#
+# This was six minutes until #916 Task 4's F3 fix, because apps/shell
+# scheduled its FIRST renewal from a hardcoded five-minute client constant
+# rather than from the server: POST /v1/auth/login returned no `renew_at`,
+# so anything under five minutes killed the session before the first
+# renewal fired. Login now returns `renew_at` from the same helper the
+# renewal endpoint uses, so the cadence is server-driven from the first
+# tick and 90s is enough — renewAtFor answers TTL/3 = 30s (exactly
+# renewAtFloor and exactly the client's MIN_RENEWAL_DELAY_MS), so renewals
+# land at t+30s/t+60s/t+90s while the ORIGINAL cookie dies at t+90s. A
+# session still working at t+110s can only be a re-minted one.
 #
 # SESSION_TTL_TEST_VALUE is baked into this recipe rather than read from
 # SESSION_TTL, for the same reason IDLE_TIMEOUT_TEST_VALUE is above: a
@@ -299,7 +318,7 @@ dev-web-idle-timeout:
 # this cannot share the idle-timeout fixture above.
 HELIVANTA_RENEWAL_API_PORT ?= 8098
 HELIVANTA_RENEWAL_WEB_PORT ?= 4398
-SESSION_TTL_TEST_VALUE ?= 6m
+SESSION_TTL_TEST_VALUE ?= 90s
 ZITADEL_RENEWAL_ENV_FILE ?= dev/zitadel/secrets/zitadel-renewal.env
 
 dev-api-renewal:
@@ -404,7 +423,7 @@ test-scripts:
 # up infra + API + shell + medicore — the same assumption "specs"/"bulk"
 # already make.
 e2e:
-	HELIVANTA_API_PORT=$(HELIVANTA_API_PORT) HELIVANTA_IDLE_API_PORT=$(HELIVANTA_IDLE_API_PORT) HELIVANTA_IDLE_WEB_PORT=$(HELIVANTA_IDLE_WEB_PORT) HELIVANTA_RENEWAL_API_PORT=$(HELIVANTA_RENEWAL_API_PORT) HELIVANTA_RENEWAL_WEB_PORT=$(HELIVANTA_RENEWAL_WEB_PORT) bash scripts/e2e.sh
+	HELIVANTA_API_PORT=$(HELIVANTA_API_PORT) HELIVANTA_IDLE_API_PORT=$(HELIVANTA_IDLE_API_PORT) HELIVANTA_IDLE_WEB_PORT=$(HELIVANTA_IDLE_WEB_PORT) HELIVANTA_RENEWAL_API_PORT=$(HELIVANTA_RENEWAL_API_PORT) HELIVANTA_RENEWAL_WEB_PORT=$(HELIVANTA_RENEWAL_WEB_PORT) HELIVANTA_WEB_HOST=$(HELIVANTA_WEB_HOST) HELIVANTA_ZITADEL_HOST=$(HELIVANTA_ZITADEL_HOST) HELIVANTA_ZITADEL_PORT=$(HELIVANTA_ZITADEL_PORT) bash scripts/e2e.sh
 
 new-module:
 	cd backend && ./scripts/new-module.sh $(NAME)

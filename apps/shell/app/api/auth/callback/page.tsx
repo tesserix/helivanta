@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { clearPermissionsCache } from "@helivanta/api";
 import { getUserManager } from "@/lib/oidc";
 import { exchangeIdToken } from "@/lib/auth-exchange";
+import { storeRenewAt } from "@/lib/renew-schedule";
 
 // The redirect target Zitadel sends the browser back to after a
 // successful hosted login (registered as helivanta-web's redirect_uri,
@@ -58,7 +59,15 @@ export default function AuthCallbackPage() {
         // No tenant_id: this is a first login, so the backend defaults to
         // the caller's first tenant binding (login.go). Renewal
         // (lib/renew.ts) is the call site that must always name one.
-        await exchangeIdToken(user.id_token);
+        const { renew_at } = await exchangeIdToken(user.id_token);
+        // The server's own schedule for this session's FIRST renewal
+        // (#916 Task 4, F3). Stored rather than passed, because
+        // components/session-renewal.tsx does not mount on this page —
+        // it is skipped on the auth-callback path — and only comes up
+        // once the navigation below lands. Without this the first
+        // renewal falls back to a hardcoded five-minute client constant,
+        // which silently outlives any SESSION_TTL shorter than that.
+        storeRenewAt(renew_at);
         router.replace("/");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Sign-in failed.");

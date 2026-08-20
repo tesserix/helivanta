@@ -3,17 +3,22 @@ import { resolve } from "node:path";
 
 import { test, expect } from "@playwright/test";
 
+import { SHELL_PORT, ZITADEL_ORIGIN, webOrigin } from "./support/hosts";
 import { login } from "./support/login";
 
-// The IdP's origin and the app's, as this harness actually serves them.
-// Different REGISTRABLE DOMAINS on purpose (#916 Task 4, design spec D6) —
-// see e2e/tests/cross-site-harness.spec.ts. The redirect_uri built from
+// The IdP's origin and the app's, read from tests/support/hosts.ts — which
+// reads HELIVANTA_ZITADEL_HOST / HELIVANTA_WEB_HOST, the same variables the
+// Makefile and docker-compose.dev.yml use. Hardcoding them here would mean
+// any override of those variables broke this spec for a reason unrelated to
+// what it tests (#916 Task 4).
+//
+// They are different REGISTRABLE DOMAINS on purpose — see
+// e2e/tests/cross-site-harness.spec.ts. The redirect_uri built from
 // WEB_ORIGIN below must match what scripts/zitadel-bootstrap.mjs registered
 // on the helivanta-web app BYTE FOR BYTE, or Zitadel refuses the authorize
 // request outright and the credential-form assertion below fails for a
 // reason that has nothing to do with SSO teardown.
-const ZITADEL_ORIGIN = "http://auth.tesserix.localhost:20080";
-const WEB_ORIGIN = "http://helivanta.localhost:4301";
+const WEB_ORIGIN = webOrigin(SHELL_PORT);
 
 // The assertion that would have caught the original bug (#781): sign-out
 // used to only clear the transport cookie, leaving the client-side SDK's
@@ -56,7 +61,11 @@ test("a signed-out session cannot be reconstructed from the browser", async ({ p
   // DIFFERENT user could not sign in at all ("User not found in the
   // system"). So the assertion is that we settle on Helivanta's own /login,
   // signed out, rather than being carried onward to Zitadel.
-  await page.waitForURL(new RegExp(`${WEB_ORIGIN}/login`), { timeout: 15_000 });
+  // A plain string, NOT new RegExp(`${WEB_ORIGIN}/login`): Playwright
+  // accepts a string and matches it exactly, whereas interpolating a host
+  // into a regex turns every dot in "helivanta.localhost" into a wildcard,
+  // so the assertion would also accept e.g. "helivantaXlocalhost".
+  await page.waitForURL(`${WEB_ORIGIN}/login`, { timeout: 15_000 });
   await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
 
   // Sign-out must end ZITADEL's SSO session, not merely Helivanta's own — or the

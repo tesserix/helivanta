@@ -28,7 +28,20 @@
 // tenantId is omitted here, unconditionally: the backend defaults to
 // the caller's first tenant binding, which is only ever reached from a
 // genuine first login (this function's one remaining caller).
-export async function exchangeIdToken(idToken: string): Promise<{ tenant_id: string }> {
+// LoginResult.renew_at is the server's answer to "when should this
+// browser first call POST /v1/auth/renew" (#916 Task 4, F3). It is
+// OPTIONAL on this type, deliberately: an older API, or any response
+// whose body loses the field, must degrade to the documented fallback
+// cadence rather than throw out of the sign-in path. See
+// lib/renew-schedule.ts for why the value has to survive the navigation
+// that follows this call, and backend/internal/modules/iam/renew.go's
+// renewAtFor for the single place both endpoints compute it.
+export interface LoginResult {
+  tenant_id: string;
+  renew_at?: string;
+}
+
+export async function exchangeIdToken(idToken: string): Promise<LoginResult> {
   const res = await fetch("/api/v1/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -67,5 +80,5 @@ export async function exchangeIdToken(idToken: string): Promise<{ tenant_id: str
     }
     throw new Error(message);
   }
-  return (await res.json()) as { tenant_id: string };
+  return (await res.json()) as LoginResult;
 }

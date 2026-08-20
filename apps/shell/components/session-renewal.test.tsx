@@ -6,6 +6,7 @@ import {
   RenewalUnavailableError,
   FALLBACK_RENEWAL_INTERVAL_MS,
 } from "@/lib/renew";
+import { loadRenewAt, storeRenewAt } from "@/lib/renew-schedule";
 import { SessionRenewal } from "./session-renewal";
 
 // setTimeout is spied on GLOBALLY, so other library internals (react-query,
@@ -30,6 +31,10 @@ describe("SessionRenewal", () => {
   beforeEach(() => {
     renewSession.mockReset();
     usePathname.mockReturnValue("/");
+    // The stored schedule is per-tab state that outlives a render, so it
+    // must be cleared between tests or one test's login schedule seeds
+    // the next test's first timer (#916 Task 4, F3).
+    window.sessionStorage.clear();
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -59,7 +64,13 @@ describe("SessionRenewal", () => {
     setTimeoutSpy.mockRestore();
   });
 
-  it("schedules the first renewal at the bounded fallback interval", async () => {
+  // Renamed for accuracy by #916 Task 4 (F3): the first renewal is no
+  // longer UNCONDITIONALLY at the fallback interval — it uses the
+  // schedule POST /v1/auth/login stored when one exists (see the
+  // "SessionRenewal's FIRST renewal" block below). This case is the
+  // no-stored-schedule one, which beforeEach's sessionStorage.clear()
+  // establishes.
+  it("schedules the first renewal at the bounded fallback interval when nothing was stored", async () => {
     const setTimeoutSpy = vi.spyOn(window, "setTimeout");
     renewSession.mockResolvedValue({ renewAt: undefined });
 
@@ -164,6 +175,94 @@ describe("SessionRenewal", () => {
       expect(findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS)).toBeDefined(),
     );
 
+    setTimeoutSpy.mockRestore();
+  });
+});
+
+// --- #916 Task 4, F3: the first renewal obeys the server too -------------
+
+describe("SessionRenewal's FIRST renewal", () => {
+  beforeEach(() => {
+    renewSession.mockReset();
+    usePathname.mockReturnValue("/");
+    window.sessionStorage.clear();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // The regression this whole F3 change exists for. Before it, the first
+  // timer was always FALLBACK_RENEWAL_INTERVAL_MS (5 minutes) regardless
+  // of SESSION_TTL, so any deployment with a shorter TTL lost every
+  // session before its first renewal — with nothing anywhere reporting
+  // it, because SESSION_TTL has no minimum guard server-side.
+  //
+  // 90s here is not arbitrary: it is one third of a 4m30s SESSION_TTL,
+  // i.e. exactly what renewAtFor answers for a TTL well under the old
+  // hardcoded fallback. If this line regressed to
+  // nextRenewalDelayMs(undefined), the assertion below would find a
+  // 300_000ms timer and no 90_000ms one.
+  it("is scheduled from the schedule login stored, not from the 5-minute fallback", async () => {
+    const ninetySeconds = 90_000;
+    storeRenewAt(new Date(Date.now() + ninetySeconds).toISOString());
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+
+    renderWithProviders(<SessionRenewal />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const scheduled = setTimeoutSpy.mock.calls.find(
+      ([, delay]) => typeof delay === "number" && delay > 80_000 && delay <= ninetySeconds,
+    );
+    expect(
+      scheduled,
+      "the first renewal must be scheduled from the server's renew_at, not the 5-minute fallback",
+    ).toBeDefined();
+    expect(
+      findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS),
+      "the fallback interval must NOT be used when the server gave a schedule",
+    ).toBeUndefined();
+    setTimeoutSpy.mockRestore();
+  });
+
+  // The other direction, and the reason FALLBACK_RENEWAL_INTERVAL_MS is
+  // kept rather than deleted: with nothing stored (a browser that blocks
+  // sessionStorage, a tab opened straight onto a deep link with a session
+  // cookie already present), behaviour is byte-for-byte what it was
+  // before F3 — not an error, and not a zero-delay retry.
+  it("falls back to the bounded interval when no schedule was stored", async () => {
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+
+    renderWithProviders(<SessionRenewal />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS)).toBeDefined();
+    setTimeoutSpy.mockRestore();
+  });
+
+  // A reload mid-session must resume from the LATEST server answer, not
+  // from the one login left behind — so every successful renewal
+  // rewrites the stored schedule.
+  it("rewrites the stored schedule after each successful renewal", async () => {
+    storeRenewAt(new Date(Date.now() + 60_000).toISOString());
+    const nextRenewAt = new Date(Date.now() + 12 * 60_000);
+    renewSession.mockResolvedValue({ renewAt: nextRenewAt });
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+
+    renderWithProviders(<SessionRenewal />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const first = setTimeoutSpy.mock.calls.find(
+      ([, delay]) => typeof delay === "number" && delay > 50_000 && delay <= 60_000,
+    );
+    expect(
+      first,
+      "precondition: the first renewal was scheduled from the stored value",
+    ).toBeDefined();
+    first![0]();
+
+    await waitFor(() => {
+      expect(loadRenewAt()?.toISOString()).toBe(nextRenewAt.toISOString());
+    });
     setTimeoutSpy.mockRestore();
   });
 });

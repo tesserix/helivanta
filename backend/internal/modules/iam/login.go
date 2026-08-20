@@ -306,8 +306,12 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	//
 	// idleDeadline is likewise NOT unconditionally time.Now() +
 	// IdleTimeout — see idleDeadlineFor, which is the whole of spec D3.
+	// ONE read of the clock, used for both the idle deadline and the
+	// renew_at hint below, so the two cannot describe different instants
+	// in the same response.
+	now := h.now()
 	token, err := h.signer.Mint(principal.Subject, tenantID, principal.AuthTime,
-		h.idleDeadlineFor(c, principal, h.now()))
+		h.idleDeadlineFor(c, principal, now))
 	if err != nil {
 		requestid.Logger(c).ErrorContext(c.Request.Context(), "login: mint session failed", "err", err)
 		respond.Error(c, http.StatusServiceUnavailable,
@@ -327,7 +331,22 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	// same place.
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(authn.SessionCookie, token, int(h.ttl.Seconds()), "/", "", h.secureCookie, true)
-	respond.OK(c, gin.H{"tenant_id": tenantID})
+	// renew_at tells the browser when to call POST /v1/auth/renew for
+	// the FIRST time (#916 Task 4, F3). Computed by renewAtFor
+	// (renew.go) — the same function the renewal endpoint itself uses,
+	// not a second copy of the arithmetic — so the two cannot drift;
+	// TestLoginAndRenewAgreeOnRenewAt pins that.
+	//
+	// Before this field existed, spec D5's "the client obeys the
+	// server's schedule" held for every renewal EXCEPT the first, which
+	// came from a hardcoded 5-minute constant in the browser
+	// (apps/shell/lib/renew.ts's FALLBACK_RENEWAL_INTERVAL_MS). Any
+	// deployment with SESSION_TTL under ~5 minutes therefore logged
+	// every clinician out before their first renewal ever fired —
+	// silently, since config.go applies no minimum to SESSION_TTL. This
+	// is additive: a client that ignores the field behaves exactly as
+	// before.
+	respond.OK(c, gin.H{"tenant_id": tenantID, "renew_at": renewAtFor(now, h.ttl)})
 }
 
 // idleDeadlineFor decides the idle_deadline this mint carries. It is the

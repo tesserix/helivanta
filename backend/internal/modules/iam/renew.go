@@ -260,12 +260,40 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(authn.SessionCookie, token, int(h.ttl.Seconds()), "/", "", h.secureCookie, true)
 
-	renewAfter := h.ttl / renewalFraction
+	respond.OK(c, renewResponse{
+		TenantID: tenantID,
+		RenewAt:  renewAtFor(now, h.ttl),
+	})
+}
+
+// renewAtFor is THE one place the answer to "when should this client
+// call POST /v1/auth/renew next" is computed, for every endpoint that
+// mints a session. It is a package-level function rather than a method
+// on renewalHandlers precisely so LoginHandlers.Login can call the
+// SAME code (#916 Task 4, F3) instead of a second implementation that
+// happens to agree today.
+//
+// That matters more than it looks. Spec D5 says the coupling between
+// the client's renewal cadence and the server's SESSION_TTL is
+// "structural instead of a comment describing a gap" — but before this
+// function existed, the arithmetic lived inline in renew() and Login
+// returned no schedule AT ALL, so the client's FIRST renewal came from
+// a hardcoded five-minute client constant
+// (apps/shell/lib/renew.ts's FALLBACK_RENEWAL_INTERVAL_MS). D5 was
+// therefore closed for renewals 2..n and wide open for renewal 1: with
+// SESSION_TTL below ~5 minutes — which config.go accepts silently,
+// having no minimum guard, unlike RequireIdleTimeout beside it — every
+// session died before its first renewal ever fired. That is verbatim
+// the sentence D5 was written to eliminate, and no test could see it
+// because no test ran a short TTL.
+//
+// TestLoginAndRenewAgreeOnRenewAt (renew_test.go) asserts the two
+// endpoints produce the byte-identical value for the same clock and
+// TTL, which is what makes this shared rather than merely parallel.
+func renewAtFor(now time.Time, ttl time.Duration) time.Time {
+	renewAfter := ttl / renewalFraction
 	if renewAfter < renewAtFloor {
 		renewAfter = renewAtFloor
 	}
-	respond.OK(c, renewResponse{
-		TenantID: tenantID,
-		RenewAt:  now.Add(renewAfter).UTC(),
-	})
+	return now.Add(renewAfter).UTC()
 }

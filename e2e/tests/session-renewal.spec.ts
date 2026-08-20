@@ -29,32 +29,37 @@ import { login } from "./support/login";
 //     session on the idle clock before the TTL clock could prove anything —
 //     which is also why this cannot share the idle-timeout fixture.
 //
-// WHY SIX MINUTES AND NOT NINETY SECONDS. apps/shell/components/
-// session-renewal.tsx schedules its FIRST renewal at
-// FALLBACK_RENEWAL_INTERVAL_MS (5 minutes, apps/shell/lib/renew.ts) because
-// no server response exists yet to derive a cadence from — POST
-// /v1/auth/login does not return `renew_at`, only POST /v1/auth/renew does.
-// So the server's `renew_at` governs every renewal EXCEPT the first, and a
-// SESSION_TTL below five minutes would kill every session before the first
-// renewal ever fired. That residual coupling gap is recorded in this task's
-// report; this spec works within it rather than papering over it, which is
-// why the run is minutes rather than seconds. Six minutes is the smallest
-// value with real margin on both sides: the first renewal fires at t+5m
-// with a minute of the original cookie's life left, and the original cookie
-// is dead by t+6m.
+// WHY NINETY SECONDS IS ENOUGH — and why it used to have to be six
+// minutes. This spec originally ran a 6-minute SESSION_TTL because
+// apps/shell scheduled its FIRST renewal from a hardcoded 5-minute client
+// constant (FALLBACK_RENEWAL_INTERVAL_MS, apps/shell/lib/renew.ts): POST
+// /v1/auth/login returned no `renew_at`, so the server's schedule governed
+// every renewal EXCEPT the first, and any SESSION_TTL under five minutes
+// killed every session before the first renewal fired. That was a real
+// production defect — config.go applies no minimum to SESSION_TTL — and it
+// was fixed rather than worked around (#916 Task 4, F3): login now returns
+// `renew_at` from renewAtFor, the SAME helper the renewal endpoint uses,
+// and the shell seeds its first timer from it.
+//
+// With the cadence genuinely server-driven from the first tick, a 90s TTL
+// is the smallest value that leaves real margin against both floors:
+// renewAtFor answers TTL/3 = 30s, which is exactly renewAtFloor and exactly
+// the client's MIN_RENEWAL_DELAY_MS, so renewals land at t+30s, t+60s and
+// t+90s while the login cookie dies at t+90s.
 const RENEWAL_API_URL = "http://localhost:8098"; // Makefile's HELIVANTA_RENEWAL_API_PORT
-const SESSION_TTL_SECONDS = 6 * 60; // Makefile's SESSION_TTL_TEST_VALUE
+const SESSION_TTL_SECONDS = 90; // Makefile's SESSION_TTL_TEST_VALUE
 // Past the original cookie's expiry, with enough margin that a slow
 // renewal round trip (a real HTTP call, a real Zitadel user-state check and
 // a real OpenFGA membership check) cannot be mistaken for a failure. The
 // dominant cost here is the wait itself, not this margin.
-const PAST_TTL_MS = (SESSION_TTL_SECONDS + 15) * 1000;
+const PAST_TTL_MS = (SESSION_TTL_SECONDS + 20) * 1000;
 
 const PERMISSIONS_PATH = "/v1/iam/me/permissions"; // no /api prefix: called directly, not via the shell's rewrite
 const SESSION_COOKIE = "helivanta_session";
 
-// One real sign-in plus a ~6m15s real-time wait, plus headroom.
-test.setTimeout(600_000);
+// One real sign-in plus a ~110s real-time wait, plus headroom for a cold
+// `next dev` compile on the fixture's first request.
+test.setTimeout(300_000);
 
 async function sessionCookieValue(page: import("@playwright/test").Page): Promise<string> {
   const cookies = await page.context().cookies(page.url());

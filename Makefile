@@ -159,7 +159,30 @@ preflight:
 		bash scripts/preflight.sh; \
 	fi
 
+# docker-compose.dev.yml bind-mounts dev/zitadel/secrets into three
+# containers, and Zitadel WRITES two PAT files there during first-instance
+# provisioning. The directory is gitignored, so a fresh clone does not have
+# it — and when a bind-mount source is missing, the Docker DAEMON creates it,
+# owned by root with mode 0755. The zitadel image runs as its own non-root
+# `zitadel` user, which then cannot write, and the failure is deeply
+# unhelpful: provisioning has already pushed the instance-domain event by the
+# time it tries the file, so setup dies with
+# `open /secrets/helivanta-seed.pat: permission denied`, restarts, and every
+# restart afterwards reports the CONSEQUENCE instead —
+# `Errors.Instance.Domain.AlreadyExists`, forever, on a container that never
+# serves a request. Diagnosed from exactly that log on a Linux CI runner
+# (#920); the only reason no developer had hit it is that Docker Desktop on
+# macOS masks ownership on bind mounts entirely.
+#
+# So: create it HERE, before compose can, and make it writable by whatever
+# uid the images run as. 0777 on a directory whose entire contents are
+# well-known DEV credentials (see .gitignore's note, and the masterkey
+# comment above) — the alternative, guessing each image's uid and chowning,
+# needs root on the host and breaks the next time an image changes its user.
+# This is the dev stack only; nothing here is ever deployed.
 dev-infra: preflight
+	mkdir -p dev/zitadel/secrets
+	chmod 0777 dev/zitadel/secrets
 	docker compose -f docker-compose.dev.yml up -d --wait postgres nats redis openfga
 	docker compose -f docker-compose.dev.yml up -d zitadel-db zitadel zitadel-login zitadel-proxy
 	@printf 'Waiting for Zitadel on http://$(HELIVANTA_ZITADEL_HOST):$(HELIVANTA_ZITADEL_PORT)…'

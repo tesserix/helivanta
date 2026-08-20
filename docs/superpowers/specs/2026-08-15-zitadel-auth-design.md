@@ -139,6 +139,43 @@ the shared-resource exposure #689 exists to prevent.
 
 #### D4a — renewal re-runs the exchange; Helivanta stores no IdP token
 
+> **Amended 2026-08-20 (#916).** The mechanism below — the browser silently
+> re-authenticating against Zitadel via a hidden `prompt=none` iframe — never
+> worked: Zitadel's session cookie on `auth.tesserix.app` is `SameSite=Lax`
+> and is never sent from a cross-site iframe in any browser, so the iframe
+> could only ever answer `login_required`, and clinicians were evicted ~5
+> minutes after signing in. Renewal is now `POST /v1/auth/renew`, a
+> same-origin **server-side** call; the browser no longer contacts Zitadel
+> for renewal at all, and the iframe and the silent-renew route are deleted.
+>
+> The premise this decision's mechanism hung on — "unless renewal is not a
+> server-side operation at all" (below) — has since lapsed. It assumed
+> Helivanta holds no IdP credential. That stopped being true: #854/#867
+> introduced the login-client PAT (`ZITADEL_LOGIN_CLIENT_TOKEN`), an
+> instance-level credential that can already create a session for any user.
+> With that credential in hand, a server-side upstream check no longer
+> requires storing a *user's* token — it was only ever the user-token
+> constraint that forced renewal out to the browser.
+>
+> **What survives unchanged:** D4a's guarantee — the session TTL bounds
+> upstream-deactivation latency — is preserved, now enforced server-side
+> instead of browser-side. Both properties below still hold exactly as
+> stated: Helivanta stores **no** IdP refresh token, and `offline_access` is
+> still **never** requested.
+>
+> **Worth stating plainly:** the upstream-deactivation check this decision
+> describes has never actually run in production — the cross-site round trip
+> it depended on always failed before it could report anything. Server-side
+> renewal, shipped by #916, is the first time this check will actually
+> execute.
+>
+> See `docs/superpowers/specs/2026-08-20-server-side-session-renewal-design.md`
+> and #916 for the root cause, the rejected alternatives, and the new
+> mechanism. The reasoning below is kept as the historical record of why the
+> browser-driven mechanism was chosen — it was a reasonable call given what
+> was believed true at the time, and the gap it left is the story worth
+> preserving, not erasing.
+
 **Resolved 2026-08-15.** The paragraph above said "renewal re-checks the Zitadel
 session" without saying *with what credential*, and that gap had a security
 answer hiding in it. Helivanta verifies the Zitadel ID token at login and keeps
@@ -153,10 +190,28 @@ token to the same exchange endpoint, naming the tenant it is currently in. Heliv
 verifies the token, re-checks membership in OpenFGA, and re-mints. There is no
 separate renewal endpoint and no separate mechanism to get wrong.
 
+> **This mechanism was never live in production — see the amendment above.**
+> The `auth.tesserix.app` session cookie is `SameSite=Lax`, so it is never
+> sent from the cross-site hidden iframe this paragraph describes; the
+> "silent" re-authentication could only fail. #916 replaced it with
+> server-side renewal (`POST /v1/auth/renew`).
+
 The bound holds for the reason D4 claims: after the TTL, continuing requires a
 **fresh** Zitadel token, and a deactivated user cannot obtain one — Zitadel
 refuses the silent re-authentication. Deactivation therefore bites within one
 TTL without Helivanta ever asking Zitadel a question directly.
+
+> **The last sentence no longer describes the implementation — see the
+> amendment above.** It was true only of the browser-driven mechanism this
+> paragraph describes, which never ran. Under #916, Helivanta *does* ask
+> Zitadel a question directly: every `POST /v1/auth/renew` calls
+> `GET /v2/users/{id}` on the instance-level login-client PAT and refuses the
+> renewal unless the subject is still active
+> (`backend/internal/modules/iam/renew.go`). **The bound itself is unchanged**
+> — deactivation still bites within one TTL — and the property this paragraph
+> was really protecting is also unchanged: the direct question is asked with
+> Helivanta's *own* instance credential, never with a stored *user* token, so
+> "Helivanta stores no refresh token" below still holds exactly as written.
 
 Two properties fall out of this that are worth having deliberately:
 
@@ -187,6 +242,11 @@ shell must run the OIDC silent-renew flow and fall back to a visible login when
 it fails. Server-side, "renewal" needs no new code beyond the exchange endpoint
 already built, which must therefore accept a tenant and re-check membership on
 every call rather than only on first login.
+
+> **Superseded — see the amendment above.** #916 deleted the shell's silent-renew
+> flow and the hidden iframe entirely. Renewal is now driven by the server
+> (`POST /v1/auth/renew`); the frontend's job is only to schedule the call and
+> handle its response, not to run any OIDC flow itself.
 
 ### D5 — Signing keys, and failing closed without them
 

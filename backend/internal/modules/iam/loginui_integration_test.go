@@ -57,7 +57,7 @@ import (
 func skipUnlessDevStackIsUp(t *testing.T) integrationEnv {
 	t.Helper()
 
-	issuer := getenvOrDefault("ZITADEL_ISSUER_URL", "http://localhost:20080")
+	issuer := getenvOrDefault("ZITADEL_ISSUER_URL", "http://auth.tesserix.localhost:20080")
 	clientID := getenvOrDefault("ZITADEL_CLIENT_ID", "")
 	if clientID == "" {
 		clientID = readSecretFile(t, "zitadel.env", "ZITADEL_CLIENT_ID")
@@ -89,7 +89,7 @@ func skipUnlessDevStackIsUp(t *testing.T) integrationEnv {
 		issuer:      issuer,
 		clientID:    clientID,
 		token:       token,
-		redirectURI: getenvOrDefault("HELIVANTA_DEV_REDIRECT_URI", "http://localhost:4301/api/auth/callback"),
+		redirectURI: getenvOrDefault("HELIVANTA_DEV_REDIRECT_URI", "http://helivanta.localhost:4301/api/auth/callback"),
 	}
 }
 

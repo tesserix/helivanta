@@ -27,11 +27,14 @@ type Server struct {
 //
 // gin.New()'s OWN default trusts every proxy (0.0.0.0/0) — every rate
 // limiter in this codebase that keys on gin.Context.ClientIP() before a
-// verified subject exists (LoginRateLimitRule, FactorRateLimitRule, and
-// their sibling routes in iam.LoginUIHandlers) is bypassable under that
-// default: a caller sends a fresh X-Forwarded-For value per request and
-// draws a fresh token-bucket burst every time. This function OVERRIDES
-// that default unconditionally, in BOTH directions:
+// verified subject exists (FactorRateLimitRule and its sibling routes in
+// iam.LoginUIHandlers — LoginRateLimitRule is NOT one of these; it keys
+// on the verified subject after Zitadel authentication succeeds,
+// bootstrap/ratelimit.go's own doc comment on FactorRateLimitRule) is
+// bypassable under that default: a caller sends a fresh
+// X-Forwarded-For value per request and draws a fresh token-bucket
+// burst every time. This function OVERRIDES that default unconditionally,
+// in BOTH directions:
 //
 //   - trustedProxyCIDRs non-empty → SetTrustedProxies(trustedProxyCIDRs),
 //     so gin.Context.ClientIP() resolves the request's actual origin by

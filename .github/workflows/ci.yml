@@ -53,7 +53,7 @@ jobs:
           # therefore not covering this, and setting them here does not make it
           # cover it. Treat a green build as saying nothing about runtime env.
           NEXT_PUBLIC_ZITADEL_CLIENT_ID: ci-build-client-id
-          NEXT_PUBLIC_ZITADEL_ISSUER_URL: http://localhost:20080
+          NEXT_PUBLIC_ZITADEL_ISSUER_URL: http://auth.tesserix.localhost:20080
   scripts:
     runs-on: ubuntu-latest
     steps:

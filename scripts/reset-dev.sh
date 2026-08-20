@@ -50,7 +50,14 @@ confirm_reset() {
 
 main() {
   echo "Checking prerequisites…"
-  "$REPO_ROOT/scripts/preflight.sh" || exit 1
+  # PREFLIGHT_SKIP_ZITADEL_INSTANCE: a Zitadel provisioned for a DIFFERENT
+  # host is the single most common reason to run THIS command (see
+  # check_zitadel_instance_domain in preflight.sh, whose failure message
+  # names `RESET_YES=1 make reset` as the fix). Letting that check fail
+  # here would make the remedy refuse to run for the reason it was invoked.
+  # Every other check still applies — this run is about to start a stack
+  # and needs Docker, Go, Node, pnpm and free ports as much as any other.
+  PREFLIGHT_SKIP_ZITADEL_INSTANCE=1 "$REPO_ROOT/scripts/preflight.sh" || exit 1
 
   confirm_reset || exit 1
 

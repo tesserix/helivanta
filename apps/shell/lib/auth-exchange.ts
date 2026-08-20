@@ -8,28 +8,44 @@
 // request goes through next.config.ts's same-origin /api rewrite, which
 // forwards the backend's Set-Cookie header untouched.
 //
-// Raw fetch, not `apiFetch` from @helivanta/api: this is the one auth route
-// outside the `/api/v1` envelope's error-shape contract that runs before
-// a Helivanta session exists — the same sanctioned exception the old
-// `/api/session` POST was (docs/standards/frontend.md §3). It is used by
-// both the login callback (app/api/auth/callback/page.tsx) and silent
-// renewal (lib/renew.ts).
+// Raw fetch, not `apiFetch` from @helivanta/api: this is an auth-lifecycle
+// route outside the `/api/v1` envelope's error-shape contract that runs
+// before a Helivanta session exists — the sanctioned exception
+// docs/standards/frontend.md §3 carves out for exactly this class of
+// call (POST /v1/auth/login here; POST /v1/auth/renew, lib/renew.ts's
+// renewSession, is the same exception's other member).
 //
-// tenantId is omitted on first login (the backend defaults to the
-// caller's first tenant binding) and REQUIRED on renewal — D4a is
-// explicit that renewal must name the tenant the session is currently
-// in, never let the backend re-pick a default, or a renewal could
-// silently move a clinician to a different hospital mid-shift.
-export async function exchangeIdToken(
-  idToken: string,
-  tenantId?: string,
-): Promise<{ tenant_id: string }> {
+// Its only caller is the login callback
+// (app/api/auth/callback/page.tsx) — #916 (design spec D1) moved
+// renewal to a same-origin POST /v1/auth/renew that carries no ID
+// token at all, so this function no longer has a renewal caller and no
+// longer takes a tenantId. Renewal used to call this with a REQUIRED
+// tenantId, precisely to stop a routine renewal from silently moving a
+// multi-hospital clinician back to whichever tenant sorts first — see
+// renew.go and Task 3's own report for how POST /v1/auth/renew now
+// preserves that guarantee without a tenant_id in the request at all
+// (it re-mints for the cookie's existing tenant, never a fresh pick).
+// tenantId is omitted here, unconditionally: the backend defaults to
+// the caller's first tenant binding, which is only ever reached from a
+// genuine first login (this function's one remaining caller).
+// LoginResult.renew_at is the server's answer to "when should this
+// browser first call POST /v1/auth/renew" (#916 Task 4, F3). It is
+// OPTIONAL on this type, deliberately: an older API, or any response
+// whose body loses the field, must degrade to the documented fallback
+// cadence rather than throw out of the sign-in path. See
+// packages/api/src/renew-schedule.ts for why the value has to survive the navigation
+// that follows this call, and backend/internal/modules/iam/renew.go's
+// renewAtFor for the single place both endpoints compute it.
+export interface LoginResult {
+  tenant_id: string;
+  renew_at?: string;
+}
+
+export async function exchangeIdToken(idToken: string): Promise<LoginResult> {
   const res = await fetch("/api/v1/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(
-      tenantId ? { id_token: idToken, tenant_id: tenantId } : { id_token: idToken },
-    ),
+    body: JSON.stringify({ id_token: idToken }),
     // Spec D3: the backend tells a renewal from a genuine login by whether
     // THIS request carries the Helivanta session cookie — carrying it forward
     // means "carry idle_deadline forward too"; its absence means "mint a
@@ -38,9 +54,12 @@ export async function exchangeIdToken(
     // currently a no-op — but stated explicitly and pinned by
     // auth-exchange.test.ts, because a silent default is one refactor (an
     // absolute URL, a different origin, "credentials: omit") away from
-    // dropping the cookie, which would make every renewal take the
-    // fresh-window branch and let an untouched tab renew itself forever —
-    // the exact failure this feature exists to prevent — with every
+    // dropping the cookie. A stale, still-unexpired session cookie
+    // present on this same login request (a clinician re-authenticating
+    // through Zitadel while an old Helivanta session cookie is still
+    // live) needs the backend to see it in order to make that
+    // login-vs-renewal call correctly — silently dropping it here would
+    // remove information the backend is entitled to have, with every
     // backend test still green.
     credentials: "same-origin",
   });
@@ -61,5 +80,5 @@ export async function exchangeIdToken(
     }
     throw new Error(message);
   }
-  return (await res.json()) as { tenant_id: string };
+  return (await res.json()) as LoginResult;
 }

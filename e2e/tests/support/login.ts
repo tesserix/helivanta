@@ -2,6 +2,8 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { ZITADEL_HOST } from "./hosts";
+
 export type Credentials = { email: string; password: string };
 
 // MUST match scripts/seed-dev.mjs's PASSWORD constant exactly — it seeds
@@ -147,16 +149,24 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
 // mid-redirect to Zitadel, in which case there is no button to click and
 // the credential form is on its way. Requiring the button unconditionally
 // would turn that ordinary race into a flake.
-// Zitadel's fixed local port (HELIVANTA_ZITADEL_PORT) — the one constant across
-// every Helivanta web+API pair the suite runs against. Checking for THIS,
-// rather than for Helivanta's own dev-server port, is what makes startSignIn
-// work under the "idle-timeout" Playwright project (#848 Task 8), which
-// points baseURL at a second shell instance on its own port
-// (e2e/playwright.config.ts) so it can run against a short-IDLE_TIMEOUT
-// API without weakening the 15-minute default every other spec relies
-// on. A literal `localhost:4301` check would misread that project's own
-// pages as "mid-redirect through Zitadel" and never click Sign in.
-const ZITADEL_ORIGIN_HOST = "localhost:20080";
+// Zitadel's fixed local origin host (HELIVANTA_ZITADEL_HOST:HELIVANTA_ZITADEL_PORT)
+// — the one constant across every Helivanta web+API pair the suite runs
+// against. Checking for THIS, rather than for Helivanta's own dev-server
+// port, is what makes startSignIn work under the "idle-timeout" (#848 Task
+// 8) and "renewal" (#916 Task 4) Playwright projects, which point baseURL
+// at further shell instances on their own ports
+// (e2e/playwright.config.ts). A literal app-port check would misread those
+// projects' own pages as "mid-redirect through Zitadel" and never click
+// Sign in.
+//
+// Read from hosts.ts (HELIVANTA_ZITADEL_HOST) rather than hardcoded, so an
+// override of that variable does not break every spec's sign-in for a
+// reason unrelated to what it tests (#916 Task 4). The IdP deliberately
+// sits on a DIFFERENT registrable domain from the app so every browser
+// request between them is cross-site, as it is in production. Matching on
+// the HOST alone — not the whole origin — keeps this working when
+// HELIVANTA_ZITADEL_PORT is shifted in a developer's .env.
+const ZITADEL_ORIGIN_HOST = ZITADEL_HOST;
 
 async function startSignIn(page: Page): Promise<void> {
   // Decide by where we actually ARE, not by racing a timeout. Since #847,

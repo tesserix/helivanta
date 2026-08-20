@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# Orchestrates the full e2e suite across its two mutually exclusive fixtures.
+# Orchestrates the full e2e suite across its mutually exclusive fixtures.
 #
 # idle-timeout.spec.ts (#848 Task 8) needs apps/shell's dev server pointed
-# at a short-IDLE_TIMEOUT API, and Next.js 16 refuses a second `next dev`
-# for the same project directory — so that fixture cannot run alongside
-# the main stack's own shell (see e2e/playwright.config.ts and the
-# Makefile's "Idle timeout e2e fixture" comment). This script runs the
-# suite in two phases instead: specs+bulk against the main stack, then a
-# swap (stop the zone apps -> start the fixture -> idle-timeout project ->
-# stop the fixture -> restart the zone apps).
+# at a short-IDLE_TIMEOUT API, and session-renewal.spec.ts (#916 Task 4)
+# needs one pointed at a short-SESSION_TTL API. Next.js 16 refuses a second
+# `next dev` for the same project directory, so neither fixture can run
+# alongside the main stack's own shell, or alongside each other (see
+# e2e/playwright.config.ts and the Makefile's two fixture comments). This
+# script runs the suite in three phases instead: specs+bulk against the
+# main stack, then one swap per fixture (stop the zone apps -> start the
+# fixture -> run its project -> stop the fixture), restoring the zone apps
+# at the end.
 #
 # Cleanup is unconditional (EXIT trap): a failure partway through must
 # still restore the zone apps and free the fixture's ports, or the
@@ -35,6 +37,12 @@ ZONE_PORTS=(4301 4302 4303 4304)
 API_PORT=${HELIVANTA_API_PORT:-8080}
 IDLE_API_PORT=${HELIVANTA_IDLE_API_PORT:-8099}
 IDLE_WEB_PORT=${HELIVANTA_IDLE_WEB_PORT:-4399}
+RENEWAL_API_PORT=${HELIVANTA_RENEWAL_API_PORT:-8098}
+RENEWAL_WEB_PORT=${HELIVANTA_RENEWAL_WEB_PORT:-4398}
+# The app host every URL below is checked on — see the Makefile's
+# HELIVANTA_WEB_HOST comment for why this is helivanta.localhost and not
+# localhost (#916 Task 4).
+WEB_HOST=${HELIVANTA_WEB_HOST:-helivanta.localhost}
 
 LOG_DIR=$(mktemp -d "${TMPDIR:-/tmp}/hms-e2e.XXXXXX")
 
@@ -122,13 +130,15 @@ restore_web() {
     # "/" rather than "/login": only apps/shell serves a login page
     # directly, the other three zone apps redirect an unauthenticated
     # request there — either way a response means the dev server is up.
-    wait_for_port "http://localhost:$port/" "zone app on :$port"
+    wait_for_port "http://$WEB_HOST:$port/" "zone app on :$port"
   done
 }
 
 teardown_fixture() {
   stop_port_if_ours "$IDLE_WEB_PORT" "dev-web-idle-timeout"
   stop_port_if_ours "$IDLE_API_PORT" "dev-api-idle-timeout"
+  stop_port_if_ours "$RENEWAL_WEB_PORT" "dev-web-renewal"
+  stop_port_if_ours "$RENEWAL_API_PORT" "dev-api-renewal"
 }
 
 cleanup() {
@@ -141,13 +151,27 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-require_port_up "$SHELL_PORT" "http://localhost:$SHELL_PORT/login" "main shell"
+# The stale-instance guard, before anything else. Zitadel writes its
+# instance domain ONCE at first provisioning and answers "Instance not
+# found" to any other host afterwards — the failure #916 Task 4 introduced
+# by moving the IdP off `localhost`. preflight.sh has the only legible
+# diagnosis of it, but it only ran on `make dev` / `make up`, and the
+# developer most likely to hit this is precisely the one who pulls this
+# branch and runs `make e2e` against a stack whose volume predates it:
+# every login in phase 1 would fail against a Zitadel that answers healthz
+# perfectly well, with nothing anywhere naming the hostname as the cause.
+#
+# Only this one check: the ports preflight would otherwise inspect are held
+# by the very stack this script requires to be up.
+bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-instance-domain
+
+require_port_up "$SHELL_PORT" "http://$WEB_HOST:$SHELL_PORT/login" "main shell"
 require_port_up "$API_PORT" "http://localhost:$API_PORT/healthz" "main API"
 
-echo "Phase 1/2 — specs + bulk against the main stack…"
+echo "Phase 1/3 — specs + bulk against the main stack…"
 pnpm --filter e2e exec playwright test --project=specs --project=bulk
 
-echo "Phase 2/2 — idle-timeout against its own API + shell…"
+echo "Phase 2/3 — idle-timeout against its own API + shell…"
 echo "Stopping main zone apps so the fixture can bind :$SHELL_PORT ..."
 for port in "${ZONE_PORTS[@]}"; do
   stop_port_if_ours "$port" "zone app on :$port"
@@ -157,12 +181,29 @@ echo "Starting idle-timeout fixture…"
 (cd "$REPO_ROOT" && nohup make dev-api-idle-timeout >"$LOG_DIR/dev-api-idle-timeout.log" 2>&1 &)
 (cd "$REPO_ROOT" && nohup make dev-web-idle-timeout >"$LOG_DIR/dev-web-idle-timeout.log" 2>&1 &)
 wait_for_port "http://localhost:$IDLE_API_PORT/healthz" "dev-api-idle-timeout"
-wait_for_port "http://localhost:$IDLE_WEB_PORT/login" "dev-web-idle-timeout"
+wait_for_port "http://$WEB_HOST:$IDLE_WEB_PORT/login" "dev-web-idle-timeout"
 
 pnpm --filter e2e exec playwright test --project=idle-timeout
 
 echo "Stopping idle-timeout fixture…"
 teardown_fixture
+
+# Phase 3 reuses the same swapped-out state phase 2 left behind — the zone
+# apps are still stopped, so nothing needs restoring in between. The
+# session-renewal fixture binds its OWN ports (RENEWAL_*), so the only
+# reason it cannot overlap phase 2 is Next.js's one-dev-server-per-project
+# rule, which teardown_fixture above has just satisfied.
+echo "Phase 3/3 — session-renewal against its own API + shell…"
+echo "Starting session-renewal fixture…"
+(cd "$REPO_ROOT" && nohup make dev-api-renewal >"$LOG_DIR/dev-api-renewal.log" 2>&1 &)
+(cd "$REPO_ROOT" && nohup make dev-web-renewal >"$LOG_DIR/dev-web-renewal.log" 2>&1 &)
+wait_for_port "http://localhost:$RENEWAL_API_PORT/healthz" "dev-api-renewal"
+wait_for_port "http://$WEB_HOST:$RENEWAL_WEB_PORT/login" "dev-web-renewal"
+
+pnpm --filter e2e exec playwright test --project=renewal
+
+echo "Stopping session-renewal fixture…"
+teardown_fixture
 restore_web
 
-echo "make e2e: both phases passed."
+echo "make e2e: all three phases passed."

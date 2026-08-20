@@ -101,6 +101,25 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	// zitadelLoginClient speaks Zitadel's v2 login-client API
+	// (internal/modules/iam/loginclient), authenticated with the PAT
+	// just resolved above. baseURL is cfg.ZitadelIssuerURL — the SAME
+	// Zitadel origin zitadelVerifier's OIDC discovery uses below —
+	// because loginclient's endpoints live on Zitadel's core API, not a
+	// separate host. http.DefaultClient matches every other
+	// loginclient.New call site in this codebase;
+	// loginclient.defaultTimeout bounds every call it makes, so this
+	// does not need its own per-request timeout.
+	//
+	// Constructed here, well before bootstrap.NewRegistry below, rather
+	// than at its original call site beside loginUIHandlers further
+	// down: #916's renewal route (iam/renew.go, design spec D3) needs
+	// this SAME client threaded into iam.Module.SetUserStateChecker via
+	// bootstrap.NewRegistry, and this file must construct exactly one
+	// *loginclient.Client, never a second — the same "one instance,
+	// shared" rule this file already applies to sessionVerifier,
+	// revocationChecker and limiter (see their own comments below).
+	zitadelLoginClient := loginclient.New(cfg.ZitadelIssuerURL, zitadelLoginClientToken, http.DefaultClient)
 	// Same class of check, same reason to run it here: a non-positive
 	// IDLE_TIMEOUT parses cleanly (so getenvDuration's mistyped-value
 	// fallback never sees it) and then fails closed at the worst possible
@@ -177,7 +196,7 @@ func run() error {
 	// middleware's cache silently never gets invalidated (#781).
 	revocationChecker := iam.NewRevocationChecker(db)
 
-	registry, err := bootstrap.NewRegistry(revocationChecker)
+	registry, err := bootstrap.NewRegistry(revocationChecker, zitadelLoginClient)
 	if err != nil {
 		return err
 	}
@@ -357,18 +376,10 @@ func run() error {
 		Limit:        bootstrap.LoginRateLimitRule(cfg),
 	})
 
-	// zitadelLoginClient speaks Zitadel's v2 login-client API
-	// (internal/modules/iam/loginclient), authenticated with the PAT
-	// resolved (and refused-to-boot-without) above. baseURL is
-	// cfg.ZitadelIssuerURL — the SAME Zitadel origin zitadelVerifier's
-	// OIDC discovery uses — because loginclient's endpoints
-	// (/v2/sessions, /v2/oidc/auth_requests/…) live on Zitadel's core
-	// API, not a separate host. http.DefaultClient matches every other
-	// loginclient.New call site in this codebase (loginui_test.go's
-	// newZitadelTestClient uses the test server's own equivalent);
-	// loginclient.defaultTimeout bounds every call it makes, so this
-	// does not need its own per-request timeout.
-	zitadelLoginClient := loginclient.New(cfg.ZitadelIssuerURL, zitadelLoginClientToken, http.DefaultClient)
+	// zitadelLoginClient is constructed once, well above (beside
+	// zitadelLoginClientToken), and reused here — see that construction
+	// site's comment for why this file must build exactly one
+	// *loginclient.Client.
 	// loginUIHandlers backs Helivanta's own login form (plan #854 Task 4,
 	// #867 Task 4): four unauthenticated routes reading an auth request
 	// (GET /v1/auth/login/request/:id), checking a password (POST

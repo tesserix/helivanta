@@ -3,9 +3,22 @@ import { resolve } from "node:path";
 
 import { test, expect } from "@playwright/test";
 
+import { SHELL_PORT, ZITADEL_ORIGIN, webOrigin } from "./support/hosts";
 import { login } from "./support/login";
 
-const ZITADEL_ORIGIN = "http://localhost:20080";
+// The IdP's origin and the app's, read from tests/support/hosts.ts — which
+// reads HELIVANTA_ZITADEL_HOST / HELIVANTA_WEB_HOST, the same variables the
+// Makefile and docker-compose.dev.yml use. Hardcoding them here would mean
+// any override of those variables broke this spec for a reason unrelated to
+// what it tests (#916 Task 4).
+//
+// They are different REGISTRABLE DOMAINS on purpose — see
+// e2e/tests/cross-site-harness.spec.ts. The redirect_uri built from
+// WEB_ORIGIN below must match what scripts/zitadel-bootstrap.mjs registered
+// on the helivanta-web app BYTE FOR BYTE, or Zitadel refuses the authorize
+// request outright and the credential-form assertion below fails for a
+// reason that has nothing to do with SSO teardown.
+const WEB_ORIGIN = webOrigin(SHELL_PORT);
 
 // The assertion that would have caught the original bug (#781): sign-out
 // used to only clear the transport cookie, leaving the client-side SDK's
@@ -48,7 +61,11 @@ test("a signed-out session cannot be reconstructed from the browser", async ({ p
   // DIFFERENT user could not sign in at all ("User not found in the
   // system"). So the assertion is that we settle on Helivanta's own /login,
   // signed out, rather than being carried onward to Zitadel.
-  await page.waitForURL(/localhost:4301\/login/, { timeout: 15_000 });
+  // A plain string, NOT new RegExp(`${WEB_ORIGIN}/login`): Playwright
+  // accepts a string and matches it exactly, whereas interpolating a host
+  // into a regex turns every dot in "helivanta.localhost" into a wildcard,
+  // so the assertion would also accept e.g. "helivantaXlocalhost".
+  await page.waitForURL(`${WEB_ORIGIN}/login`, { timeout: 15_000 });
   await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
 
   // Sign-out must end ZITADEL's SSO session, not merely Helivanta's own — or the
@@ -75,7 +92,7 @@ test("a signed-out session cannot be reconstructed from the browser", async ({ p
     .trim();
   const plainAuthorize =
     `${ZITADEL_ORIGIN}/oauth/v2/authorize?client_id=${clientId}` +
-    `&redirect_uri=${encodeURIComponent("http://localhost:4301/api/auth/callback")}` +
+    `&redirect_uri=${encodeURIComponent(`${WEB_ORIGIN}/api/auth/callback`)}` +
     `&response_type=code&scope=openid&state=s&nonce=n` +
     `&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256`;
 

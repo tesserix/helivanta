@@ -40,6 +40,12 @@ GO_MOD_VERSION=${GO_MOD_VERSION:-$GO_MIN}
 # grep. HELIVANTA_DEV_ZITADEL_MASTERKEY mirrors the Makefile's own default so a
 # bare `bash scripts/preflight.sh` with no Make involved still checks it.
 ZITADEL_MASTERKEY_CHECK=${HELIVANTA_DEV_ZITADEL_MASTERKEY:-HmsDevZitadelMasterKey32BytesXXX}
+# The host Zitadel is expected to answer on. Must match the Makefile's
+# HELIVANTA_ZITADEL_HOST and docker-compose.dev.yml's ZITADEL_EXTERNALDOMAIN —
+# see check_zitadel_instance_domain below for what goes wrong when it does
+# not, and why that failure is otherwise unreadable.
+ZITADEL_HOST_CHECK=${HELIVANTA_ZITADEL_HOST:-auth.tesserix.localhost}
+ZITADEL_PORT_CHECK=${HELIVANTA_ZITADEL_PORT:-20080}
 
 # Newline-delimited rather than an array: macOS ships bash 3.2, where
 # expanding an empty array under `set -u` is an error.
@@ -113,6 +119,92 @@ check_zitadel_masterkey() {
   fi
 }
 
+# Zitadel resolves its INSTANCE from the Host header, and writes its instance
+# domain exactly once — at first-instance provisioning. Change
+# HELIVANTA_ZITADEL_HOST (or docker-compose.dev.yml's ZITADEL_EXTERNALDOMAIN)
+# on a stack whose volume already exists and the container comes up perfectly
+# healthy while every request on the NEW host is answered "Instance not
+# found". That is not hypothetical: it is what every developer who already had
+# a stack hit exactly once when #916 Task 4 moved the IdP off `localhost`.
+#
+# It is also invisible where it happens. `make dev-infra` polls
+# /debug/healthz, which is instance-INDEPENDENT and answers 200 regardless, so
+# the wait succeeds; then scripts/zitadel-bootstrap.mjs dies inside
+# scripts/lib/zitadel.mjs's managementAPI with a raw
+# `HTTP 404 {"code":5,"message":"Instance not found"}` — no mention of
+# hostnames, of ZITADEL_EXTERNALDOMAIN, or of the one thing that fixes it
+# (`make reset`, which drops the volume).
+#
+# So this is the sibling of check_zitadel_masterkey above, and exists for the
+# identical reason: Zitadel does not fail legibly on this class of
+# misconfiguration, and this repo orders enforcement as boot failure >
+# documented convention. The README documents the constraint; this makes it a
+# control.
+#
+# NOT a failure when Zitadel is simply not running yet — that is the normal
+# state of a fresh clone before the first `make up`, and demanding a live
+# Zitadel here would block the very command that starts it. Only a Zitadel
+# that ANSWERS, and answers "Instance not found" for the configured host, is
+# a failure: that is unambiguously a stale volume, never a cold start.
+check_zitadel_instance_domain() {
+  # scripts/reset-dev.sh sets this. Its whole job is to DROP the volume and
+  # re-provision on the configured host, so a stale instance is this
+  # command's expected input, not a reason to refuse it. Without the escape
+  # hatch the check deadlocks the user: the failure message says "run
+  # RESET_YES=1 make reset", and reset-dev.sh runs preflight before it
+  # destroys anything, so that command would refuse for the very reason it
+  # was being run. A control that blocks its own remedy is a worse defect
+  # than the one it catches.
+  if [ "${PREFLIGHT_SKIP_ZITADEL_INSTANCE:-}" = "1" ]; then
+    ok "zitadel instance domain (skipped — this run re-provisions it)"
+    return
+  fi
+  local base="http://${ZITADEL_HOST_CHECK}:${ZITADEL_PORT_CHECK}"
+  if ! curl -fsS --max-time 3 "${base}/debug/healthz" >/dev/null 2>&1; then
+    ok "zitadel instance domain (not running yet — will be provisioned on ${ZITADEL_HOST_CHECK})"
+    return
+  fi
+  # An instance-SCOPED endpoint, unlike /debug/healthz. The OIDC discovery
+  # document is served per instance and needs no credential, so it answers
+  # 200 on a correctly-provisioned host and 404 "Instance not found" on a
+  # host this instance was never provisioned for.
+  local body
+  body=$(curl -sS --max-time 3 "${base}/.well-known/openid-configuration" 2>/dev/null || true)
+  case "$body" in
+    *"Instance not found"*)
+      fail "zitadel instance domain" \
+        "Zitadel is running but does not recognise the host '${ZITADEL_HOST_CHECK}' — its instance domain was written once, at first-instance provisioning, and cannot be changed in place. This is what a stale volume looks like after HELIVANTA_ZITADEL_HOST or ZITADEL_EXTERNALDOMAIN changed (#916 Task 4 moved the IdP off 'localhost'). Fix: 'RESET_YES=1 make reset', which drops the volume and re-provisions on the current host. Without it, 'make dev-infra' will pass its healthz wait and then die in scripts/zitadel-bootstrap.mjs with a bare 'HTTP 404 Instance not found'"
+      ;;
+    *issuer*)
+      ok "zitadel instance domain (${ZITADEL_HOST_CHECK})"
+      ;;
+    "")
+      # No body at all: the request did not complete (a connection reset
+      # mid-boot, a proxy that hung up). healthz answered a moment ago, so
+      # this is a Zitadel still coming up, not a host it does not know —
+      # "Instance not found" is a body, and a 404 with one would have
+      # matched the case above. This is the ONLY shape treated as
+      # provisioning.
+      ok "zitadel instance domain (still provisioning on ${ZITADEL_HOST_CHECK})"
+      ;;
+    *)
+      # Anything else: a body that is neither a discovery document nor a
+      # recognised error. Review finding — this used to share the
+      # provisioning branch, which made the default answer of a fail-closed
+      # guard "assume it is fine". That is fail-OPEN inside a control whose
+      # entire job is to catch one unreadable misconfiguration: a Zitadel
+      # that starts answering the not-found case with different wording, or
+      # an intercepting proxy returning its own error page, would silently
+      # print `ok` and hand the developer back the bare 404 this check
+      # exists to translate. Unrecognised now means FAIL, and the message
+      # quotes what actually came back so the next reader can decide
+      # whether it is a new error shape or a new success shape.
+      fail "zitadel instance domain" \
+        "Zitadel answered /debug/healthz on '${ZITADEL_HOST_CHECK}' but its OIDC discovery document at ${base}/.well-known/openid-configuration was not recognisable (no \`issuer\` field, and not the 'Instance not found' error either). This check cannot confirm the instance is provisioned for this host, and it refuses to guess — see check_zitadel_instance_domain in this file. Response body was: $(printf '%s' "${body}" | head -c 200)"
+      ;;
+  esac
+}
+
 # Nothing here checks a registry token. @tesserix/web moved to the PUBLIC npm
 # registry (#866/#868) and the repo-local .npmrc that pinned the scope to
 # GitHub Packages is gone, so `pnpm install` on a fresh clone needs no
@@ -161,6 +253,7 @@ main() {
   check_node
   check_pnpm
   check_zitadel_masterkey
+  check_zitadel_instance_domain
   check_lsof
   check_ports
 
@@ -175,9 +268,39 @@ main() {
   return 0
 }
 
+# run_one CHECK — run a single named check and exit non-zero if it failed.
+#
+# Exists for `make dev-infra`, which needs check_zitadel_instance_domain at a
+# moment `make up`'s preflight cannot cover it: preflight runs BEFORE
+# `docker compose up`, so on the `make down` -> pull -> `make dev-infra`
+# path Zitadel is not answering yet and the check correctly reports "not
+# running yet — will be provisioned". The stale instance only becomes
+# observable once the container is up, which is after the healthz wait and
+# before scripts/zitadel-bootstrap.mjs — exactly where dev-infra calls this.
+# Re-probing there costs one HTTP request and turns the bare
+# `HTTP 404 {"code":5,"message":"Instance not found"}` into the message
+# check_zitadel_instance_domain already writes.
+run_one() {
+  case "$1" in
+    zitadel-instance-domain) check_zitadel_instance_domain ;;
+    *) echo "preflight: unknown check '$1'" >&2; return 2 ;;
+  esac
+  if [ -n "$FAILURES" ]; then
+    echo
+    echo "Cannot continue — fix this first:"
+    printf '%s' "$FAILURES"
+    return 1
+  fi
+  return 0
+}
+
 # Guarded so the test harness can source this file and call one check at a
 # time without running the whole suite.
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  if [ "${1:-}" = "--only" ]; then
+    run_one "${2:-}"
+    exit $?
+  fi
   main "$@"
   exit $?
 fi

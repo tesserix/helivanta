@@ -70,7 +70,7 @@ type Config struct {
 	// properties.
 	ZitadelLoginClientToken string
 	// ZitadelHostedLoginURL is Zitadel's own hosted login origin+path
-	// (e.g. http://localhost:20080/ui/v2/login) — the target
+	// (e.g. http://auth.tesserix.localhost:20080/ui/v2/login) — the target
 	// LoginUIHandlers.Handoff (and a Password call that resolves to
 	// OutcomeHandoff) redirect the browser to when Helivanta's own login form
 	// cannot complete a sign-in itself (an enrolled second factor Zitadel
@@ -199,10 +199,14 @@ type Config struct {
 	// verified Zitadel subject (#841) — a separate knob from
 	// RateLimitPrincipalPerMin because login runs entirely outside
 	// bootstrap.V1Chain (there is no authn.Principal yet for
-	// ratelimit.Middleware to key on) and is sized off renewal traffic,
-	// not general API traffic — see
+	// ratelimit.Middleware to key on). #916 moved renewal traffic off
+	// this route onto POST /v1/auth/renew (RateLimitRenewPerMin below,
+	// bootstrap/ratelimit.go's RenewRateLimitRule) — this knob is now
+	// sized off genuine sign-in exchange clustering, not renewal traffic
+	// — see
 	// docs/superpowers/specs/2026-08-16-login-rate-limit-design.md D2 for
-	// the arithmetic behind the default.
+	// the arithmetic behind the default, and bootstrap/ratelimit.go's
+	// LoginRateLimitRule for the current, restated reasoning.
 	RateLimitLoginPerMin int
 	// RateLimitActivityPerMin bounds POST /v1/auth/session/activity
 	// (#848 Task 4), keyed on the authenticated subject — a separate
@@ -224,6 +228,17 @@ type Config struct {
 	// bootstrap.FactorRateLimitRule for the arithmetic behind the
 	// default.
 	RateLimitFactorPerMin int
+	// RateLimitRenewPerMin bounds POST /v1/auth/renew (#916 Task 2
+	// Review Round 1, IMPORTANT 3), keyed on the authenticated subject.
+	// A separate knob from RateLimitPrincipalPerMin because one call to
+	// this route is one call to Zitadel's core API on the instance-wide
+	// login-client PAT — a shared external resource this route uniquely
+	// threatens, the exact criterion RateLimitLoginPerMin's own doc
+	// comment (and the tenant-switch history bootstrap.ratelimit.go
+	// records) uses to decide a route needs its own budget rather than
+	// drawing from Principal. See bootstrap.RenewRateLimitRule for the
+	// arithmetic behind the default.
+	RateLimitRenewPerMin int
 
 	// TrustedProxyCIDRs is the raw value of TRUSTED_PROXY_CIDRS, a
 	// comma-separated list of CIDR blocks — e.g. the production pod
@@ -299,14 +314,14 @@ func Load() Config {
 		OpenFGAURL:        getenv("OPENFGA_URL", "http://localhost:8090"),
 		OpenFGAStore:      getenv("OPENFGA_STORE", "helivanta"),
 
-		ZitadelIssuerURL: getenv("ZITADEL_ISSUER_URL", "http://localhost:20080"),
+		ZitadelIssuerURL: getenv("ZITADEL_ISSUER_URL", "http://auth.tesserix.localhost:20080"),
 		ZitadelClientID:  getenv("ZITADEL_CLIENT_ID", ""),
 
 		// os.Getenv, not getenv(): mirrors SessionSigningKey immediately
 		// below — this PAT must never have a default (see
 		// ZitadelLoginClientToken's doc comment on exactly why).
 		ZitadelLoginClientToken: os.Getenv("ZITADEL_LOGIN_CLIENT_TOKEN"),
-		ZitadelHostedLoginURL:   getenv("ZITADEL_HOSTED_LOGIN_URL", "http://localhost:20080/ui/v2/login"),
+		ZitadelHostedLoginURL:   getenv("ZITADEL_HOSTED_LOGIN_URL", "http://auth.tesserix.localhost:20080/ui/v2/login"),
 		// os.Getenv, not getenv(): see HelivantaWebOrigin's doc comment just
 		// above — RequireDistinctHostedLoginOrigin (hostedlogin.go), not
 		// Load(), is where an unset value is resolved, and it resolves
@@ -331,6 +346,7 @@ func Load() Config {
 		RateLimitLoginPerMin:     getenvInt("RATE_LIMIT_LOGIN_PER_MIN", 20),
 		RateLimitActivityPerMin:  getenvInt("RATE_LIMIT_ACTIVITY_PER_MIN", 10),
 		RateLimitFactorPerMin:    getenvInt("RATE_LIMIT_FACTOR_PER_MIN", 10),
+		RateLimitRenewPerMin:     getenvInt("RATE_LIMIT_RENEW_PER_MIN", 6),
 
 		TrustedProxyCIDRs: getenvCIDRList("TRUSTED_PROXY_CIDRS"),
 	}

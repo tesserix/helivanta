@@ -1,5 +1,12 @@
 import { defineConfig } from "@playwright/test";
 
+import {
+  IDLE_TIMEOUT_WEB_PORT,
+  RENEWAL_WEB_PORT,
+  SHELL_PORT,
+  webOrigin,
+} from "./tests/support/hosts";
+
 // Assumes infra + API + shell + medicore already running (make dev, make seed).
 // The "idle-timeout" project additionally assumes
 // `make dev-api-idle-timeout` and `make dev-web-idle-timeout` are running —
@@ -44,7 +51,7 @@ const BULK_SPECS = /(pagination|ratelimit)\.spec\.ts/;
 // value) rather than the shared instance the "specs"/"bulk" projects
 // assume is already up. A dedicated PROJECT — not just a dedicated test
 // file — is what lets it point `baseURL` at that second shell instance
-// without touching the other two projects' `http://localhost:4301`.
+// without touching the other projects' own base URL.
 //
 // That fixture cannot run ALONGSIDE the main stack, though: both it and
 // "specs"/"bulk" serve apps/shell via `next dev`, and Next.js 16 refuses a
@@ -63,7 +70,36 @@ const BULK_SPECS = /(pagination|ratelimit)\.spec\.ts/;
 // / dev-web-idle-timeout) for `--project=idle-timeout`, then a swap back —
 // see scripts/e2e.sh.
 const IDLE_TIMEOUT_SPEC = /idle-timeout\.spec\.ts/;
-const IDLE_TIMEOUT_BASE_URL = "http://localhost:4399"; // Makefile's HELIVANTA_IDLE_WEB_PORT
+
+// session-renewal.spec.ts (#916 Task 4) needs a SHORT SESSION_TTL to prove
+// a session outlives its own TTL because a renewal actually re-minted it —
+// and, like idle-timeout, every OTHER spec and production need that
+// default left alone. So it too runs against its own API + shell pair
+// (Makefile's dev-api-renewal / dev-web-renewal, see the Makefile's
+// "Session-renewal e2e fixture" comment) and gets its own PROJECT, for the
+// same reason and with the same Next.js "one dev server per project
+// directory" constraint: it cannot run alongside the main stack's shell
+// either, so scripts/e2e.sh runs it as a third phase and the default
+// project-less run filters it out below.
+const RENEWAL_SPEC = /session-renewal\.spec\.ts/;
+
+// Every base URL is built from tests/support/hosts.ts, which reads
+// HELIVANTA_WEB_HOST from the environment — the SAME variable the Makefile
+// and docker-compose.dev.yml use. Not localhost (#916 Task 4, design spec
+// D6): the app and the IdP sit on DIFFERENT registrable domains so browser
+// requests between them are cross-site exactly as they are in production
+// (helivanta.app vs auth.tesserix.app). A "site" is scheme + registrable
+// domain and ports are not part of it, so the old localhost:4301 /
+// localhost:20080 pair was same-site and could never have exercised #916.
+//
+// cross-site-harness.spec.ts derives the hosts it probes from THIS
+// baseURL and from the configured issuer, so it asserts about the stack
+// that is actually running rather than about two string literals — an
+// override that collapses the two onto one registrable domain fails there
+// instead of silently re-blinding the suite.
+const BASE_URL = webOrigin(SHELL_PORT);
+const IDLE_TIMEOUT_BASE_URL = webOrigin(IDLE_TIMEOUT_WEB_PORT);
+const RENEWAL_BASE_URL = webOrigin(RENEWAL_WEB_PORT);
 const PROJECT_FLAG_GIVEN = process.argv.some(
   (arg) => arg === "--project" || arg.startsWith("--project="),
 );
@@ -71,17 +107,19 @@ const PROJECT_FLAG_GIVEN = process.argv.some(
 export default defineConfig({
   testDir: "./tests",
   timeout: 60_000,
-  use: { baseURL: "http://localhost:4301" },
+  use: { baseURL: BASE_URL },
   // Only a project-less run (bare `playwright test`) gets filtered — an
   // explicit `--project=idle-timeout` (or `=specs`/`=bulk`) is already
   // scoped by Playwright's own project-name matching, and stacking
   // grepInvert on top of that would filter idle-timeout.spec.ts OUT of
   // the very project someone just asked for by name.
-  grepInvert: PROJECT_FLAG_GIVEN ? undefined : IDLE_TIMEOUT_SPEC,
+  grepInvert: PROJECT_FLAG_GIVEN
+    ? undefined
+    : new RegExp(`${IDLE_TIMEOUT_SPEC.source}|${RENEWAL_SPEC.source}`),
   projects: [
     {
       name: "specs",
-      testIgnore: [BULK_SPECS, IDLE_TIMEOUT_SPEC],
+      testIgnore: [BULK_SPECS, IDLE_TIMEOUT_SPEC, RENEWAL_SPEC],
     },
     {
       name: "bulk",
@@ -92,6 +130,11 @@ export default defineConfig({
       name: "idle-timeout",
       testMatch: IDLE_TIMEOUT_SPEC,
       use: { baseURL: IDLE_TIMEOUT_BASE_URL },
+    },
+    {
+      name: "renewal",
+      testMatch: RENEWAL_SPEC,
+      use: { baseURL: RENEWAL_BASE_URL },
     },
   ],
 });

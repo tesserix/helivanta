@@ -117,15 +117,39 @@ around the typed `apiFetch<T>` client (`packages/api/src/client.ts`).
 Raw `fetch`, `useState` + manual loading flags, or a hand-rolled
 `setInterval` for polling are not used in application components —
 `useApiQuery`, `useApiMutation`, and the shared `POLL_INTERVAL_MS`
-constant cover every case those patterns used to. The sole sanctioned
-exception is the shell's session route, `POST /api/session` — it's an
-auth route outside the `/api/v1` envelope, so it uses raw `fetch`
-directly. Two callers post to it, both shell-owned and both for the same
-reason (install a freshly minted ID token as the `hms_session` cookie):
-login (`apps/shell/app/login/page.tsx`) and the tenant switcher
-(`apps/shell/components/tenant-picker.tsx`), which re-mints the session
-after the backend authorizes a switch. Anything that is not "exchange an
-ID token for the session cookie" goes through `@helivanta/api`.
+constant cover every case those patterns used to. The sanctioned
+exception is a small, closed set of shell-owned **auth-lifecycle**
+routes that sit outside the `/api/v1` envelope's ordinary contract —
+each installs or renews the `helivanta_session` cookie itself via the
+backend's own `Set-Cookie`, rather than reading or mutating panel data,
+so wrapping them in TanStack Query's cache/retry machinery would be
+wrong, not just unnecessary. Today that set is exactly two functions,
+both in `apps/shell/lib/`, both documented at their own definition:
+- `exchangeIdToken` (`lib/auth-exchange.ts`) — `POST /v1/auth/login`,
+  called once, by the login callback
+  (`app/api/auth/callback/page.tsx`), to exchange a fresh Zitadel ID
+  token for a Helivanta session on first login.
+- `renewSession` (`lib/renew.ts`) — `POST /v1/auth/renew`, called on a
+  timer by `components/session-renewal.tsx` (#916, design spec D1) to
+  re-mint the existing session from its own cookie; no ID token, no
+  Zitadel round trip through the browser at all.
+
+The timer itself is the other half of this exception, and it is named
+explicitly rather than left implied: `session-renewal.tsx` schedules
+`renewSession` with a **self-rescheduling `setTimeout` loop**, which is
+the same hand-rolled polling this section bans everywhere else. It is
+sanctioned here for the same reason the raw `fetch` is — the cadence comes
+from the server's own `renew_at` on each response (`nextRenewalDelayMs`,
+`lib/renew.ts`), so it is a variable-interval schedule the API dictates,
+not a fixed `POLL_INTERVAL_MS` refetch of cached data, and TanStack
+Query's `refetchInterval` cannot express it without fighting the cache.
+Nothing else in any app may schedule its own timer this way.
+(The tenant switcher, `apps/shell/components/tenant-picker.tsx`, also
+re-mints the session via its own `Set-Cookie` response — but does so
+through `apiFetch`/`useApiMutation` like an ordinary `/api/v1` mutation,
+since `POST /iam/me/tenant` IS inside the standard envelope; it is not
+part of this raw-fetch exception.) Anything that is not one of these two
+auth-lifecycle exchanges goes through `@helivanta/api`.
 
 `useApiQuery<T>(key, path, opts?)` takes a TanStack query key, the
 API path (appended to the fixed `/api/v1` prefix), and an optional
@@ -435,8 +459,8 @@ holding it.
 
 For the same reason `login()` proves the session against the API
 (`GET /api/v1/iam/me/permissions`) rather than against the dashboard
-heading: `apps/shell/middleware.ts` admits any request carrying an
-`hms_session` cookie without inspecting it, so the dashboard renders
+heading: `apps/shell/middleware.ts` admits any request carrying a
+`helivanta_session` cookie without inspecting it, so the dashboard renders
 perfectly well for a session the API refuses on every call.
 
 Before calling any frontend change done, run:

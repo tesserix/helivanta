@@ -32,9 +32,14 @@ import (
 // cmd/api constructs exactly one *iam.RevocationChecker and passes it
 // both here and to authn.Middleware; cmd/migrate, which never serves a
 // request, passes nil.
-func Modules(revocationChecker *iam.RevocationChecker) []platform.Module {
+//
+// userState is handed to iam.Module.SetUserStateChecker so POST
+// /v1/auth/renew (#916, design spec D3) re-checks the SAME Zitadel
+// login-client PAT identity cmd/api constructs once, rather than a
+// second client. cmd/migrate, which never serves a request, passes nil.
+func Modules(revocationChecker *iam.RevocationChecker, userState iam.UserStateChecker) []platform.Module {
 	return []platform.Module{
-		iam.New(revocationChecker),
+		iam.New(revocationChecker).SetUserStateChecker(userState),
 		reference.New(),
 		medicore.New(),
 		pharmacy.New(),
@@ -43,11 +48,11 @@ func Modules(revocationChecker *iam.RevocationChecker) []platform.Module {
 }
 
 // NewRegistry builds a *platform.Registry pre-populated with
-// Modules(revocationChecker). Both cmd/api and cmd/migrate call this
-// instead of hand-rolling the registration loop.
-func NewRegistry(revocationChecker *iam.RevocationChecker) (*platform.Registry, error) {
+// Modules(revocationChecker, userState). Both cmd/api and cmd/migrate
+// call this instead of hand-rolling the registration loop.
+func NewRegistry(revocationChecker *iam.RevocationChecker, userState iam.UserStateChecker) (*platform.Registry, error) {
 	reg := platform.NewRegistry()
-	for _, m := range Modules(revocationChecker) {
+	for _, m := range Modules(revocationChecker, userState) {
 		if err := reg.Register(m); err != nil {
 			return nil, err
 		}

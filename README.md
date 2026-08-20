@@ -61,7 +61,8 @@ switching is exercisable end to end: OpenFGA
 already carries both memberships, and `POST /v1/iam/me/tenant` re-mints the
 session for either without an IdP round trip (spec D3).
 
-Sign in at http://localhost:4301/login. The shell redirects to Zitadel's
+Sign in at http://helivanta.localhost:4301/login (**not** `localhost:4301` —
+see "Hosts" below). The shell redirects to Zitadel's
 hosted login (authorization code + PKCE), and the callback exchanges the ID
 token for a Helivanta session via `POST /v1/auth/login` — the API mints and
 sets the cookie, so the browser never holds an IdP token as its session.
@@ -94,6 +95,52 @@ otherwise a forged session would be accepted in what looks like production.
 `make dev-api` (and therefore `make up`) sets `HELIVANTA_ENV=dev` for you; a bare
 `go run ./cmd/api` does not, so set it yourself when running the API outside
 `make`.
+
+Hosts. The stack serves the app at **`helivanta.localhost`** and Zitadel at
+**`auth.tesserix.localhost`**. Neither needs an `/etc/hosts` entry — Chrome and
+macOS both resolve `*.localhost` to loopback, and Chrome still treats it as a
+secure context. Use those hostnames, not `localhost`: Zitadel resolves its
+instance from the `Host` header and answers "Instance not found" to anything
+else, and the app's OIDC redirect URIs are registered against
+`helivanta.localhost` byte-for-byte.
+
+This is deliberate, and it is not cosmetic (#916, design spec D6). Production
+serves the app at `helivanta.app` and the IdP at `auth.tesserix.app` —
+**different registrable domains**, so every browser request from the app to the
+IdP is *cross-site* and a `SameSite=Lax` IdP cookie is withheld. The old dev
+setup put both on `localhost` and differed only by port, and **ports are not
+part of a "site"** — so dev was *same-site*, a cross-site defect worked
+perfectly here, and #916 reached production with no test able to fail.
+`helivanta.localhost` and `tesserix.localhost` are distinct registrable domains,
+so dev now reproduces production's relationship;
+`e2e/tests/cross-site-harness.spec.ts` proves it against a real browser rather
+than assuming it.
+
+Override via `HELIVANTA_WEB_HOST` / `HELIVANTA_ZITADEL_HOST` if these names
+collide with something on your machine — every consumer reads those variables
+rather than a literal (compose, `scripts/zitadel-bootstrap.mjs`, the API's
+whole Zitadel configuration — `ZITADEL_ISSUER_URL`,
+`ZITADEL_HOSTED_LOGIN_URL` and `HELIVANTA_WEB_ORIGIN` are all derived from
+these two variables in the Makefile and exported, so no hardcoded dev
+default in `backend/internal/config/` can answer for a stale host —
+`scripts/e2e.sh`, `scripts/lib/zitadel.mjs`'s dev redirect URIs, and the e2e
+suite via `e2e/tests/support/hosts.ts` — which reads `.env` itself
+(`load-env.ts`) so the guard sees your override even on the Make-less
+`pnpm --filter e2e exec playwright test` path), so an override is honoured end
+to end. Verified rather than asserted: the whole
+stack was re-provisioned on a third hostname and `make e2e` passed all three
+phases against it. What you
+may **not** do is point both at the same registrable domain: that returns the
+harness to same-site and makes #916's class of defect invisible again.
+`cross-site-harness.spec.ts` derives the hosts it probes from the running
+configuration and fails if you try, so this is a control rather than a request.
+
+Changing `HELIVANTA_ZITADEL_HOST` on an already-provisioned stack needs
+`RESET_YES=1 make reset`: Zitadel writes its instance domain once, at
+first-instance time, and answers "Instance not found" to any other host
+afterwards. `scripts/preflight.sh` checks for exactly that and tells you, so
+`make up` fails with the cause and the fix rather than with a bare
+`HTTP 404 Instance not found` from the bootstrap script.
 
 Ports (defaults): shell 4301, medicore 4302, pharmacy 4303, lab 4304, API
 8080, Postgres 5432, NATS 4222 (monitoring 8222), Redis 6379, OpenFGA 8090,

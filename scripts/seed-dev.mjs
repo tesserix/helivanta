@@ -62,7 +62,7 @@ import {
 } from "./lib/zitadel.mjs";
 import { generateTOTP } from "./lib/totp.mjs";
 
-const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://localhost:20080";
+const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://auth.tesserix.localhost:20080";
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 // St Mary's, the second hospital test@helivanta.dev works at. The e2e tenant
 // switch journey (e2e/tests/tenant-switch.spec.ts) hard-codes this id.

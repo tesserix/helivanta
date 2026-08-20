@@ -167,7 +167,7 @@ func TestPublishedSubjectConstants(t *testing.T) {
 // constructor is both the fix and the simpler check.
 func TestMainRegistersExactlyAllModules(t *testing.T) {
 	registered := map[string]bool{}
-	for _, m := range bootstrap.Modules(nil) {
+	for _, m := range bootstrap.Modules(nil, nil) {
 		registered[m.Name()] = true
 	}
 	if len(registered) == 0 {
@@ -304,6 +304,9 @@ var noTenantMembershipAllowlist = map[string]string{
 	"POST /iam/me/sign-out":   "a revoked member must still be able to end their own session (iam/signout.go signOut)",
 	"POST /auth/session/activity": "extends idle_deadline for a caller who is genuinely still present; " +
 		"has nothing to do with what they are a member of (#848 Task 4, iam/activity.go)",
+	"POST /auth/renew": "runs its OWN ListRoles/hasBindingForTenant membership re-check, the exact " +
+		"mechanism Login uses, so RequireMembership's differently-shaped IsMember check must not " +
+		"run ahead of it (#916, iam/renew.go)",
 }
 
 // TestNoTenantMembershipAllowlist pins the set of routes permitted to

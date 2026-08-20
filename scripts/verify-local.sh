@@ -8,7 +8,20 @@ set -uo pipefail
 # works run standalone with no .env present.
 OPENFGA_PORT=${HELIVANTA_OPENFGA_PORT:-8090}
 ZITADEL_PORT=${HELIVANTA_ZITADEL_PORT:-20080}
+# Zitadel resolves its INSTANCE from the Host header, so it must be reached on
+# the same host its issuer is stamped with — see the Makefile's
+# HELIVANTA_ZITADEL_HOST comment and the README's "Hosts" section (#916 Task 4).
+ZITADEL_HOST=${HELIVANTA_ZITADEL_HOST:-auth.tesserix.localhost}
 API_PORT=${HELIVANTA_API_PORT:-8080}
+# The host the apps are served on. Read from the environment for the SAME
+# reason ZITADEL_HOST above is (#916 Task 4): these two must be different
+# registrable domains, and a developer who overrides one has to be able to
+# override the other. Every app URL below is built from it — an earlier
+# version read the variable here and then wrote `helivanta.localhost` into
+# four literals anyway, which made the comment at the zone checks argue
+# against what the lines under it actually did, and made an override print
+# a sign-in URL the developer's stack does not serve.
+WEB_HOST=${HELIVANTA_WEB_HOST:-helivanta.localhost}
 
 fail=0
 
@@ -34,6 +47,23 @@ check() {
   fail=1
 }
 
+# Zitadel writes its instance domain ONCE, at first-instance provisioning,
+# and answers "Instance not found" to every other host afterwards — the
+# stale-volume failure #916 Task 4 introduced by moving the IdP off
+# `localhost`. scripts/preflight.sh has the only legible diagnosis of it,
+# and `make verify-local` did not run preflight at all: the zitadel check
+# below probes /debug/healthz, which is instance-INDEPENDENT and answers 200
+# on a stale volume, so this script printed `ok zitadel` and then failed
+# opaquely in the authenticated round trip at the bottom. Running the one
+# relevant check here, before the misleading `ok`, is the whole fix.
+#
+# Only that check, not the whole preflight: this script's precondition is a
+# stack that is already UP, so preflight's port checks would be reporting on
+# ports our own stack legitimately holds, and its toolchain checks were
+# satisfied before `make dev` ever ran.
+echo "Preflight (stale-instance guard only — see comment above):"
+bash "$(dirname "${BASH_SOURCE[0]}")/preflight.sh" --only zitadel-instance-domain || fail=1
+
 echo "Infrastructure:"
 docker compose -f docker-compose.dev.yml ps --status running --format '  ok    {{.Service}}' || fail=1
 check "openfga"          "http://localhost:$OPENFGA_PORT/healthz"
@@ -42,7 +72,7 @@ check "openfga"          "http://localhost:$OPENFGA_PORT/healthz"
 # zitadel service comment): it reports "not ready" even while serving real
 # traffic, so trusting it here would produce the exact false FAIL this
 # script's whole retry-with-attempts design exists to avoid.
-check "zitadel"           "http://localhost:$ZITADEL_PORT/debug/healthz"
+check "zitadel"           "http://$ZITADEL_HOST:$ZITADEL_PORT/debug/healthz"
 
 echo "Backend:"
 # The API exposes /healthz and /readyz (backend/internal/httpserver/server.go)
@@ -56,10 +86,17 @@ echo "Frontend zones:"
 #
 # 10 attempts x 20s covers a cold `next dev` first-request compile, which
 # routinely exceeds the 5s the backend checks use.
-check "shell    (4301)"  "http://localhost:4301/login"    10 20
-check "medicore (4302)"  "http://localhost:4302/medicore" 10 20
-check "pharmacy (4303)"  "http://localhost:4303/pharmacy" 10 20
-check "lab      (4304)"  "http://localhost:4304/lab"      10 20
+# $WEB_HOST (helivanta.localhost by default), not localhost (#916 Task 4,
+# design spec D6): the shell's OIDC redirect URIs are registered against that
+# host, so this is the origin a developer must actually use — checking
+# `localhost` here would pass (Next binds every interface) while a human
+# following the printed URL below could not complete a sign-in. The three zone
+# apps have no OIDC registration of their own, but use the same host so one
+# origin is quoted throughout.
+check "shell    (4301)"  "http://$WEB_HOST:4301/login"    10 20
+check "medicore (4302)"  "http://$WEB_HOST:4302/medicore" 10 20
+check "pharmacy (4303)"  "http://$WEB_HOST:4303/pharmacy" 10 20
+check "lab      (4304)"  "http://$WEB_HOST:4304/lab"      10 20
 
 # One authenticated round trip, at the API level (#838 Task 6). This used
 # to go through the shell's own /api/session route (issue #772) — every
@@ -84,8 +121,10 @@ check "lab      (4304)"  "http://localhost:4304/lab"      10 20
 # earlier.
 #
 # Deliberately NOT re-verified here: the browser redirect flow
-# (/login -> Zitadel -> /api/auth/callback) and silent renewal. Those are
-# the Playwright suite's job — `pnpm --filter e2e exec playwright test`.
+# (/login -> Zitadel -> /api/auth/callback) and session renewal (POST
+# /v1/auth/renew, #916 — no longer a browser-side silent-renew flow at all).
+# Those are the Playwright suite's job — `make e2e`, which runs all three
+# phases; `pnpm --filter e2e exec playwright test` runs only the first.
 echo "Authenticated round trip (API-level — see script comment for what this does and does not cover):"
 node scripts/zitadel-verify-login.mjs || fail=1
 
@@ -96,7 +135,7 @@ if [ "$fail" -eq 0 ]; then
   # 302 — since #854 the credential form that actually renders is Helivanta's own
   # /login. Saying "you will be redirected to Zitadel" here read as though a
   # hosted Zitadel page were expected, which would now be a defect.
-  echo "Sign in at http://localhost:4301 — the sign-in form is Helivanta's own /login."
+  echo "Sign in at http://$WEB_HOST:4301 — the sign-in form is Helivanta's own /login."
   echo "Zitadel accounts, login-verified by 'make seed':"
   echo "  test@helivanta.dev       / HmsDev123!  (tenant_admin)"
   echo "  pharmacist@helivanta.dev / HmsDev123!  (pharmacist)"

@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { PERMISSIONS_CACHE_KEY } from "@helivanta/api";
+import { PERMISSIONS_CACHE_KEY, loadRenewAt } from "@helivanta/api";
 import AuthCallbackPage from "./page";
 
 const signinRedirectCallback = vi.hoisted(() => vi.fn());
@@ -16,6 +16,7 @@ describe("AuthCallbackPage", () => {
     replace.mockReset();
     getUserManager.mockReturnValue({ signinRedirectCallback });
     window.localStorage.clear();
+    window.sessionStorage.clear();
   });
 
   it("exchanges a successfully validated id_token and redirects to the dashboard", async () => {
@@ -35,6 +36,51 @@ describe("AuthCallbackPage", () => {
         body: JSON.stringify({ id_token: "real-id-token" }),
       }),
     );
+    vi.unstubAllGlobals();
+  });
+
+  // #916 Task 4, F3. This page is the ONLY place the server's first
+  // renewal schedule can be captured: components/session-renewal.tsx is
+  // deliberately not mounted on the auth-callback route, so by the time
+  // it does mount, this response is gone. Dropping this store is not a
+  // visible failure — the renewal loop silently reverts to a hardcoded
+  // five-minute interval, which outlives any SESSION_TTL shorter than
+  // that and logs every clinician out mid-session. Hence an explicit
+  // assertion here rather than trusting the call site.
+  it("stores the server's renew_at so the first renewal follows SESSION_TTL", async () => {
+    const renewAt = "2026-08-20T04:12:06.000Z";
+    signinRedirectCallback.mockResolvedValue({ id_token: "real-id-token" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ tenant_id: "t1", renew_at: renewAt }),
+      }),
+    );
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(loadRenewAt()?.toISOString()).toBe(renewAt);
+    vi.unstubAllGlobals();
+  });
+
+  // The compatibility direction: a login response without the field must
+  // still sign the clinician in. renew_at is additive, and a response
+  // that loses it degrades to the documented fallback cadence rather
+  // than throwing out of the sign-in path.
+  it("signs in normally when the login response carries no renew_at", async () => {
+    signinRedirectCallback.mockResolvedValue({ id_token: "real-id-token" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ tenant_id: "t1" }) }),
+    );
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(loadRenewAt()).toBeUndefined();
     vi.unstubAllGlobals();
   });
 

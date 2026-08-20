@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
-import { PERMISSIONS_CACHE_KEY } from "@helivanta/api";
+import { PERMISSIONS_CACHE_KEY, RENEW_AT_KEY, storeRenewAt } from "@helivanta/api";
 import { HmsShell } from "./hms-shell";
 import { WARNING_LEAD_MS, type IdleTracker } from "./idle-timer";
 import { IDLE_ENDED_MARK, SIGNED_OUT_MARK } from "./zitadel-session";
@@ -139,6 +139,25 @@ describe("HmsShell", () => {
     // can end up set).
     await waitFor(() => expect(endZitadelSession).toHaveBeenCalledWith(SIGNED_OUT_MARK));
     expect(endZitadelSession).toHaveBeenCalledTimes(1);
+  });
+
+  // #781's rule is that a signed-out session must not be reconstructable
+  // from anything the browser kept, and #916 Task 4 gave the browser one
+  // more thing to keep: the server's renewal schedule
+  // (packages/api's renew-schedule.ts). It is not a credential and holds no
+  // PHI, so leaving it was never a vulnerability — it is cleared so the
+  // property holds with no exceptions, and asserted HERE because the unit
+  // test on clearRenewAt() proves only that the function works, not that
+  // sign-out ever calls it.
+  it("drops the stored renewal schedule on sign-out", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200 }));
+    storeRenewAt(new Date(Date.now() + 60_000).toISOString());
+    expect(window.sessionStorage.getItem(RENEW_AT_KEY)).not.toBeNull();
+
+    const { user } = renderWithProviders(<HmsShell active="/">content</HmsShell>);
+    await user.click(screen.getByLabelText("Sign out"));
+
+    await waitFor(() => expect(window.sessionStorage.getItem(RENEW_AT_KEY)).toBeNull());
   });
 
   // endZitadelSession() itself owns the same-origin fallback when it
@@ -587,6 +606,44 @@ describe("HmsShell", () => {
       // HmsShell asks for the right mark.
       expect(endZitadelSession).toHaveBeenCalledWith(IDLE_ENDED_MARK);
       expect(endZitadelSession).toHaveBeenCalledTimes(1);
+    });
+
+    // The idle path is the SECOND of the three teardown paths that must
+    // leave nothing of this session in the browser
+    // (packages/api/src/renew-schedule.ts's clearRenewAt comment lists all
+    // three). Only the sign-out path was asserted before this — and a
+    // component that cleared on sign-out but not on idle timeout would
+    // have passed every existing test while leaving the previous
+    // clinician's renewal schedule behind on a ward terminal that timed
+    // out unattended, which is the very scenario #848 is about.
+    it("drops the stored renewal schedule and cached permissions when the idle timer expires", async () => {
+      vi.useFakeTimers();
+      storeRenewAt(new Date(Date.now() + 60_000).toISOString());
+      expect(window.sessionStorage.getItem(RENEW_AT_KEY)).not.toBeNull();
+      // The permissions cache lives in localStorage (permissions-cache.ts),
+      // not sessionStorage, so it survives a tab close and must be
+      // dropped explicitly here too — otherwise the previous clinician's
+      // cached permission set would survive an idle timeout on a shared
+      // ward terminal, exactly the leak #848's idle timeout exists to
+      // prevent.
+      seedCache(["patients:read"]);
+      expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).not.toBeNull();
+      stubActivityFetch(() => new Date(Date.now() + 5_000));
+      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      expect(
+        window.sessionStorage.getItem(RENEW_AT_KEY),
+        "an idle timeout ends the session, so the schedule it left behind goes with it",
+      ).toBeNull();
+      expect(
+        window.localStorage.getItem(PERMISSIONS_CACHE_KEY),
+        "an idle timeout ends the session, so the cached permission set it left behind goes with it",
+      ).toBeNull();
     });
 
     // D6 explicitly forbids subject-wide revocation here — that is

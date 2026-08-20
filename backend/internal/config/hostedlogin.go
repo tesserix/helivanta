@@ -11,10 +11,13 @@ import (
 // Config.IsDev() (see resolveHelivantaWebOrigin) — the local dev stack's shell
 // origin, matching scripts/lib/zitadel.mjs's DEV_REDIRECT_URI so a fresh
 // clone's two independently-configured defaults still agree with each
-// other. Mirrors DevSessionSigningKey's shape (signingkey.go): a
+// other. The host is helivanta.localhost, not localhost (#916 Task 4,
+// design spec D6): dev serves the app and the IdP on different
+// registrable domains so the cross-site condition production runs under
+// is actually exercised — see the Makefile's HELIVANTA_WEB_HOST comment. Mirrors DevSessionSigningKey's shape (signingkey.go): a
 // well-known, committed, dev-only value that must never silently answer
 // for a real one outside dev.
-const DevHelivantaWebOrigin = "http://localhost:4301"
+const DevHelivantaWebOrigin = "http://helivanta.localhost:4301"
 
 // ErrHostedLoginOriginMatchesWebOrigin is returned by
 // RequireDistinctHostedLoginOrigin when ZitadelHostedLoginURL and
@@ -37,9 +40,9 @@ var ErrNoHelivantaWebOrigin = errors.New("config: HELIVANTA_WEB_ORIGIN is not se
 // unconditionally via Load()'s getenv(). That made
 // RequireDistinctHostedLoginOrigin inert exactly where it is needed
 // most: an unset HELIVANTA_WEB_ORIGIN in PRODUCTION compared the real
-// ZitadelHostedLoginURL against "http://localhost:4301", found no
-// collision (a real hosted-login URL is never literally
-// localhost:4301), and booted — the redirect loop this guard exists to
+// ZitadelHostedLoginURL against "http://helivanta.localhost:4301", found
+// no collision (a real hosted-login URL is never literally
+// helivanta.localhost:4301), and booted — the redirect loop this guard exists to
 // make unrepresentable stayed fully possible, with nothing anywhere
 // reporting it. That is the identical shape SessionSigningKeySeed
 // (signingkey.go) and RequireZitadelLoginClientToken

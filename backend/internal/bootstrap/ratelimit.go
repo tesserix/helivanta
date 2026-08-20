@@ -77,24 +77,46 @@ import (
 // above are. See
 // docs/superpowers/specs/2026-08-16-login-rate-limit-design.md D2 for the
 // full arithmetic: Rate/6 sizes a burst to "one page load's worth of
-// parallel requests", which is not this endpoint's traffic shape. This
-// endpoint's legitimate bursts come from #838 D4a's silent renewal
-// (RENEWAL_INTERVAL_MS, 5 minutes) firing from every open shell tab —
-// tabs opened close together renew in a synchronized cluster every 5
-// minutes for as long as they stay open, and 10 is a generous bound on
-// how many tabs one clinician has open at once. Rate=20/min (default)
-// refills a fully-drained 10-token burst in 30s, comfortably inside that
-// 5-minute gap, while staying an order of magnitude above the ~2/min a
-// heavy 10-tab clinician actually sustains.
+// parallel requests", which is not this endpoint's traffic shape.
+//
+// The justification for the NUMBER changed in #916, and is restated here
+// rather than left pointing at a mechanism that no longer exists. It used
+// to read: bursts come from #838 D4a's silent renewal (RENEWAL_INTERVAL_MS,
+// 5 minutes) firing from every open shell tab. That traffic is gone — #916
+// moved renewal onto POST /v1/auth/renew (RenewRateLimitRule below), the
+// browser-side renewal flow and its constant were deleted, and nothing
+// calls THIS route on a timer any more.
+//
+// What actually bursts against POST /v1/auth/login now, per SUBJECT (this
+// bucket's key), is a cluster of genuine sign-in exchanges by one human:
+// signing in on a workstation, a tablet and a phone around the start of a
+// shift; a re-login on a browser whose previous Helivanta session cookie is
+// still live (the case iam.LoginHandlers.idleDeadlineFor exists to
+// discriminate); the auth-callback route re-running its exchange after a
+// reload or a transient failure. Each is one request, seconds apart, and
+// 10 is a generous bound on how many a single clinician produces in one
+// cluster. Rate=20/min (default) refills a fully-drained burst in 30s.
+//
+// The number is deliberately NOT lowered alongside the new reasoning: this
+// bucket keys on a subject who has ALREADY passed Zitadel authentication,
+// so it is not the brute-force control (that is FactorRateLimitRule below,
+// keyed on client IP, and the spec's D2 is explicit about the division),
+// and the cost of sizing it too tightly is refusing a clinician's genuine
+// sign-in. Changing it would need its own evidence, which #916 did not
+// produce.
 func LoginRateLimitRule(cfg config.Config) ratelimit.Rule {
 	return ratelimit.Rule{Rate: cfg.RateLimitLoginPerMin, Burst: 10, Per: time.Minute}
 }
 
 // FactorRateLimitRule builds the budget for POST /v1/auth/login/factor
-// (#867 Task 4), keyed on client IP the same way LoginRateLimitRule and
-// iam.LoginUIHandlers' other three routes are (iam.allowedByLimiter's
-// doc comment: there is no verified subject on any of these routes —
-// that is what the flow is establishing). It is its OWN Rule, drawn from
+// (#867 Task 4), keyed on client IP the same way iam.LoginUIHandlers'
+// other three routes are (iam.allowedByLimiter's doc comment: there is
+// no verified subject on any of these routes yet — that is what the flow
+// is establishing). LoginRateLimitRule above is NOT one of these routes:
+// it runs after Zitadel authentication succeeds and keys on the verified
+// subject (login.go, `"login:"+principal.Subject`), not on client IP —
+// see this function's own doc comment above for why that split matters.
+// It is its OWN Rule, drawn from
 // its OWN "login_factor:" bucket (iam/loginui.go), never folded into
 // LoginRateLimitRule's shared budget — see that constant's doc comment:
 // this is a PRIMARY control, not a secondary one, because
@@ -200,6 +222,89 @@ func FactorRateLimitRule(cfg config.Config) ratelimit.Rule {
 	return ratelimit.Rule{Rate: cfg.RateLimitFactorPerMin, Burst: 5, Per: time.Minute}
 }
 
+// RenewRateLimitRule builds the budget for POST /v1/auth/renew (#916
+// Task 2 Review Round 1, IMPORTANT 3; Burst corrected in Review Round 2,
+// N1), keyed on the authenticated SUBJECT via the SAME Tight mechanism
+// POST /v1/auth/session/activity uses. This route reintroduces exactly
+// the "shared external resource a route uniquely threatens" shape the
+// tenant-switch history above (see this file's opening comment) says a
+// Tight entry is FOR: one authenticated call here is one call to
+// Zitadel's core API (loginclient.Client.UserState) on the
+// instance-wide login-client PAT, not an in-process operation the way
+// the re-mint and OpenFGA calls the tenant-switch route settled into
+// are. At the shared Principal budget's 120/min default, a single
+// SUBJECT calling this route in a loop drives 120 Zitadel calls/min —
+// and because renew fails CLOSED on a Zitadel error (spec D3),
+// pressuring Zitadel into 5xx by exhausting its side of that traffic
+// evicts every clinician within one SessionTTL, not just the caller.
+//
+// The bucket keys on subject, NOT session — an EARLIER version of this
+// comment reasoned per session ("~0.2/min per active session") and sized
+// Burst from that, which is the wrong quantity for a per-subject bucket
+// and is corrected here rather than left to mislead the next reader.
+// The traffic this Burst is sized against is the shell's renewal loop,
+// which #916 moved off POST /v1/auth/login and onto this endpoint. Read
+// it from the client that produces it, not from LoginRateLimitRule's
+// comment above: that comment's renewal reasoning described the
+// mechanism #916 DELETED, and citing it here as still-authoritative
+// would be borrowing a justification that is no longer true of either
+// route.
+//
+// The live facts, each checkable at its own definition: every open shell
+// tab runs its own timer (apps/shell/components/session-renewal.tsx,
+// whose doc comment states the absence of cross-tab coordination as a
+// deliberate choice made against THIS budget), each tab fires one
+// request per renew_at interval, and the interval is the server's own
+// SESSION_TTL/3 (renew.go's renewAtFor), bounded client-side to
+// 30s..30m (apps/shell/lib/renew.ts). Tabs opened close together
+// therefore renew in a synchronized cluster, and 10 is a generous bound
+// on how many tabs one clinician has open at once. Unlike POST
+// /v1/auth/session/activity, whose Burst=3 leans on a 60s cross-tab
+// BroadcastChannel debounce (spec D4), nothing debounces these — so a
+// burst sized for "one page load's worth of requests" would 429 a
+// clinician with several tabs open in the same cluster. A 429 here is
+// NOT the harm #916 exists to prevent — apps/shell/lib/renew.ts
+// classifies a 429 response as RenewalUnavailableError, the same
+// "try again" bucket as a 5xx or an unreachable endpoint, and the
+// caller retries rather than treating it as a refusal that bounces to
+// /login (RenewalFailedError is reserved for the backend's affirmative
+// refusals: 401/404/unrecognized 4xx). A burst too small to survive one
+// clustered page load would still mean spurious retries and delay, so
+// it is still worth avoiding — just not for the "bounces to /login"
+// reason this comment previously gave. Burst=10 happens to match
+// LoginRateLimitRule's own number, but not its reasoning: that rule's
+// Burst is sized on genuine sign-in exchange clustering (a subject
+// signing in from several devices around a shift start), a different
+// traffic shape from this route's clustered-tab renewal traffic — the
+// two arrive at the same number independently, and this comment does
+// not borrow one's justification for the other. Rate=6/min stays
+// well above the sustained per-subject traffic even 10 clustered tabs
+// produce (10 tabs × 1 call per renew_at interval, default 5 minutes,
+// ≈ 2/min sustained for one subject) while still bounding the worst
+// case to single digits of Zitadel calls per minute per subject instead
+// of 120, and, same as activity's own Tight entry, keeps this route's
+// Zitadel-bound traffic from sharing a bucket with ordinary page-load
+// API calls in either direction.
+//
+// PRECONDITION THIS PLACES ON TASK 3 (stated explicitly per Review
+// Round 2's instruction, not left implicit): the frontend renewal
+// client must NOT add cross-tab coordination (a BroadcastChannel
+// debounce, a single-tab-elected renewer, or similar) as a way to
+// lower this traffic — Burst=10 is sized on the assumption that it
+// won't, i.e. that every open tab keeps renewing independently. This is
+// NOT an assumption LoginRateLimitRule shares: #916 moved renewal
+// traffic off that route entirely (see its own doc comment), so it has
+// no per-tab renewal behavior left to assume anything about, and this
+// route's Burst is sized purely on the traffic described above. If Task
+// 3 DOES add cross-tab coordination (which would also
+// be a defensible design — it is the same mechanism the activity
+// endpoint already uses), Burst should shrink back toward activity's
+// Burst=3 rather than staying at 10, and this comment must be updated
+// alongside that change so the two do not drift apart.
+func RenewRateLimitRule(cfg config.Config) ratelimit.Rule {
+	return ratelimit.Rule{Rate: cfg.RateLimitRenewPerMin, Burst: 10, Per: time.Minute}
+}
+
 func RateLimitConfig(cfg config.Config) ratelimit.Config {
 	return ratelimit.Config{
 		Tenant: ratelimit.Rule{
@@ -212,6 +317,7 @@ func RateLimitConfig(cfg config.Config) ratelimit.Config {
 			"POST /v1/auth/session/activity": {
 				Rate: cfg.RateLimitActivityPerMin, Burst: 3, Per: time.Minute,
 			},
+			"POST /v1/auth/renew": RenewRateLimitRule(cfg),
 		},
 		Exempt: map[string]string{
 			"POST /v1/iam/me/sign-out":              "a clinician on a shared ward terminal must always be able to end their session",

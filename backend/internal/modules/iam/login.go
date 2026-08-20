@@ -306,8 +306,12 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	//
 	// idleDeadline is likewise NOT unconditionally time.Now() +
 	// IdleTimeout — see idleDeadlineFor, which is the whole of spec D3.
+	// ONE read of the clock, used for both the idle deadline and the
+	// renew_at hint below, so the two cannot describe different instants
+	// in the same response.
+	now := h.now()
 	token, err := h.signer.Mint(principal.Subject, tenantID, principal.AuthTime,
-		h.idleDeadlineFor(c, principal, h.now()))
+		h.idleDeadlineFor(c, principal, now))
 	if err != nil {
 		requestid.Logger(c).ErrorContext(c.Request.Context(), "login: mint session failed", "err", err)
 		respond.Error(c, http.StatusServiceUnavailable,
@@ -327,7 +331,23 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	// same place.
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(authn.SessionCookie, token, int(h.ttl.Seconds()), "/", "", h.secureCookie, true)
-	respond.OK(c, gin.H{"tenant_id": tenantID})
+	// renew_at tells the browser when to call POST /v1/auth/renew for
+	// the FIRST time (#916 Task 4, F3). Computed by renewAtFor
+	// (renew.go) — the same function the renewal endpoint itself uses,
+	// not a second copy of the arithmetic — so the two cannot drift;
+	// TestLoginAndRenewAgreeOnRenewAt pins that.
+	//
+	// Before this field existed, spec D5's "the client obeys the
+	// server's schedule" held for every renewal EXCEPT the first, which
+	// came from a hardcoded 5-minute constant in the browser
+	// (apps/shell/lib/renew.ts's FALLBACK_RENEWAL_INTERVAL_MS). Any
+	// deployment with SESSION_TTL under ~5 minutes therefore logged
+	// every clinician out before their first renewal ever fired —
+	// silently, since config.go applies no minimum to SESSION_TTL (#921).
+	// This
+	// is additive: a client that ignores the field behaves exactly as
+	// before.
+	respond.OK(c, gin.H{"tenant_id": tenantID, "renew_at": renewAtFor(now, h.ttl)})
 }
 
 // idleDeadlineFor decides the idle_deadline this mint carries. It is the
@@ -335,22 +355,50 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 // rule in this spec, and the one most likely to be got wrong, because
 // everything looks like it works when it is broken".
 //
-// THE PROBLEM. Silent renewal (spec D4a) is not a separate endpoint: it
-// is THIS handler, POST /v1/auth/login, run again every 5 minutes with a
-// freshly-obtained Zitadel ID token. Route, method and body are identical
-// to a first sign-in, so nothing about the REQUEST distinguishes them. If
-// a re-mint set idle_deadline = now + IdleTimeout, an untouched tab would
-// renew itself forever, the timeout would never fire, and every test
-// asserting "renewal works" would still pass.
+// Review Round 1 note (#916 Task 2): this was briefly split into a
+// package-level resolveIdleDeadline so POST /v1/auth/renew could reuse
+// it. That reuse was reverted — renew.go carries idle_deadline forward
+// from the ALREADY-VERIFIED authn.Principal (p.IdleDeadline) instead,
+// because this function's job is discriminating a genuine login from a
+// renewal by comparing a FRESH Zitadel principal against an OLD cookie,
+// a distinction POST /v1/auth/renew never has (it never sees a fresh IdP
+// credential at all) — see renewalHandlers.renew's own comment. Back to
+// a method with a single caller, LoginHandlers.Login.
 //
-// THE DISCRIMINATOR is the caller's own existing Helivanta session cookie. A
-// renewal always carries one (the browser attaches it automatically; it
-// is httpOnly and same-origin), and that cookie already holds the
-// deadline this session is running against. So:
+// THE PROBLEM, as it stands after #916. This used to say that silent
+// renewal WAS this handler — POST /v1/auth/login re-run every five
+// minutes with a freshly-obtained Zitadel ID token (spec D4a). That is
+// no longer true of any clause: #916 deleted the browser's silent-renew
+// flow, renewal has its own endpoint (POST /v1/auth/renew, renew.go),
+// and nothing calls this route on a timer. The discriminator below is
+// NOT dead code, though, and deleting it as such would silently
+// reintroduce #848's own threat model — so the reason it still earns its
+// place is stated here in the present tense, and matches what
+// apps/shell/lib/auth-exchange.ts says at its `credentials: "same-origin"`
+// line. The two must not drift again.
+//
+// The live reason: this route can be re-entered while an OLD Helivanta
+// session cookie is still valid. A clinician who navigates to /login
+// again — or whose tab returns through the auth callback — completes the
+// OIDC flow against a Zitadel SSO session that is STILL LIVE, and
+// Zitadel answers such a request with the ORIGINAL auth_time (the same
+// property the #781 revocation watermark relies on; see
+// authn.Principal.AuthTime). Nobody typed a credential. If that exchange
+// minted idle_deadline = now + IdleTimeout, the idle clock would reset
+// on a re-login where no human authenticated, and the #848 timeout could
+// be pushed out indefinitely by reloading a page — at a shared ward
+// terminal, where the previous clinician has walked away, that is
+// precisely the harm #848 exists to prevent.
+//
+// THE DISCRIMINATOR is the caller's own existing Helivanta session cookie
+// (the browser attaches it automatically; it is httpOnly and
+// same-origin, and auth-exchange.ts pins `credentials: "same-origin"` so
+// a refactor cannot silently stop sending it). That cookie already holds
+// the deadline the previous session is running against. So:
 //
 //   - cookie present, genuine, and this same subject's, with no newer
-//     authentication behind this request  ⇒  RENEWAL. Carry its
-//     idle_deadline forward UNCHANGED.
+//     authentication behind this request  ⇒  NOBODY NEW AUTHENTICATED.
+//     Carry its idle_deadline forward UNCHANGED.
 //   - anything else  ⇒  GENUINE NEW LOGIN. now + IdleTimeout.
 //
 // Carrying forward can only ever keep or SHORTEN the window, never
@@ -375,11 +423,12 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 //  3. principal.AuthTime is strictly after the session's auth_time — the
 //     human has authenticated against Zitadel AGAIN since this session
 //     was minted. That is a person standing at the keyboard, so a fresh
-//     window is correct. A prompt=none renewal cannot reach this branch:
-//     Zitadel returns the ORIGINAL auth_time on a silent re-authorization
-//     (the same property the #781 revocation watermark relies on, see
-//     authn.Principal.AuthTime), so a renewal's auth_time EQUALS the
-//     one already in the session. Equality carries — the conservative
+//     window is correct. An exchange completed against a still-live
+//     Zitadel SSO session cannot reach this branch: Zitadel returns the
+//     ORIGINAL auth_time on a silent re-authorization (the same property
+//     the #781 revocation watermark relies on, see
+//     authn.Principal.AuthTime), so its auth_time EQUALS the one already
+//     in the session. Equality carries — the conservative
 //     direction, mirroring the watermark check's own "not-after"
 //     reasoning: within one second of clock granularity the two cases are
 //     ambiguous, and the safe reading of an ambiguous renewal is that no
@@ -389,10 +438,12 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 // one place this implementation is deliberately stricter than the task
 // brief, which expected a lapsed session to fall through to the
 // genuine-login branch. It must not, and the reason is the same failure
-// D3 exists to prevent, one layer down: a tab whose deadline has lapsed
-// is STILL renewing every 5 minutes, and if a lapsed deadline earned a
-// fresh window, the session would simply resurrect itself at the next
-// renewal — dead for a few minutes, then alive again, forever. So a
+// D3 exists to prevent, one layer down: a lapsed session's tab can still
+// return through the login exchange (a reload, a restored tab, the
+// callback route re-run against a live Zitadel SSO cookie), and if a
+// lapsed deadline earned a fresh window the session would simply
+// resurrect itself with no human present — dead, then alive again, for
+// as long as the browser keeps coming back. So a
 // lapsed deadline is carried through verbatim and the re-minted session
 // stays refused by authn.Middleware. session.Signer.Mint accepts a past
 // deadline for exactly this reason (see its doc comment): the middleware
@@ -405,7 +456,7 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 // lapsed (a machine that stopped renewing for longer than SessionTTL and
 // was later woken) fails h.sessions.Verify, so its deadline cannot be
 // read at all and the request takes case 1 — a fresh window on what may
-// be a silent renewal with no human present. Closing it needs a
+// be an exchange no human stood behind. Closing it needs a
 // pkg/session accessor that surfaces a deadline from a token the
 // Verifier refuses, structurally unusable as an authentication result;
 // that is a design decision rather than a patch, which is why it is a

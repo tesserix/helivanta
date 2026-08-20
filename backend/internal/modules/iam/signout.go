@@ -90,11 +90,15 @@ func (h *revocationHandlers) adminRevoke(c *gin.Context) {
 // only at TTL, or an invalidation for a revocation that never happened.
 //
 // This is the WHOLE of revocation, post-#838: the Helivanta watermark is
-// authoritative and there is no separate upstream call to make.
-// Helivanta stores no Zitadel credential to revoke (spec D4a — renewal is the
-// login exchange re-run with a fresh Zitadel token, not a server-side
-// refresh of a stored one), so unlike the old GIP-backed design there is
-// nothing left to "tell" after the commit. A subject whose watermark
+// authoritative and there is no separate upstream call to make. Helivanta
+// stores no USER credential to revoke — no ID token, no access token and,
+// deliberately, no refresh token (spec D4a, as amended by #916). Renewal
+// is now a server-side operation (POST /v1/auth/renew, renew.go) that
+// re-mints from the caller's own Helivanta cookie and asks Zitadel only a
+// read-only question about the subject's state, on the instance-level
+// login-client PAT — never a stored per-user token. So unlike the old
+// GIP-backed design there is still nothing left to "tell" after the
+// commit. A subject whose watermark
 // moves is refused by authn.Middleware on their very next request,
 // regardless of what Zitadel still believes.
 func (h *revocationHandlers) revoke(c *gin.Context, subject string, at time.Time, reason, actor string) error {

@@ -8,6 +8,7 @@ import {
   usePermissions,
   useApiMutation,
   clearPermissionsCache,
+  clearRenewAt,
 } from "@helivanta/api";
 import { visibleZones, activeZone } from "./zones";
 import { ThemeToggle } from "./theme";
@@ -157,6 +158,17 @@ export function HmsShell({
   const endIdleSession = useCallback((mark: SessionEndMark | undefined) => {
     if (tornDownRef.current) return;
     tornDownRef.current = true;
+    // Same reasoning as handleSignOut's calls below: an idle timeout ends
+    // this session too, so both the renewal schedule and the cached
+    // permission set it left behind go with it. The permissions cache is
+    // convenience only (the API enforces — see CLAUDE.md's frontend
+    // rules), so a stale entry here is not a privilege escalation, but it
+    // lives in localStorage rather than sessionStorage (permissions-cache.ts),
+    // so without this call the previous clinician's cached permissions
+    // would survive an idle timeout on a shared ward terminal — exactly
+    // the leak #848's idle timeout exists to prevent.
+    clearPermissionsCache();
+    clearRenewAt();
     void (async () => {
       try {
         await fetch("/logout", { method: "POST" });
@@ -344,6 +356,13 @@ export function HmsShell({
   async function handleSignOut(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     clearPermissionsCache();
+    // #781's rule is that a signed-out session must not be reconstructable
+    // from anything the browser kept. The stored renewal schedule (#916
+    // Task 4's F3) is not a credential and carries no PHI — one timestamp,
+    // overwritten by the next login — so leaving it would not have been a
+    // vulnerability. It is dropped so "the browser keeps nothing from the
+    // previous session" stays a statement with no exceptions.
+    clearRenewAt();
     if (onSignOut) {
       await onSignOut();
       return;

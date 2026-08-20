@@ -159,7 +159,7 @@ type LoginUIHandlers struct {
 // NewLoginUIHandlers wires LoginUIHandlers' dependencies. client is
 // Task 2's loginclient.Client, authenticated with the login-client PAT.
 // hostedLoginBaseURL is Zitadel's own hosted login origin+path (e.g.
-// http://localhost:20080/ui/v2/login per Task 1's finding that Zitadel
+// http://auth.tesserix.localhost:20080/ui/v2/login per Task 1's finding that Zitadel
 // APPENDS to whatever baseUri is configured) — Handoff and a Password
 // call that resolves to OutcomeHandoff both build their handoff_url from
 // it.

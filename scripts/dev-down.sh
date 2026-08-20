@@ -27,7 +27,7 @@ echo "Stopping app processes…"
 killed=0
 skipped=0
 for port in "${APP_PORTS[@]}"; do
-  for pid in $(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null); do
+  for pid in $(port_holders "$port"); do
     cwd=$(cwd_of "$pid")
     if pid_is_ours "$pid"; then
       kill "$pid" 2>/dev/null && killed=$((killed + 1))
@@ -44,7 +44,7 @@ done
 if [ "$killed" -gt 0 ]; then
   sleep 3
   for port in "${APP_PORTS[@]}"; do
-    for pid in $(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null); do
+    for pid in $(port_holders "$port"); do
       pid_is_ours "$pid" || continue
       kill -9 "$pid" 2>/dev/null
       printf '  forced   pid %-7s port %s\n' "$pid" "$port"
@@ -54,7 +54,7 @@ fi
 
 still_up=()
 for port in "${APP_PORTS[@]}"; do
-  lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1 && still_up+=("$port")
+  [ -n "$(port_holders "$port")" ] && still_up+=("$port")
 done
 
 echo

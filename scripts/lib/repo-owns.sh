@@ -15,7 +15,16 @@ REPO_ROOT=${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)}
 COMPOSE_FILE=${COMPOSE_FILE:-$REPO_ROOT/docker-compose.dev.yml}
 
 # cwd_of PID — the process's working directory, empty if it cannot be read.
+#
+# /proc first, where it exists. It is the authoritative answer on Linux, it
+# costs a readlink instead of a process scan, and — the reason it is FIRST
+# rather than a fallback — it does not depend on lsof being able to parse the
+# process at all. See port_holders below for why that matters.
 cwd_of() {
+  if [ -r "/proc/$1/cwd" ]; then
+    readlink "/proc/$1/cwd" 2>/dev/null
+    return
+  fi
   lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1
 }
 
@@ -30,8 +39,33 @@ pid_is_ours() {
 }
 
 # port_holders PORT — PIDs listening on the port, one per line.
+#
+# `ss` first, lsof only where there is no `ss` (macOS). This is not a
+# preference, it is a correctness fix: lsof 4.95.0 — the version on Ubuntu
+# 24.04 and on GitHub's runner image — SILENTLY OMITS a process whose
+# /proc comm contains spaces and parentheses, which is exactly how Next.js
+# names its dev server: `next-server (v16.2.12)`. Measured on the runner
+# with four of them listening on 4301-4304 plus the Go API on 8080:
+# `lsof -nP -iTCP -sTCP:LISTEN` listed ONLY the Go API, while `ss -ltnp`
+# listed all five with their pids.
+#
+# An empty answer here is read by every caller as "nobody holds this port",
+# so that omission is a fail-OPEN in an ownership control: scripts/e2e.sh's
+# fixture swap stopped nothing at all and then died on Next's "Another next
+# dev server is already running", and dev-down.sh would likewise leave the
+# zone apps running while reporting success (#920).
+#
+# macOS has no `ss` and its lsof does not have this bug, so the fallback
+# there is the correct tool, not a degraded one.
 port_holders() {
-  lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null
+  if command -v ss >/dev/null 2>&1; then
+    # -H drops the header; the sport filter is ss's own, so no port-number
+    # substring can match by accident (":4301" vs ":14301").
+    ss -H -ltnp "sport = :$1" 2>/dev/null \
+      | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u
+  else
+    lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null
+  fi
 }
 
 # compose_owns_port PORT — true when our compose project publishes the port.

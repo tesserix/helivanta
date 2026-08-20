@@ -151,7 +151,7 @@ make_shim "$nodocker" curl   'exit 1'
 # environment (e.g. installed globally via nvm/corepack), making this
 # assertion pass or fail depending on the developer's machine rather than on
 # preflight.sh's own logic. /usr/sbin (macOS) and /usr/bin (Linux) are where
-# lsof lives, which port_is_ours needs; sed/sort/head/ps come from /usr/bin
+# the port tool lives, which port_is_ours needs; sed/sort/head/ps come from /usr/bin
 # and /bin.
 out=$(env PATH="$nodocker:/usr/bin:/bin:/usr/sbin:/sbin" \
   PREFLIGHT_PORTS="$(free_port)" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
@@ -169,10 +169,12 @@ assert_status "occupied foreign port exits 1" 1 "$status"
 assert_contains "names the occupied port" "$out" "$busy_port"
 assert_contains "names the fix"           "$out" "make down"
 
-# A missing lsof must be reported, not silently treated as "no port
-# holders found, so every port is free" — that would fail open exactly in
-# the scenario #714 exists to catch (a foreign process quietly squatting on
-# a port we need).
+# A missing port-lookup tool must be reported, not silently treated as "no
+# port holders found, so every port is free" — that would fail open exactly
+# in the scenario #714 exists to catch (a foreign process quietly squatting
+# on a port we need). Either `ss` or lsof satisfies preflight (repo-owns.sh's
+# port_holders prefers ss on Linux, see its comment), so BOTH have to be off
+# the PATH for this case to prove anything.
 #
 # The PATH for this case must therefore be EXACTLY one directory: $nolsof,
 # holding a symlink to every real tool preflight.sh and repo-owns.sh use,
@@ -188,7 +190,7 @@ mkdir -p "$nolsof"
 # `/usr/bin/env bash`. dirname: REPO_ROOT in both scripts. sed/sort/head:
 # version_at_least and cwd_of. wc/tr: the masterkey length check. grep:
 # compose_owns_port. ps: the port-holder message. env: the shim shebangs.
-for tool in bash env dirname sed sort head wc tr grep ps; do
+for tool in bash env dirname sed sort head wc tr grep cut ps; do
   ln -s "$(command -v "$tool")" "$nolsof/$tool"
 done
 make_shim "$nolsof" docker 'exit 0'
@@ -196,17 +198,19 @@ make_shim "$nolsof" go     'echo "go version go1.26.5 darwin/arm64"'
 make_shim "$nolsof" node   'echo "v22.11.0"'
 make_shim "$nolsof" pnpm   'echo "10.17.1"'
 
-# Guard the guard: if lsof is reachable through this PATH the case below
-# proves nothing, so say so loudly rather than reporting a green pass.
-if PATH="$nolsof" command -v lsof >/dev/null 2>&1; then
-  t_fail "the no-lsof PATH must not contain lsof"
-fi
+# Guard the guard: if either tool is reachable through this PATH the case
+# below proves nothing, so say so loudly rather than reporting a green pass.
+for tool in lsof ss; do
+  if PATH="$nolsof" command -v "$tool" >/dev/null 2>&1; then
+    t_fail "the no-port-tool PATH must not contain $tool"
+  fi
+done
 
 out=$(env PATH="$nolsof" PREFLIGHT_PORTS="12345" \
   bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
-assert_status "missing lsof exits 1" 1 "$status"
-assert_contains "missing lsof is reported" "$out" 'lsof missing'
-assert_contains "missing lsof names the fix" "$out" 'apt-get install -y lsof'
+assert_status "missing port tool exits 1" 1 "$status"
+assert_contains "missing port tool is reported" "$out" 'neither ss nor lsof found'
+assert_contains "missing port tool names the fix" "$out" 'apt-get install -y iproute2 lsof'
 
 echo
 echo "PREFLIGHT_PORTS (host-port overrides):"

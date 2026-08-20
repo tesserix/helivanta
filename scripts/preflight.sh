@@ -211,27 +211,36 @@ check_zitadel_instance_domain() {
 # credentials at all. A check that demanded one would block onboarding for a
 # token nobody needs — the opposite of what this script is for.
 
-# port_is_ours (scripts/lib/repo-owns.sh) shells out to lsof, and reads an
-# empty result — its normal behaviour when lsof is simply absent — as "no
-# holder found, port is free". Without this check that makes every port
-# check pass open: a foreign Postgres on 5432 would print "ok port 5432"
-# right before compose dies with exactly the cryptic error #714 exists to
-# eliminate. Must run before check_ports, and check_ports must not run its
-# real logic if this failed.
-check_lsof() {
-  if command -v lsof >/dev/null 2>&1; then
-    ok "lsof"
+# port_is_ours (scripts/lib/repo-owns.sh) shells out to `ss` where it exists
+# and to lsof otherwise, and reads an empty result — what BOTH print when the
+# tool is simply absent — as "no holder found, port is free". Without this
+# check that makes every port check pass open: a foreign Postgres on 5432
+# would print "ok port 5432" right before compose dies with exactly the
+# cryptic error #714 exists to eliminate. Must run before check_ports, and
+# check_ports must not run its real logic if this failed.
+#
+# EITHER tool satisfies this, matching port_holders: Linux has `ss` (and must
+# use it — lsof 4.95 cannot see the `next dev` servers at all, see that
+# function's comment), macOS has lsof.
+have_port_tool() {
+  command -v ss >/dev/null 2>&1 || command -v lsof >/dev/null 2>&1
+}
+
+check_port_tool() {
+  if have_port_tool; then
+    ok "port lookup (ss or lsof)"
   else
-    fail "lsof" \
-      "lsof missing — port checks can't detect what holds a port without it — brew install lsof (macOS; present by default) or sudo apt-get install -y lsof (Debian/Ubuntu)"
+    fail "port lookup" \
+      "neither ss nor lsof found — port checks can't detect what holds a port without one — brew install lsof (macOS; present by default) or sudo apt-get install -y iproute2 lsof (Debian/Ubuntu)"
   fi
 }
 
 check_ports() {
-  # Without lsof, port_is_ours can't see any holder and would report every
-  # port "ok" even when a foreign process has it — fail open. check_lsof
-  # above already recorded the failure; skip the misleading "ok" lines here.
-  command -v lsof >/dev/null 2>&1 || return 0
+  # Without a port tool, port_is_ours can't see any holder and would report
+  # every port "ok" even when a foreign process has it — fail open.
+  # check_port_tool above already recorded the failure; skip the misleading
+  # "ok" lines here.
+  have_port_tool || return 0
 
   local port holder
   for port in $PREFLIGHT_PORTS; do
@@ -254,7 +263,7 @@ main() {
   check_pnpm
   check_zitadel_masterkey
   check_zitadel_instance_domain
-  check_lsof
+  check_port_tool
   check_ports
 
   if [ -n "$FAILURES" ]; then

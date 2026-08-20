@@ -94,15 +94,21 @@ stop_port_if_ours() {
 }
 
 # wait_for_port URL LABEL — polls instead of sleeping a fixed amount;
-# `next dev` can take anywhere from 10-60s to come up.
+# `next dev` can take anywhere from 10-60s to come up on a laptop, and
+# longer on a 2-core CI runner that is also hosting Postgres, NATS, Redis,
+# OpenFGA, Zitadel and a Go API. The ceiling is 180s rather than the
+# original 60 for that reason, and it is a CEILING, not a wait: the loop
+# exits the moment the URL answers, so a fast machine pays nothing for it.
+# The job-level timeout in .github/workflows/ci.yml is what bounds a real hang.
+WAIT_FOR_PORT_TIMEOUT=${WAIT_FOR_PORT_TIMEOUT:-180}
 wait_for_port() {
   local url=$1 label=$2 waited=0
   printf 'Waiting for %s (%s)…' "$label" "$url"
   until curl -sS --max-time 2 "$url" >/dev/null 2>&1; do
     waited=$((waited + 1))
-    if [ "$waited" -ge 60 ]; then
+    if [ "$waited" -ge "$WAIT_FOR_PORT_TIMEOUT" ]; then
       echo
-      echo "Timed out after 60s waiting for $label at $url." >&2
+      echo "Timed out after ${WAIT_FOR_PORT_TIMEOUT}s waiting for $label at $url." >&2
       return 1
     fi
     printf '.'

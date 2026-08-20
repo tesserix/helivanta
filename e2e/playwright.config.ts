@@ -107,6 +107,17 @@ const PROJECT_FLAG_GIVEN = process.argv.some(
 export default defineConfig({
   testDir: "./tests",
   timeout: 60_000,
+  // A committed `test.only` focuses the WHOLE RUN, not just its file. Phase 1
+  // would run 1 test instead of 15, report "1 passed", and scripts/e2e.sh
+  // would print "all three phases passed" — green in about three minutes,
+  // with cross-site-harness.spec.ts and everything else never executed. That
+  // is the #920 defect class exactly: a gate that reports healthy while
+  // checking nothing. Playwright's own structural control for it, and it
+  // fails CI rather than relying on a reviewer noticing the keyword.
+  //
+  // CI only: `.only` is a legitimate local debugging tool, and banning it on
+  // a developer's machine would just teach people to work around this file.
+  forbidOnly: !!process.env.CI,
   // A failed run has to be diagnosable from the artifact alone. CI runs
   // this suite headless on a machine nobody can attach to (.github/
   // workflows/ci.yml's `e2e` job), so a bare "expected X, got Y" line is

@@ -63,6 +63,16 @@ pid_is_ours() {
 # Linux the answer is `ss` or an error — never a quiet downgrade. macOS has
 # no `ss`, and its lsof does not have the bug, so lsof is the correct tool
 # there rather than a degraded one.
+#
+# `ss` is not fail-closed in every direction, and the remaining hole is
+# tracked as #927: run as a non-root user, `ss -ltnp` prints the socket line
+# for a FOREIGN process but omits its `users:((…pid=…))` field, so the grep
+# below finds no pid and port_holders answers empty — which port_is_ours then
+# reads as "free". A root-owned Postgres squatting on 5432 therefore still
+# gets an `ok` from preflight. That is pre-existing (lsof behaved the same
+# way), but `ss` can distinguish "no listener at all" from "a listener I
+# cannot attribute", which is what #714 actually wanted; #927 is where that
+# distinction gets made.
 port_tool() {
   case "$(uname -s)" in
     Darwin) echo lsof ;;

@@ -3,6 +3,13 @@ node_modules
 dist
 coverage
 test-results
+# Both of these are written by EVERY `playwright test` run (the html
+# reporter in e2e/playwright.config.ts is unconditional) and both are
+# gitignored. Without this line a developer who follows the documented order —
+# `make e2e`, then the `format:check` gate — gets a red gate on a 2.5MB
+# machine-generated index.html, and learns not to trust the gate. CI never
+# sees it because the `web` job never runs Playwright (#920).
+playwright-report
 pnpm-lock.yaml
 .superpowers
 backend/

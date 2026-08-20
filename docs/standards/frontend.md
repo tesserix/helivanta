@@ -505,15 +505,33 @@ cd e2e && npx playwright test
 ```
 
 All five `turbo` tasks and the Playwright run must be green. That bare
-Playwright run deliberately covers 11 of the suite's 12 tests: the
-"idle-timeout" project (idle-timeout.spec.ts, #848) needs apps/shell's dev
-server swapped for a second instance pointed at a short-`IDLE_TIMEOUT`
-API, and Next.js 16 refuses a second `next dev` for the same project
-directory — so it cannot run alongside the main stack the other 11 tests
-assume is up. `make e2e`, run from the repo root, is what runs the whole
-suite: "specs"+"bulk" against the main stack, then a swap to the fixture
-for `--project=idle-timeout`, then a swap back (see `scripts/e2e.sh` and
-`e2e/playwright.config.ts`).
+Playwright run deliberately covers **15 of the suite's 17 tests**. Two
+projects are filtered out of it, for the same reason:
+
+- **`idle-timeout`** (`idle-timeout.spec.ts`, #848) needs apps/shell's dev
+  server swapped for a second instance pointed at a short-`IDLE_TIMEOUT` API.
+- **`renewal`** (`session-renewal.spec.ts`, #916) needs one pointed at a
+  short-`SESSION_TTL` API.
+
+Next.js 16 refuses a second `next dev` for the same project directory, so
+neither fixture can run alongside the main stack the other 15 tests assume is
+up — or alongside each other. `e2e/playwright.config.ts`'s `grepInvert`
+therefore drops **both** from a project-less run, so `npx playwright test`
+stays honest about what it actually covered.
+
+`make e2e`, run from the repo root, is what runs the whole suite, in **three
+phases**: "specs"+"bulk" against the main stack, then a swap to the
+idle-timeout fixture, then a swap to the session-renewal fixture, restoring
+the zone apps at the end (see `scripts/e2e.sh`).
+
+**CI runs this suite on every PR and every push to `main`** — the `e2e` job in
+`.github/workflows/ci.yml` brings up the real dev stack with the same `make`
+targets you use locally and runs `make e2e` (#920). It takes ~8.5 minutes, has
+a hard timeout, and does not retry: a flake is a red build, on purpose. On a
+failure it uploads the Playwright HTML report and the failing test's trace as
+an artifact, and dumps `docker compose ps` plus the Zitadel and stack logs.
+`forbidOnly` is set under CI, so a committed `test.only` fails the build
+rather than silently shrinking the run to one test.
 
 ## 12. Env
 

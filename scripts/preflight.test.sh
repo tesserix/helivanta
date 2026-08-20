@@ -278,9 +278,17 @@ time.sleep(300)
   # And prove the test can fail: the tool the rewrite replaced must NOT see
   # it. If a future lsof fixes this, THIS assertion is the one that should be
   # revisited — not the two above.
+  #
+  # A MISSING lsof fails, rather than skipping. Skipping would drop the only
+  # negative control in this file on exactly the machine most likely to lack
+  # lsof (a slim Linux box), and the two assertions above would go on passing
+  # with nothing proving they can fail — the same "reports healthy while
+  # checking less" shape this whole case exists to catch.
   if command -v lsof >/dev/null 2>&1; then
     assert_equals "raw lsof cannot see it (the defect this guards)" \
       "" "$(lsof -nP -iTCP:"$nextport" -sTCP:LISTEN -t 2>/dev/null)"
+  else
+    t_fail "lsof is not installed — the negative control cannot run, so nothing here proves the two assertions above can fail (sudo apt-get install -y lsof)"
   fi
 
   kill "$nextpid" 2>/dev/null

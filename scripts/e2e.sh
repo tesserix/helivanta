@@ -186,7 +186,14 @@ teardown_fixture() {
 # until this existed the script deleted it unread, leaving nothing but
 # "Timed out after 60s". That is exactly the case this suite is most likely
 # to fail in on a machine nobody can attach to (CI, #920).
+logs_dumped=0
 dump_logs() {
+  # Idempotent: cleanup dumps on a failed RUN, and its re-armed EXIT trap
+  # dumps again if the cleanup path itself fails. One account, not two.
+  if [ "$logs_dumped" = 1 ]; then
+    return 0
+  fi
+  logs_dumped=1
   local f
   for f in "$LOG_DIR"/*.log; do
     [ -e "$f" ] || continue
@@ -206,8 +213,23 @@ cleanup() {
   if [ "$status" != 0 ]; then
     dump_logs
   fi
+  # The cleanup path can fail on its own, and until this re-armed trap that
+  # failed SILENTLY in the worst case: all 17 tests pass, status is 0 so the
+  # dump above is skipped, and then restore_web's `make dev-web` will not
+  # come back up. The script dies with $LOG_DIR populated and never read —
+  # green suite, red job, no account of why. Exactly what dump_logs exists
+  # for.
+  #
+  # An EXIT trap, not an ERR one: ERR is not inherited by shell functions
+  # without `set -E`, and this whole path IS a function. It also has to cover
+  # `exit` rather than only a failing command — stop_port_if_ours calls
+  # `exit 1` outright when a stranger holds a port, which no ERR trap would
+  # see. dump_logs is idempotent, so a failure AFTER an already-dumped
+  # failure does not print twice.
+  trap 'dump_logs; rm -rf "$LOG_DIR"' EXIT
   teardown_fixture
   restore_web
+  trap - EXIT
   rm -rf "$LOG_DIR"
   exit $status
 }

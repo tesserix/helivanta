@@ -4,6 +4,37 @@ on:
     branches: [main]
   pull_request:
 
+# One in-flight run per ref, superseded runs cancelled. Added with the e2e
+# job (#920) because that job changed the arithmetic: CI used to be four
+# cheap jobs, and a couple of stale runs cost little. It now brings up a full
+# dev stack for ~8.5 minutes per push, and D1 makes runner cost an explicit
+# constraint — without this, pushing three times in five minutes leaves three
+# stacks building in parallel and the two obsolete answers still arrive.
+#
+# This deliberately applies to ALL FIVE jobs, not just e2e: `github.workflow`
+# is workflow-scoped, and per-job groups are not a thing. That is the right
+# call anyway — a superseded `go` or `web` result is no more useful than a
+# superseded `e2e` one.
+#
+# It interacts correctly with the diagnostic dumps: a cancelled run's dump
+# steps DO run (their `if` names `cancelled()`), spend about a second, and
+# exit. Noise in a run nobody reads, not a failure.
+#
+# Cancellation is switched OFF on main, and that needs the expression below
+# rather than the ref simply differing: two pushes to main share
+# `refs/heads/main`, so a plain `cancel-in-progress: true` WOULD have the
+# newer push kill the older one's run. On a PR branch that is what we want —
+# only the tip matters. On the trunk it is not: each main commit's run is the
+# record of what was actually verified at that commit, and a fast follow-up
+# push would erase the answer for the commit underneath it. Grouping still
+# applies on main; only the killing stops.
+#
+# (On `pull_request` events `github.ref` is `refs/pull/N/merge`, distinct per
+# PR, so PRs never contend with each other.)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   go:
     runs-on: ubuntu-latest
@@ -60,11 +91,13 @@ jobs:
       - uses: actions/checkout@v4
       # NOT because the port control uses it — since #920 that is `ss` on
       # Linux (scripts/lib/repo-owns.sh's port_tool), and iproute2 ships in
-      # the runner image. lsof is needed here for two narrower things
-      # preflight.test.sh exercises: the NEGATIVE CONTROL in the paren-comm
-      # regression test, which asserts raw lsof still cannot see a
-      # `next-server (v16.2.12)` listener, and cwd_of's non-Linux fallback.
-      # Without it the negative control would silently not run.
+      # the runner image. lsof is needed for exactly ONE thing here: the
+      # NEGATIVE CONTROL in preflight.test.sh's paren-comm regression case,
+      # which asserts raw lsof still cannot see a `next-server (v16.2.12)`
+      # listener and so proves the two positive assertions can fail. (Not
+      # cwd_of's fallback — that takes the /proc branch on every Linux host,
+      # including this one.) Without lsof the test now FAILS rather than
+      # quietly dropping the control.
       - name: Ensure lsof is present
         run: command -v lsof || (sudo apt-get update && sudo apt-get install -y lsof)
       - run: make test-scripts
@@ -102,12 +135,15 @@ jobs:
     runs-on: ubuntu-latest
     # 30 minutes, and the number is a fail-closed bound rather than a guess.
     #
-    # The floor is MEASURED, not estimated: the first green run of this job
-    # took 9m54s end to end (run 32360454402 — 10:45:17 to 10:55:11), of
-    # which session-renewal.spec.ts spends ~3.5 minutes deliberately waiting
-    # out a short SESSION_TTL. That part is wall-clock the job can never
-    # optimise away. The design spec's "roughly 8-10 minutes" estimate is
-    # replaced by that figure.
+    # The floor is MEASURED, not estimated. First green run — cold caches,
+    # every image pulled — 9m54s (run 32360454402). Stable runs since:
+    # 7m59s, 8m16s, 8m35s, 8m19s. Call it ~8.5 minutes warm, ~10 cold. Of
+    # that, session-renewal.spec.ts spends ~3.5 minutes deliberately waiting
+    # out a short SESSION_TTL — wall clock the job can never optimise away.
+    #
+    # docs/superpowers/specs/2026-08-20-e2e-in-ci-design.md D1 carries the
+    # same numbers, updated in the same change; this comment and that spec
+    # must not drift into two authorities on one measurement.
     #
     # The ceiling: `make e2e` has a documented UNBOUNDED hang (#923 —
     # zitadel-login latches a stale PAT and waits forever). With no timeout,
@@ -286,30 +322,31 @@ jobs:
       # what distinguish "zitadel-login is wedged on a stale PAT" from "a
       # spec genuinely failed".
       #
-      # The condition is `!success() || cancelled()`, and the mechanism is
-      # worth stating correctly because the obvious guess is wrong.
+      # The condition is `!success() || cancelled()`. Which clause carries
+      # which case is worth stating precisely — this comment is on its third
+      # telling and the first two were wrong in opposite directions.
       #
-      # GitHub does not scan the `if` text for `cancelled()`. It EVALUATES the
-      # expression with the job status set to Cancelled — under which
-      # `success()`, `failure()` and `!cancelled()` are all false, which is
-      # why steps written that way skip. The only textual special case runs
-      # the other way: an `if` containing no status-check function gets
-      # `success() &&` implicitly prepended.
+      #   - `cancelled()` is the DOCUMENTED guarantee. GitHub's own docs name
+      #     it (and `always()`) as what makes a step run on a cancelled job.
+      #     A job-level `timeout-minutes` cancels the job, so this is the
+      #     clause that covers a hang in a step with no timeout of its own.
+      #   - `!success()` covers the ordinary case, and it is the common one:
+      #     the step-level `timeout-minutes: 20` on `make e2e` turns a hang
+      #     there into a step FAILURE, not a cancellation.
+      #   - Neither fires on a green run, so a passing build does not dump
+      #     Zitadel's logs at anyone.
       #
-      # So `!success()` ALONE is already true under cancellation, and is what
-      # actually does the work here — on a step failure and on a job
-      # cancellation alike. `|| cancelled()` is logically redundant; it is
-      # kept only because it says out loud that this step is meant to survive
-      # a cancelled job. Neither clause fires on a green run, so a passing
-      # build does not dump Zitadel's logs at anyone.
-      #
-      # Consequence worth recording: a hang in `dev-infra` or `seed` — steps
-      # with no timeout of their own — hits the JOB bound, cancels the job,
-      # and these dumps STILL run, inside the default 5-minute cancel-timeout
-      # (they take about a second). The step-level `timeout-minutes` on
-      # `make e2e` above buys a better headline, not the diagnostics
-      # themselves. Step timeouts on the earlier steps would be a
-      # nice-to-have, not a correctness fix.
+      # OBSERVED vs REASONED, because the difference matters here:
+      #   - Step failure -> dumps run: OBSERVED. Run 32365177274 (a 1-minute
+      #     step timeout, deliberately) and run 32367367994 (a real assertion
+      #     failure) both show steps 16-19 succeeding.
+      #   - Job cancellation -> dumps run: REASONED, NOT OBSERVED. No run on
+      #     this branch has hit the job-level bound. The expression names
+      #     `cancelled()`, which is the documented condition, and the dumps
+      #     take about a second against a 5-minute default cancel-timeout —
+      #     but nobody has watched it happen. That path is the only
+      #     diagnostic cover for `dev-infra` and `seed`, which have no step
+      #     timeout, so treat it as designed-for rather than proven.
       #
       # These run `docker compose` directly rather than through make, so the
       # HELIVANTA_* variables make exports are unset and compose warns about a

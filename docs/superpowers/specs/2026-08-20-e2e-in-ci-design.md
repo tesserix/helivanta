@@ -41,8 +41,19 @@ Chosen over nightly, path-filtered and label-triggered, deliberately:
   by exactly that shape twice this week.
 - **A gate people opt into is not a gate.**
 
-The cost is real and accepted: roughly 8–10 minutes added to every PR. It is
-affordable because Actions minutes are free while the repo is public.
+The cost is real and accepted, and is now MEASURED rather than estimated
+(#920 Task 3): **~8.5 minutes warm, ~10 minutes cold.** The first green run,
+with every image pulled, took 9m54s (run 32360454402); stable runs since have
+been 7m59s, 8m16s, 8m35s and 8m19s. About 3.5 minutes of that is
+`session-renewal.spec.ts` deliberately waiting out a short `SESSION_TTL`, so
+it is wall clock the job cannot optimise away.
+
+`.github/workflows/ci.yml`'s `timeout-minutes` comment carries the same
+figures and is updated in step with this paragraph — one measurement, not two
+authorities on it. Runner cost is also why the workflow now cancels
+superseded runs per ref (see that file's `concurrency` block).
+
+It is affordable because Actions minutes are free while the repo is public.
 
 **State the dependency plainly:** the repo is public *because billing is
 failing*, not by preference. If it is ever flipped private, this job stops

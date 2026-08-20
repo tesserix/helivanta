@@ -616,10 +616,18 @@ describe("HmsShell", () => {
     // have passed every existing test while leaving the previous
     // clinician's renewal schedule behind on a ward terminal that timed
     // out unattended, which is the very scenario #848 is about.
-    it("drops the stored renewal schedule when the idle timer expires", async () => {
+    it("drops the stored renewal schedule and cached permissions when the idle timer expires", async () => {
       vi.useFakeTimers();
       storeRenewAt(new Date(Date.now() + 60_000).toISOString());
       expect(window.sessionStorage.getItem(RENEW_AT_KEY)).not.toBeNull();
+      // The permissions cache lives in localStorage (permissions-cache.ts),
+      // not sessionStorage, so it survives a tab close and must be
+      // dropped explicitly here too — otherwise the previous clinician's
+      // cached permission set would survive an idle timeout on a shared
+      // ward terminal, exactly the leak #848's idle timeout exists to
+      // prevent.
+      seedCache(["patients:read"]);
+      expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).not.toBeNull();
       stubActivityFetch(() => new Date(Date.now() + 5_000));
       renderWithProviders(<HmsShell active="/">content</HmsShell>);
 
@@ -631,6 +639,10 @@ describe("HmsShell", () => {
       expect(
         window.sessionStorage.getItem(RENEW_AT_KEY),
         "an idle timeout ends the session, so the schedule it left behind goes with it",
+      ).toBeNull();
+      expect(
+        window.localStorage.getItem(PERMISSIONS_CACHE_KEY),
+        "an idle timeout ends the session, so the cached permission set it left behind goes with it",
       ).toBeNull();
     });
 

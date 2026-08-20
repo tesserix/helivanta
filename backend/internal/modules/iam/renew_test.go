@@ -288,7 +288,7 @@ func TestRenewViaBearerHeaderOnlyIsRefused(t *testing.T) {
 		"a bearer-only renewal must not be served at all: the session cookie IS this endpoint's credential, "+
 			"and serving it (even without moving the deadline) is still the wrong answer")
 	require.Equal(t, 0, userState.calls,
-		"the missing-cookie refusal must happen before any Zitadel call, not after")
+		"the bearer-only refusal must happen before any Zitadel call, not after")
 }
 
 // TestRenewRefusesABearerHeaderEvenAlongsideALiveCookie is the structural

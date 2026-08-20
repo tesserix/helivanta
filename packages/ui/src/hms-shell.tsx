@@ -158,8 +158,16 @@ export function HmsShell({
   const endIdleSession = useCallback((mark: SessionEndMark | undefined) => {
     if (tornDownRef.current) return;
     tornDownRef.current = true;
-    // Same reasoning as handleSignOut's call below: an idle timeout ends
-    // this session too, so the schedule it left behind goes with it.
+    // Same reasoning as handleSignOut's calls below: an idle timeout ends
+    // this session too, so both the renewal schedule and the cached
+    // permission set it left behind go with it. The permissions cache is
+    // convenience only (the API enforces — see CLAUDE.md's frontend
+    // rules), so a stale entry here is not a privilege escalation, but it
+    // lives in localStorage rather than sessionStorage (permissions-cache.ts),
+    // so without this call the previous clinician's cached permissions
+    // would survive an idle timeout on a shared ward terminal — exactly
+    // the leak #848's idle timeout exists to prevent.
+    clearPermissionsCache();
     clearRenewAt();
     void (async () => {
       try {

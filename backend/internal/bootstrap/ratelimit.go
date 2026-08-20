@@ -109,10 +109,14 @@ func LoginRateLimitRule(cfg config.Config) ratelimit.Rule {
 }
 
 // FactorRateLimitRule builds the budget for POST /v1/auth/login/factor
-// (#867 Task 4), keyed on client IP the same way LoginRateLimitRule and
-// iam.LoginUIHandlers' other three routes are (iam.allowedByLimiter's
-// doc comment: there is no verified subject on any of these routes —
-// that is what the flow is establishing). It is its OWN Rule, drawn from
+// (#867 Task 4), keyed on client IP the same way iam.LoginUIHandlers'
+// other three routes are (iam.allowedByLimiter's doc comment: there is
+// no verified subject on any of these routes yet — that is what the flow
+// is establishing). LoginRateLimitRule above is NOT one of these routes:
+// it runs after Zitadel authentication succeeds and keys on the verified
+// subject (login.go, `"login:"+principal.Subject`), not on client IP —
+// see this function's own doc comment above for why that split matters.
+// It is its OWN Rule, drawn from
 // its OWN "login_factor:" bucket (iam/loginui.go), never folded into
 // LoginRateLimitRule's shared budget — see that constant's doc comment:
 // this is a PRIMARY control, not a secondary one, because
@@ -258,11 +262,22 @@ func FactorRateLimitRule(cfg config.Config) ratelimit.Rule {
 // /v1/auth/session/activity, whose Burst=3 leans on a 60s cross-tab
 // BroadcastChannel debounce (spec D4), nothing debounces these — so a
 // burst sized for "one page load's worth of requests" would 429 a
-// clinician with several tabs open in the same cluster. A 429 here
-// that Task 3's client treats as a renewal failure is a bounce to
-// /login — the exact harm #916 exists to prevent, reintroduced by this
-// rate limit. Burst=10 matches LoginRateLimitRule's own number and its
-// reasoning exactly, rather than a fraction of Rate. Rate=6/min stays
+// clinician with several tabs open in the same cluster. A 429 here is
+// NOT the harm #916 exists to prevent — apps/shell/lib/renew.ts
+// classifies a 429 response as RenewalUnavailableError, the same
+// "try again" bucket as a 5xx or an unreachable endpoint, and the
+// caller retries rather than treating it as a refusal that bounces to
+// /login (RenewalFailedError is reserved for the backend's affirmative
+// refusals: 401/404/unrecognized 4xx). A burst too small to survive one
+// clustered page load would still mean spurious retries and delay, so
+// it is still worth avoiding — just not for the "bounces to /login"
+// reason this comment previously gave. Burst=10 happens to match
+// LoginRateLimitRule's own number, but not its reasoning: that rule's
+// Burst is sized on genuine sign-in exchange clustering (a subject
+// signing in from several devices around a shift start), a different
+// traffic shape from this route's clustered-tab renewal traffic — the
+// two arrive at the same number independently, and this comment does
+// not borrow one's justification for the other. Rate=6/min stays
 // well above the sustained per-subject traffic even 10 clustered tabs
 // produce (10 tabs × 1 call per renew_at interval, default 5 minutes,
 // ≈ 2/min sustained for one subject) while still bounding the worst
@@ -276,9 +291,12 @@ func FactorRateLimitRule(cfg config.Config) ratelimit.Rule {
 // client must NOT add cross-tab coordination (a BroadcastChannel
 // debounce, a single-tab-elected renewer, or similar) as a way to
 // lower this traffic — Burst=10 is sized on the assumption that it
-// won't, i.e. that every open tab keeps renewing independently, the
-// same assumption LoginRateLimitRule already makes about today's
-// client. If Task 3 DOES add cross-tab coordination (which would also
+// won't, i.e. that every open tab keeps renewing independently. This is
+// NOT an assumption LoginRateLimitRule shares: #916 moved renewal
+// traffic off that route entirely (see its own doc comment), so it has
+// no per-tab renewal behavior left to assume anything about, and this
+// route's Burst is sized purely on the traffic described above. If Task
+// 3 DOES add cross-tab coordination (which would also
 // be a defensible design — it is the same mechanism the activity
 // endpoint already uses), Burst should shrink back toward activity's
 // Burst=3 rather than staying at 10, and this comment must be updated

@@ -199,10 +199,14 @@ type Config struct {
 	// verified Zitadel subject (#841) — a separate knob from
 	// RateLimitPrincipalPerMin because login runs entirely outside
 	// bootstrap.V1Chain (there is no authn.Principal yet for
-	// ratelimit.Middleware to key on) and is sized off renewal traffic,
-	// not general API traffic — see
+	// ratelimit.Middleware to key on). #916 moved renewal traffic off
+	// this route onto POST /v1/auth/renew (RateLimitRenewPerMin below,
+	// bootstrap/ratelimit.go's RenewRateLimitRule) — this knob is now
+	// sized off genuine sign-in exchange clustering, not renewal traffic
+	// — see
 	// docs/superpowers/specs/2026-08-16-login-rate-limit-design.md D2 for
-	// the arithmetic behind the default.
+	// the arithmetic behind the default, and bootstrap/ratelimit.go's
+	// LoginRateLimitRule for the current, restated reasoning.
 	RateLimitLoginPerMin int
 	// RateLimitActivityPerMin bounds POST /v1/auth/session/activity
 	// (#848 Task 4), keyed on the authenticated subject — a separate

@@ -242,6 +242,21 @@ jobs:
             wait_for "http://helivanta.localhost:$port/" "zone app on :$port"
           done
 
+      # TEMPORARY diagnostic (#920) — removed before this lands. scripts/
+      # e2e.sh's port_holders found nothing on 4301-4304 while all four
+      # answered HTTP, so the fixture swap silently stopped nothing.
+      - name: DEBUG port holders
+        run: |
+          id
+          echo "--- lsof -t"
+          lsof -nP -iTCP:4301 -sTCP:LISTEN -t; echo "lsof rc=$?"
+          echo "--- lsof full"
+          lsof -nP -iTCP:4301 -sTCP:LISTEN; echo "rc=$?"
+          echo "--- ss"
+          ss -ltnp
+          echo "--- ps"
+          ps -eo pid,ppid,user,args | grep -i 'next\|turbo\|go run' | head -30
+
       - name: make e2e
         run: make e2e
 

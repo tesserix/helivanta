@@ -141,9 +141,27 @@ teardown_fixture() {
   stop_port_if_ours "$RENEWAL_API_PORT" "dev-api-renewal"
 }
 
+# dump_logs — prints whatever the backgrounded `make` invocations wrote.
+# Those processes are started with nohup into $LOG_DIR, so on a failure their
+# output is the ONLY account of why a fixture never bound its port — and
+# until this existed the script deleted it unread, leaving nothing but
+# "Timed out after 60s". That is exactly the case this suite is most likely
+# to fail in on a machine nobody can attach to (CI, #920).
+dump_logs() {
+  local f
+  for f in "$LOG_DIR"/*.log; do
+    [ -e "$f" ] || continue
+    echo "----- $(basename "$f") -----" >&2
+    tail -50 "$f" >&2
+  done
+}
+
 cleanup() {
   local status=$?
   trap - EXIT
+  if [ "$status" != 0 ]; then
+    dump_logs
+  fi
   teardown_fixture
   restore_web
   rm -rf "$LOG_DIR"

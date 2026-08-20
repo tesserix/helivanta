@@ -27,8 +27,14 @@ const SECRETS_DIR = fileURLToPath(new URL("../../dev/zitadel/secrets/", import.m
 // hidden-iframe renewal flow's silent-renew page — deleted along with
 // that page and its Zitadel-app registration by #916 (design spec D1):
 // renewal no longer touches Zitadel through the browser at all.
-export const DEV_REDIRECT_URI = "http://localhost:4301/api/auth/callback";
-export const DEV_POST_LOGOUT_REDIRECT_URI = "http://localhost:4301/login";
+// helivanta.localhost, not localhost (#916 Task 4, design spec D6): dev
+// serves the app and the IdP on different registrable domains so the
+// cross-site condition production runs under is actually exercised. Keep
+// these in step with scripts/zitadel-bootstrap.mjs's WEB_HOST and the
+// Makefile's HELIVANTA_WEB_HOST — Zitadel rejects an authorization request
+// whose redirect_uri is not registered byte-for-byte.
+export const DEV_REDIRECT_URI = "http://helivanta.localhost:4301/api/auth/callback";
+export const DEV_POST_LOGOUT_REDIRECT_URI = "http://helivanta.localhost:4301/login";
 
 // readClientID prefers an explicit ZITADEL_CLIENT_ID from the environment
 // (an operator override), otherwise reads it straight from

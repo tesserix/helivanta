@@ -112,7 +112,35 @@ services:
       ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: zitadel
       ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
       ZITADEL_EXTERNALSECURE: "false"
-      ZITADEL_EXTERNALDOMAIN: localhost
+      # NOT "localhost" (#916 Task 4, design spec D6). Production serves the
+      # app at helivanta.app and this IdP at auth.tesserix.app — DIFFERENT
+      # registrable domains, so every browser request from the app to the IdP
+      # is CROSS-SITE and a SameSite=Lax IdP cookie is withheld. That is the
+      # whole of #916, and the old dev topology (app on localhost:4301, IdP on
+      # localhost:20080) could not express it: a "site" is scheme +
+      # registrable domain and PORTS ARE NOT PART OF IT, so dev was same-site,
+      # the cookie flowed, renewal succeeded, and no test could fail.
+      #
+      # helivanta.localhost / auth.tesserix.localhost reproduce production's
+      # relationship on a developer's machine: distinct registrable domains
+      # (helivanta.localhost vs tesserix.localhost) that Chrome still treats
+      # as loopback — so they need no /etc/hosts entry and still count as
+      # secure contexts. VERIFIED EMPIRICALLY, not assumed: a SameSite=Lax
+      # cookie set on auth.tesserix.localhost is NOT sent on an iframe
+      # subresource request from helivanta.localhost, while the same probe on
+      # the old localhost:A / localhost:B pair DOES send it. That probe is
+      # kept as e2e/tests/cross-site-harness.spec.ts so the property this
+      # whole topology exists for cannot silently regress.
+      #
+      # Zitadel resolves its instance from the HOST HEADER and stamps this
+      # domain into every token's `iss`, so this value, ZITADEL_ISSUER_URL
+      # (Makefile / backend config), the OIDC apps' redirect URIs
+      # (scripts/zitadel-bootstrap.mjs) and zitadel-login's
+      # CUSTOM_REQUEST_HEADERS below must all move together. Changing it on an
+      # ALREADY-PROVISIONED volume does not work — the instance domain is
+      # written once at first-instance time and an unknown Host then answers
+      # "Instance not found"; `make reset` is required. See README.md "Hosts".
+      ZITADEL_EXTERNALDOMAIN: ${HELIVANTA_ZITADEL_HOST:-auth.tesserix.localhost}
       ZITADEL_EXTERNALPORT: "${HELIVANTA_ZITADEL_PORT:-20080}"
       # Matches production's split-login topology (tenancy topology design
       # doc, D5a) rather than the simpler core-only "/ui/login" mode: dev
@@ -239,10 +267,10 @@ services:
       # ZITADEL_EXTERNALDOMAIN/PORT above, or core's instance-resolution
       # middleware answers "Instance not found" — reproduced directly
       # while wiring this up: the internal docker-network hostname
-      # (zitadel:8080) does not, and cannot, match localhost:20080 on its
-      # own. This is the same header override the official Zitadel compose
+      # (zitadel:8080) does not, and cannot, match the external domain on
+      # its own. This is the same header override the official Zitadel compose
       # uses (deploy/compose/docker-compose.yml's CUSTOM_REQUEST_HEADERS).
-      CUSTOM_REQUEST_HEADERS: "Host:localhost:${HELIVANTA_ZITADEL_PORT:-20080},X-Forwarded-Proto:http"
+      CUSTOM_REQUEST_HEADERS: "Host:${HELIVANTA_ZITADEL_HOST:-auth.tesserix.localhost}:${HELIVANTA_ZITADEL_PORT:-20080},X-Forwarded-Proto:http"
     volumes:
       - ./dev/zitadel/secrets:/secrets:ro
     depends_on:

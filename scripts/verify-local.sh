@@ -8,6 +8,10 @@ set -uo pipefail
 # works run standalone with no .env present.
 OPENFGA_PORT=${HELIVANTA_OPENFGA_PORT:-8090}
 ZITADEL_PORT=${HELIVANTA_ZITADEL_PORT:-20080}
+# Zitadel resolves its INSTANCE from the Host header, so it must be reached on
+# the same host its issuer is stamped with — see the Makefile's
+# HELIVANTA_ZITADEL_HOST comment and the README's "Hosts" section (#916 Task 4).
+ZITADEL_HOST=${HELIVANTA_ZITADEL_HOST:-auth.tesserix.localhost}
 API_PORT=${HELIVANTA_API_PORT:-8080}
 
 fail=0
@@ -42,7 +46,7 @@ check "openfga"          "http://localhost:$OPENFGA_PORT/healthz"
 # zitadel service comment): it reports "not ready" even while serving real
 # traffic, so trusting it here would produce the exact false FAIL this
 # script's whole retry-with-attempts design exists to avoid.
-check "zitadel"           "http://localhost:$ZITADEL_PORT/debug/healthz"
+check "zitadel"           "http://$ZITADEL_HOST:$ZITADEL_PORT/debug/healthz"
 
 echo "Backend:"
 # The API exposes /healthz and /readyz (backend/internal/httpserver/server.go)
@@ -56,10 +60,16 @@ echo "Frontend zones:"
 #
 # 10 attempts x 20s covers a cold `next dev` first-request compile, which
 # routinely exceeds the 5s the backend checks use.
-check "shell    (4301)"  "http://localhost:4301/login"    10 20
-check "medicore (4302)"  "http://localhost:4302/medicore" 10 20
-check "pharmacy (4303)"  "http://localhost:4303/pharmacy" 10 20
-check "lab      (4304)"  "http://localhost:4304/lab"      10 20
+# helivanta.localhost, not localhost (#916 Task 4, design spec D6): the shell's
+# OIDC redirect URIs are registered against that host, so this is the origin a
+# developer must actually use — checking `localhost` here would pass (Next binds
+# every interface) while a human following the printed URL below could not
+# complete a sign-in. The three zone apps have no OIDC registration of their
+# own, but use the same host so one origin is quoted throughout.
+check "shell    (4301)"  "http://helivanta.localhost:4301/login"    10 20
+check "medicore (4302)"  "http://helivanta.localhost:4302/medicore" 10 20
+check "pharmacy (4303)"  "http://helivanta.localhost:4303/pharmacy" 10 20
+check "lab      (4304)"  "http://helivanta.localhost:4304/lab"      10 20
 
 # One authenticated round trip, at the API level (#838 Task 6). This used
 # to go through the shell's own /api/session route (issue #772) — every
@@ -96,7 +106,7 @@ if [ "$fail" -eq 0 ]; then
   # 302 — since #854 the credential form that actually renders is Helivanta's own
   # /login. Saying "you will be redirected to Zitadel" here read as though a
   # hosted Zitadel page were expected, which would now be a defect.
-  echo "Sign in at http://localhost:4301 — the sign-in form is Helivanta's own /login."
+  echo "Sign in at http://helivanta.localhost:4301 — the sign-in form is Helivanta's own /login."
   echo "Zitadel accounts, login-verified by 'make seed':"
   echo "  test@helivanta.dev       / HmsDev123!  (tenant_admin)"
   echo "  pharmacist@helivanta.dev / HmsDev123!  (pharmacist)"

@@ -70,7 +70,7 @@ type Config struct {
 	// properties.
 	ZitadelLoginClientToken string
 	// ZitadelHostedLoginURL is Zitadel's own hosted login origin+path
-	// (e.g. http://localhost:20080/ui/v2/login) — the target
+	// (e.g. http://auth.tesserix.localhost:20080/ui/v2/login) — the target
 	// LoginUIHandlers.Handoff (and a Password call that resolves to
 	// OutcomeHandoff) redirect the browser to when Helivanta's own login form
 	// cannot complete a sign-in itself (an enrolled second factor Zitadel
@@ -310,14 +310,14 @@ func Load() Config {
 		OpenFGAURL:        getenv("OPENFGA_URL", "http://localhost:8090"),
 		OpenFGAStore:      getenv("OPENFGA_STORE", "helivanta"),
 
-		ZitadelIssuerURL: getenv("ZITADEL_ISSUER_URL", "http://localhost:20080"),
+		ZitadelIssuerURL: getenv("ZITADEL_ISSUER_URL", "http://auth.tesserix.localhost:20080"),
 		ZitadelClientID:  getenv("ZITADEL_CLIENT_ID", ""),
 
 		// os.Getenv, not getenv(): mirrors SessionSigningKey immediately
 		// below — this PAT must never have a default (see
 		// ZitadelLoginClientToken's doc comment on exactly why).
 		ZitadelLoginClientToken: os.Getenv("ZITADEL_LOGIN_CLIENT_TOKEN"),
-		ZitadelHostedLoginURL:   getenv("ZITADEL_HOSTED_LOGIN_URL", "http://localhost:20080/ui/v2/login"),
+		ZitadelHostedLoginURL:   getenv("ZITADEL_HOSTED_LOGIN_URL", "http://auth.tesserix.localhost:20080/ui/v2/login"),
 		// os.Getenv, not getenv(): see HelivantaWebOrigin's doc comment just
 		// above — RequireDistinctHostedLoginOrigin (hostedlogin.go), not
 		// Load(), is where an unset value is resolved, and it resolves

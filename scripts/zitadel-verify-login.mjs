@@ -46,7 +46,7 @@ import {
   readLoginClientPAT,
 } from "./lib/zitadel.mjs";
 
-const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://localhost:20080";
+const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://auth.tesserix.localhost:20080";
 const API_URL = process.env.API_URL ?? "http://localhost:8080";
 
 const SEED_USER = "test@helivanta.dev";

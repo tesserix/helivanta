@@ -32,7 +32,19 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { managementAPI, readMachinePAT } from "./lib/zitadel.mjs";
 
-const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://localhost:20080";
+const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://auth.tesserix.localhost:20080";
+
+// The app's host in dev. NOT "localhost" (#916 Task 4, design spec D6):
+// production serves the app at helivanta.app and this IdP at
+// auth.tesserix.app — different registrable domains, so every browser
+// request from app to IdP is cross-site. The old localhost:4301 /
+// localhost:20080 pair shared a site (ports are not part of a site), which
+// is exactly why no test could catch #916. Overridable to match the
+// Makefile's HELIVANTA_WEB_HOST; every redirect URI below is built from it
+// so the registration cannot drift from where the dev server actually
+// serves.
+const WEB_HOST = process.env.HELIVANTA_WEB_HOST ?? "helivanta.localhost";
+const webOrigin = (port) => `http://${WEB_HOST}:${port}`;
 const SECRETS_DIR = fileURLToPath(new URL("../dev/zitadel/secrets/", import.meta.url));
 
 const ORG_NAME = "Helivanta";
@@ -230,8 +242,8 @@ async function main() {
   // it needs no redirect_uri here.
   const clientId = await provisionApp(pat, project, {
     appName: "helivanta-web",
-    redirectUris: ["http://localhost:4301/api/auth/callback"],
-    postLogoutRedirectUris: ["http://localhost:4301/login"],
+    redirectUris: [`${webOrigin(4301)}/api/auth/callback`],
+    postLogoutRedirectUris: [`${webOrigin(4301)}/login`],
     envOutPath: `${SECRETS_DIR}zitadel.env`,
   });
 
@@ -241,9 +253,22 @@ async function main() {
   // wholly separate OIDC app rather than reusing helivanta-web's.
   const idleTimeoutClientId = await provisionApp(pat, project, {
     appName: "helivanta-web-idle-timeout",
-    redirectUris: ["http://localhost:4399/api/auth/callback"],
-    postLogoutRedirectUris: ["http://localhost:4399/login"],
+    redirectUris: [`${webOrigin(4399)}/api/auth/callback`],
+    postLogoutRedirectUris: [`${webOrigin(4399)}/login`],
     envOutPath: `${SECRETS_DIR}zitadel-idle-timeout.env`,
+  });
+
+  // helivanta-web-renewal: session-renewal.spec.ts's OWN shell instance
+  // (Makefile's dev-web-renewal, port HELIVANTA_RENEWAL_WEB_PORT), against an
+  // API booted with a short SESSION_TTL. Same reasoning as
+  // helivanta-web-idle-timeout above — a per-app loginV2 baseUri is a single
+  // origin, so a third fixture on a third port needs a third app rather than
+  // borrowing either of the other two's registration.
+  const renewalClientId = await provisionApp(pat, project, {
+    appName: "helivanta-web-renewal",
+    redirectUris: [`${webOrigin(4398)}/api/auth/callback`],
+    postLogoutRedirectUris: [`${webOrigin(4398)}/login`],
+    envOutPath: `${SECRETS_DIR}zitadel-renewal.env`,
   });
 
   console.log(`
@@ -253,6 +278,7 @@ Zitadel provisioned:
   Project:       ${PROJECT_NAME}
   App:           helivanta-web (client_id=${clientId})
   App:           helivanta-web-idle-timeout (client_id=${idleTimeoutClientId})
+  App:           helivanta-web-renewal (client_id=${renewalClientId})
   Console admin: admin@helivanta.localhost / HmsDevAdminPassw0rd! (dev only — see
                  docker-compose.dev.yml's zitadel service)
 `);

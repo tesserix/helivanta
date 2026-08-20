@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-infra dev-down dev-api dev-web migrate seed secret-session-key test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local preflight reset image-api image-shell
+.PHONY: up down dev dev-infra dev-down dev-api dev-web dev-api-renewal dev-web-renewal migrate seed secret-session-key test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local preflight reset image-api image-shell
 
 # Docker Compose reads .env in the project directory automatically for
 # ${VAR} substitution in docker-compose.dev.yml; Make does not read it on
@@ -31,6 +31,29 @@ HELIVANTA_ZITADEL_PORT ?= 20080
 HELIVANTA_ZITADEL_PG_PORT ?= 5433
 HELIVANTA_API_PORT ?= 8080
 
+# Hostnames, not ports — and unlike the ports above these are NOT a
+# convenience knob (#916 Task 4, design spec D6). The app and the IdP must
+# sit on DIFFERENT REGISTRABLE DOMAINS in dev and CI, because that is what
+# production does (helivanta.app vs auth.tesserix.app) and therefore what
+# makes every browser request from the app to the IdP cross-site. A "site"
+# is scheme + registrable domain and PORTS ARE NOT PART OF IT, so the old
+# localhost:4301 / localhost:20080 pair was same-site: Zitadel's
+# SameSite=Lax cookie flowed in dev, the iframe renewal #916 removed
+# "worked" here, and no test could have caught the production defect.
+#
+# `.localhost` keeps this free of /etc/hosts edits: Chrome (and macOS's
+# resolver) map *.localhost to loopback and still treat it as a secure
+# context, while helivanta.localhost and tesserix.localhost are distinct
+# registrable domains. Proven, not assumed — see
+# e2e/tests/cross-site-harness.spec.ts.
+#
+# Overridable for the same reason the ports are (a machine where these
+# names already mean something else), but overriding them to a SHARED
+# registrable domain re-blinds the harness; cross-site-harness.spec.ts
+# fails if you do.
+HELIVANTA_WEB_HOST ?= helivanta.localhost
+HELIVANTA_ZITADEL_HOST ?= auth.tesserix.localhost
+
 # Connection strings derived from the ports above, for dev-api/migrate/seed.
 # backend/internal/config/config.go and scripts/seed-dev.mjs already default
 # to these exact values (on the stock ports) when the env var is unset, so
@@ -44,7 +67,7 @@ ADMIN_DATABASE_URL ?= postgres://helivanta:helivanta@localhost:$(HELIVANTA_PG_PO
 SYSTEM_DATABASE_URL ?= postgres://helivanta_system:helivanta_system@localhost:$(HELIVANTA_PG_PORT)/helivanta?sslmode=disable
 NATS_URL ?= nats://localhost:$(HELIVANTA_NATS_PORT)
 OPENFGA_URL ?= http://localhost:$(HELIVANTA_OPENFGA_PORT)
-ZITADEL_ISSUER_URL ?= http://localhost:$(HELIVANTA_ZITADEL_PORT)
+ZITADEL_ISSUER_URL ?= http://$(HELIVANTA_ZITADEL_HOST):$(HELIVANTA_ZITADEL_PORT)
 
 # API_URL is what each app's next.config.ts rewrites /api to (server side).
 API_URL ?= http://localhost:$(HELIVANTA_API_PORT)
@@ -65,6 +88,9 @@ NEXT_PUBLIC_ZITADEL_ISSUER_URL ?= $(ZITADEL_ISSUER_URL)
 NEXT_PUBLIC_ZITADEL_CLIENT_ID ?= $(ZITADEL_CLIENT_ID)
 
 export HELIVANTA_PG_PORT HELIVANTA_NATS_PORT HELIVANTA_NATS_MONITOR_PORT HELIVANTA_REDIS_PORT HELIVANTA_OPENFGA_PORT HELIVANTA_ZITADEL_PORT HELIVANTA_ZITADEL_PG_PORT HELIVANTA_API_PORT
+# Exported so docker-compose.dev.yml's ${HELIVANTA_ZITADEL_HOST} substitution
+# resolves to the same value every recipe here uses.
+export HELIVANTA_WEB_HOST HELIVANTA_ZITADEL_HOST
 export APP_DATABASE_URL ADMIN_DATABASE_URL SYSTEM_DATABASE_URL NATS_URL OPENFGA_URL ZITADEL_ISSUER_URL
 export API_URL
 export ZITADEL_CLIENT_ID
@@ -101,8 +127,8 @@ preflight:
 dev-infra: preflight
 	docker compose -f docker-compose.dev.yml up -d --wait postgres nats redis openfga
 	docker compose -f docker-compose.dev.yml up -d zitadel-db zitadel zitadel-login zitadel-proxy
-	@printf 'Waiting for Zitadel on :$(HELIVANTA_ZITADEL_PORT)…'
-	@until curl -fsS --max-time 2 http://localhost:$(HELIVANTA_ZITADEL_PORT)/debug/healthz >/dev/null 2>&1; do printf '.'; sleep 1; done
+	@printf 'Waiting for Zitadel on http://$(HELIVANTA_ZITADEL_HOST):$(HELIVANTA_ZITADEL_PORT)…'
+	@until curl -fsS --max-time 2 http://$(HELIVANTA_ZITADEL_HOST):$(HELIVANTA_ZITADEL_PORT)/debug/healthz >/dev/null 2>&1; do printf '.'; sleep 1; done
 	@echo ' ready.'
 	@# Provisions the Helivanta org/project/app once (idempotent — see the
 	@# script's own doc comment) and writes
@@ -250,6 +276,62 @@ dev-web-idle-timeout:
 	set -a; . ./$(ZITADEL_IDLE_TIMEOUT_ENV_FILE); set +a; \
 	cd apps/shell && API_URL=http://localhost:$(HELIVANTA_IDLE_API_PORT) NEXT_PUBLIC_ZITADEL_CLIENT_ID=$$ZITADEL_CLIENT_ID NEXT_PUBLIC_ZITADEL_ISSUER_URL=$${NEXT_PUBLIC_ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} npx next dev -p $(HELIVANTA_IDLE_WEB_PORT)
 
+# --- Session-renewal e2e fixture (#916 Task 4) ----------------------------
+# e2e/tests/session-renewal.spec.ts has to observe a session SURVIVING past
+# its own SESSION_TTL, which is only possible if a renewal actually
+# happened. That needs a SESSION_TTL short enough to expire inside a test
+# run and long enough that apps/shell's first renewal — scheduled at
+# FALLBACK_RENEWAL_INTERVAL_MS, 5 minutes, apps/shell/lib/renew.ts — still
+# lands comfortably inside it. Six minutes is the smallest value with real
+# margin on both sides: the first renewal fires at t+5m with a minute of
+# the original cookie's life left, and the ORIGINAL cookie is dead by
+# t+6m, so a session still working at t+6m10s can only be a re-minted one.
+#
+# SESSION_TTL_TEST_VALUE is baked into this recipe rather than read from
+# SESSION_TTL, for the same reason IDLE_TIMEOUT_TEST_VALUE is above: a
+# value a developer exported for some other reason must not leak in, and
+# this recipe must never be able to affect dev-api's own SESSION_TTL.
+#
+# Note this fixture leaves IDLE_TIMEOUT at its 15-minute default on
+# purpose. Renewal deliberately does NOT move idle_deadline (design spec
+# D4), so a short IDLE_TIMEOUT would end the session on the idle clock
+# before the session-TTL clock could prove anything — which is also why
+# this cannot share the idle-timeout fixture above.
+HELIVANTA_RENEWAL_API_PORT ?= 8098
+HELIVANTA_RENEWAL_WEB_PORT ?= 4398
+SESSION_TTL_TEST_VALUE ?= 6m
+ZITADEL_RENEWAL_ENV_FILE ?= dev/zitadel/secrets/zitadel-renewal.env
+
+dev-api-renewal:
+	@if [ ! -s "$(ZITADEL_RENEWAL_ENV_FILE)" ]; then \
+		echo "$(ZITADEL_RENEWAL_ENV_FILE) does not exist or is empty — run" >&2; \
+		echo "'make dev-infra' first so scripts/zitadel-bootstrap.mjs can" >&2; \
+		echo "provision the helivanta-web-renewal app and write it." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$${ZITADEL_LOGIN_CLIENT_TOKEN:-}" ] && [ ! -s "$(ZITADEL_LOGIN_CLIENT_PAT_FILE)" ]; then \
+		echo "$(ZITADEL_LOGIN_CLIENT_PAT_FILE) does not exist or is empty — run" >&2; \
+		echo "'make dev-infra' first so Zitadel's first-instance provisioning" >&2; \
+		echo "can write it (see docker-compose.dev.yml's zitadel-pat-ready" >&2; \
+		echo "service comment for why this can lag the container starting)." >&2; \
+		exit 1; \
+	fi
+	set -a; . ./$(ZITADEL_RENEWAL_ENV_FILE); set +a; \
+	cd backend && HELIVANTA_ENV=$${HELIVANTA_ENV:-dev} ZITADEL_ISSUER_URL=$${ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} ZITADEL_CLIENT_ID=$$ZITADEL_CLIENT_ID ZITADEL_LOGIN_CLIENT_TOKEN=$${ZITADEL_LOGIN_CLIENT_TOKEN:-$$(cat ../$(ZITADEL_LOGIN_CLIENT_PAT_FILE))} SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-$(HELIVANTA_DEV_SESSION_SIGNING_KEY)} HELIVANTA_WEB_ORIGIN=http://$(HELIVANTA_WEB_HOST):$(HELIVANTA_RENEWAL_WEB_PORT) PORT=$(HELIVANTA_RENEWAL_API_PORT) SESSION_TTL=$(SESSION_TTL_TEST_VALUE) RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) go run ./cmd/api
+
+# Only apps/shell, for the same reason dev-web-idle-timeout is: the spec
+# never navigates into a zone app, and `pnpm turbo dev` would re-bind
+# 4301-4304.
+dev-web-renewal:
+	@if [ ! -s "$(ZITADEL_RENEWAL_ENV_FILE)" ]; then \
+		echo "$(ZITADEL_RENEWAL_ENV_FILE) does not exist or is empty — run" >&2; \
+		echo "'make dev-infra' first so scripts/zitadel-bootstrap.mjs can" >&2; \
+		echo "provision the helivanta-web-renewal app and write it." >&2; \
+		exit 1; \
+	fi
+	set -a; . ./$(ZITADEL_RENEWAL_ENV_FILE); set +a; \
+	cd apps/shell && API_URL=http://localhost:$(HELIVANTA_RENEWAL_API_PORT) NEXT_PUBLIC_ZITADEL_CLIENT_ID=$$ZITADEL_CLIENT_ID NEXT_PUBLIC_ZITADEL_ISSUER_URL=$${NEXT_PUBLIC_ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} npx next dev -p $(HELIVANTA_RENEWAL_WEB_PORT)
+
 # `make up` is the one command: infra, migrations, seed, then API + web in
 # the foreground. seed is idempotent, so re-running up is safe.
 up: dev-infra seed
@@ -322,7 +404,7 @@ test-scripts:
 # up infra + API + shell + medicore — the same assumption "specs"/"bulk"
 # already make.
 e2e:
-	HELIVANTA_API_PORT=$(HELIVANTA_API_PORT) HELIVANTA_IDLE_API_PORT=$(HELIVANTA_IDLE_API_PORT) HELIVANTA_IDLE_WEB_PORT=$(HELIVANTA_IDLE_WEB_PORT) bash scripts/e2e.sh
+	HELIVANTA_API_PORT=$(HELIVANTA_API_PORT) HELIVANTA_IDLE_API_PORT=$(HELIVANTA_IDLE_API_PORT) HELIVANTA_IDLE_WEB_PORT=$(HELIVANTA_IDLE_WEB_PORT) HELIVANTA_RENEWAL_API_PORT=$(HELIVANTA_RENEWAL_API_PORT) HELIVANTA_RENEWAL_WEB_PORT=$(HELIVANTA_RENEWAL_WEB_PORT) bash scripts/e2e.sh
 
 new-module:
 	cd backend && ./scripts/new-module.sh $(NAME)

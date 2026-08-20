@@ -43,7 +43,8 @@ func TestRequireDistinctHostedLoginOrigin_ExactSameURL_Refuses(t *testing.T) {
 
 // TestRequireDistinctHostedLoginOrigin_DevDefaults_Accepted proves the
 // guard does not fight the dev stack's own defaults: Zitadel's hosted
-// login (localhost:20080) and Helivanta's own frontend (localhost:4301) are
+// login (auth.tesserix.localhost:20080) and Helivanta's own frontend
+// (helivanta.localhost:4301) are
 // different origins out of the box, with nothing overridden — but ONLY
 // inside HELIVANTA_ENV=dev, which this test sets explicitly rather than relying
 // on Load()'s own "unset defaults to production" behaviour (proven
@@ -63,7 +64,7 @@ func TestRequireDistinctHostedLoginOrigin_DevDefaults_Accepted(t *testing.T) {
 // Finding 6's core claim: an EARLIER version of this file let
 // HELIVANTA_WEB_ORIGIN default to DevHelivantaWebOrigin unconditionally, which made
 // the guard inert in production — an unset HELIVANTA_WEB_ORIGIN there compared
-// the real ZITADEL_HOSTED_LOGIN_URL against "http://localhost:4301",
+// the real ZITADEL_HOSTED_LOGIN_URL against "http://helivanta.localhost:4301",
 // found no collision, and booted, leaving the redirect loop this guard
 // exists to make unrepresentable fully possible with nothing anywhere
 // reporting it. Covers every non-dev value HELIVANTA_ENV can plausibly hold,

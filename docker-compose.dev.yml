@@ -230,9 +230,11 @@ services:
   # image, no direct test. #923 verified it by experiment on a live wedged
   # container instead: the PAT ON DISK returned HTTP 200 against Zitadel
   # core, while the CONTAINER mounting that same file, read-only, reported
-  # `AUTH-7fs1e` HTTP 401 continuously for 2329 consecutive health checks
-  # (~19.4 hours — its entire life). Same file, same mount, different
-  # answer — a re-reading process would have used the working token. A
+  # `AUTH-7fs1e` HTTP 401 — 2329 consecutive health-check failures
+  # (~19.4 hours — its entire life), with AUTH-7fs1e present in every one of
+  # the (last five, all Docker retains) logged probe outputs. Same file,
+  # same mount, different answer — a re-reading process would have used the
+  # working token. A
   # plain `docker restart` (no volume change, no file rewrite) took it to
   # `health=healthy, failing=0` immediately. The latch is real, and #923
   # made the already-published `HEALTHCHECK` on this image actually gate

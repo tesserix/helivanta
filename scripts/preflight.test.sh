@@ -32,6 +32,13 @@ assert_contains() { # assert_contains NAME HAYSTACK NEEDLE
   esac
 }
 
+assert_not_contains() { # assert_not_contains NAME HAYSTACK NEEDLE
+  case "$2" in
+    *"$3"*) t_fail "$1"; printf '        output unexpectedly contained: %s\n' "$3" ;;
+    *) t_ok "$1" ;;
+  esac
+}
+
 # --- fixtures -------------------------------------------------------------
 
 TMP=$(mktemp -d)
@@ -507,27 +514,40 @@ echo "zitadel-login health check (#923):"
 # latch an invalid one — verified by experiment, not inferred (#923): a live
 # wedged container was found with the PAT ON DISK returning HTTP 200 against
 # Zitadel core, while the CONTAINER mounting that same file, read-only,
-# reported `Errors.Token.Invalid (AUTH-7fs1e)` HTTP 401 on every one of 2329
-# consecutive health checks (~19.4 hours — its entire life), and a bare
-# `docker restart` (no volume change) took it straight to healthy. The image
-# already bakes in a HEALTHCHECK for exactly this; the gap #923 closes is
-# that nothing above it used to read the signal.
+# reported `Errors.Token.Invalid (AUTH-7fs1e)` HTTP 401 — 2329 consecutive
+# health-check failures (~19.4 hours — its entire life), with AUTH-7fs1e in
+# every one of the (last five, all Docker retains) logged probe outputs —
+# and a bare `docker restart` (no volume change) took it straight to
+# healthy. The image already bakes in a HEALTHCHECK for exactly this; the
+# gap #923 closes is that nothing above it used to read the signal.
 #
 # docker is shimmed rather than reached over the network, for the same
 # reason as the instance-domain checks above: these must run identically on
 # a laptop with a dev stack up, a laptop with none, and a CI runner with no
 # Docker at all.
+#
+# Every shim below falls through to a bare `exit 0` for anything that is NOT
+# a `docker inspect --format` call, because run_one() (preflight.sh) now
+# calls check_docker before dispatching to the named check — `docker info`
+# has to succeed for these cases to test the health check and not
+# check_docker instead.
 
 healthy_login="$TMP/bin-healthy-login"
 make_shim "$healthy_login" docker 'case "$*" in
   *"inspect --format"*) echo "healthy"; exit 0 ;;
 esac
-exit 1'
+exit 0'
 
-out=$(env PATH="$healthy_login:$PATH" \
-  bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health 2>&1); status=$?
+out=$(env PATH="$healthy_login:$PATH"   bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health 2>&1); status=$?
 assert_status "a healthy zitadel-login exits 0" 0 "$status"
-assert_contains "the healthy status is reported" "$out" "zitadel-login health"
+# assert_equals, not assert_contains: the label "zitadel-login health" is
+# printed by BOTH the ok() and fail() branches, and every other branch's ok
+# message is "zitadel-login health (...)" — a substring check on the bare
+# label alone passes even if the healthy) case is deleted entirely and
+# healthy falls through to the "not running yet" branch. Proven: deleting
+# the healthy) case made this exact assertion fail (review round #2 of
+# #923), where the old assert_contains kept passing.
+assert_equals "the healthy status line is exact" "$(printf '  ok    docker daemon\n  ok    zitadel-login health')" "$out"
 
 # The branch that matters: the container is up and the image's own
 # HEALTHCHECK has already caught the wedge. This must FAIL, and it must name
@@ -537,13 +557,30 @@ unhealthy_login="$TMP/bin-unhealthy-login"
 make_shim "$unhealthy_login" docker 'case "$*" in
   *"inspect --format"*) echo "unhealthy"; exit 0 ;;
 esac
-exit 1'
+exit 0'
 
-out=$(env PATH="$unhealthy_login:$PATH" \
-  bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health 2>&1); status=$?
+out=$(env PATH="$unhealthy_login:$PATH"   bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health 2>&1); status=$?
 assert_status "an unhealthy zitadel-login exits 1" 1 "$status"
 assert_contains "the restart remedy is named" "$out" "docker restart helivanta-dev-zitadel-login-1"
 assert_contains "the cause is named" "$out" "AUTH-7fs1e"
+
+# A RUNNING container reporting no Health block at all is NOT the same as an
+# absent one, and must not be reported the same way — this is the detection
+# mechanism itself going blind (the image dropped/moved its HEALTHCHECK),
+# which #923's review round #2 proved would otherwise print a false `ok`
+# about a container that is actually up (`docker inspect
+# --format '{{.State.Health.Status}}'` errors on a container with no
+# healthcheck, rather than returning empty, and a bare `2>/dev/null`
+# swallowed that). Must FAIL, and must name the mechanism it lost.
+no_healthcheck_login="$TMP/bin-no-healthcheck-login"
+make_shim "$no_healthcheck_login" docker 'case "$*" in
+  *"inspect --format"*) echo "no-healthcheck"; exit 0 ;;
+esac
+exit 0'
+
+out=$(env PATH="$no_healthcheck_login:$PATH"   bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health 2>&1); status=$?
+assert_status "a running container with no HEALTHCHECK exits 1" 1 "$status"
+assert_contains "the lost mechanism is named" "$out" "no Docker HEALTHCHECK"
 
 # A container that does not exist yet is a fresh clone (or one that has not
 # reached `make dev-infra` yet), not a failure — demanding a live container
@@ -552,10 +589,9 @@ absent_login="$TMP/bin-absent-login"
 make_shim "$absent_login" docker 'case "$*" in
   *"inspect --format"*) echo "Error: No such object: helivanta-dev-zitadel-login-1" >&2; exit 1 ;;
 esac
-exit 1'
+exit 0'
 
-out=$(env PATH="$absent_login:$PATH" \
-  bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health 2>&1); status=$?
+out=$(env PATH="$absent_login:$PATH"   bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health 2>&1); status=$?
 assert_status "an absent zitadel-login exits 0 (fresh stack must not fail)" 0 "$status"
 assert_contains "absence is reported as not-yet-started" "$out" "not running yet"
 
@@ -565,12 +601,23 @@ starting_login="$TMP/bin-starting-login"
 make_shim "$starting_login" docker 'case "$*" in
   *"inspect --format"*) echo "starting"; exit 0 ;;
 esac
-exit 1'
+exit 0'
 
-out=$(env PATH="$starting_login:$PATH" \
-  bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health 2>&1); status=$?
+out=$(env PATH="$starting_login:$PATH"   bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health 2>&1); status=$?
 assert_status "a still-starting zitadel-login exits 0" 0 "$status"
 assert_contains "starting is reported as such" "$out" "still starting"
+
+# run_one() now calls check_docker before dispatching (#923 review round
+# #2): scripts/e2e.sh and scripts/verify-local.sh invoke this entry point
+# directly, never through main(), so without this a down daemon would print
+# a false `ok ... not running yet` about the health check rather than
+# reporting the daemon itself as the problem.
+nodocker_login="$TMP/bin-nodocker-login"
+make_shim "$nodocker_login" docker 'exit 1'
+
+out=$(env PATH="$nodocker_login:/usr/bin:/bin:/usr/sbin:/sbin"   bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health 2>&1); status=$?
+assert_status "--only reports docker being down, not the named check" 1 "$status"
+assert_contains "docker itself is named as the problem" "$out" "Docker is not running"
 
 echo
 echo "PREFLIGHT_SKIP (Makefile):"

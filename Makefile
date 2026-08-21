@@ -200,27 +200,59 @@ dev-infra: preflight
 	@# process — verified by experiment, not inferred (#923): a wedged
 	@# container was found live, with the PAT ON DISK returning HTTP 200
 	@# against Zitadel core while the CONTAINER mounting that same file
-	@# reported `Errors.Token.Invalid (AUTH-7fs1e)` HTTP 401 on every one of
-	@# 2329 consecutive health checks (~19.4 hours — its whole life), and a
-	@# bare `docker restart` (no volume change) took it straight to
-	@# healthy. `zitadel-pat-ready` above already gates container CREATION
-	@# on the file being non-empty, so a race with provisioning cannot land
-	@# here — but the file can still be written moments after zitadel-login
-	@# started reading it, which is the case #923 reproduced on a fresh
-	@# volume (core and login started 76ms apart). Poll generously: the
-	@# same 180s budget zitadel-pat-ready gives the file to appear, plus
-	@# room for the image's own healthcheck cadence (30s interval, 3
-	@# retries) to converge once it does.
+	@# reported `Errors.Token.Invalid (AUTH-7fs1e)` HTTP 401 over 2329
+	@# consecutive health-check failures (~19.4 hours — its whole life),
+	@# with AUTH-7fs1e present in every one of the (last five, all Docker
+	@# retains) logged probe outputs, and a bare `docker restart` (no volume
+	@# change) took it straight to healthy. `zitadel-pat-ready` above
+	@# already gates container CREATION on the file being non-empty, so a
+	@# race with provisioning cannot land here — but the file can still be
+	@# written moments after zitadel-login started reading it, which is the
+	@# case #923 reproduced on a fresh volume (core and login started 76ms
+	@# apart). Poll generously: the same 180s budget zitadel-pat-ready
+	@# gives the file to appear, plus room for the image's own healthcheck
+	@# cadence (30s interval, 3 retries) to converge once it does.
+	@#
+	@# The template asks explicitly whether `.State.Health` exists rather
+	@# than reading `.State.Health.Status` and swallowing the error — Docker
+	@# does NOT report an empty status for a running container with no
+	@# healthcheck, it errors ('map has no entry for key "Health"'), and a
+	@# bare `2>/dev/null` would make a container that is up but blind
+	@# indistinguishable from one that was never created (review round #2 of
+	@# #923, proven live against a real running container with no
+	@# HEALTHCHECK). scripts/preflight.sh's check_zitadel_login_health uses
+	@# the identical format string for the same reason — see its comment for
+	@# the full argument.
 	@printf 'Waiting for zitadel-login to report healthy…'
 	@login_status=""; i=0; \
 	while [ "$$i" -le 210 ]; do \
-		login_status=$$(docker inspect --format '{{.State.Health.Status}}' helivanta-dev-zitadel-login-1 2>/dev/null || echo ""); \
-		if [ "$$login_status" = "healthy" ]; then break; fi; \
+		login_status=$$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' helivanta-dev-zitadel-login-1 2>/dev/null || echo ""); \
+		if [ "$$login_status" = "healthy" ] || [ "$$login_status" = "no-healthcheck" ]; then break; fi; \
 		i=$$((i + 1)); printf '.'; sleep 2; \
 	done; \
-	if [ "$$login_status" != "healthy" ]; then \
+	if [ "$$login_status" = "no-healthcheck" ]; then \
 		echo; \
-		echo "zitadel-login never reported healthy (last status: '$${login_status:-unknown}')." >&2; \
+		echo "zitadel-login is running but reports no Docker HEALTHCHECK at all." >&2; \
+		echo "Cause: this gate depends entirely on the HEALTHCHECK baked into" >&2; \
+		echo "ghcr.io/zitadel/zitadel-login:v4.15.3 — if that image pin moved, or" >&2; \
+		echo "upstream dropped/restructured the probe, this gate is now blind to a" >&2; \
+		echo "wedged login the same way #923 found the rest of the stack to be." >&2; \
+		echo "Remedy: 'docker inspect --format {{.Config.Healthcheck}}" >&2; \
+		echo "helivanta-dev-zitadel-login-1' to see what changed, then update this" >&2; \
+		echo "gate (and docker-compose.dev.yml) to match." >&2; \
+		exit 1; \
+	elif [ -z "$$login_status" ]; then \
+		echo; \
+		echo "zitadel-login was never created (no health status after the wait)." >&2; \
+		echo "Cause: unknown from here — this is NOT the cached-PAT wedge (that" >&2; \
+		echo "requires a running container). Check 'docker compose -f" >&2; \
+		echo "docker-compose.dev.yml ps zitadel-login' and its logs; also confirm" >&2; \
+		echo "no COMPOSE_PROJECT_NAME override renamed the container away from" >&2; \
+		echo "helivanta-dev-zitadel-login-1." >&2; \
+		exit 1; \
+	elif [ "$$login_status" != "healthy" ]; then \
+		echo; \
+		echo "zitadel-login never reported healthy (last status: '$$login_status')." >&2; \
 		echo "Cause: a cached login-client PAT that is invalid — either a stale token" >&2; \
 		echo "latched at boot (#923) or a genuine credential problem." >&2; \
 		echo "Remedy: 'docker restart helivanta-dev-zitadel-login-1', then re-run" >&2; \

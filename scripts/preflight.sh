@@ -205,6 +205,100 @@ check_zitadel_instance_domain() {
   esac
 }
 
+# The sibling of check_zitadel_instance_domain above: another way Zitadel's
+# hosted login goes wrong without failing legibly on its own. zitadel-login
+# reads its service-user PAT (ZITADEL_SERVICE_USER_TOKEN_FILE) exactly ONCE,
+# at container boot, and caches it for the life of the process. A container
+# that starts before Zitadel's first-instance provisioning has written that
+# file latches an invalid token forever — verified by experiment, not
+# inferred (#923): a live wedged container was found with the PAT ON DISK
+# returning HTTP 200 against Zitadel core, while the CONTAINER mounting that
+# same file, read-only, reported `Errors.Token.Invalid (AUTH-7fs1e)` HTTP 401
+# over 2329 consecutive health-check failures (~19.4 hours — its entire
+# life), with AUTH-7fs1e present in every one of the (last five, which is
+# all Docker retains) logged probe outputs. A bare `docker restart` (no
+# volume change, no file rewrite) took it straight to healthy, which rules
+# out a genuinely bad credential and confirms the stale-read latch.
+#
+# The image already bakes in a HEALTHCHECK for exactly this
+# (node /app/healthcheck.mjs /ui/v2/login/ready, 30s interval, 3 retries) —
+# a wedged container reports `unhealthy` correctly and continuously. Nothing
+# above it used to read that signal: `restart: unless-stopped` does not
+# restart a merely-unhealthy container, so it can sit wedged for its entire
+# life. Helivanta's own login talks to Zitadel core directly and never
+# touches zitadel-login on the common path, which is exactly why this can go
+# unnoticed for a day rather than failing immediately.
+#
+# docker inspect, not curl: unlike check_zitadel_instance_domain, HTTP
+# health is not really what changed here — the container's own healthcheck
+# already ran the equivalent probe and recorded the verdict, and reading
+# that verdict is strictly more accurate than re-deriving it from outside.
+#
+# The template asks explicitly whether `.State.Health` exists, rather than
+# just reading `.State.Health.Status` and swallowing the error. Docker does
+# NOT report an empty status for a running container with no healthcheck —
+# it errors ('map has no entry for key "Health"'), and a bare `2>/dev/null`
+# makes that indistinguishable from "container does not exist". Proven live
+# (review round #2 of #923): pointed at a running container with no
+# HEALTHCHECK, a running container under the wrong name, and a PATH with no
+# docker at all — all three printed `ok ... not running yet` about
+# something that was, in two of the three cases, actually up. The entire
+# mechanism this check relies on is a HEALTHCHECK baked into a pinned
+# upstream image (ghcr.io/zitadel/zitadel-login:v4.15.3) that this repo does
+# not control and docker-compose.dev.yml does not itself declare — if that
+# pin moves and the probe is dropped, renamed, or restructured upstream,
+# swallowing the template error would make this check permanently green,
+# reproducing #923's own defect in a new shape: a signal that stopped being
+# published, with a check reporting `ok` about it. Explicit no-healthcheck
+# handling below closes that.
+ZITADEL_LOGIN_CONTAINER=${ZITADEL_LOGIN_CONTAINER:-helivanta-dev-zitadel-login-1}
+ZITADEL_LOGIN_HEALTH_FORMAT='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}'
+
+check_zitadel_login_health() {
+  local login_status
+  login_status=$(docker inspect --format "$ZITADEL_LOGIN_HEALTH_FORMAT" "$ZITADEL_LOGIN_CONTAINER" 2>/dev/null || true)
+  case "$login_status" in
+    healthy)
+      ok "zitadel-login health"
+      ;;
+    unhealthy)
+      # Not "silently restart it": a container reporting unhealthy is, on
+      # THIS specific failure mode, always fixable by 'docker restart' — but
+      # this check only knows the SYMPTOM (a cached, now-invalid PAT), not
+      # the cause. A genuinely invalid credential (a Zitadel DB reset that
+      # dropped the login-client machine user without rewriting
+      # login-client.pat, say) would restart, cache the SAME invalid PAT,
+      # and go unhealthy again — an automatic restart-loop that never
+      # surfaces the real problem, exactly the "silent self-heal that hides
+      # a genuinely bad credential forever" #920 already ruled out. Detect
+      # and name the remedy; a human decides whether to run it.
+      fail "zitadel-login health" \
+        "${ZITADEL_LOGIN_CONTAINER}'s Docker health status is unhealthy (a container Docker has stopped also reports this, but 'docker restart' is the correct remedy either way). This is what a login-client PAT read once at container boot and now stale looks like (Errors.Token.Invalid AUTH-7fs1e — verified by experiment in #923, not inferred). Nothing self-heals it: 'restart: unless-stopped' does not restart a merely-unhealthy container, and zitadel-login never re-reads the file. Fix: 'docker restart ${ZITADEL_LOGIN_CONTAINER}'"
+      ;;
+    starting)
+      ok "zitadel-login health (still starting)"
+      ;;
+    no-healthcheck)
+      # See the "template asks explicitly" note above: a RUNNING container
+      # with no Health block is not the same as an absent one, and must not
+      # be reported the same way. This is the mechanism itself going blind,
+      # not a fresh stack — fail loudly rather than silently trusting a
+      # container this check can no longer see into.
+      fail "zitadel-login health" \
+        "${ZITADEL_LOGIN_CONTAINER} is running but reports no Docker HEALTHCHECK at all. This check depends entirely on the HEALTHCHECK baked into ghcr.io/zitadel/zitadel-login:v4.15.3 (node /app/healthcheck.mjs /ui/v2/login/ready) — if the image pin moved or upstream dropped/restructured that probe, this check is now blind to a wedged login the same way #923 found the rest of the stack to be. Confirm with 'docker inspect --format {{.Config.Healthcheck}} ${ZITADEL_LOGIN_CONTAINER}' and update this check (or docker-compose.dev.yml) to match whatever the image publishes now."
+      ;;
+    *)
+      # Empty covers both "container does not exist yet" (a fresh clone, or
+      # one that has not reached 'make dev-infra' yet — not a failure) and
+      # docker itself being unreachable (check_docker, called above in both
+      # main() and run_one(), already reports that). Demanding a live,
+      # healthy container here would block the very command that creates
+      # one.
+      ok "zitadel-login health (not running yet — 'make dev-infra' will start it)"
+      ;;
+  esac
+}
+
 # Nothing here checks a registry token. @tesserix/web moved to the PUBLIC npm
 # registry (#866/#868) and the repo-local .npmrc that pinned the scope to
 # GitHub Packages is gone, so `pnpm install` on a fresh clone needs no
@@ -300,6 +394,7 @@ main() {
   check_pnpm
   check_zitadel_masterkey
   check_zitadel_instance_domain
+  check_zitadel_login_health
   check_zitadel_secrets_dir
   check_port_tool
   check_ports
@@ -327,9 +422,19 @@ main() {
 # Re-probing there costs one HTTP request and turns the bare
 # `HTTP 404 {"code":5,"message":"Instance not found"}` into the message
 # check_zitadel_instance_domain already writes.
+#
+# check_docker runs first, unconditionally: check_zitadel_login_health's own
+# "docker itself being unreachable" fallback message only holds if something
+# actually checked that. scripts/e2e.sh and scripts/verify-local.sh both
+# call this entry point directly (never through main()), so without this
+# call they would see docker being down reported as "not running yet" — the
+# same class of false 'ok' #923's review round #2 flagged for the health
+# check itself.
 run_one() {
+  check_docker
   case "$1" in
     zitadel-instance-domain) check_zitadel_instance_domain ;;
+    zitadel-login-health) check_zitadel_login_health ;;
     *) echo "preflight: unknown check '$1'" >&2; return 2 ;;
   esac
   if [ -n "$FAILURES" ]; then

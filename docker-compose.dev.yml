@@ -213,10 +213,10 @@ services:
   # container starts — and zitadel-login reads that file exactly ONCE, at
   # boot, caching the token for the life of the process. A login container
   # that starts before the file is written therefore holds an invalid token
-  # forever: every login 500s with `Errors.Token.Invalid (AUTH-7fs1e)` and
-  # its readiness probe fails permanently, while core sits there perfectly
-  # healthy. Nothing self-heals, because `restart: unless-stopped` does not
-  # restart a merely-unhealthy container.
+  # forever: its readiness probe reports `"Readiness check failed"` with
+  # `"rawMessage":"Errors.Token.Invalid (AUTH-7fs1e)"` every 30s, permanently,
+  # while core sits there perfectly healthy. Nothing self-heals, because
+  # `restart: unless-stopped` does not restart a merely-unhealthy container.
   #
   # `depends_on: zitadel: service_started` does NOT cover this — the
   # container is up long before provisioning finishes. Reproduced on a
@@ -224,6 +224,21 @@ services:
   # an absent PAT, and a fresh clone's first `make up` produced a login
   # nobody could use. Restarting login alone fixed it, which is what
   # identified the cause.
+  #
+  # The once-at-boot, caches-forever behaviour was originally an inference
+  # from that symptom-plus-fix — no upstream citation, no reading of the
+  # image, no direct test. #923 verified it by experiment on a live wedged
+  # container instead: the PAT ON DISK returned HTTP 200 against Zitadel
+  # core, while the CONTAINER mounting that same file, read-only, reported
+  # `AUTH-7fs1e` HTTP 401 — 2329 consecutive health-check failures
+  # (~19.4 hours — its entire life), with AUTH-7fs1e present in every one of
+  # the (last five, all Docker retains) logged probe outputs. Same file,
+  # same mount, different answer — a re-reading process would have used the
+  # working token. A
+  # plain `docker restart` (no volume change, no file rewrite) took it to
+  # `health=healthy, failing=0` immediately. The latch is real, and #923
+  # made the already-published `HEALTHCHECK` on this image actually gate
+  # `make dev-infra` and `scripts/preflight.sh`, instead of going unread.
   #
   # #854 Task 5: the SAME file (and the SAME ordering trap) also gates
   # Helivanta's own API process, which reads it into ZITADEL_LOGIN_CLIENT_TOKEN

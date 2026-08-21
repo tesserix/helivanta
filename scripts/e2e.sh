@@ -285,6 +285,15 @@ trap cleanup EXIT INT TERM
 # by the very stack this script requires to be up.
 bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-instance-domain
 
+# A wedged zitadel-login (#923) is the other way this stack silently fails
+# an e2e run: it reads its PAT once at boot and, if that read raced
+# provisioning, latches an invalid token forever — nothing self-heals it,
+# and the phase-1 spec path against helivanta-web never touches
+# zitadel-login on the common path, so a wedge here previously surfaced as
+# an inexplicable 66-minute hang (#923's own root-cause finding) rather than
+# a clean, immediate failure. Catch it before Playwright ever starts.
+bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health
+
 require_port_up "$SHELL_PORT" "http://$WEB_HOST:$SHELL_PORT/login" "main shell"
 require_port_up "$API_PORT" "http://localhost:$API_PORT/healthz" "main API"
 

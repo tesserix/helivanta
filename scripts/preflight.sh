@@ -205,6 +205,60 @@ check_zitadel_instance_domain() {
   esac
 }
 
+# The sibling of check_zitadel_instance_domain above: another way Zitadel's
+# hosted login goes wrong without failing legibly on its own. zitadel-login
+# reads its service-user PAT (ZITADEL_SERVICE_USER_TOKEN_FILE) exactly ONCE,
+# at container boot, and caches it for the life of the process. A container
+# that starts before Zitadel's first-instance provisioning has written that
+# file latches an invalid token forever — verified by experiment, not
+# inferred (#923): a live wedged container was found with the PAT ON DISK
+# returning HTTP 200 against Zitadel core, while the CONTAINER mounting that
+# same file, read-only, reported `Errors.Token.Invalid (AUTH-7fs1e)` HTTP 401
+# on every one of 2329 consecutive health checks (~19.4 hours — its entire
+# life). A bare `docker restart` (no volume change, no file rewrite) took it
+# straight to healthy, which rules out a genuinely bad credential and
+# confirms the stale-read latch.
+#
+# The image already bakes in a HEALTHCHECK for exactly this
+# (node /app/healthcheck.mjs /ui/v2/login/ready, 30s interval, 3 retries) —
+# a wedged container reports `unhealthy` correctly and continuously. Nothing
+# above it used to read that signal: `restart: unless-stopped` does not
+# restart a merely-unhealthy container, so it can sit wedged for its entire
+# life. Helivanta's own login talks to Zitadel core directly and never
+# touches zitadel-login on the common path, which is exactly why this can go
+# unnoticed for a day rather than failing immediately.
+#
+# docker inspect, not curl: unlike check_zitadel_instance_domain, HTTP
+# health is not really what changed here — the container's own healthcheck
+# already ran the equivalent probe and recorded the verdict, and reading
+# that verdict is strictly more accurate than re-deriving it from outside.
+ZITADEL_LOGIN_CONTAINER=${ZITADEL_LOGIN_CONTAINER:-helivanta-dev-zitadel-login-1}
+
+check_zitadel_login_health() {
+  local login_status
+  login_status=$(docker inspect --format '{{.State.Health.Status}}' "$ZITADEL_LOGIN_CONTAINER" 2>/dev/null || true)
+  case "$login_status" in
+    healthy)
+      ok "zitadel-login health"
+      ;;
+    unhealthy)
+      fail "zitadel-login health" \
+        "${ZITADEL_LOGIN_CONTAINER} is running but unhealthy. This is what a login-client PAT read once at container boot and now stale looks like (Errors.Token.Invalid AUTH-7fs1e — verified by experiment in #923, not inferred). Nothing self-heals it: 'restart: unless-stopped' does not restart a merely-unhealthy container, and zitadel-login never re-reads the file. Fix: 'docker restart ${ZITADEL_LOGIN_CONTAINER}'"
+      ;;
+    starting)
+      ok "zitadel-login health (still starting)"
+      ;;
+    *)
+      # Empty covers both "container does not exist yet" (a fresh clone, or
+      # one that has not reached 'make dev-infra' yet — not a failure) and
+      # docker itself being unreachable (check_docker above already reports
+      # that). Demanding a live, healthy container here would block the very
+      # command that creates one.
+      ok "zitadel-login health (not running yet — 'make dev-infra' will start it)"
+      ;;
+  esac
+}
+
 # Nothing here checks a registry token. @tesserix/web moved to the PUBLIC npm
 # registry (#866/#868) and the repo-local .npmrc that pinned the scope to
 # GitHub Packages is gone, so `pnpm install` on a fresh clone needs no
@@ -300,6 +354,7 @@ main() {
   check_pnpm
   check_zitadel_masterkey
   check_zitadel_instance_domain
+  check_zitadel_login_health
   check_zitadel_secrets_dir
   check_port_tool
   check_ports
@@ -330,6 +385,7 @@ main() {
 run_one() {
   case "$1" in
     zitadel-instance-domain) check_zitadel_instance_domain ;;
+    zitadel-login-health) check_zitadel_login_health ;;
     *) echo "preflight: unknown check '$1'" >&2; return 2 ;;
   esac
   if [ -n "$FAILURES" ]; then

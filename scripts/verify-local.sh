@@ -64,6 +64,13 @@ check() {
 echo "Preflight (stale-instance guard only — see comment above):"
 bash "$(dirname "${BASH_SOURCE[0]}")/preflight.sh" --only zitadel-instance-domain || fail=1
 
+# The sibling wedge (#923): zitadel-login reads its PAT once at boot and can
+# latch an invalid one, then sit there reporting `unhealthy` forever with
+# nothing reading the signal. Cheap to check alongside the instance-domain
+# guard above, for the same reason: this script's whole job is catching a
+# stack that LOOKS up but is not actually usable.
+bash "$(dirname "${BASH_SOURCE[0]}")/preflight.sh" --only zitadel-login-health || fail=1
+
 echo "Infrastructure:"
 docker compose -f docker-compose.dev.yml ps --status running --format '  ok    {{.Service}}' || fail=1
 check "openfga"          "http://localhost:$OPENFGA_PORT/healthz"

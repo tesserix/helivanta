@@ -164,9 +164,13 @@ which is exactly what 2.2.1's new "Show password" button introduced:
 twelve specs. Fixed with `{ exact: true }`, found in #867's Task 6.
 
 **`zitadel-login` reads its PAT once at boot** and can latch a stale one, logging
-`failed to decrypt value` every 30s while its healthcheck never passes. It hangs
-`make e2e` indefinitely and presents as a broken app.
-`docker restart helivanta-dev-zitadel-login-1` fixes it.
+`"Readiness check failed"` with `"rawMessage":"Errors.Token.Invalid (AUTH-7fs1e)"`
+every 30s while its healthcheck never passes (verified live on a wedged
+container in #923 — not `failed to decrypt value`, which was never the actual
+log line). It hangs `make e2e` indefinitely and presents as a broken app.
+`docker restart helivanta-dev-zitadel-login-1` fixes it. #923 makes this a
+boot failure in `make dev-infra` and a named `preflight.sh` check, instead of
+a silent 66-minute hang.
 
 **Zitadel core reports `unhealthy` and is fine.** Its healthcheck runs
 `zitadel ready --config /dev/null`; OIDC discovery serves 200. A false signal.

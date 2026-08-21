@@ -195,6 +195,40 @@ dev-infra: preflight
 	@# path — it runs before compose starts Zitadel, so it sees nothing
 	@# answering and passes. Here, and only here, the information exists.
 	@bash scripts/preflight.sh --only zitadel-instance-domain
+	@# zitadel-login reads its PAT (dev/zitadel/secrets/login-client.pat)
+	@# exactly ONCE, at container boot, and caches it for the life of the
+	@# process — verified by experiment, not inferred (#923): a wedged
+	@# container was found live, with the PAT ON DISK returning HTTP 200
+	@# against Zitadel core while the CONTAINER mounting that same file
+	@# reported `Errors.Token.Invalid (AUTH-7fs1e)` HTTP 401 on every one of
+	@# 2329 consecutive health checks (~19.4 hours — its whole life), and a
+	@# bare `docker restart` (no volume change) took it straight to
+	@# healthy. `zitadel-pat-ready` above already gates container CREATION
+	@# on the file being non-empty, so a race with provisioning cannot land
+	@# here — but the file can still be written moments after zitadel-login
+	@# started reading it, which is the case #923 reproduced on a fresh
+	@# volume (core and login started 76ms apart). Poll generously: the
+	@# same 180s budget zitadel-pat-ready gives the file to appear, plus
+	@# room for the image's own healthcheck cadence (30s interval, 3
+	@# retries) to converge once it does.
+	@printf 'Waiting for zitadel-login to report healthy…'
+	@login_status=""; i=0; \
+	while [ "$$i" -le 210 ]; do \
+		login_status=$$(docker inspect --format '{{.State.Health.Status}}' helivanta-dev-zitadel-login-1 2>/dev/null || echo ""); \
+		if [ "$$login_status" = "healthy" ]; then break; fi; \
+		i=$$((i + 1)); printf '.'; sleep 2; \
+	done; \
+	if [ "$$login_status" != "healthy" ]; then \
+		echo; \
+		echo "zitadel-login never reported healthy (last status: '$${login_status:-unknown}')." >&2; \
+		echo "Cause: a cached login-client PAT that is invalid — either a stale token" >&2; \
+		echo "latched at boot (#923) or a genuine credential problem." >&2; \
+		echo "Remedy: 'docker restart helivanta-dev-zitadel-login-1', then re-run" >&2; \
+		echo "'make dev-infra'. If it wedges again immediately, 'docker logs" >&2; \
+		echo "helivanta-dev-zitadel-login-1' has the readiness error." >&2; \
+		exit 1; \
+	fi
+	@echo ' healthy.'
 	@# Provisions the Helivanta org/project/app once (idempotent — see the
 	@# script's own doc comment) and writes
 	@# dev/zitadel/secrets/zitadel.env, which the -include near the top of

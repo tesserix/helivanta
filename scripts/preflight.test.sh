@@ -501,6 +501,78 @@ assert_contains "reset-dev.sh sets the skip when it runs preflight" \
   'PREFLIGHT_SKIP_ZITADEL_INSTANCE=1 "$REPO_ROOT/scripts/preflight.sh"'
 
 echo
+echo "zitadel-login health check (#923):"
+
+# zitadel-login reads its login-client PAT once at container boot and can
+# latch an invalid one — verified by experiment, not inferred (#923): a live
+# wedged container was found with the PAT ON DISK returning HTTP 200 against
+# Zitadel core, while the CONTAINER mounting that same file, read-only,
+# reported `Errors.Token.Invalid (AUTH-7fs1e)` HTTP 401 on every one of 2329
+# consecutive health checks (~19.4 hours — its entire life), and a bare
+# `docker restart` (no volume change) took it straight to healthy. The image
+# already bakes in a HEALTHCHECK for exactly this; the gap #923 closes is
+# that nothing above it used to read the signal.
+#
+# docker is shimmed rather than reached over the network, for the same
+# reason as the instance-domain checks above: these must run identically on
+# a laptop with a dev stack up, a laptop with none, and a CI runner with no
+# Docker at all.
+
+healthy_login="$TMP/bin-healthy-login"
+make_shim "$healthy_login" docker 'case "$*" in
+  *"inspect --format"*) echo "healthy"; exit 0 ;;
+esac
+exit 1'
+
+out=$(env PATH="$healthy_login:$PATH" \
+  bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health 2>&1); status=$?
+assert_status "a healthy zitadel-login exits 0" 0 "$status"
+assert_contains "the healthy status is reported" "$out" "zitadel-login health"
+
+# The branch that matters: the container is up and the image's own
+# HEALTHCHECK has already caught the wedge. This must FAIL, and it must name
+# both the cause and the remedy — an unreadable failure here is exactly what
+# #923 was filed to stop happening again.
+unhealthy_login="$TMP/bin-unhealthy-login"
+make_shim "$unhealthy_login" docker 'case "$*" in
+  *"inspect --format"*) echo "unhealthy"; exit 0 ;;
+esac
+exit 1'
+
+out=$(env PATH="$unhealthy_login:$PATH" \
+  bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health 2>&1); status=$?
+assert_status "an unhealthy zitadel-login exits 1" 1 "$status"
+assert_contains "the restart remedy is named" "$out" "docker restart helivanta-dev-zitadel-login-1"
+assert_contains "the cause is named" "$out" "AUTH-7fs1e"
+
+# A container that does not exist yet is a fresh clone (or one that has not
+# reached `make dev-infra` yet), not a failure — demanding a live container
+# here would block the very command that creates one.
+absent_login="$TMP/bin-absent-login"
+make_shim "$absent_login" docker 'case "$*" in
+  *"inspect --format"*) echo "Error: No such object: helivanta-dev-zitadel-login-1" >&2; exit 1 ;;
+esac
+exit 1'
+
+out=$(env PATH="$absent_login:$PATH" \
+  bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health 2>&1); status=$?
+assert_status "an absent zitadel-login exits 0 (fresh stack must not fail)" 0 "$status"
+assert_contains "absence is reported as not-yet-started" "$out" "not running yet"
+
+# Docker's own transient in-between state, distinct from "wedged" — a fresh
+# stack still inside the healthcheck's own start period must also pass.
+starting_login="$TMP/bin-starting-login"
+make_shim "$starting_login" docker 'case "$*" in
+  *"inspect --format"*) echo "starting"; exit 0 ;;
+esac
+exit 1'
+
+out=$(env PATH="$starting_login:$PATH" \
+  bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health 2>&1); status=$?
+assert_status "a still-starting zitadel-login exits 0" 0 "$status"
+assert_contains "starting is reported as such" "$out" "still starting"
+
+echo
 echo "PREFLIGHT_SKIP (Makefile):"
 
 # Make auto-imports every shell environment variable, so an ambient

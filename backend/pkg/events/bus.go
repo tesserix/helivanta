@@ -518,14 +518,26 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 		_ = msg.Term() // poison message — never parseable
 		return
 	}
-	if evt.DestinationTenantID != "" && !b.directedAllowed(c.Subject) {
-		// Term, not Nak: redelivery cannot make an undeclared subject
-		// declared, so retrying five times only delays the log line.
-		slog.Error("refused directed event on undeclared subject",
-			"consumer", c.Name, "subject", c.Subject, "event_id", evt.ID,
-			"tenant_id", evt.TenantID, "destination_tenant_id", evt.DestinationTenantID)
-		_ = msg.Term()
-		return
+	if evt.DestinationTenantID != "" {
+		if !b.directedAllowed(c.Subject) {
+			// Term, not Nak: redelivery cannot make an undeclared subject
+			// declared, so retrying five times only delays the log line.
+			slog.Error("refused directed event on undeclared subject",
+				"consumer", c.Name, "subject", c.Subject, "event_id", evt.ID,
+				"tenant_id", evt.TenantID, "destination_tenant_id", evt.DestinationTenantID)
+			_ = msg.Term()
+			return
+		}
+		if _, err := uuid.Parse(evt.DestinationTenantID); err != nil {
+			// Falling through would scope the tx to the ORIGIN and write
+			// the row into the wrong tenant — silently, and looking like
+			// success. Terminate instead.
+			slog.Error("refused directed event with unparseable destination",
+				"consumer", c.Name, "subject", c.Subject, "event_id", evt.ID,
+				"tenant_id", evt.TenantID, "destination_tenant_id", evt.DestinationTenantID)
+			_ = msg.Term()
+			return
+		}
 	}
 	err := b.runConsumerTx(ctx, db, c, evt)
 	if err != nil {
@@ -553,6 +565,17 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 	_ = msg.Ack()
 }
 
+// scopeTenant is the tenant whose data this event creates: the
+// destination when directed, the origin otherwise. Exactly one tenant,
+// always — the consumer tx is never scoped to both and never to neither
+// (design D2).
+func scopeTenant(evt Event) string {
+	if evt.DestinationTenantID != "" {
+		return evt.DestinationTenantID
+	}
+	return evt.TenantID
+}
+
 // runConsumerTx runs the idempotency claim and the handler in one tx, and
 // recovers a handler panic into a plain error. Without this, a single
 // panicking event would unwind through GORM's Transaction (which recovers,
@@ -570,13 +593,16 @@ func (b *Bus) runConsumerTx(ctx context.Context, db OutboxStore, c Consumer, evt
 		}
 	}()
 	return db.WithSystem(ctx, func(tx *gorm.DB) error {
-		// Scope the whole consumer tx (claim + handler) to the event's
-		// tenant so handlers can write RLS-forced rows (phase 2 D4).
-		// Invalid/empty tenant → GUC stays unset → tenant tables read
-		// as empty and reject writes, same as before.
-		if _, err := uuid.Parse(evt.TenantID); err == nil {
-			if err := tx.Exec(`SELECT set_config('app.tenant_id', ?, true)`, evt.TenantID).Error; err != nil {
-				return err
+		// Scope the whole consumer tx (claim + handler) to the tenant
+		// whose data this event creates — the destination for a directed
+		// event, the origin otherwise (phase 2 D4, design D2).
+		// Invalid/empty → GUC stays unset → tenant tables read as empty
+		// and reject writes, same as before.
+		if scope := scopeTenant(evt); scope != "" {
+			if _, err := uuid.Parse(scope); err == nil {
+				if err := tx.Exec(`SELECT set_config('app.tenant_id', ?, true)`, scope).Error; err != nil {
+					return err
+				}
 			}
 		}
 		res := tx.Exec(`INSERT INTO processed_events (consumer, event_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,

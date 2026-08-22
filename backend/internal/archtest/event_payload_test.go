@@ -52,6 +52,13 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	"pharmacy.DispenseRecordedData.VisitID":    "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
 	"pharmacy.DispenseRecordedData.DispenseID": "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
 	"reference.PingedData.PingID":              "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"reference.PingForwardedData.PingID":       "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+
+	// reference is the module that proves the platform wiring end to end
+	// (issue #2); it deliberately exposes no tenant data (module.go's
+	// Permissions() comment) and carries no clinical concept at all, so
+	// its free-text field is operational test fixture content, never PHI.
+	"reference.PingForwardedData.Message": "reference carries no clinical data by design; this is fixture text proving the directed-write wiring (#932), not patient content",
 }
 
 // loadContractPackagesWithTypes is loadContractPackages (contract_test.go)

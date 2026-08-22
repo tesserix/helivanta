@@ -26,6 +26,23 @@ func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 			return tx.Exec(`INSERT INTO reference_ping_receipts (event_id, ping_id, tenant_id) VALUES (?, ?, ?)
 				ON CONFLICT DO NOTHING`, evt.ID, d.PingID, evt.TenantID).Error
 		},
+	}, {
+		Name:    "reference-forwarded",
+		Subject: referencecontract.SubjectPingForwarded,
+		Handle: func(_ context.Context, tx *gorm.DB, evt events.Event) error {
+			var d referencecontract.PingForwardedData
+			if err := json.Unmarshal(evt.Data, &d); err != nil {
+				return err
+			}
+			// The bus scoped this tx to evt.DestinationTenantID (#932),
+			// so tenant_id must be the DESTINATION — using evt.TenantID
+			// here would be rejected by WITH CHECK, loudly, which is the
+			// intended failure mode.
+			return tx.Exec(`INSERT INTO reference_forwarded_pings
+				(tenant_id, origin_tenant_id, origin_record_id, message)
+				VALUES (?, ?, ?, ?)`,
+				evt.DestinationTenantID, evt.TenantID, d.PingID, d.Message).Error
+		},
 	}}
 }
 

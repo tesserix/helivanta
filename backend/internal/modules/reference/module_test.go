@@ -16,8 +16,10 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/modules/reference" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
+	referencecontract "github.com/tesserix/helivanta/internal/modules/reference/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -267,4 +269,55 @@ func TestMembershipRevokedInOneTenantLeavesTheOtherWorking(t *testing.T) {
 	require.Equal(t, http.StatusOK,
 		testutil.Do(r, http.MethodGet, "/v1/reference/pings", "tok-b", "").Code,
 		"the same person is still employed at tenant B; revoking A must not touch B")
+}
+
+// TestForwardedPingLandsInDestinationTenant is the end-to-end proof of
+// #932 through the real path: a business tx publishes to the outbox, the
+// dispatcher delivers via JetStream, and the consumer writes an
+// RLS-forced row into a DIFFERENT tenant, invisible to the publisher.
+func TestForwardedPingLandsInDestinationTenant(t *testing.T) {
+	_, db, bus, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB},
+		Modules: []platform.Module{reference.New()},
+	})
+
+	bus.AllowDirected(referencecontract.SubjectPingForwarded)
+	require.NoError(t, bus.StartConsumers(ctx, db, reference.New().Consumers(platform.Deps{})))
+	go bus.RunDispatcher(ctx, db)
+
+	origin, destination := uuid.NewString(), uuid.NewString()
+	pingID := uuid.New()
+
+	data, err := json.Marshal(referencecontract.PingForwardedData{
+		PingID: pingID.String(), Message: "forwarded",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, db.WithTenant(ctx, origin, func(tx *gorm.DB) error {
+		return bus.Publish(tx, referencecontract.SubjectPingForwarded, events.Event{
+			Type: "ReferencePingForwarded", Version: 1,
+			TenantID: origin, DestinationTenantID: destination, Data: data,
+		})
+	}))
+
+	countAs := func(tenant string) int {
+		var n int
+		require.NoError(t, db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT count(*) FROM reference_forwarded_pings`).Scan(&n).Error
+		}))
+		return n
+	}
+
+	require.Eventually(t, func() bool { return countAs(destination) == 1 },
+		30*time.Second, 200*time.Millisecond)
+	require.Equal(t, 0, countAs(origin),
+		"the publishing tenant can read the row it forwarded")
+
+	var originTenant, originRecord string
+	require.NoError(t, db.WithTenant(ctx, destination, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT origin_tenant_id::text, origin_record_id::text
+		               FROM reference_forwarded_pings`).Row().Scan(&originTenant, &originRecord)
+	}))
+	require.Equal(t, origin, originTenant)
+	require.Equal(t, pingID.String(), originRecord)
 }

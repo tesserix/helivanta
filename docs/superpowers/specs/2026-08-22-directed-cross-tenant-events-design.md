@@ -149,11 +149,15 @@ widening.** Data crosses by copy, with provenance, into a row owned by exactly o
 tenant. If a future change to this subsystem needs that rule loosened, the change
 is wrong, not the rule.
 
-### D7. An unusable destination fails closed to the DLQ
+### D7. An unusable destination is terminated, not redelivered
 
 A `DestinationTenantID` that is present but not a UUID is a poison envelope:
-terminated to the DLQ with no write attempted, matching how an unparseable
-payload is already handled.
+the message is `Term()`'d — stopping redelivery, with no write attempted — and
+the failure is logged, matching how an unparseable payload is already handled.
+This is NOT a publish to the `.dlq.<consumer>` subject; that only happens on
+the separate `maxDeliver`-exhaustion path. The evidence is not lost even so,
+because the outbox row that produced the message survives, unmodified, in the
+origin tenant.
 
 A syntactically valid destination cannot yet be checked for existence — there is
 no tenant table until #13. See Limitations.
@@ -169,8 +173,8 @@ debugged inside a clinical feature.
 
 | Condition | Behaviour |
 |---|---|
-| Destination set, subject not allowlisted | Refuse: log, DLQ, no write |
-| Destination present but not a UUID | `Term()` to DLQ, no write |
+| Destination set, subject not allowlisted | Refuse: log, `Term()` (not redelivered, not published to DLQ), no write |
+| Destination present but not a UUID | Refuse: log, `Term()` (not redelivered, not published to DLQ), no write |
 | Destination valid, handler errors | Existing Nak / `maxDeliver` / DLQ path, unchanged |
 | No destination | Existing same-tenant path, unchanged |
 | Directed write missing provenance | Rejected by `NOT NULL`; handler error → DLQ |

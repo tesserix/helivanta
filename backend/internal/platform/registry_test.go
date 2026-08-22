@@ -11,9 +11,10 @@ import (
 )
 
 type fakeModule struct {
-	name      string
-	publishes []string
-	directed  []string
+	name          string
+	publishes     []string
+	directed      []string
+	directedWrite []string
 }
 
 func (f *fakeModule) Name() string                            { return f.name }
@@ -22,7 +23,7 @@ func (f *fakeModule) Permissions() []authz.Grant              { return nil }
 func (f *fakeModule) Routes(r *Router, deps Deps)             {}
 func (f *fakeModule) Publishes() []string                     { return f.publishes }
 func (f *fakeModule) DirectedSubjects() []string              { return f.directed }
-func (f *fakeModule) DirectedWriteTables() []string           { return nil }
+func (f *fakeModule) DirectedWriteTables() []string           { return f.directedWrite }
 func (f *fakeModule) Consumers(deps Deps) []events.Consumer   { return nil }
 func (f *fakeModule) Broadcasts(deps Deps) []events.Broadcast { return nil }
 
@@ -63,4 +64,21 @@ func TestRegisterAcceptsDirectedSubjectThatIsPublished(t *testing.T) {
 		directed:  []string{"helivanta.in.good.thing.v1"},
 	}))
 	require.Equal(t, []string{"helivanta.in.good.thing.v1"}, r.DirectedSubjects())
+}
+
+// TestDirectedWriteTablesIsUnionAcrossModules mirrors
+// TestRegisterAcceptsDirectedSubjectThatIsPublished's shape: the registry's
+// declared set is the union of every registered module's own declaration,
+// not just the last one registered.
+func TestDirectedWriteTablesIsUnionAcrossModules(t *testing.T) {
+	r := NewRegistry()
+	require.NoError(t, r.Register(&fakeModule{
+		name:          "first",
+		directedWrite: []string{"first_table"},
+	}))
+	require.NoError(t, r.Register(&fakeModule{
+		name:          "second",
+		directedWrite: []string{"second_table"},
+	}))
+	require.Equal(t, []string{"first_table", "second_table"}, r.DirectedWriteTables())
 }

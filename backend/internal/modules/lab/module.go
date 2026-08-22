@@ -80,3 +80,7 @@ func (m *Module) Publishes() []string {
 // DirectedSubjects declares none: this module publishes nothing that
 // creates data in another tenant.
 func (m *Module) DirectedSubjects() []string { return nil }
+
+// DirectedWriteTables declares none: this module writes no table on
+// behalf of another tenant.
+func (m *Module) DirectedWriteTables() []string { return nil }

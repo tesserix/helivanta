@@ -480,6 +480,10 @@ func (m *Module) Publishes() []string {
 // creates data in another tenant.
 func (m *Module) DirectedSubjects() []string { return nil }
 
+// DirectedWriteTables declares none: this module writes no table on
+// behalf of another tenant.
+func (m *Module) DirectedWriteTables() []string { return nil }
+
 // Broadcasts invalidates this replica's revocation cache the instant
 // another replica revokes a credential (#781). The durable truth is
 // Postgres — see RevocationChecker.RevokedAfter's read-through and its

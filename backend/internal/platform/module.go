@@ -121,6 +121,17 @@ type Module interface {
 	// codebase: everything on it can cross an organisational boundary.
 	// A module with no cross-tenant events returns nil.
 	DirectedSubjects() []string
+	// DirectedWriteTables declares every table this module's consumers
+	// write into on behalf of ANOTHER tenant. Each must carry NOT NULL
+	// origin_tenant_id and origin_record_id; DB.LintDirectedProvenance
+	// enforces it at boot (design D5, #932).
+	//
+	// Declared rather than inferred: which table a handler writes into is
+	// not statically knowable from a tx.Exec, so inference would silently
+	// cover nothing the day a handler gained a second INSERT.
+	//
+	// A module with no cross-tenant writes returns nil.
+	DirectedWriteTables() []string
 	Consumers(deps Deps) []events.Consumer
 	// Broadcasts declares this module's fanout subscriptions — every
 	// replica hears every message, unlike Consumers, where replicas

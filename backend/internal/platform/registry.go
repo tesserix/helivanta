@@ -46,3 +46,13 @@ func (r *Registry) DirectedSubjects() []string {
 	}
 	return out
 }
+
+// DirectedWriteTables is the union of every registered module's
+// declarations, for DB.LintDirectedProvenance.
+func (r *Registry) DirectedWriteTables() []string {
+	var out []string
+	for _, m := range r.ordered {
+		out = append(out, m.DirectedWriteTables()...)
+	}
+	return out
+}

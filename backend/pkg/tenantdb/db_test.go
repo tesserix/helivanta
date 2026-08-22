@@ -532,3 +532,92 @@ func TestOpenNeverLogsQueryParameters(t *testing.T) {
 	require.NotContains(t, out, patientName, "patient name reached the log stream")
 	require.NotContains(t, out, mrn, "medical record number reached the log stream")
 }
+
+// TestLintDirectedProvenanceFlagsNullableColumn: provenance that can be
+// NULL is provenance that will be NULL. The column existing is not the
+// control; NOT NULL is.
+func TestLintDirectedProvenanceFlagsNullableColumn(t *testing.T) {
+	appDSN, adminDSN, systemDSN := testutil.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
+	require.NoError(t, err)
+	ctx := context.Background()
+	require.NoError(t, db.Migrate(ctx, tenantdb.Migrations()))
+	require.NoError(t, db.WithAdmin(ctx, func(tx *gorm.DB) error {
+		return tx.Exec(`
+			CREATE TABLE nullable_provenance (
+			  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+			  tenant_id uuid NOT NULL,
+			  origin_tenant_id uuid,
+			  origin_record_id uuid NOT NULL
+			)`).Error
+	}))
+
+	bad, err := db.LintDirectedProvenance(ctx, []string{"nullable_provenance"})
+	require.NoError(t, err)
+	require.Len(t, bad, 1)
+	require.Contains(t, bad[0], "origin_tenant_id")
+}
+
+func TestLintDirectedProvenanceFlagsMissingColumn(t *testing.T) {
+	appDSN, adminDSN, systemDSN := testutil.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
+	require.NoError(t, err)
+	ctx := context.Background()
+	require.NoError(t, db.Migrate(ctx, tenantdb.Migrations()))
+	require.NoError(t, db.WithAdmin(ctx, func(tx *gorm.DB) error {
+		return tx.Exec(`
+			CREATE TABLE missing_provenance (
+			  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+			  tenant_id uuid NOT NULL
+			)`).Error
+	}))
+
+	bad, err := db.LintDirectedProvenance(ctx, []string{"missing_provenance"})
+	require.NoError(t, err)
+	require.Len(t, bad, 1)
+}
+
+func TestLintDirectedProvenanceFlagsUnknownTable(t *testing.T) {
+	appDSN, adminDSN, systemDSN := testutil.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
+	require.NoError(t, err)
+	ctx := context.Background()
+	require.NoError(t, db.Migrate(ctx, tenantdb.Migrations()))
+
+	// A declared table that does not exist is a typo in the declaration —
+	// and would otherwise lint clean by vacuously passing every check.
+	bad, err := db.LintDirectedProvenance(ctx, []string{"no_such_table"})
+	require.NoError(t, err)
+	require.Len(t, bad, 1)
+	require.Contains(t, bad[0], "does not exist")
+}
+
+func TestLintDirectedProvenancePassesCompliantTable(t *testing.T) {
+	appDSN, adminDSN, systemDSN := testutil.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
+	require.NoError(t, err)
+	ctx := context.Background()
+	require.NoError(t, db.Migrate(ctx, tenantdb.Migrations()))
+	require.NoError(t, db.WithAdmin(ctx, func(tx *gorm.DB) error {
+		return tx.Exec(`
+			CREATE TABLE good_provenance (
+			  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+			  tenant_id uuid NOT NULL,
+			  origin_tenant_id uuid NOT NULL,
+			  origin_record_id uuid NOT NULL
+			)`).Error
+	}))
+
+	bad, err := db.LintDirectedProvenance(ctx, []string{"good_provenance"})
+	require.NoError(t, err)
+	require.Empty(t, bad)
+}
+
+func TestLintDirectedProvenanceIsNoOpWithNoDeclarations(t *testing.T) {
+	appDSN, adminDSN, systemDSN := testutil.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
+	require.NoError(t, err)
+	bad, err := db.LintDirectedProvenance(context.Background(), nil)
+	require.NoError(t, err)
+	require.Empty(t, bad)
+}

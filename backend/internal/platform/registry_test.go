@@ -22,6 +22,7 @@ func (f *fakeModule) Permissions() []authz.Grant              { return nil }
 func (f *fakeModule) Routes(r *Router, deps Deps)             {}
 func (f *fakeModule) Publishes() []string                     { return f.publishes }
 func (f *fakeModule) DirectedSubjects() []string              { return f.directed }
+func (f *fakeModule) DirectedWriteTables() []string           { return nil }
 func (f *fakeModule) Consumers(deps Deps) []events.Consumer   { return nil }
 func (f *fakeModule) Broadcasts(deps Deps) []events.Broadcast { return nil }
 

@@ -57,5 +57,16 @@ func run() error {
 	if len(bad) > 0 {
 		return fmt.Errorf("tables missing forced RLS: %v", bad)
 	}
+
+	// Beside LintRLS and for the same reason: a control that only runs
+	// when someone remembers to run it is not a control. This is the same
+	// registry cmd/migrate already built above to collect Migrations().
+	directedBad, err := db.LintDirectedProvenance(ctx, registry.DirectedWriteTables())
+	if err != nil {
+		return fmt.Errorf("lint directed provenance: %w", err)
+	}
+	if len(directedBad) > 0 {
+		return fmt.Errorf("directed-write tables cannot carry provenance: %v", directedBad)
+	}
 	return nil
 }

@@ -214,6 +214,15 @@ func run() error {
 		return fmt.Errorf("tables missing forced RLS: %v", bad)
 	}
 
+	// Beside LintRLS and for the same reason: a control that only runs
+	// when someone remembers to run it is not a control. registry is
+	// already built at this point, so the declared set is the real one.
+	if bad, err := db.LintDirectedProvenance(ctx, registry.DirectedWriteTables()); err != nil {
+		return fmt.Errorf("lint directed provenance: %w", err)
+	} else if len(bad) > 0 {
+		return fmt.Errorf("directed-write tables cannot carry provenance: %v", bad)
+	}
+
 	bus, err := events.NewBus(cfg.NATSURL)
 	if err != nil {
 		return err

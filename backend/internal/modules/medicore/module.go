@@ -80,6 +80,10 @@ func (m *Module) Publishes() []string {
 // creates data in another tenant.
 func (m *Module) DirectedSubjects() []string { return nil }
 
+// DirectedWriteTables declares none: this module writes no table on
+// behalf of another tenant.
+func (m *Module) DirectedWriteTables() []string { return nil }
+
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer { return nil }
 
 // Broadcasts declares none: medicore has no per-replica cache to

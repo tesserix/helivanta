@@ -621,3 +621,36 @@ func TestLintDirectedProvenanceIsNoOpWithNoDeclarations(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, bad)
 }
+
+// TestLintDirectedProvenanceFlagsAllowlistedTable closes the narrow gap
+// between the two linters. LintRLS covers any table carrying a
+// tenant_id, EXCEPT the handful on lintAllowlist; LintDirectedProvenance
+// covers only declared tables, and only their provenance columns. A
+// table in both sets would therefore pass both while accepting
+// cross-tenant writes with no isolation whatsoever.
+//
+// login_attempt is used because it is a real allowlist entry: the table
+// built here is otherwise fully compliant (both provenance columns
+// present and NOT NULL), so the ONLY thing that can flag it is the
+// allowlist rule itself.
+func TestLintDirectedProvenanceFlagsAllowlistedTable(t *testing.T) {
+	appDSN, adminDSN, systemDSN := testutil.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
+	require.NoError(t, err)
+	ctx := context.Background()
+	require.NoError(t, db.Migrate(ctx, tenantdb.Migrations()))
+	require.NoError(t, db.WithAdmin(ctx, func(tx *gorm.DB) error {
+		return tx.Exec(`
+			CREATE TABLE login_attempt (
+			  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+			  tenant_id uuid NOT NULL,
+			  origin_tenant_id uuid NOT NULL,
+			  origin_record_id uuid NOT NULL
+			)`).Error
+	}))
+
+	bad, err := db.LintDirectedProvenance(ctx, []string{"login_attempt"})
+	require.NoError(t, err)
+	require.Len(t, bad, 1)
+	require.Contains(t, bad[0], "allowlist")
+}

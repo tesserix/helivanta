@@ -463,6 +463,15 @@ func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
 // NOT NULL — a nullable provenance column is provenance that will
 // eventually be NULL on the row someone needs during an audit (design D5).
 //
+// A declared table that is on LintRLS's lintAllowlist fails outright,
+// before its columns are examined. The two linters are otherwise
+// independent — LintRLS covers any table carrying tenant_id — so a table
+// appearing in BOTH a module's DirectedWriteTables() and the allowlist
+// would pass both while carrying provenance and no tenant isolation at
+// all. Accepting a cross-tenant write into a table nothing isolates is
+// the exact failure this design exists to prevent, so it fails closed
+// here rather than being covered by neither.
+//
 // Separate from LintRLS rather than folded into it: LintRLS enumerates
 // every table and subtracts an allowlist, whereas this checks only the
 // tables modules declared, so the two have different inputs. It runs
@@ -500,6 +509,9 @@ func (d *DB) LintDirectedProvenance(ctx context.Context, tables []string) ([]str
 	var bad []string
 	for _, r := range rows {
 		switch {
+		case lintAllowlist[r.Relname]:
+			bad = append(bad, r.Relname+": declared as a directed-write table but is on LintRLS's "+
+				"allowlist, so no linter checks its tenant isolation")
 		case !r.TableExists:
 			bad = append(bad, r.Relname+": declared as a directed-write table but does not exist")
 		case !r.OriginTenantOK:

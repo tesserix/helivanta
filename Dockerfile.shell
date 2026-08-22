@@ -8,12 +8,14 @@
 # published tarball and no dist/ to install from. A build context of
 # apps/shell alone could not resolve them at all.
 #
-# Both stages pinned by digest, not just tag: node:22.23.2-alpine is mutable
-# upstream — the tag can be repointed — but the digest is what actually built
-# this image, so a rebuild months from now reproduces the same Node and the
-# same musl userland instead of silently picking up whatever the tag has
-# since become. Same reasoning as Dockerfile.api's golang pin.
-FROM node:22.23.2-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS builder
+# Tesserix owns, patches, and Trivy-gates this Node 22 builder every week.
+# `latest` stays on the Node 22 line and points only at the last green build.
+FROM ghcr.io/tesserix/base-node-builder-22:latest AS builder
+
+# The shared builder supports non-root consumers by default. This monorepo
+# build writes workspace dependencies and Next output under /src, so root is
+# limited to this disposable build stage.
+USER 0:0
 
 # pnpm 10.17.1 via corepack, matching package.json's `packageManager` field
 # exactly. Pinned rather than `corepack enable pnpm` + whatever floats,
@@ -122,14 +124,11 @@ RUN mkdir -p /src/apps/shell/public
 # workspace, the source, the TypeScript toolchain or pnpm's store. Three
 # COPYs is the whole image.
 #
-# node:22.23.2-alpine rather than distroless (Dockerfile.api's choice)
-# because Next's standalone server is a Node program, not a static binary —
-# it needs a Node runtime, and the officially-built one is the one Next is
-# tested against. The cost is that this image DOES have a shell, unlike the
-# API image. That is what makes the build-arg verification in the Makefile's
-# image-shell target possible at all.
+# The paired Tesserix Node 22 runtime includes tini, libc compatibility,
+# certificates and the non-root nextjs user. It is weekly rebuilt and
+# Trivy-gated before the moving `latest` tag advances.
 # ---------------------------------------------------------------------------
-FROM node:22.23.2-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS runtime
+FROM ghcr.io/tesserix/base-node-runtime-22:latest AS runtime
 
 WORKDIR /app
 
@@ -139,26 +138,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # whatever HOSTNAME says, and its own default of localhost binds only the
 # container's loopback — the process starts, logs "Ready", and every request
 # from outside the container (kubelet probes included) is refused.
-# Remove the npm/npx that ship inside the Node base image.
-#
-# Not a size optimisation. Trivy fails this image on eight CRITICAL/HIGH
-# findings and EVERY ONE of them is in /usr/local/lib/node_modules/npm/*
-# (tar, sigstore, picomatch, ip-address, brace-expansion) — npm's own
-# bundled dependency tree, not this application's. Verified by grouping the
-# scan by package path: zero findings come from apps/shell or packages/*.
-#
-# Nothing at runtime uses npm. The Next standalone server is started with
-# plain `node apps/shell/server.js`; pnpm and corepack are builder-stage
-# only. So this is not a suppression of a real risk, it is deleting a
-# package manager that has no business being in a serving image — the
-# vulnerabilities go with it because the code does.
-#
-# Deliberately NOT a .trivyignore: an ignore file would keep the vulnerable
-# code in the image and hide it from the next scan too.
-RUN rm -rf /usr/local/lib/node_modules/npm \
-           /usr/local/bin/npm \
-           /usr/local/bin/npx
-
 ENV HOSTNAME=0.0.0.0
 ENV PORT=4301
 
@@ -185,19 +164,16 @@ ENV API_URL=${API_URL}
 # does NOT trace into standalone (they are served, not required), so they
 # are copied separately, into the paths the server resolves relative to
 # itself.
-COPY --from=builder --chown=node:node /src/apps/shell/.next/standalone ./
-COPY --from=builder --chown=node:node /src/apps/shell/.next/static ./apps/shell/.next/static
-COPY --from=builder --chown=node:node /src/apps/shell/public ./apps/shell/public
+COPY --from=builder --chown=10001:10001 /src/apps/shell/.next/standalone ./
+COPY --from=builder --chown=10001:10001 /src/apps/shell/.next/static ./apps/shell/.next/static
+COPY --from=builder --chown=10001:10001 /src/apps/shell/public ./apps/shell/public
 
-# The `node` user (uid/gid 1000) ships with the base image. Nothing in this
-# image is written at runtime — Next serves from the read-only bundle — so
-# root buys nothing and costs the usual.
-USER node
+# The shared runtime already selects nextjs (uid/gid 10001). Nothing in this
+# image is written at runtime; this repeats the boundary explicitly.
+USER 10001:10001
 
 EXPOSE 4301
 
-# Exec form: node IS PID 1, with no /bin/sh -c in between to swallow SIGTERM
-# before the server's own shutdown handling sees it. Same reasoning as
-# Dockerfile.api's ENTRYPOINT, and the reason `docker run --entrypoint=""`
-# is how the verification steps get a shell in here instead.
-ENTRYPOINT ["node", "apps/shell/server.js"]
+# The shared runtime's tini ENTRYPOINT remains PID 1 and forwards signals to
+# the standalone Next server selected here.
+CMD ["node", "apps/shell/server.js"]

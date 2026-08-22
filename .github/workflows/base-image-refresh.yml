@@ -1,0 +1,20 @@
+name: Base Image Refresh
+
+on:
+  repository_dispatch:
+    types: [base-image-refresh]
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  rebuild:
+    name: Rebuild product images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch image build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run images.yml --repo "${{ github.repository }}" --ref main

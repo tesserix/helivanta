@@ -251,10 +251,28 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	require.NoError(t, err)
 	require.Empty(t, bad, "tenant tables must carry forced RLS")
 
+	// Both boot-time controls cmd/api/main.go runs, run here too (#932).
+	// The union is taken across exactly the modules under test, so a
+	// module declaring a directed-write table whose provenance columns
+	// are nullable fails in its own package's tests instead of only at
+	// production boot.
+	var directedSubjects, directedTables []string
+	for _, m := range opts.Modules {
+		directedSubjects = append(directedSubjects, m.DirectedSubjects()...)
+		directedTables = append(directedTables, m.DirectedWriteTables()...)
+	}
+	directedBad, err := db.LintDirectedProvenance(ctx, directedTables)
+	require.NoError(t, err)
+	require.Empty(t, directedBad, "directed-write tables must carry NOT NULL provenance")
+
 	// Every test shares one NATS server, so each takes its own subject
 	// namespace — otherwise one test's consumers would receive another's
 	// events. t.Name() is unique per test by construction.
-	bus, err := events.NewBusInNamespace(testinfra.StartNATS(t), t.Name())
+	//
+	// The directed allowlist is a constructor argument (there is no
+	// setter — see events.NewBusInNamespace), so it has to be built
+	// before the bus exists, exactly as main.go does it.
+	bus, err := events.NewBusInNamespace(testinfra.StartNATS(t), t.Name(), directedSubjects...)
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 

@@ -281,9 +281,13 @@ func TestForwardedPingLandsInDestinationTenant(t *testing.T) {
 		Modules: []platform.Module{reference.New()},
 	})
 
-	bus.AllowDirected(referencecontract.SubjectPingForwarded)
-	require.NoError(t, bus.StartConsumers(ctx, db, reference.New().Consumers(platform.Deps{})))
-	go bus.RunDispatcher(ctx, db)
+	// No wiring here: NewHarness already passed reference's
+	// DirectedSubjects() into the Bus constructor, started its
+	// consumers and started the dispatcher — the same three steps
+	// cmd/api/main.go performs. Repeating them bound a SECOND pull
+	// subscriber to the durable name "reference-forwarded", so the two
+	// competed for every message, and started a second dispatcher
+	// goroutine (#926 territory).
 
 	origin, destination := uuid.NewString(), uuid.NewString()
 	pingID := uuid.New()

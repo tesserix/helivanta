@@ -200,11 +200,12 @@ type Bus struct {
 	ns string
 
 	// directed is the set of subjects permitted to carry a
-	// DestinationTenantID (design D4). It starts EMPTY and is populated
-	// from the module registry at boot, so a subject is non-directed
-	// unless something declared it — and dropping the wiring makes every
-	// directed event fail loudly rather than silently cross a tenant
-	// boundary.
+	// DestinationTenantID (design D4). It is fixed at construction and
+	// never written again — see NewBusInNamespace's directedSubjects
+	// parameter for why that is structural rather than a convention. It
+	// defaults to EMPTY, so a subject is non-directed unless something
+	// declared it, and dropping the registry wiring makes every directed
+	// event fail loudly rather than silently cross a tenant boundary.
 	directed map[string]struct{}
 
 	// stopCtx/stop give Close() a way to unwind consumeLoop/RunDispatcher
@@ -214,8 +215,11 @@ type Bus struct {
 	stop    context.CancelFunc
 }
 
-func NewBus(natsURL string) (*Bus, error) {
-	return NewBusInNamespace(natsURL, "")
+// NewBus builds a Bus, taking the set of subjects permitted to carry a
+// DestinationTenantID (design D4) — in production, the module
+// registry's union.
+func NewBus(natsURL string, directedSubjects ...string) (*Bus, error) {
+	return NewBusInNamespace(natsURL, "", directedSubjects...)
 }
 
 // NewBusInNamespace is NewBus with an isolated subject space.
@@ -225,7 +229,23 @@ func NewBus(natsURL string) (*Bus, error) {
 // needs its own subject space rather than merely its own stream name.
 // Passing "" gives exactly what NewBus gives — this is not a production
 // deployment knob, and nothing in cmd/ should call it.
-func NewBusInNamespace(natsURL, ns string) (*Bus, error) {
+//
+// directedSubjects is the allowlist of subjects permitted to carry a
+// DestinationTenantID (design D4). It is taken HERE, at construction,
+// and there is deliberately no method to change it afterwards: the map
+// is read without a lock by the consumer goroutines this Bus itself
+// starts (StartConsumers → consumeLoop → handleMsg → directedAllowed),
+// so a post-start mutation is a data race, not merely a policy
+// violation. Making the set unreachable after construction is a compile
+// error rather than a rule someone has to remember — the top of the
+// enforcement ladder in docs/standards/engineering-principles.md. The
+// point of the allowlist is that the set of subjects able to cross a
+// tenant boundary is small, reviewed and greppable, which a runtime
+// mutation would undo.
+//
+// Passing nothing yields an EMPTY allowlist, which is the correct
+// fail-closed default: every directed event is refused.
+func NewBusInNamespace(natsURL, ns string, directedSubjects ...string) (*Bus, error) {
 	ns = sanitizeNamespace(ns)
 	nc, err := nats.Connect(natsURL, nats.MaxReconnects(-1))
 	if err != nil {
@@ -235,7 +255,11 @@ func NewBusInNamespace(natsURL, ns string) (*Bus, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := &Bus{nc: nc, js: js, ns: ns}
+	directed := make(map[string]struct{}, len(directedSubjects))
+	for _, subject := range directedSubjects {
+		directed[subject] = struct{}{}
+	}
+	b := &Bus{nc: nc, js: js, ns: ns, directed: directed}
 	_, err = js.AddStream(&nats.StreamConfig{
 		Name:      b.streamName(),
 		Subjects:  []string{b.Subject(subjectRoot + ".>")},
@@ -282,21 +306,6 @@ func (b *Bus) Subject(s string) string {
 		return s
 	}
 	return b.ns + "." + s
-}
-
-// AllowDirected permits these subjects to carry a DestinationTenantID.
-//
-// Called once at boot from the module registry's declarations. Nothing
-// else may call it: the point of the allowlist is that the set of
-// subjects able to cross a tenant boundary is small, reviewed and
-// greppable, which a runtime mutation would undo.
-func (b *Bus) AllowDirected(subjects ...string) {
-	if b.directed == nil {
-		b.directed = make(map[string]struct{}, len(subjects))
-	}
-	for _, s := range subjects {
-		b.directed[s] = struct{}{}
-	}
 }
 
 func (b *Bus) directedAllowed(subject string) bool {
@@ -528,6 +537,17 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 			_ = msg.Term()
 			return
 		}
+		// SYNTACTIC ONLY. This proves the destination is a UUID; it
+		// does NOT prove the tenant exists, and it cannot until there
+		// is a tenant table (#13 — no such table exists today). A
+		// syntactically valid but unknown destination produces a row
+		// visible to nobody: safe, because it leaks to no one, but
+		// SILENT — the publish succeeds, the consumer Acks, and a
+		// routing feature built on this would report success while the
+		// data reached no one. The existence check is required before
+		// any clinical feature (S4 prescription routing, #170) depends
+		// on this primitive; see "Limitations" in
+		// docs/superpowers/specs/2026-08-22-directed-cross-tenant-events-design.md.
 		if _, err := uuid.Parse(evt.DestinationTenantID); err != nil {
 			// Falling through would scope the tx to the ORIGIN and write
 			// the row into the wrong tenant — silently, and looking like

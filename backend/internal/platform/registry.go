@@ -36,7 +36,7 @@ func (r *Registry) Register(m Module) error {
 func (r *Registry) All() []Module { return append([]Module(nil), r.ordered...) }
 
 // DirectedSubjects is the union of every registered module's
-// declarations — the exact set main.go hands to Bus.AllowDirected, so
+// declarations — the exact set main.go hands to events.NewBus, so
 // the allowlist the bus enforces and the one modules declare cannot
 // diverge.
 func (r *Registry) DirectedSubjects() []string {

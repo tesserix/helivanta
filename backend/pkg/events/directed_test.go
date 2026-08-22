@@ -19,8 +19,8 @@ import (
 // TestDirectedEventOnUndeclaredSubjectIsRefused is the fail-closed
 // default: a destination the bus was never told to allow must not reach
 // the handler at all. This is what makes a wiring regression — the
-// AllowDirected call being dropped from main.go — safe rather than
-// silently permissive.
+// directed subjects never reaching the constructor in main.go — safe
+// rather than silently permissive.
 func TestDirectedEventOnUndeclaredSubjectIsRefused(t *testing.T) {
 	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
 	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
@@ -36,7 +36,7 @@ func TestDirectedEventOnUndeclaredSubjectIsRefused(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Deliberately no AllowDirected call.
+	// Deliberately no directed subjects passed to the constructor.
 	var handled atomic.Int32
 	require.NoError(t, bus.StartConsumers(ctx, db, []events.Consumer{{
 		Name:    "refusal-consumer",
@@ -160,12 +160,10 @@ func TestDirectedWriteLandsInDestinationAndIsInvisibleToOrigin(t *testing.T) {
 	require.NoError(t, db.Migrate(ctx, migs))
 
 	natsURL := testinfra.StartNATS(t)
-	bus, err := events.NewBusInNamespace(natsURL, t.Name())
+	const subject = "helivanta.in.reference.pinged.v1"
+	bus, err := events.NewBusInNamespace(natsURL, t.Name(), subject)
 	require.NoError(t, err)
 	defer bus.Close()
-
-	const subject = "helivanta.in.reference.pinged.v1"
-	bus.AllowDirected(subject)
 
 	origin, destination := uuid.NewString(), uuid.NewString()
 	pingID := uuid.NewString()
@@ -226,12 +224,10 @@ func TestDirectedEventWithUnparseableDestinationIsTerminated(t *testing.T) {
 	require.NoError(t, db.Migrate(ctx, append(tenantdb.Migrations(), events.Migrations()...)))
 
 	natsURL := testinfra.StartNATS(t)
-	bus, err := events.NewBusInNamespace(natsURL, t.Name())
+	const subject = "helivanta.in.reference.pinged.v1"
+	bus, err := events.NewBusInNamespace(natsURL, t.Name(), subject)
 	require.NoError(t, err)
 	defer bus.Close()
-
-	const subject = "helivanta.in.reference.pinged.v1"
-	bus.AllowDirected(subject)
 
 	var handled atomic.Int32
 	require.NoError(t, bus.StartConsumers(ctx, db, []events.Consumer{{
@@ -257,4 +253,65 @@ func TestDirectedEventWithUnparseableDestinationIsTerminated(t *testing.T) {
 	require.Never(t, func() bool { return handled.Load() > 0 },
 		5*time.Second, 100*time.Millisecond,
 		"an event with an unparseable destination reached the handler")
+}
+
+// TestDirectedInsertWithoutProvenanceIsRejectedByTheDatabase is spec
+// Testing item 4, and it is a different claim from the four
+// LintDirectedProvenance tests: those assert the SCHEMA LINT notices a
+// nullable or missing column at boot. This asserts the running database
+// refuses the row — so a handler that forgets a provenance value gets an
+// error from Postgres, not a row with a NULL origin that nobody notices
+// until an audit years later. The rejection must come from the database
+// and not from any Go-side check, which is why the INSERT here is raw
+// SQL issued inside the destination tenant's own transaction.
+func TestDirectedInsertWithoutProvenanceIsRejectedByTheDatabase(t *testing.T) {
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	migs := append(tenantdb.Migrations(), events.Migrations()...)
+	migs = append(migs, directedProbeMigration)
+	require.NoError(t, db.Migrate(ctx, migs))
+
+	destination, origin := uuid.NewString(), uuid.NewString()
+
+	// Control: the complete row is accepted, so the failures below are
+	// the missing provenance and not the fixture being broken.
+	require.NoError(t, db.WithTenant(ctx, destination, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO directed_probe (tenant_id, origin_tenant_id, origin_record_id, note)
+			VALUES (?, ?, ?, 'complete')`, destination, origin, uuid.NewString()).Error
+	}))
+
+	for _, tc := range []struct {
+		name string
+		sql  string
+		args []any
+	}{{
+		name: "origin_tenant_id omitted",
+		sql: `INSERT INTO directed_probe (tenant_id, origin_record_id, note)
+		      VALUES (?, ?, 'no origin tenant')`,
+		args: []any{destination, uuid.NewString()},
+	}, {
+		name: "origin_record_id omitted",
+		sql: `INSERT INTO directed_probe (tenant_id, origin_tenant_id, note)
+		      VALUES (?, ?, 'no origin record')`,
+		args: []any{destination, origin},
+	}} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := db.WithTenant(ctx, destination, func(tx *gorm.DB) error {
+				return tx.Exec(tc.sql, tc.args...).Error
+			})
+			require.Error(t, err, "the database accepted a directed row with no provenance")
+			require.Contains(t, err.Error(), "null value in column",
+				"the rejection must be the NOT NULL constraint, not some other failure")
+		})
+	}
+
+	// And nothing partial landed: the control row is the only one.
+	var n int
+	require.NoError(t, db.WithTenant(ctx, destination, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT count(*) FROM directed_probe`).Scan(&n).Error
+	}))
+	require.Equal(t, 1, n)
 }

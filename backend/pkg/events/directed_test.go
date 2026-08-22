@@ -116,9 +116,18 @@ func TestDirectedEnvelopeOmitsFieldWhenEmpty(t *testing.T) {
 	require.NotContains(t, string(b), "destination_tenant_id")
 }
 
-// directedTestTable is created per test rather than reusing a module's
-// table: pkg/events must not import internal/modules.
-const directedTestTable = `
+// directedProbeMigration is created per test rather than reusing a
+// module's table: pkg/events must not import internal/modules. It is a
+// tenantdb.Migration — not a bare db.WithAdmin(...) exec — because
+// WithAdmin bypasses RLS entirely and internal/archtest's
+// TestWithAdminIsOnlyCalledFromTheAllowlist forbids calling it from
+// outside pkg/tenantdb (the allowlist is deliberately empty). Migrate
+// runs this DDL on the admin/owner pool internally, which is exactly why
+// pkg/tenantdb/ is the allowed directory: this file gets the DDL it
+// needs without pkg/events ever referencing WithAdmin itself.
+var directedProbeMigration = tenantdb.Migration{
+	ID: "0005_directed_probe_test_only",
+	SQL: `
 CREATE TABLE IF NOT EXISTS directed_probe (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL,
@@ -131,7 +140,8 @@ ALTER TABLE directed_probe FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON directed_probe;
 CREATE POLICY tenant_isolation ON directed_probe
   USING (hms_tenant_visible(tenant_id))
-  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`,
+}
 
 // TestDirectedWriteLandsInDestinationAndIsInvisibleToOrigin is the claim
 // the whole design exists to support, asserted on rows rather than on the
@@ -145,10 +155,9 @@ func TestDirectedWriteLandsInDestinationAndIsInvisibleToOrigin(t *testing.T) {
 	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	require.NoError(t, db.Migrate(ctx, append(tenantdb.Migrations(), events.Migrations()...)))
-	require.NoError(t, db.WithAdmin(ctx, func(tx *gorm.DB) error {
-		return tx.Exec(directedTestTable).Error
-	}))
+	migs := append(tenantdb.Migrations(), events.Migrations()...)
+	migs = append(migs, directedProbeMigration)
+	require.NoError(t, db.Migrate(ctx, migs))
 
 	natsURL := testinfra.StartNATS(t)
 	bus, err := events.NewBusInNamespace(natsURL, t.Name())

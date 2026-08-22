@@ -30,6 +30,7 @@ func (logModule) Name() string                                { return "logprobe
 func (logModule) Migrations() []tenantdb.Migration            { return nil }
 func (logModule) Permissions() []authz.Grant                  { return nil }
 func (logModule) Publishes() []string                         { return nil }
+func (logModule) DirectedSubjects() []string                  { return nil }
 func (logModule) Consumers(platform.Deps) []events.Consumer   { return nil }
 func (logModule) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 

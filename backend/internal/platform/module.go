@@ -108,6 +108,19 @@ type Module interface {
 	// not bare strings; TestPublishesUsesContractConstants enforces it.
 	// A module that publishes nothing returns nil.
 	Publishes() []string
+	// DirectedSubjects declares which of this module's Publishes() may
+	// carry a DestinationTenantID — that is, may create a record in a
+	// tenant other than the one that published (design D4, #932).
+	//
+	// Must be a subset of Publishes(); Registry.Register fails at boot
+	// otherwise, and archtest checks the same property over the real
+	// modules. Entries must be constants from this module's own contract
+	// package, like Publishes().
+	//
+	// This list is deliberately the smallest reviewable surface in the
+	// codebase: everything on it can cross an organisational boundary.
+	// A module with no cross-tenant events returns nil.
+	DirectedSubjects() []string
 	Consumers(deps Deps) []events.Consumer
 	// Broadcasts declares this module's fanout subscriptions — every
 	// replica hears every message, unlike Consumers, where replicas

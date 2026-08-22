@@ -220,6 +220,12 @@ func run() error {
 	}
 	defer bus.Close()
 
+	// The bus's directed allowlist starts empty and is populated here,
+	// from the module declarations the registry already validated. If
+	// this call is ever dropped, every directed event is refused rather
+	// than silently permitted — see Bus.AllowDirected (#932).
+	bus.AllowDirected(registry.DirectedSubjects()...)
+
 	// zitadelVerifier verifies a Zitadel ID token through standard OIDC
 	// (plan Task 3). Task 4 narrows where that verifier is used: it is
 	// ONLY the login endpoint's job now (see loginHandlers below) to

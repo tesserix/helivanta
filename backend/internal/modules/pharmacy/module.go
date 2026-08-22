@@ -99,3 +99,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 func (m *Module) Publishes() []string {
 	return []string{pharmacycontract.SubjectDispenseRecorded}
 }
+
+// DirectedSubjects declares none: this module publishes nothing that
+// creates data in another tenant.
+func (m *Module) DirectedSubjects() []string { return nil }

@@ -176,3 +176,20 @@ func TestConsumersUnmarshalIntoContractTypes(t *testing.T) {
 	}
 	require.Positive(t, checked, "no json.Unmarshal(evt.Data, …) call sites found — this test would pass vacuously")
 }
+
+// TestDirectedSubjectsAreDeclaredAndPublished is the whole-tree version of
+// the registry's per-module check: it runs over the REAL modules, so a
+// directed subject added to a module without adding it to Publishes()
+// fails CI even if nobody boots the binary.
+func TestDirectedSubjectsAreDeclaredAndPublished(t *testing.T) {
+	for _, m := range allModules() {
+		published := map[string]bool{}
+		for _, s := range m.Publishes() {
+			published[s] = true
+		}
+		for _, d := range m.DirectedSubjects() {
+			require.True(t, published[d],
+				"module %q declares %q directed but does not publish it", m.Name(), d)
+		}
+	}
+}

@@ -199,6 +199,14 @@ type Bus struct {
 	// byte-identical to production.
 	ns string
 
+	// directed is the set of subjects permitted to carry a
+	// DestinationTenantID (design D4). It starts EMPTY and is populated
+	// from the module registry at boot, so a subject is non-directed
+	// unless something declared it — and dropping the wiring makes every
+	// directed event fail loudly rather than silently cross a tenant
+	// boundary.
+	directed map[string]struct{}
+
 	// stopCtx/stop give Close() a way to unwind consumeLoop/RunDispatcher
 	// goroutines even when the caller's ctx is long-lived (e.g. request
 	// scoped or background.TODO()).
@@ -274,6 +282,26 @@ func (b *Bus) Subject(s string) string {
 		return s
 	}
 	return b.ns + "." + s
+}
+
+// AllowDirected permits these subjects to carry a DestinationTenantID.
+//
+// Called once at boot from the module registry's declarations. Nothing
+// else may call it: the point of the allowlist is that the set of
+// subjects able to cross a tenant boundary is small, reviewed and
+// greppable, which a runtime mutation would undo.
+func (b *Bus) AllowDirected(subjects ...string) {
+	if b.directed == nil {
+		b.directed = make(map[string]struct{}, len(subjects))
+	}
+	for _, s := range subjects {
+		b.directed[s] = struct{}{}
+	}
+}
+
+func (b *Bus) directedAllowed(subject string) bool {
+	_, ok := b.directed[subject]
+	return ok
 }
 
 func (b *Bus) Ping(ctx context.Context) error {
@@ -488,6 +516,15 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 	if err := json.Unmarshal(msg.Data, &evt); err != nil {
 		slog.Error("consumer bad payload", "consumer", c.Name, "err", err)
 		_ = msg.Term() // poison message — never parseable
+		return
+	}
+	if evt.DestinationTenantID != "" && !b.directedAllowed(c.Subject) {
+		// Term, not Nak: redelivery cannot make an undeclared subject
+		// declared, so retrying five times only delays the log line.
+		slog.Error("refused directed event on undeclared subject",
+			"consumer", c.Name, "subject", c.Subject, "event_id", evt.ID,
+			"tenant_id", evt.TenantID, "destination_tenant_id", evt.DestinationTenantID)
+		_ = msg.Term()
 		return
 	}
 	err := b.runConsumerTx(ctx, db, c, evt)

@@ -4,6 +4,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 # One in-flight run per ref, superseded runs cancelled. Added with the e2e
 # job (#920) because that job changed the arithmetic: CI used to be four
 # cheap jobs, and a couple of stale runs cost little. It now brings up a full
@@ -121,35 +124,8 @@ jobs:
         run: command -v lsof || (sudo apt-get update && sudo apt-get install -y lsof)
       - run: make test-scripts
   secrets:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Full history: the gate scans every commit, so a secret added
-          # and then removed in a later commit is still caught. With the
-          # default shallow clone it would not be.
-          fetch-depth: 0
-      # The container, NOT gitleaks/gitleaks-action@v2. That action
-      # requires a paid GITLEAKS_LICENSE for ORGANISATION-owned repos,
-      # and tesserix/hms is private under the tesserix org — so the
-      # action would fail on licensing, not on findings. This repo is
-      # also on the GitHub Free plan with no org secrets, so a license
-      # could not be supplied even if bought. Running the container
-      # directly has a second advantage: CI runs the exact command a
-      # developer runs locally, so the two cannot drift.
-      #
-      # Pinned by tag AND digest, not `:latest`. `.gitleaks.toml`'s
-      # allowlist relies on gitleaks MERGING our rule into the default
-      # ruleset rather than replacing it outright — true on v8.30.1, but
-      # that merge-vs-replace behaviour is version-dependent. A `:latest`
-      # float that changed it would silently disable the detector: the
-      # gate would keep reporting "no leaks found" forever instead of
-      # failing loudly. Pinning removes that failure mode; bump
-      # deliberately, then re-verify the allowlist still merges.
-      - name: gitleaks
-        run: |
-          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f detect \
-            --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact
+    name: Secret scan
+    uses: tesserix/tesserix-workflows/.github/workflows/secret-scan.yml@v2.1.0
   e2e:
     runs-on: ubuntu-latest
     # 30 minutes, and the number is a fail-closed bound rather than a guess.

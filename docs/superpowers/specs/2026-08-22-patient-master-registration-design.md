@@ -165,13 +165,28 @@ while this platform stores Latin-script transliterations. "Md / Mohammed / Moham
 transliteration variance in Latin, not phonetic encoding of Indic script — so porting an Indic
 Soundex would be applying the wrong tool competently.
 
-**Decision:** take Jaro-Winkler and Double Metaphone from `smetrics`, and write a small,
-explicitly bounded normalisation layer for the rules this data actually exhibits — honorific
-stripping, `Md`/`Mohd` → `Mohammed` style expansions, vowel collapse, and name-order tolerance.
+**Decision:** take Jaro-Winkler and Soundex from `smetrics`, and write a small, explicitly
+bounded normalisation layer for the rules this data actually exhibits — honorific stripping,
+`Md`/`Mohd` → `Mohammed` style expansions, vowel collapse, and name-order tolerance.
 
-That is a ruleset, not an algorithm. Each rule is one corpus test case, and the set is
-enumerable and reviewable — which is what separates it from hand-rolling a phonetic encoder,
-the thing this decision exists to avoid.
+`smetrics` offers `Jaro`, `JaroWinkler`, `Soundex`, `Hamming`, `Ukkonen` and `WagnerFischer` —
+verified against the package, **not** Metaphone. An earlier draft of this decision named Double
+Metaphone from `smetrics`; that function does not exist, and the correction is recorded here
+rather than silently applied.
+
+The ordering is what makes Soundex acceptable despite the criticism above: normalisation runs
+FIRST and collapses the Indian-specific variance, so Soundex encodes a regularised form rather
+than raw transliteration. The normalisation ruleset, not the encoder, is where correctness
+lives — and it is the part covered by the corpus tests.
+
+That ruleset is not an algorithm. Each rule is one corpus test case, and the set is enumerable
+and reviewable — which is what separates it from hand-rolling a phonetic encoder, the thing
+this decision exists to avoid.
+
+*Rejected: adding `f1monkey/phonetic` for Metaphone or Beider-Morse.* BMPM is the best technical
+fit for transliterated multi-lingual names. At ~20 stars it is too thin a dependency to place on
+the patient-identity path of a hospital platform, where it would become ours to maintain the day
+it goes quiet.
 
 *Rejected: porting SILPA's Indic Soundex to Go.* Faithful to #70's wording and useful to the
 ecosystem, but it targets the wrong script, and porting plus validating an algorithm nobody on

@@ -176,3 +176,63 @@ func TestConsumersUnmarshalIntoContractTypes(t *testing.T) {
 	}
 	require.Positive(t, checked, "no json.Unmarshal(evt.Data, …) call sites found — this test would pass vacuously")
 }
+
+// TestDirectedSubjectsAreDeclaredAndPublished is the whole-tree version of
+// the registry's per-module check: it runs over the REAL modules, so a
+// directed subject added to a module without adding it to Publishes()
+// fails CI even if nobody boots the binary.
+func TestDirectedSubjectsAreDeclaredAndPublished(t *testing.T) {
+	for _, m := range allModules() {
+		published := map[string]bool{}
+		for _, s := range m.Publishes() {
+			published[s] = true
+		}
+		for _, d := range m.DirectedSubjects() {
+			require.True(t, published[d],
+				"module %q declares %q directed but does not publish it", m.Name(), d)
+		}
+	}
+}
+
+// TestDirectedSubjectHasAtMostOneConsumer closes the coupling between
+// the two halves of the directed primitive. handleMsg gates on
+// Consumer.Subject, and runConsumerTx scopes on the ENVELOPE — so the
+// moment a subject is declared directed, EVERY consumer of it has its
+// transaction re-pointed at the destination for any message carrying
+// one. A consumer written earlier by another module, expecting the
+// origin's scope, would keep compiling and start writing into a tenant
+// it never heard of.
+//
+// The rule is therefore: a directed subject has exactly one consumer,
+// or every consumer of it is destination-aware. This asserts the
+// enforceable half — at most one — because "destination-aware" is not
+// statically decidable. A second consumer that genuinely needs the
+// destination scope is a deliberate design decision, and deleting this
+// test is how it gets made, in review.
+func TestDirectedSubjectHasAtMostOneConsumer(t *testing.T) {
+	directed := map[string]string{} // subject -> declaring module
+	for _, m := range allModules() {
+		for _, s := range m.DirectedSubjects() {
+			directed[s] = m.Name()
+		}
+	}
+
+	consumers := map[string][]string{} // directed subject -> consumer names
+	for _, m := range allModules() {
+		for _, c := range m.Consumers(platform.Deps{}) {
+			if _, ok := directed[c.Subject]; ok {
+				consumers[c.Subject] = append(consumers[c.Subject], m.Name()+"/"+c.Name)
+			}
+		}
+	}
+
+	for subject, names := range consumers {
+		require.LessOrEqual(t, len(names), 1,
+			"directed subject %q (declared by %q) has %d consumers: %v. The bus scopes the "+
+				"consumer tx to the event's destination for EVERY consumer of a directed "+
+				"subject, so a consumer expecting the origin's scope now writes into another "+
+				"tenant. Either keep one consumer, or make every consumer destination-aware "+
+				"and record that decision in the design spec's D4.",
+			subject, directed[subject], len(names), names)
+	}
+}

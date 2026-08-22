@@ -27,6 +27,8 @@ func (g grantingModule) Permissions() []authz.Grant {
 }
 func (g grantingModule) Routes(*platform.Router, platform.Deps)      {}
 func (g grantingModule) Publishes() []string                         { return nil }
+func (g grantingModule) DirectedSubjects() []string                  { return nil }
+func (g grantingModule) DirectedWriteTables() []string               { return nil }
 func (g grantingModule) Consumers(platform.Deps) []events.Consumer   { return nil }
 func (g grantingModule) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 
@@ -105,6 +107,8 @@ func (d duplicatingModule) Permissions() []authz.Grant {
 }
 func (d duplicatingModule) Routes(*platform.Router, platform.Deps)      {}
 func (d duplicatingModule) Publishes() []string                         { return nil }
+func (d duplicatingModule) DirectedSubjects() []string                  { return nil }
+func (d duplicatingModule) DirectedWriteTables() []string               { return nil }
 func (d duplicatingModule) Consumers(platform.Deps) []events.Consumer   { return nil }
 func (d duplicatingModule) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 

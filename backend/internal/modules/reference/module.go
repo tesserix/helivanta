@@ -70,6 +70,36 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  USING (hms_tenant_visible(tenant_id))
 			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
 			CREATE INDEX ON reference_ping_receipts (tenant_id, processed_at DESC);`,
+	}, {
+		// #932. The proof table for directed cross-tenant writes.
+		//
+		// tenant_id is the DESTINATION — the tenant this row belongs to,
+		// and the only one whose RLS context can read it. origin_* record
+		// who disclosed it and which record it came from, NOT NULL so the
+		// answer exists on every row (design D5); LintDirectedProvenance
+		// fails the boot if either is dropped or made nullable.
+		//
+		// The policy is the ordinary shape: USING widens through
+		// hms_tenant_visible, WITH CHECK stays pinned to strict equality.
+		// A directed write needs NO policy exception — that it does not
+		// is the evidence this is a copy, not a widening (design D6).
+		ID: "0003_reference",
+		SQL: `
+			CREATE TABLE reference_forwarded_pings (
+			  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+			  tenant_id uuid NOT NULL,
+			  origin_tenant_id uuid NOT NULL,
+			  origin_record_id uuid NOT NULL,
+			  message text NOT NULL,
+			  created_at timestamptz NOT NULL DEFAULT now()
+			);
+			ALTER TABLE reference_forwarded_pings ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE reference_forwarded_pings FORCE ROW LEVEL SECURITY;
+			CREATE POLICY tenant_isolation ON reference_forwarded_pings
+			  USING (hms_tenant_visible(tenant_id))
+			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+			CREATE INDEX ON reference_forwarded_pings (tenant_id, created_at DESC);
+			CREATE INDEX ON reference_forwarded_pings (origin_tenant_id, origin_record_id);`,
 	}}
 }
 
@@ -82,8 +112,23 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET("/pings/:id", authz.Public, pings.get)
 }
 
-// Publishes declares pinged, the one event reference emits. reference
-// consumes its own event — see Consumers in consumers.go.
+// Publishes declares the two events reference emits. reference consumes
+// both of its own events — see Consumers in consumers.go.
 func (m *Module) Publishes() []string {
-	return []string{referencecontract.SubjectPinged}
+	return []string{
+		referencecontract.SubjectPinged,
+		referencecontract.SubjectPingForwarded,
+	}
+}
+
+// DirectedSubjects: ping_forwarded is the one reference event that
+// creates data in a tenant other than the publisher's (#932).
+func (m *Module) DirectedSubjects() []string {
+	return []string{referencecontract.SubjectPingForwarded}
+}
+
+// DirectedWriteTables: the table reference-forwarded writes into on
+// behalf of the destination tenant.
+func (m *Module) DirectedWriteTables() []string {
+	return []string{"reference_forwarded_pings"}
 }

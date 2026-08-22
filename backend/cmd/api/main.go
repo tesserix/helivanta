@@ -214,7 +214,22 @@ func run() error {
 		return fmt.Errorf("tables missing forced RLS: %v", bad)
 	}
 
-	bus, err := events.NewBus(cfg.NATSURL)
+	// Beside LintRLS and for the same reason: a control that only runs
+	// when someone remembers to run it is not a control. registry is
+	// already built at this point, so the declared set is the real one.
+	if bad, err := db.LintDirectedProvenance(ctx, registry.DirectedWriteTables()); err != nil {
+		return fmt.Errorf("lint directed provenance: %w", err)
+	} else if len(bad) > 0 {
+		return fmt.Errorf("directed-write tables cannot carry provenance: %v", bad)
+	}
+
+	// The directed allowlist is a constructor argument, not a later
+	// call: the map is read by the consumer goroutines the Bus starts,
+	// so there is no safe moment to mutate it afterwards and no method
+	// that could. It comes from the module declarations the registry
+	// already validated; passing nothing would refuse every directed
+	// event rather than silently permit one (#932).
+	bus, err := events.NewBus(cfg.NATSURL, registry.DirectedSubjects()...)
 	if err != nil {
 		return err
 	}

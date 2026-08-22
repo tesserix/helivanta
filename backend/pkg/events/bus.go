@@ -199,6 +199,15 @@ type Bus struct {
 	// byte-identical to production.
 	ns string
 
+	// directed is the set of subjects permitted to carry a
+	// DestinationTenantID (design D4). It is fixed at construction and
+	// never written again — see NewBusInNamespace's directedSubjects
+	// parameter for why that is structural rather than a convention. It
+	// defaults to EMPTY, so a subject is non-directed unless something
+	// declared it, and dropping the registry wiring makes every directed
+	// event fail loudly rather than silently cross a tenant boundary.
+	directed map[string]struct{}
+
 	// stopCtx/stop give Close() a way to unwind consumeLoop/RunDispatcher
 	// goroutines even when the caller's ctx is long-lived (e.g. request
 	// scoped or background.TODO()).
@@ -206,8 +215,11 @@ type Bus struct {
 	stop    context.CancelFunc
 }
 
-func NewBus(natsURL string) (*Bus, error) {
-	return NewBusInNamespace(natsURL, "")
+// NewBus builds a Bus, taking the set of subjects permitted to carry a
+// DestinationTenantID (design D4) — in production, the module
+// registry's union.
+func NewBus(natsURL string, directedSubjects ...string) (*Bus, error) {
+	return NewBusInNamespace(natsURL, "", directedSubjects...)
 }
 
 // NewBusInNamespace is NewBus with an isolated subject space.
@@ -217,7 +229,23 @@ func NewBus(natsURL string) (*Bus, error) {
 // needs its own subject space rather than merely its own stream name.
 // Passing "" gives exactly what NewBus gives — this is not a production
 // deployment knob, and nothing in cmd/ should call it.
-func NewBusInNamespace(natsURL, ns string) (*Bus, error) {
+//
+// directedSubjects is the allowlist of subjects permitted to carry a
+// DestinationTenantID (design D4). It is taken HERE, at construction,
+// and there is deliberately no method to change it afterwards: the map
+// is read without a lock by the consumer goroutines this Bus itself
+// starts (StartConsumers → consumeLoop → handleMsg → directedAllowed),
+// so a post-start mutation is a data race, not merely a policy
+// violation. Making the set unreachable after construction is a compile
+// error rather than a rule someone has to remember — the top of the
+// enforcement ladder in docs/standards/engineering-principles.md. The
+// point of the allowlist is that the set of subjects able to cross a
+// tenant boundary is small, reviewed and greppable, which a runtime
+// mutation would undo.
+//
+// Passing nothing yields an EMPTY allowlist, which is the correct
+// fail-closed default: every directed event is refused.
+func NewBusInNamespace(natsURL, ns string, directedSubjects ...string) (*Bus, error) {
 	ns = sanitizeNamespace(ns)
 	nc, err := nats.Connect(natsURL, nats.MaxReconnects(-1))
 	if err != nil {
@@ -227,7 +255,11 @@ func NewBusInNamespace(natsURL, ns string) (*Bus, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := &Bus{nc: nc, js: js, ns: ns}
+	directed := make(map[string]struct{}, len(directedSubjects))
+	for _, subject := range directedSubjects {
+		directed[subject] = struct{}{}
+	}
+	b := &Bus{nc: nc, js: js, ns: ns, directed: directed}
 	_, err = js.AddStream(&nats.StreamConfig{
 		Name:      b.streamName(),
 		Subjects:  []string{b.Subject(subjectRoot + ".>")},
@@ -274,6 +306,11 @@ func (b *Bus) Subject(s string) string {
 		return s
 	}
 	return b.ns + "." + s
+}
+
+func (b *Bus) directedAllowed(subject string) bool {
+	_, ok := b.directed[subject]
+	return ok
 }
 
 func (b *Bus) Ping(ctx context.Context) error {
@@ -490,6 +527,38 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 		_ = msg.Term() // poison message — never parseable
 		return
 	}
+	if evt.DestinationTenantID != "" {
+		if !b.directedAllowed(c.Subject) {
+			// Term, not Nak: redelivery cannot make an undeclared subject
+			// declared, so retrying five times only delays the log line.
+			slog.Error("refused directed event on undeclared subject",
+				"consumer", c.Name, "subject", c.Subject, "event_id", evt.ID,
+				"tenant_id", evt.TenantID, "destination_tenant_id", evt.DestinationTenantID)
+			_ = msg.Term()
+			return
+		}
+		// SYNTACTIC ONLY. This proves the destination is a UUID; it
+		// does NOT prove the tenant exists, and it cannot until there
+		// is a tenant table (#13 — no such table exists today). A
+		// syntactically valid but unknown destination produces a row
+		// visible to nobody: safe, because it leaks to no one, but
+		// SILENT — the publish succeeds, the consumer Acks, and a
+		// routing feature built on this would report success while the
+		// data reached no one. The existence check is required before
+		// any clinical feature (S4 prescription routing, #170) depends
+		// on this primitive; see "Limitations" in
+		// docs/superpowers/specs/2026-08-22-directed-cross-tenant-events-design.md.
+		if _, err := uuid.Parse(evt.DestinationTenantID); err != nil {
+			// Falling through would scope the tx to the ORIGIN and write
+			// the row into the wrong tenant — silently, and looking like
+			// success. Terminate instead.
+			slog.Error("refused directed event with unparseable destination",
+				"consumer", c.Name, "subject", c.Subject, "event_id", evt.ID,
+				"tenant_id", evt.TenantID, "destination_tenant_id", evt.DestinationTenantID)
+			_ = msg.Term()
+			return
+		}
+	}
 	err := b.runConsumerTx(ctx, db, c, evt)
 	if err != nil {
 		slog.Error("consumer handle", "consumer", c.Name, "event_id", evt.ID, "tenant_id", evt.TenantID, "err", err)
@@ -516,6 +585,17 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 	_ = msg.Ack()
 }
 
+// scopeTenant is the tenant whose data this event creates: the
+// destination when directed, the origin otherwise. Exactly one tenant,
+// always — the consumer tx is never scoped to both and never to neither
+// (design D2).
+func scopeTenant(evt Event) string {
+	if evt.DestinationTenantID != "" {
+		return evt.DestinationTenantID
+	}
+	return evt.TenantID
+}
+
 // runConsumerTx runs the idempotency claim and the handler in one tx, and
 // recovers a handler panic into a plain error. Without this, a single
 // panicking event would unwind through GORM's Transaction (which recovers,
@@ -533,13 +613,16 @@ func (b *Bus) runConsumerTx(ctx context.Context, db OutboxStore, c Consumer, evt
 		}
 	}()
 	return db.WithSystem(ctx, func(tx *gorm.DB) error {
-		// Scope the whole consumer tx (claim + handler) to the event's
-		// tenant so handlers can write RLS-forced rows (phase 2 D4).
-		// Invalid/empty tenant → GUC stays unset → tenant tables read
-		// as empty and reject writes, same as before.
-		if _, err := uuid.Parse(evt.TenantID); err == nil {
-			if err := tx.Exec(`SELECT set_config('app.tenant_id', ?, true)`, evt.TenantID).Error; err != nil {
-				return err
+		// Scope the whole consumer tx (claim + handler) to the tenant
+		// whose data this event creates — the destination for a directed
+		// event, the origin otherwise (phase 2 D4, design D2).
+		// Invalid/empty → GUC stays unset → tenant tables read as empty
+		// and reject writes, same as before.
+		if scope := scopeTenant(evt); scope != "" {
+			if _, err := uuid.Parse(scope); err == nil {
+				if err := tx.Exec(`SELECT set_config('app.tenant_id', ?, true)`, scope).Error; err != nil {
+					return err
+				}
 			}
 		}
 		res := tx.Exec(`INSERT INTO processed_events (consumer, event_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,

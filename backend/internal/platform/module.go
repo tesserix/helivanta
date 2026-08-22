@@ -108,6 +108,30 @@ type Module interface {
 	// not bare strings; TestPublishesUsesContractConstants enforces it.
 	// A module that publishes nothing returns nil.
 	Publishes() []string
+	// DirectedSubjects declares which of this module's Publishes() may
+	// carry a DestinationTenantID — that is, may create a record in a
+	// tenant other than the one that published (design D4, #932).
+	//
+	// Must be a subset of Publishes(); Registry.Register fails at boot
+	// otherwise, and archtest checks the same property over the real
+	// modules. Entries must be constants from this module's own contract
+	// package, like Publishes().
+	//
+	// This list is deliberately the smallest reviewable surface in the
+	// codebase: everything on it can cross an organisational boundary.
+	// A module with no cross-tenant events returns nil.
+	DirectedSubjects() []string
+	// DirectedWriteTables declares every table this module's consumers
+	// write into on behalf of ANOTHER tenant. Each must carry NOT NULL
+	// origin_tenant_id and origin_record_id; DB.LintDirectedProvenance
+	// enforces it at boot (design D5, #932).
+	//
+	// Declared rather than inferred: which table a handler writes into is
+	// not statically knowable from a tx.Exec, so inference would silently
+	// cover nothing the day a handler gained a second INSERT.
+	//
+	// A module with no cross-tenant writes returns nil.
+	DirectedWriteTables() []string
 	Consumers(deps Deps) []events.Consumer
 	// Broadcasts declares this module's fanout subscriptions — every
 	// replica hears every message, unlike Consumers, where replicas

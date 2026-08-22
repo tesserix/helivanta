@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
@@ -449,6 +450,74 @@ func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
 			bad = append(bad, r.Relname+": USING does not call hms_tenant_visible")
 		case r.CheckUsesFunc:
 			bad = append(bad, r.Relname+": WITH CHECK calls hms_tenant_visible instead of pinning to one tenant")
+		}
+	}
+	return bad, nil
+}
+
+// LintDirectedProvenance returns every declared directed-write table that
+// cannot carry provenance, each as "<table>: <reason>".
+//
+// A table that accepts a write on behalf of another tenant must record
+// WHICH tenant and WHICH record it came from, and must record them
+// NOT NULL — a nullable provenance column is provenance that will
+// eventually be NULL on the row someone needs during an audit (design D5).
+//
+// A declared table that is on LintRLS's lintAllowlist fails outright,
+// before its columns are examined. The two linters are otherwise
+// independent — LintRLS covers any table carrying tenant_id — so a table
+// appearing in BOTH a module's DirectedWriteTables() and the allowlist
+// would pass both while carrying provenance and no tenant isolation at
+// all. Accepting a cross-tenant write into a table nothing isolates is
+// the exact failure this design exists to prevent, so it fails closed
+// here rather than being covered by neither.
+//
+// Separate from LintRLS rather than folded into it: LintRLS enumerates
+// every table and subtracts an allowlist, whereas this checks only the
+// tables modules declared, so the two have different inputs. It runs
+// beside LintRLS at boot and in cmd/migrate.
+func (d *DB) LintDirectedProvenance(ctx context.Context, tables []string) ([]string, error) {
+	if len(tables) == 0 {
+		return nil, nil
+	}
+	type row struct {
+		Relname        string
+		TableExists    bool
+		OriginTenantOK bool
+		OriginRecordOK bool
+	}
+	var rows []row
+	err := d.admin.WithContext(ctx).Raw(`
+		SELECT t.relname,
+		       EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+		               WHERE n.nspname = 'public' AND c.relname = t.relname
+		                 AND c.relkind = 'r') AS table_exists,
+		       EXISTS (SELECT 1 FROM information_schema.columns col
+		               WHERE col.table_schema = 'public' AND col.table_name = t.relname
+		                 AND col.column_name = 'origin_tenant_id'
+		                 AND col.is_nullable = 'NO') AS origin_tenant_ok,
+		       EXISTS (SELECT 1 FROM information_schema.columns col
+		               WHERE col.table_schema = 'public' AND col.table_name = t.relname
+		                 AND col.column_name = 'origin_record_id'
+		                 AND col.is_nullable = 'NO') AS origin_record_ok
+		  FROM unnest(string_to_array(?, ',')) AS t(relname)`,
+		strings.Join(tables, ",")).Scan(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("lint directed provenance: %w", err)
+	}
+
+	var bad []string
+	for _, r := range rows {
+		switch {
+		case lintAllowlist[r.Relname]:
+			bad = append(bad, r.Relname+": declared as a directed-write table but is on LintRLS's "+
+				"allowlist, so no linter checks its tenant isolation")
+		case !r.TableExists:
+			bad = append(bad, r.Relname+": declared as a directed-write table but does not exist")
+		case !r.OriginTenantOK:
+			bad = append(bad, r.Relname+": origin_tenant_id is missing or nullable")
+		case !r.OriginRecordOK:
+			bad = append(bad, r.Relname+": origin_record_id is missing or nullable")
 		}
 	}
 	return bad, nil

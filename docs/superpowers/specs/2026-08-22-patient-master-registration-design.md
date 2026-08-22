@@ -144,13 +144,42 @@ The contract package exists so that renaming a field breaks consumers' builds on
 Additive-then-retire is the sanctioned way through that, and it lets three modules migrate on
 three schedules instead of one coordinated cutover.
 
-### D8. Survey before writing the matcher
+### D8. `smetrics` for the metrics, a bounded ruleset for the Indian-specific normalisation
 
-Transliteration normalisation, Jaro-Winkler and Indic phonetic keys are solved problems. The
-repo requires searching for proven implementations before writing new code, and a hand-rolled
-phonetic key is exactly the kind of thing that looks right and is subtly wrong across a corpus.
-The implementation plan begins with that survey, and records what was evaluated and why the
-choice was made.
+The survey the repo's reuse rule requires has run. Its result changed this decision, so it is
+recorded here rather than in the plan.
+
+**Jaro-Winkler is solved.** `github.com/xrash/smetrics` (MIT, ~235 stars, long-standing) provides
+Jaro-Winkler, Soundex and Metaphone in one focused library. Use it; write none of that.
+
+**Indic phonetic matching is not solved in Go.** What exists:
+
+| Candidate | Verdict |
+|---|---|
+| Go phonetic packages (`smetrics`, `f1monkey/phonetic`, `gofuzz`) | Soundex / Metaphone / NYSIIS / Caverphone — English-centric; Soundex performs poorly on Indian names |
+| Indic Soundex ports (PHP, Python — all of Santhosh Thottingal's SILPA algorithm) | No Go implementation; none production-grade (0-3 stars) |
+| `knadh/knphone` | Kannada-only, **and GPL-3.0** — a licensing problem for this platform |
+
+There is also a mismatch of problem: Indic Soundex algorithms encode Devanagari/Indic script,
+while this platform stores Latin-script transliterations. "Md / Mohammed / Mohammad" is
+transliteration variance in Latin, not phonetic encoding of Indic script — so porting an Indic
+Soundex would be applying the wrong tool competently.
+
+**Decision:** take Jaro-Winkler and Double Metaphone from `smetrics`, and write a small,
+explicitly bounded normalisation layer for the rules this data actually exhibits — honorific
+stripping, `Md`/`Mohd` → `Mohammed` style expansions, vowel collapse, and name-order tolerance.
+
+That is a ruleset, not an algorithm. Each rule is one corpus test case, and the set is
+enumerable and reviewable — which is what separates it from hand-rolling a phonetic encoder,
+the thing this decision exists to avoid.
+
+*Rejected: porting SILPA's Indic Soundex to Go.* Faithful to #70's wording and useful to the
+ecosystem, but it targets the wrong script, and porting plus validating an algorithm nobody on
+this team can eyeball is a slice of its own.
+
+*Rejected: Jaro-Winkler alone, no phonetic key.* Smallest and fully library-backed, but it
+misses names that differ in letters while sounding identical — a real share of the duplicates
+#70 was written about.
 
 ## Error handling
 
@@ -192,8 +221,10 @@ choice was made.
 - **NOT VERIFIED: matching thresholds.** No real corpus exists yet. The bands are configurable
   precisely because the initial values are a starting point, and the spec makes no claim about
   their precision or recall. First tuning pass needs de-identified data from a pilot hospital.
-- **NOT VERIFIED: the Indic phonetic approach.** D8's survey has not run. If no suitable library
-  exists, that is a finding that changes this slice's size and must be raised, not absorbed.
+- **NOT VERIFIED: the normalisation ruleset's coverage.** D8's survey ran and settled the
+  approach, but the ruleset itself is derived from described failure modes, not from observed
+  data. Which expansions and collapses actually matter is a question only a real corpus answers,
+  and the set will need revisiting once one exists.
 - **A blocked registration is a real operational cost.** If the confident band is set too wide,
   clerks override routinely and the reason field fills with noise — which looks like compliance
   while providing none. The override rate is the metric that tells you the thresholds are wrong,

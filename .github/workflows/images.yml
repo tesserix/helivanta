@@ -130,6 +130,7 @@ jobs:
           context: .
           file: Dockerfile.api
           platforms: linux/amd64
+          pull: true
           push: ${{ github.event_name != 'pull_request' }}
           # On a PR nothing is pushed; load the image locally so Trivy can
           # scan it (catches base-image CVEs before merge, not only after).
@@ -346,6 +347,7 @@ jobs:
           context: .
           file: Dockerfile.shell
           platforms: linux/amd64
+          pull: true
           push: ${{ github.event_name != 'pull_request' }}
           # On a PR nothing is pushed; load the image locally so Trivy can
           # scan it (catches base-image CVEs before merge, not only after).

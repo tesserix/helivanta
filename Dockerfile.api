@@ -11,11 +11,15 @@
 # that decides what can leak into any image built here — not a second,
 # backend-local .dockerignore that could drift from it.
 #
-# Builder pinned by digest, not tag: golang:1.26.6 is mutable — the tag can
-# be repointed upstream — but the digest is what actually built this image,
-# so a rebuild six months from now reproduces the same toolchain instead of
-# silently picking up whatever the tag now resolves to.
-FROM golang:1.26.6@sha256:0d1d3a794be25f809dd2cb3160d8c73276c4056a9f8242a138e908ddeee7b6b6 AS builder
+# Tesserix rebuilds and Trivy-gates this company-owned builder every week.
+# `latest` is the last green weekly build, so an upstream Go or Alpine patch
+# reaches HMS without duplicating base-image maintenance in this repository.
+FROM ghcr.io/tesserix/base-go-builder:latest AS builder
+
+# The shared builder defaults to the non-root app user. This stage needs to
+# create /out and populate the module/build caches, so elevate only for the
+# disposable build stage; the final image remains distroless and non-root.
+USER 0:0
 
 WORKDIR /src
 
@@ -71,14 +75,11 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /out/migrate \
     ./cmd/migrate
 
-# distroless/static-debian12:nonroot ships no shell, no package manager, and
-# no libc — just enough to run a statically-linked binary as UID/GID 65532.
-# That is the point of this base image, not an oversight: it is also why
-# nobody can `docker exec -it ... sh` into a running container built from
-# this Dockerfile to poke around. Debugging this image means reading its
-# logs, or reproducing the failure in the builder stage / locally with
-# `go run`, not shelling in.
-FROM gcr.io/distroless/static-debian12:nonroot
+# The company-owned distroless image is a Trivy-gated passthrough of
+# distroless/static:nonroot. It has no shell, package manager, or libc and
+# runs the static binaries as UID/GID 65532. `latest` tracks only the last
+# green weekly base build.
+FROM ghcr.io/tesserix/base-distroless-static:latest
 
 WORKDIR /app
 COPY --from=builder /out/api /app/api

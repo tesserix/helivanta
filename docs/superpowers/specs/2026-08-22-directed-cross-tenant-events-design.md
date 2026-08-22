@@ -108,6 +108,27 @@ allowed to cross a tenant boundary is small, reviewed, and greppable.
 *Rejected: allowlisting by consumer instead of by subject.* The consumer is the
 receiving side; the disclosure decision belongs to the publisher's contract.
 
+**Consequence: a directed subject must have exactly one consumer, or every
+consumer of it must be destination-aware.** The gate is on `Consumer.Subject`
+while the scope is resolved from the envelope, so declaring a subject directed
+re-points the transaction of *every* consumer of that subject at the
+destination for any message carrying one — including a consumer written earlier
+by another module that expects the origin's scope, which would keep compiling
+and start writing into a tenant it never heard of.
+`TestDirectedSubjectHasAtMostOneConsumer` (`internal/archtest/events_test.go`)
+enforces the statically decidable half — at most one consumer. Adding a second
+is a deliberate design decision that requires making every consumer
+destination-aware, and deleting that test is how it gets made, in review.
+
+The allowlist is a `NewBus`/`NewBusInNamespace` **constructor argument**, and
+there is deliberately no method to change it afterwards. The map is read
+without a lock by the consumer goroutines the `Bus` itself starts, so a
+post-start mutation is a data race and not merely a policy breach; making the
+set unreachable after construction is a compile error rather than a convention
+someone has to remember. `internal/testutil.NewHarness` builds the same union
+across the modules under test, so integration tests exercise the production
+wiring rather than an empty allowlist.
+
 ### D5. Provenance is a column, not a convention
 
 Any table that accepts directed writes carries:
@@ -165,9 +186,21 @@ no tenant table until #13. See Limitations.
 ### D8. The proof of wiring lives in the `reference` module
 
 `reference` exists to prove the full stack end to end (issue #2). It gains a
-directed publish and a directed consumer, so S4 (prescription routing) inherits a
-primitive that has already been exercised adversarially rather than one being
-debugged inside a clinical feature.
+directed **consumer** (`reference-forwarded`, writing
+`reference_forwarded_pings`), the migration that creates that
+provenance-bearing table, and the two declarations
+(`DirectedSubjects()`/`DirectedWriteTables()`). It does **not** gain a
+production publish: `internal/modules/reference/pings.go` publishes only
+`SubjectPinged`, and the only thing that publishes `SubjectPingForwarded` is
+the integration test `TestForwardedPingLandsInDestinationTenant`.
+
+That is deliberate and it stands. Every `reference` route is `authz.Public`, so
+a forwarding endpoint would be a public API creating rows in a caller-named
+tenant — a worse hole than the one this design closes. The end-to-end path
+(business tx → outbox → JetStream → destination-scoped consumer → RLS-forced
+row) is exercised in full from the test's own transaction, which is the same
+path a real publisher takes; only the HTTP surface is absent. S4 therefore
+inherits an exercised primitive, with the caveat recorded under Limitations.
 
 ## Error handling
 
@@ -195,13 +228,16 @@ inspection — per `docs/standards/engineering-principles.md`.
    `DirectedSubjects` entry absent from `Publishes()` fails registry validation.
    Reverting the check must make this test pass a tree that should not boot.
 3. **Runtime refusal.** An event carrying a destination on a non-allowlisted
-   subject writes nothing and dead-letters. The bus's default-empty set means
+   subject writes nothing and is `Term()`'d — stopped, not redelivered, and
+   NOT published to `.dlq.<consumer>` (that subject is only written on the
+   separate `maxDeliver`-exhaustion path). The bus's default-empty set means
    this is also what happens if the registry wiring is ever dropped.
 4. **Provenance is mandatory.** A directed insert omitting `origin_tenant_id` or
    `origin_record_id` is rejected by the database, not by the handler.
 5. **Lint catches a nullable provenance column.** Mirrors
    `TestLintRLSFlagsWideningWithCheck` in `pkg/tenantdb/db_test.go`.
-6. **Invalid destination dead-letters** with no row written in any tenant.
+6. **Invalid destination is `Term()`'d** — again not a DLQ publish — with no
+   row written in any tenant.
 7. **Regression: same-tenant events are byte-identical.** Existing consumer tests
    pass unchanged, and a published envelope with no destination serialises exactly
    as it does today.
@@ -220,6 +256,17 @@ Stated explicitly, per the scope-down-never-quality-down rule:
 
 ## Limitations and what is not verified
 
+- **NOT VERIFIED: no production call site populates `DestinationTenantID`.**
+  Nothing shipped in this slice publishes a directed event outside a test (see
+  D8). The reference example a future implementer should copy is
+  `TestForwardedPingLandsInDestinationTenant` in
+  `backend/internal/modules/reference/module_test.go`: set `TenantID` to the
+  origin and `DestinationTenantID` to the destination on the envelope, and
+  `Publish` inside the origin's business transaction — the outbox row stays
+  pinned to the origin (D3) and the consumer's transaction is scoped to the
+  destination (D2). What is unverified is only that shape working from a
+  handler with a real caller's identity and a real authorisation decision
+  behind it; the transport and isolation below it are proven on rows.
 - **A directed write to a non-existent tenant creates an orphan row.** With no
   tenant table (#13 unstarted), a syntactically valid but unknown destination
   produces a row visible to nobody. That is safe — it leaks to no one — but it is

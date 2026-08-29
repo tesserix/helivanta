@@ -21,11 +21,17 @@ const (
 // strings: this package must be runnable over a corpus fixture with no
 // database types in scope.
 type Candidate struct {
-	PatientID  string
-	Name       string
-	DOB        string // ISO date; compared for equality only
-	Mobile     string
-	ABHANumber string
+	PatientID string
+	Name      string
+	DOB       string // ISO date; compared for equality only
+	// DOBEstimated marks a date of birth that was approximated (commonly
+	// to 1 January) rather than recorded from a document. Thousands of
+	// patients share an approximated 01-01 in Indian practice, so an
+	// agreement between two estimated dates is much weaker evidence than
+	// an agreement between two recorded ones — see dobEstimatedCredit.
+	DOBEstimated bool
+	Mobile       string
+	ABHANumber   string
 }
 
 // Thresholds are configuration, not constants. They will be tuned
@@ -63,10 +69,25 @@ const (
 // approximated to 1 January, and one mobile serves a household — so
 // neither can carry the decision alone. See the shared-household test.
 const (
-	weightName     = 0.60
-	weightDOB      = 0.25
-	weightMobile   = 0.15
-	phoneticCredit = 0.85 // similarity attributed when phonetic keys agree
+	weightName   = 0.60
+	weightDOB    = 0.25
+	weightMobile = 0.15
+	// phoneticCredit is the similarity attributed when phonetic keys
+	// agree but the normalised spellings do not. It is deliberately not
+	// enough on its own: 0.85 * weightName = 0.51, short of the Possible
+	// floor (0.55) with nothing else corroborating. Two people who merely
+	// sound alike, sharing no date of birth or mobile number, are
+	// probably different people; the discount only helps once another
+	// field agrees too. See TestPhoneticOnlyMatchAloneIsNotPossible.
+	phoneticCredit = 0.85
+	// dobEstimatedCredit is a judgement call, not a measurement: half
+	// credit for a date-of-birth agreement where either side is an
+	// approximation. It exists because thousands of Indian patients
+	// share an approximated 01-01, and crediting that agreement as full
+	// evidence is exactly the false-merge pressure the dob_estimated
+	// column was added to relieve. Tune against real data once it
+	// exists; do not treat 0.5 as validated.
+	dobEstimatedCredit = 0.5
 )
 
 // Score compares two people.
@@ -85,14 +106,20 @@ func Score(subject, candidate Candidate, t Thresholds) Result {
 		jaroWinklerBoost, jaroWinklerPrefix)
 	// Sounds-alike names that survive normalisation still count, but at a
 	// discount — a phonetic collision is weaker evidence than a spelling
-	// match, and treating them equally is how unrelated people merge.
+	// match, and treating them equally is how unrelated people merge. The
+	// discount is deliberately not sufficient by itself: see
+	// phoneticCredit's comment and TestPhoneticOnlyMatchAloneIsNotPossible.
 	if nameSim < phoneticCredit && PhoneticKey(subject.Name) == PhoneticKey(candidate.Name) {
 		nameSim = phoneticCredit
 	}
 
 	var dobSim float64
 	if subject.DOB != "" && subject.DOB == candidate.DOB {
-		dobSim = 1
+		if subject.DOBEstimated || candidate.DOBEstimated {
+			dobSim = dobEstimatedCredit
+		} else {
+			dobSim = 1
+		}
 	}
 	var mobileSim float64
 	if subject.Mobile != "" && subject.Mobile == candidate.Mobile {

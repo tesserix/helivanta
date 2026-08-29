@@ -66,9 +66,14 @@ Three deviations from #70, recorded so they read as decisions rather than oversi
 - **MRN is tenant-scoped, not facility-scoped.** #36 correctly says an MRN is a per-facility
   identifier and not the identity. No facility concept exists. MRN is unique per tenant, in a
   shape where a facility dimension is additive when facilities arrive.
-- **Aadhaar is never stored.** Masked last four plus a keyed hash used only for matching. The
-  raw value is never written to disk or logs; the existing PHI-redaction logger covers the log
-  path. ABHA is the preferred anchor wherever present.
+- **Aadhaar is never stored — and in this slice, is not captured at all.** The intended
+  control is a masked last four plus a keyed hash used only for matching, with the raw value
+  never written to disk or logs. What ships is the two columns (`aadhaar_last4`,
+  `aadhaar_hash`) and nothing else: **no writer, no keyed-hash implementation, and no key
+  management**. They are reserved for the ABDM slice (#74), which is where the hashing key and
+  its rotation have to be designed, and until then they are always NULL. The columns stay
+  rather than being dropped so the shape is fixed before identifiers arrive. ABHA is the
+  preferred anchor wherever present.
 
 ### D3. Matching is a pure package with three bands
 
@@ -144,6 +149,15 @@ The contract package exists so that renaming a field breaks consumers' builds on
 Additive-then-retire is the sanctioned way through that, and it lets three modules migrate on
 three schedules instead of one coordinated cutover.
 
+**`patient_id` on `visit_created` is caller-asserted, not validated.** MediCore records the id
+it was given; nothing proves the patient exists, and nothing proves it belongs to the visit's
+tenant. A cross-module foreign key is not the answer and is deliberately not taken: modules
+never import one another, and a `medicore_visits` column referencing `patientmaster`'s table
+crosses table ownership — an architectural decision of its own, not a correction. There is no
+leak in either direction: a fabricated or foreign id is still RLS-blocked on every read, so
+the failure mode is a visit that resolves to no patient, not one tenant reading another's.
+Validating the reference belongs with the read-side API the consumer already has to call.
+
 ### D8. `smetrics` for the metrics, a bounded ruleset for the Indian-specific normalisation
 
 The survey the repo's reuse rule requires has run. Its result changed this decision, so it is
@@ -166,8 +180,19 @@ transliteration variance in Latin, not phonetic encoding of Indic script — so 
 Soundex would be applying the wrong tool competently.
 
 **Decision:** take Jaro-Winkler and Soundex from `smetrics`, and write a small, explicitly
-bounded normalisation layer for the rules this data actually exhibits — honorific stripping,
-`Md`/`Mohd` → `Mohammed` style expansions, vowel collapse, and name-order tolerance.
+bounded normalisation layer for the rules this data actually exhibits — honorific stripping and
+`Md`/`Mohd` → `Mohammed` style expansions. (An earlier draft of this decision also claimed
+vowel collapse and name-order tolerance. Neither is implemented, and the claim is corrected
+here rather than quietly widened into the code.)
+
+**Named limitation — name order is not tolerated, and it is the blocking key.** `PhoneticKey`
+joins per-token Soundex in *input order*, and registration blocks its candidate corpus on that
+key. "Ravi Kumar" and "Kumar Ravi" therefore produce different keys and are never loaded into
+the same corpus — they are not scored low, they are never compared at all. This is a known
+recall gap, and it waits for the corpus pass: sorting the tokens is a scoring change that moves
+both recall and false-merge risk, and the Limitations below already record that the ruleset
+must be revisited against real data. Changing it blind is exactly what this platform's
+principles forbid.
 
 `smetrics` offers `Jaro`, `JaroWinkler`, `Soundex`, `Hamming`, `Ukkonen` and `WagnerFischer` —
 verified against the package, **not** Metaphone. An earlier draft of this decision named Double
@@ -244,6 +269,20 @@ misses names that differ in letters while sounding identical — a real share of
   clerks override routinely and the reason field fills with noise — which looks like compliance
   while providing none. The override rate is the metric that tells you the thresholds are wrong,
   and nothing in this slice reports it. Worth adding when the stewardship queue lands.
+- **There is no demographic update path at all.** Slice 1 registers, reads and lists; it has
+  no endpoint that corrects a name, date of birth or mobile number. A mistyped name is
+  therefore permanent, and that combines badly with a hard block: the wrong spelling keeps
+  matching, and the only route past it is an override that records a duplicate. A correction
+  endpoint is the first thing the next slice needs.
+- **The estimated-DOB blind spot is only partly closed.** The deterministic rule (D3) blocks
+  when name, mobile and date of birth all agree, including when the date is estimated. Below
+  that — an estimated date agreeing alongside only one of name or mobile — the half-credit
+  discount still applies, so a genuine duplicate whose mobile was not captured can land in
+  Possible rather than Confident. Whether that is the right trade is a corpus question, not a
+  settled one.
+- **`demographics_updated.v1` is described in D6 but is not published.** D6's prose names two
+  subjects; only `helivanta.in.patientmaster.registered.v1` exists in the contract and is
+  declared by the module. The second arrives with the update path above.
 - **Guardian consent is recorded, not verified.** DPDP requires *verifiable* guardian consent
   for a child. Slice 1 records who consented and their stated relationship; it does not verify
   that relationship. Closing that gap depends on identity infrastructure this platform does not

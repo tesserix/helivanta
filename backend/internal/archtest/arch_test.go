@@ -28,6 +28,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/lab"
 	"github.com/tesserix/helivanta/internal/modules/medicore"
+	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/modules/reference"
 	"github.com/tesserix/helivanta/internal/platform"
@@ -44,7 +45,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil), reference.New(), medicore.New(), pharmacy.New(), lab.New()}
+	return []platform.Module{iam.New(nil), reference.New(), medicore.New(), pharmacy.New(), lab.New(), patientmaster.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under

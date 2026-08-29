@@ -17,12 +17,13 @@ import (
 )
 
 type visit struct {
-	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
-	TenantID    uuid.UUID `json:"-"`
-	PatientName string    `json:"patient_name"`
-	Department  string    `json:"department"`
-	Status      string    `gorm:"default:open" json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
+	TenantID    uuid.UUID  `json:"-"`
+	PatientName string     `json:"patient_name"`
+	PatientID   *uuid.UUID `json:"patient_id,omitempty"`
+	Department  string     `json:"department"`
+	Status      string     `gorm:"default:open" json:"status"`
+	CreatedAt   time.Time  `json:"created_at"`
 }
 
 func (visit) TableName() string { return "medicore_visits" }
@@ -33,6 +34,10 @@ func (v visit) PageKey() (time.Time, uuid.UUID) { return v.CreatedAt, v.ID }
 type createVisitRequest struct {
 	PatientName string `json:"patient_name" binding:"required,max=200"`
 	Department  string `json:"department" binding:"required,oneof=OPD IPD"`
+
+	// PatientID is optional: visits opened before patients exist must
+	// keep working (spec D7 — additive, not a hard cutover).
+	PatientID string `json:"patient_id" binding:"omitempty,uuid"`
 }
 
 type visitHandlers struct {
@@ -52,13 +57,25 @@ func (h *visitHandlers) create(c *gin.Context) {
 		return
 	}
 	row := visit{TenantID: tenantUUID, PatientName: req.PatientName, Department: req.Department}
+	if req.PatientID != "" {
+		patientUUID, err := uuid.Parse(req.PatientID)
+		if err != nil {
+			respond.BadRequest(c, err)
+			return
+		}
+		row.PatientID = &patientUUID
+	}
 	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
 		if err := tx.Create(&row).Error; err != nil {
 			return err
 		}
-		data, err := json.Marshal(medicorecontract.VisitCreatedData{
+		payload := medicorecontract.VisitCreatedData{
 			VisitID: row.ID.String(), PatientName: row.PatientName, Department: row.Department,
-		})
+		}
+		if row.PatientID != nil {
+			payload.PatientID = row.PatientID.String()
+		}
+		data, err := json.Marshal(payload)
 		if err != nil {
 			return err
 		}

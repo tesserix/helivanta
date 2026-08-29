@@ -47,6 +47,7 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	// true of every identifier, and an externally-issued one (Aadhaar,
 	// ABHA, an insurer member number) belongs in the PHI allowlist.
 	"medicore.VisitCreatedData.VisitID":             "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"medicore.VisitCreatedData.PatientID":           "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
 	"patientmaster.PatientRegisteredData.PatientID": "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
 	"lab.ResultReadyData.VisitID":                   "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
 	"lab.ResultReadyData.OrderID":                   "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",

@@ -151,6 +151,19 @@ type patientHandlers struct {
 	bus *events.Bus
 }
 
+// possibleMatch is the wire shape of one Possible-band candidate offered
+// alongside a fresh registration (spec D4). Only fields a clerk needs to
+// recognise the record — never anything the caller isn't already
+// authorised to see, which is why this mirrors patient's own public
+// fields rather than embedding the row directly.
+type possibleMatch struct {
+	PatientID  string  `json:"patient_id"`
+	MRN        string  `json:"mrn"`
+	GivenName  string  `json:"given_name"`
+	FamilyName string  `json:"family_name"`
+	Score      float64 `json:"score"`
+}
+
 // generateMRN mints a tenant-scoped Medical Record Number.
 //
 // #70's plan calls for "the facility-scoped MRN" but no facility concept
@@ -210,10 +223,11 @@ func (h *patientHandlers) register(c *gin.Context) {
 	}
 
 	var (
-		blocked      bool
-		blockedID    string
-		blockedScore float64
-		created      patient
+		blocked         bool
+		blockedID       string
+		blockedScore    float64
+		created         patient
+		possibleMatches []possibleMatch
 	)
 
 	txErr := h.db.WithTenant(c.Request.Context(), principal.TenantID, func(tx *gorm.DB) error {
@@ -268,6 +282,42 @@ func (h *patientHandlers) register(c *gin.Context) {
 			blockedID = confident.Candidate.PatientID
 			blockedScore = confident.Score
 			return nil
+		}
+
+		// Spec D4's middle row: "Possible — candidates shown, ranked. No
+		// block." Unlike Confident, this must never withhold creation —
+		// common Indian names collide constantly, and refusing to
+		// register until a clerk confirms would stop unrelated people
+		// with a shared name from registering at all. So the patient is
+		// created below regardless, and every Possible-band candidate is
+		// surfaced in the response as a disclosure, not a gate: the
+		// clerk finds out about a look-alike record only after this one
+		// already exists. Letting them choose the existing record
+		// INSTEAD of creating a new one needs search-before-register in
+		// the console, which the spec explicitly defers to that later
+		// UI (D4) — this is the interim, honest half-measure until it
+		// ships, not the intended end state.
+		if len(ranked) > 0 && ranked[0].Band == matching.BandPossible {
+			byID := make(map[string]patient, len(corpusRows))
+			for _, r := range corpusRows {
+				byID[r.ID.String()] = r
+			}
+			for _, res := range ranked {
+				if res.Band != matching.BandPossible {
+					continue
+				}
+				r, ok := byID[res.Candidate.PatientID]
+				if !ok {
+					continue
+				}
+				possibleMatches = append(possibleMatches, possibleMatch{
+					PatientID:  r.ID.String(),
+					MRN:        r.MRN,
+					GivenName:  r.GivenName,
+					FamilyName: r.FamilyName,
+					Score:      res.Score,
+				})
+			}
 		}
 
 		mrn, err := generateMRN()
@@ -347,6 +397,10 @@ func (h *patientHandlers) register(c *gin.Context) {
 			"patient_id": blockedID,
 			"score":      blockedScore,
 		})
+		return
+	}
+	if len(possibleMatches) > 0 {
+		respond.Created(c, gin.H{"patient": created, "possible_matches": possibleMatches})
 		return
 	}
 	respond.Created(c, created)

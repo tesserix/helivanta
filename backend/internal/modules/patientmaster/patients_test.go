@@ -166,14 +166,42 @@ func TestOverrideWithoutAReasonIsRefused(t *testing.T) {
 // TestPossibleMatchDoesNotBlock: a same-name different-DOB pair must
 // register freely. Blocking here stops unrelated people with common
 // names from being registered at all.
+//
+// This also has to prove the Possible band is actually reached, not just
+// that registration succeeded — a NoMatch pair would return the same 201
+// and row count. So it asserts the second response's body names the
+// first patient as a possible match: a response shape that degrades
+// silently to NoMatch's (bare patient, no possible_matches) cannot pass
+// this assertion, only band==Possible can.
 func TestPossibleMatchDoesNotBlock(t *testing.T) {
 	r, db, ctx := setupHTTP(t)
 
 	w1 := do(r, "POST", "/v1/patients", "tokA", registerBody("Mohammed Ali", "", "1979-04-02", "", false, ""))
 	require.Equal(t, http.StatusCreated, w1.Code, w1.Body.String())
+	var first struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal(w1.Body.Bytes(), &first))
 
 	w2 := do(r, "POST", "/v1/patients", "tokA", registerBody("Mohammed Ali", "", "1962-01-01", "", false, ""))
 	require.Equal(t, http.StatusCreated, w2.Code, w2.Body.String())
+
+	var second struct {
+		Patient struct {
+			ID string `json:"id"`
+		} `json:"patient"`
+		PossibleMatches []struct {
+			PatientID string  `json:"patient_id"`
+			Score     float64 `json:"score"`
+		} `json:"possible_matches"`
+	}
+	require.NoError(t, json.Unmarshal(w2.Body.Bytes(), &second))
+	require.NotEmpty(t, second.Patient.ID, "a Possible-band registration must still return the created patient")
+	require.NotEqual(t, first.ID, second.Patient.ID)
+
+	require.Len(t, second.PossibleMatches, 1, "the same-name different-DOB pair must be surfaced as exactly one Possible candidate")
+	require.Equal(t, first.ID, second.PossibleMatches[0].PatientID)
+	require.Greater(t, second.PossibleMatches[0].Score, 0.0)
 
 	var count int64
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {

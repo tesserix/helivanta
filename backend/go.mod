@@ -14,6 +14,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/nats v0.43.0
 	github.com/testcontainers/testcontainers-go/modules/openfga v0.43.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0
+	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342
 	golang.org/x/tools v0.48.0
 	gorm.io/driver/postgres v1.6.2
 	gorm.io/gorm v1.31.2

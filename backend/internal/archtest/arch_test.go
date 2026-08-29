@@ -28,6 +28,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/lab"
 	"github.com/tesserix/helivanta/internal/modules/medicore"
+	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/modules/reference"
 	"github.com/tesserix/helivanta/internal/platform"
@@ -44,7 +45,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil), reference.New(), medicore.New(), pharmacy.New(), lab.New()}
+	return []platform.Module{iam.New(nil), reference.New(), medicore.New(), pharmacy.New(), lab.New(), patientmaster.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under
@@ -336,6 +337,7 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
 	"GET /reference/pings/:id": "single item, not a collection",
+	"GET /patients/:id":        "single item, not a collection",
 	"GET /iam/roles":           "bounded: the fixed system role set",
 	"GET /iam/me/tenants":      "bounded: one person's memberships",
 	"GET /iam/me/permissions":  "bounded: one resolved permission set",

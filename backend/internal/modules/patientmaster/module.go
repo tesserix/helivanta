@@ -6,6 +6,7 @@
 package patientmaster
 
 import (
+	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -157,10 +158,11 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "", PermPatientRead, patients.list)
 }
 
-// Publishes declares none: patientmaster emits nothing yet. Task 5 adds
-// the registration event and its contract package alongside the route
-// that publishes it.
-func (m *Module) Publishes() []string { return nil }
+// Publishes declares patient.registered, published inside the same
+// transaction as the patient and consent inserts (Task 6, spec D6).
+func (m *Module) Publishes() []string {
+	return []string{patientmastercontract.SubjectPatientRegistered}
+}
 
 // DirectedSubjects declares none: this module publishes nothing that
 // creates data in another tenant.

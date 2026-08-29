@@ -20,6 +20,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
 	"github.com/tesserix/helivanta/internal/modules/patientmaster/matching"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
@@ -382,8 +383,21 @@ func (h *patientHandlers) register(c *gin.Context) {
 			}
 		}
 
-		// Step 8 (patient.registered) is deliberately not published
-		// here: Task 6 adds it, inside this same transaction.
+		// Step 8: publish patient.registered, in the SAME transaction as
+		// the patient and consent inserts above. The payload carries the
+		// id and nothing else identifying (spec D6) — see
+		// contract.PatientRegisteredData's doc comment for why.
+		data, err := json.Marshal(patientmastercontract.PatientRegisteredData{
+			PatientID: row.ID.String(),
+		})
+		if err != nil {
+			return err
+		}
+		if err := h.bus.Publish(tx, patientmastercontract.SubjectPatientRegistered, events.Event{
+			Type: "PatientRegistered", Version: 1, TenantID: principal.TenantID, Data: data,
+		}); err != nil {
+			return err
+		}
 
 		created = row
 		return nil

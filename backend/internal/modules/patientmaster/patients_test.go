@@ -228,3 +228,29 @@ func TestGetPatientFromAnotherTenantIs404(t *testing.T) {
 	wGetB := do(r, "GET", "/v1/patients/"+created.ID, "tokB", "")
 	require.Equal(t, http.StatusNotFound, wGetB.Code)
 }
+
+// TestRegisteredEventCarriesOnlyTheID is spec D6 asserted on the wire.
+// #835 was PHI leaving the RLS boundary in event payloads; this fails
+// the day someone adds a name "just for the work queue".
+func TestRegisteredEventCarriesOnlyTheID(t *testing.T) {
+	r, db, ctx := setupHTTP(t)
+
+	const sentinel = "Zzyzxvortex"
+	w := do(r, "POST", "/v1/patients", "tokA", registerBody(sentinel, "Kapoor", "1990-06-15", "9876543214", false, ""))
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	var created struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
+
+	var row struct{ Payload []byte }
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT payload FROM outbox_events
+			WHERE subject = 'helivanta.in.patientmaster.registered.v1'`).Scan(&row).Error
+	}))
+	require.NotEmpty(t, row.Payload, "no patient.registered row in the outbox")
+
+	body := string(row.Payload)
+	require.Contains(t, body, created.ID, "the payload must carry the patient id")
+	require.NotContains(t, body, sentinel, "the payload must not carry the patient's given name")
+}

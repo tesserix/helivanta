@@ -77,6 +77,32 @@ linters:
             # TestModulesDoNotImportEachOther is what keeps it narrow
             # enough to be correct.
             - "github.com/tesserix/helivanta/internal/modules/iam/loginclient"
+            # matching is NOT another module's internals — it lives under
+            # internal/modules/patientmaster/ and is patientmaster's own
+            # name-normalisation and scoring subpackage (#70 Task 3),
+            # consumed by patientmaster's own handlers. The deny rule
+            # above matches on the "internal/modules" PREFIX, so it
+            # cannot distinguish "a different module" from "a subpackage
+            # of this same module" — without this entry, patientmaster
+            # could not import its own subpackage at all. Its tests reach
+            # it the same way: an external `matching_test` package
+            # importing `matching`, exactly like iam/loginclient above.
+            #
+            # This entry reads WIDER than it actually permits, for the
+            # same reason loginclient's does: depguard cannot express
+            # "only patientmaster may import patientmaster/matching", so
+            # on its own this would also admit, say, lab importing
+            # patientmaster/matching — a real cross-module import,
+            # exactly what module-isolation exists to block. The
+            # compensating control is
+            # internal/archtest.TestModulesDoNotImportEachOther
+            # (arch_test.go:81), which walks the real dependency graph
+            # module-by-module (not by path prefix) and fails on any
+            # module importing another module's non-contract package,
+            # matching included. This allow-list entry only has to be
+            # narrow enough to compile; TestModulesDoNotImportEachOther
+            # is what keeps it narrow enough to be correct.
+            - "github.com/tesserix/helivanta/internal/modules/patientmaster/matching"
         no-logrus:
           deny:
             - pkg: "github.com/sirupsen/logrus"

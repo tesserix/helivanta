@@ -36,28 +36,36 @@ var systemRoleLabels = map[authz.Role]string{
 // the order authz.SystemRoles() returns them. It derives from
 // authz.SystemRoles() rather than restating the role list — two
 // hand-maintained lists of the same roles is exactly how receptionist
-// went missing from this catalog after being added to authz. A role
-// authz knows about but this map does not label is a programming error
-// (a new role shipped without updating systemRoleLabels), not a runtime
-// condition to paper over: panicking turns a silently incomplete role
-// picker into an immediate, loud failure instead. TestEverySystemRoleHasALabel
-// is meant to catch this in CI before it ever reaches here.
-func SystemRoles() []SystemRole {
+// went missing from this catalog after being added to authz.
+//
+// A role authz knows about but systemRoleLabels does not label is a
+// programming error (a new role shipped without updating the label
+// map), not a condition this package papers over: it returns an error
+// rather than an incomplete or panicking catalog, so the caller — a
+// live HTTP handler — can fail the request through the normal error
+// path instead of taking the whole process down or serving a silently
+// short list.
+func SystemRoles() ([]SystemRole, error) {
 	roles := authz.SystemRoles()
 	out := make([]SystemRole, 0, len(roles))
 	for _, key := range roles {
 		label, ok := systemRoleLabels[key]
 		if !ok {
-			panic(fmt.Sprintf("iam: no label registered for system role %q", key))
+			return nil, fmt.Errorf("iam: no label registered for system role %q", key)
 		}
 		out = append(out, SystemRole{Key: key, Label: label})
 	}
-	return out
+	return out, nil
 }
 
 // listRoles returns the system role catalog. It takes no dependencies —
 // the catalog is a fixed, in-process list — so it is a plain function
 // rather than a method on a handler struct.
 func listRoles(c *gin.Context) {
-	respond.OK(c, gin.H{"data": SystemRoles()})
+	roles, err := SystemRoles()
+	if err != nil {
+		respond.InternalErr(c, err, "could not list system roles")
+		return
+	}
+	respond.OK(c, gin.H{"data": roles})
 }

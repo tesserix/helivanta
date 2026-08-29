@@ -25,21 +25,27 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 // test that the derivation didn't drop or reorder anything, not a test
 // of a second hand-maintained list.
 func TestSystemRolesMatchesAuthzRegistry(t *testing.T) {
-	keys := make([]authz.Role, 0, len(iam.SystemRoles()))
-	for _, r := range iam.SystemRoles() {
+	roles, err := iam.SystemRoles()
+	require.NoError(t, err)
+
+	keys := make([]authz.Role, 0, len(roles))
+	for _, r := range roles {
 		keys = append(keys, r.Key)
 	}
 	require.Equal(t, authz.SystemRoles(), keys)
 }
 
-// TestEverySystemRoleHasALabel guards the map iam.SystemRoles() panics
-// on a miss against: every role authz.SystemRoles() knows about must
-// have a display label here, or a new authz role ships with no way to
-// grant it through the product (#70 fix round 1 — receptionist shipped
-// in authz but stayed absent from this catalog until this test existed).
+// TestEverySystemRoleHasALabel guards the label map iam.SystemRoles()
+// reads against: every role authz.SystemRoles() knows about must have a
+// display label, or a new authz role ships with no way to grant it
+// through the product (#70 fix round 1 — receptionist shipped in authz
+// but stayed absent from this catalog until this test existed).
 func TestEverySystemRoleHasALabel(t *testing.T) {
-	labels := make(map[authz.Role]string, len(iam.SystemRoles()))
-	for _, r := range iam.SystemRoles() {
+	roles, err := iam.SystemRoles()
+	require.NoError(t, err)
+
+	labels := make(map[authz.Role]string, len(roles))
+	for _, r := range roles {
 		labels[r.Key] = r.Label
 	}
 	for _, role := range authz.SystemRoles() {

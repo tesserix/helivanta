@@ -1,6 +1,8 @@
 package iam
 
 import (
+	"fmt"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/tesserix/helivanta/internal/platform/respond"
@@ -15,14 +17,42 @@ type SystemRole struct {
 	Label string
 }
 
+// systemRoleLabels is the presentation label for every seeded system
+// role. Keyed by authz.Role rather than restating the role list, so the
+// set of grantable roles has exactly one source of truth
+// (authz.SystemRoles) and this map only answers "what do we call it"
+// for each one that already exists there.
+var systemRoleLabels = map[authz.Role]string{
+	authz.RoleTenantAdmin:  "Tenant Admin",
+	authz.RoleDoctor:       "Doctor",
+	authz.RoleNurse:        "Nurse",
+	authz.RolePharmacist:   "Pharmacist",
+	authz.RoleLabTech:      "Lab Technician",
+	authz.RoleReceptionist: "Receptionist",
+}
+
+// SystemRoles returns the role catalog the product exposes for granting:
+// every role authz.SystemRoles() knows about, labelled for display, in
+// the order authz.SystemRoles() returns them. It derives from
+// authz.SystemRoles() rather than restating the role list — two
+// hand-maintained lists of the same roles is exactly how receptionist
+// went missing from this catalog after being added to authz. A role
+// authz knows about but this map does not label is a programming error
+// (a new role shipped without updating systemRoleLabels), not a runtime
+// condition to paper over: panicking turns a silently incomplete role
+// picker into an immediate, loud failure instead. TestEverySystemRoleHasALabel
+// is meant to catch this in CI before it ever reaches here.
 func SystemRoles() []SystemRole {
-	return []SystemRole{
-		{Key: authz.RoleTenantAdmin, Label: "Tenant Admin"},
-		{Key: authz.RoleDoctor, Label: "Doctor"},
-		{Key: authz.RoleNurse, Label: "Nurse"},
-		{Key: authz.RolePharmacist, Label: "Pharmacist"},
-		{Key: authz.RoleLabTech, Label: "Lab Technician"},
+	roles := authz.SystemRoles()
+	out := make([]SystemRole, 0, len(roles))
+	for _, key := range roles {
+		label, ok := systemRoleLabels[key]
+		if !ok {
+			panic(fmt.Sprintf("iam: no label registered for system role %q", key))
+		}
+		out = append(out, SystemRole{Key: key, Label: label})
 	}
+	return out
 }
 
 // listRoles returns the system role catalog. It takes no dependencies —

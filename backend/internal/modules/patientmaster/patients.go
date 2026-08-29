@@ -165,6 +165,20 @@ type possibleMatch struct {
 	Score      float64 `json:"score"`
 }
 
+// describeMatch projects a matched patient row into the wire shape, used
+// both for the Possible-band disclosures and for the candidate carried
+// on a blocking 409 — the two are the same decision for the clerk, so
+// they get the same information.
+func describeMatch(r patient, score float64) possibleMatch {
+	return possibleMatch{
+		PatientID:  r.ID.String(),
+		MRN:        r.MRN,
+		GivenName:  r.GivenName,
+		FamilyName: r.FamilyName,
+		Score:      score,
+	}
+}
+
 // generateMRN mints a tenant-scoped Medical Record Number.
 //
 // #70's plan calls for "the facility-scoped MRN" but no facility concept
@@ -225,17 +239,50 @@ func (h *patientHandlers) register(c *gin.Context) {
 
 	var (
 		blocked         bool
-		blockedID       string
-		blockedScore    float64
+		blockedMatch    possibleMatch
 		created         patient
-		possibleMatches []possibleMatch
+		possibleMatches = []possibleMatch{}
 	)
 
 	txErr := h.db.WithTenant(c.Request.Context(), principal.TenantID, func(tx *gorm.DB) error {
 		fullName := strings.TrimSpace(req.GivenName + " " + req.FamilyName)
 		phoneticKey := matching.PhoneticKey(fullName)
 
-		// Step 2: load the candidate corpus. Blocked on phonetic_key OR
+		// Step 2a: serialise every registration that lands in the same
+		// blocking bucket, inside this transaction. Without it the
+		// duplicate check is a read-then-write under READ COMMITTED:
+		// two clerks registering the same patient at the same moment
+		// each load a corpus that does not yet contain the other, each
+		// scores NoMatch, and both insert — the exact duplicate this
+		// endpoint exists to prevent, created by the endpoint itself.
+		// docs/standards/backend.md treats this shape as a correctness
+		// bug, not a tolerable race.
+		//
+		// The lock is on the blocking key, so it serialises only the
+		// handful of registrations that could possibly match each other
+		// and never the endpoint as a whole. It is transaction-scoped:
+		// released by COMMIT or ROLLBACK, so no path can leak it.
+		//
+		// NOT a unique index on (tenant_id, phonetic_key, dob, mobile):
+		// an index is a hard constraint and would also reject the
+		// DELIBERATE override, which spec D4 makes a required feature —
+		// trading a race for a broken escape hatch, and a clerk who
+		// cannot register the patient in front of them works around the
+		// system entirely.
+		//
+		// Known gap, stated rather than hidden: the corpus below also
+		// blocks on mobile, and this lock does not cover the
+		// mobile-only arm. Two simultaneous registrations that share a
+		// mobile but not a phonetic key are still racy. Locking both
+		// keys needs a defined lock ordering to stay deadlock-free and
+		// is a change of its own; the phonetic key is the arm that
+		// always participates.
+		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtext(?::text || ?::text))`,
+			principal.TenantID, phoneticKey).Error; err != nil {
+			return fmt.Errorf("locking registration blocking key: %w", err)
+		}
+
+		// Step 2b: load the candidate corpus. Blocked on phonetic_key OR
 		// mobile — both are indexed (tenant_id, phonetic_key) and
 		// (tenant_id, mobile) — never the whole table. The accepted
 		// consequence: two records agreeing on neither field are never
@@ -271,6 +318,11 @@ func (h *patientHandlers) register(c *gin.Context) {
 		// Step 3: rank.
 		ranked := matching.Rank(subject, corpus, matching.DefaultThresholds())
 
+		byID := make(map[string]patient, len(corpusRows))
+		for _, r := range corpusRows {
+			byID[r.ID.String()] = r
+		}
+
 		var confident *matching.Result
 		if len(ranked) > 0 && ranked[0].Band == matching.BandConfident {
 			confident = &ranked[0]
@@ -278,10 +330,15 @@ func (h *patientHandlers) register(c *gin.Context) {
 
 		// Step 4: block a confident match unless overridden. No row is
 		// written on this path.
+		//
+		// The 409 carries the same candidate shape the Possible band
+		// returns, not a bare id and score. This is the one moment a
+		// human adjudicates "same person or not", and an id alone gives
+		// them nothing to decide with — the only action the payload
+		// supported was `override`, which inverts the policy's intent.
 		if confident != nil && !req.Override {
 			blocked = true
-			blockedID = confident.Candidate.PatientID
-			blockedScore = confident.Score
+			blockedMatch = describeMatch(byID[confident.Candidate.PatientID], confident.Score)
 			return nil
 		}
 
@@ -298,27 +355,15 @@ func (h *patientHandlers) register(c *gin.Context) {
 		// the console, which the spec explicitly defers to that later
 		// UI (D4) — this is the interim, honest half-measure until it
 		// ships, not the intended end state.
-		if len(ranked) > 0 && ranked[0].Band == matching.BandPossible {
-			byID := make(map[string]patient, len(corpusRows))
-			for _, r := range corpusRows {
-				byID[r.ID.String()] = r
+		for _, res := range ranked {
+			if res.Band != matching.BandPossible {
+				continue
 			}
-			for _, res := range ranked {
-				if res.Band != matching.BandPossible {
-					continue
-				}
-				r, ok := byID[res.Candidate.PatientID]
-				if !ok {
-					continue
-				}
-				possibleMatches = append(possibleMatches, possibleMatch{
-					PatientID:  r.ID.String(),
-					MRN:        r.MRN,
-					GivenName:  r.GivenName,
-					FamilyName: r.FamilyName,
-					Score:      res.Score,
-				})
+			r, ok := byID[res.Candidate.PatientID]
+			if !ok {
+				continue
 			}
+			possibleMatches = append(possibleMatches, describeMatch(r, res.Score))
 		}
 
 		mrn, err := generateMRN()
@@ -391,12 +436,12 @@ func (h *patientHandlers) register(c *gin.Context) {
 			PatientID: row.ID.String(),
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("marshaling patient.registered payload: %w", err)
 		}
 		if err := h.bus.Publish(tx, patientmastercontract.SubjectPatientRegistered, events.Event{
 			Type: "PatientRegistered", Version: 1, TenantID: principal.TenantID, Data: data,
 		}); err != nil {
-			return err
+			return fmt.Errorf("publishing patient.registered: %w", err)
 		}
 
 		created = row
@@ -408,16 +453,17 @@ func (h *patientHandlers) register(c *gin.Context) {
 	}
 	if blocked {
 		respond.ConflictWithDetail(c, "a confident duplicate match exists", gin.H{
-			"patient_id": blockedID,
-			"score":      blockedScore,
+			"match": blockedMatch,
 		})
 		return
 	}
-	if len(possibleMatches) > 0 {
-		respond.Created(c, gin.H{"patient": created, "possible_matches": possibleMatches})
-		return
-	}
-	respond.Created(c, created)
+	// One 201 shape, always. Previously NoMatch returned a bare patient
+	// object and Possible returned {patient, possible_matches}, so a
+	// client had to branch on the shape just to find the patient id.
+	// Making possible_matches an always-present (possibly empty) array
+	// is free today and a breaking change the day the console consumes
+	// this.
+	respond.Created(c, gin.H{"patient": created, "possible_matches": possibleMatches})
 }
 
 // get loads one patient by id. RLS filters rows outside the caller's

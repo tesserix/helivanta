@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -55,6 +56,35 @@ func registerBody(givenName, familyName, dob, mobile string, override bool, over
 	return string(b)
 }
 
+// registeredID pulls the created patient's id out of a 201 body.
+// Registration returns one shape — {patient, possible_matches} — on
+// every band, so no caller (and no test) has to branch on the shape to
+// find the id it was given.
+func registeredID(t *testing.T, w *httptest.ResponseRecorder) string {
+	t.Helper()
+	var body struct {
+		Patient struct {
+			ID string `json:"id"`
+		} `json:"patient"`
+		PossibleMatches []possibleMatchBody `json:"possible_matches"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	require.NotEmpty(t, body.Patient.ID)
+	require.NotNil(t, body.PossibleMatches,
+		"possible_matches must always be present, empty rather than absent")
+	return body.Patient.ID
+}
+
+// possibleMatchBody is the candidate description returned both alongside
+// a Possible-band 201 and inside a blocking 409.
+type possibleMatchBody struct {
+	PatientID  string  `json:"patient_id"`
+	MRN        string  `json:"mrn"`
+	GivenName  string  `json:"given_name"`
+	FamilyName string  `json:"family_name"`
+	Score      float64 `json:"score"`
+}
+
 // TestRegisterCreatesPatientAndConsentInOneTransaction — spec D5. The
 // two rows are inseparable; a patient without a consent receipt is a
 // compliance defect, so this asserts both exist after one call.
@@ -65,18 +95,13 @@ func TestRegisterCreatesPatientAndConsentInOneTransaction(t *testing.T) {
 	w := do(r, "POST", "/v1/patients", "tokA", body)
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 
-	var resp struct {
-		ID string `json:"id"`
-	}
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-	require.NotEmpty(t, resp.ID)
-
+	respID := registeredID(t, w)
 	var patientCount, consentCount int64
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		if err := tx.Raw(`SELECT count(*) FROM patients WHERE id = ?`, resp.ID).Scan(&patientCount).Error; err != nil {
+		if err := tx.Raw(`SELECT count(*) FROM patients WHERE id = ?`, respID).Scan(&patientCount).Error; err != nil {
 			return err
 		}
-		return tx.Raw(`SELECT count(*) FROM patient_consents WHERE patient_id = ?`, resp.ID).Scan(&consentCount).Error
+		return tx.Raw(`SELECT count(*) FROM patient_consents WHERE patient_id = ?`, respID).Scan(&consentCount).Error
 	}))
 	require.Equal(t, int64(1), patientCount)
 	require.Equal(t, int64(1), consentCount)
@@ -90,14 +115,23 @@ func TestConfidentDuplicateIsBlocked(t *testing.T) {
 
 	w1 := do(r, "POST", "/v1/patients", "tokA", registerBody("Mohammed Ali", "", "1979-04-02", "9876543210", false, ""))
 	require.Equal(t, http.StatusCreated, w1.Code, w1.Body.String())
-	var created struct {
-		ID string `json:"id"`
-	}
-	require.NoError(t, json.Unmarshal(w1.Body.Bytes(), &created))
+	createdID := registeredID(t, w1)
 
 	w2 := do(r, "POST", "/v1/patients", "tokA", registerBody("Md Ali", "", "1979-04-02", "9876543210", false, ""))
 	require.Equal(t, http.StatusConflict, w2.Code, w2.Body.String())
-	require.Contains(t, w2.Body.String(), created.ID)
+
+	// The 409 is the one moment a human adjudicates "same person or
+	// not". An id and a score alone give them nothing to decide with, so
+	// the body must carry the same candidate description the Possible
+	// band returns.
+	var conflict struct {
+		Match possibleMatchBody `json:"match"`
+	}
+	require.NoError(t, json.Unmarshal(w2.Body.Bytes(), &conflict))
+	require.Equal(t, createdID, conflict.Match.PatientID)
+	require.NotEmpty(t, conflict.Match.MRN)
+	require.Equal(t, "Mohammed Ali", conflict.Match.GivenName)
+	require.Greater(t, conflict.Match.Score, 0.0)
 
 	var count int64
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
@@ -113,19 +147,13 @@ func TestOverrideCreatesTheDuplicateAndRecordsWhy(t *testing.T) {
 
 	w1 := do(r, "POST", "/v1/patients", "tokA", registerBody("Mohammed Ali", "", "1979-04-02", "9876543211", false, ""))
 	require.Equal(t, http.StatusCreated, w1.Code, w1.Body.String())
-	var created struct {
-		ID string `json:"id"`
-	}
-	require.NoError(t, json.Unmarshal(w1.Body.Bytes(), &created))
+	createdID := registeredID(t, w1)
 
 	const reason = "clerk confirmed two distinct people at the counter"
 	w2 := do(r, "POST", "/v1/patients", "tokA", registerBody("Md Ali", "", "1979-04-02", "9876543211", true, reason))
 	require.Equal(t, http.StatusCreated, w2.Code, w2.Body.String())
-	var second struct {
-		ID string `json:"id"`
-	}
-	require.NoError(t, json.Unmarshal(w2.Body.Bytes(), &second))
-	require.NotEqual(t, created.ID, second.ID)
+	secondID := registeredID(t, w2)
+	require.NotEqual(t, createdID, secondID)
 
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		var patientCount int64
@@ -138,7 +166,7 @@ func TestOverrideCreatesTheDuplicateAndRecordsWhy(t *testing.T) {
 		err := tx.Raw(`SELECT count(*) FROM patient_duplicate_overrides
 			WHERE created_patient_id = ? AND matched_patient_id = ?
 			  AND reason = ? AND actor_subject <> ''`,
-			second.ID, created.ID, reason).Scan(&overrideCount).Error
+			secondID, createdID, reason).Scan(&overrideCount).Error
 		if err != nil {
 			return err
 		}
@@ -168,20 +196,17 @@ func TestOverrideWithoutAReasonIsRefused(t *testing.T) {
 // names from being registered at all.
 //
 // This also has to prove the Possible band is actually reached, not just
-// that registration succeeded — a NoMatch pair would return the same 201
-// and row count. So it asserts the second response's body names the
-// first patient as a possible match: a response shape that degrades
-// silently to NoMatch's (bare patient, no possible_matches) cannot pass
-// this assertion, only band==Possible can.
+// that registration succeeded — a NoMatch pair returns the same 201, the
+// same shape and the same row count, differing only in that
+// possible_matches is empty. So it asserts the second response names the
+// first patient as a candidate: a regression to NoMatch yields an empty
+// array and fails here.
 func TestPossibleMatchDoesNotBlock(t *testing.T) {
 	r, db, ctx := setupHTTP(t)
 
 	w1 := do(r, "POST", "/v1/patients", "tokA", registerBody("Mohammed Ali", "", "1979-04-02", "", false, ""))
 	require.Equal(t, http.StatusCreated, w1.Code, w1.Body.String())
-	var first struct {
-		ID string `json:"id"`
-	}
-	require.NoError(t, json.Unmarshal(w1.Body.Bytes(), &first))
+	firstID := registeredID(t, w1)
 
 	w2 := do(r, "POST", "/v1/patients", "tokA", registerBody("Mohammed Ali", "", "1962-01-01", "", false, ""))
 	require.Equal(t, http.StatusCreated, w2.Code, w2.Body.String())
@@ -190,18 +215,17 @@ func TestPossibleMatchDoesNotBlock(t *testing.T) {
 		Patient struct {
 			ID string `json:"id"`
 		} `json:"patient"`
-		PossibleMatches []struct {
-			PatientID string  `json:"patient_id"`
-			Score     float64 `json:"score"`
-		} `json:"possible_matches"`
+		PossibleMatches []possibleMatchBody `json:"possible_matches"`
 	}
 	require.NoError(t, json.Unmarshal(w2.Body.Bytes(), &second))
 	require.NotEmpty(t, second.Patient.ID, "a Possible-band registration must still return the created patient")
-	require.NotEqual(t, first.ID, second.Patient.ID)
+	require.NotEqual(t, firstID, second.Patient.ID)
 
 	require.Len(t, second.PossibleMatches, 1, "the same-name different-DOB pair must be surfaced as exactly one Possible candidate")
-	require.Equal(t, first.ID, second.PossibleMatches[0].PatientID)
+	require.Equal(t, firstID, second.PossibleMatches[0].PatientID)
 	require.Greater(t, second.PossibleMatches[0].Score, 0.0)
+	require.NotEmpty(t, second.PossibleMatches[0].MRN, "the clerk needs the MRN to recognise the record")
+	require.Equal(t, "Mohammed Ali", second.PossibleMatches[0].GivenName)
 
 	var count int64
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
@@ -217,15 +241,12 @@ func TestGetPatientFromAnotherTenantIs404(t *testing.T) {
 
 	w := do(r, "POST", "/v1/patients", "tokA", registerBody("Sunita", "Verma", "1988-11-20", "9876543213", false, ""))
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
-	var created struct {
-		ID string `json:"id"`
-	}
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
+	createdID := registeredID(t, w)
 
-	wGetA := do(r, "GET", "/v1/patients/"+created.ID, "tokA", "")
+	wGetA := do(r, "GET", "/v1/patients/"+createdID, "tokA", "")
 	require.Equal(t, http.StatusOK, wGetA.Code)
 
-	wGetB := do(r, "GET", "/v1/patients/"+created.ID, "tokB", "")
+	wGetB := do(r, "GET", "/v1/patients/"+createdID, "tokB", "")
 	require.Equal(t, http.StatusNotFound, wGetB.Code)
 }
 
@@ -238,10 +259,7 @@ func TestRegisteredEventCarriesOnlyTheID(t *testing.T) {
 	const sentinel = "Zzyzxvortex"
 	w := do(r, "POST", "/v1/patients", "tokA", registerBody(sentinel, "Kapoor", "1990-06-15", "9876543214", false, ""))
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
-	var created struct {
-		ID string `json:"id"`
-	}
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
+	createdID := registeredID(t, w)
 
 	var row struct{ Payload []byte }
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
@@ -251,6 +269,30 @@ func TestRegisteredEventCarriesOnlyTheID(t *testing.T) {
 	require.NotEmpty(t, row.Payload, "no patient.registered row in the outbox")
 
 	body := string(row.Payload)
-	require.Contains(t, body, created.ID, "the payload must carry the patient id")
+	require.Contains(t, body, createdID, "the payload must carry the patient id")
 	require.NotContains(t, body, sentinel, "the payload must not carry the patient's given name")
+}
+
+// TestPatientWithoutConsentCannotCommit is spec D5 asserted against the
+// database rather than against the handler. The handler writing both
+// rows in one transaction is a convention; the deferred constraint
+// trigger in migration 0002_patientmaster is the control. This inserts a
+// patient with no consent receipt through a path the handler does not
+// own, and requires the COMMIT to be refused — which is what makes the
+// invariant survive a refactor that splits the two writes apart.
+func TestPatientWithoutConsentCannotCommit(t *testing.T) {
+	_, db, ctx := setupHTTP(t)
+
+	err := db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO patients (tenant_id, mrn, given_name, dob)
+			VALUES (?::uuid, 'MRN-ORPHAN', 'Orphan', DATE '1990-01-01')`, testutil.TenantA).Error
+	})
+	require.Error(t, err, "a patient with no consent receipt must not be able to commit")
+	require.Contains(t, err.Error(), "consent receipt")
+
+	var count int64
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT count(*) FROM patients`).Scan(&count).Error
+	}))
+	require.Equal(t, int64(0), count, "the rolled-back patient row must not survive")
 }

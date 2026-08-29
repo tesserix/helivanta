@@ -46,13 +46,14 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	// removed. The reason below is the thing being asserted — it is NOT
 	// true of every identifier, and an externally-issued one (Aadhaar,
 	// ABHA, an insurer member number) belongs in the PHI allowlist.
-	"medicore.VisitCreatedData.VisitID":        "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"lab.ResultReadyData.VisitID":              "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"lab.ResultReadyData.OrderID":              "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"pharmacy.DispenseRecordedData.VisitID":    "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"pharmacy.DispenseRecordedData.DispenseID": "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"reference.PingedData.PingID":              "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"reference.PingForwardedData.PingID":       "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"medicore.VisitCreatedData.VisitID":             "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"patientmaster.PatientRegisteredData.PatientID": "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"lab.ResultReadyData.VisitID":                   "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"lab.ResultReadyData.OrderID":                   "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"pharmacy.DispenseRecordedData.VisitID":         "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"pharmacy.DispenseRecordedData.DispenseID":      "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"reference.PingedData.PingID":                   "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"reference.PingForwardedData.PingID":            "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
 
 	// reference is the module that proves the platform wiring end to end
 	// (issue #2); it deliberately exposes no tenant data (module.go's

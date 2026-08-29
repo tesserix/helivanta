@@ -50,6 +50,7 @@ linters:
             - "github.com/tesserix/helivanta/internal/modules/lab/contract"
             - "github.com/tesserix/helivanta/internal/modules/iam/contract"
             - "github.com/tesserix/helivanta/internal/modules/reference/contract"
+            - "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
             # loginclient is NOT another module's internals — it lives
             # under internal/modules/iam/ and is iam's own Zitadel
             # login-client wrapper (#854 Task 2/4), consumed by iam's own

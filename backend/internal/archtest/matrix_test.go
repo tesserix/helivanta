@@ -10,6 +10,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/lab"
 	"github.com/tesserix/helivanta/internal/modules/medicore"
+	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"
@@ -191,6 +192,12 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 
 	lab.PermOrderRead:   {authz.RoleLabTech, authz.RoleDoctor, authz.RoleTenantAdmin},
 	lab.PermOrderFulfil: {authz.RoleLabTech, authz.RoleTenantAdmin},
+
+	patientmaster.PermPatientRead: {
+		authz.RoleReceptionist, authz.RoleDoctor, authz.RoleNurse,
+		authz.RolePharmacist, authz.RoleLabTech, authz.RoleTenantAdmin,
+	},
+	patientmaster.PermPatientRegister: {authz.RoleReceptionist, authz.RoleTenantAdmin},
 }
 
 // TestDeclaredPermissionsMatchTheApprovedMatrix is the independent-oracle

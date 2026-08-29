@@ -32,8 +32,11 @@ func Conflict(c *gin.Context, message string) {
 // ConflictWithDetail is Conflict plus caller-supplied fields merged into
 // the same envelope, for a 409 the client must act on programmatically
 // rather than just display — e.g. patient registration's confident
-// duplicate carries the matched patient id and score so a clerk's UI can
-// offer "open that record" without a second round trip.
+// duplicate carries the matched patient (id, MRN, name and score), which
+// is what a clerk needs to recognise the existing record and decide
+// whether it is the same person. It deliberately carries a description,
+// not a full record: anything beyond identification is a read under the
+// caller's own permission.
 func ConflictWithDetail(c *gin.Context, message string, detail gin.H) {
 	body := gin.H{"error": "conflict", "message": message}
 	for k, v := range detail {

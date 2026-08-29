@@ -337,6 +337,7 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
 	"GET /reference/pings/:id": "single item, not a collection",
+	"GET /patients/:id":        "single item, not a collection",
 	"GET /iam/roles":           "bounded: the fixed system role set",
 	"GET /iam/me/tenants":      "bounded: one person's memberships",
 	"GET /iam/me/permissions":  "bounded: one resolved permission set",

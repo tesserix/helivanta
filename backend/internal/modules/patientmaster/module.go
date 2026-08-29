@@ -147,10 +147,15 @@ func (m *Module) Migrations() []tenantdb.Migration {
 	}}
 }
 
-// Routes declares none yet — registration and lookup handlers land in
-// Task 5. An empty group still requires the module to compile and
-// register cleanly ahead of any route being added.
-func (m *Module) Routes(r *platform.Router, deps platform.Deps) {}
+// Routes mounts registration (spec D4/D5), single lookup, and the
+// tenant's paginated patient list.
+func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
+	g := r.Group("/patients")
+	patients := &patientHandlers{db: deps.DB, bus: deps.Bus}
+	g.POST("", PermPatientRegister, patients.register)
+	g.GET("/:id", PermPatientRead, patients.get)
+	platform.ListRoute(g, "", PermPatientRead, patients.list)
+}
 
 // Publishes declares none: patientmaster emits nothing yet. Task 5 adds
 // the registration event and its contract package alongside the route

@@ -29,6 +29,19 @@ func Conflict(c *gin.Context, message string) {
 	Error(c, http.StatusConflict, "conflict", message)
 }
 
+// ConflictWithDetail is Conflict plus caller-supplied fields merged into
+// the same envelope, for a 409 the client must act on programmatically
+// rather than just display — e.g. patient registration's confident
+// duplicate carries the matched patient id and score so a clerk's UI can
+// offer "open that record" without a second round trip.
+func ConflictWithDetail(c *gin.Context, message string, detail gin.H) {
+	body := gin.H{"error": "conflict", "message": message}
+	for k, v := range detail {
+		body[k] = v
+	}
+	c.AbortWithStatusJSON(http.StatusConflict, body)
+}
+
 func BadRequest(c *gin.Context, err error) {
 	Error(c, http.StatusBadRequest, "invalid_request", err.Error())
 }

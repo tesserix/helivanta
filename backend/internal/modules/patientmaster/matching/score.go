@@ -92,17 +92,46 @@ const (
 
 // Score compares two people.
 //
-// A matching ABHA number short-circuits to Confident regardless of
+// Two deterministic rules short-circuit to Confident before anything is
+// scored (spec D3). A matching ABHA number wins regardless of
 // demographics: it is a verified national identifier, and a corrected
-// date of birth against the same ABHA is the same human. Everything else
-// is scored.
+// date of birth against the same ABHA is the same human. Agreement on
+// all three of normalised name, mobile and date of birth wins too — see
+// the comment at that rule for why it ignores DOBEstimated. Everything
+// else is scored.
 func Score(subject, candidate Candidate, t Thresholds) Result {
 	if subject.ABHANumber != "" && subject.ABHANumber == candidate.ABHANumber {
 		return Result{Candidate: candidate, Score: 1, Band: BandConfident, Deterministic: true}
 	}
 
+	// Spec D3's second deterministic rule: name AND mobile AND date of
+	// birth all agreeing is the same person, and it short-circuits
+	// BEFORE the probabilistic path so that no component weight or
+	// discount can veto a total agreement.
+	//
+	// It must ignore DOBEstimated, and that is the whole point of it
+	// existing. Dates of birth are routinely approximated to 1 January
+	// here, so without this rule a self-duplicate with an exact name, an
+	// exact mobile and an exact-but-estimated date scores
+	// 1.0*0.60 + 0.5*0.25 + 1.0*0.15 = 0.875 — Possible, not blocked —
+	// and the block is unreachable for a large share of the population.
+	// dobEstimatedCredit exists to stop an approximated date carrying a
+	// PARTIAL match over the line (see TestSharedEstimatedDOBIsNotConfident,
+	// where the names differ and this rule correctly does not fire); it
+	// was never meant to veto a total one.
+	//
+	// All three are required, and all three must be non-empty: a rule
+	// that fired on two blank mobiles would make every same-name
+	// same-date pair a block.
+	subjectName, candidateName := NormalizeName(subject.Name), NormalizeName(candidate.Name)
+	if subjectName != "" && subjectName == candidateName &&
+		subject.Mobile != "" && subject.Mobile == candidate.Mobile &&
+		subject.DOB != "" && subject.DOB == candidate.DOB {
+		return Result{Candidate: candidate, Score: 1, Band: BandConfident, Deterministic: true}
+	}
+
 	nameSim := smetrics.JaroWinkler(
-		NormalizeName(subject.Name), NormalizeName(candidate.Name),
+		subjectName, candidateName,
 		jaroWinklerBoost, jaroWinklerPrefix)
 	// Sounds-alike names that survive normalisation still count, but at a
 	// discount — a phonetic collision is weaker evidence than a spelling

@@ -145,6 +145,51 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  USING (hms_tenant_visible(tenant_id))
 			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
 			CREATE INDEX ON patient_duplicate_overrides (tenant_id, created_at DESC);`,
+	}, {
+		// 0002 makes spec D5 structural rather than reviewed.
+		//
+		// D5 requires that a patient row cannot exist without its DPDP
+		// consent receipt. 0001 expressed that only as a comment, and
+		// the handler expressed it only by writing both rows in one
+		// transaction — a convention a future refactor can break
+		// silently, because the test that covers it asserts both rows
+		// exist after a success and would pass unchanged if the two
+		// writes were split into separate transactions.
+		//
+		// The repo's enforcement hierarchy wants the strongest control
+		// available, and for a database invariant that is the database:
+		// a DEFERRABLE INITIALLY DEFERRED constraint trigger, checked
+		// at COMMIT. Deferred is essential — the consent row is
+		// necessarily inserted after the patient row it references, so
+		// an immediate check would reject every legitimate
+		// registration. At commit, any transaction that inserted a
+		// patient without a consent receipt aborts, whatever code path
+		// or future refactor produced it.
+		//
+		// The function is SECURITY INVOKER on purpose: it runs as the
+		// app role under the same RLS the writer had, so a consent row
+		// the writer could not see does not satisfy the constraint.
+		// That fails closed — an invisible receipt is not a receipt.
+		ID: "0002_patientmaster",
+		SQL: `
+			CREATE FUNCTION patients_require_consent() RETURNS trigger
+			  LANGUAGE plpgsql AS $$
+			BEGIN
+			  IF NOT EXISTS (
+			    SELECT 1 FROM patient_consents
+			     WHERE tenant_id = NEW.tenant_id AND patient_id = NEW.id
+			  ) THEN
+			    RAISE EXCEPTION
+			      'patient % committed without a DPDP consent receipt', NEW.id
+			      USING ERRCODE = '23514';
+			  END IF;
+			  RETURN NULL;
+			END $$;
+
+			CREATE CONSTRAINT TRIGGER patients_require_consent
+			  AFTER INSERT ON patients
+			  DEFERRABLE INITIALLY DEFERRED
+			  FOR EACH ROW EXECUTE FUNCTION patients_require_consent();`,
 	}}
 }
 

@@ -32,12 +32,27 @@ func setup(t *testing.T) (*tenantdb.DB, context.Context) {
 
 // insertPatient creates a minimal patient row under tenant and returns
 // its id, so tests can construct cross-tenant references deliberately.
+//
+// The consent receipt is written in the same statement because
+// migration 0002_patientmaster's deferred constraint trigger refuses to
+// commit a patient without one (spec D5). That is the control working:
+// a seed helper is not exempt from an invariant the database enforces,
+// so the seed carries a receipt like every other registration does.
 func insertPatient(t *testing.T, db *tenantdb.DB, ctx context.Context, tenant, mrn string) uuid.UUID {
 	t.Helper()
 	var idStr string
 	require.NoError(t, db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
-		return tx.Raw(`INSERT INTO patients (tenant_id, mrn, given_name, dob, dob_estimated)
-			VALUES (?, ?, 'seed', '1990-01-01', false) RETURNING id`, tenant, mrn).Scan(&idStr).Error
+		return tx.Raw(`
+			WITH p AS (
+			  INSERT INTO patients (tenant_id, mrn, given_name, dob, dob_estimated)
+			  VALUES (?, ?, 'seed', '1990-01-01', false)
+			  RETURNING id, tenant_id
+			), c AS (
+			  INSERT INTO patient_consents
+			    (tenant_id, patient_id, notice_version, consented_by, recorded_by_subject)
+			  SELECT tenant_id, id, 'v1', 'patient', 'test-seed' FROM p
+			)
+			SELECT id FROM p`, tenant, mrn).Scan(&idStr).Error
 	}))
 	return uuid.MustParse(idStr)
 }
@@ -49,10 +64,7 @@ func TestPatientsAreTenantIsolated(t *testing.T) {
 	db, ctx := setup(t)
 	tenantA, tenantB := uuid.NewString(), uuid.NewString()
 
-	require.NoError(t, db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
-		return tx.Exec(`INSERT INTO patients (tenant_id, mrn, given_name, dob, dob_estimated, mobile)
-			VALUES (?, 'MRN-1', 'suresh', '1979-04-02', false, '9876543210')`, tenantA).Error
-	}))
+	insertPatient(t, db, ctx, tenantA, "MRN-1")
 
 	countAs := func(tenant string) int {
 		var n int

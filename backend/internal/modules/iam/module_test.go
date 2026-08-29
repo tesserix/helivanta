@@ -19,15 +19,34 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	require.Equal(t, "0005_iam", migs[4].ID)
 }
 
-func TestSystemRolesAreTheFiveShippedRoles(t *testing.T) {
+// TestSystemRolesMatchesAuthzRegistry pins iam.SystemRoles() to
+// authz.SystemRoles(): same keys, same order. iam.SystemRoles() derives
+// from the authz registry rather than restating it, so this is really a
+// test that the derivation didn't drop or reorder anything, not a test
+// of a second hand-maintained list.
+func TestSystemRolesMatchesAuthzRegistry(t *testing.T) {
 	keys := make([]authz.Role, 0, len(iam.SystemRoles()))
 	for _, r := range iam.SystemRoles() {
 		keys = append(keys, r.Key)
 	}
-	require.ElementsMatch(t, []authz.Role{
-		authz.RoleTenantAdmin, authz.RoleDoctor, authz.RoleNurse,
-		authz.RolePharmacist, authz.RoleLabTech,
-	}, keys)
+	require.Equal(t, authz.SystemRoles(), keys)
+}
+
+// TestEverySystemRoleHasALabel guards the map iam.SystemRoles() panics
+// on a miss against: every role authz.SystemRoles() knows about must
+// have a display label here, or a new authz role ships with no way to
+// grant it through the product (#70 fix round 1 — receptionist shipped
+// in authz but stayed absent from this catalog until this test existed).
+func TestEverySystemRoleHasALabel(t *testing.T) {
+	labels := make(map[authz.Role]string, len(iam.SystemRoles()))
+	for _, r := range iam.SystemRoles() {
+		labels[r.Key] = r.Label
+	}
+	for _, role := range authz.SystemRoles() {
+		label, ok := labels[role]
+		require.True(t, ok, "system role %q has no label in iam.SystemRoles()", role)
+		require.NotEmpty(t, label, "system role %q has a blank label", role)
+	}
 }
 
 func TestModuleDeclaresMemberManage(t *testing.T) {

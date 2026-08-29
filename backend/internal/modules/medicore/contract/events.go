@@ -30,4 +30,11 @@ type VisitCreatedData struct {
 	VisitID     string `json:"visit_id"`
 	PatientName string `json:"patient_name"`
 	Department  string `json:"department"`
+
+	// PatientID references the patientmaster record. Added ALONGSIDE
+	// PatientName rather than replacing it (spec D7): renaming or
+	// removing a field here breaks every consumer's build on purpose, so
+	// pharmacy and lab adopt this on their own schedules and PatientName
+	// retires in a later version once nothing reads it.
+	PatientID string `json:"patient_id"`
 }

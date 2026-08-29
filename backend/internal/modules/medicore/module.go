@@ -59,6 +59,12 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			ALTER POLICY tenant_isolation ON medicore_visits
 			  USING (hms_tenant_visible(tenant_id))
 			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`,
+	}, {
+		ID: "0003_medicore",
+		// Nullable, not NOT NULL: visits opened before patientmaster
+		// exists (or before a caller supplies one) must keep working.
+		// This is the transition spec D7 describes, not a hard cutover.
+		SQL: `ALTER TABLE medicore_visits ADD COLUMN patient_id uuid;`,
 	}}
 }
 

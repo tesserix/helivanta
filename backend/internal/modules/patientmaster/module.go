@@ -62,7 +62,14 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  aadhaar_hash text,
 			  created_at timestamptz NOT NULL DEFAULT now(),
 			  updated_at timestamptz NOT NULL DEFAULT now(),
-			  UNIQUE (tenant_id, mrn)
+			  UNIQUE (tenant_id, mrn),
+			  -- Composite target for every child table's tenant-scoped FK
+			  -- below: a plain REFERENCES patients(id) would let a session
+			  -- pinned to tenant A insert a child row pointing at tenant B's
+			  -- patient, because Postgres FK checks are not subject to row
+			  -- security policies. RLS stops A from READING that row; only
+			  -- this composite FK stops A from LINKING to it.
+			  UNIQUE (tenant_id, id)
 			);
 			ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
 			ALTER TABLE patients FORCE ROW LEVEL SECURITY;
@@ -78,12 +85,13 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			CREATE TABLE patient_identifiers (
 			  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 			  tenant_id uuid NOT NULL,
-			  patient_id uuid NOT NULL REFERENCES patients(id),
+			  patient_id uuid NOT NULL,
 			  kind text NOT NULL CHECK (kind IN ('abha_number','abha_address','mrn_external')),
 			  value text NOT NULL,
 			  verified_at timestamptz,
 			  created_at timestamptz NOT NULL DEFAULT now(),
-			  UNIQUE (tenant_id, kind, value)
+			  UNIQUE (tenant_id, kind, value),
+			  FOREIGN KEY (tenant_id, patient_id) REFERENCES patients(tenant_id, id)
 			);
 			ALTER TABLE patient_identifiers ENABLE ROW LEVEL SECURITY;
 			ALTER TABLE patient_identifiers FORCE ROW LEVEL SECURITY;
@@ -99,13 +107,14 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			CREATE TABLE patient_consents (
 			  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 			  tenant_id uuid NOT NULL,
-			  patient_id uuid NOT NULL REFERENCES patients(id),
+			  patient_id uuid NOT NULL,
 			  notice_version text NOT NULL,
 			  consented_by text NOT NULL CHECK (consented_by IN ('patient','guardian')),
 			  guardian_name text NOT NULL DEFAULT '',
 			  guardian_relationship text NOT NULL DEFAULT '',
 			  recorded_by_subject text NOT NULL,
-			  created_at timestamptz NOT NULL DEFAULT now()
+			  created_at timestamptz NOT NULL DEFAULT now(),
+			  FOREIGN KEY (tenant_id, patient_id) REFERENCES patients(tenant_id, id)
 			);
 			ALTER TABLE patient_consents ENABLE ROW LEVEL SECURITY;
 			ALTER TABLE patient_consents FORCE ROW LEVEL SECURITY;
@@ -120,12 +129,14 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			CREATE TABLE patient_duplicate_overrides (
 			  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 			  tenant_id uuid NOT NULL,
-			  created_patient_id uuid NOT NULL REFERENCES patients(id),
-			  matched_patient_id uuid NOT NULL REFERENCES patients(id),
+			  created_patient_id uuid NOT NULL,
+			  matched_patient_id uuid NOT NULL,
 			  score numeric(4,3) NOT NULL,
 			  reason text NOT NULL,
 			  actor_subject text NOT NULL,
-			  created_at timestamptz NOT NULL DEFAULT now()
+			  created_at timestamptz NOT NULL DEFAULT now(),
+			  FOREIGN KEY (tenant_id, created_patient_id) REFERENCES patients(tenant_id, id),
+			  FOREIGN KEY (tenant_id, matched_patient_id) REFERENCES patients(tenant_id, id)
 			);
 			ALTER TABLE patient_duplicate_overrides ENABLE ROW LEVEL SECURITY;
 			ALTER TABLE patient_duplicate_overrides FORCE ROW LEVEL SECURITY;

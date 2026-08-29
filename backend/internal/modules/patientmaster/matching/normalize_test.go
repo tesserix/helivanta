@@ -22,8 +22,21 @@ func TestNormalizeName(t *testing.T) {
 		{"expands Md", "Md Ali", "mohammed ali"},
 		{"expands Mohd", "Mohd. Ali", "mohammed ali"},
 		{"expands Mohammad spelling", "Mohammad Ali", "mohammed ali"},
+		{"expands Muhammad spelling", "Muhammad Ali", "mohammed ali"},
+		{"expands Mohamed spelling", "Mohamed Ali", "mohammed ali"},
 		{"leaves Mohammed alone", "Mohammed Ali", "mohammed ali"},
 		{"keeps an unknown name intact", "Priya Nair", "priya nair"},
+		// Near-miss guard against over-eager expansion: "Mohan" shares a
+		// prefix with the Mohammed variants above but is a different name
+		// belonging to a different person. This is asserted at
+		// NormalizeName rather than PhoneticKey because that is where an
+		// over-eager rule would actually do the damage — an expansion
+		// entry that fires on "mohan" rewrites the normalised string
+		// itself, which is the direct cause of a false merge. PhoneticKey
+		// only inherits whatever NormalizeName produces, so testing here
+		// catches the defect at its source instead of through an extra
+		// layer of Soundex behaviour.
+		{"does not expand the Mohan near-miss", "Mohan Ali", "mohan ali"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, matching.NormalizeName(tc.in))

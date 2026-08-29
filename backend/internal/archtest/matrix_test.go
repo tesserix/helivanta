@@ -24,7 +24,7 @@ const (
 func allRoles() []authz.Role {
 	return []authz.Role{
 		authz.RoleTenantAdmin, authz.RoleDoctor, authz.RoleNurse,
-		authz.RolePharmacist, authz.RoleLabTech,
+		authz.RolePharmacist, authz.RoleLabTech, authz.RoleReceptionist,
 	}
 }
 

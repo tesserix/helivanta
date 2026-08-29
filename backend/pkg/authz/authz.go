@@ -33,7 +33,7 @@ const Public Permission = "public"
 // sees.
 const NoTenantMembership Permission = "no_tenant_membership"
 
-// Role is a role key. The five below ship as seeded system roles;
+// Role is a role key. The roles below ship as seeded system roles;
 // because roles are data, tenants may define others without a model
 // change.
 type Role string
@@ -44,13 +44,20 @@ const (
 	RoleNurse       Role = "nurse"
 	RolePharmacist  Role = "pharmacist"
 	RoleLabTech     Role = "lab_tech"
+
+	// RoleReceptionist is the hospital front desk: registration, and in
+	// time appointments and queueing. Named for the person rather than
+	// for one feature's view of them, so it stays correct as the front
+	// office gains responsibilities. A nurse is not a clerk — conflating
+	// the two would put clinical staff in the registration audit trail.
+	RoleReceptionist Role = "receptionist"
 )
 
 // systemRoles is every seeded system role. It is the single source of
 // truth KnownRole validates against, so a role_key read from anywhere
 // outside this package (an HTTP request body, a raw-SQL row from
 // iam_members) can be checked without hand-copying the role list.
-var systemRoles = []Role{RoleTenantAdmin, RoleDoctor, RoleNurse, RolePharmacist, RoleLabTech}
+var systemRoles = []Role{RoleTenantAdmin, RoleDoctor, RoleNurse, RolePharmacist, RoleLabTech, RoleReceptionist}
 
 // KnownRole reports whether r is one of the seeded system roles. Custom
 // roles are supported by the data model but not yet creatable, so

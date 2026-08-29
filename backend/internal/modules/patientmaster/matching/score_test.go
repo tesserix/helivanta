@@ -67,7 +67,48 @@ func TestSameNameDifferentDOBIsPossibleNotConfident(t *testing.T) {
 		DOB: "1962-01-01", Mobile: "9111111111"}
 
 	got := matching.Score(subject(), c, matching.DefaultThresholds())
+	require.Equal(t, matching.BandPossible, got.Band,
+		"the look-alike must be OFFERED, not hidden: NotEqual(Confident) would also "+
+			"pass on a regression to NoMatch, which is the difference between the "+
+			"clerk seeing the existing record and never hearing about it")
+}
+
+// TestEstimatedDOBSelfDuplicateStillBlocks is spec D3's second
+// deterministic rule, and the reason it has to exist. The same human
+// re-registering with the same name, the same mobile and the same date
+// of birth — a date marked estimated, as it routinely is when a patient
+// gives 1 January — scores 1.0*0.60 + 0.5*0.25 + 1.0*0.15 = 0.875 under
+// the probabilistic path alone: Possible, not blocked. That makes the
+// block unreachable for a large share of Indian registrations on an
+// otherwise perfect match, so the deterministic rule must fire first and
+// ignore the estimated flag.
+func TestEstimatedDOBSelfDuplicateStillBlocks(t *testing.T) {
+	s := matching.Candidate{Name: "Ravi Kumar", DOB: "1980-01-01", DOBEstimated: true, Mobile: "9876500011"}
+	c := matching.Candidate{PatientID: "p1", Name: "Ravi Kumar", DOB: "1980-01-01", DOBEstimated: true, Mobile: "9876500011"}
+
+	got := matching.Score(s, c, matching.DefaultThresholds())
+	require.Equal(t, matching.BandConfident, got.Band)
+	require.True(t, got.Deterministic)
+}
+
+// TestDeterministicRuleRequiresAllThree pins the rule's narrowness from
+// the other side: drop any one of the three agreements and it must not
+// fire. Without this, "all three agree" could quietly decay into "two
+// agree", which is the false-merge direction.
+func TestDeterministicRuleRequiresAllThree(t *testing.T) {
+	base := matching.Candidate{Name: "Ravi Kumar", DOB: "1980-01-01", DOBEstimated: true, Mobile: "9876500011"}
+
+	noMobile := base
+	noMobile.Mobile = ""
+	got := matching.Score(noMobile, matching.Candidate{PatientID: "p1", Name: "Ravi Kumar",
+		DOB: "1980-01-01", DOBEstimated: true}, matching.DefaultThresholds())
+	require.False(t, got.Deterministic, "two blank mobiles must not count as agreement")
 	require.NotEqual(t, matching.BandConfident, got.Band)
+
+	otherDOB := matching.Candidate{PatientID: "p1", Name: "Ravi Kumar",
+		DOB: "1975-06-02", Mobile: "9876500011"}
+	got = matching.Score(base, otherDOB, matching.DefaultThresholds())
+	require.False(t, got.Deterministic, "a differing date of birth must not fire the rule")
 }
 
 // TestRankOrdersByScoreDescending — the clerk sees the best candidate first.
@@ -136,4 +177,7 @@ func TestSharedEstimatedDOBIsNotConfident(t *testing.T) {
 	got := matching.Score(s, c, matching.DefaultThresholds())
 	require.NotEqual(t, matching.BandConfident, got.Band)
 	require.NotEqual(t, matching.BandPossible, got.Band)
+	require.False(t, got.Deterministic,
+		"the all-three-agree short-circuit must NOT fire here: the names differ, "+
+			"so a shared approximated date of birth is still weak evidence")
 }

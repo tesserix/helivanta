@@ -158,6 +158,24 @@ ENV PORT=4301
 ARG API_URL
 ENV API_URL=${API_URL}
 
+# The shared runtime ships the npm CLI under /usr/local/lib/node_modules/npm.
+# Nothing in this image runs npm: the server is `node apps/shell/server.js`
+# over a bundle whose dependencies were traced and copied at build time. So
+# npm is pure attack surface, and it is surface Trivy gates this image on —
+# its bundled brace-expansion and undici carried HIGH findings that failed
+# the PR scan on 2026-10-07 while every app dependency was clean. Removing
+# it, rather than waiting for the next weekly base rebuild, means a finding
+# in npm's own dependency tree can never block a shell release again.
+#
+# The `test` lines make the removal fail loud: if the base image moves npm,
+# this build fails instead of silently shipping it, and if removing it broke
+# node itself, the build fails here rather than at the first request.
+USER 0:0
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx \
+ && test ! -e /usr/local/lib/node_modules/npm \
+ && test ! -e /usr/local/bin/npm \
+ && node -e 'process.exit(0)'
+
 # The standalone bundle keeps the workspace's directory shape, so the server
 # entry point is apps/shell/server.js relative to this WORKDIR, not
 # ./server.js. .next/static and public are the two things Next deliberately

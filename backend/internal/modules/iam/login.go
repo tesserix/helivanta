@@ -343,9 +343,9 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	// (apps/shell/lib/renew.ts's FALLBACK_RENEWAL_INTERVAL_MS). Any
 	// deployment with SESSION_TTL under ~5 minutes therefore logged
 	// every clinician out before their first renewal ever fired —
-	// silently, since config.go applies no minimum to SESSION_TTL (#921).
-	// This
-	// is additive: a client that ignores the field behaves exactly as
+	// silently. (config.RequireSessionTTL, #921, now refuses only a TTL
+	// under 90s, so the 90s..5m range this field protects stays valid.)
+	// This is additive: a client that ignores the field behaves exactly as
 	// before.
 	respond.OK(c, gin.H{"tenant_id": tenantID, "renew_at": renewAtFor(now, h.ttl)})
 }

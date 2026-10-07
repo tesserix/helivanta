@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tesserix/helivanta/internal/config"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/pkg/authn"
@@ -496,12 +497,12 @@ func TestRenewResponseRenewAtIsExactlyTTLOverThreeFromInjectedClock(t *testing.T
 		"renew_at must be EXACTLY now+ttl/3 off the injected clock (got %v, want %v)", body.RenewAt, want)
 }
 
-// TestRenewAtHasAFloorForATinySessionTTL is the covering test for Review
-// Round 1's "Also fix" floor: SESSION_TTL has no boot-time floor
-// (config.go), so a plausible typo (SESSION_TTL=3s for "3m") must not
-// leave renew_at effectively un-throttled — every connected client
-// would otherwise poll this endpoint, and therefore Zitadel's core API,
-// roughly once a second, forever.
+// TestRenewAtHasAFloorForATinySessionTTL covers renewAtFor's own floor.
+// cmd/api can no longer boot with a TTL this small —
+// config.RequireSessionTTL refuses anything under config.MinSessionTTL
+// (#921) — so this is defence in depth: renewAtFor's contract is not to
+// answer an un-throttled interval for ANY ttl it is handed, independent
+// of how one binary happens to validate its configuration.
 func TestRenewAtHasAFloorForATinySessionTTL(t *testing.T) {
 	roles := stubRoleLister{"user-1": {{TenantID: renewTestTenantA, Role: authz.RoleNurse}}}
 	userState := &stubUserState{}
@@ -524,6 +525,29 @@ func TestRenewAtHasAFloorForATinySessionTTL(t *testing.T) {
 	require.WithinDuration(t, want, body.RenewAt, 5*time.Second,
 		"renew_at must be floored at %v for a too-small SESSION_TTL (tinyTTL/3 = 1s here), "+
 			"not left at an un-throttled ttl/3 value", renewAtFloor)
+}
+
+// The coupling config.MinSessionTTL's doc comment describes, enforced at
+// COMPILE time (#921): the minimum is derived as renewalFraction ×
+// renewAtFloor, and internal/config cannot import this package to state
+// that itself. If renewAtFloor or renewalFraction is raised without
+// raising config.MinSessionTTL, the constant below goes negative and
+// converting it to uint64 is a compile error — so this test file, and
+// make lint-go's type-check of it, refuse to build.
+const _ = uint64(config.MinSessionTTL/renewalFraction - renewAtFloor)
+
+// TestRenewAtAtMinimumSessionTTLIsProportional is the runtime half of the
+// assertion above: at the smallest TTL cmd/api will boot with, renewAtFor
+// answers its DESIGNED value, TTL/renewalFraction, and the floor does not
+// engage. That is the whole reason the minimum is where it is.
+func TestRenewAtAtMinimumSessionTTLIsProportional(t *testing.T) {
+	now := time.Date(2026, 10, 7, 9, 0, 0, 0, time.UTC)
+
+	got := renewAtFor(now, config.MinSessionTTL)
+
+	require.Equal(t, now.Add(config.MinSessionTTL/renewalFraction), got)
+	require.True(t, got.Before(now.Add(config.MinSessionTTL)),
+		"the first renewal must be scheduled before the session it renews expires")
 }
 
 // --- #916 Task 4, F3: the login/renew schedule coupling ------------------
@@ -550,9 +574,9 @@ func (v fixedClockVerifier) Verify(_ context.Context, _ string) (authn.Principal
 // absent for renewal 1: POST /v1/auth/login returned only `tenant_id`,
 // so apps/shell seeded its first timer from a hardcoded five-minute
 // client constant. Any SESSION_TTL below ~5 minutes therefore expired
-// every session before its first renewal, silently, because config.go
-// applies no minimum to SESSION_TTL (contrast RequireIdleTimeout beside
-// it) and no test ran a short one.
+// every session before its first renewal, silently, and no test ran a
+// short one. (config.RequireSessionTTL, #921, refuses only a TTL under
+// config.MinSessionTTL — 90s — so 90s..5m is still a bootable range.)
 //
 // Login now answers with `renew_at` too. The risk that replaces the old
 // one is DRIFT: two endpoints computing "when to renew next" that agree

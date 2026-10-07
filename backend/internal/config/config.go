@@ -148,6 +148,12 @@ type Config struct {
 	// few minutes) would turn ordinary navigation into visible renewal
 	// latency; 15 minutes stays well clear of that without meaningfully
 	// widening the deactivation window in absolute terms.
+	//
+	// A MISTYPED value falls back to DefaultSessionTTL (getenvDuration).
+	// A value that parses but is below MinSessionTTL — including "0" and
+	// negatives — is refused at boot by RequireSessionTTL
+	// (sessionttl.go, #921). Read it through that accessor, never
+	// straight off this field.
 	SessionTTL time.Duration
 
 	// IdleTimeout is how long a Helivanta session stays usable with no human
@@ -335,7 +341,7 @@ func Load() Config {
 		// have one (see SessionSigningKeySeed's doc comment).
 		SessionSigningKey: os.Getenv("SESSION_SIGNING_KEY"),
 		SessionIssuer:     getenv("SESSION_ISSUER", "https://helivanta.local"),
-		SessionTTL:        getenvDuration("SESSION_TTL", 15*time.Minute),
+		SessionTTL:        getenvDuration("SESSION_TTL", DefaultSessionTTL),
 		// Read from its OWN variable, never derived from SESSION_TTL —
 		// see IdleTimeout's doc comment on why the two clocks must stay
 		// independent even while they share a value.

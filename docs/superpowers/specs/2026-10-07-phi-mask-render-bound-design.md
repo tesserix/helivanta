@@ -115,6 +115,6 @@ the pre-flight disabled.
   render byte-identically to an unwrapped logger, so `slog`'s JSON handler
   marshals it with no bound. #904 scopes itself to the masking path, and
   bounding every attribute is a logger-wide change to that invariant. Filed
-  as a follow-up issue, linked from the PR.
+  as [#943](https://github.com/tesserix/helivanta/issues/943).
 - Reference-sharing detection that would change the emitted JSON shape
   (#904's own out-of-scope).

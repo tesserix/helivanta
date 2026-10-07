@@ -28,7 +28,8 @@ Spec: `docs/superpowers/specs/2026-10-07-phi-mask-render-bound-design.md`
 
 ## Task 4 — follow-up
 
-- [ ] File the untagged-value bound as its own issue (spec, "Not covered").
+- [x] File the untagged-value bound as its own issue (spec, "Not covered"):
+      #943.
 
 ## Gates
 

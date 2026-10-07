@@ -379,11 +379,14 @@ func TestDeepFiniteChainIsMaskedAtEveryLevel(t *testing.T) {
 }
 
 func TestOversizedValueFailsClosed(t *testing.T) {
-	// Past the size guard the value is not walked at all; the whole attribute
-	// is masked rather than partially walked and partially emitted.
+	// Past the size bound the value is never marshalled; the whole attribute
+	// is replaced by the oversize marker, which names the reason and the type
+	// so the drop is visible in the log rather than an unexplained absence.
+	before := logging.PHIOversizeCount()
 	line := logged(t, "v", buildChain(60000))
 	require.NotContains(t, line, secretName)
-	require.Contains(t, line, `"v":"`+phiMarker+`"`)
+	require.Contains(t, line, `"v":"[REDACTED:phi-oversize:*logging_test.chain]"`)
+	require.Greater(t, logging.PHIOversizeCount(), before, "an oversize mask must be counted")
 }
 
 type cyclic struct {
@@ -440,45 +443,29 @@ func buildDAG(levels int) *dagNode {
 	return cur
 }
 
-// dagDepth is 17, not 20 (#897).
+// dagDepth is 40: a rendering of 2^40 paths, about 90 TB of JSON.
 //
-// The property under test is that a shared-reference DAG does not wedge the
-// caller, and depth is the wrong dial to prove it with — each level DOUBLES
-// the work, because JSON has no reference sharing and a DAG must be expanded
-// into a tree. Measured with json.Marshal alone, no masking involved:
+// Before #904 this fixture had to stay small. The test asserted elapsed time
+// against a bound calibrated to a developer machine, and at depth 20 (88 MB)
+// it failed every CI run (#897); it was cut to 17 to make CI honest while the
+// hazard it was watching for — nothing bounded what the masking path would
+// marshal — was filed as #904.
 //
-//	depth 14   5.4ms    1.4 MB    2^14 paths
-//	depth 17  27.8ms     11 MB    2^17 paths
-//	depth 20 161.7ms     88 MB    2^20 paths
-//
-// At 20 the bound below was not a margin, it was a coin toss: five consecutive
-// CI runs landed between 10.03s and 10.33s against a 10s limit, on a runner
-// slower than any developer machine. Every one of those failures was a red
-// `go` job carrying no information about the commit that triggered it, which
-// costs more than the coverage the extra three levels bought.
-//
-// 17 keeps the same claim — 2^17 = 131,072 expanded paths still proves the
-// masker walks an expanded DAG without wedging — with roughly 5x headroom
-// instead of a deficit. What it deliberately does NOT do is raise the bound:
-// that would keep the wall-clock proxy and widen the blind spot rather than
-// narrow it.
-//
-// The hazard this test was watching for is real and is filed separately as
-// #904: nothing bounds what the masking path will marshal, so a struct with
-// references shared ~25 deep emits a multi-gigabyte log line. Shrinking this
-// fixture makes CI honest; it does not address that, and must not be read as
-// having done so.
-const dagDepth = 17
+// With the bound decided before marshalling, depth no longer costs anything:
+// the pre-flight walk stops within maxPHIMarshalBytes nodes whatever the
+// shape. So the fixture is now deliberately far past anything json.Marshal
+// could survive. If the pre-flight refusal regressed, this test would not
+// fail slowly — it would exhaust memory — and there is no timing assertion
+// here to calibrate. The assertions are on the bytes emitted;
+// phisize_internal_test.go asserts the walk's node bound and that the
+// marshal is never reached.
+const dagDepth = 40
 
-func TestSharedReferenceDAGCompletesInBoundedTime(t *testing.T) {
-	start := time.Now()
+func TestSharedReferenceDAGIsRefusedBeforeMarshalling(t *testing.T) {
 	line := logged(t, "v", buildDAG(dagDepth))
-	elapsed := time.Since(start)
 	require.NotContains(t, line, secretName)
-	require.Contains(t, line, `"v":"`+phiMarker+`"`)
-	require.Less(t, elapsed, 10*time.Second,
-		"a %d-level shared-reference DAG must not wedge the caller", dagDepth)
-	t.Logf("%d-level DAG masked in %s", dagDepth, elapsed)
+	require.Contains(t, line, `"v":"[REDACTED:phi-oversize:*logging_test.dagNode]"`)
+	require.Less(t, len(line), 256, "the emitted line must be bounded, not proportional to the value")
 }
 
 func TestLargeSliceCompletesInBoundedTime(t *testing.T) {

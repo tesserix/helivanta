@@ -59,8 +59,10 @@ package logging
 //
 // This layer only ever touches values already known to carry PHI. So when
 // anything goes wrong — json.Marshal errors on a cycle or an unsupported type,
-// the rendering exceeds the size guard, or the masking walk cannot complete —
-// the *entire* attribute value is replaced by the marker. Emitting the value
+// or the masking walk cannot complete — the *entire* attribute value is
+// replaced by the marker. A value whose rendering would exceed the size bound
+// is refused before it is marshalled at all, and replaced by a distinct
+// `[REDACTED:phi-oversize:<type>]` marker so the drop is visible (phisize.go). Emitting the value
 // unmasked would publish exactly the field the tag exists to protect, and
 // emitting a partially masked structure would publish the part that came after
 // the failure.
@@ -106,11 +108,13 @@ const (
 	// vocabulary regardless of which layer masked a value.
 	phiMarkerJSON = `"[REDACTED:phi]"`
 
-	// maxPHIMarshalBytes bounds the rendering this layer is willing to walk.
-	// A value that exceeds it is masked whole rather than walked, so a
-	// pathologically large graph costs one marshal and no walk. json.Marshal
-	// itself already handles cycles (it errors) and shared references
-	// (linearly), so this is a backstop for size, not for shape.
+	// maxPHIMarshalBytes bounds the rendering this layer is willing to
+	// produce. It is enforced BEFORE marshalling, by renderBound (phisize.go,
+	// #904): a value whose rendering could exceed it is replaced by the
+	// oversize marker without json.Marshal ever running. An earlier version of
+	// this comment said json.Marshal handles shared references "linearly"; it
+	// does not — JSON has no reference sharing, so they expand exponentially,
+	// which is the defect #904 records.
 	maxPHIMarshalBytes = 1 << 20
 )
 
@@ -553,9 +557,28 @@ func maskPHIValue(v any) (masked redactedJSON, count uint64, ok bool) {
 		return nil, 0, false
 	}
 
-	raw, err := marshalNoHTMLEscape(v)
-	if err != nil || len(raw) > maxPHIMarshalBytes {
+	// The bound is decided BEFORE anything is marshalled (#904): json.Marshal
+	// builds its entire rendering in memory before returning, so checking its
+	// output length afterwards would let a shared-reference value allocate
+	// gigabytes first. See phisize.go.
+	switch _, _, err := renderBound(v, maxPHIMarshalBytes); {
+	case errors.Is(err, errRenderOversize):
+		oversizeRedactions.Add(1)
+		return oversizeMarker(reflect.TypeOf(v)), 1, true
+	case err != nil:
 		return redactedJSON(phiMarkerJSON), 1, true
+	}
+
+	raw, err := marshalForMask(v)
+	if err != nil {
+		return redactedJSON(phiMarkerJSON), 1, true
+	}
+	if len(raw) > maxPHIMarshalBytes {
+		// Reachable only through a type that renders itself, whose size the
+		// pre-flight walk cannot see (phisize.go, "Known limitation"). The
+		// buffer already exists here; this backstop stops it being emitted.
+		oversizeRedactions.Add(1)
+		return oversizeMarker(reflect.TypeOf(v)), 1, true
 	}
 	out, n, err := maskJSONPaths(raw, tree)
 	if err != nil {
@@ -563,6 +586,13 @@ func maskPHIValue(v any) (masked redactedJSON, count uint64, ok bool) {
 	}
 	return redactedJSON(out), n, true
 }
+
+// marshalForMask is the marshal maskPHIValue performs. It is a variable only
+// so phisize_internal_test.go can prove the size bound refuses a value without
+// this ever being called — the claim #904 makes is about WHEN the decision
+// happens, and a test that only inspected the output could not tell a
+// pre-flight refusal from a post-marshal one.
+var marshalForMask = marshalNoHTMLEscape
 
 // marshalNoHTMLEscape renders v the way slog's JSON handler would, which is
 // with HTML escaping off. json.Marshal escapes `<`, `>` and `&`; slog does

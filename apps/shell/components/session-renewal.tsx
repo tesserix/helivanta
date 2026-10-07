@@ -181,9 +181,10 @@ export function SessionRenewal() {
     // fallback — which meant the server's SESSION_TTL governed every
     // renewal EXCEPT the first. Any deployment with SESSION_TTL under
     // about five minutes lost every session before its first renewal
-    // fired, silently, because config.go applies no minimum to
-    // SESSION_TTL (#921). Nothing coupled the two; that is exactly the gap D5
-    // claimed to have closed structurally.
+    // fired, silently — and the API's boot-time minimum
+    // (config.RequireSessionTTL, #921) is 90s, so that range is still a
+    // valid configuration. Nothing coupled the two; that is exactly the
+    // gap D5 claimed to have closed structurally.
     //
     // loadRenewAt() returning undefined still yields the identical old
     // behaviour through the identical code path, so the fallback keeps

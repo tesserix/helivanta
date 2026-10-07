@@ -132,6 +132,17 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	// Same class of check, beside its sibling: a SESSION_TTL below
+	// config.MinSessionTTL parses cleanly and then expires every session
+	// before the renewal schedule can fire, signing out the whole estate
+	// (#921). Refused here, before any network round trip, so the error
+	// names SESSION_TTL rather than surfacing later as session.NewSigner's
+	// signing-key error. sessionTTL, never cfg.SessionTTL, is what every
+	// consumer below reads — see config.RequireSessionTTL's doc comment.
+	sessionTTL, err := cfg.RequireSessionTTL()
+	if err != nil {
+		return err
+	}
 	// Same class of check, same reason to run it here rather than on the
 	// hot path: a hosted-login URL misconfigured to share an origin with
 	// Helivanta's own frontend would loop every MFA-enrolled clinician forever
@@ -169,7 +180,7 @@ func run() error {
 		// pattern and come out as "[REDACTED:aadhaar]" instead of a
 		// readable TTL. .String() ("15m0s") is unambiguous, readable, and
 		// has no digit run long enough to trip any redaction pattern.
-		"ttl", cfg.SessionTTL.String(),
+		"ttl", sessionTTL.String(),
 		"public_key_fingerprint", hex.EncodeToString(sessionKeyFingerprint[:8]),
 	)
 
@@ -257,7 +268,7 @@ func run() error {
 	// every session this process itself mints, which is exactly the kind
 	// of self-inflicted outage a single shared source of truth for both
 	// avoids.
-	sessionSigner, err := session.NewSigner(sessionKey, sessionSigningKeyID, cfg.SessionIssuer, cfg.SessionTTL)
+	sessionSigner, err := session.NewSigner(sessionKey, sessionSigningKeyID, cfg.SessionIssuer, sessionTTL)
 	if err != nil {
 		return err
 	}
@@ -316,7 +327,7 @@ func run() error {
 		Authz:               fga,
 		Roles:               fga,
 		SessionSigner:       sessionSigner,
-		SessionTTL:          cfg.SessionTTL,
+		SessionTTL:          sessionTTL,
 		SessionSecureCookie: sessionSecureCookie,
 		Reconcile: func(ctx context.Context, tenantID string) error {
 			return platform.ReconcileTenant(ctx, registry, fga, tenantID)
@@ -384,7 +395,7 @@ func run() error {
 		Roles:        fga,
 		Signer:       sessionSigner,
 		Sessions:     sessionVerifier,
-		TTL:          cfg.SessionTTL,
+		TTL:          sessionTTL,
 		IdleTimeout:  idleTimeout,
 		SecureCookie: sessionSecureCookie,
 		Limiter:      limiter,

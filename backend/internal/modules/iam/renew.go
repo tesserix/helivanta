@@ -47,24 +47,21 @@ type UserStateChecker interface {
 // open by having nothing tying it to SESSION_TTL at all.
 const renewalFraction = 3
 
-// renewAtFloor bounds renewResponse.RenewAt from below. SESSION_TTL has
-// no boot-time floor at all: config.go's getenvDuration accepts any
-// parseable duration, and — unlike IDLE_TIMEOUT right beside it, which
-// RequireIdleTimeout (config/idletimeout.go) REFUSES TO BOOT on when it
-// is non-positive, precisely so the operator sees it at the deploy —
-// nothing rejects an implausible SESSION_TTL anywhere. That asymmetry is
-// tracked as #921, and it is why this floor has to exist here; see
-// renewAtFor below for the same contrast stated from the other side.
+// renewAtFloor bounds renewResponse.RenewAt from below.
 //
 // renewalFraction's derivation is only sound for a plausible TTL — a
-// misconfigured SESSION_TTL=3s (a "3m" typo an operator could plausibly
-// make) would otherwise produce renew_at = now+1s, and every connected
-// client would poll this endpoint, and therefore Zitadel's core API,
-// once a second forever. Fixed Review Round 1 finding "Also fix": floor
-// at the point of use rather than at config load, because THIS is the
-// one place a too-small interval actually causes harm (a hot polling
-// loop against an external, rate-limited dependency), not the TTL value
-// itself.
+// SESSION_TTL=3s (a "3m" typo) would otherwise produce renew_at =
+// now+1s, and every connected client would poll this endpoint, and
+// therefore Zitadel's core API, once a second forever.
+//
+// cmd/api can no longer boot with such a TTL: config.RequireSessionTTL
+// refuses anything under config.MinSessionTTL (#921), and that minimum is
+// DERIVED from this constant — renewalFraction × renewAtFloor, the
+// smallest TTL at which this floor never engages. renew_test.go pins the
+// derivation at compile time, so raising this constant without raising
+// config.MinSessionTTL does not build. The floor stays as defence in
+// depth: renewAtFor's contract holds for any ttl it is handed,
+// independent of how one binary validates its configuration.
 const renewAtFloor = 30 * time.Second
 
 // renewResponse is POST /v1/auth/renew's success body. RenewAt is the
@@ -334,10 +331,10 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 // a hardcoded five-minute client constant
 // (apps/shell/lib/renew.ts's FALLBACK_RENEWAL_INTERVAL_MS). D5 was
 // therefore closed for renewals 2..n and wide open for renewal 1: with
-// SESSION_TTL below ~5 minutes — which config.go accepts silently,
-// having no minimum guard, unlike RequireIdleTimeout beside it (#921) —
-// every
-// session died before its first renewal ever fired. That is verbatim
+// SESSION_TTL below ~5 minutes every session died before its first
+// renewal ever fired. (Since #921 config.RequireSessionTTL refuses a
+// TTL under config.MinSessionTTL at boot, but 90s..5m remains valid and
+// is exactly the range this coupling protects.) That is verbatim
 // the sentence D5 was written to eliminate, and no test could see it
 // because no test ran a short TTL.
 //

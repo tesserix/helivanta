@@ -37,9 +37,8 @@ import { login } from "./support/login";
 // /v1/auth/login returned no `renew_at`, so the server's schedule governed
 // every renewal EXCEPT the first, and any SESSION_TTL under five minutes
 // killed every session before the first renewal fired. That was a real
-// production defect — config.go applies no minimum to SESSION_TTL (#921) —
-// and it
-// was fixed rather than worked around (#916 Task 4, F3): login now returns
+// production defect — any TTL from config.RequireSessionTTL's 90s minimum
+// (#921) up to five minutes is a valid configuration — and it was fixed rather than worked around (#916 Task 4, F3): login now returns
 // `renew_at` from renewAtFor, the SAME helper the renewal endpoint uses,
 // and the shell seeds its first timer from it.
 //

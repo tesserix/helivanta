@@ -241,7 +241,8 @@ describe("SessionRenewal's FIRST renewal", () => {
   // timer was always FALLBACK_RENEWAL_INTERVAL_MS (5 minutes) regardless
   // of SESSION_TTL, so any deployment with a shorter TTL lost every
   // session before its first renewal — with nothing anywhere reporting
-  // it, because SESSION_TTL has no minimum guard server-side.
+  // it. The server's boot-time minimum (config.RequireSessionTTL, #921)
+  // is 90s, so TTLs under five minutes remain valid configurations.
   //
   // 90s here is not arbitrary: it is one third of a 4m30s SESSION_TTL,
   // i.e. exactly what renewAtFor answers for a TTL well under the old

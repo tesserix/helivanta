@@ -10,9 +10,9 @@
 // yet and therefore fell back to FALLBACK_RENEWAL_INTERVAL_MS (5 minutes,
 // lib/renew.ts). Any deployment running SESSION_TTL below about five
 // minutes consequently lost every session before its first renewal ever
-// fired — silently, because backend/internal/config/config.go applies no
-// minimum to SESSION_TTL (contrast RequireIdleTimeout right beside it) —
-// tracked as #921.
+// fired, silently. The API now refuses to boot below 90s
+// (backend/internal/config/sessionttl.go, #921), but 90s..5m is a valid
+// configuration, and it is the range this module protects.
 // POST /v1/auth/login now answers with `renew_at` too, from the same
 // server-side helper the renewal endpoint uses, and this module is how
 // that first answer reaches the component that acts on it.

@@ -268,7 +268,7 @@ func newAuthRequest(t *testing.T, env integrationEnv) string {
 // if reached, rather than a silent no-op, so a future argument-order
 // mistake surfaces as a failure here instead of a mystery elsewhere.
 // This only detects a swap that involves the login slot — an
-// authRequest↔handoff swap (the other two positions) would still
+// authRequest↔factor swap (the other positions) would still
 // compile and leave this file green, because only the password route
 // is driven here. MountUnauthenticated panics on a nil, by design, so
 // it cannot be omitted.
@@ -283,7 +283,7 @@ func newIntegrationRouter(t *testing.T, env integrationEnv) *gin.Engine {
 	// OutcomeFactorRequired path (the dev-seeded user is password-only —
 	// devSeededEmail/devSeededPassword below), so LoginUIHandlers' store
 	// is never touched.
-	handlers := iam.NewLoginUIHandlers(client, "http://zitadel.invalid/ui/v2/login", nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
+	handlers := iam.NewLoginUIHandlers(client, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -293,7 +293,7 @@ func newIntegrationRouter(t *testing.T, env integrationEnv) *gin.Engine {
 		c.Status(http.StatusInternalServerError)
 	}
 	bootstrap.MountUnauthenticated(r, notExercised,
-		handlers.AuthRequest, handlers.Password, handlers.Handoff, handlers.Factor)
+		handlers.AuthRequest, handlers.Password, handlers.Factor)
 	return r
 }
 
@@ -545,19 +545,25 @@ func resetOrgLoginPolicy(t *testing.T, env integrationEnv, seedToken, orgID stri
 	require.Truef(t, isDefault, "org login policy (org=%q) after DELETE %s is not back to default: %v", orgID, loginPolicyPath, got)
 }
 
-// assertHandsOffWithoutCallback is the shared assertion both the
-// forceMfa and forceMfaLocalOnly tests below make: a real login against
-// a policy that requires MFA must return 200 + handoff_url, and must
-// NEVER return callback_url — the latter would mean CompleteIfSufficient
-// finalized a password-only session under a policy that said not to,
-// which is the MFA bypass this whole fix round exists to prevent.
-func assertHandsOffWithoutCallback(t *testing.T, w *httptest.ResponseRecorder, policyField string) {
+// assertRefusedWithoutCallback is the shared assertion every
+// MFA-requiring test below makes: a real login that Helivanta cannot complete
+// must answer 403 with the expected refusal code (#947 spec D2), and must
+// NEVER return callback_url — that would mean CompleteIfSufficient finalized a
+// password-only session under a policy or enrolment that said not to, which is
+// the MFA bypass this whole file exists to prevent — nor a handoff_url, which
+// #947 deleted.
+//
+// The refusal code matters, not just the status: an UNREADABLE policy now
+// answers 503, so a 403 with the expected code proves the real policy or
+// enrolment was read and understood, not merely that something failed.
+func assertRefusedWithoutCallback(t *testing.T, w *httptest.ResponseRecorder, condition, wantCode string) {
 	t.Helper()
-	require.Equalf(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
-	require.Containsf(t, w.Body.String(), "handoff_url", "%s=true must hand off, body: %s", policyField, w.Body.String())
+	require.Equalf(t, http.StatusForbidden, w.Code, "%s: body: %s", condition, w.Body.String())
+	require.Containsf(t, w.Body.String(), `"error":"`+wantCode+`"`, "%s must refuse with %s, body: %s", condition, wantCode, w.Body.String())
 	require.NotContainsf(t, w.Body.String(), "callback_url",
-		"%s=true completed the login (callback_url present) instead of handing off — MFA bypass: %s",
-		policyField, w.Body.String())
+		"%s completed the login (callback_url present) instead of refusing — MFA bypass: %s",
+		condition, w.Body.String())
+	require.NotContainsf(t, w.Body.String(), "handoff_url", "%s: #947 removed the hosted-login handoff", condition)
 }
 
 // assertLoginSucceeds is the OTHER half of Finding 5's fix: a test that
@@ -664,7 +670,7 @@ func TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting(t *testing.T) {
 	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
-	assertHandsOffWithoutCallback(t, w, "forceMfa")
+	assertRefusedWithoutCallback(t, w, "forceMfa", "mfa_enrollment_required")
 
 	resetOrgLoginPolicy(t, env, seedToken, "")
 	assertLoginSucceeds(t, env, devSeededEmail, devSeededPassword, "")
@@ -699,7 +705,7 @@ func TestIntegration_ForceMFALocalOnlyPolicy_HandsOffInsteadOfCompleting(t *test
 	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
-	assertHandsOffWithoutCallback(t, w, "forceMfaLocalOnly")
+	assertRefusedWithoutCallback(t, w, "forceMfaLocalOnly", "mfa_enrollment_required")
 
 	resetOrgLoginPolicy(t, env, seedToken, "")
 	assertLoginSucceeds(t, env, devSeededEmail, devSeededPassword, "")
@@ -803,7 +809,7 @@ func TestIntegration_UserEnrolledFactor_HandsOffInsteadOfCompleting(t *testing.T
 	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, loginName, devSeededPassword)
-	assertHandsOffWithoutCallback(t, w, "per-user enrolled factor (otp_email)")
+	assertRefusedWithoutCallback(t, w, "per-user enrolled factor (otp_email)", "sign_in_method_unsupported")
 }
 
 // createOrgPath is Zitadel's v1 org-creation endpoint (#913 Task 4).
@@ -981,7 +987,7 @@ const secondOrgPolicyReadFailureContext = "SECOND-ORG LOGIN DID NOT SUCCEED AFTE
 	"THAT ORG. This is design doc D5's load-bearing assertion, not a redundant check: if the login-client " +
 	"PAT were ever refused reading ANOTHER org's policy, the read would error, CompleteIfSufficient's " +
 	"fail-closed branch would hand off REGARDLESS of the actual policy value, and the EARLIER " +
-	"assertHandsOffWithoutCallback call in this same test would pass for the WRONG reason — proving " +
+	"assertRefusedWithoutCallback call in this same test would pass for the WRONG reason — proving " +
 	"nothing about #913's fix, only that errors fail closed (which was already true before the fix). A " +
 	"genuinely completed login here is what proves the scoped read resolved forceMfa's real value instead " +
 	"of merely erroring; this was CONFIRMED live in #913 Task 4's fix round 1 — a failure here now most " +
@@ -1015,7 +1021,7 @@ const secondOrgPolicyReadFailureContext = "SECOND-ORG LOGIN DID NOT SUCCEED AFTE
 //     #913 Task 4's fix round 1 by temporarily reverting sufficiency.go's
 //     scoped read to InstanceLoginPolicyForDisplay(ctx): this assertion
 //     failed with a genuine authorization code in callback_url, exactly
-//     as this comment predicts. assertHandsOffWithoutCallback below is
+//     as this comment predicts. assertRefusedWithoutCallback below is
 //     what fails on that unpatched behaviour — a handoff_url with no
 //     callback_url is the ONLY passing shape once #913's fix
 //     (LoginPolicyForOrg scoped by the session's own
@@ -1080,7 +1086,7 @@ func TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting(t *t
 	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, loginName, devSeededPassword)
-	assertHandsOffWithoutCallback(t, w, "forceMfa (second org, not the login client's own org)")
+	assertRefusedWithoutCallback(t, w, "forceMfa (second org, not the login client's own org)", "mfa_enrollment_required")
 
 	resetOrgLoginPolicy(t, env, seedToken, secondOrgID)
 	assertLoginSucceeds(t, env, loginName, devSeededPassword, secondOrgPolicyReadFailureContext)

@@ -3,6 +3,7 @@ package loginclient
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -95,7 +96,7 @@ const nonForceMFAPolicy = `{"policy":{"passwordCheckLifetime":"864000s"}}`
 const forceMFAPolicy = `{"policy":{"passwordCheckLifetime":"864000s","forceMfa":true}}`
 
 // A user with TOTP enrolled must now be PROMPTED, not handed off — that is
-// the whole point of this spec. Previously this returned OutcomeHandoff.
+// the whole point of this spec. Previously this handed off.
 func TestCompleteIfSufficient_TOTPEnrolledAsksForTheFactor(t *testing.T) {
 	c := clientWithEnrolledMethods(t, nonForceMFAPolicy, []string{"AUTHENTICATION_METHOD_TYPE_TOTP", "AUTHENTICATION_METHOD_TYPE_PASSWORD"})
 	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
@@ -109,7 +110,7 @@ func TestCompleteIfSufficient_TOTPEnrolledAsksForTheFactor(t *testing.T) {
 // is #867 fix round 1's Finding 1: an EARLIER version of
 // CompleteIfSufficient checked policy.ForceMFA before classifying
 // enrolled methods, so this exact case — the headline case the whole spec
-// exists for — silently fell through to OutcomeHandoff instead of
+// exists for — silently fell through to a handoff instead of
 // prompting natively. It failed closed (no bypass), but the feature
 // never fired for an org that actually forces MFA, which is presumably
 // most orgs that bother enrolling TOTP in the first place.
@@ -122,37 +123,46 @@ func TestCompleteIfSufficient_ForceMFAWithTOTPEnrolledStillAsksForTheFactor(t *t
 	require.Empty(t, res.CallbackURL)
 }
 
-// TestCompleteIfSufficient_ForceMFAWithNoEnrolledFactorStillHandsOff is
-// the companion case to the one above: a password-only session under
+// TestCompleteIfSufficient_ForceMFAWithNoEnrolledFactorIsRefused is the
+// companion case to the one above: a password-only session under
 // forceMfa, with NOTHING enrolled that Helivanta could natively prompt
-// for, still has nowhere to go but a handoff. Finding 1's reorder must
-// not turn this into a completion or a factor-required prompt for a
-// factor the user never configured.
-func TestCompleteIfSufficient_ForceMFAWithNoEnrolledFactorStillHandsOff(t *testing.T) {
+// for, is refused with RefusalMFAEnrollmentRequired (#947; native
+// enrolment, #948, replaces it). Finding 1's reorder must not turn this
+// into a completion or a factor-required prompt for a factor the user
+// never configured.
+func TestCompleteIfSufficient_ForceMFAWithNoEnrolledFactorIsRefused(t *testing.T) {
 	c, finalized := clientWithEnrolledMethodsAndFinalizeTracking(t, forceMFAPolicy, []string{"AUTHENTICATION_METHOD_TYPE_PASSWORD"})
 	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
 	require.NoError(t, err)
-	require.Equal(t, OutcomeHandoff, res.Outcome)
+	require.Equal(t, OutcomeRefused, res.Outcome)
+	require.Equal(t, RefusalMFAEnrollmentRequired, res.Reason)
 	require.Empty(t, res.Factors)
 	require.Empty(t, res.CallbackURL)
 	require.False(t, finalized.Load(), "finalize was called under forceMfa with no factor to offer: this is an MFA bypass")
 }
 
-// A factor Helivanta cannot collect still hands off (spec D1).
-func TestCompleteIfSufficient_OtpEmailStillHandsOff(t *testing.T) {
-	c := clientWithEnrolledMethods(t, nonForceMFAPolicy, []string{"AUTHENTICATION_METHOD_TYPE_OTP_EMAIL", "AUTHENTICATION_METHOD_TYPE_PASSWORD"})
+// A factor Helivanta cannot collect is refused (spec D1; #947), and the
+// refusal carries what the account has enrolled so the handler can log it.
+func TestCompleteIfSufficient_OtpEmailIsRefusedAsUnsupported(t *testing.T) {
+	methods := []string{"AUTHENTICATION_METHOD_TYPE_OTP_EMAIL", "AUTHENTICATION_METHOD_TYPE_PASSWORD"}
+	c, finalized := clientWithEnrolledMethodsAndFinalizeTracking(t, nonForceMFAPolicy, methods)
 	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
 	require.NoError(t, err)
-	require.Equal(t, OutcomeHandoff, res.Outcome)
+	require.Equal(t, OutcomeRefused, res.Outcome)
+	require.Equal(t, RefusalFactorUnsupported, res.Reason)
+	require.Equal(t, methods, res.EnrolledMethods)
+	require.False(t, finalized.Load())
 	require.Empty(t, res.Factors)
 	require.Empty(t, res.CallbackURL)
 }
 
-// OutcomeHandoff must remain the zero value: a forgotten assignment must
-// fail closed.
-func TestOutcomeHandoffIsZero(t *testing.T) {
-	var o Outcome
-	require.Equal(t, OutcomeHandoff, o)
+// OutcomeRefused must remain the zero value: a forgotten assignment must
+// fail closed. A zero Result is therefore a refusal with an unspecified
+// reason, which the handlers answer as a refusal and log as a defect.
+func TestOutcomeRefusedIsZero(t *testing.T) {
+	var r Result
+	require.Equal(t, OutcomeRefused, r.Outcome)
+	require.Equal(t, RefusalUnspecified, r.Reason)
 }
 
 // TestCompleteAfterFactor_FinalizesOnlyWhenSessionFactorsReportTOTP pins
@@ -187,13 +197,13 @@ func TestCompleteAfterFactor_FinalizesOnlyWhenSessionFactorsReportTOTP(t *testin
 	require.NotEmpty(t, got.CallbackURL)
 }
 
-// TestCompleteAfterFactor_HandsOffWhenTOTPNotVerified pins the fail-closed
+// TestCompleteAfterFactor_RefusesWhenTOTPNotVerified pins the fail-closed
 // direction: a session that has not actually verified TOTP (whatever the
 // caller believes happened) must never be finalized. The enrolled-method
 // fixture still enrolls TOTP so this test genuinely exercises the
 // SessionFactors branch rather than failing closed one step earlier for
 // an unrelated reason (no TOTP enrolled at all).
-func TestCompleteAfterFactor_HandsOffWhenTOTPNotVerified(t *testing.T) {
+func TestCompleteAfterFactor_RefusesWhenTOTPNotVerified(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -211,11 +221,12 @@ func TestCompleteAfterFactor_HandsOffWhenTOTPNotVerified(t *testing.T) {
 
 	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
 	require.NoError(t, err)
-	require.Equal(t, OutcomeHandoff, got.Outcome)
+	require.Equal(t, OutcomeRefused, got.Outcome)
+	require.Equal(t, RefusalFactorNotVerified, got.Reason)
 	require.False(t, finalized.Load(), "finalize was called without TOTP actually verified on the session: this is an MFA bypass")
 }
 
-// TestCompleteAfterFactor_HandsOffWhenSessionFactorsUnreadable pins the
+// TestCompleteAfterFactor_UnavailableWhenSessionFactorsUnreadable pins the
 // fail-closed direction for an unreadable SessionFactors answer, the same
 // way CompleteIfSufficient's own tests pin it for LoginPolicy and the
 // enrolled-methods check: an unreadable answer must never be mistaken for
@@ -225,7 +236,7 @@ func TestCompleteAfterFactor_HandsOffWhenTOTPNotVerified(t *testing.T) {
 // otherwise an unconditional failure on that path would trip
 // classification first and this test would no longer be exercising the
 // branch it is named for.
-func TestCompleteAfterFactor_HandsOffWhenSessionFactorsUnreadable(t *testing.T) {
+func TestCompleteAfterFactor_UnavailableWhenSessionFactorsUnreadable(t *testing.T) {
 	var finalized atomic.Bool
 	var sessionGETs atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -247,12 +258,12 @@ func TestCompleteAfterFactor_HandsOffWhenSessionFactorsUnreadable(t *testing.T) 
 	c := New(srv.URL, "pat", srv.Client())
 
 	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
-	require.NoError(t, err)
-	require.Equal(t, OutcomeHandoff, got.Outcome)
+	require.ErrorIs(t, err, ErrUnavailable, "an unreadable answer is a retryable error, never a refusal (#947 spec D1)")
+	require.NotEqual(t, OutcomeComplete, got.Outcome)
 	require.False(t, finalized.Load(), "finalize was called while session factors were unreadable: fails open")
 }
 
-// TestCompleteAfterFactor_OtpEmailAlsoEnrolledStillHandsOff is #867 fix
+// TestCompleteAfterFactor_OtpEmailAlsoEnrolledIsRefused is #867 fix
 // round 2's Finding A(1): the re-reviewer verified — with a throwaway,
 // deliberately-discarded test — that CompleteAfterFactor's re-run of
 // classifyEnrolledMethods (fix round 1, Finding 2) actually catches a
@@ -267,7 +278,7 @@ func TestCompleteAfterFactor_HandsOffWhenSessionFactorsUnreadable(t *testing.T) 
 // instruction — Outcome alone would not distinguish "correctly refused to
 // finalize" from "finalized, then also happened to report the wrong
 // Outcome by mistake".
-func TestCompleteAfterFactor_OtpEmailAlsoEnrolledStillHandsOff(t *testing.T) {
+func TestCompleteAfterFactor_OtpEmailAlsoEnrolledIsRefused(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -288,19 +299,21 @@ func TestCompleteAfterFactor_OtpEmailAlsoEnrolledStillHandsOff(t *testing.T) {
 
 	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
 	require.NoError(t, err)
-	require.Equal(t, OutcomeHandoff, got.Outcome)
+	require.Equal(t, OutcomeRefused, got.Outcome)
+	require.Equal(t, RefusalFactorUnsupported, got.Reason)
+	require.Contains(t, got.EnrolledMethods, "AUTHENTICATION_METHOD_TYPE_OTP_EMAIL")
 	require.False(t, finalized.Load(), "finalize was called for a session with TOTP verified AND an uncollectible factor (OTP_EMAIL) also enrolled: this is the exact D1 bypass Finding 2 exists to close")
 }
 
-// TestCompleteAfterFactor_HandsOffWhenEnrolledMethodsUnreadable pins
+// TestCompleteAfterFactor_UnavailableWhenEnrolledMethodsUnreadable pins
 // Finding A(2): an unreadable enrolled-methods answer inside
-// CompleteAfterFactor must hand off, the same fail-closed direction
+// CompleteAfterFactor must fail closed as ErrUnavailable, the same direction
 // CompleteIfSufficient already has pinned
-// (TestCompleteIfSufficientHandsOffWhenEnrolledFactorCheckUnreadable) —
+// (TestCompleteIfSufficientUnavailableWhenEnrolledFactorCheckUnreadable) —
 // now needed a second time because CompleteAfterFactor re-runs the same
 // check (fix round 1, Finding 2) rather than trusting the first call ever
 // ran.
-func TestCompleteAfterFactor_HandsOffWhenEnrolledMethodsUnreadable(t *testing.T) {
+func TestCompleteAfterFactor_UnavailableWhenEnrolledMethodsUnreadable(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -324,19 +337,19 @@ func TestCompleteAfterFactor_HandsOffWhenEnrolledMethodsUnreadable(t *testing.T)
 	c := New(srv.URL, "pat", srv.Client())
 
 	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
-	require.NoError(t, err)
-	require.Equal(t, OutcomeHandoff, got.Outcome)
+	require.ErrorIs(t, err, ErrUnavailable)
+	require.NotEqual(t, OutcomeComplete, got.Outcome)
 	require.False(t, finalized.Load(), "finalize was called while the enrolled-methods check was unreadable: fails open")
 }
 
-// TestCompleteAfterFactor_HandsOffWhenTOTPNoLongerEnrolled pins Finding
+// TestCompleteAfterFactor_RefusesWhenTOTPNoLongerEnrolled pins Finding
 // A(3): the re-reviewer named the !totpEnrolled branch as untested too.
 // This is the "enrollment changed between the two calls, or this path was
 // reached without CompleteIfSufficient ever running" case CompleteAfterFactor's
 // own doc comment describes — TOTP is no longer among the enrolled
 // methods at all, so there is nothing here to natively verify against
 // regardless of what SessionFactors would say.
-func TestCompleteAfterFactor_HandsOffWhenTOTPNoLongerEnrolled(t *testing.T) {
+func TestCompleteAfterFactor_RefusesWhenTOTPNoLongerEnrolled(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -358,7 +371,8 @@ func TestCompleteAfterFactor_HandsOffWhenTOTPNoLongerEnrolled(t *testing.T) {
 
 	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
 	require.NoError(t, err)
-	require.Equal(t, OutcomeHandoff, got.Outcome)
+	require.Equal(t, OutcomeRefused, got.Outcome)
+	require.Equal(t, RefusalFactorNotVerified, got.Reason)
 	require.False(t, finalized.Load(), "finalize was called for a session with no TOTP enrolled at all: nothing to natively verify")
 }
 
@@ -369,22 +383,24 @@ func TestCompleteIfSufficientDoesNotFinalizeWhenForceMFA(t *testing.T) {
 	// passwordCheckLifetime is the anchor LoginPolicy's doc comment
 	// describes (client.go): without it this fixture would exercise the
 	// fail-closed "unrecognized policy" branch instead of the genuine
-	// forceMfa=true branch this test is named for — both currently reach
-	// OutcomeHandoff, so that mistake would pass silently.
+	// forceMfa=true branch this test is named for. Since #947 the two are
+	// distinguishable (an unrecognised policy is an ErrUnavailable error; a
+	// real forceMfa is a RefusalMFAEnrollmentRequired), and the assertions
+	// below pin which one this is.
 	c := countingZitadel(t, `{"policy":{"passwordCheckLifetime":"864000s","forceMfa":true}}`, &finalized)
 
 	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
 	if err != nil {
 		t.Fatalf("CompleteIfSufficient() error = %v", err)
 	}
-	if got.Outcome != OutcomeHandoff {
-		t.Errorf("Outcome = %v, want OutcomeHandoff", got.Outcome)
+	if got.Outcome != OutcomeRefused || got.Reason != RefusalMFAEnrollmentRequired {
+		t.Errorf("Result = %v/%v, want refused/mfa_enrollment_required", got.Outcome, got.Reason)
 	}
 	if finalized.Load() {
 		t.Fatal("finalize was called under forceMfa: this is an MFA bypass")
 	}
 	if got.CallbackURL != "" {
-		t.Errorf("CallbackURL = %q, want empty on handoff", got.CallbackURL)
+		t.Errorf("CallbackURL = %q, want empty on a refusal", got.CallbackURL)
 	}
 }
 
@@ -418,7 +434,7 @@ func TestCompleteIfSufficientFinalizesWhenNoMFARequired(t *testing.T) {
 // missing forceMfa field decoded to false. This asserts on the call
 // counter, which is the only thing that distinguishes a working login from
 // an MFA bypass.
-func TestCompleteIfSufficientHandsOffWhenPolicyShapeIsUnrecognised(t *testing.T) {
+func TestCompleteIfSufficientUnavailableWhenPolicyShapeIsUnrecognised(t *testing.T) {
 	bodies := map[string]string{
 		"empty object":                   `{}`,
 		"null body":                      `null`,
@@ -431,21 +447,22 @@ func TestCompleteIfSufficientHandsOffWhenPolicyShapeIsUnrecognised(t *testing.T)
 			c := countingZitadel(t, body, &finalized)
 
 			got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
-			if err != nil {
-				t.Fatalf("CompleteIfSufficient() error = %v, want a handoff not an error", err)
+			if !errors.Is(err, ErrUnavailable) {
+				t.Fatalf("CompleteIfSufficient() error = %v, want ErrUnavailable (#947: unreadable is retryable, never a refusal)", err)
 			}
 			if finalized.Load() {
 				t.Fatal("finalize was called for a policy body Helivanta could not understand: a 200 that did not say 'MFA off' was read as if it had")
 			}
-			if got.Outcome != OutcomeHandoff {
-				t.Errorf("Outcome = %v, want OutcomeHandoff", got.Outcome)
+			if got.Outcome == OutcomeComplete {
+				t.Errorf("Outcome = %v alongside an error", got.Outcome)
 			}
 		})
 	}
 }
 
-// Fail closed: an unreadable policy must hand off, never complete.
-func TestCompleteIfSufficientHandsOffWhenPolicyUnreadable(t *testing.T) {
+// Fail closed: an unreadable policy is ErrUnavailable, never a completion
+// and never a refusal (#947 spec D1).
+func TestCompleteIfSufficientUnavailableWhenPolicyUnreadable(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -470,18 +487,18 @@ func TestCompleteIfSufficientHandsOffWhenPolicyUnreadable(t *testing.T) {
 	c := New(srv.URL, "pat", srv.Client())
 
 	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
-	if err != nil {
-		t.Fatalf("CompleteIfSufficient() error = %v, want a handoff not an error", err)
+	if !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("CompleteIfSufficient() error = %v, want ErrUnavailable when the policy cannot be read", err)
 	}
-	if got.Outcome != OutcomeHandoff {
-		t.Errorf("Outcome = %v, want OutcomeHandoff when the policy cannot be read", got.Outcome)
+	if got.Outcome == OutcomeComplete {
+		t.Errorf("Outcome = %v alongside an error", got.Outcome)
 	}
 	if finalized.Load() {
 		t.Fatal("finalize was called while the policy was unknown: fails open")
 	}
 }
 
-// TestCompleteIfSufficientHandsOffWhenUserHasEnrolledFactor is #854
+// TestCompleteIfSufficientRefusesWhenUserHasEnrolledFactor is #854
 // Task 8's proven-to-fail test: the org does NOT force MFA (same policy
 // body as TestCompleteIfSufficientFinalizesWhenNoMFARequired, which DOES
 // finalize), but the user has voluntarily enrolled a factor Helivanta
@@ -495,12 +512,12 @@ func TestCompleteIfSufficientHandsOffWhenPolicyUnreadable(t *testing.T) {
 // resolved) warned about.
 //
 // Task 3 (#867) narrowed this: TOTP alone now asks for the factor instead
-// of handing off (TestCompleteIfSufficient_TOTPEnrolledAsksForTheFactor),
+// of refusing (TestCompleteIfSufficient_TOTPEnrolledAsksForTheFactor),
 // so this fixture enrolls TOTP ALONGSIDE an uncollectible factor
 // (OTP_EMAIL) — the case spec D1 calls out by name: Helivanta can only
 // collect one of the two, so completing on the strength of TOTP alone
 // would silently skip the OTP_EMAIL factor the user also configured.
-func TestCompleteIfSufficientHandsOffWhenUserHasEnrolledFactor(t *testing.T) {
+func TestCompleteIfSufficientRefusesWhenUserHasEnrolledFactor(t *testing.T) {
 	var finalized atomic.Bool
 	c := countingZitadelWithFactors(t,
 		`{"policy":{"passwordCheckLifetime":"864000s"}}`,
@@ -511,20 +528,20 @@ func TestCompleteIfSufficientHandsOffWhenUserHasEnrolledFactor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompleteIfSufficient() error = %v", err)
 	}
-	if got.Outcome != OutcomeHandoff {
-		t.Errorf("Outcome = %v, want OutcomeHandoff: the user enrolled a factor a password-only session cannot satisfy, even alongside TOTP", got.Outcome)
+	if got.Outcome != OutcomeRefused || got.Reason != RefusalFactorUnsupported {
+		t.Errorf("Result = %v/%v, want refused/factor_unsupported: the user enrolled a factor a password-only session cannot satisfy, even alongside TOTP", got.Outcome, got.Reason)
 	}
 	if finalized.Load() {
 		t.Fatal("finalize was called for a user with an enrolled second factor the org policy alone would have missed: this is the bypass Task 8 closes")
 	}
 }
 
-// TestCompleteIfSufficientHandsOffWhenEnrolledFactorCheckUnreadable pins
+// TestCompleteIfSufficientUnavailableWhenEnrolledFactorCheckUnreadable pins
 // the fail-closed direction for classifyEnrolledMethods itself, the same
-// way TestCompleteIfSufficientHandsOffWhenPolicyUnreadable pins it for
+// way TestCompleteIfSufficientUnavailableWhenPolicyUnreadable pins it for
 // LoginPolicy: an unreadable answer must never be mistaken for "no
 // factor found".
-func TestCompleteIfSufficientHandsOffWhenEnrolledFactorCheckUnreadable(t *testing.T) {
+func TestCompleteIfSufficientUnavailableWhenEnrolledFactorCheckUnreadable(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -541,18 +558,18 @@ func TestCompleteIfSufficientHandsOffWhenEnrolledFactorCheckUnreadable(t *testin
 	c := New(srv.URL, "pat", srv.Client())
 
 	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
-	if err != nil {
-		t.Fatalf("CompleteIfSufficient() error = %v, want a handoff not an error", err)
+	if !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("CompleteIfSufficient() error = %v, want ErrUnavailable when the enrolled-factor check cannot be read", err)
 	}
-	if got.Outcome != OutcomeHandoff {
-		t.Errorf("Outcome = %v, want OutcomeHandoff when the enrolled-factor check cannot be read", got.Outcome)
+	if got.Outcome == OutcomeComplete {
+		t.Errorf("Outcome = %v alongside an error", got.Outcome)
 	}
 	if finalized.Load() {
 		t.Fatal("finalize was called while the enrolled-factor check was unreadable: fails open")
 	}
 }
 
-// TestCompleteIfSufficientHandsOffWhenSessionHasNoOrgID is #913 Task 2's
+// TestCompleteIfSufficientUnavailableWhenSessionHasNoOrgID is #913 Task 2's
 // central proof: a session whose factors.user carries no organizationId
 // at all must never reach a completed login. This is the case KNOWN
 // LIMITATIONS §2 (now deleted from CompleteIfSufficient's doc comment)
@@ -562,7 +579,7 @@ func TestCompleteIfSufficientHandsOffWhenEnrolledFactorCheckUnreadable(t *testin
 // owner happened to be. Now LoginPolicyForOrg refuses an empty org id
 // BEFORE issuing any HTTP request (spec D2) rather than falling back to
 // an unscoped read, so this test also asserts the policy endpoint is
-// never even hit — not merely that the outcome happens to be a handoff.
+// never even hit — not merely that the outcome happens to be a non-completion.
 //
 // Verification: mutating sessionSubject to default a missing
 // organizationId to some non-empty value (e.g. the login client's own
@@ -570,7 +587,7 @@ func TestCompleteIfSufficientHandsOffWhenEnrolledFactorCheckUnreadable(t *testin
 // stop refusing, the policy endpoint assertion below would fire, and this
 // test would fail — reintroducing #913 for exactly the session shape
 // hardest to notice.
-func TestCompleteIfSufficientHandsOffWhenSessionHasNoOrgID(t *testing.T) {
+func TestCompleteIfSufficientUnavailableWhenSessionHasNoOrgID(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -593,11 +610,11 @@ func TestCompleteIfSufficientHandsOffWhenSessionHasNoOrgID(t *testing.T) {
 	c := New(srv.URL, "pat", srv.Client())
 
 	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
-	if err != nil {
-		t.Fatalf("CompleteIfSufficient() error = %v, want a handoff not an error", err)
+	if !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("CompleteIfSufficient() error = %v, want ErrUnavailable when the session carries no organizationId", err)
 	}
-	if got.Outcome != OutcomeHandoff {
-		t.Errorf("Outcome = %v, want OutcomeHandoff when the session carries no organizationId", got.Outcome)
+	if got.Outcome == OutcomeComplete {
+		t.Errorf("Outcome = %v alongside an error", got.Outcome)
 	}
 	if finalized.Load() {
 		t.Fatal("finalize was called for a session with no organizationId: this is the #913 bypass")

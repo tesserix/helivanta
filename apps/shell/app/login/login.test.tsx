@@ -371,33 +371,49 @@ describe("LoginPage", () => {
       expect(occurrences - 1).toBe(1);
     });
 
-    // Spec D4: a handoff is a NORMAL outcome (MFA required, a forced
-    // password change, a federated hospital IdP, or a policy the API could
-    // not read), never an error — the page must navigate there exactly as
-    // it would a callback_url.
-    it("navigates to the handoff url when the API says a handoff is required", async () => {
-      stubAuthFlow({
-        password: () =>
-          jsonResponse(200, {
-            handoff_url: "http://localhost:20080/ui/v2/login?authRequest=V2_test-auth-request",
-          }),
-      });
-      const assignSpy = vi.fn();
-      vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+    // #947: when the password is right but Helivanta cannot complete the
+    // sign-in, the API refuses with 403 and a reason code. The page must
+    // show the API's own message on the start-again landing and must NEVER
+    // navigate — the old `handoff_url` navigation to Zitadel's hosted login
+    // stranded clinicians on Zitadel's "You are signed in" page. Each code
+    // is exercised separately: one passing case would not prove the others
+    // are not silently treated as a wrong password.
+    it.each([
+      [
+        "sign_in_method_unsupported",
+        "your account uses a sign-in method Helivanta does not support yet; contact your administrator",
+      ],
+      [
+        "mfa_enrollment_required",
+        "your organisation requires two-step verification, which is not set up for your account yet; contact your administrator",
+      ],
+      ["sign_in_incomplete", "this sign-in could not be completed; start again"],
+    ])(
+      "shows the %s refusal on the start-again landing and never navigates",
+      async (code, message) => {
+        stubAuthFlow({
+          password: () => jsonResponse(403, { error: code, message }),
+        });
+        const assignSpy = vi.fn();
+        vi.stubGlobal("location", { ...window.location, assign: assignSpy });
 
-      const { user } = renderWithProviders(<LoginPage />);
-      await user.type(await screen.findByLabelText("Email or username"), "clinician@helivanta.dev");
-      await user.type(screen.getByLabelText("Password"), "correct-password");
-      await user.click(screen.getByRole("button", { name: "Sign in" }));
+        const { user } = renderWithProviders(<LoginPage />);
+        await user.type(
+          await screen.findByLabelText("Email or username"),
+          "clinician@helivanta.dev",
+        );
+        await user.type(screen.getByLabelText("Password"), "correct-password");
+        await user.click(screen.getByRole("button", { name: "Sign in" }));
 
-      await waitFor(() =>
-        expect(assignSpy).toHaveBeenCalledWith(
-          "http://localhost:20080/ui/v2/login?authRequest=V2_test-auth-request",
-        ),
-      );
-      // Not treated as a refusal — no shared-refusal alert rendered.
-      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    });
+        expect(await screen.findByText(message)).toBeInTheDocument();
+        // The credential form is gone and the start-again control is there.
+        expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+        // Not a wrong-password refusal, and nowhere to go.
+        expect(screen.queryByText(/email or password is incorrect/i)).not.toBeInTheDocument();
+        expect(assignSpy).not.toHaveBeenCalled();
+      },
+    );
 
     it("navigates to the callback url when the credential completes the login", async () => {
       stubAuthFlow({
@@ -558,7 +574,7 @@ describe("LoginPage", () => {
         await user.click(screen.getByRole("button", { name: "Sign in" }));
       }
 
-      // The same trap `handoff_url` documents (spec D3 of the login-client
+      // The same trap the old `handoff_url` documented (spec D3 of the login-client
       // spec, restated for this outcome by spec D8): `factor_required`
       // means the password was CORRECT. Rendering it as an error would
       // send a clinician to reset a working password — this asserts the
@@ -680,24 +696,18 @@ describe("LoginPage", () => {
         expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
       });
 
-      // Review finding 2, fix round 1: the `handoff` branch exists in
-      // checkFactor's type and in OtpStep's onSuccess switch (page.tsx),
-      // but was untested — exactly the shape a future refactor collapses
-      // into `default: showError`, the same trap the PASSWORD step's own
-      // handoff test (`navigates to the handoff url...` above) exists to
-      // guard against. Mirrors that test: a verified TOTP code can still
-      // hand off (loginui.go's `Factor` handler: CompleteAfterFactor
-      // re-runs the uncollectible/enrolled checks and can find the
-      // session insufficient even after a CORRECT code — e.g. enrollment
-      // changed between the password step and this one), and that is NOT
-      // a failure — no alert, straight navigation.
-      it("navigates to the handoff url when a verified factor still needs Zitadel's hosted login", async () => {
+      // A verified TOTP code can still be refused (#947): loginui.go's
+      // Factor handler re-runs the uncollectible/enrolled checks and can
+      // find the session insufficient even after a CORRECT code — e.g.
+      // enrolment changed between the password step and this one. That is
+      // NOT a wrong code (no wrong-code message, the code step does not
+      // stay), and it does NOT navigate anywhere: it ends on the start-again
+      // landing with the API's own message.
+      it("ends on the start-again landing when a verified factor is still refused", async () => {
+        const message = "this sign-in could not be completed; start again";
         stubAuthFlow({
           password: () => jsonResponse(200, { factor_required: ["totp"] }),
-          factor: () =>
-            jsonResponse(200, {
-              handoff_url: "http://localhost:20080/ui/v2/login?authRequest=V2_test-auth-request",
-            }),
+          factor: () => jsonResponse(403, { error: "sign_in_incomplete", message }),
         });
         const assignSpy = vi.fn();
         vi.stubGlobal("location", { ...window.location, assign: assignSpy });
@@ -708,14 +718,10 @@ describe("LoginPage", () => {
         const codeField = await screen.findByLabelText(/verification code/i);
         await user.type(codeField, "123456");
 
-        await waitFor(() =>
-          expect(assignSpy).toHaveBeenCalledWith(
-            "http://localhost:20080/ui/v2/login?authRequest=V2_test-auth-request",
-          ),
-        );
-        // Not treated as a refusal — no shared-refusal alert rendered,
-        // same assertion the password-step handoff test makes.
-        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        expect(await screen.findByText(message)).toBeInTheDocument();
+        expect(screen.queryByLabelText(/verification code/i)).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+        expect(assignSpy).not.toHaveBeenCalled();
       });
     });
   });

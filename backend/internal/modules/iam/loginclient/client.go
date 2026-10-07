@@ -367,8 +367,9 @@ func (c *Client) SessionFactors(ctx context.Context, sessionID string) (Factors,
 // arrays if unset. The original design (require an EXPLICIT `forceMfa`,
 // full stop) therefore treated the ORDINARY, non-MFA-enforcing case as
 // "cannot understand this response" on every single real login —
-// CompleteIfSufficient's fail-closed branch then handed EVERY login off
-// to Zitadel's hosted UI, which is not a conservative failure mode here,
+// CompleteIfSufficient's fail-closed branch then refused EVERY login (at
+// the time, by handing it off to Zitadel's hosted UI — removed by #947),
+// which is not a conservative failure mode here,
 // it is the feature not working at all.
 //
 // The fix is an ANCHOR, not a relaxed default:
@@ -460,7 +461,7 @@ func (c *Client) SessionFactors(ctx context.Context, sessionID string) (Factors,
 // exist alongside this structural guard rather than instead of it: a
 // real policy read through the real decode path is the only thing that
 // can prove the MEANING, not just the shape, still holds — and a THIRD
-// override field would show up there as a completed login when handoff
+// override field would show up there as a completed login when a refusal
 // was expected, the same way `forceMfaLocalOnly` itself was found.
 // TestLoginPolicyRejectsBodiesItCannotUnderstand,
 // TestLoginPolicyTreatsAbsentForceMFAAsFalseWhenPolicyIsRecognizable,
@@ -594,8 +595,8 @@ const passwordOnlyMethodType = "AUTHENTICATION_METHOD_TYPE_PASSWORD"
 // this factor. Every other non-password value in nonPasswordFactorPrefix's
 // list (_OTP_EMAIL, _U2F, _PASSKEY, _IDP, _OTP_SMS, _RECOVERY_CODE) has no
 // corresponding collection path in Helivanta today, so its presence — even
-// alongside an enrolled TOTP — must still hand off to Zitadel's hosted UI
-// (spec D1): completing on the strength of the one factor Helivanta CAN
+// alongside an enrolled TOTP — must still refuse the login with
+// RefusalFactorUnsupported (spec D1; #947 replaced the hosted-UI handoff): completing on the strength of the one factor Helivanta CAN
 // collect would silently skip the other one the user configured.
 const totpMethodType = "AUTHENTICATION_METHOD_TYPE_TOTP"
 

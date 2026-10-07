@@ -82,26 +82,10 @@ NATS_URL ?= nats://localhost:$(HELIVANTA_NATS_PORT)
 OPENFGA_URL ?= http://localhost:$(HELIVANTA_OPENFGA_PORT)
 ZITADEL_ISSUER_URL ?= http://$(HELIVANTA_ZITADEL_HOST):$(HELIVANTA_ZITADEL_PORT)
 
-# Derived from the SAME host as the issuer, and exported below, so that
-# overriding HELIVANTA_ZITADEL_HOST actually moves the whole IdP rather than
-# half of it (#916 Task 4 fix round 2). backend/internal/config/config.go
-# carries a hardcoded dev default for this variable; before this line, an
-# override moved ZITADEL_ISSUER_URL and left hosted login pointed at
-# auth.tesserix.localhost, so sign-in broke for anyone who took the
-# documented override at its word. The claim came first and the wiring
-# second — fixed by making the claim true, not by softening it.
-ZITADEL_HOSTED_LOGIN_URL ?= http://$(HELIVANTA_ZITADEL_HOST):$(HELIVANTA_ZITADEL_PORT)/ui/v2/login
-
-# Same reasoning for the APP's origin. config.DevHelivantaWebOrigin
-# (backend/internal/config/hostedlogin.go) is likewise a hardcoded
-# helivanta.localhost:4301, and its only consumer is the boot-time
-# RequireDistinctHostedLoginOrigin assertion — so a stale value there
-# WEAKENS a guard rather than breaking login, which is quieter and
-# therefore worth closing too. Deriving and exporting it means the guard
-# compares the origins this stack actually serves. The dev-api-renewal
-# recipe sets its own value (its shell runs on a different port); a
-# recipe-level assignment still wins over this export.
-HELIVANTA_WEB_ORIGIN ?= http://$(HELIVANTA_WEB_HOST):4301
+# ZITADEL_HOSTED_LOGIN_URL and HELIVANTA_WEB_ORIGIN used to be derived and
+# exported here. Both existed only for the hosted-login handoff, which #947
+# deleted — Helivanta never sends a user to Zitadel's login UI — so the API no
+# longer reads either variable, and neither is set here any more.
 
 # API_URL is what each app's next.config.ts rewrites /api to (server side).
 API_URL ?= http://localhost:$(HELIVANTA_API_PORT)
@@ -126,7 +110,6 @@ export HELIVANTA_PG_PORT HELIVANTA_NATS_PORT HELIVANTA_NATS_MONITOR_PORT HELIVAN
 # resolves to the same value every recipe here uses.
 export HELIVANTA_WEB_HOST HELIVANTA_ZITADEL_HOST
 export APP_DATABASE_URL ADMIN_DATABASE_URL SYSTEM_DATABASE_URL NATS_URL OPENFGA_URL ZITADEL_ISSUER_URL
-export ZITADEL_HOSTED_LOGIN_URL HELIVANTA_WEB_ORIGIN
 export API_URL
 export ZITADEL_CLIENT_ID
 export NEXT_PUBLIC_ZITADEL_ISSUER_URL NEXT_PUBLIC_ZITADEL_CLIENT_ID
@@ -466,7 +449,7 @@ dev-api-renewal:
 		exit 1; \
 	fi
 	set -a; . ./$(ZITADEL_RENEWAL_ENV_FILE); set +a; \
-	cd backend && HELIVANTA_ENV=$${HELIVANTA_ENV:-dev} ZITADEL_ISSUER_URL=$${ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} ZITADEL_CLIENT_ID=$$ZITADEL_CLIENT_ID ZITADEL_LOGIN_CLIENT_TOKEN=$${ZITADEL_LOGIN_CLIENT_TOKEN:-$$(cat ../$(ZITADEL_LOGIN_CLIENT_PAT_FILE))} SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-$(HELIVANTA_DEV_SESSION_SIGNING_KEY)} HELIVANTA_WEB_ORIGIN=http://$(HELIVANTA_WEB_HOST):$(HELIVANTA_RENEWAL_WEB_PORT) PORT=$(HELIVANTA_RENEWAL_API_PORT) SESSION_TTL=$(SESSION_TTL_TEST_VALUE) RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) go run ./cmd/api
+	cd backend && HELIVANTA_ENV=$${HELIVANTA_ENV:-dev} ZITADEL_ISSUER_URL=$${ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} ZITADEL_CLIENT_ID=$$ZITADEL_CLIENT_ID ZITADEL_LOGIN_CLIENT_TOKEN=$${ZITADEL_LOGIN_CLIENT_TOKEN:-$$(cat ../$(ZITADEL_LOGIN_CLIENT_PAT_FILE))} SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-$(HELIVANTA_DEV_SESSION_SIGNING_KEY)} PORT=$(HELIVANTA_RENEWAL_API_PORT) SESSION_TTL=$(SESSION_TTL_TEST_VALUE) RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) go run ./cmd/api
 
 # Only apps/shell, for the same reason dev-web-idle-timeout is: the spec
 # never navigates into a zone app, and `pnpm turbo dev` would re-bind

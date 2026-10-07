@@ -25,16 +25,11 @@ a real read under it, which is a separate, not-yet-done task (see D7).
 |---|---|---|---|
 | `SESSION_SIGNING_KEY` | `kv/data/helivanta/helivanta-api/session-signing-key` | Signs and verifies every Helivanta session token (Ed25519 seed) | Credential forgery — holder can mint valid sessions for any user, indistinguishable from a real login, until the key is rotated |
 | `ZITADEL_LOGIN_CLIENT_TOKEN` | `kv/data/helivanta/helivanta-api/zitadel-login-client-token` | PAT for Helivanta's `IAM_LOGIN_CLIENT` machine user; lets Helivanta's own login form check credentials and finalise sign-ins against production Zitadel | Instance-level (D2): a leaked PAT can finalise an OIDC auth request for **any** app on the shared Zitadel instance, not just Helivanta. Helivanta holding its own machine user buys independent revocation, attribution, and rotation — it does not narrow what the credential can do once read |
-| `HELIVANTA_WEB_ORIGIN` | **not in OpenBao — see below** | The public origin Helivanta's own frontend is served from | N/A — see below |
 
-**`HELIVANTA_WEB_ORIGIN` is config, not a secret (D1).** It refuses boot when unset,
-which is why it is easy to mistake for one, but it is a public origin string —
-visible in every browser address bar — not a confidential value. It belongs
-in the deployment environment (#824), not under `kv/data/helivanta/*`. It is
-recorded in this table only so the next reader who sees it refuse boot does
-not file it into OpenBao alongside the two real secrets: everything under
-`kv/data/helivanta/*` being a credential is the property that keeps that path easy
-to reason about, and mixing in a config string would quietly weaken it.
+`HELIVANTA_WEB_ORIGIN` used to appear here as config that refused boot when
+unset. The API no longer reads it (#947 deleted the hosted-login handoff it
+existed to guard), so a deployment may drop it; leaving it set is harmless.
+It was never a secret and never belonged under `kv/data/helivanta/*`.
 
 ## Delivery chain (D4)
 

@@ -8,6 +8,10 @@ enrolled-factor rows stop being handoffs **for TOTP only**; every other row is
 unchanged.
 **Depends on:** [#866](https://github.com/tesserix/helivanta/issues/866)
 (`@tesserix/web` 2.2.1), merged.
+**Superseded in part (2026-10-07):** every **handoff** row in this document is
+replaced by `2026-10-07-no-hosted-login-handoff-design.md` (#947). Helivanta no
+longer sends any user to Zitadel's hosted login; those cases are refused with a
+reason, and an unreadable policy or factor set is a retryable 503.
 **Advances:** [#35](https://github.com/tesserix/helivanta/issues/35) (MFA).
 **Does not touch:** [#422](https://github.com/tesserix/helivanta/issues/422)
 (passkeys) — see "Out of scope".

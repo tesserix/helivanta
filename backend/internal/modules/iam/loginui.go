@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -99,6 +98,25 @@ const authRequestExpiredMessage = "this sign-in attempt has expired; start again
 // was never checked).
 const zitadelUnavailableMessage = "sign-in is temporarily unavailable; please try again"
 
+// Refusal codes and messages (#947 spec D2). Each answers a sign-in whose
+// password Zitadel ACCEPTED but which Helivanta still cannot complete. They are
+// Helivanta's own words — the browser is never redirected to Zitadel's hosted
+// login for any of them. None joins spec D5's equalised credential refusal:
+// each is reachable only with the correct password, exactly as the deleted
+// handoff_url was, so it discloses nothing a wrong-password probe can learn.
+const (
+	refusalCodeMethodUnsupported    = "sign_in_method_unsupported"
+	refusalMessageMethodUnsupported = "your account uses a sign-in method Helivanta does not support yet; " +
+		"contact your administrator"
+
+	refusalCodeEnrollmentRequired    = "mfa_enrollment_required"
+	refusalMessageEnrollmentRequired = "your organisation requires two-step verification, which is not set up " +
+		"for your account yet; contact your administrator"
+
+	refusalCodeIncomplete    = "sign_in_incomplete"
+	refusalMessageIncomplete = "this sign-in could not be completed; start again"
+)
+
 // loginAttemptTTL is the window after which a login_attempt row is
 // treated as EXPIRED ON READ — spec D6: "expires_at is short — the auth
 // request itself expires, and a pending factor step that outlives it is
@@ -135,22 +153,21 @@ const loginAttemptTTL = 5 * time.Minute
 // LoginUIHandlers backs the four routes Helivanta's own login form drives
 // directly against Zitadel's login-client API (plan #854 Task 4, spec
 // D5; #867 Task 4 adds Factor): reading an auth request, checking a
-// password, checking a native TOTP factor when the password step alone
-// was not enough, and handing off to Zitadel's hosted UI when Helivanta
-// cannot complete the login itself. Like LoginHandlers (login.go), all
-// four are mounted OUTSIDE the authenticated /v1 chain via
+// password, and checking a native TOTP factor when the password step
+// alone was not enough. When Helivanta cannot complete a login it REFUSES it
+// in its own words; it never hands the browser to Zitadel's hosted login
+// (#947). Like LoginHandlers (login.go), all three are mounted OUTSIDE the authenticated /v1 chain via
 // bootstrap.MountUnauthenticated — there is no Helivanta session, and for
 // Password/Factor specifically no verified subject at all, until AFTER
 // they succeed.
 type LoginUIHandlers struct {
-	client             *loginclient.Client
-	hostedLoginBaseURL string
-	store              *loginAttemptStore
-	limiter            ratelimit.Limiter
-	limit              ratelimit.Rule
+	client  *loginclient.Client
+	store   *loginAttemptStore
+	limiter ratelimit.Limiter
+	limit   ratelimit.Rule
 	// factorLimit is POST /v1/auth/login/factor's OWN budget — see
 	// factorRateBucket's doc comment on why a six-digit guessing
-	// endpoint cannot share limit (Password/AuthRequest/Handoff's
+	// endpoint cannot share limit (Password/AuthRequest's
 	// budget) without silently narrowing the whole login surface's
 	// capacity to whatever the guessing endpoint alone would tolerate.
 	factorLimit ratelimit.Rule
@@ -158,11 +175,6 @@ type LoginUIHandlers struct {
 
 // NewLoginUIHandlers wires LoginUIHandlers' dependencies. client is
 // Task 2's loginclient.Client, authenticated with the login-client PAT.
-// hostedLoginBaseURL is Zitadel's own hosted login origin+path (e.g.
-// http://auth.tesserix.localhost:20080/ui/v2/login per Task 1's finding that Zitadel
-// APPENDS to whatever baseUri is configured) — Handoff and a Password
-// call that resolves to OutcomeHandoff both build their handoff_url from
-// it.
 //
 // db backs the login_attempt store (Task 1, loginattempt.go): the
 // Zitadel session Password stashes between the password step and the
@@ -172,8 +184,8 @@ type LoginUIHandlers struct {
 // one this way) — newLoginAttemptStore does no I/O at construction time,
 // only when a store method is actually called.
 //
-// limiter and limit are the budget shared by AuthRequest, Password and
-// Handoff (#854 Task 4, spec D2: "all three sit behind the existing
+// limiter and limit are the budget shared by AuthRequest and Password
+// (#854 Task 4, spec D2: "all three sit behind the existing
 // unauthenticated limiter"): reused from the SAME ratelimit.Limiter
 // instance bootstrap.V1Chain and LoginHandlers already share, per #851
 // and docs/standards on not inventing a second limiter, each keyed under
@@ -185,14 +197,13 @@ type LoginUIHandlers struct {
 // fails OPEN for every route, mirroring LoginHandlers.Login's documented
 // direction: this is a capacity control, and a limiter that cannot
 // decide must not take sign-in down for a hospital.
-func NewLoginUIHandlers(client *loginclient.Client, hostedLoginBaseURL string, db *tenantdb.DB, limiter ratelimit.Limiter, limit, factorLimit ratelimit.Rule) *LoginUIHandlers {
+func NewLoginUIHandlers(client *loginclient.Client, db *tenantdb.DB, limiter ratelimit.Limiter, limit, factorLimit ratelimit.Rule) *LoginUIHandlers {
 	return &LoginUIHandlers{
-		client:             client,
-		hostedLoginBaseURL: hostedLoginBaseURL,
-		store:              newLoginAttemptStore(db),
-		limiter:            limiter,
-		limit:              limit,
-		factorLimit:        factorLimit,
+		client:      client,
+		store:       newLoginAttemptStore(db),
+		limiter:     limiter,
+		limit:       limit,
+		factorLimit: factorLimit,
 	}
 }
 
@@ -215,7 +226,6 @@ func NewLoginUIHandlers(client *loginclient.Client, hostedLoginBaseURL string, d
 const (
 	authRequestRateBucket = "login_auth_request:"
 	passwordRateBucket    = "login_password:"
-	handoffRateBucket     = "login_handoff:"
 	factorRateBucket      = "login_factor:"
 )
 
@@ -230,8 +240,8 @@ const (
 // (bootstrap.MountUnauthenticated), OUTSIDE V1Chain — so
 // ratelimit.Middleware never runs for them and they get no budget at all
 // unless it is applied here. An earlier version of this file limited only
-// Password, which left GET /v1/auth/login/request/:id and
-// POST /v1/auth/login/handoff/:id unauthenticated AND unlimited. That is
+// Password, which left GET /v1/auth/login/request/:id (and a since-deleted
+// hosted-login handoff route) unauthenticated AND unlimited. That is
 // not merely a missing control on a cheap route: AuthRequest makes an
 // unauthenticated Zitadel round trip per request, spending the
 // INSTANCE-LEVEL login-client PAT's budget on a Zitadel shared with the
@@ -251,8 +261,8 @@ const (
 // LoginHandlers.Login: per docs/standards/engineering-principles.md §3
 // this is a capacity control, and a limiter that cannot decide must not
 // take sign-in down for a hospital.
-// rule is the caller's own budget — h.limit for AuthRequest/Password/
-// Handoff (shared, per this type's doc comment) or h.factorLimit for
+// rule is the caller's own budget — h.limit for AuthRequest/Password
+// (shared, per this type's doc comment) or h.factorLimit for
 // Factor (its own, per factorRateBucket's doc comment). Threading it as
 // a parameter, rather than a second near-identical method, keeps the
 // admit/refuse/log/fail-open logic in exactly one place regardless of
@@ -430,22 +440,13 @@ type passwordSuccessResponse struct {
 	CallbackURL string `json:"callback_url"`
 }
 
-// passwordHandoffResponse is OutcomeHandoff's shape: nowhere for Helivanta to
-// redirect the caller to except Zitadel's own hosted login UI, which can
-// collect whatever Helivanta's own form cannot (an enrolled second factor,
-// today; see loginclient.CompleteIfSufficient's KNOWN LIMITATIONS for
-// what that currently excludes).
-type passwordHandoffResponse struct {
-	HandoffURL string `json:"handoff_url"`
-}
-
 // factorRequiredResponse is OutcomeFactorRequired's shape (#867, spec
 // D8): which factor kind(s) the login form must now collect natively,
-// via POST /v1/auth/login/factor. Deliberately carries NEITHER
-// CallbackURL nor HandoffURL — this is neither success nor failure (see
+// via POST /v1/auth/login/factor. Deliberately carries no CallbackURL —
+// this is neither success nor failure (see
 // this type's own doc note in the spec: "the page must treat
 // factor_required as neither"), so it must not be structurally
-// confusable with either of its siblings above.
+// confusable with its success sibling above.
 type factorRequiredResponse struct {
 	Factors []string `json:"factor_required"`
 }
@@ -564,15 +565,51 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 		respond.OK(c, factorRequiredResponse{Factors: nonNilFactors(result.Factors)})
 
 	default:
-		// OutcomeHandoff: the session Helivanta built is insufficient (or the
-		// policy could not be read — CompleteIfSufficient fails closed
-		// either way), so hand the browser to Zitadel's own hosted login to
-		// finish what Helivanta cannot. This is NOT a failure — no timing floor,
-		// no equalised message, no ambiguity about whether the password was
-		// even right, because it was.
-		requestid.Logger(c).InfoContext(c.Request.Context(), "login password succeeded but session insufficient",
-			"auth_request_id", req.AuthRequestID, "outcome", "handoff")
-		respond.OK(c, passwordHandoffResponse{HandoffURL: h.handoffURL(req.AuthRequestID)})
+		// OutcomeRefused (and anything unrecognised, which fails closed the
+		// same way): the password was right, but Helivanta cannot complete
+		// this sign-in. Refused in Helivanta's own words (#947) — no timing
+		// floor and no equalised message, because the credential was correct.
+		h.respondRefusal(c, req.AuthRequestID, "password", result)
+	}
+}
+
+// respondRefusal answers a loginclient refusal (#947 spec D2) and logs WHY,
+// with the enrolled method types when the reason is an unsupported factor
+// (spec D5) — the line that answers "why could this clinician not sign in"
+// without opening Zitadel's console. stage names the handler, for the log
+// only.
+//
+// A Result whose Outcome is not OutcomeRefused reaching here is a switch that
+// did not handle a new Outcome; it is refused, not completed, and logged as
+// such rather than guessed at.
+func (h *LoginUIHandlers) respondRefusal(c *gin.Context, authRequestID, stage string, result loginclient.Result) {
+	reason := result.Reason
+	if result.Outcome != loginclient.OutcomeRefused {
+		reason = loginclient.RefusalUnspecified
+	}
+	attrs := []any{
+		"auth_request_id", authRequestID,
+		"stage", stage,
+		"outcome", "refused",
+		"refusal_reason", reason.String(),
+	}
+	if len(result.EnrolledMethods) > 0 {
+		attrs = append(attrs, "enrolled_methods", result.EnrolledMethods)
+	}
+	if reason == loginclient.RefusalUnspecified {
+		attrs = append(attrs, "result_outcome", result.Outcome.String())
+		requestid.Logger(c).ErrorContext(c.Request.Context(), "login refused with no reason: a loginclient outcome is unhandled", attrs...)
+	} else {
+		requestid.Logger(c).WarnContext(c.Request.Context(), "login refused", attrs...)
+	}
+
+	switch reason {
+	case loginclient.RefusalFactorUnsupported:
+		respond.Error(c, http.StatusForbidden, refusalCodeMethodUnsupported, refusalMessageMethodUnsupported)
+	case loginclient.RefusalMFAEnrollmentRequired:
+		respond.Error(c, http.StatusForbidden, refusalCodeEnrollmentRequired, refusalMessageEnrollmentRequired)
+	default:
+		respond.Error(c, http.StatusForbidden, refusalCodeIncomplete, refusalMessageIncomplete)
 	}
 }
 
@@ -675,42 +712,6 @@ func (h *LoginUIHandlers) respondLoginClientError(c *gin.Context, err error, sta
 	}
 }
 
-// handoffURL builds the URL a caller is sent to when Helivanta cannot complete
-// their login itself: h.hostedLoginBaseURL (an origin+path with no query
-// string of its own — Task 1's finding that Zitadel APPENDS to whatever
-// baseUri is configured) plus the SAME authRequest id Zitadel's own
-// /oauth/v2/authorize redirect used, so its hosted UI resumes the exact
-// auth request Helivanta started checking rather than minting a new one.
-func (h *LoginUIHandlers) handoffURL(authRequestID string) string {
-	return h.hostedLoginBaseURL + "?authRequest=" + url.QueryEscape(authRequestID)
-}
-
-// Handoff backs POST /v1/auth/login/handoff/:id: an explicit "hand this
-// auth request to Zitadel's hosted login" call, for a caller that
-// already knows Helivanta's own form cannot finish it (e.g. a "use another
-// sign-in method" affordance) rather than discovering that only after a
-// Password attempt. It makes no Zitadel call of its own — there is
-// nothing to check, only a URL to build — so it has no failure mode
-// beyond a missing id, which gin's route match already guarantees is
-// non-empty for a matched :id segment.
-//
-// It still takes a rate-limit budget (spec D2). Being cheap for Helivanta to
-// serve is not a reason to leave an unauthenticated route unlimited:
-// this one is mounted on the raw engine, so nothing else applies a
-// budget to it, and an entry in bootstrap.UnauthenticatedRoutes that is
-// reachable by anyone with no principal is exactly the shape #851 closed
-// on POST /v1/auth/login. See allowedByLimiter.
-func (h *LoginUIHandlers) Handoff(c *gin.Context) {
-	if !h.allowedByLimiter(c, handoffRateBucket, h.limit) {
-		return
-	}
-
-	id := c.Param("id")
-	requestid.Logger(c).InfoContext(c.Request.Context(), "login: handed off to hosted login",
-		"auth_request_id", id)
-	respond.OK(c, passwordHandoffResponse{HandoffURL: h.handoffURL(id)})
-}
-
 // factorRequest is the body POST /v1/auth/login/factor accepts (#867,
 // spec D8): the auth request this check resumes, which factor kind is
 // being submitted, and the code itself. Factor is required and checked
@@ -768,7 +769,7 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 	// Both respondEqualisedFailure (wrong code) and respondAttemptExpired
 	// (unknown/expired/exhausted attempt — Finding/Minor 3) read it, so
 	// EVERY attempt-expired-or-refusal path below lands at the same
-	// floor; success, handoff, "unsupported factor", and "Zitadel
+	// floor; success, a reasoned refusal, "unsupported factor", and "Zitadel
 	// unavailable" are deliberately NOT held to it, the same asymmetry
 	// Password observes.
 	start := time.Now()
@@ -789,7 +790,7 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 	}
 
 	// Factor's OWN budget (factorRateBucket, h.factorLimit) — never
-	// h.limit, the budget AuthRequest/Password/Handoff share. See
+	// h.limit, the budget AuthRequest/Password share. See
 	// factorRateBucket's doc comment: a six-digit code-guessing endpoint
 	// sharing a bucket with "load the login form" would let a guessing
 	// flood exhaust the budget legitimate traffic needs, or a generous
@@ -863,30 +864,17 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 		requestid.Logger(c).InfoContext(c.Request.Context(), "login factor succeeded",
 			"auth_request_id", req.AuthRequestID, "outcome", "complete")
 		respond.OK(c, passwordSuccessResponse{CallbackURL: result.CallbackURL})
-	case loginclient.OutcomeHandoff:
-		// CompleteAfterFactor re-runs the SAME uncollectible/enrolled
-		// checks CompleteIfSufficient did (its own doc comment, Finding
-		// 2) and can still hand off even after a CORRECT code — e.g. the
-		// user's enrollment changed between the password step and this
-		// one. That is not a failure of THIS code check, so it is not
-		// the equalised refusal either; it is the identical "hand the
-		// browser to Zitadel's hosted UI" answer Password's own
-		// OutcomeHandoff branch gives. The local attempt is done either
-		// way — Zitadel's hosted UI does not resume it — so the row is
-		// deleted here too.
-		h.deleteAttempt(c, req.AuthRequestID)
-		requestid.Logger(c).InfoContext(c.Request.Context(), "login factor verified but session insufficient",
-			"auth_request_id", req.AuthRequestID, "outcome", "handoff")
-		respond.OK(c, passwordHandoffResponse{HandoffURL: h.handoffURL(req.AuthRequestID)})
 	default:
-		// CompleteAfterFactor's own doc comment: it only ever returns
-		// OutcomeComplete or OutcomeHandoff. Reaching anything else means
-		// loginclient changed underneath this file without this switch
-		// being updated — fail closed exactly like an unrecognized
-		// error would, rather than silently treating an unknown outcome
-		// as either success or refusal.
-		respond.InternalErr(c, fmt.Errorf("unexpected outcome %s from CompleteAfterFactor", result.Outcome),
-			"sign-in could not be completed")
+		// OutcomeRefused (or anything unrecognised, failing closed the same
+		// way). CompleteAfterFactor re-runs the SAME uncollectible/enrolled
+		// checks CompleteIfSufficient did (its own doc comment, Finding 2)
+		// and can still refuse after a CORRECT code — e.g. the user's
+		// enrolment changed between the password step and this one. That
+		// is not a failure of THIS code check, so it is not the equalised
+		// refusal either. The local attempt is over either way, so the row
+		// is deleted.
+		h.deleteAttempt(c, req.AuthRequestID)
+		h.respondRefusal(c, req.AuthRequestID, "factor", result)
 	}
 }
 
@@ -935,9 +923,9 @@ func (h *LoginUIHandlers) bumpFactorAttempt(c *gin.Context, authRequestID string
 }
 
 // deleteAttempt removes authRequestID's login_attempt row once Factor no
-// longer needs it (finalized, or handed off) and logs rather than fails
+// longer needs it (finalized, or refused) and logs rather than fails
 // the request if the delete itself errors: the caller already has their
-// callback_url or handoff_url, and a login_attempt row that outlives its
+// callback_url or refusal, and a login_attempt row that outlives its
 // usefulness by loginAttemptTTL is cleaned up on its own next read
 // (loginAttemptStore.Get's expiry handling) even if this delete is lost.
 func (h *LoginUIHandlers) deleteAttempt(c *gin.Context, authRequestID string) {

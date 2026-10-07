@@ -1,8 +1,10 @@
 package iam
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -22,16 +24,10 @@ import (
 )
 
 const (
-	// loginUITestHostedLoginBaseURL stands in for
-	// config.ZitadelHostedLoginURL (wired for real in Task 5) — an
-	// origin+path with no query string, matching Task 1's finding that
-	// Zitadel APPENDS to whatever baseUri is configured.
-	loginUITestHostedLoginBaseURL = "http://zitadel.test/ui/v2/login"
 	// loginUITestAuthRequestID is a fixed, realistic-looking (Task 1's
 	// spike observed the "V2_" prefix) auth request id every
 	// postPassword call in this file uses — its exact value is never
-	// asserted on, only that it round-trips into the handoff_url and the
-	// log line.
+	// asserted on, only that it round-trips into the log line.
 	loginUITestAuthRequestID = "V2_test_auth_request"
 )
 
@@ -115,7 +111,7 @@ func zitadelHappyPath(t *testing.T) *loginclient.Client {
 		// organizationId is required from #913 Task 2 on: CompleteIfSufficient
 		// scopes its policy read to this field (loginclient/sufficiency.go),
 		// and an absent value refuses the policy read rather than completing —
-		// omitting it here would turn this "happy path" fixture into a handoff.
+		// omitting it here would turn this "happy path" fixture into a 503.
 		_, _ = w.Write([]byte(`{"session":{"id":"sess-1","factors":{"user":{"id":"user-1","organizationId":"org-1"}}}}`))
 	})
 	mux.HandleFunc("GET /v2/users/{id}/authentication_methods", func(w http.ResponseWriter, _ *http.Request) {
@@ -127,9 +123,10 @@ func zitadelHappyPath(t *testing.T) *loginclient.Client {
 	return newZitadelTestClient(t, mux)
 }
 
-// zitadelForceMFA answers a session and a forceMfa=true policy. Its
-// finalize route deliberately fails the test outright if ever hit: under
-// forceMfa, CompleteIfSufficient must hand off BEFORE calling finalize
+// zitadelForceMFA answers a session, a PASSWORD-ONLY enrolment and a
+// forceMfa=true policy. Its finalize route deliberately fails the test
+// outright if ever hit: under forceMfa, CompleteIfSufficient must refuse
+// BEFORE calling finalize
 // (loginclient's sufficiency.go), so this route being reached at all is
 // itself the MFA bypass spec D4 exists to prevent — asserting only on
 // the handler's response body would let a regression that also broke
@@ -143,8 +140,41 @@ func zitadelForceMFA(t *testing.T) *loginclient.Client {
 	mux.HandleFunc("GET /management/v1/policies/login", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"policy":{"passwordCheckLifetime":"864000s","forceMfa":true}}`))
 	})
+	// The session and enrolment routes are REQUIRED for this fixture to
+	// exercise the forceMfa branch at all. An earlier version omitted them,
+	// so the enrolled-factor read failed and every "forceMfa" test here was
+	// really exercising the unreadable path — indistinguishable while both
+	// handed off, and a 503 since #947 made unreadable its own answer.
+	mux.HandleFunc("GET /v2/sessions/{id}", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"session":{"id":"sess-2","factors":{"user":{"id":"user-2","organizationId":"org-1"}}}}`))
+	})
+	mux.HandleFunc("GET /v2/users/{id}/authentication_methods", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD"]}`))
+	})
 	mux.HandleFunc("POST /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("finalize called (%s %s) under a forceMfa policy: this is an MFA bypass", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	return newZitadelTestClient(t, mux)
+}
+
+// zitadelUnsupportedFactor is a correct password for a user who has enrolled
+// OTP_EMAIL — a method Helivanta cannot collect natively. Finalize fails the
+// test if reached, for the same reason as zitadelForceMFA's.
+func zitadelUnsupportedFactor(t *testing.T) *loginclient.Client {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v2/sessions", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"sessionId":"sess-3","sessionToken":"tok-3"}`))
+	})
+	mux.HandleFunc("GET /v2/sessions/{id}", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"session":{"id":"sess-3","factors":{"user":{"id":"user-3","organizationId":"org-1"}}}}`))
+	})
+	mux.HandleFunc("GET /v2/users/{id}/authentication_methods", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_OTP_EMAIL"]}`))
+	})
+	mux.HandleFunc("POST /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("finalize called (%s %s) for a user with an uncollectible factor: this is an MFA bypass", r.Method, r.URL.Path)
 		w.WriteHeader(http.StatusInternalServerError)
 	})
 	return newZitadelTestClient(t, mux)
@@ -168,7 +198,7 @@ func zitadelDown(t *testing.T) *loginclient.Client {
 // the auth request id itself.
 func postPassword(t *testing.T, client *loginclient.Client, loginName, password string) *httptest.ResponseRecorder {
 	t.Helper()
-	h := NewLoginUIHandlers(client, loginUITestHostedLoginBaseURL, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
+	h := NewLoginUIHandlers(client, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -271,18 +301,50 @@ func TestPasswordSuccessReturnsCallbackURL(t *testing.T) {
 	}
 }
 
-func TestPasswordUnderForceMFAReturnsHandoffNotSession(t *testing.T) {
+// TestPasswordUnderForceMFAWithNothingEnrolledIsRefusedNotRedirected is
+// #947: forceMfa with no second factor enrolled is refused in Helivanta's own
+// words — never a callback_url (an MFA bypass) and never a redirect to
+// Zitadel's hosted login (which stranded clinicians on its "signedin" page).
+func TestPasswordUnderForceMFAWithNothingEnrolledIsRefusedNotRedirected(t *testing.T) {
 	rec := postPassword(t, zitadelForceMFA(t), "test@helivanta.dev", "HmsDev123!")
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", rec.Code)
-	}
+	require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
 	body := rec.Body.String()
-	if !strings.Contains(body, "handoff_url") {
-		t.Errorf("body = %s, want a handoff_url", body)
-	}
-	if strings.Contains(body, "callback_url") {
-		t.Error("a forceMfa login returned a callback_url: MFA bypass")
-	}
+	require.Contains(t, body, `"error":"mfa_enrollment_required"`)
+	requireNoRedirectAnywhere(t, body)
+}
+
+// TestPasswordWithAnUnsupportedFactorIsRefusedAndLogsWhy pins both halves of
+// #947 for an account with a method Helivanta cannot collect: the browser gets
+// sign_in_method_unsupported (spec D2), and the log line says why, naming the
+// enrolled methods (spec D5) — the line that would have answered the
+// 2026-10-07 investigation without Zitadel's console.
+func TestPasswordWithAnUnsupportedFactorIsRefusedAndLogsWhy(t *testing.T) {
+	var logs bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	rec := postPassword(t, zitadelUnsupportedFactor(t), "test@helivanta.dev", "HmsDev123!")
+
+	require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"error":"sign_in_method_unsupported"`)
+	requireNoRedirectAnywhere(t, rec.Body.String())
+
+	line := logs.String()
+	require.Contains(t, line, `"msg":"login refused"`)
+	require.Contains(t, line, `"refusal_reason":"factor_unsupported"`)
+	require.Contains(t, line, `"AUTHENTICATION_METHOD_TYPE_OTP_EMAIL"`)
+	require.NotContains(t, line, "HmsDev123!", "a refusal log line must never carry the password")
+}
+
+// requireNoRedirectAnywhere asserts a login response gives the browser
+// nowhere to go: no callback_url (a refusal must not complete), and no
+// handoff_url or Zitadel hosted-login path (#947 deleted the handoff).
+func requireNoRedirectAnywhere(t *testing.T, body string) {
+	t.Helper()
+	require.NotContains(t, body, "callback_url", "a refusal returned a callback_url: MFA bypass")
+	require.NotContains(t, body, "handoff_url")
+	require.NotContains(t, body, "/ui/v2/login")
 }
 
 func TestPasswordWhenZitadelIsDownReturns503NotBadCredentials(t *testing.T) {
@@ -294,23 +356,11 @@ func TestPasswordWhenZitadelIsDownReturns503NotBadCredentials(t *testing.T) {
 
 // --- coverage beyond the brief's pinned five --------------------------
 
-// TestPasswordHandoffURLCarriesTheAuthRequestID proves the handoff_url a
-// forceMfa login answers with actually resumes the SAME auth request
-// Zitadel's own /oauth/v2/authorize redirect started — not a bare
-// redirect to the hosted login's home page, which would drop the OIDC
-// client/redirect/scope context entirely.
-func TestPasswordHandoffURLCarriesTheAuthRequestID(t *testing.T) {
-	rec := postPassword(t, zitadelForceMFA(t), "test@helivanta.dev", "HmsDev123!")
-	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	require.Contains(t, rec.Body.String(), "authRequest="+loginUITestAuthRequestID)
-	require.Contains(t, rec.Body.String(), loginUITestHostedLoginBaseURL)
-}
-
 // TestPasswordRejectsMalformedBody mirrors login_test.go's
 // TestLogin_RejectsMalformedRequestBody: a body that does not even parse
 // must never reach Zitadel.
 func TestPasswordRejectsMalformedBody(t *testing.T) {
-	h := NewLoginUIHandlers(zitadelHappyPath(t), loginUITestHostedLoginBaseURL, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
+	h := NewLoginUIHandlers(zitadelHappyPath(t), nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/v1/auth/login/password", h.Password)
@@ -332,7 +382,7 @@ func TestPasswordRefusesOverBudget(t *testing.T) {
 	rule := ratelimit.Rule{Rate: 6, Burst: 1, Per: time.Minute}
 	client := zitadelHappyPath(t)
 
-	h := NewLoginUIHandlers(client, loginUITestHostedLoginBaseURL, nil, limiter, rule, ratelimit.Rule{})
+	h := NewLoginUIHandlers(client, nil, limiter, rule, ratelimit.Rule{})
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/v1/auth/login/password", h.Password)
@@ -355,17 +405,17 @@ func TestPasswordRefusesOverBudget(t *testing.T) {
 	require.NotEmpty(t, w2.Header().Get("Retry-After"))
 }
 
-// TestAuthRequestRefusesOverBudget and TestHandoffRefusesOverBudget are
-// spec D2's "all three sit behind the existing unauthenticated limiter"
-// for the two routes that had NO budget at all before this branch's
-// final review round. Both are mounted on the raw gin engine
+// TestAuthRequestRefusesOverBudget is spec D2's "all three sit behind the
+// existing unauthenticated limiter" for a route that had NO budget at all
+// before that branch's final review round (its sibling, a hosted-login
+// handoff route, was deleted by #947). It is mounted on the raw gin engine
 // (bootstrap.MountUnauthenticated), outside V1Chain, so
 // ratelimit.Middleware never runs for them — an unlimited
 // GET /v1/auth/login/request/:id in particular makes an unauthenticated
 // Zitadel round trip per call on the INSTANCE-LEVEL login-client PAT,
 // spending a budget shared with every other Tesserix product.
 //
-// Both were proven to fail against the pre-fix handlers (200 on the
+// It was proven to fail against the pre-fix handlers (200 on the
 // second call, where a 429 is required); see the branch's final-fixes
 // report for the failure output.
 func TestAuthRequestRefusesOverBudget(t *testing.T) {
@@ -376,7 +426,7 @@ func TestAuthRequestRefusesOverBudget(t *testing.T) {
 	registerZitadelPolicyOK(mux)
 	limiter := ratelimit.NewMemory(100)
 	rule := ratelimit.Rule{Rate: 6, Burst: 1, Per: time.Minute}
-	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), loginUITestHostedLoginBaseURL, nil, limiter, rule, ratelimit.Rule{})
+	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), nil, limiter, rule, ratelimit.Rule{})
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -399,35 +449,9 @@ func TestAuthRequestRefusesOverBudget(t *testing.T) {
 	require.NotEmpty(t, w2.Header().Get("Retry-After"))
 }
 
-func TestHandoffRefusesOverBudget(t *testing.T) {
-	limiter := ratelimit.NewMemory(100)
-	rule := ratelimit.Rule{Rate: 6, Burst: 1, Per: time.Minute}
-	h := NewLoginUIHandlers(nil, loginUITestHostedLoginBaseURL, nil, limiter, rule, ratelimit.Rule{})
-
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.POST("/v1/auth/login/handoff/:id", h.Handoff)
-
-	post := func() *httptest.ResponseRecorder {
-		w := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, "/v1/auth/login/handoff/"+loginUITestAuthRequestID, nil)
-		req.RemoteAddr = "203.0.113.11:12345"
-		r.ServeHTTP(w, req)
-		return w
-	}
-
-	require.Equal(t, http.StatusOK, post().Code)
-
-	w2 := post()
-	require.Equal(t, http.StatusTooManyRequests, w2.Code,
-		"POST /v1/auth/login/handoff/:id is reachable by anyone with no principal; it must be budgeted (spec D2)")
-	require.NotEmpty(t, w2.Header().Get("Retry-After"))
-}
-
-// TestLoginUIRoutesDoNotShareEachOthersBudget proves the three routes
-// key into DIFFERENT buckets off the one shared limiter: exhausting
-// Password's budget from an IP must not refuse that same IP's
-// AuthRequest or Handoff call. A single shared key would let a
+// TestLoginUIRoutesDoNotShareEachOthersBudget proves the routes key into
+// DIFFERENT buckets off the one shared limiter: exhausting Password's
+// budget from an IP must not refuse that same IP's AuthRequest call. A single shared key would let a
 // credential-guessing flood lock a legitimate clinician out of even
 // LOADING the login form.
 func TestLoginUIRoutesDoNotShareEachOthersBudget(t *testing.T) {
@@ -442,13 +466,12 @@ func TestLoginUIRoutesDoNotShareEachOthersBudget(t *testing.T) {
 	})
 	limiter := ratelimit.NewMemory(100)
 	rule := ratelimit.Rule{Rate: 6, Burst: 1, Per: time.Minute}
-	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), loginUITestHostedLoginBaseURL, nil, limiter, rule, ratelimit.Rule{})
+	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), nil, limiter, rule, ratelimit.Rule{})
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/v1/auth/login/password", h.Password)
 	r.GET("/v1/auth/login/request/:id", h.AuthRequest)
-	r.POST("/v1/auth/login/handoff/:id", h.Handoff)
 
 	do := func(method, path, body string) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
@@ -469,34 +492,27 @@ func TestLoginUIRoutesDoNotShareEachOthersBudget(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, do(http.MethodGet, "/v1/auth/login/request/V2_abc", "").Code,
 		"a drained password budget must not refuse the auth-request read from the same IP")
-	require.Equal(t, http.StatusOK, do(http.MethodPost, "/v1/auth/login/handoff/"+loginUITestAuthRequestID, "").Code,
-		"a drained password budget must not refuse the handoff call from the same IP")
 }
 
-// TestAuthRequestAndHandoffAdmitWhenLimiterUnavailable extends
-// TestPasswordAdmitsWhenLimiterUnavailable to the other two routes: a
-// nil limiter must fail OPEN on all three, never take sign-in down.
-func TestAuthRequestAndHandoffAdmitWhenLimiterUnavailable(t *testing.T) {
+// TestAuthRequestAdmitsWhenLimiterUnavailable extends
+// TestPasswordAdmitsWhenLimiterUnavailable to AuthRequest: a nil limiter
+// must fail OPEN, never take sign-in down.
+func TestAuthRequestAdmitsWhenLimiterUnavailable(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"authRequest":{"id":"V2_abc"}}`))
 	})
 	registerZitadelPolicyOK(mux)
-	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), loginUITestHostedLoginBaseURL, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
+	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.GET("/v1/auth/login/request/:id", h.AuthRequest)
-	r.POST("/v1/auth/login/handoff/:id", h.Handoff)
 
 	for i := 0; i < 5; i++ {
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/v1/auth/login/request/V2_abc", nil))
 		require.Equal(t, http.StatusOK, w.Code, "auth request attempt %d: nil limiter must fail open", i+1)
-
-		w = httptest.NewRecorder()
-		r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/v1/auth/login/handoff/"+loginUITestAuthRequestID, nil))
-		require.Equal(t, http.StatusOK, w.Code, "handoff attempt %d: nil limiter must fail open", i+1)
 	}
 }
 
@@ -520,7 +536,7 @@ func TestAuthRequest_ReturnsAuthRequestFields(t *testing.T) {
 	})
 	registerZitadelPolicyOK(mux)
 	client := newZitadelTestClient(t, mux)
-	h := NewLoginUIHandlers(client, loginUITestHostedLoginBaseURL, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
+	h := NewLoginUIHandlers(client, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -543,7 +559,7 @@ func TestAuthRequest_InvalidIDReturns400(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message":"not found","details":[{"id":"QUERY-x"}]}`))
 	})
 	client := newZitadelTestClient(t, mux)
-	h := NewLoginUIHandlers(client, loginUITestHostedLoginBaseURL, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
+	h := NewLoginUIHandlers(client, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -553,24 +569,6 @@ func TestAuthRequest_InvalidIDReturns400(t *testing.T) {
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/v1/auth/login/request/stale", nil))
 
 	require.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-// TestHandoff_ReturnsURLCarryingTheID proves POST
-// /v1/auth/login/handoff/:id builds a handoff_url without needing any
-// Zitadel call of its own.
-func TestHandoff_ReturnsURLCarryingTheID(t *testing.T) {
-	h := NewLoginUIHandlers(nil, loginUITestHostedLoginBaseURL, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
-
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.POST("/v1/auth/login/handoff/:id", h.Handoff)
-
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/v1/auth/login/handoff/"+loginUITestAuthRequestID, nil))
-
-	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
-	require.Contains(t, w.Body.String(), "authRequest="+loginUITestAuthRequestID)
-	require.Contains(t, w.Body.String(), loginUITestHostedLoginBaseURL)
 }
 
 // --- POST /v1/auth/login/factor (#867 Task 4) ------------------------
@@ -599,7 +597,7 @@ func newFactorTestHandlers(t *testing.T, client *loginclient.Client) *LoginUIHan
 	require.NotNil(t, loginAttemptMig, "precondition: 0004_iam is the login_attempt migration")
 	require.NoError(t, db.Migrate(context.Background(), []tenantdb.Migration{*loginAttemptMig}))
 
-	return NewLoginUIHandlers(client, loginUITestHostedLoginBaseURL, db, nil, ratelimit.Rule{}, ratelimit.Rule{})
+	return NewLoginUIHandlers(client, db, nil, ratelimit.Rule{}, ratelimit.Rule{})
 }
 
 // newFactorRouter mounts Password and Factor on a fresh gin.Engine — the
@@ -1044,7 +1042,7 @@ func TestAuthRequestPoliciesReflectForceMFA(t *testing.T) {
 	mux.HandleFunc("GET /management/v1/policies/login", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"policy":{"passwordCheckLifetime":"864000s","forceMfa":true}}`))
 	})
-	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), loginUITestHostedLoginBaseURL, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
+	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -1072,7 +1070,7 @@ func TestAuthRequestDoesNotExposeRequireMFALocalOnly(t *testing.T) {
 	mux.HandleFunc("GET /management/v1/policies/login", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"policy":{"passwordCheckLifetime":"864000s","forceMfaLocalOnly":true}}`))
 	})
-	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), loginUITestHostedLoginBaseURL, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
+	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -1154,7 +1152,7 @@ func TestFactorRefusesOverBudget(t *testing.T) {
 	// actually exercises.
 	limit := ratelimit.Rule{Rate: 60, Burst: 10, Per: time.Minute}
 	factorLimit := ratelimit.Rule{Rate: 6, Burst: 1, Per: time.Minute}
-	h := NewLoginUIHandlers(zitadelFactorBadCode(t), loginUITestHostedLoginBaseURL, db, limiter, limit, factorLimit)
+	h := NewLoginUIHandlers(zitadelFactorBadCode(t), db, limiter, limit, factorLimit)
 	r := newFactorRouter(h)
 
 	post := func(authRequestID string) *httptest.ResponseRecorder {
@@ -1212,7 +1210,7 @@ func TestFactorRateLimitNotBypassableBySpoofedXForwardedFor(t *testing.T) {
 	limiter := ratelimit.NewMemory(100)
 	limit := ratelimit.Rule{Rate: 60, Burst: 10, Per: time.Minute}
 	factorLimit := ratelimit.Rule{Rate: 6, Burst: 1, Per: time.Minute}
-	h := NewLoginUIHandlers(zitadelFactorBadCode(t), loginUITestHostedLoginBaseURL, db, limiter, limit, factorLimit)
+	h := NewLoginUIHandlers(zitadelFactorBadCode(t), db, limiter, limit, factorLimit)
 
 	// The production wiring's own constructor — NOT gin.New() — so this
 	// test exercises the SAME SetTrustedProxies decision cmd/api/main.go

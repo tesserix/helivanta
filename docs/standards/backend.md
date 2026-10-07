@@ -499,16 +499,17 @@ line built from one of its errors cannot leak it either.
 
 A missing `ZITADEL_LOGIN_CLIENT_TOKEN` is a **boot refusal**, not a
 degraded mode: without it the API cannot check a credential at all, and
-starting anyway would serve a login form that fails every submission. So
-is a missing **`HELIVANTA_WEB_ORIGIN`** outside `HELIVANTA_ENV=dev` — it is the
-origin Helivanta's own `/login` is served from, and
-`config.RequireDistinctHostedLoginOrigin` compares it against
-`ZITADEL_HOSTED_LOGIN_URL` to refuse a configuration where the handoff
-target points back at the page that just decided to hand off. That
-misconfiguration loops every MFA-enrolled clinician forever while every
-individual request succeeds — no non-2xx, no log line above INFO — so
-there is nothing for alerting to catch and it has to be caught at boot.
-Both are on the enforcement ladder's "boot failure" rung deliberately.
+starting anyway would serve a login form that fails every submission. It is
+on the enforcement ladder's "boot failure" rung deliberately.
+
+**Helivanta never sends a user to Zitadel's login UI** (#947,
+`docs/superpowers/specs/2026-10-07-no-hosted-login-handoff-design.md`). A
+sign-in the API cannot complete — an unsupported enrolled factor, or MFA
+required with nothing enrolled — is refused with a reasoned 403 in Helivanta's
+own words and logged with `refusal_reason`; an unreadable policy or factor set
+is a retryable 503. `ZITADEL_HOSTED_LOGIN_URL`, `HELIVANTA_WEB_ORIGIN` and
+`RequireDistinctHostedLoginOrigin` existed only for the deleted handoff and are
+gone; do not reintroduce a redirect to Zitadel's hosted login.
 
 The one call this credential can make that matters most — finalising an
 auth request — sits behind `loginclient.Client.CompleteIfSufficient`, the

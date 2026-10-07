@@ -26,18 +26,18 @@ var UnauthenticatedRoutes = map[string]string{
 	// chain checks (#838, spec D1).
 	"POST /v1/auth/login": "creates the Helivanta session and therefore cannot require one",
 
-	// #854 Task 4: Helivanta's own login form drives these three directly
+	// #854 Task 4: Helivanta's own login form drives these directly
 	// against Zitadel's login-client API, all before any Helivanta session
 	// exists — the same reason POST /v1/auth/login above is here.
-	"GET /v1/auth/login/request/:id":  "renders the login form before any Helivanta session exists",
-	"POST /v1/auth/login/password":    "checks the credential that creates the session, so it cannot require one",
-	"POST /v1/auth/login/handoff/:id": "hands an auth request to the hosted login when Helivanta cannot complete it",
+	"GET /v1/auth/login/request/:id": "renders the login form before any Helivanta session exists",
+	"POST /v1/auth/login/password":   "checks the credential that creates the session, so it cannot require one",
 
 	// #867 Task 4: the native-MFA factor check. Reached only after
 	// Password answers factor_required — there is still no Helivanta
 	// session at this point, only a server-held Zitadel session the
 	// browser never sees (spec D2) — so it cannot require one either,
-	// same as its three siblings above.
+	// same as its siblings above. (A fourth route, a hosted-login handoff,
+	// was deleted by #947: Helivanta never sends a user to Zitadel's UI.)
 	"POST /v1/auth/login/factor": "checks the second factor that creates the session, so it cannot require one",
 
 	// Liveness and readiness. Deliberately outside /v1 and unlimited: a
@@ -58,12 +58,12 @@ var UnauthenticatedRoutes = map[string]string{
 // but they are listed in UnauthenticatedRoutes because the arch test
 // enumerates the whole engine and must account for every route on it.
 //
-// authRequest, password, handoff and factor (#854 Task 4 / #867 Task 4,
-// iam.LoginUIHandlers' four methods) are accepted as plain
+// authRequest, password and factor (#854 Task 4 / #867 Task 4,
+// iam.LoginUIHandlers' three methods) are accepted as plain
 // gin.HandlerFunc rather than a concrete *iam.LoginUIHandlers, the same
 // way login is — this package stays agnostic of any one module's types.
 // cmd/api/main.go constructs the real loginclient.Client and wires all
-// four from there.
+// three from there.
 //
 // Every argument is required — a nil PANICS at boot, deliberately. An
 // earlier version of this function accepted nil and simply skipped
@@ -76,21 +76,19 @@ var UnauthenticatedRoutes = map[string]string{
 // declared but not served is not a smaller version of the bypass, it is
 // login silently broken. A nil here — whether main.go has not been
 // updated yet for a route this list already promises, or a wiring typo
-// drops one of the four by accident — surfaces as a boot failure
+// drops one of them by accident — surfaces as a boot failure
 // instead, which per this repo's enforcement ladder (compile error >
 // boot failure > CI failure > documented convention) is the correct
 // rung: loud and at start-up, not silent and per-request.
-func MountUnauthenticated(e *gin.Engine, login, authRequest, password, handoff, factor gin.HandlerFunc) {
+func MountUnauthenticated(e *gin.Engine, login, authRequest, password, factor gin.HandlerFunc) {
 	mustHandler("POST /v1/auth/login", login)
 	mustHandler("GET /v1/auth/login/request/:id", authRequest)
 	mustHandler("POST /v1/auth/login/password", password)
-	mustHandler("POST /v1/auth/login/handoff/:id", handoff)
 	mustHandler("POST /v1/auth/login/factor", factor)
 
 	e.POST("/v1/auth/login", login)
 	e.GET("/v1/auth/login/request/:id", authRequest)
 	e.POST("/v1/auth/login/password", password)
-	e.POST("/v1/auth/login/handoff/:id", handoff)
 	e.POST("/v1/auth/login/factor", factor)
 }
 

@@ -194,6 +194,17 @@ func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) 
 		switch methodType {
 		case passwordOnlyMethodType:
 			// Not a second factor at all — every session already has this.
+		case idpMethodType:
+			// Not a second factor either (#950, spec D1): a linked external
+			// identity provider is an ALTERNATIVE way to establish the
+			// first factor, and Zitadel finalizes a password session
+			// without asking for it. Refusing on it does not close any
+			// bypass — the policy and second-factor checks below run
+			// identically — it only refuses a password Zitadel already
+			// accepted, which is what locked IdP-linked accounts out of
+			// production on 2026-10-08. See idpMethodType's doc comment
+			// for why this is neutral while PASSKEY, also a first factor,
+			// is not.
 		case totpMethodType:
 			totpEnrolled = true
 		default:

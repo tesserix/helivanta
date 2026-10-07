@@ -45,7 +45,8 @@ This slice collects **TOTP** codes. The D3 handoff table is otherwise intact:
 | Org requires MFA, user has TOTP | **Native prompt** (new) |
 | User voluntarily enrolled TOTP | **Native prompt** (new) |
 | User enrolled `OTP_EMAIL` / `OTP_SMS` | Handoff, unchanged |
-| User enrolled passkey / U2F / IdP | Handoff, unchanged |
+| User enrolled passkey / U2F | Handoff, unchanged |
+| User's account carries an IdP link | **Corrected 2026-10-08 (#950):** neutral — completes, or prompts for TOTP, exactly as if the link were absent. See `2026-10-08-idp-link-is-not-a-factor-design.md` D1. (Originally listed with passkey/U2F as a handoff.) |
 | Federated hospital IdP | Handoff, unchanged |
 | Password change required | Not handled ([#856](https://github.com/tesserix/helivanta/issues/856)), unchanged |
 | Locked out / wrong password / unknown user | Unchanged (D5's shared refusal) |
@@ -179,7 +180,10 @@ so exposing it reveals nothing about whether a given account exists.
 shape has a slot for it.** `loginclient.LoginPolicy` models a single folded
 `ForceMFA`, set when *either* Zitadel key is true — that fold is D4 of the
 login-client spec, taken on the explicitly recorded assumption that every
-Helivanta user is local today because no external IdP is configured. Unfolding
+session Helivanta evaluates is a local (password) one. (**Corrected 2026-10-08,
+#950:** the assumption was previously worded as "no external IdP is
+configured", which is false on the shared instance; see
+`2026-10-08-idp-link-is-not-a-factor-design.md` D2.) Unfolding
 it here to populate two neutral fields would create a distinction Go does not
 make and cannot currently make correctly, and the component would then render
 from a value the enforcer never consults. `requireMfa` carries the folded

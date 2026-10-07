@@ -592,13 +592,35 @@ const passwordOnlyMethodType = "AUTHENTICATION_METHOD_TYPE_PASSWORD"
 
 // totpMethodType is the one non-password enrolled method type Helivanta
 // can natively ask a user to satisfy — VerifyTOTP (Task 2) checks exactly
-// this factor. Every other non-password value in nonPasswordFactorPrefix's
-// list (_OTP_EMAIL, _U2F, _PASSKEY, _IDP, _OTP_SMS, _RECOVERY_CODE) has no
-// corresponding collection path in Helivanta today, so its presence — even
-// alongside an enrolled TOTP — must still refuse the login with
-// RefusalFactorUnsupported (spec D1; #947 replaced the hosted-UI handoff): completing on the strength of the one factor Helivanta CAN
-// collect would silently skip the other one the user configured.
+// this factor. Every other non-password value in the list above
+// (_OTP_EMAIL, _U2F, _PASSKEY, _OTP_SMS, _RECOVERY_CODE) — except
+// idpMethodType, see below — has no corresponding collection path in
+// Helivanta today, so its presence — even alongside an enrolled TOTP — must
+// still refuse the login with RefusalFactorUnsupported (spec D1; #947
+// replaced the hosted-UI handoff): completing on the strength of the one
+// factor Helivanta CAN collect would silently skip the other one the user
+// configured.
 const totpMethodType = "AUTHENTICATION_METHOD_TYPE_TOTP"
+
+// idpMethodType is a linked external identity provider — the entry Zitadel
+// adds to a user's authentication_methods when any product on the shared
+// instance links them to, say, Google. It is NOT a second factor: it is an
+// alternative first factor, and a password session is finalized by Zitadel
+// without it. classifyEnrolledMethods therefore treats it as neutral,
+// exactly like passwordOnlyMethodType (#950, spec D1,
+// docs/superpowers/specs/2026-10-08-idp-link-is-not-a-factor-design.md).
+//
+// Why this is neutral while _PASSKEY, also a first factor, still refuses:
+// that is a product decision recorded in the 2026-10-07 spec, not a
+// Zitadel requirement — a passkey is enrolled deliberately by the user in a
+// Zitadel UI and can be removed there until #422 ships. An IdP link is
+// created by ANOTHER product on the shared auth.tesserix.app instance with
+// no action in Helivanta and nothing the clinician can see or undo here;
+// refusing on it locked accounts out of Helivanta for having used mark8ly
+// or the console with Google (production, 2026-10-08).
+//
+// Signing in WITH the IdP from Helivanta's own form is #423, not this.
+const idpMethodType = "AUTHENTICATION_METHOD_TYPE_IDP"
 
 // sessionSubject is who a session's password factor authenticated, and
 // which org they authenticate as (design spec D1,

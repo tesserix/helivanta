@@ -665,3 +665,91 @@ func TestCompleteIfSufficientScopesThePolicyReadToTheSessionsOrg(t *testing.T) {
 		t.Errorf("x-zitadel-orgid = %q, want %q: the policy request must be scoped to the org the SESSION reported, not a hardcoded value", gotOrgHeader, orgIDFromSession)
 	}
 }
+
+// A linked external identity provider is an ALTERNATIVE first factor, not a
+// second factor Zitadel demands on top of a password (#950, spec D1). An
+// account carrying PASSWORD + IDP must complete exactly like a password-only
+// account: finalize called, callback returned. Observed in production on
+// 2026-10-08 — the first morning after #949 — refusing instead.
+func TestCompleteIfSufficient_IdpLinkCompletesLikePasswordOnly(t *testing.T) {
+	methods := []string{"AUTHENTICATION_METHOD_TYPE_PASSWORD", "AUTHENTICATION_METHOD_TYPE_IDP"}
+	c, finalized := clientWithEnrolledMethodsAndFinalizeTracking(t, nonForceMFAPolicy, methods)
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
+	require.NoError(t, err)
+	require.Equal(t, OutcomeComplete, res.Outcome, "a password + linked-IdP account was not completed: %v/%v", res.Outcome, res.Reason)
+	require.NotEmpty(t, res.CallbackURL)
+	require.True(t, finalized.Load(), "finalize was not called for a password + linked-IdP account")
+}
+
+// PASSWORD + IDP + TOTP must ask for TOTP natively, the same answer TOTP
+// alone gets (#950, spec D1): the IdP link neither blocks the prompt nor
+// skips it.
+func TestCompleteIfSufficient_IdpLinkWithTOTPAsksForTheFactor(t *testing.T) {
+	methods := []string{"AUTHENTICATION_METHOD_TYPE_PASSWORD", "AUTHENTICATION_METHOD_TYPE_IDP", "AUTHENTICATION_METHOD_TYPE_TOTP"}
+	c, finalized := clientWithEnrolledMethodsAndFinalizeTracking(t, nonForceMFAPolicy, methods)
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
+	require.NoError(t, err)
+	require.Equal(t, OutcomeFactorRequired, res.Outcome, "password + IdP + TOTP did not ask for the factor: %v/%v", res.Outcome, res.Reason)
+	require.Equal(t, []string{"totp"}, res.Factors)
+	require.False(t, finalized.Load(), "finalize was called before the TOTP code was collected")
+}
+
+// The IdP link is neutral, not a licence: a factor Helivanta still cannot
+// collect, enrolled alongside it, refuses exactly as before (#950, spec D1).
+func TestCompleteIfSufficient_IdpLinkDoesNotExcuseAnUnsupportedFactor(t *testing.T) {
+	methods := []string{"AUTHENTICATION_METHOD_TYPE_PASSWORD", "AUTHENTICATION_METHOD_TYPE_IDP", "AUTHENTICATION_METHOD_TYPE_OTP_EMAIL"}
+	c, finalized := clientWithEnrolledMethodsAndFinalizeTracking(t, nonForceMFAPolicy, methods)
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
+	require.NoError(t, err)
+	require.Equal(t, OutcomeRefused, res.Outcome)
+	require.Equal(t, RefusalFactorUnsupported, res.Reason)
+	require.Equal(t, methods, res.EnrolledMethods)
+	require.False(t, finalized.Load(), "finalize was called with OTP_EMAIL enrolled: the IdP link must not excuse an uncollectible factor")
+}
+
+// afterFactorZitadel serves a session with TOTP genuinely verified and the
+// caller's enrolled-method list, and records whether finalize was called —
+// the fixture the two #950 CompleteAfterFactor tests below share.
+func afterFactorZitadel(t *testing.T, authMethodTypesJSON string) (*Client, *atomic.Bool) {
+	t.Helper()
+	var finalized atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
+		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
+			w.Write([]byte(`{"authMethodTypes":` + authMethodTypesJSON + `}`))
+		case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v2/oidc/auth_requests/"):
+			finalized.Store(true)
+			w.Write([]byte(`{"callbackUrl":"http://localhost:4301/api/auth/callback?code=c&state=s"}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return New(srv.URL, "pat", srv.Client()), &finalized
+}
+
+// After a verified TOTP code, PASSWORD + IDP + TOTP completes (#950, spec
+// D1): the IdP link must not turn a correct code into a refusal.
+func TestCompleteAfterFactor_IdpLinkWithVerifiedTOTPCompletes(t *testing.T) {
+	c, finalized := afterFactorZitadel(t, `["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_IDP","AUTHENTICATION_METHOD_TYPE_TOTP"]`)
+	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	require.NoError(t, err)
+	require.Equal(t, OutcomeComplete, got.Outcome, "password + IdP + verified TOTP was not completed: %v/%v", got.Outcome, got.Reason)
+	require.NotEmpty(t, got.CallbackURL)
+	require.True(t, finalized.Load(), "finalize was not called after a verified TOTP on a password + IdP + TOTP account")
+}
+
+// The uncollectible check CompleteAfterFactor re-runs (#867 Finding 2) is
+// untouched by the IdP link: OTP_EMAIL alongside it still refuses and still
+// never finalizes (#950, spec D1).
+func TestCompleteAfterFactor_IdpLinkDoesNotExcuseAnUnsupportedFactor(t *testing.T) {
+	c, finalized := afterFactorZitadel(t, `["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_IDP","AUTHENTICATION_METHOD_TYPE_TOTP","AUTHENTICATION_METHOD_TYPE_OTP_EMAIL"]`)
+	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	require.NoError(t, err)
+	require.Equal(t, OutcomeRefused, got.Outcome)
+	require.Equal(t, RefusalFactorUnsupported, got.Reason)
+	require.Contains(t, got.EnrolledMethods, "AUTHENTICATION_METHOD_TYPE_OTP_EMAIL")
+	require.False(t, finalized.Load(), "finalize was called with OTP_EMAIL enrolled: the IdP link must not excuse an uncollectible factor")
+}

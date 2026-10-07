@@ -812,6 +812,101 @@ func TestIntegration_UserEnrolledFactor_HandsOffInsteadOfCompleting(t *testing.T
 	assertRefusedWithoutCallback(t, w, "per-user enrolled factor (otp_email)", "sign_in_method_unsupported")
 }
 
+// addIdpPath and idpTemplatePathPrefix are Zitadel's org-level provider
+// endpoints (management service AddGoogleProvider: POST /idps/google;
+// DeleteProvider: DELETE /idps/templates/{id}; GetProviderByID: GET
+// /idps/templates/{id}). Confirmed live 2026-10-08 against the dev stack:
+// DELETE /management/v1/idps/{id} — the LEGACY org-IdP route, which reads
+// as the obvious inverse of POST /idps/google — answers 404 QUERY-rhR2o
+// "Identity Provider Configuration doesn't exist" for a provider created
+// through the template-era endpoints; only the /templates/ path deletes
+// it. A Google-shaped provider is used because it needs no issuer and no
+// discovery fetch at creation — only a client id and secret, both of which
+// are never exercised: the test links the provider to a user by hand
+// (addIdpLinkPath) and never signs in through it.
+const (
+	addIdpPath            = "/management/v1/idps/google"
+	idpTemplatePathPrefix = "/management/v1/idps/templates/"
+)
+
+// addIdpLinkPath is the v2 user service's AddIDPLink: POST
+// /v2/users/{id}/links with {"idpLink": {"idpId", "userId", "userName"}}.
+// After it, GET /v2/users/{id}/authentication_methods lists
+// AUTHENTICATION_METHOD_TYPE_IDP — the exact list production logged on
+// 2026-10-08 for the account #950 was filed on.
+func addIdpLinkPath(userID string) string { return "/v2/users/" + userID + "/links" }
+
+// createThrowawayIdp registers a Google-shaped provider on the seed PAT's
+// org and deletes it in t.Cleanup, reading it back to prove the delete
+// took (the same discipline deleteAndVerifyUser applies). Linking is the
+// only thing the provider is for; its client id and secret are dummies.
+func createThrowawayIdp(t *testing.T, env integrationEnv, seedToken string) string {
+	t.Helper()
+	resp := managementAPICall(t, env, seedToken, "", http.MethodPost, addIdpPath, map[string]any{
+		"name":         fmt.Sprintf("issue950-test-%d", time.Now().UnixNano()),
+		"clientId":     "issue950-dummy-client-id",
+		"clientSecret": "issue950-dummy-client-secret",
+		"scopes":       []string{"openid"},
+		"providerOptions": map[string]any{
+			"isLinkingAllowed":  true,
+			"isCreationAllowed": false,
+			"isAutoCreation":    false,
+			"isAutoUpdate":      false,
+		},
+	})
+	id, _ := resp["id"].(string)
+	require.NotEmptyf(t, id, "provider creation response carried no id: %v", resp)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		req, err := http.NewRequestWithContext(ctx, http.MethodDelete, env.issuer+idpTemplatePathPrefix+id, nil)
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+seedToken)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		_ = resp.Body.Close()
+		require.Equalf(t, http.StatusOK, resp.StatusCode, "DELETE %s%s did not succeed", idpTemplatePathPrefix, id)
+
+		verifyReq, err := http.NewRequestWithContext(ctx, http.MethodGet, env.issuer+idpTemplatePathPrefix+id, nil)
+		require.NoError(t, err)
+		verifyReq.Header.Set("Authorization", "Bearer "+seedToken)
+		verifyResp, err := http.DefaultClient.Do(verifyReq)
+		require.NoError(t, err)
+		_ = verifyResp.Body.Close()
+		require.NotEqualf(t, http.StatusOK, verifyResp.StatusCode,
+			"provider %s still readable (HTTP %d) after DELETE: cleanup did not take", id, verifyResp.StatusCode)
+	})
+	return id
+}
+
+// TestIntegration_IdpLinkedUser_CompletesWithPassword is #950: a user whose
+// account carries a linked external identity provider — the state any
+// account reaches by signing in to another Tesserix product with Google on
+// the shared instance — must complete a password sign-in exactly like a
+// password-only user. Before this fix, loginclient classed
+// AUTHENTICATION_METHOD_TYPE_IDP as an uncollectible second factor and
+// refused with sign_in_method_unsupported; this test ran against that code
+// first and failed there (spec D3).
+//
+// The provider is created first so its cleanup runs LAST (t.Cleanup is
+// LIFO): the user holding the link is deleted before the provider is.
+func TestIntegration_IdpLinkedUser_CompletesWithPassword(t *testing.T) {
+	env := skipUnlessDevStackIsUp(t)
+	seedToken := skipUnlessSeedPATIsAvailable(t)
+
+	idpID := createThrowawayIdp(t, env, seedToken)
+	userID, loginName := createImportedUser(t, env, seedToken, "")
+	managementAPICall(t, env, seedToken, "", http.MethodPost, addIdpLinkPath(userID), map[string]any{
+		"idpLink": map[string]any{
+			"idpId":    idpID,
+			"userId":   fmt.Sprintf("issue950-external-%d", time.Now().UnixNano()),
+			"userName": loginName,
+		},
+	})
+
+	assertLoginSucceeds(t, env, loginName, devSeededPassword, "password + linked IdP: ")
+}
+
 // createOrgPath is Zitadel's v1 org-creation endpoint (#913 Task 4).
 // Confirmed live during this task's fix round 1 (see the #913 Task 4
 // report for the exact run): POST /management/v1/orgs with

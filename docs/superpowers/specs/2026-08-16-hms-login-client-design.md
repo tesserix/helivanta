@@ -137,7 +137,7 @@ completes it and returns to the same callback:
 | MFA required by org policy (D4) | Handoff. Not an error. |
 | MFA: user has voluntarily enrolled a factor (D4) | Handoff. Verified live 2026-08-16 (#854 Task 8): `GET /v2/users/{id}/authentication_methods`, reachable with the login-client PAT, lists a user's enrolled methods independent of org policy — a password-only session hands off when it reports anything besides `AUTHENTICATION_METHOD_TYPE_PASSWORD`. |
 | Password change required | **Not handled — reversed from the original design.** Verified live 2026-08-16 (#854 Task 8, spike §5): a user imported with `passwordChangeRequired:true` produces a session create, a session read, and a finalize that are byte-identical in shape to a normal user's — Zitadel signals this to a login client **nowhere in the flow**. Helivanta's own `POST /v1/auth/login/password` against such a user returns 200 with a valid `callback_url`, same as any other successful login. There is no field to branch on, so this row cannot be implemented as "handoff" without an extra `GET /v2/users/{id}` read on every login. Documented as a known limitation at the decision point in `sufficiency.go` and filed as [#856](https://github.com/tesserix/helivanta/issues/856) rather than fixed in this slice. |
-| Federated hospital IdP | Handoff — this is the capability Zitadel was chosen for and must never break silently. |
+| Federated hospital IdP | Handoff — this is the capability Zitadel was chosen for and must never break silently. **Corrected 2026-10-08 (#950):** a user whose account merely *carries* an IdP link (`AUTHENTICATION_METHOD_TYPE_IDP`) but signs in with a password is **not** this case and completes like a password-only user; see `2026-10-08-idp-link-is-not-a-factor-design.md` D1. Signing in *with* the IdP is #423. |
 | Locked out | Zitadel's answer, shown inline. Never worded as a wrong password. |
 | Unknown user / wrong password | D5. |
 
@@ -177,12 +177,18 @@ today, not upstream drift. A policy with `forceMfaLocalOnly: true` and
 
 Helivanta folds it into the **same** decision (`forceMfa || forceMfaLocalOnly`) rather
 than modelling it separately, on one narrow and explicitly recorded assumption:
-`forceMfaLocalOnly` means "force MFA for non-federated users", and **every Helivanta
-user is local today** — no external IdP is configured. If Helivanta ever federates a
-hospital IdP, this fold-together stops being correct for federated users and
-must be revisited: the sufficiency check would need to know which kind of
-session it is evaluating, not just read one bool. It is not built now because
-there is no federated login path to get it wrong on yet.
+`forceMfaLocalOnly` means "force MFA for non-federated users", and **every session
+Helivanta evaluates is local** — Helivanta only ever creates password sessions.
+**Corrected 2026-10-08 (#950):** this used to read "every Helivanta user is local
+today — no external IdP is configured", which is false: the shared
+`auth.tesserix.app` instance has `AllowExternalIDP: true` and other Tesserix
+products link accounts to Google. The assumption that holds is about the
+*session*, not the account; an IdP-linked user who signs in here with a password
+is a local sign-in, and the fold gives the right answer. See
+`2026-10-08-idp-link-is-not-a-factor-design.md` D2. If Helivanta ever signs users
+in *with* an IdP (#423), this fold-together stops being correct for those
+sessions and must be revisited: the sufficiency check would need to know which
+kind of session it is evaluating, not just read one bool.
 
 Both keys are registered in one list (`mfaPolicyKeys` in
 `loginclient/client.go`) that drives *both* the read and the

@@ -48,7 +48,8 @@ A refused `Result` carries a `RefusalReason`:
 
 | Condition (password already verified)                                              | Before                    | Now                                                                              |
 | ---------------------------------------------------------------------------------- | ------------------------- | -------------------------------------------------------------------------------- |
-| Enrolled factor other than password/TOTP (passkey, U2F, OTP email/SMS, linked IdP) | handoff, no reason logged | `RefusalFactorUnsupported`: refused, reason and the enrolled method types logged |
+| Enrolled factor other than password/TOTP (passkey, U2F, OTP email/SMS)             | handoff, no reason logged | `RefusalFactorUnsupported`: refused, reason and the enrolled method types logged |
+| Linked IdP (`AUTHENTICATION_METHOD_TYPE_IDP`)                                      | handoff, no reason logged | **Corrected 2026-10-08 (#950):** neutral, not a refusal — see `2026-10-08-idp-link-is-not-a-factor-design.md`. This spec originally listed it in the row above; the first morning in production proved that wrong. |
 | `forceMfa` and nothing enrolled                                                    | handoff, no reason logged | `RefusalMFAEnrollmentRequired`: refused, logged                                  |
 | Enrolled factors or login policy unreadable                                        | handoff, WARN logged      | **error** (`ErrUnavailable`): 503, never a refusal and never a completion        |
 | TOTP enrolled                                                                      | native prompt             | unchanged                                                                        |
@@ -123,10 +124,12 @@ Each item is filed separately and linked from the PR:
 
 - **Native TOTP enrolment** ([#948](https://github.com/tesserix/helivanta/issues/948)): QR code and confirmation in Helivanta. Until it
   ships, `mfa_enrollment_required` refuses.
-- **Native email/SMS OTP, passkeys/U2F, and federated IdP sign-in.** Until
-  each ships, `sign_in_method_unsupported` refuses. Accounts with such a
-  method must have it removed in Zitadel to sign in, which is the product
-  owner's stated choice (branded refusal over handoff).
+- **Native email/SMS OTP and passkeys/U2F.** Until each ships,
+  `sign_in_method_unsupported` refuses. Accounts with such a method must have
+  it removed in Zitadel to sign in, which is the product owner's stated choice
+  (branded refusal over handoff). **Corrected 2026-10-08 (#950):** a linked
+  IdP was originally in this list; it is not a factor to collect and no longer
+  refuses. Signing in *with* an IdP remains out of scope (#423).
 - **Logout.** This spec covers sign-in only. Whether the end-session redirect
   shows a Zitadel page is not established here.
 

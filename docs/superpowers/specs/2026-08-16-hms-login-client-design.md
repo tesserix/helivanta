@@ -2,6 +2,10 @@
 
 **Issue:** [#854](https://github.com/tesserix/helivanta/issues/854)
 **Supersedes:** D5a of `2026-08-15-zitadel-tenancy-topology-design.md`
+**Superseded in part (2026-10-07):** every **handoff** row in this document is
+replaced by `2026-10-07-no-hosted-login-handoff-design.md` (#947). Helivanta no
+longer sends any user to Zitadel's hosted login; those cases are refused with a
+reason, and an unreadable policy or factor set is a retryable 503.
 **Rests on:** `docs/superpowers/spikes/2026-08-16-zitadel-login-client.md` —
 every protocol claim below was observed against our own v4.15.3 stack, not read
 from documentation.

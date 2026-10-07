@@ -1,6 +1,9 @@
 # The MFA policy must be read against the authenticating user's organization
 
 **Issue:** [#913](https://github.com/tesserix/helivanta/issues/913)
+**Amended (2026-10-07):** where this spec says an unreadable policy "hands
+off", it is now a retryable 503 (`ErrUnavailable`), and a forced-MFA refusal
+is a reasoned 403 — see `2026-10-07-no-hosted-login-handoff-design.md` (#947).
 **Supersedes:** `loginclient/sufficiency.go`'s KNOWN LIMITATIONS §2, which
 documented this as an accepted limitation and named the precondition
 ("Adding a second org to this instance REQUIRES fixing this first") that has

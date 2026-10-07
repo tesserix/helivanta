@@ -143,15 +143,6 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	// Same class of check, same reason to run it here rather than on the
-	// hot path: a hosted-login URL misconfigured to share an origin with
-	// Helivanta's own frontend would loop every MFA-enrolled clinician forever
-	// through a handoff that always sends them right back — see
-	// config.RequireDistinctHostedLoginOrigin's doc comment for why
-	// nothing short of a boot refusal makes that loop unrepresentable.
-	if err := cfg.RequireDistinctHostedLoginOrigin(); err != nil {
-		return err
-	}
 	// Same class of check, same reason to run it here: an unconfigured
 	// trust boundary is a configuration defect, not a runtime one, and it
 	// should surface before anything else costs time or a network round
@@ -407,21 +398,21 @@ func run() error {
 	// site's comment for why this file must build exactly one
 	// *loginclient.Client.
 	// loginUIHandlers backs Helivanta's own login form (plan #854 Task 4,
-	// #867 Task 4): four unauthenticated routes reading an auth request
+	// #867 Task 4): three unauthenticated routes reading an auth request
 	// (GET /v1/auth/login/request/:id), checking a password (POST
-	// /v1/auth/login/password), checking a native TOTP factor (POST
-	// /v1/auth/login/factor), and handing off to Zitadel's hosted UI
-	// when Helivanta cannot complete the login itself (POST
-	// /v1/auth/login/handoff/:id). db is the SAME *tenantdb.DB every
+	// /v1/auth/login/password), and checking a native TOTP factor (POST
+	// /v1/auth/login/factor). When Helivanta cannot complete a login it
+	// refuses it in its own words; nothing hands the browser to Zitadel's
+	// hosted UI (#947). db is the SAME *tenantdb.DB every
 	// other module in this file shares — LoginUIHandlers uses it only
 	// for the login_attempt table (0004_iam), which is not tenant-scoped
-	// (see that migration's own comment in iam/module.go). AuthRequest,
-	// Password and Handoff reuse the SAME limiter instance as
+	// (see that migration's own comment in iam/module.go). AuthRequest
+	// and Password reuse the SAME limiter instance as
 	// loginHandlers and V1Chain above (#841's rule: this file must
 	// construct exactly one ratelimit.Limiter, never a second) — see
 	// NewLoginUIHandlers' own doc comment on why sharing the limiter is
 	// still safe: each route keys its bucket under its own prefix
-	// (login_auth_request:, login_password:, login_handoff:) — distinct
+	// (login_auth_request:, login_password:) — distinct
 	// from each other AND from both LoginHandlers.Login's "login:"
 	// bucket and ratelimit.Middleware's Principal bucket, so none of the
 	// six can bleed into another's budget despite sharing one Limiter.
@@ -431,27 +422,27 @@ func run() error {
 	// mistyping their password repeatedly) could lock people out of the
 	// sign-in page itself — a self-inflicted denial of service on the
 	// sign-in path that buckets are distinct specifically to prevent.
-	// AuthRequest/Password/Handoff's Rule is bootstrap.LoginRateLimitRule(cfg)
-	// — these three do not yet warrant a budget shaped differently from
+	// AuthRequest/Password's Rule is bootstrap.LoginRateLimitRule(cfg)
+	// — these two do not yet warrant a budget shaped differently from
 	// POST /v1/auth/login's (all are "one browser tab's worth of login
 	// traffic"). Factor is DIFFERENT and gets its OWN Rule,
 	// bootstrap.FactorRateLimitRule(cfg) — see that function's doc
 	// comment: it is a six-digit code-guessing surface and a PRIMARY
 	// brute-force control, not a page-load budget, so folding it into
 	// LoginRateLimitRule would size it for the wrong threat.
-	loginUIHandlers := iam.NewLoginUIHandlers(zitadelLoginClient, cfg.ZitadelHostedLoginURL, db,
+	loginUIHandlers := iam.NewLoginUIHandlers(zitadelLoginClient, db,
 		limiter, bootstrap.LoginRateLimitRule(cfg), bootstrap.FactorRateLimitRule(cfg))
 
 	// Mounted through bootstrap so the bypass is declared in one
 	// enumerable place and pinned by
 	// archtest.TestEveryEngineRouteIsDeclaredOrAllowlisted — a route on the
 	// raw engine otherwise escapes platform.Router entirely.
-	// authRequest/password/handoff/factor are the real loginUIHandlers
+	// authRequest/password/factor are the real loginUIHandlers
 	// methods — MountUnauthenticated's nil guard is what makes
-	// `go run ./cmd/api` refuse to boot if any of the four is ever
+	// `go run ./cmd/api` refuse to boot if any of them is ever
 	// missing, per its own doc comment.
 	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login,
-		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Handoff, loginUIHandlers.Factor)
+		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Factor)
 
 	for _, m := range registry.All() {
 		m.Routes(api, deps)

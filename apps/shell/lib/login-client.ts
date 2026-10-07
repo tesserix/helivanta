@@ -58,24 +58,57 @@ export interface AuthRequestInfo {
 //
 // checkPassword deliberately returns a DISCRIMINATED union rather than an
 // object with optional fields. The backend answers with exactly one of
-// `callback_url` (login is complete), `handoff_url` (Helivanta cannot
-// finish this login itself — see the outcome comment below), or (#867,
-// spec D8) `factor_required` (a native second-factor step this page can
-// now collect itself) and never more than one; the union makes "read the
-// wrong field" a compile error at every call site instead of an
-// `undefined` that only surfaces at runtime.
+// `callback_url` (login is complete) or (#867, spec D8) `factor_required`
+// (a native second-factor step this page can collect itself), or refuses
+// with one of SIGN_IN_BLOCKED_CODES (#947: the password was right but
+// Helivanta cannot complete this sign-in — see the outcome comment below).
+// The union makes "read the wrong field" a compile error at every call
+// site instead of an `undefined` that only surfaces at runtime.
 //
-// `factorRequired` joined this union rather than becoming its own thrown
-// error or a boolean flag for the SAME reason `handoff` is a union member
-// and not a caught exception: it is neither success nor failure (spec
-// D8), and a caller that pattern-matches an exhaustive switch over this
-// type cannot forget to handle it the way a caller checking `if (result.
+// `factorRequired` and `blocked` are union members rather than thrown
+// errors or boolean flags: neither is a credential failure (spec D8,
+// #947), and a caller that pattern-matches an exhaustive switch over this
+// type cannot forget to handle them the way a caller checking `if (result.
 // callback_url)` and falling through to an implicit "else, it must be a
-// failure" could.
+// wrong password" could.
+//
+// There is no `handoff` outcome. There used to be: the API answered
+// `handoff_url` and this page navigated to Zitadel's hosted login, which
+// stranded clinicians on Zitadel's "You are signed in" page. #947 removed
+// it — Helivanta's users never see Zitadel's UI.
 export type PasswordCheckResult =
   | { outcome: "complete"; callbackUrl: string }
-  | { outcome: "handoff"; handoffUrl: string }
-  | { outcome: "factorRequired"; factors: string[] };
+  | { outcome: "factorRequired"; factors: string[] }
+  | SignInBlocked;
+
+// The API's refusal codes for a sign-in whose password was ACCEPTED but
+// which Helivanta cannot complete (#947 spec D2; `refusalCode*` in
+// backend/internal/modules/iam/loginui.go). Answered as 403. The message
+// carried alongside is the API's own wording — this file never re-hosts
+// backend-owned text (see checkFactor's doc comment).
+export const SIGN_IN_BLOCKED_CODES = [
+  "sign_in_method_unsupported",
+  "mfa_enrollment_required",
+  "sign_in_incomplete",
+] as const;
+
+export type SignInBlockedReason = (typeof SIGN_IN_BLOCKED_CODES)[number];
+
+export interface SignInBlocked {
+  outcome: "blocked";
+  reason: SignInBlockedReason;
+  message: string;
+}
+
+// asSignInBlocked turns a thrown ApiError carrying one of the refusal codes
+// above into the `blocked` outcome, and answers undefined for anything else
+// so the caller rethrows it unchanged.
+function asSignInBlocked(err: unknown): SignInBlocked | undefined {
+  if (!(err instanceof ApiError)) return undefined;
+  const reason = SIGN_IN_BLOCKED_CODES.find((code) => code === err.code);
+  if (!reason) return undefined;
+  return { outcome: "blocked", reason, message: err.message };
+}
 
 interface PasswordCheckParams {
   authRequestId: string;
@@ -83,38 +116,32 @@ interface PasswordCheckParams {
   password: string;
 }
 
-// The raw wire shape POST /v1/auth/login/password answers with —
-// `passwordSuccessResponse`, `passwordHandoffResponse`, or (#867)
-// `factorRequiredResponse` in loginui.go, whichever the backend chose.
-// Never more than one of these keys populated; see checkPassword's doc
-// comment on why the return type does not mirror this directly. Reused
-// by checkFactor below: POST /v1/auth/login/factor answers with the SAME
-// two success/handoff shapes (loginui.go's Factor handler can still
-// answer `passwordSuccessResponse` or `passwordHandoffResponse` — see
-// checkFactor's own doc comment on why a verified factor can still hand
-// off), so a second, structurally identical interface would only be a
-// second thing to keep in sync with the same wire contract.
+// The raw 2xx wire shape POST /v1/auth/login/password answers with —
+// `passwordSuccessResponse` or (#867) `factorRequiredResponse` in
+// loginui.go, whichever the backend chose. Never both; see checkPassword's
+// doc comment on why the return type does not mirror this directly.
+// Reused by checkFactor below, whose success shape is the same
+// `passwordSuccessResponse`.
 interface PasswordCheckResponse {
   callback_url?: string;
-  handoff_url?: string;
   factor_required?: string[];
 }
 
 // checkPassword is the ONLY thing Helivanta's login form does with a
-// credential: hand it to the API and act on the answer. A `handoff`
-// outcome is NOT a failure — spec D4 is explicit that Zitadel does not
-// enforce MFA for a login client, so the API decides sufficiency itself
-// and answers `handoff` whenever a password alone is not enough (MFA
-// required by org policy, `forceMfaLocalOnly`, a user's own voluntarily
-// enrolled second factor, a federated hospital IdP, or a policy it could
-// not read). A forced password change is NOT one of them, though an
-// earlier version of this comment listed it: verified live 2026-08-16
-// (#854 Task 8, spike §5), Zitadel signals `passwordChangeRequired` to a
-// login client nowhere in the flow, so the API COMPLETES those logins
-// instead — tracked as #856. The caller MUST navigate to `handoffUrl`
-// exactly as it would `callbackUrl` on success — treating a handoff as an
-// error would strand a clinician who needs MFA at a dead end, and
-// treating it as success would skip a required factor entirely.
+// credential: hand it to the API and act on the answer. A `blocked`
+// outcome is NOT a wrong password — spec D4 is explicit that Zitadel does
+// not enforce MFA for a login client, so the API decides sufficiency
+// itself, and when a correct password alone is not enough and Helivanta
+// cannot collect what else is required (MFA required by org policy with
+// nothing enrolled, or a voluntarily enrolled factor Helivanta does not
+// support yet — passkey, U2F, email/SMS code, a linked IdP) it REFUSES in
+// its own words (#947). The caller renders that message with a way to
+// start again; it never navigates anywhere for it. A policy the API could
+// not read is NOT `blocked` — it is a retryable 503 thrown as an ApiError,
+// like any other outage. A forced password change is NOT one of these
+// either: verified live 2026-08-16 (#854 Task 8, spike §5), Zitadel
+// signals `passwordChangeRequired` to a login client nowhere in the flow,
+// so the API COMPLETES those logins instead — tracked as #856.
 //
 // A refused credential (wrong password or unknown user, answered
 // identically per spec D5) surfaces as an `ApiError` thrown by
@@ -127,7 +154,7 @@ interface PasswordCheckResponse {
 // and the org's policy requires a second factor Helivanta can now collect
 // natively (TOTP only, today — `factors` always answers `["totp"]`, per
 // `nonNilFactors`' own doc comment on the Go side). This is the SAME
-// "neither success nor failure" trap `handoff` documents above: rendering
+// "neither success nor failure" trap `blocked` documents above: rendering
 // it as a failed sign-in would send a clinician to reset a password that
 // was correct. The caller must transition to a factor-collection step
 // (checkFactor below), never show an error.
@@ -141,25 +168,29 @@ interface PasswordCheckResponse {
 // `AuthMfaSelector` for the component that would then consume it — but
 // nothing reads it yet, and this comment must not claim otherwise.
 export async function checkPassword(params: PasswordCheckParams): Promise<PasswordCheckResult> {
-  const body = await apiFetch<PasswordCheckResponse>("/auth/login/password", {
-    method: "POST",
-    body: JSON.stringify({
-      auth_request_id: params.authRequestId,
-      login_name: params.loginName,
-      password: params.password,
-    }),
-  });
+  let body: PasswordCheckResponse;
+  try {
+    body = await apiFetch<PasswordCheckResponse>("/auth/login/password", {
+      method: "POST",
+      body: JSON.stringify({
+        auth_request_id: params.authRequestId,
+        login_name: params.loginName,
+        password: params.password,
+      }),
+    });
+  } catch (err) {
+    const blocked = asSignInBlocked(err);
+    if (blocked) return blocked;
+    throw err;
+  }
 
   if (body.callback_url) {
     return { outcome: "complete", callbackUrl: body.callback_url };
   }
-  if (body.handoff_url) {
-    return { outcome: "handoff", handoffUrl: body.handoff_url };
-  }
   if (body.factor_required) {
     return { outcome: "factorRequired", factors: body.factor_required };
   }
-  // None of the three keys present is a contract violation by the API,
+  // Neither key present is a contract violation by the API,
   // not a user error — there is no credential-shaped explanation for it,
   // so it must not be folded into the shared refusal message above.
   throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
@@ -181,14 +212,10 @@ interface FactorCheckParams {
 // attempt-expired), because loginui.go's Factor handler documents a
 // fourth branch the table omits: `CompleteAfterFactor` re-runs the same
 // uncollectible/enrolled checks `CompleteIfSufficient` did and CAN still
-// answer `handoff_url` even after a CORRECT code — e.g. the user's
-// enrollment changed between the password step and this one (see
-// loginui.go's `Factor` doc comment, the `OutcomeHandoff` case). Treating
-// that as a contract-violation throw (checkPassword's fallback below)
-// would be wrong for a real, documented response shape; treating it as a
-// refusal would tell a clinician their correct code was rejected. So this
-// mirrors checkPassword's own `handoff` outcome rather than inventing a
-// narrower type that cannot represent what the server can actually send.
+// refuse even after a CORRECT code — e.g. the user's enrolment changed
+// between the password step and this one. That is checkPassword's own
+// `blocked` outcome (#947), not a wrong code: treating it as `refused`
+// would tell a clinician their correct code was rejected.
 //
 // `refused` and `expired` carry the API's own `message` rather than
 // nothing, deliberately diverging from a bare discriminant tag: this file
@@ -206,7 +233,7 @@ interface FactorCheckParams {
 // itself, duplicating the classification this function already owns.
 export type FactorCheckResult =
   | { outcome: "complete"; callbackUrl: string }
-  | { outcome: "handoff"; handoffUrl: string }
+  | SignInBlocked
   | { outcome: "refused"; message: string }
   | { outcome: "expired"; message: string };
 
@@ -244,17 +271,15 @@ export async function checkFactor(params: FactorCheckParams): Promise<FactorChec
     if (err instanceof ApiError && err.code === "invalid_credentials") {
       return { outcome: "refused", message: err.message };
     }
+    const blocked = asSignInBlocked(err);
+    if (blocked) return blocked;
     throw err;
   }
 
   if (body.callback_url) {
     return { outcome: "complete", callbackUrl: body.callback_url };
   }
-  if (body.handoff_url) {
-    return { outcome: "handoff", handoffUrl: body.handoff_url };
-  }
   // Same contract-violation treatment as checkPassword's fallback: not a
-  // shape this endpoint's documented outcomes (including the handoff case
-  // this file's doc comment explains) can produce.
+  // shape this endpoint's documented outcomes can produce.
   throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
 }

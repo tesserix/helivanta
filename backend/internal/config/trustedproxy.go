@@ -67,8 +67,8 @@ const trustedProxyCIDRsNoneSentinel = "none"
 //	every entry malformed allowed (empty list)     refuse boot, distinct message
 //
 // Dev is exempted because a developer's local stack has no proxy in front
-// of it at all — the same reasoning DevHelivantaWebOrigin and
-// DevSessionSigningKey rely on for their own guards.
+// of it at all — the same reasoning DevSessionSigningKey relies on for its
+// own guard.
 func (c Config) RequireTrustedProxyCIDRs() error {
 	raw := strings.TrimSpace(os.Getenv("TRUSTED_PROXY_CIDRS"))
 

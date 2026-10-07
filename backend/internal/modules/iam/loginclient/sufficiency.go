@@ -2,38 +2,40 @@ package loginclient
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log/slog"
 )
 
 // Outcome says what Helivanta may do with a session it has just established: it
 // is the ONLY thing that decides whether the OIDC auth request gets
-// finalized. It exists as a type rather than a bool so that a third answer
-// (e.g. "prompt for a second factor here", once #41 lands) is an added
+// finalized. It exists as a type rather than a bool so that every answer is a
 // constant a compiler forces every switch to consider, not a second bool
 // someone can forget to read.
+//
+// There is no "hand off to Zitadel's hosted login" outcome. There used to be
+// (OutcomeHandoff); it was deleted by #947 because Helivanta's users never see
+// Zitadel's UI, and because the handoff URL stranded them on Zitadel's
+// "You are signed in" page. See
+// docs/superpowers/specs/2026-10-07-no-hosted-login-handoff-design.md.
 type Outcome int
 
 const (
-	// OutcomeHandoff is the zero value ON PURPOSE. Anything that
-	// constructs a Result without deciding — a future code path, a
-	// partially-initialised struct, a test double — lands on "do not
-	// complete this login", which costs a redirect. The opposite default
-	// would cost an MFA bypass, and per D4 of
+	// OutcomeRefused is the zero value ON PURPOSE. Anything that constructs
+	// a Result without deciding — a future code path, a partially
+	// initialised struct, a test double — lands on "do not complete this
+	// login". The opposite default would cost an MFA bypass, and per D4 of
 	// docs/superpowers/specs/2026-08-16-hms-login-client-design.md that
-	// asymmetry decides which value gets to be zero.
-	OutcomeHandoff Outcome = iota
+	// asymmetry decides which value gets to be zero. A refusal always
+	// carries a RefusalReason; a zero Result carries RefusalUnspecified,
+	// which the login handlers treat as a refusal like any other.
+	OutcomeRefused Outcome = iota
 	// OutcomeComplete means the session satisfied everything Helivanta knows how
 	// to check and the auth request was finalized; CallbackURL is set.
 	OutcomeComplete
 	// OutcomeFactorRequired means the session is password-only, the user
 	// has enrolled TOTP and nothing ELSE Helivanta cannot collect, and
-	// Helivanta should prompt for a TOTP code natively rather than hand
-	// off to Zitadel's hosted UI. Factors names which factor(s) to
-	// collect (today, always exactly ["totp"]). It MUST be added after
-	// OutcomeComplete, never before OutcomeHandoff: OutcomeHandoff stays
-	// the iota zero value on purpose (see its own doc comment), and this
-	// is a third answer, not a replacement for either existing one.
+	// Helivanta should prompt for a TOTP code natively. Factors names which
+	// factor(s) to collect (today, always exactly ["totp"]).
 	OutcomeFactorRequired
 )
 
@@ -43,8 +45,8 @@ const (
 // off an integer.
 func (o Outcome) String() string {
 	switch o {
-	case OutcomeHandoff:
-		return "handoff"
+	case OutcomeRefused:
+		return "refused"
 	case OutcomeComplete:
 		return "complete"
 	case OutcomeFactorRequired:
@@ -54,19 +56,67 @@ func (o Outcome) String() string {
 	}
 }
 
+// RefusalReason says why a session whose password Zitadel ACCEPTED still
+// cannot be completed by Helivanta. It is what the login handlers log and what
+// decides which Helivanta-branded message the browser is shown; it is never a
+// credential failure (those are errors, ErrBadCredentials/ErrUserNotFound)
+// and never "we could not tell" (that is an ErrUnavailable error, answered as
+// a retryable 503 — spec D1).
+type RefusalReason int
+
+const (
+	// RefusalUnspecified is the zero value: a Result nobody filled in. It is
+	// still a refusal (fail closed); the handlers answer it with the most
+	// conservative message and log it as a defect.
+	RefusalUnspecified RefusalReason = iota
+	// RefusalFactorUnsupported: the user has enrolled a method Helivanta
+	// cannot collect natively (passkey, U2F, OTP email/SMS, a linked IdP).
+	// Completing on the password alone would silently skip a factor the
+	// user configured. Result.EnrolledMethods names what was enrolled.
+	RefusalFactorUnsupported
+	// RefusalMFAEnrollmentRequired: the user's org forces MFA and the user
+	// has no second factor enrolled. Native enrolment (#948) replaces this.
+	RefusalMFAEnrollmentRequired
+	// RefusalFactorNotVerified: on the factor path, the session does not
+	// carry the verified TOTP factor (or TOTP is no longer enrolled) even
+	// though a code was accepted — the enrolment or session changed under
+	// the login. Nothing to finalize; the user starts again.
+	RefusalFactorNotVerified
+)
+
+// String is the stable, machine-readable name logged as refusal_reason.
+func (r RefusalReason) String() string {
+	switch r {
+	case RefusalUnspecified:
+		return "unspecified"
+	case RefusalFactorUnsupported:
+		return "factor_unsupported"
+	case RefusalMFAEnrollmentRequired:
+		return "mfa_enrollment_required"
+	case RefusalFactorNotVerified:
+		return "factor_not_verified"
+	default:
+		return fmt.Sprintf("RefusalReason(%d)", int(r))
+	}
+}
+
 // Result is what CompleteIfSufficient and CompleteAfterFactor answer with.
-// CallbackURL is set if and only if Outcome is OutcomeComplete; on a
-// handoff or a factor-required answer it is empty — on a handoff because
-// there is deliberately nothing for the caller to redirect to (the caller
-// must send the browser to Zitadel's own login UI to collect the factors
-// Helivanta cannot), and on factor-required because the login is not
-// finished yet. Factors is non-empty if and only if Outcome is
-// OutcomeFactorRequired; it names which factor(s) the caller must collect
-// next (today, always exactly ["totp"]).
+// CallbackURL is set if and only if Outcome is OutcomeComplete. Factors is
+// non-empty if and only if Outcome is OutcomeFactorRequired. Reason is
+// meaningful if and only if Outcome is OutcomeRefused, and EnrolledMethods is
+// set for RefusalFactorUnsupported so the refusal can be logged with what the
+// account actually has configured (spec D5) — Zitadel's method type names,
+// never a credential.
 type Result struct {
-	Outcome     Outcome
-	CallbackURL string
-	Factors     []string
+	Outcome         Outcome
+	CallbackURL     string
+	Factors         []string
+	Reason          RefusalReason
+	EnrolledMethods []string
+}
+
+func refused(reason RefusalReason) Result {
+	return Result{Outcome: OutcomeRefused, Reason: reason}
 }
 
 // sufficient is proof that a session was evaluated by one of this
@@ -109,7 +159,7 @@ type sufficient struct{}
 // need answered: totpEnrolled (did the user configure TOTP — the one
 // factor VerifyTOTP, Task 2, lets Helivanta collect natively?) and
 // uncollectible (did they ALSO configure anything else?). Per spec D1, a
-// user with both TOTP and, say, OTP_EMAIL enrolled must still hand off —
+// user with both TOTP and, say, OTP_EMAIL enrolled must still be refused —
 // Helivanta can only collect one of the two, and completing on the
 // strength of the one it can collect would silently skip the other one
 // the user configured. This is shared, rather than inlined separately in
@@ -128,16 +178,17 @@ type sufficient struct{}
 //
 // Fails closed like every other read in this file: an error from either
 // sessionSubject or enrolledMethodTypes means "cannot prove this session
-// is sufficient", not "no factor found", so callers must hand off rather
+// is sufficient", not "no factor found", so callers must return an
+// ErrUnavailable error (never complete, never refuse as if unsupported) rather
 // than risk a bypass on an unreadable answer.
-func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) (subject sessionSubject, totpEnrolled, uncollectible bool, err error) {
+func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) (subject sessionSubject, methodTypes []string, totpEnrolled, uncollectible bool, err error) {
 	subject, err = c.sessionSubject(ctx, sessionID)
 	if err != nil {
-		return sessionSubject{}, false, false, err
+		return sessionSubject{}, nil, false, false, err
 	}
-	methodTypes, err := c.enrolledMethodTypes(ctx, subject.UserID)
+	methodTypes, err = c.enrolledMethodTypes(ctx, subject.UserID)
 	if err != nil {
-		return sessionSubject{}, false, false, err
+		return sessionSubject{}, nil, false, false, err
 	}
 	for _, methodType := range methodTypes {
 		switch methodType {
@@ -149,7 +200,7 @@ func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) 
 			uncollectible = true
 		}
 	}
-	return subject, totpEnrolled, uncollectible, nil
+	return subject, methodTypes, totpEnrolled, uncollectible, nil
 }
 
 // CompleteIfSufficient is the ONLY way to finalize an OIDC auth request
@@ -166,18 +217,21 @@ func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) 
 // the failure is completely silent, every user's login still appears to
 // work while skipping a required factor.
 //
-// It fails closed. If the login policy cannot be READ, the answer is
-// handoff, not complete: loginPolicy deliberately never returns a zero
+// It fails closed. If the enrolled factors or the login policy cannot be
+// READ, the answer is an ErrUnavailable error (a retryable 503 to the
+// browser), never complete: loginPolicy deliberately never returns a zero
 // value with a nil error (see its doc comment) precisely so an unreachable
 // Zitadel cannot be mistaken here for a policy that says "MFA off". A
-// handoff that was not strictly necessary costs the user one redirect; a
+// retry that was not strictly necessary costs the user a moment; a
 // completion that was not warranted is an authentication bypass, and that
-// asymmetry decides the direction.
+// asymmetry decides the direction. Every case Helivanta cannot complete
+// even with a full answer is a reasoned refusal (Result.Reason) — never a
+// redirect to Zitadel's hosted login, which #947 removed.
 //
 // # Enrolled-method classification runs BEFORE the policy check — #867 fix round 1, Finding 1
 //
 // An earlier version of this function checked policy.ForceMFA first and
-// returned OutcomeHandoff immediately when it was true, before ever
+// handed off immediately when it was true, before ever
 // looking at what the user had enrolled. That silently missed the
 // headline case this whole spec (#867) exists for: an org that forces
 // MFA, with a user who has enrolled TOTP and nothing else, still got
@@ -235,8 +289,8 @@ func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) 
 // already read above — no additional round trip — and an absent org id
 // on that response refuses the policy read (LoginPolicyForOrg's own
 // empty-org guard) rather than silently falling back to an unscoped one,
-// landing in the same fail-closed handoff branch immediately below as
-// every other unreadable-policy case. See design spec
+// landing in the same fail-closed ErrUnavailable branch immediately below
+// as every other unreadable-policy case. See design spec
 // docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md for
 // the full history and the live-verified facts this rests on.
 func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string, s Session) (Result, error) {
@@ -248,20 +302,21 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 	// prompt for at all. Either way this has to run before the policy
 	// check, not after (see this function's "classification runs BEFORE
 	// the policy check" doc section above).
-	subject, totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
+	subject, methodTypes, totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
 	if err != nil {
-		slog.WarnContext(ctx, "enrolled-factor check unreadable: handing off rather than completing the login (fails closed, same as an unreadable policy)",
-			"err", err)
-		return Result{Outcome: OutcomeHandoff}, nil
+		// Fails closed as a RETRYABLE error, not a refusal (#947 spec D1):
+		// "we could not tell" must never tell a clinician their account is
+		// unsupported, and must never complete the login either.
+		return Result{}, unreadable("enrolled factors", err)
 	}
 	if uncollectible {
 		// Whatever else CompleteIfSufficient learns, an uncollectible
 		// enrolled factor is decisive on its own (spec D1) — not worth
 		// spending a policy round trip on.
-		return Result{Outcome: OutcomeHandoff}, nil
+		return Result{Outcome: OutcomeRefused, Reason: RefusalFactorUnsupported, EnrolledMethods: methodTypes}, nil
 	}
 	if totpEnrolled {
-		// Ask for the factor natively instead of handing off — the
+		// Ask for the factor natively — the
 		// headline case this whole spec exists for, and the one Finding 1
 		// found was unreachable when forceMfa was also true. Nothing is
 		// finalized here — the login completes only once
@@ -284,27 +339,21 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 	// drift apart.
 	policy, err := c.LoginPolicyForOrg(ctx, subject.OrgID)
 	if err != nil {
-		// Deliberately not returned as an error: an unreadable policy is
-		// not a failed login, it is a login Helivanta is not qualified to
-		// complete, and handing off lets Zitadel's own UI finish the flow.
-		// But it must not be silent either — a Zitadel whose policy
-		// endpoint is broken would otherwise send every user through an
-		// unexplained redirect with nothing in the logs saying why. The
-		// error text is safe to log: this package never puts a credential,
-		// a session token or Zitadel's raw error body into one (see
-		// readZitadelErrorID).
-		slog.WarnContext(ctx, "login policy unreadable: handing off rather than completing the login (login-client design spec D4 fails closed, docs/superpowers/specs/2026-08-16-hms-login-client-design.md)",
-			"err", err)
-		return Result{Outcome: OutcomeHandoff}, nil
+		// An unreadable policy is not a failed login and not an
+		// unsupported account: it is a login Helivanta is not qualified to
+		// complete right now. Retryable error, fail closed (#947 spec D1;
+		// login-client design spec D4). The error text is safe to log:
+		// this package never puts a credential, a session token or
+		// Zitadel's raw error body into one (see readZitadelErrorID).
+		return Result{}, unreadable("login policy", err)
 	}
 	if policy.ForceMFA {
 		// The session this package can build is password-only
 		// (CreatePasswordSession is its only session constructor), and
 		// nothing was enrolled that Helivanta could ask for natively (the
-		// TOTP-only case already returned above), so under forceMfa this
-		// session is insufficient with nothing left to offer but a
-		// handoff.
-		return Result{Outcome: OutcomeHandoff}, nil
+		// TOTP-only case already returned above). Native enrolment (#948)
+		// will turn this refusal into an enrolment step.
+		return refused(RefusalMFAEnrollmentRequired), nil
 	}
 
 	callbackURL, err := c.finalize(ctx, authRequestID, s, sufficient{})
@@ -362,35 +411,30 @@ func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, 
 	// discards: CompleteAfterFactor reads no policy — see this function's
 	// doc comment — so it has no use for the org id CompleteIfSufficient
 	// needs to scope LoginPolicyForOrg with (design spec D1).
-	_, totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
+	_, methodTypes, totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
 	if err != nil {
-		slog.WarnContext(ctx, "enrolled-factor check unreadable: handing off rather than completing the login (fails closed, same as an unreadable policy)",
-			"err", err)
-		return Result{Outcome: OutcomeHandoff}, nil
+		return Result{}, unreadable("enrolled factors", err)
 	}
 	if uncollectible {
 		// Spec D1: an uncollectible factor is decisive regardless of what
 		// TOTP verification did or did not achieve — see this function's
 		// doc comment, Finding 2.
-		return Result{Outcome: OutcomeHandoff}, nil
+		return Result{Outcome: OutcomeRefused, Reason: RefusalFactorUnsupported, EnrolledMethods: methodTypes}, nil
 	}
 	if !totpEnrolled {
-		// The enrollment this call sees no longer matches what
+		// The enrolment this call sees no longer matches what
 		// CompleteIfSufficient saw (TOTP was removed, or this path was
 		// reached without ever going through CompleteIfSufficient at
-		// all). Either way there is nothing here to natively verify
-		// against, so it hands off rather than guessing.
-		return Result{Outcome: OutcomeHandoff}, nil
+		// all). There is nothing here to natively verify against.
+		return refused(RefusalFactorNotVerified), nil
 	}
 
 	factors, err := c.SessionFactors(ctx, s.ID)
 	if err != nil {
-		slog.WarnContext(ctx, "session factors unreadable: handing off rather than completing the login (fails closed, same as an unreadable policy)",
-			"err", err)
-		return Result{Outcome: OutcomeHandoff}, nil
+		return Result{}, unreadable("session factors", err)
 	}
 	if !factors.TOTP {
-		return Result{Outcome: OutcomeHandoff}, nil
+		return refused(RefusalFactorNotVerified), nil
 	}
 
 	callbackURL, err := c.finalize(ctx, authRequestID, s, sufficient{})
@@ -398,4 +442,15 @@ func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, 
 		return Result{}, fmt.Errorf("loginclient: finalize after factor verification: %w", err)
 	}
 	return Result{Outcome: OutcomeComplete, CallbackURL: callbackURL}, nil
+}
+
+// unreadable wraps a failed sufficiency read as ErrUnavailable, so the login
+// handlers answer it with the retryable 503 they already give an unreachable
+// Zitadel — never a refusal, never a completion (#947 spec D1). what names the
+// read for the log line; err keeps the underlying status and Zitadel error id.
+func unreadable(what string, err error) error {
+	if errors.Is(err, ErrUnavailable) {
+		return fmt.Errorf("loginclient: %s unreadable: %w", what, err)
+	}
+	return fmt.Errorf("loginclient: %s unreadable: %w: %w", what, ErrUnavailable, err)
 }

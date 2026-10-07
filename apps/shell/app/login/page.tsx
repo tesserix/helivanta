@@ -77,28 +77,22 @@ import {
 // answers a submitted password with one of THREE shapes:
 //
 //  - `{ callback_url }` — the login is actually complete; navigate there.
-//  - `{ handoff_url }` — Helivanta cannot finish this login itself (MFA
-//    required by org policy, `forceMfaLocalOnly`, a user's own
-//    voluntarily enrolled second factor Helivanta cannot collect
-//    natively, a federated hospital IdP, or a policy the API could not
-//    read and so fails closed on). A forced password change is NOT among
-//    them, though an earlier version of this comment listed it: verified
-//    live 2026-08-16 (#854 Task 8, spike §5), Zitadel signals
-//    `passwordChangeRequired` to a login client nowhere in the flow, so
-//    the API COMPLETES those logins — tracked as #856. This is a NORMAL
-//    OUTCOME, not an error. The caller's password may have been entirely
-//    correct — this page must navigate to `handoff_url` exactly as it
-//    would `callback_url`, never render it as a failed sign-in. Treating
-//    a handoff as an error would strand a clinician who needs MFA at a
-//    dead end; treating it as success would silently skip a required
-//    factor.
 //  - `{ factor_required: ["totp"] }` — (#867, spec D1/D8) the password was
 //    correct and the org's policy requires a TOTP code, which Helivanta
-//    can now collect natively rather than handing off to Zitadel's hosted
-//    UI. This is the SAME "neither success nor failure" trap `handoff_url`
-//    documents above, one level deeper: rendering it as a failed sign-in
-//    would send a clinician to reset a password that was correct. See
-//    OtpStep below and login-client.ts's checkPassword doc comment.
+//    collects natively. Neither success nor failure: rendering it as a
+//    failed sign-in would send a clinician to reset a password that was
+//    correct. See OtpStep below and login-client.ts's checkPassword doc
+//    comment.
+//  - a 403 `blocked` refusal (#947) — the password was correct, but
+//    Helivanta cannot complete this sign-in: the org requires two-step
+//    verification and none is set up, or the account uses a method
+//    Helivanta does not support yet. Rendered in Helivanta's own words on
+//    the start-again landing. This page NEVER navigates to Zitadel's
+//    hosted login: it used to (`handoff_url`), and that stranded
+//    clinicians on Zitadel's "You are signed in" page. A forced password
+//    change is not among these — verified live 2026-08-16 (#854 Task 8,
+//    spike §5), Zitadel signals `passwordChangeRequired` to a login client
+//    nowhere in the flow, so the API COMPLETES those logins (#856).
 //
 // A genuinely refused credential (wrong password or unknown user) is a
 // FOURTH, distinct outcome: the API answers both cases identically — same
@@ -126,13 +120,12 @@ import {
 // error message with nowhere to go. #867 adds a SIXTH place this exact
 // same situation can be discovered: a `login_attempt` row (the server-
 // side record of an in-progress MFA check) can itself go stale between
-// the password step and the factor step — see OtpStep's `onExpired`,
+// the password step and the factor step — see OtpStep's `onEnded`,
 // which renders this identical landing rather than a second, different-
 // looking dead end.
 //
-// apps/shell/app/api/auth/callback/page.tsx is unchanged: it is still
-// the target both `callback_url` (this page) and Zitadel's hosted login
-// (a `handoff_url` this page navigated to) eventually redirect back to.
+// apps/shell/app/api/auth/callback/page.tsx is unchanged: it is the
+// target `callback_url` redirects to.
 export default function LoginPage() {
   return (
     // Suspense boundary: useSearchParams() opts a page out of Next's
@@ -256,14 +249,19 @@ function LoginFlow({
   policies: AuthPoliciesInfo;
 }) {
   const [step, setStep] = useState<LoginStep>("credential");
-  const [expiredMessage, setExpiredMessage] = useState<string | null>(null);
+  // Set by either step when the sign-in cannot continue: the attempt
+  // expired, or (#947) Helivanta refused a correct password because it
+  // cannot complete this sign-in. Both end on the SAME start-again
+  // landing, carrying the API's own wording — never a navigation to
+  // Zitadel's hosted login.
+  const [endedMessage, setEndedMessage] = useState<string | null>(null);
 
-  if (expiredMessage) {
-    return <RedirectLanding message={expiredMessage} />;
+  if (endedMessage) {
+    return <RedirectLanding message={endedMessage} />;
   }
 
   if (step === "otp") {
-    return <OtpStep authRequestId={authRequestId} onExpired={setExpiredMessage} />;
+    return <OtpStep authRequestId={authRequestId} onEnded={setEndedMessage} />;
   }
 
   return (
@@ -271,6 +269,7 @@ function LoginFlow({
       authRequestId={authRequestId}
       policies={policies}
       onFactorRequired={() => setStep("otp")}
+      onBlocked={setEndedMessage}
     />
   );
 }
@@ -306,7 +305,7 @@ const credentialsSchema = z.object({
 // The credential step itself (spec D2/D6/D7). Renders only once
 // ValidatedCredentialForm's mount-time check confirms the auth request is
 // still good — see LoginPage's header comment for the full outcome
-// contract (`callback_url` / `handoff_url` / `factor_required` / shared
+// contract (`callback_url` / `factor_required` / `blocked` / shared
 // refusal / expired request) this drives against.
 //
 // Built on `@tesserix/web`'s AuthCredentialForm (#867, on top of #866)
@@ -324,10 +323,12 @@ function CredentialForm({
   authRequestId,
   policies,
   onFactorRequired,
+  onBlocked,
 }: {
   authRequestId: string;
   policies: AuthPoliciesInfo;
   onFactorRequired: () => void;
+  onBlocked: (message: string) => void;
 }) {
   const [values, setValues] = useState<AuthCredentialValues>({ loginName: "", password: "" });
   const [loginNameError, setLoginNameError] = useState<string | undefined>();
@@ -341,24 +342,22 @@ function CredentialForm({
         password: submitted.password,
       }),
     {
-      // `complete` and `handoff` both navigate — see the header comment
-      // on why a handoff is not treated as a failure. window.location.
-      // assign (not router.push): both URLs leave this Next.js app
-      // entirely, either to the same /api/auth/callback route Zitadel's
-      // own redirect also lands on, or to Zitadel's hosted login origin.
-      // `factorRequired` (#867) is the one outcome that stays inside
-      // this app — it hands control to LoginFlow's OTP step instead of
-      // navigating anywhere.
+      // `complete` is the ONLY outcome that navigates —
+      // window.location.assign (not router.push), because /api/auth/
+      // callback is a full-page OIDC callback. `factorRequired` (#867)
+      // hands control to LoginFlow's OTP step; `blocked` (#947) ends on
+      // LoginFlow's start-again landing with the API's own message. No
+      // outcome sends the browser to Zitadel's hosted login.
       onSuccess: (result) => {
         switch (result.outcome) {
           case "complete":
             window.location.assign(result.callbackUrl);
             break;
-          case "handoff":
-            window.location.assign(result.handoffUrl);
-            break;
           case "factorRequired":
             onFactorRequired();
+            break;
+          case "blocked":
+            onBlocked(result.message);
             break;
         }
       },
@@ -455,16 +454,17 @@ function CredentialForm({
 // for why there are four, not the three the design spec's D8 table
 // lists) map to visibly different behaviour here:
 //
-//  - `complete` / `handoff` both navigate away, exactly like
-//    CredentialForm's own `complete` / `handoff` handling above — a
-//    handoff after a CORRECT code (the user's enrollment changed between
-//    the password step and this one) is still not a failure.
+//  - `complete` navigates away, exactly like CredentialForm's own.
+//  - `blocked` (#947) — a CORRECT code, but the user's enrolment changed
+//    between the password step and this one, so Helivanta cannot complete
+//    the sign-in. Ends on the start-again landing via `onEnded`, never as
+//    a wrong-code message and never a navigation to Zitadel.
 //  - `refused` (a wrong TOTP code, spec D5/D6) keeps THIS step visible
 //    with the shared refusal wording and clears the code so the
 //    clinician can retry — spec D6 allows five wrong codes before
 //    exhaustion, so staying here is the normal case, not a dead end.
 //  - `expired` (the `login_attempt` row missing, expired, or exhausted)
-//    hands control back to `onExpired`, which renders the SAME
+//    hands control back to `onEnded`, which renders the SAME
 //    "start again" landing an expired auth request renders elsewhere on
 //    this page — the clinician must re-enter their password either way,
 //    and two different-looking dead ends for the same underlying
@@ -476,10 +476,10 @@ function CredentialForm({
 // unmodeled-error fallback.
 function OtpStep({
   authRequestId,
-  onExpired,
+  onEnded,
 }: {
   authRequestId: string;
-  onExpired: (message: string) => void;
+  onEnded: (message: string) => void;
 }) {
   const [code, setCode] = useState("");
   // Set only on a `refused` outcome — a resolved mutation RESULT, not a
@@ -497,15 +497,15 @@ function OtpStep({
           case "complete":
             window.location.assign(result.callbackUrl);
             break;
-          case "handoff":
-            window.location.assign(result.handoffUrl);
+          case "blocked":
+            onEnded(result.message);
             break;
           case "refused":
             setRefusedMessage(result.message);
             setCode("");
             break;
           case "expired":
-            onExpired(result.message);
+            onEnded(result.message);
             break;
         }
       },

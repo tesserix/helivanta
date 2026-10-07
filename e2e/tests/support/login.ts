@@ -113,10 +113,9 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
   // one such button exists on screen at a time.
   //
   // Helivanta's own page navigates on to apps/shell/app/api/auth/callback/page.tsx
-  // (via callback_url) or, for the handoff outcomes (MFA, forced
-  // password change, federated IdP — see CredentialForm's header
-  // comment), onward through Zitadel again before landing on the same
-  // callback. Longer than the 5s default on purpose: this can cross a
+  // (via callback_url). It never routes through Zitadel's hosted login:
+  // #947 removed that handoff, and a sign-in Helivanta cannot complete is
+  // refused on this same page instead. Longer than the 5s default on purpose: this can cross a
   // POST to the API, a cookie write and a client-side redirect into a
   // route the dev server may still be compiling — under four parallel
   // workers that whole chain has been observed taking over five seconds.

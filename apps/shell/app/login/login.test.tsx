@@ -66,11 +66,26 @@ function authRequestOkResponse() {
 // success response so a test only has to override the call it cares
 // about.
 function stubAuthFlow(
-  opts: { authRequest?: () => Response; password?: () => Response; factor?: () => Response } = {},
+  opts: {
+    authRequest?: () => Response;
+    password?: () => Response;
+    factor?: () => Response;
+    enroll?: () => Response;
+  } = {},
 ) {
   const fetchMock = vi.fn((url: string) => {
     if (url.includes("/auth/login/request/")) {
       return Promise.resolve((opts.authRequest ?? authRequestOkResponse)());
+    }
+    // (#948) POST .../auth/login/enroll, called by EnrollStep only after an
+    // `enrollment_required` outcome from the password call.
+    if (url.includes("/auth/login/enroll")) {
+      return Promise.resolve(
+        (
+          opts.enroll ??
+          (() => jsonResponse(200, { callback_url: "https://hms.example/api/auth/callback" }))
+        )(),
+      );
     }
     if (url.includes("/auth/login/factor")) {
       return Promise.resolve(
@@ -372,7 +387,9 @@ describe("LoginPage", () => {
     });
 
     // #947: when the password is right but Helivanta cannot complete the
-    // sign-in, the API refuses with 403 and a reason code. The page must
+    // sign-in, the API refuses with 403 and a reason code. (#948 removed
+    // `mfa_enrollment_required` from this list: that case is now the
+    // enrolment step, tested below, not a refusal.) The page must
     // show the API's own message on the start-again landing and must NEVER
     // navigate — the old `handoff_url` navigation to Zitadel's hosted login
     // stranded clinicians on Zitadel's "You are signed in" page. Each code
@@ -382,10 +399,6 @@ describe("LoginPage", () => {
       [
         "sign_in_method_unsupported",
         "your account uses a sign-in method Helivanta does not support yet; contact your administrator",
-      ],
-      [
-        "mfa_enrollment_required",
-        "your organisation requires two-step verification, which is not set up for your account yet; contact your administrator",
       ],
       ["sign_in_incomplete", "this sign-in could not be completed; start again"],
     ])(
@@ -723,6 +736,157 @@ describe("LoginPage", () => {
         expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
         expect(assignSpy).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  // #948: the org forces MFA and the account has nothing enrolled. The
+  // password step answers `enrollment_required` with a TOTP secret; the
+  // page must render the secret (as a QR code with an accessible name and
+  // as text), collect ONE code, and send it to the enrol route — never
+  // the factor route, never a refusal, never a navigation until the API
+  // completes the sign-in.
+  describe("native TOTP enrolment", () => {
+    beforeEach(() => {
+      window.history.pushState({}, "", `/login?authRequest=${AUTH_REQUEST_ID}`);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    const enrollmentRequired = () =>
+      jsonResponse(200, {
+        enrollment_required: ["totp"],
+        totp: {
+          uri: "otpauth://totp/ZITADEL:clinician@helivanta.dev?secret=JBSWY3DPEHPK3PXP&issuer=ZITADEL",
+          secret: "JBSWY3DPEHPK3PXP",
+        },
+      });
+
+    async function signInToEnrolment(fetchMock: ReturnType<typeof stubAuthFlow>) {
+      const { user } = renderWithProviders(<LoginPage />);
+      await user.type(await screen.findByLabelText("Email or username"), "clinician@helivanta.dev");
+      await user.type(screen.getByLabelText("Password"), "correct-password");
+      await user.click(screen.getByRole("button", { name: "Sign in" }));
+      expect(
+        await screen.findByRole("heading", { name: "Set up two-step verification" }),
+      ).toBeInTheDocument();
+      return { user, fetchMock };
+    }
+
+    it("renders the QR code and the secret, and neither a refusal nor a redirect", async () => {
+      const fetchMock = stubAuthFlow({ password: enrollmentRequired });
+      const assignSpy = vi.fn();
+      vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+
+      await signInToEnrolment(fetchMock);
+
+      const qr = screen.getByRole("img", { name: "Authenticator setup QR code" });
+      expect(qr.querySelector("svg")).not.toBeNull();
+      expect(screen.getByLabelText("Authenticator setup key")).toHaveTextContent(
+        "JBSWY3DPEHPK3PXP",
+      );
+      expect(screen.getByLabelText("Confirmation code")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+      expect(screen.queryByText(/contact your administrator/i)).not.toBeInTheDocument();
+      expect(assignSpy).not.toHaveBeenCalled();
+    });
+
+    it("sends the code to the enrol route and navigates when the API completes the sign-in", async () => {
+      const fetchMock = stubAuthFlow({
+        password: enrollmentRequired,
+        enroll: () =>
+          jsonResponse(200, {
+            callback_url: "https://hms.example/api/auth/callback?code=enrolled&state=xyz",
+          }),
+      });
+      const assignSpy = vi.fn();
+      vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+
+      const { user } = await signInToEnrolment(fetchMock);
+      await user.type(screen.getByLabelText("Confirmation code"), "123456");
+
+      await waitFor(() =>
+        expect(assignSpy).toHaveBeenCalledWith(
+          "https://hms.example/api/auth/callback?code=enrolled&state=xyz",
+        ),
+      );
+      const enrollCalls = fetchMock.mock.calls.filter(([url]) =>
+        String(url).includes("/auth/login/enroll"),
+      );
+      expect(enrollCalls).toHaveLength(1);
+      // The stub is typed on its first argument only; the second is the
+      // RequestInit apiFetch passed, which is what carries the body.
+      const [, init] = enrollCalls[0] as unknown as [string, RequestInit];
+      expect(JSON.parse(String(init.body))).toEqual({
+        auth_request_id: AUTH_REQUEST_ID,
+        factor: "totp",
+        code: "123456",
+      });
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/auth/login/factor"))).toBe(
+        false,
+      );
+    });
+
+    it("shows the API's refusal for a wrong code, clears the input and keeps the secret on screen", async () => {
+      const fetchMock = stubAuthFlow({
+        password: enrollmentRequired,
+        enroll: () =>
+          jsonResponse(401, {
+            error: "invalid_credentials",
+            message: "email or password is incorrect",
+          }),
+      });
+      const assignSpy = vi.fn();
+      vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+
+      const { user } = await signInToEnrolment(fetchMock);
+      await user.type(screen.getByLabelText("Confirmation code"), "000000");
+
+      expect(await screen.findByText("email or password is incorrect")).toBeInTheDocument();
+      expect(screen.getByLabelText("Confirmation code")).toHaveValue("");
+      expect(screen.getByLabelText("Authenticator setup key")).toHaveTextContent(
+        "JBSWY3DPEHPK3PXP",
+      );
+      expect(assignSpy).not.toHaveBeenCalled();
+    });
+
+    it("ends on the start-again landing when the attempt has expired", async () => {
+      const fetchMock = stubAuthFlow({
+        password: enrollmentRequired,
+        enroll: () =>
+          jsonResponse(400, {
+            error: "auth_request_invalid",
+            message: "this sign-in attempt has expired; start again",
+          }),
+      });
+      const assignSpy = vi.fn();
+      vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+
+      const { user } = await signInToEnrolment(fetchMock);
+      await user.type(screen.getByLabelText("Confirmation code"), "123456");
+
+      expect(
+        await screen.findByText("this sign-in attempt has expired; start again"),
+      ).toBeInTheDocument();
+      expect(screen.queryByLabelText("Confirmation code")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+      expect(assignSpy).not.toHaveBeenCalled();
+    });
+
+    it("treats enrollment_required without a secret as a failed sign-in, never a blank screen", async () => {
+      stubAuthFlow({
+        password: () => jsonResponse(200, { enrollment_required: ["totp"] }),
+      });
+      const { user } = renderWithProviders(<LoginPage />);
+      await user.type(await screen.findByLabelText("Email or username"), "clinician@helivanta.dev");
+      await user.type(screen.getByLabelText("Password"), "correct-password");
+      await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+      expect(await screen.findByText(/Sign-in failed/i)).toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", { name: "Set up two-step verification" }),
+      ).not.toBeInTheDocument();
     });
   });
 });

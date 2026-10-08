@@ -53,7 +53,7 @@ So the classification changes:
 | `IDP` + `TOTP`, after a verified code          | `RefusalFactorUnsupported`  | **complete**                                                             |
 | `IDP` + any of `PASSKEY`/`U2F`/`OTP_*`         | `RefusalFactorUnsupported`  | unchanged: refused, enrolled methods logged                              |
 | `PASSKEY`, `U2F`, `OTP_SMS`, `OTP_EMAIL`       | `RefusalFactorUnsupported`  | unchanged                                                                |
-| nothing, `forceMfa` on                         | `RefusalMFAEnrollmentRequired` | unchanged                                                             |
+| nothing, `forceMfa` on                         | `RefusalMFAEnrollmentRequired` | unchanged here; superseded the same day by `OutcomeEnrollmentRequired` (#948, `2026-10-08-native-totp-enrolment-design.md`) |
 
 **Why `PASSKEY` stays refused while `IDP` does not, when both are first
 factors.** The distinction is not what Zitadel requires but what the product

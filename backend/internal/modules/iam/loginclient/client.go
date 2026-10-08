@@ -294,6 +294,77 @@ func (c *Client) VerifyTOTP(ctx context.Context, s Session, code string) (Sessio
 	return Session{ID: s.ID, Token: wire.SessionToken}, nil
 }
 
+// TOTPEnrollment is what Zitadel hands back for a freshly registered,
+// not-yet-verified TOTP factor: the otpauth:// URI an authenticator app
+// scans and the base32 secret for manual entry (the same secret the URI
+// carries). Both are shown to the user ONCE and persisted by Helivanta
+// NOWHERE — never logged, never stored; see RegisterTOTP.
+type TOTPEnrollment struct {
+	URI    string
+	Secret string
+}
+
+// RegisterTOTP registers a TOTP factor on the session's user (#948, spec
+// D2): GET /v2/sessions/{id} for the user id, then POST
+// /v2/users/{id}/totp. Verified live 2026-10-08 against the dev stack with
+// the login-client PAT (the design spec's table): 200 {uri, secret}; a
+// second call before verification answers 200 with a NEW secret and the
+// first stops verifying, which is why the caller must register exactly
+// once per login attempt; a call after a verified TOTP exists answers 409
+// COMMAND-do9se, which do() maps to ErrUnavailable — correct for the one
+// way it can happen (a factor appeared between CompleteIfSufficient's
+// classification and this call), because a retry of the whole sign-in
+// then takes the factor path.
+//
+// The returned secret is a credential-in-waiting. This function does not
+// log it, and neither may any caller: the login handler logs the outcome
+// and the auth request id, nothing from this struct.
+func (c *Client) RegisterTOTP(ctx context.Context, sessionID string) (TOTPEnrollment, error) {
+	subject, err := c.sessionSubject(ctx, sessionID)
+	if err != nil {
+		return TOTPEnrollment{}, err
+	}
+	var wire struct {
+		URI    string `json:"uri"`
+		Secret string `json:"secret"`
+	}
+	if err := c.do(ctx, http.MethodPost, "/v2/users/"+url.PathEscape(subject.UserID)+"/totp", map[string]any{}, &wire, ErrUnavailable); err != nil {
+		return TOTPEnrollment{}, err
+	}
+	if wire.URI == "" || wire.Secret == "" {
+		// A 200 without both fields cannot be rendered as an enrolment
+		// screen; fail closed as retryable rather than show a blank QR.
+		return TOTPEnrollment{}, fmt.Errorf("POST /v2/users/%s/totp: response missing uri or secret: %w", subject.UserID, ErrUnavailable)
+	}
+	return TOTPEnrollment{URI: wire.URI, Secret: wire.Secret}, nil
+}
+
+// VerifyTOTPEnrollment confirms a registered-but-unverified TOTP with its
+// first code (#948, spec D3): POST /v2/users/{id}/totp/verify. Verified
+// live 2026-10-08: 200 on a right code, after which
+// GET /v2/users/{id}/authentication_methods lists TOTP; 400 EVENT-8isk2
+// on a wrong or stale code, which #901's classification (badRequestKinds,
+// zitadelerror.go) maps to ErrBadCredentials. A 400 COMMAND-qx4ls
+// "AlreadyReady" — the factor was verified by a concurrent request — is not
+// in that table and maps to ErrRejected. Both satisfy IsCredentialRefusal,
+// so the handler answers either exactly like a wrong password or a wrong
+// factor code (native-MFA spec D5/D6); the attempt's enrolling flag (spec
+// D4) makes the second reachable only by racing one's own sign-in.
+//
+// This does NOT mark the SESSION as TOTP-verified; Zitadel's session check
+// refuses an unverified registration (400 COMMAND-3Mif9s) but accepts the
+// SAME code once this has succeeded, so the caller follows with
+// VerifyTOTP and the usual CompleteAfterFactor — the one path that
+// finalizes after a factor, re-checking enrolment on the way.
+func (c *Client) VerifyTOTPEnrollment(ctx context.Context, sessionID, code string) error {
+	subject, err := c.sessionSubject(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	body := map[string]any{"code": code}
+	return c.do(ctx, http.MethodPost, "/v2/users/"+url.PathEscape(subject.UserID)+"/totp/verify", body, nil, ErrUnavailable)
+}
+
 // Factors reports which authentication factors a session has actually
 // verified — as opposed to enrolledMethodTypes, which reports what the
 // user has configured. An absent factor decodes to false, not an error: a

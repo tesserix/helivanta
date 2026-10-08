@@ -79,18 +79,30 @@ export interface AuthRequestInfo {
 export type PasswordCheckResult =
   | { outcome: "complete"; callbackUrl: string }
   | { outcome: "factorRequired"; factors: string[] }
+  | { outcome: "enrollmentRequired"; factors: string[]; totp: TotpEnrollment }
   | SignInBlocked;
+
+// TotpEnrollment is what the API hands the page ONCE when the org forces
+// MFA and the account has nothing enrolled (#948, spec D2): the otpauth://
+// URI the page renders as a QR code and the base32 secret for manual entry.
+// It lives in component state only — never storage, never the URL, never a
+// log — and a refresh loses it along with the attempt, exactly as the
+// factor step loses its attempt; the user signs in again for a new one.
+export interface TotpEnrollment {
+  uri: string;
+  secret: string;
+}
 
 // The API's refusal codes for a sign-in whose password was ACCEPTED but
 // which Helivanta cannot complete (#947 spec D2; `refusalCode*` in
 // backend/internal/modules/iam/loginui.go). Answered as 403. The message
 // carried alongside is the API's own wording — this file never re-hosts
 // backend-owned text (see checkFactor's doc comment).
-export const SIGN_IN_BLOCKED_CODES = [
-  "sign_in_method_unsupported",
-  "mfa_enrollment_required",
-  "sign_in_incomplete",
-] as const;
+// `mfa_enrollment_required` was a member until #948: the API no longer
+// emits it, because the password step answers `enrollment_required` with
+// a TOTP secret instead. A code the API cannot send must not be modelled
+// here as if it could.
+export const SIGN_IN_BLOCKED_CODES = ["sign_in_method_unsupported", "sign_in_incomplete"] as const;
 
 export type SignInBlockedReason = (typeof SIGN_IN_BLOCKED_CODES)[number];
 
@@ -125,6 +137,8 @@ interface PasswordCheckParams {
 interface PasswordCheckResponse {
   callback_url?: string;
   factor_required?: string[];
+  enrollment_required?: string[];
+  totp?: TotpEnrollment;
 }
 
 // checkPassword is the ONLY thing Helivanta's login form does with a
@@ -189,6 +203,15 @@ export async function checkPassword(params: PasswordCheckParams): Promise<Passwo
   }
   if (body.factor_required) {
     return { outcome: "factorRequired", factors: body.factor_required };
+  }
+  if (body.enrollment_required) {
+    // enrollment_required without a secret is a server contract violation,
+    // not a step the page can render: there would be nothing to scan.
+    // Thrown rather than returned as a blank enrolment screen (fail closed).
+    if (!body.totp?.uri || !body.totp?.secret) {
+      throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
+    }
+    return { outcome: "enrollmentRequired", factors: body.enrollment_required, totp: body.totp };
   }
   // Neither key present is a contract violation by the API,
   // not a user error — there is no credential-shaped explanation for it,
@@ -281,5 +304,38 @@ export async function checkFactor(params: FactorCheckParams): Promise<FactorChec
   }
   // Same contract-violation treatment as checkPassword's fallback: not a
   // shape this endpoint's documented outcomes can produce.
+  throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
+}
+
+// verifyEnrollment confirms the TOTP the password step registered (#948,
+// spec D3): POST /v1/auth/login/enroll with the authenticator's first code.
+// Its outcomes are exactly checkFactor's — the API answers a wrong code,
+// an expired attempt and a post-code refusal in the same shapes — so the
+// enrolment step renders them with the same code the factor step uses.
+export async function verifyEnrollment(params: FactorCheckParams): Promise<FactorCheckResult> {
+  let body: PasswordCheckResponse;
+  try {
+    body = await apiFetch<PasswordCheckResponse>("/auth/login/enroll", {
+      method: "POST",
+      body: JSON.stringify({
+        auth_request_id: params.authRequestId,
+        factor: params.factor,
+        code: params.code,
+      }),
+    });
+  } catch (err) {
+    if (err instanceof ApiError && err.code === "auth_request_invalid") {
+      return { outcome: "expired", message: err.message };
+    }
+    if (err instanceof ApiError && err.code === "invalid_credentials") {
+      return { outcome: "refused", message: err.message };
+    }
+    const blocked = asSignInBlocked(err);
+    if (blocked) return blocked;
+    throw err;
+  }
+  if (body.callback_url) {
+    return { outcome: "complete", callbackUrl: body.callback_url };
+  }
   throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
 }

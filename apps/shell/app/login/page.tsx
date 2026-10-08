@@ -15,15 +15,18 @@ import {
 } from "@tesserix/web";
 import { ApiError, useApiMutation, useApiQuery } from "@helivanta/api";
 import { IDLE_ENDED_MARK, SIGNED_OUT_MARK } from "@helivanta/ui";
+import { QRCodeSVG } from "qrcode.react";
 
 import { getUserManager } from "@/lib/oidc";
 import {
   checkFactor,
   checkPassword,
+  verifyEnrollment,
   type AuthPoliciesInfo,
   type AuthRequestInfo,
   type FactorCheckResult,
   type PasswordCheckResult,
+  type TotpEnrollment,
 } from "@/lib/login-client";
 
 // Helivanta's own sign-in page (spec D2/D6, #854 — supersedes D5a of
@@ -226,7 +229,12 @@ function toMethodPolicy(policies: AuthPoliciesInfo): AuthMethodPolicy {
   };
 }
 
-type LoginStep = "credential" | "otp";
+// "enroll" (#948) is reachable only after an `enrollmentRequired` outcome:
+// the org forces MFA and the account has nothing enrolled, so the page
+// renders the TOTP secret the password step minted and collects its first
+// code. It is a sibling of "otp", not a sub-state of it: the two submit to
+// different routes and the API refuses each other's attempt.
+type LoginStep = "credential" | "otp" | "enroll";
 
 // Owns the two-step flow a validated auth request can now be in (#867,
 // spec D1/D8): the credential step (unchanged in outcome, now rendered
@@ -249,6 +257,10 @@ function LoginFlow({
   policies: AuthPoliciesInfo;
 }) {
   const [step, setStep] = useState<LoginStep>("credential");
+  // The TOTP secret for the "enroll" step (#948, spec D5). Component state
+  // ONLY: it is set from the password step's response, read by EnrollStep,
+  // and gone with the page. Nothing writes it anywhere else.
+  const [enrollment, setEnrollment] = useState<TotpEnrollment | null>(null);
   // Set by either step when the sign-in cannot continue: the attempt
   // expired, or (#947) Helivanta refused a correct password because it
   // cannot complete this sign-in. Both end on the SAME start-again
@@ -264,11 +276,19 @@ function LoginFlow({
     return <OtpStep authRequestId={authRequestId} onEnded={setEndedMessage} />;
   }
 
+  if (step === "enroll" && enrollment) {
+    return <EnrollStep authRequestId={authRequestId} totp={enrollment} onEnded={setEndedMessage} />;
+  }
+
   return (
     <CredentialForm
       authRequestId={authRequestId}
       policies={policies}
       onFactorRequired={() => setStep("otp")}
+      onEnrollmentRequired={(totp) => {
+        setEnrollment(totp);
+        setStep("enroll");
+      }}
       onBlocked={setEndedMessage}
     />
   );
@@ -323,11 +343,13 @@ function CredentialForm({
   authRequestId,
   policies,
   onFactorRequired,
+  onEnrollmentRequired,
   onBlocked,
 }: {
   authRequestId: string;
   policies: AuthPoliciesInfo;
   onFactorRequired: () => void;
+  onEnrollmentRequired: (totp: TotpEnrollment) => void;
   onBlocked: (message: string) => void;
 }) {
   const [values, setValues] = useState<AuthCredentialValues>({ loginName: "", password: "" });
@@ -355,6 +377,12 @@ function CredentialForm({
             break;
           case "factorRequired":
             onFactorRequired();
+            break;
+          case "enrollmentRequired":
+            // Neither success nor failure, like factorRequired: the
+            // password was right and the next step is to set up the
+            // authenticator the org requires (#948).
+            onEnrollmentRequired(result.totp);
             break;
           case "blocked":
             onBlocked(result.message);
@@ -546,6 +574,116 @@ function OtpStep({
           }}
           onSubmit={(submittedCode) => submit.mutate(submittedCode)}
           loading={submit.isPending}
+          error={
+            refusedMessage ??
+            (submit.error instanceof ApiError
+              ? submit.error.message
+              : submit.error
+                ? "Sign-in failed. Please try again."
+                : undefined)
+          }
+        />
+
+        <AuthCardFooter>
+          <p className="text-xs text-muted-foreground">
+            Your code is checked directly by Helivanta.
+          </p>
+        </AuthCardFooter>
+      </AuthCardCentered>
+    </AuthLayoutCentered>
+  );
+}
+
+// EnrollStep (#948, spec D5) is the "enroll" step: the org forces MFA and
+// the account had nothing enrolled, so the password step registered a TOTP
+// and handed this page its secret. The step shows the otpauth URI as a QR
+// code (rendered here, in the browser — the API ships no image), the
+// secret as text for manual entry, and the SAME OTP input the factor step
+// uses, submitting to POST /v1/auth/login/enroll. Its outcomes are
+// OtpStep's outcomes, handled identically: `complete` navigates, `refused`
+// shows the API's message and clears the input, `expired` and `blocked`
+// end on the start-again landing. A refresh loses the secret with the rest
+// of the page state; the clinician signs in again and receives a new one
+// (spec D2) — there is deliberately no way to re-fetch it.
+function EnrollStep({
+  authRequestId,
+  totp,
+  onEnded,
+}: {
+  authRequestId: string;
+  totp: TotpEnrollment;
+  onEnded: (message: string) => void;
+}) {
+  const [code, setCode] = useState("");
+  const [refusedMessage, setRefusedMessage] = useState<string | undefined>();
+
+  const submit = useApiMutation<FactorCheckResult, string>(
+    (submittedCode) => verifyEnrollment({ authRequestId, factor: "totp", code: submittedCode }),
+    {
+      onSuccess: (result) => {
+        switch (result.outcome) {
+          case "complete":
+            window.location.assign(result.callbackUrl);
+            break;
+          case "blocked":
+            onEnded(result.message);
+            break;
+          case "refused":
+            setRefusedMessage(result.message);
+            setCode("");
+            break;
+          case "expired":
+            onEnded(result.message);
+            break;
+        }
+      },
+      suppressErrorToast: true,
+    },
+  );
+
+  return (
+    <AuthLayoutCentered>
+      <AuthCardCentered>
+        <div className="space-y-2 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight">Set up two-step verification</h1>
+          <p className="text-sm text-muted-foreground">
+            Your organisation requires an authenticator app. Scan this code with your app, then
+            enter the 6-digit code it shows.
+          </p>
+        </div>
+
+        <div className="flex flex-col items-center gap-3">
+          {/* role="img" + aria-label give the QR an accessible name; the
+              secret below is the equivalent for anyone who cannot scan. */}
+          <div
+            className="rounded-md bg-background p-3"
+            role="img"
+            aria-label="Authenticator setup QR code"
+          >
+            <QRCodeSVG value={totp.uri} size={176} aria-hidden="true" />
+          </div>
+          <p className="text-center text-xs text-muted-foreground">
+            Can&apos;t scan? Enter this key in your app:
+          </p>
+          <code
+            className="select-all rounded-md border px-2 py-1 font-mono text-sm tracking-wider"
+            aria-label="Authenticator setup key"
+          >
+            {totp.secret}
+          </code>
+        </div>
+
+        <AuthOtpStep
+          noValidate
+          value={code}
+          onValueChange={(next) => {
+            setCode(next);
+            setRefusedMessage(undefined);
+          }}
+          onSubmit={(submittedCode) => submit.mutate(submittedCode)}
+          loading={submit.isPending}
+          label="Confirmation code"
+          submitLabel="Confirm and sign in"
           error={
             refusedMessage ??
             (submit.error instanceof ApiError

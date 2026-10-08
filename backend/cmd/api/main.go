@@ -398,12 +398,13 @@ func run() error {
 	// site's comment for why this file must build exactly one
 	// *loginclient.Client.
 	// loginUIHandlers backs Helivanta's own login form (plan #854 Task 4,
-	// #867 Task 4): three unauthenticated routes reading an auth request
-	// (GET /v1/auth/login/request/:id), checking a password (POST
-	// /v1/auth/login/password), and checking a native TOTP factor (POST
-	// /v1/auth/login/factor). When Helivanta cannot complete a login it
-	// refuses it in its own words; nothing hands the browser to Zitadel's
-	// hosted UI (#947). db is the SAME *tenantdb.DB every
+	// #867 Task 4, #948): four unauthenticated routes reading an auth
+	// request (GET /v1/auth/login/request/:id), checking a password (POST
+	// /v1/auth/login/password), checking a native TOTP factor (POST
+	// /v1/auth/login/factor), and confirming a natively enrolled TOTP
+	// (POST /v1/auth/login/enroll). When Helivanta cannot complete a login
+	// it refuses it in its own words; nothing hands the browser to
+	// Zitadel's hosted UI (#947). db is the SAME *tenantdb.DB every
 	// other module in this file shares — LoginUIHandlers uses it only
 	// for the login_attempt table (0004_iam), which is not tenant-scoped
 	// (see that migration's own comment in iam/module.go). AuthRequest
@@ -425,11 +426,12 @@ func run() error {
 	// AuthRequest/Password's Rule is bootstrap.LoginRateLimitRule(cfg)
 	// — these two do not yet warrant a budget shaped differently from
 	// POST /v1/auth/login's (all are "one browser tab's worth of login
-	// traffic"). Factor is DIFFERENT and gets its OWN Rule,
+	// traffic"). Factor and Enroll are DIFFERENT and get their OWN Rule,
 	// bootstrap.FactorRateLimitRule(cfg) — see that function's doc
-	// comment: it is a six-digit code-guessing surface and a PRIMARY
-	// brute-force control, not a page-load budget, so folding it into
-	// LoginRateLimitRule would size it for the wrong threat.
+	// comment: each is a six-digit code-guessing surface and a PRIMARY
+	// brute-force control, not a page-load budget, so folding them into
+	// LoginRateLimitRule would size them for the wrong threat. They share
+	// the Rule but not the bucket (iam's enrollRateBucket).
 	loginUIHandlers := iam.NewLoginUIHandlers(zitadelLoginClient, db,
 		limiter, bootstrap.LoginRateLimitRule(cfg), bootstrap.FactorRateLimitRule(cfg))
 
@@ -437,12 +439,13 @@ func run() error {
 	// enumerable place and pinned by
 	// archtest.TestEveryEngineRouteIsDeclaredOrAllowlisted — a route on the
 	// raw engine otherwise escapes platform.Router entirely.
-	// authRequest/password/factor are the real loginUIHandlers
+	// authRequest/password/factor/enroll are the real loginUIHandlers
 	// methods — MountUnauthenticated's nil guard is what makes
 	// `go run ./cmd/api` refuse to boot if any of them is ever
 	// missing, per its own doc comment.
 	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login,
-		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Factor)
+		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Factor,
+		loginUIHandlers.Enroll)
 
 	for _, m := range registry.All() {
 		m.Routes(api, deps)

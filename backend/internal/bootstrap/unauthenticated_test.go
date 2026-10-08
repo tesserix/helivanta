@@ -22,37 +22,38 @@ func stubHandler(c *gin.Context) { c.Status(http.StatusOK) }
 // that at least one is.
 func TestMountUnauthenticatedPanicsOnNilHandler(t *testing.T) {
 	cases := []struct {
-		name                                 string
-		login, authRequest, password, factor gin.HandlerFunc
+		name                                         string
+		login, authRequest, password, factor, enroll gin.HandlerFunc
 	}{
-		{"login", nil, stubHandler, stubHandler, stubHandler},
-		{"authRequest", stubHandler, nil, stubHandler, stubHandler},
-		{"password", stubHandler, stubHandler, nil, stubHandler},
-		{"factor", stubHandler, stubHandler, stubHandler, nil},
+		{"login", nil, stubHandler, stubHandler, stubHandler, stubHandler},
+		{"authRequest", stubHandler, nil, stubHandler, stubHandler, stubHandler},
+		{"password", stubHandler, stubHandler, nil, stubHandler, stubHandler},
+		{"factor", stubHandler, stubHandler, stubHandler, nil, stubHandler},
+		{"enroll", stubHandler, stubHandler, stubHandler, stubHandler, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			e := gin.New()
 			require.Panics(t, func() {
-				bootstrap.MountUnauthenticated(e, tc.login, tc.authRequest, tc.password, tc.factor)
+				bootstrap.MountUnauthenticated(e, tc.login, tc.authRequest, tc.password, tc.factor, tc.enroll)
 			}, "a nil %s handler must panic at boot, not silently leave the route unregistered", tc.name)
 		})
 	}
 }
 
-// TestMountUnauthenticatedRegistersAllFourRoutesWhenGivenRealHandlers is
-// the positive case: with every handler non-nil, all four routes named
+// TestMountUnauthenticatedRegistersAllFiveRoutesWhenGivenRealHandlers is
+// the positive case: with every handler non-nil, all five routes named
 // in UnauthenticatedRoutes (minus /healthz and /readyz, owned by
 // httpserver.New rather than this function) actually respond, proving
 // the panic guard above did not also break the working path — this is
 // exactly the check Finding 3 said the arch test's own harness could
 // not make mean anything on its own, so it is pinned directly here too.
-func TestMountUnauthenticatedRegistersAllFourRoutesWhenGivenRealHandlers(t *testing.T) {
+func TestMountUnauthenticatedRegistersAllFiveRoutesWhenGivenRealHandlers(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
 	require.NotPanics(t, func() {
-		bootstrap.MountUnauthenticated(e, stubHandler, stubHandler, stubHandler, stubHandler)
+		bootstrap.MountUnauthenticated(e, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler)
 	})
 
 	for _, tc := range []struct {
@@ -62,6 +63,7 @@ func TestMountUnauthenticatedRegistersAllFourRoutesWhenGivenRealHandlers(t *test
 		{http.MethodGet, "/v1/auth/login/request/abc"},
 		{http.MethodPost, "/v1/auth/login/password"},
 		{http.MethodPost, "/v1/auth/login/factor"},
+		{http.MethodPost, "/v1/auth/login/enroll"},
 	} {
 		w := httptest.NewRecorder()
 		e.ServeHTTP(w, httptest.NewRequest(tc.method, tc.path, nil))
@@ -76,7 +78,7 @@ func TestMountUnauthenticatedRegistersAllFourRoutesWhenGivenRealHandlers(t *test
 func TestHostedLoginHandoffRouteIsGone(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
-	bootstrap.MountUnauthenticated(e, stubHandler, stubHandler, stubHandler, stubHandler)
+	bootstrap.MountUnauthenticated(e, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler)
 
 	w := httptest.NewRecorder()
 	e.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/v1/auth/login/handoff/abc", nil))

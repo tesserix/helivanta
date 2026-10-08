@@ -36,6 +36,12 @@ type loginAttempt struct {
 	Subject        string
 	FactorAttempts int
 	ExpiresAt      time.Time
+	// Enrolling is true when the password step registered a fresh TOTP
+	// for this attempt and POST /v1/auth/login/enroll must confirm it
+	// (#948, spec D4); false when an already-enrolled factor is awaited
+	// via POST /v1/auth/login/factor. Each handler refuses the other's
+	// row. Set once by Put; never updated afterwards.
+	Enrolling bool
 }
 
 // loginAttemptRow is the GORM-mapped row for login_attempt. It is kept
@@ -48,6 +54,7 @@ type loginAttemptRow struct {
 	Subject        string    `gorm:"column:subject"`
 	FactorAttempts int       `gorm:"column:factor_attempts"`
 	ExpiresAt      time.Time `gorm:"column:expires_at"`
+	Enrolling      bool      `gorm:"column:enrolling"`
 }
 
 func (loginAttemptRow) TableName() string { return "login_attempt" }
@@ -157,7 +164,7 @@ func (s *loginAttemptStore) BumpAndGet(ctx context.Context, authRequestID string
 			SET factor_attempts = factor_attempts + 1
 			WHERE auth_request_id = ? AND expires_at > now()
 			RETURNING auth_request_id, zitadel_session_id, zitadel_session_token,
-			          subject, factor_attempts, expires_at`,
+			          subject, factor_attempts, expires_at, enrolling`,
 			authRequestID).Scan(&row).Error
 		if err != nil {
 			return err

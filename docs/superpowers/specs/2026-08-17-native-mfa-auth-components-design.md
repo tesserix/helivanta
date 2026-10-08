@@ -43,6 +43,7 @@ This slice collects **TOTP** codes. The D3 handoff table is otherwise intact:
 | Case | Behaviour |
 |---|---|
 | Org requires MFA, user has TOTP | **Native prompt** (new) |
+| Org requires MFA, user has nothing enrolled | Handoff at the time; a branded refusal after #947. **Corrected 2026-10-08 (#948):** native TOTP enrolment, then the native prompt. See `2026-10-08-native-totp-enrolment-design.md`. |
 | User voluntarily enrolled TOTP | **Native prompt** (new) |
 | User enrolled `OTP_EMAIL` / `OTP_SMS` | Handoff, unchanged |
 | User enrolled passkey / U2F | Handoff, unchanged |
@@ -242,6 +243,7 @@ they become a contract the moment it lands.
 | `GET /v1/auth/login/request/:id` | Also returns the neutral `AuthPolicies` subset (D5) |
 | `POST /v1/auth/login/password` | Gains a third outcome: `factor_required` with the factor kinds to collect |
 | `POST /v1/auth/login/factor` | **New.** `{auth_request_id, factor:"totp", code}` → `callback_url`, `handoff_url`, a shared refusal, or `auth_request_invalid` |
+| `POST /v1/auth/login/enroll` | **Added 2026-10-08 (#948).** Same body as `/factor`; confirms a TOTP the password step registered (`enrollment_required` outcome) and completes the sign-in. Five unauthenticated login routes since then. See `2026-10-08-native-totp-enrolment-design.md` D3. |
 
 **Corrected after implementation**, per CLAUDE.md's rule that superseded docs are
 fixed in the same change. Three drifts from what this section first claimed:

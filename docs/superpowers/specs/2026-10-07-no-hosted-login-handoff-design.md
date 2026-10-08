@@ -50,7 +50,7 @@ A refused `Result` carries a `RefusalReason`:
 | ---------------------------------------------------------------------------------- | ------------------------- | -------------------------------------------------------------------------------- |
 | Enrolled factor other than password/TOTP (passkey, U2F, OTP email/SMS)             | handoff, no reason logged | `RefusalFactorUnsupported`: refused, reason and the enrolled method types logged |
 | Linked IdP (`AUTHENTICATION_METHOD_TYPE_IDP`)                                      | handoff, no reason logged | **Corrected 2026-10-08 (#950):** neutral, not a refusal — see `2026-10-08-idp-link-is-not-a-factor-design.md`. This spec originally listed it in the row above; the first morning in production proved that wrong. |
-| `forceMfa` and nothing enrolled                                                    | handoff, no reason logged | `RefusalMFAEnrollmentRequired`: refused, logged                                  |
+| `forceMfa` and nothing enrolled                                                    | handoff, no reason logged | `RefusalMFAEnrollmentRequired`: refused, logged. **Superseded 2026-10-08 (#948):** now `OutcomeEnrollmentRequired`, a native TOTP enrolment step; see `2026-10-08-native-totp-enrolment-design.md`. |
 | Enrolled factors or login policy unreadable                                        | handoff, WARN logged      | **error** (`ErrUnavailable`): 503, never a refusal and never a completion        |
 | TOTP enrolled                                                                      | native prompt             | unchanged                                                                        |
 | Nothing beyond password, policy does not force MFA                                 | complete                  | unchanged                                                                        |
@@ -70,7 +70,9 @@ refusal with **403** and the standard `respond.Error` envelope:
   administrator.
 - `{"error":"mfa_enrollment_required", ...}`: the organisation requires
   two-step verification and none is set up, so the clinician should contact
-  their administrator. Native enrolment replaces this answer in a later slice.
+  their administrator. **Superseded 2026-10-08 (#948):** this code no longer
+  exists; the password step answers `enrollment_required` with a TOTP secret
+  instead. See `2026-10-08-native-totp-enrolment-design.md` D1–D2.
 
 **Enumeration.** Both are reachable only after Zitadel has accepted the
 password, exactly as `handoff_url` was. A refusal therefore discloses nothing
@@ -122,8 +124,9 @@ would have answered the 2026-10-07 investigation without Zitadel's console.
 
 Each item is filed separately and linked from the PR:
 
-- **Native TOTP enrolment** ([#948](https://github.com/tesserix/helivanta/issues/948)): QR code and confirmation in Helivanta. Until it
-  ships, `mfa_enrollment_required` refuses.
+- **Native TOTP enrolment** ([#948](https://github.com/tesserix/helivanta/issues/948)): QR code and confirmation in Helivanta.
+  **Shipped 2026-10-08**; `mfa_enrollment_required` no longer refuses. See
+  `2026-10-08-native-totp-enrolment-design.md`.
 - **Native email/SMS OTP and passkeys/U2F.** Until each ships,
   `sign_in_method_unsupported` refuses. Accounts with such a method must have
   it removed in Zitadel to sign in, which is the product owner's stated choice

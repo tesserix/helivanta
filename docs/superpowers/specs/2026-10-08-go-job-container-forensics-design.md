@@ -55,6 +55,31 @@ OOM kill in the kernel log". These are findings, so the step does not use
 It is uploaded as an artifact (`go-docker-events`, kept 7 days) for anything
 the summary does not print.
 
+### D4: Ryuk's own log is followed for the whole test step
+
+The first real occurrence after D1 landed (run 37727687289, on this PR's
+own head) settled the first question:
+
+- Every container of the session (Postgres, OpenFGA and NATS, from every
+  package) got `kill` (signal 9), `die` (137) and `destroy` within 04:33:45–47.
+- No container died before that burst.
+- The kernel log had no OOM line.
+
+That is Ryuk's session prune, and the iam binary was still running when it
+happened (its first failure is the test that was in flight). Ryuk prunes
+only when its prune check fires. That check is armed when its client count
+reaches zero and lasts `RYUK_RECONNECTION_TIMEOUT` (10s). So the live iam
+binary held no connection to Ryuk for those ten seconds. A local
+`coverage-gate.sh` run with Ryuk's log followed never let the count reach
+zero while iam ran, so the cause is not in the events.
+
+Ryuk logs every `client connected` and `client disconnected` with the count,
+and every `prune check`. Ryuk removes itself after a prune, so its log is
+gone by the time a failure step runs. A background loop therefore follows
+every `reaper_*` container from the moment it appears, writing to
+`$RUNNER_TEMP/ryuk-<id>.log`. On failure the log is printed, or the explicit
+line "no reaper container was seen", and it is uploaded with the events.
+
 ## Not covered
 
 - The fix itself. It waits for the evidence; #963 stays open.
@@ -68,3 +93,7 @@ the summary does not print.
 - **On CI.** A temporary commit made the go job fail deliberately after
   killing a canary container. The dumps were observed in that run, and the
   commit was then reverted. The run is linked in the PR.
+- **Ryuk follower, locally.** The workflow's `run:` blocks were run as they
+  are. With no reaper, the dump printed "no reaper container was seen". A
+  container named `reaper_canary963` was then started, and its timestamped
+  output was captured and printed by the dump.

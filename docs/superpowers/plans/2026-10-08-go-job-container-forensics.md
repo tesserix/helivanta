@@ -14,4 +14,8 @@ Spec: `docs/superpowers/specs/2026-10-08-go-job-container-forensics-design.md`
   reverted. Run 37727533215 printed the canary's `kill` (signal 9) and `die`
   (exit 137), `OOMKilled=false`, "no OOM kill in the kernel log", and uploaded
   the `go-docker-events` artifact.
+- [x] First real occurrence read (run 37727687289): Ryuk's session prune,
+  with no OOM kill, while iam was still running (spec D4).
+- [x] Follow every Ryuk container's log during the tests; print and upload
+  it on failure. Proven locally: the no-reaper line, and a captured canary.
 - [ ] After the next occurrence: root cause and fix under #963.

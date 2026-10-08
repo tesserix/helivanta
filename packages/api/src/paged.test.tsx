@@ -102,4 +102,66 @@ describe("useApiPagedQuery", () => {
     await waitFor(() => expect(result.current.items).toHaveLength(50));
     expect(result.current.hasMore).toBe(false);
   });
+
+  it("never shows a page appended to a stale first page when Load more races a refetch (#833)", async () => {
+    // A visit is created (the mutation invalidates the list, so page one is
+    // refetched) and the clinician clicks Load more while that refetch is
+    // still in flight. TanStack's fetchNextPage defaults to
+    // cancelRefetch: true, which CANCELS the in-flight refetch, discards
+    // the fresh page one, and fetches the next page from the STALE page
+    // one's cursor. The newest row is then never rendered on any page,
+    // which is exactly the pagination.spec.ts flake.
+    //
+    // Before the create: page one is [b, c] -> cursor c1 -> [d].
+    // After it:          page one is [a, b] -> cursor c2 -> [c, d].
+    let created = false;
+    let releaseRefetch: () => void = () => {};
+    const refetchGate = new Promise<void>((r) => (releaseRefetch = r));
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("cursor=c1")) {
+        return jsonResponse({ data: [{ id: "d" }], page: { next_cursor: null, has_more: false } });
+      }
+      if (url.includes("cursor=c2")) {
+        return jsonResponse({
+          data: [{ id: "c" }, { id: "d" }],
+          page: { next_cursor: null, has_more: false },
+        });
+      }
+      if (!created) {
+        return jsonResponse({
+          data: [{ id: "b" }, { id: "c" }],
+          page: { next_cursor: "c1", has_more: true },
+        });
+      }
+      await refetchGate; // the refetch of page one is slow
+      return jsonResponse({
+        data: [{ id: "a" }, { id: "b" }],
+        page: { next_cursor: "c2", has_more: true },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useApiPagedQuery<{ id: string }>(["rows"], "/rows"), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    await waitFor(() => expect(result.current.items.map((r) => r.id)).toEqual(["b", "c"]));
+
+    // The create lands and invalidates the list: page one starts refetching.
+    created = true;
+    act(() => void client.invalidateQueries({ queryKey: ["rows"] }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    // Load more is clicked while that refetch is still in flight.
+    act(() => result.current.loadMore());
+    act(() => releaseRefetch());
+
+    await waitFor(() => expect(result.current.hasMore).toBe(false));
+    // Every row exactly once, newest first: the fresh page one, then the
+    // page that follows IT. The stale cursor c1 is never followed.
+    expect(result.current.items.map((r) => r.id)).toEqual(["a", "b", "c", "d"]);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("cursor=c1"))).toBe(false);
+  });
 });

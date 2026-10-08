@@ -2,9 +2,13 @@ package iam_test
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha1" //nolint:gosec // RFC 6238 TOTP is defined over HMAC-SHA1; this is a test-side code generator, not a hash of anything secret
 	"crypto/sha256"
+	"encoding/base32"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,7 +26,9 @@ import (
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
+	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/pkg/ratelimit"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // This file proves iam.LoginUIHandlers end to end against the REAL local
@@ -114,7 +120,7 @@ type integrationEnv struct {
 // papering over it for one test's convenience.
 //
 // Only the one test that mutates org policy
-// (TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting) calls
+// (TestIntegration_ForceMFAPolicy_RequiresEnrolmentInsteadOfCompleting) calls
 // this — every other integration test in this file needs no
 // administrative access at all, and should not skip just because this
 // separate credential happens to be missing.
@@ -272,6 +278,27 @@ func newAuthRequest(t *testing.T, env integrationEnv) string {
 // compile and leave this file green, because only the password route
 // is driven here. MountUnauthenticated panics on a nil, by design, so
 // it cannot be omitted.
+// newLoginAttemptDB gives the integration router a REAL login_attempt table
+// (#948): since the password step stashes the Zitadel session for both the
+// factor and the enrolment flows, a nil store would nil-deref the moment a
+// forceMfa org answered. Only 0004_iam and 0006_iam are applied — the same
+// two the unit fixtures apply — so the tenant-scoped iam tables stay out.
+func newLoginAttemptDB(t *testing.T) *tenantdb.DB {
+	t.Helper()
+	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
+	require.NoError(t, err)
+	var migs []tenantdb.Migration
+	for _, m := range iam.New(nil).Migrations() {
+		if m.ID == "0004_iam" || m.ID == "0006_iam" {
+			migs = append(migs, m)
+		}
+	}
+	require.Len(t, migs, 2)
+	require.NoError(t, db.Migrate(context.Background(), migs))
+	return db
+}
+
 func newIntegrationRouter(t *testing.T, env integrationEnv) *gin.Engine {
 	t.Helper()
 	client := loginclient.New(env.issuer, env.token, http.DefaultClient)
@@ -283,7 +310,7 @@ func newIntegrationRouter(t *testing.T, env integrationEnv) *gin.Engine {
 	// OutcomeFactorRequired path (the dev-seeded user is password-only —
 	// devSeededEmail/devSeededPassword below), so LoginUIHandlers' store
 	// is never touched.
-	handlers := iam.NewLoginUIHandlers(client, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
+	handlers := iam.NewLoginUIHandlers(client, newLoginAttemptDB(t), nil, ratelimit.Rule{}, ratelimit.Rule{})
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -293,7 +320,7 @@ func newIntegrationRouter(t *testing.T, env integrationEnv) *gin.Engine {
 		c.Status(http.StatusInternalServerError)
 	}
 	bootstrap.MountUnauthenticated(r, notExercised,
-		handlers.AuthRequest, handlers.Password, handlers.Factor)
+		handlers.AuthRequest, handlers.Password, handlers.Factor, handlers.Enroll)
 	return r
 }
 
@@ -488,7 +515,7 @@ func baseCustomLoginPolicy() map[string]any {
 // near-duplicate field lists that could silently drift apart.
 //
 // orgID scopes the write to a specific org (#913 Task 4,
-// TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting);
+// TestIntegration_ForceMFAPolicyInAnotherOrg_RequiresEnrolmentInsteadOfCompleting);
 // "" preserves every pre-Task-4 caller's behaviour of writing the seed
 // PAT's own org's policy. Whether the seed PAT's ADMINISTRATION
 // permission — proven live against its OWN org (this file's header
@@ -498,7 +525,7 @@ func baseCustomLoginPolicy() map[string]any {
 // doc "What was unknown, and is not any more" #1), not separately
 // observed for a WRITE with THIS credential. If it is refused, this call
 // fails loudly here (managementAPICall's non-2xx require.Truef), before
-// TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting
+// TestIntegration_ForceMFAPolicyInAnotherOrg_RequiresEnrolmentInsteadOfCompleting
 // ever reaches its own assertions — a clear, attributable failure rather
 // than a confusing one three calls downstream.
 func setOrgLoginPolicy(t *testing.T, env integrationEnv, seedToken, orgID string, override map[string]any) {
@@ -579,7 +606,7 @@ func assertRefusedWithoutCallback(t *testing.T, w *httptest.ResponseRecorder, co
 // default policy, not just "produced a handoff for some reason".
 //
 // loginName/password generalize this beyond devSeededEmail/devSeededPassword
-// (#913 Task 4) — TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting
+// (#913 Task 4) — TestIntegration_ForceMFAPolicyInAnotherOrg_RequiresEnrolmentInsteadOfCompleting
 // calls this against a second-org user, not the dev-seeded one, to prove
 // spec D5's other half: that the ORG-SCOPED policy read genuinely
 // resolves to "recognized, MFA off" for a real org, not just for the
@@ -610,7 +637,7 @@ func assertLoginSucceeds(t *testing.T, env integrationEnv, loginName, password, 
 	require.NotEmptyf(t, q.Get("state"), "%scallback_url %q carried no state param after policy restore", failureContext, body.CallbackURL)
 }
 
-// TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting is Finding
+// TestIntegration_ForceMFAPolicy_RequiresEnrolmentInsteadOfCompleting is Finding
 // 2 of this task's first review round: a unit fixture can pin what
 // loginclient.LoginPolicy DOES with a given body, but it cannot catch a
 // REAL Zitadel upgrade that renames or re-casts forceMfa on the wire,
@@ -660,7 +687,7 @@ func assertLoginSucceeds(t *testing.T, env integrationEnv, loginName, password, 
 //     t.Parallel() anywhere in this package, this test's isolation
 //     assumption breaks silently; nothing currently enforces that beyond
 //     this comment.
-func TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting(t *testing.T) {
+func TestIntegration_ForceMFAPolicy_RequiresEnrolmentInsteadOfCompleting(t *testing.T) {
 	env := skipUnlessDevStackIsUp(t)
 	seedToken := skipUnlessSeedPATIsAvailable(t)
 
@@ -670,13 +697,13 @@ func TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting(t *testing.T) {
 	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
-	assertRefusedWithoutCallback(t, w, "forceMfa", "mfa_enrollment_required")
+	assertEnrollmentRequiredWithoutCallback(t, w, "forceMfa")
 
 	resetOrgLoginPolicy(t, env, seedToken, "")
 	assertLoginSucceeds(t, env, devSeededEmail, devSeededPassword, "")
 }
 
-// TestIntegration_ForceMFALocalOnlyPolicy_HandsOffInsteadOfCompleting is
+// TestIntegration_ForceMFALocalOnlyPolicy_RequiresEnrolmentInsteadOfCompleting is
 // Finding 4 of the second review round: forceMfaLocalOnly is a REAL
 // Zitadel login-policy field the unit tests now cover with fixtures, but
 // — for the exact same reason TestIntegration_ForceMFAPolicy_... exists
@@ -688,11 +715,11 @@ func TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting(t *testing.T) {
 // fold-together decision this test is proving live.
 //
 // Same MUTATES-shared-state safeguards as
-// TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting above
+// TestIntegration_ForceMFAPolicy_RequiresEnrolmentInsteadOfCompleting above
 // (t.Cleanup registered immediately, resetOrgLoginPolicy's idempotency,
 // and this package's tests never running in parallel) — not repeated
 // here in full; see that test's doc comment.
-func TestIntegration_ForceMFALocalOnlyPolicy_HandsOffInsteadOfCompleting(t *testing.T) {
+func TestIntegration_ForceMFALocalOnlyPolicy_RequiresEnrolmentInsteadOfCompleting(t *testing.T) {
 	env := skipUnlessDevStackIsUp(t)
 	seedToken := skipUnlessSeedPATIsAvailable(t)
 
@@ -705,7 +732,7 @@ func TestIntegration_ForceMFALocalOnlyPolicy_HandsOffInsteadOfCompleting(t *test
 	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, devSeededEmail, devSeededPassword)
-	assertRefusedWithoutCallback(t, w, "forceMfaLocalOnly", "mfa_enrollment_required")
+	assertEnrollmentRequiredWithoutCallback(t, w, "forceMfaLocalOnly")
 
 	resetOrgLoginPolicy(t, env, seedToken, "")
 	assertLoginSucceeds(t, env, devSeededEmail, devSeededPassword, "")
@@ -1067,7 +1094,7 @@ func deleteAndVerifyOrg(t *testing.T, env integrationEnv, seedToken, orgID strin
 }
 
 // secondOrgPolicyReadFailureContext is prepended to every assertLoginSucceeds
-// failure message in TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting's
+// failure message in TestIntegration_ForceMFAPolicyInAnotherOrg_RequiresEnrolmentInsteadOfCompleting's
 // second half — see that test's own doc comment for why THIS assertion,
 // not the handoff one before it, is what actually proves the org-scoped
 // policy read resolved to a real value rather than an error.
@@ -1088,10 +1115,10 @@ const secondOrgPolicyReadFailureContext = "SECOND-ORG LOGIN DID NOT SUCCEED AFTE
 	"of merely erroring; this was CONFIRMED live in #913 Task 4's fix round 1 — a failure here now most " +
 	"likely means a regression, not an unresolved permission question. "
 
-// TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting is
+// TestIntegration_ForceMFAPolicyInAnotherOrg_RequiresEnrolmentInsteadOfCompleting is
 // design doc D5's live proof for #913: every other MFA test in this file
-// (TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting,
-// TestIntegration_ForceMFALocalOnlyPolicy_HandsOffInsteadOfCompleting)
+// (TestIntegration_ForceMFAPolicy_RequiresEnrolmentInsteadOfCompleting,
+// TestIntegration_ForceMFALocalOnlyPolicy_RequiresEnrolmentInsteadOfCompleting)
 // flips the login CLIENT's own org's policy and logs in as
 // devSeededEmail, a user IN that same org — which can prove the policy
 // read reaches Zitadel and is decoded correctly, but CANNOT prove the
@@ -1135,7 +1162,7 @@ const secondOrgPolicyReadFailureContext = "SECOND-ORG LOGIN DID NOT SUCCEED AFTE
 //
 // # This test MUTATES a THROWAWAY org's policy, not the shared default org
 //
-// Unlike TestIntegration_ForceMFAPolicy_HandsOffInsteadOfCompleting (whose
+// Unlike TestIntegration_ForceMFAPolicy_RequiresEnrolmentInsteadOfCompleting (whose
 // own doc comment explains at length why mutating the SHARED default
 // org's policy needs three separate safeguards), this test's
 // setOrgLoginPolicy call targets an org t.Cleanup deletes at the end of
@@ -1169,7 +1196,7 @@ const secondOrgPolicyReadFailureContext = "SECOND-ORG LOGIN DID NOT SUCCEED AFTE
 //     explicitly" — that was conditional, the condition was observed
 //     false, and provisioning nothing IS this test's answer to D5's
 //     question, not an unaddressed requirement.
-func TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting(t *testing.T) {
+func TestIntegration_ForceMFAPolicyInAnotherOrg_RequiresEnrolmentInsteadOfCompleting(t *testing.T) {
 	env := skipUnlessDevStackIsUp(t)
 	seedToken := skipUnlessSeedPATIsAvailable(t)
 
@@ -1181,8 +1208,121 @@ func TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting(t *t
 	r := newIntegrationRouter(t, env)
 	authRequestID := newAuthRequest(t, env)
 	w := postPasswordReal(t, r, authRequestID, loginName, devSeededPassword)
-	assertRefusedWithoutCallback(t, w, "forceMfa (second org, not the login client's own org)", "mfa_enrollment_required")
+	assertEnrollmentRequiredWithoutCallback(t, w, "forceMfa (second org, not the login client's own org)")
 
 	resetOrgLoginPolicy(t, env, seedToken, secondOrgID)
 	assertLoginSucceeds(t, env, loginName, devSeededPassword, secondOrgPolicyReadFailureContext)
+}
+
+// assertEnrollmentRequiredWithoutCallback is the #948 counterpart of
+// assertRefusedWithoutCallback for a forceMfa org whose user has nothing
+// enrolled: 200, an enrollment_required outcome carrying a TOTP secret, and
+// NEVER a callback_url (that would be the MFA bypass every forceMfa test in
+// this file exists to deny). Returns the secret for a test that goes on to
+// enrol with it.
+func assertEnrollmentRequiredWithoutCallback(t *testing.T, w *httptest.ResponseRecorder, condition string) string {
+	t.Helper()
+	require.Equalf(t, http.StatusOK, w.Code, "%s: body: %s", condition, w.Body.String())
+	require.NotContainsf(t, w.Body.String(), "callback_url",
+		"%s completed the login (callback_url present) instead of asking for enrolment — MFA bypass: %s",
+		condition, w.Body.String())
+	require.NotContainsf(t, w.Body.String(), "mfa_enrollment_required", "%s: the #947 refusal is gone (#948)", condition)
+	var body struct {
+		Factors []string `json:"enrollment_required"`
+		TOTP    struct {
+			URI    string `json:"uri"`
+			Secret string `json:"secret"`
+		} `json:"totp"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	require.Equalf(t, []string{"totp"}, body.Factors, "%s: body: %s", condition, w.Body.String())
+	require.NotEmptyf(t, body.TOTP.Secret, "%s: no TOTP secret to enrol with", condition)
+	require.Containsf(t, body.TOTP.URI, "secret="+body.TOTP.Secret, "%s: the otpauth URI must carry the same secret", condition)
+	return body.TOTP.Secret
+}
+
+func postEnrollReal(t *testing.T, r *gin.Engine, authRequestID, code string) *httptest.ResponseRecorder {
+	t.Helper()
+	body := `{"auth_request_id":"` + authRequestID + `","factor":"totp","code":"` + code + `"}`
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/login/enroll", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+	return w
+}
+
+// generateTOTP is RFC 6238 (SHA-1, 30s, 6 digits) — a port of
+// e2e/tests/support/totp.ts's generateTOTP, kept independent of any Go OTP
+// library deliberately: the thing under test is that Zitadel accepts a code
+// derived from the secret Helivanta handed the browser, so the generator
+// must not share code with anything Helivanta ships.
+func generateTOTP(t *testing.T, secret string, at time.Time) string {
+	t.Helper()
+	key, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(strings.ToUpper(strings.TrimRight(secret, "=")))
+	require.NoError(t, err, "TOTP secret is not base32")
+	var counter [8]byte
+	binary.BigEndian.PutUint64(counter[:], uint64(at.Unix()/30)) //nolint:gosec // Unix seconds are non-negative
+	mac := hmac.New(sha1.New, key)
+	mac.Write(counter[:])
+	sum := mac.Sum(nil)
+	offset := sum[len(sum)-1] & 0x0f
+	code := (binary.BigEndian.Uint32(sum[offset:offset+4]) & 0x7fffffff) % 1000000
+	return fmt.Sprintf("%06d", code)
+}
+
+// TestIntegration_ForceMFAWithNothingEnrolled_EnrolsTOTPNatively is #948
+// end to end against the real Zitadel: a throwaway org that forces MFA and
+// a throwaway user with nothing enrolled. The password step must hand back
+// a TOTP secret; a code computed from that secret on POST
+// /v1/auth/login/enroll must complete the sign-in with a real
+// authorization code; and Zitadel must afterwards list TOTP as the user's
+// enrolled method — the state the next sign-in's factor path depends on.
+// A wrong code first proves the shared refusal and that the registration
+// survives it (design spec D3).
+//
+// The org is throwaway so the seed org's policy is never touched; the
+// user is deleted with the org (createOrgWithUser's cleanup).
+func TestIntegration_ForceMFAWithNothingEnrolled_EnrolsTOTPNatively(t *testing.T) {
+	env := skipUnlessDevStackIsUp(t)
+	seedToken := skipUnlessSeedPATIsAvailable(t)
+
+	orgID, loginName := createOrgWithUser(t, env, seedToken)
+	setOrgLoginPolicy(t, env, seedToken, orgID, map[string]any{"forceMfa": true})
+	t.Cleanup(func() { resetOrgLoginPolicy(t, env, seedToken, orgID) })
+
+	r := newIntegrationRouter(t, env)
+	authRequestID := newAuthRequest(t, env)
+	w := postPasswordReal(t, r, authRequestID, loginName, devSeededPassword)
+	secret := assertEnrollmentRequiredWithoutCallback(t, w, "forceMfa, nothing enrolled")
+
+	wrong := postEnrollReal(t, r, authRequestID, generateTOTP(t, secret, time.Now().Add(-10*time.Minute)))
+	require.Equal(t, http.StatusUnauthorized, wrong.Code, "a stale code must answer the shared refusal: %s", wrong.Body.String())
+	require.Contains(t, wrong.Body.String(), "email or password is incorrect")
+
+	good := postEnrollReal(t, r, authRequestID, generateTOTP(t, secret, time.Now()))
+	require.Equalf(t, http.StatusOK, good.Code, "right code after a wrong one must still enrol (the registration survives a wrong code): %s", good.Body.String())
+	var body struct {
+		CallbackURL string `json:"callback_url"`
+	}
+	require.NoError(t, json.Unmarshal(good.Body.Bytes(), &body))
+	callback, err := url.Parse(body.CallbackURL)
+	require.NoError(t, err)
+	require.NotEmpty(t, callback.Query().Get("code"), "callback_url %q carried no authorization code", body.CallbackURL)
+	require.NotEmpty(t, callback.Query().Get("state"))
+
+	// The enrolment is real and durable: Zitadel now lists TOTP for the
+	// user, which is what the NEXT sign-in's factor path will classify on.
+	found := managementAPICall(t, env, seedToken, orgID, http.MethodPost, "/v2/users", map[string]any{
+		"queries": []map[string]any{{"loginNameQuery": map[string]any{"loginName": loginName}}},
+	})
+	var users struct {
+		Result []struct {
+			UserID string `json:"userId"`
+		} `json:"result"`
+	}
+	raw, _ := json.Marshal(found)
+	require.NoError(t, json.Unmarshal(raw, &users))
+	require.Len(t, users.Result, 1, "could not find the throwaway user to read its methods: %v", found)
+	methods := managementAPICall(t, env, seedToken, orgID, http.MethodGet, "/v2/users/"+users.Result[0].UserID+"/authentication_methods", nil)
+	require.Contains(t, fmt.Sprint(methods["authMethodTypes"]), "AUTHENTICATION_METHOD_TYPE_TOTP", "enrolment did not take on Zitadel: %v", methods)
 }

@@ -213,6 +213,23 @@ CREATE INDEX IF NOT EXISTS login_attempt_expires_at_idx ON login_attempt (expire
 		SQL: `
 			GRANT SELECT ON iam_members TO helivanta_system;
 `,
+	}, {
+		// #948, spec D4. A login_attempt row now records whether the password
+		// step left it ENROLLING (forceMfa, nothing enrolled: the user was
+		// handed a fresh TOTP secret and must confirm it via
+		// POST /v1/auth/login/enroll) or awaiting an already-enrolled factor
+		// (POST /v1/auth/login/factor). Each route refuses the other's row
+		// before any Zitadel call, so a caller probing which state an attempt
+		// is in learns nothing. The default is the fail-closed one: a row
+		// without the flag can only take the factor path, which cannot
+		// succeed without a verified TOTP.
+		//
+		// Same table, same deliberate absence of tenant scoping and RLS as
+		// 0004_iam — see that migration's comment.
+		ID: "0006_iam",
+		SQL: `
+ALTER TABLE login_attempt ADD COLUMN IF NOT EXISTS enrolling boolean NOT NULL DEFAULT false;
+`,
 	}}
 }
 

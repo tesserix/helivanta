@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -305,12 +306,36 @@ func TestPasswordSuccessReturnsCallbackURL(t *testing.T) {
 // #947: forceMfa with no second factor enrolled is refused in Helivanta's own
 // words — never a callback_url (an MFA bypass) and never a redirect to
 // Zitadel's hosted login (which stranded clinicians on its "signedin" page).
-func TestPasswordUnderForceMFAWithNothingEnrolledIsRefusedNotRedirected(t *testing.T) {
-	rec := postPassword(t, zitadelForceMFA(t), "test@helivanta.dev", "HmsDev123!")
-	require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+// #948 replaced the #947 refusal: forceMfa with nothing enrolled now
+// registers a TOTP and answers enrollment_required with its URI and secret,
+// never a callback_url and never a redirect anywhere.
+func TestPasswordUnderForceMFAWithNothingEnrolledAsksForEnrolment(t *testing.T) {
+	fake := newZitadelEnrollmentFake(t)
+	h := newFactorTestHandlers(t, fake.client)
+	r := newFactorRouter(h)
+
+	rec := doPassword(t, r, loginUITestAuthRequestID, "test@helivanta.dev", "HmsDev123!")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	body := rec.Body.String()
-	require.Contains(t, body, `"error":"mfa_enrollment_required"`)
+	var parsed struct {
+		Factors []string `json:"enrollment_required"`
+		TOTP    struct {
+			URI    string `json:"uri"`
+			Secret string `json:"secret"`
+		} `json:"totp"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &parsed))
+	require.Equal(t, []string{"totp"}, parsed.Factors)
+	require.Equal(t, enrollmentFakeURI, parsed.TOTP.URI)
+	require.Equal(t, enrollmentFakeSecret, parsed.TOTP.Secret)
+	require.NotContains(t, body, "callback_url")
+	require.NotContains(t, body, "mfa_enrollment_required", "the #947 refusal code must be gone, not merely unreachable")
 	requireNoRedirectAnywhere(t, body)
+	require.Equal(t, int32(1), fake.registrations.Load(), "exactly one POST /v2/users/{id}/totp per password step (spec D2: a re-registration rotates the secret)")
+
+	attempt, err := h.store.Get(context.Background(), loginUITestAuthRequestID)
+	require.NoError(t, err, "enrolment must stash the session like the factor path does")
+	require.True(t, attempt.Enrolling, "the row must be marked enrolling (spec D4)")
 }
 
 // TestPasswordWithAnUnsupportedFactorIsRefusedAndLogsWhy pins both halves of
@@ -587,15 +612,7 @@ func newFactorTestHandlers(t *testing.T, client *loginclient.Client) *LoginUIHan
 	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 
-	migs := New(nil).Migrations()
-	var loginAttemptMig *tenantdb.Migration
-	for i := range migs {
-		if migs[i].ID == "0004_iam" {
-			loginAttemptMig = &migs[i]
-		}
-	}
-	require.NotNil(t, loginAttemptMig, "precondition: 0004_iam is the login_attempt migration")
-	require.NoError(t, db.Migrate(context.Background(), []tenantdb.Migration{*loginAttemptMig}))
+	migrateLoginAttempt(t, db)
 
 	return NewLoginUIHandlers(client, db, nil, ratelimit.Rule{}, ratelimit.Rule{})
 }
@@ -603,12 +620,40 @@ func newFactorTestHandlers(t *testing.T, client *loginclient.Client) *LoginUIHan
 // newFactorRouter mounts Password and Factor on a fresh gin.Engine — the
 // two routes every test below needs together, since Factor only makes
 // sense after a Password call has left a row for it to resume.
+// migrateLoginAttempt applies exactly the login_attempt migrations — 0004_iam
+// (the table) and 0006_iam (its enrolling column, #948 spec D4) — in order and
+// nothing else, so these tests exercise the table precisely as production
+// has it without pulling the tenant-scoped iam tables in.
+func migrateLoginAttempt(t *testing.T, db *tenantdb.DB) {
+	t.Helper()
+	migs := New(nil).Migrations()
+	var loginAttemptMigs []tenantdb.Migration
+	for i := range migs {
+		if migs[i].ID == "0004_iam" || migs[i].ID == "0006_iam" {
+			loginAttemptMigs = append(loginAttemptMigs, migs[i])
+		}
+	}
+	require.Len(t, loginAttemptMigs, 2, "precondition: 0004_iam and 0006_iam are the login_attempt migrations")
+	require.NoError(t, db.Migrate(context.Background(), loginAttemptMigs))
+}
+
 func newFactorRouter(h *LoginUIHandlers) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/v1/auth/login/password", h.Password)
 	r.POST("/v1/auth/login/factor", h.Factor)
+	r.POST("/v1/auth/login/enroll", h.Enroll)
 	return r
+}
+
+func doEnroll(t *testing.T, r *gin.Engine, authRequestID, factor, code string) *httptest.ResponseRecorder {
+	t.Helper()
+	body := `{"auth_request_id":"` + authRequestID + `","factor":"` + factor + `","code":"` + code + `"}`
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/login/enroll", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+	return w
 }
 
 func doPassword(t *testing.T, r *gin.Engine, authRequestID, loginName, password string) *httptest.ResponseRecorder {
@@ -1136,15 +1181,7 @@ func TestFactorRefusesOverBudget(t *testing.T) {
 	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
 	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
-	migs := New(nil).Migrations()
-	var loginAttemptMig *tenantdb.Migration
-	for i := range migs {
-		if migs[i].ID == "0004_iam" {
-			loginAttemptMig = &migs[i]
-		}
-	}
-	require.NotNil(t, loginAttemptMig)
-	require.NoError(t, db.Migrate(context.Background(), []tenantdb.Migration{*loginAttemptMig}))
+	migrateLoginAttempt(t, db)
 
 	limiter := ratelimit.NewMemory(100)
 	// limit (h.limit, Password's own budget) is generous so the
@@ -1197,15 +1234,7 @@ func TestFactorRateLimitNotBypassableBySpoofedXForwardedFor(t *testing.T) {
 	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
 	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
-	migs := New(nil).Migrations()
-	var loginAttemptMig *tenantdb.Migration
-	for i := range migs {
-		if migs[i].ID == "0004_iam" {
-			loginAttemptMig = &migs[i]
-		}
-	}
-	require.NotNil(t, loginAttemptMig)
-	require.NoError(t, db.Migrate(context.Background(), []tenantdb.Migration{*loginAttemptMig}))
+	migrateLoginAttempt(t, db)
 
 	limiter := ratelimit.NewMemory(100)
 	limit := ratelimit.Rule{Rate: 60, Burst: 10, Per: time.Minute}
@@ -1301,4 +1330,292 @@ func TestEveryCredentialRefusalAnswersIdenticallyButLogsWhatHappened(t *testing.
 			require.NotContains(t, line, "failedAttempts")
 		})
 	}
+}
+
+// --- #948 native TOTP enrolment -------------------------------------------
+
+const (
+	enrollmentFakeSecret = "JBSWY3DPEHPK3PXP"
+	enrollmentFakeURI    = "otpauth://totp/ZITADEL:test@helivanta.dev?secret=JBSWY3DPEHPK3PXP&issuer=ZITADEL"
+	enrollmentGoodCode   = "123456"
+	// enrollmentForceMFAPolicy is the login policy both #948 fixtures serve:
+	// anchored (see LoginPolicy's doc comment) and forcing MFA.
+	enrollmentForceMFAPolicy = `{"policy":{"passwordCheckLifetime":"864000s","forceMfa":true}}`
+)
+
+// zitadelEnrollmentFake is the stateful fake the #948 handler tests drive:
+// a forceMfa org, a user with nothing enrolled, and the registration /
+// verification state machine observed live 2026-10-08 (design spec table):
+// the session check refuses before /totp/verify (COMMAND-3Mif9s), the
+// same code is accepted by both once verified, and authentication_methods
+// lists TOTP only after verification. finalize insists on the rotated
+// token, as the factor fixtures do.
+type zitadelEnrollmentFake struct {
+	client        *loginclient.Client
+	registrations atomic.Int32
+	// sessionChecks counts PATCH /v2/sessions/{id} calls — the spec D4
+	// guards are "decided before any round trip", so the tests assert on
+	// this being ZERO, not merely on the check having been refused.
+	sessionChecks atomic.Int32
+	verified      atomic.Bool
+	sessionTOTP   atomic.Bool
+	finalized     atomic.Bool
+}
+
+func newZitadelEnrollmentFake(t *testing.T) *zitadelEnrollmentFake {
+	t.Helper()
+	f := &zitadelEnrollmentFake{}
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v2/sessions", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"sessionId":"sess-enrol","sessionToken":"` + factorSessionCreationToken + `"}`))
+	})
+	mux.HandleFunc("GET /management/v1/policies/login", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(enrollmentForceMFAPolicy))
+	})
+	mux.HandleFunc("GET /v2/sessions/{id}", func(w http.ResponseWriter, _ *http.Request) {
+		totp := ""
+		if f.sessionTOTP.Load() {
+			totp = `,"totp":{"verifiedAt":"2026-10-08T00:00:00Z"}`
+		}
+		_, _ = w.Write([]byte(`{"session":{"id":"sess-enrol","factors":{"user":{"id":"user-enrol","organizationId":"org-1"},"password":{"verifiedAt":"2026-10-08T00:00:00Z"}` + totp + `}}}`))
+	})
+	mux.HandleFunc("GET /v2/users/{id}/authentication_methods", func(w http.ResponseWriter, _ *http.Request) {
+		methods := `["AUTHENTICATION_METHOD_TYPE_PASSWORD"]`
+		if f.verified.Load() {
+			methods = `["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP"]`
+		}
+		_, _ = w.Write([]byte(`{"authMethodTypes":` + methods + `}`))
+	})
+	mux.HandleFunc("POST /v2/users/{id}/totp", func(w http.ResponseWriter, r *http.Request) {
+		if r.PathValue("id") != "user-enrol" {
+			t.Errorf("TOTP registered on %q, want the session's user", r.PathValue("id"))
+		}
+		f.registrations.Add(1)
+		_, _ = w.Write([]byte(`{"details":{"sequence":"4"},"uri":"` + enrollmentFakeURI + `","secret":"` + enrollmentFakeSecret + `"}`))
+	})
+	mux.HandleFunc("POST /v2/users/{id}/totp/verify", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Code string `json:"code"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if body.Code != enrollmentGoodCode {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"code":3,"message":"Invalid code (EVENT-8isk2)","details":[{"id":"EVENT-8isk2"}]}`))
+			return
+		}
+		f.verified.Store(true)
+		_, _ = w.Write([]byte(`{"details":{"sequence":"6"}}`))
+	})
+	mux.HandleFunc("PATCH /v2/sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
+		f.sessionChecks.Add(1)
+		var body struct {
+			Checks struct {
+				TOTP struct {
+					Code string `json:"code"`
+				} `json:"totp"`
+			} `json:"checks"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if !f.verified.Load() {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"code":9,"message":"Multifactor OTP (OneTimePassword) isn't ready (COMMAND-3Mif9s)","details":[{"id":"COMMAND-3Mif9s"}]}`))
+			return
+		}
+		if body.Checks.TOTP.Code != enrollmentGoodCode {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"message":"invalid credentials","details":[{"id":"COMMAND-totp"}]}`))
+			return
+		}
+		f.sessionTOTP.Store(true)
+		_, _ = w.Write([]byte(`{"sessionToken":"` + factorRotatedToken + `"}`))
+	})
+	mux.HandleFunc("POST /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, r *http.Request) {
+		f.finalized.Store(true)
+		finalizeRequireRotatedToken(w, r)
+	})
+	f.client = newZitadelTestClient(t, mux)
+	return f
+}
+
+// startEnrolment drives the password step to enrollment_required and
+// returns the router and the fake, for the tests below.
+func startEnrolment(t *testing.T) (*LoginUIHandlers, *gin.Engine, *zitadelEnrollmentFake) {
+	t.Helper()
+	fake := newZitadelEnrollmentFake(t)
+	h := newFactorTestHandlers(t, fake.client)
+	r := newFactorRouter(h)
+	rec := doPassword(t, r, loginUITestAuthRequestID, "test@helivanta.dev", "HmsDev123!")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"enrollment_required"`)
+	return h, r, fake
+}
+
+// The password step's log line must never carry the secret or the URI
+// (spec D2): the secret is a credential-in-waiting. Pinned on the bytes
+// actually written to the logger, with the mutation "secret logged"
+// having been run against it.
+func TestPasswordEnrollmentRequiredNeverLogsTheSecret(t *testing.T) {
+	var logged bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logged, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	fake := newZitadelEnrollmentFake(t)
+	h := newFactorTestHandlers(t, fake.client)
+	r := newFactorRouter(h)
+
+	rec := doPassword(t, r, loginUITestAuthRequestID, "test@helivanta.dev", "HmsDev123!")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), enrollmentFakeSecret, "precondition: the secret reached the browser")
+	require.Contains(t, logged.String(), "enrollment required", "precondition: the outcome was logged at all")
+	require.NotContains(t, logged.String(), enrollmentFakeSecret, "the TOTP secret was written to the log")
+	require.NotContains(t, logged.String(), "otpauth://", "the otpauth URI (which carries the secret) was written to the log")
+}
+
+func TestEnrollGoodCodeVerifiesThenCompletesAndDeletesRow(t *testing.T) {
+	h, r, fake := startEnrolment(t)
+
+	w := doEnroll(t, r, loginUITestAuthRequestID, "totp", enrollmentGoodCode)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), "/api/auth/callback")
+	require.True(t, fake.verified.Load(), "POST /totp/verify must run before the session check")
+	require.True(t, fake.sessionTOTP.Load(), "the session must carry the verified TOTP factor")
+	require.True(t, fake.finalized.Load())
+
+	_, err := h.store.Get(context.Background(), loginUITestAuthRequestID)
+	require.ErrorIs(t, err, errAttemptNotFound, "a finalized attempt's row must be deleted")
+}
+
+func TestEnrollWrongCodeMatchesWrongPasswordByteForByteAndKeepsTheRegistration(t *testing.T) {
+	_, r, fake := startEnrolment(t)
+
+	wrongCode := doEnroll(t, r, loginUITestAuthRequestID, "totp", "000000")
+	wrongPassword := postPassword(t, zitadelWrongPassword(t), "test@helivanta.dev", "nope")
+	require.Equal(t, wrongPassword.Code, wrongCode.Code)
+	require.Equal(t, wrongPassword.Body.String(), wrongCode.Body.String(),
+		"a wrong enrolment code and a wrong password must answer byte-identically (native-MFA spec D5)")
+	require.False(t, fake.verified.Load())
+	require.False(t, fake.finalized.Load())
+
+	// The registration survives a wrong code (verified live), so the right
+	// code on the SAME secret still completes within the budget.
+	good := doEnroll(t, r, loginUITestAuthRequestID, "totp", enrollmentGoodCode)
+	require.Equal(t, http.StatusOK, good.Code, good.Body.String())
+	require.Equal(t, int32(1), fake.registrations.Load(), "a wrong code must not re-register (that would rotate the secret under the user)")
+}
+
+func TestEnrollFiveWrongCodesExhausts(t *testing.T) {
+	h, r, _ := startEnrolment(t)
+	for i := 1; i <= 4; i++ {
+		w := doEnroll(t, r, loginUITestAuthRequestID, "totp", "000000")
+		require.Equal(t, http.StatusUnauthorized, w.Code, "wrong code %d must answer the shared refusal", i)
+	}
+	fifth := doEnroll(t, r, loginUITestAuthRequestID, "totp", "000000")
+	require.Equal(t, http.StatusBadRequest, fifth.Code, fifth.Body.String())
+	require.Contains(t, fifth.Body.String(), authRequestExpiredMessage)
+	_, err := h.store.Get(context.Background(), loginUITestAuthRequestID)
+	require.ErrorIs(t, err, errAttemptNotFound)
+}
+
+func TestEnrollUnknownAuthRequestIDReturnsAttemptExpired(t *testing.T) {
+	_, r, fake := startEnrolment(t)
+	w := doEnroll(t, r, "V2_never_seen", "totp", enrollmentGoodCode)
+	require.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), authRequestExpiredMessage)
+	require.False(t, fake.verified.Load(), "an unknown attempt must not reach Zitadel")
+}
+
+func TestEnrollRejectsUnsupportedFactor(t *testing.T) {
+	_, r, _ := startEnrolment(t)
+	w := doEnroll(t, r, loginUITestAuthRequestID, "passkey", "x")
+	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Contains(t, w.Body.String(), "unsupported factor")
+}
+
+// Spec D4: the factor route refuses an ENROLLING attempt without reaching
+// Zitadel, indistinguishably from a wrong code, and the refusal spends
+// one of the five guesses.
+func TestFactorOnAnEnrollingAttemptIsRefusedLikeAWrongCodeWithoutReachingZitadel(t *testing.T) {
+	h, r, fake := startEnrolment(t)
+	var logged bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logged, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	w := doFactor(t, r, loginUITestAuthRequestID, "totp", enrollmentGoodCode)
+	wrongPassword := postPassword(t, zitadelWrongPassword(t), "test@helivanta.dev", "nope")
+	require.Equal(t, wrongPassword.Code, w.Code, w.Body.String())
+	require.Equal(t, wrongPassword.Body.String(), w.Body.String())
+	require.False(t, fake.verified.Load(), "the factor route must not verify an enrolment")
+	require.Equal(t, int32(0), fake.sessionChecks.Load(),
+		"the factor route reached Zitadel's session check for an enrolling attempt: spec D4 says the refusal is decided before any round trip (Zitadel would also refuse — COMMAND-3Mif9s — which is exactly why this must count calls, not outcomes)")
+	require.False(t, fake.finalized.Load())
+
+	attempt, err := h.store.Get(context.Background(), loginUITestAuthRequestID)
+	require.NoError(t, err)
+	require.Equal(t, 1, attempt.FactorAttempts, "the refusal must spend a guess")
+	require.Contains(t, logged.String(), `"outcome":"attempt_in_other_flow"`,
+		"the log must name a route mismatch, not misreport it as an unknown Zitadel refusal")
+}
+
+// Spec D4, mirror image: the enrol route refuses a FACTOR attempt (an
+// already-enrolled TOTP awaiting its code) without reaching Zitadel.
+func TestEnrollOnAFactorAttemptIsRefusedLikeAWrongCodeWithoutReachingZitadel(t *testing.T) {
+	var verifyCalled atomic.Bool
+	client := zitadelFactorRequired(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"sessionToken":"` + factorRotatedToken + `"}`))
+	}, finalizeRequireRotatedToken)
+	h := newFactorTestHandlers(t, client)
+	r := newFactorRouter(h)
+	require.Equal(t, http.StatusOK, doPassword(t, r, loginUITestAuthRequestID, "test@helivanta.dev", "HmsDev123!").Code)
+	attempt, err := h.store.Get(context.Background(), loginUITestAuthRequestID)
+	require.NoError(t, err)
+	require.False(t, attempt.Enrolling, "precondition: a factor attempt is not enrolling")
+
+	w := doEnroll(t, r, loginUITestAuthRequestID, "totp", "123456")
+	wrongPassword := postPassword(t, zitadelWrongPassword(t), "test@helivanta.dev", "nope")
+	require.Equal(t, wrongPassword.Code, w.Code, w.Body.String())
+	require.Equal(t, wrongPassword.Body.String(), w.Body.String())
+	require.False(t, verifyCalled.Load())
+
+	after, err := h.store.Get(context.Background(), loginUITestAuthRequestID)
+	require.NoError(t, err)
+	require.Equal(t, 1, after.FactorAttempts, "the refusal must spend a guess")
+}
+
+// A registration failure (here: Zitadel answers 409 because a verified
+// TOTP appeared between classification and registration) is retryable
+// and leaves NO attempt behind — register runs before the row write
+// (spec D2).
+func TestPasswordEnrollmentRegistrationFailureWritesNoRow(t *testing.T) {
+	fake := newZitadelEnrollmentFake(t)
+	h := newFactorTestHandlers(t, fake.client)
+	// Re-route registration to a 409 by pre-verifying: the fake's
+	// authentication_methods then lists TOTP, so classification takes the
+	// factor path instead — not what we want. Use a dedicated mux instead.
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v2/sessions", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"sessionId":"sess-enrol","sessionToken":"tok"}`))
+	})
+	mux.HandleFunc("GET /management/v1/policies/login", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(enrollmentForceMFAPolicy))
+	})
+	mux.HandleFunc("GET /v2/sessions/{id}", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"session":{"id":"sess-enrol","factors":{"user":{"id":"user-enrol","organizationId":"org-1"}}}}`))
+	})
+	mux.HandleFunc("GET /v2/users/{id}/authentication_methods", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD"]}`))
+	})
+	mux.HandleFunc("POST /v2/users/{id}/totp", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+		_, _ = w.Write([]byte(`{"code":6,"message":"already set up","details":[{"id":"COMMAND-do9se"}]}`))
+	})
+	h.client = newZitadelTestClient(t, mux)
+	r := newFactorRouter(h)
+
+	rec := doPassword(t, r, loginUITestAuthRequestID, "test@helivanta.dev", "HmsDev123!")
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code, rec.Body.String())
+	require.NotContains(t, rec.Body.String(), "secret")
+	_, err := h.store.Get(context.Background(), loginUITestAuthRequestID)
+	require.ErrorIs(t, err, errAttemptNotFound, "no row may be written when registration fails")
 }

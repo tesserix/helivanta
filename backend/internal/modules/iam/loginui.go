@@ -109,10 +109,6 @@ const (
 	refusalMessageMethodUnsupported = "your account uses a sign-in method Helivanta does not support yet; " +
 		"contact your administrator"
 
-	refusalCodeEnrollmentRequired    = "mfa_enrollment_required"
-	refusalMessageEnrollmentRequired = "your organisation requires two-step verification, which is not set up " +
-		"for your account yet; contact your administrator"
-
 	refusalCodeIncomplete    = "sign_in_incomplete"
 	refusalMessageIncomplete = "this sign-in could not be completed; start again"
 )
@@ -227,6 +223,12 @@ const (
 	authRequestRateBucket = "login_auth_request:"
 	passwordRateBucket    = "login_password:"
 	factorRateBucket      = "login_factor:"
+	// enrollRateBucket is POST /v1/auth/login/enroll's own bucket (#948,
+	// spec D3). It is a six-digit code-guessing endpoint exactly like
+	// Factor's, so it takes Factor's RULE (h.factorLimit: five guesses a
+	// minute) but NOT Factor's bucket: sharing one would let a guessing
+	// flood on either route exhaust the other's budget.
+	enrollRateBucket = "login_enroll:"
 )
 
 // allowedByLimiter is spec D2's "all three sit behind the existing
@@ -451,6 +453,23 @@ type factorRequiredResponse struct {
 	Factors []string `json:"factor_required"`
 }
 
+// enrollmentRequiredResponse is OutcomeEnrollmentRequired's shape (#948,
+// spec D2): which factor kind(s) the login form must now ENROL, and the
+// freshly registered TOTP's otpauth URI and secret for the page to render
+// as a QR code and as text. Like factorRequiredResponse it carries no
+// CallbackURL: this is neither success nor failure. The secret crosses the
+// wire exactly once, here; there is no route that re-issues it for an
+// existing attempt (spec D2 — a new secret needs a new password check).
+type enrollmentRequiredResponse struct {
+	Factors []string           `json:"enrollment_required"`
+	TOTP    totpEnrollmentWire `json:"totp"`
+}
+
+type totpEnrollmentWire struct {
+	URI    string `json:"uri"`
+	Secret string `json:"secret"`
+}
+
 // nonNilFactors guards against ever emitting {"factor_required":null}
 // (#867 fix round 1, Minor 4): encoding/json marshals a nil []string as
 // JSON `null`, not `[]`, and a naive browser-side `for (const f of
@@ -566,6 +585,44 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 			"auth_request_id", req.AuthRequestID, "outcome", "factor_required")
 		respond.OK(c, factorRequiredResponse{Factors: nonNilFactors(result.Factors)})
 
+	case loginclient.OutcomeEnrollmentRequired:
+		// forceMfa, nothing enrolled (#948, spec D2): register a TOTP on
+		// the session's user NOW, inside the password step, so the page
+		// receives the secret the moment it learns enrolment is required
+		// and so a secret can only ever be obtained by passing the
+		// password check again. Register BEFORE writing the row: if
+		// registration fails there is nothing to enrol and no attempt to
+		// leave behind; an unverified registration left behind by a
+		// failed row write is invisible to authentication_methods
+		// (verified live, design spec table) and is replaced by the next
+		// attempt's registration.
+		enrollment, err := h.client.RegisterTOTP(c.Request.Context(), session.ID)
+		if err != nil {
+			h.respondLoginClientError(c, err, "register_totp")
+			return
+		}
+		err = h.store.Put(c.Request.Context(), loginAttempt{
+			AuthRequestID: req.AuthRequestID,
+			SessionID:     session.ID,
+			SessionToken:  session.Token,
+			Subject:       req.LoginName,
+			ExpiresAt:     time.Now().Add(loginAttemptTTL),
+			Enrolling:     true,
+		})
+		if err != nil {
+			respond.InternalErr(c, err, "sign-in could not be completed")
+			return
+		}
+		// The secret is a credential-in-waiting: it is in `enrollment`,
+		// and nothing from `enrollment` goes into this line. Mutation
+		// "secret logged" is pinned by TestPasswordEnrollmentRequiredNeverLogsTheSecret.
+		requestid.Logger(c).InfoContext(c.Request.Context(), "login password succeeded, enrollment required",
+			"auth_request_id", req.AuthRequestID, "outcome", "enrollment_required")
+		respond.OK(c, enrollmentRequiredResponse{
+			Factors: nonNilFactors(result.Factors),
+			TOTP:    totpEnrollmentWire{URI: enrollment.URI, Secret: enrollment.Secret},
+		})
+
 	default:
 		// OutcomeRefused (and anything unrecognised, which fails closed the
 		// same way): the password was right, but Helivanta cannot complete
@@ -608,12 +665,18 @@ func (h *LoginUIHandlers) respondRefusal(c *gin.Context, authRequestID, stage st
 	switch reason {
 	case loginclient.RefusalFactorUnsupported:
 		respond.Error(c, http.StatusForbidden, refusalCodeMethodUnsupported, refusalMessageMethodUnsupported)
-	case loginclient.RefusalMFAEnrollmentRequired:
-		respond.Error(c, http.StatusForbidden, refusalCodeEnrollmentRequired, refusalMessageEnrollmentRequired)
 	default:
 		respond.Error(c, http.StatusForbidden, refusalCodeIncomplete, refusalMessageIncomplete)
 	}
 }
+
+// errAttemptInOtherFlow is the refusal a login attempt gets on the route
+// that does not match its state (#948 spec D4): a code sent to
+// /v1/auth/login/factor for an attempt that is enrolling, or to
+// /v1/auth/login/enroll for one awaiting an already-enrolled factor. It is
+// answered and budgeted exactly like a wrong code; it exists so the log
+// line names what actually happened.
+var errAttemptInOtherFlow = errors.New("login attempt belongs to the other code route")
 
 // failureLogAttrs is the log-only record of a credential-class refusal
 // (#901 spec D4): which refusal it actually was, and the id and status
@@ -621,9 +684,16 @@ func (h *LoginUIHandlers) respondRefusal(c *gin.Context, authRequestID, stage st
 // from our own logs instead of Zitadel's. See Password's doc comment on why
 // none of this may ever reach the response.
 func failureLogAttrs(authRequestID string, err error) []any {
+	outcome := loginclient.FailureOutcome(err)
+	if errors.Is(err, errAttemptInOtherFlow) {
+		// Not a Zitadel refusal at all: Helivanta refused before any round
+		// trip (#948 spec D4), so there is no id or status to log, and
+		// "unknown" would misdescribe a decision this package made itself.
+		outcome = "attempt_in_other_flow"
+	}
 	return []any{
 		"auth_request_id", authRequestID,
-		"outcome", loginclient.FailureOutcome(err),
+		"outcome", outcome,
 		"zitadel_error_id", loginclient.ZitadelErrorID(err),
 		"zitadel_status", loginclient.ZitadelStatus(err),
 	}
@@ -819,14 +889,38 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 		return
 	}
 
+	if attempt.Enrolling {
+		// Spec D4 (#948): this attempt is waiting for its freshly registered
+		// TOTP to be CONFIRMED via POST /v1/auth/login/enroll, not for a
+		// code against an already-enrolled factor. Zitadel would refuse
+		// the session check anyway (400 COMMAND-3Mif9s "isn't ready"), but
+		// the refusal is decided HERE, before any round trip, and answered
+		// exactly like a wrong code — same bump, same equalised body, same
+		// floor — so a caller cannot learn which state an attempt is in by
+		// trying the other route.
+		h.bumpFactorAttempt(c, req.AuthRequestID, errAttemptInOtherFlow, start)
+		return
+	}
+
+	h.completeWithVerifiedCode(c, start, req.AuthRequestID, attempt, req.Code)
+}
+
+// completeWithVerifiedCode is the tail both Factor and Enroll share once
+// they hold a pending attempt and a code Zitadel should check against the
+// SESSION (#948, spec D3 — extracted so the two cannot drift): VerifyTOTP,
+// persist the rotated token BEFORE finalize (spec D3 of the native-MFA
+// design), CompleteAfterFactor, and answer. A wrong code bumps the shared
+// five-guess budget (bumpFactorAttempt); a refusal after a correct code
+// deletes the row and answers in Helivanta's own words (#947).
+func (h *LoginUIHandlers) completeWithVerifiedCode(c *gin.Context, start time.Time, authRequestID string, attempt loginAttempt, code string) {
 	verified, err := h.client.VerifyTOTP(c.Request.Context(),
-		loginclient.Session{ID: attempt.SessionID, Token: attempt.SessionToken}, req.Code)
+		loginclient.Session{ID: attempt.SessionID, Token: attempt.SessionToken}, code)
 	if err != nil {
 		if loginclient.IsCredentialRefusal(err) {
 			// Every credential-class refusal of a code counts against the
 			// attempt's budget (native-MFA spec D6), as every 400 always
 			// did; only the log line now says which one it was (#901).
-			h.bumpFactorAttempt(c, req.AuthRequestID, err, start)
+			h.bumpFactorAttempt(c, authRequestID, err, start)
 			return
 		}
 		h.respondLoginClientError(c, err, "verify_totp")
@@ -838,7 +932,7 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 	// crashes or times out between these two lines leaves the STORE
 	// holding the token that will actually work on a retried Factor
 	// call, never the superseded one.
-	if err := h.store.UpdateToken(c.Request.Context(), req.AuthRequestID, verified.Token); err != nil {
+	if err := h.store.UpdateToken(c.Request.Context(), authRequestID, verified.Token); err != nil {
 		respond.InternalErr(c, err, "sign-in could not be completed")
 		return
 	}
@@ -861,7 +955,7 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 	// attacker who is still guessing codes can reach at all, and
 	// therefore not a timing oracle over the code itself the way an
 	// unfloored VerifyTOTP failure would be.
-	result, err := h.client.CompleteAfterFactor(c.Request.Context(), req.AuthRequestID, verified)
+	result, err := h.client.CompleteAfterFactor(c.Request.Context(), authRequestID, verified)
 	if err != nil {
 		h.respondLoginClientError(c, err, "complete_after_factor")
 		return
@@ -869,9 +963,9 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 
 	switch result.Outcome {
 	case loginclient.OutcomeComplete:
-		h.deleteAttempt(c, req.AuthRequestID)
+		h.deleteAttempt(c, authRequestID)
 		requestid.Logger(c).InfoContext(c.Request.Context(), "login factor succeeded",
-			"auth_request_id", req.AuthRequestID, "outcome", "complete")
+			"auth_request_id", authRequestID, "outcome", "complete")
 		respond.OK(c, passwordSuccessResponse{CallbackURL: result.CallbackURL})
 	default:
 		// OutcomeRefused (or anything unrecognised, failing closed the same
@@ -882,9 +976,95 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 		// is not a failure of THIS code check, so it is not the equalised
 		// refusal either. The local attempt is over either way, so the row
 		// is deleted.
-		h.deleteAttempt(c, req.AuthRequestID)
-		h.respondRefusal(c, req.AuthRequestID, "factor", result)
+		h.deleteAttempt(c, authRequestID)
+		h.respondRefusal(c, authRequestID, "factor", result)
 	}
+}
+
+// enrollRequest is the body POST /v1/auth/login/enroll accepts (#948, spec
+// D3): the auth request whose enrolment this confirms, which factor kind
+// is being confirmed ("totp" is the only one this handler knows how to
+// enrol), and the first code from the authenticator the user just set up.
+type enrollRequest struct {
+	AuthRequestID string `json:"auth_request_id" binding:"required"`
+	Factor        string `json:"factor" binding:"required"`
+	Code          string `json:"code" binding:"required"`
+}
+
+// Enroll backs POST /v1/auth/login/enroll: the second half of the
+// OutcomeEnrollmentRequired flow Password starts (#948, spec D3). Password
+// registered a TOTP on the user and handed the browser its secret; this
+// confirms that registration with the authenticator's first code
+// (loginclient.VerifyTOTPEnrollment — only after which Zitadel lists TOTP
+// among the user's methods), then checks the SAME code against the
+// session and finalizes through exactly the path Factor uses
+// (completeWithVerifiedCode → loginclient.CompleteAfterFactor), which
+// re-reads the enrolment before it will finalize. This file still never
+// calls finalize itself.
+//
+// The order is forced by Zitadel, not chosen: the session check refuses
+// an unverified registration (400 COMMAND-3Mif9s), and CompleteAfterFactor
+// refuses unless TOTP is enrolled, which is only true after /totp/verify.
+//
+// Every refusal is the Factor route's: a wrong code is the equalised
+// credential refusal with a bump of the shared five-guess budget
+// (native-MFA spec D6); an unknown, expired or exhausted attempt is
+// attempt-expired; a non-enrolling attempt (spec D4) is a wrong code.
+func (h *LoginUIHandlers) Enroll(c *gin.Context) {
+	// Same floor discipline as Password and Factor — see Factor's doc
+	// comment on why start is captured before binding and limiting.
+	start := time.Now()
+
+	var req enrollRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respond.BadRequest(c, err)
+		return
+	}
+	if req.Factor != "totp" {
+		respond.BadRequest(c, fmt.Errorf("unsupported factor %q", req.Factor))
+		return
+	}
+
+	// Factor's RULE, this route's own BUCKET — see enrollRateBucket.
+	if !h.allowedByLimiter(c, enrollRateBucket, h.factorLimit) {
+		return
+	}
+
+	attempt, err := h.store.Get(c.Request.Context(), req.AuthRequestID)
+	if err != nil {
+		requestid.Logger(c).WarnContext(c.Request.Context(), "login enroll: no pending attempt",
+			"auth_request_id", req.AuthRequestID)
+		h.respondAttemptExpired(c, start)
+		return
+	}
+	if !attempt.Enrolling {
+		// Spec D4: this attempt awaits a code for an ALREADY-enrolled
+		// factor (Factor's job). Refused here, before any Zitadel call,
+		// indistinguishably from a wrong code — see Factor's mirror-image
+		// guard for the reasoning.
+		h.bumpFactorAttempt(c, req.AuthRequestID, errAttemptInOtherFlow, start)
+		return
+	}
+
+	if err := h.client.VerifyTOTPEnrollment(c.Request.Context(), attempt.SessionID, req.Code); err != nil {
+		if loginclient.IsCredentialRefusal(err) {
+			// A wrong or stale code (EVENT-8isk2), and any other 400 the
+			// verify answers (#901's classification), is a credential-class
+			// refusal: equalised answer, one guess spent, Zitadel's id in
+			// the log. The registration is NOT consumed by a wrong code
+			// (verified live: the same secret verifies on the next right
+			// code), so the user keeps the QR they scanned.
+			h.bumpFactorAttempt(c, req.AuthRequestID, err, start)
+			return
+		}
+		h.respondLoginClientError(c, err, "verify_totp_enrollment")
+		return
+	}
+
+	// Zitadel now lists TOTP for this user; the session still has no
+	// verified TOTP factor. The same code satisfies the session check
+	// (verified live, design spec table), so the Factor tail finishes it.
+	h.completeWithVerifiedCode(c, start, req.AuthRequestID, attempt, req.Code)
 }
 
 // bumpFactorAttempt records a wrong TOTP code against authRequestID —

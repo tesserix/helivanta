@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -123,22 +124,34 @@ func TestCompleteIfSufficient_ForceMFAWithTOTPEnrolledStillAsksForTheFactor(t *t
 	require.Empty(t, res.CallbackURL)
 }
 
-// TestCompleteIfSufficient_ForceMFAWithNoEnrolledFactorIsRefused is the
-// companion case to the one above: a password-only session under
+// TestCompleteIfSufficient_ForceMFAWithNoEnrolledFactorAsksForEnrolment is
+// the companion case to the one above: a password-only session under
 // forceMfa, with NOTHING enrolled that Helivanta could natively prompt
-// for, is refused with RefusalMFAEnrollmentRequired (#947; native
-// enrolment, #948, replaces it). Finding 1's reorder must not turn this
-// into a completion or a factor-required prompt for a factor the user
-// never configured.
-func TestCompleteIfSufficient_ForceMFAWithNoEnrolledFactorIsRefused(t *testing.T) {
+// for, answers OutcomeEnrollmentRequired for TOTP (#948, spec D1) — the
+// outcome that replaced the #947 refusal. Finding 1's reorder must not
+// turn this into a completion or a factor-required prompt for a factor
+// the user never configured, and enrolment-required must never finalize.
+func TestCompleteIfSufficient_ForceMFAWithNoEnrolledFactorAsksForEnrolment(t *testing.T) {
 	c, finalized := clientWithEnrolledMethodsAndFinalizeTracking(t, forceMFAPolicy, []string{"AUTHENTICATION_METHOD_TYPE_PASSWORD"})
 	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
 	require.NoError(t, err)
-	require.Equal(t, OutcomeRefused, res.Outcome)
-	require.Equal(t, RefusalMFAEnrollmentRequired, res.Reason)
-	require.Empty(t, res.Factors)
+	require.Equal(t, OutcomeEnrollmentRequired, res.Outcome, "forceMfa with nothing enrolled must ask for enrolment: %v/%v", res.Outcome, res.Reason)
+	require.Equal(t, []string{"totp"}, res.Factors)
 	require.Empty(t, res.CallbackURL)
 	require.False(t, finalized.Load(), "finalize was called under forceMfa with no factor to offer: this is an MFA bypass")
+}
+
+// Enrolment is offered ONLY when nothing is enrolled: forceMfa plus an
+// uncollectible factor stays a RefusalFactorUnsupported (spec D6), because
+// enrolling a TOTP would not make the other factor collectible.
+func TestCompleteIfSufficient_ForceMFAWithUnsupportedFactorIsStillRefusedNotEnrolled(t *testing.T) {
+	methods := []string{"AUTHENTICATION_METHOD_TYPE_PASSWORD", "AUTHENTICATION_METHOD_TYPE_OTP_EMAIL"}
+	c, finalized := clientWithEnrolledMethodsAndFinalizeTracking(t, forceMFAPolicy, methods)
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
+	require.NoError(t, err)
+	require.Equal(t, OutcomeRefused, res.Outcome)
+	require.Equal(t, RefusalFactorUnsupported, res.Reason)
+	require.False(t, finalized.Load())
 }
 
 // A factor Helivanta cannot collect is refused (spec D1; #947), and the
@@ -385,16 +398,17 @@ func TestCompleteIfSufficientDoesNotFinalizeWhenForceMFA(t *testing.T) {
 	// fail-closed "unrecognized policy" branch instead of the genuine
 	// forceMfa=true branch this test is named for. Since #947 the two are
 	// distinguishable (an unrecognised policy is an ErrUnavailable error; a
-	// real forceMfa is a RefusalMFAEnrollmentRequired), and the assertions
-	// below pin which one this is.
+	// real forceMfa with nothing enrolled is, since #948, an
+	// OutcomeEnrollmentRequired), and the assertions below pin which one
+	// this is.
 	c := countingZitadel(t, `{"policy":{"passwordCheckLifetime":"864000s","forceMfa":true}}`, &finalized)
 
 	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
 	if err != nil {
 		t.Fatalf("CompleteIfSufficient() error = %v", err)
 	}
-	if got.Outcome != OutcomeRefused || got.Reason != RefusalMFAEnrollmentRequired {
-		t.Errorf("Result = %v/%v, want refused/mfa_enrollment_required", got.Outcome, got.Reason)
+	if got.Outcome != OutcomeEnrollmentRequired {
+		t.Errorf("Result = %v/%v, want enrollment_required", got.Outcome, got.Reason)
 	}
 	if finalized.Load() {
 		t.Fatal("finalize was called under forceMfa: this is an MFA bypass")
@@ -752,4 +766,92 @@ func TestCompleteAfterFactor_IdpLinkDoesNotExcuseAnUnsupportedFactor(t *testing.
 	require.Equal(t, RefusalFactorUnsupported, got.Reason)
 	require.Contains(t, got.EnrolledMethods, "AUTHENTICATION_METHOD_TYPE_OTP_EMAIL")
 	require.False(t, finalized.Load(), "finalize was called with OTP_EMAIL enrolled: the IdP link must not excuse an uncollectible factor")
+}
+
+// RegisterTOTP reads the user id off the session and decodes Zitadel's
+// {uri, secret} answer (#948, spec D2). The fixture is the wire shape
+// observed live 2026-10-08.
+func TestRegisterTOTPDecodesURIAndSecret(t *testing.T) {
+	var registered atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"}}}}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/v2/users/u1/totp":
+			registered.Store(true)
+			w.Write([]byte(`{"details":{"sequence":"4"},"uri":"otpauth://totp/ZITADEL:x@helivanta.dev?secret=ABCD&issuer=ZITADEL","secret":"ABCD"}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	c := New(srv.URL, "pat", srv.Client())
+
+	got, err := c.RegisterTOTP(context.Background(), "1")
+	require.NoError(t, err)
+	require.True(t, registered.Load(), "POST /v2/users/{id}/totp was not called")
+	require.Equal(t, "ABCD", got.Secret)
+	require.Equal(t, "otpauth://totp/ZITADEL:x@helivanta.dev?secret=ABCD&issuer=ZITADEL", got.URI)
+}
+
+// A 200 without a usable uri/secret, and a 409 (verified TOTP already
+// exists, COMMAND-do9se), are both retryable failures, never an enrolment
+// with a blank secret.
+func TestRegisterTOTPFailsClosedOnBadAnswers(t *testing.T) {
+	for name, handler := range map[string]http.HandlerFunc{
+		"missing secret": func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte(`{"uri":"otpauth://x"}`)) },
+		"409 already set up": func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte(`{"code":6,"message":"already set up","details":[{"id":"COMMAND-do9se"}]}`))
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasPrefix(r.URL.Path, "/v2/sessions/") {
+					w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"}}}}`))
+					return
+				}
+				handler(w, r)
+			}))
+			t.Cleanup(srv.Close)
+			c := New(srv.URL, "pat", srv.Client())
+			got, err := c.RegisterTOTP(context.Background(), "1")
+			require.ErrorIs(t, err, ErrUnavailable)
+			require.Empty(t, got.Secret)
+		})
+	}
+}
+
+// VerifyTOTPEnrollment posts the code to /totp/verify (NOT /totp/_verify,
+// which 404s — MFA spike §5) and maps a 400 to ErrBadCredentials so the
+// handler can answer it as a wrong code (#948, spec D3).
+func TestVerifyTOTPEnrollmentPostsCodeAndMapsWrongCode(t *testing.T) {
+	var gotBody string
+	wrong := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"}}}}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/v2/users/u1/totp/verify":
+			b, _ := io.ReadAll(r.Body)
+			gotBody = string(b)
+			if wrong {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(`{"code":3,"message":"Invalid code (EVENT-8isk2)","details":[{"id":"EVENT-8isk2"}]}`))
+				return
+			}
+			w.Write([]byte(`{"details":{"sequence":"6"}}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	c := New(srv.URL, "pat", srv.Client())
+
+	require.NoError(t, c.VerifyTOTPEnrollment(context.Background(), "1", "123456"))
+	require.JSONEq(t, `{"code":"123456"}`, gotBody)
+
+	wrong = true
+	err := c.VerifyTOTPEnrollment(context.Background(), "1", "000000")
+	require.ErrorIs(t, err, ErrBadCredentials)
 }

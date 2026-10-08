@@ -38,15 +38,7 @@ func newTestLoginAttemptStore(t *testing.T) (*loginAttemptStore, context.Context
 	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 
-	migs := New(nil).Migrations()
-	var loginAttemptMig *tenantdb.Migration
-	for i := range migs {
-		if migs[i].ID == "0004_iam" {
-			loginAttemptMig = &migs[i]
-		}
-	}
-	require.NotNil(t, loginAttemptMig, "precondition: 0004_iam is the login_attempt migration")
-	require.NoError(t, db.Migrate(context.Background(), []tenantdb.Migration{*loginAttemptMig}))
+	migrateLoginAttempt(t, db)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	t.Cleanup(cancel)

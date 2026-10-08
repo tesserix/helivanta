@@ -37,6 +37,14 @@ const (
 	// Helivanta should prompt for a TOTP code natively. Factors names which
 	// factor(s) to collect (today, always exactly ["totp"]).
 	OutcomeFactorRequired
+	// OutcomeEnrollmentRequired means the session is password-only, the
+	// user's org forces MFA, and the user has NOTHING enrolled — not TOTP,
+	// not anything uncollectible. Helivanta should enrol a TOTP factor
+	// natively and then collect its first code (#948, spec D1). Factors
+	// names which factor(s) can be enrolled (today, always exactly
+	// ["totp"]). It replaced RefusalMFAEnrollmentRequired; it is added
+	// AFTER OutcomeFactorRequired so OutcomeRefused stays the zero value.
+	OutcomeEnrollmentRequired
 )
 
 // String makes test failures and log lines name the outcome rather than
@@ -51,6 +59,8 @@ func (o Outcome) String() string {
 		return "complete"
 	case OutcomeFactorRequired:
 		return "factor_required"
+	case OutcomeEnrollmentRequired:
+		return "enrollment_required"
 	default:
 		return fmt.Sprintf("Outcome(%d)", int(o))
 	}
@@ -74,9 +84,6 @@ const (
 	// Completing on the password alone would silently skip a factor the
 	// user configured. Result.EnrolledMethods names what was enrolled.
 	RefusalFactorUnsupported
-	// RefusalMFAEnrollmentRequired: the user's org forces MFA and the user
-	// has no second factor enrolled. Native enrolment (#948) replaces this.
-	RefusalMFAEnrollmentRequired
 	// RefusalFactorNotVerified: on the factor path, the session does not
 	// carry the verified TOTP factor (or TOTP is no longer enrolled) even
 	// though a code was accepted — the enrolment or session changed under
@@ -91,8 +98,6 @@ func (r RefusalReason) String() string {
 		return "unspecified"
 	case RefusalFactorUnsupported:
 		return "factor_unsupported"
-	case RefusalMFAEnrollmentRequired:
-		return "mfa_enrollment_required"
 	case RefusalFactorNotVerified:
 		return "factor_not_verified"
 	default:
@@ -102,7 +107,8 @@ func (r RefusalReason) String() string {
 
 // Result is what CompleteIfSufficient and CompleteAfterFactor answer with.
 // CallbackURL is set if and only if Outcome is OutcomeComplete. Factors is
-// non-empty if and only if Outcome is OutcomeFactorRequired. Reason is
+// non-empty if and only if Outcome is OutcomeFactorRequired or
+// OutcomeEnrollmentRequired. Reason is
 // meaningful if and only if Outcome is OutcomeRefused, and EnrolledMethods is
 // set for RefusalFactorUnsupported so the refusal can be logged with what the
 // account actually has configured (spec D5) — Zitadel's method type names,
@@ -362,9 +368,14 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 		// The session this package can build is password-only
 		// (CreatePasswordSession is its only session constructor), and
 		// nothing was enrolled that Helivanta could ask for natively (the
-		// TOTP-only case already returned above). Native enrolment (#948)
-		// will turn this refusal into an enrolment step.
-		return refused(RefusalMFAEnrollmentRequired), nil
+		// TOTP-only case already returned above) — nor anything it could
+		// NOT (the uncollectible case returned before that). So the user
+		// can be enrolled natively (#948, spec D1): the caller registers a
+		// TOTP (RegisterTOTP), collects its first code, and finishes
+		// through CompleteAfterFactor, which re-checks every one of the
+		// conditions above before finalizing. This is NOT a completion,
+		// and finalize is NOT called here.
+		return Result{Outcome: OutcomeEnrollmentRequired, Factors: []string{"totp"}}, nil
 	}
 
 	callbackURL, err := c.finalize(ctx, authRequestID, s, sufficient{})

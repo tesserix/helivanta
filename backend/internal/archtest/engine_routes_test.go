@@ -40,15 +40,16 @@ func TestEveryEngineRouteIsDeclaredOrAllowlisted(t *testing.T) {
 	for _, m := range allModules() {
 		m.Routes(api, platform.Deps{})
 	}
-	// Stub, non-nil handlers for all six routes: this test enumerates
+	// Stub, non-nil handlers for every mounted route: this test enumerates
 	// what would be registered in production. main.go wires the real
 	// loginclient-backed handlers for #854 Task 4's three login-ui
-	// routes, #867 Task 4's factor route and #948's enrol route; stubs stand in here only
+	// routes, #867 Task 4's factor route, #948's enrol route and #856's
+	// password-change route; stubs stand in here only
 	// because this test builds a router without a DB, NATS or OpenFGA.
-	// All six must still be REGISTERED, or this test would silently
+	// Every one must still be REGISTERED, or this test would silently
 	// stop pinning them.
 	stub := func(c *gin.Context) { c.Status(http.StatusOK) }
-	bootstrap.MountUnauthenticated(srv.Engine, stub, stub, stub, stub, stub)
+	bootstrap.MountUnauthenticated(srv.Engine, stub, stub, stub, stub, stub, stub)
 
 	declared := map[string]bool{}
 	for _, dr := range api.Declared() {
@@ -84,15 +85,16 @@ func TestUnauthenticatedAllowlistHasNoDeadEntries(t *testing.T) {
 	for _, m := range allModules() {
 		m.Routes(api, platform.Deps{})
 	}
-	// Stub, non-nil handlers for all six routes: this test enumerates
+	// Stub, non-nil handlers for every mounted route: this test enumerates
 	// what would be registered in production. main.go wires the real
 	// loginclient-backed handlers for #854 Task 4's three login-ui
-	// routes, #867 Task 4's factor route and #948's enrol route; stubs stand in here only
+	// routes, #867 Task 4's factor route, #948's enrol route and #856's
+	// password-change route; stubs stand in here only
 	// because this test builds a router without a DB, NATS or OpenFGA.
-	// All six must still be REGISTERED, or this test would silently
+	// Every one must still be REGISTERED, or this test would silently
 	// stop pinning them.
 	stub := func(c *gin.Context) { c.Status(http.StatusOK) }
-	bootstrap.MountUnauthenticated(srv.Engine, stub, stub, stub, stub, stub)
+	bootstrap.MountUnauthenticated(srv.Engine, stub, stub, stub, stub, stub, stub)
 
 	onEngine := map[string]bool{}
 	for _, r := range srv.Engine.Routes() {

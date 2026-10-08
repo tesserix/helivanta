@@ -49,7 +49,7 @@ This slice collects **TOTP** codes. The D3 handoff table is otherwise intact:
 | User enrolled passkey / U2F | Handoff, unchanged |
 | User's account carries an IdP link | **Corrected 2026-10-08 (#950):** neutral — completes, or prompts for TOTP, exactly as if the link were absent. See `2026-10-08-idp-link-is-not-a-factor-design.md` D1. (Originally listed with passkey/U2F as a handoff.) |
 | Federated hospital IdP | Handoff, unchanged |
-| Password change required | Not handled ([#856](https://github.com/tesserix/helivanta/issues/856)), unchanged |
+| Password change required | Not handled ([#856](https://github.com/tesserix/helivanta/issues/856)), unchanged. **Closed 2026-10-08 (#856):** a native change step after every factor (after the TOTP code when one is enrolled) — see `2026-10-08-password-change-required-design.md`. |
 | Locked out / wrong password / unknown user | Unchanged (D5's shared refusal) |
 
 Scoping down is fine; being incorrect for excluded cases is not. Email and SMS
@@ -338,6 +338,6 @@ password that was correct.
   observed working, so a native enrolment screen is feasible, but a user with no
   factor is not blocked today and adding enrolment is a separate product
   decision.
-- **`passwordChangeRequired`** (#856) — unchanged, still unsignalled by Zitadel.
+- **`passwordChangeRequired`** (#856) — still unsignalled by Zitadel; closed 2026-10-08 by reading the user before finalize — see `2026-10-08-password-change-required-design.md`.
 - **Account lockout** (#855) — D6 bounds factor guesses for one login attempt;
   it is not an account lockout and must not be described as one.

@@ -43,6 +43,14 @@ var badRequestKinds = map[string]error{
 	"COMMAND-SF3fg": ErrAccountLocked,  // Errors.User.Locked (TOTP path)
 	"COMMAND-3nJ4t": ErrPasswordNotSet, // Errors.User.Password.NotSet
 	"COMMAND-3n77z": ErrUserNotFound,   // Errors.User.NotFound (precondition form)
+	// #856: the new password failed the org's complexity policy
+	// (PasswordComplexityPolicy.Check). Only POST /v2/users/{id}/password
+	// produces these; ChangePassword names the rule (passwordPolicyRules).
+	"DOMAIN-HuJf6": ErrPasswordPolicy, // Errors.User.PasswordComplexityPolicy.MinLength
+	"DOMAIN-co3Xw": ErrPasswordPolicy, // Errors.User.PasswordComplexityPolicy.HasLower
+	"DOMAIN-VoaRj": ErrPasswordPolicy, // Errors.User.PasswordComplexityPolicy.HasUpper
+	"DOMAIN-ZBv4H": ErrPasswordPolicy, // Errors.User.PasswordComplexityPolicy.HasNumber
+	"DOMAIN-ZDLwA": ErrPasswordPolicy, // Errors.User.PasswordComplexityPolicy.HasSymbol
 }
 
 // ZitadelError is every non-2xx answer do() turns into an error (#901 spec

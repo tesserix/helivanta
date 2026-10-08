@@ -83,6 +83,10 @@ type Client struct {
 	baseURL string
 	token   string
 	hc      *http.Client
+	// now is the clock the password-expiry gate (passwordchange.go) compares
+	// against. time.Now in production; this package's tests replace it to put
+	// a password on either side of its expiry without sleeping.
+	now func() time.Time
 }
 
 // New builds a Client against baseURL (Zitadel's own origin, not Helivanta's),
@@ -95,7 +99,7 @@ func New(baseURL, token string, hc *http.Client) *Client {
 	if hc == nil {
 		hc = &http.Client{Timeout: defaultTimeout}
 	}
-	return &Client{baseURL: baseURL, token: token, hc: hc}
+	return &Client{baseURL: baseURL, token: token, hc: hc, now: time.Now}
 }
 
 // AuthRequest is the subset of Zitadel's GET /v2/oidc/auth_requests/{id}
@@ -560,7 +564,7 @@ func (c *Client) loginPolicy(ctx context.Context, opts ...requestOption) (LoginP
 	// rename guard AND the read — so that adding a third MFA-forcing key
 	// to that list is genuinely a one-place change. An earlier version
 	// iterated the list for the rename guard only and then called
-	// readMFABool twice with hardcoded literals; a third key added to
+	// the bool read twice with hardcoded literals; a third key added to
 	// the list would have been guarded against renames but NEVER read
 	// into ForceMFA, which is a silent MFA bypass in the one file
 	// written to prevent exactly that. TestLoginPolicyReadsEveryKeyIn
@@ -575,10 +579,10 @@ func (c *Client) loginPolicy(ctx context.Context, opts ...requestOption) (LoginP
 	// means MFA is forced", it does not belong in this list at all.
 	forceMFA := false
 	for _, key := range mfaPolicyKeys {
-		if err := refuseIfKeyRenamedOrRecased(wire.Policy, key); err != nil {
+		if err := refuseIfKeyRenamedOrRecased(loginPolicyWhere, wire.Policy, key); err != nil {
 			return LoginPolicy{}, err
 		}
-		forced, err := readMFABool(wire.Policy, key)
+		forced, err := readOptionalBool(loginPolicyWhere, wire.Policy, key)
 		if err != nil {
 			return LoginPolicy{}, err
 		}
@@ -773,8 +777,8 @@ func (c *Client) sessionSubject(ctx context.Context, sessionID string) (sessionS
 // classifyEnrolledMethods (sufficiency.go) closes for both
 // CompleteIfSufficient and CompleteAfterFactor. (An earlier version of
 // this comment pointed at "sufficiency.go's KNOWN LIMITATIONS §1"; that
-// section is password-change-required, an unrelated and still-OPEN gap
-// tracked as #856. This gap is CLOSED, so it is not in that list at all.)
+// section was password-change-required, an unrelated gap since closed by
+// #856 — see passwordchange.go.)
 //
 // Takes userID rather than a session id: classifyEnrolledMethods already
 // resolves the session to a sessionSubject (this file's sessionSubject
@@ -921,7 +925,7 @@ func (c *Client) UserState(ctx context.Context, id string) (UserState, error) {
 // mfaPolicyKeys is every wire key loginPolicy reads to decide ForceMFA —
 // forceMfa and forceMfaLocalOnly today. loginPolicy's single loop over
 // this list does BOTH the rename guard (refuseIfKeyRenamedOrRecased) and
-// the read (readMFABool) for every entry, and OR-s the results into
+// the read (readOptionalBool) for every entry, and OR-s the results into
 // ForceMFA, so a THIRD MFA-forcing field discovered later (see the KNOWN
 // RESIDUAL section above) really is added in exactly one place: appending
 // it here both guards and reads it. TestLoginPolicyReadsEveryKeyIn
@@ -935,40 +939,48 @@ func (c *Client) UserState(ctx context.Context, id string) (UserState, error) {
 // cannot be expressed by appending to this list and must not be.
 var mfaPolicyKeys = []string{"forceMfa", "forceMfaLocalOnly"}
 
-// refuseIfKeyRenamedOrRecased scans policy for any key that NORMALIZES
+// loginPolicyWhere names the object loginPolicy guards, for the error text
+// refuseIfKeyRenamedOrRecased and readOptionalBool produce.
+const loginPolicyWhere = "GET /management/v1/policies/login: policy"
+
+// refuseIfKeyRenamedOrRecased scans obj for any key that NORMALIZES
 // (normalizePolicyKey) to the same form as wantKey but is not spelled
 // exactly wantKey — see loginPolicy's "Rename/re-casing detection" doc
 // comment for the full reasoning and the live verification that this
 // does not false-positive between forceMfa and forceMfaLocalOnly (their
-// normalized forms, "forcemfa" and "forcemfalocalonly", differ).
-func refuseIfKeyRenamedOrRecased(policy map[string]any, wantKey string) error {
+// normalized forms, "forcemfa" and "forcemfalocalonly", differ). where
+// names the object for the error (loginPolicyWhere, userHumanWhere): the
+// same guard protects every bool this package reads whose false value
+// Zitadel elides, because for each of them "absent" and "renamed" would
+// otherwise decode identically, to false.
+func refuseIfKeyRenamedOrRecased(where string, obj map[string]any, wantKey string) error {
 	want := normalizePolicyKey(wantKey)
-	for key := range policy {
+	for key := range obj {
 		if key == wantKey {
 			continue
 		}
 		if normalizePolicyKey(key) == want {
 			return fmt.Errorf(
-				"GET /management/v1/policies/login: policy object has a field %q that looks like a "+
-					"renamed or re-cased %s but is not spelled exactly that way: %w", key, wantKey, ErrUnavailable)
+				"%s has a field %q that looks like a renamed or re-cased %s but is not spelled exactly that way: %w",
+				where, key, wantKey, ErrUnavailable)
 		}
 	}
 	return nil
 }
 
-// readMFABool reads policy[key] as the bool loginPolicy needs it to be:
-// absent decodes to false (the elision case — see loginPolicy's doc
-// comment), present-but-not-a-bool refuses the same way a rename does,
-// present-and-bool returns as is.
-func readMFABool(policy map[string]any, key string) (bool, error) {
-	raw, present := policy[key]
+// readOptionalBool reads obj[key] as a proto3 JSON bool: absent decodes
+// to false (proto3 elides a false bool — see loginPolicy's doc comment),
+// present-but-not-a-bool refuses the same way a rename does,
+// present-and-bool returns as is. Callers run refuseIfKeyRenamedOrRecased
+// first; this function alone cannot tell "false" from "renamed".
+func readOptionalBool(where string, obj map[string]any, key string) (bool, error) {
+	raw, present := obj[key]
 	if !present {
 		return false, nil
 	}
 	b, isBool := raw.(bool)
 	if !isBool {
-		return false, fmt.Errorf(
-			"GET /management/v1/policies/login: policy.%s is %T, not a bool: %w", key, raw, ErrUnavailable)
+		return false, fmt.Errorf("%s.%s is %T, not a bool: %w", where, key, raw, ErrUnavailable)
 	}
 	return b, nil
 }

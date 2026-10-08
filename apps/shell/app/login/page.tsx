@@ -9,9 +9,11 @@ import {
   AuthCredentialForm,
   AuthLayoutCentered,
   AuthOtpStep,
+  AuthSetPasswordForm,
   Button,
   type AuthCredentialValues,
   type AuthMethodPolicy,
+  type PasswordPolicy,
 } from "@tesserix/web";
 import { ApiError, useApiMutation, useApiQuery } from "@helivanta/api";
 import { IDLE_ENDED_MARK, SIGNED_OUT_MARK } from "@helivanta/ui";
@@ -19,13 +21,17 @@ import { QRCodeSVG } from "qrcode.react";
 
 import { getUserManager } from "@/lib/oidc";
 import {
+  changePassword,
   checkFactor,
   checkPassword,
   verifyEnrollment,
   type AuthPoliciesInfo,
   type AuthRequestInfo,
   type FactorCheckResult,
+  type PasswordChangeRequired,
+  type PasswordChangeResult,
   type PasswordCheckResult,
+  type PasswordPolicyInfo,
   type TotpEnrollment,
 } from "@/lib/login-client";
 
@@ -234,12 +240,27 @@ function toMethodPolicy(policies: AuthPoliciesInfo): AuthMethodPolicy {
 // renders the TOTP secret the password step minted and collects its first
 // code. It is a sibling of "otp", not a sub-state of it: the two submit to
 // different routes and the API refuses each other's attempt.
-type LoginStep = "credential" | "otp" | "enroll";
+//
+// The OTP, enrol and password-change steps carry the password typed at the
+// credential step (#856): a password that must change is changed by proving
+// the current one (the API's POST /v1/auth/login/password-change sends it to
+// Zitadel as `currentPassword`), and the change can come AFTER the OTP or
+// enrol step. It lives only here, in this component's memory, for as long as
+// the flow needs it — never in storage, never in the URL — and is dropped the
+// moment the flow ends. The enrol step's TOTP secret (#948, spec D5) lives
+// the same way, in the step itself.
+type LoginStep =
+  | { kind: "credential" }
+  | { kind: "otp"; currentPassword: string }
+  | { kind: "enroll"; currentPassword: string; totp: TotpEnrollment }
+  | { kind: "passwordChange"; currentPassword: string; change: PasswordChangeRequired };
 
-// Owns the two-step flow a validated auth request can now be in (#867,
-// spec D1/D8): the credential step (unchanged in outcome, now rendered
-// via `@tesserix/web`'s AuthCredentialForm) and, reachable only after a
-// `factorRequired` outcome, the OTP step. `expiredMessage` is a THIRD
+// Owns the steps a validated auth request can be in: the credential step
+// (rendered via `@tesserix/web`'s AuthCredentialForm), the OTP step
+// (#867, spec D1/D8) after a `factorRequired` outcome, the enrol step
+// (#948) after `enrollmentRequired`, and the password-change step (#856)
+// after `passwordChangeRequired` from any of the other three.
+// `endedMessage` is a further
 // state this component can reach — not a step of the flow itself, but
 // the SAME "start again" landing ValidatedCredentialForm's own
 // mount-time check renders above: a pending `login_attempt` row (the
@@ -256,11 +277,7 @@ function LoginFlow({
   authRequestId: string;
   policies: AuthPoliciesInfo;
 }) {
-  const [step, setStep] = useState<LoginStep>("credential");
-  // The TOTP secret for the "enroll" step (#948, spec D5). Component state
-  // ONLY: it is set from the password step's response, read by EnrollStep,
-  // and gone with the page. Nothing writes it anywhere else.
-  const [enrollment, setEnrollment] = useState<TotpEnrollment | null>(null);
+  const [step, setStep] = useState<LoginStep>({ kind: "credential" });
   // Set by either step when the sign-in cannot continue: the attempt
   // expired, or (#947) Helivanta refused a correct password because it
   // cannot complete this sign-in. Both end on the SAME start-again
@@ -268,28 +285,60 @@ function LoginFlow({
   // Zitadel's hosted login.
   const [endedMessage, setEndedMessage] = useState<string | null>(null);
 
+  // Ending the flow also drops the password and any TOTP secret the later
+  // steps were holding.
+  function end(message: string) {
+    setStep({ kind: "credential" });
+    setEndedMessage(message);
+  }
+
   if (endedMessage) {
     return <RedirectLanding message={endedMessage} />;
   }
 
-  if (step === "otp") {
-    return <OtpStep authRequestId={authRequestId} onEnded={setEndedMessage} />;
+  if (step.kind === "otp" || step.kind === "enroll") {
+    const { currentPassword } = step;
+    const toPasswordChange = (change: PasswordChangeRequired) =>
+      setStep({ kind: "passwordChange", currentPassword, change });
+    return step.kind === "otp" ? (
+      <OtpStep
+        authRequestId={authRequestId}
+        onEnded={end}
+        onPasswordChangeRequired={toPasswordChange}
+      />
+    ) : (
+      <EnrollStep
+        authRequestId={authRequestId}
+        totp={step.totp}
+        onEnded={end}
+        onPasswordChangeRequired={toPasswordChange}
+      />
+    );
   }
 
-  if (step === "enroll" && enrollment) {
-    return <EnrollStep authRequestId={authRequestId} totp={enrollment} onEnded={setEndedMessage} />;
+  if (step.kind === "passwordChange") {
+    return (
+      <PasswordChangeStep
+        authRequestId={authRequestId}
+        currentPassword={step.currentPassword}
+        change={step.change}
+        onEnded={end}
+      />
+    );
   }
 
   return (
     <CredentialForm
       authRequestId={authRequestId}
       policies={policies}
-      onFactorRequired={() => setStep("otp")}
-      onEnrollmentRequired={(totp) => {
-        setEnrollment(totp);
-        setStep("enroll");
-      }}
-      onBlocked={setEndedMessage}
+      onFactorRequired={(currentPassword) => setStep({ kind: "otp", currentPassword })}
+      onEnrollmentRequired={(currentPassword, totp) =>
+        setStep({ kind: "enroll", currentPassword, totp })
+      }
+      onPasswordChangeRequired={(currentPassword, change) =>
+        setStep({ kind: "passwordChange", currentPassword, change })
+      }
+      onBlocked={end}
     />
   );
 }
@@ -344,45 +393,57 @@ function CredentialForm({
   policies,
   onFactorRequired,
   onEnrollmentRequired,
+  onPasswordChangeRequired,
   onBlocked,
 }: {
   authRequestId: string;
   policies: AuthPoliciesInfo;
-  onFactorRequired: () => void;
-  onEnrollmentRequired: (totp: TotpEnrollment) => void;
+  onFactorRequired: (currentPassword: string) => void;
+  onEnrollmentRequired: (currentPassword: string, totp: TotpEnrollment) => void;
+  onPasswordChangeRequired: (currentPassword: string, change: PasswordChangeRequired) => void;
   onBlocked: (message: string) => void;
 }) {
   const [values, setValues] = useState<AuthCredentialValues>({ loginName: "", password: "" });
   const [loginNameError, setLoginNameError] = useState<string | undefined>();
   const [passwordError, setPasswordError] = useState<string | undefined>();
 
-  const submit = useApiMutation<PasswordCheckResult, AuthCredentialValues>(
+  // The result carries the password that was SUBMITTED, not whatever the
+  // field holds by the time the answer arrives: the later steps (#856) must
+  // prove exactly the password Zitadel just accepted.
+  const submit = useApiMutation<
+    { result: PasswordCheckResult; password: string },
+    AuthCredentialValues
+  >(
     (submitted) =>
       checkPassword({
         authRequestId,
         loginName: submitted.loginName,
         password: submitted.password,
-      }),
+      }).then((result) => ({ result, password: submitted.password })),
     {
       // `complete` is the ONLY outcome that navigates —
       // window.location.assign (not router.push), because /api/auth/
       // callback is a full-page OIDC callback. `factorRequired` (#867)
-      // hands control to LoginFlow's OTP step; `blocked` (#947) ends on
+      // hands control to LoginFlow's OTP step; `passwordChangeRequired`
+      // (#856) to its password-change step; `blocked` (#947) ends on
       // LoginFlow's start-again landing with the API's own message. No
       // outcome sends the browser to Zitadel's hosted login.
-      onSuccess: (result) => {
+      onSuccess: ({ result, password }) => {
         switch (result.outcome) {
           case "complete":
             window.location.assign(result.callbackUrl);
             break;
           case "factorRequired":
-            onFactorRequired();
+            onFactorRequired(password);
             break;
           case "enrollmentRequired":
             // Neither success nor failure, like factorRequired: the
             // password was right and the next step is to set up the
             // authenticator the org requires (#948).
-            onEnrollmentRequired(result.totp);
+            onEnrollmentRequired(password, result.totp);
+            break;
+          case "passwordChangeRequired":
+            onPasswordChangeRequired(password, result);
             break;
           case "blocked":
             onBlocked(result.message);
@@ -505,9 +566,11 @@ function CredentialForm({
 function OtpStep({
   authRequestId,
   onEnded,
+  onPasswordChangeRequired,
 }: {
   authRequestId: string;
   onEnded: (message: string) => void;
+  onPasswordChangeRequired: (change: PasswordChangeRequired) => void;
 }) {
   const [code, setCode] = useState("");
   // Set only on a `refused` outcome — a resolved mutation RESULT, not a
@@ -524,6 +587,11 @@ function OtpStep({
         switch (result.outcome) {
           case "complete":
             window.location.assign(result.callbackUrl);
+            break;
+          case "passwordChangeRequired":
+            // The code is proven and the password must now change (#856):
+            // the API asks only now, after the factor, never before it.
+            onPasswordChangeRequired(result);
             break;
           case "blocked":
             onEnded(result.message);
@@ -609,10 +677,12 @@ function EnrollStep({
   authRequestId,
   totp,
   onEnded,
+  onPasswordChangeRequired,
 }: {
   authRequestId: string;
   totp: TotpEnrollment;
   onEnded: (message: string) => void;
+  onPasswordChangeRequired: (change: PasswordChangeRequired) => void;
 }) {
   const [code, setCode] = useState("");
   const [refusedMessage, setRefusedMessage] = useState<string | undefined>();
@@ -624,6 +694,11 @@ function EnrollStep({
         switch (result.outcome) {
           case "complete":
             window.location.assign(result.callbackUrl);
+            break;
+          case "passwordChangeRequired":
+            // The code is proven and the password must now change (#856):
+            // the API asks only now, after the factor, never before it.
+            onPasswordChangeRequired(result);
             break;
           case "blocked":
             onEnded(result.message);
@@ -697,6 +772,142 @@ function EnrollStep({
         <AuthCardFooter>
           <p className="text-xs text-muted-foreground">
             Your code is checked directly by Helivanta.
+          </p>
+        </AuthCardFooter>
+      </AuthCardCentered>
+    </AuthLayoutCentered>
+  );
+}
+
+// toPasswordPolicy maps the API's snake_case policy onto @tesserix/web's
+// PasswordPolicy, right where the component that consumes it lives (the
+// same split toMethodPolicy makes above). A min_length of 0 means the API
+// reported none; leaving it undefined keeps the component's own default.
+function toPasswordPolicy(policy: PasswordPolicyInfo): PasswordPolicy {
+  return {
+    minLength: policy.min_length > 0 ? policy.min_length : undefined,
+    requireUppercase: policy.requires_uppercase,
+    requireLowercase: policy.requires_lowercase,
+    requireNumber: policy.requires_number,
+    requireSymbol: policy.requires_symbol,
+  };
+}
+
+const PASSWORD_CHANGE_DESCRIPTION: Record<PasswordChangeRequired["reason"], string> = {
+  required: "Your administrator requires a new password before you continue.",
+  expired: "Your password has expired. Choose a new one to continue.",
+};
+
+// The password-change step (#856). Reachable only from a
+// `passwordChangeRequired` outcome — after the password and, when enrolled,
+// the TOTP code — so it never appears for a sign-in that has not proven every
+// factor. Built from `@tesserix/web`'s AuthSetPasswordForm: it shows the
+// policy as a live checklist and keeps its submit disabled until the new
+// password meets it and the confirmation matches.
+//
+// The one rule the component cannot know is "different from the current
+// password", so it is checked here before any request — the API refuses it
+// too, but sending it would cost a round trip for an answer known locally.
+//
+// changePassword's outcomes:
+//  - `complete` navigates, like every other step.
+//  - `rejected` stays here with the API's message (which rule failed, or
+//    that the password is unchanged); the attempt is still open.
+//  - `expired` and `blocked` end on LoginFlow's start-again landing with the
+//    API's message — including `password_changed_sign_in_again`, which tells
+//    the user the change took effect.
+// Anything else (an outage) is shown inline without a transition; the
+// attempt is kept, so trying again is meaningful.
+function PasswordChangeStep({
+  authRequestId,
+  currentPassword,
+  change,
+  onEnded,
+}: {
+  authRequestId: string;
+  currentPassword: string;
+  change: PasswordChangeRequired;
+  onEnded: (message: string) => void;
+}) {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [inlineError, setInlineError] = useState<string | undefined>();
+
+  const newPasswordSchema = z.string().refine((next) => next !== currentPassword, {
+    message: "Choose a password different from your current one.",
+  });
+
+  const submit = useApiMutation<PasswordChangeResult, string>(
+    (newPassword) => changePassword({ authRequestId, currentPassword, newPassword }),
+    {
+      onSuccess: (result) => {
+        switch (result.outcome) {
+          case "complete":
+            window.location.assign(result.callbackUrl);
+            break;
+          case "rejected":
+            setInlineError(result.message);
+            break;
+          case "expired":
+          case "blocked":
+            onEnded(result.message);
+            break;
+        }
+      },
+      // AuthSetPasswordForm's `error` prop is this mutation's error surface,
+      // as on the other two steps.
+      suppressErrorToast: true,
+    },
+  );
+
+  function handleSubmit(newPassword: string) {
+    const parsed = newPasswordSchema.safeParse(newPassword);
+    if (!parsed.success) {
+      setInlineError(parsed.error.issues[0]?.message);
+      return;
+    }
+    setInlineError(undefined);
+    submit.mutate(newPassword);
+  }
+
+  return (
+    <AuthLayoutCentered>
+      <AuthCardCentered>
+        <div className="space-y-2 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight">Helivanta</h1>
+          <p className="text-sm text-muted-foreground">
+            {PASSWORD_CHANGE_DESCRIPTION[change.reason]}
+          </p>
+        </div>
+
+        <AuthSetPasswordForm
+          password={password}
+          onPasswordChange={(next) => {
+            setPassword(next);
+            setInlineError(undefined);
+          }}
+          confirmPassword={confirmPassword}
+          onConfirmPasswordChange={setConfirmPassword}
+          onSubmit={handleSubmit}
+          passwordPolicy={toPasswordPolicy(change.policy)}
+          loading={submit.isPending}
+          error={
+            inlineError ??
+            (submit.error instanceof ApiError
+              ? submit.error.message
+              : submit.error
+                ? "Your password could not be changed. Please try again."
+                : undefined)
+          }
+          title="Choose a new password"
+          submitLabel="Change password"
+          passwordLabel="New password"
+          confirmLabel="Confirm new password"
+        />
+
+        <AuthCardFooter>
+          <p className="text-xs text-muted-foreground">
+            Your new password is set directly by Helivanta.
           </p>
         </AuthCardFooter>
       </AuthCardCentered>

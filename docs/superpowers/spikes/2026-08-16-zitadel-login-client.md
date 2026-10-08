@@ -200,6 +200,11 @@ recorded as a known limitation at the decision point in
 task — closing it costs an extra round trip (a `users/{id}` read) on every
 login, which is a real product tradeoff, not a small fix.
 
+**Closed 2026-10-08 (#856):** Helivanta now makes that read (plus the org's
+password expiry settings) before every finalize, after every factor, and
+collects the new password in its own form — see
+`2026-10-08-password-change-required-design.md`.
+
 (Test user and its `passwordChangeRequired:true` state were deleted afterward;
 `DELETE /v2/users/386506687000870919` followed by a `GET` confirming 404
 verified the cleanup actually took.)

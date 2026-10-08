@@ -46,6 +46,11 @@ var UnauthenticatedRoutes = map[string]string{
 	// it confirms the factor that then creates the session.
 	"POST /v1/auth/login/enroll": "confirms the newly enrolled second factor that creates the session, so it cannot require one",
 
+	// #856: a password that must change is changed here, after every factor
+	// is proven but still before any Helivanta session exists — the same
+	// server-held Zitadel session as the factor step, at its own stage.
+	"POST /v1/auth/login/password-change": "completes a sign-in whose password must change first, so it cannot require a session",
+
 	// Liveness and readiness. Deliberately outside /v1 and unlimited: a
 	// throttled or authenticated probe takes a healthy replica out of
 	// service, which is the failure mode these exist to prevent.
@@ -64,8 +69,9 @@ var UnauthenticatedRoutes = map[string]string{
 // but they are listed in UnauthenticatedRoutes because the arch test
 // enumerates the whole engine and must account for every route on it.
 //
-// authRequest, password, factor and enroll (#854 Task 4 / #867 Task 4 /
-// #948, iam.LoginUIHandlers' four methods) are accepted as plain
+// authRequest, password, factor, enroll and passwordChange (#854 Task 4 /
+// #867 Task 4 / #948 / #856, iam.LoginUIHandlers' five methods) are
+// accepted as plain
 // gin.HandlerFunc rather than a concrete *iam.LoginUIHandlers, the same
 // way login is — this package stays agnostic of any one module's types.
 // cmd/api/main.go constructs the real loginclient.Client and wires all
@@ -86,18 +92,20 @@ var UnauthenticatedRoutes = map[string]string{
 // instead, which per this repo's enforcement ladder (compile error >
 // boot failure > CI failure > documented convention) is the correct
 // rung: loud and at start-up, not silent and per-request.
-func MountUnauthenticated(e *gin.Engine, login, authRequest, password, factor, enroll gin.HandlerFunc) {
+func MountUnauthenticated(e *gin.Engine, login, authRequest, password, factor, enroll, passwordChange gin.HandlerFunc) {
 	mustHandler("POST /v1/auth/login", login)
 	mustHandler("GET /v1/auth/login/request/:id", authRequest)
 	mustHandler("POST /v1/auth/login/password", password)
 	mustHandler("POST /v1/auth/login/factor", factor)
 	mustHandler("POST /v1/auth/login/enroll", enroll)
+	mustHandler("POST /v1/auth/login/password-change", passwordChange)
 
 	e.POST("/v1/auth/login", login)
 	e.GET("/v1/auth/login/request/:id", authRequest)
 	e.POST("/v1/auth/login/password", password)
 	e.POST("/v1/auth/login/factor", factor)
 	e.POST("/v1/auth/login/enroll", enroll)
+	e.POST("/v1/auth/login/password-change", passwordChange)
 }
 
 // mustHandler panics naming which UnauthenticatedRoutes entry a nil

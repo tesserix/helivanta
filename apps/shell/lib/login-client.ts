@@ -80,7 +80,38 @@ export type PasswordCheckResult =
   | { outcome: "complete"; callbackUrl: string }
   | { outcome: "factorRequired"; factors: string[] }
   | { outcome: "enrollmentRequired"; factors: string[]; totp: TotpEnrollment }
+  | PasswordChangeRequired
   | SignInBlocked;
+
+// The wire shape of the password policy a new password must meet (#856) —
+// `passwordPolicyResponse` in backend/internal/modules/iam/
+// loginui_passwordchange.go. Snake_case like every other field in this file;
+// page.tsx maps it onto @tesserix/web's camelCase PasswordPolicy where the
+// form consumes it. Advisory: the API (Zitadel) enforces it.
+export interface PasswordPolicyInfo {
+  min_length: number;
+  requires_uppercase: boolean;
+  requires_lowercase: boolean;
+  requires_number: boolean;
+  requires_symbol: boolean;
+}
+
+// Why the password must change: an administrator required it, or it outlived
+// the org's expiry policy.
+export type PasswordChangeReason = "required" | "expired";
+
+// `passwordChangeRequired` (#856) means every factor was CORRECT and the
+// password must change before the sign-in completes — the same "neither
+// success nor failure" trap `factorRequired` documents below: it is never an
+// error, and never a navigation. The caller collects a new password and calls
+// changePassword. Reachable from checkPassword AND, after a TOTP code, from
+// checkFactor and verifyEnrollment: the API never offers the change before
+// every factor is proven.
+export interface PasswordChangeRequired {
+  outcome: "passwordChangeRequired";
+  reason: PasswordChangeReason;
+  policy: PasswordPolicyInfo;
+}
 
 // TotpEnrollment is what the API hands the page ONCE when the org forces
 // MFA and the account has nothing enrolled (#948, spec D2): the otpauth://
@@ -102,7 +133,14 @@ export interface TotpEnrollment {
 // emits it, because the password step answers `enrollment_required` with
 // a TOTP secret instead. A code the API cannot send must not be modelled
 // here as if it could.
-export const SIGN_IN_BLOCKED_CODES = ["sign_in_method_unsupported", "sign_in_incomplete"] as const;
+export const SIGN_IN_BLOCKED_CODES = [
+  "sign_in_method_unsupported",
+  "sign_in_incomplete",
+  // #856: the new password WAS set, but the sign-in could not be completed
+  // afterwards. Ends the attempt like the others; the API's message tells
+  // the user to sign in again with the new password.
+  "password_changed_sign_in_again",
+] as const;
 
 export type SignInBlockedReason = (typeof SIGN_IN_BLOCKED_CODES)[number];
 
@@ -139,6 +177,19 @@ interface PasswordCheckResponse {
   factor_required?: string[];
   enrollment_required?: string[];
   totp?: TotpEnrollment;
+  password_change_required?: { reason: string; policy: PasswordPolicyInfo };
+}
+
+// asPasswordChangeRequired narrows the wire's `password_change_required` to
+// the outcome, refusing a reason this file does not know: a new reason is a
+// contract change, not something to render as one of the two it knows.
+function asPasswordChangeRequired(
+  body: NonNullable<PasswordCheckResponse["password_change_required"]>,
+): PasswordChangeRequired {
+  if (body.reason !== "required" && body.reason !== "expired") {
+    throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
+  }
+  return { outcome: "passwordChangeRequired", reason: body.reason, policy: body.policy };
 }
 
 // checkPassword is the ONLY thing Helivanta's login form does with a
@@ -148,14 +199,14 @@ interface PasswordCheckResponse {
 // itself, and when a correct password alone is not enough and Helivanta
 // cannot collect what else is required (MFA required by org policy with
 // nothing enrolled, or a voluntarily enrolled factor Helivanta does not
-// support yet — passkey, U2F, email/SMS code, a linked IdP) it REFUSES in
+// support yet — passkey, U2F, email/SMS code; a linked IdP is not one since
+// #950) it REFUSES in
 // its own words (#947). The caller renders that message with a way to
 // start again; it never navigates anywhere for it. A policy the API could
 // not read is NOT `blocked` — it is a retryable 503 thrown as an ApiError,
-// like any other outage. A forced password change is NOT one of these
-// either: verified live 2026-08-16 (#854 Task 8, spike §5), Zitadel
-// signals `passwordChangeRequired` to a login client nowhere in the flow,
-// so the API COMPLETES those logins instead — tracked as #856.
+// like any other outage. A password that must change is NOT `blocked`
+// either: it is `passwordChangeRequired` (#856), and the caller collects a
+// new one.
 //
 // A refused credential (wrong password or unknown user, answered
 // identically per spec D5) surfaces as an `ApiError` thrown by
@@ -213,7 +264,10 @@ export async function checkPassword(params: PasswordCheckParams): Promise<Passwo
     }
     return { outcome: "enrollmentRequired", factors: body.enrollment_required, totp: body.totp };
   }
-  // Neither key present is a contract violation by the API,
+  if (body.password_change_required) {
+    return asPasswordChangeRequired(body.password_change_required);
+  }
+  // No known key present is a contract violation by the API,
   // not a user error — there is no credential-shaped explanation for it,
   // so it must not be folded into the shared refusal message above.
   throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
@@ -256,6 +310,7 @@ interface FactorCheckParams {
 // itself, duplicating the classification this function already owns.
 export type FactorCheckResult =
   | { outcome: "complete"; callbackUrl: string }
+  | PasswordChangeRequired
   | SignInBlocked
   | { outcome: "refused"; message: string }
   | { outcome: "expired"; message: string };
@@ -302,6 +357,9 @@ export async function checkFactor(params: FactorCheckParams): Promise<FactorChec
   if (body.callback_url) {
     return { outcome: "complete", callbackUrl: body.callback_url };
   }
+  if (body.password_change_required) {
+    return asPasswordChangeRequired(body.password_change_required);
+  }
   // Same contract-violation treatment as checkPassword's fallback: not a
   // shape this endpoint's documented outcomes can produce.
   throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
@@ -334,6 +392,72 @@ export async function verifyEnrollment(params: FactorCheckParams): Promise<Facto
     if (blocked) return blocked;
     throw err;
   }
+  if (body.callback_url) {
+    return { outcome: "complete", callbackUrl: body.callback_url };
+  }
+  // An enrolment the API confirmed can still leave a password to change
+  // (#856): the gate runs after the new factor exactly as after any other.
+  if (body.password_change_required) {
+    return asPasswordChangeRequired(body.password_change_required);
+  }
+  throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
+}
+
+interface PasswordChangeParams {
+  authRequestId: string;
+  currentPassword: string;
+  newPassword: string;
+}
+
+// changePassword is the password-change step's call (#856): POST
+// /v1/auth/login/password-change, which changes the password in Zitadel —
+// proving `currentPassword`, the password typed at the credential step — and
+// then completes the sign-in.
+//
+// Outcomes, each a structural action for the caller:
+//   - `complete`: navigate to the callback.
+//   - `rejected`: the NEW password was not accepted (`password_rejected`,
+//     naming the rule, or `password_unchanged`). Stay on the step with the
+//     API's message; the attempt is still open.
+//   - `expired`: the attempt is gone (unknown, expired, or not waiting for a
+//     password change) — the same `auth_request_invalid` checkFactor maps.
+//     Start again.
+//   - `blocked`: refused, or the password was changed but the sign-in could
+//     not complete (`password_changed_sign_in_again`). Start again, showing
+//     the API's message.
+// Anything else (an outage) is rethrown for the caller's generic error
+// surface; the attempt is kept, so a retry is meaningful.
+export type PasswordChangeResult =
+  | { outcome: "complete"; callbackUrl: string }
+  | SignInBlocked
+  | { outcome: "rejected"; message: string }
+  | { outcome: "expired"; message: string };
+
+const PASSWORD_REJECTED_CODES = ["password_rejected", "password_unchanged"];
+
+export async function changePassword(params: PasswordChangeParams): Promise<PasswordChangeResult> {
+  let body: PasswordCheckResponse;
+  try {
+    body = await apiFetch<PasswordCheckResponse>("/auth/login/password-change", {
+      method: "POST",
+      body: JSON.stringify({
+        auth_request_id: params.authRequestId,
+        current_password: params.currentPassword,
+        new_password: params.newPassword,
+      }),
+    });
+  } catch (err) {
+    if (err instanceof ApiError && err.code === "auth_request_invalid") {
+      return { outcome: "expired", message: err.message };
+    }
+    if (err instanceof ApiError && PASSWORD_REJECTED_CODES.includes(err.code)) {
+      return { outcome: "rejected", message: err.message };
+    }
+    const blocked = asSignInBlocked(err);
+    if (blocked) return blocked;
+    throw err;
+  }
+
   if (body.callback_url) {
     return { outcome: "complete", callbackUrl: body.callback_url };
   }

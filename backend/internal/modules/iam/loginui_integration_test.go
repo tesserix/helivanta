@@ -281,8 +281,9 @@ func newAuthRequest(t *testing.T, env integrationEnv) string {
 // newLoginAttemptDB gives the integration router a REAL login_attempt table
 // (#948): since the password step stashes the Zitadel session for both the
 // factor and the enrolment flows, a nil store would nil-deref the moment a
-// forceMfa org answered. Only 0004_iam and 0006_iam are applied — the same
-// two the unit fixtures apply — so the tenant-scoped iam tables stay out.
+// forceMfa org answered. Only 0004_iam, 0006_iam and (#856) 0007_iam are
+// applied — the same three the unit fixtures apply — so the tenant-scoped iam
+// tables stay out.
 func newLoginAttemptDB(t *testing.T) *tenantdb.DB {
 	t.Helper()
 	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
@@ -290,11 +291,11 @@ func newLoginAttemptDB(t *testing.T) *tenantdb.DB {
 	require.NoError(t, err)
 	var migs []tenantdb.Migration
 	for _, m := range iam.New(nil).Migrations() {
-		if m.ID == "0004_iam" || m.ID == "0006_iam" {
+		if m.ID == "0004_iam" || m.ID == "0006_iam" || m.ID == "0007_iam" {
 			migs = append(migs, m)
 		}
 	}
-	require.Len(t, migs, 2)
+	require.Len(t, migs, 3)
 	require.NoError(t, db.Migrate(context.Background(), migs))
 	return db
 }
@@ -320,7 +321,7 @@ func newIntegrationRouter(t *testing.T, env integrationEnv) *gin.Engine {
 		c.Status(http.StatusInternalServerError)
 	}
 	bootstrap.MountUnauthenticated(r, notExercised,
-		handlers.AuthRequest, handlers.Password, handlers.Factor, handlers.Enroll)
+		handlers.AuthRequest, handlers.Password, handlers.Factor, handlers.Enroll, handlers.PasswordChange)
 	return r
 }
 

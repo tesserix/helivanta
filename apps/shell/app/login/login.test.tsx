@@ -71,6 +71,7 @@ function stubAuthFlow(
     password?: () => Response;
     factor?: () => Response;
     enroll?: () => Response;
+    passwordChange?: () => Response;
   } = {},
 ) {
   const fetchMock = vi.fn((url: string) => {
@@ -91,6 +92,16 @@ function stubAuthFlow(
       return Promise.resolve(
         (
           opts.factor ??
+          (() => jsonResponse(200, { callback_url: "https://hms.example/api/auth/callback" }))
+        )(),
+      );
+    }
+    // (#856) POST .../auth/login/password-change, matched BEFORE
+    // .../auth/login/password, whose path is a prefix of it.
+    if (url.includes("/auth/login/password-change")) {
+      return Promise.resolve(
+        (
+          opts.passwordChange ??
           (() => jsonResponse(200, { callback_url: "https://hms.example/api/auth/callback" }))
         )(),
       );
@@ -735,6 +746,242 @@ describe("LoginPage", () => {
         expect(screen.queryByLabelText(/verification code/i)).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
         expect(assignSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    // #856: a password that must change is changed in Helivanta's own form,
+    // built from @tesserix/web's AuthSetPasswordForm, after every factor.
+    describe("when the password must change", () => {
+      const TYPED_AT_SIGN_IN = "Typed-at-sign-in-1";
+      const REPLACEMENT = "Fresh-choice-77";
+      const POLICY = {
+        min_length: 12,
+        requires_uppercase: true,
+        requires_lowercase: true,
+        requires_number: true,
+        requires_symbol: true,
+      };
+
+      function changeRequired(reason: "required" | "expired" = "required") {
+        return () => jsonResponse(200, { password_change_required: { reason, policy: POLICY } });
+      }
+
+      async function signIn(user: ReturnType<typeof renderWithProviders>["user"]) {
+        await user.type(
+          await screen.findByLabelText("Email or username"),
+          "clinician@helivanta.dev",
+        );
+        await user.type(screen.getByLabelText("Password"), TYPED_AT_SIGN_IN);
+        await user.click(screen.getByRole("button", { name: "Sign in" }));
+      }
+
+      async function chooseNewPassword(
+        user: ReturnType<typeof renderWithProviders>["user"],
+        next: string,
+      ) {
+        await user.type(await screen.findByLabelText("New password"), next);
+        await user.type(screen.getByLabelText("Confirm new password"), next);
+        await user.click(screen.getByRole("button", { name: "Change password" }));
+      }
+
+      function passwordChangeCalls(fetchMock: ReturnType<typeof stubAuthFlow>) {
+        return fetchMock.mock.calls.filter(([url]) =>
+          String(url).includes("/auth/login/password-change"),
+        );
+      }
+
+      // The same trap as `factor_required`: the credential was CORRECT. The
+      // change step renders, with no error and no navigation.
+      it("shows the change step, not an error, and does not navigate", async () => {
+        stubAuthFlow({ password: changeRequired() });
+        const assignSpy = vi.fn();
+        vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+
+        const { user } = renderWithProviders(<LoginPage />);
+        await signIn(user);
+
+        expect(await screen.findByLabelText("New password")).toBeInTheDocument();
+        expect(screen.getByText(/administrator requires a new password/i)).toBeInTheDocument();
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        expect(assignSpy).not.toHaveBeenCalled();
+      });
+
+      it("says the password expired when that is the reason", async () => {
+        stubAuthFlow({ password: changeRequired("expired") });
+        const { user } = renderWithProviders(<LoginPage />);
+        await signIn(user);
+        expect(await screen.findByText(/your password has expired/i)).toBeInTheDocument();
+      });
+
+      it("keeps the change disabled until the new password meets the policy", async () => {
+        stubAuthFlow({ password: changeRequired() });
+        const { user } = renderWithProviders(<LoginPage />);
+        await signIn(user);
+
+        await user.type(await screen.findByLabelText("New password"), "short");
+        await user.type(screen.getByLabelText("Confirm new password"), "short");
+        expect(screen.getByRole("button", { name: "Change password" })).toBeDisabled();
+      });
+
+      it("proves the password typed at sign-in and navigates when the change completes", async () => {
+        const fetchMock = stubAuthFlow({
+          password: changeRequired(),
+          passwordChange: () =>
+            jsonResponse(200, { callback_url: "https://hms.example/api/auth/callback?code=pc" }),
+        });
+        const assignSpy = vi.fn();
+        vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+
+        const { user } = renderWithProviders(<LoginPage />);
+        await signIn(user);
+        await chooseNewPassword(user, REPLACEMENT);
+
+        await waitFor(() =>
+          expect(fetchMock).toHaveBeenCalledWith(
+            "/api/v1/auth/login/password-change",
+            expect.objectContaining({
+              method: "POST",
+              body: JSON.stringify({
+                auth_request_id: AUTH_REQUEST_ID,
+                current_password: TYPED_AT_SIGN_IN,
+                new_password: REPLACEMENT,
+              }),
+            }),
+          ),
+        );
+        await waitFor(() =>
+          expect(assignSpy).toHaveBeenCalledWith("https://hms.example/api/auth/callback?code=pc"),
+        );
+      });
+
+      // The API offers the change only AFTER the code; the step still has
+      // the password typed two steps earlier.
+      it("follows the OTP step and still sends the password typed at sign-in", async () => {
+        const fetchMock = stubAuthFlow({
+          password: () => jsonResponse(200, { factor_required: ["totp"] }),
+          factor: changeRequired(),
+        });
+        vi.stubGlobal("location", { ...window.location, assign: vi.fn() });
+
+        const { user } = renderWithProviders(<LoginPage />);
+        await signIn(user);
+        await user.type(await screen.findByLabelText(/verification code/i), "123456");
+        await chooseNewPassword(user, REPLACEMENT);
+
+        await waitFor(() =>
+          expect(fetchMock).toHaveBeenCalledWith(
+            "/api/v1/auth/login/password-change",
+            expect.objectContaining({
+              body: JSON.stringify({
+                auth_request_id: AUTH_REQUEST_ID,
+                current_password: TYPED_AT_SIGN_IN,
+                new_password: REPLACEMENT,
+              }),
+            }),
+          ),
+        );
+        expect(passwordChangeCalls(fetchMock)).toHaveLength(1);
+      });
+
+      it("refuses an unchanged password without a request", async () => {
+        const fetchMock = stubAuthFlow({ password: changeRequired() });
+        const { user } = renderWithProviders(<LoginPage />);
+        await signIn(user);
+        await chooseNewPassword(user, TYPED_AT_SIGN_IN);
+
+        expect(await screen.findByText(/different from your current one/i)).toBeInTheDocument();
+        expect(passwordChangeCalls(fetchMock)).toHaveLength(0);
+      });
+
+      it("stays on the step with the API's message when the new password is rejected", async () => {
+        const message = "the new password must contain a symbol";
+        stubAuthFlow({
+          password: changeRequired(),
+          passwordChange: () => jsonResponse(422, { error: "password_rejected", message }),
+        });
+        const assignSpy = vi.fn();
+        vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+
+        const { user } = renderWithProviders(<LoginPage />);
+        await signIn(user);
+        await chooseNewPassword(user, REPLACEMENT);
+
+        expect(await screen.findByText(message)).toBeInTheDocument();
+        expect(screen.getByLabelText("New password")).toBeInTheDocument();
+        expect(assignSpy).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        [
+          "the attempt expired",
+          400,
+          "auth_request_invalid",
+          "this sign-in attempt has expired; start again",
+        ],
+        [
+          "the change took effect but the sign-in could not complete",
+          503,
+          "password_changed_sign_in_again",
+          "your password was changed, but this sign-in could not be completed; sign in again with your new password",
+        ],
+        [
+          "the sign-in was refused",
+          403,
+          "sign_in_incomplete",
+          "this sign-in could not be completed; start again",
+        ],
+      ])("ends on the start-again landing when %s", async (_case, status, error, message) => {
+        stubAuthFlow({
+          password: changeRequired(),
+          passwordChange: () => jsonResponse(status, { error, message }),
+        });
+        const assignSpy = vi.fn();
+        vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+
+        const { user } = renderWithProviders(<LoginPage />);
+        await signIn(user);
+        await chooseNewPassword(user, REPLACEMENT);
+
+        expect(await screen.findByText(message)).toBeInTheDocument();
+        expect(screen.queryByLabelText("New password")).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+        expect(assignSpy).not.toHaveBeenCalled();
+      });
+
+      // #948 meets #856: a just-enrolled TOTP proves the factor, and only
+      // then is the change asked for — still sending the password typed at
+      // sign-in, two steps earlier.
+      it("follows the enrolment step and still sends the password typed at sign-in", async () => {
+        const fetchMock = stubAuthFlow({
+          password: () =>
+            jsonResponse(200, {
+              enrollment_required: ["totp"],
+              totp: {
+                uri: "otpauth://totp/ZITADEL:clinician@helivanta.dev?secret=JBSWY3DPEHPK3PXP&issuer=ZITADEL",
+                secret: "JBSWY3DPEHPK3PXP",
+              },
+            }),
+          enroll: changeRequired(),
+        });
+        vi.stubGlobal("location", { ...window.location, assign: vi.fn() });
+
+        const { user } = renderWithProviders(<LoginPage />);
+        await signIn(user);
+        await user.type(await screen.findByLabelText("Confirmation code"), "123456");
+        await chooseNewPassword(user, REPLACEMENT);
+
+        await waitFor(() =>
+          expect(fetchMock).toHaveBeenCalledWith(
+            "/api/v1/auth/login/password-change",
+            expect.objectContaining({
+              body: JSON.stringify({
+                auth_request_id: AUTH_REQUEST_ID,
+                current_password: TYPED_AT_SIGN_IN,
+                new_password: REPLACEMENT,
+              }),
+            }),
+          ),
+        );
       });
     });
   });

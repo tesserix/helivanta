@@ -132,7 +132,7 @@ func TestLoginPolicyErrorsRatherThanReportingNoMFA(t *testing.T) {
 // check, not the anchor check).
 func TestLoginPolicyRejectsBodiesItCannotUnderstand(t *testing.T) {
 	bodies := map[string]string{
-		"empty object":                            `{}`,
+		"empty object":                             `{}`,
 		"null body":                                `null`,
 		"forceMfa un-nested":                       `{"forceMfa":true}`,
 		"forceMfa renamed, anchor also absent":     `{"policy":{"force_mfa":true}}`,
@@ -205,9 +205,9 @@ func TestLoginPolicyTreatsAbsentForceMFAAsFalseWhenPolicyIsRecognizable(t *testi
 // section for the full mechanism and its own documented residual.
 func TestLoginPolicyRejectsARenamedOrRecasedForceMFA(t *testing.T) {
 	bodies := map[string]string{
-		"snake_case":                `{"policy":{` + policyAnchor + `,"force_mfa":true}}`,
-		"PascalCase":                `{"policy":{` + policyAnchor + `,"ForceMfa":true}}`,
-		"SCREAMING_SNAKE_CASE":      `{"policy":{` + policyAnchor + `,"FORCE_MFA":true}}`,
+		"snake_case":           `{"policy":{` + policyAnchor + `,"force_mfa":true}}`,
+		"PascalCase":           `{"policy":{` + policyAnchor + `,"ForceMfa":true}}`,
+		"SCREAMING_SNAKE_CASE": `{"policy":{` + policyAnchor + `,"FORCE_MFA":true}}`,
 		"forceMfa present but not a bool (type drift)": `{"policy":{` + policyAnchor + `,"forceMfa":"true"}}`,
 	}
 	for name, body := range bodies {
@@ -263,7 +263,7 @@ func TestLoginPolicyTreatsForceMFALocalOnlyAsRequiringMFA(t *testing.T) {
 // ForceMFA:true.
 //
 // This exists because an earlier version of LoginPolicy iterated
-// mfaPolicyKeys for the rename guard but called readMFABool twice with
+// mfaPolicyKeys for the rename guard but called the bool read twice with
 // HARDCODED literals, while mfaPolicyKeys' own doc comment claimed both
 // halves were list-driven. A contributor following that comment would
 // have registered a third key, gotten the rename guard, and had the

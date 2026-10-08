@@ -14,6 +14,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// servePasswordCurrent answers the two reads the #856 password gate makes —
+// GET /v2/users/{id} and GET /v2/settings/password/expiry — for a user whose
+// password is NOT due to change: no passwordChangeRequired, and an org with
+// no expiry policy. Every fixture in this file calls it first, so each test
+// keeps exercising the branch it is named for; the gate itself is pinned in
+// passwordchange_test.go. It answers false for every other request.
+func servePasswordCurrent(w http.ResponseWriter, r *http.Request) bool {
+	switch {
+	case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.Count(r.URL.Path, "/") == 3:
+		w.Write([]byte(userPasswordCurrentJSON))
+		return true
+	case r.Method == http.MethodGet && r.URL.Path == "/v2/settings/password/expiry":
+		w.Write([]byte(noPasswordExpiryJSON))
+		return true
+	}
+	return false
+}
+
+// userPasswordCurrentJSON is GET /v2/users/{id} for a human user with a
+// recorded password change and no change required — the shape Zitadel
+// sends, with passwordChangeRequired elided because it is false.
+const userPasswordCurrentJSON = `{"user":{"userId":"u1","state":"USER_STATE_ACTIVE","human":{"passwordChanged":"2026-01-01T00:00:00Z"}}}`
+
+// noPasswordExpiryJSON is GET /v2/settings/password/expiry for an org with
+// no expiry policy: maxAgeDays is zero, so proto3 JSON elides it.
+const noPasswordExpiryJSON = `{"settings":{"resourceOwnerType":"RESOURCE_OWNER_TYPE_INSTANCE"}}`
+
 // countingZitadel serves a login policy and records whether finalize was
 // called. It answers the session/authentication-methods routes
 // classifyEnrolledMethods needs with a PASSWORD-ONLY user by default, so
@@ -37,6 +64,9 @@ func countingZitadel(t *testing.T, policyJSON string, finalized *atomic.Bool) *C
 func countingZitadelWithFactors(t *testing.T, policyJSON, authMethodTypesJSON string, finalized *atomic.Bool) *Client {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if servePasswordCurrent(w, r) {
+			return
+		}
 		switch {
 		case r.URL.Path == "/management/v1/policies/login":
 			w.Write([]byte(policyJSON))
@@ -184,6 +214,9 @@ func TestOutcomeRefusedIsZero(t *testing.T) {
 // TOTP is actually true there — never on the caller's say-so.
 func TestCompleteAfterFactor_FinalizesOnlyWhenSessionFactorsReportTOTP(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if servePasswordCurrent(w, r) {
+			return
+		}
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
 			// CompleteAfterFactor now re-runs classifyEnrolledMethods
@@ -219,6 +252,9 @@ func TestCompleteAfterFactor_FinalizesOnlyWhenSessionFactorsReportTOTP(t *testin
 func TestCompleteAfterFactor_RefusesWhenTOTPNotVerified(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if servePasswordCurrent(w, r) {
+			return
+		}
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
 			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"},"password":{"verifiedAt":"t"}}}}`))
@@ -253,6 +289,9 @@ func TestCompleteAfterFactor_UnavailableWhenSessionFactorsUnreadable(t *testing.
 	var finalized atomic.Bool
 	var sessionGETs atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if servePasswordCurrent(w, r) {
+			return
+		}
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
 			if sessionGETs.Add(1) == 1 {
@@ -294,6 +333,9 @@ func TestCompleteAfterFactor_UnavailableWhenSessionFactorsUnreadable(t *testing.
 func TestCompleteAfterFactor_OtpEmailAlsoEnrolledIsRefused(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if servePasswordCurrent(w, r) {
+			return
+		}
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
 			// TOTP genuinely verified on the session — if
@@ -329,6 +371,9 @@ func TestCompleteAfterFactor_OtpEmailAlsoEnrolledIsRefused(t *testing.T) {
 func TestCompleteAfterFactor_UnavailableWhenEnrolledMethodsUnreadable(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if servePasswordCurrent(w, r) {
+			return
+		}
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
 			// TOTP genuinely verified here on purpose: if the
@@ -365,6 +410,9 @@ func TestCompleteAfterFactor_UnavailableWhenEnrolledMethodsUnreadable(t *testing
 func TestCompleteAfterFactor_RefusesWhenTOTPNoLongerEnrolled(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if servePasswordCurrent(w, r) {
+			return
+		}
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
 			// TOTP genuinely verified here on purpose — see the sibling
@@ -479,6 +527,9 @@ func TestCompleteIfSufficientUnavailableWhenPolicyShapeIsUnrecognised(t *testing
 func TestCompleteIfSufficientUnavailableWhenPolicyUnreadable(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if servePasswordCurrent(w, r) {
+			return
+		}
 		switch {
 		case r.URL.Path == "/management/v1/policies/login":
 			w.WriteHeader(http.StatusInternalServerError)
@@ -558,6 +609,9 @@ func TestCompleteIfSufficientRefusesWhenUserHasEnrolledFactor(t *testing.T) {
 func TestCompleteIfSufficientUnavailableWhenEnrolledFactorCheckUnreadable(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if servePasswordCurrent(w, r) {
+			return
+		}
 		switch {
 		case r.URL.Path == "/management/v1/policies/login":
 			w.Write([]byte(`{"policy":{"passwordCheckLifetime":"864000s"}}`))
@@ -604,6 +658,9 @@ func TestCompleteIfSufficientUnavailableWhenEnrolledFactorCheckUnreadable(t *tes
 func TestCompleteIfSufficientUnavailableWhenSessionHasNoOrgID(t *testing.T) {
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if servePasswordCurrent(w, r) {
+			return
+		}
 		switch {
 		case r.URL.Path == "/management/v1/policies/login":
 			t.Fatal("policy endpoint hit with no org id to scope the request: LoginPolicyForOrg must refuse before ever issuing this request (spec D2)")
@@ -653,6 +710,9 @@ func TestCompleteIfSufficientScopesThePolicyReadToTheSessionsOrg(t *testing.T) {
 	const orgIDFromSession = "org-289838195028398512-distinctive"
 	var gotOrgHeader string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if servePasswordCurrent(w, r) {
+			return
+		}
 		switch {
 		case r.URL.Path == "/management/v1/policies/login":
 			gotOrgHeader = r.Header.Get("x-zitadel-orgid")
@@ -728,6 +788,9 @@ func afterFactorZitadel(t *testing.T, authMethodTypesJSON string) (*Client, *ato
 	t.Helper()
 	var finalized atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if servePasswordCurrent(w, r) {
+			return
+		}
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
 			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))

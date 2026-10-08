@@ -10,7 +10,7 @@ Helivanta — a hospital management system platform, multi-zone monorepo.
 
 ## Quick start
 
-Requires Docker, Go 1.26, Node 22 (`corepack enable`). No registry
+Requires Docker, Go 1.26, Node 24, the version in `.nvmrc` (`corepack enable`). No registry
 credentials: `@tesserix/web` is published to the public npm registry, so
 `pnpm install` on a fresh clone needs nothing but network access.
 

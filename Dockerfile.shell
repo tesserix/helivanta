@@ -8,9 +8,11 @@
 # published tarball and no dist/ to install from. A build context of
 # apps/shell alone could not resolve them at all.
 #
-# Tesserix owns, patches, and Trivy-gates this Node 22 builder every week.
-# `latest` stays on the Node 22 line and points only at the last green build.
-FROM ghcr.io/tesserix/base-node-builder-22:latest AS builder
+# Tesserix owns, patches, and Trivy-gates this Node 24 builder every week.
+# `latest` stays on the Node 24 line and points only at the last green build.
+# The major must match .nvmrc, which CI tests on (#956); a CI runtime that
+# differs from the shipped one tests something production does not run.
+FROM ghcr.io/tesserix/base-node-builder-24:latest AS builder
 
 # The shared builder supports non-root consumers by default. This monorepo
 # build writes workspace dependencies and Next output under /src, so root is
@@ -124,11 +126,11 @@ RUN mkdir -p /src/apps/shell/public
 # workspace, the source, the TypeScript toolchain or pnpm's store. Three
 # COPYs is the whole image.
 #
-# The paired Tesserix Node 22 runtime includes tini, libc compatibility,
+# The paired Tesserix Node 24 runtime includes tini, libc compatibility,
 # certificates and the non-root nextjs user. It is weekly rebuilt and
 # Trivy-gated before the moving `latest` tag advances.
 # ---------------------------------------------------------------------------
-FROM ghcr.io/tesserix/base-node-runtime-22:latest AS runtime
+FROM ghcr.io/tesserix/base-node-runtime-24:latest AS runtime
 
 WORKDIR /app
 

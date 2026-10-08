@@ -76,7 +76,66 @@ jobs:
         with:
           working-directory: backend
       - run: go build ./...
+      # #963: the shared Postgres container of a test binary has vanished
+      # mid-run on CI (twice, at the same point in the iam sequence) and
+      # never locally on an identical 4-CPU/16 GiB machine. The test log can
+      # only say "No such container" afterwards; it cannot say WHO removed
+      # it. Docker's own event stream can, so it is recorded for the whole
+      # test step and read back only on failure (below). Started in the
+      # background with nohup so it outlives this step; the runner's
+      # end-of-job orphan cleanup stops it.
+      - name: Record Docker events during the Go tests
+        run: nohup docker events --format '{{json .}}' > "$RUNNER_TEMP/docker-events.jsonl" 2>&1 &
       - run: ./scripts/coverage-gate.sh
+      # Forensics for #963, on failure only (same `!success() || cancelled()`
+      # condition and reasoning as the e2e job's dumps). The two causes on
+      # the table leave different evidence, and this prints exactly the
+      # evidence that tells them apart:
+      #   - Ryuk (testcontainers' reaper) pruning the session: a burst of
+      #     `kill`/`die`/`destroy` events across MANY containers in the same
+      #     second, with no OOM line in the kernel log.
+      #   - The kernel's OOM killer: a `die` with exitCode 137 for the ONE
+      #     container, `State.OOMKilled=true` if it still exists, and an
+      #     "Out of memory: Killed process" line in the kernel log.
+      # Each block prints an explicit line when it finds nothing: "no
+      # container died" and "no OOM kill" are findings, not silence.
+      - name: Dump container deaths on failure
+        if: ${{ !success() || cancelled() }}
+        working-directory: .
+        run: |
+          events="$RUNNER_TEMP/docker-events.jsonl"
+          if [ ! -s "$events" ]; then
+            echo "no Docker events were recorded ($events is missing or empty)"
+          else
+            deaths=$(jq -r 'select(.Type=="container" and (.Action=="die" or .Action=="kill" or .Action=="oom" or .Action=="destroy"))
+              | [(.time|todate), .Action, .Actor.Attributes.image, (.Actor.Attributes.exitCode // "-"), (.Actor.Attributes.signal // "-"), .Actor.Attributes.name] | @tsv' "$events")
+            if [ -n "$deaths" ]; then
+              printf 'time\taction\timage\texitCode\tsignal\tname\n%s\n' "$deaths"
+            else
+              echo "no container died, was killed or was destroyed during the Go tests"
+            fi
+          fi
+      - name: Dump container state and kernel OOM log on failure
+        if: ${{ !success() || cancelled() }}
+        working-directory: .
+        run: |
+          docker ps -a --format '{{.Names}}\t{{.Image}}\t{{.Status}}'
+          for id in $(docker ps -aq --filter status=exited); do
+            docker inspect --format '{{.Name}} {{.Config.Image}} OOMKilled={{.State.OOMKilled}} ExitCode={{.State.ExitCode}} FinishedAt={{.State.FinishedAt}} Error={{.State.Error}}' "$id"
+          done
+          oom=$(sudo dmesg -T | grep -iE 'out of memory|oom-kill|killed process' || true)
+          if [ -n "$oom" ]; then
+            echo "$oom"
+          else
+            echo "no OOM kill in the kernel log"
+          fi
+      - name: Upload Docker events on failure
+        if: ${{ !success() || cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-docker-events
+          path: ${{ runner.temp }}/docker-events.jsonl
+          retention-days: 7
   web:
     runs-on: ubuntu-latest
     steps:

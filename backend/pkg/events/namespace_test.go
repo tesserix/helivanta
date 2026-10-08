@@ -46,10 +46,10 @@ func TestSanitizeNamespace(t *testing.T) {
 func TestNamespacedBusesDoNotShareSubjects(t *testing.T) {
 	url := testinfra.StartNATS(t)
 
-	a, err := NewBusInNamespace(url, t.Name()+"_a")
+	a, err := NewBusInNamespace(url, testinfra.IsolationKey(t)+"_a")
 	require.NoError(t, err)
 	defer a.Close()
-	b, err := NewBusInNamespace(url, t.Name()+"_b")
+	b, err := NewBusInNamespace(url, testinfra.IsolationKey(t)+"_b")
 	require.NoError(t, err)
 	defer b.Close()
 

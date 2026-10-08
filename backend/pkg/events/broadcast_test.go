@@ -19,7 +19,7 @@ import (
 func newTestBus(t *testing.T) *events.Bus {
 	t.Helper()
 	natsURL := testinfra.StartNATS(t)
-	bus, err := events.NewBusInNamespace(natsURL, t.Name())
+	bus, err := events.NewBusInNamespace(natsURL, testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 	return bus

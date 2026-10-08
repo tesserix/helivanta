@@ -63,7 +63,7 @@ func TestMembershipIsDerivedFromRoleAssignment(t *testing.T) {
 func TestEnsureModelUpgradesAnExistingStore(t *testing.T) {
 	url := testinfra.StartOpenFGA(t)
 	ctx := context.Background()
-	store := "upgrade-" + t.Name()
+	store := "upgrade-" + testinfra.IsolationKey(t)
 
 	// Boot once against a deliberately older model to simulate a store
 	// created before the tenant type existed.

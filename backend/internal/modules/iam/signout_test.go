@@ -142,7 +142,7 @@ func newSignoutHarness(t *testing.T, cfg signoutHarnessConfig) (*gin.Engine, *te
 	require.NoError(t, err)
 	require.Empty(t, bad, "tenant tables must carry forced RLS")
 
-	bus, err := events.NewBusInNamespace(testinfra.StartNATS(t), t.Name())
+	bus, err := events.NewBusInNamespace(testinfra.StartNATS(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 
@@ -422,7 +422,7 @@ func TestRevocationPropagatesToAnotherReplica(t *testing.T) {
 	migs = append(migs, revocationMig)
 	require.NoError(t, db.Migrate(ctx, migs))
 
-	bus, err := events.NewBusInNamespace(testinfra.StartNATS(t), t.Name())
+	bus, err := events.NewBusInNamespace(testinfra.StartNATS(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 	go bus.RunDispatcher(ctx, db)

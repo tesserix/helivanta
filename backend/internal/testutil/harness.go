@@ -267,12 +267,14 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 
 	// Every test shares one NATS server, so each takes its own subject
 	// namespace — otherwise one test's consumers would receive another's
-	// events. t.Name() is unique per test by construction.
+	// events. The namespace is testinfra.IsolationKey(t), not t.Name(): a
+	// name repeats across `go test -count=N` iterations, which share this
+	// server, so iteration 2 would receive iteration 1's events (#929).
 	//
 	// The directed allowlist is a constructor argument (there is no
 	// setter — see events.NewBusInNamespace), so it has to be built
 	// before the bus exists, exactly as main.go does it.
-	bus, err := events.NewBusInNamespace(testinfra.StartNATS(t), t.Name(), directedSubjects...)
+	bus, err := events.NewBusInNamespace(testinfra.StartNATS(t), testinfra.IsolationKey(t), directedSubjects...)
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 

@@ -483,10 +483,14 @@ func TestVerifyTOTP_ReturnsTheRotatedToken(t *testing.T) {
 func TestVerifyTOTP_WrongCodeIsBadCredentials(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(`{"code":3,"message":"Invalid code"}`))
+		// Zitadel's own shape for a wrong TOTP code: EVENT-8isk2
+		// (Errors.User.MFA.OTP.InvalidCode, zitadel domain/human_otp.go).
+		// Since #901 a 400 is classified by this id, not by status alone.
+		_, _ = w.Write([]byte(`{"code":3,"message":"Errors.User.MFA.OTP.InvalidCode (EVENT-8isk2)","details":[{"id":"EVENT-8isk2"}]}`))
 	})
 	_, err := c.VerifyTOTP(context.Background(), Session{ID: "s", Token: "t"}, "000000")
 	require.ErrorIs(t, err, ErrBadCredentials)
+	require.Equal(t, "EVENT-8isk2", ZitadelErrorID(err))
 }
 
 func TestSessionFactors_ReportsVerifiedTOTP(t *testing.T) {

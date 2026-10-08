@@ -407,14 +407,16 @@ func (c *Client) SessionFactors(ctx context.Context, sessionID string) (Factors,
 	}, nil
 }
 
-// loginPolicy reads a login policy (GET /management/v1/policies/login),
-// scoped by whatever opts the caller supplies — org-scoped via withOrgID,
-// or unscoped (the login client PAT's own resource owner) when opts is
-// empty. It is unexported: the two exported wrappers below,
-// LoginPolicyForOrg and InstanceLoginPolicyForDisplay, are the only ways to
-// reach it, so the body-parsing, anchor-check and rename-guard behaviour
-// documented below cannot drift between the enforcement path and the
-// display-only path (D3) — both go through the exact same decode. There is
+// loginPolicy reads orgID's login policy (GET /management/v1/policies/login),
+// always scoped with the x-zitadel-orgid header. The org id is a required
+// parameter, not an option (#917): an unscoped read — one resolved against
+// the login-client PAT's own resource owner — is not expressible through
+// this package. The one caller that used to make one (the login form's MFA
+// hint) was deleted because nothing rendered it; see
+// docs/superpowers/specs/2026-10-08-no-unscoped-mfa-hint-design.md. It is
+// unexported: LoginPolicyForOrg is the only way to reach it, and the archtest
+// TestLoginClientExposesOnlyAnOrgScopedPolicyRead pins that no second reader
+// is added. There is
 // no meaningful 404 case for this endpoint — a login policy always exists
 // — so a 404 here falls through to ErrUnavailable rather than being given
 // a dedicated sentinel.
@@ -545,11 +547,11 @@ func (c *Client) SessionFactors(ctx context.Context, sessionID string) (Factors,
 // TestLoginPolicyRejectsARenamedOrRecasedForceMFA, and
 // TestLoginPolicyTreatsForceMFALocalOnlyAsRequiringMFA pin this file's
 // half.
-func (c *Client) loginPolicy(ctx context.Context, opts ...requestOption) (LoginPolicy, error) {
+func (c *Client) loginPolicy(ctx context.Context, orgID string) (LoginPolicy, error) {
 	var wire struct {
 		Policy map[string]any `json:"policy"`
 	}
-	if err := c.do(ctx, http.MethodGet, "/management/v1/policies/login", nil, &wire, ErrUnavailable, opts...); err != nil {
+	if err := c.do(ctx, http.MethodGet, "/management/v1/policies/login", nil, &wire, ErrUnavailable, withOrgID(orgID)); err != nil {
 		return LoginPolicy{}, err
 	}
 	if _, anchored := wire.Policy["passwordCheckLifetime"]; !anchored {
@@ -617,43 +619,9 @@ func (c *Client) LoginPolicyForOrg(ctx context.Context, orgID string) (LoginPoli
 	if orgID == "" {
 		return LoginPolicy{}, fmt.Errorf("loginclient: LoginPolicyForOrg called with an empty org id, refusing rather than reading an unscoped policy: %w", ErrUnavailable)
 	}
-	return c.loginPolicy(ctx, withOrgID(orgID))
+	return c.loginPolicy(ctx, orgID)
 }
 
-// InstanceLoginPolicyForDisplay reads the login-client PAT's own resource
-// owner's login policy, UNSCOPED — no x-zitadel-orgid header. It exists
-// for exactly one caller today: loginui.go's AuthRequest handler, which
-// reads the policy BEFORE the user has typed a login name (spec D3), so
-// there is no user org yet to scope this to. That is not an omission —
-// there is no correct value to pass at that point in the flow.
-//
-// KNOWN LIMITATION (spec D3): on a multi-org instance this can resolve
-// against the wrong org, and the login form may then advertise "no MFA"
-// to a user whose real org forces it. That is a cosmetic wrong hint, not
-// a bypass: the enforcement decision is made by LoginPolicyForOrg, called
-// from CompleteIfSufficient now that the user's actual org is known, and
-// that call always resolves against the right org regardless of what this
-// method told the form. CompleteIfSufficient no longer calls this method
-// at all — Task 2 (#913) replaced that call — so the enforcement path is
-// fully org-scoped today; only this display read remains unscoped. This
-// is exactly today's (pre-#913-fix) behaviour for the display case, so
-// this change makes it no worse there. Making the display read org-aware
-// needs a login-form flow change — re-reading the policy once the login
-// name is known — and is filed as a follow-up rather than done here: see
-// the design spec's "Out of scope" section and follow-up issue #917.
-//
-// The name is deliberately unmistakable for the enforcer's: a future
-// contributor reaching for A login policy inside sufficiency.go must not
-// be able to grab this unscoped one by accident. sufficiency.go's
-// CompleteIfSufficient no longer calls this method at all — Task 2 (#913)
-// replaced that call with LoginPolicyForOrg(ctx, subject.OrgID), once
-// classifyEnrolledMethods started returning the session's org id
-// alongside its two booleans — and Task 3 adds the archtest that forbids
-// this method from ever being referenced by sufficiency.go again, so a
-// future contributor who reaches for it there fails CI, not review.
-func (c *Client) InstanceLoginPolicyForDisplay(ctx context.Context) (LoginPolicy, error) {
-	return c.loginPolicy(ctx)
-}
 
 // nonPasswordFactorPrefix is what an enrolled Zitadel authentication
 // method type looks like when it is NOT the password itself —
@@ -1041,11 +1009,11 @@ type requestOption func(*requestOptions)
 // docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md). do
 // sets the header itself from the
 // accumulated orgID — see requestOption's doc comment for why the header
-// name and value are do's decision, not an option's. LoginPolicyForOrg is
-// the only caller today, and it refuses an empty org id itself, before
-// ever constructing this option (spec D2) — withOrgID does not defend
-// against an empty orgID a second time, because no path in this package
-// can reach it with one.
+// name and value are do's decision, not an option's. Its callers —
+// loginPolicy (via LoginPolicyForOrg) and orgSettings (#856) — each refuse
+// an empty org id before ever constructing this option (spec D2), so
+// withOrgID does not defend against one a second time: no path in this
+// package can reach it with one.
 func withOrgID(orgID string) requestOption {
 	return func(o *requestOptions) { o.orgID = orgID }
 }

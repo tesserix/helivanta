@@ -279,7 +279,7 @@ func (h *LoginUIHandlers) allowedByLimiter(c *gin.Context, bucket string, rule r
 // authPoliciesResponse is the provider-neutral policy subset spec D5
 // wants exposed to the login form — @tesserix/web's AuthPolicies shape,
 // mapped here IN GO rather than by a TypeScript adapter reading
-// Zitadel's raw policy object. Only four fields cross the wire, on
+// Zitadel's raw policy object. Only three fields cross the wire, on
 // purpose:
 //
 //   - AllowPassword and SecondFactors are NOT read from
@@ -300,38 +300,28 @@ func (h *LoginUIHandlers) allowedByLimiter(c *gin.Context, bucket string, rule r
 //     wrong-password and unknown-user refusals structurally
 //     (respondEqualisedFailure) — that guarantee does not depend on this
 //     field, so a stale or invented value here cannot weaken it.
-//   - RequireMFA IS read from LoginPolicy.ForceMFA — the one field the
-//     enforcer (loginclient.CompleteIfSufficient / CompleteAfterFactor)
-//     actually consults. It is NOT, however, the same READ: this handler
-//     has no authenticated user yet, so it fetches the policy unscoped
-//     via InstanceLoginPolicyForDisplay (loginclient/client.go), which
-//     resolves against the login-client PAT's own resource owner, not
-//     any particular org. The enforcer scopes its own read to the
-//     authenticating user's org via LoginPolicyForOrg once a session
-//     exists (design spec D1/D2/D3,
-//     docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md).
-//     On a multi-org instance the two reads can disagree — this value is
-//     advisory only, a hint for what the form renders before anything is
-//     known, and enforces nothing.
 //
-// requireMfaLocalOnly has NO field here at all, deliberately — see spec
-// D5: LoginPolicy already folds it into ForceMFA
-// (forceMfa || forceMfaLocalOnly), and unfolding it into a second neutral
-// field the enforcer never separately consults would let the login form
-// render from a value nothing enforces. TestAuthRequestDoesNotExpose
-// RequireMFALocalOnly pins that no such key appears in the response body
-// at all, not merely that it is false.
+// There is no require_mfa field, deliberately (#917). It used to carry
+// ForceMFA from an UNSCOPED policy read — there is no user, and therefore no
+// org, before the form is filled in — and on a multi-org instance it could
+// disagree with what is enforced. Nothing rendered it: @tesserix/web's
+// AuthCredentialForm never reads AuthMethodPolicy.requireMfa. Every step
+// after the password is decided server-side on the session's real org
+// (LoginPolicyForOrg), so the form has no need to know in advance, and a
+// per-login-name read before the password would be an account-enumeration
+// oracle. See docs/superpowers/specs/2026-10-08-no-unscoped-mfa-hint-design.md.
+// The three fields left are constants describing Helivanta's own
+// capabilities, not any org's policy.
 type authPoliciesResponse struct {
 	AllowPassword          bool     `json:"allow_password"`
-	RequireMFA             bool     `json:"require_mfa"`
 	SecondFactors          []string `json:"second_factors"`
 	IgnoreUnknownUsernames bool     `json:"ignore_unknown_usernames"`
 }
 
 // authRequestResponse is what GET /v1/auth/login/request/:id answers
 // with: enough for Helivanta's own login form to render (which OIDC client is
-// asking, where it will redirect, which scopes, and which policies (D5)
-// govern this org's login) without the form itself having to speak
+// asking, where it will redirect, which scopes, and which of Helivanta's
+// own sign-in capabilities apply) without the form itself having to speak
 // Zitadel's wire protocol.
 type authRequestResponse struct {
 	ID          string               `json:"id"`
@@ -349,27 +339,12 @@ type authRequestResponse struct {
 // call is what tells the form whether the id it was given even makes
 // sense.
 //
-// It also reads A login policy (#867, spec D5) so the form can decide up
-// front whether to advertise an MFA step, without that decision ever
-// being the thing that actually enforces one —
-// loginclient.CompleteIfSufficient / CompleteAfterFactor remain the only
-// enforcers, unchanged by this read. That read is deliberately UNSCOPED
-// (InstanceLoginPolicyForDisplay, not LoginPolicyForOrg): no login name
-// has been typed yet at this point in the flow, so there is no
-// authenticated user and therefore no org to scope the read to — not an
-// omission, there is no correct value to pass here (design spec D3,
-// docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md).
-// On a multi-org instance this means the hint this endpoint renders CAN
-// be wrong: it may tell the form "no MFA" for a login name that, once
-// typed, turns out to belong to an org that forces it. That is a
-// cosmetic wrong hint, not a bypass — enforcement never depends on it.
-// An unreadable policy still fails the same way an unreadable policy
-// fails everywhere else in this file (respondLoginClientError,
-// ErrUnavailable → 503): there is no safe default to render when
-// Helivanta cannot tell whether MFA is required, and a form that
-// rendered "MFA not required" on a read failure would be exactly the
-// fail-OPEN spec D4 (2026-08-16 login-client design) exists to prevent,
-// just moved one call earlier.
+// It reads NO login policy (#917). The form renders the same neutral
+// credential fields for every user, and what comes after the password — a
+// code, an enrolment, a password change, a refusal or completion — is
+// decided server-side on the authenticating user's own org. See
+// authPoliciesResponse's doc comment for why the unscoped MFA hint this
+// endpoint used to carry was deleted rather than corrected.
 //
 // It DOES take a rate-limit budget (spec D2): every call makes an
 // unauthenticated Zitadel round trip on the instance-level login-client
@@ -388,12 +363,6 @@ func (h *LoginUIHandlers) AuthRequest(c *gin.Context) {
 		return
 	}
 
-	policy, err := h.client.InstanceLoginPolicyForDisplay(c.Request.Context())
-	if err != nil {
-		h.respondLoginClientError(c, err, "auth_request_policy")
-		return
-	}
-
 	requestid.Logger(c).InfoContext(c.Request.Context(), "login: auth request read",
 		"auth_request_id", ar.ID)
 	respond.OK(c, authRequestResponse{
@@ -403,7 +372,6 @@ func (h *LoginUIHandlers) AuthRequest(c *gin.Context) {
 		Scope:       ar.Scope,
 		Policies: authPoliciesResponse{
 			AllowPassword:          true,
-			RequireMFA:             policy.ForceMFA,
 			SecondFactors:          []string{"totp"},
 			IgnoreUnknownUsernames: false,
 		},

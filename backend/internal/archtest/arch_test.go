@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/modules/iam"
+	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/modules/lab"
 	"github.com/tesserix/helivanta/internal/modules/medicore"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
@@ -1307,67 +1309,37 @@ func TestSufficientWitnessConstructionIsPinned(t *testing.T) {
 			"in this file, check-free, must not be able to construct one undetected")
 }
 
-// TestSufficiencyNeverReferencesInstanceLoginPolicyForDisplay is the CI
-// half of spec D3 (#913,
-// docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md):
-// loginclient.InstanceLoginPolicyForDisplay reads the login policy
-// UNSCOPED — no x-zitadel-orgid header, resolved against the login-client
-// PAT's own resource owner rather than any particular org. It exists for
-// exactly one legitimate caller, loginui.go's AuthRequest handler, which
-// has no authenticated user yet and therefore no org to scope a read to.
-// The enforcer, sufficiency.go's CompleteIfSufficient / CompleteAfterFactor,
-// must always resolve the policy against the AUTHENTICATING USER'S OWN org
-// via LoginPolicyForOrg (spec D1/D2) — that is the entire fix #913 makes.
-// A future contributor who reaches for InstanceLoginPolicyForDisplay
-// inside sufficiency.go instead (a plausible copy-paste from client.go,
-// or "simpler, no org id to plumb through") would silently reintroduce
-// the exact bypass this change closes: a user in an org that forces MFA
-// judged by whatever org the login-client PAT happens to belong to. This
-// is the same "fail CI, not review" shape as TestFinalizeCallSiteIsUnique
-// and TestSufficientWitnessConstructionIsPinned immediately above, applied
-// to this one method name instead of the finalize POST or the sufficient
-// witness.
+// TestLoginClientExposesOnlyAnOrgScopedPolicyRead pins #913's fix and #917's
+// follow-through at the level of the client's API rather than one file's
+// source. A login policy read that is not scoped to the authenticating user's
+// org resolves against the login-client PAT's own org, which is how a user in
+// an org that forces MFA was once judged by another org's policy (#913).
 //
-// sourceReferencesMethod (used above for WithAdmin) is reused rather than
-// duplicated: InstanceLoginPolicyForDisplay is a method on *Client, so
-// every way of reaching it — an ordinary call
-// (c.InstanceLoginPolicyForDisplay(ctx)) or a bare method value
-// (f := c.InstanceLoginPolicyForDisplay) — is always spelled through a
-// selector expression on some Client value. There is no free-function
-// alias or embedding shortcut in this codebase's Go style that would let
-// a reference evade sourceReferencesMethod's ast.SelectorExpr match, the
-// same property TestSourceReferencesWithAdminCatchesMethodValues already
-// proves for that helper against the method-value evasion specifically.
-//
-// This test parses only sufficiency.go (sufficientWitnessCallSite), not
-// the whole loginclient package: InstanceLoginPolicyForDisplay's own
-// definition and doc comment necessarily spell the name out in client.go,
-// and client_test.go legitimately exercises it directly
-// (TestInstanceLoginPolicyForDisplaySendsNoOrgHeader) — a package-wide
-// walk would have to allowlist both, which is a weaker control than
-// naming the one file that must never reference it.
-//
-// Being scoped to sufficiency.go names the one edit shape that would slip
-// past this test: extracting the policy read into a separate helper file
-// that CompleteIfSufficient calls would move the reference to
-// InstanceLoginPolicyForDisplay outside sufficiency.go and this test would
-// not see it. (The finalize decision itself cannot escape that way,
-// because finalize needs a sufficient{} witness, and
-// TestSufficientWitnessConstructionIsPinned above pins that construction
-// to this file repo-wide regardless of which file reads the policy.)
-func TestSufficiencyNeverReferencesInstanceLoginPolicyForDisplay(t *testing.T) {
-	root := "../.."
-	src, err := os.ReadFile(filepath.Join(root, sufficientWitnessCallSite))
-	require.NoError(t, err)
-	found, err := sourceReferencesMethod(src, "InstanceLoginPolicyForDisplay")
-	require.NoError(t, err)
-	require.False(t, found,
-		"internal/modules/iam/loginclient/sufficiency.go references InstanceLoginPolicyForDisplay (#913) — "+
-			"that read is unscoped (no x-zitadel-orgid) and resolves against the login-client PAT's own "+
-			"resource owner, not the authenticating user's org; it exists only for loginui.go's pre-credential "+
-			"AuthRequest display hint, which has no user to scope to. The enforcer must scope its policy read "+
-			"to the authenticating user's org instead: use LoginPolicyForOrg(ctx, subject.OrgID), the id "+
-			"classifyEnrolledMethods already returns alongside its two booleans (design spec D1/D2)")
+// #917 deleted the last unscoped reader (InstanceLoginPolicyForDisplay, used
+// only by a login-form hint nothing rendered) and made loginPolicy take a
+// required org id. What remains is that the ONLY exported way to obtain a
+// loginclient.LoginPolicy is LoginPolicyForOrg, which refuses an empty org id.
+// This test makes that a CI fact: by reflection, every *Client method that
+// returns a LoginPolicy is listed, and the list must be exactly
+// [LoginPolicyForOrg]. A second reader — scoped or not, in any file of the
+// package — fails here and must argue its case, which is a stronger control
+// than the previous test's name check on sufficiency.go alone.
+func TestLoginClientExposesOnlyAnOrgScopedPolicyRead(t *testing.T) {
+	policyType := reflect.TypeOf(loginclient.LoginPolicy{})
+	clientType := reflect.TypeOf(&loginclient.Client{})
+	var readers []string
+	for i := range clientType.NumMethod() {
+		m := clientType.Method(i)
+		for o := range m.Type.NumOut() {
+			if m.Type.Out(o) == policyType {
+				readers = append(readers, m.Name)
+			}
+		}
+	}
+	require.Equal(t, []string{"LoginPolicyForOrg"}, readers,
+		"loginclient.Client exposes a login-policy reader other than LoginPolicyForOrg (#913, #917). Every "+
+			"policy read must be scoped to the authenticating user's org; an unscoped one resolves against the "+
+			"login-client PAT's own org and can judge a user by another org's policy")
 }
 
 // TestGormOpenIsOnlyCalledFromTheAllowlist protects a PHI control that is

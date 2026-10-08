@@ -701,11 +701,12 @@ func TestCompleteIfSufficientUnavailableWhenSessionHasNoOrgID(t *testing.T) {
 // it — so a hardcoded org id anywhere on this call path makes gotOrgHeader
 // wrong rather than accidentally matching.
 //
-// Verification: mutating CompleteIfSufficient to call
-// c.InstanceLoginPolicyForDisplay(ctx) (the pre-#913-fix unscoped read)
-// instead of c.LoginPolicyForOrg(ctx, subject.OrgID) makes gotOrgHeader
-// empty — InstanceLoginPolicyForDisplay sets no x-zitadel-orgid header at
-// all — and this test fails.
+// Verification: before #917, mutating CompleteIfSufficient to call the
+// unscoped InstanceLoginPolicyForDisplay(ctx) instead of
+// c.LoginPolicyForOrg(ctx, subject.OrgID) made gotOrgHeader empty and this
+// test failed. #917 deleted that reader and made loginPolicy take a required
+// org id, so the unscoped read is no longer expressible; this test still
+// fails if the org id passed is anything but the session's own.
 func TestCompleteIfSufficientScopesThePolicyReadToTheSessionsOrg(t *testing.T) {
 	const orgIDFromSession = "org-289838195028398512-distinctive"
 	var gotOrgHeader string

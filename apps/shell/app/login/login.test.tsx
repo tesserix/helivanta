@@ -51,7 +51,6 @@ function authRequestOkResponse() {
     scope: ["openid", "profile", "email"],
     policies: {
       allow_password: true,
-      require_mfa: false,
       second_factors: ["totp"],
       ignore_unknown_usernames: false,
     },

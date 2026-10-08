@@ -219,17 +219,15 @@ function ValidatedCredentialForm({ authRequestId }: { authRequestId: string }) {
 // Maps login-client.ts's wire-shaped `AuthPoliciesInfo` (snake_case,
 // unmodified from the backend — see that file's header comment on why it
 // carries no translation logic of its own) onto `@tesserix/web`'s
-// camelCase `AuthMethodPolicy`. This is the ONE reader of the org's login
-// policy on the frontend (spec D5's "one reader" reasoning: a second
-// mapping here, alongside loginclient's own read in Go, is exactly the
-// kind of drift-prone duplication D5 warns a future PR could reintroduce)
-// — it only decides what this page RENDERS, never what it allows;
+// camelCase `AuthMethodPolicy`. The values are Helivanta's own sign-in
+// capabilities, not an org's policy: no MFA requirement is mapped, because
+// none is known before the user identifies (#917) — it only decides what
+// this page RENDERS, never what it allows;
 // loginclient.CompleteIfSufficient / CompleteAfterFactor on the backend
 // remain the sole enforcers, unchanged by this page either way.
 function toMethodPolicy(policies: AuthPoliciesInfo): AuthMethodPolicy {
   return {
     allowPassword: policies.allow_password,
-    requireMfa: policies.require_mfa,
     secondFactors: policies.second_factors as AuthMethodPolicy["secondFactors"],
     ignoreUnknownUsernames: policies.ignore_unknown_usernames,
   };

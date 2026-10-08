@@ -19,5 +19,6 @@ Spec: `docs/superpowers/specs/2026-10-08-port-is-ours-fail-closed-design.md`
   real foreign-listener case, per spec §Tests.
 - [x] `ci.yml` scripts job: `PREFLIGHT_TEST_REQUIRE_FOREIGN=1`.
 - [x] Mutations per spec §Tests, each shown failing and then reverted.
-- [x] Gates: `make test-scripts` (as root, and non-root with sudo, the way CI
-  runs), `pnpm turbo lint format:check` for `scripts/`.
+- [x] Gates: `make test-scripts` as a non-root user with passwordless sudo
+  and `PREFLIGHT_TEST_REQUIRE_FOREIGN=1`, the way CI runs it (104 passed);
+  `pnpm turbo lint format:check`.

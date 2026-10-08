@@ -1087,10 +1087,15 @@ Commands, all run from `backend/` unless using the `make` wrapper from
 repo root:
 
 ```bash
-make lint-go          # golangci-lint run ./...
+make lint-go          # golangci-lint run ./... — linters AND gofmt (#919)
 make coverage-go       # ./scripts/coverage-gate.sh (70% floor)
 go test -race ./...    # full suite, from backend/
 ```
+
+`make lint-go` includes formatting (#919): `.golangci.yml` enables the
+`gofmt` formatter, so a file `gofmt` would change is a lint issue, in CI and
+locally alike. Fix one with `gofmt -w <file>` (or `golangci-lint fmt`), never
+by hand.
 
 ## 10. Checklist for a new module
 

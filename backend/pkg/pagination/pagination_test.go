@@ -58,8 +58,8 @@ func TestDecodeRejectsAnotherTenantsCursor(t *testing.T) {
 func TestDecodeRejectsMalformedCursors(t *testing.T) {
 	for _, raw := range []string{
 		"not-base64!!",
-		"eyJub3QiOiJhIGN1cnNvciJ9",        // valid base64, wrong shape
-		"",                                 // empty
+		"eyJub3QiOiJhIGN1cnNvciJ9",       // valid base64, wrong shape
+		"",                               // empty
 		"eyJ0IjoiIiwiYyI6IiIsImkiOiIifQ", // present but empty fields
 	} {
 		_, err := pagination.Decode(raw, testTenant)

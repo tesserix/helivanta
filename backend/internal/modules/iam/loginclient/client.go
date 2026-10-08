@@ -622,7 +622,6 @@ func (c *Client) LoginPolicyForOrg(ctx context.Context, orgID string) (LoginPoli
 	return c.loginPolicy(ctx, orgID)
 }
 
-
 // nonPasswordFactorPrefix is what an enrolled Zitadel authentication
 // method type looks like when it is NOT the password itself —
 // AUTHENTICATION_METHOD_TYPE_PASSWORD is the one value

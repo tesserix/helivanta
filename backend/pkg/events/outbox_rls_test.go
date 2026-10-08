@@ -250,8 +250,8 @@ func TestTenantlessRowIsReadableByNobody(t *testing.T) {
 //
 // That mattered because an "unset" custom GUC is only NULL the first time a
 // session ever references it. After any WithTenant transaction commits, the
-// name reverts to '' for the rest of that pooled connection's life, and
-// ''::uuid is a hard type error rather than a non-match. So the SAME cross-
+// name reverts to ” for the rest of that pooled connection's life, and
+// ”::uuid is a hard type error rather than a non-match. So the SAME cross-
 // tenant write reported "new row violates row-level security policy" on a
 // fresh connection and "invalid input syntax for type uuid" on a reused one —
 // which of the two a caller saw depended on pool scheduling.

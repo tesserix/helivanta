@@ -117,11 +117,10 @@ func (s *loginAttemptStore) Put(ctx context.Context, a loginAttempt) error {
 
 // Get returns the attempt for authRequestID at stage, treating an expired row as
 // not found and deleting it so expiry needs no separate cleanup job for
-// correctness (spec D6) — a background sweep is still useful for table
-// bloat, but nothing depends on it for correctness. This matters beyond
-// tidiness: every row holds a live Zitadel session token, so a row that
-// is never deleted is a slow leak of credentials into a table nothing
-// sweeps.
+// correctness (spec D6). A row nobody reads again is deleted by
+// SweepExpired instead (#869, loginattempt_sweep.go), which bounds how long
+// its live Zitadel session token stays at rest — but no READ depends on the
+// sweep having run: an expired row is refused here regardless.
 //
 // A row at a DIFFERENT stage is errAttemptNotFound too, exactly like a
 // missing one (#856): the stage is part of what the caller asked for, and an

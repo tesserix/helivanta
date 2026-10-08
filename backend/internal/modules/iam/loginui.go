@@ -121,29 +121,17 @@ const (
 // codebase and is generous enough that a clinician reading a rolling
 // TOTP code off an authenticator app never races it.
 //
-// # This does NOT bound how long the row — or the live Zitadel session token it holds — actually survives in Postgres (#867 fix round 2, Finding I2)
+// # What bounds how long the row — and the Zitadel session token in it — survives (#869)
 //
-// loginAttemptStore.Get (loginattempt.go) deletes an expired row only
-// when THAT SAME auth_request_id is read again and found past
-// expires_at — it is expiry-on-read, not a background sweep. A row
-// nobody ever reads again (a browser that abandons the factor step —
-// closes the tab, the clinician is pulled away mid-shift before
-// submitting a code) is NEVER read, so it is never deleted: the row, and
-// the live Zitadel session token it carries, remains in Postgres
-// indefinitely past loginAttemptTTL, not merely for it. An EARLIER
-// version of this comment claimed the TTL "bounds how long a stolen or
-// abandoned row keeps a usable Zitadel session token alive in the
-// database" — that was false; expiry-on-read makes the row unusable for
-// completing a login past the TTL (Get's own doc comment, spec D6), but
-// says nothing about how long the ROW ITSELF, or the token inside it,
-// persists at rest.
-//
-// login_attempt_expires_at_idx (0004_iam migration, module.go) exists as
-// if a periodic sweep were meant to use it, but none was ever written —
-// filed as #869 rather than built here, since a sweeper is its own
-// piece of work (cadence, verification, mirroring the existing
-// bus.RunPruner pattern in cmd/api/main.go) and this task's scope is the
-// HTTP layer, not background jobs.
+// Not this TTL alone. loginAttemptStore.Get deletes an expired row only when
+// THAT SAME auth_request_id is read again, and a browser that abandons the
+// next step never reads it again. RunAttemptSweeper (loginattempt_sweep.go)
+// closes that: it deletes every expired row at boot and every
+// attemptSweepInterval (this TTL), so an abandoned token survives at most
+// about two TTLs at rest. Until #869 nothing swept the table, and a row could
+// stay indefinitely; an earlier version of this comment claimed the TTL alone
+// bounded it, which was false. Expiry-on-read (Get) still makes an expired
+// row unusable for completing a login whether or not the sweep has run.
 const loginAttemptTTL = 5 * time.Minute
 
 // LoginUIHandlers backs the four routes Helivanta's own login form drives

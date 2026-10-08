@@ -77,6 +77,7 @@ make_shim() { # make_shim DIR NAME BODY
 
 # --- repo-owns.sh ---------------------------------------------------------
 
+# shellcheck source=lib/repo-owns.sh
 . "$REPO_ROOT/scripts/lib/repo-owns.sh"
 
 echo "repo-owns.sh:"
@@ -175,7 +176,7 @@ assert_contains "reports node"      "$out" 'Node 22+'
 assert_contains "reports pnpm"      "$out" 'corepack enable'
 
 busy_port=$(free_port)
-busy_pid=$(listen_from "$TMP" "$busy_port")
+listen_from "$TMP" "$busy_port" >/dev/null
 out=$(env PATH="$good:$PATH" PREFLIGHT_PORTS="$busy_port" \
   bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
 assert_status "occupied foreign port exits 1" 1 "$status"
@@ -650,6 +651,9 @@ out=$(env PATH="$stale:$PATH" PREFLIGHT_PORTS="$(free_port)" \
 assert_status "PREFLIGHT_SKIP_ZITADEL_INSTANCE=1 lets a stale instance pass" 0 "$status"
 assert_contains "the skip says so out loud" "$out" "skipped — this run re-provisions it"
 
+# The needle is reset-dev.sh's SOURCE TEXT, so the literal, unexpanded
+# "$REPO_ROOT" is the point: single quotes are deliberate.
+# shellcheck disable=SC2016
 assert_contains "reset-dev.sh sets the skip when it runs preflight" \
   "$(cat "$REPO_ROOT/scripts/reset-dev.sh")" \
   'PREFLIGHT_SKIP_ZITADEL_INSTANCE=1 "$REPO_ROOT/scripts/preflight.sh"'
@@ -791,6 +795,7 @@ echo
 echo "reset-dev.sh:"
 
 # Sourced (not $0), so the main guard keeps this from running the script.
+# shellcheck source=reset-dev.sh
 . "$REPO_ROOT/scripts/reset-dev.sh"
 
 reset_reply_accepts "reset"
@@ -807,6 +812,47 @@ assert_status "reset_reply_accepts false for RESET (case-sensitive)" 1 "$?"
 
 reset_reply_accepts " reset"
 assert_status "reset_reply_accepts false for leading whitespace" 1 "$?"
+
+echo
+echo "lint-shell.sh discovery (#924):"
+
+# Which files the shell gate checks is decided by discovery, so discovery is
+# what must be pinned. Running shellcheck needs Docker and is proven in CI's
+# own `make lint-shell` step. These cases need only git: a throwaway repo,
+# with lint-shell.sh copied in, listing what it would check.
+lsrepo="$TMP/lint-shell-repo"
+mkdir -p "$lsrepo/scripts" "$lsrepo/tools"
+cp "$REPO_ROOT/scripts/lint-shell.sh" "$lsrepo/scripts/lint-shell.sh"
+printf 'echo hi\n' > "$lsrepo/tools/ext.sh"
+printf 'echo hi\n' > "$lsrepo/tools/ext.bash"
+printf '#!/usr/bin/env bash\necho hi\n' > "$lsrepo/tools/env-bash"
+printf '#!/bin/sh\necho hi\n' > "$lsrepo/tools/bin-sh"
+printf '#!/bin/bash -eu\necho hi\n' > "$lsrepo/tools/bash-with-flags"
+printf '#!/usr/bin/env zsh\necho hi\n' > "$lsrepo/tools/zsh-tool"
+printf '#!/usr/bin/env python3\nprint(1)\n' > "$lsrepo/tools/py-tool"
+printf 'not a script, mentions #!/bin/bash on line 2\n#!/bin/bash\n' > "$lsrepo/tools/notes.txt"
+printf 'echo untracked\n' > "$lsrepo/tools/untracked.sh"
+(
+  cd "$lsrepo" && git init -q && git add scripts tools/ext.sh tools/ext.bash \
+    tools/env-bash tools/bin-sh tools/bash-with-flags tools/zsh-tool \
+    tools/py-tool tools/notes.txt
+)
+out=$(LINT_SHELL_LIST=1 bash "$lsrepo/scripts/lint-shell.sh" 2>&1); status=$?
+assert_status "discovery lists without error" 0 "$status"
+assert_equals "discovery finds exactly the tracked shell scripts" \
+  "scripts/lint-shell.sh tools/bash-with-flags tools/bin-sh tools/env-bash tools/ext.bash tools/ext.sh" \
+  "$(printf '%s\n' "$out" | sort | tr '\n' ' ' | sed 's/ $//')"
+
+# Fail closed on nothing: a repo where discovery finds no script at all must
+# not report a pass over zero files.
+lsempty="$TMP/lint-shell-empty"
+mkdir -p "$lsempty/scripts"
+cp "$REPO_ROOT/scripts/lint-shell.sh" "$lsempty/scripts/lint-shell.sh"
+printf 'just text\n' > "$lsempty/README"
+( cd "$lsempty" && git init -q && git add README )
+out=$(LINT_SHELL_LIST=1 bash "$lsempty/scripts/lint-shell.sh" 2>&1); status=$?
+assert_status "discovering no scripts exits 1" 1 "$status"
+assert_contains "and says so" "$out" "found no shell scripts"
 
 echo
 if [ "$failed" -gt 0 ]; then

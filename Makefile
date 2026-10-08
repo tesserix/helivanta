@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-infra dev-down dev-api dev-web dev-api-renewal dev-web-renewal migrate seed secret-session-key test test-go coverage-go test-web test-scripts e2e lint-go new-module verify-local preflight reset image-api image-shell
+.PHONY: up down dev dev-infra dev-down dev-api dev-web dev-api-renewal dev-web-renewal migrate seed secret-session-key test test-go coverage-go test-web test-scripts lint-shell e2e lint-go new-module verify-local preflight reset image-api image-shell
 
 # Docker Compose reads .env in the project directory automatically for
 # ${VAR} substitution in docker-compose.dev.yml; Make does not read it on
@@ -518,6 +518,11 @@ test-web:
 
 test-scripts:
 	bash scripts/preflight.test.sh
+
+# shellcheck over every shell script in the repo, discovered rather than
+# listed, with a digest-pinned shellcheck (#924). See scripts/lint-shell.sh.
+lint-shell:
+	bash scripts/lint-shell.sh
 
 # `make e2e` runs the WHOLE suite in THREE phases, because both fixture
 # shells (idle-timeout.spec.ts's and session-renewal.spec.ts's) and the main

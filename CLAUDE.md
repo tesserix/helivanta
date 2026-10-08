@@ -58,7 +58,7 @@ Binding rules for all frontend work. Full document: docs/standards/frontend.md
 - Styling: design tokens only — no hardcoded colors. Read the pitfall comments in `packages/ui/styles.css` before touching sidebar/border styles.
 - New zone apps: run `pnpm new-zone <name>`; never hand-copy an app.
 - Every new/changed panel component needs a Vitest test using `renderWithProviders` from `@helivanta/api/testing`.
-- Before done: `pnpm turbo lint type-check test build format:check` green — this covers `apps/*`, `packages/*`, `e2e/` (lint, type-check, format:check) and `scripts/` (lint, format:check only — see docs/standards/frontend.md); it does not run the Playwright suite itself. Keep `e2e/tests/smoke.spec.ts` selectors working.
+- Before done: `pnpm turbo lint type-check test build format:check` green — this covers `apps/*`, `packages/*`, `e2e/` (lint, type-check, format:check) and `scripts/` (lint, format:check only — see docs/standards/frontend.md); it does not run the Playwright suite itself. Shell scripts have their own gate: `make lint-shell` (shellcheck, every severity) green. Keep `e2e/tests/smoke.spec.ts` selectors working.
 
 ## Backend rules
 

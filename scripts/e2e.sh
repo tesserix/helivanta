@@ -25,6 +25,7 @@ set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 # shellcheck source=lib/repo-owns.sh
+# shellcheck source=lib/repo-owns.sh
 . "$REPO_ROOT/scripts/lib/repo-owns.sh"
 
 SHELL_PORT=4301

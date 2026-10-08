@@ -1,0 +1,13 @@
+# shellcheck configuration for every shell script in this repo (#924).
+# scripts/lint-shell.sh runs it; see docs/standards/frontend.md.
+#
+# Sourced files are FOLLOWED, not skipped. preflight.sh, e2e.sh and
+# preflight.test.sh source scripts/lib/repo-owns.sh, and a variable or
+# function defined there is only judged correctly in the script that uses it.
+# Each `.` line carries a `# shellcheck source=` directive, resolved
+# relative to the sourcing script's own directory, so resolution does not rest
+# on shellcheck's guess at what "$REPO_ROOT/…" means. A source it cannot
+# resolve is SC1091, which fails the gate like any other finding: proven by
+# pointing e2e.sh at a missing file.
+source-path=SCRIPTDIR
+external-sources=true

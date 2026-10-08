@@ -493,9 +493,15 @@ covers:
   progress and results to a human on purpose) and layers in Node globals
   (`process`, `fetch`, `URL`, ...) that TypeScript packages get for free
   from `tsc` but plain `.mjs` needs from ESLint directly.
-- **`scripts/*.sh`**: still not covered by this command. Prettier and ESLint
-  only handle JS/TS; shell-script linting (e.g. `shellcheck`) is a separate
-  tool this repo does not yet run, and adding it is out of scope for #920.
+- **Shell scripts** (`*.sh`, and any tracked file with a sh/bash shebang,
+  anywhere in the repo): not covered by this command, since Prettier and
+  ESLint only handle JS/TS. They have their own gate, `make lint-shell`
+  (#924), which CI's `scripts` job runs. It is `shellcheck` at every severity,
+  pinned by digest and run in Docker, with the configuration in
+  `.shellcheckrc`. Files are discovered rather than listed, so a new script
+  is checked without anyone adding it anywhere. A finding is fixed, or
+  disabled at its own site with the reason written next to the directive.
+  There is no blanket exclusion.
 
 Running the suite itself is still a separate step — this command is static
 checks only, it does not execute a single Playwright spec:

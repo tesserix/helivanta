@@ -5,8 +5,14 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 // removeUser() are observable without a network.
 const signoutRedirect = vi.hoisted(() => vi.fn());
 const removeUser = vi.hoisted(() => vi.fn());
+// A `function` expression, not an arrow: production calls `new UserManager()`,
+// and since vitest 4 a mock invoked with `new` runs its implementation as a
+// constructor. Arrow functions cannot be constructed, so an arrow here throws
+// "is not a constructor" instead of returning the stub.
 const UserManagerMock = vi.hoisted(() =>
-  vi.fn().mockImplementation(() => ({ signoutRedirect, removeUser })),
+  vi.fn().mockImplementation(function () {
+    return { signoutRedirect, removeUser };
+  }),
 );
 vi.mock("oidc-client-ts", () => ({
   UserManager: UserManagerMock,

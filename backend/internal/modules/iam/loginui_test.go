@@ -1243,3 +1243,62 @@ func TestFactorRateLimitNotBypassableBySpoofedXForwardedFor(t *testing.T) {
 		"a spoofed X-Forwarded-For value must not reset the factor rate-limit bucket when no proxy is trusted (Finding C1)")
 	require.NotEmpty(t, w2.Header().Get("Retry-After"))
 }
+
+// zitadelRefusesWith answers POST /v2/sessions with a 400 carrying the given
+// Zitadel error id, in the shape the spike observed live.
+func zitadelRefusesWith(t *testing.T, id string) *loginclient.Client {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v2/sessions", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"code":9,"message":"x (` + id + `)","details":[{"id":"` + id + `","failedAttempts":4}]}`))
+	})
+	return newZitadelTestClient(t, mux)
+}
+
+// TestEveryCredentialRefusalAnswersIdenticallyButLogsWhatHappened is #901's
+// handler-level claim, both halves of it:
+//
+//   - the browser cannot tell a locked account, a user with no password, or
+//     an unrecognised Zitadel refusal from a wrong password (spec D5's
+//     equalised refusal — same status, byte-identical body), because each
+//     would confirm the account exists;
+//   - our own log line DOES say which one it was, with Zitadel's error id and
+//     status — the information that, on 2026-08-19, could only be found in
+//     Zitadel's logs.
+func TestEveryCredentialRefusalAnswersIdenticallyButLogsWhatHappened(t *testing.T) {
+	reference := postPassword(t, zitadelRefusesWith(t, "COMMAND-3M0fs"), "test@helivanta.dev", "wrong")
+	require.Equal(t, http.StatusUnauthorized, reference.Code)
+
+	cases := []struct {
+		id, outcome string
+	}{
+		{"COMMAND-3M0fs", "bad_credentials"},
+		{"COMMAND-JLK35", "account_locked"},
+		{"COMMAND-3nJ4t", "password_not_set"},
+		{"COMMAND-3n77z", "user_not_found"},
+		{"COMMAND-UNSEEN", "rejected"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.id, func(t *testing.T) {
+			var logs bytes.Buffer
+			prev := slog.Default()
+			slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
+			t.Cleanup(func() { slog.SetDefault(prev) })
+
+			rec := postPassword(t, zitadelRefusesWith(t, tc.id), "test@helivanta.dev", "wrong")
+
+			require.Equal(t, reference.Code, rec.Code)
+			require.Equal(t, reference.Body.String(), rec.Body.String(),
+				"%s must be indistinguishable from a wrong password in the response", tc.id)
+
+			line := logs.String()
+			require.Contains(t, line, `"msg":"login password attempt failed"`)
+			require.Contains(t, line, `"outcome":"`+tc.outcome+`"`)
+			require.Contains(t, line, `"zitadel_error_id":"`+tc.id+`"`)
+			require.Contains(t, line, `"zitadel_status":400`)
+			require.NotContains(t, line, "test@helivanta.dev", "the login name is never logged on a failed attempt")
+			require.NotContains(t, line, "failedAttempts")
+		})
+	}
+}

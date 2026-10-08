@@ -476,15 +476,17 @@ func nonNilFactors(factors []string) []string {
 // login (loginclient.CompleteIfSufficient — see its own doc comment on
 // why finalize is unreachable any other way).
 //
-// A wrong password (loginclient.ErrBadCredentials) and an unknown user
-// (loginclient.ErrUserNotFound) MUST answer identically — same status,
-// same body, same MinFailedLoginDuration timing floor — per spec D5.
-// They stay distinct sentinels all the way up from loginclient (see
-// ErrBadCredentials' doc comment) specifically so this handler can still
-// log which one actually happened, in "outcome" only, never in a field
-// that could rebuild the same oracle in the log file: the login name
-// itself is NEVER logged on a failed attempt, and failedAttempts never
-// leaves loginclient at all.
+// Every credential-class refusal (loginclient.IsCredentialRefusal: a wrong
+// password, an unknown user, a locked account, a user with no password, or
+// a 400 Zitadel gave for a reason we do not recognise) MUST answer
+// identically — same status, same body, same MinFailedLoginDuration timing
+// floor — per spec D5: telling a caller "locked" or "no password" confirms
+// the account exists. They stay distinct sentinels all the way up from
+// loginclient specifically so this handler can still log which one
+// actually happened, with Zitadel's own error id (#901), in "outcome" and
+// "zitadel_error_id" only — never in a field that could rebuild the same
+// oracle in the log file: the login name itself is NEVER logged on a
+// failed attempt, and failedAttempts never leaves loginclient at all.
 func (h *LoginUIHandlers) Password(c *gin.Context) {
 	// start is captured before ANYTHING else — including request
 	// binding and the rate-limit check — because it is the floor for
@@ -515,13 +517,13 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 
 	session, err := h.client.CreatePasswordSession(c.Request.Context(), req.LoginName, req.Password)
 	if err != nil {
-		if errors.Is(err, loginclient.ErrBadCredentials) || errors.Is(err, loginclient.ErrUserNotFound) {
+		if loginclient.IsCredentialRefusal(err) {
 			// The distinction lives ONLY in this log line — never the
 			// login name, never failedAttempts (which never even
 			// reaches this package; see loginclient's zitadelError doc
 			// comment), and never anything that varies the response.
 			requestid.Logger(c).WarnContext(c.Request.Context(), "login password attempt failed",
-				"auth_request_id", req.AuthRequestID, "outcome", failureOutcome(err))
+				failureLogAttrs(req.AuthRequestID, err)...)
 			h.respondEqualisedFailure(c, start)
 			return
 		}
@@ -613,14 +615,18 @@ func (h *LoginUIHandlers) respondRefusal(c *gin.Context, authRequestID, stage st
 	}
 }
 
-// failureOutcome names which sentinel a failed password check actually
-// was, for the log line ONLY — see Password's doc comment on why the
-// response itself must never let this leak.
-func failureOutcome(err error) string {
-	if errors.Is(err, loginclient.ErrBadCredentials) {
-		return "bad_credentials"
+// failureLogAttrs is the log-only record of a credential-class refusal
+// (#901 spec D4): which refusal it actually was, and the id and status
+// Zitadel answered with — the fields that let a failed sign-in be diagnosed
+// from our own logs instead of Zitadel's. See Password's doc comment on why
+// none of this may ever reach the response.
+func failureLogAttrs(authRequestID string, err error) []any {
+	return []any{
+		"auth_request_id", authRequestID,
+		"outcome", loginclient.FailureOutcome(err),
+		"zitadel_error_id", loginclient.ZitadelErrorID(err),
+		"zitadel_status", loginclient.ZitadelStatus(err),
 	}
-	return "user_not_found"
 }
 
 // waitUntilFailureFloor blocks until MinFailedLoginDuration has elapsed
@@ -816,8 +822,11 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 	verified, err := h.client.VerifyTOTP(c.Request.Context(),
 		loginclient.Session{ID: attempt.SessionID, Token: attempt.SessionToken}, req.Code)
 	if err != nil {
-		if errors.Is(err, loginclient.ErrBadCredentials) {
-			h.bumpFactorAttempt(c, req.AuthRequestID, start)
+		if loginclient.IsCredentialRefusal(err) {
+			// Every credential-class refusal of a code counts against the
+			// attempt's budget (native-MFA spec D6), as every 400 always
+			// did; only the log line now says which one it was (#901).
+			h.bumpFactorAttempt(c, req.AuthRequestID, err, start)
 			return
 		}
 		h.respondLoginClientError(c, err, "verify_totp")
@@ -895,9 +904,9 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 // policy already gives it. An earlier version of this comment (and spec
 // D6's heading) said "the row and the Zitadel session are both gone",
 // which overstates what exhaustion actually does.
-func (h *LoginUIHandlers) bumpFactorAttempt(c *gin.Context, authRequestID string, start time.Time) {
+func (h *LoginUIHandlers) bumpFactorAttempt(c *gin.Context, authRequestID string, refusal error, start time.Time) {
 	requestid.Logger(c).WarnContext(c.Request.Context(), "login factor attempt failed",
-		"auth_request_id", authRequestID)
+		failureLogAttrs(authRequestID, refusal)...)
 
 	_, err := h.store.BumpAndGet(c.Request.Context(), authRequestID)
 	switch {

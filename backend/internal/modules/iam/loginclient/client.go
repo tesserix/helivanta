@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -32,8 +33,9 @@ import (
 // the underlying status/body context for logs while keeping the sentinel
 // stable for callers that only care about the category.
 var (
-	// ErrBadCredentials is returned for a wrong password (observed: HTTP
-	// 400, COMMAND-3M0fs). It is deliberately kept distinct from
+	// ErrBadCredentials is returned for a wrong password or TOTP code —
+	// HTTP 400 with COMMAND-3M0fs, EVENT-8isk2 or TOTP-Auw0a, and ONLY those
+	// (#901; see badRequestKinds in zitadelerror.go). It is deliberately kept distinct from
 	// ErrUserNotFound even though Task 4 must answer both identically to
 	// the browser (spike §3) — that collapsing is Task 4's job, done at
 	// the point it logs which one actually happened, not lost here.
@@ -1016,18 +1018,17 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any, not
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		// A 400 is classified by Zitadel's error id, not by status alone
+		// (#901): an earlier version mapped EVERY 400 to ErrBadCredentials,
+		// so a locked account logged as a wrong password. See
+		// classifyStatus (zitadelerror.go).
 		errID := readZitadelErrorID(resp.Body)
-		switch resp.StatusCode {
-		case http.StatusBadRequest:
-			return fmt.Errorf("%s %s: status %d id=%s: %w", method, path, resp.StatusCode, errID, ErrBadCredentials)
-		case http.StatusNotFound:
-			return fmt.Errorf("%s %s: status %d id=%s: %w", method, path, resp.StatusCode, errID, notFound)
-		default:
-			// Covers 5xx and any other unexpected status (e.g. 401/403 —
-			// a login client PAT problem is an operational failure Helivanta
-			// cannot resolve per-request, not a credential refusal for
-			// the end user).
-			return fmt.Errorf("%s %s: status %d id=%s: %w", method, path, resp.StatusCode, errID, ErrUnavailable)
+		return &ZitadelError{
+			Method: method,
+			Path:   path,
+			Status: resp.StatusCode,
+			ID:     errID,
+			Kind:   classifyStatus(resp.StatusCode, errID, notFound),
 		}
 	}
 
@@ -1052,8 +1053,21 @@ func readZitadelErrorID(r io.Reader) string {
 	if err := json.NewDecoder(limited).Decode(&parsed); err != nil {
 		return ""
 	}
-	if len(parsed.Details) > 0 {
+	if len(parsed.Details) > 0 && parsed.Details[0].ID != "" {
 		return parsed.Details[0].ID
+	}
+	// Fallback: Zitadel formats every error message as "<key> (<id>)"
+	// (internal/api/grpc/gerrors, ZITADELToGRPCError / ZITADELToConnectError),
+	// so the id is recoverable from the message when details does not carry
+	// it as a plain field — e.g. a connect-protocol answer, whose details are
+	// base64-encoded. Without this, every such refusal would log as
+	// ErrRejected with no id, which is exactly the blindness #901 removes.
+	if m := zitadelMessageID.FindStringSubmatch(parsed.Message); m != nil {
+		return m[1]
 	}
 	return ""
 }
+
+// zitadelMessageID matches the trailing "(<PREFIX>-<id>)" Zitadel appends to
+// every error message, e.g. "Errors.User.Password.Invalid (COMMAND-3M0fs)".
+var zitadelMessageID = regexp.MustCompile(`\(([A-Z]+-[A-Za-z0-9]+)\)\s*$`)

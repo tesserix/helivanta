@@ -6,7 +6,13 @@ import {
   RenewalUnavailableError,
   FALLBACK_RENEWAL_INTERVAL_MS,
 } from "@/lib/renew";
-import { PERMISSIONS_CACHE_KEY, loadRenewAt, storeRenewAt } from "@helivanta/api";
+import {
+  PERMISSIONS_CACHE_KEY,
+  loadExpiresAt,
+  loadRenewAt,
+  storeExpiresAt,
+  storeRenewAt,
+} from "@helivanta/api";
 import { SessionRenewal } from "./session-renewal";
 
 // setTimeout is spied on GLOBALLY, so other library internals (react-query,
@@ -221,6 +227,57 @@ describe("SessionRenewal", () => {
       expect(findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS)).toBeDefined(),
     );
 
+    setTimeoutSpy.mockRestore();
+  });
+
+  // #941. SESSION_TTL=3m: the session has 120s left when the renewal fails.
+  // The fixed five-minute retry would fire after expiry, so one failed
+  // renewal signed the clinician out. The retry must land inside the
+  // remaining lifetime (a third of it: 40s), from the expiry the login or
+  // last renewal stored.
+  it("retries a failed renewal within the session's remaining lifetime", async () => {
+    storeExpiresAt(new Date(Date.now() + 120_000));
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+    renewSession.mockRejectedValue(
+      new RenewalUnavailableError("renewal temporarily unavailable (status 503)"),
+    );
+
+    renderWithProviders(<SessionRenewal />);
+    const [callback] = await waitFor(() => {
+      const call = findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS);
+      expect(call).toBeDefined();
+      return call!;
+    });
+    setTimeoutSpy.mockClear();
+    callback();
+    await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(1));
+
+    await waitFor(() => {
+      const retry = setTimeoutSpy.mock.calls.find(
+        ([, delay]) => typeof delay === "number" && delay >= 30_000 && delay <= 40_000,
+      );
+      expect(retry).toBeDefined();
+    });
+    expect(findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS)).toBeUndefined();
+    setTimeoutSpy.mockRestore();
+  });
+
+  it("stores the expiry a successful renewal answers with", async () => {
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+    renewSession.mockResolvedValue({
+      renewAt: new Date(Date.now() + 60_000),
+      expiresAt: new Date("2030-01-01T00:03:00.000Z"),
+    });
+
+    renderWithProviders(<SessionRenewal />);
+    const [callback] = await waitFor(() => {
+      const call = findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS);
+      expect(call).toBeDefined();
+      return call!;
+    });
+    callback();
+
+    await waitFor(() => expect(loadExpiresAt()?.toISOString()).toBe("2030-01-01T00:03:00.000Z"));
     setTimeoutSpy.mockRestore();
   });
 });

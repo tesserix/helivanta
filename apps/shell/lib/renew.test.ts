@@ -3,6 +3,7 @@ import { describe, expect, it, afterEach, vi } from "vitest";
 import {
   renewSession,
   nextRenewalDelayMs,
+  retryDelayMs,
   RenewalFailedError,
   RenewalUnavailableError,
   FALLBACK_RENEWAL_INTERVAL_MS,
@@ -250,5 +251,63 @@ describe("nextRenewalDelayMs", () => {
   it("clamps a far-future renewAt to MAX_RENEWAL_DELAY_MS", () => {
     const renewAt = new Date("2026-08-21T00:00:00Z"); // 12 hours out
     expect(nextRenewalDelayMs(renewAt, now)).toBe(MAX_RENEWAL_DELAY_MS);
+  });
+});
+
+// #941: a retry after RenewalUnavailableError is bounded by what is left of
+// the session, so one failed renewal cannot outlast a short SESSION_TTL.
+describe("retryDelayMs", () => {
+  const now = () => new Date("2026-10-08T12:00:00Z").getTime();
+
+  it("keeps the fixed fallback when the expiry is unknown (the behaviour before #941)", () => {
+    expect(retryDelayMs(undefined, now)).toBe(FALLBACK_RENEWAL_INTERVAL_MS);
+  });
+
+  it("keeps the fixed fallback on a long session, so retries are never faster than before", () => {
+    const expiresAt = new Date("2026-10-08T12:30:00Z"); // 30 minutes left
+    expect(retryDelayMs(expiresAt, now)).toBe(FALLBACK_RENEWAL_INTERVAL_MS);
+  });
+
+  // The defect itself: SESSION_TTL=3m, first renewal at t+60s fails with
+  // 120s left. The fixed fallback would retry at t+360s — after expiry.
+  it("retries within the session's remaining lifetime on a short session", () => {
+    const expiresAt = new Date("2026-10-08T12:02:00Z"); // 120s left
+    const delay = retryDelayMs(expiresAt, now);
+    expect(delay).toBe(40_000);
+    expect(delay).toBeLessThan(120_000);
+  });
+
+  it("never retries faster than MIN_RENEWAL_DELAY_MS, even with seconds left", () => {
+    expect(retryDelayMs(new Date("2026-10-08T12:00:20Z"), now)).toBe(MIN_RENEWAL_DELAY_MS);
+    expect(retryDelayMs(new Date("2026-10-08T11:59:00Z"), now)).toBe(MIN_RENEWAL_DELAY_MS);
+  });
+});
+
+describe("renewSession expires_at", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("parses expires_at alongside renew_at", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse(200, {
+          tenant_id: "t",
+          renew_at: "2026-10-08T12:01:00Z",
+          expires_at: "2026-10-08T12:03:00Z",
+        }),
+      ),
+    );
+    const result = await renewSession();
+    expect(result.expiresAt?.toISOString()).toBe("2026-10-08T12:03:00.000Z");
+  });
+
+  it("resolves with expiresAt undefined when the field is missing or unparseable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse(200, { tenant_id: "t", expires_at: "not-a-date" })),
+    );
+    expect((await renewSession()).expiresAt).toBeUndefined();
   });
 });

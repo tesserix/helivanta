@@ -64,16 +64,20 @@ export interface RenewalResult {
   // stop renewing, only as a reason to fall back to a default cadence.
   // See nextRenewalDelayMs.
   renewAt: Date | undefined;
+  // expiresAt is when the session this renewal just minted stops being
+  // honoured (#941; renew.go's expiresAtFor). Undefined when missing or
+  // unparseable — retryDelayMs then falls back to the fixed interval.
+  expiresAt: Date | undefined;
 }
 
 // FALLBACK_RENEWAL_INTERVAL_MS is used in three cases: (1) the very
 // first renewal after mount, before any server response exists to
 // derive a cadence from, (2) a 200 OK response whose `renew_at` (or
 // whose body entirely — see the res.json() try/catch below) is
-// missing/unparseable, and (3) EVERY RenewalUnavailableError retry
-// (session-renewal.tsx), deliberately — see that file's retry-cadence
-// comment for why a fixed fallback was chosen over remembering the last
-// known server cadence. It mirrors the value this file's own comment
+// missing/unparseable, and (3) the UPPER bound of every
+// RenewalUnavailableError retry, which retryDelayMs below shortens when the
+// session has less than three of these intervals left (#941) — see
+// session-renewal.tsx's retry-cadence comment. It mirrors the value this file's own comment
 // used to hardcode as RENEWAL_INTERVAL_MS before D5: one third of the
 // API's default SESSION_TTL (15m, backend/internal/config/config.go) —
 // which is exactly what renew.go's renewAtFor computes for that TTL,
@@ -119,6 +123,39 @@ export function nextRenewalDelayMs(
   if (delay < MIN_RENEWAL_DELAY_MS) return MIN_RENEWAL_DELAY_MS;
   if (delay > MAX_RENEWAL_DELAY_MS) return MAX_RENEWAL_DELAY_MS;
   return delay;
+}
+
+// RETRY_FRACTION_OF_REMAINING is the share of the session's remaining
+// lifetime a retry after a failed renewal waits (#941). A third mirrors the
+// server's own renewal cadence (renew.go's renewalFraction): it leaves room
+// for two more retries after this one before the session lapses, where the
+// fixed FALLBACK_RENEWAL_INTERVAL_MS alone left none on any SESSION_TTL under
+// ~7.5 minutes — one failed renewal (a rolling deploy is enough) signed the
+// clinician out.
+export const RETRY_FRACTION_OF_REMAINING = 3;
+
+// retryDelayMs is how long to wait before retrying after a
+// RenewalUnavailableError (#941): the shorter of the fixed fallback and a
+// third of what is left of the session, never less than
+// MIN_RENEWAL_DELAY_MS.
+//
+// - Never LONGER than FALLBACK_RENEWAL_INTERVAL_MS: on a long session the
+//   cadence is exactly what it was before, so RenewRateLimitRule's budget
+//   (sized against roughly this cadence across clustered tabs —
+//   session-renewal.tsx's retry comment) is not spent faster than it was.
+// - Never SHORTER than MIN_RENEWAL_DELAY_MS: whatever is unavailable is not
+//   polled harder than the server's own renew_at floor allows. A session
+//   with under 30s left is therefore retried once at 30s; if it has lapsed
+//   by then the backend answers 401 and the loop takes its normal
+//   sign-in-again path, which is the truthful outcome.
+// - Unknown expiry (an older API, a lost value): FALLBACK, the behaviour
+//   before #941, rather than a guess.
+export function retryDelayMs(expiresAt: Date | undefined, now: () => number = Date.now): number {
+  if (!expiresAt) return FALLBACK_RENEWAL_INTERVAL_MS;
+  const remaining = expiresAt.getTime() - now();
+  if (!Number.isFinite(remaining)) return FALLBACK_RENEWAL_INTERVAL_MS;
+  const delay = Math.min(FALLBACK_RENEWAL_INTERVAL_MS, remaining / RETRY_FRACTION_OF_REMAINING);
+  return Math.max(MIN_RENEWAL_DELAY_MS, Math.floor(delay));
 }
 
 // renewSession re-mints the caller's Helivanta session by calling
@@ -200,14 +237,17 @@ export async function renewSession(): Promise<RenewalResult> {
   // SyntaxError (neither RenewalFailedError nor RenewalUnavailableError)
   // and take the "log out" branch AFTER the renewal had already
   // succeeded.
-  let body: { tenant_id?: string; renew_at?: string } = {};
+  let body: { tenant_id?: string; renew_at?: string; expires_at?: string } = {};
   try {
-    body = (await res.json()) as { tenant_id?: string; renew_at?: string };
+    body = (await res.json()) as { tenant_id?: string; renew_at?: string; expires_at?: string };
   } catch {
     // non-JSON 200 body — the renewal itself still succeeded (the
     // Set-Cookie already landed); just fall through with no renew_at.
   }
-  const parsed = body.renew_at ? new Date(body.renew_at) : undefined;
-  const renewAt = parsed && !Number.isNaN(parsed.getTime()) ? parsed : undefined;
-  return { renewAt };
+  return { renewAt: parseInstant(body.renew_at), expiresAt: parseInstant(body.expires_at) };
+}
+
+function parseInstant(raw: string | undefined): Date | undefined {
+  const parsed = raw ? new Date(raw) : undefined;
+  return parsed && !Number.isNaN(parsed.getTime()) ? parsed : undefined;
 }

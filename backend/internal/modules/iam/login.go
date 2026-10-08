@@ -347,7 +347,15 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	// under 90s, so the 90s..5m range this field protects stays valid.)
 	// This is additive: a client that ignores the field behaves exactly as
 	// before.
-	respond.OK(c, gin.H{"tenant_id": tenantID, "renew_at": renewAtFor(now, h.ttl)})
+	//
+	// expires_at (#941) is when this session stops being honoured — see
+	// expiresAtFor (renew.go): the browser bounds its retry cadence after
+	// a failed renewal by it, so one failure cannot outlast the session.
+	respond.OK(c, gin.H{
+		"tenant_id":  tenantID,
+		"renew_at":   renewAtFor(now, h.ttl),
+		"expires_at": expiresAtFor(now, h.ttl),
+	})
 }
 
 // idleDeadlineFor decides the idle_deadline this mint carries. It is the

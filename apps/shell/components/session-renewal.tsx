@@ -2,8 +2,20 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { renewSession, nextRenewalDelayMs, RenewalUnavailableError } from "@/lib/renew";
-import { clearPermissionsCache, clearRenewAt, loadRenewAt, storeRenewAt } from "@helivanta/api";
+import {
+  renewSession,
+  nextRenewalDelayMs,
+  retryDelayMs,
+  RenewalUnavailableError,
+} from "@/lib/renew";
+import {
+  clearPermissionsCache,
+  clearRenewAt,
+  loadExpiresAt,
+  loadRenewAt,
+  storeExpiresAt,
+  storeRenewAt,
+} from "@helivanta/api";
 import { AUTH_CALLBACK_PATH } from "@/lib/oidc";
 
 // PUBLIC_PATHS mirrors middleware.ts's own list, minus "/login" (which
@@ -96,14 +108,20 @@ function isPublicPath(pathname: string): boolean {
 //       unenumerated judgement call this file's whole point is to avoid
 //       making silently.
 //
-//     Every RenewalUnavailableError retry — both sub-cases — uses
-//     FALLBACK_RENEWAL_INTERVAL_MS rather than remembering the last
-//     server-given cadence: a shorter retry would poll harder against
-//     whatever is already unavailable, and RenewRateLimitRule's
-//     Burst=10 (see the cross-tab comment above) is sized against
-//     roughly this cadence, not a tighter one — a faster retry loop
-//     across several open tabs would risk 429ing itself into a second,
-//     self-inflicted RenewalUnavailableError.
+//     Every RenewalUnavailableError retry — both sub-cases — waits
+//     retryDelayMs (lib/renew.ts, #941): FALLBACK_RENEWAL_INTERVAL_MS, or
+//     a third of the session's remaining lifetime when that is shorter,
+//     never under MIN_RENEWAL_DELAY_MS. It used to be the fixed fallback
+//     alone, which on any SESSION_TTL under ~7.5 minutes could not retry
+//     before the session lapsed — one failed renewal (a rolling deploy
+//     is enough) signed the clinician out. The retry is never FASTER than
+//     the fixed fallback on a long session, so RenewRateLimitRule's
+//     Burst=10 (see the cross-tab comment above), sized against roughly
+//     that cadence, is spent faster only on a short SESSION_TTL, and then
+//     only down to the same 30s floor the server's renew_at already
+//     allows. Polling harder than that against whatever is unavailable
+//     would risk 429ing itself into a second, self-inflicted
+//     RenewalUnavailableError.
 export function SessionRenewal() {
   const pathname = usePathname();
   const skip = isPublicPath(pathname);
@@ -120,19 +138,25 @@ export function SessionRenewal() {
 
     const runRenewal = () => {
       renewSession()
-        .then(({ renewAt }) => {
+        .then(({ renewAt, expiresAt }) => {
           if (cancelled) return;
           // Persist BEFORE scheduling, so a reload between now and the
           // next tick resumes from the newest server answer rather than
           // from whatever login left behind (packages/api/src/renew-schedule.ts).
           storeRenewAt(renewAt);
+          storeExpiresAt(expiresAt);
           scheduleNext(nextRenewalDelayMs(renewAt));
         })
         .catch((err: unknown) => {
           if (cancelled) return;
           if (err instanceof RenewalUnavailableError) {
-            // See the policy comment above: retry, do not evict.
-            scheduleNext(nextRenewalDelayMs(undefined));
+            // See the policy comment above: retry, do not evict. The
+            // delay is bounded by what is left of the session (#941;
+            // renew.ts's retryDelayMs), so one failed renewal cannot
+            // outlast a short SESSION_TTL. The expiry is the one the last
+            // successful renewal or the login stored — the failed call
+            // minted nothing.
+            scheduleNext(retryDelayMs(loadExpiresAt()));
             return;
           }
           // RenewalFailedError, or anything unexpected: treat as

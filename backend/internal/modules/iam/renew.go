@@ -69,9 +69,17 @@ const renewAtFloor = 30 * time.Second
 // endpoint again; the client obeys it rather than a constant of its own,
 // which is what makes the coupling structural instead of a comment
 // describing a gap.
+//
+// ExpiresAt (#941) is when the session this response just minted stops
+// being honoured. The browser needs it to bound its RETRY cadence after a
+// failed renewal: a fixed retry interval longer than the session's
+// remaining lifetime means one failed renewal signs the clinician out. See
+// expiresAtFor for why it can only ever be at or before the cookie's real
+// exp, never after.
 type renewResponse struct {
-	TenantID string    `json:"tenant_id"`
-	RenewAt  time.Time `json:"renew_at"`
+	TenantID  string    `json:"tenant_id"`
+	RenewAt   time.Time `json:"renew_at"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 // renewalHandlers backs POST /v1/auth/renew (#916, design spec D1/D3):
@@ -311,8 +319,9 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 	c.SetCookie(authn.SessionCookie, token, int(h.ttl.Seconds()), "/", "", h.secureCookie, true)
 
 	respond.OK(c, renewResponse{
-		TenantID: tenantID,
-		RenewAt:  renewAtFor(now, h.ttl),
+		TenantID:  tenantID,
+		RenewAt:   renewAtFor(now, h.ttl),
+		ExpiresAt: expiresAtFor(now, h.ttl),
 	})
 }
 
@@ -347,4 +356,24 @@ func renewAtFor(now time.Time, ttl time.Duration) time.Time {
 		renewAfter = renewAtFloor
 	}
 	return now.Add(renewAfter).UTC()
+}
+
+// expiresAtFor is the session lifetime the browser is told about (#941):
+// now + ttl. now is read BEFORE signer.Mint runs, and Mint stamps the token's
+// own exp from a later clock read, so this value is at or slightly before
+// the real exp — never after. That is the safe direction: a client that
+// believes its session ends a little early retries a failed renewal a
+// little early; one that believed it ended late could wait past expiry.
+//
+// The activity endpoint (activity.go) also re-mints the cookie, with a later
+// exp, without telling the browser. The stored value is then earlier than
+// the real one — the same safe direction.
+//
+// Truncated to the second because the token's exp is a JWT NumericDate,
+// which jwt.NewNumericDate truncates to whole seconds. Without it, a now with
+// a sub-second part would put this value up to a second AFTER the real exp —
+// the unsafe direction. TestRenewExpiresAtIsNeverAfterTheCookiesExp pins it
+// against a real minted cookie.
+func expiresAtFor(now time.Time, ttl time.Duration) time.Time {
+	return now.Add(ttl).Truncate(time.Second).UTC()
 }

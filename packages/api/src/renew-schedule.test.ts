@@ -1,5 +1,13 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { RENEW_AT_KEY, clearRenewAt, loadRenewAt, storeRenewAt } from "./renew-schedule";
+import {
+  EXPIRES_AT_KEY,
+  RENEW_AT_KEY,
+  clearRenewAt,
+  loadExpiresAt,
+  loadRenewAt,
+  storeExpiresAt,
+  storeRenewAt,
+} from "./renew-schedule";
 
 // #916 Task 4, F3. This module carries the server's renewal schedule across
 // the sign-in navigation and across any full page reload, which is what lets
@@ -81,5 +89,34 @@ describe("renew schedule", () => {
     expect(() => storeRenewAt("2026-08-20T04:12:06.000Z")).not.toThrow();
     expect(loadRenewAt()).toBeUndefined();
     expect(() => clearRenewAt()).not.toThrow();
+  });
+});
+
+// #941: the session's expiry, which bounds the renewal loop's retry cadence.
+describe("session expiry", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    window.sessionStorage.clear();
+  });
+
+  it("round-trips an ISO timestamp", () => {
+    storeExpiresAt("2026-10-08T12:03:00.000Z");
+    expect(loadExpiresAt()?.toISOString()).toBe("2026-10-08T12:03:00.000Z");
+  });
+
+  it("is undefined when nothing was stored or the value is unparseable", () => {
+    expect(loadExpiresAt()).toBeUndefined();
+    window.sessionStorage.setItem(EXPIRES_AT_KEY, "garbage");
+    expect(loadExpiresAt()).toBeUndefined();
+  });
+
+  // A finished session must not leave its expiry behind for the next user on
+  // the same browser — clearRenewAt runs on every teardown path.
+  it("is removed by clearRenewAt together with renew_at", () => {
+    storeRenewAt("2026-10-08T12:01:00.000Z");
+    storeExpiresAt("2026-10-08T12:03:00.000Z");
+    clearRenewAt();
+    expect(window.sessionStorage.getItem(RENEW_AT_KEY)).toBeNull();
+    expect(window.sessionStorage.getItem(EXPIRES_AT_KEY)).toBeNull();
   });
 });

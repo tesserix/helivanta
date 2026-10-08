@@ -626,7 +626,8 @@ func TestLoginAndRenewAgreeOnRenewAt(t *testing.T) {
 	require.Equal(t, http.StatusOK, renewRes.Code, "precondition: the renewal itself must succeed")
 
 	var renewBody struct {
-		RenewAt string `json:"renew_at"`
+		RenewAt   string `json:"renew_at"`
+		ExpiresAt string `json:"expires_at"`
 	}
 	require.NoError(t, json.Unmarshal(renewRes.Body.Bytes(), &renewBody))
 	require.NotEmpty(t, renewBody.RenewAt, "precondition: renew must actually emit renew_at")
@@ -664,7 +665,8 @@ func TestLoginAndRenewAgreeOnRenewAt(t *testing.T) {
 		"precondition: the login itself must succeed; body=%s", loginRec.Body.String())
 
 	var loginBody struct {
-		RenewAt string `json:"renew_at"`
+		RenewAt   string `json:"renew_at"`
+		ExpiresAt string `json:"expires_at"`
 	}
 	require.NoError(t, json.Unmarshal(loginRec.Body.Bytes(), &loginBody))
 
@@ -676,4 +678,50 @@ func TestLoginAndRenewAgreeOnRenewAt(t *testing.T) {
 		"POST /v1/auth/login and POST /v1/auth/renew must answer the SAME renew_at for the "+
 			"same clock and the same SESSION_TTL — they share renewAtFor precisely so a change "+
 			"to renewalFraction or renewAtFloor cannot be applied to one and forgotten on the other")
+
+	// expires_at (#941) is held to the same standard, and to its value:
+	// frozen + ttl, whole seconds.
+	require.Equal(t, renewBody.ExpiresAt, loginBody.ExpiresAt,
+		"login and renew must answer the same expires_at for the same clock and SESSION_TTL")
+	require.Equal(t, frozen.Add(ttl).UTC().Format(time.RFC3339Nano), renewBody.ExpiresAt)
+}
+
+// TestRenewExpiresAtIsNeverAfterTheCookiesExp pins expiresAtFor's safety
+// claim against a REAL minted cookie on the real clock (#941): the browser
+// bounds its retry cadence by expires_at, so a value later than the token's
+// actual exp would let it wait past expiry. The token's exp is a JWT
+// NumericDate truncated to whole seconds; an untruncated now+ttl with a
+// sub-second part lands after it. Run repeatedly so a sub-second now is all
+// but certain to occur.
+func TestRenewExpiresAtIsNeverAfterTheCookiesExp(t *testing.T) {
+	roles := stubRoleLister{"user-1": {{TenantID: renewTestTenantA, Role: authz.RoleNurse}}}
+	env := newRenewEnv(t, roles, &stubUserState{}, renewTestTTL)
+	for i := range 20 {
+		cookie := env.mint(t, "user-1", renewTestTenantA, time.Now().Add(-time.Minute), time.Now().Add(time.Hour))
+		w := doRenew(env.r, cookie)
+		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+
+		var body struct {
+			ExpiresAt time.Time `json:"expires_at"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		claims, err := env.verifier.Verify(renewedCookieValue(t, w))
+		require.NoError(t, err)
+
+		require.False(t, body.ExpiresAt.After(claims.ExpiresAt),
+			"iteration %d: expires_at %s is after the token's exp %s", i, body.ExpiresAt, claims.ExpiresAt)
+		require.WithinDuration(t, claims.ExpiresAt, body.ExpiresAt, 2*time.Second)
+		time.Sleep(37 * time.Millisecond)
+	}
+}
+
+func renewedCookieValue(t *testing.T, w *httptest.ResponseRecorder) string {
+	t.Helper()
+	for _, c := range w.Result().Cookies() {
+		if c.Name == authn.SessionCookie {
+			return c.Value
+		}
+	}
+	t.Fatal("renew set no session cookie")
+	return ""
 }

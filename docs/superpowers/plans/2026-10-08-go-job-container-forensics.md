@@ -10,6 +10,8 @@ Spec: `docs/superpowers/specs/2026-10-08-go-job-container-forensics-design.md`
   - kernel OOM lines;
   - the events artifact.
 - [x] Local proof: the workflow's `run:` blocks against a SIGKILLed canary.
-- [ ] CI proof: a temporary deliberately-failing commit, observed and then
-  reverted.
+- [x] CI proof: a temporary deliberately-failing commit, observed and then
+  reverted. Run 37727533215 printed the canary's `kill` (signal 9) and `die`
+  (exit 137), `OOMKilled=false`, "no OOM kill in the kernel log", and uploaded
+  the `go-docker-events` artifact.
 - [ ] After the next occurrence: root cause and fix under #963.

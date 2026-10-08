@@ -84,7 +84,12 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # The ONE place the Node version lives is .nvmrc (#956), so CI,
+          # local nvm and the shell image's base line cannot drift apart.
+          # It names an explicit LTS major, never `lts/*`: that alias moves
+          # on its own when a new major enters LTS, putting CI on a runtime
+          # nobody chose (the suite fails on Node 26 today).
+          node-version-file: .nvmrc
           cache: pnpm
       # No NODE_AUTH_TOKEN: @tesserix/web is published to the PUBLIC npm
       # registry as of 2.x, and the repo-local .npmrc that used to force the
@@ -172,7 +177,12 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # The ONE place the Node version lives is .nvmrc (#956), so CI,
+          # local nvm and the shell image's base line cannot drift apart.
+          # It names an explicit LTS major, never `lts/*`: that alias moves
+          # on its own when a new major enters LTS, putting CI on a runtime
+          # nobody chose (the suite fails on Node 26 today).
+          node-version-file: .nvmrc
           cache: pnpm
       - uses: actions/setup-go@v5
         with:

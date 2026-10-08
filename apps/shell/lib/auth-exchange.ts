@@ -36,9 +36,12 @@
 // packages/api/src/renew-schedule.ts for why the value has to survive the navigation
 // that follows this call, and backend/internal/modules/iam/renew.go's
 // renewAtFor for the single place both endpoints compute it.
+// expires_at (#941) is when this session stops being honoured; optional for
+// the same reason as renew_at. See renew.ts's retryDelayMs.
 export interface LoginResult {
   tenant_id: string;
   renew_at?: string;
+  expires_at?: string;
 }
 
 export async function exchangeIdToken(idToken: string): Promise<LoginResult> {

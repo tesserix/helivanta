@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { clearPermissionsCache, storeRenewAt } from "@helivanta/api";
+import { clearPermissionsCache, storeExpiresAt, storeRenewAt } from "@helivanta/api";
 import { getUserManager } from "@/lib/oidc";
 import { exchangeIdToken } from "@/lib/auth-exchange";
 
@@ -58,7 +58,7 @@ export default function AuthCallbackPage() {
         // No tenant_id: this is a first login, so the backend defaults to
         // the caller's first tenant binding (login.go). Renewal
         // (lib/renew.ts) is the call site that must always name one.
-        const { renew_at } = await exchangeIdToken(user.id_token);
+        const { renew_at, expires_at } = await exchangeIdToken(user.id_token);
         // The server's own schedule for this session's FIRST renewal
         // (#916 Task 4, F3). Stored rather than passed, because
         // components/session-renewal.tsx does not mount on this page —
@@ -67,6 +67,9 @@ export default function AuthCallbackPage() {
         // renewal falls back to a hardcoded five-minute client constant,
         // which silently outlives any SESSION_TTL shorter than that.
         storeRenewAt(renew_at);
+        // The session's expiry, for the renewal loop's retry cadence after a
+        // failed renewal (#941) — stored for the same reason as renew_at.
+        storeExpiresAt(expires_at);
         router.replace("/");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Sign-in failed.");

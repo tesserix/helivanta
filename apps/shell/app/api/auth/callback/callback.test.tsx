@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { PERMISSIONS_CACHE_KEY, loadRenewAt } from "@helivanta/api";
+import { PERMISSIONS_CACHE_KEY, loadExpiresAt, loadRenewAt } from "@helivanta/api";
 import AuthCallbackPage from "./page";
 
 const signinRedirectCallback = vi.hoisted(() => vi.fn());
@@ -63,6 +63,31 @@ describe("AuthCallbackPage", () => {
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
     expect(loadRenewAt()?.toISOString()).toBe(renewAt);
+    vi.unstubAllGlobals();
+  });
+
+  // #941: the session's expiry bounds the renewal loop's retry cadence, and
+  // the loop only mounts after this page navigates, so it must be stored here.
+  it("stores the server's expires_at for the renewal loop's retry cadence", async () => {
+    const expiresAt = "2026-08-20T04:18:06.000Z";
+    signinRedirectCallback.mockResolvedValue({ id_token: "real-id-token" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          tenant_id: "t1",
+          renew_at: "2026-08-20T04:12:06.000Z",
+          expires_at: expiresAt,
+        }),
+      }),
+    );
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(loadExpiresAt()?.toISOString()).toBe(expiresAt);
     vi.unstubAllGlobals();
   });
 

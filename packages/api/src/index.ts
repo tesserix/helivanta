@@ -5,4 +5,12 @@ export { useApiMutation, useApiQuery } from "./hooks";
 export { useApiPagedQuery, type Page, type UseApiPagedQueryResult } from "./paged";
 export { Can, usePermissions } from "./permissions";
 export { PERMISSIONS_CACHE_KEY, clearPermissionsCache } from "./permissions-cache";
-export { RENEW_AT_KEY, clearRenewAt, loadRenewAt, storeRenewAt } from "./renew-schedule";
+export {
+  EXPIRES_AT_KEY,
+  RENEW_AT_KEY,
+  clearRenewAt,
+  loadExpiresAt,
+  loadRenewAt,
+  storeExpiresAt,
+  storeRenewAt,
+} from "./renew-schedule";

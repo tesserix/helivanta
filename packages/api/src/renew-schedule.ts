@@ -77,7 +77,42 @@ export function loadRenewAt(): Date | undefined {
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
-// clearRenewAt drops the stored schedule. There are THREE paths that end a
+// The session's own expiry (#941). Stored beside renew_at, written at the
+// same two moments (login and every successful renewal) and from the same
+// server answers, because the renewal loop needs it to bound its RETRY
+// cadence after a failed renewal: a fixed retry interval longer than the
+// session's remaining lifetime means one failed renewal signs the clinician
+// out. The server computes it so it is never later than the cookie's real
+// exp (backend/internal/modules/iam/renew.go, expiresAtFor). Same fail-soft
+// rules as renew_at: an unreadable value is undefined, and undefined means
+// "fall back to the fixed retry interval", the behaviour before #941.
+export const EXPIRES_AT_KEY = "helivanta.expires_at";
+
+export function storeExpiresAt(expiresAt: string | Date | undefined): void {
+  if (typeof window === "undefined") return;
+  if (!expiresAt) return;
+  const iso = typeof expiresAt === "string" ? expiresAt : expiresAt.toISOString();
+  try {
+    window.sessionStorage.setItem(EXPIRES_AT_KEY, iso);
+  } catch {
+    // Storage unavailable — the retry cadence falls back to its fixed bound.
+  }
+}
+
+export function loadExpiresAt(): Date | undefined {
+  if (typeof window === "undefined") return undefined;
+  let raw: string | null;
+  try {
+    raw = window.sessionStorage.getItem(EXPIRES_AT_KEY);
+  } catch {
+    return undefined;
+  }
+  if (!raw) return undefined;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+// clearRenewAt drops the stored schedule — both renew_at and expires_at. There are THREE paths that end a
 // session in the browser, and it is called on all three — beside
 // clearPermissionsCache, for the same reason that one is called there:
 // #781's rule is that a finished session must not be reconstructable from
@@ -106,6 +141,7 @@ export function clearRenewAt(): void {
   if (typeof window === "undefined") return;
   try {
     window.sessionStorage.removeItem(RENEW_AT_KEY);
+    window.sessionStorage.removeItem(EXPIRES_AT_KEY);
   } catch {
     // Nothing to do: the entry is unreadable anyway.
   }

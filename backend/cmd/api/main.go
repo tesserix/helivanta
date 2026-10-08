@@ -462,6 +462,10 @@ func run() error {
 	// Task 2, spec D3): pruning belongs on its own hourly cadence, not
 	// coupled to publish throughput.
 	go bus.RunPruner(ctx, db)
+	// #869: expired login_attempt rows — each holding a Zitadel session
+	// token — are deleted at boot and every loginAttemptTTL, rather than only
+	// when the same auth_request_id happens to be read again.
+	go loginUIHandlers.RunAttemptSweeper(ctx)
 
 	httpSrv := &http.Server{Addr: ":" + cfg.Port, Handler: srv.Engine, ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)

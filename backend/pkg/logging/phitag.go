@@ -55,6 +55,13 @@ package logging
 // marshalled, walked or replaced. The withdrawn design's failure mode was
 // breadth — reflecting over values it had no business touching.
 //
+// One exception, and only by size (#943): an untagged value whose rendering
+// would exceed maxPHIMarshalBytes is replaced by an "[OMITTED:oversize:<type>]"
+// marker instead of being marshalled at all (phisize.go). Every value within
+// the bound still renders byte-identically — the invariant holds for every
+// value that can be logged, and a value that cannot is no longer able to take
+// the process's memory or the log pipeline down with it.
+//
 // # Fail closed
 //
 // This layer only ever touches values already known to carry PHI. So when
@@ -920,7 +927,10 @@ func attrNeedsMask(a slog.Attr) bool {
 		}
 		return false
 	case slog.KindAny:
-		return phiTreeOf(a.Value.Any()) != nil
+		v := a.Value.Any()
+		return phiTreeOf(v) != nil || untaggedOversize(v)
+	case slog.KindString:
+		return stringCost(a.Value.String()) > maxPHIMarshalBytes
 	case slog.KindLogValuer:
 		return attrNeedsMask(slog.Attr{Key: a.Key, Value: a.Value.Resolve()})
 	default:
@@ -954,12 +964,21 @@ func maskAttr(a slog.Attr) slog.Attr {
 	case slog.KindLogValuer:
 		return maskAttr(slog.Attr{Key: a.Key, Value: a.Value.Resolve()})
 	case slog.KindAny:
-		out, n, ok := maskPHIValue(a.Value.Any())
-		if !ok {
-			return a
+		v := a.Value.Any()
+		out, n, ok := maskPHIValue(v)
+		if ok {
+			redactions.Add(n)
+			return slog.Attr{Key: a.Key, Value: slog.AnyValue(out)}
 		}
-		redactions.Add(n)
-		return slog.Attr{Key: a.Key, Value: slog.AnyValue(out)}
+		if untaggedOversize(v) {
+			return slog.Attr{Key: a.Key, Value: omitOversize(reflect.TypeOf(v))}
+		}
+		return a
+	case slog.KindString:
+		if stringCost(a.Value.String()) > maxPHIMarshalBytes {
+			return slog.Attr{Key: a.Key, Value: omitOversize(reflect.TypeFor[string]())}
+		}
+		return a
 	default:
 		return a
 	}

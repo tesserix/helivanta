@@ -54,6 +54,7 @@ A refused `Result` carries a `RefusalReason`:
 | Enrolled factors or login policy unreadable                                        | handoff, WARN logged      | **error** (`ErrUnavailable`): 503, never a refusal and never a completion        |
 | TOTP enrolled                                                                      | native prompt             | unchanged                                                                        |
 | Nothing beyond password, policy does not force MFA                                 | complete                  | unchanged                                                                        |
+| Password must change (flagged, or expired) — added 2026-10-08 (#856)               | completed silently        | `OutcomePasswordChangeRequired`: a native change step, after every factor — see `2026-10-08-password-change-required-design.md` |
 
 Unreadable state is an error, not a refusal, deliberately. "We could not tell"
 must not tell the clinician their account is unsupported. It is the same

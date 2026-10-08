@@ -148,14 +148,15 @@ const loginAttemptTTL = 5 * time.Minute
 
 // LoginUIHandlers backs the four routes Helivanta's own login form drives
 // directly against Zitadel's login-client API (plan #854 Task 4, spec
-// D5; #867 Task 4 adds Factor): reading an auth request, checking a
-// password, and checking a native TOTP factor when the password step
-// alone was not enough. When Helivanta cannot complete a login it REFUSES it
-// in its own words; it never hands the browser to Zitadel's hosted login
-// (#947). Like LoginHandlers (login.go), all three are mounted OUTSIDE the authenticated /v1 chain via
-// bootstrap.MountUnauthenticated — there is no Helivanta session, and for
-// Password/Factor specifically no verified subject at all, until AFTER
-// they succeed.
+// D5; #867 Task 4 adds Factor; #856 adds PasswordChange): reading an auth
+// request, checking a password, checking a native TOTP factor when the
+// password step alone was not enough, and changing a password that must
+// change before the login completes. When Helivanta cannot complete a login
+// it REFUSES it in its own words; it never hands the browser to Zitadel's
+// hosted login (#947). Like LoginHandlers (login.go), all four are mounted
+// OUTSIDE the authenticated /v1 chain via bootstrap.MountUnauthenticated —
+// there is no Helivanta session, and for Password/Factor/PasswordChange no
+// verified subject at all, until AFTER they succeed.
 type LoginUIHandlers struct {
 	client  *loginclient.Client
 	store   *loginAttemptStore
@@ -576,6 +577,7 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 			SessionToken:  session.Token,
 			Subject:       req.LoginName,
 			ExpiresAt:     time.Now().Add(loginAttemptTTL),
+			Stage:         stageFactor,
 		})
 		if err != nil {
 			respond.InternalErr(c, err, "sign-in could not be completed")
@@ -608,6 +610,7 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 			Subject:       req.LoginName,
 			ExpiresAt:     time.Now().Add(loginAttemptTTL),
 			Enrolling:     true,
+			Stage:         stageFactor,
 		})
 		if err != nil {
 			respond.InternalErr(c, err, "sign-in could not be completed")
@@ -622,6 +625,24 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 			Factors: nonNilFactors(result.Factors),
 			TOTP:    totpEnrollmentWire{URI: enrollment.URI, Secret: enrollment.Secret},
 		})
+
+	case loginclient.OutcomePasswordChangeRequired:
+		// Every factor is proven and the password must change (#856). The
+		// session is held exactly as for the factor step, at
+		// stagePasswordChange, so only PasswordChange can resume it.
+		err := h.store.Put(c.Request.Context(), loginAttempt{
+			AuthRequestID: req.AuthRequestID,
+			SessionID:     session.ID,
+			SessionToken:  session.Token,
+			Subject:       req.LoginName,
+			ExpiresAt:     time.Now().Add(loginAttemptTTL),
+			Stage:         stagePasswordChange,
+		})
+		if err != nil {
+			respond.InternalErr(c, err, "sign-in could not be completed")
+			return
+		}
+		h.respondPasswordChangeRequired(c, req.AuthRequestID, "password", result.PasswordChange)
 
 	default:
 		// OutcomeRefused (and anything unrecognised, which fails closed the
@@ -876,11 +897,11 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 		return
 	}
 
-	attempt, err := h.store.Get(c.Request.Context(), req.AuthRequestID)
+	attempt, err := h.store.Get(c.Request.Context(), req.AuthRequestID, stageFactor)
 	if err != nil {
-		// errAttemptNotFound covers BOTH an id this store never saw AND
-		// one whose row has expired (loginAttemptStore.Get folds the
-		// two together) — deliberately: distinguishing "never existed"
+		// errAttemptNotFound covers an id this store never saw, one whose
+		// row has expired, AND (#856) one whose row waits for a different
+		// step (loginAttemptStore.Get folds them together) — deliberately: distinguishing "never existed"
 		// from "existed once" in the response would itself be the
 		// enumeration signal this function's doc comment warns about.
 		requestid.Logger(c).WarnContext(c.Request.Context(), "login factor: no pending attempt",
@@ -967,6 +988,16 @@ func (h *LoginUIHandlers) completeWithVerifiedCode(c *gin.Context, start time.Ti
 		requestid.Logger(c).InfoContext(c.Request.Context(), "login factor succeeded",
 			"auth_request_id", authRequestID, "outcome", "complete")
 		respond.OK(c, passwordSuccessResponse{CallbackURL: result.CallbackURL})
+	case loginclient.OutcomePasswordChangeRequired:
+		// The TOTP — an enrolled one, or one just enrolled (#948) — is
+		// proven and the password must change (#856). The same row carries
+		// on, advanced to stagePasswordChange so neither Factor nor Enroll
+		// can resume it and PasswordChange can.
+		if err := h.store.AdvanceToPasswordChange(c.Request.Context(), authRequestID); err != nil {
+			respond.InternalErr(c, err, "sign-in could not be completed")
+			return
+		}
+		h.respondPasswordChangeRequired(c, authRequestID, "factor", result.PasswordChange)
 	default:
 		// OutcomeRefused (or anything unrecognised, failing closed the same
 		// way). CompleteAfterFactor re-runs the SAME uncollectible/enrolled
@@ -1030,7 +1061,7 @@ func (h *LoginUIHandlers) Enroll(c *gin.Context) {
 		return
 	}
 
-	attempt, err := h.store.Get(c.Request.Context(), req.AuthRequestID)
+	attempt, err := h.store.Get(c.Request.Context(), req.AuthRequestID, stageFactor)
 	if err != nil {
 		requestid.Logger(c).WarnContext(c.Request.Context(), "login enroll: no pending attempt",
 			"auth_request_id", req.AuthRequestID)
@@ -1111,15 +1142,15 @@ func (h *LoginUIHandlers) bumpFactorAttempt(c *gin.Context, authRequestID string
 	}
 }
 
-// deleteAttempt removes authRequestID's login_attempt row once Factor no
-// longer needs it (finalized, or refused) and logs rather than fails
+// deleteAttempt removes authRequestID's login_attempt row once Factor or
+// PasswordChange no longer needs it (finalized, or refused) and logs rather than fails
 // the request if the delete itself errors: the caller already has their
 // callback_url or refusal, and a login_attempt row that outlives its
 // usefulness by loginAttemptTTL is cleaned up on its own next read
 // (loginAttemptStore.Get's expiry handling) even if this delete is lost.
 func (h *LoginUIHandlers) deleteAttempt(c *gin.Context, authRequestID string) {
 	if err := h.store.Delete(c.Request.Context(), authRequestID); err != nil {
-		requestid.Logger(c).WarnContext(c.Request.Context(), "login factor: failed to delete completed attempt",
+		requestid.Logger(c).WarnContext(c.Request.Context(), "login: failed to delete a finished login attempt",
 			"auth_request_id", authRequestID, "err", err)
 	}
 }

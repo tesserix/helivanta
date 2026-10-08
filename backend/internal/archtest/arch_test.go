@@ -1032,10 +1032,10 @@ func f(c *C, ctx Ctx) { c.do(ctx, http.MethodPost, "/v2/sessions", nil) }
 // TestFinalizeCallSiteIsUnique is the CI half of spec D4's structural
 // control; the other half is that loginclient.finalize is unexported, so
 // the only way to reach it from outside the package is through one of the
-// package's own sufficiency decisions — CompleteIfSufficient or (#867,
-// added after this comment was first written) CompleteAfterFactor.
+// package's own sufficiency decisions — CompleteIfSufficient, (#867)
+// CompleteAfterFactor or (#856) CompleteAfterPasswordChange.
 // finalize additionally requires a `sufficient` witness parameter that
-// only those two functions construct (see
+// only those three functions construct (see
 // internal/modules/iam/loginclient/sufficiency.go and
 // TestSufficientWitnessConstructionIsPinned below, which is this same
 // kind of control applied one level up, to witness construction rather
@@ -1116,7 +1116,8 @@ func TestFinalizeCallSiteIsUnique(t *testing.T) {
 		t.Fatalf("walk repo: %v", err)
 	}
 	require.ElementsMatch(t, []string{finalizeCallSite}, callSites,
-		"the OIDC finalize call must stay behind a sufficiency decision (CompleteIfSufficient or CompleteAfterFactor, spec D4) — "+
+		"the OIDC finalize call must stay behind a sufficiency decision (CompleteIfSufficient, CompleteAfterFactor or "+
+			"CompleteAfterPasswordChange, spec D4) — "+
 			"Zitadel does not enforce forceMfa for a login client")
 }
 
@@ -1136,8 +1137,8 @@ func TestFinalizeCallSiteIsUnique(t *testing.T) {
 const sufficientWitnessTypeName = "sufficient"
 
 // sufficientWitnessCallSite is the one file permitted to construct a
-// `sufficient` value: CompleteIfSufficient and CompleteAfterFactor both
-// live here, and both must run their own classification
+// `sufficient` value: CompleteIfSufficient, CompleteAfterFactor and (#856)
+// CompleteAfterPasswordChange all live here, and each must run its own classification
 // (classifyEnrolledMethods, loginPolicy, SessionFactors as applicable)
 // before doing so. Like finalizeCallSite, this is deliberately not a map
 // — the whole control is that the set has exactly one element.
@@ -1287,10 +1288,10 @@ func TestSufficientWitnessConstructionIsPinned(t *testing.T) {
 			"finalize's witness parameter alone does not stop a copy-pasted, check-free construction of one")
 
 	// FUNCTION-granular: within that one permitted file, a witness may
-	// ONLY be constructed inside CompleteIfSufficient or
-	// CompleteAfterFactor — the two functions that actually run
-	// classifyEnrolledMethods/loginPolicy/SessionFactors before
-	// constructing one. Without this second assertion, a THIRD,
+	// ONLY be constructed inside CompleteIfSufficient, CompleteAfterFactor
+	// or (#856) CompleteAfterPasswordChange — the three functions that
+	// actually run classifyEnrolledMethods/loginPolicy/SessionFactors and
+	// the password gate before constructing one. Without this second assertion, a THIRD,
 	// check-free function added to sufficiency.go (e.g. a future
 	// convenience wrapper that skips the checks) would pass the
 	// file-granular assertion above silently — exactly the gap Finding
@@ -1299,9 +1300,10 @@ func TestSufficientWitnessConstructionIsPinned(t *testing.T) {
 	require.NoError(t, err)
 	funcs, err := sufficientWitnessConstructingFuncNames(sufficiencySrc)
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"CompleteIfSufficient", "CompleteAfterFactor"}, funcs,
-		"a sufficient{} witness must only be constructed inside sufficiency.go's CompleteIfSufficient or "+
-			"CompleteAfterFactor (#867 Task 4 fix round 2, Finding M6) — a new function added anywhere else "+
+	require.ElementsMatch(t, []string{"CompleteIfSufficient", "CompleteAfterFactor", "CompleteAfterPasswordChange"}, funcs,
+		"a sufficient{} witness must only be constructed inside sufficiency.go's CompleteIfSufficient, "+
+			"CompleteAfterFactor or CompleteAfterPasswordChange (#867 Task 4 fix round 2, Finding M6; #856) — "+
+			"a new function added anywhere else "+
 			"in this file, check-free, must not be able to construct one undetected")
 }
 

@@ -136,7 +136,7 @@ completes it and returns to the same callback:
 |---|---|
 | MFA required by org policy (D4) | Handoff. Not an error. |
 | MFA: user has voluntarily enrolled a factor (D4) | Handoff. Verified live 2026-08-16 (#854 Task 8): `GET /v2/users/{id}/authentication_methods`, reachable with the login-client PAT, lists a user's enrolled methods independent of org policy — a password-only session hands off when it reports anything besides `AUTHENTICATION_METHOD_TYPE_PASSWORD`. |
-| Password change required | **Not handled — reversed from the original design.** Verified live 2026-08-16 (#854 Task 8, spike §5): a user imported with `passwordChangeRequired:true` produces a session create, a session read, and a finalize that are byte-identical in shape to a normal user's — Zitadel signals this to a login client **nowhere in the flow**. Helivanta's own `POST /v1/auth/login/password` against such a user returns 200 with a valid `callback_url`, same as any other successful login. There is no field to branch on, so this row cannot be implemented as "handoff" without an extra `GET /v2/users/{id}` read on every login. Documented as a known limitation at the decision point in `sufficiency.go` and filed as [#856](https://github.com/tesserix/helivanta/issues/856) rather than fixed in this slice. |
+| Password change required | **Not handled — reversed from the original design.** Verified live 2026-08-16 (#854 Task 8, spike §5): a user imported with `passwordChangeRequired:true` produces a session create, a session read, and a finalize that are byte-identical in shape to a normal user's — Zitadel signals this to a login client **nowhere in the flow**. Helivanta's own `POST /v1/auth/login/password` against such a user returns 200 with a valid `callback_url`, same as any other successful login. There is no field to branch on, so this row cannot be implemented as "handoff" without an extra `GET /v2/users/{id}` read on every login. Documented as a known limitation at the decision point in `sufficiency.go` and filed as [#856](https://github.com/tesserix/helivanta/issues/856) rather than fixed in this slice. **Closed 2026-10-08 (#856):** checked natively before every finalize, after every factor, and changed in Helivanta's own form — see `2026-10-08-password-change-required-design.md`. |
 | Federated hospital IdP | Handoff — this is the capability Zitadel was chosen for and must never break silently. **Corrected 2026-10-08 (#950):** a user whose account merely *carries* an IdP link (`AUTHENTICATION_METHOD_TYPE_IDP`) but signs in with a password is **not** this case and completes like a password-only user; see `2026-10-08-idp-link-is-not-a-factor-design.md` D1. Signing in *with* the IdP is #423. |
 | Locked out | Zitadel's answer, shown inline. Never worded as a wrong password. |
 | Unknown user / wrong password | D5. |
@@ -331,7 +331,9 @@ login page already uses — this time *with* the credential parts.
   a result: this case is **not** handled by this slice. It is documented as a
   known limitation at the point of decision in `sufficiency.go` and tracked as
   its own issue, [#856](https://github.com/tesserix/helivanta/issues/856), rather
-  than silently accepted or half-implemented.
+  than silently accepted or half-implemented. **Since closed (#856):** the
+  user read #856 named is made before every finalize, and a due change is
+  collected natively — see `2026-10-08-password-change-required-design.md`.
 - **Lockout is unreachable to test** because the policy sets no
   `maxPasswordAttempts`. See below.
 - **Helivanta now owns a credential surface.** A defect in the login page is a

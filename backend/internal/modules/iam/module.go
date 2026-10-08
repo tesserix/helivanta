@@ -230,6 +230,26 @@ CREATE INDEX IF NOT EXISTS login_attempt_expires_at_idx ON login_attempt (expire
 		SQL: `
 ALTER TABLE login_attempt ADD COLUMN IF NOT EXISTS enrolling boolean NOT NULL DEFAULT false;
 `,
+	}, {
+		// #856. login_attempt now holds a session for one of two STEPS: the
+		// factor step (POST /v1/auth/login/factor, or /enroll when 0006_iam's
+		// enrolling flag is set) or a required password change
+		// (POST /v1/auth/login/password-change). stage records which, and
+		// each endpoint reads only its own stage (loginAttemptStore.Get), so
+		// changing a password is unreachable for a session that has not
+		// proven every factor — a password_change row is only ever written
+		// after a full sufficiency decision.
+		//
+		// DEFAULT 'factor' is not a convenience: every row in flight when this
+		// migration runs was written by the factor or enrolment step, and
+		// keeps that meaning. The CHECK keeps a misspelt stage from being
+		// stored at all. Same non-tenant, no-RLS reasoning as 0004_iam above.
+		ID: "0007_iam",
+		SQL: `
+ALTER TABLE login_attempt
+  ADD COLUMN IF NOT EXISTS stage text NOT NULL DEFAULT 'factor'
+  CONSTRAINT login_attempt_stage_check CHECK (stage IN ('factor', 'password_change'));
+`,
 	}}
 }
 

@@ -45,6 +45,14 @@ const (
 	// ["totp"]). It replaced RefusalMFAEnrollmentRequired; it is added
 	// AFTER OutcomeFactorRequired so OutcomeRefused stays the zero value.
 	OutcomeEnrollmentRequired
+	// OutcomePasswordChangeRequired means every factor is proven but the
+	// user's password must change before the login completes (#856): an
+	// administrator set passwordChangeRequired, or the password outlived the
+	// org's expiry policy. Nothing was finalized. PasswordChange says why and
+	// carries the complexity policy; the caller holds the session and
+	// collects a new password (ChangePassword, then
+	// CompleteAfterPasswordChange).
+	OutcomePasswordChangeRequired
 )
 
 // String makes test failures and log lines name the outcome rather than
@@ -61,6 +69,8 @@ func (o Outcome) String() string {
 		return "factor_required"
 	case OutcomeEnrollmentRequired:
 		return "enrollment_required"
+	case OutcomePasswordChangeRequired:
+		return "password_change_required"
 	default:
 		return fmt.Sprintf("Outcome(%d)", int(o))
 	}
@@ -89,6 +99,11 @@ const (
 	// though a code was accepted — the enrolment or session changed under
 	// the login. Nothing to finalize; the user starts again.
 	RefusalFactorNotVerified
+	// RefusalPasswordChangeUnconfirmed: Zitadel accepted a new password, but
+	// the re-read after it still says a change is due (#856 spec D5). Asking
+	// again could loop forever, so the login is refused and logged; it should
+	// never happen, because Zitadel's user read is read-your-writes.
+	RefusalPasswordChangeUnconfirmed
 )
 
 // String is the stable, machine-readable name logged as refusal_reason.
@@ -100,15 +115,18 @@ func (r RefusalReason) String() string {
 		return "factor_unsupported"
 	case RefusalFactorNotVerified:
 		return "factor_not_verified"
+	case RefusalPasswordChangeUnconfirmed:
+		return "password_change_unconfirmed"
 	default:
 		return fmt.Sprintf("RefusalReason(%d)", int(r))
 	}
 }
 
-// Result is what CompleteIfSufficient and CompleteAfterFactor answer with.
-// CallbackURL is set if and only if Outcome is OutcomeComplete. Factors is
-// non-empty if and only if Outcome is OutcomeFactorRequired or
-// OutcomeEnrollmentRequired. Reason is
+// Result is what CompleteIfSufficient, CompleteAfterFactor and
+// CompleteAfterPasswordChange answer with. CallbackURL is set if and only if
+// Outcome is OutcomeComplete. Factors is non-empty if and only if Outcome is
+// OutcomeFactorRequired or OutcomeEnrollmentRequired. PasswordChange is set
+// if and only if Outcome is OutcomePasswordChangeRequired. Reason is
 // meaningful if and only if Outcome is OutcomeRefused, and EnrolledMethods is
 // set for RefusalFactorUnsupported so the refusal can be logged with what the
 // account actually has configured (spec D5) — Zitadel's method type names,
@@ -119,6 +137,7 @@ type Result struct {
 	Factors         []string
 	Reason          RefusalReason
 	EnrolledMethods []string
+	PasswordChange  PasswordChange
 }
 
 func refused(reason RefusalReason) Result {
@@ -126,7 +145,9 @@ func refused(reason RefusalReason) Result {
 }
 
 // sufficient is proof that a session was evaluated by one of this
-// package's two classification paths and found adequate to finalize.
+// package's three classification paths (CompleteIfSufficient,
+// CompleteAfterFactor, CompleteAfterPasswordChange) and found adequate to
+// finalize.
 // finalize requires one as a parameter; a call that omits it does not
 // compile, which closes the gap #867 fix round 1 found: nothing
 // previously stopped a THIRD, future function in this package from
@@ -144,18 +165,15 @@ func refused(reason RefusalReason) Result {
 // NO third argument at all — the far more likely shape of "someone added
 // a caller and forgot the check entirely" — is now a compile error
 // instead of a silent bypass a reviewer has to catch by reading call
-// sites. See CompleteIfSufficient's and CompleteAfterFactor's doc
-// comments for the two functions that legitimately produce one, and this
-// task's report
+// sites. The three functions that legitimately produce one are named
+// above; this task's report
 // (.superpowers/sdd/2026-08-17-native-mfa-auth-components/task-3-report.md,
-// "Fix round 1 — Finding 3") for the actual compiler output proving both
+// "Fix round 1 — Finding 3") records the compiler output proving both
 // halves of this claim: the omission IS a compile error, and a
-// hand-written `sufficient{}` DOES compile. The stronger, fully
-// structural fix — an archtest analogous to TestFinalizeCallSiteIsUnique
-// that pins `sufficient{` construction to exactly two call sites the same
-// way that test pins finalize's own POST — is proposed there rather than
-// implemented in this round: it needs a change in internal/archtest,
-// outside this round's scope.
+// hand-written `sufficient{}` DOES compile. That second half is closed in
+// CI by archtest's TestSufficientWitnessConstructionIsPinned, which pins
+// `sufficient{` construction to this file AND to exactly those three
+// functions — a fourth, check-free constructor fails the build.
 type sufficient struct{}
 
 // classifyEnrolledMethods reads sessionID's subject (sessionSubject,
@@ -177,10 +195,11 @@ type sufficient struct{}
 // read to the authenticating user's own org (design spec D1,
 // docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md)
 // without a second GET /v2/sessions/{id} — this method's ONE call to
-// sessionSubject is the ONLY session read either caller performs. Both
-// CompleteIfSufficient and CompleteAfterFactor call this method, but only
-// CompleteIfSufficient uses the subject's OrgID; CompleteAfterFactor
-// discards it because it reads no policy.
+// sessionSubject is the ONLY subject read any caller performs. All three
+// Complete* functions call this method and hand the subject to passwordGate
+// (#856), which reads that user's password state and that org's expiry
+// policy; CompleteIfSufficient and CompleteAfterPasswordChange also scope
+// their login policy read to its OrgID.
 //
 // Fails closed like every other read in this file: an error from either
 // sessionSubject or enrolledMethodTypes means "cannot prove this session
@@ -222,9 +241,9 @@ func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) 
 
 // CompleteIfSufficient is the ONLY way to finalize an OIDC auth request
 // from outside this package: finalize itself is unexported and requires a
-// `sufficient` witness only this function and CompleteAfterFactor produce,
-// so a caller cannot complete a login without one of these two decisions
-// running first. That is structural on purpose. The spike (§2 of
+// `sufficient` witness only this function, CompleteAfterFactor and
+// CompleteAfterPasswordChange produce, so a caller cannot complete a login
+// without one of these decisions running first. That is structural on purpose. The spike (§2 of
 // docs/superpowers/spikes/2026-08-16-zitadel-login-client.md) proved that
 // Zitadel, for a login client, issues an authorization code for a
 // password-only session even when the org policy sets forceMfa — it
@@ -261,29 +280,17 @@ func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) 
 // to matter for the "nothing enrolled at all" case, where a password-only
 // session is insufficient and there is nothing to natively prompt for.
 //
-// KNOWN LIMITATIONS — read this before trusting the check to be more than
-// it is. This is a gap in WHICH cases are covered, not in how the covered
-// case behaves, and it is not silently assumed: it is stated here because
-// the alternative is a future reader taking this for a complete MFA gate.
+// # A password that must change is checked last — #856
 //
-//  1. PASSWORD-CHANGE-REQUIRED IS NOT CHECKED. Verified live 2026-08-16
-//     (#854 Task 8): a user imported via
-//     POST /management/v1/users/human/_import with
-//     passwordChangeRequired:true — confirmed to have taken effect via
-//     GET /v2/users/{id} echoing human.passwordChangeRequired:true —
-//     produces a session create (POST /v2/sessions) and a finalize
-//     (POST /v2/oidc/auth_requests/{id}) that are BYTE-IDENTICAL in
-//     shape to a normal user's: no field on either response says the
-//     password must change. Helivanta's own POST /v1/auth/login/password
-//     against this user returned 200 with a valid callback_url — the
-//     same as any other successful login. Zitadel does not signal this
-//     case to a login client at all, so there is nothing in this
-//     package's wire responses to branch on. Filed as its own issue,
-//     #856, rather than fixed here: closing it needs
-//     either a users/{id} read before finalize (an extra round trip on
-//     every login) or Zitadel exposing the flag on the session/finalize
-//     response, which is outside Helivanta's control. Documented rather than
-//     silently accepted.
+// Zitadel signals neither human.passwordChangeRequired nor an expired
+// password to a login client anywhere on the session or finalize wire
+// (verified live 2026-08-16, #854 Task 8): it would finalize such a login
+// like any other. So the last thing before finalize, on every finalizing
+// path, is passwordGate — after every factor is proven, never before (a
+// change step offered before TOTP would let someone holding only the
+// password rotate it). A due change answers OutcomePasswordChangeRequired;
+// see docs/superpowers/specs/2026-10-08-password-change-required-design.md.
+// This used to be KNOWN LIMITATIONS §1 here.
 //
 // # The policy read is now org-scoped (#913)
 //
@@ -378,6 +385,16 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 		return Result{Outcome: OutcomeEnrollmentRequired, Factors: []string{"totp"}}, nil
 	}
 
+	// Every factor is proven; the password itself may still have to change
+	// (#856). Last, so it never precedes a factor.
+	change, due, err := c.passwordGate(ctx, subject)
+	if err != nil {
+		return Result{}, err
+	}
+	if due {
+		return Result{Outcome: OutcomePasswordChangeRequired, PasswordChange: change}, nil
+	}
+
 	callbackURL, err := c.finalize(ctx, authRequestID, s, sufficient{})
 	if err != nil {
 		return Result{}, fmt.Errorf("loginclient: finalize after sufficiency check: %w", err)
@@ -418,7 +435,7 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 // This is what keeps finalize reachable solely through a sufficiency
 // decision even on this second path: finalize requires a `sufficient`
 // witness (see its doc comment and `sufficient`'s in this file) that only
-// CompleteIfSufficient and CompleteAfterFactor produce, and a
+// the three Complete* functions in this file produce, and a
 // CompleteAfterFactor that finalized on the caller's say-so, or without
 // re-checking the uncollectible set, would be exactly the kind of bypass
 // that control exists to prevent.
@@ -428,12 +445,10 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 // sufficient", not "it is not", so it hands off rather than risking a
 // bypass on an unreadable answer.
 func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, s Session) (Result, error) {
-	// classifyEnrolledMethods also returns the session's subject (its org
-	// id alongside the user id), which this function deliberately
-	// discards: CompleteAfterFactor reads no policy — see this function's
-	// doc comment — so it has no use for the org id CompleteIfSufficient
-	// needs to scope LoginPolicyForOrg with (design spec D1).
-	_, methodTypes, totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
+	// The subject (user and org id) is what passwordGate below reads the
+	// password state and the org's expiry policy for (#856). This function
+	// reads no LOGIN policy — see its doc comment.
+	subject, methodTypes, totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
 	if err != nil {
 		return Result{}, unreadable("enrolled factors", err)
 	}
@@ -459,11 +474,101 @@ func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, 
 		return refused(RefusalFactorNotVerified), nil
 	}
 
+	// The TOTP is proven; only now may a due password change be asked for
+	// (#856 spec D2).
+	change, due, err := c.passwordGate(ctx, subject)
+	if err != nil {
+		return Result{}, err
+	}
+	if due {
+		return Result{Outcome: OutcomePasswordChangeRequired, PasswordChange: change}, nil
+	}
+
 	callbackURL, err := c.finalize(ctx, authRequestID, s, sufficient{})
 	if err != nil {
 		return Result{}, fmt.Errorf("loginclient: finalize after factor verification: %w", err)
 	}
 	return Result{Outcome: OutcomeComplete, CallbackURL: callbackURL}, nil
+}
+
+// CompleteAfterPasswordChange is the last step of the
+// OutcomePasswordChangeRequired flow (#856 spec D5): after ChangePassword
+// succeeded, it decides again — from scratch — whether this session may be
+// finalized, and only then finalizes it.
+//
+// It trusts nothing the earlier decision concluded, for the same reason
+// CompleteAfterFactor re-classifies (#867 fix round 1, Finding 2): time has
+// passed and the enrolment, the policy or the session may have changed. So
+// it re-runs every check the first decision made:
+//
+//  1. Enrolled methods: an uncollectible factor refuses.
+//  2. The second factor: when TOTP is enrolled, the session must carry a
+//     VERIFIED TOTP (SessionFactors), exactly as CompleteAfterFactor
+//     requires; otherwise the user's org must not force MFA (if it does,
+//     the factor it requires is unproven: RefusalFactorNotVerified).
+//  3. The password gate: after a change Zitadel accepted it must say "not
+//     due". If it still says due, that is RefusalPasswordChangeUnconfirmed —
+//     never a second change prompt, which could loop forever.
+//
+// It is the third and last producer of the `sufficient` witness finalize
+// requires; every check above runs before it, and every unreadable answer is
+// an ErrUnavailable error (fail closed), as on the other two paths.
+func (c *Client) CompleteAfterPasswordChange(ctx context.Context, authRequestID string, s Session) (Result, error) {
+	subject, methodTypes, totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
+	if err != nil {
+		return Result{}, unreadable("enrolled factors", err)
+	}
+	if uncollectible {
+		return Result{Outcome: OutcomeRefused, Reason: RefusalFactorUnsupported, EnrolledMethods: methodTypes}, nil
+	}
+	if totpEnrolled {
+		factors, err := c.SessionFactors(ctx, s.ID)
+		if err != nil {
+			return Result{}, unreadable("session factors", err)
+		}
+		if !factors.TOTP {
+			return refused(RefusalFactorNotVerified), nil
+		}
+	} else {
+		policy, err := c.LoginPolicyForOrg(ctx, subject.OrgID)
+		if err != nil {
+			return Result{}, unreadable("login policy", err)
+		}
+		if policy.ForceMFA {
+			// The org requires a second factor and this session proves none:
+			// nothing enrolled now, though a row at the password-change stage
+			// is only written after every factor was proven — the enrolment
+			// or the policy changed under the login. Enrolment (#948) is the
+			// password step's business, never this one's, so this refuses.
+			return refused(RefusalFactorNotVerified), nil
+		}
+	}
+
+	_, due, err := c.passwordGate(ctx, subject)
+	if err != nil {
+		return Result{}, err
+	}
+	if due {
+		return refused(RefusalPasswordChangeUnconfirmed), nil
+	}
+
+	callbackURL, err := c.finalize(ctx, authRequestID, s, sufficient{})
+	if err != nil {
+		return Result{}, fmt.Errorf("loginclient: finalize after password change: %w", err)
+	}
+	return Result{Outcome: OutcomeComplete, CallbackURL: callbackURL}, nil
+}
+
+// passwordGate is passwordChangeDue with its failure made the same retryable,
+// never-completing error every other unreadable sufficiency read is
+// (unreadable). On error, due is false and every caller returns the zero
+// Result with the error — never a decision to finalize on.
+func (c *Client) passwordGate(ctx context.Context, subject sessionSubject) (PasswordChange, bool, error) {
+	change, due, err := c.passwordChangeDue(ctx, subject)
+	if err != nil {
+		return PasswordChange{}, false, unreadable("password state", err)
+	}
+	return change, due, nil
 }
 
 // unreadable wraps a failed sufficiency read as ErrUnavailable, so the login

@@ -21,14 +21,34 @@ import (
 // 10^6 code space — a limit that loose lets that space erode.
 const maxFactorAttempts = 5
 
+// attemptStage is which step a login_attempt row is waiting for (#856,
+// 0007_iam). Each endpoint reads only rows at its own stage
+// (loginAttemptStore.Get), so a row can never be used for a step it was not
+// written for.
+type attemptStage string
+
+const (
+	// stageFactor means the password was right and a TOTP code is due:
+	// for an enrolled TOTP (POST /v1/auth/login/factor) or, when Enrolling
+	// is set, for one just registered (POST /v1/auth/login/enroll, #948).
+	// Written by Password.
+	stageFactor attemptStage = "factor"
+	// stagePasswordChange means every factor is proven and the password must
+	// change (POST /v1/auth/login/password-change). Written by Password or
+	// Factor, and ONLY on loginclient.OutcomePasswordChangeRequired — which
+	// a full sufficiency decision alone produces.
+	stagePasswordChange attemptStage = "password_change"
+)
+
 var (
 	errAttemptNotFound   = errors.New("login attempt not found")
 	errAttemptsExhausted = errors.New("login attempt exhausted its factor attempts")
 )
 
 // loginAttempt holds the Zitadel session between the password step and
-// the factor step. The browser is never given zitadelSessionToken (spec
-// D2); it only ever sees authRequestID.
+// the step after it — a factor or a password change (Stage). The browser is
+// never given zitadelSessionToken (spec D2); it only ever sees
+// authRequestID.
 type loginAttempt struct {
 	AuthRequestID  string
 	SessionID      string
@@ -40,21 +60,23 @@ type loginAttempt struct {
 	// for this attempt and POST /v1/auth/login/enroll must confirm it
 	// (#948, spec D4); false when an already-enrolled factor is awaited
 	// via POST /v1/auth/login/factor. Each handler refuses the other's
-	// row. Set once by Put; never updated afterwards.
+	// row. Set by Put; AdvanceToPasswordChange clears it.
 	Enrolling bool
+	Stage     attemptStage
 }
 
 // loginAttemptRow is the GORM-mapped row for login_attempt. It is kept
 // separate from loginAttempt so the token field's column name is
 // explicit and the two never accidentally diverge in shape.
 type loginAttemptRow struct {
-	AuthRequestID  string    `gorm:"column:auth_request_id;primaryKey"`
-	SessionID      string    `gorm:"column:zitadel_session_id"`
-	SessionToken   string    `gorm:"column:zitadel_session_token"`
-	Subject        string    `gorm:"column:subject"`
-	FactorAttempts int       `gorm:"column:factor_attempts"`
-	ExpiresAt      time.Time `gorm:"column:expires_at"`
-	Enrolling      bool      `gorm:"column:enrolling"`
+	AuthRequestID  string       `gorm:"column:auth_request_id;primaryKey"`
+	SessionID      string       `gorm:"column:zitadel_session_id"`
+	SessionToken   string       `gorm:"column:zitadel_session_token"`
+	Subject        string       `gorm:"column:subject"`
+	FactorAttempts int          `gorm:"column:factor_attempts"`
+	ExpiresAt      time.Time    `gorm:"column:expires_at"`
+	Enrolling      bool         `gorm:"column:enrolling"`
+	Stage          attemptStage `gorm:"column:stage"`
 }
 
 func (loginAttemptRow) TableName() string { return "login_attempt" }
@@ -93,14 +115,21 @@ func (s *loginAttemptStore) Put(ctx context.Context, a loginAttempt) error {
 	})
 }
 
-// Get returns the attempt for authRequestID, treating an expired row as
+// Get returns the attempt for authRequestID at stage, treating an expired row as
 // not found and deleting it so expiry needs no separate cleanup job for
 // correctness (spec D6) — a background sweep is still useful for table
 // bloat, but nothing depends on it for correctness. This matters beyond
 // tidiness: every row holds a live Zitadel session token, so a row that
 // is never deleted is a slow leak of credentials into a table nothing
 // sweeps.
-func (s *loginAttemptStore) Get(ctx context.Context, authRequestID string) (loginAttempt, error) {
+//
+// A row at a DIFFERENT stage is errAttemptNotFound too, exactly like a
+// missing one (#856): the stage is part of what the caller asked for, and an
+// endpoint must not be able to resume a session written for another step —
+// above all, password-change must never resume a session whose TOTP is still
+// unproven. Taking the stage as a parameter, rather than leaving each handler
+// to compare it, makes forgetting the check impossible to express.
+func (s *loginAttemptStore) Get(ctx context.Context, authRequestID string, stage attemptStage) (loginAttempt, error) {
 	var row loginAttemptRow
 	var expired bool
 	// Same shape as BumpAndGet's exhaustion path: the closure must return
@@ -128,12 +157,15 @@ func (s *loginAttemptStore) Get(ctx context.Context, authRequestID string) (logi
 		return loginAttempt{}, fmt.Errorf("get login attempt: %w", err)
 	case expired:
 		return loginAttempt{}, errAttemptNotFound
+	case row.Stage != stage:
+		return loginAttempt{}, errAttemptNotFound
 	}
 	return row.toDomain(), nil
 }
 
 // BumpAndGet increments factor_attempts and reads the new value in ONE
-// statement (UPDATE ... RETURNING). Two statements — an UPDATE followed
+// statement (UPDATE ... RETURNING). It counts only stageFactor rows (#856): a
+// password-change row is not a TOTP guessing budget, and reads as not found. Two statements — an UPDATE followed
 // by a separate SELECT — would race under concurrent requests for the
 // same auth_request_id, and the race runs in the attacker's favor: two
 // concurrent guesses could both read the pre-increment count and both be
@@ -162,10 +194,10 @@ func (s *loginAttemptStore) BumpAndGet(ctx context.Context, authRequestID string
 		err := tx.Raw(`
 			UPDATE login_attempt
 			SET factor_attempts = factor_attempts + 1
-			WHERE auth_request_id = ? AND expires_at > now()
+			WHERE auth_request_id = ? AND expires_at > now() AND stage = ?
 			RETURNING auth_request_id, zitadel_session_id, zitadel_session_token,
-			          subject, factor_attempts, expires_at, enrolling`,
-			authRequestID).Scan(&row).Error
+			          subject, factor_attempts, expires_at, enrolling, stage`,
+			authRequestID, stageFactor).Scan(&row).Error
 		if err != nil {
 			return err
 		}
@@ -210,6 +242,28 @@ func (s *loginAttemptStore) UpdateToken(ctx context.Context, authRequestID, toke
 		res := tx.Model(&loginAttemptRow{}).
 			Where("auth_request_id = ?", authRequestID).
 			Update("zitadel_session_token", token)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return errAttemptNotFound
+		}
+		return nil
+	})
+}
+
+// AdvanceToPasswordChange moves authRequestID's row from stageFactor to
+// stagePasswordChange (#856): Factor and Enroll call it when
+// CompleteAfterFactor answers OutcomePasswordChangeRequired after a verified
+// TOTP. It also clears enrolling (#948): the enrolment is confirmed, and a
+// password-change row is no factor step of either kind. Guarded on the
+// current stage so only a factor row advances; anything else is
+// errAttemptNotFound.
+func (s *loginAttemptStore) AdvanceToPasswordChange(ctx context.Context, authRequestID string) error {
+	return s.db.WithSystem(ctx, func(tx *gorm.DB) error {
+		res := tx.Model(&loginAttemptRow{}).
+			Where("auth_request_id = ? AND stage = ?", authRequestID, stageFactor).
+			Updates(map[string]any{"stage": stagePasswordChange, "enrolling": false})
 		if res.Error != nil {
 			return res.Error
 		}

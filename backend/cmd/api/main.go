@@ -398,13 +398,14 @@ func run() error {
 	// site's comment for why this file must build exactly one
 	// *loginclient.Client.
 	// loginUIHandlers backs Helivanta's own login form (plan #854 Task 4,
-	// #867 Task 4, #948): four unauthenticated routes reading an auth
+	// #867 Task 4, #948, #856): unauthenticated routes reading an auth
 	// request (GET /v1/auth/login/request/:id), checking a password (POST
 	// /v1/auth/login/password), checking a native TOTP factor (POST
-	// /v1/auth/login/factor), and confirming a natively enrolled TOTP
-	// (POST /v1/auth/login/enroll). When Helivanta cannot complete a login
-	// it refuses it in its own words; nothing hands the browser to
-	// Zitadel's hosted UI (#947). db is the SAME *tenantdb.DB every
+	// /v1/auth/login/factor), confirming a natively enrolled TOTP
+	// (POST /v1/auth/login/enroll), and changing a password that must
+	// change (POST /v1/auth/login/password-change). When Helivanta cannot
+	// complete a login it refuses it in its own words; nothing hands the
+	// browser to Zitadel's hosted UI (#947). db is the SAME *tenantdb.DB every
 	// other module in this file shares — LoginUIHandlers uses it only
 	// for the login_attempt table (0004_iam), which is not tenant-scoped
 	// (see that migration's own comment in iam/module.go). AuthRequest
@@ -445,7 +446,7 @@ func run() error {
 	// missing, per its own doc comment.
 	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login,
 		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Factor,
-		loginUIHandlers.Enroll)
+		loginUIHandlers.Enroll, loginUIHandlers.PasswordChange)
 
 	for _, m := range registry.All() {
 		m.Routes(api, deps)

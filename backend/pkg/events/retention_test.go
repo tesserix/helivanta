@@ -152,7 +152,7 @@ func TestPruneKeepsLedgerWithinRedeliveryWindow(t *testing.T) {
 		return tx.Exec(`INSERT INTO processed_events (consumer, event_id) VALUES (?, ?)`, consumer, eventID).Error
 	}))
 	// Older than streamMaxAge, but still within processedRetention.
-	backdateLedgerRow(t, db, consumer, eventID, time.Now().Add(-(streamMaxAge+time.Hour)))
+	backdateLedgerRow(t, db, consumer, eventID, time.Now().Add(-(streamMaxAge + time.Hour)))
 
 	result, err := bus.Prune(ctx, db)
 	require.NoError(t, err)
@@ -203,7 +203,7 @@ func TestPruneCannotResurrectADuplicate(t *testing.T) {
 	// Age the ledger row into the window a redelivery could still land in
 	// (past streamMaxAge, still within processedRetention) — the gap
 	// processedRetention exists to cover.
-	backdateLedgerRow(t, db, consumerName, uuid.MustParse(evt.ID), time.Now().Add(-(streamMaxAge+time.Hour)))
+	backdateLedgerRow(t, db, consumerName, uuid.MustParse(evt.ID), time.Now().Add(-(streamMaxAge + time.Hour)))
 
 	result, err := bus.Prune(ctx, db)
 	require.NoError(t, err)

@@ -72,4 +72,4 @@ Full document: docs/standards/backend.md
 - Authorization fails closed: FGA errors are 503, never fail open. 403 = member lacking permission; 404 stays the cross-tenant answer.
 - Events: subjects `helivanta.<dir>.<module>.<event>.vN`; consumers `<module>-<purpose>`; publish through the outbox inside the business tx; handlers must be idempotent.
 - slog only (logrus banned); request-scoped logger via `requestid.Logger(c)`; wrap errors with `%w`.
-- Before done: `make lint-go` clean, `cd backend && ./scripts/coverage-gate.sh` green (70% floor), `go test -race ./...` green.
+- Before done: `make lint-go` clean (it includes gofmt), `cd backend && ./scripts/coverage-gate.sh` green (70% floor), `go test -race ./...` green.

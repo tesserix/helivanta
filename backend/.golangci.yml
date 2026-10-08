@@ -92,5 +92,23 @@ linters:
           - gosec
           - errcheck
 
+# #919: formatting is part of the Go gate. golangci-lint v2 runs formatters
+# as a separate section, and `golangci-lint run` — what `make lint-go` and the
+# CI golangci-lint step both execute — reports any file a formatter would
+# change, so "0 issues" now also means "gofmt-clean". gofmt, not gofumpt: it
+# is the toolchain's own formatter, the style every file here was written to,
+# and enabling it restyles nothing; gofumpt's stricter rules would reformat
+# code across the tree for no correctness gain.
+formatters:
+  enable:
+    - gofmt
+
+# golangci-lint shows at most 3 issues with the same text by default. Every
+# unformatted file has the same text ("File is not properly formatted"), so
+# the cap would list only three of them; 0 lists every one, so a run names
+# all the files to fix rather than the first three.
+issues:
+  max-same-issues: 0
+
 run:
   timeout: 5m

@@ -27,7 +27,7 @@ func TestOutboxPublishDispatchConsume(t *testing.T) {
 	require.NoError(t, db.Migrate(context.Background(), append(tenantdb.Migrations(), events.Migrations()...)))
 
 	natsURL := testinfra.StartNATS(t)
-	bus, err := events.NewBusInNamespace(natsURL, t.Name())
+	bus, err := events.NewBusInNamespace(natsURL, testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	defer bus.Close()
 
@@ -119,7 +119,7 @@ func TestConsumerTenantScopedWrite(t *testing.T) {
 	})
 	require.NoError(t, db.Migrate(context.Background(), migs))
 
-	bus, err := events.NewBusInNamespace(testinfra.StartNATS(t), t.Name())
+	bus, err := events.NewBusInNamespace(testinfra.StartNATS(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	defer bus.Close()
 

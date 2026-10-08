@@ -31,7 +31,7 @@ func TestPanickingConsumerDoesNotKillTheProcess(t *testing.T) {
 	require.NoError(t, db.Migrate(context.Background(), append(tenantdb.Migrations(), events.Migrations()...)))
 
 	natsURL := testinfra.StartNATS(t)
-	bus, err := events.NewBusInNamespace(natsURL, t.Name())
+	bus, err := events.NewBusInNamespace(natsURL, testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	defer bus.Close()
 

@@ -65,7 +65,7 @@ func TestStartPostgresIsolatesCallers(t *testing.T) {
 }
 
 // OpenFGA is shared the same way Postgres is. Isolation is by store name,
-// which callers choose (they pass t.Name()), so this only has to prove the
+// which callers choose (they pass IsolationKey(t)), so this only has to prove the
 // server itself is not rebooted per caller.
 func TestStartOpenFGAReusesOneServer(t *testing.T) {
 	first := StartOpenFGA(t)

@@ -29,7 +29,7 @@ func TestDirectedEventOnUndeclaredSubjectIsRefused(t *testing.T) {
 		append(tenantdb.Migrations(), events.Migrations()...)))
 
 	natsURL := testinfra.StartNATS(t)
-	bus, err := events.NewBusInNamespace(natsURL, t.Name())
+	bus, err := events.NewBusInNamespace(natsURL, testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	defer bus.Close()
 
@@ -76,7 +76,7 @@ func TestUndirectedEventIsUnaffected(t *testing.T) {
 		append(tenantdb.Migrations(), events.Migrations()...)))
 
 	natsURL := testinfra.StartNATS(t)
-	bus, err := events.NewBusInNamespace(natsURL, t.Name())
+	bus, err := events.NewBusInNamespace(natsURL, testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	defer bus.Close()
 
@@ -161,7 +161,7 @@ func TestDirectedWriteLandsInDestinationAndIsInvisibleToOrigin(t *testing.T) {
 
 	natsURL := testinfra.StartNATS(t)
 	const subject = "helivanta.in.reference.pinged.v1"
-	bus, err := events.NewBusInNamespace(natsURL, t.Name(), subject)
+	bus, err := events.NewBusInNamespace(natsURL, testinfra.IsolationKey(t), subject)
 	require.NoError(t, err)
 	defer bus.Close()
 
@@ -225,7 +225,7 @@ func TestDirectedEventWithUnparseableDestinationIsTerminated(t *testing.T) {
 
 	natsURL := testinfra.StartNATS(t)
 	const subject = "helivanta.in.reference.pinged.v1"
-	bus, err := events.NewBusInNamespace(natsURL, t.Name(), subject)
+	bus, err := events.NewBusInNamespace(natsURL, testinfra.IsolationKey(t), subject)
 	require.NoError(t, err)
 	defer bus.Close()
 

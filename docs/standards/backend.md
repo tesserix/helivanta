@@ -1097,6 +1097,32 @@ go test -race ./...    # full suite, from backend/
 locally alike. Fix one with `gofmt -w <file>` (or `golangci-lint fmt`), never
 by hand.
 
+### Shared containers and isolation keys
+
+Postgres, NATS and OpenFGA are started once per test **binary** (the
+`sync.Once`s in `internal/testinfra`), so tests share them. Each test
+isolates its own state on them:
+
+- **Postgres:** `StartPostgres` gives each test a database of its own.
+- **NATS and OpenFGA:** each test names its namespace or store with
+  `testinfra.IsolationKey(t)`.
+
+**Never use `t.Name()` as such a name (#929).** `go test -count=N` runs
+every test N times in one process, against the same containers, under the
+same names. Iteration 2 would read iteration 1's events and tuples and fail
+like a real regression. `IsolationKey(t)` is `t.Name()` plus a sequence
+number that is unique in the process. It is stable for one `*testing.T`, so
+two buses in one test can still share a namespace on purpose.
+`internal/archtest`'s `TestTestNameIsNeverAnIsolationKey` fails CI on any
+`t.Name()` call outside that helper.
+
+**Re-running to hunt a flake:** `-count` is supported and is the tool for
+it.
+
+```bash
+go test -race -count=10 -run '^TestSuspect$' ./pkg/events/
+```
+
 ## 10. Checklist for a new module
 
 1. `make new-module NAME=<name>` from repo root.

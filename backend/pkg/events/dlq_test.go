@@ -34,7 +34,7 @@ func TestHandleMsgDeadLettersAfterMaxDeliver(t *testing.T) {
 	require.NoError(t, db.Migrate(context.Background(), append(tenantdb.Migrations(), Migrations()...)))
 
 	natsURL := testinfra.StartNATS(t)
-	bus, err := NewBusInNamespace(natsURL, t.Name())
+	bus, err := NewBusInNamespace(natsURL, testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	defer bus.Close()
 

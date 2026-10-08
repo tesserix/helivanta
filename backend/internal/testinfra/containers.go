@@ -441,7 +441,7 @@ func startNATS(t *testing.T) (string, error) {
 // Isolation here is by store rather than by database. Callers already
 // name their store when they build a client, so a test that wants its own
 // tuples asks for its own store name — see the callers, which pass
-// t.Name(). Two callers naming the same store share it deliberately.
+// IsolationKey(t). Two callers naming the same store share it deliberately.
 var (
 	fgaOnce sync.Once
 	fgaURL  string

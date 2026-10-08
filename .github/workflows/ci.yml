@@ -86,6 +86,13 @@ jobs:
       # end-of-job orphan cleanup stops it.
       - name: Record Docker events during the Go tests
         run: nohup docker events --format '{{json .}}' > "$RUNNER_TEMP/docker-events.jsonl" 2>&1 &
+      - name: TEMPORARY - prove the #963 dumps (reverted before merge)
+        run: |
+          docker run -d --name canary-963 postgres:16-alpine sleep 300
+          sleep 2
+          docker kill canary-963
+          sleep 2
+          echo "deliberate failure to exercise the dump steps"; exit 1
       - run: ./scripts/coverage-gate.sh
       # Forensics for #963, on failure only (same `!success() || cancelled()`
       # condition and reasoning as the e2e job's dumps). The two causes on

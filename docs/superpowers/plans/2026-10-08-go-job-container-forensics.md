@@ -25,4 +25,10 @@ Spec: `docs/superpowers/specs/2026-10-08-go-job-container-forensics-design.md`
 - [x] testcontainers' log on in every test binary, pid-prefixed, shown only
   for a failing package; pinned by `TestTestcontainersLogIsOnWithoutVerbose`
   (fails without the init).
-- [ ] After the next occurrence: root cause and fix under #963.
+- [x] Root cause from the third occurrence: a failed Ryuk handshake on the
+  reuse path in testcontainers-go v0.43.0 (spec, Root cause and fix).
+- [x] Fix: testcontainers-go and its nats, openfga and postgres modules to
+  v0.44.0 (go.mod shows only those four direct changes).
+- [x] Regression test `TestConcurrentBinariesAllConnectToTheReaper`: fails
+  3 of 3 on v0.43.0 and passes 5 of 5 on v0.44.0.
+- [x] Gates: `golangci-lint` 0 issues; `./scripts/coverage-gate.sh` green.

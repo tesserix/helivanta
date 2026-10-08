@@ -110,9 +110,49 @@ iam prints its whole reaper history.
 `TestTestcontainersLogIsOnWithoutVerbose` pins it, and fails with the init
 removed.
 
+## Root cause and fix
+
+The third occurrence (run 37735082190, on #968) was the first with D5's
+log, and it named the cause in four lines from the iam binary:
+
+```
+testcontainers[pid=16534 ppid=6614] 05:59:57.195 🐳 Creating container for image testcontainers/ryuk:0.14.0
+testcontainers[pid=16534 ppid=6614] 05:59:57.341 ⏳ Waiting for Reaper "86ea912d" to be ready
+testcontainers[pid=16534 ppid=6614] 05:59:57.358 🔥 Reaper obtained from Docker for this test session 86ea912d
+testcontainers[pid=16534 ppid=6614] 05:59:57.362 Reaper handshake failed: read ack: EOF
+```
+
+iam raced another package binary to create the session's Ryuk, lost, and
+reused the winner's. In testcontainers-go v0.43.0 the reuse path
+(`reaperSpawner.fromContainer`) waited only for Docker's port proxy to
+accept, not for Ryuk to be listening. So the handshake read EOF.
+`Reaper.connect` only logs that failure and hands back the connection's
+termination channel as if connected. Ryuk never counted iam as a client,
+and pruned the session 10s after every other binary had exited, with iam
+still running. That is every observation above:
+- the prune burst;
+- no connection attributable to iam;
+- 24 containers removed against 22 connections;
+- the same point in the iam sequence each time, since iam is the longest
+  binary.
+
+**Fix: testcontainers-go v0.44.0**, whose reuse path also waits for Ryuk's
+`Started` log line, as the create path already did. Measured with a
+harness of six processes started at once under one parent: v0.43.0 failed
+the handshake in every reusing process (30 of 30 over six trials), and
+v0.44.0 in none (0 of 30).
+
+**Regression test: `internal/testinfra`'s
+`TestConcurrentBinariesAllConnectToTheReaper`.** It re-executes its own
+binary four times concurrently, so the four share one parent and one Ryuk
+session, and each starts a container. It fails if any copy logs a failed
+handshake. It also fails if no copy took the reuse path, so the test cannot
+pass without exercising the race. It fails 3 of 3 runs with go.mod pinned
+back to v0.43.0, and passes 5 of 5 on v0.44.0.
+
 ## Not covered
 
-- The fix itself. It waits for the evidence; #963 stays open.
+- The handshake failure is still only logged by testcontainers (v0.44.0 does not return it). With the reuse path now waiting for `Started` there is no known path to it, and if one appears, the regression test and D5's log both surface it.
 
 ## Verification
 

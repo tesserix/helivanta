@@ -13,6 +13,7 @@
 set -uo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+# shellcheck source=lib/repo-owns.sh
 . "$REPO_ROOT/scripts/lib/repo-owns.sh"
 
 # Built from the HELIVANTA_* host-port variables (see .env.example) so an
@@ -352,6 +353,12 @@ check_port_tool() {
 HELIVANTA_SECRETS_DIR=${HELIVANTA_SECRETS_DIR:-$REPO_ROOT/dev/zitadel/secrets}
 check_zitadel_secrets_dir() {
   local dir=$HELIVANTA_SECRETS_DIR
+  # The disable covers this one `if`, for its world-writable branch. SC2012
+  # warns about parsing FILENAMES out of ls; that branch reads only character
+  # 9 of the mode string (other-write), whose position is fixed for every
+  # name. `stat` is the alternative and takes different flags on GNU and BSD,
+  # and this script must run on both.
+  # shellcheck disable=SC2012
   if [ ! -e "$dir" ]; then
     ok "zitadel secrets dir (absent — 'make dev-infra' creates it writable)"
   elif [ ! -d "$dir" ]; then

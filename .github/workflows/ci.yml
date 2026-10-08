@@ -229,6 +229,9 @@ jobs:
       - run: make test-scripts
         env:
           PREFLIGHT_TEST_REQUIRE_FOREIGN: "1"
+      # #924: shellcheck over every shell script, found by extension or
+      # shebang (scripts/lint-shell.sh), at every severity.
+      - run: make lint-shell
   secrets:
     name: Secret scan
     uses: tesserix/tesserix-workflows/.github/workflows/secret-scan.yml@v2.1.0

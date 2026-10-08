@@ -21,9 +21,9 @@ func TestRedactPatterns(t *testing.T) {
 		in   string
 		want string
 	}{
-		{"aadhaar bare", "id 123456789012 end", "id [REDACTED:aadhaar] end"},
-		{"aadhaar spaced", "id 1234 5678 9012 end", "id [REDACTED:aadhaar] end"},
-		{"aadhaar hyphenated", "id 1234-5678-9012 end", "id [REDACTED:aadhaar] end"},
+		{"aadhaar bare", "id 234567890124 end", "id [REDACTED:aadhaar] end"},
+		{"aadhaar spaced", "id 2345 6789 0124 end", "id [REDACTED:aadhaar] end"},
+		{"aadhaar hyphenated", "id 2345-6789-0124 end", "id [REDACTED:aadhaar] end"},
 		{"abha 14 digits", "abha 12345678901234 end", "abha [REDACTED:abha] end"},
 		{"abha hyphenated", "abha 12-3456-7890-1234 end", "abha [REDACTED:abha] end"},
 		{"mobile plus91", "call +919876543210 now", "call [REDACTED:mobile] now"},
@@ -32,7 +32,7 @@ func TestRedactPatterns(t *testing.T) {
 		{"mobile 5-5 grouping", "call 98765 43210 now", "call [REDACTED:mobile] now"},
 		{"mobile plus91 5-5", "call +91 98765 43210 now", "call [REDACTED:mobile] now"},
 		{"mobile starting five", "call 5876543210 now", "call [REDACTED:mobile] now"},
-		{"two values in one string", "a 123456789012 b 9876543210", "a [REDACTED:aadhaar] b [REDACTED:mobile]"},
+		{"two values in one string", "a 234567890124 b 9876543210", "a [REDACTED:aadhaar] b [REDACTED:mobile]"},
 		// Two matches of the SAME pattern sharing one separator. The first
 		// match consumes the space, so a single pass would leave the second
 		// number in the clear — an entirely ordinary thing to log.
@@ -115,7 +115,7 @@ func TestWriterRedactsInsideStringValues(t *testing.T) {
 // A bare JSON number is the case that produces invalid output if the marker
 // is substituted unquoted.
 func TestWriterQuotesTheMarkerWhenTheMatchIsANumberToken(t *testing.T) {
-	out := through(t, `{"aadhaar":123456789012}`+"\n")
+	out := through(t, `{"aadhaar":234567890124}`+"\n")
 	parsed := requireValidJSON(t, out)
 	require.Equal(t, "[REDACTED:aadhaar]", parsed["aadhaar"],
 		"a masked number must become a JSON string, not a bare token")
@@ -151,7 +151,7 @@ func TestWriterLeavesCorrelationFieldsAlone(t *testing.T) {
 // or the in-string tracking desynchronises and every following number token
 // is misclassified.
 func TestWriterTracksEscapedQuotes(t *testing.T) {
-	out := through(t, `{"msg":"he said \"9876543210\" loudly","n":123456789012}`+"\n")
+	out := through(t, `{"msg":"he said \"9876543210\" loudly","n":234567890124}`+"\n")
 	parsed := requireValidJSON(t, out)
 	require.Equal(t, `he said "[REDACTED:mobile]" loudly`, parsed["msg"])
 	require.Equal(t, "[REDACTED:aadhaar]", parsed["n"])
@@ -160,7 +160,7 @@ func TestWriterTracksEscapedQuotes(t *testing.T) {
 // A trailing backslash before the closing quote is an escaped backslash, not
 // an escaped quote — the classic off-by-one in this kind of scanner.
 func TestWriterTracksEscapedBackslashes(t *testing.T) {
-	out := through(t, `{"msg":"path\\","n":123456789012}`+"\n")
+	out := through(t, `{"msg":"path\\","n":234567890124}`+"\n")
 	parsed := requireValidJSON(t, out)
 	require.Equal(t, `path\`, parsed["msg"])
 	require.Equal(t, "[REDACTED:aadhaar]", parsed["n"])
@@ -173,7 +173,7 @@ func TestWriterPassesCleanLinesThroughByteForByte(t *testing.T) {
 
 func TestWriterCountsRedactions(t *testing.T) {
 	before := logging.RedactionCount()
-	through(t, `{"a":"9876543210","b":"123456789012"}`+"\n")
+	through(t, `{"a":"9876543210","b":"234567890124"}`+"\n")
 	require.Equal(t, before+2, logging.RedactionCount())
 }
 
@@ -236,7 +236,7 @@ func TestWriterHandlesFractionalAndSignedNumberTokens(t *testing.T) {
 		{"small integer part, PHI fraction", `{"v":12.9876543210}` + "\n", "v"},
 		{"zero integer part, PHI fraction", `{"v":0.9876543210}` + "\n", "v"},
 		{"negative PHI-shaped number", `{"a":-9876543210}` + "\n", "a"},
-		{"PHI-shaped fraction longer than any pattern", `{"v":9876543210.123456789012}` + "\n", "v"},
+		{"PHI-shaped fraction longer than any pattern", `{"v":9876543210.234567890124}` + "\n", "v"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			out := through(t, tc.in)
@@ -256,7 +256,7 @@ func TestWriterHandlesFractionalAndSignedNumberTokens(t *testing.T) {
 // bounded()'s own rule — and refuse to match, silently leaving every
 // negative PHI-shaped number in the clear. The sign must be split off first.
 func TestWriterRedactsNegativeNumbers(t *testing.T) {
-	out := through(t, `{"a":-9876543210,"b":-123456789012}`+"\n")
+	out := through(t, `{"a":-9876543210,"b":-234567890124}`+"\n")
 	parsed := requireValidJSON(t, out)
 	require.Equal(t, "[REDACTED:mobile]", parsed["a"])
 	require.Equal(t, "[REDACTED:aadhaar]", parsed["b"])
@@ -369,7 +369,7 @@ func TestWriterRedactsPHISeparatedByEscapedWhitespace(t *testing.T) {
 		want string
 	}{
 		{"mobile split by escaped newline", "{\"e\":\"98765\\n43210\"}\n", "[REDACTED:mobile]"},
-		{"aadhaar split by escaped tabs", "{\"e\":\"1234\\t5678\\t9012\"}\n", "[REDACTED:aadhaar]"},
+		{"aadhaar split by escaped tabs", "{\"e\":\"2345\\t6789\\t0124\"}\n", "[REDACTED:aadhaar]"},
 		{"mobile split by escaped CR", "{\"e\":\"98765\\r43210\"}\n", "[REDACTED:mobile]"},
 		// Control: the same value with a literal (unescaped) space
 		// separator, which the old prefilter always handled correctly —
@@ -621,7 +621,7 @@ func TestWriterPropertyOverGeneratedLines(t *testing.T) {
 	phiPool := []string{
 		"9876543210",     // bare mobile
 		"5876543210",     // bare mobile, alternate leading digit
-		"123456789012",   // aadhaar
+		"234567890124",   // aadhaar
 		"12345678901234", // abha
 		"+919876543210",  // international mobile
 	}
@@ -747,7 +747,7 @@ const realisticCleanLogLine = `{"time":"2026-08-13T01:02:03Z","level":"INFO","ms
 const syntheticNoDigitsLogLine = `{"time":"no-timestamp-field","level":"INFO","msg":"appointment confirmed","ward":"ward-a","note":"ok"}` + "\n"
 
 // phiLogLine has PHI-shaped values, forcing the slow (parse) path.
-const phiLogLine = `{"time":"2026-08-13T01:02:03Z","level":"INFO","msg":"patient call","phone":"9876543210","aadhaar":123456789012,"tenant_id":"3fa85f64-5717-4562-b3fc-2c963f66afa6"}` + "\n"
+const phiLogLine = `{"time":"2026-08-13T01:02:03Z","level":"INFO","msg":"patient call","phone":"9876543210","aadhaar":234567890124,"tenant_id":"3fa85f64-5717-4562-b3fc-2c963f66afa6"}` + "\n"
 
 func benchmarkWrite(b *testing.B, line string) {
 	b.Helper()

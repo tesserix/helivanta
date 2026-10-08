@@ -30,9 +30,22 @@ import (
 // Group 1 is the preceding character (or start), group 2 the candidate,
 // group 3 the following character (or end). 1 and 3 are preserved on
 // replacement; only 2 is masked.
-func bounded(core string) *regexp.Regexp {
-	return regexp.MustCompile(`(^|[^0-9A-Za-z_-])(` + core + `)($|[^0-9A-Za-z_-])`)
+//
+// Two compiled forms, because RE2 has no lookbehind (#840). `first` is used
+// for the search that starts at the beginning of the string, where `^` is a
+// legitimate left boundary. `rest` drops the `^` alternative and is used to
+// resume a search one character before the previous candidate's end, so that
+// the separator the previous candidate consumed as ITS right neighbour can be
+// THIS candidate's left neighbour, and so that `^` can never pretend the
+// resume point is the start of the string. See scanPattern.
+func bounded(core string) boundedPattern {
+	return boundedPattern{
+		first: regexp.MustCompile(`(^|[^0-9A-Za-z_-])(` + core + `)($|[^0-9A-Za-z_-])`),
+		rest:  regexp.MustCompile(`([^0-9A-Za-z_-])(` + core + `)($|[^0-9A-Za-z_-])`),
+	}
 }
+
+type boundedPattern struct{ first, rest *regexp.Regexp }
 
 // Order matters and is load-bearing in one direction: the +91 mobile form
 // must be tried before Aadhaar, because `+919876543210` contains a run of
@@ -40,20 +53,30 @@ func bounded(core string) *regexp.Regexp {
 // ABHA/Aadhaar ordering is belt-and-braces — bounded() already stops a
 // 12-digit pattern from biting into a 14-digit run — but a longest-first
 // list is the property worth stating.
+//
+// `valid`, when set, is a further test a candidate's digits must pass to be
+// masked. Only Aadhaar has one (#840): UIDAI issues no Aadhaar that starts
+// with 0 or 1 or fails its Verhoeff check digit, so a 12-digit run that does
+// is not PHI. ABHA and mobile stay shape-only (spec D4).
 var redactionPatterns = []struct {
-	name string
-	re   *regexp.Regexp
+	name  string
+	re    boundedPattern
+	valid func(digits string) bool
 }{
 	// Indian mobile, international form: +91 then 10 digits beginning 5-9,
 	// accepting the conventional 5-5 grouping. First, so it wins the
 	// twelve-digit run it contains.
-	{"mobile", bounded(`\+91[-\s]?[5-9]\d{4}[-\s]?\d{5}`)},
+	{"mobile", bounded(`\+91[-\s]?[5-9]\d{4}[-\s]?\d{5}`), nil},
 	// ABHA: 14 digits, optionally grouped 2-4-4-4 by hyphens or spaces.
-	{"abha", bounded(`\d{2}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}`)},
-	// Aadhaar: 12 digits, optionally grouped 4-4-4.
-	{"aadhaar", bounded(`\d{4}[-\s]?\d{4}[-\s]?\d{4}`)},
+	{"abha", bounded(`\d{2}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}`), nil},
+	// Aadhaar: 12 digits beginning 2-9, optionally grouped 4-4-4, whose last
+	// digit is the Verhoeff check digit over the first eleven. Without the
+	// check every 12-digit number — 15 minutes in nanoseconds, a byte count —
+	// was masked as an Aadhaar; with it, about 8% of arbitrary 12-digit
+	// numbers still are, and every real one is.
+	{"aadhaar", bounded(`[2-9]\d{3}[-\s]?\d{4}[-\s]?\d{4}`), verhoeffValid},
 	// Indian mobile, bare: 10 digits beginning 5-9, 5-5 grouping accepted.
-	{"mobile", bounded(`[5-9]\d{4}[-\s]?\d{5}`)},
+	{"mobile", bounded(`[5-9]\d{4}[-\s]?\d{5}`), nil},
 }
 
 var redactions atomic.Uint64
@@ -67,47 +90,123 @@ func RedactionCount() uint64 { return redactions.Load() }
 
 // RedactString masks every known PHI pattern in s, returning the result and
 // the number of masks applied.
+//
+// It screens PHI SHAPES only. It does not detect secrets — key material,
+// tokens, passwords pass through untouched (#840); see the package doc.
 func RedactString(s string) (string, int) {
 	n := 0
 	out := s
 	for _, p := range redactionPatterns {
-		marker := "[REDACTED:" + p.name + "]"
-		re := p.re
-		// Each pattern is applied to a fixpoint, not once. Because RE2 has no
-		// lookbehind, a match consumes the character on either side to prove
-		// it is a whole token — so in `9876543210 9876543211` the shared
-		// space is eaten by the first match and the second is not seen on
-		// that pass. The replacement puts the neighbour characters back, so
-		// re-running over the output catches it. Two adjacent phone numbers
-		// is an entirely ordinary thing to log; leaking the second one is
-		// not an acceptable edge case.
-		//
-		// The loop terminates because every iteration that changes anything
-		// strictly reduces the number of digit runs, and the marker it
-		// substitutes contains no digits. The bound is belt-and-braces
-		// against a future pattern that does not have that property.
-		for i := 0; i < 100; i++ {
-			before := n
-			out = re.ReplaceAllStringFunc(out, func(m string) string {
-				// The neighbour characters are part of the match so RE2 can
-				// express "whole token" without lookaround; they are not part
-				// of the secret, so put them back.
-				groups := re.FindStringSubmatch(m)
-				n++
-				if len(groups) != 4 {
-					// Cannot happen for a string the same regexp just
-					// matched, but mask the lot rather than return it raw.
-					return marker
-				}
-				return groups[1] + marker + groups[3]
-			})
-			if n == before {
-				break
-			}
-		}
+		var k int
+		out, k = scanPattern(out, p.re, p.valid, "[REDACTED:"+p.name+"]")
+		n += k
 	}
 	redactions.Add(uint64(n))
 	return out, n
+}
+
+// scanPattern masks every candidate of one pattern in s, left to right.
+//
+// A candidate's match includes the neighbour character on each side, which
+// is how RE2 expresses "whole token". So the next search resumes at
+// candEnd-1 using the `rest` form: the last character of this candidate is a
+// digit and can never be a left neighbour, so the earliest possible next
+// candidate is one whose left neighbour is the separator at candEnd — exactly
+// what lookbehind would allow. Two adjacent phone numbers sharing one space
+// are both found.
+//
+// This replaced a replace-until-fixpoint loop, which was correct only while
+// every match was masked. A candidate that `valid` declines would match again
+// on every pass and keep consuming the separator in front of a real Aadhaar
+// right after it, so that Aadhaar would never be matched. That is a leak, and
+// TestRedactStringMasksAValidAadhaarRightAfterADeclinedOne pins it.
+func scanPattern(s string, re boundedPattern, valid func(string) bool, marker string) (string, int) {
+	var b strings.Builder
+	n := 0
+	written := 0 // s[:written] is already in b
+	pos := 0     // search position; s[pos:] is unsearched
+	for pos < len(s) {
+		var loc []int
+		base := pos
+		if pos == 0 {
+			loc = re.first.FindStringSubmatchIndex(s)
+		} else {
+			base = pos - 1
+			loc = re.rest.FindStringSubmatchIndex(s[base:])
+		}
+		if loc == nil {
+			break
+		}
+		candStart, candEnd := base+loc[4], base+loc[5]
+		if valid == nil || valid(digitsOf(s[candStart:candEnd])) {
+			b.WriteString(s[written:candStart])
+			b.WriteString(marker)
+			written = candEnd
+			n++
+		}
+		pos = candEnd
+	}
+	if n == 0 {
+		return s, 0
+	}
+	b.WriteString(s[written:])
+	return b.String(), n
+}
+
+// digitsOf drops the grouping separators a candidate may contain.
+func digitsOf(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] >= '0' && s[i] <= '9' {
+			b.WriteByte(s[i])
+		}
+	}
+	return b.String()
+}
+
+// Verhoeff's dihedral-group tables (UIDAI's check-digit scheme for Aadhaar).
+var (
+	verhoeffD = [10][10]byte{
+		{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+		{1, 2, 3, 4, 0, 6, 7, 8, 9, 5},
+		{2, 3, 4, 0, 1, 7, 8, 9, 5, 6},
+		{3, 4, 0, 1, 2, 8, 9, 5, 6, 7},
+		{4, 0, 1, 2, 3, 9, 5, 6, 7, 8},
+		{5, 9, 8, 7, 6, 0, 4, 3, 2, 1},
+		{6, 5, 9, 8, 7, 1, 0, 4, 3, 2},
+		{7, 6, 5, 9, 8, 2, 1, 0, 4, 3},
+		{8, 7, 6, 5, 9, 3, 2, 1, 0, 4},
+		{9, 8, 7, 6, 5, 4, 3, 2, 1, 0},
+	}
+	verhoeffP = [8][10]byte{
+		{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+		{1, 5, 7, 6, 2, 8, 3, 0, 9, 4},
+		{5, 8, 0, 3, 7, 9, 6, 1, 4, 2},
+		{8, 9, 1, 6, 0, 4, 3, 5, 2, 7},
+		{9, 4, 5, 3, 1, 2, 8, 7, 6, 0},
+		{4, 2, 8, 6, 5, 7, 3, 9, 0, 1},
+		{2, 7, 9, 3, 8, 0, 6, 4, 1, 5},
+		{7, 0, 4, 6, 9, 1, 3, 2, 5, 8},
+	}
+)
+
+// verhoeffValid reports whether digits (ASCII 0-9 only), read with its last
+// digit as the check digit, satisfies the Verhoeff checksum. Anything that is
+// not all digits is invalid.
+func verhoeffValid(digits string) bool {
+	if digits == "" {
+		return false
+	}
+	c := byte(0)
+	for i := 0; i < len(digits); i++ {
+		ch := digits[len(digits)-1-i]
+		if ch < '0' || ch > '9' {
+			return false
+		}
+		c = verhoeffD[c][verhoeffP[i%8][ch-'0']]
+	}
+	return c == 0
 }
 
 // NewRedactingWriter wraps w so that every line written through it is

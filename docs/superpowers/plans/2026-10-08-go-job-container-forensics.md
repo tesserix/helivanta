@@ -18,4 +18,11 @@ Spec: `docs/superpowers/specs/2026-10-08-go-job-container-forensics-design.md`
   with no OOM kill, while iam was still running (spec D4).
 - [x] Follow every Ryuk container's log during the tests; print and upload
   it on failure. Proven locally: the no-reaper line, and a captured canary.
+- [x] Second occurrence read (run 37731855071): no Ryuk connection from
+  iam was alive when the last other package exited (spec D5).
+- [x] Excluded locally: GC finalizing a dropped handle's connection; iam not
+  connecting.
+- [x] testcontainers' log on in every test binary, pid-prefixed, shown only
+  for a failing package; pinned by `TestTestcontainersLogIsOnWithoutVerbose`
+  (fails without the init).
 - [ ] After the next occurrence: root cause and fix under #963.

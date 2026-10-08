@@ -80,6 +80,36 @@ every `reaper_*` container from the moment it appears, writing to
 `$RUNNER_TEMP/ryuk-<id>.log`. On failure the log is printed, or the explicit
 line "no reaper container was seen", and it is uploaded with the events.
 
+### D5: testcontainers' own log is on in every test binary
+
+The second real occurrence (run 37731855071, on #966) carried Ryuk's log.
+- 22 clients connected over the run, and none lived past 05:23:54, when the
+  last other package (`pkg/events`) exited.
+- Ten seconds later Ryuk pruned, removing 24 containers. iam was still
+  running.
+- Grouped by the time they closed, every connection matches another package.
+  None matches iam, whose only container at that point was its Postgres.
+
+Two causes were tested locally and excluded:
+- **GC finalizing a dropped container's reaper connection:** a dropped
+  `tcnats.Run` handle under 20 forced GCs kept its connection.
+- **iam not connecting at all locally:** run alone, iam holds its connection
+  from its first container until it exits.
+
+What iam's process did about the reaper on the runner is therefore the
+missing record. testcontainers logs it ("Creating container for image
+testcontainers/ryuk", "Reaper obtained from Docker", each container's
+create and start), but its default logger is a no-op unless the binary runs
+with `-v`, and CI does not.
+
+`internal/testinfra` now installs a stderr logger for testcontainers in
+`init`, prefixed `testcontainers[pid=N ppid=M]` with microsecond timestamps,
+so the lines line up with Ryuk's. `go test` prints a package binary's output
+only when that package fails, so a green run prints nothing more. A failing
+iam prints its whole reaper history.
+`TestTestcontainersLogIsOnWithoutVerbose` pins it, and fails with the init
+removed.
+
 ## Not covered
 
 - The fix itself. It waits for the evidence; #963 stays open.

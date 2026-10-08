@@ -157,6 +157,11 @@ Fail closed is unchanged: if the policy cannot be read, hand off.
 
 ## D5 — The policy is mapped to the neutral shape in Go
 
+> **Amended 2026-10-08 (#917).** `requireMfa` (`require_mfa` on the wire) was
+> removed. It came from an unscoped, pre-identification policy read, and no
+> component rendered it. The remaining fields are Helivanta's own constant
+> capabilities. See `2026-10-08-no-unscoped-mfa-hint-design.md`.
+
 `@tesserix/web`'s components consume a provider-neutral `AuthPolicies` object;
 `zitadel.ts` is a pure adapter that maps Zitadel's policy objects onto it.
 Helivanta does that mapping **in Go** and returns the neutral shape from the

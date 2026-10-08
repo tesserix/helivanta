@@ -33,12 +33,11 @@ const (
 )
 
 // registerZitadelPolicyOK registers a forceMfa=false login policy
-// response on mux — GET /v1/auth/login/request/:id (#867 Task 4, spec
-// D5) now reads the login policy on every call, not just Password, so
-// every AuthRequest-driving test's fake Zitadel needs a policy route
-// too, even ones that predate that read and only ever cared about the
-// auth-request shape. Mirrors zitadelHappyPath's own policy fixture
-// (forceMfa omitted, matching what the real dev Zitadel actually sends).
+// response on mux, for fixtures whose login reaches the org-scoped policy
+// read the sufficiency decision makes after the password (LoginPolicyForOrg).
+// The login form's own first call no longer reads a policy at all (#917 —
+// TestAuthRequestReadsNoLoginPolicy), so AuthRequest-only fixtures do not
+// register it. forceMfa is omitted, matching what the real dev Zitadel sends.
 func registerZitadelPolicyOK(mux *http.ServeMux) {
 	mux.HandleFunc("GET /management/v1/policies/login", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"policy":{"passwordCheckLifetime":"864000s"}}`))
@@ -464,7 +463,6 @@ func TestAuthRequestRefusesOverBudget(t *testing.T) {
 	mux.HandleFunc("GET /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"authRequest":{"id":"V2_abc","clientId":"cid-1","redirectUri":"https://hms.test/cb","scope":["openid"]}}`))
 	})
-	registerZitadelPolicyOK(mux)
 	limiter := ratelimit.NewMemory(100)
 	rule := ratelimit.Rule{Rate: 6, Burst: 1, Per: time.Minute}
 	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), nil, limiter, rule, ratelimit.Rule{})
@@ -500,7 +498,6 @@ func TestLoginUIRoutesDoNotShareEachOthersBudget(t *testing.T) {
 	mux.HandleFunc("GET /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"authRequest":{"id":"V2_abc"}}`))
 	})
-	registerZitadelPolicyOK(mux)
 	mux.HandleFunc("POST /v2/sessions", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"message":"user not found","details":[{"id":"QUERY-Dfbg2"}]}`))
@@ -543,7 +540,6 @@ func TestAuthRequestAdmitsWhenLimiterUnavailable(t *testing.T) {
 	mux.HandleFunc("GET /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"authRequest":{"id":"V2_abc"}}`))
 	})
-	registerZitadelPolicyOK(mux)
 	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
 
 	gin.SetMode(gin.TestMode)
@@ -575,7 +571,6 @@ func TestAuthRequest_ReturnsAuthRequestFields(t *testing.T) {
 	mux.HandleFunc("GET /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"authRequest":{"id":"V2_abc","clientId":"cid-1","redirectUri":"https://hms.test/cb","scope":["openid","profile"]}}`))
 	})
-	registerZitadelPolicyOK(mux)
 	client := newZitadelTestClient(t, mux)
 	h := NewLoginUIHandlers(client, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
 
@@ -1075,16 +1070,20 @@ func TestFactorAttemptExpiredTimingIsEqualised(t *testing.T) {
 	}
 }
 
-// TestAuthRequestPoliciesReflectForceMFA pins spec D5's one
-// enforcer-linked field: require_mfa mirrors LoginPolicy.ForceMFA
-// exactly, read the SAME way loginclient's own sufficiency decision
-// reads it.
-func TestAuthRequestPoliciesReflectForceMFA(t *testing.T) {
+// TestAuthRequestReadsNoLoginPolicy pins #917: the login form's first call
+// makes no login-policy read at all, so there is no unscoped read to
+// disagree with what is enforced, and its answer carries no MFA hint —
+// neither require_mfa nor the Zitadel-specific local-only variant. The fake
+// Zitadel's policy route fails the test if it is reached, so the assertion
+// is on the request that was (not) made, not only on the body.
+func TestAuthRequestReadsNoLoginPolicy(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"authRequest":{"id":"V2_abc"}}`))
 	})
-	mux.HandleFunc("GET /management/v1/policies/login", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /management/v1/policies/login", func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("AuthRequest read the login policy (%s %s, x-zitadel-orgid=%q): the pre-credential form has no org to scope it to (#917)",
+			r.Method, r.URL.Path, r.Header.Get("x-zitadel-orgid"))
 		_, _ = w.Write([]byte(`{"policy":{"passwordCheckLifetime":"864000s","forceMfa":true}}`))
 	})
 	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
@@ -1097,41 +1096,10 @@ func TestAuthRequestPoliciesReflectForceMFA(t *testing.T) {
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/v1/auth/login/request/V2_abc", nil))
 
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
-	require.Contains(t, w.Body.String(), `"require_mfa":true`)
-}
-
-// TestAuthRequestDoesNotExposeRequireMFALocalOnly pins spec D5's
-// deliberate omission: even under a policy that sets
-// forceMfaLocalOnly (folded into ForceMFA in Go, per
-// loginclient.LoginPolicy's own doc comment), the response carries NO
-// key spelling out that Zitadel-specific field at all — not merely that
-// it is false. Rendering from a value the enforcer never separately
-// consults is exactly what D5 forbids.
-func TestAuthRequestDoesNotExposeRequireMFALocalOnly(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"authRequest":{"id":"V2_abc"}}`))
-	})
-	mux.HandleFunc("GET /management/v1/policies/login", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"policy":{"passwordCheckLifetime":"864000s","forceMfaLocalOnly":true}}`))
-	})
-	h := NewLoginUIHandlers(newZitadelTestClient(t, mux), nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
-
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.GET("/v1/auth/login/request/:id", h.AuthRequest)
-
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/v1/auth/login/request/V2_abc", nil))
-
-	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
-	// require_mfa still reflects the fold (ForceMFA is true because
-	// forceMfaLocalOnly is true) — this is not a test that MFA became
-	// invisible, only that the SEPARATE, Zitadel-specific key never
-	// crosses the wire.
-	require.Contains(t, w.Body.String(), `"require_mfa":true`)
-	require.NotContains(t, strings.ToLower(w.Body.String()), "requiremfalocalonly")
-	require.NotContains(t, w.Body.String(), "require_mfa_local_only")
+	require.JSONEq(t, `{"id":"V2_abc","client_id":"","redirect_uri":"","scope":null,`+
+		`"policies":{"allow_password":true,"second_factors":["totp"],"ignore_unknown_usernames":false}}`,
+		w.Body.String())
+	require.NotContains(t, strings.ToLower(w.Body.String()), "mfa")
 }
 
 // TestNonNilFactorsNeverReturnsNil pins nonNilFactors directly (#867 fix

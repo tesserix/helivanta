@@ -417,29 +417,6 @@ func TestLoginPolicyForOrgEmptyOrgIDRefusesBeforeAnyRequest(t *testing.T) {
 	}
 }
 
-// TestInstanceLoginPolicyForDisplaySendsNoOrgHeader pins the other half of
-// D3: the display-only read (loginui.go's AuthRequest handler, called
-// before a login name — and therefore an org — is known) must send NO
-// x-zitadel-orgid header at all, not an empty one. r.Header.Values
-// distinguishes "header absent" from "header present with an empty
-// value" the way r.Header.Get alone cannot (Get("x-zitadel-orgid") on an
-// absent header and on one explicitly set to "" both return ""), which is
-// exactly the distinction this test needs to prove do's opts loop is
-// skipped entirely rather than run with a zero-value requestOptions.
-func TestInstanceLoginPolicyForDisplaySendsNoOrgHeader(t *testing.T) {
-	var gotValues []string
-	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		gotValues = r.Header.Values("x-zitadel-orgid")
-		w.Write([]byte(`{"policy":{` + policyAnchor + `,"forceMfa":false}}`))
-	})
-	if _, err := c.InstanceLoginPolicyForDisplay(context.Background()); err != nil {
-		t.Fatalf("InstanceLoginPolicyForDisplay() error = %v", err)
-	}
-	if len(gotValues) != 0 {
-		t.Errorf("x-zitadel-orgid header values = %v, want absent entirely", gotValues)
-	}
-}
-
 // A broken or compromised Zitadel streaming an unbounded 200 response must
 // not be decoded without a size cap (review finding 1). The fake server
 // here writes a well-formed JSON object whose redirectUri field alone is

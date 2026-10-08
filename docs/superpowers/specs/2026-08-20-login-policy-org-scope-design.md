@@ -109,6 +109,12 @@ duplicated in every reader of the session response.
 
 ## D3 — The pre-credential display read is a separate, explicitly named method
 
+> **Superseded 2026-10-08 (#917).** The display read and
+> `InstanceLoginPolicyForDisplay` were deleted. Nothing rendered the hint:
+> `@tesserix/web` never reads `requireMfa`. `loginPolicy` now requires an org
+> id, so an unscoped read is no longer expressible. The archtest below became
+> `TestLoginClientExposesOnlyAnOrgScopedPolicyRead`. See `2026-10-08-no-unscoped-mfa-hint-design.md`.
+
 `loginui.go`'s `AuthRequest` handler (`GET /v1/auth/login/request/:id`) also
 reads the login policy, to tell the form whether to advertise an MFA step
 (spec D5 of the login-client design). That call happens **before the user has
@@ -213,4 +219,5 @@ what the real instance actually sends.
   assumption safe to violate. It adds no org selection, discovery or routing.
 - **#856 and #901.** Same file, separately tracked.
 - **Making the display read org-aware** (D3's residual) — needs a login-form
-  flow change; filed as a follow-up, #917.
+  flow change; filed as a follow-up, #917. **Resolved by #917** by deleting the
+  read instead; see `2026-10-08-no-unscoped-mfa-hint-design.md`.

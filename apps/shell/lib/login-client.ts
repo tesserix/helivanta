@@ -20,20 +20,19 @@ import { ApiError, apiFetch } from "@helivanta/api";
 // and the credential being submitted.
 // authPoliciesInfo is the wire shape of authRequestResponse's `policies`
 // field (backend/internal/modules/iam/loginui.go's authPoliciesResponse,
-// #867 spec D5/D8) — the provider-neutral subset of the org's login
-// policy the form needs to decide, up front, whether to advertise an MFA
-// step. Kept snake_case here, matching the wire, exactly like
+// #867 spec D5/D8): Helivanta's own sign-in capabilities, constants rather
+// than any org's policy. Kept snake_case here, matching the wire, exactly like
 // AuthRequestInfo's other fields; the mapping to @tesserix/web's
 // camelCase AuthMethodPolicy happens once, in page.tsx, right where the
 // component that consumes it lives — this file stays a plain read with
 // no shape-translating logic, per its header comment above.
 //
-// requireMfaLocalOnly has no field here, deliberately: spec D5 explains
-// why the backend folds it into RequireMFA rather than exposing it
-// separately, and this type must not invent a slot the wire never fills.
+// There is no `require_mfa` (#917). It carried an MFA hint read before any
+// user was known — so from no particular org — and nothing rendered it. What
+// follows the password (a code, an enrolment, a password change) is decided
+// by the API on the user's real org, so the form never needs to know ahead.
 export interface AuthPoliciesInfo {
   allow_password: boolean;
-  require_mfa: boolean;
   second_factors: string[];
   ignore_unknown_usernames: boolean;
 }

@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"reflect"
 	"strings"
 	"sync/atomic"
@@ -354,4 +355,55 @@ func stringCost(s string) int {
 		i += size
 	}
 	return n
+}
+
+// Values with no phi tag (#943). The masking path above bounds only tagged
+// values; everything else used to reach slog's JSON handler unbounded, so an
+// untagged shared-reference struct still produced a multi-gigabyte line. The
+// same pre-flight bound now applies to every attribute value slog would
+// render, mirroring how slog's JSON handler renders each kind
+// (log/slog/json_handler.go, appendJSONValue):
+//
+//   - a string is written as a JSON string;
+//   - an error that is not a json.Marshaler is written as its Error() text;
+//   - anything else goes through encoding/json — renderBound's subject.
+//
+// A value within the bound is NOT touched: the handler passes the record
+// through unchanged, so phitag.go's narrowness invariant (an untagged value
+// renders byte-identically to an unwrapped logger) still holds for every
+// value that fits. A value over it is replaced by omitOversize's marker.
+
+// oversizeOmissions counts untagged values omitted because their rendering
+// exceeded the bound. Kept apart from PHIOversizeCount: these are not PHI
+// redactions, they are a code path logging something too large to log.
+var oversizeOmissions atomic.Uint64
+
+// LogValueOversizeCount reports how many untagged attribute values this
+// process has omitted for exceeding the size bound. Same in-process seam as
+// RedactionCount (#679 is unbuilt).
+func LogValueOversizeCount() uint64 { return oversizeOmissions.Load() }
+
+// untaggedOversize reports whether v — a value with no phi tag — would render
+// larger than the bound. A cycle or a failing marshaller is NOT oversize:
+// slog reports those itself, and this path only exists to stop the size.
+func untaggedOversize(v any) bool {
+	if v == nil {
+		return false
+	}
+	if _, isMarshaler := v.(json.Marshaler); !isMarshaler {
+		if err, ok := v.(error); ok {
+			return stringCost(err.Error()) > maxPHIMarshalBytes
+		}
+	}
+	_, _, err := renderBound(v, maxPHIMarshalBytes)
+	return errors.Is(err, errRenderOversize)
+}
+
+// omitOversize is the replacement for an untagged value that is too large to
+// log: a string naming the reason and the Go type, so the omission is visible
+// in the log rather than an unexplained absence. Not "[REDACTED:...]" — this
+// is not PHI masking, and an incident reader should not mistake it for one.
+func omitOversize(t reflect.Type) slog.Value {
+	oversizeOmissions.Add(1)
+	return slog.StringValue("[OMITTED:oversize:" + t.String() + "]")
 }

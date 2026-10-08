@@ -222,7 +222,13 @@ jobs:
       # quietly dropping the control.
       - name: Ensure lsof is present
         run: command -v lsof || (sudo apt-get update && sudo apt-get install -y lsof)
+      # #927: the suite's real foreign-listener case starts a ROOT-owned
+      # listener with `sudo -n` and reads it as this non-root runner user —
+      # the only case that proves `ss` really omits a foreign owner. Without
+      # this it says "n/a" where sudo is unavailable; here it must fail.
       - run: make test-scripts
+        env:
+          PREFLIGHT_TEST_REQUIRE_FOREIGN: "1"
   secrets:
     name: Secret scan
     uses: tesserix/tesserix-workflows/.github/workflows/secret-scan.yml@v2.1.0

@@ -302,6 +302,153 @@ time.sleep(300)
 fi
 
 echo
+echo "a listener this user cannot identify is not free (#927):"
+
+# Every case above has an ATTRIBUTABLE holder or none. The fail-open #927
+# removed lives between them: a listener that exists but cannot be named
+# printed nothing, and nothing read as "free".
+#
+# Stubbed first, so the logic is pinned on every platform. The Linux row is
+# the shape MEASURED from a non-root `ss -H -ltnp` against a root-owned
+# listener: the socket line with no users:((…)) field.
+foreign_row='LISTEN 0      1      127.0.0.1:5432 0.0.0.0:*'
+own_row='LISTEN 0      1      127.0.0.1:5432 0.0.0.0:* users:(("python3",pid=4242,fd=3))'
+linux="$TMP/bin-linux"
+make_shim "$linux" uname 'echo Linux'
+
+unattrib="$TMP/bin-unattrib"
+make_shim "$unattrib" ss "echo '$foreign_row'"
+out=$(PATH="$unattrib:$linux:$PATH" port_holders 5432); status=$?
+assert_status "ss: a row without pid= is status 3" 3 "$status"
+assert_equals "ss: and prints no pid for it" "" "$out"
+
+PATH="$unattrib:$linux:$no_compose:$PATH" port_is_ours 5432
+assert_status "port_is_ours false for a listener nobody can name" 1 "$?"
+
+# docker-proxy runs as root, so OUR OWN published container port is exactly
+# this row on a non-root shell. Re-running `make up` must still pass.
+unattrib_compose="$TMP/bin-unattrib-compose"
+make_shim "$unattrib_compose" docker \
+  "echo '{\"Service\":\"postgres\",\"Publishers\":[{\"PublishedPort\":5432}]}'"
+PATH="$unattrib:$linux:$unattrib_compose:$PATH" port_is_ours 5432
+assert_status "port_is_ours true for it when our compose publishes the port" 0 "$?"
+
+PATH="$unattrib:$linux:$PATH" port_free 5432
+assert_status "port_free false for a listener nobody can name" 1 "$?"
+
+mixed="$TMP/bin-mixed"
+make_shim "$mixed" ss "echo '$own_row'; echo '$foreign_row'"
+out=$(PATH="$mixed:$linux:$PATH" port_holders 5432); status=$?
+assert_status "ss: one named and one unnamed listener is still status 3" 3 "$status"
+assert_equals "ss: and the named pid is still printed" "4242" "$out"
+
+named="$TMP/bin-named"
+make_shim "$named" ss "echo '$own_row'"
+out=$(PATH="$named:$linux:$PATH" port_holders 5432); status=$?
+assert_status "ss: a fully attributed port is status 0" 0 "$status"
+assert_equals "ss: with its pid" "4242" "$out"
+
+emptyss="$TMP/bin-emptyss"
+make_shim "$emptyss" ss 'exit 0'
+PATH="$emptyss:$linux:$PATH" port_free 5432
+assert_status "port_free true when ss lists nothing" 0 "$?"
+
+brokenss="$TMP/bin-brokenss"
+make_shim "$brokenss" ss 'exit 1'
+PATH="$brokenss:$linux:$PATH" port_holders 5432 >/dev/null 2>&1
+assert_status "ss: a failing ss is status 2, not an empty 'free'" 2 "$?"
+PATH="$brokenss:$linux:$PATH" port_free 5432 2>/dev/null
+assert_status "port_free false when ss failed" 1 "$?"
+
+# Darwin: lsof shows a non-root user only their own processes, so netstat is
+# what reveals the listener. The rows are macOS `netstat -an -p tcp` shape;
+# this pins the parsing, it does not run on a Mac (see the spec, D2).
+darwin="$TMP/bin-darwin"
+make_shim "$darwin" uname 'echo Darwin'
+make_shim "$darwin" lsof 'exit 1'
+make_shim "$darwin" netstat 'cat <<NETSTAT
+Active Internet connections (including servers)
+Proto Recv-Q Send-Q  Local Address          Foreign Address        (state)
+tcp4       0      0  127.0.0.1.15432        *.*                    LISTEN
+tcp6       0      0  *.5432                 *.*                    LISTEN
+tcp4       0      0  192.168.1.20.5432      10.0.0.9.61000         ESTABLISHED
+NETSTAT'
+out=$(PATH="$darwin:$PATH" port_holders 5432); status=$?
+assert_status "darwin: a netstat LISTEN with no lsof pid is status 3" 3 "$status"
+assert_equals "darwin: and prints no pid" "" "$out"
+darwin_suffix="$TMP/bin-darwin-suffix"
+make_shim "$darwin_suffix" uname 'echo Darwin'
+make_shim "$darwin_suffix" lsof 'exit 1'
+make_shim "$darwin_suffix" netstat 'echo "tcp4  0  0  127.0.0.1.15432  *.*  LISTEN"'
+PATH="$darwin_suffix:$PATH" port_holders 5432 >/dev/null
+assert_status "darwin: a listener on :15432 is not one on :5432" 0 "$?"
+PATH="$darwin:$PATH" port_holders 61000 >/dev/null
+assert_status "darwin: a non-LISTEN row is not a listener" 0 "$?"
+
+darwin_own="$TMP/bin-darwin-own"
+make_shim "$darwin_own" uname 'echo Darwin'
+make_shim "$darwin_own" lsof 'echo 4242'
+make_shim "$darwin_own" netstat 'echo "tcp4  0  0  127.0.0.1.5432  *.*  LISTEN"'
+out=$(PATH="$darwin_own:$PATH" port_holders 5432); status=$?
+assert_status "darwin: a listener lsof names is status 0" 0 "$status"
+assert_equals "darwin: with its pid" "4242" "$out"
+
+# No netstat at all: a PATH holding exactly the tools port_holders' Darwin
+# branch needs, symlinked (never a system dir — see the no-port-tool case).
+darwin_nonet="$TMP/bin-darwin-nonet"
+mkdir -p "$darwin_nonet"
+for tool in bash env; do
+  ln -s "$(command -v "$tool")" "$darwin_nonet/$tool"
+done
+make_shim "$darwin_nonet" uname 'echo Darwin'
+make_shim "$darwin_nonet" lsof 'exit 1'
+PATH="$darwin_nonet" port_holders 5432 >/dev/null 2>&1
+assert_status "darwin: no netstat is status 2, not an empty 'free'" 2 "$?"
+
+# And for real: a listener owned by ROOT, read by this non-root user. This
+# is what proves the premise — that the platform tool really does omit the
+# owner — rather than trusting the stubbed row above. It needs passwordless
+# sudo and a non-root user. CI sets PREFLIGHT_TEST_REQUIRE_FOREIGN=1 so it
+# fails there instead of quietly saying n/a.
+if [ "$(id -u)" != 0 ] && sudo -n true 2>/dev/null; then
+  root_port=$(free_port)
+  sudo -n python3 -c "
+import socket, sys, time
+s = socket.socket()
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(('127.0.0.1', int(sys.argv[1])))
+s.listen(1)
+time.sleep(60)
+" "$root_port" >/dev/null 2>&1 &
+  sleep 1
+  # Guard the guard: a listener that never started would make "free" the
+  # right answer, and the assertions below would fail for the wrong reason.
+  if ! sudo -n python3 -c "
+import socket, sys
+socket.create_connection(('127.0.0.1', int(sys.argv[1])), 2).close()
+" "$root_port" 2>/dev/null; then
+    t_fail "the root-owned listener fixture did not start"
+  fi
+
+  out=$(port_holders "$root_port"); status=$?
+  assert_status "a real root-owned listener is status 3" 3 "$status"
+  assert_equals "and no pid is visible to this user" "" "$out"
+  PATH="$no_compose:$PATH" port_is_ours "$root_port"
+  assert_status "port_is_ours false for a real root-owned listener" 1 "$?"
+  out=$(env PATH="$good:$PATH" PREFLIGHT_PORTS="$root_port" \
+    bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
+  assert_status "preflight exits 1 on a real root-owned listener" 1 "$status"
+  assert_contains "and says the holder cannot be identified" "$out" \
+    "port $root_port is held by a process this user cannot identify"
+  assert_not_contains "and does not print ok for it" "$out" "ok    port $root_port"
+  sudo -n pkill -f "time.sleep(60)" 2>/dev/null || true
+elif [ "${PREFLIGHT_TEST_REQUIRE_FOREIGN:-0}" = 1 ]; then
+  t_fail "PREFLIGHT_TEST_REQUIRE_FOREIGN=1 but the real foreign-listener case cannot run here (needs a non-root user with passwordless sudo)"
+else
+  echo "  n/a   real foreign-listener case needs a non-root user with passwordless sudo (CI runs it with PREFLIGHT_TEST_REQUIRE_FOREIGN=1)"
+fi
+
+echo
 echo "zitadel secrets dir:"
 
 # The daemon-created, root-owned bind-mount source (#920). Absent and

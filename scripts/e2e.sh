@@ -73,8 +73,17 @@ require_port_up() {
 # belongs to this repo (same ownership test dev-down.sh uses). Refuses,
 # rather than guessing, if a stranger holds the port.
 stop_port_if_ours() {
-  local port=$1 label=$2 pid found=0
-  for pid in $(port_holders "$port"); do
+  local port=$1 label=$2 pid pids rc found=0
+  # errexit-safe capture: status 3 must be handled here, not abort the run.
+  pids=$(port_holders "$port") && rc=0 || rc=$?
+  if [ "$rc" = 3 ]; then
+    # Another user's listener (#927). It is not ours to stop, and an empty
+    # pid list must not be read as "nothing to stop".
+    echo "Refusing to stop $label (:$port) — it is held by a process this user cannot identify (another user's)." >&2
+    exit 1
+  fi
+  [ "$rc" = 0 ] || exit 1
+  for pid in $pids; do
     found=1
     if pid_is_ours "$pid"; then
       kill "$pid" 2>/dev/null || true
@@ -85,13 +94,14 @@ stop_port_if_ours() {
   done
   [ "$found" = 1 ] || return 0
   local waited=0
-  while [ -n "$(port_holders "$port")" ]; do
+  while ! port_free "$port"; do
     waited=$((waited + 1))
     if [ "$waited" -ge 10 ]; then
       local pid
       for pid in $(port_holders "$port"); do
         echo "$label (:$port) would not stop — pid $pid still listening." >&2
       done
+      echo "$label (:$port) is still not free after ${waited}s." >&2
       exit 1
     fi
     sleep 1

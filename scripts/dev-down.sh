@@ -35,7 +35,14 @@ echo "Stopping app processes…"
 killed=0
 skipped=0
 for port in "${APP_PORTS[@]}"; do
-  for pid in $(port_holders "$port"); do
+  # errexit-safe capture; status 3 is a listener this user cannot name
+  # (#927) — another user's, so it is skipped, never reported as free.
+  pids=$(port_holders "$port") && rc=0 || rc=$?
+  if [ "$rc" = 3 ]; then
+    skipped=$((skipped + 1))
+    printf '  SKIPPED  port %s — held by a process this user cannot identify (another user'"'"'s)\n' "$port"
+  fi
+  for pid in $pids; do
     cwd=$(cwd_of "$pid")
     if pid_is_ours "$pid"; then
       kill "$pid" 2>/dev/null && killed=$((killed + 1))
@@ -62,7 +69,7 @@ fi
 
 still_up=()
 for port in "${APP_PORTS[@]}"; do
-  [ -n "$(port_holders "$port")" ] && still_up+=("$port")
+  port_free "$port" || still_up+=("$port")
 done
 
 echo

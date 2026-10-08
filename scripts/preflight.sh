@@ -373,16 +373,38 @@ check_ports() {
   # thing. check_port_tool above already recorded the real cause.
   have_port_tool || return 0
 
-  local port holder
+  local port holder rc
   for port in $PREFLIGHT_PORTS; do
     if port_is_ours "$port"; then
       ok "port $port"
-    else
-      holder=$(port_holders "$port" | head -1)
+      continue
+    fi
+    holder=$(port_holders "$port" 2>/dev/null) && rc=0 || rc=$?
+    holder=$(printf '%s\n' "$holder" | head -1)
+    if [ "$rc" = 3 ]; then
+      # A listener this user cannot name (#927), possibly beside one it can.
+      # The old message rendered it as "pid unknown (unknown)", which reads
+      # like a bug in this script rather than what it is: another user's
+      # process holding the port.
       fail "port $port" \
-        "port $port held by pid ${holder:-unknown} ($(ps -p "${holder:-0}" -o comm= 2>/dev/null || echo unknown)) — stop it, or 'make down' if it is a stale Helivanta process"
+        "port $port is held by a process this user cannot identify — it belongs to another user (a system Postgres or other root-owned service, typically). $(who_holds_hint "$port") names it. Stop it, or move Helivanta off the port with the matching HELIVANTA_*_PORT in .env"
+    elif [ -z "$holder" ]; then
+      fail "port $port" \
+        "port $port could not be checked: $(port_tool) gave no answer for it, so preflight will not call it free"
+    else
+      fail "port $port" \
+        "port $port held by pid $holder ($(ps -p "$holder" -o comm= 2>/dev/null || echo unknown)) — stop it, or 'make down' if it is a stale Helivanta process"
     fi
   done
+}
+
+# who_holds_hint PORT — the root command that names a listener this user
+# cannot see, on this platform.
+who_holds_hint() {
+  case "$(port_tool)" in
+    ss) echo "'sudo ss -ltnp \"sport = :$1\"'" ;;
+    *)  echo "'sudo lsof -nP -iTCP:$1 -sTCP:LISTEN'" ;;
+  esac
 }
 
 main() {

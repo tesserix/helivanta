@@ -64,15 +64,10 @@ pid_is_ours() {
 # no `ss`, and its lsof does not have the bug, so lsof is the correct tool
 # there rather than a degraded one.
 #
-# `ss` is not fail-closed in every direction, and the remaining hole is
-# tracked as #927: run as a non-root user, `ss -ltnp` prints the socket line
-# for a FOREIGN process but omits its `users:((…pid=…))` field, so the grep
-# below finds no pid and port_holders answers empty — which port_is_ours then
-# reads as "free". A root-owned Postgres squatting on 5432 therefore still
-# gets an `ok` from preflight. That is pre-existing (lsof behaved the same
-# way), but `ss` can distinguish "no listener at all" from "a listener I
-# cannot attribute", which is what #714 actually wanted; #927 is where that
-# distinction gets made.
+# Neither tool can always NAME a listener: run as a non-root user, `ss`
+# prints a foreign process's socket row without its `users:((…pid=…))`
+# field, and macOS lsof does not list another user's processes at all. That
+# case is not "free" — port_holders reports it as exit status 3 (#927).
 port_tool() {
   case "$(uname -s)" in
     Darwin) echo lsof ;;
@@ -98,22 +93,75 @@ require_port_tool() {
 
 # port_holders PORT — PIDs listening on the port, one per line.
 #
-# Returns 2, loudly, when the platform's tool is missing rather than
-# printing nothing: "nothing" is indistinguishable from "the port is free",
-# and that is the exact fail-open shape above.
+# stdout is only ever pids. What stdout cannot say is in the exit status,
+# because an empty stdout means two different things and every caller used
+# to read it as the harmless one:
+#
+#   0  every listener was attributed (no listener at all is also 0)
+#   2  no answer: the platform's tool is missing or failed
+#   3  at least one listener could NOT be attributed to a pid — it belongs
+#      to another user (#927). Any pids that could be seen are still printed.
+#
+# 2 and 3 exist so that "I cannot tell" is never spelled the same as "the
+# port is free": that is the exact fail-open shape described above, and a
+# placeholder pid in stdout instead would reach `kill` and `ps -p` as a type
+# error. Callers asking "is it free?" use port_free, not an empty-test.
 port_holders() {
   if ! have_port_tool; then
     echo "port_holders: $(port_tool) is not installed — refusing to answer 'nobody holds :$1', which is what an empty result would mean." >&2
     return 2
   fi
+  local rows pids
   if [ "$(port_tool)" = ss ]; then
     # -H drops the header; the sport filter is ss's own, so no port-number
-    # substring can match by accident (":4301" vs ":14301").
-    ss -H -ltnp "sport = :$1" 2>/dev/null \
-      | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u
-  else
-    lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null
+    # substring can match by accident (":4301" vs ":14301"). A failing ss is
+    # status 2: discarding its status used to make a crash read as "free".
+    if ! rows=$(ss -H -ltnp "sport = :$1" 2>/dev/null); then
+      echo "port_holders: ss failed for :$1 — refusing to answer 'nobody holds it'." >&2
+      return 2
+    fi
+    printf '%s\n' "$rows" | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u
+    # A row with no pid= is a listener this user cannot see into (measured:
+    # a non-root ss omits users:((…)) for another user's socket).
+    if printf '%s\n' "$rows" | grep -v 'pid=' | grep -q .; then
+      return 3
+    fi
+    return 0
   fi
+  # Darwin. lsof shows a non-root user only their OWN processes, so it can
+  # never reveal a foreign listener. netstat lists every listening socket on
+  # the machine, without an owner, and ships with macOS: a LISTEN socket on
+  # the port that lsof cannot attribute is status 3. The address column ends
+  # in ".PORT" (`*.5432`, `127.0.0.1.5432`, `::1.5432`); anchoring on the dot
+  # keeps :15432 from matching :5432.
+  if ! command -v netstat >/dev/null 2>&1; then
+    echo "port_holders: netstat is not installed — without it a listener owned by another user is invisible on $(uname -s), so refusing to answer for :$1." >&2
+    return 2
+  fi
+  if ! rows=$(netstat -an -p tcp 2>/dev/null); then
+    echo "port_holders: netstat failed for :$1 — refusing to answer 'nobody holds it'." >&2
+    return 2
+  fi
+  pids=$(lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null)
+  [ -n "$pids" ] && printf '%s\n' "$pids"
+  # Residual, stated in the #927 spec (D2): with one of OUR listeners on the
+  # port, a second foreign one on a more specific address is not reported.
+  if [ -z "$pids" ] && printf '%s\n' "$rows" |
+    awk -v port="$1" '$NF == "LISTEN" && substr($4, length($4) - length(port)) == "." port { found = 1 } END { exit !found }'; then
+    return 3
+  fi
+  return 0
+}
+
+# port_free PORT — true only when nothing at all listens on the port.
+#
+# THE definition of free. Testing port_holders' stdout for emptiness reads
+# status 2 (cannot tell) and status 3 (a listener this user cannot name) as
+# free, which is the fail-open #927 removed.
+port_free() {
+  local pids rc
+  pids=$(port_holders "$1") && rc=0 || rc=$?
+  [ "$rc" = 0 ] && [ -z "$pids" ]
 }
 
 # compose_owns_port PORT — true when our compose project publishes the port.
@@ -129,23 +177,22 @@ compose_owns_port() {
 
 # port_is_ours PORT — true when free, or held only by our processes or our
 # containers.
-#
-# ERREXIT INVARIANT, stated because it is otherwise unwritten: the assignment
-# below is not `set -e` safe. lsof exits 1 for a free port, so under `set -e`
-# `pids=$(port_holders …)` would abort the caller on the most ordinary answer
-# there is. Its only current caller is preflight.sh, which runs
-# `set -uo pipefail` WITHOUT -e. A future caller with errexit on must either
-# keep it out of a bare assignment (`pids=$(port_holders "$p") || true` loses
-# rc 2, so prefer `if ! pids=$(…); then`) or this function needs rewriting.
 port_is_ours() {
   local pid pids rc
-  pids=$(port_holders "$1"); rc=$?
-  # Only rc 2 — "the tool is missing" — is an error. lsof exits 1 when it
-  # simply finds no match, which is the ordinary "this port is free" answer
-  # and must NOT be read as a failure. Distinguishing them is the whole
-  # point: a missing tool answers "not ours" so preflight fails closed,
-  # rather than printing `ok port 5432` for a port it cannot see into at all.
+  # errexit-safe: status 3 is an ordinary answer, not a failure to abort on.
+  pids=$(port_holders "$1") && rc=0 || rc=$?
+  # Status 2 — no answer — is "not ours", so preflight fails closed rather
+  # than printing `ok port 5432` for a port it cannot see into at all.
   [ "$rc" = 2 ] && return 1
+  # Status 3: a listener this user cannot name is NOT ours — unless our
+  # compose project publishes the port. That exception is load-bearing: a
+  # published container port is held by the Docker daemon's docker-proxy,
+  # which runs as root, so on a non-root Linux shell OUR OWN Postgres is
+  # exactly such a listener. Without it, re-running `make up` would refuse a
+  # healthy stack (#927).
+  if [ "$rc" = 3 ] && ! compose_owns_port "$1"; then
+    return 1
+  fi
   for pid in $pids; do
     pid_is_ours "$pid" && continue
     compose_owns_port "$1" && continue

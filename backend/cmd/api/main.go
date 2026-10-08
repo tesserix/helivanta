@@ -286,10 +286,11 @@ func run() error {
 	// log.New(gin.DefaultErrorWriter, ...) rather than using log.Default(),
 	// so slog.SetDefault's redirection of the standard library's log package
 	// never reaches it, and a handler panic writes straight to os.Stderr with
-	// whatever identifier triggered it still in the clear. This package's
-	// thesis is that everything the process emits is screened, so this is
-	// the one place gin's own writer has to be wrapped explicitly to keep
-	// that true.
+	// whatever identifier triggered it still in the clear. Everything the
+	// process emits is screened for PHI, so this is the one place gin's own
+	// writer has to be wrapped explicitly to keep that true. PHI, not
+	// secrets: the redactor does not detect key material, tokens or passwords
+	// (#840, pkg/logging's package doc).
 	gin.DefaultErrorWriter = logging.NewRedactingWriter(gin.DefaultErrorWriter)
 
 	// cfg.TrustedProxyCIDRs (#867 Task 4 fix round 3, Finding C1): empty

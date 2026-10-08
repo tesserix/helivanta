@@ -134,8 +134,8 @@ func TestNewRedactsEveryRenderingSlogProduces(t *testing.T) {
 		{"map of pointers", func(l *slog.Logger) {
 			l.Info("m", "k", map[string]*string{"a": &phone})
 		}},
-		{"float64", func(l *slog.Logger) { l.Info("m", "aadhaar", float64(123456789012)) }},
-		{"int64", func(l *slog.Logger) { l.Info("m", "aadhaar", int64(123456789012)) }},
+		{"float64", func(l *slog.Logger) { l.Info("m", "aadhaar", float64(234567890124)) }},
+		{"int64", func(l *slog.Logger) { l.Info("m", "aadhaar", int64(234567890124)) }},
 		{"wrapped error", func(l *slog.Logger) {
 			l.Error("m", "err", fmt.Errorf("saving: %w", errors.New("dup mobile "+phone)))
 		}},
@@ -150,7 +150,7 @@ func TestNewRedactsEveryRenderingSlogProduces(t *testing.T) {
 		}},
 		{"numeric marshaller", func(l *slog.Logger) { l.Info("m", "k", big.NewInt(9876543210)) }},
 		{"group", func(l *slog.Logger) {
-			l.Info("m", slog.Group("g", slog.String("a", "123456789012")))
+			l.Info("m", slog.Group("g", slog.String("a", "234567890124")))
 		}},
 		{"message text", func(l *slog.Logger) { l.Info("lookup failed for " + phone) }},
 	} {
@@ -158,7 +158,7 @@ func TestNewRedactsEveryRenderingSlogProduces(t *testing.T) {
 			var buf bytes.Buffer
 			tc.emit(logging.NewWithWriter(&buf, "info"))
 			require.NotContains(t, buf.String(), phone, "raw: %s", buf.String())
-			require.NotContains(t, buf.String(), "123456789012", "raw: %s", buf.String())
+			require.NotContains(t, buf.String(), "234567890124", "raw: %s", buf.String())
 			require.Contains(t, buf.String(), "[REDACTED:", "raw: %s", buf.String())
 			var parsed map[string]any
 			require.NoError(t, json.Unmarshal(buf.Bytes(), &parsed),

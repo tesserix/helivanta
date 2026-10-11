@@ -77,39 +77,9 @@ func NewVerifier(key ed25519.PublicKey, kid, issuer string) (*Verifier, error) {
 // instead asked the keyfunc "what key matches the alg this token
 // claims" would hand an attacker exactly the confusion this closes.
 func (v *Verifier) Verify(raw string) (Claims, error) {
-	var claims tokenClaims
-	token, err := jwt.ParseWithClaims(raw, &claims, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodEd25519); !ok {
-			return nil, fmt.Errorf("%w: unexpected signing method %v", ErrInvalidToken, t.Header["alg"])
-		}
-		kid, _ := t.Header["kid"].(string)
-		if kid != v.kid {
-			return nil, fmt.Errorf("%w: unknown key id %q", ErrInvalidToken, kid)
-		}
-		return v.key, nil
-	},
-		jwt.WithValidMethods([]string{jwt.SigningMethodEdDSA.Alg()}),
-		jwt.WithIssuer(v.issuer),
-		jwt.WithExpirationRequired(),
-		jwt.WithIssuedAt(),
-	)
+	claims, err := v.parse(raw, true)
 	if err != nil {
-		return Claims{}, fmt.Errorf("%w: %v", ErrInvalidToken, err)
-	}
-	if !token.Valid {
-		return Claims{}, ErrInvalidToken
-	}
-	if claims.Subject == "" || claims.TenantID == "" {
-		return Claims{}, fmt.Errorf("%w: missing subject or tenant_id", ErrInvalidToken)
-	}
-	// Fail closed on a missing idle_deadline (spec D2/D3, #848): a
-	// token minted before this claim existed must be refused, not
-	// treated as "no idle limit" — that would be a class of session
-	// this control can never reach. The cost, accepted deliberately,
-	// is that every session minted before this deploys is invalidated
-	// and everyone signs in once.
-	if claims.IdleDeadline == 0 {
-		return Claims{}, fmt.Errorf("%w: missing idle_deadline", ErrInvalidToken)
+		return Claims{}, err
 	}
 
 	var issuedAt, expiresAt time.Time
@@ -129,4 +99,114 @@ func (v *Verifier) Verify(raw string) (Claims, error) {
 		ExpiresAt:    expiresAt,
 		Issuer:       claims.Issuer,
 	}, nil
+}
+
+// RenewalEvidence is what an EXPIRED session cookie may still tell the
+// login exchange (#859): who it belonged to, when they last authenticated,
+// and the idle deadline that browser was running against. Nothing else.
+//
+// It is deliberately NOT Claims and carries no tenant: authn.Principal
+// cannot be built without one, so evidence read past exp cannot be turned
+// into an authenticated request by a careless caller. internal/archtest
+// pins every caller of Verifier.RenewalEvidence to an allowlist that holds
+// only the login exchange (TestRenewalEvidenceIsOnlyReadByTheLoginExchange).
+type RenewalEvidence struct {
+	Subject      string
+	AuthTime     time.Time
+	IdleDeadline time.Time
+}
+
+// RenewalEvidence reads raw for the login exchange's idle-deadline decision
+// (iam.LoginHandlers.idleDeadlineFor) WITHOUT refusing it for being
+// expired. It is not an authentication check and must never be used as
+// one; Verify is.
+//
+// Every other check Verify applies still applies, through the same code
+// path: EdDSA only, this Verifier's kid, a valid signature, this issuer,
+// exp and iat PRESENT (only their values are not judged), and sub,
+// tenant_id and idle_deadline present. A token that is forged, from
+// another issuer, or malformed is refused exactly as Verify refuses it.
+//
+// Why reading past exp is safe here, and why there is no bound on how far
+// past (design spec D4, docs/superpowers/specs/2026-10-12-expired-cookie-
+// keeps-idle-deadline-design.md): the caller only ever CARRIES this
+// deadline forward, and a carried deadline can only keep or shorten the
+// window a fresh login would open — every deadline Helivanta writes is
+// now + IdleTimeout. An old token therefore never grants more than a fresh
+// login would, while a bound would hand every token older than it a fresh
+// window and reopen the exact hole #859 closes. The signature, which this
+// still checks, is what stops a forged deadline.
+func (v *Verifier) RenewalEvidence(raw string) (RenewalEvidence, error) {
+	claims, err := v.parse(raw, false)
+	if err != nil {
+		return RenewalEvidence{}, err
+	}
+	return RenewalEvidence{
+		Subject:      claims.Subject,
+		AuthTime:     time.Unix(claims.AuthTime, 0).UTC(),
+		IdleDeadline: time.Unix(claims.IdleDeadline, 0).UTC(),
+	}, nil
+}
+
+// parse is the ONE implementation of "is this a genuine Helivanta session
+// token", shared by Verify and RenewalEvidence so the two cannot drift.
+// checkExpiry is the only difference between them: Verify judges exp and
+// iat; RenewalEvidence requires both to be present but does not judge
+// their values.
+func (v *Verifier) parse(raw string, checkExpiry bool) (tokenClaims, error) {
+	opts := []jwt.ParserOption{
+		jwt.WithValidMethods([]string{jwt.SigningMethodEdDSA.Alg()}),
+		jwt.WithIssuer(v.issuer),
+		jwt.WithExpirationRequired(),
+		jwt.WithIssuedAt(),
+	}
+	if !checkExpiry {
+		// WithoutClaimsValidation turns off EVERY registered-claim check,
+		// issuer included, not just exp. The issuer and the presence of
+		// exp/iat are therefore re-checked by hand below rather than
+		// silently dropped with the rest.
+		opts = []jwt.ParserOption{
+			jwt.WithValidMethods([]string{jwt.SigningMethodEdDSA.Alg()}),
+			jwt.WithoutClaimsValidation(),
+		}
+	}
+
+	var claims tokenClaims
+	token, err := jwt.ParseWithClaims(raw, &claims, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodEd25519); !ok {
+			return nil, fmt.Errorf("%w: unexpected signing method %v", ErrInvalidToken, t.Header["alg"])
+		}
+		kid, _ := t.Header["kid"].(string)
+		if kid != v.kid {
+			return nil, fmt.Errorf("%w: unknown key id %q", ErrInvalidToken, kid)
+		}
+		return v.key, nil
+	}, opts...)
+	if err != nil {
+		return tokenClaims{}, fmt.Errorf("%w: %v", ErrInvalidToken, err)
+	}
+	if !token.Valid {
+		return tokenClaims{}, ErrInvalidToken
+	}
+	if !checkExpiry {
+		if claims.Issuer != v.issuer {
+			return tokenClaims{}, fmt.Errorf("%w: unexpected issuer %q", ErrInvalidToken, claims.Issuer)
+		}
+		if claims.ExpiresAt == nil || claims.IssuedAt == nil {
+			return tokenClaims{}, fmt.Errorf("%w: missing exp or iat", ErrInvalidToken)
+		}
+	}
+	if claims.Subject == "" || claims.TenantID == "" {
+		return tokenClaims{}, fmt.Errorf("%w: missing subject or tenant_id", ErrInvalidToken)
+	}
+	// Fail closed on a missing idle_deadline (spec D2/D3, #848): a
+	// token minted before this claim existed must be refused, not
+	// treated as "no idle limit" — that would be a class of session
+	// this control can never reach. The cost, accepted deliberately,
+	// is that every session minted before this deploys is invalidated
+	// and everyone signs in once.
+	if claims.IdleDeadline == 0 {
+		return tokenClaims{}, fmt.Errorf("%w: missing idle_deadline", ErrInvalidToken)
+	}
+	return claims, nil
 }

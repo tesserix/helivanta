@@ -460,15 +460,17 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 // case 3 above, on the strength of their new Zitadel authentication,
 // which is the fact that actually means "someone is here".
 //
-// NOT COVERED BY THIS SLICE, tracked as #859: a cookie whose `exp` has
-// lapsed (a machine that stopped renewing for longer than SessionTTL and
-// was later woken) fails h.sessions.Verify, so its deadline cannot be
-// read at all and the request takes case 1 — a fresh window on what may
-// be an exchange no human stood behind. Closing it needs a
-// pkg/session accessor that surfaces a deadline from a token the
-// Verifier refuses, structurally unusable as an authentication result;
-// that is a design decision rather than a patch, which is why it is a
-// separate issue and not a TODO here.
+// AN EXPIRED COOKIE STILL DECIDES (#859). A machine that stopped renewing
+// for longer than SessionTTL (suspended, asleep) holds a cookie whose exp
+// has lapsed. Verify refuses it, so an earlier version read nothing,
+// took case 1, and handed a woken machine a fresh window with no human
+// present. The cookie is therefore read with session.Verifier.
+// RenewalEvidence, which judges everything Verify judges except expiry
+// and returns no tenant, so it cannot become an authentication result;
+// internal/archtest pins this file as its only caller. A woken machine
+// carries its old, lapsed deadline and authn.Middleware refuses the
+// re-minted session; whoever then signs in does so with a new Zitadel
+// authentication and gets a fresh window through case 3.
 func (h *LoginHandlers) idleDeadlineFor(c *gin.Context, principal authn.Principal, now time.Time) time.Time {
 	fresh := now.Add(h.idleTimeout)
 
@@ -476,7 +478,8 @@ func (h *LoginHandlers) idleDeadlineFor(c *gin.Context, principal authn.Principa
 	if err != nil || raw == "" {
 		return fresh
 	}
-	claims, err := h.sessions.Verify(raw)
+	// RenewalEvidence, not Verify — see this function's doc comment, #859.
+	claims, err := h.sessions.RenewalEvidence(raw)
 	if err != nil {
 		// Not logged at error level and never surfaced to the caller: an
 		// unverifiable cookie on a login request is ordinary (a session

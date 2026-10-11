@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/helivanta/internal/config"
@@ -484,6 +485,9 @@ type loginEnv struct {
 	r        *gin.Engine
 	signer   *session.Signer
 	verifier *session.Verifier
+	// priv is the signer's key, kept so a test can sign a token Signer.Mint
+	// refuses to produce: one whose exp has already passed (#859).
+	priv     ed25519.PrivateKey
 	roles    *fakeRoleListerLogin
 	authTime time.Time
 	// zitadelAuthTime is what the fake Zitadel verifier reports;
@@ -541,7 +545,7 @@ func newLoginEnv(t *testing.T) *loginEnv {
 	r.POST("/v1/auth/login", h.Login)
 
 	return &loginEnv{
-		cfg: cfg, r: r, signer: signer, verifier: verifier, roles: roles,
+		cfg: cfg, r: r, signer: signer, verifier: verifier, priv: priv, roles: roles,
 		authTime: authTime, zitadelAuthTime: &zitadelAuthTime, clock: &clock,
 	}
 }
@@ -740,4 +744,81 @@ func sessionCookies(w *httptest.ResponseRecorder) []*http.Cookie {
 		}
 	}
 	return out
+}
+
+// mintExpired signs a genuine session token — this env's key, kid and
+// issuer — whose exp passed an hour ago: the cookie a machine still holds
+// after sleeping longer than SESSION_TTL (#859). Signer.Mint always stamps
+// exp in the future, so the token is built by hand, the same way
+// pkg/session's own tests build shapes Mint refuses.
+func (e *loginEnv) mintExpired(t *testing.T, subject string, authTime, idleDeadline time.Time) string {
+	t.Helper()
+	issued := time.Now().Add(-2 * time.Hour).UTC()
+	claims := jwt.MapClaims{
+		"sub":           subject,
+		"tenant_id":     tenantA,
+		"auth_time":     authTime.Unix(),
+		"idle_deadline": idleDeadline.Unix(),
+		"iss":           loginTestIssuer,
+		"iat":           jwt.NewNumericDate(issued),
+		"exp":           jwt.NewNumericDate(issued.Add(loginTestTTL)),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
+	token.Header["kid"] = loginTestKID
+	signed, err := token.SignedString(e.priv)
+	require.NoError(t, err)
+	_, err = e.verifier.Verify(signed)
+	require.ErrorIs(t, err, session.ErrInvalidToken, "precondition: the cookie must be one Verify refuses as expired")
+	return signed
+}
+
+// TestWakeFromSuspendDoesNotEarnAFreshIdleWindow is #859, the sequence the
+// issue describes: a session is minted, the machine sleeps longer than
+// SESSION_TTL so the cookie's exp lapses, and on waking the shell silently
+// re-authorises against the still-live Zitadel SSO session — which returns
+// the ORIGINAL auth_time. No human authenticated, so the re-minted session
+// must carry the old deadline (here long lapsed, so authn.Middleware will
+// refuse it), never a fresh window.
+//
+// Observed failing against the code before #859: Verify refused the
+// expired cookie, idleDeadlineFor took the no-cookie branch, and the
+// session got now + IdleTimeout.
+func TestWakeFromSuspendDoesNotEarnAFreshIdleWindow(t *testing.T) {
+	env := newLoginEnv(t)
+	lapsed := time.Now().Add(-90 * time.Minute).UTC().Truncate(time.Second)
+	asleep := env.mintExpired(t, "user-1", env.authTime, lapsed)
+
+	woken := env.renewWith(t, asleep)
+	got := env.deadlineOf(t, woken)
+	require.True(t, got.Equal(lapsed),
+		"a woken machine's silent re-authorisation earned a new idle deadline (got %v, want the carried %v): "+
+			"nobody authenticated, so the bystander who woke it would get a fresh 15 minutes", got, lapsed)
+	require.True(t, got.Before(*env.clock), "precondition: the re-minted session must still be idle-expired")
+}
+
+// The other side of the test above, and what keeps it from being a lockout:
+// a human who actually signs in on the woken machine — a NEW Zitadel
+// authentication, so a strictly later auth_time — gets a full window even
+// though the browser still holds the expired cookie.
+func TestGenuineSignInAfterWakeFromSuspendGetsAFreshWindow(t *testing.T) {
+	env := newLoginEnv(t)
+	lapsed := time.Now().Add(-90 * time.Minute).UTC().Truncate(time.Second)
+	asleep := env.mintExpired(t, "user-1", env.authTime, lapsed)
+
+	env.reauthenticate(env.authTime.Add(3 * time.Hour))
+	signedIn := env.renewWith(t, asleep)
+	require.WithinDuration(t, env.freshWindow(), env.deadlineOf(t, signedIn), 30*time.Second,
+		"a human who authenticated again after waking must get a full idle window")
+}
+
+// The next person at the terminal, whose predecessor's cookie expired while
+// it slept, gets their own window — never the predecessor's lapsed one.
+func TestExpiredCookieOfADifferentSubjectDoesNotDecideTheWindow(t *testing.T) {
+	env := newLoginEnv(t)
+	lapsed := time.Now().Add(-90 * time.Minute).UTC().Truncate(time.Second)
+	predecessors := env.mintExpired(t, "user-2", env.authTime, lapsed)
+
+	tok := env.renewWith(t, predecessors)
+	require.WithinDuration(t, env.freshWindow(), env.deadlineOf(t, tok), 30*time.Second,
+		"a different person signing in must not inherit a stranger's lapsed deadline")
 }

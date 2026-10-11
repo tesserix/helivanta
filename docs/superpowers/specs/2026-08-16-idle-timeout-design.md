@@ -98,15 +98,14 @@ accepts a past deadline. Someone genuinely signing back in after a timeout is
 covered by the `auth_time` case, on the strength of the new authentication
 rather than the absence of a cookie.
 
-**Not covered — [#859](https://github.com/tesserix/helivanta/issues/859):** a cookie
-whose `exp` has lapsed (a machine that stopped renewing for longer than
-`SESSION_TTL` and was later woken) fails verification outright, so the deadline
-cannot be read and the request takes the fresh-window branch — a fresh window
-with no human having authenticated, which is this issue's own scenario rather
-than an edge case. Closing it needs a `pkg/session` accessor that can surface a
-deadline from a token the verifier refuses, structurally unusable as an
-authentication result; that is a design decision, not a patch, hence its own
-issue.
+**Closed by [#859](https://github.com/tesserix/helivanta/issues/859), 2026-10-12.**
+A cookie whose `exp` has lapsed (a machine that stopped renewing for longer than
+`SESSION_TTL` and was later woken) used to fail verification outright, so the
+request took the fresh-window branch with no human having authenticated. The
+login exchange now reads the cookie with `session.Verifier.RenewalEvidence`,
+which checks everything `Verify` checks except expiry and returns no tenant, so
+it cannot authenticate a request. An arch test pins the login exchange as its
+only caller. See `2026-10-12-expired-cookie-keeps-idle-deadline-design.md`.
 
 ## D4 — Activity is a deliberate signal, debounced, and shared across tabs
 

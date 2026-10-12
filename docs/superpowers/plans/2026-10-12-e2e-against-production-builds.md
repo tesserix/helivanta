@@ -32,7 +32,7 @@ Spec: `docs/superpowers/specs/2026-10-12-e2e-against-production-builds-design.md
 - [x] Repeat smoke and journey against the production stack locally.
 - [x] Full `make e2e` green locally; tree clean afterwards.
 - [x] Dev stack restored when present, not started when absent.
-- [ ] CI green.
+- [x] CI green.
 
 ## Gates
 

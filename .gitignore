@@ -22,3 +22,6 @@ dev/zitadel/secrets/
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 graft/
+
+# e2e production web builds (scripts/e2e-web.sh, #976)
+/.e2e-web/

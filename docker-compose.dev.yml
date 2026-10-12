@@ -313,6 +313,23 @@ services:
       zitadel:
         condition: service_started
 
+  # e2e ingress (#976): routes /api/v1, the zones and the shell the way
+  # production's Istio VirtualService does, instead of through the shell's
+  # next.config rewrites. Only `make e2e` starts it (profile "e2e"); it binds
+  # the ports each e2e stack's Zitadel redirect URI uses. See
+  # dev/e2e/Caddyfile for the routing and its keepalive rule.
+  e2e-ingress:
+    image: caddy:2-alpine
+    profiles: ["e2e"]
+    ports:
+      - "4301:4301"
+      - "4398:4398"
+      - "4399:4399"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./dev/e2e/Caddyfile:/etc/caddy/Caddyfile:ro
+
 volumes:
   pgdata:
   natsdata:

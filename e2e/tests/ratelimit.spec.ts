@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readStoredIdToken } from "./support/stored-session";
 import { login } from "./support/login";
 
 // #841: the login-exchange limiter must actually refuse, and the client
@@ -63,15 +64,12 @@ test("draining the login budget is refused with a Retry-After that is honest", a
   await login(page);
   await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
 
-  // window.__hmsUserManager (apps/shell/lib/oidc.ts, dev/test builds only)
+  // readStoredIdToken (support/stored-session.ts, #976 — replaced the
+  // dev-only window.__hmsUserManager hook production builds never expose)
   // is the same technique e2e/tests/signout.spec.ts uses to get at the raw
   // id_token oidc-client-ts holds in sessionStorage — there is no bundler
   // inside page.evaluate to import getUserManager() through directly.
-  await page.waitForFunction(() => Boolean(window.__hmsUserManager));
-  const idToken = await page.evaluate(async () => {
-    const user = await window.__hmsUserManager!.getUser();
-    return user?.id_token ?? null;
-  });
+  const idToken = await readStoredIdToken(page);
   expect(idToken, "precondition: a live Zitadel ID token was captured after login").toBeTruthy();
 
   const flood = await page.evaluate(

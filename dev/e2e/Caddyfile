@@ -1,0 +1,97 @@
+# e2e ingress (#976, design spec
+# docs/superpowers/specs/2026-10-12-e2e-against-production-builds-design.md D5).
+#
+# Routes the way production's Istio VirtualService does
+# (tesserix-k8s/charts/apps/helivanta-istio/templates/virtualservice.yaml),
+# NOT through the shell's next.config rewrites: production deliberately
+# bypasses those, and the shell -> zone hop through Next's rewrite proxy is
+# exactly where #976's resets happened. Narrowest first, as there:
+#
+#   /api/auth/*  -> shell   (reservedPrefixes: Next route handlers)
+#   /api/v1/*    -> API, rewritten to /v1/*   (matchPrefix / rewritePrefix)
+#   /medicore*, /pharmacy*, /lab*  -> their zone, directly
+#                (where the VirtualService's notes say zone routes go,
+#                 ahead of the catch-all, once zones deploy)
+#   everything else -> shell
+#
+# keepalive 4s, upstream: Node's HTTP server closes an idle keep-alive
+# connection after 5s (server.keepAliveTimeout, the default the standalone
+# server keeps). A proxy that holds idle upstream connections LONGER than the
+# upstream does will, at the boundary, reuse one the server has just closed
+# and get a reset — #976's ECONNRESET, reproduced against production builds.
+# Closing ours first makes that race impossible rather than unlikely.
+#
+# Three sites, one per e2e stack: each listens where its Zitadel app's
+# redirect URI points and routes to its own shell and API (scripts/e2e-web.sh
+# documents the ports). Upstreams are processes on the host, reached through
+# host.docker.internal (mapped to the host gateway in docker-compose.dev.yml).
+{
+	auto_https off
+	admin off
+}
+
+(stack) {
+	@auth path /api/auth/*
+	handle @auth {
+		reverse_proxy host.docker.internal:{args[0]} {
+			transport http {
+				keepalive 4s
+			}
+		}
+	}
+	@apiv1 path /api/v1/*
+	handle @apiv1 {
+		uri strip_prefix /api
+		reverse_proxy host.docker.internal:{args[1]} {
+			transport http {
+				keepalive 4s
+			}
+		}
+	}
+	@medicore path /medicore /medicore/*
+	handle @medicore {
+		reverse_proxy host.docker.internal:4302 {
+			transport http {
+				keepalive 4s
+			}
+		}
+	}
+	@pharmacy path /pharmacy /pharmacy/*
+	handle @pharmacy {
+		reverse_proxy host.docker.internal:4303 {
+			transport http {
+				keepalive 4s
+			}
+		}
+	}
+	@lab path /lab /lab/*
+	handle @lab {
+		reverse_proxy host.docker.internal:4304 {
+			transport http {
+				keepalive 4s
+			}
+		}
+	}
+	handle {
+		reverse_proxy host.docker.internal:{args[0]} {
+			transport http {
+				keepalive 4s
+			}
+		}
+	}
+}
+
+# main stack: shell-main, API :8080
+:4301 {
+	import stack 4311 8080
+}
+
+# idle-timeout stack: shell-idle-timeout, API :8099
+:4399 {
+	import stack 4409 8099
+}
+
+# renewal stack: shell-renewal, API :8098
+:4398 {
+	import stack 4408 8098
+}

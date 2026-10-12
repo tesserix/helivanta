@@ -161,21 +161,113 @@ start_bg() {
 }
 
 web_restored=0
+# dev_web_was_running — whether a developer's `make dev-web` held the main
+# shell port when this script began. This script now runs PRODUCTION builds
+# of the web apps on those ports (#976, design spec
+# docs/superpowers/specs/2026-10-12-e2e-against-production-builds-design.md
+# D4), so it stops that dev stack first and must put it back afterwards —
+# but only if there was one: CI starts no dev web stack, and a run that left
+# one behind would be a stack nobody asked for.
+dev_web_was_running=0
+
+# stop_ports_if_ours LABEL PORT... — stop every process this repo owns on any
+# of PORTS, as ONE step: every port's holders are resolved and checked BEFORE
+# anything is killed, then all are killed, then each port is waited free.
+#
+# Why not stop_port_if_ours in a loop: a developer's `make dev-web` is one
+# turbo process tree, and killing the shell on :4301 makes turbo tear down the
+# zone servers too. By the time the loop reached :4302, its socket could still
+# be listed while its process was already gone — port_holders then reports a
+# listener nobody can identify (rc 3) and refuses, correctly, to touch it.
+# Observed on the first run with a dev stack present. Resolving every port
+# first removes the race without weakening that refusal.
+stop_ports_if_ours() {
+  local label=$1 port pid pids rc all=()
+  shift
+  for port in "$@"; do
+    pids=$(port_holders "$port") && rc=0 || rc=$?
+    if [ "$rc" = 3 ]; then
+      echo "Refusing to stop $label (:$port) — it is held by a process this user cannot identify (another user's)." >&2
+      exit 1
+    fi
+    [ "$rc" = 0 ] || exit 1
+    for pid in $pids; do
+      if ! pid_is_ours "$pid"; then
+        echo "Refusing to stop $label (:$port) — pid $pid's cwd is $(cwd_of "$pid"), not this repo." >&2
+        exit 1
+      fi
+      all+=("$pid")
+    done
+  done
+  [ "${#all[@]}" -gt 0 ] || return 0
+  kill "${all[@]}" 2>/dev/null || true
+  local waited=0
+  for port in "$@"; do
+    while ! port_free "$port"; do
+      waited=$((waited + 1))
+      if [ "$waited" -ge 20 ]; then
+        echo "$label (:$port) is still not free after ${waited}s." >&2
+        exit 1
+      fi
+      sleep 1
+    done
+  done
+}
+
+# The ingress (spec D5): a Caddy container (docker-compose.dev.yml's
+# e2e-ingress, dev/e2e/Caddyfile) on the ports browsers and Zitadel's
+# redirect URIs use — $SHELL_PORT, $IDLE_WEB_PORT, $RENEWAL_WEB_PORT —
+# routing /api/v1 to the API, each zone to its own server, and the rest to
+# that stack's shell, the way production's Istio VirtualService does. The
+# shells therefore listen on INTERNAL ports behind it.
+COMPOSE=(docker compose -f "$REPO_ROOT/docker-compose.dev.yml" --profile e2e)
+SHELL_INTERNAL_PORT=4311
+IDLE_SHELL_INTERNAL_PORT=4409
+RENEWAL_SHELL_INTERNAL_PORT=4408
+
+# MAIN_WEB — the main stack's production builds and the port each serves
+# (scripts/e2e-web.sh, spec D2): the three zones and the shell built against
+# the main API. Order matters only for readability; each is independent.
+MAIN_WEB=("medicore:4302" "pharmacy:4303" "lab:4304" "shell-main:$SHELL_INTERNAL_PORT")
+MAIN_WEB_PORTS=(4302 4303 4304 "$SHELL_INTERNAL_PORT")
+
+# stop_ingress — remove the ingress container. Idempotent. Done before any
+# port check on $SHELL_PORT: Docker, not this repository, holds a published
+# port, so stop_port_if_ours would (rightly) refuse to touch it.
+stop_ingress() {
+  "${COMPOSE[@]}" rm -sf e2e-ingress >/dev/null 2>&1 || return 1
+}
+
+# start_main_web — start every main-stack production server and wait for each
+# to answer. "/" rather than "/login": only the shell serves a login page
+# directly; a zone answers "/" with a redirect or 404, and any response means
+# the server is up. `|| return 1` explicitly, for the reason restore_web's
+# loop documents below (#920).
+start_main_web() {
+  local entry name port pid
+  for entry in "${MAIN_WEB[@]}"; do
+    name=${entry%%:*}
+    port=${entry#*:}
+    pid=$(start_bg "e2e-web-$name" scripts/e2e-web.sh start "$name" "$port")
+    wait_for_port "http://$WEB_HOST:$port/" "$name (production build) on :$port" "$pid" || return 1
+  done
+}
 
 # restore_web — idempotent; safe to call more than once (normal teardown
-# calls it directly, the EXIT trap calls it again as a backstop). Skips
-# the restart if the zone apps are already up (e.g. cleanup running twice,
-# or nothing was ever stopped because phase 1 itself failed).
+# calls it directly, the EXIT trap calls it again as a backstop). Removes the
+# ingress, stops the production web servers this script started, then
+# restarts the developer's `make dev-web` if, and only if, one was running
+# when the script began.
 restore_web() {
   [ "$web_restored" = 1 ] && return 0
   web_restored=1
-  if [ -n "$(port_holders "$SHELL_PORT")" ]; then
-    return 0
-  fi
+  stop_ingress || return 1
+  stop_ports_if_ours "e2e web app" "${MAIN_WEB_PORTS[@]}"
+  local port
+  [ "$dev_web_was_running" = 1 ] || return 0
   echo "Restoring main zone apps (make dev-web) ..."
   local web_pid
   web_pid=$(start_bg dev-web make dev-web)
-  local port
   for port in "${ZONE_PORTS[@]}"; do
     # "/" rather than "/login": only apps/shell serves a login page
     # directly, the other three zone apps redirect an unauthenticated
@@ -197,9 +289,9 @@ restore_web() {
 }
 
 teardown_fixture() {
-  stop_port_if_ours "$IDLE_WEB_PORT" "dev-web-idle-timeout"
+  stop_port_if_ours "$IDLE_SHELL_INTERNAL_PORT" "e2e-web-shell-idle-timeout"
   stop_port_if_ours "$IDLE_API_PORT" "dev-api-idle-timeout"
-  stop_port_if_ours "$RENEWAL_WEB_PORT" "dev-web-renewal"
+  stop_port_if_ours "$RENEWAL_SHELL_INTERNAL_PORT" "e2e-web-shell-renewal"
   stop_port_if_ours "$RENEWAL_API_PORT" "dev-api-renewal"
 }
 
@@ -305,40 +397,57 @@ bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-instance-domain
 # a clean, immediate failure. Catch it before Playwright ever starts.
 bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health
 
-require_port_up "$SHELL_PORT" "http://$WEB_HOST:$SHELL_PORT/login" "main shell"
 require_port_up "$API_PORT" "http://localhost:$API_PORT/healthz" "main API"
+
+# The web tier is this script's own (spec D4/D5): production builds, never
+# `next dev`, behind an ingress that routes like production (#976). A
+# developer's dev web stack on the main ports is stopped for the run and
+# restored by cleanup. A previous run's ingress is removed first, so it is
+# neither mistaken for a dev stack nor left holding $SHELL_PORT.
+stop_ingress
+if [ -n "$(port_holders "$SHELL_PORT")" ]; then
+  dev_web_was_running=1
+fi
+echo "Stopping any web apps on ${ZONE_PORTS[*]} $SHELL_INTERNAL_PORT for the run…"
+stop_ports_if_ours "web app" "${ZONE_PORTS[@]}" "$SHELL_INTERNAL_PORT"
+echo "Building production web apps…"
+scripts/e2e-web.sh build
+echo "Starting the main web stack from its production builds…"
+start_main_web
+echo "Starting the e2e ingress…"
+"${COMPOSE[@]}" up -d e2e-ingress
+wait_for_port "http://$WEB_HOST:$SHELL_PORT/login" "e2e ingress on :$SHELL_PORT"
 
 echo "Phase 1/3 — specs + bulk against the main stack…"
 pnpm --filter e2e exec playwright test --project=specs --project=bulk
 
 echo "Phase 2/3 — idle-timeout against its own API + shell…"
-echo "Stopping main zone apps so the fixture can bind :$SHELL_PORT ..."
-for port in "${ZONE_PORTS[@]}"; do
-  stop_port_if_ours "$port" "zone app on :$port"
-done
+# The main web stack keeps running: it was only ever stopped here because
+# two `next dev` servers cannot share apps/shell. Production standalone
+# builds share no directory (spec D4).
 
 echo "Starting idle-timeout fixture…"
 idle_api_pid=$(start_bg dev-api-idle-timeout make dev-api-idle-timeout)
-idle_web_pid=$(start_bg dev-web-idle-timeout make dev-web-idle-timeout)
+idle_web_pid=$(start_bg e2e-web-shell-idle-timeout scripts/e2e-web.sh start shell-idle-timeout "$IDLE_SHELL_INTERNAL_PORT")
 wait_for_port "http://localhost:$IDLE_API_PORT/healthz" "dev-api-idle-timeout" "$idle_api_pid"
-wait_for_port "http://$WEB_HOST:$IDLE_WEB_PORT/login" "dev-web-idle-timeout" "$idle_web_pid"
+# Through the ingress, the way the specs reach it.
+wait_for_port "http://$WEB_HOST:$IDLE_WEB_PORT/login" "shell-idle-timeout (production build) via the ingress" "$idle_web_pid"
 
 pnpm --filter e2e exec playwright test --project=idle-timeout
 
 echo "Stopping idle-timeout fixture…"
 teardown_fixture
 
-# Phase 3 reuses the same swapped-out state phase 2 left behind — the zone
-# apps are still stopped, so nothing needs restoring in between. The
-# session-renewal fixture binds its OWN ports (RENEWAL_*), so the only
-# reason it cannot overlap phase 2 is Next.js's one-dev-server-per-project
-# rule, which teardown_fixture above has just satisfied.
+# The session-renewal fixture binds its OWN ports (RENEWAL_*). Phases 2 and
+# 3 still run one after the other, so each fixture's failure is reported on
+# its own, but nothing now forces it: the one-dev-server-per-project rule
+# that once did no longer applies to production builds (spec D4).
 echo "Phase 3/3 — session-renewal against its own API + shell…"
 echo "Starting session-renewal fixture…"
 renewal_api_pid=$(start_bg dev-api-renewal make dev-api-renewal)
-renewal_web_pid=$(start_bg dev-web-renewal make dev-web-renewal)
+renewal_web_pid=$(start_bg e2e-web-shell-renewal scripts/e2e-web.sh start shell-renewal "$RENEWAL_SHELL_INTERNAL_PORT")
 wait_for_port "http://localhost:$RENEWAL_API_PORT/healthz" "dev-api-renewal" "$renewal_api_pid"
-wait_for_port "http://$WEB_HOST:$RENEWAL_WEB_PORT/login" "dev-web-renewal" "$renewal_web_pid"
+wait_for_port "http://$WEB_HOST:$RENEWAL_WEB_PORT/login" "shell-renewal (production build) via the ingress" "$renewal_web_pid"
 
 pnpm --filter e2e exec playwright test --project=renewal
 

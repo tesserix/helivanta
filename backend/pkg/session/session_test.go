@@ -454,3 +454,122 @@ func mustJSON(v any) []byte {
 	}
 	return b
 }
+
+// --- #859 RenewalEvidence ----------------------------------------------------
+
+// signRaw signs claims with priv under kid, as Signer.Mint would, but with
+// every claim under the caller's control — so a test can produce an expired
+// token, one without exp, or one from another issuer.
+func signRaw(t *testing.T, priv ed25519.PrivateKey, kid string, claims jwt.MapClaims) string {
+	t.Helper()
+	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
+	token.Header["kid"] = kid
+	signed, err := token.SignedString(priv)
+	require.NoError(t, err)
+	return signed
+}
+
+// expiredClaims is a genuine session's claims whose exp passed an hour ago.
+func expiredClaims(deadline time.Time) jwt.MapClaims {
+	issued := time.Now().Add(-2 * time.Hour).UTC()
+	return jwt.MapClaims{
+		"sub":           "user-123",
+		"tenant_id":     "tenant-abc",
+		"auth_time":     fixedAuthTime().Unix(),
+		"idle_deadline": deadline.Unix(),
+		"iss":           testIssuer,
+		"iat":           jwt.NewNumericDate(issued),
+		"exp":           jwt.NewNumericDate(issued.Add(testTTL)),
+	}
+}
+
+// A live token reads the same through RenewalEvidence as through Verify.
+func TestRenewalEvidenceOfALiveTokenMatchesVerify(t *testing.T) {
+	signer, verifier, _, _ := newSignerVerifier(t)
+	deadline := time.Now().Add(10 * time.Minute).UTC().Truncate(time.Second)
+	tok, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), deadline)
+	require.NoError(t, err)
+
+	claims, err := verifier.Verify(tok)
+	require.NoError(t, err)
+	ev, err := verifier.RenewalEvidence(tok)
+	require.NoError(t, err)
+	require.Equal(t, claims.Subject, ev.Subject)
+	require.True(t, claims.AuthTime.Equal(ev.AuthTime))
+	require.True(t, claims.IdleDeadline.Equal(ev.IdleDeadline))
+}
+
+// THE property #859 needs: an expired but genuine token still yields its
+// evidence, while Verify — the authentication check — still refuses it.
+func TestRenewalEvidenceReadsAnExpiredTokenThatVerifyRefuses(t *testing.T) {
+	_, verifier, _, priv := newSignerVerifier(t)
+	deadline := time.Now().Add(-90 * time.Minute).UTC().Truncate(time.Second)
+	tok := signRaw(t, priv, testKID, expiredClaims(deadline))
+
+	_, err := verifier.Verify(tok)
+	require.ErrorIs(t, err, session.ErrInvalidToken, "Verify must still refuse an expired token: it is the authentication check")
+
+	ev, err := verifier.RenewalEvidence(tok)
+	require.NoError(t, err)
+	require.Equal(t, "user-123", ev.Subject)
+	require.True(t, fixedAuthTime().Equal(ev.AuthTime))
+	require.True(t, deadline.Equal(ev.IdleDeadline))
+}
+
+// Everything except expiry is still judged. Each case is a token Verify
+// refuses for a reason OTHER than expiry; RenewalEvidence must refuse it too.
+func TestRenewalEvidenceRefusesEverythingVerifyRefusesExceptExpiry(t *testing.T) {
+	_, verifier, _, priv := newSignerVerifier(t)
+	_, otherPriv, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+	deadline := time.Now().Add(-90 * time.Minute).UTC()
+
+	without := func(key string) jwt.MapClaims {
+		c := expiredClaims(deadline)
+		delete(c, key)
+		return c
+	}
+	withIssuer := expiredClaims(deadline)
+	withIssuer["iss"] = "https://issuer-b.test"
+
+	none := jwt.NewWithClaims(jwt.SigningMethodNone, expiredClaims(deadline))
+	none.Header["kid"] = testKID
+	noneTok, err := none.SignedString(jwt.UnsafeAllowNoneSignatureType)
+	require.NoError(t, err)
+
+	cases := map[string]string{
+		"signed by another key":  signRaw(t, otherPriv, testKID, expiredClaims(deadline)),
+		"another kid":            signRaw(t, priv, "kid-b", expiredClaims(deadline)),
+		"another issuer":         signRaw(t, priv, testKID, withIssuer),
+		"alg none":               noneTok,
+		"no exp":                 signRaw(t, priv, testKID, without("exp")),
+		"no iat":                 signRaw(t, priv, testKID, without("iat")),
+		"no idle_deadline":       signRaw(t, priv, testKID, without("idle_deadline")),
+		"no subject":             signRaw(t, priv, testKID, without("sub")),
+		"no tenant_id":           signRaw(t, priv, testKID, without("tenant_id")),
+		"not a token at all":     "not.a.jwt",
+		"signature byte flipped": flipSignatureByte(signRaw(t, priv, testKID, expiredClaims(deadline))),
+	}
+	for name, tok := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := verifier.RenewalEvidence(tok)
+			require.ErrorIs(t, err, session.ErrInvalidToken)
+		})
+	}
+}
+
+// flipSignatureByte changes the FIRST character of the signature segment.
+// Not the last: an Ed25519 signature is 64 bytes, 86 base64url characters,
+// so the final character carries only 2 data bits and 4 padding bits that
+// the decoder ignores — flipping it can leave the signature bytes, and the
+// token's validity, unchanged.
+func flipSignatureByte(tok string) string {
+	b := []byte(tok)
+	i := strings.LastIndexByte(tok, '.') + 1
+	if b[i] == 'A' {
+		b[i] = 'B'
+	} else {
+		b[i] = 'A'
+	}
+	return string(b)
+}

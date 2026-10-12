@@ -15,9 +15,11 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/modules/medicore" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
+	medicorecontract "github.com/tesserix/helivanta/internal/modules/medicore/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -175,4 +177,63 @@ func TestVisitsRejectAnotherTenantsCursor(t *testing.T) {
 
 	require.Equal(t, http.StatusBadRequest, w.Code,
 		"a cursor issued for another tenant must be refused, not applied as a position")
+}
+
+// TestVisitCreatedCarriesPatientID: the additive half of spec D7.
+// patient_name stays for now so pharmacy and lab keep working; this
+// proves the new field is populated and on the wire.
+func TestVisitCreatedCarriesPatientID(t *testing.T) {
+	r, db, ctx := setup(t)
+	patientID := uuid.New().String()
+
+	w := do(r, "POST", "/v1/medicore/visits", "tokA",
+		fmt.Sprintf(`{"patient_name":"Asha Rao","department":"OPD","patient_id":%q}`, patientID))
+	require.Equal(t, http.StatusAccepted, w.Code, w.Body.String())
+	var resp struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+
+	var row struct{ Payload []byte }
+	require.Eventually(t, func() bool {
+		_ = db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT payload FROM outbox_events
+				WHERE subject = 'helivanta.in.medicore.visit_created.v1' AND published_at IS NOT NULL
+				ORDER BY created_at DESC LIMIT 1`).Scan(&row).Error
+		})
+		return len(row.Payload) > 0
+	}, 20*time.Second, 200*time.Millisecond)
+
+	var envelope events.Event
+	require.NoError(t, json.Unmarshal(row.Payload, &envelope))
+	var payload medicorecontract.VisitCreatedData
+	require.NoError(t, json.Unmarshal(envelope.Data, &payload))
+	require.Equal(t, resp.ID, payload.VisitID)
+	require.Equal(t, patientID, payload.PatientID, "patient_id must round-trip onto the outbox payload")
+}
+
+// TestVisitCreatedStillCarriesPatientName is the non-breaking half. It
+// deletes itself when patient_name retires in a later contract version —
+// until then, removing the field must fail here rather than in pharmacy.
+func TestVisitCreatedStillCarriesPatientName(t *testing.T) {
+	r, db, ctx := setup(t)
+
+	w := do(r, "POST", "/v1/medicore/visits", "tokA", `{"patient_name":"Asha Rao","department":"OPD"}`)
+	require.Equal(t, http.StatusAccepted, w.Code, w.Body.String())
+
+	var row struct{ Payload []byte }
+	require.Eventually(t, func() bool {
+		_ = db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT payload FROM outbox_events
+				WHERE subject = 'helivanta.in.medicore.visit_created.v1' AND published_at IS NOT NULL
+				ORDER BY created_at DESC LIMIT 1`).Scan(&row).Error
+		})
+		return len(row.Payload) > 0
+	}, 20*time.Second, 200*time.Millisecond)
+
+	var envelope events.Event
+	require.NoError(t, json.Unmarshal(row.Payload, &envelope))
+	var payload medicorecontract.VisitCreatedData
+	require.NoError(t, json.Unmarshal(envelope.Data, &payload))
+	require.Equal(t, "Asha Rao", payload.PatientName, "patient_name must still be carried on the wire")
 }

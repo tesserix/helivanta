@@ -59,3 +59,11 @@ func TestSystemRolesCannotBeMutatedByCallers(t *testing.T) {
 	require.True(t, authz.KnownRole(authz.RoleTenantAdmin))
 	require.Equal(t, authz.RoleTenantAdmin, authz.SystemRoles()[0])
 }
+
+// TestReceptionistIsASystemRole pins the front-desk role into the
+// registry. KnownRole is the gate every untrusted role_key passes
+// through, so a role missing here cannot be granted at all.
+func TestReceptionistIsASystemRole(t *testing.T) {
+	require.True(t, authz.KnownRole(authz.RoleReceptionist))
+	require.Contains(t, authz.SystemRoles(), authz.RoleReceptionist)
+}

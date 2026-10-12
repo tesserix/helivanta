@@ -41,6 +41,15 @@ func TestErrorHelpers(t *testing.T) {
 	require.Equal(t, http.StatusConflict, w.Code)
 	require.JSONEq(t, `{"error":"conflict","message":"already dispensed"}`, w.Body.String())
 
+	w = run(func(c *gin.Context) {
+		respond.ConflictWithDetail(c, "a confident duplicate match exists",
+			gin.H{"patient_id": "p1", "score": 0.94})
+	})
+	require.Equal(t, http.StatusConflict, w.Code)
+	require.JSONEq(t,
+		`{"error":"conflict","message":"a confident duplicate match exists","patient_id":"p1","score":0.94}`,
+		w.Body.String())
+
 	w = run(func(c *gin.Context) { respond.BadRequest(c, errors.New("bad field")) })
 	require.Equal(t, http.StatusBadRequest, w.Code)
 	require.JSONEq(t, `{"error":"invalid_request","message":"bad field"}`, w.Body.String())

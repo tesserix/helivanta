@@ -1,20 +1,6 @@
 import { UserManager, WebStorageStateStore, type UserManagerSettings } from "oidc-client-ts";
 import { env } from "./env";
 
-declare global {
-  interface Window {
-    // Dev/test-only escape hatch — the direct successor to the old
-    // window.__hmsFirebaseAuth (apps/shell/lib/firebase.ts, deleted
-    // #838). e2e/tests/signout.spec.ts reconstructs the shared-workstation
-    // attack (#781) from inside `page.evaluate`, which runs as a plain
-    // browser script with no bundler and therefore cannot
-    // `import("oidc-client-ts")`. Stashing the already-constructed
-    // UserManager on `window` gives the test the same object getUserManager()
-    // would hand back. Never set in production — see below.
-    __hmsUserManager?: UserManager;
-  }
-}
-
 // AUTH_CALLBACK_PATH must match the redirect URI
 // scripts/zitadel-bootstrap.mjs registers on the helivanta-web app
 // (scripts/lib/zitadel.mjs's DEV_REDIRECT_URI) — a mismatch is refused by
@@ -80,9 +66,6 @@ function settings(): UserManagerSettings {
 export function getUserManager(): UserManager {
   if (!manager) {
     manager = new UserManager(settings());
-    if (process.env.NODE_ENV !== "production") {
-      window.__hmsUserManager = manager;
-    }
   }
   return manager;
 }

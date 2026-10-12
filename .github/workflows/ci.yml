@@ -351,8 +351,11 @@ jobs:
       # failures are legible) followed by exactly this. Running `make up` here
       # instead would put the whole chain behind one background process, so a
       # bootstrap failure would surface only as the wait below timing out.
-      - name: Start API and zone apps
-        run: nohup make -j2 dev-api dev-web > /tmp/hms-stack.log 2>&1 &
+      # The API only. The web apps are scripts/e2e.sh's own: it builds them
+      # for production and runs them as standalone servers, never `next dev`
+      # (#976, docs/superpowers/specs/2026-10-12-e2e-against-production-builds-design.md).
+      - name: Start API
+        run: nohup make dev-api > /tmp/hms-stack.log 2>&1 &
 
       # scripts/e2e.sh REQUIRES the stack to already answer — it fails fast
       # rather than waiting, because a developer running `make e2e` has
@@ -398,18 +401,9 @@ jobs:
             done
             echo ' ready.'
           }
+          # The API is the only thing this step starts (#976). The web apps
+          # are built and started, and waited for, by scripts/e2e.sh itself.
           wait_for http://localhost:8080/healthz "API"
-          # The EXACT URLs scripts/e2e.sh's own require_port_up probes, not
-          # just the ports. `next dev` compiles a route on FIRST REQUEST, and
-          # e2e.sh allows 2 seconds — so a shell that answers "/" instantly
-          # can still miss that budget on "/login", which is what failed here
-          # before this line existed (run 32357162146: ":4301 is not
-          # answering at .../login"). Requesting it here pays the compile
-          # once, in a step whose whole job is to wait.
-          wait_for "http://helivanta.localhost:4301/login" "shell /login"
-          for port in 4302 4303 4304; do
-            wait_for "http://helivanta.localhost:$port/" "zone app on :$port"
-          done
 
       - name: make e2e
         # STEP-level, so a #923 hang is attributed to THIS step rather than

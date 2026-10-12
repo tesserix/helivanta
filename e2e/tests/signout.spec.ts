@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { test, expect } from "@playwright/test";
+import { readStoredIdToken } from "./support/stored-session";
 
 import { SHELL_PORT, ZITADEL_ORIGIN, webOrigin } from "./support/hosts";
 import { login } from "./support/login";
@@ -109,16 +110,13 @@ test("a signed-out session cannot be reconstructed from the browser", async ({ p
   // survive in sessionStorage, so this rebuilt a working session by
   // replaying its id_token.
   //
-  // `getUserManager()` isn't reachable here: page.evaluate runs as a
-  // plain script with no bundler, so a bare specifier import has nothing
-  // to resolve against. `window.__hmsUserManager` (apps/shell/lib/oidc.ts,
-  // dev/test builds only) hands back the exact UserManager instance the
-  // app itself uses — but only on a Helivanta page, and the browser is
-  // currently on Zitadel's origin (the wait above), so this navigates
-  // back to `/api/auth/callback` with NO `code`/`state` query params: the
-  // one shell route that constructs a UserManager (setting
-  // `window.__hmsUserManager` as a side effect, same as every shell page)
-  // and then STOPS — `signinRedirectCallback()` fails fast on the missing
+  // The leftover session lives in a Helivanta origin's sessionStorage
+  // (readStoredIdToken, e2e/tests/support/stored-session.ts — #976 replaced
+  // the dev-only `window.__hmsUserManager` hook this used to call, which
+  // production builds never expose). The browser is currently on Zitadel's
+  // origin (the wait above), so this navigates back to `/api/auth/callback`
+  // with NO `code`/`state` query params: the one shell route that constructs
+  // a UserManager and then STOPS — `signinRedirectCallback()` fails fast on the missing
   // params and the page shows an error, triggering no further navigation
   // of its own. That absence of a next hop is exactly what makes it a
   // stable place to run `evaluate` from, unlike `/login` (which always
@@ -131,7 +129,7 @@ test("a signed-out session cannot be reconstructed from the browser", async ({ p
   //    TOP-LEVEL navigation does not leave the browser on the previous
   //    page — Chromium replaces the frame with its own
   //    `chrome-error://chromewebdata/`, which has no app JS at all, so
-  //    `window.__hmsUserManager` never appears there, on any attempt.
+  //    no Helivanta storage or app JS is reachable there, on any attempt.
   //  - Stubbing `window.location.assign`/`.replace` to a no-op via
   //    `addInitScript`, to neutralise oidc-client-ts's own redirect call
   //    before it becomes a navigation: had no effect at all (confirmed
@@ -155,21 +153,26 @@ test("a signed-out session cannot be reconstructed from the browser", async ({ p
       await page.waitForTimeout(300);
     }
   }
-  await page.waitForFunction(() => Boolean(window.__hmsUserManager), null, { timeout: 15_000 });
+  // The callback page without code/state fails fast and renders its error:
+  // proof its client code has run, and the stable resting point the comment
+  // above describes.
+  // Filtered to an alert WITH text: Next.js also renders an empty
+  // role="alert" route announcer on every page, which would otherwise match.
+  await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toBeVisible({ timeout: 15_000 });
 
-  const restored = await page.evaluate(async () => {
-    const userManager = window.__hmsUserManager!;
-    const user = await userManager.getUser();
-    if (!user?.id_token) return "no-user";
-    const res = await fetch("/api/v1/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id_token: user.id_token }),
-    });
-    if (!res.ok) return "session-refused";
-    const check = await fetch("/api/v1/iam/me/permissions");
-    return check.ok ? "RESTORED" : "api-refused";
-  });
+  const leftover = await readStoredIdToken(page);
+  const restored = leftover
+    ? await page.evaluate(async (idToken) => {
+        const res = await fetch("/api/v1/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id_token: idToken }),
+        });
+        if (!res.ok) return "session-refused";
+        const check = await fetch("/api/v1/iam/me/permissions");
+        return check.ok ? "RESTORED" : "api-refused";
+      }, leftover)
+    : "no-user";
 
   expect(restored).not.toBe("RESTORED");
 });
@@ -192,12 +195,7 @@ test("a token captured before sign-out is refused afterwards", async ({ page }) 
   await login(page);
   await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
 
-  await page.waitForFunction(() => Boolean(window.__hmsUserManager));
-  const captured = await page.evaluate(async () => {
-    const userManager = window.__hmsUserManager!;
-    const user = await userManager.getUser();
-    return user?.id_token ?? null;
-  });
+  const captured = await readStoredIdToken(page);
   expect(captured, "precondition: a live ID token was captured before sign-out").toBeTruthy();
 
   // Precondition: the captured token works right now. Without this, a

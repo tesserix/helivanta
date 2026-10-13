@@ -1,5 +1,12 @@
 # Helivanta on the shared Zitadel instance — tenancy topology
 
+> **Target-direction update (2026-10-13):** The new
+> [multi-hospital tenancy design](../../architecture/02-tenancy-and-identity.md)
+> proposes tenant organizations in Zitadel and multiple separately scoped
+> hospitals per tenant, with optional sharing. D1–D2 and the one-hospital-per-tenant
+> assumption below are historical/current-baseline context, not the new target.
+> Existing users are not migrated or deleted by this documentation change.
+
 **Issue:** [#838](https://github.com/tesserix/helivanta/issues/838).
 **Status:** draft 2026-08-15.
 **Decides:** how Helivanta is provisioned on `auth.tesserix.app`, and where hospitals live.

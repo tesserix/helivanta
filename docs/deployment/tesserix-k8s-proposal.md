@@ -1,5 +1,10 @@
 # tesserix-k8s changes for Helivanta (proposal)
 
+> **Historical single-API deployment proposal.** For the 2026-10-13 target
+> with product APIs, multi-hospital tenants and Zitadel onboarding, see
+> [deployment and transition](../architecture/05-deployment-and-transition.md).
+> The original manifests/topology below are not the new target or proof of live state.
+
 Phase 1 ships images only; this is the paste-ready plan for the infra PR.
 
 ## charts/apps/ additions

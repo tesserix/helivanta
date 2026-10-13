@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1080" viewBox="0 0 1600 1080">
+<title>One workspace. Independent product APIs.</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#63758d"/></marker></defs>
+<rect width="1600" height="1080" fill="#ffffff"/>
+<rect x="0" y="0" width="1600" height="12" fill="#163c60"/>
+<text x="60" y="65" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#163c60">One workspace. Independent product APIs.</text>
+<text x="60" y="108" font-family="Arial, sans-serif" font-size="17" font-weight="400" fill="#627186">TARGET ARCHITECTURE  /  Tenant + hospital scope follows every request and event</text>
+<path d="M 500 205 L 580 205" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1020 205 L 1100 205" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="1035.5" y="180.0" width="49.0" height="22" rx="4" fill="#ffffff"/>
+<text x="1060.0" y="196.0" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#52657d">login</text>
+<path d="M 800 260 L 800 330" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 200 415 L 200 475" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 500 415 L 500 475" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 800 415 L 800 475" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1100 415 L 1100 475" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1400 415 L 1400 475" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 200 590 L 200 655" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="8 6"/>
+<path d="M 500 590 L 500 655" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="8 6"/>
+<path d="M 800 590 L 800 655" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="8 6"/>
+<path d="M 1100 590 L 1100 655" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="8 6"/>
+<path d="M 1400 590 L 1400 655" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="8 6"/>
+<path d="M 200 760 L 200 835" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 500 760 L 500 835" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 800 760 L 800 835" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1100 760 L 1100 835" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1400 760 L 1400 835" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="8 6"/>
+<rect x="60" y="150" width="440" height="110" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="80" y="183" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">Helivanta shared UI</text>
+<text x="80" y="211" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Clinical • pharmacy • lab • CRM</text>
+<text x="80" y="234" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Tenant / hospital / facility context</text>
+<rect x="580" y="150" width="440" height="110" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="600" y="183" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">Same-origin BFF + session</text>
+<text x="600" y="211" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Secure cookie • CSRF • scope epoch</text>
+<text x="600" y="234" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Audience-bound delegation</text>
+<rect x="1100" y="150" width="440" height="110" rx="14" fill="#f3edff" stroke="#8663bc" stroke-width="2"/>
+<text x="1120" y="183" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">Zitadel</text>
+<text x="1120" y="211" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Customer organizations • MFA • SSO</text>
+<text x="1120" y="234" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Identity, not clinical authorization</text>
+<rect x="60" y="330" width="1480" height="85" rx="14" fill="#f0f3f7" stroke="#8d9aad" stroke-width="2"/>
+<text x="80" y="363" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">Istio service boundary</text>
+<text x="80" y="391" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Strict mTLS • workload allowlists • deadlines • private product endpoints</text>
+<rect x="60" y="475" width="280" height="115" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="80" y="508" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#1d3652">MediCore</text>
+<text x="80" y="536" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Encounters • hospital operations</text>
+<text x="80" y="559" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Clinical + financial ownership</text>
+<rect x="360" y="475" width="280" height="115" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="380" y="508" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#1d3652">PharmaConnect</text>
+<text x="380" y="536" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Dispense • sales • returns</text>
+<text x="380" y="559" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Pharmacy stock ledger</text>
+<rect x="660" y="475" width="280" height="115" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="680" y="508" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#1d3652">LabConnect</text>
+<text x="680" y="536" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Orders • specimens • results</text>
+<text x="680" y="559" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Validation + dispatch</text>
+<rect x="960" y="475" width="280" height="115" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="980" y="508" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#1d3652">CRM</text>
+<text x="980" y="536" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Enquiries • referrals • outreach</text>
+<text x="980" y="559" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Separate contact permissions</text>
+<rect x="1260" y="475" width="280" height="115" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="1280" y="508" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#1d3652">Other product APIs</text>
+<text x="1280" y="536" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Supply • care • emergency</text>
+<text x="1280" y="559" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Doctor • patient • admin • safety</text>
+<rect x="60" y="655" width="1480" height="105" rx="14" fill="#f3edff" stroke="#8663bc" stroke-width="2"/>
+<text x="80" y="688" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">Shared platform capabilities</text>
+<text x="80" y="716" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Patient identity • hospital registrations • reviewed identity links</text>
+<text x="80" y="739" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Tenant/hospital registry • OpenFGA policy • audit • documents • notifications</text>
+<rect x="60" y="835" width="280" height="115" rx="14" fill="#e6f5f1" stroke="#368779" stroke-width="2"/>
+<text x="80" y="868" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#1d3652">PostgreSQL</text>
+<text x="80" y="896" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Owned product databases</text>
+<text x="80" y="919" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Forced tenant + hospital RLS</text>
+<rect x="360" y="835" width="280" height="115" rx="14" fill="#fff5df" stroke="#b88b32" stroke-width="2"/>
+<text x="380" y="868" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#1d3652">NATS + Temporal</text>
+<text x="380" y="896" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Outbox-backed events</text>
+<text x="380" y="919" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Durable orchestration</text>
+<rect x="660" y="835" width="280" height="115" rx="14" fill="#e6f5f1" stroke="#368779" stroke-width="2"/>
+<text x="680" y="868" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#1d3652">Valkey</text>
+<text x="680" y="896" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Disposable scoped cache</text>
+<text x="680" y="919" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Origin remains authoritative</text>
+<rect x="960" y="835" width="280" height="115" rx="14" fill="#e6f5f1" stroke="#368779" stroke-width="2"/>
+<text x="980" y="868" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#1d3652">GCS + file security</text>
+<text x="980" y="896" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Quarantine • ClamAV scanning</text>
+<text x="980" y="919" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Released files + audit archive</text>
+<rect x="1260" y="835" width="280" height="115" rx="14" fill="#f0f3f7" stroke="#8d9aad" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="1280" y="868" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#1d3652">Qdrant · future</text>
+<text x="1280" y="896" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Private derived index</text>
+<text x="1280" y="919" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#33465d">Authorized AI retrieval only</text>
+<line x1="60" y1="1020" x2="1540" y2="1020" stroke="#d5dee8"/>
+<text x="60" y="1050" font-family="Arial, sans-serif" font-size="15" font-weight="400" fill="#6c7b8d">HELIVANTA  /  Proposed design · 2026-10-13  /  Blue: apps   Purple: identity/policy   Teal: data   Amber: async   Dashed: secondary/future</text>
+<text x="1485" y="1050" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#163c60">01 / 08</text>
+</svg>

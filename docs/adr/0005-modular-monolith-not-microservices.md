@@ -1,5 +1,10 @@
 # ADR-0005: Helivanta stays a modular monolith; services are extracted on a trigger, not by default
 
+> **Target-direction update (2026-10-13):** The user has requested separate
+> product APIs. [ADR-0007](0007-product-api-target-architecture.md) documents
+> the proposed replacement direction and guarded transition. This ADR remains
+> the historical decision and describes the current runtime, not the new target.
+
 - **Status:** Accepted (2026-08-14). Relates to #674 (ADR process), #7, #45,
   #679, #8, #716.
 - **Context:** Helivanta is one Go module producing one deployable

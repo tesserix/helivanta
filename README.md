@@ -8,6 +8,14 @@ Helivanta — a hospital management system platform, multi-zone monorepo.
 - Design: `docs/superpowers/specs/2026-08-04-hms-repo-setup-design.md`
 - ADRs: `docs/adr/`
 
+## Target architecture
+
+[Full HMS design and editable diagrams](docs/architecture/README.md) cover one
+shared UI, separate product APIs, multi-hospital tenants with optional data
+sharing, CRM, Zitadel, Istio, PostgreSQL, Valkey, future Qdrant and HIPAA/SOC 2
+readiness. This is the proposed target; the quick start below describes the
+current implementation.
+
 ## Quick start
 
 Requires Docker, Go 1.26, Node 24, the version in `.nvmrc` (`corepack enable`). No registry

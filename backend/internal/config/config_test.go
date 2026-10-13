@@ -196,3 +196,23 @@ func TestDurationFallbackIsReadableInLogs(t *testing.T) {
 		"a nanosecond int64 is a long digit run, which the PHI matcher masks as an identifier")
 	require.Equal(t, 15*time.Minute, cfg.SessionTTL)
 }
+
+func TestInvalidConfigurationWarningsDoNotExposeRawValues(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+	for _, key := range []string{"RATE_LIMIT_TENANT_PER_MIN", "SESSION_TTL", "TRUSTED_PROXY_CIDRS"} {
+		t.Setenv(key, "PRIVATE-CONFIG-VALUE\nforged-log-entry")
+	}
+	cfg := config.Load()
+	require.Equal(t, 600, cfg.RateLimitTenantPerMin)
+	require.Equal(t, 15*time.Minute, cfg.SessionTTL)
+	require.Empty(t, cfg.TrustedProxyCIDRs)
+	out := buf.String()
+	require.NotContains(t, out, "PRIVATE-CONFIG-VALUE")
+	require.NotContains(t, out, "forged-log-entry")
+	for _, key := range []string{"RATE_LIMIT_TENANT_PER_MIN", "SESSION_TTL", "TRUSTED_PROXY_CIDRS"} {
+		require.Contains(t, out, key)
+	}
+}

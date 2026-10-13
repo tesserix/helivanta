@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "test": "node --test *.test.mjs lib/*.test.mjs",
     "lint": "eslint .",
     "format:check": "prettier --check . --ignore-path ../.prettierignore"
   },

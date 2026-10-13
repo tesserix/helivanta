@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1080" viewBox="0 0 1600 1080">
+<title>Uploads stay quarantined until release is proven.</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#63758d"/></marker></defs>
+<rect width="1600" height="1080" fill="#ffffff"/>
+<rect x="0" y="0" width="1600" height="12" fill="#163c60"/>
+<text x="60" y="65" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#163c60">Uploads stay quarantined until release is proven.</text>
+<text x="60" y="108" font-family="Arial, sans-serif" font-size="17" font-weight="400" fill="#627186">CONFIRMED GCS + CLAMAV  /  Tenant and hospital ownership follows every object generation</text>
+<path d="M 480 225 L 590 225" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1010 225 L 1120 225" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1330 290 L 1330 435" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1120 500 L 1010 500" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 590 500 L 480 500" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="471.5" y="475.0" width="127.0" height="22" rx="4" fill="#ffffff"/>
+<text x="535.0" y="491.0" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#52657d">all checks pass</text>
+<path d="M 270 565 L 270 740" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 480 805 L 590 805" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 800 565 L 800 635 L 1330 635 L 1330 740" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="8 6"/>
+<rect x="950.8" y="610.0" width="228.4" height="22" rx="4" fill="#ffffff"/>
+<text x="1065.0" y="626.0" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#52657d">never release on uncertainty</text>
+<rect x="60" y="160" width="420" height="130" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="80" y="193" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">1  User requests upload</text>
+<text x="80" y="221" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Validate tenant / hospital / resource</text>
+<text x="80" y="244" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Quota • category • current permission</text>
+<rect x="590" y="160" width="420" height="130" rx="14" fill="#f3edff" stroke="#8663bc" stroke-width="2"/>
+<text x="610" y="193" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">2  File service creates intent</text>
+<text x="610" y="221" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">PostgreSQL owns metadata and state</text>
+<text x="610" y="244" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Opaque key • create-only upload</text>
+<rect x="1120" y="160" width="420" height="130" rx="14" fill="#e6f5f1" stroke="#368779" stroke-width="2"/>
+<text x="1140" y="193" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">3  GCS quarantine</text>
+<text x="1140" y="221" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Private bucket • exact generation</text>
+<text x="1140" y="244" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Verify stored size, type and integrity</text>
+<rect x="60" y="435" width="420" height="130" rx="14" fill="#e6f5f1" stroke="#368779" stroke-width="2"/>
+<text x="80" y="468" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">6  Promote verified generation</text>
+<text x="80" y="496" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Copy exact scanned bytes; verify target</text>
+<text x="80" y="519" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Commit available + audit + outbox</text>
+<rect x="590" y="435" width="420" height="130" rx="14" fill="#fff5df" stroke="#b88b32" stroke-width="2"/>
+<text x="610" y="468" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">5  Isolated ClamAV worker</text>
+<text x="610" y="496" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Full scan + file / archive validation</text>
+<text x="610" y="519" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Verdict binds hash and generation</text>
+<rect x="1120" y="435" width="420" height="130" rx="14" fill="#fff5df" stroke="#b88b32" stroke-width="2"/>
+<text x="1140" y="468" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">4  JetStream → Temporal</text>
+<text x="1140" y="496" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Durable outbox • deduplicated start</text>
+<text x="1140" y="519" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Workflow ID = file ID + generation</text>
+<rect x="60" y="740" width="420" height="130" rx="14" fill="#e6f5f1" stroke="#368779" stroke-width="2"/>
+<text x="80" y="773" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">7  GCS released files</text>
+<text x="80" y="801" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Immutable destination generation</text>
+<text x="80" y="824" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Uploaders cannot write here</text>
+<rect x="590" y="740" width="420" height="130" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="610" y="773" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">8  Authorized delivery</text>
+<text x="610" y="801" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Current hospital / record policy</text>
+<text x="610" y="824" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Download, preview, OCR and AI gate</text>
+<rect x="1120" y="740" width="420" height="130" rx="14" fill="#fff0ed" stroke="#bf7667" stroke-width="2"/>
+<text x="1140" y="773" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">Scan error / malware / limits</text>
+<text x="1140" y="801" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Remain quarantined and unavailable</text>
+<text x="1140" y="824" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Fresh signatures • bounded retries</text>
+<rect x="60" y="915" width="1480" height="75" rx="14" fill="#f0f3f7" stroke="#8d9aad" stroke-width="2"/>
+<text x="80" y="948" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">A clean verdict belongs to the bytes scanned, not just the filename</text>
+<text x="80" y="976" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Source-generation preconditions prevent replacement races. ClamAV complements validation; it cannot certify every file as safe.</text>
+<line x1="60" y1="1020" x2="1540" y2="1020" stroke="#d5dee8"/>
+<text x="60" y="1050" font-family="Arial, sans-serif" font-size="15" font-weight="400" fill="#6c7b8d">HELIVANTA  /  Proposed design · 2026-10-13  /  Blue: apps   Purple: identity/policy   Teal: data   Amber: async   Dashed: secondary/future</text>
+<text x="1485" y="1050" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#163c60">08 / 08</text>
+</svg>

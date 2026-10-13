@@ -332,7 +332,7 @@ func getenvInt(k string, def int) int {
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil {
-		slog.Warn("invalid integer env var; using default", "key", k, "value", v, "default", def)
+		slog.Warn("invalid integer env var; using default", "key", k, "default", def)
 		return def
 	}
 	return n
@@ -360,7 +360,7 @@ func getenvDuration(k string, def time.Duration) time.Duration {
 		// "[REDACTED:abha]". The whole point of this line is to make a
 		// mistyped value visible, so a fallback the operator cannot read
 		// is the one thing it must not be.
-		slog.Warn("invalid duration env var; using default", "key", k, "value", v, "default", def.String())
+		slog.Warn("invalid duration env var; using default", "key", k, "default", def.String())
 		return def
 	}
 	return d
@@ -393,7 +393,7 @@ func getenvCIDRList(k string) []string {
 		}
 		if _, _, err := net.ParseCIDR(entry); err != nil {
 			slog.Warn("invalid CIDR in TRUSTED_PROXY_CIDRS entry; dropping this entry only",
-				"key", k, "value", entry, "err", err)
+				"key", k)
 			continue
 		}
 		cidrs = append(cidrs, entry)

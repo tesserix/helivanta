@@ -33,6 +33,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/modules/reference"
+	"github.com/tesserix/helivanta/internal/modules/workforce"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -47,7 +48,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil), reference.New(), medicore.New(), pharmacy.New(), lab.New(), patientmaster.New()}
+	return []platform.Module{iam.New(nil), reference.New(), medicore.New(), pharmacy.New(), lab.New(), patientmaster.New(), workforce.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under
@@ -338,11 +339,12 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
-	"GET /reference/pings/:id": "single item, not a collection",
-	"GET /patients/:id":        "single item, not a collection",
-	"GET /iam/roles":           "bounded: the fixed system role set",
-	"GET /iam/me/tenants":      "bounded: one person's memberships",
-	"GET /iam/me/permissions":  "bounded: one resolved permission set",
+	"GET /workforce/hospitals/:hospital/staff/:id": "single hospital-local staff entry",
+	"GET /reference/pings/:id":                     "single item, not a collection",
+	"GET /patients/:id":                            "single item, not a collection",
+	"GET /iam/roles":                               "bounded: the fixed system role set",
+	"GET /iam/me/tenants":                          "bounded: one person's memberships",
+	"GET /iam/me/permissions":                      "bounded: one resolved permission set",
 }
 
 // TestEveryCollectionGETIsPaginated is the one hole platform.ListRoute's

@@ -16,6 +16,6 @@ it("offers public signup and sign-in while clearly labeling unpublished trust co
   expect(
     screen.getByText(/No customer endorsements or ratings are published yet/),
   ).toBeInTheDocument();
-  expect(screen.getByText("YES HOSPITAL")).toBeInTheDocument();
-  expect(screen.getByText("Demo workspace · synthetic data")).toBeInTheDocument();
+  expect(screen.getByText("Hospital networks")).toBeInTheDocument();
+  expect(screen.queryByText("YES HOSPITAL")).not.toBeInTheDocument();
 });

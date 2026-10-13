@@ -1,3 +1,4 @@
+import { chooseOption } from "../../test/select";
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -24,7 +25,7 @@ it("loads the granted hospital and saves staff through its API", async () => {
   await user.click(await screen.findByRole("button", { name: "Add staff" }));
   await user.type(screen.getByLabelText("Full name"), "Synthetic Nurse");
   await user.type(screen.getByLabelText("Employee code"), "YES-101");
-  await user.selectOptions(screen.getByLabelText("Job category"), "nurse");
+  await chooseOption(user, screen.getByLabelText("Job category"), "Nurse");
   await user.click(screen.getByRole("button", { name: "Save staff" }));
   await waitFor(() =>
     expect(fetcher).toHaveBeenCalledWith(

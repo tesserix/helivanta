@@ -192,6 +192,31 @@ non-field-level failure (bad credentials) shown as a separate
 `role="alert"` paragraph below the fields rather than attached to one
 input.
 
+Selection dropdowns use `SelectControl` from `@helivanta/ui`, backed by the
+shared Radix primitives in `@tesserix/web`. Use `FormSelectField` inside
+`useZodForm` forms so labels, focus, validation errors and controlled values
+stay connected through React Hook Form. Pass options as `{ value, label }`
+objects; an explicit empty value supports choices such as "Not recorded".
+Do not add visible native `<select>` elements or another selection wrapper.
+The shared control handles keyboard navigation, disabled states, bounded
+mobile popovers and tenant theme propagation into portalled menus. Action
+menus remain separate from value selection.
+
+```tsx
+<FormSelectField
+  control={form.control}
+  name="sex"
+  id="registration-sex"
+  label="Sex as recorded"
+  options={[
+    { value: "", label: "Not recorded" },
+    { value: "female", label: "Female" },
+    { value: "male", label: "Male" },
+    { value: "other", label: "Other" },
+  ]}
+/>
+```
+
 ## 5. UX vocabulary
 
 Action feedback goes through sonner toasts, mounted once per app via

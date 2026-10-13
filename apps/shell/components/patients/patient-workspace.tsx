@@ -17,7 +17,7 @@ import {
   type PatientRegistrationInput,
   type PatientRegistrationResult,
 } from "@helivanta/api";
-import { Field, LoadMore, useZodForm } from "@helivanta/ui";
+import { Field, LoadMore, useZodForm, SelectControl, FormSelectField } from "@helivanta/ui";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -43,20 +43,16 @@ export function PatientWorkspace() {
           </p>
         </div>
         {hospital && (
-          <Field id="patient-hospital" label="Hospital">
-            <select
-              id="patient-hospital"
-              className={inputClass}
-              value={hospital.id}
-              onChange={(event) => setHospitalId(event.target.value)}
-            >
-              {hospitals.items.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <div className="w-full max-w-sm sm:w-72">
+            <Field id="patient-hospital" label="Hospital">
+              <SelectControl
+                id="patient-hospital"
+                value={hospital.id}
+                onValueChange={setHospitalId}
+                options={hospitals.items.map((item) => ({ value: item.id, label: item.name }))}
+              />
+            </Field>
+          </div>
         )}
       </header>
       {hospitals.isError ? (
@@ -100,6 +96,15 @@ function HospitalPatients({ hospital }: { hospital: Hospital }) {
     `/patients/hospitals/${hospital.id}/access`,
   );
   const { can } = usePermissions();
+  const [query, setQuery] = useState("");
+  const patients = useApiPagedQuery<Patient>(
+    ["patients", "registry", hospital.id],
+    `/patients/search?hospital_id=${hospital.id}`,
+    {
+      request: { method: "POST", body: JSON.stringify({ query }) },
+      enabled: can("patient.read"),
+    },
+  );
   return (
     <>
       <div className="mb-6 flex items-center gap-3 rounded-xl border bg-card px-5 py-4 text-sm">
@@ -122,6 +127,9 @@ function HospitalPatients({ hospital }: { hospital: Hospital }) {
         <Registry
           hospital={hospital}
           writable={access.data?.level === "registrar" && can("patient.register")}
+          query={query}
+          setQuery={setQuery}
+          patients={patients}
         />
       )}
       {can("patient.access.manage") && <ClinicalAccessSetup hospital={hospital} />}
@@ -135,23 +143,29 @@ function revealRegistration(section: HTMLElement | null) {
   section.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
 }
 
-function Registry({ hospital, writable }: { hospital: Hospital; writable: boolean }) {
+function Registry({
+  hospital,
+  writable,
+  query,
+  setQuery,
+  patients,
+}: {
+  hospital: Hospital;
+  writable: boolean;
+  query: string;
+  setQuery: (value: string) => void;
+  patients: ReturnType<typeof useApiPagedQuery<Patient>>;
+}) {
   const registration = useRef<HTMLElement | null>(null);
   const registerButton = useRef<HTMLButtonElement | null>(null);
   const registrationMounted = useCallback((section: HTMLElement | null) => {
     registration.current = section;
     revealRegistration(section);
   }, []);
-  const [query, setQuery] = useState("");
   const [registering, setRegistering] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<PatientRegistrationResult | null>(null);
-  const form = useZodForm(searchSchema, { query: "" });
-  const patients = useApiPagedQuery<Patient>(
-    ["patients", "registry", hospital.id],
-    `/patients/search?hospital_id=${hospital.id}`,
-    { request: { method: "POST", body: JSON.stringify({ query }) } },
-  );
+  const form = useZodForm(searchSchema, { query });
   return (
     <>
       <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -482,32 +496,28 @@ function Registration({
             />
           </Field>
         ))}
-        <Field
+        <FormSelectField
+          control={form.control}
+          name="sex"
           id="registration-sex"
           label="Sex as recorded"
-          error={form.formState.errors.sex?.message}
-        >
-          <select id="registration-sex" className={inputClass} {...form.register("sex")}>
-            <option value="">Not recorded</option>
-            <option value="female">Female</option>
-            <option value="male">Male</option>
-            <option value="other">Other</option>
-          </select>
-        </Field>
-        <Field
+          options={[
+            { value: "", label: "Not recorded" },
+            { value: "female", label: "Female" },
+            { value: "male", label: "Male" },
+            { value: "other", label: "Other" },
+          ]}
+        />
+        <FormSelectField
+          control={form.control}
+          name="consented_by"
           id="registration-consented-by"
           label="Consent recorded from"
-          error={form.formState.errors.consented_by?.message}
-        >
-          <select
-            id="registration-consented-by"
-            className={inputClass}
-            {...form.register("consented_by")}
-          >
-            <option value="patient">Patient</option>
-            <option value="guardian">Guardian</option>
-          </select>
-        </Field>
+          options={[
+            { value: "patient", label: "Patient" },
+            { value: "guardian", label: "Guardian" },
+          ]}
+        />
         {form.watch("consented_by") === "guardian" &&
           (
             [
@@ -558,55 +568,39 @@ function Registration({
           </label>
           {form.watch("reported_blood_group") && (
             <div className="mt-5 grid gap-5 md:grid-cols-3">
-              <Field
+              <FormSelectField
+                control={form.control}
+                name="reported_blood_group.abo"
                 id="registration-abo"
                 label="ABO group"
-                error={form.formState.errors.reported_blood_group?.abo?.message}
-              >
-                <select
-                  id="registration-abo"
-                  className={inputClass}
-                  {...form.register("reported_blood_group.abo")}
-                >
-                  <option value="unknown">Unknown</option>
-                  {["A", "B", "AB", "O"].map((group) => (
-                    <option key={group} value={group}>
-                      {group}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field
+                options={[
+                  { value: "unknown", label: "Unknown" },
+                  ...["A", "B", "AB", "O"].map((value) => ({ value, label: value })),
+                ]}
+              />
+              <FormSelectField
+                control={form.control}
+                name="reported_blood_group.rh"
                 id="registration-rh"
                 label="Rh(D) type"
-                error={form.formState.errors.reported_blood_group?.rh?.message}
-              >
-                <select
-                  id="registration-rh"
-                  className={inputClass}
-                  {...form.register("reported_blood_group.rh")}
-                >
-                  <option value="unknown">Unknown</option>
-                  <option value="positive">Positive</option>
-                  <option value="negative">Negative</option>
-                </select>
-              </Field>
-              <Field
+                options={[
+                  { value: "unknown", label: "Unknown" },
+                  { value: "positive", label: "Positive" },
+                  { value: "negative", label: "Negative" },
+                ]}
+              />
+              <FormSelectField
+                control={form.control}
+                name="reported_blood_group.source"
                 id="registration-blood-source"
                 label="Blood group source"
-                error={form.formState.errors.reported_blood_group?.source?.message}
-              >
-                <select
-                  id="registration-blood-source"
-                  className={inputClass}
-                  {...form.register("reported_blood_group.source")}
-                >
-                  <option value="">Select a source</option>
-                  <option value="patient">Patient</option>
-                  <option value="guardian">Guardian</option>
-                  <option value="document">Document (unverified)</option>
-                </select>
-              </Field>
+                options={[
+                  { value: "", label: "Select a source" },
+                  { value: "patient", label: "Patient" },
+                  { value: "guardian", label: "Guardian" },
+                  { value: "document", label: "Document (unverified)" },
+                ]}
+              />
             </div>
           )}
         </fieldset>

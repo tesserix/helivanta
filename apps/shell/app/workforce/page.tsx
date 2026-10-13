@@ -14,7 +14,7 @@ import {
   type StaffInput,
   type Page,
 } from "@helivanta/api";
-import { HmsShell, Field, useZodForm } from "@helivanta/ui";
+import { HmsShell, Field, useZodForm, SelectControl, FormSelectField } from "@helivanta/ui";
 import { TenantPicker } from "@/components/tenant-picker";
 
 const inputClass =
@@ -42,20 +42,19 @@ export default function Workforce() {
           </p>
         </div>
         {hospital && (
-          <label className="min-w-56 text-xs font-medium text-muted-foreground">
-            Hospital
-            <select
-              className={`${inputClass} mt-2 text-foreground`}
-              value={hospital.id}
-              onChange={(e) => setHospitalId(e.target.value)}
-            >
-              {hospitals.data?.data.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="w-full max-w-sm sm:w-72">
+            <Field id="workforce-hospital" label="Hospital">
+              <SelectControl
+                id="workforce-hospital"
+                value={hospital.id}
+                onValueChange={setHospitalId}
+                options={(hospitals.data?.data ?? []).map((item) => ({
+                  value: item.id,
+                  label: item.name,
+                }))}
+              />
+            </Field>
+          </div>
         )}
       </div>
       {can("workforce.hospital.manage") && <HospitalSetup />}
@@ -337,29 +336,23 @@ function StaffEditor({
             {...form.register("employee_code")}
           />
         </Field>
-        <Field
+        <FormSelectField
+          control={form.control}
+          name="job_category"
           id="staff-category"
           label="Job category"
-          error={form.formState.errors.job_category?.message}
-        >
-          <select id="staff-category" className={inputClass} {...form.register("job_category")}>
-            {Object.entries(JOB_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field
+          options={Object.entries(JOB_LABELS).map(([value, label]) => ({ value, label }))}
+        />
+        <FormSelectField
+          control={form.control}
+          name="employment_status"
           id="staff-status"
           label="Employment status"
-          error={form.formState.errors.employment_status?.message}
-        >
-          <select id="staff-status" className={inputClass} {...form.register("employment_status")}>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </Field>
+          options={[
+            { value: "active", label: "Active" },
+            { value: "inactive", label: "Inactive" },
+          ]}
+        />
         {save.isError && (
           <p role="alert" className="text-sm text-destructive sm:col-span-2">
             {save.error.message}

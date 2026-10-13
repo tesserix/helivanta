@@ -52,7 +52,10 @@ test("switching tenant re-mints the session and changes what the user can do", a
   // itself part of the seed contract.
   const picker = page.getByLabel("Tenant");
   await expect(picker).toBeVisible();
-  await picker.selectOption(SECOND_TENANT_ID);
+  await picker.click();
+  await page
+    .getByRole("option", { name: new RegExp(`^${SECOND_TENANT_ID.slice(0, 8)} —`) })
+    .click();
 
   // The switch reloads once the new session cookie is in place.
   await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible({

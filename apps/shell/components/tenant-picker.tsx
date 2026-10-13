@@ -1,5 +1,7 @@
 "use client";
 
+import { SelectControl } from "@helivanta/ui";
+
 import { useApiMutation, useApiQuery, apiFetch, clearPermissionsCache } from "@helivanta/api";
 
 type Membership = { tenant_id: string; roles: string[]; current: boolean };
@@ -75,20 +77,17 @@ export function TenantPicker() {
   const currentTenantId = memberships.find((m) => m.current)?.tenant_id ?? memberships[0].tenant_id;
 
   return (
-    <label className="flex items-center gap-2 text-xs">
-      <span className="sr-only">Tenant</span>
-      <select
-        className="w-44 rounded-md border bg-transparent px-2 py-1 text-sm"
-        onChange={(e) => switchTenant.mutate(e.target.value)}
-        value={currentTenantId}
-        title="Tenant"
-      >
-        {memberships.map((m) => (
-          <option key={m.tenant_id} value={m.tenant_id}>
-            {m.tenant_id.slice(0, 8)} — {m.roles.join(", ")}
-          </option>
-        ))}
-      </select>
-    </label>
+    <SelectControl
+      aria-label="Tenant"
+      title="Tenant"
+      className="w-44"
+      value={currentTenantId}
+      onValueChange={(tenantId) => switchTenant.mutate(tenantId)}
+      disabled={switchTenant.isPending}
+      options={memberships.map((m) => ({
+        value: m.tenant_id,
+        label: `${m.tenant_id.slice(0, 8)} — ${m.roles.join(", ")}`,
+      }))}
+    />
   );
 }

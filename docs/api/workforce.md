@@ -6,7 +6,9 @@ Implementation: `backend/internal/modules/workforce`. Design: [ADR 0009](../adr/
 
 Use an existing Helivanta session obtained through the Zitadel login flow. Every route checks the session and current OpenFGA tenant membership. The session's tenant is authoritative; request bodies cannot set tenant, actor or role. Unknown JSON properties are rejected. No route creates a tenant or a Zitadel identity.
 
-Tenant creation remains with the existing onboarding service's `POST /v1/orgs` contract (name, owner email, requested registered products). Its returned tenant ID must be used by the Helivanta tenant/membership projection. A product grant in Zitadel is not automatically a Helivanta hospital grant. The operator integration and YES HOSPITAL live tenant are not completed by this slice; owner details and the product registration/projection still need verification. Never manually invent a live tenant ID or bypass the operator with database inserts.
+The public gateway prefix is `https://helivanta.app/api/v1`; Istio rewrites it to the service's `/v1` prefix used below.
+
+Tenant creation remains with the existing onboarding service's `POST /v1/orgs` contract (name, owner email, requested registered products). Its returned tenant ID must be used by the Helivanta tenant/membership projection. The operator created YES HOSPITAL with the synthetic owner `yes-hospital-owner@example.invalid`; owner activation, product registration and application membership projection remain pending. A product grant in Zitadel is not automatically a Helivanta hospital grant. See [deployment evidence](../deployment/workforce-release.md) for the verified identifiers. Never manually invent a live tenant ID or bypass the operator with database inserts.
 
 | Method and path (under `/v1`)                                 | Authority                            | Result                                                          |
 | ------------------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------- |

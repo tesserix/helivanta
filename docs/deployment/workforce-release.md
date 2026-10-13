@@ -1,38 +1,55 @@
-# Workforce foundation release
+# Workforce foundation — deployment evidence
 
-Status: local implementation and validation passed. The user approved publication, migration and API rollout after backup readiness. Backup infrastructure has been provisioned; GitOps activation is awaiting the required pull-request path. The workforce migration and API rollout have not run.
+Status: deployed on 2026-10-13. This is the hospital staff-directory foundation, not a completed HMS or automated onboarding integration.
 
-## Backup readiness progress
+## Deployed release
 
-On 2026-10-13, an isolated GitOps worktree produced commit `c780ef85` on `feat/helivanta-backup-readiness` in `tesserix-k8s`. A reviewed, targeted Terraform plan added seven resources with zero changes or deletions: a private regional Helivanta backup bucket, separate backup/restore service accounts, exact Kubernetes workload-identity bindings and bucket-scoped permissions. Restore access is read-only. The bucket has versioning, seven-day soft deletion and destruction protection.
+- API source: `76cf9ff3a83a54e8b4ba601c3e4c1c81f634de45`, [release PR #1083](https://github.com/tesserix/helivanta/pull/1083).
+- Running API digest: `sha256:0df726068f13bdd47d2eb66237780583b69304482d80e291259f00d01caf361e`.
+- Two API replicas available; Kargo promotion `prod.01m4st5h0sgswb4h99zrafb773.26d3014` succeeded through the existing deploy-branch/Argo CD pipeline.
+- Migration `0001_workforce` is recorded in the production migration ledger. All four workforce tables have both `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY` enabled.
+- Public API prefix: `https://helivanta.app/api/v1`. Istio rewrites this to the service's `/v1` prefix.
 
-The GitOps change enables six-hourly CNPG base backups, an immediate first backup, 30-day retention and narrowly selected GKE metadata egress. Terraform mock tests and rendered Helm tests failed before implementation and passed afterward; `terraform validate`, formatting and `helm lint` passed. The targeted plan was used to avoid unrelated estate changes; no whole-estate reconciliation is claimed.
+The authorized target was project `tesseracthub-480811`, context `gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`, namespace `helivanta`, cluster `helivanta-postgres`. CNPG remains two healthy instances: one primary and one standby.
 
-GitHub rejected the direct `main` push because it requires a pull request and `atlantis/apply`. The branch is published; approval to open/merge PRs and post required Atlantis commands is pending under the user's AGENTS instructions. Argo CD still runs the previous configuration. A successful base backup and isolated restore remain required before publishing the automatically promoted API release.
+## Backup and recovery evidence
 
-## Observed target
+[GitOps PR #1376](https://github.com/tesserix/tesserix-k8s/pull/1376) enabled six-hourly base backups and continuous WAL archiving to `gs://tesseracthub-480811-helivanta-backups-prod/cnpg`, with 30-day retention. The private regional bucket has uniform access, public-access prevention, versioning, seven-day soft deletion and Terraform destruction protection. Dedicated backup and restore identities have exact namespace/service-account workload-identity bindings; restore object access is read-only.
 
-Read-only discovery on 2026-10-13:
+The initial Terraform plan added seven resources without changing or destroying existing resources. Atlantis subsequently verified and applied a no-change targeted plan. [PR #1377](https://github.com/tesserix/tesserix-k8s/pull/1377) added two bucket-scoped metadata-reader bindings after Barman demonstrated that object permissions alone do not include `storage.buckets.get`.
 
-- Active GCP account: `unidevidp@gmail.com`.
-- Project: `tesseracthub-480811`.
-- Context: `gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`.
-- Namespace: `helivanta`.
-- CNPG `helivanta-postgres`: two ready instances, healthy (one primary and one standby), PostgreSQL 16.4.
-- Argo CD `helivanta-api`: Healthy/Synced, image parameter `7a3e31266ce85ae1f8873ee9b6454fcb5bc90367`.
-- `0001_workforce` is not in the live migration ledger.
-- Live `hms_app` is neither superuser nor BYPASSRLS; `helivanta` is a non-bypass schema owner and `helivanta_system` has the expected dedicated bypass privilege.
-- The existing deployed API returned 200 from `/healthz` and `/readyz`. The new workforce path returned route-not-found, confirming this code has not been deployed.
-- No CNPG Backup or ScheduledBackup resources were returned in this namespace; previous cluster status also did not report a last successful backup. This does not prove that every possible external backup mechanism is absent, but recoverability has not been verified.
-- The live Cluster has no backup or backup-plugin specification. A read-only listing of the configured GCS destination prefix returned no matching objects. Its `ContinuousArchiving` condition alone is not evidence of a recoverable base backup.
+A completed backup status alone was insufficient: the first standby backup referenced a WAL segment from before GCS archiving was enabled. The isolated restore rejected it. A checkpoint and WAL switch established a new archived boundary, followed by a fresh primary backup:
 
-The owning chart is `tesserix-k8s/charts/apps/helivanta-api`; Kargo owns its promoted image parameter. Do not patch the live Deployment or edit a chart default expecting it to override Kargo's parameter. The GitOps repository has unrelated working-tree changes that must remain untouched.
+| Evidence             | Result                                                           |
+| -------------------- | ---------------------------------------------------------------- |
+| CNPG Backup resource | `helivanta-workforce-primary-20261013`                           |
+| Barman backup ID     | `20261013T045540`                                                |
+| Restore Job          | `helivanta-restore-20261013t045540-retry2`                       |
+| PostgreSQL recovery  | Completed; `pg_is_in_recovery()` was false                       |
+| Verification         | Migration ledger present; serving role did not bypass RLS        |
+| Final output         | `restore_check_passed`                                           |
+| Cleanup              | PostgreSQL stopped; restored data removed from temporary storage |
 
-## Local validation completed
+The restore Job uses the pinned PostgreSQL image, temporary storage, no production volumes or credentials, and no TCP listener. [PR #1378](https://github.com/tesserix/tesserix-k8s/pull/1378) fixes copied read-only configuration handling, reports startup diagnostics and waits for completed recovery with a bounded poll. Historical failed diagnostic Jobs remain as evidence; they are not running workloads.
 
-From `backend/`, with the existing Colima Docker socket selected explicitly:
+The successful restore preceded the workforce migration. This demonstrates recovery of that backup at its earliest consistent point; it does not establish a measured full-scale RTO, an arbitrary-time PITR drill, regional disaster recovery, or compliance certification.
+
+## Verification performed
+
+- Full backend race suite: 28 packages, Go 1.26.6, real PostgreSQL and OpenFGA.
+- Full backend lint: zero findings; `go vet ./...` and `go build ./...` passed.
+- Config log-redaction regression test passed after failing first.
+- Workforce tests cover cross-tenant and sibling-hospital isolation, grant revocation, reader write denial, bounded input, idempotent retries, audit immutability and real HTTP requests using signed sessions.
+- PR CI, including browser end-to-end tests, passed before merge. Release images were built, scanned and signed by CI.
+- Terraform tests and rendered Helm tests passed after failing first; `terraform validate`, `terraform fmt`, `helm lint`, shell syntax and `shellcheck` passed. Release changes passed secret scanning.
+- Deployed `/healthz` and `/readyz` returned 200.
+- All six public workforce routes returned 401 without credentials. An invalid bearer token also returned 401 against the deployed service.
+- A live transaction under `hms_app` verified hospital isolation, tenant isolation, missing-grant denial, reader write denial and append-only audit. All synthetic fixture writes were rolled back. See [the SQL check](../../scripts/sql/workforce-smoke.sql).
+
+The local backend commands were:
 
 ```sh
+cd backend
 DOCKER_HOST=unix:///Users/samyakrout/.colima/default/docker.sock \
 TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \
 GOTOOLCHAIN=go1.26.6 go test -race -p 2 ./...
@@ -42,32 +59,18 @@ GOTOOLCHAIN=go1.26.6 go vet ./...
 GOTOOLCHAIN=go1.26.6 go build ./...
 ```
 
-The full race suite passed. The configuration regression suite was rerun after removing raw invalid environment values from three existing warning messages; fallback behavior is unchanged. Full lint reports zero issues. The workforce integration tests include real Postgres with non-owner/non-bypass serving credentials, signed-session network HTTP requests and real OpenFGA membership revocation. Initial red tests established the missing module, missing registration and unsafe warning output before implementation.
+## Synthetic tenant and remaining integration
 
-The workstation defaults to Go 1.27, which caused unrelated logging tests to fail due to changed JSON tag handling and was incompatible with the installed linter's build toolchain. Validation above uses the repository's declared Go 1.26.6. The production CI/image must use the declared version too; Go 1.27 compatibility is not claimed.
+[YES HOSPITAL](https://onboard.tesserix.app/orgs/8f8ed375-596b-4633-b90b-27fd3e6f299c) was created through the existing onboarding service, with no direct tenant-table insert:
 
-From the repository root, the existing Dockerfile successfully built the final source:
+- Tenant UUID: `8f8ed375-596b-4633-b90b-27fd3e6f299c`.
+- Zitadel organization: `394886004164526645`.
+- Owner: `yes-hospital-owner@example.invalid`, display name `Synthetic Test Owner`.
+- Zitadel owner subject: `394886007536747061`; organization-owner membership verified.
+- Plan: `synthetic-test`; external reference: `helivanta-synthetic-yes-hospital`.
 
-```sh
-docker build -f Dockerfile.api -t helivanta-api:workforce-dev \
-  --build-arg VERSION=workforce-dev --build-arg COMMIT=working-tree .
-git diff --check
-```
+The synthetic owner remains in Zitadel's initial setup state. No mailbox verification, credential activation or MFA requirements were bypassed. The operator currently has no Helivanta product registration, and Helivanta has no automatic operator-to-IAM membership projection. Consequently, this tenant has not been granted application access and signed-in live CRUD tests have not been performed. Real signed-session HTTP isolation tests ran against the test stack; live gateway rejection and database isolation checks are separate evidence.
 
-Local image ID: `sha256:2bf826cc4bcd8e50277be61b1a7ab277cfe5fc0a56a7b3b44fdbcd23aec81dc4`, arm64, UID 65532. This is a local validation artifact, not the signed CI image for GKE. Both the API and migration binary compiled in that image. Changed Markdown passed Prettier. No legacy records, private keys, bearer tokens or production data were added to the change.
+The next implementation slice is dedicated product-machine authentication, verified product entitlement and organization/owner projection into HMS, followed by an activated synthetic-user live CRUD/isolation test. The existing login-client machine identity must not be reused as the product provisioning identity. Employment records must not imply access grants.
 
-## Release content
-
-One additive migration, `0001_workforce`, and six workforce routes documented in [the API contract](../api/workforce.md). No old table changes, source data import or identity provisioning. Both API and migration binaries are included in the existing API image. The API also invokes the idempotent migration runner during startup, so rolling out this binary is itself a schema-changing action even when the chart's migration hook is omitted.
-
-## Before production mutation
-
-1. Complete all local tests, build and security checks; record unrelated baseline failures separately.
-2. Verify backup/restore readiness or choose a separately approved non-production deployment target. Do not equate a standby with a backup.
-3. Obtain the specific approval required by the workspace AGENTS instructions for applying `0001_workforce` to this database and rolling out `helivanta-api` in this production namespace. Git commits/pushes also require authorization under those instructions.
-4. Commit only reviewed Helivanta changes with the repository-matched identity; publish through its normal CI build/scan/sign workflow. Record immutable source revision and image digest. Do not promote an uncommitted local image under an existing tag.
-5. Promote through the existing Kargo/Argo CD path. Observe the migration job, API rollout, `/healthz` and `/readyz`, and verify all four new tables carry forced RLS.
-6. Provision the test organization through the existing onboarding service, checking product registration, owner invitation and grant warnings. Verify its tenant/membership projection before granting hospital access. YES HOSPITAL's owner email remains required.
-7. Run the six endpoints using synthetic records and real signed sessions. Prove 401 for missing/invalid sessions, 403 for nonmembership, 404 for another tenant/sibling hospital's object, reader write denial, explicit revocation, cursor bounds and unchanged PUT retry behavior. Confirm readiness and error rates remain healthy.
-
-The new tables can remain during an approved application rollback to the previously observed image; do not drop them or undo audit records. A rollback is a separate live action requiring its own approval. No restore, rollout, production smoke test or load test is claimed by local validation.
+No legacy customer records were imported. The generated fixture format remains an interchange artifact, not a production seed script. Detailed legacy employee creation and credential fields still need read-only verification before expanding the staff model.

@@ -165,3 +165,56 @@ describe("useApiPagedQuery", () => {
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("cursor=c1"))).toBe(false);
   });
 });
+
+it("keeps existing scope parameters when loading a later page", async () => {
+  const fetcher = vi.fn(async (url: string) =>
+    jsonResponse({
+      data: [{ id: url }],
+      page: {
+        has_more: !url.includes("cursor="),
+        next_cursor: url.includes("cursor=") ? null : "next",
+      },
+    }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { result } = renderHook(
+    () => useApiPagedQuery<{ id: string }>(["scope"], "/patients?hospital_id=one"),
+    { wrapper },
+  );
+  await waitFor(() => expect(result.current.hasMore).toBe(true));
+  act(() => result.current.loadMore());
+  await waitFor(() =>
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/v1/patients?hospital_id=one&cursor=next",
+      expect.anything(),
+    ),
+  );
+});
+
+it("sends sensitive search filters in the body on every page", async () => {
+  const fetcher = vi.fn(async (url: string) =>
+    jsonResponse({
+      data: [],
+      page: {
+        has_more: !url.includes("cursor="),
+        next_cursor: url.includes("cursor=") ? null : "second",
+      },
+    }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { result } = renderHook(
+    () =>
+      useApiPagedQuery(["patient-search"], "/patients/search?hospital_id=one", {
+        request: { method: "POST", body: JSON.stringify({ query: "Synthetic" }) },
+      }),
+    { wrapper },
+  );
+  await waitFor(() => expect(result.current.hasMore).toBe(true));
+  act(() => result.current.loadMore());
+  await waitFor(() =>
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/v1/patients/search?hospital_id=one&cursor=second",
+      expect.objectContaining({ method: "POST", body: '{"query":"Synthetic"}' }),
+    ),
+  );
+});

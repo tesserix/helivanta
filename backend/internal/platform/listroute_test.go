@@ -228,3 +228,12 @@ func TestListRouteHandlerErrorIsFiveHundredWithNoPartialPage(t *testing.T) {
 	require.NotContains(t, w.Body.String(), "database is on fire",
 		"the underlying cause is logged against the request id, never sent to the client")
 }
+
+func TestListRouteDoesNotAppendSuccessAfterHandlerDenial(t *testing.T) {
+	w := runListRoute(t, "", func(c *gin.Context, _ pagination.Params) ([]fakeRow, error) {
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not_found"})
+		return nil, nil
+	})
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.JSONEq(t, `{"error":"not_found"}`, w.Body.String())
+}

@@ -42,6 +42,17 @@ export const ZONES: Zone[] = [
     ],
   },
   {
+    key: "patients",
+    label: "Patients",
+    icon: Users,
+    href: "/patients",
+    permission: "patient.read",
+    hue: "rose",
+    pages: [
+      { label: "Patient registry", href: "/patients", icon: Users, permission: "patient.read" },
+    ],
+  },
+  {
     key: "workforce",
     label: "Staff",
     icon: Users,

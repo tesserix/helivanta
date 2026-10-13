@@ -505,7 +505,7 @@ export function HmsShell({
         {/* Content */}
         <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
           <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="flex h-16 items-center justify-between px-6">
+            <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
               <div className="flex items-center gap-2">
                 {!panelOpen && (
                   <button
@@ -522,7 +522,7 @@ export function HmsShell({
                   {activePage?.label ?? zone.label}
                 </h1>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 {tenantPicker}
                 <ThemeToggle />
                 <form onSubmit={handleSignOut}>

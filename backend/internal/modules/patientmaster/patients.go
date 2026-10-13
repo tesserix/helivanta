@@ -10,9 +10,11 @@ package patientmaster
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -34,6 +36,10 @@ import (
 // birth has no time component to lose or fabricate.
 const dateLayout = "2006-01-02"
 
+var errRegistrationKeyReused = errors.New("registration request ID reused with different input")
+
+var patientPhone = regexp.MustCompile(`^(\+[1-9][0-9]{6,14}|[0-9]{10})$`)
+
 // patient is the GORM projection of the patients table. It implements
 // its own MarshalJSON rather than relying on struct tags because DOB is
 // stored (and compared, by matching.Score) as a bare date — encoding it
@@ -42,6 +48,7 @@ const dateLayout = "2006-01-02"
 type patient struct {
 	ID             uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()"`
 	TenantID       uuid.UUID
+	HospitalID     uuid.UUID
 	MRN            string
 	GivenName      string
 	FamilyName     string
@@ -70,6 +77,7 @@ func (p patient) fullName() string {
 func (p patient) MarshalJSON() ([]byte, error) {
 	type alias struct {
 		ID           string `json:"id"`
+		HospitalID   string `json:"hospital_id"`
 		MRN          string `json:"mrn"`
 		GivenName    string `json:"given_name"`
 		FamilyName   string `json:"family_name"`
@@ -82,6 +90,7 @@ func (p patient) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(alias{
 		ID:           p.ID.String(),
+		HospitalID:   p.HospitalID.String(),
 		MRN:          p.MRN,
 		GivenName:    p.GivenName,
 		FamilyName:   p.FamilyName,
@@ -132,12 +141,13 @@ func (patientDuplicateOverride) TableName() string { return "patient_duplicate_o
 // to capture a name, DOB and consent and move on — everything else is
 // completed later rather than blocking the queue.
 type registerRequest struct {
+	RequestID      string `json:"request_id" binding:"required,uuid"`
 	GivenName      string `json:"given_name" binding:"required,max=100"`
 	FamilyName     string `json:"family_name" binding:"max=100"`
 	Sex            string `json:"sex" binding:"omitempty,oneof=male female other"`
 	DOB            string `json:"dob" binding:"required,datetime=2006-01-02"`
 	DOBEstimated   bool   `json:"dob_estimated"`
-	Mobile         string `json:"mobile" binding:"omitempty,len=10,numeric"`
+	Mobile         string `json:"mobile" binding:"max=16"`
 	AddressLine    string `json:"address_line" binding:"max=300"`
 	NoticeVersion  string `json:"notice_version" binding:"required,max=40"`
 	ConsentedBy    string `json:"consented_by" binding:"required,oneof=patient guardian"`
@@ -212,6 +222,10 @@ func generateMRN() (string, error) {
 // below; they mirror the plan's numbering exactly so a reviewer can
 // check this function against the brief line by line.
 func (h *patientHandlers) register(c *gin.Context) {
+	hospital, scoped := hospitalScope(c)
+	if !scoped {
+		return
+	}
 	principal, tenantUUID, ok := authn.TenantPrincipal(c)
 	if !ok {
 		return
@@ -222,8 +236,16 @@ func (h *patientHandlers) register(c *gin.Context) {
 	// letting the transaction open first would mean building an audit
 	// row was ever on the table for a request that names no reason.
 	var req registerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respond.BadRequest(c, err)
+	if !decodePatientInput(c, &req) {
+		return
+	}
+	req.GivenName = strings.TrimSpace(req.GivenName)
+	req.FamilyName = strings.TrimSpace(req.FamilyName)
+	req.GuardianName = strings.TrimSpace(req.GuardianName)
+	req.GuardianRel = strings.TrimSpace(req.GuardianRel)
+	req.NoticeVersion = strings.TrimSpace(req.NoticeVersion)
+	if req.GivenName == "" || req.NoticeVersion == "" || (req.Mobile != "" && !patientPhone.MatchString(req.Mobile)) {
+		respond.BadRequest(c, errors.New("invalid patient name, notice version or phone number"))
 		return
 	}
 	if req.Override && strings.TrimSpace(req.OverrideReason) == "" {
@@ -237,14 +259,53 @@ func (h *patientHandlers) register(c *gin.Context) {
 		return
 	}
 
+	today := time.Now().UTC().Format(dateLayout)
+	if req.DOB > today {
+		respond.BadRequest(c, errors.New("date of birth cannot be in the future"))
+		return
+	}
+	dateNow, _ := time.Parse(dateLayout, today)
+	if dob.AddDate(18, 0, 0).After(dateNow) && req.ConsentedBy != "guardian" {
+		respond.BadRequest(c, errors.New("a guardian consent receipt is required for a minor"))
+		return
+	}
+	if req.ConsentedBy == "guardian" && (req.GuardianName == "" || req.GuardianRel == "") {
+		respond.BadRequest(c, errors.New("guardian name and relationship are required"))
+		return
+	}
+
 	var (
+		replay          json.RawMessage
 		blocked         bool
 		blockedMatch    possibleMatch
 		created         patient
 		possibleMatches = []possibleMatch{}
 	)
 
-	txErr := h.db.WithTenant(c.Request.Context(), principal.TenantID, func(tx *gorm.DB) error {
+	txErr := h.hospitalTransaction(c.Request.Context(), principal, hospital, true, func(tx *gorm.DB) error {
+		encoded, err := json.Marshal(req)
+		if err != nil {
+			return err
+		}
+		fingerprint := fmt.Sprintf("%x", sha256.Sum256(encoded))
+		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtext(?))`, principal.TenantID+hospital.String()+req.RequestID).Error; err != nil {
+			return err
+		}
+		var saved struct {
+			Fingerprint string
+			Response    []byte
+		}
+		if err := tx.Raw(`SELECT fingerprint, response FROM patient_registration_requests WHERE tenant_id = ? AND hospital_id = ? AND id = ?`, principal.TenantID, hospital, req.RequestID).Scan(&saved).Error; err != nil {
+			return err
+		}
+		if saved.Fingerprint != "" {
+			if saved.Fingerprint != fingerprint {
+				return errRegistrationKeyReused
+			}
+			replay = json.RawMessage(saved.Response)
+			return patientAudit(tx, principal, hospital, "read", nil)
+		}
+
 		fullName := strings.TrimSpace(req.GivenName + " " + req.FamilyName)
 		phoneticKey := matching.PhoneticKey(fullName)
 
@@ -278,7 +339,7 @@ func (h *patientHandlers) register(c *gin.Context) {
 		// is a change of its own; the phonetic key is the arm that
 		// always participates.
 		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtext(?::text || ?::text))`,
-			principal.TenantID, phoneticKey).Error; err != nil {
+			principal.TenantID+hospital.String(), phoneticKey).Error; err != nil {
 			return fmt.Errorf("locking registration blocking key: %w", err)
 		}
 
@@ -315,6 +376,10 @@ func (h *patientHandlers) register(c *gin.Context) {
 			}
 		}
 
+		if err := patientAudit(tx, principal, hospital, "match", corpusRows); err != nil {
+			return err
+		}
+
 		// Step 3: rank.
 		ranked := matching.Rank(subject, corpus, matching.DefaultThresholds())
 
@@ -326,6 +391,16 @@ func (h *patientHandlers) register(c *gin.Context) {
 		var confident *matching.Result
 		if len(ranked) > 0 && ranked[0].Band == matching.BandConfident {
 			confident = &ranked[0]
+		}
+
+		if confident == nil {
+			for i := range ranked {
+				candidate := byID[ranked[i].Candidate.PatientID]
+				if candidate.NormalizedName == matching.NormalizeName(fullName) && candidate.DOB.Format(dateLayout) == req.DOB {
+					confident = &ranked[i]
+					break
+				}
+			}
 		}
 
 		// Step 4: block a confident match unless overridden. No row is
@@ -376,6 +451,7 @@ func (h *patientHandlers) register(c *gin.Context) {
 		// compared form, not the raw input.
 		row := patient{
 			TenantID:       tenantUUID,
+			HospitalID:     hospital,
 			MRN:            mrn,
 			GivenName:      req.GivenName,
 			FamilyName:     req.FamilyName,
@@ -430,10 +506,11 @@ func (h *patientHandlers) register(c *gin.Context) {
 
 		// Step 8: publish patient.registered, in the SAME transaction as
 		// the patient and consent inserts above. The payload carries the
-		// id and nothing else identifying (spec D6) — see
+		// patient and hospital references, without demographics — see
 		// contract.PatientRegisteredData's doc comment for why.
 		data, err := json.Marshal(patientmastercontract.PatientRegisteredData{
-			PatientID: row.ID.String(),
+			PatientID:  row.ID.String(),
+			HospitalID: hospital.String(),
 		})
 		if err != nil {
 			return fmt.Errorf("marshaling patient.registered payload: %w", err)
@@ -445,10 +522,25 @@ func (h *patientHandlers) register(c *gin.Context) {
 		}
 
 		created = row
-		return nil
+		if err := patientAudit(tx, principal, hospital, "register", []patient{row}); err != nil {
+			return err
+		}
+		response, err := json.Marshal(gin.H{"patient": created, "possible_matches": possibleMatches})
+		if err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO patient_registration_requests (id, tenant_id, hospital_id, fingerprint, response) VALUES (?, ?, ?, ?, ?::jsonb)`, req.RequestID, principal.TenantID, hospital, fingerprint, string(response)).Error
 	})
+	if errors.Is(txErr, errRegistrationKeyReused) {
+		respond.Conflict(c, "request_id was already used for another registration")
+		return
+	}
 	if txErr != nil {
-		respond.InternalErr(c, txErr, "could not register patient")
+		patientError(c, txErr)
+		return
+	}
+	if len(replay) > 0 {
+		respond.Created(c, replay)
 		return
 	}
 	if blocked {
@@ -471,6 +563,10 @@ func (h *patientHandlers) register(c *gin.Context) {
 // gorm.ErrRecordNotFound here — the same 404, never a 403 that would
 // tell a prober the id exists.
 func (h *patientHandlers) get(c *gin.Context) {
+	hospital, scoped := hospitalScope(c)
+	if !scoped {
+		return
+	}
 	principal, _, ok := authn.TenantPrincipal(c)
 	if !ok {
 		return
@@ -481,15 +577,18 @@ func (h *patientHandlers) get(c *gin.Context) {
 		return
 	}
 	var row patient
-	err = h.db.WithTenant(c.Request.Context(), principal.TenantID, func(tx *gorm.DB) error {
-		return tx.First(&row, "id = ?", id).Error
+	err = h.hospitalTransaction(c.Request.Context(), principal, hospital, false, func(tx *gorm.DB) error {
+		if err := tx.First(&row, "id = ?", id).Error; err != nil {
+			return err
+		}
+		return patientAudit(tx, principal, hospital, "read", []patient{row})
 	})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		respond.NotFound(c, "patient")
 		return
 	}
 	if err != nil {
-		respond.InternalErr(c, err, "could not load patient")
+		patientError(c, err)
 		return
 	}
 	respond.OK(c, row)
@@ -501,13 +600,24 @@ func (h *patientHandlers) get(c *gin.Context) {
 // leaves trimming, has_more and cursor construction to
 // platform.ListRoute, which owns all three.
 func (h *patientHandlers) list(c *gin.Context, p pagination.Params) ([]patient, error) {
+	hospital, scoped := hospitalScope(c)
+	if !scoped {
+		return nil, nil
+	}
 	principal, _, ok := authn.TenantPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
 	var rows []patient
-	err := h.db.WithTenant(c.Request.Context(), principal.TenantID, func(tx *gorm.DB) error {
-		return tenantdb.ApplyKeyset(tx, p).Find(&rows).Error
+	err := h.hospitalTransaction(c.Request.Context(), principal, hospital, false, func(tx *gorm.DB) error {
+		if err := tenantdb.ApplyKeyset(tx, p).Where("tenant_id = ? AND hospital_id = ?", principal.TenantID, hospital).Find(&rows).Error; err != nil {
+			return err
+		}
+		return patientAudit(tx, principal, hospital, "list", rows)
 	})
-	return rows, err
+	if err != nil {
+		patientError(c, err)
+		return nil, nil
+	}
+	return rows, nil
 }

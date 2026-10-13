@@ -44,7 +44,16 @@ type ListHandler[T Keyed] func(c *gin.Context, p pagination.Params) ([]T, error)
 // A package-level function rather than a method because Go methods
 // cannot take type parameters.
 func ListRoute[T Keyed](r *Router, path string, perm authz.Permission, h ListHandler[T]) {
-	r.handle("GET", path, perm, true, []gin.HandlerFunc{func(c *gin.Context) {
+	listRoute(r, "GET", path, perm, h)
+}
+
+// SearchRoute paginates a read-only POST whose sensitive filters belong in its body.
+func SearchRoute[T Keyed](r *Router, path string, perm authz.Permission, h ListHandler[T]) {
+	listRoute(r, "POST", path, perm, h)
+}
+
+func listRoute[T Keyed](r *Router, method, path string, perm authz.Permission, h ListHandler[T]) {
+	r.handle(method, path, perm, true, []gin.HandlerFunc{func(c *gin.Context) {
 		p, ok := authn.PrincipalFrom(c)
 		if !ok {
 			respond.Unauthenticated(c, "missing principal")
@@ -60,6 +69,9 @@ func ListRoute[T Keyed](r *Router, path string, perm authz.Permission, h ListHan
 		}
 
 		rows, err := h(c, params)
+		if c.IsAborted() {
+			return
+		}
 		if err != nil {
 			respond.InternalErr(c, err, "could not list "+path)
 			return

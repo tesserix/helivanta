@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/valkey-io/valkey-go"
 	"log/slog"
 	"net/http"
 	"os"
@@ -351,7 +352,20 @@ func run() error {
 	// Task 4 — with no separate construction) and iam.LoginDeps.Limiter
 	// below (#841 — this file must construct exactly one
 	// ratelimit.Limiter, never a second).
-	limiter := ratelimit.NewMemory(10_000)
+	var limiter ratelimit.Limiter
+	if cfg.ValkeyURL != "" {
+		option, err := valkey.ParseURL(cfg.ValkeyURL)
+		if err != nil || cfg.ValkeyTimeout <= 0 {
+			return errors.New("invalid Valkey limiter configuration")
+		}
+		option.Dialer.Timeout = cfg.ValkeyTimeout
+		shared := ratelimit.NewValkey(option)
+		defer shared.Close()
+		limiter = shared
+		slog.Info("shared rate limiter configured", "backend", "valkey")
+	} else {
+		limiter = ratelimit.NewMemory(10_000)
+	}
 	api := platform.NewRouter(
 		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, fga)...),
 		fga,

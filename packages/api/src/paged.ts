@@ -16,6 +16,9 @@ export type UseApiPagedQueryResult<T> = {
   loadMore: () => void;
   isPending: boolean;
   isFetchingMore: boolean;
+  isError: boolean;
+  error: Error | null;
+  retry: () => void;
 };
 
 /**
@@ -40,13 +43,19 @@ export type UseApiPagedQueryResult<T> = {
 export function useApiPagedQuery<T>(
   key: unknown[],
   path: string,
-  opts: { poll?: boolean } = {},
+  opts: { poll?: boolean; request?: { method: "POST"; body: string }; enabled?: boolean } = {},
 ): UseApiPagedQueryResult<T> {
   const query = useInfiniteQuery({
-    queryKey: key,
+    queryKey: [...key, path, opts.request?.body ?? null],
+    enabled: opts.enabled,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
-      apiFetch<Page<T>>(pageParam ? `${path}?cursor=${encodeURIComponent(pageParam)}` : path),
+      apiFetch<Page<T>>(
+        pageParam
+          ? `${path}${path.includes("?") ? "&" : "?"}cursor=${encodeURIComponent(pageParam)}`
+          : path,
+        opts.request,
+      ),
     getNextPageParam: (last) => (last.page.has_more ? last.page.next_cursor : undefined),
     refetchInterval: opts.poll ? POLL_INTERVAL_MS : undefined,
   });
@@ -61,6 +70,11 @@ export function useApiPagedQuery<T>(
   const fetchingRef = useRef(false);
 
   return {
+    isError: query.isError,
+    error: query.error,
+    retry: () => {
+      void query.refetch();
+    },
     items: query.data?.pages.flatMap((p) => p.data) ?? [],
     hasMore: query.hasNextPage,
     loadMore: () => {

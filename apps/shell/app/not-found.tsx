@@ -5,7 +5,7 @@ export default function NotFound() {
       <h1 className="text-xl font-semibold text-foreground">Page not found</h1>
       <p className="text-sm text-muted-foreground">
         Check the address, or head back to the{" "}
-        <Link className="underline underline-offset-4" href="/">
+        <Link className="underline underline-offset-4" href="/dashboard">
           dashboard
         </Link>
         .

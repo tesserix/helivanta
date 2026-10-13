@@ -36,7 +36,7 @@ vi.mock("next/navigation", () => ({ usePathname }));
 describe("SessionRenewal", () => {
   beforeEach(() => {
     renewSession.mockReset();
-    usePathname.mockReturnValue("/");
+    usePathname.mockReturnValue("/dashboard");
     // The stored schedule is per-tab state that outlives a render, so it
     // must be cleared between tests or one test's login schedule seeds
     // the next test's first timer (#916 Task 4, F3).
@@ -52,6 +52,19 @@ describe("SessionRenewal", () => {
 
   it("does not schedule a renewal on /login", async () => {
     usePathname.mockReturnValue("/login");
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+
+    renderWithProviders(<SessionRenewal />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS)).toBeUndefined();
+    expect(renewSession).not.toHaveBeenCalled();
+    setTimeoutSpy.mockRestore();
+  });
+
+  // "/" and "/signup" are public pages a signed-out visitor reaches; renewing there would 401.
+  it.each(["/", "/signup"])("does not schedule a renewal on the public page %s", async (path) => {
+    usePathname.mockReturnValue(path);
     const setTimeoutSpy = vi.spyOn(window, "setTimeout");
 
     renderWithProviders(<SessionRenewal />);
@@ -306,7 +319,7 @@ describe("SessionRenewal", () => {
 describe("SessionRenewal's FIRST renewal", () => {
   beforeEach(() => {
     renewSession.mockReset();
-    usePathname.mockReturnValue("/");
+    usePathname.mockReturnValue("/dashboard");
     window.sessionStorage.clear();
   });
   afterEach(() => {

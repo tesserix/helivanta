@@ -49,7 +49,7 @@ const PERMISSIONS_PROBE = "/api/v1/iam/me/permissions";
 // AuthOtpStep default (`label = "Verification code"`), which
 // apps/shell/app/login/page.tsx's OtpStep does not override.
 async function signInAndReachOtpStep(page: Page): Promise<void> {
-  await page.goto("/");
+  await page.goto("/dashboard");
   const landingButton = page.getByRole("button", { name: "Sign in" });
   await landingButton.waitFor({ state: "visible", timeout: 20_000 });
   await landingButton.click();
@@ -101,7 +101,7 @@ test("a correct TOTP code completes sign-in, provable against the API", async ({
   // "Signing you in…", which is not /login but also does not yet have a
   // cookie the API will accept — observed live failing the probe below
   // when this waited for anything looser.
-  await page.waitForURL((url) => url.pathname === "/", { timeout: 30_000 });
+  await page.waitForURL((url) => url.pathname === "/dashboard", { timeout: 30_000 });
 
   // Assert against the API, not a rendered heading — idle-timeout.spec.ts
   // (e2e/tests/idle-timeout.spec.ts) records why: apps/shell's own

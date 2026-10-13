@@ -25,7 +25,12 @@ import { AUTH_CALLBACK_PATH } from "@/lib/oidc";
 // constant across that boundary is not worth the coupling for a short
 // path prefix.
 function isPublicPath(pathname: string): boolean {
-  return pathname.startsWith("/login") || pathname.startsWith(AUTH_CALLBACK_PATH);
+  return (
+    pathname === "/" ||
+    pathname === "/signup" ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith(AUTH_CALLBACK_PATH)
+  );
 }
 
 // SessionRenewal runs the server-side renewal loop (design spec D1/D5,

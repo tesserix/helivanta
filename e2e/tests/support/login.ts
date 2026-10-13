@@ -187,7 +187,7 @@ async function startSignIn(page: Page): Promise<void> {
 // whichever spec file is currently running.
 export async function login(page: Page, user: Credentials = specAdmin()): Promise<void> {
   try {
-    await page.goto("/");
+    await page.goto("/dashboard");
   } catch (err) {
     // ERR_ABORTED here means a navigation was ALREADY in flight when this
     // goto fired — the real case is a spec that calls login() again

@@ -4,7 +4,7 @@ Status: deployed on 2026-10-13. This is the hospital staff-directory foundation,
 
 ## Deployed release
 
-- API source: `76cf9ff3a83a54e8b4ba601c3e4c1c81f634de45`, [release PR #1083](https://github.com/tesserix/helivanta/pull/1083).
+- Source commit: `76cf9ff3a83a54e8b4ba601c3e4c1c81f634de45`, [release PR #1083](https://github.com/tesserix/helivanta/pull/1083).
 - Running API digest: `sha256:0df726068f13bdd47d2eb66237780583b69304482d80e291259f00d01caf361e`.
 - Two API replicas available; Kargo promotion `prod.01m4st5h0sgswb4h99zrafb773.26d3014` succeeded through the existing deploy-branch/Argo CD pipeline.
 - Migration `0001_workforce` is recorded in the production migration ledger. All four workforce tables have both `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY` enabled.

@@ -343,6 +343,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workspace/branding":                      "single current-tenant branding document",
 	"GET /workforce/hospitals/:hospital/staff/:id": "single hospital-local staff entry",
 	"GET /reference/pings/:id":                     "single item, not a collection",
+	"GET /patients/hospitals/:hospital/access":     "current principal hospital grant, not a collection",
 	"GET /patients/:id":                            "single item, not a collection",
 	"GET /iam/roles":                               "bounded: the fixed system role set",
 	"GET /iam/me/tenants":                          "bounded: one person's memberships",

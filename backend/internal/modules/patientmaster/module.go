@@ -6,6 +6,8 @@
 package patientmaster
 
 import (
+	_ "embed"
+
 	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -14,9 +16,13 @@ import (
 )
 
 const (
-	PermPatientRead     authz.Permission = "patient.read"
-	PermPatientRegister authz.Permission = "patient.register"
+	PermPatientAccessManage authz.Permission = "patient.access.manage"
+	PermPatientRead         authz.Permission = "patient.read"
+	PermPatientRegister     authz.Permission = "patient.register"
 )
+
+//go:embed hospital.sql
+var hospitalSchema string
 
 type Module struct{}
 
@@ -28,6 +34,7 @@ func (m *Module) Name() string { return "patientmaster" }
 // RoleTenantAdmin is never listed — the reconciler grants it everything.
 func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
+		{Permission: PermPatientAccessManage},
 		{Permission: PermPatientRead, Roles: []authz.Role{
 			authz.RoleReceptionist, authz.RoleDoctor, authz.RoleNurse,
 			authz.RolePharmacist, authz.RoleLabTech}},
@@ -190,7 +197,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  AFTER INSERT ON patients
 			  DEFERRABLE INITIALLY DEFERRED
 			  FOR EACH ROW EXECUTE FUNCTION patients_require_consent();`,
-	}}
+	}, {ID: "0003_patientmaster", SQL: hospitalSchema}}
 }
 
 // Routes mounts registration (spec D4/D5), single lookup, and the
@@ -199,6 +206,10 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/patients")
 	patients := &patientHandlers{db: deps.DB, bus: deps.Bus}
 	g.POST("", PermPatientRegister, patients.register)
+	platform.SearchRoute(g, "/search", PermPatientRead, patients.search)
+	g.PUT("/hospitals/:hospital/access/:subject", PermPatientAccessManage, patients.putAccess)
+	g.DELETE("/hospitals/:hospital/access/:subject", PermPatientAccessManage, patients.deleteAccess)
+	g.GET("/hospitals/:hospital/access", PermPatientRead, patients.getAccess)
 	g.GET("/:id", PermPatientRead, patients.get)
 	platform.ListRoute(g, "", PermPatientRead, patients.list)
 }

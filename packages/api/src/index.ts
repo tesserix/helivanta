@@ -24,3 +24,10 @@ export {
   type Staff,
   type StaffInput,
 } from "./workspace";
+
+export {
+  patientRegistrationSchema,
+  type Patient,
+  type PatientRegistrationInput,
+  type PatientRegistrationResult,
+} from "./patients";

@@ -20,6 +20,8 @@ type Config struct {
 	// retention, which are the three operations that cross tenants (#894).
 	SystemDatabaseURL string
 	NATSURL           string
+	ValkeyURL         string
+	ValkeyTimeout     time.Duration
 	OpenFGAURL        string
 	OpenFGAStore      string
 
@@ -277,6 +279,8 @@ func Load() Config {
 		// while reporting success — which is #894 exactly.
 		SystemDatabaseURL: getenv("SYSTEM_DATABASE_URL", "postgres://helivanta_system:helivanta_system@localhost:5432/helivanta?sslmode=disable"),
 		NATSURL:           getenv("NATS_URL", "nats://localhost:4222"),
+		ValkeyURL:         getenv("VALKEY_URL", ""),
+		ValkeyTimeout:     getenvDuration("VALKEY_TIMEOUT", 100*time.Millisecond),
 		OpenFGAURL:        getenv("OPENFGA_URL", "http://localhost:8090"),
 		OpenFGAStore:      getenv("OPENFGA_STORE", "helivanta"),
 

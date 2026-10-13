@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
@@ -18,7 +20,29 @@ import (
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
+const testHospital = "11111111-1111-4111-8111-111111111111"
+
 var do = testutil.Do
+
+func scopedDo(r *gin.Engine, method, path, token, body string) *httptest.ResponseRecorder {
+	sep := "?"
+	if strings.Contains(path, "?") {
+		sep = "&"
+	}
+	return do(r, method, path+sep+"hospital_id="+testHospital, token, body)
+}
+
+func withPatientTenant(db *tenantdb.DB, ctx context.Context, tenant string, fn func(*gorm.DB) error) error {
+	return db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
+		if err := tx.Exec(`INSERT INTO patient_hospital_access (tenant_id, hospital_id, subject, level) VALUES (?, ?, 'test-db', 'registrar') ON CONFLICT DO NOTHING`, tenant, testHospital).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec(`SELECT set_config('app.patient_subject', 'test-db', true), set_config('app.patient_hospital', ?, true)`, testHospital).Error; err != nil {
+			return err
+		}
+		return fn(tx)
+	})
+}
 
 // setupHTTP builds the harness exactly as lab/module_test.go's setup
 // does, but keeps the *gin.Engine this file actually needs to drive
@@ -28,11 +52,16 @@ func setupHTTP(t *testing.T) (*gin.Engine, *tenantdb.DB, context.Context) {
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
-			"tokA": {patientmaster.PermPatientRead, patientmaster.PermPatientRegister},
+			"tokA": {patientmaster.PermPatientRead, patientmaster.PermPatientRegister, authz.Permission("patient.access.manage")},
 			"tokB": {patientmaster.PermPatientRead, patientmaster.PermPatientRegister},
 		},
 		Modules: []platform.Module{patientmaster.New()},
 	})
+	for token, tenant := range map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB} {
+		require.NoError(t, db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO patient_hospital_access (tenant_id, hospital_id, subject, level) VALUES (?, ?, ?, 'registrar')`, tenant, testHospital, "user-"+token).Error
+		}))
+	}
 	return r, db, ctx
 }
 
@@ -40,6 +69,7 @@ func setupHTTP(t *testing.T) (*gin.Engine, *tenantdb.DB, context.Context) {
 // varying only the fields each test cares about.
 func registerBody(givenName, familyName, dob, mobile string, override bool, overrideReason string) string {
 	req := map[string]any{
+		"request_id":      uuid.NewString(),
 		"given_name":      givenName,
 		"family_name":     familyName,
 		"dob":             dob,
@@ -92,12 +122,12 @@ func TestRegisterCreatesPatientAndConsentInOneTransaction(t *testing.T) {
 	r, db, ctx := setupHTTP(t)
 
 	body := registerBody("Asha", "Rao", "1990-05-10", "9876500001", false, "")
-	w := do(r, "POST", "/v1/patients", "tokA", body)
+	w := scopedDo(r, "POST", "/v1/patients", "tokA", body)
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 
 	respID := registeredID(t, w)
 	var patientCount, consentCount int64
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+	require.NoError(t, withPatientTenant(db, ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		if err := tx.Raw(`SELECT count(*) FROM patients WHERE id = ?`, respID).Scan(&patientCount).Error; err != nil {
 			return err
 		}
@@ -113,11 +143,11 @@ func TestRegisterCreatesPatientAndConsentInOneTransaction(t *testing.T) {
 func TestConfidentDuplicateIsBlocked(t *testing.T) {
 	r, db, ctx := setupHTTP(t)
 
-	w1 := do(r, "POST", "/v1/patients", "tokA", registerBody("Mohammed Ali", "", "1979-04-02", "9876543210", false, ""))
+	w1 := scopedDo(r, "POST", "/v1/patients", "tokA", registerBody("Mohammed Ali", "", "1979-04-02", "9876543210", false, ""))
 	require.Equal(t, http.StatusCreated, w1.Code, w1.Body.String())
 	createdID := registeredID(t, w1)
 
-	w2 := do(r, "POST", "/v1/patients", "tokA", registerBody("Md Ali", "", "1979-04-02", "9876543210", false, ""))
+	w2 := scopedDo(r, "POST", "/v1/patients", "tokA", registerBody("Md Ali", "", "1979-04-02", "9876543210", false, ""))
 	require.Equal(t, http.StatusConflict, w2.Code, w2.Body.String())
 
 	// The 409 is the one moment a human adjudicates "same person or
@@ -134,7 +164,7 @@ func TestConfidentDuplicateIsBlocked(t *testing.T) {
 	require.Greater(t, conflict.Match.Score, 0.0)
 
 	var count int64
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+	require.NoError(t, withPatientTenant(db, ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Raw(`SELECT count(*) FROM patients`).Scan(&count).Error
 	}))
 	require.Equal(t, int64(1), count)
@@ -145,17 +175,17 @@ func TestConfidentDuplicateIsBlocked(t *testing.T) {
 func TestOverrideCreatesTheDuplicateAndRecordsWhy(t *testing.T) {
 	r, db, ctx := setupHTTP(t)
 
-	w1 := do(r, "POST", "/v1/patients", "tokA", registerBody("Mohammed Ali", "", "1979-04-02", "9876543211", false, ""))
+	w1 := scopedDo(r, "POST", "/v1/patients", "tokA", registerBody("Mohammed Ali", "", "1979-04-02", "9876543211", false, ""))
 	require.Equal(t, http.StatusCreated, w1.Code, w1.Body.String())
 	createdID := registeredID(t, w1)
 
 	const reason = "clerk confirmed two distinct people at the counter"
-	w2 := do(r, "POST", "/v1/patients", "tokA", registerBody("Md Ali", "", "1979-04-02", "9876543211", true, reason))
+	w2 := scopedDo(r, "POST", "/v1/patients", "tokA", registerBody("Md Ali", "", "1979-04-02", "9876543211", true, reason))
 	require.Equal(t, http.StatusCreated, w2.Code, w2.Body.String())
 	secondID := registeredID(t, w2)
 	require.NotEqual(t, createdID, secondID)
 
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+	require.NoError(t, withPatientTenant(db, ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		var patientCount int64
 		if err := tx.Raw(`SELECT count(*) FROM patients`).Scan(&patientCount).Error; err != nil {
 			return err
@@ -181,11 +211,11 @@ func TestOverrideCreatesTheDuplicateAndRecordsWhy(t *testing.T) {
 func TestOverrideWithoutAReasonIsRefused(t *testing.T) {
 	r, db, ctx := setupHTTP(t)
 
-	w := do(r, "POST", "/v1/patients", "tokA", registerBody("Ramesh", "Iyer", "1985-03-03", "9876543212", true, ""))
+	w := scopedDo(r, "POST", "/v1/patients", "tokA", registerBody("Ramesh", "Iyer", "1985-03-03", "9876543212", true, ""))
 	require.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
 
 	var count int64
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+	require.NoError(t, withPatientTenant(db, ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Raw(`SELECT count(*) FROM patients`).Scan(&count).Error
 	}))
 	require.Equal(t, int64(0), count)
@@ -204,11 +234,11 @@ func TestOverrideWithoutAReasonIsRefused(t *testing.T) {
 func TestPossibleMatchDoesNotBlock(t *testing.T) {
 	r, db, ctx := setupHTTP(t)
 
-	w1 := do(r, "POST", "/v1/patients", "tokA", registerBody("Mohammed Ali", "", "1979-04-02", "", false, ""))
+	w1 := scopedDo(r, "POST", "/v1/patients", "tokA", registerBody("Mohammed Ali", "", "1979-04-02", "", false, ""))
 	require.Equal(t, http.StatusCreated, w1.Code, w1.Body.String())
 	firstID := registeredID(t, w1)
 
-	w2 := do(r, "POST", "/v1/patients", "tokA", registerBody("Mohammed Ali", "", "1962-01-01", "", false, ""))
+	w2 := scopedDo(r, "POST", "/v1/patients", "tokA", registerBody("Mohammed Ali", "", "1962-01-01", "", false, ""))
 	require.Equal(t, http.StatusCreated, w2.Code, w2.Body.String())
 
 	var second struct {
@@ -228,7 +258,7 @@ func TestPossibleMatchDoesNotBlock(t *testing.T) {
 	require.Equal(t, "Mohammed Ali", second.PossibleMatches[0].GivenName)
 
 	var count int64
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+	require.NoError(t, withPatientTenant(db, ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Raw(`SELECT count(*) FROM patients`).Scan(&count).Error
 	}))
 	require.Equal(t, int64(2), count)
@@ -239,14 +269,14 @@ func TestPossibleMatchDoesNotBlock(t *testing.T) {
 func TestGetPatientFromAnotherTenantIs404(t *testing.T) {
 	r, _, _ := setupHTTP(t)
 
-	w := do(r, "POST", "/v1/patients", "tokA", registerBody("Sunita", "Verma", "1988-11-20", "9876543213", false, ""))
+	w := scopedDo(r, "POST", "/v1/patients", "tokA", registerBody("Sunita", "Verma", "1988-11-20", "9876543213", false, ""))
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 	createdID := registeredID(t, w)
 
-	wGetA := do(r, "GET", "/v1/patients/"+createdID, "tokA", "")
+	wGetA := scopedDo(r, "GET", "/v1/patients/"+createdID, "tokA", "")
 	require.Equal(t, http.StatusOK, wGetA.Code)
 
-	wGetB := do(r, "GET", "/v1/patients/"+createdID, "tokB", "")
+	wGetB := scopedDo(r, "GET", "/v1/patients/"+createdID, "tokB", "")
 	require.Equal(t, http.StatusNotFound, wGetB.Code)
 }
 
@@ -257,12 +287,12 @@ func TestRegisteredEventCarriesOnlyTheID(t *testing.T) {
 	r, db, ctx := setupHTTP(t)
 
 	const sentinel = "Zzyzxvortex"
-	w := do(r, "POST", "/v1/patients", "tokA", registerBody(sentinel, "Kapoor", "1990-06-15", "9876543214", false, ""))
+	w := scopedDo(r, "POST", "/v1/patients", "tokA", registerBody(sentinel, "Kapoor", "1990-06-15", "9876543214", false, ""))
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 	createdID := registeredID(t, w)
 
 	var row struct{ Payload []byte }
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+	require.NoError(t, withPatientTenant(db, ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Raw(`SELECT payload FROM outbox_events
 			WHERE subject = 'helivanta.in.patientmaster.registered.v1'`).Scan(&row).Error
 	}))
@@ -270,6 +300,7 @@ func TestRegisteredEventCarriesOnlyTheID(t *testing.T) {
 
 	body := string(row.Payload)
 	require.Contains(t, body, createdID, "the payload must carry the patient id")
+	require.Contains(t, body, testHospital, "consumers need explicit hospital scope")
 	require.NotContains(t, body, sentinel, "the payload must not carry the patient's given name")
 }
 
@@ -283,15 +314,15 @@ func TestRegisteredEventCarriesOnlyTheID(t *testing.T) {
 func TestPatientWithoutConsentCannotCommit(t *testing.T) {
 	_, db, ctx := setupHTTP(t)
 
-	err := db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Exec(`INSERT INTO patients (tenant_id, mrn, given_name, dob)
-			VALUES (?::uuid, 'MRN-ORPHAN', 'Orphan', DATE '1990-01-01')`, testutil.TenantA).Error
+	err := withPatientTenant(db, ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO patients (hospital_id, tenant_id, mrn, given_name, dob)
+			VALUES ('11111111-1111-4111-8111-111111111111', ?::uuid, 'MRN-ORPHAN', 'Orphan', DATE '1990-01-01')`, testutil.TenantA).Error
 	})
 	require.Error(t, err, "a patient with no consent receipt must not be able to commit")
 	require.Contains(t, err.Error(), "consent receipt")
 
 	var count int64
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+	require.NoError(t, withPatientTenant(db, ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Raw(`SELECT count(*) FROM patients`).Scan(&count).Error
 	}))
 	require.Equal(t, int64(0), count, "the rolled-back patient row must not survive")

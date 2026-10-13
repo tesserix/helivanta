@@ -146,11 +146,13 @@ func TestAttemptSweeperSurvivesAFailingPass(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go runAttemptSweeper(ctx, sweep, 10*time.Millisecond)
+	done := make(chan struct{})
+	go func() { defer close(done); runAttemptSweeper(ctx, sweep, 10*time.Millisecond) }()
 
 	require.Eventually(t, func() bool { return passes.Load() >= 3 }, 2*time.Second, 5*time.Millisecond,
 		"a failing or panicking pass stopped the sweeper")
 	cancel()
+	<-done
 	out := logged.String()
 	require.Contains(t, out, `"msg":"login attempt sweep","err":"database unreachable"`)
 	require.Contains(t, out, `"msg":"login attempt sweep panic"`)

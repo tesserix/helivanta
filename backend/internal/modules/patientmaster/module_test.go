@@ -41,18 +41,13 @@ func setup(t *testing.T) (*tenantdb.DB, context.Context) {
 func insertPatient(t *testing.T, db *tenantdb.DB, ctx context.Context, tenant, mrn string) uuid.UUID {
 	t.Helper()
 	var idStr string
-	require.NoError(t, db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
-		return tx.Raw(`
-			WITH p AS (
-			  INSERT INTO patients (tenant_id, mrn, given_name, dob, dob_estimated)
-			  VALUES (?, ?, 'seed', '1990-01-01', false)
-			  RETURNING id, tenant_id
-			), c AS (
-			  INSERT INTO patient_consents
-			    (tenant_id, patient_id, notice_version, consented_by, recorded_by_subject)
-			  SELECT tenant_id, id, 'v1', 'patient', 'test-seed' FROM p
-			)
-			SELECT id FROM p`, tenant, mrn).Scan(&idStr).Error
+	require.NoError(t, withPatientTenant(db, ctx, tenant, func(tx *gorm.DB) error {
+		if err := tx.Raw(`INSERT INTO patients (hospital_id, tenant_id, mrn, given_name, dob)
+         VALUES (?, ?, ?, 'seed', '1990-01-01') RETURNING id`, testHospital, tenant, mrn).Scan(&idStr).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO patient_consents (tenant_id, patient_id, notice_version, consented_by, recorded_by_subject)
+         VALUES (?, ?, 'v1', 'patient', 'test-db')`, tenant, idStr).Error
 	}))
 	return uuid.MustParse(idStr)
 }
@@ -68,7 +63,7 @@ func TestPatientsAreTenantIsolated(t *testing.T) {
 
 	countAs := func(tenant string) int {
 		var n int
-		require.NoError(t, db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
+		require.NoError(t, withPatientTenant(db, ctx, tenant, func(tx *gorm.DB) error {
 			return tx.Raw(`SELECT count(*) FROM patients`).Scan(&n).Error
 		}))
 		return n
@@ -83,9 +78,9 @@ func TestPatientWriteIsPinnedToOneTenant(t *testing.T) {
 	db, ctx := setup(t)
 	tenantA, tenantB := uuid.NewString(), uuid.NewString()
 
-	err := db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
-		return tx.Exec(`INSERT INTO patients (tenant_id, mrn, given_name, dob, dob_estimated)
-			VALUES (?, 'MRN-2', 'priya', '1996-08-14', false)`, tenantB).Error
+	err := withPatientTenant(db, ctx, tenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO patients (hospital_id, tenant_id, mrn, given_name, dob, dob_estimated)
+			VALUES ('11111111-1111-4111-8111-111111111111', ?, 'MRN-2', 'priya', '1996-08-14', false)`, tenantB).Error
 	})
 	require.Error(t, err)
 }
@@ -105,7 +100,7 @@ func TestConsentCannotLinkToAnotherTenantsPatient(t *testing.T) {
 
 	patientB := insertPatient(t, db, ctx, tenantB, "MRN-B1")
 
-	err := db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
+	err := withPatientTenant(db, ctx, tenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO patient_consents
 			(tenant_id, patient_id, notice_version, consented_by, recorded_by_subject)
 			VALUES (?, ?, 'v1', 'patient', 'user-tokA')`, tenantA, patientB).Error
@@ -124,7 +119,7 @@ func TestDuplicateOverrideCannotLinkToAnotherTenantsPatient(t *testing.T) {
 	createdA := insertPatient(t, db, ctx, tenantA, "MRN-A1")
 	matchedB := insertPatient(t, db, ctx, tenantB, "MRN-B2")
 
-	err := db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
+	err := withPatientTenant(db, ctx, tenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO patient_duplicate_overrides
 			(tenant_id, created_patient_id, matched_patient_id, score, reason, actor_subject)
 			VALUES (?, ?, ?, 0.900, 'phonetic match', 'user-tokA')`,

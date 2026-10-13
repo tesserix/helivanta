@@ -14,5 +14,6 @@ const SubjectPatientRegistered = "helivanta.in.patientmaster.registered.v1"
 // demographic field here would put clinical data in every replica's
 // outbox and in the JetStream retention window.
 type PatientRegisteredData struct {
-	PatientID string `json:"patient_id"`
+	PatientID  string `json:"patient_id"`
+	HospitalID string `json:"hospital_id"`
 }

@@ -12,8 +12,19 @@ const dateOnly = z
     );
   }, "Enter a valid date that is not in the future.");
 
+export const reportedBloodGroupSchema = z
+  .object({
+    abo: z.enum(["A", "B", "AB", "O", "unknown"]),
+    rh: z.enum(["positive", "negative", "unknown"]),
+    source: z
+      .enum(["", "patient", "guardian", "document"])
+      .refine((value): boolean => value !== "", "Select who or what reported this blood group."),
+  })
+  .strict();
+
 export const patientRegistrationSchema = z
   .object({
+    reported_blood_group: reportedBloodGroupSchema.optional(),
     given_name: z.string().trim().min(1, "Enter a given name.").max(100),
     family_name: z.string().trim().max(100),
     dob: dateOnly,
@@ -65,6 +76,9 @@ export type Patient = Pick<
   PatientRegistrationInput,
   "given_name" | "family_name" | "dob" | "dob_estimated" | "sex" | "mobile" | "address_line"
 > & { id: string; hospital_id: string; mrn: string; created_at: string };
+export type PatientDetail = Patient & {
+  reported_blood_group?: z.infer<typeof reportedBloodGroupSchema> & { recorded_at: string };
+};
 export type PatientMatch = Pick<Patient, "given_name" | "family_name" | "mrn"> & {
   patient_id: string;
   score: number;

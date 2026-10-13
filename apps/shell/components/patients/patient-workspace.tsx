@@ -13,6 +13,7 @@ import {
   patientRegistrationSchema,
   type Hospital,
   type Patient,
+  type PatientDetail as PatientDetailData,
   type PatientRegistrationInput,
   type PatientRegistrationResult,
 } from "@helivanta/api";
@@ -337,7 +338,7 @@ function PatientDetail({
   id: string;
   onClose: () => void;
 }) {
-  const record = useApiQuery<Patient>(
+  const record = useApiQuery<PatientDetailData>(
     ["patients", "detail", hospital.id, id],
     `/patients/${id}?hospital_id=${hospital.id}`,
   );
@@ -366,6 +367,17 @@ function PatientDetail({
               "Sex as recorded": record.data.sex || "Not recorded",
               Phone: record.data.mobile || "Not recorded",
               Address: record.data.address_line || "Not recorded",
+              "Reported blood group": record.data.reported_blood_group
+                ? `${record.data.reported_blood_group.abo === "unknown" ? "ABO unknown" : record.data.reported_blood_group.abo} · Rh(D) ${record.data.reported_blood_group.rh} (unverified)`
+                : "Not recorded",
+              ...(record.data.reported_blood_group
+                ? {
+                    "Blood group source": record.data.reported_blood_group.source,
+                    "Blood group recorded": new Date(
+                      record.data.reported_blood_group.recorded_at,
+                    ).toLocaleString(),
+                  }
+                : {}),
             }).map(([label, value]) => (
               <div key={label}>
                 <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -521,6 +533,83 @@ function Registration({
           <input type="checkbox" {...form.register("dob_estimated")} />
           Date of birth is estimated
         </label>
+        <fieldset
+          className="rounded-xl border bg-muted/20 p-5 sm:col-span-2"
+          aria-describedby="blood-group-help"
+        >
+          <legend className="px-1 text-sm font-semibold">Blood group · optional</legend>
+          <p id="blood-group-help" className="mb-4 text-sm leading-6 text-muted-foreground">
+            Record what the patient, guardian or document reports. This is not a verified laboratory
+            result and must not be used for transfusion decisions.
+          </p>
+          <label className="flex items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(form.watch("reported_blood_group"))}
+              onChange={(event) => {
+                form.setValue(
+                  "reported_blood_group",
+                  event.target.checked ? { abo: "unknown", rh: "unknown", source: "" } : undefined,
+                );
+                form.clearErrors("reported_blood_group");
+              }}
+            />
+            Record a reported blood group
+          </label>
+          {form.watch("reported_blood_group") && (
+            <div className="mt-5 grid gap-5 md:grid-cols-3">
+              <Field
+                id="registration-abo"
+                label="ABO group"
+                error={form.formState.errors.reported_blood_group?.abo?.message}
+              >
+                <select
+                  id="registration-abo"
+                  className={inputClass}
+                  {...form.register("reported_blood_group.abo")}
+                >
+                  <option value="unknown">Unknown</option>
+                  {["A", "B", "AB", "O"].map((group) => (
+                    <option key={group} value={group}>
+                      {group}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field
+                id="registration-rh"
+                label="Rh(D) type"
+                error={form.formState.errors.reported_blood_group?.rh?.message}
+              >
+                <select
+                  id="registration-rh"
+                  className={inputClass}
+                  {...form.register("reported_blood_group.rh")}
+                >
+                  <option value="unknown">Unknown</option>
+                  <option value="positive">Positive</option>
+                  <option value="negative">Negative</option>
+                </select>
+              </Field>
+              <Field
+                id="registration-blood-source"
+                label="Blood group source"
+                error={form.formState.errors.reported_blood_group?.source?.message}
+              >
+                <select
+                  id="registration-blood-source"
+                  className={inputClass}
+                  {...form.register("reported_blood_group.source")}
+                >
+                  <option value="">Select a source</option>
+                  <option value="patient">Patient</option>
+                  <option value="guardian">Guardian</option>
+                  <option value="document">Document (unverified)</option>
+                </select>
+              </Field>
+            </div>
+          )}
+        </fieldset>
         <div className="border-t pt-5 sm:col-span-2">
           <label className="flex items-start gap-3 text-sm">
             <input type="checkbox" className="mt-1" {...form.register("consent_confirmed")} />I have

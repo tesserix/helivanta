@@ -28,6 +28,7 @@ export {
 export {
   patientRegistrationSchema,
   type Patient,
+  type PatientDetail,
   type PatientRegistrationInput,
   type PatientRegistrationResult,
 } from "./patients";

@@ -24,6 +24,9 @@ const (
 //go:embed hospital.sql
 var hospitalSchema string
 
+//go:embed blood_group.sql
+var bloodGroupSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -197,7 +200,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  AFTER INSERT ON patients
 			  DEFERRABLE INITIALLY DEFERRED
 			  FOR EACH ROW EXECUTE FUNCTION patients_require_consent();`,
-	}, {ID: "0003_patientmaster", SQL: hospitalSchema}}
+	}, {ID: "0003_patientmaster", SQL: hospitalSchema}, {ID: "0004_patientmaster", SQL: bloodGroupSchema}}
 }
 
 // Routes mounts registration (spec D4/D5), single lookup, and the

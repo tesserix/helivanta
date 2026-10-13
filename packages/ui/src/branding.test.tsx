@@ -26,7 +26,7 @@ it("keeps Tesserix attribution in a centered tenant login", () => {
   );
   expect(screen.getByRole("link", { name: "Tesserix" })).toHaveAttribute(
     "href",
-    "https://tesserix.com",
+    "https://tesserix.app",
   );
   expect(screen.getByText(/All rights reserved/)).toBeInTheDocument();
 });

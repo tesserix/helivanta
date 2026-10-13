@@ -9,7 +9,7 @@ export function TesserixFooter() {
       <span>
         Powered by{" "}
         <a
-          href="https://tesserix.com"
+          href="https://tesserix.app"
           className="font-semibold text-foreground hover:underline"
           rel="noopener noreferrer"
         >

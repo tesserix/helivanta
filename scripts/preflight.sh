@@ -20,9 +20,10 @@ REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 # overridden port is actually checked, instead of preflight passing a stale
 # port while compose starts on a different one. Each falls back to today's
 # default when unset, so a bare `bash scripts/preflight.sh` with no .env and
-# no Make involved still checks the stock ports. The four zone-app ports are
-# out of scope for this variable set (see .env.example) and stay literal.
-PREFLIGHT_PORTS=${PREFLIGHT_PORTS:-"${HELIVANTA_PG_PORT:-5432} ${HELIVANTA_NATS_PORT:-4222} ${HELIVANTA_NATS_MONITOR_PORT:-8222} ${HELIVANTA_REDIS_PORT:-6379} ${HELIVANTA_OPENFGA_PORT:-8090} ${HELIVANTA_ZITADEL_PORT:-20080} ${HELIVANTA_ZITADEL_PG_PORT:-5433} ${HELIVANTA_API_PORT:-8080} 4301 4302 4303 4304"}
+# no Make involved still checks the stock ports. The web app's port (4301,
+# apps/shell) is out of scope for this variable set (see .env.example) and
+# stays literal.
+PREFLIGHT_PORTS=${PREFLIGHT_PORTS:-"${HELIVANTA_PG_PORT:-5432} ${HELIVANTA_NATS_PORT:-4222} ${HELIVANTA_NATS_MONITOR_PORT:-8222} ${HELIVANTA_REDIS_PORT:-6379} ${HELIVANTA_OPENFGA_PORT:-8090} ${HELIVANTA_ZITADEL_PORT:-20080} ${HELIVANTA_ZITADEL_PG_PORT:-5433} ${HELIVANTA_API_PORT:-8080} 4301"}
 GO_MIN=1.26
 NODE_MIN=22
 

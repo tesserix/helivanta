@@ -1,5 +1,5 @@
 import { HmsShell } from "@helivanta/ui";
-import { OrderList } from "@/components/order-list";
+import { OrderList } from "@/components/lab/order-list";
 
 export default function OrdersPage() {
   return (

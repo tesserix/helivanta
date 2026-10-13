@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
-# Orchestrates the full e2e suite across its mutually exclusive fixtures.
+# Orchestrates the full e2e suite across its three Playwright phases.
 #
-# idle-timeout.spec.ts (#848 Task 8) needs apps/shell's dev server pointed
-# at a short-IDLE_TIMEOUT API, and session-renewal.spec.ts (#916 Task 4)
-# needs one pointed at a short-SESSION_TTL API. Next.js 16 refuses a second
-# `next dev` for the same project directory, so neither fixture can run
-# alongside the main stack's own shell, or alongside each other (see
-# e2e/playwright.config.ts and the Makefile's two fixture comments). This
-# script runs the suite in three phases instead: specs+bulk against the
-# main stack, then one swap per fixture (stop the zone apps -> start the
-# fixture -> run its project -> stop the fixture), restoring the zone apps
-# at the end.
+# The web tier is this script's own (#976, design spec
+# docs/superpowers/specs/2026-10-12-e2e-against-production-builds-design.md):
+# the shell is built for production three times (scripts/e2e-web.sh) — once
+# against the main API, once against the short-IDLE_TIMEOUT API that
+# idle-timeout.spec.ts (#848) needs, once against the short-SESSION_TTL API
+# session-renewal.spec.ts (#916) needs — and served behind the e2e ingress
+# (dev/e2e/Caddyfile), which routes like production. MediCore, Pharmacy and
+# Lab are routes of that one app since #933, not separate apps.
+#
+# Phases: specs+bulk against the main stack, then each fixture against its
+# own shell build and API.
 #
 # Cleanup is unconditional (EXIT trap): a failure partway through must
-# still restore the zone apps and free the fixture's ports, or the
-# developer is left with no shell running (or a stray fixture blocking the
-# next invocation) instead of a clear error.
+# still stop everything this script started, free the fixtures' ports, and
+# restore a developer's `make dev-web` if one was running — not leave the
+# developer with no shell (or a stray server blocking the next invocation)
+# instead of a clear error.
 #
-# Assumes `make dev` (or `make up`) and `make seed` have already brought
-# up infra + API + shell + medicore — the same assumption the "specs" and
-# "bulk" Playwright projects already make.
+# Assumes infra, the API and `make seed` are already up.
 
 set -euo pipefail
 
@@ -29,12 +29,10 @@ REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 . "$REPO_ROOT/scripts/lib/repo-owns.sh"
 
 SHELL_PORT=4301
-# `make dev-web` starts all four zone apps as one `pnpm turbo dev` process
-# group (Makefile). Stopping just the shell's listener still tears down
-# its turbo siblings (observed live: killing :4301 took :4302-4304 with
-# it) — so the swap treats the whole zone-app layer as one unit to stop
-# and restore, not apps/shell alone.
-ZONE_PORTS=(4301 4302 4303 4304)
+# The port a developer's `make dev-web` serves on: one `next dev` for
+# apps/shell, which owns every route since #933. This script stops it for
+# the run and restores it afterwards (restore_web).
+ZONE_PORTS=(4301)
 API_PORT=${HELIVANTA_API_PORT:-8080}
 IDLE_API_PORT=${HELIVANTA_IDLE_API_PORT:-8099}
 IDLE_WEB_PORT=${HELIVANTA_IDLE_WEB_PORT:-4399}
@@ -45,17 +43,16 @@ RENEWAL_WEB_PORT=${HELIVANTA_RENEWAL_WEB_PORT:-4398}
 # localhost (#916 Task 4).
 WEB_HOST=${HELIVANTA_WEB_HOST:-helivanta.localhost}
 
-# This script ACTS on port ownership — it stops the zone apps to free :4301
-# for a fixture. A missing platform port tool makes every port look free, so
+# This script ACTS on port ownership — it stops a developer's web app to
+# free :4301 for the run. A missing platform port tool makes every port look free, so
 # refuse up front rather than "successfully" stopping nothing (#920).
 require_port_tool
 
 LOG_DIR=$(mktemp -d "${TMPDIR:-/tmp}/hms-e2e.XXXXXX")
 
-# require_port_up / wait_for_port both curl WITHOUT -f: a 404 (medicore's
-# "/" returns one — its routes live under /opd, /ipd, not at the root) or
-# a 3xx (a zone app redirecting an unauthenticated request to apps/shell's
-# /login) still proves the dev server itself answered. Only "curl could
+# require_port_up / wait_for_port both curl WITHOUT -f: a 404 or a 3xx (an
+# unauthenticated request redirected to /login) still proves the server
+# itself answered. Only "curl could
 # not connect at all" should read as not-ready.
 #
 # require_port_up PORT URL LABEL — fails fast with a clear message instead
@@ -174,13 +171,13 @@ dev_web_was_running=0
 # of PORTS, as ONE step: every port's holders are resolved and checked BEFORE
 # anything is killed, then all are killed, then each port is waited free.
 #
-# Why not stop_port_if_ours in a loop: a developer's `make dev-web` is one
-# turbo process tree, and killing the shell on :4301 makes turbo tear down the
-# zone servers too. By the time the loop reached :4302, its socket could still
-# be listed while its process was already gone — port_holders then reports a
-# listener nobody can identify (rc 3) and refuses, correctly, to touch it.
-# Observed on the first run with a dev stack present. Resolving every port
-# first removes the race without weakening that refusal.
+# Why not stop_port_if_ours in a loop: one kill can take down processes on
+# other ports too (a turbo tree tears down its siblings), so by the time a
+# loop reached the next port its socket could still be listed while its
+# process was already gone — port_holders then reports a listener nobody can
+# identify (rc 3) and refuses, correctly, to touch it. Observed (#976) when
+# `make dev-web` still started four apps. Resolving every port first removes
+# the race without weakening that refusal.
 stop_ports_if_ours() {
   local label=$1 port pid pids rc all=()
   shift
@@ -217,19 +214,19 @@ stop_ports_if_ours() {
 # The ingress (spec D5): a Caddy container (docker-compose.dev.yml's
 # e2e-ingress, dev/e2e/Caddyfile) on the ports browsers and Zitadel's
 # redirect URIs use — $SHELL_PORT, $IDLE_WEB_PORT, $RENEWAL_WEB_PORT —
-# routing /api/v1 to the API, each zone to its own server, and the rest to
-# that stack's shell, the way production's Istio VirtualService does. The
+# routing /api/v1 to the API and the rest to that stack's shell, the way
+# production's Istio VirtualService does. The
 # shells therefore listen on INTERNAL ports behind it.
 COMPOSE=(docker compose -f "$REPO_ROOT/docker-compose.dev.yml" --profile e2e)
 SHELL_INTERNAL_PORT=4311
 IDLE_SHELL_INTERNAL_PORT=4409
 RENEWAL_SHELL_INTERNAL_PORT=4408
 
-# MAIN_WEB — the main stack's production builds and the port each serves
-# (scripts/e2e-web.sh, spec D2): the three zones and the shell built against
-# the main API. Order matters only for readability; each is independent.
-MAIN_WEB=("medicore:4302" "pharmacy:4303" "lab:4304" "shell-main:$SHELL_INTERNAL_PORT")
-MAIN_WEB_PORTS=(4302 4303 4304 "$SHELL_INTERNAL_PORT")
+# MAIN_WEB — the main stack's production build and the port it serves
+# (scripts/e2e-web.sh): the shell built against the main API. A list, so a
+# future second app is one entry, not a rewrite.
+MAIN_WEB=("shell-main:$SHELL_INTERNAL_PORT")
+MAIN_WEB_PORTS=("$SHELL_INTERNAL_PORT")
 
 # stop_ingress — remove the ingress container. Idempotent. Done before any
 # port check on $SHELL_PORT: Docker, not this repository, holds a published
@@ -239,9 +236,8 @@ stop_ingress() {
 }
 
 # start_main_web — start every main-stack production server and wait for each
-# to answer. "/" rather than "/login": only the shell serves a login page
-# directly; a zone answers "/" with a redirect or 404, and any response means
-# the server is up. `|| return 1` explicitly, for the reason restore_web's
+# to answer. "/" answers with a redirect to /login when unauthenticated, and
+# any response means the server is up. `|| return 1` explicitly, for the reason restore_web's
 # loop documents below (#920).
 start_main_web() {
   local entry name port pid
@@ -265,13 +261,12 @@ restore_web() {
   stop_ports_if_ours "e2e web app" "${MAIN_WEB_PORTS[@]}"
   local port
   [ "$dev_web_was_running" = 1 ] || return 0
-  echo "Restoring main zone apps (make dev-web) ..."
+  echo "Restoring the developer's web app (make dev-web) ..."
   local web_pid
   web_pid=$(start_bg dev-web make dev-web)
   for port in "${ZONE_PORTS[@]}"; do
-    # "/" rather than "/login": only apps/shell serves a login page
-    # directly, the other three zone apps redirect an unauthenticated
-    # request there — either way a response means the dev server is up.
+    # "/" answers with a redirect to /login when unauthenticated — any
+    # response means the dev server is up.
     #
     # `|| return 1` EXPLICITLY, not left to errexit. cleanup() calls this
     # function as an operand of an `||` list, and POSIX says `-e` is ignored
@@ -284,7 +279,7 @@ restore_web() {
     # function's status became merely the LAST port's, so ":4301 dead,
     # :4302-4304 alive" returned 0 and the run went green with apps/shell
     # never restored (#920).
-    wait_for_port "http://$WEB_HOST:$port/" "zone app on :$port" "$web_pid" || return 1
+    wait_for_port "http://$WEB_HOST:$port/" "web app on :$port" "$web_pid" || return 1
   done
 }
 
@@ -358,7 +353,7 @@ cleanup() {
   # future function called from here owes the same.
   #
   # Two subshells rather than one, so a failing teardown_fixture still leaves
-  # restore_web to run: the developer gets their zone apps back even when the
+  # restore_web to run: the developer gets their web app back even when the
   # fixture teardown could not finish.
   local cleanup_status=0
   ( teardown_fixture ) || cleanup_status=1

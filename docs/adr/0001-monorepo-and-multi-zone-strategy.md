@@ -1,6 +1,6 @@
 # ADR-0001: Full monorepo with path-based Next.js multi-zones
 
-- **Status:** Accepted (2026-08-04)
+- **Status:** Accepted (2026-08-04). **Superseded in part** by [ADR-0010](0010-one-next-app.md) (2026-10-13): the frontend is one Next app, not path-mounted zones. The monorepo half stands.
 - **Context:** Issue #665 asked where product code lives. Issue #2 fixes the
   backend as one Go module. The frontend needs per-product team isolation
   without per-department domain sprawl.

@@ -1,8 +1,8 @@
 # Helivanta
 
-Helivanta — a hospital management system platform, multi-zone monorepo.
+Helivanta — a hospital management system platform, in one monorepo.
 
-- `apps/` — Next.js 16 zone apps (shell, medicore, pharmacy, lab) + mobile stubs
+- `apps/` — the Next.js 16 web app (`apps/shell`; MediCore, Pharmacy and Lab are its routes) + mobile stubs
 - `backend/` — Go modular monolith (`github.com/tesserix/helivanta`)
 - `packages/` — shared JS config and Helivanta UI compositions
 - Design: `docs/superpowers/specs/2026-08-04-hms-repo-setup-design.md`
@@ -23,13 +23,13 @@ credentials: `@tesserix/web` is published to the public npm registry, so
 `pnpm install` on a fresh clone needs nothing but network access.
 
     pnpm install
-    make up             # infra + migrations + seed + API (8080) + all four zone apps
+    make up             # infra + migrations + seed + API (8080) + the web app (4301)
     make verify-local   # asserts every process is healthy (separate terminal)
     make down           # stops everything
 
 `make up` runs in the foreground. Ctrl-C stops the API and web servers;
 `make down` then stops the containers **and** any app processes still
-holding ports 4301-4304 or 8080 — `docker compose down` on its own leaves
+holding ports 4301 or 8080 — `docker compose down` on its own leaves
 those running against infrastructure that no longer exists. `make down`
 only ever stops processes whose working directory is inside this repo, so
 an unrelated service of yours on 8080 is reported and left alone.
@@ -150,11 +150,10 @@ afterwards. `scripts/preflight.sh` checks for exactly that and tells you, so
 `make up` fails with the cause and the fix rather than with a bare
 `HTTP 404 Instance not found` from the bootstrap script.
 
-Ports (defaults): shell 4301, medicore 4302, pharmacy 4303, lab 4304, API
-8080, Postgres 5432, NATS 4222 (monitoring 8222), Redis 6379, OpenFGA 8090,
-Zitadel 20080 (its own Postgres 5433). The four zone-app ports are fixed —
-they're Next.js dev servers configured in their own package scripts — but
-every other port is a host-side default only, overridable via `.env`:
+Ports (defaults): web app 4301, API 8080, Postgres 5432, NATS 4222
+(monitoring 8222), Redis 6379, OpenFGA 8090, Zitadel 20080 (its own Postgres
+5433). The web app's port is fixed — it's the Next.js dev server configured
+in `apps/shell`'s package scripts — but every other port is a host-side default only, overridable via `.env`:
 
     cp .env.example .env
     # .env
@@ -189,8 +188,8 @@ the containers themselves. See `.env.example` for the full variable list.
   `pnpm install` pulls in `@playwright/test`; run `pnpm exec playwright
   install chromium` once if seeding fails with a "browser not found" error.
 - Backend tests need Docker (testcontainers): `cd backend && go test ./...`
-- `make verify-local` retries the zone checks: `next dev` compiles a route on
-  its first request, so a cold zone can take tens of seconds to answer once
+- `make verify-local` retries the web check: `next dev` compiles a route on
+  its first request, so a cold route can take tens of seconds to answer once
   and milliseconds thereafter. A genuinely down service still fails.
 - Zitadel does NOT fail fast on a wrong-length masterkey — a value that
   isn't exactly 32 bytes crash-loops on every restart instead of refusing

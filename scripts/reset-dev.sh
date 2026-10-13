@@ -7,7 +7,7 @@
 # own rather than assuming the developer meant it. Set RESET_YES=1 to skip
 # the prompt from a script.
 #
-# Ends with seeded infrastructure but does NOT start the API and zone apps:
+# Ends with seeded infrastructure but does NOT start the API and web app:
 # `make up` runs those in the foreground, and a reset that blocked the
 # terminal could not be used from a script.
 #
@@ -84,7 +84,7 @@ main() {
   make -C "$REPO_ROOT" seed || exit 1
 
   echo
-  echo "Clean seeded state. Run 'make up' to start the API and zone apps."
+  echo "Clean seeded state. Run 'make up' to start the API and web app."
 }
 
 # Guarded so the test harness can source this file and call

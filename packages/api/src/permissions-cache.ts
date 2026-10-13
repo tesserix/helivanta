@@ -1,8 +1,14 @@
-// Presentation-only cache of the caller's permission set. Cross-zone
-// navigation is a hard navigation between separate Next apps, so every
-// zone load starts with an empty query cache and the nav can only render
-// the Dashboard entry until /iam/me/permissions returns. Persisting the
-// last known set lets the nav paint at hydration instead.
+// Presentation-only cache of the caller's permission set, for a COLD load
+// only: a fresh page load starts with an empty query cache, so the nav could
+// render only the Dashboard entry until /iam/me/permissions returns.
+// Persisting the last known set lets it paint at hydration instead.
+//
+// No longer load-bearing (#933). It was written when every move between
+// departments was a hard navigation between separate Next apps, so EVERY
+// hop was a cold load. Since the zones became routes of one app, moving
+// between them is client-side and React Query keeps the permission set in
+// memory; this cache now only smooths the first paint after a reload or
+// a new tab.
 //
 // This hides doors that will not open — the API is the enforcement point.
 // A tampered entry can only make the browser draw a link the backend then

@@ -20,7 +20,10 @@ export function hmsEslint(rootDir) {
         "no-alert": "error",
         "no-console": ["error", { allow: ["warn", "error"] }],
         "@typescript-eslint/no-explicit-any": "error",
-        // Plain <a> cross-zone links are repo policy (standards doc section 6).
+        // Off because it only understands the pages/ router, which this repo
+        // does not use (App Router only): it cannot see an <a> that should be
+        // next/link here. That guarantee is enforced by
+        // e2e/tests/navigation.spec.ts instead (#933).
         "@next/next/no-html-link-for-pages": "off",
         "no-restricted-syntax": [
           "error",

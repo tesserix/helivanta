@@ -114,6 +114,17 @@ returned, and it is what script in the page, the attacker `signout.spec`
 models, actually reaches. The hook and its type file are deleted: nothing
 else used them, and production code should not carry a test-only branch.
 
+## Update 2026-10-13 — one app (#933)
+
+MediCore, Pharmacy and Lab became routes of `apps/shell`
+(`2026-10-13-one-next-app-design.md`). The harness now builds only the
+shell's three variants (D2), and the ingress (D5) routes `/api/auth`,
+`/api/v1` and everything else to the shell. Its zone routes were removed.
+The shell-to-zone proxy hop D5 describes no longer exists anywhere, so the
+4 s keep-alive rule now covers only the ingress's own upstreams. The note
+below about production zone routes (#890) is moot: #890 was closed and zones
+will not be deployed separately.
+
 ## What this slice does not cover
 
 - `make dev` still proxies zones through the shell's rewrites, so the reset

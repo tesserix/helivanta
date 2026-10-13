@@ -2,9 +2,9 @@
 # Stops the whole local stack: docker infra AND the app processes.
 #
 # `docker compose down` alone is not enough. `make up` also starts the Go
-# API and four `next dev` servers as ordinary host processes, and those
-# survive a compose teardown — leaving five orphans holding ports
-# 4301-4304 and 8080, pointed at a database that no longer exists. The
+# API and the `next dev` server as ordinary host processes, and those
+# survive a compose teardown — leaving orphans holding ports
+# 4301 and 8080, pointed at a database that no longer exists. The
 # next `make up` then fails in a confusing way ("port already in use", or
 # an app that answers but cannot reach Postgres).
 #
@@ -16,9 +16,10 @@ set -uo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 . "$REPO_ROOT/scripts/lib/repo-owns.sh"
-# 8080 is HELIVANTA_API_PORT (see .env.example) — the four zone-app ports are
-# fixed Next.js dev-server ports, out of scope for the port variables.
-APP_PORTS=(4301 4302 4303 4304 "${HELIVANTA_API_PORT:-8080}")
+# 8080 is HELIVANTA_API_PORT (see .env.example) — 4301 is the one Next.js
+# dev-server port (apps/shell; the zones are its routes since #933), fixed
+# and out of scope for the port variables.
+APP_PORTS=(4301 "${HELIVANTA_API_PORT:-8080}")
 
 echo "Stopping infrastructure…"
 docker compose -f "$REPO_ROOT/docker-compose.dev.yml" down

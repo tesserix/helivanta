@@ -1,6 +1,6 @@
 import { HmsShell } from "@helivanta/ui";
-import { PingPanel } from "@/components/ping-panel";
-import { VisitPanel } from "@/components/visit-panel";
+import { PingPanel } from "@/components/medicore/ping-panel";
+import { VisitPanel } from "@/components/medicore/visit-panel";
 
 export default function OpdPage() {
   return (

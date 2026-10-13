@@ -60,7 +60,7 @@ test("pharmacist cannot create a visit even by navigating directly", async ({ pa
   await page.waitForLoadState("networkidle");
 
   // The UI hides the action entirely (Can permission="medicore.visit.create"
-  // in apps/medicore/components/visit-panel.tsx); the API is the real
+  // in apps/shell/components/medicore/visit-panel.tsx); the API is the real
   // enforcement point, so the form must be absent rather than merely
   // disabled.
   await expect(page.getByRole("button", { name: "Create visit" })).toHaveCount(0);

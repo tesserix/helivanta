@@ -13,8 +13,9 @@ Phase 1 ships images only; this is the paste-ready plan for the infra PR.
   NATS_URL, ZITADEL_ISSUER_URL, ZITADEL_CLIENT_ID, SESSION_SIGNING_KEY).
   Copy `mark8ly-platform-api` chart shape. Note SESSION_SIGNING_KEY is a real
   secret and the API refuses to boot without it (#838) — it needs #45.
-- `hms-shell`, `hms-medicore` — Next.js standalone (ports 4301/4302). Copy
-  `mark8ly-admin` chart shape.
+- `hms-shell` — Next.js standalone (port 4301). Copy `mark8ly-admin` chart
+  shape. (A separate `hms-medicore` was proposed here originally; since #933
+  / ADR-0010 MediCore, Pharmacy and Lab are routes of the shell.)
 - `hms-postgres` — copy `mark8ly-postgres`; run `dev/init-db.sql` equivalent
   (hms_app role, NOBYPASSRLS) via init job.
 - `hms-openfga` — copy `mark8ly-openfga` (Phase 2 wires the model).

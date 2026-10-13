@@ -1,70 +1,41 @@
 # Helivanta frontend standards
 
-Binding rules for every zone app (`apps/*`) and the shared packages
+Binding rules for the web app (`apps/shell`) and the shared packages
 (`packages/ui`, `packages/api`, `packages/config`). "Binding" means: code
 that doesn't follow these rules should not pass review, and where a rule
 can be machine-enforced it is (ESLint, `tsc`, Vitest, CI). Every section
 below points at a real file in this repo — read that file before writing
 new code in the same area.
 
-## 1. Zone-app anatomy
+## 1. App anatomy
 
-Helivanta is a set of independent Next.js apps ("zones") stitched together by
-the shell at the HTTP layer, not by a monorepo import graph. Each zone
-owns a port, a `basePath`, and its own build.
+Helivanta's clinician frontend is **one** Next.js app, `apps/shell`, on port
+4301. MediCore, Pharmacy and Lab ("zones") are route segments inside it —
+`app/medicore/`, `app/pharmacy/`, `app/lab/` — not separate apps (#933,
+design spec `docs/superpowers/specs/2026-10-13-one-next-app-design.md`;
+ADR-0010). A zone is a product area of one app, not a deployment unit:
+entitlement decides what a tenant sees at runtime, not which apps exist.
 
-| App             | Port  | basePath        |
-| --------------- | ----- | --------------- |
-| `apps/shell`    | 4301  | none (owns `/`) |
-| `apps/medicore` | 4302  | `/medicore`     |
-| `apps/pharmacy` | 4303  | `/pharmacy`     |
-| `apps/lab`      | 4304  | `/lab`          |
-| next zone       | 4305+ | `/<name>`       |
+| Zone     | Routes                                      | Components                     |
+| -------- | ------------------------------------------- | ------------------------------ |
+| MediCore | `app/medicore/{opd,ipd}`                    | `components/medicore/`         |
+| Pharmacy | `app/pharmacy`, `app/pharmacy/medications`  | `components/pharmacy/`         |
+| Lab      | `app/lab`                                   | `components/lab/`              |
 
-Every app's `next.config.ts` sets `output: "standalone"` (each zone
-builds and deploys as its own self-contained server) and
-`transpilePackages: ["@helivanta/ui", "@helivanta/api"]` (these are TypeScript
-source packages, not pre-built libraries, so Next has to compile them
-per-consumer). A zone app also declares a direct-hit `/api/:path*`
-rewrite so it works standalone when hit on its own port during local
-dev, with `basePath: false` on that one rewrite — without it Next
-silently prefixes the rewrite source with the app's `basePath` and the
-route never matches. `apps/pharmacy/next.config.ts`:
+`apps/shell/next.config.ts` sets `output: "standalone"` (the app builds and
+deploys as one self-contained server, `Dockerfile.shell`) and
+`transpilePackages: ["@helivanta/ui", "@helivanta/api"]` (these are
+TypeScript source packages, not pre-built libraries, so Next compiles them).
+Its one rewrite sends `/api/:path*` to the Go backend for `next dev`;
+production routes `/api/v1/*` at the ingress instead.
 
-```ts
-async rewrites() {
-  return [
-    {
-      source: "/api/:path*",
-      destination: `${API_URL}/:path*`,
-      basePath: false,
-    },
-  ];
-},
-```
+Adding a zone is a route segment under `apps/shell/app/<name>/`, its
+components under `apps/shell/components/<name>/`, and an entry in
+`packages/ui/src/zones.ts` (section 6). There is no generator: a new zone
+is ordinary routes in the existing app.
 
-The shell has no `basePath` of its own; instead it owns `/` and forwards
-every other zone's paths to that zone's port, plus the same `/api/*`
-rewrite to the Go backend. `apps/shell/next.config.ts` carries one
-rewrite pair per zone (bare path + `:path*` catch-all) so both
-`/pharmacy` and `/pharmacy/medications` resolve:
-
-```ts
-{ source: "/pharmacy", destination: `${PHARMACY_URL}/pharmacy` },
-{ source: "/pharmacy/:path*", destination: `${PHARMACY_URL}/pharmacy/:path*` },
-// ...
-{ source: "/api/:path*", destination: `${API_URL}/:path*` },
-```
-
-Adding a zone means adding its pair here — this is one of the manual
-follow-ups the generator (below) prints, because rewrites live in a
-config object the generator doesn't own.
-
-Every zone's `app/globals.css` has the exact same three imports plus two
-`@source` scans, in this order. This is the full, current content of
-`apps/pharmacy/app/globals.css` — copy it verbatim into any new zone,
-adjusting only the relative `@source` paths if the app's nesting depth
-changes:
+`apps/shell/app/globals.css` has these three imports plus two `@source`
+scans, in this order:
 
 ```css
 @import "tailwindcss";
@@ -85,26 +56,20 @@ files it's told about — omit either one and classes used only inside
 `@tesserix/web` or `packages/ui` get purged from the built CSS even
 though the components render fine in dev.
 
-Never hand-copy an existing app to start a new zone. Run
-`pnpm new-zone <name>` — it scaffolds `apps/<name>` with the correct
-port, `basePath`, `globals.css`, App Router boundary files, and a
-starter panel with its test, then prints the manual follow-ups (shell
-rewrite pair, `zones.ts` entry, README/Makefile port mention).
-
 ## 2. Server vs client components
 
 Pages and layouts (`app/page.tsx`, `app/layout.tsx`) are React Server
 Components by default — no `"use client"` directive, no hooks, no event
 handlers. All interactivity — forms, mutations, polling, local state —
 lives in a `components/*.tsx` file marked `"use client"` that the server
-page renders. `apps/pharmacy/app/page.tsx` renders `HmsShell` around
+page renders. `apps/shell/app/pharmacy/page.tsx` renders `HmsShell` around
 `<DispenseList />`, and `DispenseList` itself is the client component in
-`apps/pharmacy/components/dispense-list.tsx`.
+`apps/shell/components/pharmacy/dispense-list.tsx`.
 
 Server components must never call the Go API directly. Authentication in
 Helivanta is a browser session cookie (set by `auth-bff`-style login), and that
 cookie only flows automatically on same-origin `fetch` calls made from
-the browser through a zone's `/api/*` rewrite. A server-side `fetch` in a
+the browser through the app's `/api/*` route. A server-side `fetch` in a
 page or layout runs on the Node server, has no cookie jar, and will hit
 the backend unauthenticated. Keep every data fetch client-side, through
 `@helivanta/api` (section 3).
@@ -163,7 +128,7 @@ reload. On error it toasts `error.message` automatically — component
 code does not need its own error-toast branch.
 
 Reference implementation:
-`apps/medicore/components/visit-panel.tsx`. It queries `["visits"]`,
+`apps/shell/components/medicore/visit-panel.tsx`. It queries `["visits"]`,
 submits a create mutation that toasts "Visit created" and invalidates
 `["visits"]`, and resets the form on success — the shape every
 create-and-list panel in Helivanta follows.
@@ -190,7 +155,7 @@ by length alone, which is the defect #816 exists to fix. `hasMore` must come
 from the server's explicit `has_more` flag only.
 
 Reference implementations for the paginated shape:
-`apps/medicore/components/visit-panel.tsx` and `apps/pharmacy/components/dispense-list.tsx`
+`apps/shell/components/medicore/visit-panel.tsx` and `apps/shell/components/pharmacy/dispense-list.tsx`
 (the latter also shows `poll: true` combined with pagination).
 
 ## 4. Forms
@@ -221,7 +186,7 @@ const form = useZodForm(visitSchema, { patient_name: "" });
 
 `Field` renders the error paragraph with `role="alert"` so assistive
 technology announces it as soon as it appears (section 10). Reference
-implementations: `apps/medicore/components/visit-panel.tsx` for a
+implementations: `apps/shell/components/medicore/visit-panel.tsx` for a
 data-mutation form, and `apps/shell/app/login/page.tsx` for a form with
 non-field-level failure (bad credentials) shown as a separate
 `role="alert"` paragraph below the fields rather than attached to one
@@ -254,15 +219,17 @@ across browsers.
 
 ## 6. Chrome & navigation
 
-Every cross-zone link and every sidebar link is a plain `<a href="...">`
-— never `next/link`. This is a hard navigation by design: each zone is a
-separately-deployed Next.js app, so moving from `/medicore/opd` to
-`/pharmacy` is a real page load across app boundaries, not client-side
-routing within one app. Using `next/link` there would silently fail or
-produce a broken client-side transition. `packages/ui/src/hms-shell.tsx`
-uses `<a>` for every rail and panel link.
+Navigation links — the rail, the page panel, the home mark and the
+dashboard's department cards — are `next/link`, so moving from
+`/medicore/opd` to `/pharmacy` is client-side routing inside one running
+app: no page reload, client state and the React Query cache survive
+(#933). `e2e/tests/navigation.spec.ts` is the control that keeps it so: it
+fails if moving between departments reloads the page. Use a plain `<a>`
+only for a destination outside this app, or for a deliberate full reload into
+the sign-in flow (`/login`), where starting from fresh state is the point —
+e.g. the auth callback's "Try signing in again".
 
-**Sign-out is the one exception to "cross-zone links are plain `<a>`".**
+**Sign-out is not a link at all.**
 It is a state change, not navigation: it revokes every session for the
 subject, so it must be a POST with a same-origin check rather than a GET
 any page can trigger with an `<img>` tag (#781). It renders as a form
@@ -279,8 +246,8 @@ hrefs, or icons.
 `"/pharmacy/medications"`), not a zone key or a boolean. `HmsShell`
 derives the active zone and active page from that path (via
 `activeZone()` in `zones.ts`) and uses it to set `aria-current="page"`
-on the matching rail and panel links (section 10). Every zone's
-`app/page.tsx` renders `<HmsShell active="/pharmacy">...</HmsShell>`
+on the matching rail and panel links (section 10). Every page
+renders `<HmsShell active="/pharmacy">...</HmsShell>`
 with its own literal path.
 
 ### Idle session tracking
@@ -288,13 +255,12 @@ with its own literal path.
 Interaction tracking for the idle-timeout feature (#848, design spec D2/
 D4/D7) lives in `@helivanta/ui` (`packages/ui/src/idle-timer.ts`), mounted once
 by `HmsShell` (`packages/ui/src/hms-shell.tsx`) — **not** in `apps/shell`.
-Every Helivanta app (`apps/shell`, `apps/medicore`, `apps/pharmacy`,
-`apps/lab`) renders `HmsShell`, so every zone app inherits the same
-tracker automatically; a shell-only tracker would count a clinician
-working inside a zone page as idle and sign them out mid-consultation.
-Do not add a second, zone-local copy of this tracking — if a zone needs
-something the shared tracker does not do, extend `createIdleTracker`
-rather than reimplementing interaction tracking next to it.
+Every page renders `HmsShell`, so every page inherits the same tracker
+automatically; tracking on only some pages would count a clinician
+working inside a zone as idle and sign them out mid-consultation. Do not
+add a second, page-local copy of this tracking — if a zone needs something
+the shared tracker does not do, extend `createIdleTracker` rather than
+reimplementing interaction tracking next to it.
 
 `HmsShell`'s activity mutation is deliberately configured with
 `suppressErrorToast: true`, and its failure handler only ever acts on a
@@ -349,18 +315,18 @@ won't win against the unlayered base rule either.
 
 ## 8. App Router files
 
-Every zone ships all three App Router boundary files at `app/` root:
+The app ships all three App Router boundary files at `app/` root:
 `error.tsx` (a friendly error boundary with a "Try again" action that
-calls `reset()`, see `apps/pharmacy/app/error.tsx`), `loading.tsx` (a
+calls `reset()`, see `apps/shell/app/error.tsx`), `loading.tsx` (a
 `@tesserix/web` `Skeleton`, not a blank screen, see
-`apps/pharmacy/app/loading.tsx`), and `not-found.tsx` (see
-`apps/pharmacy/app/not-found.tsx`). Skipping any of them means Next
+`apps/shell/app/loading.tsx`), and `not-found.tsx` (see
+`apps/shell/app/not-found.tsx`). They cover every zone's routes. Skipping any of them means Next
 falls back to its own unstyled default, which looks broken next to the
 rest of the app.
 
-Every zone's root layout wraps `children` in `AppProviders` from
+The root layout wraps `children` in `AppProviders` from
 `@helivanta/api` — this is what mounts the shared `QueryClientProvider` and
-the `<Toaster />` that sections 3 and 5 depend on. `apps/pharmacy/app/layout.tsx`:
+the `<Toaster />` that sections 3 and 5 depend on. `apps/shell/app/layout.tsx`:
 
 ```tsx
 export default function RootLayout({
@@ -371,7 +337,10 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="default">
       <body>
-        <AppProviders>{children}</AppProviders>
+        <AppProviders>
+          <SessionRenewal />
+          {children}
+        </AppProviders>
       </body>
     </html>
   );
@@ -393,7 +362,7 @@ Error messages say what happened and how to recover, not just that
 something failed — `apps/shell/app/login/page.tsx`'s sign-in failure
 reads "Sign-in failed. Check your email and password.", not just "Error"
 or "Failed". No apologies ("Sorry, something went wrong") — state the
-problem and, where possible, the fix; `apps/pharmacy/app/error.tsx`'s
+problem and, where possible, the fix; `apps/shell/app/error.tsx`'s
 boundary reads "Something went wrong" with a "Try again" action, not an
 apology.
 
@@ -429,10 +398,10 @@ render through `renderWithProviders` (`packages/api/src/testing.tsx`),
 which wraps the component in a fresh `QueryClientProvider` (retries
 disabled) and a `<Toaster />`, and returns a wired-up `user-event`
 instance alongside the normal Testing Library queries. See
-`apps/medicore/components/visit-panel.test.tsx` for the fullest
+`apps/shell/components/medicore/visit-panel.test.tsx` for the fullest
 example in the repo — mocked `fetch`, an empty-list assertion, a create
 flow that asserts the list updates, and a second test asserting the
-inline validation error. `apps/lab/components/order-list.test.tsx` is a
+inline validation error. `apps/shell/components/lab/order-list.test.tsx` is a
 narrower, happy-path-only example (save-result flow, list update); no
 current test asserts on toast text — treat the toast copy in section 5
 as the source of truth for what a mutation shows, not the tests.
@@ -527,8 +496,9 @@ stays honest about what it actually covered.
 
 `make e2e`, run from the repo root, is what runs the whole suite, in **three
 phases**: "specs"+"bulk" against the main stack, then a swap to the
-idle-timeout fixture, then a swap to the session-renewal fixture, restoring
-the zone apps at the end (see `scripts/e2e.sh`).
+idle-timeout fixture, then the session-renewal fixture, each against a
+production build of the app behind an ingress that routes like production
+(see `scripts/e2e.sh`, #976).
 
 **CI runs this suite on every PR and every push to `main`** — the `e2e` job in
 `.github/workflows/ci.yml` brings up the real dev stack with the same `make`
@@ -545,7 +515,7 @@ Each app validates its required environment variables at module load
 via `defineEnv` (`packages/api/src/env.ts`), a thin zod wrapper that
 throws one readable error listing every invalid or missing key instead
 of failing later with a cryptic `undefined` deep in a fetch call. Every
-app ships a checked-in `.env.example` (see `apps/pharmacy/.env.example`)
+app ships a checked-in `.env.example` (see `apps/shell/.env.example`)
 that's kept current with whatever `defineEnv` actually requires — if you
 add a required var, add it to the example file in the same change.
 

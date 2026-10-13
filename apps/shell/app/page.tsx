@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePermissions } from "@helivanta/api";
 import { HmsShell, visibleZones, type Zone, type ZoneHue } from "@helivanta/ui";
 import { TenantPicker } from "@/components/tenant-picker";
@@ -69,7 +70,7 @@ export default function Dashboard() {
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {cards.map((z) => (
-          <a
+          <Link
             key={z.href}
             href={z.href}
             className="group flex items-start gap-4 rounded-xl border bg-card p-4 shadow-sm transition-colors hover:bg-(--muted) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--hms-accent)"
@@ -89,7 +90,7 @@ export default function Dashboard() {
             >
               →
             </span>
-          </a>
+          </Link>
         ))}
       </div>
     </HmsShell>

@@ -87,9 +87,9 @@ echo "Backend:"
 check "api health"       "http://localhost:$API_PORT/healthz"
 check "api ready"        "http://localhost:$API_PORT/readyz"
 
-echo "Frontend zones:"
-# Each zone app sets basePath in next.config.ts (e.g. medicore is served
-# under /medicore, not "/") — the bare root 404s.
+echo "Frontend:"
+# One web app (apps/shell) since #933; MediCore, Pharmacy and Lab are its
+# routes, so the shell's own check covers them.
 #
 # 10 attempts x 20s covers a cold `next dev` first-request compile, which
 # routinely exceeds the 5s the backend checks use.
@@ -97,13 +97,8 @@ echo "Frontend zones:"
 # design spec D6): the shell's OIDC redirect URIs are registered against that
 # host, so this is the origin a developer must actually use — checking
 # `localhost` here would pass (Next binds every interface) while a human
-# following the printed URL below could not complete a sign-in. The three zone
-# apps have no OIDC registration of their own, but use the same host so one
-# origin is quoted throughout.
-check "shell    (4301)"  "http://$WEB_HOST:4301/login"    10 20
-check "medicore (4302)"  "http://$WEB_HOST:4302/medicore" 10 20
-check "pharmacy (4303)"  "http://$WEB_HOST:4303/pharmacy" 10 20
-check "lab      (4304)"  "http://$WEB_HOST:4304/lab"      10 20
+# following the printed URL below could not complete a sign-in.
+check "shell (4301)"  "http://$WEB_HOST:4301/login"    10 20
 
 # One authenticated round trip, at the API level (#838 Task 6). This used
 # to go through the shell's own /api/session route (issue #772) — every

@@ -35,16 +35,11 @@ function isPublicPath(pathname: string): boolean {
 // renew a session that does not exist yet and race the very login flow
 // those pages are running.
 //
-// Scope, stated plainly: this only runs while the browser has a shell
-// page open. apps/medicore, apps/pharmacy and apps/lab are separate
-// Next.js apps and do not run this loop themselves, the same shell-only
-// boundary tenantPicker/onSignOut already draw in
-// packages/ui/src/hms-shell.tsx. A clinician who stays on a zone page for
-// longer than SessionTTL without returning to a shell-rendered page will
-// hit an expired session on their next API call and be redirected to
-// /login by middleware.ts — the existing, unchanged fail-closed
-// behaviour, not a new regression. Extending renewal to the zone apps is
-// a real follow-on, out of scope here.
+// Scope: every page of the app, MediCore, Pharmacy and Lab included. Until
+// #933 those were separate Next.js apps that did not run this loop, so a
+// clinician who stayed on one longer than SessionTTL was signed out on their
+// next API call. Since they became routes of this app, this one root-layout
+// mount covers them.
 //
 // No cross-tab coordination (BroadcastChannel debounce, single-tab
 // election, etc.) is added here, and that is a load-bearing choice, not

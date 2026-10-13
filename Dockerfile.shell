@@ -72,8 +72,8 @@ COPY packages ./packages
 # than producing an image that 500s on /login. That is deliberate: the
 # alternative is a green build that cannot complete OIDC.
 #
-# API_URL / MEDICORE_URL / PHARMACY_URL / LAB_URL are read in
-# apps/shell/next.config.ts to construct the rewrite table, which Next
+# API_URL is read in apps/shell/next.config.ts to construct the rewrite
+# table, which Next
 # freezes into the build output. They are server-side (no NEXT_PUBLIC_
 # prefix) but they are still build-time, for that reason — same trap, less
 # obvious. next.config.ts defaults each to a localhost port for `next dev`;
@@ -82,30 +82,17 @@ COPY packages ./packages
 # production. Hence: no defaults here. An unset ARG produces an empty
 # destination and a loud failure, not a quiet localhost one.
 #
-# The zone URLs in particular are NOT yet backed by anything. apps/medicore,
-# apps/pharmacy and apps/lab are not deployed — they land in slice 2. What
-# is baked is the in-cluster Service DNS those apps WILL have, following the
-# naming already in use for helivanta-api and helivanta-postgres. Until
-# slice 2, requests to /medicore, /pharmacy and /lab fail DNS resolution and
-# the shell returns 502 for those paths; every other path is unaffected.
-# That is the honest failure: an unresolvable name that becomes correct the
-# moment the zone ships. Baking localhost instead would make the shell
-# proxy those paths to itself — a wrong answer that looks like a working
-# one, and the trap this comment exists to prevent anyone re-introducing.
+# There are no zone URLs: MediCore, Pharmacy and Lab are routes of this one
+# app since #933 (docs/superpowers/specs/2026-10-13-one-next-app-design.md),
+# not separate apps behind rewrites.
 # ---------------------------------------------------------------------------
 ARG NEXT_PUBLIC_ZITADEL_ISSUER_URL
 ARG NEXT_PUBLIC_ZITADEL_CLIENT_ID
 ARG API_URL
-ARG MEDICORE_URL
-ARG PHARMACY_URL
-ARG LAB_URL
 
 ENV NEXT_PUBLIC_ZITADEL_ISSUER_URL=${NEXT_PUBLIC_ZITADEL_ISSUER_URL}
 ENV NEXT_PUBLIC_ZITADEL_CLIENT_ID=${NEXT_PUBLIC_ZITADEL_CLIENT_ID}
 ENV API_URL=${API_URL}
-ENV MEDICORE_URL=${MEDICORE_URL}
-ENV PHARMACY_URL=${PHARMACY_URL}
-ENV LAB_URL=${LAB_URL}
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production

@@ -7,12 +7,13 @@
  * and a couple of `window.dispatchEvent` calls, no DOM-rendering harness
  * required.
  *
- * **Why this lives in `@helivanta/ui`, not `apps/shell`.** Every Helivanta app
- * (`apps/medicore`, `apps/pharmacy`, `apps/lab`) renders `HmsShell`. A
- * clinician working inside `/medicore` for twenty minutes is ACTIVE — if
- * only the shell tracked interaction they would be signed out
- * mid-consultation, failing the feature's own acceptance criterion while
- * looking implemented. `zitadel-session.ts`'s doc comment records the
+ * **Why this lives in `@helivanta/ui`, not in one page.** Every page
+ * renders `HmsShell`, and a clinician working inside `/medicore` for twenty
+ * minutes is ACTIVE — tracking interaction only on some pages would sign
+ * them out mid-consultation, failing the feature's own acceptance criterion
+ * while looking implemented. (When MediCore, Pharmacy and Lab were separate
+ * Next apps, before #933, this was the reason it could not live in
+ * `apps/shell`.) `zitadel-session.ts`'s doc comment records the
  * exact same mistake already made once for sign-out: shell-only tracking
  * silently did the wrong thing on the majority path (working inside a
  * zone, not the dashboard). This module exists so every app gets the
@@ -26,9 +27,8 @@ export const ACTIVITY_DEBOUNCE_MS = 60_000;
 // How far ahead of idle_deadline the warning modal (task 6) fires (D5).
 export const WARNING_LEAD_MS = 120_000;
 
-// Every Helivanta app shares this origin, so a single named channel is enough
-// for every tab and every zone app to agree on one deadline (D4: "Tabs
-// share one timer").
+// Every Helivanta page shares this origin, so a single named channel is enough
+// for every tab to agree on one deadline (D4: "Tabs share one timer").
 const BROADCAST_CHANNEL_NAME = "hms.session";
 
 // pointerdown, keydown and a real scroll only — deliberately NOT

@@ -273,14 +273,6 @@ jobs:
       SHELL_ZITADEL_ISSUER_URL: https://auth.tesserix.app
       SHELL_ZITADEL_CLIENT_ID: '386782591925092979'
       SHELL_API_URL: http://helivanta-api.helivanta.svc.cluster.local:8080
-      # The zone apps are not deployed until slice 2. These are the
-      # in-cluster Service DNS names they WILL have. Until then /medicore,
-      # /pharmacy and /lab 502 on an unresolvable host - deliberately chosen
-      # over localhost, which would proxy those paths back to the shell
-      # itself and look like it worked. See Dockerfile.shell.
-      SHELL_MEDICORE_URL: http://helivanta-medicore.helivanta.svc.cluster.local:4302
-      SHELL_PHARMACY_URL: http://helivanta-pharmacy.helivanta.svc.cluster.local:4303
-      SHELL_LAB_URL: http://helivanta-lab.helivanta.svc.cluster.local:4304
 
     steps:
       - name: Checkout code
@@ -360,9 +352,6 @@ jobs:
             NEXT_PUBLIC_ZITADEL_ISSUER_URL=${{ env.SHELL_ZITADEL_ISSUER_URL }}
             NEXT_PUBLIC_ZITADEL_CLIENT_ID=${{ env.SHELL_ZITADEL_CLIENT_ID }}
             API_URL=${{ env.SHELL_API_URL }}
-            MEDICORE_URL=${{ env.SHELL_MEDICORE_URL }}
-            PHARMACY_URL=${{ env.SHELL_PHARMACY_URL }}
-            LAB_URL=${{ env.SHELL_LAB_URL }}
           cache-from: type=registry,ref=${{ steps.cache.outputs.ref }}
           # cache write needs GHCR auth (skipped on PRs); read-only cache-from still works
           cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0},mode=max', steps.cache.outputs.ref) || '' }}
@@ -448,9 +437,6 @@ jobs:
           echo "NEXT_PUBLIC_ZITADEL_ISSUER_URL=${{ env.SHELL_ZITADEL_ISSUER_URL }}" >> "$GITHUB_STEP_SUMMARY"
           echo "NEXT_PUBLIC_ZITADEL_CLIENT_ID=${{ env.SHELL_ZITADEL_CLIENT_ID }}" >> "$GITHUB_STEP_SUMMARY"
           echo "API_URL=${{ env.SHELL_API_URL }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "MEDICORE_URL=${{ env.SHELL_MEDICORE_URL }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "PHARMACY_URL=${{ env.SHELL_PHARMACY_URL }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "LAB_URL=${{ env.SHELL_LAB_URL }}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
 

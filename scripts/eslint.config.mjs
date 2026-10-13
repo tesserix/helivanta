@@ -18,9 +18,9 @@ import { hmsEslint } from "@helivanta/config/eslint";
 //
 // There is deliberately no @next/next/no-html-link-for-pages override
 // here. That rule is already off for the whole repo in
-// packages/config/eslint.config.mjs — plain <a> cross-zone links are repo
-// policy — so a local copy would be a no-op that reads as if scripts/
-// were special. It is not.
+// packages/config/eslint.config.mjs (it only understands the pages/
+// router, which this repo does not use), so a local copy would be a no-op
+// that reads as if scripts/ were special. It is not.
 export default [
   ...hmsEslint(import.meta.dirname),
   {

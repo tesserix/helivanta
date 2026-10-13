@@ -3,14 +3,11 @@
 # standalone servers, never `next dev` (#976, design spec
 # docs/superpowers/specs/2026-10-12-e2e-against-production-builds-design.md).
 #
-#   scripts/e2e-web.sh build           build every app the three e2e stacks need
+#   scripts/e2e-web.sh build           build the shell for each of the three e2e stacks
 #   scripts/e2e-web.sh start NAME PORT run one built app in the foreground
 #
-# Why production builds: under `next dev`, the shell's rewrites() proxy
-# intermittently got `read ECONNRESET` from a zone's dev server for one
-# Turbopack chunk, answered 500, and the page never hydrated (#976). That
-# path — on-demand chunk compilation, the HMR client — does not exist in
-# production, so e2e was testing a server production never runs.
+# Why production builds: e2e must exercise the server production runs, not
+# `next dev` (#976).
 #
 # Why three shell builds (spec D2): NEXT_PUBLIC_ZITADEL_CLIENT_ID is inlined
 # into the client bundle and rewrites() destinations (API_URL) are resolved
@@ -87,11 +84,7 @@ build() {
   idle=$(client_id_from "$SECRETS/zitadel-idle-timeout.env")
   renewal=$(client_id_from "$SECRETS/zitadel-renewal.env")
 
-  # Zones first and against the main stack — what they served under
-  # `next dev` too (spec D2).
-  build_app medicore medicore "$main" "http://localhost:$API_PORT"
-  build_app pharmacy pharmacy "$main" "http://localhost:$API_PORT"
-  build_app lab lab "$main" "http://localhost:$API_PORT"
+  # One app: MediCore, Pharmacy and Lab are its routes since #933.
   build_app shell shell-main "$main" "http://localhost:$API_PORT"
   build_app shell shell-idle-timeout "$idle" "http://localhost:$IDLE_API_PORT"
   build_app shell shell-renewal "$renewal" "http://localhost:$RENEWAL_API_PORT"

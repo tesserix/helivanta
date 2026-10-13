@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import Link from "next/link";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   ApiError,
@@ -27,10 +28,11 @@ import { IdleWarning } from "./idle-warning";
 
 // Two-rail chrome in the tesserix-home AdminSidebar style. The zone rail is
 // fixed icons-only (no expand/collapse); only the page panel toggles open ↔
-// hidden, and that preference persists per browser. All links stay plain
-// <a> — cross-zone navigation is a hard navigation by design (phase 1 spec
-// D3). Sign-out is the one documented exception (docs/standards/frontend.md
-// §6): it is a state change, not navigation, so it renders as a form.
+// hidden, and that preference persists per browser. Navigation links are
+// next/link: every zone is a route of the one app since #933, so moving
+// between them is client-side. Sign-out is not a link (docs/standards/
+// frontend.md §6): it is a state change, not navigation, so it renders as a
+// form.
 
 const PANEL_KEY = "hms.panel.open";
 
@@ -396,7 +398,7 @@ export function HmsShell({
           against the content. */}
         <aside className="hms-sidebar-border flex w-16 shrink-0 flex-col border-r bg-(--sidebar-rail)">
           <div className="flex h-16 items-center justify-center">
-            <a
+            <Link
               href="/"
               aria-label="Helivanta home"
               className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-primary"
@@ -404,7 +406,7 @@ export function HmsShell({
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-(--hms-accent) to-(--hms-accent-strong) text-(--sidebar-primary-foreground)">
                 <BrandLogo key={branding.logo_url} branding={branding} compact />
               </span>
-            </a>
+            </Link>
           </div>
           <div className="hms-sidebar-border mx-2 border-t" />
           <nav
@@ -414,7 +416,7 @@ export function HmsShell({
             {zones.map((z) => {
               const isActive = z.key === zone.key;
               return (
-                <a
+                <Link
                   key={z.key}
                   href={z.href}
                   title={z.label}
@@ -433,7 +435,7 @@ export function HmsShell({
                     />
                   )}
                   <z.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                </a>
+                </Link>
               );
             })}
           </nav>
@@ -481,7 +483,7 @@ export function HmsShell({
             {zone.pages.map((pageLink) => {
               const isActive = active === pageLink.href;
               return (
-                <a
+                <Link
                   key={pageLink.href}
                   href={pageLink.href}
                   aria-current={isActive ? "page" : undefined}
@@ -494,7 +496,7 @@ export function HmsShell({
                 >
                   <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                   {pageLink.label}
-                </a>
+                </Link>
               );
             })}
           </nav>

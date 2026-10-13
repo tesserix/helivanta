@@ -7,7 +7,7 @@ import { ApiError, apiFetch } from "@helivanta/api";
 // to build and no discriminated outcome to narrow needs nothing this
 // file would add over calling useApiQuery with this type directly, the
 // same pattern every other read in this codebase follows, e.g.
-// apps/medicore/components/visit-panel.tsx's `useApiQuery<Visit[]>(...)`).
+// apps/shell/components/medicore/visit-panel.tsx's `useApiQuery<Visit[]>(...)`).
 //
 // Helivanta's login form reads this on mount, before rendering the credential
 // fields, so that an auth request that is already unknown, expired, or

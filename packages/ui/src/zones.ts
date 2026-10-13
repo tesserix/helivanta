@@ -26,8 +26,9 @@ export type Zone = {
 };
 
 // Single source of zone navigation. Adding a zone is one entry here.
-// All hrefs are absolute paths; every link renders as a plain <a> so
-// cross-zone navigation is a hard navigation (phase 1 spec D3).
+// All hrefs are absolute paths within the one app (apps/shell); HmsShell
+// renders them with next/link, so moving between zones is client-side
+// navigation (#933).
 export const ZONES: Zone[] = [
   {
     key: "dashboard",

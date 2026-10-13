@@ -1,5 +1,5 @@
 import { HmsShell } from "@helivanta/ui";
-import { PingPanel } from "@/components/ping-panel";
+import { PingPanel } from "@/components/medicore/ping-panel";
 
 export default function IpdPage() {
   return (

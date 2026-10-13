@@ -74,6 +74,25 @@ describe("SessionRenewal", () => {
     setTimeoutSpy.mockRestore();
   });
 
+  // #933: MediCore, Pharmacy and Lab are routes of this app now, so the one
+  // root-layout mount must renew on them. When they were separate Next apps
+  // they never ran this loop and a clinician who stayed on one longer than
+  // SESSION_TTL was signed out. Each department path schedules a renewal.
+  it.each(["/medicore/opd", "/medicore/ipd", "/pharmacy", "/pharmacy/medications", "/lab"])(
+    "schedules a renewal on the department page %s",
+    async (path) => {
+      usePathname.mockReturnValue(path);
+      const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+      renewSession.mockResolvedValue({ renewAt: undefined });
+
+      renderWithProviders(<SessionRenewal />);
+      await waitFor(() =>
+        expect(findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS)).toBeDefined(),
+      );
+      setTimeoutSpy.mockRestore();
+    },
+  );
+
   // Renamed for accuracy by #916 Task 4 (F3): the first renewal is no
   // longer UNCONDITIONALLY at the fallback interval — it uses the
   // schedule POST /v1/auth/login stored when one exists (see the

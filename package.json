@@ -11,8 +11,7 @@
     "lint": "turbo run lint",
     "format:check": "turbo run format:check",
     "type-check": "turbo run type-check",
-    "test": "turbo run test",
-    "new-zone": "node scripts/new-zone.mjs"
+    "test": "turbo run test"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",

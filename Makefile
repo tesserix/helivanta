@@ -376,10 +376,9 @@ dev-api-idle-timeout:
 	set -a; . ./$(ZITADEL_IDLE_TIMEOUT_ENV_FILE); set +a; \
 	cd backend && HELIVANTA_ENV=$${HELIVANTA_ENV:-dev} ZITADEL_ISSUER_URL=$${ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} ZITADEL_CLIENT_ID=$$ZITADEL_CLIENT_ID ZITADEL_LOGIN_CLIENT_TOKEN=$${ZITADEL_LOGIN_CLIENT_TOKEN:-$$(cat ../$(ZITADEL_LOGIN_CLIENT_PAT_FILE))} SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-$(HELIVANTA_DEV_SESSION_SIGNING_KEY)} PORT=$(HELIVANTA_IDLE_API_PORT) IDLE_TIMEOUT=$(IDLE_TIMEOUT_TEST_VALUE) RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) go run ./cmd/api
 
-# Only apps/shell, not `pnpm turbo dev` (which would start every zone app
-# again on the default 4301-4304 ports and collide with dev-web's own
-# instances). The idle-timeout spec never navigates into a zone app, so
-# shell alone is enough.
+# Only apps/shell, run directly, not `pnpm turbo dev` (which would start the
+# main shell again on its default 4301 and collide with dev-web's own
+# instance) — this one needs the idle-timeout Zitadel app and API instead.
 dev-web-idle-timeout:
 	@if [ ! -s "$(ZITADEL_IDLE_TIMEOUT_ENV_FILE)" ]; then \
 		echo "$(ZITADEL_IDLE_TIMEOUT_ENV_FILE) does not exist or is empty — run" >&2; \
@@ -451,9 +450,8 @@ dev-api-renewal:
 	set -a; . ./$(ZITADEL_RENEWAL_ENV_FILE); set +a; \
 	cd backend && HELIVANTA_ENV=$${HELIVANTA_ENV:-dev} ZITADEL_ISSUER_URL=$${ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} ZITADEL_CLIENT_ID=$$ZITADEL_CLIENT_ID ZITADEL_LOGIN_CLIENT_TOKEN=$${ZITADEL_LOGIN_CLIENT_TOKEN:-$$(cat ../$(ZITADEL_LOGIN_CLIENT_PAT_FILE))} SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-$(HELIVANTA_DEV_SESSION_SIGNING_KEY)} PORT=$(HELIVANTA_RENEWAL_API_PORT) SESSION_TTL=$(SESSION_TTL_TEST_VALUE) RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) go run ./cmd/api
 
-# Only apps/shell, for the same reason dev-web-idle-timeout is: the spec
-# never navigates into a zone app, and `pnpm turbo dev` would re-bind
-# 4301-4304.
+# Only apps/shell, run directly, for the same reason dev-web-idle-timeout
+# is: `pnpm turbo dev` would re-bind the main shell's 4301.
 dev-web-renewal:
 	@if [ ! -s "$(ZITADEL_RENEWAL_ENV_FILE)" ]; then \
 		echo "$(ZITADEL_RENEWAL_ENV_FILE) does not exist or is empty — run" >&2; \
@@ -471,8 +469,8 @@ up: dev-infra seed
 	@$(MAKE) -j2 dev-api dev-web
 
 # `make down` stops infra AND the app processes. `docker compose down`
-# alone leaves the API and the four next dev servers holding ports
-# 4301-4304 and 8080 against infra that no longer exists.
+# alone leaves the API and the next dev server holding ports 4301 and 8080
+# against infra that no longer exists.
 down:
 	@./scripts/dev-down.sh
 
@@ -534,14 +532,12 @@ lint-shell:
 # command stays honest about what it covers, instead of quietly failing
 # whenever a fixture happens to also be up.
 #
-# scripts/e2e.sh does the actual swaps (stop the zone apps -> start a fixture
-# -> run its project -> stop the fixture, once per fixture -> restart the
-# zone apps) behind an EXIT trap, so a failure partway through still restores
-# the shell and frees the fixtures' ports rather than leaving the developer
-# stuck. It also runs preflight's stale-Zitadel-instance check first. It
-# assumes `make dev` (or `make up`) and `make seed` have already brought
-# up infra + API + shell + medicore — the same assumption "specs"/"bulk"
-# already make.
+# scripts/e2e.sh owns the web tier for the run (#976): it builds the shell
+# for production, runs it behind the e2e ingress, runs each fixture's
+# project against its own shell build, and behind an EXIT trap stops all of
+# it and restores a developer's `make dev-web` if one was running. It also
+# runs preflight's stale-Zitadel-instance check first. It assumes infra, the
+# API and `make seed` are already up.
 e2e:
 	HELIVANTA_API_PORT=$(HELIVANTA_API_PORT) HELIVANTA_IDLE_API_PORT=$(HELIVANTA_IDLE_API_PORT) HELIVANTA_IDLE_WEB_PORT=$(HELIVANTA_IDLE_WEB_PORT) HELIVANTA_RENEWAL_API_PORT=$(HELIVANTA_RENEWAL_API_PORT) HELIVANTA_RENEWAL_WEB_PORT=$(HELIVANTA_RENEWAL_WEB_PORT) HELIVANTA_WEB_HOST=$(HELIVANTA_WEB_HOST) HELIVANTA_ZITADEL_HOST=$(HELIVANTA_ZITADEL_HOST) HELIVANTA_ZITADEL_PORT=$(HELIVANTA_ZITADEL_PORT) bash scripts/e2e.sh
 
@@ -588,23 +584,9 @@ IMAGE_SHELL_ZITADEL_ISSUER_URL ?= https://auth.tesserix.app
 IMAGE_SHELL_ZITADEL_CLIENT_ID ?= 386782591925092979
 IMAGE_SHELL_API_URL ?= http://helivanta-api.helivanta.svc.cluster.local:8080
 
-# The zone apps are NOT deployed — they land in slice 2. These are the
-# in-cluster Service DNS names they will have, following the convention
-# helivanta-api and helivanta-postgres already use, on each zone's own
-# listen port (4302/4303/4304, see each app's package.json). Until slice 2
-# lands, /medicore, /pharmacy and /lab return 502 from an unresolvable host.
-# That is chosen over localhost, which would make the shell proxy those
-# paths back to itself and look like it worked.
-IMAGE_SHELL_MEDICORE_URL ?= http://helivanta-medicore.helivanta.svc.cluster.local:4302
-IMAGE_SHELL_PHARMACY_URL ?= http://helivanta-pharmacy.helivanta.svc.cluster.local:4303
-IMAGE_SHELL_LAB_URL ?= http://helivanta-lab.helivanta.svc.cluster.local:4304
-
 image-shell:
 	docker build -f Dockerfile.shell \
 		--build-arg NEXT_PUBLIC_ZITADEL_ISSUER_URL=$(IMAGE_SHELL_ZITADEL_ISSUER_URL) \
 		--build-arg NEXT_PUBLIC_ZITADEL_CLIENT_ID=$(IMAGE_SHELL_ZITADEL_CLIENT_ID) \
 		--build-arg API_URL=$(IMAGE_SHELL_API_URL) \
-		--build-arg MEDICORE_URL=$(IMAGE_SHELL_MEDICORE_URL) \
-		--build-arg PHARMACY_URL=$(IMAGE_SHELL_PHARMACY_URL) \
-		--build-arg LAB_URL=$(IMAGE_SHELL_LAB_URL) \
 		-t $(IMAGE_SHELL_TAG) .

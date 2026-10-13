@@ -18,7 +18,7 @@ describe("visibleZones", () => {
   });
 
   it("always keeps the dashboard", () => {
-    expect(visibleZones(canWith([])).map((z) => z.key)).toEqual(["dashboard"]);
+    expect(visibleZones(canWith([])).map((z) => z.key)).toEqual(["dashboard", "workforce"]);
   });
 
   it("filters pages within a visible zone", () => {

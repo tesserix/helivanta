@@ -24,6 +24,36 @@ import (
 
 type handlers struct{ db *tenantdb.DB }
 
+type hospital struct {
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	AccessLevel string    `json:"access_level"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (hospital) TableName() string                 { return "workforce_hospitals" }
+func (h hospital) PageKey() (time.Time, uuid.UUID) { return h.CreatedAt, h.ID }
+
+func (h *handlers) listHospitals(c *gin.Context, params pagination.Params) ([]hospital, error) {
+	p, _, ok := authn.TenantPrincipal(c)
+	if !ok {
+		return nil, nil
+	}
+	var rows []hospital
+	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+		return tenantdb.ApplyKeyset(tx, params).Select(`id, name, created_at,
+		 (SELECT level FROM workforce_hospital_access a WHERE a.tenant_id = workforce_hospitals.tenant_id
+		 AND a.hospital_id = workforce_hospitals.id AND a.subject = ?) AS access_level`, p.Subject).
+			Where(`tenant_id = ? AND EXISTS (SELECT 1 FROM workforce_hospital_access a
+		 WHERE a.tenant_id = workforce_hospitals.tenant_id AND a.hospital_id = workforce_hospitals.id AND a.subject = ?)`, p.TenantID, p.Subject).
+			Find(&rows).Error
+	})
+	if err != nil {
+		return nil, errors.New("hospital discovery failed")
+	}
+	return rows, nil
+}
+
 type staff struct {
 	ID               uuid.UUID `json:"id"`
 	HospitalID       uuid.UUID `json:"hospital_id"`

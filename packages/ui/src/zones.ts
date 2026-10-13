@@ -1,5 +1,7 @@
 import {
   BedDouble,
+  Users,
+  Settings,
   ClipboardList,
   FlaskConical,
   HeartPulse,
@@ -35,6 +37,31 @@ export const ZONES: Zone[] = [
     permission: "public",
     hue: "rose",
     pages: [{ label: "Departments", href: "/", icon: LayoutDashboard, permission: "public" }],
+  },
+  {
+    key: "workforce",
+    label: "Staff",
+    icon: Users,
+    href: "/workforce",
+    permission: "public",
+    hue: "rose",
+    pages: [{ label: "Staff directory", href: "/workforce", icon: Users, permission: "public" }],
+  },
+  {
+    key: "settings",
+    label: "Settings",
+    icon: Settings,
+    href: "/settings/branding",
+    permission: "workspace.branding.manage",
+    hue: "violet",
+    pages: [
+      {
+        label: "Branding",
+        href: "/settings/branding",
+        icon: Settings,
+        permission: "workspace.branding.manage",
+      },
+    ],
   },
   {
     key: "medicore",
@@ -98,5 +125,5 @@ export function activeZone(path: string): Zone {
       z.key !== "dashboard" &&
       (path === "/" + z.key || path.startsWith("/" + z.key + "/") || path.startsWith("/" + z.key)),
   );
-  return match ?? ZONES[0];
+  return match ?? ZONES.find((zone) => zone.key === "dashboard")!;
 }

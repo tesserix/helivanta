@@ -510,7 +510,9 @@ describe("LoginPage", () => {
 
       renderWithProviders(<LoginPage />);
 
-      expect(await screen.findByText("Helivanta")).toBeInTheDocument();
+      expect(
+        await screen.findByRole("heading", { name: "Helivanta", level: 1 }),
+      ).toBeInTheDocument();
       expect(screen.getByText(/loading/i)).toBeInTheDocument();
       expect(screen.queryByLabelText("Email or username")).not.toBeInTheDocument();
 

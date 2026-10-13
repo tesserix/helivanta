@@ -69,7 +69,7 @@ describe("TenantPicker", () => {
     // renderWithProviders always mounts a sonner <Toaster/> alongside the
     // component under test, so the render container is never fully empty —
     // assert on the picker's own markup instead.
-    await waitFor(() => expect(screen.queryByText("Hospital")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("Tenant")).not.toBeInTheDocument());
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
@@ -88,7 +88,7 @@ describe("TenantPicker", () => {
 
     await user.selectOptions(screen.getByRole("combobox"), "t2");
 
-    await waitFor(() => expect(screen.getByText("Switched hospital")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Switched tenant")).toBeInTheDocument());
 
     expect(calls).toEqual(["GET /api/v1/iam/me/tenants", "POST /api/v1/iam/me/tenant"]);
 
@@ -142,7 +142,7 @@ describe("TenantPicker", () => {
     await user.selectOptions(screen.getByRole("combobox"), "t2");
 
     await waitFor(() => expect(screen.getByText("tenant not found")).toBeInTheDocument());
-    expect(screen.queryByText("Switched hospital")).not.toBeInTheDocument();
+    expect(screen.queryByText("Switched tenant")).not.toBeInTheDocument();
     expect(window.location.reload).not.toHaveBeenCalled();
   });
 
@@ -161,8 +161,8 @@ describe("TenantPicker", () => {
     stubFetch();
     const { user } = renderWithProviders(<TenantPicker />);
 
-    await waitFor(() => expect(screen.getByTitle("Hospital")).toBeInTheDocument());
-    await user.selectOptions(screen.getByTitle("Hospital"), "t2");
+    await waitFor(() => expect(screen.getByTitle("Tenant")).toBeInTheDocument());
+    await user.selectOptions(screen.getByTitle("Tenant"), "t2");
 
     await waitFor(() => expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull());
   });

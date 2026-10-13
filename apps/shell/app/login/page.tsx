@@ -7,7 +7,6 @@ import {
   AuthCardCentered,
   AuthCardFooter,
   AuthCredentialForm,
-  AuthLayoutCentered,
   AuthOtpStep,
   AuthSetPasswordForm,
   Button,
@@ -19,6 +18,11 @@ import { ApiError, useApiMutation, useApiQuery } from "@helivanta/api";
 import { IDLE_ENDED_MARK, SIGNED_OUT_MARK } from "@helivanta/ui";
 import { QRCodeSVG } from "qrcode.react";
 
+import {
+  LoginBrandingProvider,
+  TenantLoginLayout,
+  TenantLoginHeading,
+} from "@/components/login-branding";
 import { getUserManager } from "@/lib/oidc";
 import {
   changePassword,
@@ -145,7 +149,9 @@ export default function LoginPage() {
     // HTML empty and left a blank card on screen until JS hydrated; on a
     // slow ward terminal that reads as a broken page, not a loading one.
     <Suspense fallback={<AuthChromeLoading />}>
-      <LoginPageContent />
+      <LoginBrandingProvider>
+        <LoginPageContent />
+      </LoginBrandingProvider>
     </Suspense>
   );
 }
@@ -165,14 +171,14 @@ function LoginPageContent() {
 // rather than a blank one.
 function AuthChromeLoading() {
   return (
-    <AuthLayoutCentered>
+    <TenantLoginLayout>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Helivanta</h1>
+          <TenantLoginHeading />
           <p className="text-sm text-muted-foreground">Loading…</p>
         </div>
       </AuthCardCentered>
-    </AuthLayoutCentered>
+    </TenantLoginLayout>
   );
 }
 
@@ -473,10 +479,10 @@ function CredentialForm({
   }
 
   return (
-    <AuthLayoutCentered>
+    <TenantLoginLayout>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Helivanta</h1>
+          <TenantLoginHeading />
           <p className="text-sm text-muted-foreground">Sign in to continue.</p>
         </div>
 
@@ -527,7 +533,7 @@ function CredentialForm({
           </p>
         </AuthCardFooter>
       </AuthCardCentered>
-    </AuthLayoutCentered>
+    </TenantLoginLayout>
   );
 }
 
@@ -611,10 +617,10 @@ function OtpStep({
   );
 
   return (
-    <AuthLayoutCentered>
+    <TenantLoginLayout>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Helivanta</h1>
+          <TenantLoginHeading />
           <p className="text-sm text-muted-foreground">
             Enter the 6-digit code from your authenticator app.
           </p>
@@ -656,7 +662,7 @@ function OtpStep({
           </p>
         </AuthCardFooter>
       </AuthCardCentered>
-    </AuthLayoutCentered>
+    </TenantLoginLayout>
   );
 }
 
@@ -715,7 +721,7 @@ function EnrollStep({
   );
 
   return (
-    <AuthLayoutCentered>
+    <TenantLoginLayout>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">Set up two-step verification</h1>
@@ -773,7 +779,7 @@ function EnrollStep({
           </p>
         </AuthCardFooter>
       </AuthCardCentered>
-    </AuthLayoutCentered>
+    </TenantLoginLayout>
   );
 }
 
@@ -869,10 +875,10 @@ function PasswordChangeStep({
   }
 
   return (
-    <AuthLayoutCentered>
+    <TenantLoginLayout>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Helivanta</h1>
+          <TenantLoginHeading />
           <p className="text-sm text-muted-foreground">
             {PASSWORD_CHANGE_DESCRIPTION[change.reason]}
           </p>
@@ -909,7 +915,7 @@ function PasswordChangeStep({
           </p>
         </AuthCardFooter>
       </AuthCardCentered>
-    </AuthLayoutCentered>
+    </TenantLoginLayout>
   );
 }
 
@@ -1058,10 +1064,10 @@ function RedirectLanding({ message }: { message?: string }) {
   }
 
   return (
-    <AuthLayoutCentered>
+    <TenantLoginLayout>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Helivanta</h1>
+          <TenantLoginHeading />
           <p className="text-sm text-muted-foreground">
             {message ??
               (idleEnded
@@ -1088,6 +1094,6 @@ function RedirectLanding({ message }: { message?: string }) {
           </p>
         </AuthCardFooter>
       </AuthCardCentered>
-    </AuthLayoutCentered>
+    </TenantLoginLayout>
   );
 }

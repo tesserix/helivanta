@@ -26,7 +26,7 @@ import { NextRequest, NextResponse } from "next/server";
 // credentials" on every login attempt before this exemption existed
 // (login was calling the very route that is supposed to hand out the
 // credential middleware was demanding).
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/v1/auth/login"];
+const PUBLIC_PATHS = ["/login", "/api/auth", "/api/v1/auth/login", "/api/v1/auth/branding/"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

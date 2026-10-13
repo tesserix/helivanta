@@ -235,3 +235,26 @@ func TestStaffListsUseBoundedCursorPages(t *testing.T) {
 	w = testutil.Do(r, "GET", path+"/staff?limit=201", "admin", "")
 	require.Equal(t, 400, w.Code)
 }
+
+func TestHospitalDiscoveryOnlyReturnsExplicitGrants(t *testing.T) {
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"admin": testutil.TenantA, "reader": testutil.TenantA, "other": testutil.TenantB},
+		Perms:  map[string][]authz.Permission{"admin": {workforce.PermHospitalManage}}, Modules: []platform.Module{workforce.New()},
+	})
+	hospital := uuid.NewString()
+	path := "/v1/workforce/hospitals/" + hospital
+	require.Equal(t, 200, testutil.Do(r, "PUT", path, "admin", `{"name":"YES Hospital"}`).Code)
+	require.Equal(t, 200, testutil.Do(r, "PUT", path+"/access/user-reader", "admin", `{"level":"reader"}`).Code)
+	for _, token := range []string{"admin", "other"} {
+		w := testutil.Do(r, "GET", "/v1/workforce/hospitals", token, "")
+		require.Equal(t, 200, w.Code, w.Body.String())
+		require.NotContains(t, w.Body.String(), hospital)
+	}
+	w := testutil.Do(r, "GET", "/v1/workforce/hospitals", "reader", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), `"name":"YES Hospital"`)
+	require.Contains(t, w.Body.String(), `"access_level":"reader"`)
+	require.Equal(t, 401, testutil.Do(r, "GET", "/v1/workforce/hospitals", "", "").Code)
+	require.Equal(t, 204, testutil.Do(r, "DELETE", path+"/access/user-reader", "admin", "").Code)
+	require.NotContains(t, testutil.Do(r, "GET", "/v1/workforce/hospitals", "reader", "").Body.String(), hospital)
+}

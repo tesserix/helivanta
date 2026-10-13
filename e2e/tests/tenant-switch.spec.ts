@@ -37,22 +37,20 @@ async function permissions(page: import("@playwright/test").Page): Promise<strin
     }
   }
   throw new Error(
-    "the permissions probe was destroyed by a navigation 10 times running; the page is reloading in a loop, not switching hospital",
+    "the permissions probe was destroyed by a navigation 10 times running; the page is reloading in a loop, not switching tenant",
   );
 }
 
-test("switching hospital re-mints the session and changes what the user can do", async ({
-  page,
-}) => {
+test("switching tenant re-mints the session and changes what the user can do", async ({ page }) => {
   await login(page, specAdmin());
 
   const zoneNav = page.getByRole("navigation", { name: "Zones" });
   await expect(zoneNav.getByRole("link", { name: "MediCore" })).toBeVisible();
   expect(await permissions(page)).toContain("medicore.visit.read");
 
-  // The picker only renders for multi-hospital users, so its presence is
+  // The picker only renders for multi-tenant users, so its presence is
   // itself part of the seed contract.
-  const picker = page.getByLabel("Hospital");
+  const picker = page.getByLabel("Tenant");
   await expect(picker).toBeVisible();
   await picker.selectOption(SECOND_TENANT_ID);
 
@@ -62,7 +60,7 @@ test("switching hospital re-mints the session and changes what the user can do",
   });
 
   // The assertion that fails if the switch is a no-op: in the second
-  // hospital this user is only a pharmacist.
+  // tenant this user is only a pharmacist.
   await expect
     .poll(async () => permissions(page), { timeout: 30_000 })
     .not.toContain("medicore.visit.read");

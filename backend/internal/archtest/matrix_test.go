@@ -13,6 +13,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
+	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -157,7 +158,7 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 			// grant reaches it).
 			// Workforce hospital setup/access administration is also admin-only;
 			// staff data still requires an independent hospital grant (ADR 0009).
-			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != workforce.PermHospitalManage {
+			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != workforce.PermHospitalManage && perm != workspace.PermBrandingManage {
 				t.Errorf("module %q guards a route with %q, held by tenant_admin only; declare the role that needs it", m.Name(), perm)
 			}
 		}
@@ -182,6 +183,7 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 // here.
 var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workforce.PermHospitalManage: {authz.RoleTenantAdmin},
+	workspace.PermBrandingManage: {authz.RoleTenantAdmin},
 	iam.PermMemberManage:         {authz.RoleTenantAdmin},
 	iam.PermCredentialRevoke:     {authz.RoleTenantAdmin},
 

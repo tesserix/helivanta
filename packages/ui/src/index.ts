@@ -16,3 +16,4 @@ export {
   type IdleTracker,
   type IdleTrackerHandlers,
 } from "./idle-timer";
+export { TesserixFooter, BrandMark, LoginSurface } from "./branding";

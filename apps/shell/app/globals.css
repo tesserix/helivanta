@@ -7,3 +7,22 @@
 
 /* Scan the shared UI package for emitted class names. */
 @source "../../../packages/ui/src";
+
+.branding-preview > div {
+  min-height: 560px;
+}
+.branding-preview aside {
+  padding: 1.5rem;
+}
+.branding-preview aside h2 {
+  font-size: 1.35rem;
+}
+.branding-preview aside p {
+  font-size: 0.8rem;
+}
+.branding-preview main {
+  padding: 1.5rem;
+}
+.branding-preview footer {
+  font-size: 0.625rem;
+}

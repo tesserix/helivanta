@@ -321,7 +321,7 @@ func newIntegrationRouter(t *testing.T, env integrationEnv) *gin.Engine {
 		c.Status(http.StatusInternalServerError)
 	}
 	bootstrap.MountUnauthenticated(r, notExercised,
-		handlers.AuthRequest, handlers.Password, handlers.Factor, handlers.Enroll, handlers.PasswordChange)
+		handlers.AuthRequest, handlers.Password, handlers.Factor, handlers.Enroll, handlers.PasswordChange, notExercised)
 	return r
 }
 

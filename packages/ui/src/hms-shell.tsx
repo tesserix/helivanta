@@ -4,6 +4,9 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNod
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   ApiError,
+  useApiQuery,
+  brandingSchema,
+  DEFAULT_BRANDING,
   apiFetch,
   usePermissions,
   useApiMutation,
@@ -11,6 +14,7 @@ import {
   clearRenewAt,
 } from "@helivanta/api";
 import { visibleZones, activeZone } from "./zones";
+import { BrandLogo, TesserixFooter } from "./branding";
 import { ThemeToggle } from "./theme";
 import {
   endZitadelSession,
@@ -78,6 +82,9 @@ export function HmsShell({
   children: ReactNode;
 }) {
   const { can } = usePermissions();
+  const brandQuery = useApiQuery(["workspace", "branding"], "/workspace/branding");
+  const parsedBrand = brandingSchema.safeParse(brandQuery.data);
+  const branding = parsedBrand.success ? parsedBrand.data : DEFAULT_BRANDING;
   const zones = visibleZones(can);
   // Fall back to the dashboard (always present in `zones`) if the active
   // zone was filtered out — e.g. while permissions are still loading.
@@ -383,7 +390,7 @@ export function HmsShell({
       {warningDeadline && secondsRemaining !== null && (
         <IdleWarning secondsRemaining={secondsRemaining} onStay={handleStayLoggedIn} />
       )}
-      <div className="flex h-screen overflow-hidden">
+      <div data-brand-theme={branding.theme} className="flex h-screen overflow-hidden">
         {/* Zone rail: fixed icons-only. Matches tesserix admin: one step
           darker than the page panel, faint border between the rails, none
           against the content. */}
@@ -395,7 +402,7 @@ export function HmsShell({
               className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-primary"
             >
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-(--hms-accent) to-(--hms-accent-strong) text-(--sidebar-primary-foreground)">
-                H
+                <BrandLogo key={branding.logo_url} branding={branding} compact />
               </span>
             </a>
           </div>
@@ -447,12 +454,14 @@ export function HmsShell({
         {/* Page panel: open or hidden */}
         <aside
           className={`flex shrink-0 flex-col overflow-hidden bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
-            panelOpen ? "w-56" : "w-0"
+            panelOpen ? "hidden w-56 md:flex" : "w-0"
           }`}
           aria-hidden={!panelOpen}
         >
           <div className="flex h-16 w-56 items-center justify-between pl-5 pr-3">
-            <h2 className="text-sm font-semibold text-sidebar-foreground">{zone.label}</h2>
+            <h2 className="truncate text-sm font-semibold text-sidebar-foreground">
+              {branding.display_name}
+            </h2>
             <button
               type="button"
               onClick={() => setPanelOpen(false)}
@@ -528,6 +537,7 @@ export function HmsShell({
           <main className="flex-1 px-6 py-6">
             <div className="mx-auto w-full max-w-6xl">{children}</div>
           </main>
+          <TesserixFooter />
         </div>
       </div>
     </>

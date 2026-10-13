@@ -7,6 +7,8 @@ import { TenantPicker } from "@/components/tenant-picker";
 // Per-page descriptions, keyed by href — the registry (packages/ui/src/zones.ts)
 // owns titles and hrefs, this map only supplies the dashboard-card copy.
 const DESCRIPTIONS: Record<string, string> = {
+  "/workforce": "Hospital teams, staff profiles and employment status",
+  "/settings/branding": "Your logo, medical theme and sign-in experience",
   "/medicore/opd": "Outpatient registration & appointments",
   "/medicore/ipd": "Admissions, beds & ward rounds",
   "/pharmacy": "Dispensing & drug inventory",

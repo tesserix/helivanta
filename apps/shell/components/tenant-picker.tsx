@@ -49,7 +49,7 @@ export function TenantPicker() {
       return res.tenant_id;
     },
     {
-      successToast: "Switched hospital",
+      successToast: "Switched tenant",
       // A tenant switch changes every cached query, so reload rather than
       // trying to invalidate selectively. The permission cache lives in
       // localStorage and would survive that reload, so it is dropped
@@ -76,12 +76,12 @@ export function TenantPicker() {
 
   return (
     <label className="flex items-center gap-2 text-xs">
-      <span className="sr-only">Hospital</span>
+      <span className="sr-only">Tenant</span>
       <select
         className="w-44 rounded-md border bg-transparent px-2 py-1 text-sm"
         onChange={(e) => switchTenant.mutate(e.target.value)}
         value={currentTenantId}
-        title="Hospital"
+        title="Tenant"
       >
         {memberships.map((m) => (
           <option key={m.tenant_id} value={m.tenant_id}>

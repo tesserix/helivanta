@@ -184,3 +184,40 @@ select:autofill {
     var(--tw-shadow, 0 0 #0000) !important;
   filter: none !important;
 }
+
+[data-brand-theme="teal"] {
+  --hms-accent: #0e7569;
+  --hms-accent-strong: #0a5a50;
+  --hms-accent-dim: #e3f2ef;
+  --primary: #0e7569;
+  --primary-foreground: #ffffff;
+}
+[data-brand-theme="blue"] {
+  --hms-accent: #1d5da8;
+  --hms-accent-strong: #17497f;
+  --hms-accent-dim: #e7effa;
+  --primary: #1d5da8;
+  --primary-foreground: #ffffff;
+}
+[data-brand-theme="indigo"] {
+  --hms-accent: #5352a6;
+  --hms-accent-strong: #403f83;
+  --hms-accent-dim: #eeedf9;
+  --primary: #5352a6;
+  --primary-foreground: #ffffff;
+}
+[data-theme="dark"] [data-brand-theme="teal"] {
+  --hms-accent: #45c4b4;
+  --hms-accent-strong: #5fd8c8;
+  --hms-accent-dim: #182b2d;
+}
+[data-theme="dark"] [data-brand-theme="blue"] {
+  --hms-accent: #80baff;
+  --hms-accent-strong: #a1ccff;
+  --hms-accent-dim: #18283d;
+}
+[data-theme="dark"] [data-brand-theme="indigo"] {
+  --hms-accent: #b2abff;
+  --hms-accent-strong: #ccc6ff;
+  --hms-accent-dim: #29243e;
+}

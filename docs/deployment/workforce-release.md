@@ -74,3 +74,11 @@ The synthetic owner remains in Zitadel's initial setup state. No mailbox verific
 The next implementation slice is dedicated product-machine authentication, verified product entitlement and organization/owner projection into HMS, followed by an activated synthetic-user live CRUD/isolation test. The existing login-client machine identity must not be reused as the product provisioning identity. Employment records must not imply access grants.
 
 No legacy customer records were imported. The generated fixture format remains an interchange artifact, not a production seed script. Detailed legacy employee creation and credential fields still need read-only verification before expanding the staff model.
+
+## Owner activation and workspace follow-up — 2026-10-13
+
+The replacement synthetic owner `yes-hospital-test-owner@example.invalid`, subject `394892763469972021`, is `USER_STATE_ACTIVE` with verified email and `ORG_OWNER` in the existing YES HOSPITAL organization. A real Zitadel password check succeeded and its verification session was revoked. Credentials live in OpenBao at `helivanta/helivanta-api/helivanta-synthetic-owner`; no credential values are in this repository. The original subject is retained without organization membership; pre-change membership metadata was captured locally in `/tmp/helivanta-owner-membership-before.json`.
+
+The existing `cmd/bootstrap` assigned the active subject `tenant_admin` for tenant `8f8ed375-596b-4633-b90b-27fd3e6f299c`, using the application database role and tenant RLS context. OpenFGA convergence occurs at the next API startup. This is an explicit one-time test setup, not automatic operator integration.
+
+The new workforce/branding UI and additive `0001_workspace` migration are under development on `feat/workforce-branded-workspace`. Local browser verification used an isolated development stack with synthetic records: sign-in, hospital creation with explicit self-grant, staff creation/edit/reload, branding publish/reload and the branded login link. These checks do not claim a production UI rollout or signed-in production CRUD. See [workspace API and release contract](../api/workspace.md).

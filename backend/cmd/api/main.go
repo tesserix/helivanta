@@ -21,6 +21,7 @@ import (
 	"github.com/tesserix/helivanta/internal/httpserver"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
+	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/pkg/authn"
@@ -447,7 +448,7 @@ func run() error {
 	// missing, per its own doc comment.
 	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login,
 		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Factor,
-		loginUIHandlers.Enroll, loginUIHandlers.PasswordChange)
+		loginUIHandlers.Enroll, loginUIHandlers.PasswordChange, workspace.PublicHandler(db, limiter))
 
 	for _, m := range registry.All() {
 		m.Routes(api, deps)

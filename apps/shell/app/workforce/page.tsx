@@ -1,0 +1,441 @@
+"use client";
+import { z } from "zod";
+import { useState } from "react";
+import { Button } from "@tesserix/web";
+import {
+  apiFetch,
+  usePermissions,
+  useApiQuery,
+  useApiMutation,
+  staffSchema,
+  JOB_LABELS,
+  type Hospital,
+  type Staff,
+  type StaffInput,
+  type Page,
+} from "@helivanta/api";
+import { HmsShell, Field, useZodForm } from "@helivanta/ui";
+import { TenantPicker } from "@/components/tenant-picker";
+
+const inputClass =
+  "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
+
+export default function Workforce() {
+  const { can } = usePermissions();
+  const [hospitalId, setHospitalId] = useState("");
+  const [cursor, setCursor] = useState<string | null>(null);
+  const hospitals = useApiQuery<Page<Hospital>>(
+    ["workforce", "hospitals", cursor],
+    `/workforce/hospitals${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+  );
+  const hospital = hospitals.data?.data.find((h) => h.id === hospitalId) ?? hospitals.data?.data[0];
+  return (
+    <HmsShell active="/workforce" tenantPicker={<TenantPicker />}>
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-5">
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-(--hms-accent)">
+            People & operations
+          </p>
+          <h2 className="text-3xl font-semibold tracking-tight">Staff directory</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            The people behind your care. Manage your hospital team in one place.
+          </p>
+        </div>
+        {hospital && (
+          <label className="min-w-56 text-xs font-medium text-muted-foreground">
+            Hospital
+            <select
+              className={`${inputClass} mt-2 text-foreground`}
+              value={hospital.id}
+              onChange={(e) => setHospitalId(e.target.value)}
+            >
+              {hospitals.data?.data.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      {can("workforce.hospital.manage") && <HospitalSetup />}
+      {hospitals.isPending ? (
+        <p role="status">Loading hospitals…</p>
+      ) : hospitals.isError ? (
+        <div role="alert" className="rounded-xl border p-6">
+          Could not load hospitals.{" "}
+          <Button variant="outline" onClick={() => void hospitals.refetch()}>
+            Try again
+          </Button>
+        </div>
+      ) : hospital ? (
+        <Directory key={hospital.id} hospital={hospital} />
+      ) : (
+        <section className="rounded-2xl border bg-card p-12 text-center">
+          <h3 className="text-lg font-semibold">No hospital access yet</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Ask your tenant administrator to grant access to a hospital before managing its staff.
+          </p>
+        </section>
+      )}
+      {hospitals.data?.page.has_more && (
+        <Button
+          className="mt-4"
+          variant="outline"
+          onClick={() => {
+            setCursor(hospitals.data?.page.next_cursor ?? null);
+            setHospitalId("");
+          }}
+        >
+          More hospitals
+        </Button>
+      )}
+      {cursor && (
+        <Button
+          className="ml-3 mt-4"
+          variant="ghost"
+          onClick={() => {
+            setCursor(null);
+            setHospitalId("");
+          }}
+        >
+          First hospitals
+        </Button>
+      )}
+    </HmsShell>
+  );
+}
+function Directory({ hospital }: { hospital: Hospital }) {
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
+  const [editing, setEditing] = useState<Staff | "new" | null>(null);
+  const path = `/workforce/hospitals/${hospital.id}/staff`;
+  const query = useApiQuery<Page<Staff>>(
+    ["workforce", "staff", hospital.id, cursor],
+    `${path}${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+  );
+  const rows = (query.data?.data ?? []).filter((row) =>
+    `${row.display_name} ${row.employee_code} ${JOB_LABELS[row.job_category]}`
+      .toLowerCase()
+      .includes(filter.toLowerCase()),
+  );
+  const writable = hospital.access_level === "manager";
+  return (
+    <>
+      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
+          <div>
+            <h3 className="font-semibold">{hospital.name}</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {writable ? "Manage staff records" : "Read-only access"} · Hospital-specific directory
+            </p>
+          </div>
+          {writable && <Button onClick={() => setEditing("new")}>Add staff</Button>}
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+          <label className="w-full max-w-sm">
+            <span className="sr-only">Filter this page</span>
+            <input
+              className={inputClass}
+              placeholder="Filter this page by name, code or category"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+          </label>
+          <span className="text-xs text-muted-foreground">{rows.length} records on this page</span>
+        </div>
+        {query.isPending ? (
+          <p className="p-8" role="status">
+            Loading staff…
+          </p>
+        ) : query.isError ? (
+          <div role="alert" className="p-8">
+            Could not load staff.{" "}
+            <Button variant="outline" onClick={() => void query.refetch()}>
+              Try again
+            </Button>
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="px-6 py-16 text-center">
+            <h4 className="font-semibold">
+              {filter ? "No matching records on this page" : "Your staff directory starts here"}
+            </h4>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {filter
+                ? "Try a different name or employee code."
+                : writable
+                  ? "Add your first staff member to get started."
+                  : "No staff records have been added to this hospital."}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <caption className="sr-only">Staff at {hospital.name}</caption>
+              <thead className="bg-muted/40 text-xs text-muted-foreground">
+                <tr>
+                  {[
+                    "Staff member",
+                    "Employee code",
+                    "Job category",
+                    "Status",
+                    ...(writable ? ["Actions"] : []),
+                  ].map((label) => (
+                    <th key={label} scope="col" className="px-5 py-3 font-medium">
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {rows.map((row) => (
+                  <tr key={row.id} className="hover:bg-muted/25">
+                    <td className="px-5 py-4 font-medium">{row.display_name}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-muted-foreground">
+                      {row.employee_code}
+                    </td>
+                    <td className="px-5 py-4 text-muted-foreground">
+                      {JOB_LABELS[row.job_category]}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span
+                        className={
+                          row.employment_status === "active"
+                            ? "rounded-full bg-(--hms-accent-dim) px-2.5 py-1 text-xs font-medium text-(--hms-accent)"
+                            : "rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground"
+                        }
+                      >
+                        {row.employment_status === "active" ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    {writable && (
+                      <td className="px-5 py-4">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditing(row)}
+                          aria-label={`Edit ${row.display_name}`}
+                        >
+                          Edit
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="flex justify-between border-t px-5 py-3">
+          <span className="text-xs text-muted-foreground">
+            Showing data from this hospital only
+          </span>
+          <div className="flex gap-2">
+            {cursor && (
+              <Button size="sm" variant="outline" onClick={() => setCursor(null)}>
+                First page
+              </Button>
+            )}
+            {query.data?.page.has_more && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCursor(query.data?.page.next_cursor ?? null)}
+              >
+                Next page
+              </Button>
+            )}
+          </div>
+        </div>
+      </section>
+      {editing && (
+        <StaffEditor
+          key={editing === "new" ? "new" : editing.id}
+          hospital={hospital}
+          staff={editing === "new" ? undefined : editing}
+          onClose={() => setEditing(null)}
+        />
+      )}
+    </>
+  );
+}
+function StaffEditor({
+  hospital,
+  staff,
+  onClose,
+}: {
+  hospital: Hospital;
+  staff?: Staff;
+  onClose: () => void;
+}) {
+  const [id] = useState(() => staff?.id ?? crypto.randomUUID());
+  const form = useZodForm(
+    staffSchema,
+    staff ?? {
+      employee_code: "",
+      display_name: "",
+      job_category: "other",
+      employment_status: "active",
+    },
+  );
+  const save = useApiMutation(
+    (value: StaffInput) =>
+      apiFetch<Staff>(`/workforce/hospitals/${hospital.id}/staff/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(value),
+      }),
+    {
+      invalidate: [["workforce", "staff", hospital.id]],
+      onSuccess: onClose,
+      suppressErrorToast: true,
+    },
+  );
+  return (
+    <section
+      aria-labelledby="staff-editor-heading"
+      className="mt-6 rounded-2xl border bg-card p-6 shadow-sm"
+    >
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h3 id="staff-editor-heading" className="text-lg font-semibold">
+            {staff ? "Edit staff member" : "Add staff member"}
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">{hospital.name} · Staff profile</p>
+        </div>
+        <Button variant="ghost" onClick={onClose} disabled={save.isPending}>
+          Cancel
+        </Button>
+      </div>
+      <form
+        noValidate
+        onSubmit={form.handleSubmit((value) => save.mutate(value))}
+        className="grid gap-5 sm:grid-cols-2"
+      >
+        <Field
+          id="staff-name"
+          label="Full name"
+          error={form.formState.errors.display_name?.message}
+        >
+          <input
+            id="staff-name"
+            className={inputClass}
+            autoComplete="off"
+            {...form.register("display_name")}
+          />
+        </Field>
+        <Field
+          id="staff-code"
+          label="Employee code"
+          error={form.formState.errors.employee_code?.message}
+        >
+          <input
+            id="staff-code"
+            className={inputClass}
+            autoComplete="off"
+            {...form.register("employee_code")}
+          />
+        </Field>
+        <Field
+          id="staff-category"
+          label="Job category"
+          error={form.formState.errors.job_category?.message}
+        >
+          <select id="staff-category" className={inputClass} {...form.register("job_category")}>
+            {Object.entries(JOB_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field
+          id="staff-status"
+          label="Employment status"
+          error={form.formState.errors.employment_status?.message}
+        >
+          <select id="staff-status" className={inputClass} {...form.register("employment_status")}>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </Field>
+        {save.isError && (
+          <p role="alert" className="text-sm text-destructive sm:col-span-2">
+            {save.error.message}
+          </p>
+        )}
+        <div className="flex justify-end border-t pt-5 sm:col-span-2">
+          <Button type="submit" disabled={save.isPending}>
+            {save.isPending ? "Saving…" : "Save staff"}
+          </Button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+const hospitalSchema = z.object({
+  name: z.string().trim().min(1, "Enter a hospital name.").max(150),
+  grant: z.literal(true, { errorMap: () => ({ message: "Confirm your hospital access grant." }) }),
+});
+function HospitalSetup() {
+  const [id, setId] = useState(() => crypto.randomUUID());
+  const identity = useApiQuery<{ subject: string }>(
+    ["iam", "me", "permissions"],
+    "/iam/me/permissions",
+  );
+  const form = useZodForm(hospitalSchema, { name: "" });
+  const save = useApiMutation(
+    async (value: z.infer<typeof hospitalSchema>) => {
+      if (!identity.data?.subject)
+        throw new Error("Your account could not be verified. Reload and try again.");
+      await apiFetch(`/workforce/hospitals/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ name: value.name }),
+      });
+      return apiFetch(
+        `/workforce/hospitals/${id}/access/${encodeURIComponent(identity.data.subject)}`,
+        { method: "PUT", body: JSON.stringify({ level: "manager" }) },
+      );
+    },
+    {
+      invalidate: [["workforce", "hospitals"]],
+      suppressErrorToast: true,
+      successToast: "Hospital created with manager access",
+      onSuccess: () => {
+        form.reset();
+        setId(crypto.randomUUID());
+      },
+    },
+  );
+  return (
+    <details className="mb-6 rounded-xl border bg-card p-5">
+      <summary className="cursor-pointer text-sm font-medium">Add a hospital</summary>
+      <form
+        noValidate
+        onSubmit={form.handleSubmit((value) => save.mutate(value))}
+        className="mt-5 max-w-lg space-y-4"
+      >
+        <Field id="hospital-name" label="Hospital name" error={form.formState.errors.name?.message}>
+          <input id="hospital-name" className={inputClass} {...form.register("name")} />
+        </Field>
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" className="mt-1" {...form.register("grant")} />
+          Grant me staff manager access to this hospital
+        </label>
+        {form.formState.errors.grant && (
+          <p role="alert" className="text-sm text-destructive">
+            {form.formState.errors.grant.message}
+          </p>
+        )}
+        {save.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {save.error.message} Your hospital setup can be retried safely.
+          </p>
+        )}
+        <Button type="submit" disabled={save.isPending}>
+          {save.isPending ? "Creating…" : "Create hospital"}
+        </Button>
+      </form>
+    </details>
+  );
+}

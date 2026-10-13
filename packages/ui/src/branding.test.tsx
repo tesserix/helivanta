@@ -30,3 +30,21 @@ it("keeps Tesserix attribution in a centered tenant login", () => {
   );
   expect(screen.getByText(/All rights reserved/)).toBeInTheDocument();
 });
+it("provides a public home exit and preserves tenant welcome content in the split layout", () => {
+  render(
+    <LoginSurface
+      branding={{
+        ...DEFAULT_BRANDING,
+        display_name: "YES HOSPITAL",
+        welcome_text: "Welcome to our care team.",
+        login_layout: "split",
+      }}
+    >
+      <h1>Welcome back</h1>
+    </LoginSurface>,
+  );
+  expect(screen.getByRole("link", { name: "Back to Helivanta" })).toHaveAttribute("href", "/");
+  expect(screen.getByText("Welcome to our care team.")).toBeInTheDocument();
+  expect(screen.getByText("YES HOSPITAL")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
+});

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { HeartPulse } from "lucide-react";
 import { TesserixFooter } from "@helivanta/ui";
 
 export const metadata: Metadata = {
@@ -60,7 +61,7 @@ export default function LandingPage() {
               aria-hidden="true"
               className="flex h-9 w-9 items-center justify-center rounded-xl bg-(--site-primary) text-2xl text-white"
             >
-              +
+              <HeartPulse size={20} aria-hidden="true" />
             </span>
             helivanta<span className="text-teal-600">.</span>
           </a>
@@ -222,23 +223,27 @@ export default function LandingPage() {
             will feature participating organisations with their permission.
           </p>
           <div className="mt-9 grid gap-5 md:grid-cols-3">
-            <article className="rounded-2xl border border-(--site-border) bg-white p-7">
-              <p className="text-xs text-(--site-muted)">Demo workspace · synthetic data</p>
-              <h3 className="mt-5 text-lg font-semibold">YES HOSPITAL</h3>
-              <p className="mt-3 text-sm text-(--site-muted)">
-                Our test organisation for developing and validating the hospital workspace.
-              </p>
-            </article>
-            {["Hospital partners", "Pharmacy partners"].map((name) => (
+            {[
+              {
+                name: "Hospital networks",
+                detail: "Independent hospitals and multi-hospital organisations.",
+              },
+              {
+                name: "Pharmacy teams",
+                detail: "Independent and hospital pharmacies, connected to care.",
+              },
+              {
+                name: "Laboratory teams",
+                detail: "Diagnostic teams working alongside your care network.",
+              },
+            ].map(({ name, detail }) => (
               <article
                 key={name}
-                className="rounded-2xl border border-dashed border-(--site-placeholder) p-7"
+                className="rounded-2xl border border-(--site-border) bg-white p-7"
               >
-                <p className="text-xs text-(--site-muted)">Directory placeholder</p>
+                <p className="text-xs text-(--site-muted)">Designed for your team</p>
                 <h3 className="mt-5 text-lg font-semibold">{name}</h3>
-                <p className="mt-3 text-sm text-(--site-muted)">
-                  Verified partner profiles will appear here when available.
-                </p>
+                <p className="mt-3 text-sm leading-relaxed text-(--site-muted)">{detail}</p>
               </article>
             ))}
           </div>

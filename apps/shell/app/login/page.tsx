@@ -1067,7 +1067,7 @@ function RedirectLanding({ message }: { message?: string }) {
     <TenantLoginLayout>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <TenantLoginHeading />
+          <h1 className="font-semibold">Welcome back</h1>
           <p className="text-sm text-muted-foreground">
             {message ??
               (idleEnded

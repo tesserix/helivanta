@@ -221,3 +221,49 @@ select:autofill {
   --hms-accent-strong: #ccc6ff;
   --hms-accent-dim: #29243e;
 }
+
+/* Public authentication stays light independently of the clinical workspace theme. */
+.login-page {
+  color-scheme: light;
+}
+.login-story {
+  background: linear-gradient(145deg, var(--hms-accent-dim), var(--card));
+}
+.login-content > div,
+.login-content > div > div {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.login-content h1 {
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+}
+.login-content .text-center {
+  text-align: left;
+}
+.login-content button {
+  min-height: 2.875rem;
+  border-radius: 0.75rem;
+}
+.login-page footer {
+  border-color: var(--border);
+  background: var(--card);
+}
+.login-page [data-brand-theme="teal"] {
+  --hms-accent: #0e7569;
+  --hms-accent-strong: #0a5a50;
+  --hms-accent-dim: #e3f2ef;
+}
+.login-page [data-brand-theme="blue"] {
+  --hms-accent: #1d5da8;
+  --hms-accent-strong: #17497f;
+  --hms-accent-dim: #e7effa;
+}
+.login-page [data-brand-theme="indigo"] {
+  --hms-accent: #5352a6;
+  --hms-accent-strong: #403f83;
+  --hms-accent-dim: #eeedf9;
+}

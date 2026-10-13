@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1080" viewBox="0 0 1600 1080">
+<title>Onboard the group. Activate only after verification.</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#63758d"/></marker></defs>
+<rect width="1600" height="1080" fill="#ffffff"/>
+<rect x="0" y="0" width="1600" height="12" fill="#163c60"/>
+<text x="60" y="65" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#163c60">Onboard the group. Activate only after verification.</text>
+<text x="60" y="108" font-family="Arial, sans-serif" font-size="17" font-weight="400" fill="#627186">TEMPORAL WORKFLOW  /  Stable tenant + provisioning-generation ID; retries reconcile existing resources</text>
+<path d="M 480 222 L 590 222" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1010 222 L 1120 222" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1330 285 L 1330 445" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1120 507 L 1010 507" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 590 507 L 480 507" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 270 570 L 270 760" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 800 570 L 800 760" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="8 6"/>
+<rect x="760.2" y="640.0" width="103.6" height="22" rx="4" fill="#ffffff"/>
+<text x="812.0" y="656.0" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#52657d">step failure</text>
+<path d="M 270 885 L 270 930 L 1330 930 L 1330 885" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="8 6"/>
+<rect x="662.4" y="905.0" width="275.2" height="22" rx="4" fill="#ffffff"/>
+<text x="800.0" y="921.0" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#52657d">offboarding is separately governed</text>
+<rect x="60" y="160" width="420" height="125" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="80" y="193" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">1  Draft → approved</text>
+<text x="80" y="221" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Legal entities • residency • hospitals</text>
+<text x="80" y="244" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Subscriptions • accountable admin</text>
+<rect x="590" y="160" width="420" height="125" rx="14" fill="#f3edff" stroke="#8663bc" stroke-width="2"/>
+<text x="610" y="193" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">2  Provision identity</text>
+<text x="610" y="221" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Zitadel customer organization</text>
+<text x="610" y="244" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Verified domains • MFA • invitations</text>
+<rect x="1120" y="160" width="420" height="125" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="1140" y="193" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">3  Provision hospital scopes</text>
+<text x="1140" y="221" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Hospital / facility records</text>
+<text x="1140" y="244" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Default isolated sharing • quotas</text>
+<rect x="60" y="445" width="420" height="125" rx="14" fill="#e6f5f1" stroke="#368779" stroke-width="2"/>
+<text x="80" y="478" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">6  Synthetic verification</text>
+<text x="80" y="506" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Sibling-hospital and tenant denial</text>
+<text x="80" y="529" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Login • audit • products • recovery</text>
+<rect x="590" y="445" width="420" height="125" rx="14" fill="#f3edff" stroke="#8663bc" stroke-width="2"/>
+<text x="610" y="478" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">5  Reconcile authorization</text>
+<text x="610" y="506" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">OpenFGA + grant projections</text>
+<text x="610" y="529" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Required policy epoch acknowledged</text>
+<rect x="1120" y="445" width="420" height="125" rx="14" fill="#e6f5f1" stroke="#368779" stroke-width="2"/>
+<text x="1140" y="478" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">4  Provision product data</text>
+<text x="1140" y="506" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Database placement • storage policy</text>
+<text x="1140" y="529" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Secrets and enabled product config</text>
+<rect x="60" y="760" width="420" height="125" rx="14" fill="#e6f5f1" stroke="#368779" stroke-width="2"/>
+<text x="80" y="793" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">7  Active</text>
+<text x="80" y="821" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Atomic registry transition</text>
+<text x="80" y="844" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Only after all mandatory gates pass</text>
+<rect x="590" y="760" width="420" height="125" rx="14" fill="#fff5df" stroke="#b88b32" stroke-width="2"/>
+<text x="610" y="793" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">Failure → inactive / resumable</text>
+<text x="610" y="821" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Persist step + external resource IDs</text>
+<text x="610" y="844" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Bounded retry • alert • reconcile</text>
+<rect x="1120" y="760" width="420" height="125" rx="14" fill="#f0f3f7" stroke="#8d9aad" stroke-width="2"/>
+<text x="1140" y="793" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">Lifecycle stays explicit</text>
+<text x="1140" y="821" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Suspend → closing → approved purge</text>
+<text x="1140" y="844" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Legal holds and audit survive</text>
+<line x1="60" y1="1020" x2="1540" y2="1020" stroke="#d5dee8"/>
+<text x="60" y="1050" font-family="Arial, sans-serif" font-size="15" font-weight="400" fill="#6c7b8d">HELIVANTA  /  Proposed design · 2026-10-13  /  Blue: apps   Purple: identity/policy   Teal: data   Amber: async   Dashed: secondary/future</text>
+<text x="1485" y="1050" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#163c60">04 / 08</text>
+</svg>

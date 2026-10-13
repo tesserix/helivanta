@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1080" viewBox="0 0 1600 1080">
+<title>Product ownership follows the clinical journey.</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#63758d"/></marker></defs>
+<rect width="1600" height="1080" fill="#ffffff"/>
+<rect x="0" y="0" width="1600" height="12" fill="#163c60"/>
+<text x="60" y="65" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#163c60">Product ownership follows the clinical journey.</text>
+<text x="60" y="108" font-family="Arial, sans-serif" font-size="17" font-weight="400" fill="#627186">NO CROSS-PRODUCT TABLE WRITES  /  Local transaction + audit + outbox; consumers deduplicate</text>
+<path d="M 480 212 L 590 212" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1120 212 L 1010 212" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="1032.7" y="187.0" width="64.6" height="22" rx="4" fill="#ffffff"/>
+<text x="1065.0" y="203.0" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#52657d">request</text>
+<path d="M 800 270 L 800 410" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 590 472 L 480 472" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="494.9" y="447.0" width="80.2" height="22" rx="4" fill="#ffffff"/>
+<text x="535.0" y="463.0" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#52657d">lab order</text>
+<path d="M 1010 472 L 1120 472" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="1021.0" y="447.0" width="88.0" height="22" rx="4" fill="#ffffff"/>
+<text x="1065.0" y="463.0" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#52657d">fulfilment</text>
+<path d="M 270 535 L 270 685" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1250 535 L 1250 600 L 800 600 L 800 685" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="922.5" y="575.0" width="205.0" height="22" rx="4" fill="#ffffff"/>
+<text x="1025.0" y="591.0" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#52657d">dispensed → charge intent</text>
+<path d="M 1460 685 L 1460 535" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="1412.4" y="585.0" width="119.2" height="22" rx="4" fill="#ffffff"/>
+<text x="1472.0" y="601.0" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#52657d">received stock</text>
+<rect x="60" y="155" width="420" height="115" rx="14" fill="#f3edff" stroke="#8663bc" stroke-width="2"/>
+<text x="80" y="188" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">Shared patient identity</text>
+<text x="80" y="216" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Hospital registration + local MRN</text>
+<text x="80" y="239" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Reviewed links never imply access</text>
+<rect x="590" y="155" width="420" height="115" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="610" y="188" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">MediCore encounter</text>
+<text x="610" y="216" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Clinical order / prescription version</text>
+<text x="610" y="239" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Hospital-owned signed record</text>
+<rect x="1120" y="155" width="420" height="115" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="1140" y="188" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">CRM referral / intake</text>
+<text x="1140" y="216" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Hospital-scoped contact + purpose</text>
+<text x="1140" y="239" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Booking through MediCore</text>
+<rect x="60" y="410" width="420" height="125" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="80" y="443" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">LabConnect</text>
+<text x="80" y="471" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Collect → process → validate</text>
+<text x="80" y="494" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Released result + amendments</text>
+<rect x="590" y="410" width="420" height="125" rx="14" fill="#fff5df" stroke="#b88b32" stroke-width="2"/>
+<text x="610" y="443" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">NATS JetStream + workflow</text>
+<text x="610" y="471" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Event ID • tenant • origin hospital</text>
+<text x="610" y="494" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Versioned contract • inbox / outbox</text>
+<rect x="1120" y="410" width="420" height="125" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="1140" y="443" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">PharmaConnect</text>
+<text x="1140" y="471" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Validate → reserve → dispense</text>
+<text x="1140" y="494" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Batch / expiry + stock ledger</text>
+<rect x="60" y="685" width="420" height="125" rx="14" fill="#e6f5f1" stroke="#368779" stroke-width="2"/>
+<text x="80" y="718" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">Released result projection</text>
+<text x="80" y="746" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Source version + current access</text>
+<text x="80" y="769" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Critical result acknowledgement</text>
+<rect x="590" y="685" width="420" height="125" rx="14" fill="#e6f5f1" stroke="#368779" stroke-width="2"/>
+<text x="610" y="718" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">MediCore hospital billing</text>
+<text x="610" y="746" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Idempotent source charge lines</text>
+<text x="610" y="769" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Pending charge visible on failure</text>
+<rect x="1120" y="685" width="420" height="125" rx="14" fill="#e6f5f1" stroke="#368779" stroke-width="2"/>
+<text x="1140" y="718" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">SupplyConnect</text>
+<text x="1140" y="746" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Central stock → transit → receipt</text>
+<text x="1140" y="769" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Separate ledger; reconcile variance</text>
+<rect x="60" y="885" width="1480" height="90" rx="14" fill="#f0f3f7" stroke="#8d9aad" stroke-width="2"/>
+<text x="80" y="918" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">Clinical reality determines compensation</text>
+<text x="80" y="946" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Before dispense: release reservation. After physical dispense: preserve fact; retry charge or perform an authorized return.</text>
+<text x="80" y="969" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Cross-hospital referrals expose only the agreed data. Each recipient keeps its own provenance and record ownership.</text>
+<line x1="60" y1="1020" x2="1540" y2="1020" stroke="#d5dee8"/>
+<text x="60" y="1050" font-family="Arial, sans-serif" font-size="15" font-weight="400" fill="#6c7b8d">HELIVANTA  /  Proposed design · 2026-10-13  /  Blue: apps   Purple: identity/policy   Teal: data   Amber: async   Dashed: secondary/future</text>
+<text x="1485" y="1050" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#163c60">05 / 08</text>
+</svg>

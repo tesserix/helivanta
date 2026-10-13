@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1080" viewBox="0 0 1600 1080">
+<title>Every request crosses explicit security gates.</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#63758d"/></marker></defs>
+<rect width="1600" height="1080" fill="#ffffff"/>
+<rect x="0" y="0" width="1600" height="12" fill="#163c60"/>
+<text x="60" y="65" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#163c60">Every request crosses explicit security gates.</text>
+<text x="60" y="108" font-family="Arial, sans-serif" font-size="17" font-weight="400" fill="#627186">LOGICAL REQUEST SEQUENCE  /  Arrows show decision order, not a claim that policy services query clinical databases</text>
+<path d="M 480 225 L 590 225" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1010 225 L 1120 225" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1330 290 L 1330 425" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1120 490 L 1010 490" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 590 490 L 480 490" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 270 555 L 270 700" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 480 765 L 590 765" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 800 555 L 800 625 L 1330 625 L 1330 700" fill="none" stroke="#63758d" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="8 6"/>
+<rect x="1005.4" y="600.0" width="119.2" height="22" rx="4" fill="#ffffff"/>
+<text x="1065.0" y="616.0" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#52657d">failure branch</text>
+<rect x="60" y="160" width="420" height="130" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="80" y="193" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">1  Browser + active hospital</text>
+<text x="80" y="221" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Secure HttpOnly cookie</text>
+<text x="80" y="244" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Visible context • no raw IdP token</text>
+<rect x="590" y="160" width="420" height="130" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="610" y="193" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">2  BFF validates session</text>
+<text x="610" y="221" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">CSRF / Origin • current scope</text>
+<text x="610" y="244" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Reject stale-tab context</text>
+<rect x="1120" y="160" width="420" height="130" rx="14" fill="#f3edff" stroke="#8663bc" stroke-width="2"/>
+<text x="1140" y="193" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">3  Session / token service</text>
+<text x="1140" y="221" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Short-lived target audience</text>
+<text x="1140" y="244" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Actor + tenant + hospital + epoch</text>
+<rect x="1120" y="425" width="420" height="130" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="1140" y="458" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">4  Product API + Istio</text>
+<text x="1140" y="486" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Workload mTLS + allowed caller</text>
+<text x="1140" y="509" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Verify delegation and audience</text>
+<rect x="590" y="425" width="420" height="130" rx="14" fill="#f3edff" stroke="#8663bc" stroke-width="2"/>
+<text x="610" y="458" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">5  API checks policy</text>
+<text x="610" y="486" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Membership • role • care relation</text>
+<text x="610" y="509" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Sharing / purpose • current epoch</text>
+<rect x="60" y="425" width="420" height="130" rx="14" fill="#e6f5f1" stroke="#368779" stroke-width="2"/>
+<text x="80" y="458" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">6  Scoped database transaction</text>
+<text x="80" y="486" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Tenant AND hospital / grant RLS</text>
+<text x="80" y="509" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Action, field and state validation</text>
+<rect x="60" y="700" width="420" height="130" rx="14" fill="#fff5df" stroke="#b88b32" stroke-width="2"/>
+<text x="80" y="733" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">7  Durable audit</text>
+<text x="80" y="761" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Before PHI / success is released</text>
+<text x="80" y="784" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Actor, resource and policy version</text>
+<rect x="590" y="700" width="420" height="130" rx="14" fill="#edf4ff" stroke="#4975b5" stroke-width="2"/>
+<text x="610" y="733" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">8  Authorized response</text>
+<text x="610" y="761" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Minimum fields • no-store PHI</text>
+<text x="610" y="784" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Source versions / freshness</text>
+<rect x="1120" y="700" width="420" height="130" rx="14" fill="#fff0ed" stroke="#bf7667" stroke-width="2"/>
+<text x="1140" y="733" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">Scope or authority changed?</text>
+<text x="1140" y="761" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Deny / retry safely; clear stale UI</text>
+<text x="1140" y="784" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">No cached allow as fallback</text>
+<rect x="60" y="900" width="1480" height="70" rx="14" fill="#f0f3f7" stroke="#8d9aad" stroke-width="2"/>
+<text x="80" y="933" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#1d3652">Two distinct identities, both required</text>
+<text x="80" y="961" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#33465d">Istio verifies the calling service. Helivanta verifies the user, tenant, hospital, purpose and record access.</text>
+<line x1="60" y1="1020" x2="1540" y2="1020" stroke="#d5dee8"/>
+<text x="60" y="1050" font-family="Arial, sans-serif" font-size="15" font-weight="400" fill="#6c7b8d">HELIVANTA  /  Proposed design · 2026-10-13  /  Blue: apps   Purple: identity/policy   Teal: data   Amber: async   Dashed: secondary/future</text>
+<text x="1485" y="1050" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#163c60">03 / 08</text>
+</svg>

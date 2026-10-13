@@ -35,6 +35,14 @@ func TestModulesHasNoDuplicateNames(t *testing.T) {
 	}
 }
 
+func TestModulesIncludesWorkforce(t *testing.T) {
+	var names []string
+	for _, mod := range Modules(nil, nil) {
+		names = append(names, mod.Name())
+	}
+	require.Contains(t, names, "workforce")
+}
+
 func TestNewRegistryRegistersEveryModule(t *testing.T) {
 	reg, err := NewRegistry(nil, nil)
 	require.NoError(t, err)

@@ -225,7 +225,9 @@ dashboard's department cards — are `next/link`, so moving from
 app: no page reload, client state and the React Query cache survive
 (#933). `e2e/tests/navigation.spec.ts` is the control that keeps it so: it
 fails if moving between departments reloads the page. Use a plain `<a>`
-only for a destination outside this app.
+only for a destination outside this app, or for a deliberate full reload into
+the sign-in flow (`/login`), where starting from fresh state is the point —
+e.g. the auth callback's "Try signing in again".
 
 **Sign-out is not a link at all.**
 It is a state change, not navigation: it revokes every session for the

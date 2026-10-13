@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>Helivanta heartbeat spiral</title>
+  <rect x="2" y="2" width="60" height="60" rx="17" fill="#126C61"/>
+  <path d="M49 23C45 13 34 10 24 14C14 18 10 30 15 40C20 51 34 54 44 47C53 41 54 29 46 23C39 18 30 21 28 27" stroke="#9DDCCD" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M12 34H23L28 25L34 43L39 32H51" stroke="#126C61" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M12 34H23L28 25L34 43L39 32H51" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

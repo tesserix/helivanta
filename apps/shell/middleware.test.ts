@@ -22,3 +22,10 @@ it("serves the public homepage and signup without opening clinical routes", () =
     expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status).toBe(307);
   }
 });
+
+it("serves the favicon before login without opening similarly named routes", () => {
+  expect(middleware(new NextRequest("https://helivanta.app/icon.svg?v=1")).status).toBe(200);
+  for (const path of ["/icon.svg/private", "/icon.svg-backup", "/dashboard"]) {
+    expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status).toBe(307);
+  }
+});

@@ -17,3 +17,5 @@ export {
   type IdleTrackerHandlers,
 } from "./idle-timer";
 export { TesserixFooter, BrandMark, LoginSurface } from "./branding";
+
+export { SelectControl, FormSelectField, type SelectOption } from "./select";

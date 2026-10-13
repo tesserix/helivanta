@@ -9,7 +9,7 @@ import {
   DEFAULT_BRANDING,
   type Branding,
 } from "@helivanta/api";
-import { HmsShell, Field, useZodForm, LoginSurface } from "@helivanta/ui";
+import { HmsShell, Field, useZodForm, LoginSurface, FormSelectField } from "@helivanta/ui";
 import { TenantPicker } from "@/components/tenant-picker";
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus-visible:outline-2 focus-visible:outline-(--hms-accent)";
@@ -102,19 +102,27 @@ function BrandingEditor({ initial }: { initial: Branding }) {
           />
         </Field>
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field id="brand-theme" label="Medical theme">
-            <select id="brand-theme" className={inputClass} {...form.register("theme")}>
-              <option value="teal">Clinical teal</option>
-              <option value="blue">Care blue</option>
-              <option value="indigo">Calm indigo</option>
-            </select>
-          </Field>
-          <Field id="brand-layout" label="Login layout">
-            <select id="brand-layout" className={inputClass} {...form.register("login_layout")}>
-              <option value="split">Split welcome</option>
-              <option value="centered">Centered</option>
-            </select>
-          </Field>
+          <FormSelectField
+            control={form.control}
+            name="theme"
+            id="brand-theme"
+            label="Medical theme"
+            options={[
+              { value: "teal", label: "Clinical teal" },
+              { value: "blue", label: "Care blue" },
+              { value: "indigo", label: "Calm indigo" },
+            ]}
+          />
+          <FormSelectField
+            control={form.control}
+            name="login_layout"
+            id="brand-layout"
+            label="Login layout"
+            options={[
+              { value: "split", label: "Split welcome" },
+              { value: "centered", label: "Centered" },
+            ]}
+          />
         </div>
         <p className="border-t pt-4 text-xs leading-relaxed text-muted-foreground">
           Published branding is visible on your public login page and across your tenant workspace.

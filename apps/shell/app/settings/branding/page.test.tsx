@@ -1,3 +1,4 @@
+import { chooseOption } from "../../../test/select";
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -26,7 +27,7 @@ it("previews and persists owner branding while retaining platform attribution", 
   const name = await screen.findByLabelText("Organization name");
   await user.clear(name);
   await user.type(name, "YES HOSPITAL");
-  await user.selectOptions(screen.getByLabelText("Medical theme"), "blue");
+  await chooseOption(user, screen.getByLabelText("Medical theme"), "Care blue");
   await user.click(screen.getByRole("button", { name: "Publish branding" }));
   await waitFor(() =>
     expect(fetcher).toHaveBeenCalledWith(

@@ -1,3 +1,4 @@
+import { chooseOption } from "../../test/select";
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -65,14 +66,14 @@ it("registers a synthetic patient in the selected hospital and displays the save
   expect(screen.getByLabelText("Family name")).toHaveValue("Example");
   await user.type(screen.getByLabelText("Date of birth"), "1990-01-01");
   await user.click(screen.getByLabelText("Record a reported blood group"));
-  await user.selectOptions(screen.getByLabelText("ABO group"), "AB");
+  await chooseOption(user, screen.getByLabelText("ABO group"), "AB");
   await user.click(screen.getByLabelText("Record a reported blood group"));
   expect(screen.queryByLabelText("ABO group")).not.toBeInTheDocument();
   await user.click(screen.getByLabelText("Record a reported blood group"));
-  expect(screen.getByLabelText("ABO group")).toHaveValue("unknown");
-  await user.selectOptions(screen.getByLabelText("ABO group"), "AB");
-  await user.selectOptions(screen.getByLabelText("Rh(D) type"), "negative");
-  await user.selectOptions(screen.getByLabelText("Blood group source"), "patient");
+  expect(screen.getByLabelText("ABO group")).toHaveTextContent("Unknown");
+  await chooseOption(user, screen.getByLabelText("ABO group"), "AB");
+  await chooseOption(user, screen.getByLabelText("Rh(D) type"), "Negative");
+  await chooseOption(user, screen.getByLabelText("Blood group source"), "Patient");
   await user.type(screen.getByLabelText("Consent notice version"), "synthetic-v1");
   await user.click(screen.getByLabelText("I have recorded the patient's or guardian's consent"));
   await user.click(screen.getByRole("button", { name: "Save registration" }));
@@ -117,4 +118,30 @@ it("does not expose registration when clinical access is missing", async () => {
   renderWithProviders(<PatientWorkspace />);
   expect(await screen.findByRole("alert")).toHaveTextContent("Clinical access is not available");
   expect(screen.queryByRole("button", { name: "Register patient" })).not.toBeInTheDocument();
+});
+
+it("starts scoped search alongside access verification without showing records before access is granted", async () => {
+  let grantAccess!: (response: Response) => void;
+  const access = new Promise<Response>((resolve) => {
+    grantAccess = resolve;
+  });
+  const fetcher = vi.fn(async (url: string) => {
+    if (url.endsWith("/access")) return access;
+    const body = url.includes("permissions")
+      ? { data: ["patient.read"] }
+      : url.includes("workforce/hospitals")
+        ? page([{ id: hospital, name: "YES Main Hospital (Synthetic)", access_level: "manager" }])
+        : url.includes("/patients/search")
+          ? page([patient])
+          : {};
+    return new Response(JSON.stringify(body), { status: 200 });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(<PatientWorkspace />);
+  await waitFor(() =>
+    expect(fetcher.mock.calls.some(([url]) => url.includes("/patients/search"))).toBe(true),
+  );
+  expect(screen.queryByText("MRN-SYNTHETIC")).not.toBeInTheDocument();
+  grantAccess(new Response(JSON.stringify({ level: "reader" }), { status: 200 }));
+  expect(await screen.findByText("MRN-SYNTHETIC")).toBeInTheDocument();
 });

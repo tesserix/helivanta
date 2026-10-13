@@ -1,3 +1,4 @@
+import { chooseOption } from "../test/select";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -75,9 +76,10 @@ describe("TenantPicker", () => {
 
   it("lists every tenant for a multi-hospital user", async () => {
     stubFetch();
-    renderWithProviders(<TenantPicker />);
+    const { user } = renderWithProviders(<TenantPicker />);
 
     await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
+    await user.click(screen.getByRole("combobox"));
     expect(screen.getAllByRole("option")).toHaveLength(2);
   });
 
@@ -86,7 +88,7 @@ describe("TenantPicker", () => {
     const { user } = renderWithProviders(<TenantPicker />);
     await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
 
-    await user.selectOptions(screen.getByRole("combobox"), "t2");
+    await chooseOption(user, screen.getByRole("combobox"), /^t2 —/);
 
     await waitFor(() => expect(screen.getByText("Switched tenant")).toBeInTheDocument());
 
@@ -120,11 +122,11 @@ describe("TenantPicker", () => {
 
     // Simulates the post-switch, post-reload state: the server now
     // reports t2 as current, even though t1 sorts first in the array.
-    expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe("t2");
+    expect(screen.getByRole("combobox")).toHaveTextContent("t2 —");
 
     // Switching back to t1 (the tenant the picker is NOT currently
     // showing) must fire a real change event and the switch mutation.
-    await user.selectOptions(screen.getByRole("combobox"), "t1");
+    await chooseOption(user, screen.getByRole("combobox"), /^t1 —/);
 
     await waitFor(() => expect(calls).toContain("POST /api/v1/iam/me/tenant"));
   });
@@ -139,7 +141,7 @@ describe("TenantPicker", () => {
     const { user } = renderWithProviders(<TenantPicker />);
     await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
 
-    await user.selectOptions(screen.getByRole("combobox"), "t2");
+    await chooseOption(user, screen.getByRole("combobox"), /^t2 —/);
 
     await waitFor(() => expect(screen.getByText("tenant not found")).toBeInTheDocument());
     expect(screen.queryByText("Switched tenant")).not.toBeInTheDocument();
@@ -162,7 +164,7 @@ describe("TenantPicker", () => {
     const { user } = renderWithProviders(<TenantPicker />);
 
     await waitFor(() => expect(screen.getByTitle("Tenant")).toBeInTheDocument());
-    await user.selectOptions(screen.getByTitle("Tenant"), "t2");
+    await chooseOption(user, screen.getByTitle("Tenant"), /^t2 —/);
 
     await waitFor(() => expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull());
   });

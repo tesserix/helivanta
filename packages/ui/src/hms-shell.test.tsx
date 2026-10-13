@@ -778,3 +778,53 @@ describe("HmsShell", () => {
     });
   });
 });
+
+describe("expandable navigation", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: ["patient.read", "lab.order.read"],
+          subject: "doc",
+          tenant_id: "tenant-a",
+        }),
+      }),
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+  it("shows zone labels and preserves the expanded preference", async () => {
+    seedCache(["patient.read", "lab.order.read"]);
+    const { user, unmount } = renderWithProviders(<HmsShell active="/patients">content</HmsShell>);
+    await user.click(screen.getByRole("button", { name: "Expand navigation" }));
+    const navigation = screen.getByRole("navigation", { name: "Zones" });
+    expect(navigation).toHaveTextContent("Patients");
+    expect(navigation).toHaveTextContent("Lab");
+    expect(screen.getByRole("button", { name: "Collapse navigation" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(window.localStorage.getItem("hms.navigation.open")).toBe("1");
+    unmount();
+    renderWithProviders(<HmsShell active="/patients">content</HmsShell>);
+    expect(await screen.findByRole("button", { name: "Collapse navigation" })).toBeInTheDocument();
+  });
+  it("keeps navigation usable when preference storage is unavailable", async () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("storage unavailable");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("storage unavailable");
+    });
+    const { user } = renderWithProviders(<HmsShell active="/patients">content</HmsShell>);
+    await user.click(screen.getByRole("button", { name: "Expand navigation" }));
+    expect(screen.getByRole("button", { name: "Collapse navigation" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    vi.restoreAllMocks();
+  });
+});

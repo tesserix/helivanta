@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LogOut, PanelLeftClose, PanelLeftOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   ApiError,
   useApiQuery,
@@ -16,6 +16,7 @@ import {
 } from "@helivanta/api";
 import { visibleZones, activeZone } from "./zones";
 import { BrandLogo, TesserixFooter } from "./branding";
+import { BrandThemeContext } from "./brand-theme";
 import { ThemeToggle } from "./theme";
 import {
   endZitadelSession,
@@ -26,25 +27,29 @@ import {
 import { createIdleTracker, WARNING_LEAD_MS, type IdleTracker } from "./idle-timer";
 import { IdleWarning } from "./idle-warning";
 
-// Two-rail chrome in the tesserix-home AdminSidebar style. The zone rail is
-// fixed icons-only (no expand/collapse); only the page panel toggles open ↔
-// hidden, and that preference persists per browser. Navigation links are
-// next/link: every zone is a route of the one app since #933, so moving
-// between them is client-side. Sign-out is not a link (docs/standards/
-// frontend.md §6): it is a state change, not navigation, so it renders as a
-// form.
+// Navigation stays within the unified app. Sign-out remains a POST because
+// it revokes server-side credentials.
 
 const PANEL_KEY = "hms.panel.open";
+const NAVIGATION_KEY = "hms.navigation.open";
 
 function usePersistedFlag(key: string, fallback: boolean) {
   const [value, setValue] = useState(fallback);
   useEffect(() => {
-    const stored = window.localStorage.getItem(key);
-    if (stored !== null) setValue(stored === "1");
+    try {
+      const stored = window.localStorage.getItem(key);
+      if (stored !== null) setValue(stored === "1");
+    } catch {
+      return;
+    }
   }, [key]);
   const update = (next: boolean) => {
     setValue(next);
-    window.localStorage.setItem(key, next ? "1" : "0");
+    try {
+      window.localStorage.setItem(key, next ? "1" : "0");
+    } catch {
+      return;
+    }
   };
   return [value, update] as const;
 }
@@ -92,6 +97,7 @@ export function HmsShell({
   // zone was filtered out — e.g. while permissions are still loading.
   const zone = zones.find((z) => z.key === activeZone(active).key) ?? zones[0];
   const [panelOpen, setPanelOpen] = usePersistedFlag(PANEL_KEY, true);
+  const [navigationOpen, setNavigationOpen] = usePersistedFlag(NAVIGATION_KEY, false);
 
   // Idle-session tracking (design spec D2/D4/D7). Mounted here, not in
   // apps/shell, for the exact reason endZitadelSession's doc comment
@@ -388,16 +394,16 @@ export function HmsShell({
   const activePage = zone.pages.find((p) => p.href === active);
 
   return (
-    <>
+    <BrandThemeContext value={branding.theme}>
       {warningDeadline && secondsRemaining !== null && (
         <IdleWarning secondsRemaining={secondsRemaining} onStay={handleStayLoggedIn} />
       )}
       <div data-brand-theme={branding.theme} className="flex h-screen overflow-hidden">
-        {/* Zone rail: fixed icons-only. Matches tesserix admin: one step
-          darker than the page panel, faint border between the rails, none
-          against the content. */}
-        <aside className="hms-sidebar-border flex w-16 shrink-0 flex-col border-r bg-(--sidebar-rail)">
-          <div className="flex h-16 items-center justify-center">
+        {navigationOpen && <div aria-hidden="true" className="w-16 shrink-0 md:hidden" />}
+        <aside
+          className={`hms-sidebar-border flex shrink-0 flex-col border-r bg-(--sidebar-rail) ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 shadow-xl md:relative md:inset-auto md:shadow-none" : "w-16"}`}
+        >
+          <div className={`flex h-16 items-center ${navigationOpen ? "px-4" : "justify-center"}`}>
             <Link
               href="/dashboard"
               aria-label="Helivanta home"
@@ -406,12 +412,32 @@ export function HmsShell({
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-(--hms-accent) to-(--hms-accent-strong) text-(--sidebar-primary-foreground)">
                 <BrandLogo key={branding.logo_url} branding={branding} compact />
               </span>
+              {navigationOpen && <span className="text-sm text-sidebar-foreground">Helivanta</span>}
             </Link>
           </div>
           <div className="hms-sidebar-border mx-2 border-t" />
+          <div className={`flex py-2 ${navigationOpen ? "px-3" : "justify-center"}`}>
+            <button
+              type="button"
+              aria-controls="hms-zone-navigation"
+              aria-expanded={navigationOpen}
+              aria-label={navigationOpen ? "Collapse navigation" : "Expand navigation"}
+              title={navigationOpen ? "Collapse navigation" : "Expand navigation"}
+              onClick={() => setNavigationOpen(!navigationOpen)}
+              className={`flex h-11 items-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent) ${navigationOpen ? "w-full gap-3 px-3" : "w-11 justify-center"}`}
+            >
+              {navigationOpen ? (
+                <ChevronLeft className="size-5" aria-hidden="true" />
+              ) : (
+                <ChevronRight className="size-5" aria-hidden="true" />
+              )}
+              {navigationOpen && <span className="text-sm">Collapse navigation</span>}
+            </button>
+          </div>
           <nav
+            id="hms-zone-navigation"
             aria-label="Zones"
-            className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto px-0 py-4"
+            className={`flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto py-4 ${navigationOpen ? "px-3" : "items-center"}`}
           >
             {zones.map((z) => {
               const isActive = z.key === zone.key;
@@ -422,7 +448,7 @@ export function HmsShell({
                   title={z.label}
                   aria-label={z.label}
                   aria-current={isActive ? "page" : undefined}
-                  className={`relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
+                  className={`relative flex h-11 items-center rounded-lg transition-colors ${navigationOpen ? "w-full gap-3 px-3" : "w-11 justify-center"} ${
                     isActive
                       ? "bg-(--hms-accent-dim) text-(--hms-accent)"
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
@@ -435,19 +461,23 @@ export function HmsShell({
                     />
                   )}
                   <z.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  {navigationOpen && (
+                    <span className="truncate text-sm font-medium">{z.label}</span>
+                  )}
                 </Link>
               );
             })}
           </nav>
-          <div className="flex flex-col items-center gap-1 px-0 py-3">
+          <div className={`flex flex-col gap-1 py-3 ${navigationOpen ? "px-3" : "items-center"}`}>
             <form onSubmit={handleSignOut}>
               <button
                 type="submit"
                 title="Sign out"
                 aria-label="Sign out"
-                className="flex h-10 w-10 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                className={`flex h-11 items-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground ${navigationOpen ? "w-full gap-3 px-3" : "w-11 justify-center"}`}
               >
                 <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {navigationOpen && <span className="text-sm">Sign out</span>}
               </button>
             </form>
           </div>
@@ -542,6 +572,6 @@ export function HmsShell({
           <TesserixFooter />
         </div>
       </div>
-    </>
+    </BrandThemeContext>
   );
 }

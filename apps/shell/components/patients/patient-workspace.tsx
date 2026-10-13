@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { z } from "zod";
 import { Button } from "@tesserix/web";
 import { Search, UserRoundPlus, ShieldCheck, UsersRound } from "lucide-react";
@@ -128,7 +128,19 @@ function HospitalPatients({ hospital }: { hospital: Hospital }) {
   );
 }
 
+function revealRegistration(section: HTMLElement | null) {
+  if (!section) return;
+  section.scrollIntoView({ block: "start", behavior: "instant" });
+  section.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+}
+
 function Registry({ hospital, writable }: { hospital: Hospital; writable: boolean }) {
+  const registration = useRef<HTMLElement | null>(null);
+  const registerButton = useRef<HTMLButtonElement | null>(null);
+  const registrationMounted = useCallback((section: HTMLElement | null) => {
+    registration.current = section;
+    revealRegistration(section);
+  }, []);
   const [query, setQuery] = useState("");
   const [registering, setRegistering] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
@@ -151,7 +163,9 @@ function Registry({ hospital, writable }: { hospital: Hospital; writable: boolea
           </div>
           {writable && (
             <Button
+              ref={registerButton}
               onClick={() => {
+                revealRegistration(registration.current);
                 setRegistering(true);
                 setReceipt(null);
                 setSelected(null);
@@ -276,7 +290,11 @@ function Registry({ hospital, writable }: { hospital: Hospital; writable: boolea
       {registering && (
         <Registration
           hospital={hospital}
-          onCancel={() => setRegistering(false)}
+          sectionRef={registrationMounted}
+          onCancel={() => {
+            setRegistering(false);
+            registerButton.current?.focus();
+          }}
           onSaved={(result) => {
             setReceipt(result);
             setRegistering(false);
@@ -363,10 +381,12 @@ function PatientDetail({
 
 function Registration({
   hospital,
+  sectionRef,
   onCancel,
   onSaved,
 }: {
   hospital: Hospital;
+  sectionRef: (section: HTMLElement | null) => void;
   onCancel: () => void;
   onSaved: (result: PatientRegistrationResult) => void;
 }) {
@@ -402,7 +422,11 @@ function Registration({
     },
   );
   return (
-    <section aria-labelledby="registration-heading" className="mt-6 rounded-2xl border bg-card p-6">
+    <section
+      ref={sectionRef}
+      aria-labelledby="registration-heading"
+      className="mt-6 scroll-mt-24 rounded-2xl border bg-card p-6"
+    >
       <div className="mb-6 flex justify-between gap-4">
         <div>
           <h3 id="registration-heading" className="text-xl font-semibold">

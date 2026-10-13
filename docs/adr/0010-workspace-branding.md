@@ -10,7 +10,7 @@ A tenant-specific login link retains a cosmetic tenant hint through OIDC redirec
 
 Assets are staff identities, access grants and credentials. Attackers include anonymous callers, another tenant's member and malicious branding editors. Every API write checks a server-derived tenant and permission. React renders text, never user-authored markup; logo URLs reject credentials, non-HTTPS schemes and private hosts. No browser-local branding is an authoritative persisted setting.
 
-Target: 100 tenants, up to 100 hospitals/tenant, 10,000 staff/hospital; 99.9% monthly availability and p95 read latency below 300 ms at 50 requests/s. Page size is bounded by existing keyset pagination (maximum 100). No additional deployment or datastore is required; incremental storage is below 100 MB at this scale plus audit retention. These are design targets, not measured guarantees.
+Target: 100 tenants, up to 100 hospitals/tenant, 10,000 staff/hospital; 99.9% monthly availability and p95 read latency below 300 ms at 50 requests/s. Page size is bounded by existing keyset pagination (maximum 200). No additional deployment or datastore is required; incremental storage is below 100 MB at this scale plus audit retention. These are design targets, not measured guarantees.
 
 PostgreSQL failure returns a bounded error; staff forms preserve unsaved input. OpenFGA failure denies access. Public branding failure renders the neutral Helivanta login without bypassing authentication. TanStack Query keys include hospital identity; switching hospitals unmounts the old directory so staff and draft forms cannot bleed across hospitals. No queue is required for these single-database writes.
 

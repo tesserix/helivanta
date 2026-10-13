@@ -1,6 +1,6 @@
 # ADR 0009: Hospital-scoped workforce foundation
 
-Status: implementation slice; production release pending verification.
+Status: workforce API/schema deployed and verified on 2026-10-13. Workspace UI and branding are tracked in ADR 0010.
 
 The target in ADR 0008 distinguishes tenants from hospitals. Existing clinical tables still use the earlier model and must not gain broader visibility. The first additive API slice runs inside the existing Go API and migration runner, using its verified session, current tenant membership, OpenFGA permissions, rate limits and PostgreSQL connection roles.
 

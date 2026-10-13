@@ -65,13 +65,13 @@ GOTOOLCHAIN=go1.26.6 go build ./...
 
 - Tenant UUID: `8f8ed375-596b-4633-b90b-27fd3e6f299c`.
 - Zitadel organization: `394886004164526645`.
-- Owner: `yes-hospital-owner@example.invalid`, display name `Synthetic Test Owner`.
-- Zitadel owner subject: `394886007536747061`; organization-owner membership verified.
+- Initial owner: `yes-hospital-owner@example.invalid`, replaced after the first workforce release; retained without organization membership.
+- Active owner: `yes-hospital-test-owner@example.invalid`, subject `394892763469972021`; organization-owner membership and active state verified.
 - Plan: `synthetic-test`; external reference: `helivanta-synthetic-yes-hospital`.
 
-The synthetic owner remains in Zitadel's initial setup state. No mailbox verification, credential activation or MFA requirements were bypassed. The operator currently has no Helivanta product registration, and Helivanta has no automatic operator-to-IAM membership projection. Consequently, this tenant has not been granted application access and signed-in live CRUD tests have not been performed. Real signed-session HTTP isolation tests ran against the test stack; live gateway rejection and database isolation checks are separate evidence.
+The replacement owner is active and has a one-time HMS tenant_admin bootstrap grant, as detailed below. OpenFGA convergence and signed-in production CRUD remain pending the next API rollout. The operator has no Helivanta product registration or automatic operator-to-IAM membership projection. Real signed-session HTTP isolation tests ran against the test stack; live gateway rejection and database isolation checks are separate evidence.
 
-The next implementation slice is dedicated product-machine authentication, verified product entitlement and organization/owner projection into HMS, followed by an activated synthetic-user live CRUD/isolation test. The existing login-client machine identity must not be reused as the product provisioning identity. Employment records must not imply access grants.
+The next implementation slice is dedicated product-machine authentication, verified product entitlement and organization/owner projection into HMS, followed by a signed-in synthetic-user live CRUD/isolation test. The existing login-client machine identity must not be reused as the product provisioning identity. Employment records must not imply access grants.
 
 No legacy customer records were imported. The generated fixture format remains an interchange artifact, not a production seed script. Detailed legacy employee creation and credential fields still need read-only verification before expanding the staff model.
 

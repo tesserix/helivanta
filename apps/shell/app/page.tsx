@@ -1,42 +1,13 @@
 import type { Metadata } from "next";
 import { HeartPulse } from "lucide-react";
 import { TesserixFooter } from "@helivanta/ui";
+import { platformGroups } from "./platform-catalog";
 
 export const metadata: Metadata = {
   title: "Helivanta | Connected care, thoughtfully designed",
   description:
     "A shared workspace for hospital teams, pharmacies and laboratories. Explore Helivanta and bring your care network together.",
 };
-
-const products = [
-  {
-    number: "01",
-    name: "Hospital management",
-    detail: "A clearer picture of your care network.",
-    description:
-      "Bring staff, hospitals and clinical workflows into a shared workspace, with access shaped around each team's responsibilities.",
-    label: "People · Hospitals · Care",
-    color: "bg-teal-50 text-teal-900",
-  },
-  {
-    number: "02",
-    name: "PharmaConnect",
-    detail: "Keep pharmacy work connected.",
-    description:
-      "Connect medication references and dispensing workflows with the teams who depend on them.",
-    label: "Medications · Dispensing",
-    color: "bg-amber-50 text-amber-900",
-  },
-  {
-    number: "03",
-    name: "Laboratory",
-    detail: "Bring the next step into focus.",
-    description:
-      "Give laboratory teams a dedicated place to follow orders alongside the wider care journey.",
-    label: "Orders · Coordination",
-    color: "bg-violet-50 text-violet-900",
-  },
-];
 
 export default function LandingPage() {
   return (
@@ -177,6 +148,7 @@ export default function LandingPage() {
         </section>
         <section
           id="platform"
+          aria-labelledby="platform-heading"
           className="border-y border-(--site-line) bg-white px-6 py-20 lg:px-10"
         >
           <div className="mx-auto max-w-7xl">
@@ -184,7 +156,10 @@ export default function LandingPage() {
               The platform
             </p>
             <div className="mt-4 flex flex-wrap items-end justify-between gap-6">
-              <h2 className="max-w-xl text-3xl font-medium tracking-tight sm:text-4xl">
+              <h2
+                id="platform-heading"
+                className="max-w-xl text-3xl font-medium tracking-tight sm:text-4xl"
+              >
                 Different responsibilities.
                 <br />A familiar place to work.
               </h2>
@@ -193,20 +168,50 @@ export default function LandingPage() {
                 team.
               </p>
             </div>
-            <div className="mt-10 grid gap-5 md:grid-cols-3">
-              {products.map((product) => (
-                <article
-                  key={product.number}
-                  className={`flex flex-col rounded-2xl p-7 ${product.color}`}
-                >
-                  <span className="text-xs font-mono opacity-60">{product.number} /</span>
-                  <h3 className="mt-8 text-xl font-semibold">{product.name}</h3>
-                  <p className="mt-3 text-sm font-medium">{product.detail}</p>
-                  <p className="mt-3 flex-1 text-sm leading-relaxed opacity-80">
-                    {product.description}
-                  </p>
-                  <p className="mt-10 border-t border-current/15 pt-4 text-xs">{product.label}</p>
-                </article>
+            <p className="mt-6 max-w-3xl text-sm leading-relaxed text-(--site-muted)">
+              Explore the full platform and its roadmap. Availability varies by module: foundations
+              cover the workflows described below, while planned and future capabilities are not yet
+              available. Access depends on your organisation and permissions.
+            </p>
+            <div className="mt-10 divide-y divide-(--site-line) border-y border-(--site-line)">
+              {platformGroups.map((group, index) => (
+                <details key={group.name} open={index === 0} className="group py-6">
+                  <summary className="flex cursor-pointer list-none items-center gap-5 rounded-lg py-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--site-primary) [&::-webkit-details-marker]:hidden">
+                    <span
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-mono text-xs ${group.color}`}
+                    >
+                      0{index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-lg font-semibold sm:text-xl">{group.name}</span>
+                      <span className="mt-1 block text-sm leading-relaxed text-(--site-muted)">
+                        {group.description}
+                      </span>
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className="text-xl transition-transform group-open:rotate-45"
+                    >
+                      +
+                    </span>
+                  </summary>
+                  <div className="grid gap-4 pt-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {group.modules.map((module) => (
+                      <article
+                        key={module.name}
+                        aria-label={module.name}
+                        className={`flex flex-col rounded-2xl p-6 ${group.color}`}
+                      >
+                        <p className="text-xs font-medium">{module.product}</p>
+                        <h3 className="mt-4 text-lg font-semibold tracking-tight">{module.name}</h3>
+                        <p className="mt-3 flex-1 text-sm leading-relaxed">{module.description}</p>
+                        <p className="mt-6 border-t border-current/15 pt-4 text-xs font-semibold">
+                          {module.status}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                </details>
               ))}
             </div>
           </div>

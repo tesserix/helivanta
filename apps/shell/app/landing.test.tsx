@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { expect, it } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import LandingPage from "./page";
@@ -18,4 +18,30 @@ it("offers public signup and sign-in while clearly labeling unpublished trust co
   ).toBeInTheDocument();
   expect(screen.getByText("Hospital networks")).toBeInTheDocument();
   expect(screen.queryByText("YES HOSPITAL")).not.toBeInTheDocument();
+});
+
+it("covers the platform catalogue without presenting planned clinical workflows as available", () => {
+  renderWithProviders(<LandingPage />);
+  const platform = screen.getByRole("region", { name: /Different responsibilities/ });
+  for (const name of [
+    "Patient management",
+    "Appointments & reception",
+    "Inventory & procurement",
+    "Billing & insurance",
+    "Staff & hospital management",
+    "CRM & referrals",
+    "Patient portal",
+    "Emergency & ambulance",
+    "Home care",
+    "Assets & facilities",
+    "Safety & quality",
+    "Reporting & administration",
+  ]) {
+    expect(within(platform).getByRole("heading", { name })).toBeInTheDocument();
+  }
+  const inventory = within(platform).getByRole("article", { name: "Inventory & procurement" });
+  expect(within(inventory).getByText("Planned")).toBeInTheDocument();
+  const patients = within(platform).getByRole("article", { name: "Patient management" });
+  expect(within(patients).getByText("Foundation available")).toBeInTheDocument();
+  expect(within(platform).getByText(/Availability varies by module/)).toBeInTheDocument();
 });

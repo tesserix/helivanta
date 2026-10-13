@@ -106,6 +106,16 @@ describe("HmsShell", () => {
     expect(screen.getByLabelText("Lab")).toBeInTheDocument();
   });
 
+  // "/" is the public landing page, so the in-app home link targets the dashboard.
+  it("links the rail logo to the dashboard, not the public homepage", () => {
+    renderWithProviders(<HmsShell active="/dashboard">content</HmsShell>);
+
+    expect(screen.getByRole("link", { name: "Helivanta home" })).toHaveAttribute(
+      "href",
+      "/dashboard",
+    );
+  });
+
   // A shared hospital terminal must not show the next user the previous
   // user's nav, so signing out drops the cached set.
   it("clears the cached permissions when signing out", async () => {

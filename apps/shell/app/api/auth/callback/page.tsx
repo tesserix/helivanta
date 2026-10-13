@@ -70,7 +70,7 @@ export default function AuthCallbackPage() {
         // The session's expiry, for the renewal loop's retry cadence after a
         // failed renewal (#941) — stored for the same reason as renew_at.
         storeExpiresAt(expires_at);
-        router.replace("/");
+        router.replace("/dashboard");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Sign-in failed.");
       }

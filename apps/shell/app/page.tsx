@@ -1,98 +1,323 @@
-"use client";
+import type { Metadata } from "next";
+import { TesserixFooter } from "@helivanta/ui";
 
-import Link from "next/link";
-import { usePermissions } from "@helivanta/api";
-import { HmsShell, visibleZones, type Zone, type ZoneHue } from "@helivanta/ui";
-import { TenantPicker } from "@/components/tenant-picker";
-
-// Per-page descriptions, keyed by href — the registry (packages/ui/src/zones.ts)
-// owns titles and hrefs, this map only supplies the dashboard-card copy.
-const DESCRIPTIONS: Record<string, string> = {
-  "/workforce": "Hospital teams, staff profiles and employment status",
-  "/settings/branding": "Your logo, medical theme and sign-in experience",
-  "/medicore/opd": "Outpatient registration & appointments",
-  "/medicore/ipd": "Admissions, beds & ward rounds",
-  "/pharmacy": "Dispensing & drug inventory",
-  "/pharmacy/medications": "Formulary & stock reference",
-  "/lab": "Orders, samples & results",
+export const metadata: Metadata = {
+  title: "Helivanta | Connected care, thoughtfully designed",
+  description:
+    "A shared workspace for hospital teams, pharmacies and laboratories. Explore Helivanta and bring your care network together.",
 };
 
-// Static class map keyed by hue, full class strings so Tailwind's scanner
-// can see them (string interpolation would hide the classes at build time).
-const TINT_CLASSES: Record<ZoneHue, string> = {
-  rose: "bg-(--hms-rose-tint) text-(--hms-rose)",
-  amber: "bg-(--hms-amber-tint) text-(--hms-amber)",
-  violet: "bg-(--hms-violet-tint) text-(--hms-violet)",
-};
+const products = [
+  {
+    number: "01",
+    name: "Hospital management",
+    detail: "A clearer picture of your care network.",
+    description:
+      "Bring staff, hospitals and clinical workflows into a shared workspace, with access shaped around each team's responsibilities.",
+    label: "People · Hospitals · Care",
+    color: "bg-teal-50 text-teal-900",
+  },
+  {
+    number: "02",
+    name: "PharmaConnect",
+    detail: "Keep pharmacy work connected.",
+    description:
+      "Connect medication references and dispensing workflows with the teams who depend on them.",
+    label: "Medications · Dispensing",
+    color: "bg-amber-50 text-amber-900",
+  },
+  {
+    number: "03",
+    name: "Laboratory",
+    detail: "Bring the next step into focus.",
+    description:
+      "Give laboratory teams a dedicated place to follow orders alongside the wider care journey.",
+    label: "Orders · Coordination",
+    color: "bg-violet-50 text-violet-900",
+  },
+];
 
-// Cards must show only doors that will open (zones.ts's own contract) —
-// the same visibleZones(can) filter the sidebar (hms-shell.tsx) uses, not
-// a second copy of the zone list. usePermissions().can() denies while
-// permissions are loading, so cards never flash before they resolve —
-// same behaviour the sidebar already relies on.
-function cardsFor(zones: Zone[]) {
-  return zones
-    .filter((zone) => zone.key !== "dashboard")
-    .flatMap((zone) =>
-      zone.pages.length > 1
-        ? zone.pages.map((page) => ({
-            href: page.href,
-            title: page.label,
-            desc: DESCRIPTIONS[page.href] ?? "",
-            icon: zone.icon,
-            hue: zone.hue,
-          }))
-        : [
-            {
-              href: zone.href,
-              title: zone.label,
-              desc: DESCRIPTIONS[zone.href] ?? "",
-              icon: zone.icon,
-              hue: zone.hue,
-            },
-          ],
-    );
-}
-
-export default function Dashboard() {
-  const { can } = usePermissions();
-  const cards = cardsFor(visibleZones(can));
-
-  // No onSignOut override: HmsShell's own default now ends both the Helivanta
-  // session and Zitadel's SSO session from every app, the shell's
-  // dashboard included — see packages/ui/src/hms-shell.tsx's
-  // handleSignOut and zitadel-session.ts.
+export default function LandingPage() {
   return (
-    <HmsShell active="/" tenantPicker={<TenantPicker />}>
-      <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-        <h2 className="text-sm font-semibold text-muted-foreground">Jump into a department</h2>
-        <p className="text-xs text-muted-foreground">Manage visits, dispensing and lab work.</p>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {cards.map((z) => (
-          <Link
-            key={z.href}
-            href={z.href}
-            className="group flex items-start gap-4 rounded-xl border bg-card p-4 shadow-sm transition-colors hover:bg-(--muted) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--hms-accent)"
+    <div className="public-site min-h-screen bg-(--site-canvas) text-(--site-ink) selection:bg-teal-200">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4"
+      >
+        Skip to content
+      </a>
+      <header className="border-b border-(--site-line)">
+        <nav
+          aria-label="Main navigation"
+          className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-6 py-6 lg:px-10"
+        >
+          <a
+            href="/"
+            aria-label="Helivanta home"
+            className="flex items-center gap-3 text-xl font-semibold tracking-tight"
           >
             <span
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${TINT_CLASSES[z.hue]}`}
-            >
-              <z.icon className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="font-medium text-foreground">{z.title}</div>
-              <div className="mt-0.5 text-sm text-muted-foreground">{z.desc}</div>
-            </div>
-            <span
-              className="text-muted-foreground transition-colors group-hover:text-(--hms-accent)"
               aria-hidden="true"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-(--site-primary) text-2xl text-white"
             >
-              →
+              +
             </span>
-          </Link>
-        ))}
-      </div>
-    </HmsShell>
+            helivanta<span className="text-teal-600">.</span>
+          </a>
+          <div className="hidden items-center gap-7 text-sm md:flex">
+            <a href="#platform" className="hover:underline">
+              Platform
+            </a>
+            <a href="#care-network" className="hover:underline">
+              Care network
+            </a>
+            <a href="#trust" className="hover:underline">
+              Trust
+            </a>
+          </div>
+          <div className="flex items-center gap-5 text-sm font-medium">
+            <a href="/login" className="hover:underline">
+              Sign in
+            </a>
+            <a
+              href="/signup"
+              className="rounded-full bg-(--site-primary) px-5 py-3 text-white hover:bg-(--site-primary-hover)"
+            >
+              Start your workspace <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </nav>
+      </header>
+      <main id="main">
+        <section className="mx-auto grid max-w-7xl items-center gap-14 px-6 py-20 lg:grid-cols-[1.15fr_1fr] lg:px-10 lg:py-28">
+          <div>
+            <p className="mb-7 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em]">
+              <span className="h-2 w-2 rounded-full bg-teal-600" />
+              Built around your care team
+            </p>
+            <h1 className="max-w-2xl text-5xl leading-[1.08] font-medium tracking-[-0.055em] sm:text-6xl lg:text-7xl">
+              Better connected teams.
+              <br />
+              <span className="font-serif italic text-(--site-accent)">More room for care.</span>
+            </h1>
+            <p className="mt-7 max-w-lg text-lg leading-relaxed text-(--site-body)">
+              One thoughtful workspace for your hospitals, pharmacies and laboratories. Bring people
+              and everyday workflows together, with your organisation at the centre.
+            </p>
+            <div className="mt-9 flex flex-wrap items-center gap-6">
+              <a
+                href="/signup"
+                className="rounded-full bg-(--site-primary) px-7 py-4 text-sm font-semibold text-white hover:bg-(--site-primary-hover)"
+              >
+                Start your workspace <span aria-hidden="true">↗</span>
+              </a>
+              <a
+                href="#platform"
+                className="text-sm font-semibold underline decoration-(--site-underline) underline-offset-8"
+              >
+                Explore the platform
+              </a>
+            </div>
+            <p className="mt-6 text-xs text-(--site-muted)">
+              Your organisation. Your identity. One connected experience.
+            </p>
+          </div>
+          <div
+            className="relative rounded-[2rem] border border-(--site-preview-line) bg-(--site-tint) p-6 sm:p-9"
+            aria-label="Illustration of the Helivanta workspace"
+          >
+            <div className="mb-8 flex items-center justify-between text-xs">
+              <span className="font-semibold uppercase tracking-widest">Your care ecosystem</span>
+              <span className="rounded-full border border-(--site-badge-line) px-3 py-1">
+                Product preview
+              </span>
+            </div>
+            <div className="rounded-2xl border border-white bg-white/90 p-6 shadow-[0_16px_40px_-24px_var(--site-shadow)]">
+              <div className="flex items-center gap-3 border-b border-(--site-divider) pb-5">
+                <span
+                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-(--site-primary) text-2xl text-white"
+                  aria-hidden="true"
+                >
+                  +
+                </span>
+                <div>
+                  <p className="font-semibold">A workspace of your own</p>
+                  <p className="mt-1 text-xs text-(--site-muted)">
+                    Your brand, across your care network
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 grid gap-3">
+                {["Hospital teams", "PharmaConnect", "Laboratory"].map((label, i) => (
+                  <div
+                    key={label}
+                    className="flex items-center gap-4 rounded-xl border border-(--site-card-line) px-4 py-4"
+                  >
+                    <span className="font-mono text-xs text-(--site-number)">0{i + 1}</span>
+                    <span className="flex-1 text-sm font-medium">{label}</span>
+                    <span aria-hidden="true" className="text-(--site-arrow)">
+                      ↗
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 rounded-xl bg-(--site-note) p-4 text-xs leading-relaxed text-(--site-note-text)">
+                Separate organisations. Multiple hospitals.
+                <br />
+                <strong className="font-medium text-(--site-note-strong)">
+                  Access that follows your team's permissions.
+                </strong>
+              </div>
+            </div>
+            <p className="mt-6 text-center text-xs text-(--site-caption)">
+              A shared interface, designed for distinct responsibilities.
+            </p>
+          </div>
+        </section>
+        <section
+          id="platform"
+          className="border-y border-(--site-line) bg-white px-6 py-20 lg:px-10"
+        >
+          <div className="mx-auto max-w-7xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--site-eyebrow)">
+              The platform
+            </p>
+            <div className="mt-4 flex flex-wrap items-end justify-between gap-6">
+              <h2 className="max-w-xl text-3xl font-medium tracking-tight sm:text-4xl">
+                Different responsibilities.
+                <br />A familiar place to work.
+              </h2>
+              <p className="max-w-sm text-sm leading-relaxed text-(--site-muted)">
+                A consistent experience across your organisation, with dedicated workflows for each
+                team.
+              </p>
+            </div>
+            <div className="mt-10 grid gap-5 md:grid-cols-3">
+              {products.map((product) => (
+                <article
+                  key={product.number}
+                  className={`flex flex-col rounded-2xl p-7 ${product.color}`}
+                >
+                  <span className="text-xs font-mono opacity-60">{product.number} /</span>
+                  <h3 className="mt-8 text-xl font-semibold">{product.name}</h3>
+                  <p className="mt-3 text-sm font-medium">{product.detail}</p>
+                  <p className="mt-3 flex-1 text-sm leading-relaxed opacity-80">
+                    {product.description}
+                  </p>
+                  <p className="mt-10 border-t border-current/15 pt-4 text-xs">{product.label}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+        <section id="care-network" className="mx-auto max-w-7xl px-6 py-20 lg:px-10">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--site-eyebrow)">
+            The care network
+          </p>
+          <h2 className="mt-4 text-3xl font-medium tracking-tight sm:text-4xl">
+            Space for every kind of care.
+          </h2>
+          <p className="mt-4 max-w-xl text-(--site-muted)">
+            Independent hospitals, multi-hospital organisations and pharmacy teams. This directory
+            will feature participating organisations with their permission.
+          </p>
+          <div className="mt-9 grid gap-5 md:grid-cols-3">
+            <article className="rounded-2xl border border-(--site-border) bg-white p-7">
+              <p className="text-xs text-(--site-muted)">Demo workspace · synthetic data</p>
+              <h3 className="mt-5 text-lg font-semibold">YES HOSPITAL</h3>
+              <p className="mt-3 text-sm text-(--site-muted)">
+                Our test organisation for developing and validating the hospital workspace.
+              </p>
+            </article>
+            {["Hospital partners", "Pharmacy partners"].map((name) => (
+              <article
+                key={name}
+                className="rounded-2xl border border-dashed border-(--site-placeholder) p-7"
+              >
+                <p className="text-xs text-(--site-muted)">Directory placeholder</p>
+                <h3 className="mt-5 text-lg font-semibold">{name}</h3>
+                <p className="mt-3 text-sm text-(--site-muted)">
+                  Verified partner profiles will appear here when available.
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+        <section
+          id="trust"
+          className="bg-(--site-trust) px-6 py-20 text-(--site-trust-ink) lg:px-10"
+        >
+          <div className="mx-auto max-w-7xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--site-trust-eyebrow)">
+              Trust, with transparency
+            </p>
+            <h2 className="mt-4 max-w-2xl text-3xl font-medium tracking-tight sm:text-4xl">
+              Care deserves a clear standard.
+            </h2>
+            <p className="mt-5 max-w-2xl leading-relaxed text-(--site-trust-body)">
+              Our trust centre will make independent assurance and supporting documentation easy to
+              find. The items below are placeholders, not claims of certification or compliance.
+            </p>
+            <div className="mt-10 grid gap-5 md:grid-cols-3">
+              {["SOC 2 Type II", "ISO/IEC 27001", "HIPAA safeguards"].map((label, i) => (
+                <article
+                  key={label}
+                  className="rounded-2xl border border-(--site-trust-border) p-7"
+                >
+                  <p className="text-xs uppercase tracking-widest text-(--site-trust-label)">
+                    {i === 2 ? "Compliance documentation" : "Certification placeholder"}
+                  </p>
+                  <h3 className="mt-5 text-xl font-medium">{label}</h3>
+                  <p className="mt-5 inline-block rounded-full border border-(--site-trust-badge) px-3 py-1 text-xs">
+                    {i === 2 ? "Documentation pending" : "Not yet certified"}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+        <section
+          id="reviews"
+          className="mx-auto grid max-w-7xl gap-10 px-6 py-20 md:grid-cols-2 lg:px-10"
+        >
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--site-eyebrow)">
+              Voices from care
+            </p>
+            <h2 className="mt-4 text-3xl font-medium tracking-tight">
+              Real experiences.
+              <br />
+              Shared with permission.
+            </h2>
+            <p className="mt-5 max-w-md text-sm leading-relaxed text-(--site-muted)">
+              No customer endorsements or ratings are published yet. Verified testimonials and
+              reviews will appear here after customer approval.
+            </p>
+          </div>
+          <div className="grid gap-4">
+            {["Customer testimonials", "Verified reviews"].map((label) => (
+              <div
+                key={label}
+                className="rounded-2xl border border-dashed border-(--site-placeholder) p-6"
+              >
+                <h3 className="font-medium">{label}</h3>
+                <p className="mt-2 text-sm text-(--site-muted)">Awaiting approved content</p>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="mx-6 mb-16 rounded-3xl bg-(--site-tint) px-6 py-14 text-center lg:mx-auto lg:max-w-7xl">
+          <h2 className="text-3xl font-medium tracking-tight">Bring your care network together.</h2>
+          <p className="mt-4 text-(--site-muted)">Make room for a more connected working day.</p>
+          <a
+            href="/signup"
+            className="mt-7 inline-block rounded-full bg-(--site-primary) px-7 py-4 text-sm font-semibold text-white hover:bg-(--site-primary-hover)"
+          >
+            Start your workspace <span aria-hidden="true">↗</span>
+          </a>
+        </section>
+      </main>
+      <TesserixFooter />
+    </div>
   );
 }

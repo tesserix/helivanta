@@ -399,7 +399,7 @@ export function HmsShell({
         <aside className="hms-sidebar-border flex w-16 shrink-0 flex-col border-r bg-(--sidebar-rail)">
           <div className="flex h-16 items-center justify-center">
             <Link
-              href="/"
+              href="/dashboard"
               aria-label="Helivanta home"
               className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-primary"
             >

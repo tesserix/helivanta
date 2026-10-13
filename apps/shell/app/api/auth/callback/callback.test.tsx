@@ -28,7 +28,7 @@ describe("AuthCallbackPage", () => {
 
     render(<AuthCallbackPage />);
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
     expect(fetch).toHaveBeenCalledWith(
       "/api/v1/auth/login",
       expect.objectContaining({
@@ -61,7 +61,7 @@ describe("AuthCallbackPage", () => {
 
     render(<AuthCallbackPage />);
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
     expect(loadRenewAt()?.toISOString()).toBe(renewAt);
     vi.unstubAllGlobals();
   });
@@ -86,7 +86,7 @@ describe("AuthCallbackPage", () => {
 
     render(<AuthCallbackPage />);
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
     expect(loadExpiresAt()?.toISOString()).toBe(expiresAt);
     vi.unstubAllGlobals();
   });
@@ -104,7 +104,7 @@ describe("AuthCallbackPage", () => {
 
     render(<AuthCallbackPage />);
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
     expect(loadRenewAt()).toBeUndefined();
     vi.unstubAllGlobals();
   });

@@ -26,3 +26,42 @@
 .branding-preview footer {
   font-size: 0.625rem;
 }
+
+.public-site {
+  --site-canvas: #fbfcfa;
+  --site-ink: #173d3a;
+  --site-line: #dce5df;
+  --site-primary: #23685d;
+  --site-primary-hover: #194e46;
+  --site-accent: #528275;
+  --site-body: #57716a;
+  --site-underline: #b7ccc1;
+  --site-muted: #60796e;
+  --site-preview-line: #d5e2d9;
+  --site-tint: #eaf1e9;
+  --site-badge-line: #b9cec0;
+  --site-shadow: #426859;
+  --site-divider: #e5ebe4;
+  --site-card-line: #e1e9e0;
+  --site-number: #729581;
+  --site-arrow: #648576;
+  --site-note: #f1f5ef;
+  --site-note-text: #526f61;
+  --site-note-strong: #244e40;
+  --site-caption: #637c6b;
+  --site-eyebrow: #628172;
+  --site-border: #d7e2d8;
+  --site-placeholder: #c9d8cc;
+  --site-trust: #183e35;
+  --site-trust-ink: #f1f5eb;
+  --site-trust-eyebrow: #a5c5b3;
+  --site-trust-body: #b9d0c1;
+  --site-trust-border: #466354;
+  --site-trust-label: #abc6b5;
+  --site-trust-badge: #668173;
+  --site-signup-badge: #426557;
+  --foreground: var(--site-ink);
+  --muted-foreground: var(--site-muted);
+  --border: var(--site-line);
+  color-scheme: light;
+}

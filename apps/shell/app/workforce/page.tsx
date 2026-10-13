@@ -142,7 +142,9 @@ function Directory({ hospital }: { hospital: Hospital }) {
               onChange={(e) => setFilter(e.target.value)}
             />
           </label>
-          <span className="text-xs text-muted-foreground">{rows.length} records on this page</span>
+          <span className="text-xs text-muted-foreground">
+            {rows.length} {rows.length === 1 ? "record" : "records"} on this page
+          </span>
         </div>
         {query.isPending ? (
           <p className="p-8" role="status">

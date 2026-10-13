@@ -46,20 +46,21 @@ var patientPhone = regexp.MustCompile(`^(\+[1-9][0-9]{6,14}|[0-9]{10})$`)
 // through time.Time's default RFC3339 marshaling would put a fabricated
 // midnight timestamp on the wire.
 type patient struct {
-	ID             uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()"`
-	TenantID       uuid.UUID
-	HospitalID     uuid.UUID
-	MRN            string
-	GivenName      string
-	FamilyName     string
-	NormalizedName string
-	PhoneticKey    string
-	Sex            string
-	DOB            time.Time
-	DOBEstimated   bool
-	Mobile         string
-	AddressLine    string
-	CreatedAt      time.Time
+	ID                 uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()"`
+	TenantID           uuid.UUID
+	HospitalID         uuid.UUID
+	MRN                string
+	GivenName          string
+	FamilyName         string
+	NormalizedName     string
+	PhoneticKey        string
+	Sex                string
+	DOB                time.Time
+	DOBEstimated       bool
+	Mobile             string
+	AddressLine        string
+	CreatedAt          time.Time
+	ReportedBloodGroup *reportedBloodGroup `gorm:"-"`
 }
 
 func (patient) TableName() string { return "patients" }
@@ -76,30 +77,32 @@ func (p patient) fullName() string {
 
 func (p patient) MarshalJSON() ([]byte, error) {
 	type alias struct {
-		ID           string `json:"id"`
-		HospitalID   string `json:"hospital_id"`
-		MRN          string `json:"mrn"`
-		GivenName    string `json:"given_name"`
-		FamilyName   string `json:"family_name"`
-		Sex          string `json:"sex"`
-		DOB          string `json:"dob"`
-		DOBEstimated bool   `json:"dob_estimated"`
-		Mobile       string `json:"mobile"`
-		AddressLine  string `json:"address_line"`
-		CreatedAt    string `json:"created_at"`
+		ID                 string              `json:"id"`
+		HospitalID         string              `json:"hospital_id"`
+		MRN                string              `json:"mrn"`
+		GivenName          string              `json:"given_name"`
+		FamilyName         string              `json:"family_name"`
+		Sex                string              `json:"sex"`
+		DOB                string              `json:"dob"`
+		DOBEstimated       bool                `json:"dob_estimated"`
+		Mobile             string              `json:"mobile"`
+		AddressLine        string              `json:"address_line"`
+		CreatedAt          string              `json:"created_at"`
+		ReportedBloodGroup *reportedBloodGroup `json:"reported_blood_group,omitempty"`
 	}
 	return json.Marshal(alias{
-		ID:           p.ID.String(),
-		HospitalID:   p.HospitalID.String(),
-		MRN:          p.MRN,
-		GivenName:    p.GivenName,
-		FamilyName:   p.FamilyName,
-		Sex:          p.Sex,
-		DOB:          p.DOB.Format(dateLayout),
-		DOBEstimated: p.DOBEstimated,
-		Mobile:       p.Mobile,
-		AddressLine:  p.AddressLine,
-		CreatedAt:    p.CreatedAt.UTC().Format(time.RFC3339),
+		ID:                 p.ID.String(),
+		ReportedBloodGroup: p.ReportedBloodGroup,
+		HospitalID:         p.HospitalID.String(),
+		MRN:                p.MRN,
+		GivenName:          p.GivenName,
+		FamilyName:         p.FamilyName,
+		Sex:                p.Sex,
+		DOB:                p.DOB.Format(dateLayout),
+		DOBEstimated:       p.DOBEstimated,
+		Mobile:             p.Mobile,
+		AddressLine:        p.AddressLine,
+		CreatedAt:          p.CreatedAt.UTC().Format(time.RFC3339),
 	})
 }
 
@@ -140,21 +143,33 @@ func (patientDuplicateOverride) TableName() string { return "patient_duplicate_o
 // address are all optional: a clerk under OPD-rush pressure must be able
 // to capture a name, DOB and consent and move on — everything else is
 // completed later rather than blocking the queue.
+type reportedBloodGroupInput struct {
+	ABO    string `json:"abo" binding:"required,oneof=A B AB O unknown"`
+	Rh     string `json:"rh" binding:"required,oneof=positive negative unknown"`
+	Source string `json:"source" binding:"required,oneof=patient guardian document"`
+}
+
+type reportedBloodGroup struct {
+	reportedBloodGroupInput
+	RecordedAt time.Time `json:"recorded_at" gorm:"column:created_at"`
+}
+
 type registerRequest struct {
-	RequestID      string `json:"request_id" binding:"required,uuid"`
-	GivenName      string `json:"given_name" binding:"required,max=100"`
-	FamilyName     string `json:"family_name" binding:"max=100"`
-	Sex            string `json:"sex" binding:"omitempty,oneof=male female other"`
-	DOB            string `json:"dob" binding:"required,datetime=2006-01-02"`
-	DOBEstimated   bool   `json:"dob_estimated"`
-	Mobile         string `json:"mobile" binding:"max=16"`
-	AddressLine    string `json:"address_line" binding:"max=300"`
-	NoticeVersion  string `json:"notice_version" binding:"required,max=40"`
-	ConsentedBy    string `json:"consented_by" binding:"required,oneof=patient guardian"`
-	GuardianName   string `json:"guardian_name" binding:"max=100"`
-	GuardianRel    string `json:"guardian_relationship" binding:"max=40"`
-	Override       bool   `json:"override"`
-	OverrideReason string `json:"override_reason" binding:"max=300"`
+	ReportedBloodGroup *reportedBloodGroupInput `json:"reported_blood_group,omitempty"`
+	RequestID          string                   `json:"request_id" binding:"required,uuid"`
+	GivenName          string                   `json:"given_name" binding:"required,max=100"`
+	FamilyName         string                   `json:"family_name" binding:"max=100"`
+	Sex                string                   `json:"sex" binding:"omitempty,oneof=male female other"`
+	DOB                string                   `json:"dob" binding:"required,datetime=2006-01-02"`
+	DOBEstimated       bool                     `json:"dob_estimated"`
+	Mobile             string                   `json:"mobile" binding:"max=16"`
+	AddressLine        string                   `json:"address_line" binding:"max=300"`
+	NoticeVersion      string                   `json:"notice_version" binding:"required,max=40"`
+	ConsentedBy        string                   `json:"consented_by" binding:"required,oneof=patient guardian"`
+	GuardianName       string                   `json:"guardian_name" binding:"max=100"`
+	GuardianRel        string                   `json:"guardian_relationship" binding:"max=40"`
+	Override           bool                     `json:"override"`
+	OverrideReason     string                   `json:"override_reason" binding:"max=300"`
 }
 
 type patientHandlers struct {
@@ -467,6 +482,17 @@ func (h *patientHandlers) register(c *gin.Context) {
 			return fmt.Errorf("inserting patient: %w", err)
 		}
 
+		if req.ReportedBloodGroup != nil {
+			group := reportedBloodGroup{reportedBloodGroupInput: *req.ReportedBloodGroup}
+			if err := tx.Raw(`INSERT INTO patient_reported_blood_groups
+                (tenant_id, patient_id, abo, rh, source, recorded_by_subject)
+                VALUES (?, ?, ?, ?, ?, ?) RETURNING created_at`,
+				tenantUUID, row.ID, group.ABO, group.Rh, group.Source, principal.Subject).Scan(&group.RecordedAt).Error; err != nil {
+				return fmt.Errorf("inserting reported blood group: %w", err)
+			}
+			row.ReportedBloodGroup = &group
+		}
+
 		// Step 6: the consent receipt, in the SAME transaction. A
 		// patient row that outlives a failed consent insert is the
 		// compliance defect spec D5 exists to make unreachable.
@@ -580,6 +606,23 @@ func (h *patientHandlers) get(c *gin.Context) {
 	err = h.hospitalTransaction(c.Request.Context(), principal, hospital, false, func(tx *gorm.DB) error {
 		if err := tx.First(&row, "id = ?", id).Error; err != nil {
 			return err
+		}
+		var group struct {
+			ABO       string
+			Rh        string
+			Source    string
+			CreatedAt time.Time
+		}
+		result := tx.Raw(`SELECT abo, rh, source, created_at FROM patient_reported_blood_groups
+            WHERE tenant_id = ? AND patient_id = ?`, principal.TenantID, id).Scan(&group)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected > 0 {
+			row.ReportedBloodGroup = &reportedBloodGroup{
+				reportedBloodGroupInput: reportedBloodGroupInput{ABO: group.ABO, Rh: group.Rh, Source: group.Source},
+				RecordedAt:              group.CreatedAt,
+			}
 		}
 		return patientAudit(tx, principal, hospital, "read", []patient{row})
 	})

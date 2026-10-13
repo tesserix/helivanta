@@ -33,6 +33,16 @@ it("registers a synthetic patient in the selected hospital and displays the save
       ]);
     if (url.endsWith("/access")) body = { level: "registrar" };
     if (url.includes("/patients/search")) body = page(saved ? [patient] : []);
+    if (url.includes(`/patients/${patient.id}?`))
+      body = {
+        ...patient,
+        reported_blood_group: {
+          abo: "AB",
+          rh: "negative",
+          source: "patient",
+          recorded_at: "2026-10-14T00:00:00Z",
+        },
+      };
     if (url.includes("/patients?") && init?.method === "POST") {
       saved = true;
       body = { patient, possible_matches: [] };
@@ -54,6 +64,15 @@ it("registers a synthetic patient in the selected hospital and displays the save
   expect(screen.getByLabelText("Given name")).toHaveFocus();
   expect(screen.getByLabelText("Family name")).toHaveValue("Example");
   await user.type(screen.getByLabelText("Date of birth"), "1990-01-01");
+  await user.click(screen.getByLabelText("Record a reported blood group"));
+  await user.selectOptions(screen.getByLabelText("ABO group"), "AB");
+  await user.click(screen.getByLabelText("Record a reported blood group"));
+  expect(screen.queryByLabelText("ABO group")).not.toBeInTheDocument();
+  await user.click(screen.getByLabelText("Record a reported blood group"));
+  expect(screen.getByLabelText("ABO group")).toHaveValue("unknown");
+  await user.selectOptions(screen.getByLabelText("ABO group"), "AB");
+  await user.selectOptions(screen.getByLabelText("Rh(D) type"), "negative");
+  await user.selectOptions(screen.getByLabelText("Blood group source"), "patient");
   await user.type(screen.getByLabelText("Consent notice version"), "synthetic-v1");
   await user.click(screen.getByLabelText("I have recorded the patient's or guardian's consent"));
   await user.click(screen.getByRole("button", { name: "Save registration" }));
@@ -63,7 +82,18 @@ it("registers a synthetic patient in the selected hospital and displays the save
       expect.objectContaining({ method: "POST", body: expect.stringContaining('"request_id"') }),
     ),
   );
+  const registration = fetcher.mock.calls.find(
+    ([url, init]) => url.includes("/patients?") && init?.method === "POST",
+  );
+  expect(JSON.parse(registration?.[1]?.body as string).reported_blood_group).toEqual({
+    abo: "AB",
+    rh: "negative",
+    source: "patient",
+  });
   expect(await screen.findByText("MRN-SYNTHETIC")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Open Synthetic Example" }));
+  expect(await screen.findByText("AB · Rh(D) negative (unverified)")).toBeInTheDocument();
+  expect(screen.getByText("Blood group source")).toBeInTheDocument();
 });
 it("does not expose registration when clinical access is missing", async () => {
   vi.stubGlobal(

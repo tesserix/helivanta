@@ -8,22 +8,12 @@ import { login, specAdmin, specPharmacist } from "./support/login";
 // directly to a route the UI would otherwise hide the action on.
 
 test("admin creates a visit and it lands in pharmacy and lab", async ({ page }) => {
-  const inflight = new Map<object, string>();
-  page.on("request", (r) => inflight.set(r, `${r.method()} ${r.resourceType()} ${r.url()}`));
-  page.on("requestfinished", (r) => inflight.delete(r));
-  page.on("requestfailed", (r) => inflight.delete(r));
-  page.on("console", (m) => console.log(`DIAG console ${m.type()}: ${m.text()}`));
   await login(page, specAdmin());
 
   const patient = `Journey Patient ${Date.now()}`;
   await page.locator('a[href="/medicore/opd"]').first().click();
   await expect(page).toHaveURL(/\/medicore\/opd$/);
-  try {
-    await page.waitForLoadState("networkidle", { timeout: 10_000 });
-  } catch (e) {
-    console.log(`DIAG inflight: ${JSON.stringify([...inflight.values()])}`);
-    throw e;
-  }
+  await page.waitForLoadState("networkidle");
 
   await page.getByLabel("Patient name").fill(patient);
   await page.getByRole("button", { name: "Create visit" }).click();

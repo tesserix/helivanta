@@ -3,6 +3,21 @@
 Design: [private-staff-files-design](../specs/2026-10-14-private-staff-files-design.md).
 Issues: #1105 / #483; parent #1035 / #979. Keep incomplete issues open.
 
+Processing continuation: reproduce API verdict forgery despite a caller-set
+worker flag; add an append-only migration bound to the distinct CNPG worker login
+and all four ownership UUIDs. Mirror the identity, without table grants, in local
+and test bootstrap. Prove API denial, exact-file worker access and denial of
+personnel tables before connecting Temporal and release/delivery.
+
+Continuation implemented and locally verified: scoped release/rejection/error
+commits, crash-after-copy recovery, Temporal bounded retries/heartbeats and
+retained-execution verification, private download reauthorization and explicit
+idempotent retry/revocation APIs. Runtime/API/image wiring is present. Worker
+role pre-registration is reviewed through the infrastructure draft as NOLOGIN;
+private credentials, activation, GitOps workloads and UI remain uncompleted.
+Do not deploy `0008` against CNPG before its role exists, or call the complete
+story accepted before real GCS and local/live browser proof.
+
 1. Verify opaque naming and bounded ClamAV transport; add freshness/provenance
    and run actual isolated scanner acceptance fixtures.
 2. Add pinned-generation, create-only GCS operations and bounded content

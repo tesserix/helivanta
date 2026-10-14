@@ -42,6 +42,7 @@ type document struct {
 	Size                 int64      `json:"size"`
 	SHA256               string     `json:"sha256"`
 	Status               string     `json:"status"`
+	ScanAttempt          int64      `json:"scan_attempt"`
 	UploadedAt           *time.Time `json:"uploaded_at"`
 	SourceGeneration     *int64     `json:"-"`
 	ReleasedGeneration   *int64     `json:"-"`
@@ -58,7 +59,7 @@ type document struct {
 func (document) TableName() string                 { return "workforce_documents" }
 func (d document) PageKey() (time.Time, uuid.UUID) { return d.CreatedAt, d.ID }
 
-const documentColumns = "id,hospital_id,staff_id,record_id,record_kind,record_version,category,filename,content_type,size,sha256,status,uploaded_at,source_generation,released_generation,engine_version,definition_version,definitions_updated_at,scanned_at,failure_code,expires_at,created_at,updated_at"
+const documentColumns = "id,hospital_id,staff_id,record_id,record_kind,record_version,category,filename,content_type,size,sha256,status,scan_attempt,uploaded_at,source_generation,released_generation,engine_version,definition_version,definitions_updated_at,scanned_at,failure_code,expires_at,created_at,updated_at"
 
 var documentDigest = regexp.MustCompile(`^[a-f0-9]{64}$`)
 var errDocumentConflict = errors.New("document intent conflicts")

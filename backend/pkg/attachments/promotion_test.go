@@ -14,6 +14,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"google.golang.org/api/option"
 )
@@ -67,7 +68,7 @@ func TestGCSPromotionPinsScannedGenerationAndCannotOverwrite(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
 	store, err := attachments.NewGCS(client, "helivanta-test-quarantine", "helivanta-test-released")
 	require.NoError(t, err)
-	scanner, err := attachments.NewClamAV(scannerServer(t, "stream: OK\x00"), time.Second, attachments.MaxFileBytes)
+	scanner, err := attachments.NewClamAV(testinfra.ClamAVProtocol(t, "stream: OK\x00"), time.Second, attachments.MaxFileBytes)
 	require.NoError(t, err)
 	scan, err := store.ScanQuarantine(t.Context(), scope, 12345, "image/png", scanner)
 	require.NoError(t, err)
@@ -129,7 +130,7 @@ func TestScanCannotMintPromotionAuthorityFromRejectedContent(t *testing.T) {
 			require.NoError(t, err)
 			var scanner *attachments.ClamAV
 			if tc.scanner {
-				scanner, err = attachments.NewClamAV(scannerServer(t, tc.reply), time.Second, attachments.MaxFileBytes)
+				scanner, err = attachments.NewClamAV(testinfra.ClamAVProtocol(t, tc.reply), time.Second, attachments.MaxFileBytes)
 				require.NoError(t, err)
 			}
 			scan, err := store.ScanQuarantine(t.Context(), scope, 12345, tc.mime, scanner)

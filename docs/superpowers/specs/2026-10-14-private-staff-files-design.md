@@ -57,6 +57,63 @@ current explicit hospital and document permission. Return private/no-store,
 nosniff and an attachment disposition; no browser receives a bucket listing or
 an unbounded capability. Original filenames are protected domain metadata.
 
+## Processing identity and database scope
+
+The processor connects only as the distinct `helivanta_document_worker`
+PostgreSQL login. CNPG reconciles its password; it is neither superuser,
+schema owner, `CREATEROLE`, `CREATEDB` nor `BYPASSRLS`. Per-table migration
+grants permit required metadata columns and processing updates only, plus
+append-only audit/outbox inserts. No personnel-table, object-listing or
+administrative database access is granted. Application and worker connections
+fail at boot if their privilege/identity preconditions do not hold.
+
+Worker RLS requires all four transaction-local UUIDs: tenant, origin hospital,
+staff and file. An unset or different scope reveals no row. Processing
+transitions additionally require that authenticated database identity and
+the exact row scope; an API connection cannot mint a verdict by setting a
+custom session flag. The scanner activity reads only committed immutable
+ownership/content facts. It does not re-query other modules or infer a new
+record binding from mutable personnel data.
+
+Clock assertions allow at most five minutes of inter-host skew, matching the
+signature provenance boundary. Exact immutable generation and checksum proofs
+establish upload-before-scan causality; UTC timestamps from different hosts do
+not establish a strict execution order. Larger skew blocks availability.
+
+Only opaque scope IDs and a processing attempt enter Temporal history.
+Scanning, verified create-only promotion and matching conditional release
+commit execute in an owning activity outside remote-I/O database locks.
+Its receipt contains no content, original filename or human-readable data.
+If promotion commits and the worker loses its database receipt, the retry
+rescans the exact quarantine generation and reconciles the existing released
+generation before committing. Terminal rejection remains inaccessible; a
+transient failure persists an observable state and retries with bounded
+Temporal policies. Each explicitly requested retry has a new immutable
+attempt number and deterministic workflow ID; duplicate deliveries for the
+same attempt can only select the same workflow.
+
+The activity has a six-minute execution deadline, a forty-minute total deadline,
+five attempts with exponential backoff (five seconds to one minute), and a
+thirty-second heartbeat deadline. Heartbeats carry no document details. Scanner
+or storage failures commit `scan_error` with a bounded failure code; an identical
+repeated failure does not insert another state-change event. Confirmed malware,
+unsupported content and an immutable intent/checksum mismatch commit `rejected`.
+The activity emits generic error types rather than persisting raw SQL, scanner
+responses or storage errors in Temporal history. Both clean and infected verdicts
+require unchanged scanner engine and definitions before/after the complete scan.
+The VERSION probes and INSTREAM run inside one numbered ClamAV IDSESSION on
+one TCP connection. Separate probes can reach a different replica and cannot
+establish which engine/definitions actually scanned the bytes. Each response is
+bounded and its sequence number checked; incomplete, mismatched or reloaded
+provenance prevents release.
+
+The scan consumer validates the exact versioned envelope and canonical scope
+before its after-commit handoff. Workflow IDs include all four ownership IDs and
+the committed attempt. Reuse is rejected even after completion. On an already
+started response, the consumer reads that execution's initial history event and
+checks the workflow type, task queue and exact input before acknowledging; a
+collision or unavailable history is not accepted as a matching receipt.
+
 ## Failure and delivery
 
 GCS/scanner/definitions/Temporal unavailable: the file stays unavailable and

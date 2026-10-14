@@ -151,7 +151,7 @@ func (h *handlers) uploadDocument(c *gin.Context) {
 		if result.RowsAffected != 1 {
 			return errDocumentConflict
 		}
-		eventData, err := json.Marshal(workforcecontract.DocumentScanRequestedData{HospitalID: hospital.String(), StaffID: staffID.String(), FileID: fileID.String()})
+		eventData, err := json.Marshal(workforcecontract.DocumentScanRequestedData{HospitalID: hospital.String(), StaffID: staffID.String(), FileID: fileID.String(), ScanAttempt: saved.ScanAttempt})
 		if err != nil {
 			return err
 		}

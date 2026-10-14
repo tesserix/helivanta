@@ -46,6 +46,10 @@ func (s *ClamAV) Status(ctx context.Context, now time.Time) (ScannerStatus, erro
 	if err != nil || len(reply) > 1024 || ctx.Err() != nil {
 		return ScannerStatus{}, errors.New("document scanner version incomplete")
 	}
+	return parseScannerStatus(reply, now)
+}
+
+func parseScannerStatus(reply string, now time.Time) (ScannerStatus, error) {
 	parts := strings.Split(strings.TrimSuffix(reply, "\x00"), "/")
 	if len(parts) != 3 || !strings.HasPrefix(parts[0], "ClamAV ") {
 		return ScannerStatus{}, errors.New("document scanner version invalid")

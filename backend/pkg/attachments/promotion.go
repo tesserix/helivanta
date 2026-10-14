@@ -13,6 +13,8 @@ import (
 
 var ErrInfected = errors.New("document malware detection prevents release")
 var ErrUnsupportedContent = errors.New("document format is unsupported")
+var ErrStorageUnavailable = errors.New("document storage unavailable")
+var ErrScannerUnavailable = errors.New("document scanner unavailable")
 
 // VerifiedScan can only be constructed by this package after full validation.
 type VerifiedScan struct {
@@ -22,6 +24,11 @@ type VerifiedScan struct {
 	contentType string
 	verdict     ScanVerdict
 	scannedAt   time.Time
+}
+
+// Matches binds sealed scan evidence to the owning module's immutable intent.
+func (s *VerifiedScan) Matches(generation, size int64, sha256 string) bool {
+	return s != nil && s.source.Generation == generation && s.source.Size == size && s.source.SHA256 == sha256
 }
 
 func (*VerifiedScan) String() string { return "[private verified scan]" }
@@ -37,11 +44,11 @@ type Release struct {
 
 func (g *GCS) ScanQuarantine(ctx context.Context, scope ObjectScope, generation int64, declared string, scanner *ClamAV) (*VerifiedScan, error) {
 	if scanner == nil {
-		return nil, errors.New("document scanner is not configured")
+		return nil, ErrScannerUnavailable
 	}
 	content, err := g.ReadQuarantine(ctx, scope, generation)
 	if err != nil {
-		return nil, err
+		return nil, ErrStorageUnavailable
 	}
 	typ, err := InspectContent(content.Bytes, declared)
 	if err != nil {
@@ -49,7 +56,7 @@ func (g *GCS) ScanQuarantine(ctx context.Context, scope ObjectScope, generation 
 	}
 	verdict, err := scanner.Scan(ctx, bytes.NewReader(content.Bytes))
 	if err != nil {
-		return nil, err
+		return nil, ErrScannerUnavailable
 	}
 	// Only this constructor can mint promotion evidence; non-clean stays blocked.
 	if !verdict.Clean {

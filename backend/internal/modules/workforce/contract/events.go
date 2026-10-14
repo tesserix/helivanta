@@ -42,7 +42,26 @@ type RosterConfigChangedData struct {
 const SubjectDocumentScanRequested = "helivanta.in.workforce.document_scan_requested.v1"
 
 type DocumentScanRequestedData struct {
-	HospitalID string `json:"hospital_id"`
-	StaffID    string `json:"staff_id"`
-	FileID     string `json:"file_id"`
+	HospitalID  string `json:"hospital_id"`
+	StaffID     string `json:"staff_id"`
+	FileID      string `json:"file_id"`
+	ScanAttempt int64  `json:"scan_attempt"`
+}
+
+const SubjectDocumentChanged = "helivanta.in.workforce.document_changed.v1"
+
+type DocumentChangedData struct {
+	HospitalID  string `json:"hospital_id"`
+	StaffID     string `json:"staff_id"`
+	FileID      string `json:"file_id"`
+	ScanAttempt int64  `json:"scan_attempt"`
+	Status      string `json:"status"`
+}
+
+type DocumentScanInput struct {
+	TenantID    string `json:"tenant_id"`
+	HospitalID  string `json:"hospital_id"`
+	StaffID     string `json:"staff_id"`
+	FileID      string `json:"file_id"`
+	ScanAttempt int64  `json:"scan_attempt"`
 }

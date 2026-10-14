@@ -90,6 +90,11 @@ func (g *GCS) ReadQuarantine(ctx context.Context, scope ObjectScope, generation 
 	return g.read(ctx, g.quarantine, scope, generation)
 }
 
+// ReadReleased returns only bytes from the caller's exact authorized generation.
+func (g *GCS) ReadReleased(ctx context.Context, scope ObjectScope, generation int64) (StoredContent, error) {
+	return g.read(ctx, g.released, scope, generation)
+}
+
 // EnsureQuarantine reconciles a lost create receipt without replacing any bytes.
 func (g *GCS) EnsureQuarantine(ctx context.Context, scope ObjectScope, data []byte) (StoredObject, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)

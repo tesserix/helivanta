@@ -2,7 +2,7 @@
 
 Owning story: [#1105](https://github.com/tesserix/helivanta/issues/1105).
 Parent: [#979](https://github.com/tesserix/helivanta/issues/979).
-This is foundation evidence, not completed-story or production acceptance.
+This is local processing/delivery evidence, not completed-story or production acceptance.
 
 ## Implemented boundary
 
@@ -53,7 +53,7 @@ compressed antivirus fixtures and bounded oversize handling.
 
 The existing isolated CNPG database `helivanta_verify_20261013_04` was reached
 through the established localhost `15435` port-forward. `go run ./cmd/migrate`
-applied and linted the registered migrations, including forced document RLS
+applied and linted the committed intake migrations through `0007`, including forced document RLS
 and directed-event provenance. The schema owner and application connection
 roles are neither superusers nor `BYPASSRLS`; the separate system connection
 is the intentionally checked platform dispatcher role. No production tenant
@@ -92,21 +92,114 @@ prove runtime sign-in. The existing local/live roster screens are signed in
 as YES HOSPITAL and show the synthetic weekly template. No private-file UI
 has been implemented or verified yet.
 
+## Processing and delivery continuation
+
+The new `0008_workforce_document_worker` migration requires the distinct,
+non-elevated `helivanta_document_worker` PostgreSQL identity and all four
+transaction-local ownership UUIDs. A reproduced API-session-flag forgery can no
+longer manufacture an available verdict. The runtime-only pool has no owner
+pool and refuses elevated, inherited-owner and schema/database-creation rights.
+Worker column grants exclude personnel tables and original filenames, and its
+audit/outbox grants permit only the current scoped document's service actions.
+This migration has run against disposable PostgreSQL fixtures, **not** the
+existing CNPG verification database or production.
+
+The owning processor now persists terminal malware/integrity rejection and
+observable scanner/storage errors. It commits each state and its outbox event
+atomically, suppresses repeated identical error events, and reconciles a
+create-only copy when a real worker database pool is deliberately closed after
+the external copy commits. Revoked, rejected and available receipts do no new
+remote work. An explicit retry increments the attempt once; old attempts return
+`superseded` and duplicate requests return the original receipt.
+
+Temporal SDK v1.49.0 tests use the real processor/database with vendor protocol
+fixtures. They verify successful release and exactly five attempts on persistent
+scanner failure. The actual local Temporal server at localhost `18233`, real
+NATS JetStream dispatcher/consumer and actual worker registration additionally
+verify a single deterministic execution and rejection of a conflicting retained
+execution. Duplicate starts verify the initial history's exact scope, workflow
+type and queue before acknowledgment. Durable history receives only opaque IDs,
+bounded status and generic errors. Activities heartbeat with no document details.
+
+The private generation-pinned binary download, idempotent revocation and explicit
+retry endpoints require the same independent document permission and current
+hospital-manager grant. Downloads read remotely outside locks and reauthorize
+before bytes/audit are served. Deliberately removing that second authorization
+returned 200 after grant revocation; restoring it returns 404 with no successful
+download audit. Deliberately disabling immutable intent matching failed the
+changed-bytes-before-promotion test. Both restored tests pass. Download headers
+are private/no-store, nosniff, attachment disposition and a restrictive CSP.
+
+API boot refuses partially configured storage/Temporal. The separate
+`/app/document-worker` command uses only the runtime credential, private GCS
+identity, scanner and Temporal; it has bounded concurrency, heartbeats, shutdown
+and dependency readiness checks. It is built in the existing company-base API
+image, so worker, API and migrations share one promoted artifact. No new CI/image
+pipeline or replacement base image was introduced.
+
+Latest continuation checks actually run:
+
+```sh
+go test -race ./...
+./scripts/coverage-gate.sh
+go vet ./...
+go build ./...
+golangci-lint run
+govulncheck ./...
+go test -race -tags acceptance ./internal/modules/workforce -run 'TestDocumentJetStream|TestDocumentConsumerRefuses' -count=1
+go test -tags clamav_acceptance ./pkg/attachments -run TestRealClamAV -count=1
+```
+
+The initial full race run found the single-binary GET missing from the explicit
+non-collection allowlist; that classification was corrected. The subsequent full
+race/coverage gate passes: workforce **78.1%**, attachments **81.2%**, events
+**78.0%**, tenantdb **83.8%**. Vet/build/lint pass, including correction of an
+unchecked GCS client close. The latest vulnerability result remains zero
+reachable/imported-package findings and one uncalled required-module finding.
+Actual isolated ClamAV and local Temporal/JetStream acceptance pass. GCS remains
+a vendor protocol fixture in these tests; they do not prove production IAM.
+
+A further regression observed three separate scanner/probe connections. The
+client now uses one numbered IDSESSION for both VERSION checks and INSTREAM, so
+a service cannot silently substitute another replica's provenance. The new
+connection-bound test fails with the old implementation and passes with the
+session client. Full attachment race tests and actual isolated ClamAV benign,
+EICAR/compressed-EICAR acceptance pass with this protocol.
+
+Read-only production discovery confirms account `unidevidp@gmail.com`, project
+`tesseracthub-480811`, context
+`gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`, namespace `helivanta`:
+CNPG has **two instances, both ready**, and is healthy. No live mutation was
+issued. Infrastructure code registers the future worker role without LOGIN,
+membership, elevated privileges or a password; its Helm identity test failed
+before the addition and passes afterward. Private credential/login activation
+requires a reviewed separate rollout before this worker can run.
+
+The legacy Holiday Master remained visible, but opening Employees redirected to
+the login page; a new sign-in has been requested. No customer values were copied.
+
+Still required: worker credential/login activation and isolated reader policy,
+scanner/worker/network/alert GitOps, generated frontend contracts and staff-file
+UI, actual GCS/workload-identity acceptance, current CNPG/API/browser tests, CI,
+approved deployment and exact-source synthetic live acceptance. #1105 and the
+parent epic remain open.
+
 ## Infrastructure and remaining acceptance
 
 [Infrastructure draft #1414](https://github.com/tesserix/tesserix-k8s/pull/1414)
-now owns only the new `17-helivanta-files` project/state. The old shared-stack
+owns the isolated `17-helivanta-files` state and worker-role pre-registration.
+The old shared-stack
 plan contained 11 unrelated deletions; all its saved plans were discarded.
 The new [saved isolated plan](https://github.com/tesserix/tesserix-k8s/pull/1414#issuecomment-6169769836)
 has **17 additions, no changes and no deletions**. It has not been applied.
 Native Terraform assertions, 45 Atlantis/graph tests, formatting/lint and
-current infrastructure CI pass. Production provisioning approval is pending.
+the prior infrastructure CI pass. The worker-role addition has its own Helm
+render/identity/backup tests; current-head CI and refreshed plan review remain
+required before an approved rollout. Production provisioning approval is pending.
 
-Still required before release or issue closure: runtime store configuration,
-owning Temporal worker/workflows/activities, tightly scoped worker database
-access, scan/verdict/release transitions, download authorization, retry and
-revocation/expiration flows, generated UI contracts and staff UI, GitOps
-worker/scanner/IAM/audit configuration, real GCS acceptance, full local
+Still required before release or issue closure: private worker credential and
+login activation, generated UI contracts and staff UI, GitOps
+worker/scanner/network/alerts/audit configuration, real GCS acceptance, full local
 CNPG/API/browser flow and exact-source post-deployment synthetic tests/logs.
 The backend PR remains draft and production upload intents remain unavailable
 when the runtime store is unconfigured. No owning story is closed by this

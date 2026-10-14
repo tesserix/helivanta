@@ -2,6 +2,7 @@ package platform
 
 import (
 	"context"
+	"go.temporal.io/sdk/client"
 	"time"
 
 	"github.com/tesserix/helivanta/pkg/attachments"
@@ -43,6 +44,7 @@ type Deps struct {
 	DB        *tenantdb.DB
 	Bus       *events.Bus
 	Documents *attachments.GCS
+	Workflows client.Client
 	Authz     TupleWriter
 	Roles     RoleLister
 	// SessionSigner re-mints the Helivanta session for the one operation that

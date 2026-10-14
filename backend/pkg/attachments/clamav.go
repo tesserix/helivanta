@@ -37,10 +37,6 @@ func (s *ClamAV) Scan(ctx context.Context, content io.Reader) (ScanVerdict, erro
 	if content == nil {
 		return ScanVerdict{}, errors.New("document content is required")
 	}
-	status, err := s.Status(ctx, time.Now().UTC())
-	if err != nil {
-		return ScanVerdict{}, err
-	}
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", s.address)
@@ -53,6 +49,19 @@ func (s *ClamAV) Scan(ctx context.Context, content io.Reader) (ScanVerdict, erro
 	deadline, _ := ctx.Deadline()
 	if err = conn.SetDeadline(deadline); err != nil {
 		return ScanVerdict{}, errors.New("document scanner deadline failed")
+	}
+	// One IDSESSION binds both probes to the instance that scans the stream.
+	if _, err := io.WriteString(conn, "zIDSESSION\x00zVERSION\x00"); err != nil {
+		return ScanVerdict{}, errors.New("document scanner session unavailable")
+	}
+	reader := bufio.NewReader(conn)
+	version, err := scannerSessionReply(reader, 1)
+	if err != nil {
+		return ScanVerdict{}, err
+	}
+	status, err := parseScannerStatus(version, time.Now().UTC())
+	if err != nil {
+		return ScanVerdict{}, err
 	}
 	if _, err = io.WriteString(conn, "zINSTREAM\x00"); err != nil {
 		return ScanVerdict{}, errors.New("document scanner request failed")
@@ -89,21 +98,47 @@ func (s *ClamAV) Scan(ctx context.Context, content io.Reader) (ScanVerdict, erro
 	if _, err = conn.Write([]byte{0, 0, 0, 0}); err != nil {
 		return ScanVerdict{}, errors.New("document scanner stream failed")
 	}
-	reply, err := bufio.NewReader(io.LimitReader(conn, 1025)).ReadString(0)
-	if err != nil || len(reply) > 1024 || ctx.Err() != nil {
+	message, err := scannerSessionReply(reader, 2)
+	if err != nil || ctx.Err() != nil {
 		return ScanVerdict{}, errors.New("document scanner verdict incomplete")
 	}
-	message := strings.TrimSuffix(reply, "\x00")
-	if message == "stream: OK" {
-		current, err := s.Status(ctx, time.Now().UTC())
+	clean := message == "stream: OK"
+	infected := strings.HasPrefix(message, "stream: ") && strings.HasSuffix(message, " FOUND") && message != "stream: OK FOUND"
+	if clean || infected {
+		if _, err := io.WriteString(conn, "zVERSION\x00"); err != nil {
+			return ScanVerdict{}, errors.New("document scanner version request failed")
+		}
+		version, err := scannerSessionReply(reader, 3)
+		if err != nil {
+			return ScanVerdict{}, err
+		}
+		current, err := parseScannerStatus(version, time.Now().UTC())
 		// A database reload during the stream cannot establish one scan provenance.
-		if err != nil || current != status {
+		if err != nil || ctx.Err() != nil || current != status {
 			return ScanVerdict{}, errors.New("document scanner definitions changed during scan")
 		}
-		return ScanVerdict{Clean: true, ScannerStatus: status}, nil
-	}
-	if strings.HasPrefix(message, "stream: ") && strings.HasSuffix(message, " FOUND") && message != "stream: OK FOUND" {
-		return ScanVerdict{ScannerStatus: status}, nil
+		// Complete evidence is already read; END is best-effort connection cleanup.
+		_, _ = io.WriteString(conn, "zEND\x00")
+		return ScanVerdict{Clean: clean, ScannerStatus: status}, nil
 	}
 	return ScanVerdict{}, errors.New("document scanner verdict invalid")
+}
+
+func scannerSessionReply(reader *bufio.Reader, id int) (string, error) {
+	var reply []byte
+	for len(reply) < 1024 {
+		b, err := reader.ReadByte()
+		if err != nil {
+			return "", errors.New("document scanner session response incomplete")
+		}
+		if b == 0 {
+			prefix := strconv.Itoa(id) + ": "
+			if !strings.HasPrefix(string(reply), prefix) {
+				return "", errors.New("document scanner session response invalid")
+			}
+			return strings.TrimPrefix(string(reply), prefix), nil
+		}
+		reply = append(reply, b)
+	}
+	return "", errors.New("document scanner session response exceeds limit")
 }

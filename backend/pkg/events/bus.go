@@ -369,6 +369,11 @@ func (outboxRow) TableName() string { return "outbox_events" }
 // Delivery happens asynchronously via RunDispatcher — at-least-once,
 // never lost with the business write (issue #2).
 func (b *Bus) Publish(tx *gorm.DB, subject string, evt Event) error {
+	return Enqueue(tx, subject, evt)
+}
+
+// Enqueue records durable work without requiring a broker connection in the writer.
+func Enqueue(tx *gorm.DB, subject string, evt Event) error {
 	var id uuid.UUID
 	if evt.ID == "" {
 		id = uuid.New()

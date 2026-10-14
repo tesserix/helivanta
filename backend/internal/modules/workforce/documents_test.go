@@ -29,6 +29,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/workforce" //nolint:depguard // external test imports its own module
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -160,6 +161,48 @@ func TestStaffDocumentUploadPinsBytesAndPublishesOneScanIntent(t *testing.T) {
 	require.Contains(t, first.Body.String(), `"status":"scan_pending"`)
 	require.NotContains(t, first.Body.String(), "12345")
 	require.Equal(t, "no-store", first.Header().Get("Cache-Control"))
+	forgedVerdict := db.WithTenant(tenantdb.WithActor(t.Context(), "user-manager"), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-manager',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_enrollment','authorized',true),set_config('app.workforce_document_worker','authorized',true),set_config('app.workforce_document_staff',?,true),set_config('app.workforce_document_file',?,true)`, hospital, staff, file).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`UPDATE workforce_documents SET status='available',released_generation=98765,engine_version='synthetic-forged',definition_version=28000,definitions_updated_at=clock_timestamp(),scanned_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=?`, testutil.TenantA, hospital, staff, file).Error
+	})
+	require.Error(t, forgedVerdict, "a caller-set flag cannot authorize the API role to fabricate a clean release")
+	var database string
+	require.NoError(t, db.WithSystem(t.Context(), func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT current_database()`).Scan(&database).Error
+	}))
+	workerDB, err := tenantdb.OpenRuntime(t.Context(), testinfra.DocumentWorkerDSN(t, database))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, workerDB.Close()) })
+	for _, claim := range []struct {
+		tenant, hospital, staff, file string
+		visible                       bool
+	}{
+		{testutil.TenantA, "", "", "", false},
+		{testutil.TenantB, hospital, staff, file, false},
+		{testutil.TenantA, uuid.NewString(), staff, file, false},
+		{testutil.TenantA, hospital, uuid.NewString(), file, false},
+		{testutil.TenantA, hospital, staff, uuid.NewString(), false},
+		{testutil.TenantA, hospital, staff, file, true},
+	} {
+		require.NoError(t, workerDB.WithTenant(t.Context(), claim.tenant, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.workforce_hospital',?,true),set_config('app.workforce_document_staff',?,true),set_config('app.workforce_document_file',?,true)`, claim.hospital, claim.staff, claim.file).Error; err != nil {
+				return err
+			}
+			var ids []string
+			require.NoError(t, tx.Table("workforce_documents").Select("id").Scan(&ids).Error)
+			if claim.visible {
+				require.Equal(t, []string{file}, ids)
+			} else {
+				require.Empty(t, ids)
+			}
+			return nil
+		}))
+	}
+	for _, query := range []string{`SELECT id FROM workforce_staff`, `SELECT filename FROM workforce_documents`, `SELECT id FROM audit_events`} {
+		require.Error(t, workerDB.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error { return tx.Exec(query).Error }), "the worker cannot read personnel, original names or audit history")
+	}
 	for range 3 {
 		replayed := upload("manager")
 		require.Equal(t, 200, replayed.Code, replayed.Body.String())

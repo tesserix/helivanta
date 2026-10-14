@@ -46,6 +46,15 @@ Binary upload and an atomic outbox handoff now have real PostgreSQL/NATS,
 concurrency, grant-revocation and permission-isolation proof. The unsafe
 shared-storage saved plans were discarded; the isolated replacement plans
 only 17 additions, with zero updates/deletions, and awaits production approval.
+
+Continuation adds worker-scoped processing authority, observable rejection/error
+states, exact-copy recovery, bounded Temporal processing, verified duplicate
+JetStream handoff and private download/retry/revoke API tests. Full backend
+race/coverage, lint/vet/build, real isolated ClamAV and actual local Temporal
+acceptance pass. Production CNPG was read-only verified healthy with two ready
+instances. Worker login/credentials, actual GCS, generated UI/contracts and
+current local/deployed browser acceptance remain required; no additional story
+has been closed. The legacy Employees route currently needs renewed sign-in.
 Neither draft has been deployed, and no additional story has been closed.
 The source application is inspected read-only; writes are synthetic in
 explicitly isolated verification environments.

@@ -13,6 +13,13 @@ boundaries. The API derives tenant and actor from verified authentication,
 locks the hospital-manager grant and validates the owning workforce record.
 Storage prefixes never grant access.
 
+Document intent, metadata and byte routes require `workforce.documents.manage`
+independently of enrollment-form permission. Its initial system-role mapping
+is tenant administrator only, matching the existing sensitive enrollment
+boundary; ordinary clinical/directory roles inherit neither permission.
+The current hospital's explicit manager grant is still required and locked
+at every database phase. Tenant administration never implies hospital access.
+
 Planning assumptions, not measured production demand: 20 simultaneous uploads,
 10 MiB maximum each, 2 upload starts/second peak and 10 metadata reads per write.
 At 10,000 files/month and 2 MiB average, original bytes total approximately

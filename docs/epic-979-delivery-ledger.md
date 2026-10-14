@@ -40,6 +40,13 @@ close the broader owning stories automatically.
 Private-file foundation checks are local only. The backend draft and storage
 proposal do not close #1105. Reviewed jurisdictional/clinical/financial policy
 is required where a calculation or consequential outcome depends on it.
+
+Latest evidence: [private staff-file local verification, 15 October](private-staff-files-verification-2026-10-15.md).
+Binary upload and an atomic outbox handoff now have real PostgreSQL/NATS,
+concurrency, grant-revocation and permission-isolation proof. The unsafe
+shared-storage saved plans were discarded; the isolated replacement plans
+only 17 additions, with zero updates/deletions, and awaits production approval.
+Neither draft has been deployed, and no additional story has been closed.
 The source application is inspected read-only; writes are synthetic in
 explicitly isolated verification environments.
 

@@ -77,6 +77,43 @@ func crcHeader(content string) string {
 	return "crc32c=" + base64.StdEncoding.EncodeToString(bytes[:])
 }
 
+func TestGCSQuarantineRetryReconcilesOnlyIdenticalPinnedBytes(t *testing.T) {
+	scope := fileScope()
+	key, err := attachments.ObjectKey(scope)
+	require.NoError(t, err)
+	const content = "synthetic retry bytes"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			require.Equal(t, "0", r.URL.Query().Get("ifGenerationMatch"))
+			w.WriteHeader(http.StatusPreconditionFailed)
+			return
+		}
+		require.Equal(t, "/storage/v1/b/helivanta-test-quarantine/o/"+key, r.URL.Path)
+		if r.URL.Query().Get("alt") != "media" {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"name": key, "bucket": "helivanta-test-quarantine", "generation": "12345", "size": strconv.Itoa(len(content)), "crc32c": strings.TrimPrefix(crcHeader(content), "crc32c=")})
+			return
+		}
+		require.Equal(t, "12345", r.URL.Query().Get("generation"))
+		w.Header().Set("X-Goog-Generation", "12345")
+		w.Header().Set("X-Goog-Metageneration", "1")
+		w.Header().Set("X-Goog-Hash", crcHeader(content))
+		_, _ = w.Write([]byte(content))
+	}))
+	t.Cleanup(server.Close)
+	client, err := storage.NewClient(t.Context(), option.WithEndpoint(server.URL+"/storage/v1/"), option.WithHTTPClient(server.Client()), option.WithoutAuthentication(), storage.WithJSONReads())
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	store, err := attachments.NewGCS(client, "helivanta-test-quarantine", "helivanta-test-released")
+	require.NoError(t, err)
+	receipt, err := store.EnsureQuarantine(t.Context(), scope, []byte(content))
+	require.NoError(t, err)
+	require.EqualValues(t, 12345, receipt.Generation)
+	require.EqualValues(t, len(content), receipt.Size)
+	_, err = store.EnsureQuarantine(t.Context(), scope, []byte("different retry bytes"))
+	require.ErrorIs(t, err, attachments.ErrObjectExists)
+}
+
 func TestGCSReadsOnlyExactScopedQuarantineGeneration(t *testing.T) {
 	scope := fileScope()
 	key, err := attachments.ObjectKey(scope)

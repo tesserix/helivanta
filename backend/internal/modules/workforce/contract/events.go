@@ -38,3 +38,11 @@ type RosterConfigChangedData struct {
 	RevisionID string `json:"revision_id"`
 	Version    int64  `json:"version"`
 }
+
+const SubjectDocumentScanRequested = "helivanta.in.workforce.document_scan_requested.v1"
+
+type DocumentScanRequestedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	FileID     string `json:"file_id"`
+}

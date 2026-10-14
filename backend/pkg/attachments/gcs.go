@@ -90,6 +90,33 @@ func (g *GCS) ReadQuarantine(ctx context.Context, scope ObjectScope, generation 
 	return g.read(ctx, g.quarantine, scope, generation)
 }
 
+// EnsureQuarantine reconciles a lost create receipt without replacing any bytes.
+func (g *GCS) EnsureQuarantine(ctx context.Context, scope ObjectScope, data []byte) (StoredObject, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	receipt, err := g.PutQuarantine(ctx, scope, data)
+	if !errors.Is(err, ErrObjectExists) {
+		return receipt, err
+	}
+	key, err := ObjectKey(scope)
+	if err != nil {
+		return StoredObject{}, err
+	}
+	attrs, err := g.client.Bucket(g.quarantine).Object(key).Attrs(ctx)
+	if err != nil || attrs == nil || attrs.Name != key || attrs.Bucket != g.quarantine || attrs.Generation < 1 {
+		return StoredObject{}, errors.New("document upload reconciliation unavailable")
+	}
+	content, err := g.ReadQuarantine(ctx, scope, attrs.Generation)
+	if err != nil {
+		return StoredObject{}, err
+	}
+	hash := sha256.Sum256(data)
+	if content.Size != int64(len(data)) || content.SHA256 != hex.EncodeToString(hash[:]) {
+		return StoredObject{}, ErrObjectExists
+	}
+	return StoredObject{Generation: content.Generation, SHA256: content.SHA256, Size: content.Size, CRC32C: content.CRC32C}, nil
+}
+
 func (g *GCS) read(ctx context.Context, bucket string, scope ObjectScope, generation int64) (StoredContent, error) {
 	key, err := ObjectKey(scope)
 	if err != nil || generation < 1 {

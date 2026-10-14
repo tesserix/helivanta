@@ -1,24 +1,281 @@
 package workforce_test
 
 import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
+	"hash/crc32"
+	"image"
+	"image/png"
+	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/workforce" //nolint:depguard // external test imports its own module
+	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"google.golang.org/api/option"
 	"gorm.io/gorm"
 )
+
+func TestStaffDocumentUploadPinsBytesAndPublishesOneScanIntent(t *testing.T) {
+	var pngBytes bytes.Buffer
+	require.NoError(t, png.Encode(&pngBytes, image.NewRGBA(image.Rect(0, 0, 2, 2))))
+	content := pngBytes.Bytes()
+	digest := sha256.Sum256(content)
+	var crcBytes [4]byte
+	binary.BigEndian.PutUint32(crcBytes[:], crc32.Checksum(content, crc32.MakeTable(crc32.Castagnoli)))
+	crc := base64.StdEncoding.EncodeToString(crcBytes[:])
+	var uploads atomic.Int32
+	var cloudKey string
+	var beforeReceipt func()
+	var storageMu sync.Mutex
+	objects := make(map[string]bool)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			const prefix = "/storage/v1/b/helivanta-test-quarantine/o/"
+			key := strings.TrimPrefix(r.URL.Path, prefix)
+			storageMu.Lock()
+			exists := objects[key]
+			storageMu.Unlock()
+			require.True(t, exists)
+			if r.URL.Query().Get("alt") == "media" {
+				require.Equal(t, "12345", r.URL.Query().Get("generation"))
+				w.Header().Set("X-Goog-Generation", "12345")
+				w.Header().Set("X-Goog-Metageneration", "1")
+				w.Header().Set("X-Goog-Hash", "crc32c="+crc)
+				_, _ = w.Write(content)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"bucket": "helivanta-test-quarantine", "name": key, "generation": "12345", "size": strconv.Itoa(len(content)), "crc32c": crc})
+			return
+		}
+		require.Equal(t, http.MethodPost, r.Method)
+		require.Equal(t, "0", r.URL.Query().Get("ifGenerationMatch"))
+		uploads.Add(1)
+		_, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		require.NoError(t, err)
+		parts := multipart.NewReader(r.Body, params["boundary"])
+		part, err := parts.NextPart()
+		require.NoError(t, err)
+		var metadata map[string]any
+		require.NoError(t, json.NewDecoder(part).Decode(&metadata))
+		key := metadata["name"].(string)
+		require.Equal(t, "private, no-store", metadata["cacheControl"])
+		part, err = parts.NextPart()
+		require.NoError(t, err)
+		stored, err := io.ReadAll(part)
+		require.NoError(t, err)
+		require.Equal(t, content, stored)
+		storageMu.Lock()
+		if objects[key] {
+			storageMu.Unlock()
+			w.WriteHeader(http.StatusPreconditionFailed)
+			return
+		}
+		objects[key] = true
+		cloudKey = key
+		storageMu.Unlock()
+		if beforeReceipt != nil {
+			beforeReceipt()
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"bucket": "helivanta-test-quarantine", "name": key, "generation": "12345", "size": strconv.Itoa(len(content)), "crc32c": crc})
+	}))
+	t.Cleanup(server.Close)
+	client, err := storage.NewClient(t.Context(), option.WithEndpoint(server.URL+"/storage/v1/"), option.WithHTTPClient(server.Client()), option.WithoutAuthentication(), storage.WithJSONReads())
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	files, err := attachments.NewGCS(client, "helivanta-test-quarantine", "helivanta-test-released")
+	require.NoError(t, err)
+	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"manager": testutil.TenantA, "foreign": testutil.TenantB, "reader": testutil.TenantA, "directory": testutil.TenantA, "enrollment-only": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"enrollment-only": {workforce.PermEnrollmentManage}, "manager": {workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage}, "foreign": {workforce.PermEnrollmentManage, workforce.PermDocumentManage}, "reader": {workforce.PermEnrollmentManage, workforce.PermDocumentManage}},
+		Modules: []platform.Module{workforce.New()}, Documents: files,
+	})
+	hospital, staff, file := uuid.NewString(), uuid.NewString(), uuid.NewString()
+	base := "/v1/workforce/hospitals/" + hospital
+	require.Equal(t, 200, testutil.Do(r, "PUT", base, "manager", `{"name":"Synthetic Upload Hospital"}`).Code)
+	require.Equal(t, 200, testutil.Do(r, "PUT", base+"/access/user-manager", "manager", `{"level":"manager"}`).Code)
+	staffPath := base + "/staff/" + staff
+	require.Equal(t, 200, testutil.Do(r, "PUT", base+"/access/user-enrollment-only", "manager", `{"level":"manager"}`).Code)
+	require.Equal(t, 200, testutil.Do(r, "PUT", base+"/access/user-reader", "manager", `{"level":"reader"}`).Code)
+	require.Equal(t, 200, testutil.Do(r, "PUT", staffPath, "manager", `{"employee_code":"UPLOAD-001","display_name":"Synthetic Upload Staff","job_category":"nurse","employment_status":"active"}`).Code)
+	path := staffPath + "/documents/" + file
+	body := `{"record_kind":"enrollment","record_id":"` + staff + `","category":"employment_evidence","filename":"synthetic-upload.png","content_type":"image/png","size":` + strconv.Itoa(len(content)) + `,"sha256":"` + hex.EncodeToString(digest[:]) + `"}`
+	require.Equal(t, 201, testutil.Do(r, "PUT", path, "manager", body).Code)
+	uploadBytes := func(token, requestPath, contentType, encoding string, data []byte) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodPut, requestPath+"/content", bytes.NewReader(data))
+		request.Header.Set("Authorization", "Bearer "+token)
+		request.Header.Set("Content-Type", contentType)
+		request.Header.Set("Content-Encoding", encoding)
+		response := httptest.NewRecorder()
+		r.ServeHTTP(response, request)
+		return response
+	}
+	upload := func(token string) *httptest.ResponseRecorder {
+		return uploadBytes(token, path, "image/png", "", content)
+	}
+	for _, denied := range []struct {
+		token  string
+		status int
+	}{{"foreign", 404}, {"reader", 404}, {"directory", 403}, {"enrollment-only", 403}} {
+		require.Equal(t, denied.status, upload(denied.token).Code)
+	}
+	require.Zero(t, uploads.Load(), "a tenant denial must not contact cloud storage")
+	for _, invalid := range []struct {
+		contentType, encoding string
+		data                  []byte
+	}{
+		{"image/jpeg", "", content}, {"image/png", "gzip", content}, {"image/png", "", content[:len(content)-1]},
+		{"image/png", "", append(bytes.Clone(content), 0)}, {"image/png", "", bytes.Repeat([]byte{0}, len(content))},
+	} {
+		response := uploadBytes("manager", path, invalid.contentType, invalid.encoding, invalid.data)
+		require.Equal(t, 400, response.Code, response.Body.String())
+	}
+	require.Zero(t, uploads.Load(), "invalid bytes must not reach quarantine")
+	first := upload("manager")
+	require.Equal(t, 202, first.Code, first.Body.String())
+	require.Contains(t, first.Body.String(), `"status":"scan_pending"`)
+	require.NotContains(t, first.Body.String(), "12345")
+	require.Equal(t, "no-store", first.Header().Get("Cache-Control"))
+	for range 3 {
+		replayed := upload("manager")
+		require.Equal(t, 200, replayed.Code, replayed.Body.String())
+		require.JSONEq(t, first.Body.String(), replayed.Body.String())
+	}
+	require.EqualValues(t, 1, uploads.Load())
+	require.Contains(t, cloudKey, "t/"+testutil.TenantA+"/h/"+hospital+"/o/staff/"+staff+"/r/"+staff+"/d/")
+	require.Contains(t, cloudKey, "/f/"+file+"/v/1")
+	require.NotContains(t, cloudKey, "synthetic-upload")
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		var events []struct{ Payload string }
+		require.NoError(t, tx.Table("outbox_events").Select("payload").Where("subject=?", "helivanta.in.workforce.document_scan_requested.v1").Find(&events).Error)
+		require.Len(t, events, 1)
+		require.Contains(t, events[0].Payload, file)
+		require.NotContains(t, events[0].Payload, "synthetic-upload")
+		require.NotContains(t, events[0].Payload, hex.EncodeToString(digest[:]))
+		return nil
+	}))
+	interruptedFile := uuid.NewString()
+	interruptedPath := staffPath + "/documents/" + interruptedFile
+	require.Equal(t, 201, testutil.Do(r, "PUT", interruptedPath, "manager", body).Code)
+	beforeReceipt = func() {
+		// A real grant revocation must not wait for the cloud request's locks.
+		require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SET LOCAL lock_timeout='100ms'`).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-manager',true)`).Error; err != nil {
+				return err
+			}
+			return tx.Exec(`DELETE FROM workforce_hospital_access WHERE tenant_id=? AND hospital_id=? AND subject='user-manager'`, testutil.TenantA, hospital).Error
+		}))
+	}
+	interrupted := uploadBytes("manager", interruptedPath, "image/png", "", content)
+	require.Equal(t, 404, interrupted.Code, interrupted.Body.String())
+	require.Equal(t, 200, testutil.Do(r, "PUT", base+"/access/user-manager", "manager", `{"level":"manager"}`).Code)
+	listed := testutil.Do(r, "GET", staffPath+"/documents", "manager", "")
+	require.Equal(t, 200, listed.Code, listed.Body.String())
+	var listing struct {
+		Items []struct{ ID, Status string } `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(listed.Body.Bytes(), &listing))
+	var found bool
+	for _, item := range listing.Items {
+		if item.ID == interruptedFile {
+			found = true
+			require.Equal(t, "upload_pending", item.Status, "revocation must prevent the committed scan handoff")
+		}
+	}
+	require.True(t, found)
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		var count int64
+		require.NoError(t, tx.Table("outbox_events").Where("subject=?", workforce.DocumentScanRequested).Count(&count).Error)
+		require.EqualValues(t, 1, count, "a revoked in-flight upload cannot publish a scan event")
+		return nil
+	}))
+	beforeReceipt = nil
+	concurrentFile := uuid.NewString()
+	concurrentPath := staffPath + "/documents/" + concurrentFile
+	require.Equal(t, 201, testutil.Do(r, "PUT", concurrentPath, "manager", body).Code)
+	responses := make(chan *httptest.ResponseRecorder, 6)
+	var callers sync.WaitGroup
+	for range 6 {
+		callers.Go(func() { responses <- uploadBytes("manager", concurrentPath, "image/png", "", content) })
+	}
+	callers.Wait()
+	close(responses)
+	var accepted int
+	for response := range responses {
+		if response.Code == http.StatusAccepted {
+			accepted++
+		} else {
+			require.Equal(t, 200, response.Code, response.Body.String())
+		}
+		require.Contains(t, response.Body.String(), `"status":"scan_pending"`)
+	}
+	require.Equal(t, 1, accepted, "only one racing request may commit the scan handoff")
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		var count int64
+		require.NoError(t, tx.Table("outbox_events").Where("subject=?", workforce.DocumentScanRequested).Count(&count).Error)
+		require.EqualValues(t, 2, count)
+		return nil
+	}))
+	deliveryCtx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+	defer cancel()
+	delivered := make(chan events.Event, 4)
+	require.NoError(t, bus.StartConsumers(deliveryCtx, db, []events.Consumer{{
+		Name: "workforce-doc-acceptance", Subject: workforce.DocumentScanRequested,
+		Handle: func(context.Context, *gorm.DB, events.Event) error { return nil },
+		AfterCommit: func(ctx context.Context, evt events.Event) error {
+			select {
+			case delivered <- evt:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		},
+	}}))
+	go bus.RunDispatcher(deliveryCtx, db)
+	waiting := map[string]bool{file: true, concurrentFile: true}
+	for len(waiting) > 0 {
+		select {
+		case evt := <-delivered:
+			require.Equal(t, testutil.TenantA, evt.TenantID)
+			require.Empty(t, evt.DestinationTenantID)
+			var scan workforcecontract.DocumentScanRequestedData
+			require.NoError(t, json.Unmarshal(evt.Data, &scan))
+			require.Equal(t, hospital, scan.HospitalID)
+			require.Equal(t, staff, scan.StaffID)
+			require.True(t, waiting[scan.FileID], "only committed files may reach the durable consumer")
+			delete(waiting, scan.FileID)
+		case <-deliveryCtx.Done():
+			t.Fatalf("scan request did not reach the durable JetStream consumer: %v", deliveryCtx.Err())
+		}
+	}
+}
 
 func TestStaffDocumentIntentsAreScopedPrivateAndIdempotent(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -32,14 +289,14 @@ func TestStaffDocumentIntentsAreScopedPrivateAndIdempotent(t *testing.T) {
 	files, err := attachments.NewGCS(client, "helivanta-test-quarantine", "helivanta-test-released")
 	require.NoError(t, err)
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens:  map[string]string{"manager": testutil.TenantA, "reader": testutil.TenantA, "foreign": testutil.TenantB, "directory": testutil.TenantA},
-		Perms:   map[string][]authz.Permission{"manager": {workforce.PermHospitalManage, workforce.PermEnrollmentManage}, "reader": {workforce.PermEnrollmentManage}, "foreign": {workforce.PermEnrollmentManage}},
+		Tokens:  map[string]string{"manager": testutil.TenantA, "reader": testutil.TenantA, "foreign": testutil.TenantB, "directory": testutil.TenantA, "enrollment-only": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"enrollment-only": {workforce.PermEnrollmentManage}, "manager": {workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage}, "reader": {workforce.PermEnrollmentManage, workforce.PermDocumentManage}, "foreign": {workforce.PermEnrollmentManage, workforce.PermDocumentManage}},
 		Modules: []platform.Module{workforce.New()}, Documents: files,
 	})
 	hospital, staff, file := uuid.NewString(), uuid.NewString(), uuid.NewString()
 	base := "/v1/workforce/hospitals/" + hospital
 	require.Equal(t, 200, testutil.Do(r, "PUT", base, "manager", `{"name":"Synthetic File Hospital"}`).Code)
-	for _, level := range []struct{ subject, level string }{{"manager", "manager"}, {"reader", "reader"}, {"directory", "manager"}} {
+	for _, level := range []struct{ subject, level string }{{"manager", "manager"}, {"reader", "reader"}, {"directory", "manager"}, {"enrollment-only", "manager"}} {
 		require.Equal(t, 200, testutil.Do(r, "PUT", base+"/access/user-"+level.subject, "manager", `{"level":"`+level.level+`"}`).Code)
 	}
 	staffPath := base + "/staff/" + staff
@@ -62,7 +319,7 @@ func TestStaffDocumentIntentsAreScopedPrivateAndIdempotent(t *testing.T) {
 	for _, actor := range []struct {
 		token  string
 		status int
-	}{{"reader", 404}, {"foreign", 404}, {"directory", 403}, {"", 401}} {
+	}{{"reader", 404}, {"foreign", 404}, {"directory", 403}, {"enrollment-only", 403}, {"", 401}} {
 		for _, method := range []string{"GET", "PUT"} {
 			requestPath := path
 			if method == "GET" {

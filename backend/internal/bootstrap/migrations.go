@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"github.com/tesserix/helivanta/pkg/audit"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -13,6 +14,6 @@ import (
 // test harness breaks every module test at db.Migrate, and missing the RLS
 // arch test silently stops the lint covering the new schema.
 func PlatformMigrations() []tenantdb.Migration {
-	migs := tenantdb.Migrations()
-	return append(migs, events.Migrations()...)
+	migs := append(tenantdb.Migrations(), events.Migrations()...)
+	return append(migs, audit.Migrations()...)
 }

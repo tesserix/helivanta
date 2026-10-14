@@ -625,6 +625,9 @@ func (b *Bus) runConsumerTx(ctx context.Context, db OutboxStore, c Consumer, evt
 				}
 			}
 		}
+		if err := tx.Exec(`SELECT set_config(?, ?, true)`, tenantdb.ActorSetting, "system:"+c.Name).Error; err != nil {
+			return err
+		}
 		res := tx.Exec(`INSERT INTO processed_events (consumer, event_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
 			c.Name, evt.ID)
 		if res.Error != nil {

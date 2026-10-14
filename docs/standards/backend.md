@@ -208,6 +208,22 @@ test built on `testutil.ModuleHarness` (section 9) runs the same lint at
 harness setup, so a missing `FORCE ROW LEVEL SECURITY` fails the very
 first test in the package, not just the dedicated arch test.
 
+### Audit trail
+
+A table holding patient or clinical data gets a change trigger in a new migration
+(medicore `0004_medicore` is the template):
+
+```sql
+CREATE TRIGGER <table>_audit AFTER INSERT OR UPDATE OR DELETE ON <table>
+  FOR EACH ROW EXECUTE FUNCTION audit_record_change();
+```
+
+`audit_record_change()` (`backend/pkg/audit`) writes an append-only `audit_events`
+row with the actor, action and changed column names, never values. The actor comes
+from `tenantdb.WithActor`, which `authn` sets for every request; event consumers
+record `system:<consumer>`. A write with no actor is rejected (`42501`), so test
+fixtures that insert directly must call `tenantdb.WithActor` first.
+
 ## 4. HTTP semantics
 
 Every response goes through `respond` (`backend/internal/platform/respond/respond.go`)

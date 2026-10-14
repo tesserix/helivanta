@@ -2,6 +2,7 @@ package iam
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"sort"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/audit"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/session"
@@ -230,6 +232,8 @@ func (h *meHandlers) switchTenant(c *gin.Context) {
 	// credential from here on.
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(authn.SessionCookie, token, int(h.ttl.Seconds()), "/", "", h.secureCookie, true)
+	audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelInfo, "auth.tenant.switched", "tenant switched",
+		"subject", p.Subject, "from_tenant_id", p.TenantID, "tenant_id", target)
 	respond.OK(c, gin.H{"tenant_id": target})
 }
 

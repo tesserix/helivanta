@@ -10,6 +10,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/audit"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/ratelimit"
 	"github.com/tesserix/helivanta/pkg/session"
@@ -331,6 +332,8 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	// same place.
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(authn.SessionCookie, token, int(h.ttl.Seconds()), "/", "", h.secureCookie, true)
+	audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelInfo, "auth.session.issued", "session issued",
+		"subject", principal.Subject, "tenant_id", tenantID)
 	// renew_at tells the browser when to call POST /v1/auth/renew for
 	// the FIRST time (#916 Task 4, F3). Computed by renewAtFor
 	// (renew.go) — the same function the renewal endpoint itself uses,

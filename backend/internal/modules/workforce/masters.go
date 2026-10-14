@@ -141,7 +141,7 @@ func (h *handlers) putMaster(c *gin.Context) {
 	in.Code = strings.ToUpper(strings.TrimSpace(in.Code))
 	in.Name = strings.Join(strings.Fields(in.Name), " ")
 	in.Description = strings.TrimSpace(in.Description)
-	if !employeeCode.MatchString(in.Code) || in.Name == "" {
+	if !employeeCode.MatchString(in.Code) || in.Name == "" || strings.ContainsRune(in.Name, 0) || strings.ContainsRune(in.Description, 0) {
 		respond.Error(c, 400, "invalid_request", "invalid HR setup fields")
 		return
 	}

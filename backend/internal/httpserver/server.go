@@ -70,7 +70,7 @@ func New(readyChecks []ReadyCheck, trustedProxyCIDRs []string, middlewares ...gi
 	} else {
 		_ = e.SetTrustedProxies(nil)
 	}
-	e.Use(gin.Recovery())
+	e.Use(gin.Recovery(), securityHeaders)
 	for _, mw := range middlewares {
 		e.Use(mw)
 	}
@@ -85,4 +85,17 @@ func New(readyChecks []ReadyCheck, trustedProxyCIDRs []string, middlewares ...gi
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
 	return &Server{Engine: e}
+}
+
+// securityHeaders is set before any handler runs, so a handler can still
+// override Cache-Control; responses default to never cached because they carry patient data.
+func securityHeaders(c *gin.Context) {
+	h := c.Writer.Header()
+	h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("X-Frame-Options", "DENY")
+	h.Set("Referrer-Policy", "no-referrer")
+	h.Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+	h.Set("Cache-Control", "no-store")
+	c.Next()
 }

@@ -29,7 +29,8 @@ it("keeps typed text visible when HR choices arrive after the user starts editin
   );
   const { user } = renderWithProviders(<Workforce />);
   await user.click(await screen.findByRole("button", { name: "Add staff" }));
-  await user.type(screen.getByLabelText("Department"), "Recorded Synthetic Care");
+  await user.click(screen.getByLabelText("Department"));
+  await user.paste("Recorded Synthetic Care");
   resolveChoices(
     new Response(
       JSON.stringify({

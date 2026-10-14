@@ -85,76 +85,13 @@ type Config struct {
 	// and the Verifier checks against. Safe to default: it is a label,
 	// not a secret, and an operator who cares can override it.
 	SessionIssuer string
-	// SessionTTL bounds how long a Helivanta session is honoured before it
-	// must be renewed, and — post-#838 (spec D4/D4a) — renewal is the
-	// login exchange re-run with a fresh Zitadel token, re-checking
-	// membership every time. So this ONE number is the upper bound on
-	// BOTH: how long a user deactivated upstream in Zitadel keeps
-	// working, and how stale an OpenFGA membership grant/revoke can be
-	// before it is re-observed.
-	//
-	// 15 minutes, chosen (#838 Task 5) by weighing that bound against
-	// renewal traffic: renewal is a silent, browser-driven OIDC round
-	// trip against Zitadel plus one local Ed25519 verify and one FGA
-	// membership check — none of it against the project-wide quota the
-	// old GIP mint threatened (see bootstrap.RateLimitConfig's doc
-	// comment) — so a short TTL costs a few silent requests per hour per
-	// active session, not a shared resource. Against that cheap cost, 15
-	// minutes is short enough that a clinician deactivated mid-shift, or
-	// a member whose role is pulled for a safety reason, loses access
-	// within a quarter hour rather than surviving to their next full
-	// re-login — appropriate for a system whose failure mode is
-	// clinical, not merely inconvenient (engineering-principles.md's
-	// framing). It is not shortened further only because a TTL near the
-	// low end of what a human page-to-page session naturally spans (a
-	// few minutes) would turn ordinary navigation into visible renewal
-	// latency; 15 minutes stays well clear of that without meaningfully
-	// widening the deactivation window in absolute terms.
-	//
-	// A MISTYPED value falls back to DefaultSessionTTL (getenvDuration).
-	// A value that parses but is below MinSessionTTL — including "0" and
-	// negatives — is refused at boot by RequireSessionTTL
-	// (sessionttl.go, #921). Read it through that accessor, never
-	// straight off this field.
+	// SessionTTL is the signed cookie lifetime. The twelve-hour default allows
+	// browser suspension; foreground renewals recheck upstream access at least
+	// every five minutes. Local revocation and authorization checks still apply.
 	SessionTTL time.Duration
 
-	// IdleTimeout is how long a Helivanta session stays usable with no human
-	// interaction at all (#848, spec D1/D2): the idle_deadline claim a
-	// genuinely new login mints is time.Now() + IdleTimeout, and
-	// authn.Middleware refuses every request at or past that instant.
-	//
-	// This is a CLINICAL WORKFLOW value, not a technical one. 15 minutes
-	// is spec D1's judgement about a ward terminal: long enough for a
-	// clinician to read a chart, take a call or talk to a patient without
-	// being interrupted, short enough that a walk-away is caught well
-	// inside a shift, before the next person at the terminal inherits the
-	// session and every action they take is attributed to whoever walked
-	// away. Shortening it is a decision about how much uninterrupted
-	// reading a ward does, not about server load; lengthening it is a
-	// decision about how long an unattended terminal stays signed in.
-	//
-	// It is DELIBERATELY independent of SessionTTL even though both are
-	// currently 15 minutes, and the equality is a coincidence of two
-	// separate judgements rather than a coupling (spec D1: "It happens to
-	// equal SESSION_TTL, which is convenient but not a coupling"). D3
-	// depends on the two clocks staying independent: SessionTTL is this
-	// TOKEN's own lifetime and is moved forward by every silent renewal
-	// (D4a, every 5 minutes), while IdleTimeout measures the HUMAN and
-	// must survive those renewals untouched — see login.go's
-	// idleDeadlineFor. Deriving one from the other, in either direction,
-	// would let the renewal that legitimately extends `exp` also extend
-	// the idle deadline, and an untouched tab would then renew itself
-	// forever while the feature looked implemented.
-	//
-	// getenvDuration, so a MISTYPED IDLE_TIMEOUT ("fifteen") logs and
-	// falls back to DefaultIdleTimeout rather than stopping a hospital's
-	// API from booting — same direction SESSION_TTL takes. A
-	// deliberately non-positive value ("0", "-5m") is a different case:
-	// it parses cleanly, so that fallback never sees it, and it is
-	// refused at boot by RequireIdleTimeout (idletimeout.go) rather than
-	// left to fail closed as a hospital-wide sign-out. Read it through
-	// that accessor, never straight off this field, on any path that
-	// decides a deadline.
+	// IdleTimeout ends a session after twelve hours without user interaction.
+	// Background renewal preserves this deadline instead of counting as activity.
 	IdleTimeout time.Duration
 
 	// Rate limits are env-configurable, unlike the pagination page-size

@@ -5,11 +5,8 @@ import (
 	"time"
 )
 
-// DefaultSessionTTL is the session lifetime a process boots with when
-// SESSION_TTL is unset or unparseable — see Config.SessionTTL's doc
-// comment for why 15 minutes. Exported so tests assert against the
-// documented value rather than restating it.
-const DefaultSessionTTL = 15 * time.Minute
+// DefaultSessionTTL keeps a signed session usable for twelve hours.
+const DefaultSessionTTL = 12 * time.Hour
 
 // MinSessionTTL is the shortest SESSION_TTL RequireSessionTTL accepts.
 //

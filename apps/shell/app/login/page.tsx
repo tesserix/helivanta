@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { z } from "zod";
 import {
@@ -375,6 +375,20 @@ const credentialsSchema = z.object({
   password: z.string().min(1, "Enter your password"),
 });
 
+const rememberedUsernameKey = "helivanta.login.remembered-username";
+const rememberedUsernameSchema = z.object({ enabled: z.boolean(), username: z.string().max(320) });
+
+function saveRememberedUsername(enabled: boolean, username: string) {
+  try {
+    window.localStorage.setItem(
+      rememberedUsernameKey,
+      JSON.stringify({ enabled, username: enabled ? username : "" }),
+    );
+  } catch {
+    // Sign-in stays available when browser storage is blocked.
+  }
+}
+
 // The credential step itself (spec D2/D6/D7). Renders only once
 // ValidatedCredentialForm's mount-time check confirms the auth request is
 // still good — see LoginPage's header comment for the full outcome
@@ -410,12 +424,32 @@ function CredentialForm({
   const [values, setValues] = useState<AuthCredentialValues>({ loginName: "", password: "" });
   const [loginNameError, setLoginNameError] = useState<string | undefined>();
   const [passwordError, setPasswordError] = useState<string | undefined>();
+  const [rememberUsername, setRememberUsername] = useState(true);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(rememberedUsernameKey);
+      if (!raw) return;
+      const saved = rememberedUsernameSchema.safeParse(JSON.parse(raw));
+      if (!saved.success) return;
+      setRememberUsername(saved.data.enabled);
+      if (saved.data.enabled) {
+        setValues((current) => ({
+          ...current,
+          loginName: current.loginName || saved.data.username,
+        }));
+      }
+    } catch {
+      // Sign-in stays available when browser storage is blocked.
+    }
+  }, []);
 
   // The result carries the password that was SUBMITTED, not whatever the
   // field holds by the time the answer arrives: the later steps (#856) must
   // prove exactly the password Zitadel just accepted.
   const submit = useApiMutation<
-    { result: PasswordCheckResult; password: string },
+    { result: PasswordCheckResult; password: string; loginName: string },
     AuthCredentialValues
   >(
     (submitted) =>
@@ -423,7 +457,11 @@ function CredentialForm({
         authRequestId,
         loginName: submitted.loginName,
         password: submitted.password,
-      }).then((result) => ({ result, password: submitted.password })),
+      }).then((result) => ({
+        result,
+        password: submitted.password,
+        loginName: submitted.loginName,
+      })),
     {
       // `complete` is the ONLY outcome that navigates —
       // window.location.assign (not router.push), because /api/auth/
@@ -432,7 +470,8 @@ function CredentialForm({
       // (#856) to its password-change step; `blocked` (#947) ends on
       // LoginFlow's start-again landing with the API's own message. No
       // outcome sends the browser to Zitadel's hosted login.
-      onSuccess: ({ result, password }) => {
+      onSuccess: ({ result, password, loginName }) => {
+        if (result.outcome !== "blocked") saveRememberedUsername(rememberUsername, loginName);
         switch (result.outcome) {
           case "complete":
             window.location.assign(result.callbackUrl);
@@ -466,7 +505,16 @@ function CredentialForm({
   );
 
   function handleSubmit(submitted: AuthCredentialValues) {
-    const parsed = credentialsSchema.safeParse(submitted);
+    // Password managers may fill inputs without firing React change events.
+    const form = formRef.current;
+    const parsed = credentialsSchema.safeParse({
+      loginName:
+        form?.querySelector<HTMLInputElement>('input[autocomplete="username"]')?.value ??
+        submitted.loginName,
+      password:
+        form?.querySelector<HTMLInputElement>('input[autocomplete="current-password"]')?.value ??
+        submitted.password,
+    });
     if (!parsed.success) {
       const fieldErrors = parsed.error.flatten().fieldErrors;
       setLoginNameError(fieldErrors.loginName?.[0]);
@@ -475,7 +523,7 @@ function CredentialForm({
     }
     setLoginNameError(undefined);
     setPasswordError(undefined);
-    submit.mutate(submitted);
+    submit.mutate(parsed.data);
   }
 
   return (
@@ -487,6 +535,8 @@ function CredentialForm({
         </div>
 
         <AuthCredentialForm
+          ref={formRef}
+          autoComplete="on"
           methodPolicy={toMethodPolicy(policies)}
           values={values}
           onValuesChange={setValues}
@@ -526,6 +576,20 @@ function CredentialForm({
           passwordLabel="Password"
           submitLabel="Sign in"
         />
+        <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            className="size-4 accent-primary"
+            checked={rememberUsername}
+            disabled={submit.isPending}
+            onChange={(event) => {
+              const enabled = event.target.checked;
+              setRememberUsername(enabled);
+              saveRememberedUsername(enabled, values.loginName);
+            }}
+          />
+          Remember my username
+        </label>
 
         <AuthCardFooter>
           <p className="text-xs text-muted-foreground">

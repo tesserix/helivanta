@@ -62,8 +62,8 @@ func TestRequireIdleTimeout_Unset_TakesTheDocumentedDefault(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, config.DefaultIdleTimeout, got)
-	require.Equal(t, 15*time.Minute, config.DefaultIdleTimeout,
-		"spec D1 fixes the clinical window at 15 minutes; changing it is a policy decision, not a refactor")
+	require.Equal(t, 12*time.Hour, config.DefaultIdleTimeout,
+		"the requested sign-in policy allows twelve hours without interaction")
 }
 
 // TestRequireIdleTimeout_IsIndependentOfSessionTTL pins the one coupling

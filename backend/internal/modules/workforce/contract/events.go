@@ -20,3 +20,12 @@ type MasterChangedData struct {
 	Kind       string `json:"kind"`
 	Version    int64  `json:"version"`
 }
+
+const SubjectShiftChanged = "helivanta.in.workforce.shift_changed.v1"
+
+type ShiftChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	ShiftID    string `json:"shift_id"`
+	RevisionID string `json:"revision_id"`
+	Version    int64  `json:"version"`
+}

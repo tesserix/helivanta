@@ -74,6 +74,8 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
+          install-mode: goinstall
+          version: v2.14.0
           working-directory: backend
       - run: go build ./...
       # #963: the shared Postgres container of a test binary has vanished

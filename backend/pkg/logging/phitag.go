@@ -341,26 +341,9 @@ func addStructFields(t reflect.Type, node *phiNode, seen map[reflect.Type]*phiNo
 	}
 }
 
-// jsonEmittedName reports the JSON name encoding/json will use for a field
-// carrying this json struct tag, or "" when the field renders under its Go
-// field name instead.
-//
-// It answers the question by *asking encoding/json*, not by reimplementing it.
-// encoding/json silently ignores a tag name it considers invalid — Go 1.26
-// honours `json:"aé"`, `json:"имя"` and `json:"名前"` but rejects `json:"नाम"`
-// and `json:"पता"` — and the rule behind that (isValidTag) is unexported and
-// has moved between releases. Two attempts to work around not knowing it both
-// leaked: guessing the rule under-masks whenever the guess is wrong, and
-// hedging by *also* claiming the Go field name let a field claim a key it
-// never emits and outrank the field that does. A Devanagari field name on a
-// patient DTO is an ordinary thing to write in an Indian hospital system, so
-// neither failure was exotic.
-//
-// Asking removes the guess: build a one-field struct carrying the same tag,
-// marshal it, and read which key came out. That is exactly the rule
-// encoding/json will apply to the real field, whatever release it comes from,
-// and it makes the Go-field-name fallback — and the entire class of defect it
-// created — unnecessary.
+// jsonEmittedName asks the running JSON encoder for the emitted field name.
+// Field-name validation and normalization can change between Go releases.
+// The answer is cached by tag, so a struct type pays for the probe only once.
 func jsonEmittedName(tag string) string {
 	declared, _, _ := strings.Cut(tag, ",")
 	if declared == "" {
@@ -382,14 +365,8 @@ var jsonTagNameCache sync.Map // json tag string -> emitted name ("" = Go field 
 // answers coincide anyway.
 const probeTagFieldName = "HMSLogProbeField"
 
-// probeJSONTagName marshals a synthetic single-field struct carrying tag and
-// reports the emitted key if it is the declared name, or "" if encoding/json
-// fell back to the field name.
-//
-// Anything unexpected — a panic from reflect.StructOf, a marshal error, a key
-// that is neither candidate — returns "" as well, which routes the field to
-// its Go field name. That is the same answer encoding/json gives for a
-// rejected tag, so the failure mode is the common case rather than a new one.
+// probeJSONTagName returns the actual key, including parser normalization.
+// An unrecognized probe falls back to the Go field name.
 func probeJSONTagName(tag, declared string) (name string) {
 	defer func() {
 		if recover() != nil {
@@ -417,8 +394,11 @@ func probeJSONTagName(tag, declared string) (name string) {
 	if err := json.Unmarshal(raw, &obj); err != nil {
 		return ""
 	}
-	if _, ok := obj[declared]; ok {
-		return declared
+	for emitted := range obj {
+		if emitted == probeTagFieldName && declared != probeTagFieldName {
+			return ""
+		}
+		return emitted
 	}
 	return ""
 }

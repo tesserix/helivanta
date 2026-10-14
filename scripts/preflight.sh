@@ -24,15 +24,12 @@ REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 # apps/shell) is out of scope for this variable set (see .env.example) and
 # stays literal.
 PREFLIGHT_PORTS=${PREFLIGHT_PORTS:-"${HELIVANTA_PG_PORT:-5432} ${HELIVANTA_NATS_PORT:-4222} ${HELIVANTA_NATS_MONITOR_PORT:-8222} ${HELIVANTA_REDIS_PORT:-6379} ${HELIVANTA_OPENFGA_PORT:-8090} ${HELIVANTA_ZITADEL_PORT:-20080} ${HELIVANTA_ZITADEL_PG_PORT:-5433} ${HELIVANTA_API_PORT:-8080} 4301"}
-GO_MIN=1.26
 NODE_MIN=22
 
-# Read from backend/go.mod rather than hardcoding: the patch version moved
-# 1.26.5 -> 1.26.6 to clear HIGH stdlib CVEs the image scan caught, and the
-# hardcoded copy here silently became a lie. GO_MIN stays major.minor, which
-# is what version_at_least actually gates on.
+# Keep the patch-level requirement aligned with CI and local Make targets.
 GO_MOD_VERSION=$(sed -n 's/^go \([0-9][0-9.]*\).*/\1/p' "$REPO_ROOT/backend/go.mod" 2>/dev/null)
-GO_MOD_VERSION=${GO_MOD_VERSION:-$GO_MIN}
+GO_MOD_VERSION=${GO_MOD_VERSION:-1.27.2}
+GO_MIN=$GO_MOD_VERSION
 
 # Zitadel does not fail fast on a wrong-length masterkey — it crash-loops
 # on every restart instead (docker-compose.dev.yml's zitadel service
@@ -80,7 +77,7 @@ check_compose() {
 
 check_go() {
   local have
-  have=$(go version 2>/dev/null | sed -n 's/.*go\([0-9][0-9.]*\).*/\1/p')
+  have=$(GOTOOLCHAIN="go$GO_MOD_VERSION" go version 2>/dev/null | sed -n 's/.*go\([0-9][0-9.]*\).*/\1/p')
   if [ -z "$have" ]; then
     fail "go $GO_MIN+" "Go $GO_MIN+ required (backend/go.mod: $GO_MOD_VERSION), not found — https://go.dev/dl/"
   elif version_at_least "$have" "$GO_MIN"; then

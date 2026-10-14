@@ -122,7 +122,7 @@ echo "preflight.sh:"
 # A PATH containing satisfactory versions of everything preflight looks for.
 good="$TMP/bin-good"
 make_shim "$good" docker      'exit 0'
-make_shim "$good" go          'echo "go version go1.26.5 darwin/arm64"'
+make_shim "$good" go          'echo "go version go1.27.2 darwin/arm64"'
 make_shim "$good" node        'echo "v22.11.0"'
 make_shim "$good" pnpm        'echo "10.17.1"'
 # No Zitadel answering. check_zitadel_instance_domain treats that as a fresh
@@ -150,8 +150,19 @@ make_shim "$old" curl   'exit 1'
 
 out=$(run_preflight "$old"); status=$?
 assert_status "old Go exits 1" 1 "$status"
-assert_contains "old Go names the required version" "$out" '1.26'
+assert_contains "old Go names the required version" "$out" '1.27.2'
 assert_contains "old Go names the version found"    "$out" '1.24.2'
+
+patchbehind="$TMP/bin-oldpatch"
+make_shim "$patchbehind" docker 'exit 0'
+make_shim "$patchbehind" go 'echo "go version go1.27.1 darwin/arm64"'
+make_shim "$patchbehind" node 'echo "v22.11.0"'
+make_shim "$patchbehind" pnpm 'echo "10.17.1"'
+make_shim "$patchbehind" curl 'exit 1'
+out=$(run_preflight "$patchbehind"); status=$?
+assert_status "previous Go patch exits 1" 1 "$status"
+assert_contains "previous Go patch reports module requirement" "$out" '1.27.2'
+assert_contains "previous Go patch reports installed version" "$out" '1.27.1'
 
 nodocker="$TMP/bin-nodocker"
 make_shim "$nodocker" docker 'exit 1'
@@ -171,7 +182,7 @@ out=$(env PATH="$nodocker:/usr/bin:/bin:/usr/sbin:/sbin" \
   PREFLIGHT_PORTS="$(free_port)" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
 assert_status "several problems exit 1" 1 "$status"
 assert_contains "reports docker"    "$out" 'Docker is not running'
-assert_contains "reports go"        "$out" 'Go 1.26+'
+assert_contains "reports go"        "$out" 'Go 1.27.2+'
 assert_contains "reports node"      "$out" 'Node 22+'
 assert_contains "reports pnpm"      "$out" 'corepack enable'
 
@@ -210,7 +221,7 @@ for tool in bash env dirname sed sort head wc tr grep cut ps uname ls; do
   ln -s "$(command -v "$tool")" "$nolsof/$tool"
 done
 make_shim "$nolsof" docker 'exit 0'
-make_shim "$nolsof" go     'echo "go version go1.26.5 darwin/arm64"'
+make_shim "$nolsof" go     'echo "go version go1.27.2 darwin/arm64"'
 make_shim "$nolsof" node   'echo "v22.11.0"'
 make_shim "$nolsof" pnpm   'echo "10.17.1"'
 
@@ -534,7 +545,7 @@ echo "zitadel instance domain check:"
 # host — the exact state `RESET_YES=1 make reset` exists to fix.
 stale="$TMP/bin-stale"
 make_shim "$stale" docker 'exit 0'
-make_shim "$stale" go     'echo "go version go1.26.5 darwin/arm64"'
+make_shim "$stale" go     'echo "go version go1.27.2 darwin/arm64"'
 make_shim "$stale" node   'echo "v22.11.0"'
 make_shim "$stale" pnpm   'echo "10.17.1"'
 make_shim "$stale" curl   'case "$*" in
@@ -555,7 +566,7 @@ assert_contains "the symptom it prevents is named" "$out" "Instance not found"
 # check that failed unconditionally.
 live="$TMP/bin-live"
 make_shim "$live" docker 'exit 0'
-make_shim "$live" go     'echo "go version go1.26.5 darwin/arm64"'
+make_shim "$live" go     'echo "go version go1.27.2 darwin/arm64"'
 make_shim "$live" node   'echo "v22.11.0"'
 make_shim "$live" pnpm   'echo "10.17.1"'
 make_shim "$live" curl   'case "$*" in
@@ -585,7 +596,7 @@ assert_contains "a cold stack is reported as such" "$out" "not running yet"
 # and this proves it.
 unknown="$TMP/bin-unknown"
 make_shim "$unknown" docker 'exit 0'
-make_shim "$unknown" go     'echo "go version go1.26.5 darwin/arm64"'
+make_shim "$unknown" go     'echo "go version go1.27.2 darwin/arm64"'
 make_shim "$unknown" node   'echo "v22.11.0"'
 make_shim "$unknown" pnpm   'echo "10.17.1"'
 make_shim "$unknown" curl   'case "$*" in
@@ -606,7 +617,7 @@ assert_contains "the actual body is quoted back" "$out" "502 Bad Gateway"
 # found" is a body, so a stale volume can never land here.
 booting="$TMP/bin-booting"
 make_shim "$booting" docker 'exit 0'
-make_shim "$booting" go     'echo "go version go1.26.5 darwin/arm64"'
+make_shim "$booting" go     'echo "go version go1.27.2 darwin/arm64"'
 make_shim "$booting" node   'echo "v22.11.0"'
 make_shim "$booting" pnpm   'echo "10.17.1"'
 make_shim "$booting" curl   'case "$*" in

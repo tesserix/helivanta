@@ -904,10 +904,11 @@ a `json:"-"` field cannot be published because it is never rendered.
 What this layer computes independently is which emitted **key** each tagged
 field corresponds to. Two things decide that, and both are handled without
 guessing: **which tag names `encoding/json` honours** is answered by asking
-`encoding/json` itself (it silently ignores some tag names — Go 1.26 rejects
-`json:"नाम"` while accepting `json:"aé"` — so a rejected name renders under
-the Go field name instead), and **which field wins when two compete for one
-key** mirrors `encoding/json`'s own rule: shallowest embedding depth, then
+`encoding/json` itself, including normalized names. Go 1.27.2 accepts
+international names that older releases rejected and can normalize unusual
+tag syntax; the mask must follow the actual emitted key. A rejected name
+renders under the Go field name instead. The second decision, **which field
+wins when two compete for one key**, mirrors `encoding/json`'s own rule: shallowest embedding depth, then
 the single tag-named field, then the key is dropped. Where that mirror
 cannot be certain the position is masked rather than guessed. Anything that
 cannot be rendered or walked (a reference cycle, an unmarshallable field, an

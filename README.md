@@ -18,7 +18,7 @@ current implementation.
 
 ## Quick start
 
-Requires Docker, Go 1.26, Node 24, the version in `.nvmrc` (`corepack enable`). No registry
+Requires Docker, Go 1.27.2, Node 24, the version in `.nvmrc` (`corepack enable`). No registry
 credentials: `@tesserix/web` is published to the public npm registry, so
 `pnpm install` on a fresh clone needs nothing but network access.
 
@@ -209,3 +209,13 @@ the containers themselves. See `.env.example` for the full variable list.
   `make e2e` (Playwright, needs the stack up), `make new-module NAME=<name>`.
 
 Deployment lives in `tesserix-k8s` (charts/apps/hms-*), not here.
+
+
+The backend toolchain is pinned to Go 1.27.2 in `backend/go.mod`. Make targets
+and preflight select that exact toolchain; CI reads the module version, and the
+shared Docker builder explicitly selects `go1.27.2`. Install the linter with
+the matching toolchain if an older binary refuses the module:
+
+```sh
+GOTOOLCHAIN=go1.27.2 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+```

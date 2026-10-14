@@ -1,0 +1,86 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram id="helivanta-hr" name="HR delivery boundaries">
+    <mxGraphModel dx="1300" dy="900" grid="1" gridSize="10" page="1" pageWidth="1400" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Helivanta · Full HR workflow&#10;Tenant / hospital authorization · immutable evidence" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#e1ebf8;strokeColor=#8da6c7;fontColor=#18344f;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1260" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="registry" value="Registry + HR masters&#10;#1035 · enrollment/master setup delivered" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf4ff;strokeColor=#8da6c7;fontColor=#18344f;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="40" y="140" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="shifts" value="Shifts / areas / templates&#10;#1036 · definitions in development" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf4ff;strokeColor=#8da6c7;fontColor=#18344f;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="370" y="140" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="leave" value="Leave policy / balances / approvals&#10;#1037 · open" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf4ff;strokeColor=#8da6c7;fontColor=#18344f;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="700" y="140" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="performance" value="KRA / KPI / appraisal&#10;#1042 · open" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf4ff;strokeColor=#8da6c7;fontColor=#18344f;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="140" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="files" value="Staff documents / benefits / exits&#10;#1105–#1108 · open" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf4ff;strokeColor=#8da6c7;fontColor=#18344f;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="40" y="320" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="roster" value="Dated draft / frozen rosters&#10;#1036 · open" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf4ff;strokeColor=#8da6c7;fontColor=#18344f;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="370" y="320" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="attendance" value="Attendance + OT / punch corrections&#10;#1038 / #1039 · open" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf4ff;strokeColor=#8da6c7;fontColor=#18344f;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="700" y="320" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="policies" value="Reviewed salary / tax / bank policy&#10;#1041 · open" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf4ff;strokeColor=#8da6c7;fontColor=#18344f;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="320" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="auth" value="Zitadel + explicit hospital grants&#10;Purpose-scoped roles · no implicit sharing" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf4ff;strokeColor=#8da6c7;fontColor=#18344f;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="40" y="520" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="timesheet" value="Finalized timesheet revisions&#10;Frozen payroll inputs" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf4ff;strokeColor=#8da6c7;fontColor=#18344f;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="370" y="520" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="payroll" value="Payroll preview / lock / process&#10;#1040 · open" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf4ff;strokeColor=#8da6c7;fontColor=#18344f;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="700" y="520" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="payslip" value="Protected payslip history&#10;#1041 · open" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf4ff;strokeColor=#8da6c7;fontColor=#18344f;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="520" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="a" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#6c829d;html=0;fontSize=12;" edge="1" parent="1" source="registry" target="shifts">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#6c829d;html=0;fontSize=12;" edge="1" parent="1" source="shifts" target="roster">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#6c829d;html=0;fontSize=12;" edge="1" parent="1" source="leave" target="roster">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#6c829d;html=0;fontSize=12;" edge="1" parent="1" source="registry" target="files">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#6c829d;html=0;fontSize=12;" edge="1" parent="1" source="roster" target="attendance">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#6c829d;html=0;fontSize=12;" edge="1" parent="1" source="attendance" target="timesheet">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="g" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#6c829d;html=0;fontSize=12;" edge="1" parent="1" source="timesheet" target="payroll">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="h" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#6c829d;html=0;fontSize=12;" edge="1" parent="1" source="policies" target="payroll">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="i" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#6c829d;html=0;fontSize=12;" edge="1" parent="1" source="payroll" target="payslip">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="j" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#6c829d;html=0;fontSize=12;" edge="1" parent="1" source="auth" target="registry">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="k" value="Reviewed proposal only" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#6c829d;html=0;fontSize=12;" edge="1" parent="1" source="performance" target="payroll">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="platform" value="PostgreSQL + forced tenant/hospital RLS + append-only audit/outbox → NATS JetStream&#10;Temporal: durable waits / multi-step workflows · private GCS → ClamAV quarantine/release&#10;Valkey: safe technical state · Qdrant/AI: future purpose-reviewed work only" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#e9f3ef;strokeColor=#8da6c7;fontColor=#18344f;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="40" y="720" width="1260" height="120" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

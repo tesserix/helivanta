@@ -39,12 +39,15 @@ var shiftsSchema string
 //go:embed roster_config.sql
 var rosterConfigSchema string
 
+//go:embed documents.sql
+var documentsSchema string
+
 type Module struct{}
 
 func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "workforce" }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}}
+	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}, {ID: "0007_workforce_documents", SQL: documentsSchema}}
 }
 func (*Module) Permissions() []authz.Grant {
 	return []authz.Grant{{Permission: PermHospitalManage}, {Permission: PermEnrollmentManage}, {Permission: PermMasterManage}, {Permission: PermRosterManage}}
@@ -58,7 +61,7 @@ func (*Module) Consumers(platform.Deps) []events.Consumer   { return nil }
 func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
-	h := &handlers{db: deps.DB, bus: deps.Bus}
+	h := &handlers{db: deps.DB, bus: deps.Bus, documents: deps.Documents}
 	g := r.Group("/workforce/hospitals")
 	platform.ListRoute(g, "", authz.Public, h.listHospitals)
 	g.PUT("/:hospital", PermHospitalManage, h.putHospital)
@@ -70,6 +73,8 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET("/:hospital/staff/:id", authz.Public, h.getStaff)
 	g.GET("/:hospital/staff/:id/enrollment", PermEnrollmentManage, h.getEnrollment)
 	g.PUT("/:hospital/staff/:id/enrollment", PermEnrollmentManage, h.putEnrollment)
+	g.PUT("/:hospital/staff/:id/documents/:file", PermEnrollmentManage, h.putDocument)
+	platform.ListRoute(g, "/:hospital/staff/:id/documents", PermEnrollmentManage, h.listDocuments)
 	g.PUT("/:hospital/hr/roster-configs/:id", PermRosterManage, h.putRosterConfig)
 	platform.ListRoute(g, "/:hospital/hr/roster-configs", authz.Public, h.listRosterConfigs)
 	platform.ListRoute(g, "/:hospital/hr/roster-configs/:id/history", authz.Public, h.rosterConfigHistory)

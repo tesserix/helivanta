@@ -36,4 +36,8 @@ type Consumer struct {
 	Name    string
 	Subject string
 	Handle  func(ctx context.Context, tx *gorm.DB, evt Event) error
+	// AfterCommit runs outside the transaction on EVERY delivery, including a
+	// previously claimed event. It must be externally idempotent; failure retries
+	// before acknowledgment, so a crash after commit cannot lose a workflow start.
+	AfterCommit func(ctx context.Context, evt Event) error
 }

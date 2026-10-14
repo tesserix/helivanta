@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/session"
@@ -39,10 +40,11 @@ type RoleLister interface {
 // Deps is everything a module may depend on. Modules must not reach
 // around it — cross-module data access goes through events (spec D6).
 type Deps struct {
-	DB    *tenantdb.DB
-	Bus   *events.Bus
-	Authz TupleWriter
-	Roles RoleLister
+	DB        *tenantdb.DB
+	Bus       *events.Bus
+	Documents *attachments.GCS
+	Authz     TupleWriter
+	Roles     RoleLister
 	// SessionSigner re-mints the Helivanta session for the one operation that
 	// must change a caller's identity rather than read it: switching
 	// hospitals (#838, spec D3). Post-cutover this is the ONLY way a

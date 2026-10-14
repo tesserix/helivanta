@@ -77,6 +77,9 @@ func TestHRMastersVersionHistoryIsolationAndRetries(t *testing.T) {
 	for _, invalid := range []string{strings.Replace(body, `"department"`, `"religion"`, 1), strings.Replace(body, `"Synthetic Care"`, `"   "`, 1), strings.Replace(body, `"active":true`, `"active":true,"tenant_id":"injected"`, 1)} {
 		require.Equal(t, 400, testutil.Do(r, "PUT", path, "admin", invalid).Code)
 	}
+	for _, invalid := range []string{strings.Replace(body, `"Synthetic Care"`, `"Synthetic\u0000Care"`, 1), strings.Replace(body, `"Synthetic example"`, `"Synthetic\u0000example"`, 1)} {
+		require.Equal(t, 400, testutil.Do(r, "PUT", base+"/hr/masters/"+uuid.NewString(), "admin", invalid).Code)
+	}
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		var n int64
 		require.NoError(t, tx.Table("workforce_hr_master_revisions").Count(&n).Error)

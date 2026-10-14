@@ -200,7 +200,7 @@ function EnrollmentForm({
     const name = form.watch(nameKey);
     const choices = masters.items.filter((row) => row.kind === kind && row.active);
     if (!choices.length && !revision) return field(nameKey, label);
-    const recorded = value.profile[kind];
+    const recorded = revision ? value.profile[kind] : name;
     const id = `enrollment-${kind}-choice`;
     return (
       <Field id={id} label={label}>

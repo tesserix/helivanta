@@ -7,6 +7,51 @@ import Workforce from "./page";
 const hospital = "11111111-1111-4111-8111-111111111111";
 afterEach(() => vi.unstubAllGlobals());
 
+it("keeps typed text visible when HR choices arrive after the user starts editing", async () => {
+  let resolveChoices!: (value: Response) => void;
+  const choices = new Promise<Response>((resolve) => {
+    resolveChoices = resolve;
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/hr/masters")) return choices;
+      const body = url.includes("permissions")
+        ? { data: ["workforce.enrollment.manage"] }
+        : url.endsWith("/hospitals")
+          ? {
+              data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
+              page: { has_more: false },
+            }
+          : { data: [], page: { has_more: false } };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }),
+  );
+  const { user } = renderWithProviders(<Workforce />);
+  await user.click(await screen.findByRole("button", { name: "Add staff" }));
+  await user.type(screen.getByLabelText("Department"), "Recorded Synthetic Care");
+  resolveChoices(
+    new Response(
+      JSON.stringify({
+        data: [
+          {
+            id: "master-1",
+            revision_id: "33333333-3333-4333-8333-333333333333",
+            kind: "department",
+            code: "SYN-OTHER",
+            name: "Other Synthetic Care",
+            active: true,
+          },
+        ],
+        page: { has_more: false },
+      }),
+      { status: 200 },
+    ),
+  );
+  const trigger = await screen.findByRole("combobox", { name: "Department" });
+  expect(trigger).toHaveTextContent("Recorded text: Recorded Synthetic Care");
+});
+
 it("pins an active department revision and preserves the selection on save failure", async () => {
   const revision = "33333333-3333-4333-8333-333333333333";
   const writes: unknown[] = [];

@@ -3,6 +3,7 @@ package iam
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/audit"
 	"github.com/tesserix/helivanta/pkg/ratelimit"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -498,7 +500,7 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 			// login name, never failedAttempts (which never even
 			// reaches this package; see loginclient's zitadelError doc
 			// comment), and never anything that varies the response.
-			requestid.Logger(c).WarnContext(c.Request.Context(), "login password attempt failed",
+			audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelWarn, "auth.login.password_failed", "login password attempt failed",
 				failureLogAttrs(req.AuthRequestID, err)...)
 			h.respondEqualisedFailure(c, start)
 			return
@@ -515,7 +517,7 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 
 	switch result.Outcome {
 	case loginclient.OutcomeComplete:
-		requestid.Logger(c).InfoContext(c.Request.Context(), "login password succeeded",
+		audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelInfo, "auth.login.succeeded", "login password succeeded",
 			"auth_request_id", req.AuthRequestID, "outcome", "complete")
 		respond.OK(c, passwordSuccessResponse{CallbackURL: result.CallbackURL})
 
@@ -636,7 +638,7 @@ func (h *LoginUIHandlers) respondRefusal(c *gin.Context, authRequestID, stage st
 		attrs = append(attrs, "result_outcome", result.Outcome.String())
 		requestid.Logger(c).ErrorContext(c.Request.Context(), "login refused with no reason: a loginclient outcome is unhandled", attrs...)
 	} else {
-		requestid.Logger(c).WarnContext(c.Request.Context(), "login refused", attrs...)
+		audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelWarn, "auth.login.refused", "login refused", attrs...)
 	}
 
 	switch reason {
@@ -941,7 +943,7 @@ func (h *LoginUIHandlers) completeWithVerifiedCode(c *gin.Context, start time.Ti
 	switch result.Outcome {
 	case loginclient.OutcomeComplete:
 		h.deleteAttempt(c, authRequestID)
-		requestid.Logger(c).InfoContext(c.Request.Context(), "login factor succeeded",
+		audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelInfo, "auth.login.succeeded", "login factor succeeded",
 			"auth_request_id", authRequestID, "outcome", "complete")
 		respond.OK(c, passwordSuccessResponse{CallbackURL: result.CallbackURL})
 	case loginclient.OutcomePasswordChangeRequired:
@@ -1072,13 +1074,13 @@ func (h *LoginUIHandlers) Enroll(c *gin.Context) {
 // D6's heading) said "the row and the Zitadel session are both gone",
 // which overstates what exhaustion actually does.
 func (h *LoginUIHandlers) bumpFactorAttempt(c *gin.Context, authRequestID string, refusal error, start time.Time) {
-	requestid.Logger(c).WarnContext(c.Request.Context(), "login factor attempt failed",
+	audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelWarn, "auth.login.factor_failed", "login factor attempt failed",
 		failureLogAttrs(authRequestID, refusal)...)
 
 	_, err := h.store.BumpAndGet(c.Request.Context(), authRequestID)
 	switch {
 	case errors.Is(err, errAttemptsExhausted):
-		requestid.Logger(c).WarnContext(c.Request.Context(), "login factor attempts exhausted",
+		audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelWarn, "auth.login.factor_exhausted", "login factor attempts exhausted",
 			"auth_request_id", authRequestID)
 		h.respondAttemptExpired(c, start)
 	case errors.Is(err, errAttemptNotFound):

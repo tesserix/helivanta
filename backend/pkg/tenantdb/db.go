@@ -235,6 +235,12 @@ func (d *DB) WithTenant(ctx context.Context, tenantID string, fn func(tx *gorm.D
 		if err := tx.Exec(`SELECT set_config('app.tenant_id', ?, true)`, tenantID).Error; err != nil {
 			return err
 		}
+		// No actor leaves the GUC unset, so audited tables reject the write.
+		if actor := ActorFrom(ctx); actor != "" {
+			if err := tx.Exec(`SELECT set_config(?, ?, true)`, ActorSetting, actor).Error; err != nil {
+				return err
+			}
+		}
 		return fn(tx)
 	})
 }

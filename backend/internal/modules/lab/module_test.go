@@ -208,6 +208,7 @@ func TestConcurrentResultYieldsExactlyOneWinner(t *testing.T) {
 // seedOrders inserts n orders directly so TestOrdersArePaginated
 // controls exactly how many rows exist.
 func seedOrders(t *testing.T, db *tenantdb.DB, ctx context.Context, tenantID uuid.UUID, n int) {
+	ctx = tenantdb.WithActor(ctx, "test-seed")
 	t.Helper()
 	for i := range n {
 		name := fmt.Sprintf("order-%02d", i)

@@ -125,7 +125,12 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
   await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible({
     timeout: 30_000,
   });
-  return page.evaluate(async (url) => (await fetch(url)).ok, PERMISSIONS_PROBE);
+  // Drain the body: API responses are no-store, so an unread one stays in flight and blocks networkidle.
+  return page.evaluate(async (url) => {
+    const res = await fetch(url);
+    await res.arrayBuffer();
+    return res.ok;
+  }, PERMISSIONS_PROBE);
 }
 
 // Clicks the landing page's Sign in button if we are sitting on it.

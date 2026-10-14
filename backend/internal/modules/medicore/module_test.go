@@ -86,6 +86,7 @@ func TestVisitValidation(t *testing.T) {
 // which is not under test here) so TestVisitsArePaginated controls
 // exactly how many rows exist and can name each one distinctly.
 func seedVisits(t *testing.T, db *tenantdb.DB, ctx context.Context, tenantID uuid.UUID, n int) []string {
+	ctx = tenantdb.WithActor(ctx, "test-seed")
 	t.Helper()
 	names := make([]string, n)
 	for i := range n {

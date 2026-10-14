@@ -43,6 +43,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <Toaster
         richColors
         position="top-right"
+        offset={{ top: 80, right: 24 }}
         theme={themeAttribute === "dark" ? "dark" : "light"}
       />
     </QueryClientProvider>

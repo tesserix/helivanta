@@ -23,7 +23,7 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
 });
 afterEach(() => vi.unstubAllGlobals());
-it("registers a synthetic patient in the selected hospital and displays the saved MRN", async () => {
+function stubRegistration() {
   let saved = false;
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     let body: unknown = {};
@@ -51,28 +51,21 @@ it("registers a synthetic patient in the selected hospital and displays the save
     return new Response(JSON.stringify(body), { status: 200 });
   });
   vi.stubGlobal("fetch", fetcher);
+  return fetcher;
+}
+
+it("registers a synthetic patient in the selected hospital and displays the saved MRN", async () => {
+  const fetcher = stubRegistration();
   const { user } = renderWithProviders(<PatientWorkspace />);
   await user.click(await screen.findByRole("button", { name: "Register patient" }));
-  expect(screen.getByLabelText("Given name")).toHaveFocus();
-  await user.click(screen.getByRole("button", { name: "Cancel registration" }));
-  expect(screen.getByRole("button", { name: "Register patient" })).toHaveFocus();
-  await user.click(screen.getByRole("button", { name: "Register patient" }));
   expect(screen.getByLabelText("Given name")).toHaveFocus();
   await user.click(screen.getByLabelText("Given name"));
   await user.paste("Synthetic");
   await user.click(screen.getByLabelText("Family name"));
   await user.paste("Example");
   expect(screen.getByLabelText("Family name")).toHaveFocus();
-  await user.click(screen.getByRole("button", { name: "Register patient" }));
-  expect(screen.getByLabelText("Given name")).toHaveFocus();
-  expect(screen.getByLabelText("Family name")).toHaveValue("Example");
   await user.type(screen.getByLabelText("Date of birth"), "1990-01-01");
   await user.click(screen.getByLabelText("Record a reported blood group"));
-  await chooseOption(user, screen.getByLabelText("ABO group"), "AB");
-  await user.click(screen.getByLabelText("Record a reported blood group"));
-  expect(screen.queryByLabelText("ABO group")).not.toBeInTheDocument();
-  await user.click(screen.getByLabelText("Record a reported blood group"));
-  expect(screen.getByLabelText("ABO group")).toHaveTextContent("Unknown");
   await chooseOption(user, screen.getByLabelText("ABO group"), "AB");
   await chooseOption(user, screen.getByLabelText("Rh(D) type"), "Negative");
   await chooseOption(user, screen.getByLabelText("Blood group source"), "Patient");
@@ -98,6 +91,37 @@ it("registers a synthetic patient in the selected hospital and displays the save
   await user.click(screen.getByRole("button", { name: "Open Synthetic Example" }));
   expect(await screen.findByText("AB · Rh(D) negative (unverified)")).toBeInTheDocument();
   expect(screen.getByText("Blood group source")).toBeInTheDocument();
+});
+
+it("returns focus after cancellation and preserves values when registration is revealed again", async () => {
+  stubRegistration();
+  const { user } = renderWithProviders(<PatientWorkspace />);
+  await user.click(await screen.findByRole("button", { name: "Register patient" }));
+  expect(screen.getByLabelText("Given name")).toHaveFocus();
+  await user.click(screen.getByRole("button", { name: "Cancel registration" }));
+  expect(screen.getByRole("button", { name: "Register patient" })).toHaveFocus();
+  await user.click(screen.getByRole("button", { name: "Register patient" }));
+  expect(screen.getByLabelText("Given name")).toHaveFocus();
+  await user.click(screen.getByLabelText("Given name"));
+  await user.paste("Synthetic");
+  await user.click(screen.getByLabelText("Family name"));
+  await user.paste("Example");
+  expect(screen.getByLabelText("Family name")).toHaveFocus();
+  await user.click(screen.getByRole("button", { name: "Register patient" }));
+  expect(screen.getByLabelText("Given name")).toHaveFocus();
+  expect(screen.getByLabelText("Family name")).toHaveValue("Example");
+});
+
+it("clears a previous blood-group choice when the optional section is reopened", async () => {
+  stubRegistration();
+  const { user } = renderWithProviders(<PatientWorkspace />);
+  await user.click(await screen.findByRole("button", { name: "Register patient" }));
+  await user.click(screen.getByLabelText("Record a reported blood group"));
+  await chooseOption(user, screen.getByLabelText("ABO group"), "AB");
+  await user.click(screen.getByLabelText("Record a reported blood group"));
+  expect(screen.queryByLabelText("ABO group")).not.toBeInTheDocument();
+  await user.click(screen.getByLabelText("Record a reported blood group"));
+  expect(screen.getByLabelText("ABO group")).toHaveTextContent("Unknown");
 });
 it("does not expose registration when clinical access is missing", async () => {
   vi.stubGlobal(

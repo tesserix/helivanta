@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@helivanta/api": "workspace:*",
-    "lucide-react": "^0.469.0",
+    "lucide-react": "^1.55.0",
     "dompurify": "^3.4.16",
     "oidc-client-ts": "^3.5.0",
     "react-hook-form": "^7.54.2",

@@ -55,6 +55,7 @@ func subscribeRaw(t *testing.T, natsURL string, bus *Bus, subject string) *nats.
 	t.Cleanup(nc.Close)
 	sub, err := nc.SubscribeSync(bus.Subject(subject))
 	require.NoError(t, err)
+	require.NoError(t, nc.FlushTimeout(10*time.Second))
 	t.Cleanup(func() { _ = sub.Unsubscribe() })
 	return sub
 }

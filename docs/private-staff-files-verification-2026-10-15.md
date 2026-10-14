@@ -178,6 +178,14 @@ requires a reviewed separate rollout before this worker can run.
 The legacy Holiday Master remained visible, but opening Employees redirected to
 the login page; a new sign-in has been requested. No customer values were copied.
 
+At head `f042874`, CI web/e2e, script/security checks and reusable image builds
+passed, with deployment advancement skipped. CI Go reported a core-NATS timeout
+in the existing tenant-less outbox test. Its subscriber used a different socket
+from the publisher and did not wait for subscription registration. The one-line
+flush barrier correction passes all three affected dispatcher/isolation tests
+under `-race -count=10`; current-head CI is being rerun. This is not a weakened
+assertion or an increased receive timeout.
+
 Still required: worker credential/login activation and isolated reader policy,
 scanner/worker/network/alert GitOps, generated frontend contracts and staff-file
 UI, actual GCS/workload-identity acceptance, current CNPG/API/browser tests, CI,
@@ -190,7 +198,7 @@ parent epic remain open.
 owns the isolated `17-helivanta-files` state and worker-role pre-registration.
 The old shared-stack
 plan contained 11 unrelated deletions; all its saved plans were discarded.
-The new [saved isolated plan](https://github.com/tesserix/tesserix-k8s/pull/1414#issuecomment-6169769836)
+The refreshed [saved isolated plan](https://github.com/tesserix/tesserix-k8s/pull/1414#issuecomment-6173657955)
 has **17 additions, no changes and no deletions**. It has not been applied.
 Native Terraform assertions, 45 Atlantis/graph tests, formatting/lint and
 the prior infrastructure CI pass. The worker-role addition has its own Helm

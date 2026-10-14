@@ -103,7 +103,7 @@ func TestResolveFieldName(t *testing.T) {
 }
 
 // jsonEmittedName is the oracle that replaced guessing encoding/json's tag
-// validity rule. These assertions are pinned to observed Go 1.26 behaviour; if
+// validity rule. These assertions are pinned to observed Go 1.27.2 behaviour; if
 // a future Go changes which names it honours, the oracle follows it and only
 // the expectations here need revisiting — which is the point of asking rather
 // than mirroring.
@@ -121,12 +121,12 @@ func TestJSONEmittedName(t *testing.T) {
 		{"aé", "aé"},
 		{"имя", "имя"},
 		{"名前", "名前"},
-		{"नाम", ""},
-		{"पता", ""},
-		{"🙂", ""},
+		{"नाम", "नाम"},
+		{"पता", "पता"},
+		{"🙂", "🙂"},
 		{"a b", "a b"},
-		{`a"b`, ""},
-		{`a\b`, ""},
+		{`a"b`, "a"},
+		{`a\b`, "a"},
 	} {
 		t.Run(tc.tag, func(t *testing.T) {
 			require.Equal(t, tc.want, jsonEmittedName(tc.tag))
@@ -138,7 +138,7 @@ func TestJSONEmittedName(t *testing.T) {
 // The oracle must agree with encoding/json on the actual struct, not just on
 // its synthetic probe. This checks the two against each other directly.
 func TestJSONEmittedNameAgreesWithEncodingJSON(t *testing.T) {
-	for _, tag := range []string{"name", "नाम", "aé", "имя", "🙂", "a b", "-,", "alpha,omitempty", `a"b`} {
+	for _, tag := range []string{"name", "नाम", "aé", "имя", "🙂", "a b", "-,", "alpha,omitempty", `a"b`, `a\b`} {
 		t.Run(tag, func(t *testing.T) {
 			typ := reflect.StructOf([]reflect.StructField{{
 				Name: "RealField",

@@ -8,6 +8,8 @@
 # ?= defaults below cover every variable.
 -include .env
 
+export GOTOOLCHAIN := go$(shell sed -n 's/^go \([0-9][0-9.]*\).*/\1/p' backend/go.mod)
+
 # Written by scripts/zitadel-bootstrap.mjs (run from `dev-infra`, below)
 # once the Helivanta org/project/app exist in the local Zitadel — ZITADEL_CLIENT_ID
 # cannot be a fixed default the way the other HELIVANTA_* ports are, because

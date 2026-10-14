@@ -76,6 +76,8 @@ jobs:
         with:
           working-directory: backend
       - run: go build ./...
+      # Fails on any known vulnerability reachable from our code, stdlib included (SOC 2 CC7.1).
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
       # #963: the shared Postgres container of a test binary has vanished
       # mid-run on CI (twice, at the same point in the iam sequence) and
       # never locally on an identical 4-CPU/16 GiB machine. The test log can
@@ -193,6 +195,8 @@ jobs:
       # plan with no org secrets, so `secrets.PKG_READ_TOKEN` resolves to an
       # empty string and an authenticated fetch against GHCR 401s.
       - run: pnpm install --frozen-lockfile
+      # Ignores live in package.json pnpm.auditConfig; reasons in docs/runbooks/vulnerability-management.md.
+      - run: pnpm audit --prod --audit-level=high
       - run: pnpm turbo lint format:check type-check test build
         env:
           # Zitadel's client id and issuer are client-visible by design, so a

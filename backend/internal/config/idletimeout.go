@@ -6,12 +6,8 @@ import (
 	"time"
 )
 
-// DefaultIdleTimeout is the idle window a process boots with when
-// IDLE_TIMEOUT is unset — spec D1's clinical judgement, not a technical
-// one (see Config.IdleTimeout's doc comment). It is exported so a test
-// can assert against the documented value rather than re-deriving it,
-// and so the default and its documentation cannot drift apart silently.
-const DefaultIdleTimeout = 15 * time.Minute
+// DefaultIdleTimeout allows twelve hours without user interaction.
+const DefaultIdleTimeout = 12 * time.Hour
 
 // ErrInvalidIdleTimeout is returned by RequireIdleTimeout when
 // IDLE_TIMEOUT resolved to a non-positive duration. See the function's
@@ -43,8 +39,8 @@ var ErrInvalidIdleTimeout = errors.New("config: IDLE_TIMEOUT must be positive")
 // convention for precisely this reason, and this replaces what was
 // previously only a warning in Config.IdleTimeout's doc comment.
 //
-// Deliberately NOT clamped to the default: silently substituting 15
-// minutes for an operator's explicit "0" would hide the mistake and
+// Deliberately NOT clamped to the default: silently substituting the default
+// window for an operator's explicit "0" would hide the mistake and
 // leave the deployed policy differing from the declared one, which is
 // how a session-lifetime setting comes to mean nothing.
 func (c Config) RequireIdleTimeout() (time.Duration, error) {

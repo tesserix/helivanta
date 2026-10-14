@@ -333,7 +333,7 @@ dev-web:
 
 # --- Idle-timeout e2e fixture (#848 Task 8) -------------------------------
 # e2e/tests/idle-timeout.spec.ts has to observe a session actually going
-# idle without sitting for the real 15-minute IDLE_TIMEOUT default, and no
+# idle without sitting for the real twelve-hour IDLE_TIMEOUT default, and no
 # other spec — or production — may have that default weakened out from
 # under it. So the spec gets its own API + shell pair, on their own ports,
 # running ALONGSIDE (not instead of) the ones dev-api/dev-web start; the
@@ -423,7 +423,7 @@ dev-web-idle-timeout:
 # value a developer exported for some other reason must not leak in, and
 # this recipe must never be able to affect dev-api's own SESSION_TTL.
 #
-# Note this fixture leaves IDLE_TIMEOUT at its 15-minute default on
+# Note this fixture leaves IDLE_TIMEOUT at its twelve-hour default on
 # purpose. Renewal deliberately does NOT move idle_deadline (design spec
 # D4), so a short IDLE_TIMEOUT would end the session on the idle clock
 # before the session-TTL clock could prove anything — which is also why

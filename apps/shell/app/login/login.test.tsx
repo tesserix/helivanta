@@ -124,6 +124,7 @@ describe("LoginPage", () => {
     signinRedirect.mockReset();
     getUserManager.mockReturnValue({ signinRedirect });
     window.sessionStorage.clear();
+    window.localStorage.clear();
     window.history.pushState({}, "", "/login");
   });
 
@@ -272,6 +273,106 @@ describe("LoginPage", () => {
 
     afterEach(() => {
       vi.unstubAllGlobals();
+    });
+
+    it("remembers the accepted username on this browser without storing the password", async () => {
+      stubAuthFlow();
+      vi.stubGlobal("location", { ...window.location, assign: vi.fn() });
+      const first = renderWithProviders(<LoginPage />);
+      await first.user.type(
+        await screen.findByLabelText("Email or username"),
+        "test@example.invalid",
+      );
+      await first.user.type(screen.getByLabelText("Password"), "synthetic-password");
+      expect(screen.getByRole("checkbox", { name: "Remember my username" })).toBeChecked();
+      await first.user.click(screen.getByRole("button", { name: "Sign in" }));
+      await waitFor(() => expect(window.location.assign).toHaveBeenCalled());
+      expect(
+        JSON.parse(window.localStorage.getItem("helivanta.login.remembered-username")!),
+      ).toEqual({
+        enabled: true,
+        username: "test@example.invalid",
+      });
+      first.unmount();
+      renderWithProviders(<LoginPage />);
+      expect(await screen.findByLabelText("Email or username")).toHaveValue("test@example.invalid");
+      expect(screen.getByLabelText("Password")).toHaveValue("");
+    });
+
+    it("submits credentials autofilled without React change events", async () => {
+      const fetchMock = stubAuthFlow();
+      vi.stubGlobal("location", { ...window.location, assign: vi.fn() });
+      const { user } = renderWithProviders(<LoginPage />);
+      const username = await screen.findByLabelText("Email or username");
+      const password = screen.getByLabelText("Password");
+      const setNativeValue = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!;
+      setNativeValue.call(username, "autofill@example.invalid");
+      setNativeValue.call(password, "autofill-synthetic-password");
+      await user.click(screen.getByRole("button", { name: "Sign in" }));
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          expect.stringContaining("/auth/login/password"),
+          expect.objectContaining({
+            body: JSON.stringify({
+              auth_request_id: AUTH_REQUEST_ID,
+              login_name: "autofill@example.invalid",
+              password: "autofill-synthetic-password",
+            }),
+          }),
+        ),
+      );
+      expect(username).toHaveAttribute("autocomplete", "username");
+      expect(password).toHaveAttribute("autocomplete", "current-password");
+    });
+
+    it("removes the remembered username when the user opts out", async () => {
+      window.localStorage.setItem(
+        "helivanta.login.remembered-username",
+        JSON.stringify({
+          enabled: true,
+          username: "previous@example.invalid",
+        }),
+      );
+      stubAuthFlow();
+      const first = renderWithProviders(<LoginPage />);
+      expect(await screen.findByLabelText("Email or username")).toHaveValue(
+        "previous@example.invalid",
+      );
+      await first.user.click(screen.getByRole("checkbox", { name: "Remember my username" }));
+      expect(
+        JSON.parse(window.localStorage.getItem("helivanta.login.remembered-username")!),
+      ).toEqual({ enabled: false, username: "" });
+      first.unmount();
+      renderWithProviders(<LoginPage />);
+      expect(await screen.findByLabelText("Email or username")).toHaveValue("");
+      expect(screen.getByRole("checkbox", { name: "Remember my username" })).not.toBeChecked();
+    });
+
+    it("keeps sign-in usable when remembered-username storage is blocked", async () => {
+      const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+        throw new Error("blocked");
+      });
+      const set = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+        throw new Error("blocked");
+      });
+      try {
+        stubAuthFlow();
+        vi.stubGlobal("location", { ...window.location, assign: vi.fn() });
+        const { user } = renderWithProviders(<LoginPage />);
+        await user.type(
+          await screen.findByLabelText("Email or username"),
+          "storage@example.invalid",
+        );
+        await user.type(screen.getByLabelText("Password"), "synthetic-password");
+        await user.click(screen.getByRole("button", { name: "Sign in" }));
+        await waitFor(() => expect(window.location.assign).toHaveBeenCalled());
+      } finally {
+        get.mockRestore();
+        set.mockRestore();
+      }
     });
 
     // Spec D6: these accessible names are the contract

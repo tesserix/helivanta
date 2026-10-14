@@ -464,6 +464,29 @@ func TestRenewWithNoCookieIsRefused(t *testing.T) {
 // injectable clock or drop it) to assert an EXACT RenewAt value, rather
 // than one within a tolerance window — the same reason
 // LoginHandlers.now/loginEnv.clock exist in login_test.go.
+func TestTwelveHourRenewalStillChecksMembershipEveryFiveMinutes(t *testing.T) {
+	roles := stubRoleLister{"user-1": {{TenantID: renewTestTenantA, Role: authz.RoleNurse}}}
+	userState := &stubUserState{}
+	env := newRenewEnv(t, roles, userState, 12*time.Hour)
+	now := time.Now().UTC().Truncate(time.Second)
+	env.h.now = func() time.Time { return now }
+	deadline := now.Add(12 * time.Hour)
+	current := env.mint(t, "user-1", renewTestTenantA, now.Add(-time.Minute), deadline)
+	w := doRenew(env.r, current)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	var body struct {
+		RenewAt   time.Time `json:"renew_at"`
+		ExpiresAt time.Time `json:"expires_at"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	require.Equal(t, now.Add(5*time.Minute), body.RenewAt)
+	require.Equal(t, deadline, body.ExpiresAt)
+	require.Equal(t, 1, userState.calls)
+	claims, err := env.verifier.Verify(w.Result().Cookies()[0].Value)
+	require.NoError(t, err)
+	require.Equal(t, deadline, claims.IdleDeadline)
+}
+
 func TestRenewResponseRenewAtIsExactlyTTLOverThreeFromInjectedClock(t *testing.T) {
 	roles := stubRoleLister{"user-1": {{TenantID: renewTestTenantA, Role: authz.RoleNurse}}}
 	userState := &stubUserState{}

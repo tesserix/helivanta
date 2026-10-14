@@ -97,13 +97,13 @@ func TestRateLimitEnvFallsOpenOnUnparseableValue(t *testing.T) {
 // the default rather than block boot.
 func TestSessionTTLDefaultsAndFallsOpen(t *testing.T) {
 	t.Setenv("SESSION_TTL", "")
-	require.Equal(t, 15*time.Minute, config.Load().SessionTTL)
+	require.Equal(t, 12*time.Hour, config.Load().SessionTTL)
 
 	t.Setenv("SESSION_TTL", "5m")
 	require.Equal(t, 5*time.Minute, config.Load().SessionTTL)
 
 	t.Setenv("SESSION_TTL", "not-a-duration")
-	require.Equal(t, 15*time.Minute, config.Load().SessionTTL,
+	require.Equal(t, 12*time.Hour, config.Load().SessionTTL,
 		"an unparseable SESSION_TTL must fall back to the default, not block boot")
 }
 
@@ -190,11 +190,11 @@ func TestDurationFallbackIsReadableInLogs(t *testing.T) {
 	cfg := config.Load()
 
 	out := buf.String()
-	require.Contains(t, out, "15m0s",
+	require.Contains(t, out, "12h0m0s",
 		"the fallback duration must be readable; slog renders a bare time.Duration as nanoseconds")
 	require.NotContains(t, out, "REDACTED",
 		"a nanosecond int64 is a long digit run, which the PHI matcher masks as an identifier")
-	require.Equal(t, 15*time.Minute, cfg.SessionTTL)
+	require.Equal(t, 12*time.Hour, cfg.SessionTTL)
 }
 
 func TestInvalidConfigurationWarningsDoNotExposeRawValues(t *testing.T) {
@@ -207,7 +207,7 @@ func TestInvalidConfigurationWarningsDoNotExposeRawValues(t *testing.T) {
 	}
 	cfg := config.Load()
 	require.Equal(t, 600, cfg.RateLimitTenantPerMin)
-	require.Equal(t, 15*time.Minute, cfg.SessionTTL)
+	require.Equal(t, 12*time.Hour, cfg.SessionTTL)
 	require.Empty(t, cfg.TrustedProxyCIDRs)
 	out := buf.String()
 	require.NotContains(t, out, "PRIVATE-CONFIG-VALUE")

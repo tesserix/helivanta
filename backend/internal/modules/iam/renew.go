@@ -25,26 +25,8 @@ type UserStateChecker interface {
 	UserState(ctx context.Context, id string) (loginclient.UserState, error)
 }
 
-// renewalFraction is the divisor renewResponse.RenewAt uses: renew when
-// 1/3 of THIS session's own TTL has elapsed. 3 is not arbitrary, but it
-// is INHERITED rather than evidenced: it is the ratio the codebase
-// already shipped (a 5-minute browser renewal interval against
-// SESSION_TTL's 15-minute default: 15/5 = 3). Being exact about what
-// that does and does not establish matters here — the browser-driven
-// renewal the ratio came from never once succeeded in production (see
-// renewalHandlers' doc comment below: the cross-site SameSite=Lax round
-// trip always failed), so nothing about 3 was ever proved workable by
-// use. What recommends it is that it leaves two thirds of the TTL as
-// margin for a renewal to fail and be retried before the session lapses,
-// and that keeping the shipped ratio changes one thing at a time.
-//
-// What IS new is expressing it as a ratio of the server's own SessionTTL
-// rather than as a fixed client-side duration, so it keeps holding at
-// whatever SESSION_TTL an operator configures — the exact coupling spec
-// D5 calls for, closing the gap the retired client-side constant
-// (RENEWAL_INTERVAL_MS in apps/shell/lib/renew.ts, deleted by this
-// branch; its bounded successor is FALLBACK_RENEWAL_INTERVAL_MS) left
-// open by having nothing tying it to SESSION_TTL at all.
+// renewalFraction renews short sessions after a third of their lifetime.
+// Longer sessions are capped at five minutes by renewAtFor.
 const renewalFraction = 3
 
 // renewAtFloor bounds renewResponse.RenewAt from below.
@@ -351,7 +333,8 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 // endpoints produce the byte-identical value for the same clock and
 // TTL, which is what makes this shared rather than merely parallel.
 func renewAtFor(now time.Time, ttl time.Duration) time.Time {
-	renewAfter := ttl / renewalFraction
+	// Long-lived cookies must still recheck upstream access frequently.
+	renewAfter := min(ttl/renewalFraction, 5*time.Minute)
 	if renewAfter < renewAtFloor {
 		renewAfter = renewAtFloor
 	}

@@ -35,7 +35,7 @@ const (
 	// correct while proving nothing. newLoginEnv asserts it still equals
 	// config.DefaultIdleTimeout so the fixed value and the shipped
 	// default cannot drift apart.
-	testIdleTimeout = 15 * time.Minute
+	testIdleTimeout = 12 * time.Hour
 
 	tenantA = testutil.TenantA
 	tenantB = testutil.TenantB

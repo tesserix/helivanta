@@ -67,8 +67,8 @@ func TestRequireSessionTTL_Unset_TakesTheDocumentedDefault(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, config.DefaultSessionTTL, got)
-	require.Equal(t, 15*time.Minute, config.DefaultSessionTTL,
-		"#838 Task 5 fixed the session lifetime at 15 minutes; changing it is a policy decision, not a refactor")
+	require.Equal(t, 12*time.Hour, config.DefaultSessionTTL,
+		"the requested session policy survives browser suspension for twelve hours")
 }
 
 // TestRequireSessionTTL_Unparseable_StillFallsBackToTheDefault pins the

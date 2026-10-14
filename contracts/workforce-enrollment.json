@@ -1,0 +1,62 @@
+{
+  "profile": [
+    ["given_name", 100],
+    ["family_name", 100],
+    ["preferred_name", 100],
+    ["date_of_birth", "date"],
+    ["gender", 40],
+    ["work_email", "email"],
+    ["personal_email", "email"],
+    ["mobile_phone", "phone"],
+    ["work_phone", "phone"],
+    ["preferred_language", 80],
+    ["blood_group", 10],
+    ["engagement_type", 30],
+    ["department", 100],
+    ["designation", 100],
+    ["grade", 80],
+    ["supervisor_id", "uuid"],
+    ["start_date", "date"],
+    ["end_date", "date"],
+    ["probation_end_date", "date"],
+    ["confirmation_date", "date"],
+    ["exit_reason", 500]
+  ],
+  "addresses": [
+    ["use", 20],
+    ["line1", 150],
+    ["line2", 150],
+    ["city", 100],
+    ["region", 100],
+    ["postal_code", 30],
+    ["country", 2]
+  ],
+  "emergency_contacts": [
+    ["name", 150],
+    ["relationship", 60],
+    ["phone", "phone"],
+    ["email", "email"],
+    ["priority", "int"]
+  ],
+  "credentials": [
+    ["type", 80],
+    ["number", 100],
+    ["issuer", 150],
+    ["country", 2],
+    ["specialty", 100],
+    ["valid_from", "date"],
+    ["valid_until", "date"]
+  ],
+  "qualifications": [
+    ["qualification", 150],
+    ["institution", 150],
+    ["country", 2],
+    ["completion_year", "year"]
+  ],
+  "experiences": [
+    ["employer", 150],
+    ["role", 100],
+    ["start_date", "date"],
+    ["end_date", "date"]
+  ]
+}

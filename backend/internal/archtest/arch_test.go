@@ -340,14 +340,15 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
-	"GET /workspace/branding":                      "single current-tenant branding document",
-	"GET /workforce/hospitals/:hospital/staff/:id": "single hospital-local staff entry",
-	"GET /reference/pings/:id":                     "single item, not a collection",
-	"GET /patients/hospitals/:hospital/access":     "current principal hospital grant, not a collection",
-	"GET /patients/:id":                            "single item, not a collection",
-	"GET /iam/roles":                               "bounded: the fixed system role set",
-	"GET /iam/me/tenants":                          "bounded: one person's memberships",
-	"GET /iam/me/permissions":                      "bounded: one resolved permission set",
+	"GET /workforce/hospitals/:hospital/staff/:id/enrollment": "single protected staff profile, with bounded child records",
+	"GET /workspace/branding":                                 "single current-tenant branding document",
+	"GET /workforce/hospitals/:hospital/staff/:id":            "single hospital-local staff entry",
+	"GET /reference/pings/:id":                                "single item, not a collection",
+	"GET /patients/hospitals/:hospital/access":                "current principal hospital grant, not a collection",
+	"GET /patients/:id":                                       "single item, not a collection",
+	"GET /iam/roles":                                          "bounded: the fixed system role set",
+	"GET /iam/me/tenants":                                     "bounded: one person's memberships",
+	"GET /iam/me/permissions":                                 "bounded: one resolved permission set",
 }
 
 // TestEveryCollectionGETIsPaginated is the one hole platform.ListRoute's

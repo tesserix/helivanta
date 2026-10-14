@@ -1,4 +1,4 @@
-# Workforce API: first deployable slice
+# Workforce API: directory and protected enrollment
 
 Implementation: `backend/internal/modules/workforce`. Design: [ADR 0009](../adr/0009-workforce-foundation.md). This is the hospital-local staff directory foundation, not a complete HR, payroll, practitioner credentialing or rostering system.
 
@@ -54,16 +54,16 @@ Request bodies are capped at 8 KiB. Hospital name and staff display name allow 1
 
 ## Legacy reference and international mapping
 
-Read-only inspection on 2026-10-13 confirmed distinct HR MANAGEMENT, ADMIN and ACCESS CONTROL areas. HR navigation separates Employees and Consultants, shift allocation, leave requests/allocation, duty/overtime adjustments, missing punches, attendance, performance and payroll. The employee directory exposes name/code search and department, employee status, grade, category and user-type filters. Detailed employee creation and credential fields remain unverified. No staff rows or exports were copied.
+Read-only inspection on 2026-10-13 confirmed distinct HR MANAGEMENT, ADMIN and ACCESS CONTROL areas. HR navigation separates Employees and Consultants, shift allocation, leave requests/allocation, duty/overtime adjustments, missing punches, attendance, performance and payroll. The employee directory exposes name/code search and department, employee status, grade, category and user-type filters. Existing employee personal/contact/employment/qualification/experience/dependent/document tabs were subsequently reviewed on 2026-10-14; blank enrollment validation and consultant detail differences remain unverified. See ADR 0015 for the complete field mapping. No staff rows or exports were copied.
 
-| Observed legacy concept                            | Helivanta treatment                                                                                               |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Employee name and code                             | `display_name` and hospital-local `employee_code` in this slice                                                   |
-| Employee status                                    | Explicit `active` / `inactive`; legacy status vocabulary still requires mapping before import                     |
-| Employees versus consultants                       | Future employment/engagement type, separate from clinical profession and permissions                              |
-| Department, grade and category                     | Future hospital-scoped assignment and HR taxonomy; no inferred equivalence to this slice's `job_category`         |
-| User type                                          | Identity/access concept requiring a verified mapping; never automatically grants authority from a personnel field |
-| Shifts, leave, attendance, performance and payroll | Separate later workflows and protected HR data; not represented as generic staff attributes                       |
+| Observed legacy concept                            | Helivanta treatment                                                                                                   |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Employee name and code                             | `display_name` and hospital-local `employee_code` in this slice                                                       |
+| Employee status                                    | Explicit `active` / `inactive`; legacy status vocabulary still requires mapping before import                         |
+| Employees versus consultants                       | Protected enrollment engagement type, separate from clinical profession and permissions                               |
+| Department, grade and category                     | Enrollment department, designation and grade; future versioned HR taxonomy. No inferred equivalence to `job_category` |
+| User type                                          | Identity/access concept requiring a verified mapping; never automatically grants authority from a personnel field     |
+| Shifts, leave, attendance, performance and payroll | Separate later workflows and protected HR data; not represented as generic staff attributes                           |
 
 We use the legacy as workflow evidence, not a schema to reproduce. This foundation leaves room for international names (a display label does not require a Western given-name/family-name split), separates opaque IDs from local employee codes, uses explicit tenant/hospital scope and stores UTC-aware timestamps. The following are conceptual interoperability mappings, not implemented FHIR endpoints or a conformance claim:
 
@@ -85,3 +85,17 @@ Tests exercise the HTTP handlers with real PostgreSQL and NATS, plus a network H
 Migration `0001_workforce` creates four forced-RLS tables plus grant predicates and audit triggers. It does not change old clinical tables. Mutation audit is atomic and append-only for application roles; personal field values are excluded. Staff removal and table truncation are rejected; use inactive status. No patient or legacy data is migrated.
 
 Production rollout uses the existing image pipeline and `helivanta-api` Argo CD application with the matching migration binary. See [release checklist](../deployment/workforce-release.md) for current observations and remaining gates.
+
+## Protected enrollment
+
+`GET` and `PUT /v1/workforce/hospitals/{hospital}/staff/{id}/enrollment` require `workforce.enrollment.manage` (tenant administrator initially) **and** a hospital manager grant. Ordinary directory managers/readers cannot access private profiles. Foreign-tenant/hospital objects return 404; a missing route permission returns 403. Every protected GET is audited. No personal profile is included in directory lists, outbox events, error bodies or persisted browser caches.
+
+PUT carries `expected_version`, the existing `staff` directory fields, `profile`, and bounded arrays `addresses` (2), `emergency_contacts` (5), `credentials`, `qualifications`, `experiences` (20 each). Use version 0 for a new UUID; an edit uses the response `version`. Identical retries succeed without changing version/timestamps or appending an audit/event, even after the original write committed. Different stale content returns 409; reload explicitly rather than overwriting another editor. Staff codes are unique case-insensitively within their tenant and hospital. Child UUIDs must be stable across retries; duplicate IDs/natural keys are rejected.
+
+The profile supports structured/preferred names, optional DOB/gender, separate work/personal email, E.164 mobile/work phone, communication language, optional **reported** blood group, engagement type, department/designation/grade, same-hospital supervisor and employment/probation/confirmation/end dates. Addresses use country/region/postal fields. Emergency contacts have name, relationship, international phone, optional email and distinct priorities 1–5. Credentials carry type/number/issuer/country/specialty and validity. Qualifications and prior employment are repeatable. No government ID, salary, scanned document URL or clinical verification fields are accepted.
+
+All private tables have forced tenant/hospital RLS and composite staff/supervisor foreign keys. The new `helivanta.in.workforce.enrollment_changed.v1` event contains only hospital ID, staff ID and revision, and is inserted in the same transaction through the existing outbox/JetStream pipeline. Private data is not cached in Valkey. Temporal is reserved for a later multi-step review/upload/onboarding workflow; simple enrollment is one PostgreSQL transaction.
+
+Field definitions are shared through `contracts/workforce-enrollment.json` and `scripts/generate-workforce-enrollment.mjs`, which generate backend field types and frontend schemas. Run `node scripts/generate-workforce-enrollment.mjs --check` to detect drift. Applied SQL migrations remain immutable; future database changes get a new migration.
+
+See [ADR 0015](../adr/0015-staff-enrollment.md), [editable diagram](../diagrams/staff-enrollment.drawio), and `scripts/verify-staff-enrollment.mjs` for repeatable designated-synthetic-tenant verification. This enrollment release does not complete payroll, rosters, leave, dependent benefits, jurisdiction-specific IDs, document quarantine/release integration, legacy import or all of #1035/#979.

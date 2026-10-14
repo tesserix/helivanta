@@ -34,7 +34,9 @@ export function SelectControl({
     <Select
       name={name}
       value={selected}
-      onValueChange={(choice) => onValueChange(choice === EMPTY_VALUE ? "" : choice)}
+      onValueChange={(choice) => {
+        if (choice !== "") onValueChange(choice === EMPTY_VALUE ? "" : choice);
+      }}
       disabled={trigger.disabled}
     >
       <SelectTrigger

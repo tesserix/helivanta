@@ -1,6 +1,6 @@
 "use client";
 import { z } from "zod";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@tesserix/web";
 import {
   apiFetch,
@@ -16,6 +16,7 @@ import {
 } from "@helivanta/api";
 import { HmsShell, Field, useZodForm, SelectControl, FormSelectField } from "@helivanta/ui";
 import { TenantPicker } from "@/components/tenant-picker";
+import { EnrollmentEditor } from "./enrollment-editor";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -105,9 +106,14 @@ export default function Workforce() {
   );
 }
 function Directory({ hospital }: { hospital: Hospital }) {
+  const { can } = usePermissions();
+  const opener = useRef<HTMLButtonElement>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<Staff | "new" | null>(null);
+  useEffect(() => {
+    if (!editing) opener.current?.focus();
+  }, [editing]);
   const path = `/workforce/hospitals/${hospital.id}/staff`;
   const query = useApiQuery<Page<Staff>>(
     ["workforce", "staff", hospital.id, cursor],
@@ -129,7 +135,16 @@ function Directory({ hospital }: { hospital: Hospital }) {
               {writable ? "Manage staff records" : "Read-only access"} · Hospital-specific directory
             </p>
           </div>
-          {writable && <Button onClick={() => setEditing("new")}>Add staff</Button>}
+          {writable && (
+            <Button
+              onClick={(event) => {
+                opener.current = event.currentTarget;
+                setEditing("new");
+              }}
+            >
+              Add staff
+            </Button>
+          )}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
           <label className="w-full max-w-sm">
@@ -214,7 +229,10 @@ function Directory({ hospital }: { hospital: Hospital }) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setEditing(row)}
+                          onClick={(event) => {
+                            opener.current = event.currentTarget;
+                            setEditing(row);
+                          }}
                           aria-label={`Edit ${row.display_name}`}
                         >
                           Edit
@@ -249,13 +267,22 @@ function Directory({ hospital }: { hospital: Hospital }) {
           </div>
         </div>
       </section>
-      {editing && (
-        <StaffEditor
+      {editing && can("workforce.enrollment.manage") ? (
+        <EnrollmentEditor
           key={editing === "new" ? "new" : editing.id}
           hospital={hospital}
           staff={editing === "new" ? undefined : editing}
           onClose={() => setEditing(null)}
         />
+      ) : (
+        editing && (
+          <StaffEditor
+            key={editing === "new" ? "new" : editing.id}
+            hospital={hospital}
+            staff={editing === "new" ? undefined : editing}
+            onClose={() => setEditing(null)}
+          />
+        )
       )}
     </>
   );

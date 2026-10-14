@@ -35,9 +35,12 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
-	"iam.MemberChangedData.Subject":     "the iam subject identifier (e.g. GIP subject claim), already known to every module via authn.Principal.Subject; a reference, not identifying content",
-	"iam.CredentialRevokedData.Subject": "same iam subject identifier as MemberChangedData.Subject",
-	"iam.MemberChangedData.RoleKey":     "a key into the fixed role registry (docs/standards/backend.md), not clinical or identifying data",
+	"workforce.StaffEnrollmentChangedData.HospitalID": "internally minted hospital scope; contains no facility name or contact details",
+	"workforce.StaffEnrollmentChangedData.StaffID":    "internally minted staff row reference; resolving protected enrollment requires explicit permission and hospital manager access",
+	"workforce.StaffEnrollmentChangedData.Version":    "monotonic resource revision for retry/order checks; contains no employee attributes",
+	"iam.MemberChangedData.Subject":                   "the iam subject identifier (e.g. GIP subject claim), already known to every module via authn.Principal.Subject; a reference, not identifying content",
+	"iam.CredentialRevokedData.Subject":               "same iam subject identifier as MemberChangedData.Subject",
+	"iam.MemberChangedData.RoleKey":                   "a key into the fixed role registry (docs/standards/backend.md), not clinical or identifying data",
 
 	"medicore.VisitCreatedData.Department": "the ward/department the visit is opened in; operational routing metadata, not patient-identifying",
 

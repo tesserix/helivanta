@@ -1,0 +1,357 @@
+package workforce
+
+import (
+	"encoding/json"
+	"errors"
+	"net/http"
+	"reflect"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
+	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/events"
+)
+
+type enrollment struct {
+	Staff             staff                     `json:"staff"`
+	Version           int64                     `json:"version"`
+	Profile           enrollmentProfile         `json:"profile"`
+	Addresses         []enrollmentAddress       `json:"addresses"`
+	EmergencyContacts []enrollmentContact       `json:"emergency_contacts"`
+	Credentials       []enrollmentCredential    `json:"credentials"`
+	Qualifications    []enrollmentQualification `json:"qualifications"`
+	Experiences       []enrollmentExperience    `json:"experiences"`
+}
+
+type enrollmentInput struct {
+	ExpectedVersion   *int64                    `json:"expected_version" binding:"required,gte=0"`
+	Staff             staffInput                `json:"staff" binding:"required"`
+	Profile           enrollmentProfile         `json:"profile"`
+	Addresses         []enrollmentAddress       `json:"addresses" binding:"max=2,dive"`
+	EmergencyContacts []enrollmentContact       `json:"emergency_contacts" binding:"max=5,dive"`
+	Credentials       []enrollmentCredential    `json:"credentials" binding:"max=20,dive"`
+	Qualifications    []enrollmentQualification `json:"qualifications" binding:"max=20,dive"`
+	Experiences       []enrollmentExperience    `json:"experiences" binding:"max=20,dive"`
+}
+
+var internationalPhone = regexp.MustCompile(`^\+[1-9][0-9]{6,14}$`)
+var countryCode = regexp.MustCompile(`^[A-Z]{2}$`)
+var errEnrollmentVersion = errors.New("staff changed since it was loaded")
+
+func normalizeEnrollment(v reflect.Value) {
+	switch v.Kind() {
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ {
+			normalizeEnrollment(v.Field(i))
+		}
+	case reflect.Slice:
+		for i := 0; i < v.Len(); i++ {
+			normalizeEnrollment(v.Index(i))
+		}
+	case reflect.String:
+		v.SetString(strings.TrimSpace(v.String()))
+	}
+}
+
+func validDate(value string) bool {
+	if value == "" {
+		return true
+	}
+	date, err := time.Parse(time.DateOnly, value)
+	return err == nil && date.Format(time.DateOnly) == value && value >= "1900-01-01" && value <= "2200-12-31"
+}
+
+func validPeriod(start, end string) bool {
+	return validDate(start) && validDate(end) && (end == "" || (start != "" && end >= start))
+}
+
+func (in *enrollmentInput) normalizeAndValidate(id uuid.UUID) bool {
+	normalizeEnrollment(reflect.ValueOf(in).Elem())
+	if !employeeCode.MatchString(in.Staff.EmployeeCode) || in.Staff.DisplayName == "" {
+		return false
+	}
+	if in.Profile.EngagementType == "" {
+		in.Profile.EngagementType = "employee"
+	}
+	if !contains(in.Profile.EngagementType, "employee", "consultant", "contractor", "locum", "trainee", "volunteer") ||
+		!contains(in.Profile.Gender, "", "female", "male", "other", "prefer_not_to_say") ||
+		!contains(in.Profile.BloodGroup, "", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-") {
+		return false
+	}
+	if !validDate(in.Profile.DateOfBirth) || (in.Profile.DateOfBirth != "" && in.Profile.DateOfBirth > time.Now().UTC().Format(time.DateOnly)) ||
+		!validPeriod(in.Profile.StartDate, in.Profile.EndDate) || !validPeriod(in.Profile.StartDate, in.Profile.ProbationEndDate) ||
+		!validPeriod(in.Profile.StartDate, in.Profile.ConfirmationDate) {
+		return false
+	}
+	for _, phone := range []string{in.Profile.MobilePhone, in.Profile.WorkPhone} {
+		if phone != "" && !internationalPhone.MatchString(phone) {
+			return false
+		}
+	}
+	if in.Profile.SupervisorID != "" {
+		supervisor, err := uuid.Parse(in.Profile.SupervisorID)
+		if err != nil || supervisor == uuid.Nil || supervisor == id {
+			return false
+		}
+		in.Profile.SupervisorID = supervisor.String()
+	}
+	seen := map[string]bool{}
+	for _, address := range in.Addresses {
+		if !contains(address.Use, "current", "permanent") || address.Line1 == "" || !countryCode.MatchString(address.Country) || seen["address:"+address.Use] {
+			return false
+		}
+		seen["address:"+address.Use] = true
+	}
+	for _, contact := range in.EmergencyContacts {
+		key := "contact:" + strconv.Itoa(contact.Priority)
+		if contact.Name == "" || contact.Relationship == "" || !internationalPhone.MatchString(contact.Phone) || seen[key] {
+			return false
+		}
+		seen[key] = true
+	}
+	for _, credential := range in.Credentials {
+		key := strings.ToLower("credential:" + credential.Type + "\x00" + credential.Number + "\x00" + credential.Issuer)
+		if credential.Type == "" || credential.Number == "" || credential.Issuer == "" ||
+			(credential.Country != "" && !countryCode.MatchString(credential.Country)) ||
+			!validDate(credential.ValidFrom) || !validDate(credential.ValidUntil) ||
+			(credential.ValidFrom != "" && credential.ValidUntil != "" && credential.ValidUntil < credential.ValidFrom) || seen[key] {
+			return false
+		}
+		seen[key] = true
+	}
+	for _, qualification := range in.Qualifications {
+		key := strings.ToLower("qualification:" + qualification.Qualification + "\x00" + qualification.Institution + "\x00" + strconv.Itoa(qualification.CompletionYear))
+		if qualification.Qualification == "" || qualification.Institution == "" ||
+			(qualification.Country != "" && !countryCode.MatchString(qualification.Country)) ||
+			(qualification.CompletionYear != 0 && (qualification.CompletionYear < 1900 || qualification.CompletionYear > time.Now().UTC().Year())) || seen[key] {
+			return false
+		}
+		seen[key] = true
+	}
+	for _, experience := range in.Experiences {
+		key := strings.ToLower("experience:" + experience.Employer + "\x00" + experience.Role + "\x00" + experience.StartDate)
+		if experience.Employer == "" || experience.Role == "" || experience.StartDate == "" || !validPeriod(experience.StartDate, experience.EndDate) || seen[key] {
+			return false
+		}
+		seen[key] = true
+	}
+	for _, group := range []any{&in.Addresses, &in.EmergencyContacts, &in.Credentials, &in.Qualifications, &in.Experiences} {
+		rows := reflect.ValueOf(group).Elem()
+		if rows.IsNil() {
+			rows.Set(reflect.MakeSlice(rows.Type(), 0, 0))
+		}
+		ids := map[string]bool{}
+		for i := 0; i < rows.Len(); i++ {
+			field := rows.Index(i).FieldByName("ID")
+			parsed, err := uuid.Parse(field.String())
+			if err != nil || parsed == uuid.Nil || ids[parsed.String()] {
+				return false
+			}
+			field.SetString(parsed.String())
+			ids[parsed.String()] = true
+		}
+		sort.Slice(rows.Interface(), func(i, j int) bool {
+			return rows.Index(i).FieldByName("ID").String() < rows.Index(j).FieldByName("ID").String()
+		})
+	}
+	return true
+}
+
+func contains(value string, values ...string) bool {
+	for _, candidate := range values {
+		if candidate == value {
+			return true
+		}
+	}
+	return false
+}
+
+func sameEnrollment(existing enrollment, in enrollmentInput) bool {
+	return existing.Staff.EmployeeCode == in.Staff.EmployeeCode && existing.Staff.DisplayName == in.Staff.DisplayName &&
+		existing.Staff.JobCategory == in.Staff.JobCategory && existing.Staff.EmploymentStatus == in.Staff.EmploymentStatus &&
+		reflect.DeepEqual(existing.Profile, in.Profile) && reflect.DeepEqual(existing.Addresses, in.Addresses) &&
+		reflect.DeepEqual(existing.EmergencyContacts, in.EmergencyContacts) && reflect.DeepEqual(existing.Credentials, in.Credentials) &&
+		reflect.DeepEqual(existing.Qualifications, in.Qualifications) && reflect.DeepEqual(existing.Experiences, in.Experiences)
+}
+
+func enrollmentScope(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) error {
+	var grant struct{ Level string }
+	if err := tx.Raw(`SELECT level FROM workforce_hospital_access WHERE tenant_id = ? AND hospital_id = ? AND subject = ? FOR SHARE`, p.TenantID, hospital, p.Subject).Scan(&grant).Error; err != nil {
+		return err
+	}
+	if grant.Level != "manager" {
+		return gorm.ErrRecordNotFound
+	}
+	return tx.Exec(`SELECT set_config('app.workforce_enrollment', 'authorized', true)`).Error
+}
+
+func (h *handlers) getEnrollment(c *gin.Context) {
+	p, hospital, ok := scope(c)
+	if !ok {
+		return
+	}
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil || id == uuid.Nil {
+		respond.NotFound(c, "staff")
+		return
+	}
+	var result enrollment
+	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+		if err := enrollmentScope(tx, p, hospital); err != nil {
+			return err
+		}
+		var row staff
+		if err := tx.Clauses(clause.Locking{Strength: "SHARE"}).Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error; err != nil {
+			return err
+		}
+		var err error
+		result, err = readEnrollment(tx, p.TenantID, hospital, id, row)
+		if err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO workforce_audit (tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES (?, ?, ?, 'workforce.enrollment.read', ?, '{}'::jsonb)`, p.TenantID, hospital, p.Subject, id).Error
+	})
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	respond.OK(c, result)
+}
+
+func enrollmentRow(value any, tenant string, hospital, id uuid.UUID) (map[string]any, error) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	row := map[string]any{}
+	if err := json.Unmarshal(data, &row); err != nil {
+		return nil, err
+	}
+	for key, value := range row {
+		if (strings.HasSuffix(key, "_date") || key == "date_of_birth" || key == "valid_from" || key == "valid_until" || key == "supervisor_id") && value == "" {
+			row[key] = nil
+		}
+	}
+	row["tenant_id"], row["hospital_id"], row["staff_id"] = tenant, hospital, id
+	return row, nil
+}
+
+func replaceEnrollmentRows(tx *gorm.DB, tenant string, hospital, id uuid.UUID, in enrollmentInput) error {
+	groups := []struct {
+		table string
+		value any
+	}{
+		{"profile", []enrollmentProfile{in.Profile}}, {"addresses", in.Addresses}, {"emergency_contacts", in.EmergencyContacts},
+		{"credentials", in.Credentials}, {"qualifications", in.Qualifications}, {"experiences", in.Experiences},
+	}
+	for _, group := range groups {
+		table := "workforce_enrollment_" + group.table
+		if err := tx.Exec("DELETE FROM "+table+" WHERE tenant_id = ? AND hospital_id = ? AND staff_id = ?", tenant, hospital, id).Error; err != nil {
+			return err
+		}
+		rows := reflect.ValueOf(group.value)
+		for i := 0; i < rows.Len(); i++ {
+			row, err := enrollmentRow(rows.Index(i).Interface(), tenant, hospital, id)
+			if err != nil {
+				return err
+			}
+			if err := tx.Table(table).Create(row).Error; err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (h *handlers) putEnrollment(c *gin.Context) {
+	p, hospital, ok := scope(c)
+	if !ok {
+		return
+	}
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil || id == uuid.Nil {
+		respond.NotFound(c, "staff")
+		return
+	}
+	var in enrollmentInput
+	if !decodeSized(c, &in, 32768) {
+		return
+	}
+	if !in.normalizeAndValidate(id) {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid enrollment fields")
+		return
+	}
+	var result enrollment
+	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+		if err := enrollmentScope(tx, p, hospital); err != nil {
+			return err
+		}
+		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?, 0))`, p.TenantID+":"+hospital.String()+":"+id.String()).Error; err != nil {
+			return err
+		}
+		var row staff
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		if err == nil {
+			existing, err := readEnrollment(tx, p.TenantID, hospital, id, row)
+			if err != nil {
+				return err
+			}
+			if sameEnrollment(existing, in) {
+				result = existing
+				return nil
+			}
+			if *in.ExpectedVersion != row.Version {
+				return errEnrollmentVersion
+			}
+		} else if *in.ExpectedVersion != 0 {
+			return gorm.ErrRecordNotFound
+		}
+		if err := tx.Exec(`INSERT INTO workforce_staff (tenant_id,hospital_id,id,employee_code,display_name,job_category,employment_status)
+		 VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (tenant_id,hospital_id,id) DO UPDATE SET employee_code = EXCLUDED.employee_code,
+		 display_name = EXCLUDED.display_name, job_category = EXCLUDED.job_category, employment_status = EXCLUDED.employment_status, updated_at = clock_timestamp()`,
+			p.TenantID, hospital, id, in.Staff.EmployeeCode, in.Staff.DisplayName, in.Staff.JobCategory, in.Staff.EmploymentStatus).Error; err != nil {
+			return err
+		}
+		if err := replaceEnrollmentRows(tx, p.TenantID, hospital, id, in); err != nil {
+			return err
+		}
+		if err := tx.Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec(`INSERT INTO workforce_audit (tenant_id,hospital_id,actor_subject,action,resource_id,changes)
+		 VALUES (?, ?, ?, 'workforce.enrollment.changed', ?, jsonb_build_object('version', ?::bigint))`, p.TenantID, hospital, p.Subject, id, row.Version).Error; err != nil {
+			return err
+		}
+		data, err := json.Marshal(workforcecontract.StaffEnrollmentChangedData{HospitalID: hospital.String(), StaffID: id.String(), Version: row.Version})
+		if err != nil {
+			return err
+		}
+		if err := h.bus.Publish(tx, EnrollmentChanged, events.Event{Type: EnrollmentChanged, Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
+			return err
+		}
+		result, err = readEnrollment(tx, p.TenantID, hospital, id, row)
+		return err
+	})
+	if errors.Is(err, errEnrollmentVersion) {
+		respond.Conflict(c, "Staff changed since you opened this form. Reload before saving.")
+		return
+	}
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	respond.OK(c, result)
+}

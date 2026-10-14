@@ -21,7 +21,13 @@ type PlaceholderValue<T> = NonNullable<UseQueryOptions<T, Error, T, unknown[]>["
 export function useApiQuery<T>(
   key: unknown[],
   path: string,
-  opts: { poll?: boolean; placeholderData?: PlaceholderValue<T>; enabled?: boolean } = {},
+  opts: {
+    poll?: boolean;
+    placeholderData?: PlaceholderValue<T>;
+    enabled?: boolean;
+    gcTime?: number;
+    refetchOnWindowFocus?: boolean;
+  } = {},
 ): UseQueryResult<T, Error> {
   return useQuery({
     queryKey: key,
@@ -39,6 +45,8 @@ export function useApiQuery<T>(
     // alternative (calling the hook conditionally) would break the Rules
     // of Hooks.
     enabled: opts.enabled,
+    gcTime: opts.gcTime,
+    refetchOnWindowFocus: opts.refetchOnWindowFocus,
   });
 }
 

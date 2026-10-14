@@ -18,11 +18,15 @@ import (
 
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-type handlers struct{ db *tenantdb.DB }
+type handlers struct {
+	db  *tenantdb.DB
+	bus *events.Bus
+}
 
 type hospital struct {
 	ID          uuid.UUID `json:"id"`
@@ -63,6 +67,7 @@ type staff struct {
 	EmploymentStatus string    `json:"employment_status"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
+	Version          int64     `json:"-"`
 }
 
 func (staff) TableName() string                 { return "workforce_staff" }
@@ -78,7 +83,11 @@ type staffInput struct {
 var employeeCode = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}$`)
 
 func decode(c *gin.Context, into any) bool {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 8192)
+	return decodeSized(c, into, 8192)
+}
+
+func decodeSized(c *gin.Context, into any, limit int64) bool {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
 	d := json.NewDecoder(c.Request.Body)
 	d.DisallowUnknownFields()
 	if err := d.Decode(into); err != nil {

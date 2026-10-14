@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it } from "vitest";
 import { SelectControl } from "./select";
@@ -59,6 +59,20 @@ it("keeps a disabled selector closed and exposes its accessible label", async ()
   expect(trigger).toBeDisabled();
   await user.click(trigger);
   expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+});
+
+it("preserves the selected value when the browser emits an empty native form event", async () => {
+  const user = userEvent.setup();
+  const { container } = render(
+    <form>
+      <Picker />
+    </form>,
+  );
+  await user.click(screen.getByRole("combobox", { name: "Blood group" }));
+  await user.click(screen.getByRole("option", { name: "AB" }));
+  const native = container.querySelector("select")!;
+  fireEvent.change(native, { target: { value: "" } });
+  expect(screen.getByLabelText("Selected value")).toHaveTextContent("AB");
 });
 
 it("carries the tenant theme into a menu rendered outside the workspace", async () => {

@@ -58,8 +58,10 @@ it("registers a synthetic patient in the selected hospital and displays the save
   expect(screen.getByRole("button", { name: "Register patient" })).toHaveFocus();
   await user.click(screen.getByRole("button", { name: "Register patient" }));
   expect(screen.getByLabelText("Given name")).toHaveFocus();
-  await user.type(screen.getByLabelText("Given name"), "Synthetic");
-  await user.type(screen.getByLabelText("Family name"), "Example");
+  await user.click(screen.getByLabelText("Given name"));
+  await user.paste("Synthetic");
+  await user.click(screen.getByLabelText("Family name"));
+  await user.paste("Example");
   expect(screen.getByLabelText("Family name")).toHaveFocus();
   await user.click(screen.getByRole("button", { name: "Register patient" }));
   expect(screen.getByLabelText("Given name")).toHaveFocus();
@@ -74,7 +76,8 @@ it("registers a synthetic patient in the selected hospital and displays the save
   await chooseOption(user, screen.getByLabelText("ABO group"), "AB");
   await chooseOption(user, screen.getByLabelText("Rh(D) type"), "Negative");
   await chooseOption(user, screen.getByLabelText("Blood group source"), "Patient");
-  await user.type(screen.getByLabelText("Consent notice version"), "synthetic-v1");
+  await user.click(screen.getByLabelText("Consent notice version"));
+  await user.paste("synthetic-v1");
   await user.click(screen.getByLabelText("I have recorded the patient's or guardian's consent"));
   await user.click(screen.getByRole("button", { name: "Save registration" }));
   await waitFor(() =>

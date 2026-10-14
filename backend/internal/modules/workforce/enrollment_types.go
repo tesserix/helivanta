@@ -2,27 +2,30 @@
 package workforce
 
 type enrollmentProfile struct {
-	GivenName         string `json:"given_name" binding:"max=100"`
-	FamilyName        string `json:"family_name" binding:"max=100"`
-	PreferredName     string `json:"preferred_name" binding:"max=100"`
-	DateOfBirth       string `json:"date_of_birth" binding:"omitempty,max=10"`
-	Gender            string `json:"gender" binding:"max=40"`
-	WorkEmail         string `json:"work_email" binding:"omitempty,max=254,email"`
-	PersonalEmail     string `json:"personal_email" binding:"omitempty,max=254,email"`
-	MobilePhone       string `json:"mobile_phone" binding:"omitempty,max=25"`
-	WorkPhone         string `json:"work_phone" binding:"omitempty,max=25"`
-	PreferredLanguage string `json:"preferred_language" binding:"max=80"`
-	BloodGroup        string `json:"blood_group" binding:"max=10"`
-	EngagementType    string `json:"engagement_type" binding:"max=30"`
-	Department        string `json:"department" binding:"max=100"`
-	Designation       string `json:"designation" binding:"max=100"`
-	Grade             string `json:"grade" binding:"max=80"`
-	SupervisorID      string `json:"supervisor_id" binding:"omitempty,uuid"`
-	StartDate         string `json:"start_date" binding:"omitempty,max=10"`
-	EndDate           string `json:"end_date" binding:"omitempty,max=10"`
-	ProbationEndDate  string `json:"probation_end_date" binding:"omitempty,max=10"`
-	ConfirmationDate  string `json:"confirmation_date" binding:"omitempty,max=10"`
-	ExitReason        string `json:"exit_reason" binding:"max=500"`
+	GivenName             string `json:"given_name" binding:"max=100"`
+	FamilyName            string `json:"family_name" binding:"max=100"`
+	PreferredName         string `json:"preferred_name" binding:"max=100"`
+	DateOfBirth           string `json:"date_of_birth" binding:"omitempty,max=10"`
+	Gender                string `json:"gender" binding:"max=40"`
+	WorkEmail             string `json:"work_email" binding:"omitempty,max=254,email"`
+	PersonalEmail         string `json:"personal_email" binding:"omitempty,max=254,email"`
+	MobilePhone           string `json:"mobile_phone" binding:"omitempty,max=25"`
+	WorkPhone             string `json:"work_phone" binding:"omitempty,max=25"`
+	PreferredLanguage     string `json:"preferred_language" binding:"max=80"`
+	BloodGroup            string `json:"blood_group" binding:"max=10"`
+	EngagementType        string `json:"engagement_type" binding:"max=30"`
+	Department            string `json:"department" binding:"max=100"`
+	Designation           string `json:"designation" binding:"max=100"`
+	Grade                 string `json:"grade" binding:"max=80"`
+	DepartmentRevisionID  string `json:"department_revision_id" binding:"omitempty,uuid"`
+	DesignationRevisionID string `json:"designation_revision_id" binding:"omitempty,uuid"`
+	GradeRevisionID       string `json:"grade_revision_id" binding:"omitempty,uuid"`
+	SupervisorID          string `json:"supervisor_id" binding:"omitempty,uuid"`
+	StartDate             string `json:"start_date" binding:"omitempty,max=10"`
+	EndDate               string `json:"end_date" binding:"omitempty,max=10"`
+	ProbationEndDate      string `json:"probation_end_date" binding:"omitempty,max=10"`
+	ConfirmationDate      string `json:"confirmation_date" binding:"omitempty,max=10"`
+	ExitReason            string `json:"exit_reason" binding:"max=500"`
 }
 
 type enrollmentAddress struct {

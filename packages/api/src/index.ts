@@ -35,3 +35,5 @@ export {
   type PatientRegistrationInput,
   type PatientRegistrationResult,
 } from "./patients";
+
+export * from "./roster-config";

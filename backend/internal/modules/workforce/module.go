@@ -14,6 +14,7 @@ import (
 const PermHospitalManage authz.Permission = "workforce.hospital.manage"
 const PermEnrollmentManage authz.Permission = "workforce.enrollment.manage"
 const PermRosterManage authz.Permission = "workforce.roster.manage"
+const RosterConfigChanged = workforcecontract.SubjectRosterConfigChanged
 const ShiftChanged = workforcecontract.SubjectShiftChanged
 
 const PermMasterManage authz.Permission = "workforce.master.manage"
@@ -35,17 +36,22 @@ var mastersSchema string
 //go:embed shifts.sql
 var shiftsSchema string
 
+//go:embed roster_config.sql
+var rosterConfigSchema string
+
 type Module struct{}
 
 func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "workforce" }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}}
+	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}}
 }
 func (*Module) Permissions() []authz.Grant {
 	return []authz.Grant{{Permission: PermHospitalManage}, {Permission: PermEnrollmentManage}, {Permission: PermMasterManage}, {Permission: PermRosterManage}}
 }
-func (*Module) Publishes() []string                         { return []string{EnrollmentChanged, MasterChanged, ShiftChanged} }
+func (*Module) Publishes() []string {
+	return []string{EnrollmentChanged, MasterChanged, ShiftChanged, RosterConfigChanged}
+}
 func (*Module) DirectedSubjects() []string                  { return nil }
 func (*Module) DirectedWriteTables() []string               { return nil }
 func (*Module) Consumers(platform.Deps) []events.Consumer   { return nil }
@@ -64,6 +70,9 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET("/:hospital/staff/:id", authz.Public, h.getStaff)
 	g.GET("/:hospital/staff/:id/enrollment", PermEnrollmentManage, h.getEnrollment)
 	g.PUT("/:hospital/staff/:id/enrollment", PermEnrollmentManage, h.putEnrollment)
+	g.PUT("/:hospital/hr/roster-configs/:id", PermRosterManage, h.putRosterConfig)
+	platform.ListRoute(g, "/:hospital/hr/roster-configs", authz.Public, h.listRosterConfigs)
+	platform.ListRoute(g, "/:hospital/hr/roster-configs/:id/history", authz.Public, h.rosterConfigHistory)
 	g.PUT("/:hospital/hr/shifts/:id", PermRosterManage, h.putShift)
 	platform.ListRoute(g, "/:hospital/hr/shifts", authz.Public, h.listShifts)
 	platform.ListRoute(g, "/:hospital/hr/shifts/:id/history", authz.Public, h.shiftHistory)

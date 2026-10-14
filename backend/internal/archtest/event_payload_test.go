@@ -35,6 +35,11 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"workforce.RosterConfigChangedData.HospitalID": "opaque hospital scope; protected lookup required",
+	"workforce.RosterConfigChangedData.ConfigID":   "opaque configuration reference; no scheduling rules or personnel data",
+	"workforce.RosterConfigChangedData.RevisionID": "immutable internal revision reference; no configuration content",
+	"workforce.RosterConfigChangedData.Version":    "monotonic revision for replay/order checks",
+
 	"workforce.ShiftChangedData.HospitalID":           "internal hospital scope; no facility details",
 	"workforce.ShiftChangedData.ShiftID":              "internal shift configuration reference; no personnel or policy content",
 	"workforce.ShiftChangedData.RevisionID":           "internal immutable shift revision reference; protected lookup required",

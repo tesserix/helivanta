@@ -1,0 +1,260 @@
+{
+  "kinds": {
+    "area": "Roster areas",
+    "group": "Shift groups",
+    "weekly_template": "Weekly templates"
+  },
+  "models": {
+    "rosterShift": [
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shift_id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "start_time",
+        "type": "string"
+      },
+      {
+        "name": "end_time",
+        "type": "string"
+      },
+      {
+        "name": "duration_minutes",
+        "type": "int"
+      }
+    ],
+    "rosterAllocation": [
+      {
+        "name": "shift_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "area_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "area_id",
+        "type": "uuid"
+      },
+      {
+        "name": "area_code",
+        "type": "string"
+      },
+      {
+        "name": "area_name",
+        "type": "string"
+      },
+      {
+        "name": "shift",
+        "type": "rosterShift"
+      }
+    ],
+    "rosterDay": [
+      {
+        "name": "weekday",
+        "type": "int",
+        "min": 0,
+        "max": 6
+      },
+      {
+        "name": "weekly_off",
+        "type": "bool"
+      },
+      {
+        "name": "allocations",
+        "type": "[]rosterAllocation",
+        "orm_ignore": true
+      }
+    ],
+    "rosterConfig": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "config_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "kind",
+        "type": "kind"
+      },
+      {
+        "name": "code",
+        "type": "string",
+        "min": 1,
+        "max": 40,
+        "format": "code"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 80,
+        "format": "name"
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "active",
+        "type": "bool"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "reviewed_by_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      },
+      {
+        "name": "shifts",
+        "type": "[]rosterShift",
+        "orm_ignore": true
+      },
+      {
+        "name": "days",
+        "type": "[]rosterDay",
+        "orm_ignore": true
+      }
+    ],
+    "rosterAllocationInput": [
+      {
+        "name": "shift_revision_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "area_revision_id",
+        "type": "uuid",
+        "binding": "required"
+      }
+    ],
+    "rosterDayInput": [
+      {
+        "name": "weekday",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 6,
+        "binding": "required,gte=0,lte=6"
+      },
+      {
+        "name": "weekly_off",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "allocations",
+        "type": "[]rosterAllocationInput",
+        "max": 2,
+        "binding": "max=2,dive"
+      }
+    ],
+    "rosterConfigInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "kind",
+        "type": "kind",
+        "binding": "required,oneof=area group weekly_template"
+      },
+      {
+        "name": "code",
+        "type": "string",
+        "min": 1,
+        "max": 40,
+        "format": "code",
+        "binding": "required,max=40"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 80,
+        "format": "name",
+        "binding": "required,max=80"
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "max=500"
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "shift_revision_ids",
+        "type": "[]uuid",
+        "max": 100,
+        "binding": "max=100"
+      },
+      {
+        "name": "days",
+        "type": "[]rosterDayInput",
+        "max": 7,
+        "binding": "max=7,dive"
+      }
+    ]
+  }
+}

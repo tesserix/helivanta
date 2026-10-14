@@ -1,0 +1,62 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram id="roster-configuration" name="Versioned roster configuration">
+    <mxGraphModel grid="1" gridSize="10" page="1" pageWidth="1500" pageHeight="850">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ui" value="Roster setup UI&#10;Areas • groups • weekly patterns" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dbeafe;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="160" width="280" height="95" />
+        </mxCell>
+        <mxCell id="guard" value="Tenant membership + hospital grant&#10;Reviewed manager writes" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dcfce7;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="340" y="160" width="280" height="95" />
+        </mxCell>
+        <mxCell id="head" value="Stable configuration head&#10;UUID / kind / code / expected version" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dbeafe;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="680" y="100" width="280" height="95" />
+        </mxCell>
+        <mxCell id="revision" value="Immutable effective revisions&#10;Shift pins / day rows / area pins" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#ede9fe;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="680" y="280" width="280" height="95" />
+        </mxCell>
+        <mxCell id="rules" value="Seven-day cycle checks&#10;Overlap / off day / active references" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fee2e2;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="340" y="370" width="280" height="95" />
+        </mxCell>
+        <mxCell id="audit" value="Atomic PostgreSQL transaction&#10;Forced RLS + audit + outbox" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fef3c7;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1020" y="180" width="280" height="95" />
+        </mxCell>
+        <mxCell id="broker" value="NATS JetStream&#10;Identifier-only event / replay" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dbeafe;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1020" y="370" width="280" height="95" />
+        </mxCell>
+        <mxCell id="later" value="Subsequent dated roster work&#10;Timezone • leave • freeze • corrections" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#f1f5f9;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="680" y="550" width="280" height="95" />
+        </mxCell>
+        <mxCell id="edge0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="ui" target="guard">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="guard" target="head">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="guard" target="rules">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="head" target="revision">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="rules" target="revision">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="head" target="audit">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="revision" target="audit">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="audit" target="broker">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="revision" target="later">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

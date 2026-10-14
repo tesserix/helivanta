@@ -29,3 +29,12 @@ type ShiftChangedData struct {
 	RevisionID string `json:"revision_id"`
 	Version    int64  `json:"version"`
 }
+
+const SubjectRosterConfigChanged = "helivanta.in.workforce.roster_config_changed.v1"
+
+type RosterConfigChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	ConfigID   string `json:"config_id"`
+	RevisionID string `json:"revision_id"`
+	Version    int64  `json:"version"`
+}

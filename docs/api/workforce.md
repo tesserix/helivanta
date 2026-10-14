@@ -99,3 +99,23 @@ All private tables have forced tenant/hospital RLS and composite staff/superviso
 Field definitions are shared through `contracts/workforce-enrollment.json` and `scripts/generate-workforce-enrollment.mjs`, which generate backend field types and frontend schemas. Run `node scripts/generate-workforce-enrollment.mjs --check` to detect drift. Applied SQL migrations remain immutable; future database changes get a new migration.
 
 See [ADR 0015](../adr/0015-staff-enrollment.md), [editable diagram](../diagrams/staff-enrollment.drawio), and `scripts/verify-staff-enrollment.mjs` for repeatable designated-synthetic-tenant verification. This enrollment release does not complete payroll, rosters, leave, dependent benefits, jurisdiction-specific IDs, document quarantine/release integration, legacy import or all of #1035/#979.
+
+## Versioned HR setup
+
+Design: [ADR 0016](../adr/0016-versioned-hr-masters.md). Diagram: [editable draw.io](../diagrams/versioned-hr-masters.drawio).
+
+| Endpoint                                                         | Authorization                                                 | Behavior                                                                                                     |
+| ---------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `GET /workforce/hospitals/{hospital}/hr/masters?kind=department` | Tenant membership and explicit hospital reader/manager grant  | Keyset-paginated current records; optional allowlisted category                                              |
+| `PUT /workforce/hospitals/{hospital}/hr/masters/{id}`            | `workforce.master.manage` and explicit hospital manager grant | Stable client UUID; normalized unique code/name; optimistic version; immutable revision on meaningful change |
+| `GET /workforce/hospitals/{hospital}/hr/masters/{id}/history`    | Tenant membership and explicit hospital reader/manager grant  | Keyset-paginated immutable revision history                                                                  |
+
+PUT input: `expected_version` (0 for creation), `kind`, `code` (1–40 ASCII letters/digits/underscore/hyphen), `name` (1–80 characters), `description` (0–500), `active` (boolean). Code/category cannot change. Name whitespace is collapsed; code is uppercase. Duplicate normalized name/code returns 409, even when a record is retired. An identical retry preserves revision/timestamps and emits no new event. A different stale edit returns 409. Invalid fields return 400; inaccessible objects return 404. Tenant/hospital identity and unknown JSON fields are rejected. All responses explicitly use `Cache-Control: no-store`.
+
+Categories: department, designation, grade, qualification, document_category, exit_reason, relationship, language, contract_type. This does not implement salary, tax, leave policy or KRA/KPI models. Retire/reactivate with `active`; no delete endpoint exists. List/history support the shared cursor and limit contract.
+
+Enrollment profiles can select `department_revision_id`, `designation_revision_id`, `grade_revision_id`. Foreign-key scope includes tenant, hospital and category. The server derives the assignment name from the immutable revision; supplied label text cannot forge a snapshot. New assignments must select the active current revision. An existing assignment may retain its older/retired revision. Explicit empty reference clears it; omitted reference fields from older clients preserve an existing assignment. Free-text legacy assignments remain supported without silently matching names. A database guard refuses older API writers attempting to remove a pinned profile during rolling deployment.
+
+`helivanta.in.workforce.master_changed.v1` contains hospital/master/revision UUIDs, category and revision number only. Audit, master head, immutable revision and outbox intent commit together. Neither employee attributes nor master labels are broadcast. The existing JetStream relay publishes; no Valkey caching or Temporal workflow is required for this transaction.
+
+Synthetic verification: run `scripts/verify-hr-masters.mjs` with authenticated verification scope supplied privately via the same variables as `verify-staff-enrollment.mjs`. Its stable reserved IDs/codes are separate from manual browser fixtures. It restores its own synthetic baseline through versioned API operations on repeat runs and does not delete records.

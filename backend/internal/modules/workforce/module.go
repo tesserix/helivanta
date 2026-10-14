@@ -13,7 +13,9 @@ import (
 
 const PermHospitalManage authz.Permission = "workforce.hospital.manage"
 const PermEnrollmentManage authz.Permission = "workforce.enrollment.manage"
+const PermMasterManage authz.Permission = "workforce.master.manage"
 const EnrollmentChanged = workforcecontract.SubjectStaffEnrollmentChanged
+const MasterChanged = workforcecontract.SubjectMasterChanged
 
 //go:embed schema.sql
 var schema string
@@ -24,17 +26,20 @@ var enrollmentSchema string
 //go:embed staff_code.sql
 var staffCodeSchema string
 
+//go:embed masters.sql
+var mastersSchema string
+
 type Module struct{}
 
 func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "workforce" }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}}
+	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}}
 }
 func (*Module) Permissions() []authz.Grant {
-	return []authz.Grant{{Permission: PermHospitalManage}, {Permission: PermEnrollmentManage}}
+	return []authz.Grant{{Permission: PermHospitalManage}, {Permission: PermEnrollmentManage}, {Permission: PermMasterManage}}
 }
-func (*Module) Publishes() []string                         { return []string{EnrollmentChanged} }
+func (*Module) Publishes() []string                         { return []string{EnrollmentChanged, MasterChanged} }
 func (*Module) DirectedSubjects() []string                  { return nil }
 func (*Module) DirectedWriteTables() []string               { return nil }
 func (*Module) Consumers(platform.Deps) []events.Consumer   { return nil }
@@ -53,5 +58,8 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET("/:hospital/staff/:id", authz.Public, h.getStaff)
 	g.GET("/:hospital/staff/:id/enrollment", PermEnrollmentManage, h.getEnrollment)
 	g.PUT("/:hospital/staff/:id/enrollment", PermEnrollmentManage, h.putEnrollment)
+	g.PUT("/:hospital/hr/masters/:id", PermMasterManage, h.putMaster)
+	platform.ListRoute(g, "/:hospital/hr/masters", authz.Public, h.listMasters)
+	platform.ListRoute(g, "/:hospital/hr/masters/:id/history", authz.Public, h.masterHistory)
 	platform.ListRoute(g, "/:hospital/staff", authz.Public, h.listStaff)
 }

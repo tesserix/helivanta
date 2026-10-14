@@ -7,6 +7,54 @@ import Workforce from "./page";
 const hospital = "11111111-1111-4111-8111-111111111111";
 afterEach(() => vi.unstubAllGlobals());
 
+it("pins an active department revision and preserves the selection on save failure", async () => {
+  const revision = "33333333-3333-4333-8333-333333333333";
+  const writes: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      let body: unknown = { data: [], page: { has_more: false } };
+      if (url.includes("permissions")) body = { data: ["workforce.enrollment.manage"] };
+      else if (url.endsWith("/hospitals"))
+        body = {
+          data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
+          page: { has_more: false },
+        };
+      else if (url.includes("/hr/masters"))
+        body = {
+          data: [
+            {
+              id: "master-1",
+              revision_id: revision,
+              kind: "department",
+              code: "SYN-DEPT",
+              name: "Synthetic Care",
+              active: true,
+              version: 1,
+            },
+          ],
+          page: { has_more: false },
+        };
+      if (init?.method === "PUT") {
+        writes.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ message: "Synthetic conflict" }), { status: 409 });
+      }
+      return new Response(JSON.stringify(body), { status: 200 });
+    }),
+  );
+  const { user } = renderWithProviders(<Workforce />);
+  await user.click(await screen.findByRole("button", { name: "Add staff" }));
+  await user.type(screen.getByLabelText("Full name"), "Synthetic Staff");
+  await user.type(screen.getByLabelText("Employee code"), "SYN-HR-REF");
+  await chooseOption(user, screen.getByLabelText("Department"), "Synthetic Care · SYN-DEPT");
+  await user.click(screen.getByRole("button", { name: "Save staff" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({
+    profile: { department: "Synthetic Care", department_revision_id: revision },
+  });
+  expect(screen.getByLabelText("Department")).toHaveTextContent("Synthetic Care");
+});
+
 function mockEnrollment(
   options: { status?: number; loadFailure?: boolean; permitted?: boolean } = {},
 ) {

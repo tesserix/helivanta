@@ -1,6 +1,7 @@
 package workforce
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -34,14 +35,37 @@ type enrollment struct {
 }
 
 type enrollmentInput struct {
-	ExpectedVersion   *int64                    `json:"expected_version" binding:"required,gte=0"`
-	Staff             staffInput                `json:"staff" binding:"required"`
-	Profile           enrollmentProfile         `json:"profile"`
-	Addresses         []enrollmentAddress       `json:"addresses" binding:"max=2,dive"`
-	EmergencyContacts []enrollmentContact       `json:"emergency_contacts" binding:"max=5,dive"`
-	Credentials       []enrollmentCredential    `json:"credentials" binding:"max=20,dive"`
-	Qualifications    []enrollmentQualification `json:"qualifications" binding:"max=20,dive"`
-	Experiences       []enrollmentExperience    `json:"experiences" binding:"max=20,dive"`
+	ExpectedVersion    *int64                    `json:"expected_version" binding:"required,gte=0"`
+	Staff              staffInput                `json:"staff" binding:"required"`
+	Profile            enrollmentProfile         `json:"profile"`
+	Addresses          []enrollmentAddress       `json:"addresses" binding:"max=2,dive"`
+	EmergencyContacts  []enrollmentContact       `json:"emergency_contacts" binding:"max=5,dive"`
+	Credentials        []enrollmentCredential    `json:"credentials" binding:"max=20,dive"`
+	Qualifications     []enrollmentQualification `json:"qualifications" binding:"max=20,dive"`
+	Experiences        []enrollmentExperience    `json:"experiences" binding:"max=20,dive"`
+	providedReferences map[string]bool
+}
+
+func (in *enrollmentInput) UnmarshalJSON(data []byte) error {
+	type plain enrollmentInput
+	var value plain
+	d := json.NewDecoder(bytes.NewReader(data))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&value); err != nil {
+		return err
+	}
+	*in = enrollmentInput(value)
+	var fields struct {
+		Profile map[string]json.RawMessage `json:"profile"`
+	}
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	in.providedReferences = map[string]bool{}
+	for _, kind := range []string{"department", "designation", "grade"} {
+		_, in.providedReferences[kind] = fields.Profile[kind+"_revision_id"]
+	}
+	return nil
 }
 
 var internationalPhone = regexp.MustCompile(`^\+[1-9][0-9]{6,14}$`)
@@ -238,7 +262,7 @@ func enrollmentRow(value any, tenant string, hospital, id uuid.UUID) (map[string
 		return nil, err
 	}
 	for key, value := range row {
-		if (strings.HasSuffix(key, "_date") || key == "date_of_birth" || key == "valid_from" || key == "valid_until" || key == "supervisor_id") && value == "" {
+		if (strings.HasSuffix(key, "_date") || strings.HasSuffix(key, "_revision_id") || key == "date_of_birth" || key == "valid_from" || key == "valid_until" || key == "supervisor_id") && value == "" {
 			row[key] = nil
 		}
 	}
@@ -309,6 +333,9 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 			if err != nil {
 				return err
 			}
+			if err := validateMasterReferences(tx, p, hospital, &in.Profile, existing.Profile, in.providedReferences); err != nil {
+				return err
+			}
 			if sameEnrollment(existing, in) {
 				result = existing
 				return nil
@@ -318,6 +345,8 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 			}
 		} else if *in.ExpectedVersion != 0 {
 			return gorm.ErrRecordNotFound
+		} else if err := validateMasterReferences(tx, p, hospital, &in.Profile, enrollmentProfile{}, in.providedReferences); err != nil {
+			return err
 		}
 		if err := tx.Exec(`INSERT INTO workforce_staff (tenant_id,hospital_id,id,employee_code,display_name,job_category,employment_status)
 		 VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (tenant_id,hospital_id,id) DO UPDATE SET employee_code = EXCLUDED.employee_code,
@@ -350,6 +379,9 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 		return
 	}
 	if err != nil {
+		if respondMasterReferenceError(c, err) {
+			return
+		}
 		respondError(c, err)
 		return
 	}

@@ -23,6 +23,7 @@ import {
   EMPTY_QUALIFICATIONS,
   EMPTY_EXPERIENCES,
   JOB_LABELS,
+  type HRMaster,
   type EnrollmentInput,
   type StaffEnrollment,
   type Hospital,
@@ -35,6 +36,7 @@ import {
   useFieldArray,
   type FieldPath,
   ConfirmDialog,
+  SelectControl,
 } from "@helivanta/ui";
 
 const inputClass =
@@ -91,7 +93,7 @@ export function EnrollmentEditor({
     );
   const value: EnrollmentInput = query.data
     ? {
-        profile: query.data.profile,
+        profile: { ...EMPTY_ENROLLMENT.profile, ...query.data.profile },
         addresses: query.data.addresses,
         emergency_contacts: query.data.emergency_contacts,
         credentials: query.data.credentials,
@@ -141,6 +143,10 @@ function EnrollmentForm({
     ["workforce", "supervisors", hospital.id],
     `/workforce/hospitals/${hospital.id}/staff`,
   );
+  const masters = useApiPagedQuery<HRMaster>(
+    ["workforce", "master-choices", hospital.id],
+    `/workforce/hospitals/${hospital.id}/hr/masters`,
+  );
   const sectionRef = useRef<HTMLElement>(null);
   const addresses = useFieldArray({
     control: form.control,
@@ -186,6 +192,48 @@ function EnrollmentForm({
     });
     form.setFocus("staff.display_name");
   }, [form]);
+
+  const masterField = (kind: "department" | "designation" | "grade", label: string) => {
+    const revisionKey = `profile.${kind}_revision_id` as const;
+    const nameKey = `profile.${kind}` as const;
+    const revision = form.watch(revisionKey);
+    const name = form.watch(nameKey);
+    const choices = masters.items.filter((row) => row.kind === kind && row.active);
+    if (!choices.length && !revision) return field(nameKey, label);
+    const recorded = value.profile[kind];
+    const id = `enrollment-${kind}-choice`;
+    return (
+      <Field id={id} label={label}>
+        <SelectControl
+          id={id}
+          value={revision || (name ? "__recorded" : "")}
+          onValueChange={(selected) => {
+            if (selected === "__recorded") {
+              form.setValue(revisionKey, "", { shouldDirty: true });
+              form.setValue(nameKey, recorded, { shouldDirty: true });
+              return;
+            }
+            const row = choices.find((item) => item.revision_id === selected);
+            form.setValue(revisionKey, row?.revision_id ?? "", { shouldDirty: true });
+            form.setValue(nameKey, row?.name ?? "", { shouldDirty: true });
+          }}
+          options={[
+            { value: "", label: "Not assigned" },
+            ...(!value.profile[`${kind}_revision_id`] && recorded
+              ? [{ value: "__recorded", label: `Recorded text: ${recorded}` }]
+              : []),
+            ...choices.map((row) => ({
+              value: row.revision_id,
+              label: `${row.name} · ${row.code}`,
+            })),
+            ...(revision && !choices.some((row) => row.revision_id === revision)
+              ? [{ value: revision, label: `${name} · recorded revision` }]
+              : []),
+          ]}
+        />
+      </Field>
+    );
+  };
 
   const field = (name: FieldPath<EnrollmentInput>, label: string, type = "text") => {
     const error = form.getFieldState(name, form.formState).error?.message;
@@ -344,8 +392,8 @@ function EnrollmentForm({
                   (value) => ({ value, label: value[0]!.toUpperCase() + value.slice(1) }),
                 ),
               )}
-              {field("profile.department", "Department")}
-              {field("profile.designation", "Designation")}
+              {masterField("department", "Department")}
+              {masterField("designation", "Designation")}
               {select("profile.supervisor_id", "Supervisor", [
                 { value: "", label: "Not assigned" },
                 ...supervisors.items
@@ -364,7 +412,7 @@ function EnrollmentForm({
                     ]
                   : []),
               ])}
-              {field("profile.grade", "Grade")}
+              {masterField("grade", "Grade")}
               {field("profile.start_date", "Start date", "date")}
               {field("profile.end_date", "End date", "date")}
               {field("profile.probation_end_date", "Probation end date", "date")}
@@ -372,6 +420,25 @@ function EnrollmentForm({
               {field("profile.exit_reason", "Exit reason")}
             </div>
           </section>
+          {masters.hasMore && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={masters.isFetchingMore}
+              onClick={masters.loadMore}
+            >
+              Load more HR choices
+            </Button>
+          )}
+          {masters.isError && (
+            <p className="text-sm text-muted-foreground">
+              Could not load HR choices. Existing text and recorded assignments are preserved.{" "}
+              <Button type="button" variant="ghost" size="sm" onClick={masters.retry}>
+                Retry HR choices
+              </Button>
+            </p>
+          )}
           {supervisors.hasMore && (
             <Button
               type="button"

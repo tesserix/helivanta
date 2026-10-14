@@ -16,6 +16,8 @@ async function request(path, method = "GET", body) {
     body: body ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(20000),
   });
+  if (path.startsWith("workforce/"))
+    assert.equal(response.headers.get("cache-control"), "no-store");
   return { status: response.status, body: await response.json() };
 }
 const me = await request("iam/me/permissions");

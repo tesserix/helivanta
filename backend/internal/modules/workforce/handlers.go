@@ -39,6 +39,7 @@ func (hospital) TableName() string                 { return "workforce_hospitals
 func (h hospital) PageKey() (time.Time, uuid.UUID) { return h.CreatedAt, h.ID }
 
 func (h *handlers) listHospitals(c *gin.Context, params pagination.Params) ([]hospital, error) {
+	c.Header("Cache-Control", "no-store")
 	p, _, ok := authn.TenantPrincipal(c)
 	if !ok {
 		return nil, nil
@@ -107,6 +108,7 @@ func decodeSized(c *gin.Context, into any, limit int64) bool {
 }
 
 func scope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
+	c.Header("Cache-Control", "no-store")
 	p, _, ok := authn.TenantPrincipal(c)
 	if !ok {
 		return p, uuid.Nil, false
@@ -306,6 +308,7 @@ func (h *handlers) getStaff(c *gin.Context) {
 }
 
 func (h *handlers) listStaff(c *gin.Context, params pagination.Params) ([]staff, error) {
+	c.Header("Cache-Control", "no-store")
 	p, _, ok := authn.TenantPrincipal(c)
 	if !ok {
 		return nil, nil

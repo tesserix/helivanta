@@ -10,6 +10,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 const SessionCookie = "helivanta_session"
@@ -123,6 +125,7 @@ func Middleware(v TokenVerifier, rev RevocationChecker) gin.HandlerFunc {
 			return
 		}
 		c.Set(principalKey, p)
+		c.Request = c.Request.WithContext(tenantdb.WithActor(c.Request.Context(), p.Subject))
 		c.Next()
 	}
 }

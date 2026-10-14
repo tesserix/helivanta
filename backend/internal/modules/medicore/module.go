@@ -65,6 +65,12 @@ func (m *Module) Migrations() []tenantdb.Migration {
 		// exists (or before a caller supplies one) must keep working.
 		// This is the transition spec D7 describes, not a hard cutover.
 		SQL: `ALTER TABLE medicore_visits ADD COLUMN patient_id uuid;`,
+	}, {
+		ID: "0004_medicore",
+		// Every row change lands in audit_events with its actor (#54).
+		SQL: `
+			CREATE TRIGGER medicore_visits_audit AFTER INSERT OR UPDATE OR DELETE ON medicore_visits
+			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
 	}}
 }
 

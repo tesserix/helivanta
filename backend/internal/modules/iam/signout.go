@@ -2,6 +2,7 @@ package iam
 
 import (
 	"encoding/json"
+	"log/slog"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +12,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/audit"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -42,6 +44,8 @@ func (h *revocationHandlers) signOut(c *gin.Context) {
 		respond.InternalErr(c, err, "could not sign out")
 		return
 	}
+	audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelInfo, "auth.session.signed_out", "signed out",
+		"subject", p.Subject, "tenant_id", p.TenantID)
 	respond.OK(c, gin.H{"signed_out": true})
 }
 
@@ -79,7 +83,7 @@ func (h *revocationHandlers) adminRevoke(c *gin.Context) {
 		respond.InternalErr(c, err, "could not revoke credentials")
 		return
 	}
-	requestid.Logger(c).WarnContext(c.Request.Context(), "credentials revoked by administrator",
+	audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelWarn, "auth.credentials.revoked", "credentials revoked by administrator",
 		"target_subject", target, "actor_subject", p.Subject, "tenant_id", p.TenantID,
 		"cross_tenant_effect", "the target's sessions end in every tenant, not only this one")
 	respond.OK(c, gin.H{"revoked": true, "subject": target})

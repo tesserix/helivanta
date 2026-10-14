@@ -126,6 +126,23 @@ func TestDispenseFlow(t *testing.T) {
 	require.Equal(t, http.StatusConflict,
 		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokA", `{"medication":"Paracetamol 500mg"}`).Code)
 
+	// The consumer's insert and the pharmacist's fulfilment are both in the audit trail.
+	type auditRow struct {
+		ActorSubject  string
+		Action        string
+		ChangedFields string
+	}
+	var trail []auditRow
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT actor_subject, action, array_to_string(changed_fields, ',') AS changed_fields
+			FROM audit_events WHERE resource_type = 'pharmacy_dispenses' AND resource_id = ?
+			ORDER BY occurred_at, action`, dispenseID).Scan(&trail).Error
+	}))
+	require.Equal(t, []auditRow{
+		{ActorSubject: "system:pharmacy-visit-intake", Action: "insert"},
+		{ActorSubject: "user-tokA", Action: "update", ChangedFields: "dispensed_at,medication,status"},
+	}, trail)
+
 	// dispense_recorded hit the outbox. Read under WithTenant(TenantA),
 	// not WithSystem: since #835 Task 1, outbox_events carries the
 	// publishing tenant and is RLS-forced, so a WithSystem read (no
@@ -223,6 +240,7 @@ func TestMedicationsCrud(t *testing.T) {
 // seedMedications inserts n medications directly so
 // TestMedicationsArePaginated controls exactly how many rows exist.
 func seedMedications(t *testing.T, db *tenantdb.DB, ctx context.Context, tenantID uuid.UUID, n int) {
+	ctx = tenantdb.WithActor(ctx, "test-seed")
 	t.Helper()
 	for i := range n {
 		name := fmt.Sprintf("med-%02d", i)
@@ -236,6 +254,7 @@ func seedMedications(t *testing.T, db *tenantdb.DB, ctx context.Context, tenantI
 // seedDispenses inserts n dispenses directly so TestDispensesArePaginated
 // controls exactly how many rows exist.
 func seedDispenses(t *testing.T, db *tenantdb.DB, ctx context.Context, tenantID uuid.UUID, n int) {
+	ctx = tenantdb.WithActor(ctx, "test-seed")
 	t.Helper()
 	for i := range n {
 		name := fmt.Sprintf("dispense-%02d", i)

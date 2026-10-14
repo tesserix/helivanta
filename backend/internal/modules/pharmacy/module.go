@@ -79,6 +79,14 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			ALTER POLICY tenant_isolation ON pharmacy_dispenses
 			  USING (hms_tenant_visible(tenant_id))
 			  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);`,
+	}, {
+		ID: "0003_pharmacy",
+		// Every row change lands in audit_events with its actor (#54).
+		SQL: `
+			CREATE TRIGGER pharmacy_medications_audit AFTER INSERT OR UPDATE OR DELETE ON pharmacy_medications
+			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();
+			CREATE TRIGGER pharmacy_dispenses_audit AFTER INSERT OR UPDATE OR DELETE ON pharmacy_dispenses
+			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
 	}}
 }
 

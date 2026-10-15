@@ -546,3 +546,93 @@ export const leaveRequestEventContract = z
   })
   .strict();
 export type LeaveRequestEvent = z.infer<typeof leaveRequestEventContract>;
+
+export const leaveReportTypeContract = z
+  .object({
+    leave_type_id: identifier,
+    code: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    half_days: z.number().int().min(0),
+    minutes: z.number().int().min(0),
+  })
+  .strict();
+export type LeaveReportType = z.infer<typeof leaveReportTypeContract>;
+
+export const leaveReportMonthContract = z
+  .object({
+    month: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    leave_dates: z.array(z.string()),
+    types: z.array(leaveReportTypeContract),
+  })
+  .strict();
+export type LeaveReportMonth = z.infer<typeof leaveReportMonthContract>;
+
+export const leaveMonthlyReportRowContract = z
+  .object({
+    staff_id: identifier,
+    employee_code: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    display_name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    department: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    joined_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    months: z.array(leaveReportMonthContract),
+  })
+  .strict();
+export type LeaveMonthlyReportRow = z.infer<typeof leaveMonthlyReportRowContract>;
+
+export const leaveStatusReportRowContract = z
+  .object({
+    id: identifier,
+    staff_id: identifier,
+    employee_code: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    display_name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    department: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    joined_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    leave_type_id: identifier,
+    code: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    unit: z.enum(["full_day", "half_day", "short_leave"]),
+    start_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    end_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    session: z.enum(["first_half", "second_half"]).optional(),
+    minutes: z.number().int().optional(),
+    half_days: z.number().int(),
+    status: z.enum(["pending", "approved", "rejected", "cancelled"]),
+    requested_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    decided_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type LeaveStatusReportRow = z.infer<typeof leaveStatusReportRowContract>;

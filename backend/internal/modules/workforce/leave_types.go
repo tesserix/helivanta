@@ -269,3 +269,48 @@ type leaveRequestEvent struct {
 	ActorSubject string    `json:"actor_subject"`
 	CreatedAt    time.Time `json:"created_at"`
 }
+
+type leaveReportType struct {
+	LeaveTypeID uuid.UUID `json:"leave_type_id"`
+	Code        string    `json:"code"`
+	Name        string    `json:"name"`
+	HalfDays    int       `json:"half_days"`
+	Minutes     int       `json:"minutes"`
+}
+
+type leaveReportMonth struct {
+	Month      string            `json:"month"`
+	LeaveDates []string          `json:"leave_dates"`
+	Types      []leaveReportType `json:"types"`
+}
+
+type leaveMonthlyReportRow struct {
+	StaffID      uuid.UUID          `json:"staff_id"`
+	EmployeeCode string             `json:"employee_code"`
+	DisplayName  string             `json:"display_name"`
+	Department   *string            `json:"department,omitempty"`
+	JoinedOn     *string            `json:"joined_on,omitempty"`
+	Months       []leaveReportMonth `json:"months" gorm:"-"`
+}
+
+type leaveStatusReportRow struct {
+	ID                 uuid.UUID `json:"id"`
+	StaffID            uuid.UUID `json:"staff_id"`
+	EmployeeCode       string    `json:"employee_code"`
+	DisplayName        string    `json:"display_name"`
+	Department         *string   `json:"department,omitempty"`
+	JoinedOn           *string   `json:"joined_on,omitempty"`
+	LeaveTypeID        uuid.UUID `json:"leave_type_id"`
+	Code               string    `json:"code"`
+	Name               string    `json:"name"`
+	Unit               string    `json:"unit"`
+	StartOn            string    `json:"start_on"`
+	EndOn              string    `json:"end_on"`
+	Session            *string   `json:"session,omitempty"`
+	Minutes            *int      `json:"minutes,omitempty"`
+	HalfDays           int       `json:"half_days"`
+	Status             string    `json:"status"`
+	RequestedBySubject string    `json:"requested_by_subject"`
+	DecidedBySubject   *string   `json:"decided_by_subject,omitempty"`
+	CreatedAt          time.Time `json:"created_at"`
+}

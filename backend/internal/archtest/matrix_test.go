@@ -158,7 +158,7 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 			// grant reaches it).
 			// Workforce hospital setup/access administration is also admin-only;
 			// staff data still requires an independent hospital grant (ADR 0009).
-			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workspace.PermBrandingManage && perm != patientmaster.PermPatientAccessManage {
+			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workspace.PermBrandingManage && perm != patientmaster.PermPatientAccessManage {
 				t.Errorf("module %q guards a route with %q, held by tenant_admin only; declare the role that needs it", m.Name(), perm)
 			}
 		}
@@ -187,6 +187,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workforce.PermDocumentManage:   {authz.RoleTenantAdmin},
 	workforce.PermMasterManage:     {authz.RoleTenantAdmin},
 	workforce.PermRosterManage:     {authz.RoleTenantAdmin},
+	workforce.PermRosterCorrect:    {authz.RoleTenantAdmin},
 	workspace.PermBrandingManage:   {authz.RoleTenantAdmin},
 	iam.PermMemberManage:           {authz.RoleTenantAdmin},
 	iam.PermCredentialRevoke:       {authz.RoleTenantAdmin},

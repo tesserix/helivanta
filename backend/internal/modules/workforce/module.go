@@ -15,12 +15,16 @@ const PermHospitalManage authz.Permission = "workforce.hospital.manage"
 const PermEnrollmentManage authz.Permission = "workforce.enrollment.manage"
 const PermDocumentManage authz.Permission = "workforce.documents.manage"
 const PermRosterManage authz.Permission = "workforce.roster.manage"
+
+// PermRosterCorrect reopens a frozen roster; it is separate so publication and correction can be held by different people.
+const PermRosterCorrect authz.Permission = "workforce.roster.correct"
 const RosterConfigChanged = workforcecontract.SubjectRosterConfigChanged
 const DocumentScanRequested = workforcecontract.SubjectDocumentScanRequested
 const DocumentChanged = workforcecontract.SubjectDocumentChanged
 const ShiftChanged = workforcecontract.SubjectShiftChanged
 const RosterSettingsChanged = workforcecontract.SubjectRosterSettingsChanged
 const StaffRosterAssignmentChanged = workforcecontract.SubjectStaffRosterAssignmentChanged
+const RosterChanged = workforcecontract.SubjectRosterChanged
 
 const PermMasterManage authz.Permission = "workforce.master.manage"
 const EnrollmentChanged = workforcecontract.SubjectStaffEnrollmentChanged
@@ -53,18 +57,21 @@ var documentsSchema string
 //go:embed document_worker.sql
 var documentWorkerSchema string
 
+//go:embed rosters.sql
+var rostersSchema string
+
 type Module struct{}
 
 func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "workforce" }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}, {ID: "0007_workforce_roster_policy", SQL: rosterPolicySchema}, {ID: "0007_workforce_documents", SQL: documentsSchema}, {ID: "0008_workforce_document_worker", SQL: documentWorkerSchema}}
+	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}, {ID: "0007_workforce_roster_policy", SQL: rosterPolicySchema}, {ID: "0007_workforce_documents", SQL: documentsSchema}, {ID: "0008_workforce_document_worker", SQL: documentWorkerSchema}, {ID: "0009_workforce_rosters", SQL: rostersSchema}}
 }
 func (*Module) Permissions() []authz.Grant {
-	return []authz.Grant{{Permission: PermHospitalManage}, {Permission: PermEnrollmentManage}, {Permission: PermDocumentManage}, {Permission: PermMasterManage}, {Permission: PermRosterManage}}
+	return []authz.Grant{{Permission: PermHospitalManage}, {Permission: PermEnrollmentManage}, {Permission: PermDocumentManage}, {Permission: PermMasterManage}, {Permission: PermRosterManage}, {Permission: PermRosterCorrect}}
 }
 func (*Module) Publishes() []string {
-	return []string{EnrollmentChanged, MasterChanged, ShiftChanged, RosterConfigChanged, RosterSettingsChanged, StaffRosterAssignmentChanged, DocumentScanRequested, DocumentChanged}
+	return []string{EnrollmentChanged, MasterChanged, ShiftChanged, RosterConfigChanged, RosterSettingsChanged, StaffRosterAssignmentChanged, DocumentScanRequested, DocumentChanged, RosterChanged}
 }
 func (*Module) DirectedSubjects() []string    { return nil }
 func (*Module) DirectedWriteTables() []string { return nil }
@@ -108,6 +115,16 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "/:hospital/hr/roster-assignments", authz.Public, h.listStaffRosterAssignments)
 	g.PUT("/:hospital/staff/:id/roster-assignment", PermRosterManage, h.putStaffRosterAssignment)
 	platform.ListRoute(g, "/:hospital/staff/:id/roster-assignment/history", authz.Public, h.staffRosterAssignmentHistory)
+	platform.ListRoute(g, "/:hospital/hr/rosters", authz.Public, h.listRosters)
+	g.PUT("/:hospital/hr/rosters/:id", PermRosterManage, h.putRoster)
+	g.GET("/:hospital/hr/rosters/:id", authz.Public, h.getRoster)
+	platform.ListRoute(g, "/:hospital/hr/rosters/:id/allocations", authz.Public, h.rosterAllocations)
+	platform.ListRoute(g, "/:hospital/hr/rosters/:id/revisions", authz.Public, h.rosterRevisions)
+	g.POST("/:hospital/hr/rosters/:id/changes", PermRosterManage, h.changeRoster)
+	g.POST("/:hospital/hr/rosters/:id/populate", PermRosterManage, h.populateRoster)
+	g.POST("/:hospital/hr/rosters/:id/freeze", PermRosterManage, h.transitionRoster(rosterTransition{from: "draft", to: "frozen"}, "frozen"))
+	g.POST("/:hospital/hr/rosters/:id/discard", PermRosterManage, h.transitionRoster(rosterTransition{from: "draft", to: "discarded", needsReason: true, clearsRoster: true}, "discarded"))
+	g.POST("/:hospital/hr/rosters/:id/unfreeze", PermRosterCorrect, h.transitionRoster(rosterTransition{from: "frozen", to: "draft", needsReason: true}, "unfrozen"))
 	g.PUT("/:hospital/hr/masters/:id", PermMasterManage, h.putMaster)
 	platform.ListRoute(g, "/:hospital/hr/masters", authz.Public, h.listMasters)
 	platform.ListRoute(g, "/:hospital/hr/masters/:id/history", authz.Public, h.masterHistory)

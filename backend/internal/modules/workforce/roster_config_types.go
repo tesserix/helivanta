@@ -122,3 +122,105 @@ type staffRosterAssignmentInput struct {
 	EffectiveOn              string    `json:"effective_on" binding:"required,len=10"`
 	Reviewed                 *bool     `json:"reviewed" binding:"required"`
 }
+
+type roster struct {
+	ID                 uuid.UUID `json:"id"`
+	RevisionID         uuid.UUID `json:"revision_id"`
+	Name               string    `json:"name"`
+	StartDate          string    `json:"start_date"`
+	EndDate            string    `json:"end_date"`
+	Status             string    `json:"status"`
+	SettingsRevisionID uuid.UUID `json:"settings_revision_id"`
+	Timezone           string    `json:"timezone"`
+	WeekStart          int       `json:"week_start"`
+	AutoPopulation     string    `json:"auto_population"`
+	Allocations        int       `json:"allocations"`
+	ReviewedBySubject  string    `json:"reviewed_by_subject"`
+	Version            int64     `json:"version"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+type rosterInput struct {
+	Name      string `json:"name" binding:"required,max=80"`
+	StartDate string `json:"start_date" binding:"required,len=10"`
+	EndDate   string `json:"end_date" binding:"required,len=10"`
+	Reviewed  *bool  `json:"reviewed" binding:"required"`
+}
+
+type datedAllocation struct {
+	ID              uuid.UUID `json:"id"`
+	StaffID         uuid.UUID `json:"staff_id"`
+	EmployeeCode    string    `json:"employee_code"`
+	DisplayName     string    `json:"display_name"`
+	RosterDate      string    `json:"roster_date"`
+	ShiftRevisionID uuid.UUID `json:"shift_revision_id"`
+	ShiftCode       string    `json:"shift_code"`
+	ShiftName       string    `json:"shift_name"`
+	StartTime       string    `json:"start_time"`
+	EndTime         string    `json:"end_time"`
+	AreaRevisionID  uuid.UUID `json:"area_revision_id"`
+	AreaCode        string    `json:"area_code"`
+	AreaName        string    `json:"area_name"`
+	StartsAt        time.Time `json:"starts_at"`
+	EndsAt          time.Time `json:"ends_at"`
+	Additional      bool      `json:"additional"`
+	AddedVersion    int64     `json:"added_version"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+type datedAllocationInput struct {
+	ID              uuid.UUID `json:"id" binding:"required"`
+	StaffID         uuid.UUID `json:"staff_id" binding:"required"`
+	RosterDate      string    `json:"roster_date" binding:"required,len=10"`
+	ShiftRevisionID uuid.UUID `json:"shift_revision_id" binding:"required"`
+	AreaRevisionID  uuid.UUID `json:"area_revision_id" binding:"required"`
+}
+
+type rosterChangeInput struct {
+	ChangeID        uuid.UUID              `json:"change_id" binding:"required"`
+	ExpectedVersion *int64                 `json:"expected_version" binding:"required,gte=1"`
+	Mode            string                 `json:"mode" binding:"required,oneof=roster employee additional"`
+	Add             []datedAllocationInput `json:"add" binding:"max=500,dive"`
+	Remove          []uuid.UUID            `json:"remove" binding:"max=500"`
+	Reason          string                 `json:"reason" binding:"max=500"`
+	Reviewed        *bool                  `json:"reviewed" binding:"required"`
+}
+
+type rosterPopulateInput struct {
+	ChangeID        uuid.UUID   `json:"change_id" binding:"required"`
+	ExpectedVersion *int64      `json:"expected_version" binding:"required,gte=1"`
+	StaffIDs        []uuid.UUID `json:"staff_ids" binding:"max=500"`
+	Reason          string      `json:"reason" binding:"max=500"`
+	Reviewed        *bool       `json:"reviewed" binding:"required"`
+}
+
+type rosterStatusInput struct {
+	ChangeID        uuid.UUID `json:"change_id" binding:"required"`
+	ExpectedVersion *int64    `json:"expected_version" binding:"required,gte=1"`
+	Reason          string    `json:"reason" binding:"max=500"`
+	Reviewed        *bool     `json:"reviewed" binding:"required"`
+}
+
+type rosterRevision struct {
+	ID                uuid.UUID `json:"id"`
+	RevisionID        uuid.UUID `json:"revision_id"`
+	RosterID          uuid.UUID `json:"roster_id"`
+	Action            string    `json:"action"`
+	Mode              *string   `json:"mode,omitempty"`
+	Status            string    `json:"status"`
+	Added             int       `json:"added"`
+	Removed           int       `json:"removed"`
+	SkippedExisting   int       `json:"skipped_existing"`
+	SkippedUnassigned int       `json:"skipped_unassigned"`
+	SkippedConflicts  int       `json:"skipped_conflicts"`
+	Reason            string    `json:"reason"`
+	ReviewedBySubject string    `json:"reviewed_by_subject"`
+	Version           int64     `json:"version"`
+	CreatedAt         time.Time `json:"created_at"`
+}
+
+type rosterChangeResult struct {
+	Roster   roster         `json:"roster"`
+	Revision rosterRevision `json:"revision"`
+}

@@ -1,5 +1,6 @@
 import {
   BedDouble,
+  CalendarDays,
   Users,
   Settings,
   ClipboardList,
@@ -75,6 +76,7 @@ export const ZONES: Zone[] = [
         icon: Settings,
         permission: "public",
       },
+      { label: "Rosters", href: "/workforce/rosters", icon: CalendarDays, permission: "public" },
     ],
   },
   {

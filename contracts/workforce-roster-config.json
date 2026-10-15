@@ -456,11 +456,442 @@
         "pointer": true,
         "binding": "required"
       }
+    ],
+    "roster": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 80,
+        "format": "name"
+      },
+      {
+        "name": "start_date",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "end_date",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "draft",
+          "frozen",
+          "discarded"
+        ]
+      },
+      {
+        "name": "settings_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "timezone",
+        "type": "string",
+        "min": 1,
+        "max": 64
+      },
+      {
+        "name": "week_start",
+        "type": "int",
+        "min": 0,
+        "max": 6
+      },
+      {
+        "name": "auto_population",
+        "type": "string",
+        "enum": [
+          "disabled",
+          "fixed_shift",
+          "all_assigned"
+        ]
+      },
+      {
+        "name": "allocations",
+        "type": "int",
+        "min": 0
+      },
+      {
+        "name": "reviewed_by_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "rosterInput": [
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 80,
+        "format": "name",
+        "binding": "required,max=80"
+      },
+      {
+        "name": "start_date",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "end_date",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "datedAllocation": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "roster_date",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "shift_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shift_code",
+        "type": "string"
+      },
+      {
+        "name": "shift_name",
+        "type": "string"
+      },
+      {
+        "name": "start_time",
+        "type": "string"
+      },
+      {
+        "name": "end_time",
+        "type": "string"
+      },
+      {
+        "name": "area_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "area_code",
+        "type": "string"
+      },
+      {
+        "name": "area_name",
+        "type": "string"
+      },
+      {
+        "name": "starts_at",
+        "type": "time"
+      },
+      {
+        "name": "ends_at",
+        "type": "time"
+      },
+      {
+        "name": "additional",
+        "type": "bool"
+      },
+      {
+        "name": "added_version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "datedAllocationInput": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "roster_date",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "shift_revision_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "area_revision_id",
+        "type": "uuid",
+        "binding": "required"
+      }
+    ],
+    "rosterChangeInput": [
+      {
+        "name": "change_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "binding": "required,gte=1"
+      },
+      {
+        "name": "mode",
+        "type": "string",
+        "enum": [
+          "roster",
+          "employee",
+          "additional"
+        ],
+        "binding": "required,oneof=roster employee additional"
+      },
+      {
+        "name": "add",
+        "type": "[]datedAllocationInput",
+        "max": 500,
+        "binding": "max=500,dive"
+      },
+      {
+        "name": "remove",
+        "type": "[]uuid",
+        "max": 500,
+        "binding": "max=500"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "max=500"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "rosterPopulateInput": [
+      {
+        "name": "change_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "binding": "required,gte=1"
+      },
+      {
+        "name": "staff_ids",
+        "type": "[]uuid",
+        "max": 500,
+        "binding": "max=500"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "max=500"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "rosterStatusInput": [
+      {
+        "name": "change_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "binding": "required,gte=1"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "max=500"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "rosterRevision": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "roster_id",
+        "type": "uuid"
+      },
+      {
+        "name": "action",
+        "type": "string",
+        "enum": [
+          "created",
+          "changed",
+          "populated",
+          "frozen",
+          "unfrozen",
+          "discarded"
+        ]
+      },
+      {
+        "name": "mode",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "draft",
+          "frozen",
+          "discarded"
+        ]
+      },
+      {
+        "name": "added",
+        "type": "int",
+        "min": 0
+      },
+      {
+        "name": "removed",
+        "type": "int",
+        "min": 0
+      },
+      {
+        "name": "skipped_existing",
+        "type": "int",
+        "min": 0
+      },
+      {
+        "name": "skipped_unassigned",
+        "type": "int",
+        "min": 0
+      },
+      {
+        "name": "skipped_conflicts",
+        "type": "int",
+        "min": 0
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "max": 500
+      },
+      {
+        "name": "reviewed_by_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "rosterChangeResult": [
+      {
+        "name": "roster",
+        "type": "roster"
+      },
+      {
+        "name": "revision",
+        "type": "rosterRevision"
+      }
     ]
   },
   "auto_population": {
     "disabled": "Do not populate automatically",
     "fixed_shift": "Fixed-shift staff only",
     "all_assigned": "All staff with an active template"
+  },
+  "roster_status": {
+    "draft": "Draft",
+    "frozen": "Frozen",
+    "discarded": "Discarded"
+  },
+  "roster_modes": {
+    "roster": "Roster-wise (one area)",
+    "employee": "Employee-wise (one person)",
+    "additional": "Additional shift"
   }
 }

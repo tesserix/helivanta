@@ -14,6 +14,7 @@ export const countryConfiguration = {
         { code: "hi-IN", direction: "ltr" },
       ],
       regulatory_policy_status: "review_required",
+      tax_identifier_kinds: ["gstin", "pan", "other"],
     },
     {
       code: "PK",
@@ -27,6 +28,7 @@ export const countryConfiguration = {
         { code: "ur-PK", direction: "rtl" },
       ],
       regulatory_policy_status: "review_required",
+      tax_identifier_kinds: ["ntn", "stn", "other"],
     },
   ],
 } as const;

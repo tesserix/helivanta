@@ -33,6 +33,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/modules/reference"
+	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
@@ -49,7 +50,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil), reference.New(), medicore.New(), pharmacy.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
+	return []platform.Module{iam.New(nil), reference.New(), medicore.New(), pharmacy.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under
@@ -341,6 +342,8 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id": "one immutable payable with at most one hundred lines",
+	"GET /supply/parties/:party":                                                "One scoped profile with at most 20 contacts, 20 addresses and 20 tax records; ADR 0027.",
+	"GET /supply/parties/:party/access":                                         "Current actor's at most eight scoped roles for one profile; ADR 0027.",
 	"GET /pharmacy/configuration":                                               "one bounded shared country metadata configuration, with no legal approval or tenant records",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/access":                 "the current subject's single outlet pharmacy grant",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/balance":          "one explicitly scoped location/batch quarantine balance; not a collection",
@@ -352,16 +355,16 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/staff/:id":                              "single hospital-local staff entry",
 	"GET /reference/pings/:id":                                                  "single item, not a collection",
 	"GET /patients/hospitals/:hospital/access":                                  "current principal hospital grant, not a collection",
-	"GET /patients/:id":       "single item, not a collection",
-	"GET /iam/roles":          "bounded: the fixed system role set",
-	"GET /iam/me/tenants":     "bounded: one person's memberships",
-	"GET /iam/me/permissions": "bounded: one resolved permission set",
-	"GET /workforce/hospitals/:hospital/hr/roster-settings":                "single current hospital roster policy",
-	"GET /workforce/hospitals/:hospital/hr/leave-settings":                 "single fixed hospital leave-year start",
-	"GET /workforce/hospitals/:hospital/staff/:id/leave-balances":          "one staff member's balances, bounded by the hospital's leave types",
-	"GET /workforce/hospitals/:hospital/hr/rosters/:id":                    "single roster head; allocations are paginated separately",
-	"GET /workforce/hospitals/:hospital/staff/:id/leave-requests/:request": "one request with its days in a single leave year and its bounded roster clashes",
-	"GET /workforce/hospitals/:hospital/hr/duty-exchanges/:exchange":       "one exchange with at most its six original, replacement and restored allocations",
+	"GET /patients/:id":                                                         "single item, not a collection",
+	"GET /iam/roles":                                                            "bounded: the fixed system role set",
+	"GET /iam/me/tenants":                                                       "bounded: one person's memberships",
+	"GET /iam/me/permissions":                                                   "bounded: one resolved permission set",
+	"GET /workforce/hospitals/:hospital/hr/roster-settings":                     "single current hospital roster policy",
+	"GET /workforce/hospitals/:hospital/hr/leave-settings":                      "single fixed hospital leave-year start",
+	"GET /workforce/hospitals/:hospital/staff/:id/leave-balances":               "one staff member's balances, bounded by the hospital's leave types",
+	"GET /workforce/hospitals/:hospital/hr/rosters/:id":                         "single roster head; allocations are paginated separately",
+	"GET /workforce/hospitals/:hospital/staff/:id/leave-requests/:request":      "one request with its days in a single leave year and its bounded roster clashes",
+	"GET /workforce/hospitals/:hospital/hr/duty-exchanges/:exchange":            "one exchange with at most its six original, replacement and restored allocations",
 }
 
 // TestEveryCollectionGETIsPaginated is the one hole platform.ListRoute's

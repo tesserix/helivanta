@@ -88,3 +88,11 @@ describe("visibleZones", () => {
     expect(keys).not.toContain("empty");
   });
 });
+
+it("offers the supply directory to non-clinical purchasing users", () => {
+  const zones = visibleZones(canWith(["supply.directory.read"]));
+  const supply = zones.find((zone) => zone.key === "supply");
+  expect(supply?.href).toBe("/supply/parties");
+  expect(supply?.pages.map((page) => page.href)).toEqual(["/supply/parties"]);
+  expect(zones.some((zone) => zone.key === "pharmacy")).toBe(false);
+});

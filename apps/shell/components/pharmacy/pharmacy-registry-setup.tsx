@@ -16,7 +16,7 @@ import {
   type PharmacyHospitalAffiliation,
 } from "@helivanta/api";
 import { Field, SelectControl, FormSelectField, LoadMore, useZodForm } from "@helivanta/ui";
-import { PharmacyFailure } from "./pharmacy-feedback";
+import { RequestFailure } from "../request-failure";
 export function PharmacyRegistrySetup({
   tenantId,
   pharmacy,
@@ -267,7 +267,7 @@ function AffiliationForm({
         )}
       </form>
       {links.isError ? (
-        <PharmacyFailure message="Could not load hospital affiliations." retry={links.retry} />
+        <RequestFailure message="Could not load hospital affiliations." retry={links.retry} />
       ) : (
         <ul className="mt-4 divide-y text-sm">
           {links.items.map((link) => (

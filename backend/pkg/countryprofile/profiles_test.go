@@ -42,3 +42,14 @@ func TestCountryMetadataCannotBeMutatedByCallerAndDoesNotAuthorizeTrading(t *tes
 		require.Equal(t, "review_required", p.Status)
 	}
 }
+
+func TestTaxIdentifierKindsDoNotCrossCountryBoundaries(t *testing.T) {
+	for _, tc := range []struct {
+		country, kind string
+		valid         bool
+	}{
+		{"IN", "gstin", true}, {"IN", "pan", true}, {"IN", "ntn", false}, {"PK", "ntn", true}, {"PK", "stn", true}, {"PK", "gstin", false}, {"IN", "other", true}, {"PK", "other", true}, {"ZZ", "other", false}, {"IN", "unknown", false},
+	} {
+		require.Equal(t, tc.valid, countryprofile.ValidTaxIdentifierKind(tc.country, tc.kind), tc.country+":"+tc.kind)
+	}
+}

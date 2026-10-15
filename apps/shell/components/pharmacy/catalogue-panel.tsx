@@ -28,7 +28,7 @@ import {
   formatDateTime,
 } from "@helivanta/ui";
 import { CurrencyAmountField } from "./currency-amount-field";
-import { PharmacyFailure } from "./pharmacy-feedback";
+import { RequestFailure } from "../request-failure";
 
 const searchSchema = z.object({ query: z.string().trim().max(200) });
 const newProduct: PharmacyProductInput = {
@@ -109,7 +109,7 @@ export function CataloguePanel({
           </Button>
         </form>
         {products.isError ? (
-          <PharmacyFailure message="Could not load the catalogue." retry={products.retry} />
+          <RequestFailure message="Could not load the catalogue." retry={products.retry} />
         ) : products.isPending ? (
           <p role="status" className="p-6">
             Loading catalogue…
@@ -441,7 +441,7 @@ function ProductHistory({ scope, product }: { scope: PharmacyScope; product: Pha
         Revision history
       </h4>
       {history.isError ? (
-        <PharmacyFailure message="Could not load revision history." retry={history.retry} />
+        <RequestFailure message="Could not load revision history." retry={history.retry} />
       ) : history.isPending ? (
         <p role="status">Loading revisions…</p>
       ) : (

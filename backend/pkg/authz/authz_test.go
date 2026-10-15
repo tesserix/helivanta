@@ -67,3 +67,10 @@ func TestReceptionistIsASystemRole(t *testing.T) {
 	require.True(t, authz.KnownRole(authz.RoleReceptionist))
 	require.Contains(t, authz.SystemRoles(), authz.RoleReceptionist)
 }
+
+func TestSupplyRolesAreAssignableSystemRoles(t *testing.T) {
+	for _, role := range []authz.Role{"supply_admin", "supply_purchasing", "supply_finance", "supply_compliance", "supply_auditor", "supply_warehouse", "supply_sales"} {
+		require.True(t, authz.KnownRole(role), "supply organisation users need an assignable role: %s", role)
+		require.Contains(t, authz.SystemRoles(), role)
+	}
+}

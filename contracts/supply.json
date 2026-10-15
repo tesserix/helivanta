@@ -1,0 +1,258 @@
+{
+  "go_patterns": true,
+  "models": [
+    {
+      "name": "ContactFields",
+      "schema": "supplyContactSchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "role",
+          "type": "string",
+          "enum": [
+            "general",
+            "purchasing",
+            "finance",
+            "pharmacist",
+            "signatory",
+            "emergency"
+          ]
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "max": 254,
+          "trim": true,
+          "format": "optional_email"
+        },
+        {
+          "name": "phone",
+          "type": "string",
+          "max": 16,
+          "trim": true,
+          "pattern": "^(?:|\\+[1-9][0-9]{7,14})$"
+        },
+        {
+          "name": "alternate_phone",
+          "type": "string",
+          "max": 16,
+          "trim": true,
+          "pattern": "^(?:|\\+[1-9][0-9]{7,14})$"
+        }
+      ]
+    },
+    {
+      "name": "AddressFields",
+      "schema": "supplyAddressSchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "enum": ["registered", "correspondence", "billing"]
+        },
+        {
+          "name": "line1",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "line2",
+          "type": "string",
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "city",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true
+        },
+        {
+          "name": "region",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true
+        },
+        {
+          "name": "postal_code",
+          "type": "string",
+          "min": 1,
+          "max": 20,
+          "trim": true
+        },
+        {
+          "name": "country_code",
+          "type": "string",
+          "country_profile": true
+        }
+      ]
+    },
+    {
+      "name": "TaxRegistrationFields",
+      "schema": "supplyTaxRegistrationSchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "country_tax_identifier": true
+        },
+        {
+          "name": "number",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true,
+          "upper": true
+        },
+        {
+          "name": "jurisdiction",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true
+        }
+      ]
+    },
+    {
+      "name": "PartyFields",
+      "schema": "supplyPartyFieldsSchema",
+      "fields": [
+        {
+          "name": "code",
+          "type": "string",
+          "min": 1,
+          "max": 40,
+          "trim": true,
+          "upper": true,
+          "pattern": "^[A-Z0-9][A-Z0-9._-]{0,39}$"
+        },
+        {
+          "name": "record_kind",
+          "type": "string",
+          "enum": ["owned_organisation", "counterparty"]
+        },
+        {
+          "name": "legal_name",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "trading_name",
+          "type": "string",
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "business_kind",
+          "type": "string",
+          "enum": [
+            "pharmacy",
+            "distributor",
+            "wholesaler",
+            "manufacturer",
+            "importer",
+            "other"
+          ]
+        },
+        {
+          "name": "country_code",
+          "type": "string",
+          "country_profile": true
+        },
+        {
+          "name": "jurisdiction",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true
+        },
+        {
+          "name": "registration_number",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true,
+          "upper": true
+        },
+        {
+          "name": "corporate_group",
+          "type": "string",
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "website",
+          "type": "string",
+          "max": 500,
+          "trim": true,
+          "format": "optional_https"
+        },
+        {
+          "name": "default_credit_days",
+          "type": "int",
+          "min": 0,
+          "max": 365
+        },
+        {
+          "name": "contacts",
+          "type": "[]ContactFields",
+          "min": 0,
+          "max": 20,
+          "gorm": "-"
+        },
+        {
+          "name": "addresses",
+          "type": "[]AddressFields",
+          "min": 0,
+          "max": 20,
+          "gorm": "-"
+        },
+        {
+          "name": "tax_registrations",
+          "type": "[]TaxRegistrationFields",
+          "min": 0,
+          "max": 20,
+          "gorm": "-"
+        }
+      ]
+    },
+    {
+      "name": "partyInput",
+      "schema": "supplyPartyInputSchema",
+      "embed": "PartyFields",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740991
+        }
+      ]
+    }
+  ]
+}

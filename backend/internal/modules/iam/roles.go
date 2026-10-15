@@ -23,12 +23,19 @@ type SystemRole struct {
 // (authz.SystemRoles) and this map only answers "what do we call it"
 // for each one that already exists there.
 var systemRoleLabels = map[authz.Role]string{
-	authz.RoleTenantAdmin:  "Tenant Admin",
-	authz.RoleDoctor:       "Doctor",
-	authz.RoleNurse:        "Nurse",
-	authz.RolePharmacist:   "Pharmacist",
-	authz.RoleLabTech:      "Lab Technician",
-	authz.RoleReceptionist: "Receptionist",
+	authz.RoleTenantAdmin:      "Tenant Admin",
+	authz.RoleDoctor:           "Doctor",
+	authz.RoleNurse:            "Nurse",
+	authz.RolePharmacist:       "Pharmacist",
+	authz.RoleLabTech:          "Lab Technician",
+	authz.RoleReceptionist:     "Receptionist",
+	authz.RoleSupplyAdmin:      "Supply administrator",
+	authz.RoleSupplyPurchasing: "Supply purchasing",
+	authz.RoleSupplyFinance:    "Supply finance",
+	authz.RoleSupplyCompliance: "Supply compliance",
+	authz.RoleSupplyAuditor:    "Supply auditor",
+	authz.RoleSupplyWarehouse:  "Supply warehouse",
+	authz.RoleSupplySales:      "Supply sales",
 }
 
 // SystemRoles returns the role catalog the product exposes for granting:

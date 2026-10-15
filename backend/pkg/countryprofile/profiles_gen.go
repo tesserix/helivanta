@@ -12,7 +12,7 @@ type Country struct {
 
 // Configuration returns a fresh snapshot of bounded public metadata.
 func Configuration() json.RawMessage {
-	return json.RawMessage("{\"schema_version\":1,\"countries\":[{\"code\":\"IN\",\"name\":\"India\",\"currency\":\"INR\",\"currency_minor_digits\":2,\"timezone\":\"Asia/Kolkata\",\"timezones\":[\"Asia/Kolkata\",\"Asia/Calcutta\"],\"locales\":[{\"code\":\"en-IN\",\"direction\":\"ltr\"},{\"code\":\"hi-IN\",\"direction\":\"ltr\"}],\"regulatory_policy_status\":\"review_required\"},{\"code\":\"PK\",\"name\":\"Pakistan\",\"currency\":\"PKR\",\"currency_minor_digits\":2,\"timezone\":\"Asia/Karachi\",\"timezones\":[\"Asia/Karachi\"],\"locales\":[{\"code\":\"en-PK\",\"direction\":\"ltr\"},{\"code\":\"ur-PK\",\"direction\":\"rtl\"}],\"regulatory_policy_status\":\"review_required\"}]}")
+	return json.RawMessage("{\"schema_version\":1,\"countries\":[{\"code\":\"IN\",\"name\":\"India\",\"currency\":\"INR\",\"currency_minor_digits\":2,\"timezone\":\"Asia/Kolkata\",\"timezones\":[\"Asia/Kolkata\",\"Asia/Calcutta\"],\"locales\":[{\"code\":\"en-IN\",\"direction\":\"ltr\"},{\"code\":\"hi-IN\",\"direction\":\"ltr\"}],\"regulatory_policy_status\":\"review_required\",\"tax_identifier_kinds\":[\"gstin\",\"pan\",\"other\"]},{\"code\":\"PK\",\"name\":\"Pakistan\",\"currency\":\"PKR\",\"currency_minor_digits\":2,\"timezone\":\"Asia/Karachi\",\"timezones\":[\"Asia/Karachi\"],\"locales\":[{\"code\":\"en-PK\",\"direction\":\"ltr\"},{\"code\":\"ur-PK\",\"direction\":\"rtl\"}],\"regulatory_policy_status\":\"review_required\",\"tax_identifier_kinds\":[\"ntn\",\"stn\",\"other\"]}]}")
 }
 
 // Lookup resolves supported metadata without falling back to another country.
@@ -34,6 +34,18 @@ func ValidTimezone(code, zone string) bool {
 		return zone == "Asia/Kolkata" || zone == "Asia/Calcutta"
 	case "PK":
 		return zone == "Asia/Karachi"
+	default:
+		return false
+	}
+}
+
+// ValidTaxIdentifierKind checks declared metadata, not licence validity.
+func ValidTaxIdentifierKind(code, kind string) bool {
+	switch code {
+	case "IN":
+		return kind == "gstin" || kind == "pan" || kind == "other"
+	case "PK":
+		return kind == "ntn" || kind == "stn" || kind == "other"
 	default:
 		return false
 	}

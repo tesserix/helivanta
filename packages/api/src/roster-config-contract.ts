@@ -342,6 +342,7 @@ export const datedAllocationContract = z
     ends_at: z.string().datetime({ offset: true }),
     additional: z.boolean(),
     added_version: z.number().int().min(1),
+    exchange_id: identifier.optional(),
     created_at: z.string().datetime({ offset: true }),
   })
   .strict();

@@ -91,6 +91,7 @@ func (a plannedAllocation) span() span { return span{a.StaffID, a.StartsAt, a.En
 type rosterOutcome struct {
 	action, status, reason                                      string
 	mode                                                        *string
+	exchange                                                    *uuid.UUID
 	add                                                         []plannedAllocation
 	remove                                                      []uuid.UUID
 	removeAll                                                   bool
@@ -102,11 +103,11 @@ const rosterColumns = "id,revision_id,name,start_date::text AS start_date,end_da
 const rosterRevisionColumns = "id,id AS revision_id,roster_id,action,mode,status,added,removed,skipped_existing,skipped_unassigned,skipped_conflicts,skipped_leave,reason,reviewed_by_subject,version,created_at"
 const allocationView = `(SELECT a.tenant_id,a.hospital_id,a.roster_id,a.id,a.staff_id,s.employee_code,s.display_name,a.roster_date::text AS roster_date,
  a.shift_revision_id,sr.code AS shift_code,sr.name AS shift_name,sr.start_time,sr.end_time,a.area_revision_id,ar.code AS area_code,ar.name AS area_name,
- a.starts_at AT TIME ZONE 'UTC' AS starts_at,a.ends_at AT TIME ZONE 'UTC' AS ends_at,a.additional,a.added_version,a.removed_version,a.created_at
- FROM workforce_roster_allocations a JOIN workforce_staff s ON (s.tenant_id,s.hospital_id,s.id)=(a.tenant_id,a.hospital_id,a.staff_id)
+ a.starts_at AT TIME ZONE 'UTC' AS starts_at,a.ends_at AT TIME ZONE 'UTC' AS ends_at,a.additional,a.added_version,a.removed_version,a.created_at,ad.exchange_id
+ FROM workforce_roster_allocations a JOIN workforce_roster_revisions ad ON (ad.tenant_id,ad.hospital_id,ad.id)=(a.tenant_id,a.hospital_id,a.added_revision_id) JOIN workforce_staff s ON (s.tenant_id,s.hospital_id,s.id)=(a.tenant_id,a.hospital_id,a.staff_id)
  JOIN workforce_shift_revisions sr ON (sr.tenant_id,sr.hospital_id,sr.id)=(a.tenant_id,a.hospital_id,a.shift_revision_id)
  JOIN workforce_roster_config_revisions ar ON (ar.tenant_id,ar.hospital_id,ar.id)=(a.tenant_id,a.hospital_id,a.area_revision_id)) AS v`
-const allocationColumns = "id,staff_id,employee_code,display_name,roster_date,shift_revision_id,shift_code,shift_name,start_time,end_time,area_revision_id,area_code,area_name,starts_at,ends_at,additional,added_version,created_at"
+const allocationColumns = "id,staff_id,employee_code,display_name,roster_date,shift_revision_id,shift_code,shift_name,start_time,end_time,area_revision_id,area_code,area_name,starts_at,ends_at,additional,added_version,exchange_id,created_at"
 
 // wallInstant resolves a hospital wall-clock time to one instant, refusing DST gaps and folds rather than guessing.
 func wallInstant(date time.Time, hhmm string, loc *time.Location) (time.Time, bool) {
@@ -267,6 +268,15 @@ func (h *handlers) rosterAllocations(c *gin.Context, params pagination.Params) (
 		}
 		version = n
 	}
+	var staff *uuid.UUID
+	if raw := c.Query("staff_id"); raw != "" {
+		parsed, err := uuid.Parse(raw)
+		if err != nil || parsed == uuid.Nil {
+			respond.Error(c, 400, "invalid_request", "Use a valid staff id.")
+			return nil, nil
+		}
+		staff = &parsed
+	}
 	rows := []datedAllocation{}
 	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
 		if err := requireStaffAccess(tx, p.TenantID, hospital, false); err != nil {
@@ -282,8 +292,12 @@ func (h *handlers) rosterAllocations(c *gin.Context, params pagination.Params) (
 		if version > head.Version {
 			return gorm.ErrRecordNotFound
 		}
-		return tenantdb.ApplyKeyset(tx, params).Table(allocationView).Select(allocationColumns).
-			Where("tenant_id=? AND hospital_id=? AND roster_id=? AND added_version<=? AND (removed_version IS NULL OR removed_version>?)", p.TenantID, hospital, id, version, version).Find(&rows).Error
+		q := tenantdb.ApplyKeyset(tx, params).Table(allocationView).Select(allocationColumns).
+			Where("tenant_id=? AND hospital_id=? AND roster_id=? AND added_version<=? AND (removed_version IS NULL OR removed_version>?)", p.TenantID, hospital, id, version, version)
+		if staff != nil {
+			q = q.Where("staff_id=?", *staff)
+		}
+		return q.Find(&rows).Error
 	})
 	if err != nil {
 		respondRosterError(c, err)
@@ -364,8 +378,8 @@ func (h *handlers) putRoster(c *gin.Context) {
 
 func insertRosterRevision(tx *gorm.DB, p authn.Principal, hospital, id, revision uuid.UUID, version int64, o rosterOutcome) error {
 	removed := len(o.remove)
-	return tx.Exec(`INSERT INTO workforce_roster_revisions(tenant_id,hospital_id,id,roster_id,action,mode,status,added,removed,skipped_existing,skipped_unassigned,skipped_conflicts,skipped_leave,reason,reviewed_by_subject,version)
- VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, hospital, revision, id, o.action, o.mode, o.status, len(o.add), removed, o.skippedExisting, o.skippedUnassigned, o.conflicts, o.skippedLeave, o.reason, p.Subject, version).Error
+	return tx.Exec(`INSERT INTO workforce_roster_revisions(tenant_id,hospital_id,id,roster_id,action,mode,status,added,removed,skipped_existing,skipped_unassigned,skipped_conflicts,skipped_leave,reason,reviewed_by_subject,version,exchange_id)
+ VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, hospital, revision, id, o.action, o.mode, o.status, len(o.add), removed, o.skippedExisting, o.skippedUnassigned, o.conflicts, o.skippedLeave, o.reason, p.Subject, version, o.exchange).Error
 }
 
 // recordRosterChange writes the audit row and the identifier-only event inside the business transaction.
@@ -840,9 +854,12 @@ func (h *handlers) transitionRoster(t rosterTransition, action string) gin.Handl
 			respondRosterError(c, errRosterReasonRequired)
 			return
 		}
-		h.writeRoster(c, in.ChangeID, *in.ExpectedVersion, action, func(_ *gorm.DB, _ authn.Principal, _ uuid.UUID, head roster) (rosterOutcome, error) {
+		h.writeRoster(c, in.ChangeID, *in.ExpectedVersion, action, func(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, head roster) (rosterOutcome, error) {
 			if head.Status != t.from {
 				return rosterOutcome{}, errRosterState
+			}
+			if err := refusePendingExchanges(tx, p, hospital, head.ID); err != nil {
+				return rosterOutcome{}, err
 			}
 			return rosterOutcome{status: t.to, reason: reason, removeAll: t.clearsRoster}, nil
 		})

@@ -1,6 +1,6 @@
 # ADR 0021: Leave management as versioned policy and an append-only ledger
 
-Status: accepted for implementation. Parent: #1037 / #979. Extends ADR-0016, ADR-0018 and ADR-0020; specs: [leave setup](../superpowers/specs/2026-10-15-leave-setup-design.md); plan: [leave management](../superpowers/plans/2026-10-15-leave-management.md).
+Status: accepted for implementation. Parent: #1037 / #979. Extends ADR-0016, ADR-0018 and ADR-0020; specs: [leave setup](../superpowers/specs/2026-10-15-leave-setup-design.md), [leave reports](../superpowers/specs/2026-10-16-leave-reports-design.md); plan: [leave management](../superpowers/plans/2026-10-15-leave-management.md).
 
 ## Requirements and evidence
 
@@ -13,7 +13,7 @@ Leave is delivered in four slices, each complete for the cases it claims:
 1. **Leave setup** (this ADR's first slice): leave types, yearly holiday calendars and leave structures as one versioned configuration aggregate, `workforce_leave_configs`, with kind-specific children written only in the revision-creating transaction. Same shape as ADR-0018 roster configuration: client-chosen ID, `expected_version`, mandatory review, effective date, append-only revisions and history.
 2. **Balance ledger**: leave-year settings, effective-dated staff structure assignments, and an append-only ledger of allocation, accrual, correction, carry-forward and expiry entries (consumption and reversal arrive with slice 3). Each entry has a deterministic idempotency key (staff, type, period, source), so a retried credit cannot double-count. Balances are sums over the ledger, never stored mutable counters. Postings are explicit, sequential, manager-initiated months; a year is closed once, after all twelve months are posted and the next year is open. A month can be posted only once it starts and a year closed only after it ends, judged by the date anywhere on Earth (UTC−12), and years open at most one ahead; posting history freezes assignment changes before it.
 3. **Requests and approvals**: requests pin the type, structure and holiday-calendar revisions in force; overlap per person is a PostgreSQL exclusion constraint; requester and approver must differ; approval writes consumption and cancellation writes its reversal in the same transaction. Leave conflicts then feed roster population (#1036).
-4. **Reports** 949 and 954 over the ledger and request history, with explicit period boundaries.
+4. **Reports** 949 and 954 over approved request days and request history, with explicit inclusive periods of at most 366 days; 949 totals reconcile with the ledger's consumption entries, profile columns stay behind `workforce.enrollment.manage`, and reasons never appear.
 
 Leave amounts are integer half-days (`half_days`) and short leave is integer minutes. No floating-point balances.
 

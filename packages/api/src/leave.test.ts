@@ -4,6 +4,8 @@ import {
   leaveConfigContract,
   leaveConfigSchema,
   leaveCorrectionSchema,
+  leaveReportFilterSchema,
+  leaveReportPath,
   leaveRequestFormSchema,
   leaveRequestInputContract,
   leaveSettingsSchema,
@@ -228,4 +230,45 @@ it("checks a leave request against the unit and the type's rules", () => {
     reason: "",
   });
   expect(leaveRequestInputContract.safeParse(toLeaveRequestInput(base)).success).toBe(true);
+});
+
+it("bounds report periods and sends status filters only to the status report", () => {
+  const filter = {
+    report: "status" as const,
+    from: "2026-10-01",
+    to: "2026-10-31",
+    q: " syn_% ",
+    department_id: id,
+    leave_type_id: other,
+    status: "pending" as const,
+  };
+  const parsed = leaveReportFilterSchema.parse(filter);
+  expect(parsed.q).toBe("syn_%");
+  expect(leaveReportPath("/b", parsed)).toBe(
+    `/b/hr/leave-reports/status?from=2026-10-01&to=2026-10-31&q=syn_%25&department_id=${id}&leave_type_id=${other}&status=pending`,
+  );
+  expect(leaveReportPath("/b", { ...parsed, report: "monthly" })).toBe(
+    `/b/hr/leave-reports/monthly?from=2026-10-01&to=2026-10-31&q=syn_%25&department_id=${id}`,
+  );
+  expect(
+    leaveReportPath("/b", {
+      ...parsed,
+      q: "",
+      department_id: "",
+      leave_type_id: "",
+      status: "all",
+    }),
+  ).toBe("/b/hr/leave-reports/status?from=2026-10-01&to=2026-10-31");
+  const message = (changes: Partial<typeof filter>) =>
+    leaveReportFilterSchema.safeParse({ ...filter, ...changes }).error?.issues[0]?.message;
+  expect(message({ to: "2027-01-01", from: "2026-01-01" })).toBeUndefined();
+  expect(message({ to: "2027-01-02", from: "2026-01-01" })).toBe(
+    "Keep the period within 366 days.",
+  );
+  expect(message({ to: "2026-09-30" })).toBe("End the period on or after its start.");
+  expect(message({ to: "" })).toBe("Choose an end date.");
+  expect(message({ from: "1999-12-31", to: "2000-01-01" })).toBe(
+    "Choose a date from 2000 to 2199.",
+  );
+  expect(message({ q: "a".repeat(101) })).toBe("Search with at most 100 characters.");
 });

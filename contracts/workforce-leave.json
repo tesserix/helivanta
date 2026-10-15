@@ -177,7 +177,11 @@
         "max": 2200,
         "binding": "omitempty,gte=2000,lte=2200"
       },
-      { "name": "rules", "type": "leaveTypeRules", "optional": true },
+      {
+        "name": "rules",
+        "type": "leaveTypeRules",
+        "optional": true
+      },
       {
         "name": "holidays",
         "type": "[]leaveHolidayInput",
@@ -192,8 +196,15 @@
       }
     ],
     "leaveHoliday": [
-      { "name": "holiday_date", "type": "string", "format": "date" },
-      { "name": "name", "type": "string" },
+      {
+        "name": "holiday_date",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
       {
         "name": "category",
         "type": "string",
@@ -201,23 +212,71 @@
       }
     ],
     "leaveStructureEntry": [
-      { "name": "leave_type_revision_id", "type": "uuid" },
-      { "name": "leave_type_id", "type": "uuid" },
-      { "name": "code", "type": "string" },
-      { "name": "name", "type": "string" },
-      { "name": "paid", "type": "bool" },
-      { "name": "balance_tracked", "type": "bool" },
-      { "name": "annual_half_days", "type": "int" },
-      { "name": "accrual", "type": "string", "enum": ["upfront", "monthly"] },
-      { "name": "carry_forward_half_days", "type": "int" },
-      { "name": "proration", "type": "string", "enum": ["none", "join_month"] },
-      { "name": "probation_eligible", "type": "bool" }
+      {
+        "name": "leave_type_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "leave_type_id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "paid",
+        "type": "bool"
+      },
+      {
+        "name": "balance_tracked",
+        "type": "bool"
+      },
+      {
+        "name": "annual_half_days",
+        "type": "int"
+      },
+      {
+        "name": "accrual",
+        "type": "string",
+        "enum": ["upfront", "monthly"]
+      },
+      {
+        "name": "carry_forward_half_days",
+        "type": "int"
+      },
+      {
+        "name": "proration",
+        "type": "string",
+        "enum": ["none", "join_month"]
+      },
+      {
+        "name": "probation_eligible",
+        "type": "bool"
+      }
     ],
     "leaveConfig": [
-      { "name": "id", "type": "uuid" },
-      { "name": "config_id", "type": "uuid", "optional": true },
-      { "name": "revision_id", "type": "uuid" },
-      { "name": "kind", "type": "kind" },
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "config_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "kind",
+        "type": "kind"
+      },
       {
         "name": "code",
         "type": "string",
@@ -232,22 +291,439 @@
         "max": 80,
         "format": "name"
       },
-      { "name": "description", "type": "string", "max": 500, "format": "text" },
-      { "name": "active", "type": "bool" },
-      { "name": "effective_on", "type": "string", "format": "date" },
-      { "name": "calendar_year", "type": "int", "optional": true },
-      { "name": "reviewed_by_subject", "type": "string", "min": 1, "max": 200 },
-      { "name": "version", "type": "int64", "min": 1 },
-      { "name": "created_at", "type": "time" },
-      { "name": "updated_at", "type": "time" },
+      {
+        "name": "description",
+        "type": "string",
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "active",
+        "type": "bool"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "calendar_year",
+        "type": "int",
+        "optional": true
+      },
+      {
+        "name": "reviewed_by_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      },
       {
         "name": "rules",
         "type": "leaveTypeRules",
         "optional": true,
         "orm_ignore": true
       },
-      { "name": "holidays", "type": "[]leaveHoliday", "orm_ignore": true },
-      { "name": "entries", "type": "[]leaveStructureEntry", "orm_ignore": true }
+      {
+        "name": "holidays",
+        "type": "[]leaveHoliday",
+        "orm_ignore": true
+      },
+      {
+        "name": "entries",
+        "type": "[]leaveStructureEntry",
+        "orm_ignore": true
+      }
+    ],
+    "leaveSettingsInput": [
+      {
+        "name": "year_start_month",
+        "type": "int",
+        "pointer": true,
+        "min": 1,
+        "max": 12,
+        "binding": "required,gte=1,lte=12"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "leaveSettings": [
+      {
+        "name": "year_start_month",
+        "type": "int",
+        "min": 1,
+        "max": 12
+      },
+      {
+        "name": "reviewed_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "staffLeaveAssignmentInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "structure_revision_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "staffLeaveAssignment": [
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "structure_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "structure_id",
+        "type": "uuid"
+      },
+      {
+        "name": "structure_code",
+        "type": "string"
+      },
+      {
+        "name": "structure_name",
+        "type": "string"
+      },
+      {
+        "name": "active",
+        "type": "bool"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "reviewed_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "leaveYear": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "leave_year",
+        "type": "int"
+      },
+      {
+        "name": "start_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "end_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "posted_months",
+        "type": "int",
+        "min": 0,
+        "max": 12
+      },
+      {
+        "name": "closed",
+        "type": "bool"
+      },
+      {
+        "name": "closed_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "closed_at",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "leavePostingInput": [
+      {
+        "name": "month",
+        "type": "int",
+        "pointer": true,
+        "min": 1,
+        "max": 12,
+        "binding": "required,gte=1,lte=12"
+      }
+    ],
+    "leaveRun": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "leave_year",
+        "type": "int"
+      },
+      {
+        "name": "step",
+        "type": "int",
+        "min": 1,
+        "max": 13
+      },
+      {
+        "name": "entries",
+        "type": "int",
+        "min": 0
+      },
+      {
+        "name": "actor_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "leaveLedgerEntry": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "leave_type_id",
+        "type": "uuid"
+      },
+      {
+        "name": "leave_type_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "leave_year",
+        "type": "int"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "allocation",
+          "accrual",
+          "carry_in",
+          "carry_out",
+          "expiry",
+          "correction"
+        ]
+      },
+      {
+        "name": "half_days",
+        "type": "int"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "reason",
+        "type": "string"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string"
+      },
+      {
+        "name": "run_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "leaveCorrectionInput": [
+      {
+        "name": "leave_type_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "leave_year",
+        "type": "int",
+        "pointer": true,
+        "min": 2000,
+        "max": 2199,
+        "binding": "required,gte=2000,lte=2199"
+      },
+      {
+        "name": "half_days",
+        "type": "int",
+        "pointer": true,
+        "min": -1460,
+        "max": 1460,
+        "binding": "required,gte=-1460,lte=1460"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 10,
+        "max": 500,
+        "format": "text",
+        "binding": "required,min=10,max=500"
+      }
+    ],
+    "leaveBalance": [
+      {
+        "name": "leave_type_id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "half_days",
+        "type": "int"
+      }
+    ],
+    "staffLeaveBalances": [
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "structure_name",
+        "type": "string"
+      },
+      {
+        "name": "active",
+        "type": "bool"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "balances",
+        "type": "[]leaveBalance",
+        "orm_ignore": true
+      }
     ]
+  },
+  "ledger_kinds": {
+    "allocation": "Allocated for the year",
+    "accrual": "Monthly credit",
+    "carry_in": "Carried forward in",
+    "carry_out": "Carried forward out",
+    "expiry": "Expired at year end",
+    "correction": "Correction"
   }
 }

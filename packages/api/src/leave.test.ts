@@ -1,5 +1,12 @@
 import { expect, it } from "vitest";
-import { formatHalfDays, leaveConfigContract, leaveConfigSchema } from "./leave";
+import {
+  formatHalfDays,
+  leaveConfigContract,
+  leaveConfigSchema,
+  leaveCorrectionSchema,
+  leaveSettingsSchema,
+  staffLeaveAssignmentSchema,
+} from "./leave";
 const id = "11111111-1111-4111-8111-111111111111";
 const other = "22222222-2222-4222-8222-222222222222";
 const rules = {
@@ -115,4 +122,42 @@ it("formats half-day allowances as days", () => {
   expect(formatHalfDays(1)).toBe("0.5 days");
   expect(formatHalfDays(2)).toBe("1 day");
   expect(formatHalfDays(24)).toBe("12 days");
+  expect(formatHalfDays(-2)).toBe("-1 day");
+});
+it("requires review before settings or assignments are saved", () => {
+  const unreviewed = leaveSettingsSchema.safeParse({ year_start_month: 4, reviewed: false });
+  expect(unreviewed.error?.issues.map((i) => i.path.join("."))).toEqual(["reviewed"]);
+  expect(leaveSettingsSchema.safeParse({ year_start_month: 13, reviewed: true }).success).toBe(
+    false,
+  );
+  const assignment = {
+    expected_version: 0,
+    structure_revision_id: id,
+    active: true,
+    effective_on: "2026-04-01",
+    reviewed: false,
+  };
+  expect(
+    staffLeaveAssignmentSchema.safeParse(assignment).error?.issues.map((i) => i.path.join(".")),
+  ).toEqual(["reviewed"]);
+  expect(staffLeaveAssignmentSchema.safeParse({ ...assignment, reviewed: true }).success).toBe(
+    true,
+  );
+});
+it("rejects zero, oversized and unexplained corrections", () => {
+  const correction = {
+    leave_type_id: id,
+    leave_year: 2026,
+    half_days: -3,
+    effective_on: "2026-05-01",
+    reason: "Synthetic audit adjustment",
+  };
+  expect(leaveCorrectionSchema.safeParse(correction).success).toBe(true);
+  const paths = (value: object) =>
+    leaveCorrectionSchema
+      .safeParse({ ...correction, ...value })
+      .error?.issues.map((i) => i.path[0]);
+  expect(paths({ half_days: 0 })).toEqual(["half_days"]);
+  expect(paths({ half_days: 1461 })).toEqual(["half_days"]);
+  expect(paths({ reason: "  too short  " })).toEqual(["reason"]);
 });

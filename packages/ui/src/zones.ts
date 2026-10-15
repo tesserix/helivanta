@@ -83,6 +83,12 @@ export const ZONES: Zone[] = [
         icon: Settings,
         permission: "public",
       },
+      {
+        label: "Leave balances",
+        href: "/workforce/leave-balances",
+        icon: CalendarDays,
+        permission: "public",
+      },
     ],
   },
   {

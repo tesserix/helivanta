@@ -101,3 +101,23 @@ type LeaveConfigChangedData struct {
 	Kind       string `json:"kind"`
 	Version    int64  `json:"version"`
 }
+
+const SubjectStaffLeaveAssignmentChanged = "helivanta.in.workforce.staff_leave_assignment_changed.v1"
+
+type StaffLeaveAssignmentChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	RevisionID string `json:"revision_id"`
+	Version    int64  `json:"version"`
+}
+
+// SubjectLeaveLedgerChanged reports a posting run, year close or correction; consumers re-read balances through the API.
+const SubjectLeaveLedgerChanged = "helivanta.in.workforce.leave_ledger_changed.v1"
+
+type LeaveLedgerChangedData struct {
+	HospitalID  string `json:"hospital_id"`
+	LeaveYear   int    `json:"leave_year"`
+	Source      string `json:"source"`
+	ReferenceID string `json:"reference_id"`
+	Entries     int    `json:"entries"`
+}

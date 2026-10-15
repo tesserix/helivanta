@@ -87,7 +87,7 @@ func (h *handlers) uploadDocument(c *gin.Context) {
 		return
 	}
 	if _, err := attachments.InspectContent(data, saved.ContentType); err != nil {
-		respond.Error(c, http.StatusBadRequest, "invalid_document", "Only complete supported static images may be uploaded.")
+		respond.Error(c, http.StatusBadRequest, "invalid_document", "Use a complete PNG or JPEG without embedded files or unsupported metadata. Export a fresh image and try again.")
 		return
 	}
 	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {

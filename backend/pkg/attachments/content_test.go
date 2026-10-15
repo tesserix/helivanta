@@ -2,6 +2,8 @@ package attachments_test
 
 import (
 	"bytes"
+	"encoding/binary"
+	"hash/crc32"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -19,6 +21,73 @@ func syntheticPNG(t *testing.T) []byte {
 	img.Set(0, 0, color.RGBA{R: 50, G: 100, B: 150, A: 255})
 	require.NoError(t, png.Encode(&buffer, img))
 	return buffer.Bytes()
+}
+
+func pngMetadata(t *testing.T, kind string, payload []byte) []byte {
+	t.Helper()
+	data := syntheticPNG(t)
+	var chunk bytes.Buffer
+	require.NoError(t, binary.Write(&chunk, binary.BigEndian, uint32(len(payload))))
+	chunk.WriteString(kind)
+	chunk.Write(payload)
+	require.NoError(t, binary.Write(&chunk, binary.BigEndian, crc32.ChecksumIEEE(chunk.Bytes()[4:])))
+	return append(append(bytes.Clone(data[:len(data)-12]), chunk.Bytes()...), data[len(data)-12:]...)
+}
+
+func jpegMetadata(t *testing.T, marker byte, payload []byte) []byte {
+	t.Helper()
+	var buffer bytes.Buffer
+	require.NoError(t, jpeg.Encode(&buffer, image.NewRGBA(image.Rect(0, 0, 2, 2)), nil))
+	data := buffer.Bytes()
+	segment := []byte{0xff, marker, 0, 0}
+	binary.BigEndian.PutUint16(segment[2:], uint16(len(payload)+2))
+	segment = append(segment, payload...)
+	return append(append(bytes.Clone(data[:2]), segment...), data[2:]...)
+}
+
+func TestContentPolicyRejectsOpaqueAndBinaryImageMetadata(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		data []byte
+		mime string
+	}{
+		{"private_png_chunk", pngMetadata(t, "teSt", []byte("PK\x03\x04synthetic")), "image/png"},
+		{"compressed_png_text", pngMetadata(t, "zTXt", []byte("Note\x00\x00synthetic")), "image/png"},
+		{"png_color_profile", pngMetadata(t, "iCCP", []byte("Profile\x00\x00synthetic")), "image/png"},
+		{"binary_png_text", pngMetadata(t, "tEXt", []byte("Note\x00PK\x03\x04synthetic")), "image/png"},
+		{"oversized_png_text", pngMetadata(t, "tEXt", append([]byte("Note\x00"), bytes.Repeat([]byte("a"), 65537)...)), "image/png"},
+		{"opaque_jpeg_app", jpegMetadata(t, 0xe1, []byte("Exif\x00\x00synthetic")), "image/jpeg"},
+		{"jpeg_color_profile", jpegMetadata(t, 0xe2, []byte("ICC_PROFILE\x00synthetic")), "image/jpeg"},
+		{"binary_jpeg_comment", jpegMetadata(t, 0xfe, []byte("PK\x03\x04synthetic")), "image/jpeg"},
+		{"opaque_jpeg_header", jpegMetadata(t, 0xe0, []byte("PK\x03\x04synthetic")), "image/jpeg"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, decodeErr := image.Decode(bytes.NewReader(tc.data))
+			require.NoError(t, decodeErr, "fixture must be a complete decodable image")
+			contentType, err := attachments.InspectContent(tc.data, tc.mime)
+			require.Error(t, err)
+			require.Empty(t, contentType)
+		})
+	}
+}
+
+func TestContentPolicyAllowsValidatedPassiveMetadata(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		data []byte
+		mime string
+	}{
+		{"png_text", pngMetadata(t, "tEXt", []byte("Note\x00Synthetic evidence only")), "image/png"},
+		{"jpeg_comment", jpegMetadata(t, 0xfe, []byte("Synthetic evidence only")), "image/jpeg"},
+		{"jpeg_jfif", jpegMetadata(t, 0xe0, []byte{'J', 'F', 'I', 'F', 0, 1, 1, 0, 0, 1, 0, 1, 0, 0}), "image/jpeg"},
+		{"jpeg_adobe", jpegMetadata(t, 0xee, []byte{'A', 'd', 'o', 'b', 'e', 0, 100, 0, 0, 0, 0, 0}), "image/jpeg"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			contentType, err := attachments.InspectContent(tc.data, tc.mime)
+			require.NoError(t, err)
+			require.Equal(t, tc.mime, contentType)
+		})
+	}
 }
 
 func TestContentPolicyRequiresSupportedMatchingCompleteImage(t *testing.T) {

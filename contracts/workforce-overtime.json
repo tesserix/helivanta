@@ -1,0 +1,345 @@
+{
+  "statuses": {
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled",
+    "revoked": "Revoked"
+  },
+  "models": {
+    "overtimeSettingsInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "daily_limit_minutes",
+        "type": "int",
+        "pointer": true,
+        "min": 1,
+        "max": 1440,
+        "binding": "required,gte=1,lte=1440"
+      },
+      {
+        "name": "weekly_limit_minutes",
+        "type": "int",
+        "pointer": true,
+        "min": 1,
+        "max": 10080,
+        "binding": "required,gte=1,lte=10080"
+      },
+      {
+        "name": "monthly_limit_minutes",
+        "type": "int",
+        "pointer": true,
+        "min": 1,
+        "max": 44640,
+        "binding": "required,gte=1,lte=44640"
+      },
+      {
+        "name": "filing_window_days",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 92,
+        "binding": "required,gte=0,lte=92"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "overtimeSettings": [
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "daily_limit_minutes",
+        "type": "int"
+      },
+      {
+        "name": "weekly_limit_minutes",
+        "type": "int"
+      },
+      {
+        "name": "monthly_limit_minutes",
+        "type": "int"
+      },
+      {
+        "name": "filing_window_days",
+        "type": "int"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "reviewed_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "overtimeRequestInput": [
+      {
+        "name": "staff_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "work_date",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "start_time",
+        "type": "string",
+        "format": "clock",
+        "binding": "required,len=5"
+      },
+      {
+        "name": "end_time",
+        "type": "string",
+        "format": "clock",
+        "binding": "required,len=5"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text",
+        "binding": "required,max=500"
+      }
+    ],
+    "overtimeDecisionInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "binding": "required,gte=1"
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject"],
+        "binding": "required,oneof=approve reject"
+      },
+      {
+        "name": "approved_minutes",
+        "type": "int",
+        "optional": true,
+        "min": 1,
+        "max": 1440,
+        "binding": "omitempty,gte=1,lte=1440"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "max=500"
+      }
+    ],
+    "overtimeCancelInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "binding": "required,gte=1"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "max=500"
+      }
+    ],
+    "overtimeRequest": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "work_date",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "start_time",
+        "type": "string"
+      },
+      {
+        "name": "end_time",
+        "type": "string"
+      },
+      {
+        "name": "timezone",
+        "type": "string"
+      },
+      {
+        "name": "starts_at",
+        "type": "time"
+      },
+      {
+        "name": "ends_at",
+        "type": "time"
+      },
+      {
+        "name": "requested_minutes",
+        "type": "int"
+      },
+      {
+        "name": "approved_minutes",
+        "type": "int",
+        "optional": true
+      },
+      {
+        "name": "payable_minutes",
+        "type": "int"
+      },
+      {
+        "name": "policy_revision_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "reason",
+        "type": "string"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending", "approved", "rejected", "cancelled", "revoked"]
+      },
+      {
+        "name": "requested_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "decided_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "decided_at",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "revoked_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "overtimeEvent": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending", "approved", "rejected", "cancelled", "revoked"]
+      },
+      {
+        "name": "approved_minutes",
+        "type": "int",
+        "optional": true
+      },
+      {
+        "name": "note",
+        "type": "string"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "overtimeSummaryRow": [
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "pending_minutes",
+        "type": "int"
+      },
+      {
+        "name": "approved_requested_minutes",
+        "type": "int"
+      },
+      {
+        "name": "payable_minutes",
+        "type": "int"
+      }
+    ]
+  }
+}

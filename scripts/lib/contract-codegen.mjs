@@ -50,6 +50,9 @@ export function emitModels(models, kindSchema) {
         if (f.min !== undefined)
           schema += `.min(${f.min}${f.format === "name" ? ', "Enter a name."' : ""})`;
         if (f.max !== undefined) schema += `.max(${f.max})`;
+        if (f.format === "clock")
+          schema +=
+            '.regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/,"Use a 24-hour time such as 18:30.")';
         if (f.format === "date")
           schema +=
             '.date("Use a valid date.").refine(value=>value>="0001-01-01","Use a valid date.")';

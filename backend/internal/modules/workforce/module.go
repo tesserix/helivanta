@@ -46,6 +46,13 @@ const PermDutyRequest authz.Permission = "workforce.duty.request"
 const PermDutyApprove authz.Permission = "workforce.duty.approve"
 const DutyExchangeChanged = workforcecontract.SubjectDutyExchangeChanged
 
+// PermOvertimeConfigure sets the hospital overtime limits; PermOvertimeRequest files and withdraws requests; PermOvertimeApprove decides and revokes them, never on the holder's own filing.
+const PermOvertimeConfigure authz.Permission = "workforce.overtime.configure"
+const PermOvertimeRequest authz.Permission = "workforce.overtime.request"
+const PermOvertimeApprove authz.Permission = "workforce.overtime.approve"
+const OvertimeSettingsChanged = workforcecontract.SubjectOvertimeSettingsChanged
+const OvertimeChanged = workforcecontract.SubjectOvertimeChanged
+
 const PermMasterManage authz.Permission = "workforce.master.manage"
 const EnrollmentChanged = workforcecontract.SubjectStaffEnrollmentChanged
 const MasterChanged = workforcecontract.SubjectMasterChanged
@@ -95,18 +102,21 @@ var leaveReportsSchema string
 //go:embed duty_exchanges.sql
 var dutyExchangesSchema string
 
+//go:embed overtime.sql
+var overtimeSchema string
+
 type Module struct{}
 
 func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "workforce" }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}, {ID: "0007_workforce_roster_policy", SQL: rosterPolicySchema}, {ID: "0007_workforce_documents", SQL: documentsSchema}, {ID: "0008_workforce_document_worker", SQL: documentWorkerSchema}, {ID: "0009_workforce_rosters", SQL: rostersSchema}, {ID: "0010_workforce_leave_setup", SQL: leaveSetupSchema}, {ID: "0011_workforce_leave_ledger", SQL: leaveLedgerSchema}, {ID: "0012_workforce_leave_requests", SQL: leaveRequestsSchema}, {ID: "0013_workforce_leave_reports", SQL: leaveReportsSchema}, {ID: "0014_workforce_duty_exchanges", SQL: dutyExchangesSchema}}
+	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}, {ID: "0007_workforce_roster_policy", SQL: rosterPolicySchema}, {ID: "0007_workforce_documents", SQL: documentsSchema}, {ID: "0008_workforce_document_worker", SQL: documentWorkerSchema}, {ID: "0009_workforce_rosters", SQL: rostersSchema}, {ID: "0010_workforce_leave_setup", SQL: leaveSetupSchema}, {ID: "0011_workforce_leave_ledger", SQL: leaveLedgerSchema}, {ID: "0012_workforce_leave_requests", SQL: leaveRequestsSchema}, {ID: "0013_workforce_leave_reports", SQL: leaveReportsSchema}, {ID: "0014_workforce_duty_exchanges", SQL: dutyExchangesSchema}, {ID: "0015_workforce_overtime", SQL: overtimeSchema}}
 }
 func (*Module) Permissions() []authz.Grant {
-	return []authz.Grant{{Permission: PermHospitalManage}, {Permission: PermEnrollmentManage}, {Permission: PermDocumentManage}, {Permission: PermMasterManage}, {Permission: PermRosterManage}, {Permission: PermRosterCorrect}, {Permission: PermLeaveConfigure}, {Permission: PermLeaveAllocate}, {Permission: PermLeaveCorrect}, {Permission: PermLeaveRequest}, {Permission: PermLeaveApprove}, {Permission: PermDutyRequest}, {Permission: PermDutyApprove}}
+	return []authz.Grant{{Permission: PermHospitalManage}, {Permission: PermEnrollmentManage}, {Permission: PermDocumentManage}, {Permission: PermMasterManage}, {Permission: PermRosterManage}, {Permission: PermRosterCorrect}, {Permission: PermLeaveConfigure}, {Permission: PermLeaveAllocate}, {Permission: PermLeaveCorrect}, {Permission: PermLeaveRequest}, {Permission: PermLeaveApprove}, {Permission: PermDutyRequest}, {Permission: PermDutyApprove}, {Permission: PermOvertimeConfigure}, {Permission: PermOvertimeRequest}, {Permission: PermOvertimeApprove}}
 }
 func (*Module) Publishes() []string {
-	return []string{EnrollmentChanged, MasterChanged, ShiftChanged, RosterConfigChanged, RosterSettingsChanged, StaffRosterAssignmentChanged, DocumentScanRequested, DocumentChanged, RosterChanged, LeaveConfigChanged, StaffLeaveAssignmentChanged, LeaveLedgerChanged, LeaveRequestChanged, DutyExchangeChanged}
+	return []string{EnrollmentChanged, MasterChanged, ShiftChanged, RosterConfigChanged, RosterSettingsChanged, StaffRosterAssignmentChanged, DocumentScanRequested, DocumentChanged, RosterChanged, LeaveConfigChanged, StaffLeaveAssignmentChanged, LeaveLedgerChanged, LeaveRequestChanged, DutyExchangeChanged, OvertimeSettingsChanged, OvertimeChanged}
 }
 func (*Module) DirectedSubjects() []string    { return nil }
 func (*Module) DirectedWriteTables() []string { return nil }
@@ -174,6 +184,17 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.POST("/:hospital/hr/duty-exchanges/:exchange/decision", PermDutyApprove, h.decideDutyExchange)
 	g.POST("/:hospital/hr/duty-exchanges/:exchange/cancellation", PermDutyRequest, h.cancelDutyExchange)
 	g.POST("/:hospital/hr/duty-exchanges/:exchange/revocation", PermDutyApprove, h.revokeDutyExchange)
+	g.GET("/:hospital/hr/overtime-settings", authz.Public, h.getOvertimeSettings)
+	g.PUT("/:hospital/hr/overtime-settings", PermOvertimeConfigure, h.putOvertimeSettings)
+	platform.ListRoute(g, "/:hospital/hr/overtime-settings/history", authz.Public, h.overtimeSettingsHistory)
+	platform.ListRoute(g, "/:hospital/hr/overtime-summary", authz.Public, h.overtimeSummary)
+	platform.ListRoute(g, "/:hospital/hr/overtime", authz.Public, h.listOvertime)
+	g.PUT("/:hospital/hr/overtime/:request", PermOvertimeRequest, h.putOvertime)
+	g.GET("/:hospital/hr/overtime/:request", authz.Public, h.getOvertime)
+	platform.ListRoute(g, "/:hospital/hr/overtime/:request/history", authz.Public, h.overtimeHistory)
+	g.POST("/:hospital/hr/overtime/:request/decision", PermOvertimeApprove, h.decideOvertime)
+	g.POST("/:hospital/hr/overtime/:request/cancellation", PermOvertimeRequest, h.cancelOvertime)
+	g.POST("/:hospital/hr/overtime/:request/revocation", PermOvertimeApprove, h.revokeOvertime)
 	g.PUT("/:hospital/hr/shifts/:id", PermRosterManage, h.putShift)
 	platform.ListRoute(g, "/:hospital/hr/shifts", authz.Public, h.listShifts)
 	platform.ListRoute(g, "/:hospital/hr/shifts/:id/history", authz.Public, h.shiftHistory)

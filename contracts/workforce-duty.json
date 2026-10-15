@@ -1,0 +1,309 @@
+{
+  "kinds": {
+    "swap": "Swap duties",
+    "cover": "Cover a duty"
+  },
+  "statuses": {
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled",
+    "revoked": "Revoked"
+  },
+  "models": {
+    "dutyExchangeInput": [
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": ["swap", "cover"],
+        "binding": "required,oneof=swap cover"
+      },
+      {
+        "name": "requester_allocation_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "counterpart_staff_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "counterpart_allocation_id",
+        "type": "uuid",
+        "optional": true,
+        "binding": "omitempty"
+      },
+      {
+        "name": "counterpart_consent",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text",
+        "binding": "required,max=500"
+      }
+    ],
+    "dutyDecisionInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "binding": "required,gte=1"
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject"],
+        "binding": "required,oneof=approve reject"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "max=500"
+      }
+    ],
+    "dutyCancelInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "binding": "required,gte=1"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "max=500"
+      }
+    ],
+    "dutyAllocation": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "roster_id",
+        "type": "uuid"
+      },
+      {
+        "name": "roster_name",
+        "type": "string"
+      },
+      {
+        "name": "roster_status",
+        "type": "string"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "roster_date",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "shift_code",
+        "type": "string"
+      },
+      {
+        "name": "shift_name",
+        "type": "string"
+      },
+      {
+        "name": "area_code",
+        "type": "string"
+      },
+      {
+        "name": "area_name",
+        "type": "string"
+      },
+      {
+        "name": "starts_at",
+        "type": "time"
+      },
+      {
+        "name": "ends_at",
+        "type": "time"
+      },
+      {
+        "name": "active",
+        "type": "bool"
+      }
+    ],
+    "dutyExchange": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": ["swap", "cover"]
+      },
+      {
+        "name": "requester_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "requester_employee_code",
+        "type": "string"
+      },
+      {
+        "name": "requester_display_name",
+        "type": "string"
+      },
+      {
+        "name": "counterpart_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "counterpart_employee_code",
+        "type": "string"
+      },
+      {
+        "name": "counterpart_display_name",
+        "type": "string"
+      },
+      {
+        "name": "requester_allocation_id",
+        "type": "uuid"
+      },
+      {
+        "name": "counterpart_allocation_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "requester_replacement_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "counterpart_replacement_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "requester_restored_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "counterpart_restored_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "duty_from",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "duty_to",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "counterpart_consent",
+        "type": "bool"
+      },
+      {
+        "name": "reason",
+        "type": "string"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending", "approved", "rejected", "cancelled", "revoked"]
+      },
+      {
+        "name": "requested_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "decided_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "decided_at",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "revoked_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "dutyExchangeDetail": [
+      {
+        "name": "exchange",
+        "type": "dutyExchange"
+      },
+      {
+        "name": "allocations",
+        "type": "[]dutyAllocation"
+      }
+    ],
+    "dutyExchangeEvent": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending", "approved", "rejected", "cancelled", "revoked"]
+      },
+      {
+        "name": "note",
+        "type": "string"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ]
+  }
+}

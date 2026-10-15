@@ -132,3 +132,13 @@ type LeaveRequestChangedData struct {
 	Status     string `json:"status"`
 	Version    int64  `json:"version"`
 }
+
+// SubjectDutyExchangeChanged reports a duty exchange filing or transition; consumers re-read it through the API.
+const SubjectDutyExchangeChanged = "helivanta.in.workforce.duty_exchange_changed.v1"
+
+type DutyExchangeChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	ExchangeID string `json:"exchange_id"`
+	Status     string `json:"status"`
+	Version    int64  `json:"version"`
+}

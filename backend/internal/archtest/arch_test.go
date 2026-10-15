@@ -356,6 +356,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/staff/:id/leave-requests/:request": "one request with its days in a single leave year and its bounded roster clashes",
 	"GET /workforce/hospitals/:hospital/staff/:id/leave-balances":          "one staff member's balances, bounded by the hospital's leave types",
 	"GET /workforce/hospitals/:hospital/hr/rosters/:id":                    "single roster head; allocations are paginated separately",
+	"GET /workforce/hospitals/:hospital/hr/duty-exchanges/:exchange":       "one exchange with at most its six original, replacement and restored allocations",
 }
 
 // TestEveryCollectionGETIsPaginated is the one hole platform.ListRoute's

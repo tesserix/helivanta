@@ -156,9 +156,9 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 			// oversight (#781 — PermCredentialRevoke is declared with no
 			// system roles precisely so only tenant_admin's implicit
 			// grant reaches it).
-			// Workforce hospital setup, access and HR configuration (rosters, leave) are also admin-only;
+			// Workforce hospital setup, access and HR configuration (rosters, leave, duty exchanges) are also admin-only;
 			// staff data still requires an independent hospital grant (ADR 0009).
-			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workforce.PermLeaveRequest && perm != workforce.PermLeaveApprove && perm != workspace.PermBrandingManage && perm != patientmaster.PermPatientAccessManage {
+			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workforce.PermLeaveRequest && perm != workforce.PermLeaveApprove && perm != workforce.PermDutyRequest && perm != workforce.PermDutyApprove && perm != workspace.PermBrandingManage && perm != patientmaster.PermPatientAccessManage {
 				t.Errorf("module %q guards a route with %q, held by tenant_admin only; declare the role that needs it", m.Name(), perm)
 			}
 		}
@@ -193,6 +193,8 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workforce.PermLeaveCorrect:     {authz.RoleTenantAdmin},
 	workforce.PermLeaveRequest:     {authz.RoleTenantAdmin},
 	workforce.PermLeaveApprove:     {authz.RoleTenantAdmin},
+	workforce.PermDutyRequest:      {authz.RoleTenantAdmin},
+	workforce.PermDutyApprove:      {authz.RoleTenantAdmin},
 	workspace.PermBrandingManage:   {authz.RoleTenantAdmin},
 	iam.PermMemberManage:           {authz.RoleTenantAdmin},
 	iam.PermCredentialRevoke:       {authz.RoleTenantAdmin},

@@ -642,6 +642,11 @@
         "min": 1
       },
       {
+        "name": "exchange_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
         "name": "created_at",
         "type": "time"
       }

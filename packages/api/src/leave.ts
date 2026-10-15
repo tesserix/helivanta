@@ -1,4 +1,10 @@
-import { leaveConfigInputContract } from "./leave-contract";
+import { z } from "zod";
+import {
+  leaveConfigInputContract,
+  leaveCorrectionInputContract,
+  leaveSettingsInputContract,
+  staffLeaveAssignmentInputContract,
+} from "./leave-contract";
 export * from "./leave-contract";
 
 // Pass the revision IDs of untracked leave types so their zero-allowance rule is caught before submit.
@@ -97,4 +103,36 @@ export const leaveConfigSchema = (untracked: ReadonlySet<string> = new Set()) =>
   });
 
 export const formatHalfDays = (halfDays: number) =>
-  `${halfDays / 2} ${halfDays === 2 ? "day" : "days"}`;
+  `${halfDays / 2} ${Math.abs(halfDays) === 2 ? "day" : "days"}`;
+
+const leaveReviewMessage = "Confirm that you reviewed the change.";
+export const leaveSettingsSchema = leaveSettingsInputContract.superRefine((value, ctx) => {
+  if (!value.reviewed)
+    ctx.addIssue({ code: "custom", path: ["reviewed"], message: leaveReviewMessage });
+});
+export const staffLeaveAssignmentSchema = staffLeaveAssignmentInputContract.superRefine(
+  (value, ctx) => {
+    if (!value.reviewed)
+      ctx.addIssue({ code: "custom", path: ["reviewed"], message: leaveReviewMessage });
+  },
+);
+export const leaveCorrectionSchema = leaveCorrectionInputContract.superRefine((value, ctx) => {
+  if (!value.half_days)
+    ctx.addIssue({
+      code: "custom",
+      path: ["half_days"],
+      message: "Enter a non-zero adjustment.",
+    });
+});
+export const leaveYearOpenSchema = z
+  .object({
+    leave_year: z
+      .number({ invalid_type_error: "Enter a year." })
+      .int("Enter a whole year.")
+      .min(2000, "Choose a year from 2000 to 2199.")
+      .max(2199, "Choose a year from 2000 to 2199."),
+  })
+  .strict();
+export type LeaveYearOpenInput = z.infer<typeof leaveYearOpenSchema>;
+export const leaveMonthName = (month: number) =>
+  new Date(Date.UTC(2000, month - 1, 1)).toLocaleString("en", { month: "long", timeZone: "UTC" });

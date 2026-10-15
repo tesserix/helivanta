@@ -85,3 +85,108 @@ type leaveConfig struct {
 	Holidays          []leaveHoliday        `json:"holidays" gorm:"-"`
 	Entries           []leaveStructureEntry `json:"entries" gorm:"-"`
 }
+
+type leaveSettingsInput struct {
+	YearStartMonth *int  `json:"year_start_month" binding:"required,gte=1,lte=12"`
+	Reviewed       *bool `json:"reviewed" binding:"required"`
+}
+
+type leaveSettings struct {
+	YearStartMonth    int       `json:"year_start_month"`
+	ReviewedBySubject string    `json:"reviewed_by_subject"`
+	CreatedAt         time.Time `json:"created_at"`
+}
+
+type staffLeaveAssignmentInput struct {
+	ExpectedVersion     *int64    `json:"expected_version" binding:"required,gte=0"`
+	StructureRevisionID uuid.UUID `json:"structure_revision_id" binding:"required"`
+	Active              *bool     `json:"active" binding:"required"`
+	EffectiveOn         string    `json:"effective_on" binding:"required,len=10"`
+	Reviewed            *bool     `json:"reviewed" binding:"required"`
+}
+
+type staffLeaveAssignment struct {
+	StaffID             uuid.UUID `json:"staff_id"`
+	RevisionID          uuid.UUID `json:"revision_id"`
+	EmployeeCode        string    `json:"employee_code"`
+	DisplayName         string    `json:"display_name"`
+	StructureRevisionID uuid.UUID `json:"structure_revision_id"`
+	StructureID         uuid.UUID `json:"structure_id"`
+	StructureCode       string    `json:"structure_code"`
+	StructureName       string    `json:"structure_name"`
+	Active              bool      `json:"active"`
+	EffectiveOn         string    `json:"effective_on"`
+	ReviewedBySubject   string    `json:"reviewed_by_subject"`
+	Version             int64     `json:"version"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+}
+
+type leaveYear struct {
+	ID              uuid.UUID  `json:"id"`
+	LeaveYear       int        `json:"leave_year"`
+	StartOn         string     `json:"start_on"`
+	EndOn           string     `json:"end_on"`
+	PostedMonths    int        `json:"posted_months"`
+	Closed          bool       `json:"closed"`
+	ClosedBySubject *string    `json:"closed_by_subject,omitempty"`
+	ClosedAt        *time.Time `json:"closed_at,omitempty"`
+	Version         int64      `json:"version"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+type leavePostingInput struct {
+	Month *int `json:"month" binding:"required,gte=1,lte=12"`
+}
+
+type leaveRun struct {
+	ID           uuid.UUID `json:"id"`
+	LeaveYear    int       `json:"leave_year"`
+	Step         int       `json:"step"`
+	Entries      int       `json:"entries"`
+	ActorSubject string    `json:"actor_subject"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type leaveLedgerEntry struct {
+	ID                  uuid.UUID  `json:"id"`
+	StaffID             uuid.UUID  `json:"staff_id"`
+	LeaveTypeID         uuid.UUID  `json:"leave_type_id"`
+	LeaveTypeRevisionID uuid.UUID  `json:"leave_type_revision_id"`
+	Code                string     `json:"code"`
+	Name                string     `json:"name"`
+	LeaveYear           int        `json:"leave_year"`
+	Kind                string     `json:"kind"`
+	HalfDays            int        `json:"half_days"`
+	EffectiveOn         string     `json:"effective_on"`
+	Reason              string     `json:"reason"`
+	ActorSubject        string     `json:"actor_subject"`
+	RunID               *uuid.UUID `json:"run_id,omitempty"`
+	CreatedAt           time.Time  `json:"created_at"`
+}
+
+type leaveCorrectionInput struct {
+	LeaveTypeID uuid.UUID `json:"leave_type_id" binding:"required"`
+	LeaveYear   *int      `json:"leave_year" binding:"required,gte=2000,lte=2199"`
+	HalfDays    *int      `json:"half_days" binding:"required,gte=-1460,lte=1460"`
+	EffectiveOn string    `json:"effective_on" binding:"required,len=10"`
+	Reason      string    `json:"reason" binding:"required,min=10,max=500"`
+}
+
+type leaveBalance struct {
+	LeaveTypeID uuid.UUID `json:"leave_type_id"`
+	Code        string    `json:"code"`
+	Name        string    `json:"name"`
+	HalfDays    int       `json:"half_days"`
+}
+
+type staffLeaveBalances struct {
+	StaffID       uuid.UUID      `json:"staff_id"`
+	EmployeeCode  string         `json:"employee_code"`
+	DisplayName   string         `json:"display_name"`
+	StructureName string         `json:"structure_name"`
+	Active        bool           `json:"active"`
+	CreatedAt     time.Time      `json:"created_at"`
+	Balances      []leaveBalance `json:"balances" gorm:"-"`
+}

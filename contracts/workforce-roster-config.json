@@ -255,6 +255,212 @@
         "max": 7,
         "binding": "max=7,dive"
       }
+    ],
+    "rosterSettings": [
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "timezone",
+        "type": "string",
+        "min": 1,
+        "max": 64
+      },
+      {
+        "name": "week_start",
+        "type": "int",
+        "min": 0,
+        "max": 6
+      },
+      {
+        "name": "auto_population",
+        "type": "string",
+        "enum": [
+          "disabled",
+          "fixed_shift",
+          "all_assigned"
+        ]
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "reviewed_by_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "rosterSettingsInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "timezone",
+        "type": "string",
+        "min": 1,
+        "max": 64,
+        "binding": "required,max=64"
+      },
+      {
+        "name": "week_start",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 6,
+        "binding": "required,gte=0,lte=6"
+      },
+      {
+        "name": "auto_population",
+        "type": "string",
+        "enum": [
+          "disabled",
+          "fixed_shift",
+          "all_assigned"
+        ],
+        "binding": "required,oneof=disabled fixed_shift all_assigned"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "staffRosterAssignment": [
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "weekly_template_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "template_id",
+        "type": "uuid"
+      },
+      {
+        "name": "template_code",
+        "type": "string"
+      },
+      {
+        "name": "template_name",
+        "type": "string"
+      },
+      {
+        "name": "fixed",
+        "type": "bool"
+      },
+      {
+        "name": "active",
+        "type": "bool"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "reviewed_by_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "staffRosterAssignmentInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "weekly_template_revision_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "fixed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
     ]
+  },
+  "auto_population": {
+    "disabled": "Do not populate automatically",
+    "fixed_shift": "Fixed-shift staff only",
+    "all_assigned": "All staff with an active template"
   }
 }

@@ -69,6 +69,12 @@ export const ZONES: Zone[] = [
         icon: Settings,
         permission: "public",
       },
+      {
+        label: "Roster policy",
+        href: "/workforce/roster-policy",
+        icon: Settings,
+        permission: "public",
+      },
     ],
   },
   {

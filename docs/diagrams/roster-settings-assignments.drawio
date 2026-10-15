@@ -1,0 +1,74 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram id="roster-policy" name="Roster settings and assignments">
+    <mxGraphModel grid="1" gridSize="10" page="1" pageWidth="1700" pageHeight="750">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ui" value="Roster policy UI&#10;Settings • assignments • history" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dbeafe;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="160" width="280" height="95" />
+        </mxCell>
+        <mxCell id="guard" value="Hospital grant (reads)&#10;roster.manage + locked manager grant (writes)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dcfce7;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="340" y="160" width="280" height="95" />
+        </mxCell>
+        <mxCell id="settings" value="Hospital roster settings&#10;IANA timezone / week start / auto population" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dbeafe;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="680" y="60" width="280" height="95" />
+        </mxCell>
+        <mxCell id="assign" value="Staff weekly-template assignment&#10;Pinned template revision / fixed / active" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dbeafe;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="680" y="260" width="280" height="95" />
+        </mxCell>
+        <mxCell id="revs" value="Immutable revisions&#10;Monotonic effective dates" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#ede9fe;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1020" y="160" width="280" height="95" />
+        </mxCell>
+        <mxCell id="template" value="Weekly template revision (ADR-0018)&#10;Current + active for new pins" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fef3c7;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1020" y="360" width="280" height="95" />
+        </mxCell>
+        <mxCell id="audit" value="Append-only workforce audit&#10;Reviewer from authentication" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fee2e2;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="680" y="480" width="280" height="95" />
+        </mxCell>
+        <mxCell id="outbox" value="Outbox in same transaction&#10;Identifier-only events" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fef3c7;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1020" y="560" width="280" height="95" />
+        </mxCell>
+        <mxCell id="nats" value="NATS JetStream&#10;roster_settings_changed.v1&#10;staff_roster_assignment_changed.v1" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#e0f2fe;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1340" y="560" width="280" height="95" />
+        </mxCell>
+        <mxCell id="next" value="Next #1036 slice: dated rosters&#10;DST resolution • population • freeze" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#f1f5f9;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1340" y="160" width="280" height="95" />
+        </mxCell>
+        <mxCell id="e1" value="" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="ui" target="guard">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e2" value="forced RLS" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="guard" target="settings">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e3" value="forced RLS" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="guard" target="assign">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e4" value="" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="settings" target="revs">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e5" value="" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="assign" target="revs">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e6" value="kind-checked FK" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="assign" target="template">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e7" value="" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="assign" target="audit">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e8" value="" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="settings" target="audit">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e9" value="one commit" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="audit" target="outbox">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e10" value="after commit, retried" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="outbox" target="nats">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e11" value="as-of resolution" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="revs" target="next">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

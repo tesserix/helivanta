@@ -1,4 +1,8 @@
-import { rosterConfigInputContract } from "./roster-config-contract";
+import {
+  rosterConfigInputContract,
+  rosterSettingsInputContract,
+  staffRosterAssignmentInputContract,
+} from "./roster-config-contract";
 export * from "./roster-config-contract";
 
 export const WEEKDAYS = [
@@ -71,3 +75,30 @@ export const rosterConfigSchema = rosterConfigInputContract.superRefine((value, 
   if (!count)
     ctx.addIssue({ code: "custom", path: ["days"], message: "Choose at least one working day." });
 });
+// Mirrors the API and database rule: canonical IANA area names only, never Local or posix/ aliases.
+const IANA_ZONE = /^(UTC|[A-Z][A-Za-z_]+(\/[A-Za-z0-9_+-]+){1,2})$/;
+export function isSupportedTimezone(name: string) {
+  if (!IANA_ZONE.test(name)) return false;
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: name });
+    return true;
+  } catch {
+    return false;
+  }
+}
+const reviewMessage = "Confirm that you reviewed the policy.";
+export const rosterSettingsSchema = rosterSettingsInputContract.superRefine((value, ctx) => {
+  if (!value.reviewed) ctx.addIssue({ code: "custom", path: ["reviewed"], message: reviewMessage });
+  if (!isSupportedTimezone(value.timezone))
+    ctx.addIssue({
+      code: "custom",
+      path: ["timezone"],
+      message: "Use a supported IANA timezone such as Asia/Kolkata.",
+    });
+});
+export const staffRosterAssignmentSchema = staffRosterAssignmentInputContract.superRefine(
+  (value, ctx) => {
+    if (!value.reviewed)
+      ctx.addIssue({ code: "custom", path: ["reviewed"], message: reviewMessage });
+  },
+);

@@ -1,0 +1,501 @@
+{
+  "models": [
+    {
+      "name": "ingredient",
+      "schema": "pharmacyIngredientSchema",
+      "fields": [
+        {
+          "name": "name",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "strength",
+          "type": "string",
+          "min": 1,
+          "max": 24,
+          "pattern": "^(0|[1-9][0-9]{0,11})(\\.[0-9]{1,6})?$"
+        },
+        {
+          "name": "unit",
+          "type": "string",
+          "min": 1,
+          "max": 40,
+          "trim": true
+        }
+      ]
+    },
+    {
+      "name": "ProductFields",
+      "schema": "pharmacyProductFieldsSchema",
+      "fields": [
+        {
+          "name": "sku",
+          "type": "string",
+          "min": 1,
+          "max": 40,
+          "trim": true,
+          "upper": true,
+          "pattern": "^[A-Z0-9][A-Z0-9._-]{0,39}$"
+        },
+        {
+          "name": "brand_name",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "generic_name",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "dosage_form",
+          "type": "string",
+          "min": 1,
+          "max": 80,
+          "trim": true
+        },
+        {
+          "name": "route",
+          "type": "string",
+          "min": 1,
+          "max": 80,
+          "trim": true
+        },
+        {
+          "name": "manufacturer",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "marketing_company",
+          "type": "string",
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "ingredients",
+          "type": "[]ingredient",
+          "min": 1,
+          "max": 20,
+          "gorm": "serializer:json;type:jsonb"
+        },
+        {
+          "name": "pack_size",
+          "type": "int",
+          "min": 1,
+          "max": 1000000
+        },
+        {
+          "name": "unit_of_issue",
+          "type": "string",
+          "min": 1,
+          "max": 40,
+          "trim": true
+        },
+        {
+          "name": "currency",
+          "type": "string",
+          "min": 3,
+          "max": 3,
+          "pattern": "^[A-Z]{3}$"
+        },
+        {
+          "name": "mrp_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "enum": [
+            "active",
+            "discontinued",
+            "withdrawn"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "productInput",
+      "schema": "pharmacyProductInputSchema",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740991
+        }
+      ],
+      "embed": "ProductFields"
+    },
+    {
+      "name": "batchInput",
+      "schema": "pharmacyBatchInputSchema",
+      "fields": [
+        {
+          "name": "product_id",
+          "type": "uuid"
+        },
+        {
+          "name": "lot_number",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true,
+          "upper": true
+        },
+        {
+          "name": "expires_on",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "manufactured_on",
+          "type": "string",
+          "format": "date",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "name": "movementInput",
+      "schema": "pharmacyMovementInputSchema",
+      "fields": [
+        {
+          "name": "location_id",
+          "type": "uuid"
+        },
+        {
+          "name": "batch_id",
+          "type": "uuid"
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "enum": [
+            "receipt",
+            "correction"
+          ]
+        },
+        {
+          "name": "quantity_units",
+          "type": "int64",
+          "min": -1000000000,
+          "max": 1000000000,
+          "nonzero": true
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        },
+        {
+          "name": "source_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true
+        }
+      ]
+    },
+    {
+      "name": "locationInput",
+      "schema": "pharmacyLocationInputSchema",
+      "fields": [
+        {
+          "name": "code",
+          "type": "string",
+          "min": 1,
+          "max": 40,
+          "trim": true,
+          "upper": true,
+          "pattern": "^[A-Z0-9][A-Z0-9._-]{0,39}$"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        }
+      ]
+    },
+    {
+      "name": "OrganizationFields",
+      "schema": "pharmacyOrganizationInputSchema",
+      "fields": [
+        {
+          "name": "code",
+          "type": "string",
+          "min": 1,
+          "max": 40,
+          "trim": true,
+          "upper": true,
+          "pattern": "^[A-Z0-9][A-Z0-9._-]{0,39}$"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "ownership_type",
+          "type": "string",
+          "enum": [
+            "independent",
+            "chain",
+            "hospital_owned"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "OutletFields",
+      "schema": "pharmacyOutletInputSchema",
+      "fields": [
+        {
+          "name": "code",
+          "type": "string",
+          "min": 1,
+          "max": 40,
+          "trim": true,
+          "upper": true,
+          "pattern": "^[A-Z0-9][A-Z0-9._-]{0,39}$"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "country_code",
+          "type": "string",
+          "country_profile": true
+        },
+        {
+          "name": "timezone",
+          "type": "string",
+          "min": 1,
+          "max": 64
+        }
+      ]
+    },
+    {
+      "name": "AffiliationFields",
+      "schema": "pharmacyAffiliationInputSchema",
+      "fields": [
+        {
+          "name": "hospital_id",
+          "type": "uuid",
+          "uuid_any": true
+        },
+        {
+          "name": "relationship",
+          "type": "string",
+          "enum": [
+            "owner",
+            "serving",
+            "partner"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "payableLineInput",
+      "schema": "pharmacyPayableLineInputSchema",
+      "fields": [
+        {
+          "name": "receipt_id",
+          "type": "uuid",
+          "optional": true
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "enum": [
+            "inventory",
+            "utilities",
+            "rent",
+            "salary",
+            "transport",
+            "maintenance",
+            "professional",
+            "other"
+          ]
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        },
+        {
+          "name": "net_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "tax_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "recoverable_tax_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "landed_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        }
+      ]
+    },
+    {
+      "name": "payableInput",
+      "schema": "pharmacyPayableInputSchema",
+      "fields": [
+        {
+          "name": "payee_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true,
+          "upper": true
+        },
+        {
+          "name": "payee_name",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "document_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true,
+          "upper": true
+        },
+        {
+          "name": "issued_on",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "due_on",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "currency",
+          "type": "string",
+          "min": 3,
+          "max": 3,
+          "pattern": "^[A-Z]{3}$"
+        },
+        {
+          "name": "lines",
+          "type": "[]payableLineInput",
+          "min": 1,
+          "max": 100,
+          "gorm": "-"
+        }
+      ]
+    },
+    {
+      "name": "settlementInput",
+      "schema": "pharmacySettlementInputSchema",
+      "fields": [
+        {
+          "name": "kind",
+          "type": "string",
+          "enum": [
+            "payment",
+            "credit",
+            "payment_reversal"
+          ]
+        },
+        {
+          "name": "amount_minor",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        },
+        {
+          "name": "currency",
+          "type": "string",
+          "min": 3,
+          "max": 3,
+          "pattern": "^[A-Z]{3}$"
+        },
+        {
+          "name": "paid_by",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "method",
+          "type": "string",
+          "enum": [
+            "cash",
+            "bank",
+            "card",
+            "upi",
+            "other"
+          ]
+        },
+        {
+          "name": "source_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true,
+          "upper": true
+        },
+        {
+          "name": "occurred_on",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        },
+        {
+          "name": "reversal_of",
+          "type": "uuid",
+          "optional": true
+        }
+      ]
+    }
+  ]
+}

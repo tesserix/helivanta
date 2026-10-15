@@ -35,6 +35,23 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"pharmacy.PayableRecordedData.PharmacyID":               "opaque pharmacy scope; no payee identity or prices",
+	"pharmacy.PayableRecordedData.OutletID":                 "opaque outlet scope; protected lookup required",
+	"pharmacy.PayableRecordedData.PayableID":                "opaque document identity; no financial amounts",
+	"pharmacy.SettlementRecordedData.PharmacyID":            "opaque pharmacy scope; no financial details",
+	"pharmacy.SettlementRecordedData.OutletID":              "opaque outlet scope; no hospital or patient identity",
+	"pharmacy.SettlementRecordedData.PayableID":             "opaque payable identity for idempotent downstream posting",
+	"pharmacy.SettlementRecordedData.SettlementID":          "opaque settlement identity; no payer, payment method, reference or amount",
+	"pharmacy.CatalogueUpdatedData.PharmacyID":              "opaque owning pharmacy reference; does not confer tenant/outlet access",
+	"pharmacy.StockMovementRecordedData.PharmacyID":         "opaque pharmacy ownership scope; no hospital or patient identity",
+	"pharmacy.StockMovementRecordedData.OutletID":           "opaque outlet scope; no hospital demographics",
+	"pharmacy.StockMovementRecordedData.MovementID":         "opaque quarantined-stock movement reference; no patient or financial details",
+	"pharmacy.StockMovementRecordedData.LocationID":         "opaque inventory location reference; requires protected lookup",
+	"pharmacy.StockMovementRecordedData.BatchID":            "opaque batch reference; no quantities, drug identity or expiry details",
+	"pharmacy.CatalogueUpdatedData.OutletID":                "opaque outlet scope; protected product lookup still requires a current outlet grant",
+	"pharmacy.CatalogueUpdatedData.ProductID":               "opaque private-product reference; no patient, prescriber or commercial attributes",
+	"pharmacy.CatalogueUpdatedData.Version":                 "monotonic catalogue revision for replay and invalidation",
+	"pharmacy.CatalogueUpdatedData.Status":                  "allowlisted product lifecycle state; no clinical decision or patient data",
 	"workforce.DocumentScanInput.TenantID":                  "internal tenancy scope for processing; no organization attributes",
 	"workforce.DocumentScanInput.HospitalID":                "opaque origin hospital scope; no facility attributes",
 	"workforce.DocumentScanInput.StaffID":                   "opaque protected owner reference; no personnel facts",

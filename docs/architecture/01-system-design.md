@@ -80,3 +80,8 @@ External boundaries include payment providers, insurer/TPA systems, FHIR/ABDM in
 Keeping the modular monolith would cost less operationally, but does not deliver the user's requested independent product APIs. The target therefore changes that decision while preserving module boundaries and using a controlled extraction. A service per hospital workflow or per table adds network transactions without a distinct data owner and is rejected. Shared writable tables between product APIs are rejected because they erase ownership and independent migration safety.
 
 AI is a future capability; there is no autonomous diagnosis, prescribing, billing or stock action in this design. Billing logic, clinical scoring rules and statutory calculations need domain validation using synthetic cases; legacy screen presence does not establish correctness.
+
+
+## Pharmacy ownership clarification (ADR-0024)
+
+Pharma Connect supports independent pharmacy tenants, pharmacy chains and hospital-owned pharmacies. Its access hierarchy is **tenant -> pharmacy -> outlet**. Hospitals are optional owners or partners, not a mandatory pharmacy boundary. A hospital may own multiple pharmacies; a pharmacy may operate multiple outlets. Catalogue/stock/prescription authority never follows automatically from common ownership or an affiliation. Use explicit outlet grants, tenant/pharmacy/outlet RLS and purpose/consent-bound sharing agreements for hospital exchange. Standalone pharmacy workflows must not create fake hospitals or encounters. See [ADR-0024](../adr/0024-pharmacy-ownership-and-outlet-tenancy.md) and the [Pharma API design](pharmaconnect-api.md). The hospital requirements above continue to apply to actual hospital clinical records.

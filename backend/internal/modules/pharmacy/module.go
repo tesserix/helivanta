@@ -1,16 +1,35 @@
-// Package pharmacy owns medications and dispense tasks. It consumes
-// medicore's visit_created to open a pending dispense per visit and
-// publishes dispense_recorded when the pharmacist dispenses.
+// Package pharmacy owns pharmacy directories, catalogue, stock, operational payables
+// and dispense tasks. Clinical integrations use published contracts.
 package pharmacy
 
 import (
+	_ "embed"
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
+//go:embed catalogue.sql
+var catalogueSchema string
+
+//go:embed inventory.sql
+var inventorySchema string
+
+//go:embed payables.sql
+var payablesSchema string
+
 const (
+	PermAccountsRead    authz.Permission = "pharmacy.accounts.read"
+	PermAccountsWrite   authz.Permission = "pharmacy.accounts.write"
+	PermAccountsPayment authz.Permission = "pharmacy.accounts.payment"
+	PermAccountsAdjust  authz.Permission = "pharmacy.accounts.adjust"
+	PermStockRead       authz.Permission = "pharmacy.stock.read"
+	PermStockReceive    authz.Permission = "pharmacy.stock.receive"
+	PermStockCorrect    authz.Permission = "pharmacy.stock.correct"
+	PermCatalogueRead   authz.Permission = "pharmacy.catalogue.read"
+	PermCatalogueWrite  authz.Permission = "pharmacy.catalogue.write"
+	PermAccessManage    authz.Permission = "pharmacy.access.manage"
 	PermDispenseRead    authz.Permission = "pharmacy.dispense.read"
 	PermDispenseFulfil  authz.Permission = "pharmacy.dispense.fulfil"
 	PermMedicationRead  authz.Permission = "pharmacy.medication.read"
@@ -25,6 +44,16 @@ func (m *Module) Name() string { return "pharmacy" }
 
 func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
+		{Permission: PermAccountsRead},
+		{Permission: PermAccountsWrite},
+		{Permission: PermAccountsPayment},
+		{Permission: PermAccountsAdjust},
+		{Permission: PermStockRead, Roles: []authz.Role{authz.RolePharmacist}},
+		{Permission: PermStockReceive, Roles: []authz.Role{authz.RolePharmacist}},
+		{Permission: PermStockCorrect},
+		{Permission: PermCatalogueRead, Roles: []authz.Role{authz.RolePharmacist}},
+		{Permission: PermCatalogueWrite, Roles: []authz.Role{authz.RolePharmacist}},
+		{Permission: PermAccessManage},
 		{Permission: PermDispenseRead, Roles: []authz.Role{authz.RolePharmacist, authz.RoleDoctor}},
 		{Permission: PermDispenseFulfil, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermMedicationRead, Roles: []authz.Role{authz.RolePharmacist}},
@@ -87,11 +116,15 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 			CREATE TRIGGER pharmacy_dispenses_audit AFTER INSERT OR UPDATE OR DELETE ON pharmacy_dispenses
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
-	}}
+	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/pharmacy")
+	registryRoutes(g, deps)
+	catalogueRoutes(g, deps)
+	inventoryRoutes(g, deps)
+	payableRoutes(g, deps)
 	meds := &medicationHandlers{db: deps.DB}
 	disp := &dispenseHandlers{db: deps.DB, bus: deps.Bus}
 
@@ -101,11 +134,9 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.POST("/dispenses/:id/dispense", PermDispenseFulfil, disp.fulfil)
 }
 
-// Publishes declares dispense_recorded, the one event pharmacy emits.
-// No module consumes it today; declaring it anyway is what makes it
-// available to anything added later without changing pharmacy.
+// Publishes declares the module's clinical, catalogue, inventory and financial events.
 func (m *Module) Publishes() []string {
-	return []string{pharmacycontract.SubjectDispenseRecorded}
+	return []string{pharmacycontract.SubjectDispenseRecorded, pharmacycontract.SubjectCatalogueUpdated, pharmacycontract.SubjectStockMovementRecorded, pharmacycontract.SubjectPayableRecorded, pharmacycontract.SubjectSettlementRecorded}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that

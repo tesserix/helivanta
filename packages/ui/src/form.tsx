@@ -30,7 +30,7 @@ export function Field({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5 text-sm font-medium">
+    <div className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">
       <label htmlFor={id}>{label}</label>
       {children}
       {error && (

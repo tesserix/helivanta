@@ -158,7 +158,9 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 			// grant reaches it).
 			// Workforce hospital setup, access and HR configuration (rosters, leave) are also admin-only;
 			// staff data still requires an independent hospital grant (ADR 0009).
-			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workspace.PermBrandingManage && perm != patientmaster.PermPatientAccessManage {
+			// Pharmacy grant administration is likewise admin-only; pharmacists cannot self-grant outlet or financial access. Operational finance permissions are separately admin-only (ADR 0025).
+			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workspace.PermBrandingManage && perm != patientmaster.PermPatientAccessManage && perm != pharmacy.PermAccessManage && perm != pharmacy.PermStockCorrect && perm != pharmacy.PermAccountsRead && perm != pharmacy.PermAccountsWrite && perm != pharmacy.PermAccountsPayment && perm != pharmacy.PermAccountsAdjust {
+
 				t.Errorf("module %q guards a route with %q, held by tenant_admin only; declare the role that needs it", m.Name(), perm)
 			}
 		}
@@ -199,6 +201,16 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	medicore.PermVisitRead:   {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},
 	medicore.PermVisitUpdate: {authz.RoleNurse, authz.RoleTenantAdmin},
 
+	pharmacy.PermAccountsRead:    {authz.RoleTenantAdmin},
+	pharmacy.PermAccountsWrite:   {authz.RoleTenantAdmin},
+	pharmacy.PermAccountsPayment: {authz.RoleTenantAdmin},
+	pharmacy.PermAccountsAdjust:  {authz.RoleTenantAdmin},
+	pharmacy.PermStockRead:       {authz.RolePharmacist, authz.RoleTenantAdmin},
+	pharmacy.PermStockReceive:    {authz.RolePharmacist, authz.RoleTenantAdmin},
+	pharmacy.PermStockCorrect:    {authz.RoleTenantAdmin},
+	pharmacy.PermAccessManage:    {authz.RoleTenantAdmin},
+	pharmacy.PermCatalogueRead:   {authz.RolePharmacist, authz.RoleTenantAdmin},
+	pharmacy.PermCatalogueWrite:  {authz.RolePharmacist, authz.RoleTenantAdmin},
 	pharmacy.PermMedicationWrite: {authz.RolePharmacist, authz.RoleTenantAdmin},
 	pharmacy.PermMedicationRead:  {authz.RolePharmacist, authz.RoleTenantAdmin},
 	pharmacy.PermDispenseRead:    {authz.RolePharmacist, authz.RoleDoctor, authz.RoleTenantAdmin},

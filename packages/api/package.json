@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "format:check": "prettier --check . --ignore-path ../../.prettierignore",
     "test": "vitest run",
-    "type-check": "node ../../scripts/generate-workforce-enrollment.mjs --check && node ../../scripts/generate-workforce-roster-config.mjs --check && node ../../scripts/generate-workforce-documents.mjs --check && node ../../scripts/generate-workforce-leave.mjs --check && tsc --noEmit"
+    "type-check": "node ../../scripts/generate-workforce-enrollment.mjs --check && node ../../scripts/generate-workforce-roster-config.mjs --check && node ../../scripts/generate-workforce-documents.mjs --check && node ../../scripts/generate-workforce-leave.mjs --check && node ../../scripts/generate-workforce-duty.mjs --check && tsc --noEmit"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",

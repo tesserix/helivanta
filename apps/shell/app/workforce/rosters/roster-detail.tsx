@@ -305,6 +305,9 @@ function Shift({
     return (
       <p className="mb-1 rounded-md bg-muted px-2 py-1" title={`${a.starts_at} to ${a.ends_at}`}>
         {label}
+        {a.exchange_id && (
+          <span className="ml-1.5 text-xs font-medium text-(--hms-accent)">· exchanged</span>
+        )}
       </p>
     );
   return (

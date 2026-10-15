@@ -32,13 +32,14 @@ type requestHarness struct {
 
 func newRequestHarness(t *testing.T) *requestHarness {
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"admin": testutil.TenantA, "approver": testutil.TenantA, "clerk": testutil.TenantA, "viewer": testutil.TenantA, "reader": testutil.TenantA, "foreign": testutil.TenantB},
+		Tokens: map[string]string{"admin": testutil.TenantA, "approver": testutil.TenantA, "clerk": testutil.TenantA, "viewer": testutil.TenantA, "reader": testutil.TenantA, "profiler": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
-			"admin":    {workforce.PermHospitalManage, workforce.PermLeaveConfigure, workforce.PermLeaveAllocate, workforce.PermLeaveCorrect, workforce.PermLeaveRequest, workforce.PermEnrollmentManage},
+			"admin":    {workforce.PermHospitalManage, workforce.PermLeaveConfigure, workforce.PermLeaveAllocate, workforce.PermLeaveCorrect, workforce.PermLeaveRequest, workforce.PermEnrollmentManage, workforce.PermMasterManage},
 			"approver": {workforce.PermLeaveApprove, workforce.PermLeaveRequest, workforce.PermEnrollmentManage},
 			"clerk":    {workforce.PermLeaveRequest},
 			"viewer":   {},
 			"reader":   {workforce.PermLeaveRequest, workforce.PermLeaveApprove},
+			"profiler": {workforce.PermEnrollmentManage},
 			"foreign":  {workforce.PermLeaveRequest, workforce.PermLeaveApprove, workforce.PermEnrollmentManage},
 		},
 		Modules: []platform.Module{workforce.New()},
@@ -50,7 +51,7 @@ func newRequestHarness(t *testing.T) *requestHarness {
 	}}
 	code, out := h.do("PUT", h.base, "admin", `{"name":"Synthetic Request Hospital"}`)
 	require.Equal(t, 200, code, out)
-	for user, level := range map[string]string{"admin": "manager", "approver": "manager", "clerk": "manager", "viewer": "manager", "reader": "reader"} {
+	for user, level := range map[string]string{"admin": "manager", "approver": "manager", "clerk": "manager", "viewer": "manager", "reader": "reader", "profiler": "reader"} {
 		code, out = h.do("PUT", h.base+"/access/user-"+user, "admin", `{"level":"`+level+`"}`)
 		require.Equal(t, 200, code, out)
 	}

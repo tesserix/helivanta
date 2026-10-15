@@ -191,3 +191,45 @@ export const toLeaveRequestInput = (form: LeaveRequestForm): LeaveRequestInput =
   ...(form.unit === "short_leave" && { minutes: form.minutes }),
   reason: form.reason,
 });
+
+// Mirrors the report API: an inclusive period of at most 366 days between 2000 and 2199, optional search and filters.
+export const leaveReportFilterSchema = z
+  .object({
+    report: z.enum(["monthly", "status"]),
+    from: z.string().date("Choose a start date."),
+    to: z.string(),
+    q: z
+      .string()
+      .trim()
+      .max(100, "Search with at most 100 characters.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    department_id: z.string(),
+    leave_type_id: z.string(),
+    status: z.enum(["all", "pending", "approved", "rejected", "cancelled"]),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const issue = (path: string, message: string) =>
+      ctx.addIssue({ code: "custom", path: [path], message });
+    if (value.from && (value.from < "2000-01-01" || value.from > "2199-12-31"))
+      issue("from", "Choose a date from 2000 to 2199.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value.to) || Number.isNaN(Date.parse(value.to)))
+      issue("to", "Choose an end date.");
+    else if (value.to > "2199-12-31") issue("to", "Choose a date from 2000 to 2199.");
+    else if (value.to < value.from) issue("to", "End the period on or after its start.");
+    else if (Date.parse(value.to) - Date.parse(value.from) > 365 * 86_400_000)
+      issue("to", "Keep the period within 366 days.");
+  });
+export type LeaveReportFilter = z.infer<typeof leaveReportFilterSchema>;
+
+// Builds the report path; status-only filters are sent only to the status report.
+export const leaveReportPath = (base: string, f: LeaveReportFilter) => {
+  const query = new URLSearchParams({ from: f.from, to: f.to });
+  if (f.q) query.set("q", f.q);
+  if (f.department_id) query.set("department_id", f.department_id);
+  if (f.report === "status") {
+    if (f.leave_type_id) query.set("leave_type_id", f.leave_type_id);
+    if (f.status !== "all") query.set("status", f.status);
+  }
+  return `${base}/hr/leave-reports/${f.report}?${query.toString()}`;
+};

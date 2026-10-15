@@ -1,0 +1,97 @@
+<mxfile host="app.diagrams.net" version="26.0.16">
+  <diagram id="private-staff-documents" name="Private staff documents">
+    <mxGraphModel dx="1500" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="&lt;b&gt;HELIVANTA · Private staff document lifecycle&lt;/b&gt;&lt;br&gt;Tenant + hospital + staff + immutable file scope" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdfa;strokeColor=#0f766e;fontColor=#0f172a;fontSize=15;spacing=10;fontSize=22;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="25" width="1490" height="75" />
+        </mxCell>
+        <mxCell id="clientlane" value="&lt;b&gt;Browser workspace&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#cbd5e1;fontColor=#0f172a;fontSize=15;spacing=10;verticalAlign=top;align=left;spacingTop=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="140" width="280" height="700" />
+        </mxCell>
+        <mxCell id="applane" value="&lt;b&gt;Authenticated application boundary&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#93c5fd;fontColor=#0f172a;fontSize=15;spacing=10;verticalAlign=top;align=left;spacingTop=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="350" y="140" width="500" height="700" />
+        </mxCell>
+        <mxCell id="workerLane" value="&lt;b&gt;Private processing boundary&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdfa;strokeColor=#5eead4;fontColor=#0f172a;fontSize=15;spacing=10;verticalAlign=top;align=left;spacingTop=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="880" y="140" width="650" height="700" />
+        </mxCell>
+        <mxCell id="ui" value="&lt;b&gt;Staff documents&lt;/b&gt;&lt;br&gt;Scoped record choices&lt;br&gt;Inline validation · resume" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94a3b8;fontColor=#0f172a;fontSize=15;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="75" y="225" width="210" height="120" />
+        </mxCell>
+        <mxCell id="guard" value="&lt;b&gt;Workforce API&lt;/b&gt;&lt;br&gt;Verified session + permission&lt;br&gt;Explicit hospital-manager grant&lt;br&gt;Expected tenant constraint" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#0f172a;fontSize=15;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="395" y="215" width="390" height="135" />
+        </mxCell>
+        <mxCell id="db" value="&lt;b&gt;PostgreSQL / CNPG&lt;/b&gt;&lt;br&gt;Forced RLS + immutable intent&lt;br&gt;Audit and outbox in one transaction" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#2563eb;fontColor=#0f172a;fontSize=15;spacing=10;shape=cylinder3;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="395" y="400" width="390" height="105" />
+        </mxCell>
+        <mxCell id="outbox" value="&lt;b&gt;Committed delivery&lt;/b&gt;&lt;br&gt;Outbox relay → NATS JetStream&lt;br&gt;Opaque IDs + scan attempt only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94a3b8;fontColor=#0f172a;fontSize=15;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="395" y="570" width="390" height="100" />
+        </mxCell>
+        <mxCell id="quarantine" value="&lt;b&gt;GCS quarantine&lt;/b&gt;&lt;br&gt;Create-only scoped object&lt;br&gt;Pinned generation + SHA-256" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ccfbf1;strokeColor=#0f766e;fontColor=#0f172a;fontSize=15;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="945" y="215" width="245" height="105" />
+        </mxCell>
+        <mxCell id="temporal" value="&lt;b&gt;Temporal&lt;/b&gt;&lt;br&gt;Scope + attempt workflow ID&lt;br&gt;Bounded retry / heartbeat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0f766e;fontColor=#0f172a;fontSize=15;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="945" y="570" width="245" height="100" />
+        </mxCell>
+        <mxCell id="worker" value="&lt;b&gt;Restricted worker&lt;/b&gt;&lt;br&gt;Four-ID RLS scope&lt;br&gt;No personnel / owner credentials" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ccfbf1;strokeColor=#0f766e;fontColor=#0f172a;fontSize=15;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="945" y="395" width="245" height="115" />
+        </mxCell>
+        <mxCell id="scan" value="&lt;b&gt;ClamAV&lt;/b&gt;&lt;br&gt;One numbered scan session&lt;br&gt;Current, unchanged definitions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0f766e;fontColor=#0f172a;fontSize=15;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="400" width="245" height="105" />
+        </mxCell>
+        <mxCell id="released" value="&lt;b&gt;GCS released&lt;/b&gt;&lt;br&gt;Verified clean, create-only copy&lt;br&gt;Exact generation retained" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ccfbf1;strokeColor=#0f766e;fontColor=#0f172a;fontSize=15;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1240" y="215" width="245" height="105" />
+        </mxCell>
+        <mxCell id="status" value="&lt;b&gt;Observable states&lt;/b&gt;&lt;br&gt;Upload incomplete → Processing → Ready&lt;br&gt;Needs attention / Rejected / Revoked" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94a3b8;fontColor=#0f172a;fontSize=15;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="75" y="440" width="210" height="190" />
+        </mxCell>
+        <mxCell id="download" value="&lt;b&gt;Authorized download&lt;/b&gt;&lt;br&gt;Current grant rechecked after I/O&lt;br&gt;Private/no-store · safe disposition" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#0f172a;fontSize=15;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="395" y="720" width="390" height="90" />
+        </mxCell>
+        <mxCell id="note" value="&lt;b&gt;Activation gate:&lt;/b&gt; prepared production switches are disabled. Credential / LOGIN, migration 0008, workload identity acceptance and approved GitOps rollout precede confidential uploads." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#d97706;fontColor=#0f172a;fontSize=15;spacing=10;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="875" width="1490" height="75" />
+        </mxCell>
+        <mxCell id="e1" value="Same-origin session" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#475569;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="ui" target="guard">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e2" value="Reauthorize + validate" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#475569;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="guard" target="db">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e3" value="Bounded immutable bytes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#475569;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="guard" target="quarantine">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e4" value="Atomic state + intent" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#475569;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="db" target="outbox">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e5" value="Verified duplicate start" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#475569;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="outbox" target="temporal">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e6" value="Owning activity" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#475569;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="temporal" target="worker">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e7" value="Pinned generation" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#475569;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="quarantine" target="worker">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e8" value="Bounded INSTREAM" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#475569;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="worker" target="scan">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e9" value="Verified clean only" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#475569;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="scan" target="released">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e10" value="Release / error / rejection receipt" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#475569;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="worker" target="db">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e11" value="Pinned bytes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#475569;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="released" target="download">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e12" value="Authorized response" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#475569;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="download" target="ui">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e13" value="Scoped list / poll" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#475569;fontColor=#334155;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="db" target="status">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

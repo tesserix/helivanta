@@ -83,6 +83,7 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.PUT("/:hospital/staff/:id", authz.Public, h.putStaff)
 	g.GET("/:hospital/staff/:id", authz.Public, h.getStaff)
 	g.GET("/:hospital/staff/:id/enrollment", PermEnrollmentManage, h.getEnrollment)
+	g.GET("/:hospital/staff/:id/document-records", PermDocumentManage, h.documentRecords)
 	g.PUT("/:hospital/staff/:id/enrollment", PermEnrollmentManage, h.putEnrollment)
 	g.PUT("/:hospital/staff/:id/documents/:file", PermDocumentManage, h.putDocument)
 	g.PUT("/:hospital/staff/:id/documents/:file/content", PermDocumentManage, h.uploadDocument)

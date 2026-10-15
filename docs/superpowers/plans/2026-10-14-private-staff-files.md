@@ -13,8 +13,11 @@ Continuation implemented and locally verified: scoped release/rejection/error
 commits, crash-after-copy recovery, Temporal bounded retries/heartbeats and
 retained-execution verification, private download reauthorization and explicit
 idempotent retry/revocation APIs. Runtime/API/image wiring is present. Worker
-role pre-registration is reviewed through the infrastructure draft as NOLOGIN;
-private credentials, activation, GitOps workloads and UI remain uncompleted.
+role pre-registration and runtime IaC have been applied through infrastructure
+PRs #1414 and #1415. The role remains NOLOGIN and the credential/upload/runtime
+activation switches remain disabled. Generated contracts and the staff-document
+UI are implemented; actual browser/cloud acceptance and private credentials,
+activation and the live worker migration remain uncompleted.
 Do not deploy `0008` against CNPG before its role exists, or call the complete
 story accepted before real GCS and local/live browser proof.
 

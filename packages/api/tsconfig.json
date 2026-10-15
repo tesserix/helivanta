@@ -3,7 +3,7 @@
   "compilerOptions": {
     "jsx": "preserve",
     "noEmit": true,
-    "types": ["vitest/globals", "@testing-library/jest-dom/vitest"]
+    "types": ["node", "vitest/globals", "@testing-library/jest-dom/vitest"]
   },
   "include": ["src"]
 }

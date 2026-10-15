@@ -19,43 +19,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type documentInput struct {
-	RecordKind  string    `json:"record_kind" binding:"required,oneof=enrollment credential qualification"`
-	RecordID    uuid.UUID `json:"record_id" binding:"required"`
-	Category    string    `json:"category" binding:"required,oneof=employment_evidence qualification_evidence credential_evidence identity_evidence"`
-	Filename    string    `json:"filename" binding:"required,max=180"`
-	ContentType string    `json:"content_type" binding:"required,oneof=image/png image/jpeg"`
-	Size        int64     `json:"size" binding:"required,min=1,max=10485760"`
-	SHA256      string    `json:"sha256" binding:"required,len=64"`
-}
-
-type document struct {
-	ID                   uuid.UUID  `json:"id"`
-	HospitalID           uuid.UUID  `json:"hospital_id"`
-	StaffID              uuid.UUID  `json:"staff_id"`
-	RecordID             uuid.UUID  `json:"record_id"`
-	RecordKind           string     `json:"record_kind"`
-	RecordVersion        int64      `json:"record_version"`
-	Category             string     `json:"category"`
-	Filename             string     `json:"filename"`
-	ContentType          string     `json:"content_type"`
-	Size                 int64      `json:"size"`
-	SHA256               string     `json:"sha256"`
-	Status               string     `json:"status"`
-	ScanAttempt          int64      `json:"scan_attempt"`
-	UploadedAt           *time.Time `json:"uploaded_at"`
-	SourceGeneration     *int64     `json:"-"`
-	ReleasedGeneration   *int64     `json:"-"`
-	EngineVersion        *string    `json:"-"`
-	DefinitionVersion    *int64     `json:"-"`
-	DefinitionsUpdatedAt *time.Time `json:"-"`
-	ScannedAt            *time.Time `json:"scanned_at"`
-	FailureCode          *string    `json:"failure_code"`
-	ExpiresAt            time.Time  `json:"expires_at"`
-	CreatedAt            time.Time  `json:"created_at"`
-	UpdatedAt            time.Time  `json:"updated_at"`
-}
-
 func (document) TableName() string                 { return "workforce_documents" }
 func (d document) PageKey() (time.Time, uuid.UUID) { return d.CreatedAt, d.ID }
 
@@ -75,8 +38,7 @@ func (in *documentInput) valid(staffID uuid.UUID) bool {
 			return false
 		}
 	}
-	return (in.RecordKind == "enrollment" && in.RecordID == staffID && contains(in.Category, "employment_evidence", "identity_evidence")) ||
-		(in.RecordKind == "credential" && in.Category == "credential_evidence") || (in.RecordKind == "qualification" && in.Category == "qualification_evidence")
+	return contains(in.Category, documentCategoryBindings[in.RecordKind]...) && (in.RecordKind != "enrollment" || in.RecordID == staffID)
 }
 
 func documentOwner(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID) (staff, error) {
@@ -101,6 +63,14 @@ func documentRecord(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID,
 }
 
 func documentStaff(c *gin.Context) (uuid.UUID, bool) {
+	if expected := c.GetHeader("X-Helivanta-Expected-Tenant"); expected != "" {
+		p, _, ok := authn.TenantPrincipal(c)
+		requested, err := uuid.Parse(expected)
+		if !ok || err != nil || requested == uuid.Nil || requested.String() != p.TenantID {
+			respond.NotFound(c, "staff document")
+			return uuid.Nil, false
+		}
+	}
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil || id == uuid.Nil {
 		respond.NotFound(c, "staff")

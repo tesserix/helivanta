@@ -17,6 +17,7 @@ import {
 import { HmsShell, Field, useZodForm, SelectControl, FormSelectField } from "@helivanta/ui";
 import { TenantPicker } from "@/components/tenant-picker";
 import { EnrollmentEditor } from "./enrollment-editor";
+import { StaffDocumentPanel } from "./document-panel";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -111,6 +112,7 @@ function Directory({ hospital }: { hospital: Hospital }) {
   const [cursor, setCursor] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<Staff | "new" | null>(null);
+  const [documentStaff, setDocumentStaff] = useState<Staff | null>(null);
   useEffect(() => {
     if (!editing) opener.current?.focus();
   }, [editing]);
@@ -139,6 +141,7 @@ function Directory({ hospital }: { hospital: Hospital }) {
             <Button
               onClick={(event) => {
                 opener.current = event.currentTarget;
+                setDocumentStaff(null);
                 setEditing("new");
               }}
             >
@@ -231,12 +234,26 @@ function Directory({ hospital }: { hospital: Hospital }) {
                           size="sm"
                           onClick={(event) => {
                             opener.current = event.currentTarget;
+                            setDocumentStaff(null);
                             setEditing(row);
                           }}
                           aria-label={`Edit ${row.display_name}`}
                         >
                           Edit
                         </Button>
+                        {can("workforce.documents.manage") && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Documents for ${row.display_name}`}
+                            onClick={() => {
+                              setEditing(null);
+                              setDocumentStaff(row);
+                            }}
+                          >
+                            Documents
+                          </Button>
+                        )}
                       </td>
                     )}
                   </tr>
@@ -267,6 +284,14 @@ function Directory({ hospital }: { hospital: Hospital }) {
           </div>
         </div>
       </section>
+      {documentStaff && writable && can("workforce.documents.manage") && (
+        <StaffDocumentPanel
+          key={documentStaff.id}
+          hospital={hospital}
+          staff={documentStaff}
+          onClose={() => setDocumentStaff(null)}
+        />
+      )}
       {editing && can("workforce.enrollment.manage") ? (
         <EnrollmentEditor
           key={editing === "new" ? "new" : editing.id}

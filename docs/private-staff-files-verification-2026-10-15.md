@@ -4,6 +4,80 @@ Owning story: [#1105](https://github.com/tesserix/helivanta/issues/1105).
 Parent: [#979](https://github.com/tesserix/helivanta/issues/979).
 This is local processing/delivery evidence, not completed-story or production acceptance.
 
+## Latest application and applied-IaC evidence
+
+Approved infrastructure [#1415](https://github.com/tesserix/tesserix-k8s/pull/1415)
+was applied through Atlantis and merged at `f01b19c49c4638ecddc949d3d39b2880582da2f9`.
+Its 16 removals eliminated seeded legacy IAM bindings from the four private-file
+buckets. The authorized Cloud Asset IAM view confirmed that intended get/create
+workload grants remain and public/legacy bucket grants are absent. Direct storage
+policy reads correctly became unavailable to the active account; no access was
+regranted. Before/after recovery captures remain private under
+`/tmp/helivanta-bucket-iam-{before,after}-hardening-20261015.json`.
+
+Argo reconciled the preparatory PostgreSQL, API, quotas, network policies,
+Temporal and OpenBao resources as Synced/Healthy at `f01b19c`. CNPG has two ready
+instances. Worker LOGIN, credential projection, uploads and workloads remain
+disabled. No production migration or application promotion was performed.
+
+The staff UI and API share generated document contracts. Record choices require
+document permission and an explicit hospital-manager grant, omit license numbers
+and the full enrollment, and are bounded to one enrollment plus twenty credentials
+and twenty qualifications. Expected-tenant constraints reject all seven document
+operations when the verified session no longer matches the workspace. Upload and
+scan retries retain their original intent/attempt after lost acknowledgment.
+Unmount, hospital/staff selection and tenant switching clear/cancel private work.
+Filename errors appear inline before hashing or network I/O.
+
+Local web checks used Node 24.21.0, Next.js 16 and Tailwind 4:
+
+- `pnpm turbo lint test format:check`: API **79**, UI **57**, shell **176** tests pass.
+- `pnpm turbo build`, followed by `pnpm turbo type-check`: pass. Sequential
+  build/typecheck avoids concurrent Next-generated type-directory churn.
+- `/tmp/helivanta-go-tools/golangci-lint run` (v2.14.0 built with Go1.27.2),
+  `go vet ./...` and `go build ./...`: pass.
+- Full Go `./scripts/coverage-gate.sh` with **Go1.27.2**, `-race -count=1 -cover
+./...`, `GOFLAGS=-p=2`, correct repository layout and real disposable fixtures
+  inside Colima: passes. Workforce **78.8%**, attachments **81.5%**, events
+  **77.1%**, tenantdb **83.8%**. Earlier attempts encountered a portable test-helper
+  compile error and kernel-confirmed architecture-test OOM; neither is a pass.
+  The stdout-capture helper now uses `x/sys/unix` on Linux ARM64 as well as Darwin.
+
+Existing isolated CNPG verification roles expired on 14 October. No password
+rotation or expiry extension was made; specific renewal approval is pending.
+A separate disposable local database, isolated OpenFGA store and dedicated
+JetStream server were prepared for browser verification. All eight migrations
+were applied only to that disposable database. No customer records were copied.
+
+Actual API acceptance at `localhost:8086` used real Zitadel sign-in and synthetic
+enrollment/credential/qualification fixtures. Record choices and file-list reads
+returned no-store; expected-tenant mismatch returned 404; protected personal fields
+and license numbers were absent. Actual synthetic rows were visible at
+`http://helivanta.localhost:4306/workforce` through the new API. Sign-in used the
+existing registered local callback at port 4301; the development hostname shares
+the session with the isolated UI port. No identity-provider registration changed.
+
+Browser acceptance verified Documents focus, expanded/collapsed navigation, the
+actual reusable hospital dropdown, private-workspace clearing on hospital change
+and disabled uploads while storage is inactive. At 412×915 the document panel fit
+without page-level horizontal overflow; the viewport override was reset. Browser
+console had no errors/warnings. Screenshots:
+`/tmp/helivanta-staff-documents-local-20261015.jpg` and
+`/tmp/helivanta-staff-documents-mobile-20261015.jpg`.
+
+The legacy EMR shell was visible, but its HR switch did not load HR. Main-portal
+navigation reached login again. No customer export was performed; fresh legacy
+HR verification requires renewed sign-in.
+
+The [design](superpowers/specs/2026-10-14-private-staff-files-design.md) and
+[editable draw.io diagram](diagrams/private-staff-documents.drawio) describe the
+processing boundaries. These local checks do **not** prove actual GCS IAM/CMEK,
+production scanner receipt/recovery, CNPG migration, monitored live runtime or
+deployed browser acceptance. Story #1105 remains open.
+
+The sections below preserve earlier processing checkpoints; this section is the
+current continuation status.
+
 ## Implemented boundary
 
 The workforce module owns intent, list and bounded binary upload routes.
@@ -186,28 +260,27 @@ flush barrier correction passes all three affected dispatcher/isolation tests
 under `-race -count=10`; current-head CI is being rerun. This is not a weakened
 assertion or an increased receive timeout.
 
-Still required: worker credential/login activation and isolated reader policy,
-scanner/worker/network/alert GitOps, generated frontend contracts and staff-file
-UI, actual GCS/workload-identity acceptance, current CNPG/API/browser tests, CI,
-approved deployment and exact-source synthetic live acceptance. #1105 and the
-parent epic remain open.
+At that checkpoint, runtime IaC and frontend work remained outstanding. Their
+current status is recorded above. #1105 and the parent epic remain open.
 
 ## Infrastructure and remaining acceptance
 
-[Infrastructure draft #1414](https://github.com/tesserix/tesserix-k8s/pull/1414)
+[Infrastructure #1414](https://github.com/tesserix/tesserix-k8s/pull/1414)
 owns the isolated `17-helivanta-files` state and worker-role pre-registration.
 The old shared-stack
 plan contained 11 unrelated deletions; all its saved plans were discarded.
 The refreshed [saved isolated plan](https://github.com/tesserix/tesserix-k8s/pull/1414#issuecomment-6173657955)
-has **17 additions, no changes and no deletions**. It has not been applied.
+had **17 additions, no changes and no deletions** and was subsequently approved,
+applied and merged. Approved follow-up #1415 hardened seeded bucket IAM and
+reconciled the disabled runtime preparation.
 Native Terraform assertions, 45 Atlantis/graph tests, formatting/lint and
 the prior infrastructure CI pass. The worker-role addition has its own Helm
-render/identity/backup tests; current-head CI and refreshed plan review remain
-required before an approved rollout. Production provisioning approval is pending.
+render/identity/backup tests. The preparatory provisioning approval and apply are
+complete; activation remains separate.
 
 Still required before release or issue closure: private worker credential and
-login activation, generated UI contracts and staff UI, GitOps
-worker/scanner/network/alerts/audit configuration, real GCS acceptance, full local
+login activation, scanner receipt/recovery acceptance, monitored runtime and
+effective audit evidence, real GCS acceptance, full local
 CNPG/API/browser flow and exact-source post-deployment synthetic tests/logs.
 The backend PR remains draft and production upload intents remain unavailable
 when the runtime store is unconfigured. No owning story is closed by this

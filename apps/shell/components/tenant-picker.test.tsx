@@ -2,7 +2,7 @@ import { chooseOption } from "../test/select";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
-import { PERMISSIONS_CACHE_KEY } from "@helivanta/api";
+import { PERMISSIONS_CACHE_KEY, cancelTenantTransition } from "@helivanta/api";
 import { TenantPicker } from "./tenant-picker";
 
 // Every network call the picker makes, in the order it made them, so a
@@ -52,6 +52,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  cancelTenantTransition();
   vi.unstubAllGlobals();
 });
 

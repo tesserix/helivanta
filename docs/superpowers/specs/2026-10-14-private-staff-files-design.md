@@ -57,6 +57,58 @@ current explicit hospital and document permission. Return private/no-store,
 nosniff and an attachment disposition; no browser receives a bucket listing or
 an unbounded capability. Original filenames are protected domain metadata.
 
+### Staff document workspace
+
+The dedicated Documents action does not require enrollment permission. The
+record-choice resource returns one enrollment binding and its bounded children
+(at most 20 credentials and 20 qualifications). Only type/issuer and
+qualification/institution labels are returned; license numbers and the full
+personal profile are excluded. The same document permission, explicit current
+hospital-manager grant and tenant/staff-scoped transaction guard this resource.
+It reports whether storage is configured so the UI cannot offer inactive uploads.
+
+`contracts/workforce-documents.json` generates Go transport types and TypeScript
+schemas. Generator checks reject drift. File metadata validation also drives the
+upload form's inline errors. Record-purpose combinations, Unicode filename bounds,
+types and byte limits are validated again at the API boundary.
+
+All document calls include `X-Helivanta-Expected-Tenant` as a constraint on the
+verified session, never a tenant selector. A stale or malformed constraint returns
+404 before document handling. Browser query keys include tenant, hospital and
+staff; responses are no-store, queries are cancelled on unmount and private cache
+entries have zero retention. Tenant switching blocks and clears the workspace
+before changing the session cookie. Hospital/staff changes remount the workspace,
+abort in-flight work and clear files, intent IDs, retry attempts and download URLs.
+
+An interrupted upload retains its immutable intent ID and body. Resume requires
+the identical original filename, content type, size and SHA-256. Manual scan retry
+retains the caller-chosen attempt until acknowledged. Only ready files offer
+download/revocation; revocation requires the shared confirmation dialog. A new
+selection or opening Documents scrolls/focuses the working area. Processing states
+poll at the shared cadence; completed files do not poll continuously.
+
+```mermaid
+flowchart LR
+  UI[Staff document workspace] -->|verified session + expected tenant| API[Workforce API]
+  API -->|permission + hospital grant + forced RLS| DB[(PostgreSQL)]
+  API -->|create-only immutable upload| Q[Private GCS quarantine]
+  DB --> O[Transactional outbox]
+  O --> J[NATS JetStream]
+  J --> T[Temporal execution per scope and attempt]
+  T --> W[Restricted document worker]
+  Q -->|pinned generation| W
+  W --> C[ClamAV: one session and current definitions]
+  C -->|verified clean verdict| W
+  W -->|create-only verified copy| R[Private GCS released]
+  W -->|scoped release / rejection / error| DB
+  R -->|pinned bytes; current access rechecked| API
+  API -->|private no-store download| UI
+```
+
+Editable diagram: [private-staff-documents.drawio](../../diagrams/private-staff-documents.drawio).
+This describes the intended runtime; prepared production switches remain disabled
+until activation and actual cloud acceptance are approved and verified.
+
 ## Processing identity and database scope
 
 The processor connects only as the distinct `helivanta_document_worker`

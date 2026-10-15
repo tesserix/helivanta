@@ -2,7 +2,14 @@
 
 import { SelectControl } from "@helivanta/ui";
 
-import { useApiMutation, useApiQuery, apiFetch, clearPermissionsCache } from "@helivanta/api";
+import {
+  useApiMutation,
+  useApiQuery,
+  apiFetch,
+  clearPermissionsCache,
+  beginTenantTransition,
+  cancelTenantTransition,
+} from "@helivanta/api";
 
 type Membership = { tenant_id: string; roles: string[]; current: boolean };
 
@@ -44,11 +51,17 @@ export function TenantPicker() {
 
   const switchTenant = useApiMutation(
     async (tenantId: string) => {
-      const res = await apiFetch<SwitchResponse>("/iam/me/tenant", {
-        method: "POST",
-        body: JSON.stringify({ tenant_id: tenantId }),
-      });
-      return res.tenant_id;
+      beginTenantTransition();
+      try {
+        const res = await apiFetch<SwitchResponse>("/iam/me/tenant", {
+          method: "POST",
+          body: JSON.stringify({ tenant_id: tenantId }),
+        });
+        return res.tenant_id;
+      } catch (error) {
+        cancelTenantTransition();
+        throw error;
+      }
     },
     {
       successToast: "Switched tenant",

@@ -18,7 +18,7 @@ type Envelope = { error?: string; message?: string };
 
 // Same-origin client for the Go API. Every zone reaches the backend
 // through its /api rewrite, so the session cookie flows automatically.
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function apiFetchResponse(path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
   if (!headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -40,5 +40,9 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
       res.status,
     );
   }
-  return (await res.json()) as T;
+  return res;
+}
+
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return (await (await apiFetchResponse(path, init)).json()) as T;
 }

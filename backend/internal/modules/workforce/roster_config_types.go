@@ -214,6 +214,7 @@ type rosterRevision struct {
 	SkippedExisting   int       `json:"skipped_existing"`
 	SkippedUnassigned int       `json:"skipped_unassigned"`
 	SkippedConflicts  int       `json:"skipped_conflicts"`
+	SkippedLeave      int       `json:"skipped_leave"`
 	Reason            string    `json:"reason"`
 	ReviewedBySubject string    `json:"reviewed_by_subject"`
 	Version           int64     `json:"version"`

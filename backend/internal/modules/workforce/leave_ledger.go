@@ -56,9 +56,9 @@ const leaveAssignmentHeadView = leaveAssignmentSelect + `a.staff_id AS id,a.revi
 const leaveAssignmentRevisionView = leaveAssignmentSelect + `a.id,a.id AS revision_id,a.created_at AS updated_at FROM workforce_staff_leave_assignment_revisions` + leaveAssignmentJoins
 
 // Entries show the type code and name pinned by their revision, so history reads as it was posted.
-const leaveLedgerView = `(SELECT l.tenant_id,l.hospital_id,l.id,l.staff_id,l.leave_type_id,l.leave_type_revision_id,t.code,t.name,l.leave_year,l.kind,l.half_days,l.effective_on::text AS effective_on,l.reason,l.actor_subject,l.run_id,l.created_at
+const leaveLedgerView = `(SELECT l.tenant_id,l.hospital_id,l.id,l.staff_id,l.leave_type_id,l.leave_type_revision_id,t.code,t.name,l.leave_year,l.kind,l.half_days,l.effective_on::text AS effective_on,l.reason,l.actor_subject,l.run_id,l.request_id,l.created_at
  FROM workforce_leave_ledger l JOIN workforce_leave_config_revisions t ON (t.tenant_id,t.hospital_id,t.id)=(l.tenant_id,l.hospital_id,l.leave_type_revision_id)) AS v`
-const leaveLedgerColumns = "id,staff_id,leave_type_id,leave_type_revision_id,code,name,leave_year,kind,half_days,effective_on,reason,actor_subject,run_id,created_at"
+const leaveLedgerColumns = "id,staff_id,leave_type_id,leave_type_revision_id,code,name,leave_year,kind,half_days,effective_on,reason,actor_subject,run_id,request_id,created_at"
 
 type leaveLedgerRow struct {
 	TenantID             string
@@ -74,6 +74,7 @@ type leaveLedgerRow struct {
 	IdempotencyKey       string
 	AssignmentRevisionID *uuid.UUID
 	RunID                *uuid.UUID
+	RequestID            *uuid.UUID
 	Reason               string
 	ActorSubject         string
 }
@@ -609,6 +610,13 @@ func (h *handlers) closeLeaveYear(c *gin.Context) {
 		if y.PostedMonths != 12 {
 			return errLeaveIncomplete
 		}
+		var pending bool
+		if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM workforce_leave_requests WHERE tenant_id=? AND hospital_id=? AND leave_year=? AND status='pending')`, p.TenantID, hospital, year).Scan(&pending).Error; err != nil {
+			return err
+		}
+		if pending {
+			return errLeavePending
+		}
 		today, err := leaveToday(tx)
 		if err != nil {
 			return err
@@ -1016,6 +1024,8 @@ func respondLeaveLedgerError(c *gin.Context, err error) {
 		respond.Conflict(c, "Open at most next year, post a month once it starts and close a year after it ends.")
 	case errors.Is(err, errLeaveFrozen):
 		respond.Conflict(c, "Assignment changes must start after the last posted month and outside closed leave years.")
+	case errors.Is(err, errLeavePending):
+		respond.Conflict(c, "Decide or cancel every pending leave request in the year before closing it.")
 	case errors.Is(err, errLeaveCorrectionConflict):
 		respond.Conflict(c, "This correction id was already used with different values.")
 	default:

@@ -353,6 +353,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /iam/me/permissions":                                              "bounded: one resolved permission set",
 	"GET /workforce/hospitals/:hospital/hr/roster-settings":                "single current hospital roster policy",
 	"GET /workforce/hospitals/:hospital/hr/leave-settings":                 "single fixed hospital leave-year start",
+	"GET /workforce/hospitals/:hospital/staff/:id/leave-requests/:request": "one request with its days in a single leave year and its bounded roster clashes",
 	"GET /workforce/hospitals/:hospital/staff/:id/leave-balances":          "one staff member's balances, bounded by the hospital's leave types",
 	"GET /workforce/hospitals/:hospital/hr/rosters/:id":                    "single roster head; allocations are paginated separately",
 }

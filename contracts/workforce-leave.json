@@ -1,0 +1,253 @@
+{
+  "kinds": {
+    "leave_type": "Leave type",
+    "holiday_calendar": "Holiday calendar",
+    "structure": "Leave structure"
+  },
+  "holiday_categories": {
+    "regular": "Regular",
+    "government": "Government",
+    "optional": "Optional"
+  },
+  "accruals": {
+    "upfront": "Credited at year start",
+    "monthly": "Credited monthly"
+  },
+  "prorations": {
+    "none": "No proration",
+    "join_month": "Prorated from joining month"
+  },
+  "models": {
+    "leaveTypeRules": [
+      {
+        "name": "paid",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "balance_tracked",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "half_day_allowed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "short_leave_minutes",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 480,
+        "binding": "required,gte=0,lte=480"
+      },
+      {
+        "name": "clubbable",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "leaveHolidayInput": [
+      {
+        "name": "holiday_date",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 80,
+        "format": "name",
+        "binding": "required,max=80"
+      },
+      {
+        "name": "category",
+        "type": "string",
+        "enum": ["regular", "government", "optional"],
+        "binding": "required,oneof=regular government optional"
+      }
+    ],
+    "leaveStructureEntryInput": [
+      {
+        "name": "leave_type_revision_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "annual_half_days",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 730,
+        "binding": "required,gte=0,lte=730"
+      },
+      {
+        "name": "accrual",
+        "type": "string",
+        "enum": ["upfront", "monthly"],
+        "binding": "required,oneof=upfront monthly"
+      },
+      {
+        "name": "carry_forward_half_days",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 730,
+        "binding": "required,gte=0,lte=730"
+      },
+      {
+        "name": "proration",
+        "type": "string",
+        "enum": ["none", "join_month"],
+        "binding": "required,oneof=none join_month"
+      },
+      {
+        "name": "probation_eligible",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "leaveConfigInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "kind",
+        "type": "kind",
+        "binding": "required,oneof=leave_type holiday_calendar structure"
+      },
+      {
+        "name": "code",
+        "type": "string",
+        "min": 1,
+        "max": 40,
+        "format": "code",
+        "binding": "required,max=40"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 80,
+        "format": "name",
+        "binding": "required,max=80"
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "max=500"
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "calendar_year",
+        "type": "int",
+        "optional": true,
+        "min": 2000,
+        "max": 2200,
+        "binding": "omitempty,gte=2000,lte=2200"
+      },
+      { "name": "rules", "type": "leaveTypeRules", "optional": true },
+      {
+        "name": "holidays",
+        "type": "[]leaveHolidayInput",
+        "max": 100,
+        "binding": "max=100,dive"
+      },
+      {
+        "name": "entries",
+        "type": "[]leaveStructureEntryInput",
+        "max": 30,
+        "binding": "max=30,dive"
+      }
+    ],
+    "leaveHoliday": [
+      { "name": "holiday_date", "type": "string", "format": "date" },
+      { "name": "name", "type": "string" },
+      {
+        "name": "category",
+        "type": "string",
+        "enum": ["regular", "government", "optional"]
+      }
+    ],
+    "leaveStructureEntry": [
+      { "name": "leave_type_revision_id", "type": "uuid" },
+      { "name": "leave_type_id", "type": "uuid" },
+      { "name": "code", "type": "string" },
+      { "name": "name", "type": "string" },
+      { "name": "paid", "type": "bool" },
+      { "name": "balance_tracked", "type": "bool" },
+      { "name": "annual_half_days", "type": "int" },
+      { "name": "accrual", "type": "string", "enum": ["upfront", "monthly"] },
+      { "name": "carry_forward_half_days", "type": "int" },
+      { "name": "proration", "type": "string", "enum": ["none", "join_month"] },
+      { "name": "probation_eligible", "type": "bool" }
+    ],
+    "leaveConfig": [
+      { "name": "id", "type": "uuid" },
+      { "name": "config_id", "type": "uuid", "optional": true },
+      { "name": "revision_id", "type": "uuid" },
+      { "name": "kind", "type": "kind" },
+      {
+        "name": "code",
+        "type": "string",
+        "min": 1,
+        "max": 40,
+        "format": "code"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 80,
+        "format": "name"
+      },
+      { "name": "description", "type": "string", "max": 500, "format": "text" },
+      { "name": "active", "type": "bool" },
+      { "name": "effective_on", "type": "string", "format": "date" },
+      { "name": "calendar_year", "type": "int", "optional": true },
+      { "name": "reviewed_by_subject", "type": "string", "min": 1, "max": 200 },
+      { "name": "version", "type": "int64", "min": 1 },
+      { "name": "created_at", "type": "time" },
+      { "name": "updated_at", "type": "time" },
+      {
+        "name": "rules",
+        "type": "leaveTypeRules",
+        "optional": true,
+        "orm_ignore": true
+      },
+      { "name": "holidays", "type": "[]leaveHoliday", "orm_ignore": true },
+      { "name": "entries", "type": "[]leaveStructureEntry", "orm_ignore": true }
+    ]
+  }
+}

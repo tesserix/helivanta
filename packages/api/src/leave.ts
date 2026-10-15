@@ -2,8 +2,11 @@ import { z } from "zod";
 import {
   leaveConfigInputContract,
   leaveCorrectionInputContract,
+  leaveRequestInputContract,
   leaveSettingsInputContract,
   staffLeaveAssignmentInputContract,
+  type LeaveRequestInput,
+  type LeaveTypeRules,
 } from "./leave-contract";
 export * from "./leave-contract";
 
@@ -136,3 +139,55 @@ export const leaveYearOpenSchema = z
 export type LeaveYearOpenInput = z.infer<typeof leaveYearOpenSchema>;
 export const leaveMonthName = (month: number) =>
   new Date(Date.UTC(2000, month - 1, 1)).toLocaleString("en", { month: "long", timeZone: "UTC" });
+
+// Pass each leave type's rules so unit choices the type forbids are caught before submit.
+export const leaveRequestFormSchema = (rules: ReadonlyMap<string, LeaveTypeRules> = new Map()) =>
+  z
+    .object({
+      leave_type_id: z.string().min(1, "Choose a leave type."),
+      unit: leaveRequestInputContract.shape.unit,
+      start_on: z.string().date("Choose a start date."),
+      end_on: z.string(),
+      session: z.enum(["first_half", "second_half"]),
+      minutes: z.number({ invalid_type_error: "Enter the minutes." }),
+      reason: leaveRequestInputContract.shape.reason,
+    })
+    .strict()
+    .superRefine((value, ctx) => {
+      const issue = (path: string, message: string) =>
+        ctx.addIssue({ code: "custom", path: [path], message });
+      const type = rules.get(value.leave_type_id);
+      if (value.unit === "full_day") {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value.end_on) || Number.isNaN(Date.parse(value.end_on)))
+          issue("end_on", "Choose an end date.");
+        else if (value.end_on < value.start_on)
+          issue("end_on", "End the leave on or after its start date.");
+        else if (Date.parse(value.end_on) - Date.parse(value.start_on) > 365 * 86_400_000)
+          issue("end_on", "Keep one request within a year.");
+      }
+      if (value.unit === "half_day" && type && !type.half_day_allowed)
+        issue("unit", "This leave type cannot be taken as a half day.");
+      if (value.unit === "short_leave") {
+        if (type && type.short_leave_minutes === 0)
+          issue("unit", "This leave type cannot be taken as short leave.");
+        else if (!Number.isInteger(value.minutes) || value.minutes < 15 || value.minutes % 15)
+          issue("minutes", "Enter minutes in steps of 15.");
+        else if (type && value.minutes > type.short_leave_minutes)
+          issue(
+            "minutes",
+            `Short leave for this type is at most ${type.short_leave_minutes} minutes.`,
+          );
+      }
+    });
+export type LeaveRequestForm = z.infer<ReturnType<typeof leaveRequestFormSchema>>;
+
+// Sends only the fields the chosen unit carries; single-day units end on their start date.
+export const toLeaveRequestInput = (form: LeaveRequestForm): LeaveRequestInput => ({
+  leave_type_id: form.leave_type_id,
+  unit: form.unit,
+  start_on: form.start_on,
+  end_on: form.unit === "full_day" ? form.end_on : form.start_on,
+  ...(form.unit === "half_day" && { session: form.session }),
+  ...(form.unit === "short_leave" && { minutes: form.minutes }),
+  reason: form.reason,
+});

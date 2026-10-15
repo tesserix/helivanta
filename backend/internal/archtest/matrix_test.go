@@ -159,7 +159,7 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 			// Workforce hospital setup, access and HR configuration (rosters, leave) are also admin-only;
 			// staff data still requires an independent hospital grant (ADR 0009).
 			// Pharmacy grant administration is likewise admin-only; pharmacists cannot self-grant outlet or financial access. Operational finance permissions are separately admin-only (ADR 0025).
-			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workspace.PermBrandingManage && perm != patientmaster.PermPatientAccessManage && perm != pharmacy.PermAccessManage && perm != pharmacy.PermStockCorrect && perm != pharmacy.PermAccountsRead && perm != pharmacy.PermAccountsWrite && perm != pharmacy.PermAccountsPayment && perm != pharmacy.PermAccountsAdjust {
+			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workforce.PermLeaveRequest && perm != workforce.PermLeaveApprove && perm != workspace.PermBrandingManage && perm != patientmaster.PermPatientAccessManage && perm != pharmacy.PermAccessManage && perm != pharmacy.PermStockCorrect && perm != pharmacy.PermAccountsRead && perm != pharmacy.PermAccountsWrite && perm != pharmacy.PermAccountsPayment && perm != pharmacy.PermAccountsAdjust {
 
 				t.Errorf("module %q guards a route with %q, held by tenant_admin only; declare the role that needs it", m.Name(), perm)
 			}
@@ -193,6 +193,8 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workforce.PermLeaveConfigure:   {authz.RoleTenantAdmin},
 	workforce.PermLeaveAllocate:    {authz.RoleTenantAdmin},
 	workforce.PermLeaveCorrect:     {authz.RoleTenantAdmin},
+	workforce.PermLeaveRequest:     {authz.RoleTenantAdmin},
+	workforce.PermLeaveApprove:     {authz.RoleTenantAdmin},
 	workspace.PermBrandingManage:   {authz.RoleTenantAdmin},
 	iam.PermMemberManage:           {authz.RoleTenantAdmin},
 	iam.PermCredentialRevoke:       {authz.RoleTenantAdmin},

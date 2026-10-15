@@ -89,17 +89,17 @@ type plannedAllocation struct {
 func (a plannedAllocation) span() span { return span{a.StaffID, a.StartsAt, a.EndsAt} }
 
 type rosterOutcome struct {
-	action, status, reason                        string
-	mode                                          *string
-	add                                           []plannedAllocation
-	remove                                        []uuid.UUID
-	removeAll                                     bool
-	skippedExisting, skippedUnassigned, conflicts int
+	action, status, reason                                      string
+	mode                                                        *string
+	add                                                         []plannedAllocation
+	remove                                                      []uuid.UUID
+	removeAll                                                   bool
+	skippedExisting, skippedUnassigned, conflicts, skippedLeave int
 }
 
 const rosterView = `(SELECT r.*,(SELECT count(*) FROM workforce_roster_allocations a WHERE (a.tenant_id,a.hospital_id,a.roster_id)=(r.tenant_id,r.hospital_id,r.id) AND a.removed_version IS NULL) AS allocations FROM workforce_rosters r) AS v`
 const rosterColumns = "id,revision_id,name,start_date::text AS start_date,end_date::text AS end_date,status,settings_revision_id,timezone,week_start,auto_population,allocations,reviewed_by_subject,version,created_at,updated_at"
-const rosterRevisionColumns = "id,id AS revision_id,roster_id,action,mode,status,added,removed,skipped_existing,skipped_unassigned,skipped_conflicts,reason,reviewed_by_subject,version,created_at"
+const rosterRevisionColumns = "id,id AS revision_id,roster_id,action,mode,status,added,removed,skipped_existing,skipped_unassigned,skipped_conflicts,skipped_leave,reason,reviewed_by_subject,version,created_at"
 const allocationView = `(SELECT a.tenant_id,a.hospital_id,a.roster_id,a.id,a.staff_id,s.employee_code,s.display_name,a.roster_date::text AS roster_date,
  a.shift_revision_id,sr.code AS shift_code,sr.name AS shift_name,sr.start_time,sr.end_time,a.area_revision_id,ar.code AS area_code,ar.name AS area_name,
  a.starts_at AT TIME ZONE 'UTC' AS starts_at,a.ends_at AT TIME ZONE 'UTC' AS ends_at,a.additional,a.added_version,a.removed_version,a.created_at
@@ -364,8 +364,8 @@ func (h *handlers) putRoster(c *gin.Context) {
 
 func insertRosterRevision(tx *gorm.DB, p authn.Principal, hospital, id, revision uuid.UUID, version int64, o rosterOutcome) error {
 	removed := len(o.remove)
-	return tx.Exec(`INSERT INTO workforce_roster_revisions(tenant_id,hospital_id,id,roster_id,action,mode,status,added,removed,skipped_existing,skipped_unassigned,skipped_conflicts,reason,reviewed_by_subject,version)
- VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, hospital, revision, id, o.action, o.mode, o.status, len(o.add), removed, o.skippedExisting, o.skippedUnassigned, o.conflicts, o.reason, p.Subject, version).Error
+	return tx.Exec(`INSERT INTO workforce_roster_revisions(tenant_id,hospital_id,id,roster_id,action,mode,status,added,removed,skipped_existing,skipped_unassigned,skipped_conflicts,skipped_leave,reason,reviewed_by_subject,version)
+ VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, hospital, revision, id, o.action, o.mode, o.status, len(o.add), removed, o.skippedExisting, o.skippedUnassigned, o.conflicts, o.skippedLeave, o.reason, p.Subject, version).Error
 }
 
 // recordRosterChange writes the audit row and the identifier-only event inside the business transaction.
@@ -746,6 +746,20 @@ func planPopulation(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, head ros
 		day   string
 	}
 	booked := map[staffDay]bool{}
+	// Approved full-day leave keeps the person off the roster; half days and short leave stay rostered and show as clashes.
+	var away []struct {
+		StaffID uuid.UUID
+		Day     string
+	}
+	if err := tx.Raw(`SELECT r.staff_id,d.day::text AS day FROM workforce_leave_requests r
+ JOIN workforce_leave_request_days d ON (d.tenant_id,d.hospital_id,d.request_id)=(r.tenant_id,r.hospital_id,r.id)
+ WHERE r.tenant_id=? AND r.hospital_id=? AND r.status='approved' AND r.unit='full_day' AND d.day BETWEEN ?::date AND ?::date`, p.TenantID, hospital, head.StartDate, head.EndDate).Scan(&away).Error; err != nil {
+		return o, err
+	}
+	onLeave := map[staffDay]bool{}
+	for _, a := range away {
+		onLeave[staffDay{a.StaffID, a.Day}] = true
+	}
 	occupied := map[uuid.UUID][]span{}
 	for _, a := range current {
 		booked[staffDay{a.StaffID, a.RosterDate}] = true
@@ -765,6 +779,9 @@ func planPopulation(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, head ros
 			continue
 		case !first.Active || !activeStaff[first.StaffID] || (head.AutoPopulation == "fixed_shift" && !first.Fixed):
 			o.skippedUnassigned++
+			continue
+		case onLeave[key]:
+			o.skippedLeave++
 			continue
 		case booked[key]:
 			o.skippedExisting++

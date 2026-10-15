@@ -17,6 +17,8 @@ ts += `export const LEAVE_CONFIG_KINDS=${JSON.stringify(contract.kinds)} as cons
 ts += `export const LEAVE_HOLIDAY_CATEGORIES=${JSON.stringify(contract.holiday_categories)} as const;\n`;
 ts += `export const LEAVE_ACCRUALS=${JSON.stringify(contract.accruals)} as const;\nexport const LEAVE_PRORATIONS=${JSON.stringify(contract.prorations)} as const;\n`;
 ts += `export const LEAVE_LEDGER_KINDS=${JSON.stringify(contract.ledger_kinds)} as const;\n`;
+ts += `export const LEAVE_UNITS=${JSON.stringify(contract.leave_units)} as const;\nexport const LEAVE_SESSIONS=${JSON.stringify(contract.leave_sessions)} as const;\n`;
+ts += `export const LEAVE_REQUEST_STATUSES=${JSON.stringify(contract.request_statuses)} as const;\n`;
 await writeGenerated(
   root,
   "backend/internal/modules/workforce/leave_types.go",

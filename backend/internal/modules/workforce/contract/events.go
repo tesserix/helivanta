@@ -111,7 +111,7 @@ type StaffLeaveAssignmentChangedData struct {
 	Version    int64  `json:"version"`
 }
 
-// SubjectLeaveLedgerChanged reports a posting run, year close or correction; consumers re-read balances through the API.
+// SubjectLeaveLedgerChanged reports a posting run, year close, correction or request decision; consumers re-read balances through the API.
 const SubjectLeaveLedgerChanged = "helivanta.in.workforce.leave_ledger_changed.v1"
 
 type LeaveLedgerChangedData struct {
@@ -120,4 +120,15 @@ type LeaveLedgerChangedData struct {
 	Source      string `json:"source"`
 	ReferenceID string `json:"reference_id"`
 	Entries     int    `json:"entries"`
+}
+
+// SubjectLeaveRequestChanged reports a leave request filing or transition; consumers re-read it through the API.
+const SubjectLeaveRequestChanged = "helivanta.in.workforce.leave_request_changed.v1"
+
+type LeaveRequestChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	RequestID  string `json:"request_id"`
+	Status     string `json:"status"`
+	Version    int64  `json:"version"`
 }

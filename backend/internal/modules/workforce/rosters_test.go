@@ -32,17 +32,17 @@ type rosterFixture struct {
 func newRosterFixture(t *testing.T, timezone string, weekStart int, effective string) rosterFixture {
 	t.Helper()
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"admin": testutil.TenantA, "planner": testutil.TenantA, "reader": testutil.TenantA, "directory": testutil.TenantA, "foreign": testutil.TenantB},
+		Tokens: map[string]string{"admin": testutil.TenantA, "planner": testutil.TenantA, "approver": testutil.TenantA, "reader": testutil.TenantA, "directory": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
-			"admin":   {workforce.PermHospitalManage, workforce.PermRosterManage, workforce.PermRosterCorrect},
-			"planner": {workforce.PermRosterManage}, "reader": {workforce.PermRosterManage}, "directory": {}, "foreign": {workforce.PermRosterManage, workforce.PermRosterCorrect},
+			"admin":   {workforce.PermHospitalManage, workforce.PermRosterManage, workforce.PermRosterCorrect, workforce.PermLeaveConfigure, workforce.PermLeaveAllocate, workforce.PermLeaveRequest},
+			"planner": {workforce.PermRosterManage}, "approver": {workforce.PermLeaveApprove}, "reader": {workforce.PermRosterManage}, "directory": {}, "foreign": {workforce.PermRosterManage, workforce.PermRosterCorrect},
 		},
 		Modules: []platform.Module{workforce.New()},
 	})
 	hospital := uuid.NewString()
 	f := rosterFixture{r: r, db: db, hospital: hospital, base: "/v1/workforce/hospitals/" + hospital, staff: map[string]string{}}
 	require.Equal(t, 200, testutil.Do(r, "PUT", f.base, "admin", `{"name":"Synthetic Roster Hospital"}`).Code)
-	for user, level := range map[string]string{"admin": "manager", "planner": "manager", "reader": "reader", "directory": "manager"} {
+	for user, level := range map[string]string{"admin": "manager", "planner": "manager", "approver": "manager", "reader": "reader", "directory": "manager"} {
 		require.Equal(t, 200, testutil.Do(r, "PUT", f.base+"/access/user-"+user, "admin", `{"level":"`+level+`"}`).Code)
 	}
 	shift := func(code, start, end string) string {
@@ -98,6 +98,7 @@ type rosterResult struct {
 		SkippedExisting   int    `json:"skipped_existing"`
 		SkippedUnassigned int    `json:"skipped_unassigned"`
 		SkippedConflicts  int    `json:"skipped_conflicts"`
+		SkippedLeave      int    `json:"skipped_leave"`
 	} `json:"revision"`
 }
 

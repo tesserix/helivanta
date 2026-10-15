@@ -356,10 +356,11 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /iam/roles":          "bounded: the fixed system role set",
 	"GET /iam/me/tenants":     "bounded: one person's memberships",
 	"GET /iam/me/permissions": "bounded: one resolved permission set",
-	"GET /workforce/hospitals/:hospital/hr/roster-settings":       "single current hospital roster policy",
-	"GET /workforce/hospitals/:hospital/hr/leave-settings":        "single fixed hospital leave-year start",
-	"GET /workforce/hospitals/:hospital/staff/:id/leave-balances": "one staff member's balances, bounded by the hospital's leave types",
-	"GET /workforce/hospitals/:hospital/hr/rosters/:id":           "single roster head; allocations are paginated separately",
+	"GET /workforce/hospitals/:hospital/hr/roster-settings":                "single current hospital roster policy",
+	"GET /workforce/hospitals/:hospital/hr/leave-settings":                 "single fixed hospital leave-year start",
+	"GET /workforce/hospitals/:hospital/staff/:id/leave-balances":          "one staff member's balances, bounded by the hospital's leave types",
+	"GET /workforce/hospitals/:hospital/hr/rosters/:id":                    "single roster head; allocations are paginated separately",
+	"GET /workforce/hospitals/:hospital/staff/:id/leave-requests/:request": "one request with its days in a single leave year and its bounded roster clashes",
 }
 
 // TestEveryCollectionGETIsPaginated is the one hole platform.ListRoute's

@@ -46,7 +46,7 @@ export function SelectControl({
           className,
         )}
       >
-        <SelectValue placeholder={placeholder} />
+        <SelectValue className="min-w-0 flex-1 truncate text-left" placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent
         data-brand-theme={theme}

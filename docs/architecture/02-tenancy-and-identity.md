@@ -142,3 +142,8 @@ CRM events contain references and allowed metadata, not diagnosis-bearing messag
 ### Worked example
 
 Tenant Group G owns Hospitals A, B and C. A and B share released lab results for an approved referral and share CRM contact details for appointment coordination. C remains isolated. A contact-centre agent may book for A and B but cannot read their lab results. A clinician in B can read the referred patient's released results from A, but not A's HR/payroll, unrelated encounters or campaign history. Neither can discover C's patients. Another tenant's records remain inaccessible even if the same clinician also has a membership there.
+
+
+## Pharmacy ownership clarification (ADR-0024)
+
+Pharma Connect supports independent pharmacy tenants, pharmacy chains and hospital-owned pharmacies. Its access hierarchy is **tenant -> pharmacy -> outlet**. Hospitals are optional owners or partners, not a mandatory pharmacy boundary. A hospital may own multiple pharmacies; a pharmacy may operate multiple outlets. Catalogue/stock/prescription authority never follows automatically from common ownership or an affiliation. Use explicit outlet grants, tenant/pharmacy/outlet RLS and purpose/consent-bound sharing agreements for hospital exchange. Standalone pharmacy workflows must not create fake hospitals or encounters. See [ADR-0024](../adr/0024-pharmacy-ownership-and-outlet-tenancy.md) and the [Pharma API design](pharmaconnect-api.md). The hospital requirements above continue to apply to actual hospital clinical records.

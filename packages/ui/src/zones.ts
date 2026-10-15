@@ -147,6 +147,24 @@ export const ZONES: Zone[] = [
     pages: [
       { label: "Dispenses", href: "/pharmacy", icon: Pill, permission: "pharmacy.dispense.read" },
       {
+        label: "Product catalogue",
+        href: "/pharmacy/catalogue",
+        icon: ClipboardList,
+        permission: "pharmacy.catalogue.read",
+      },
+      {
+        label: "Stock receiving",
+        href: "/pharmacy/stock",
+        icon: Pill,
+        permission: "pharmacy.stock.read",
+      },
+      {
+        label: "Expenses & audit",
+        href: "/pharmacy/accounts",
+        icon: ClipboardList,
+        permission: "pharmacy.accounts.read",
+      },
+      {
         label: "Medications",
         href: "/pharmacy/medications",
         icon: ClipboardList,

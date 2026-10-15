@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "countries": [
+    {
+      "code": "IN",
+      "name": "India",
+      "currency": "INR",
+      "currency_minor_digits": 2,
+      "timezone": "Asia/Kolkata",
+      "timezones": ["Asia/Kolkata", "Asia/Calcutta"],
+      "locales": [
+        { "code": "en-IN", "direction": "ltr" },
+        { "code": "hi-IN", "direction": "ltr" }
+      ],
+      "regulatory_policy_status": "review_required"
+    },
+    {
+      "code": "PK",
+      "name": "Pakistan",
+      "currency": "PKR",
+      "currency_minor_digits": 2,
+      "timezone": "Asia/Karachi",
+      "timezones": ["Asia/Karachi"],
+      "locales": [
+        { "code": "en-PK", "direction": "ltr" },
+        { "code": "ur-PK", "direction": "rtl" }
+      ],
+      "regulatory_policy_status": "review_required"
+    }
+  ]
+}

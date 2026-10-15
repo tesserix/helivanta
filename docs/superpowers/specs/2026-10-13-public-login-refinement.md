@@ -11,6 +11,13 @@ split layout remain configurable. The clinical workspace retains its own theme;
 system dark mode must not turn the public entry into a mixed dark/light layout.
 The Tesserix attribution remains visible in both layouts and mobile widths.
 
+The custom login content supplies the shared auth controls' `--auth-*` tokens
+from the tenant palette and application surface tokens. Its submit action stays
+full-width, filled with the tenant accent, with white text and visible keyboard
+focus. While pending it remains filled and disabled, with the shared loading
+label and a spinner that respects reduced motion. Browser regression coverage
+checks actual computed button and field colors in each palette and both layouts.
+
 The illustration conveys team structure without patient records, invented
 metrics or customer endorsements. Public partner/certification placeholders stay
 honest. Self-service provisioning and canonical tenant aliases remain outside

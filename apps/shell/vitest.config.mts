@@ -15,6 +15,7 @@ export default defineConfig({
   ...config,
   test: {
     ...config.test,
+    maxWorkers: 2,
     // lib/env.ts (apps/shell/lib/oidc.ts's dependency) refuses to
     // construct without both — unlike the old GIP config, there is no
     // built-in "demo-key"-style dev fallback (see env.ts's doc comment:

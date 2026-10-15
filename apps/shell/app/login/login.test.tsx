@@ -295,7 +295,9 @@ describe("LoginPage", () => {
       });
       first.unmount();
       renderWithProviders(<LoginPage />);
-      expect(await screen.findByLabelText("Email or username")).toHaveValue("test@example.invalid");
+      await waitFor(() =>
+        expect(screen.getByLabelText("Email or username")).toHaveValue("test@example.invalid"),
+      );
       expect(screen.getByLabelText("Password")).toHaveValue("");
     });
 
@@ -338,8 +340,8 @@ describe("LoginPage", () => {
       );
       stubAuthFlow();
       const first = renderWithProviders(<LoginPage />);
-      expect(await screen.findByLabelText("Email or username")).toHaveValue(
-        "previous@example.invalid",
+      await waitFor(() =>
+        expect(screen.getByLabelText("Email or username")).toHaveValue("previous@example.invalid"),
       );
       await first.user.click(screen.getByRole("checkbox", { name: "Remember my username" }));
       expect(
@@ -347,8 +349,10 @@ describe("LoginPage", () => {
       ).toEqual({ enabled: false, username: "" });
       first.unmount();
       renderWithProviders(<LoginPage />);
-      expect(await screen.findByLabelText("Email or username")).toHaveValue("");
-      expect(screen.getByRole("checkbox", { name: "Remember my username" })).not.toBeChecked();
+      await waitFor(() =>
+        expect(screen.getByRole("checkbox", { name: "Remember my username" })).not.toBeChecked(),
+      );
+      expect(screen.getByLabelText("Email or username")).toHaveValue("");
     });
 
     it("keeps sign-in usable when remembered-username storage is blocked", async () => {

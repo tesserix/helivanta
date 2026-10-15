@@ -8,6 +8,8 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"net/http"
+	"unicode"
+	"unicode/utf8"
 )
 
 // InspectContent admits complete bounded PNG/JPEG evidence, never active formats.
@@ -46,15 +48,76 @@ func completePNG(data []byte) bool {
 			return false
 		}
 		typ := string(data[offset+4 : offset+8])
+		payload := data[offset+8 : offset+8+size]
 		offset += size + 12
 		if typ == "IEND" {
 			return size == 0 && offset == len(data)
 		}
-		if typ == "acTL" || typ == "fcTL" || typ == "fdAT" {
+		// Opaque metadata is not rendered image evidence and may evade antivirus inspection.
+		if !passivePNGChunk(typ, payload) {
 			return false
 		}
 	}
 	return false
+}
+
+func plainImageText(data []byte) bool {
+	if len(data) > 65536 || !utf8.Valid(data) {
+		return false
+	}
+	for _, char := range string(data) {
+		if unicode.IsControl(char) && char != '\t' && char != '\n' && char != '\r' {
+			return false
+		}
+	}
+	return true
+}
+
+func passivePNGChunk(kind string, data []byte) bool {
+	switch kind {
+	case "IHDR", "PLTE", "IDAT", "tRNS":
+		return true
+	case "gAMA":
+		return len(data) == 4
+	case "cHRM":
+		return len(data) == 32
+	case "sRGB":
+		return len(data) == 1 && data[0] <= 3
+	case "pHYs":
+		return len(data) == 9 && data[8] <= 1
+	case "sBIT":
+		return len(data) >= 1 && len(data) <= 4
+	case "bKGD":
+		return len(data) == 1 || len(data) == 2 || len(data) == 6
+	case "tEXt":
+		keyword, text, found := bytes.Cut(data, []byte{0})
+		if !found || len(keyword) < 1 || len(keyword) > 79 {
+			return false
+		}
+		for _, char := range keyword {
+			if char < 32 || char > 126 {
+				return false
+			}
+		}
+		return plainImageText(text)
+	default:
+		return false
+	}
+}
+
+func passiveJPEGSegment(marker byte, data []byte) bool {
+	switch marker {
+	case 0xe0:
+		return len(data) >= 14 && bytes.Equal(data[:5], []byte("JFIF\x00")) &&
+			data[5] == 1 && data[6] <= 2 && data[7] <= 2 &&
+			len(data) == 14+3*int(data[12])*int(data[13])
+	case 0xee:
+		return len(data) == 12 && bytes.Equal(data[:5], []byte("Adobe")) && data[11] <= 2
+	case 0xfe:
+		return plainImageText(data)
+	default:
+		return marker < 0xe0 || marker > 0xef
+	}
 }
 
 func completeJPEG(data []byte) bool {
@@ -81,6 +144,9 @@ func completeJPEG(data []byte) bool {
 		}
 		size := int(binary.BigEndian.Uint16(data[offset : offset+2]))
 		if size < 2 || size > len(data)-offset {
+			return false
+		}
+		if !passiveJPEGSegment(marker, data[offset+2:offset+size]) {
 			return false
 		}
 		offset += size

@@ -343,6 +343,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/staff/:id/enrollment": "single protected staff profile, with bounded child records",
 	"GET /workspace/branding":                                 "single current-tenant branding document",
 	"GET /workforce/hospitals/:hospital/staff/:id":            "single hospital-local staff entry",
+	"GET /workforce/hospitals/:hospital/hr/roster-settings":   "single current hospital roster policy",
 	"GET /reference/pings/:id":                                "single item, not a collection",
 	"GET /patients/hospitals/:hospital/access":                "current principal hospital grant, not a collection",
 	"GET /patients/:id":                                       "single item, not a collection",

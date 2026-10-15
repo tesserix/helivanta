@@ -7,6 +7,11 @@ export const ROSTER_CONFIG_KINDS = {
   weekly_template: "Weekly templates",
 } as const;
 export const rosterConfigKindSchema = z.enum(["area", "group", "weekly_template"]);
+export const ROSTER_AUTO_POPULATION = {
+  disabled: "Do not populate automatically",
+  fixed_shift: "Fixed-shift staff only",
+  all_assigned: "All staff with an active template",
+} as const;
 const identifier = z
   .string()
   .uuid("Choose a valid record.")
@@ -142,3 +147,101 @@ export const rosterConfigInputContract = z
   })
   .strict();
 export type RosterConfigInput = z.infer<typeof rosterConfigInputContract>;
+
+export const rosterSettingsContract = z
+  .object({
+    revision_id: identifier,
+    timezone: z
+      .string()
+      .min(1)
+      .max(64)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    week_start: z.number().int().min(0).max(6),
+    auto_population: z.enum(["disabled", "fixed_shift", "all_assigned"]),
+    effective_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reviewed_by_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    version: z.number().int().min(1),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type RosterSettings = z.infer<typeof rosterSettingsContract>;
+
+export const rosterSettingsInputContract = z
+  .object({
+    expected_version: z.number().int().min(0),
+    timezone: z
+      .string()
+      .min(1)
+      .max(64)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    week_start: z.number().int().min(0).max(6),
+    auto_population: z.enum(["disabled", "fixed_shift", "all_assigned"]),
+    effective_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reviewed: z.boolean(),
+  })
+  .strict();
+export type RosterSettingsInput = z.infer<typeof rosterSettingsInputContract>;
+
+export const staffRosterAssignmentContract = z
+  .object({
+    staff_id: identifier,
+    revision_id: identifier,
+    employee_code: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    display_name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    weekly_template_revision_id: identifier,
+    template_id: identifier,
+    template_code: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    template_name: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    fixed: z.boolean(),
+    active: z.boolean(),
+    effective_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reviewed_by_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    version: z.number().int().min(1),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type StaffRosterAssignment = z.infer<typeof staffRosterAssignmentContract>;
+
+export const staffRosterAssignmentInputContract = z
+  .object({
+    expected_version: z.number().int().min(0),
+    weekly_template_revision_id: identifier,
+    fixed: z.boolean(),
+    active: z.boolean(),
+    effective_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reviewed: z.boolean(),
+  })
+  .strict();
+export type StaffRosterAssignmentInput = z.infer<typeof staffRosterAssignmentInputContract>;

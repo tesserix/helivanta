@@ -74,3 +74,51 @@ type rosterConfigInput struct {
 	ShiftRevisionIDs []uuid.UUID      `json:"shift_revision_ids" binding:"max=100"`
 	Days             []rosterDayInput `json:"days" binding:"max=7,dive"`
 }
+
+type rosterSettings struct {
+	RevisionID        uuid.UUID `json:"revision_id"`
+	Timezone          string    `json:"timezone"`
+	WeekStart         int       `json:"week_start"`
+	AutoPopulation    string    `json:"auto_population"`
+	EffectiveOn       string    `json:"effective_on"`
+	ReviewedBySubject string    `json:"reviewed_by_subject"`
+	Version           int64     `json:"version"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type rosterSettingsInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,gte=0"`
+	Timezone        string `json:"timezone" binding:"required,max=64"`
+	WeekStart       *int   `json:"week_start" binding:"required,gte=0,lte=6"`
+	AutoPopulation  string `json:"auto_population" binding:"required,oneof=disabled fixed_shift all_assigned"`
+	EffectiveOn     string `json:"effective_on" binding:"required,len=10"`
+	Reviewed        *bool  `json:"reviewed" binding:"required"`
+}
+
+type staffRosterAssignment struct {
+	StaffID                  uuid.UUID `json:"staff_id"`
+	RevisionID               uuid.UUID `json:"revision_id"`
+	EmployeeCode             string    `json:"employee_code"`
+	DisplayName              string    `json:"display_name"`
+	WeeklyTemplateRevisionID uuid.UUID `json:"weekly_template_revision_id"`
+	TemplateID               uuid.UUID `json:"template_id"`
+	TemplateCode             string    `json:"template_code"`
+	TemplateName             string    `json:"template_name"`
+	Fixed                    bool      `json:"fixed"`
+	Active                   bool      `json:"active"`
+	EffectiveOn              string    `json:"effective_on"`
+	ReviewedBySubject        string    `json:"reviewed_by_subject"`
+	Version                  int64     `json:"version"`
+	CreatedAt                time.Time `json:"created_at"`
+	UpdatedAt                time.Time `json:"updated_at"`
+}
+
+type staffRosterAssignmentInput struct {
+	ExpectedVersion          *int64    `json:"expected_version" binding:"required,gte=0"`
+	WeeklyTemplateRevisionID uuid.UUID `json:"weekly_template_revision_id" binding:"required"`
+	Fixed                    *bool     `json:"fixed" binding:"required"`
+	Active                   *bool     `json:"active" binding:"required"`
+	EffectiveOn              string    `json:"effective_on" binding:"required,len=10"`
+	Reviewed                 *bool     `json:"reviewed" binding:"required"`
+}

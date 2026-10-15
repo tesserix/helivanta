@@ -199,7 +199,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # Ignores live in package.json pnpm.auditConfig; reasons in docs/runbooks/vulnerability-management.md.
       - run: pnpm audit --prod --audit-level=high
-      - run: pnpm turbo lint format:check type-check test build
+      - run: pnpm turbo lint format:check type-check && pnpm turbo test && pnpm turbo build
         env:
           # Zitadel's client id and issuer are client-visible by design, so a
           # placeholder is fine here. Replaces NEXT_PUBLIC_GIP_* which #838

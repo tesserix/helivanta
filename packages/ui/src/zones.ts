@@ -77,6 +77,12 @@ export const ZONES: Zone[] = [
         permission: "public",
       },
       { label: "Rosters", href: "/workforce/rosters", icon: CalendarDays, permission: "public" },
+      {
+        label: "Leave setup",
+        href: "/workforce/leave-setup",
+        icon: Settings,
+        permission: "public",
+      },
     ],
   },
   {

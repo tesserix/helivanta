@@ -91,3 +91,13 @@ type RosterChangedData struct {
 	RevisionID string `json:"revision_id"`
 	Version    int64  `json:"version"`
 }
+
+const SubjectLeaveConfigChanged = "helivanta.in.workforce.leave_config_changed.v1"
+
+type LeaveConfigChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	ConfigID   string `json:"config_id"`
+	RevisionID string `json:"revision_id"`
+	Kind       string `json:"kind"`
+	Version    int64  `json:"version"`
+}

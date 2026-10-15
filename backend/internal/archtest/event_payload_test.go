@@ -61,6 +61,11 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	"workforce.StaffRosterAssignmentChangedData.RevisionID": "immutable internal revision reference; protected lookup required",
 	"workforce.StaffRosterAssignmentChangedData.Version":    "monotonic revision for replay/order checks",
 
+	"workforce.RosterChangedData.HospitalID": "opaque hospital scope; protected lookup required",
+	"workforce.RosterChangedData.RosterID":   "opaque roster reference; no staff, dates or shift content",
+	"workforce.RosterChangedData.RevisionID": "immutable internal revision reference; protected lookup required",
+	"workforce.RosterChangedData.Version":    "monotonic revision for replay/order checks",
+
 	"workforce.ShiftChangedData.HospitalID":           "internal hospital scope; no facility details",
 	"workforce.ShiftChangedData.ShiftID":              "internal shift configuration reference; no personnel or policy content",
 	"workforce.ShiftChangedData.RevisionID":           "internal immutable shift revision reference; protected lookup required",

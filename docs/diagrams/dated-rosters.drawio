@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram id="dated-rosters" name="Dated rosters">
+    <mxGraphModel grid="1" gridSize="10" page="1" pageWidth="1700" pageHeight="750">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ui" value="Rosters UI&#10;Grid • modes • populate • freeze • history" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dbeafe;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="160" width="280" height="95" />
+        </mxCell>
+        <mxCell id="guard" value="Hospital grant (reads)&#10;roster.manage / roster.correct&#10;+ locked manager grant (writes)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dcfce7;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="340" y="160" width="280" height="95" />
+        </mxCell>
+        <mxCell id="plan" value="Plan change&#10;expected_version • change_id&#10;IANA wall clock → UTC, DST fails closed" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#ede9fe;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="680" y="60" width="280" height="95" />
+        </mxCell>
+        <mxCell id="policy" value="Pinned settings revision (ADR-0019)&#10;Assignments + templates as of date" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fef3c7;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="680" y="260" width="280" height="95" />
+        </mxCell>
+        <mxCell id="roster" value="Roster head + revisions&#10;draft / frozen / discarded&#10;GiST: no overlapping periods" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dbeafe;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1020" y="60" width="280" height="95" />
+        </mxCell>
+        <mxCell id="alloc" value="Immutable allocations&#10;added_version / removed_version&#10;GiST: no per-person time overlap" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dbeafe;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1020" y="260" width="280" height="95" />
+        </mxCell>
+        <mxCell id="audit" value="Append-only workforce audit&#10;Reviewer + reason from request" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fee2e2;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="680" y="480" width="280" height="95" />
+        </mxCell>
+        <mxCell id="outbox" value="Outbox in same transaction&#10;Identifier-only events" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fef3c7;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1020" y="560" width="280" height="95" />
+        </mxCell>
+        <mxCell id="nats" value="NATS JetStream&#10;roster_changed.v1" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#e0f2fe;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1340" y="560" width="280" height="95" />
+        </mxCell>
+        <mxCell id="next" value="Open on #1036&#10;Leave conflicts (#1037)&#10;Credential conflicts (#1108)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#f1f5f9;strokeColor=#64748b;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1340" y="260" width="280" height="95" />
+        </mxCell>
+        <mxCell id="e1" value="" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="ui" target="guard">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e2" value="" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="guard" target="plan">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e3" value="as-of reads" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="plan" target="policy">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e4" value="forced RLS" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="plan" target="roster">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e5" value="forced RLS" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="roster" target="alloc">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e6" value="" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="plan" target="audit">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e7" value="one commit" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="audit" target="outbox">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e8" value="after commit, retried" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;" edge="1" parent="1" source="outbox" target="nats">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e9" value="future checks" style="endArrow=block;html=0;strokeColor=#475569;fontSize=13;dashed=1;" edge="1" parent="1" source="alloc" target="next">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -62,8 +62,12 @@ func validTimezone(name string) bool {
 	return err == nil
 }
 
-// lockRosterManager holds the manager grant for the whole write so a concurrent revocation cannot interleave.
 func lockRosterManager(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, key string) error {
+	return lockHospitalManager(tx, p, hospital, "app.workforce_roster_policy", key)
+}
+
+// lockHospitalManager holds the manager grant for the whole write so a concurrent revocation cannot interleave.
+func lockHospitalManager(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, flag, key string) error {
 	var grant struct{ Level string }
 	if err := tx.Raw(`SELECT level FROM workforce_hospital_access WHERE tenant_id=? AND hospital_id=? AND subject=? FOR SHARE`, p.TenantID, hospital, p.Subject).Scan(&grant).Error; err != nil {
 		return err
@@ -71,7 +75,7 @@ func lockRosterManager(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, key s
 	if grant.Level != "manager" {
 		return gorm.ErrRecordNotFound
 	}
-	return tx.Exec(`SELECT set_config('app.workforce_roster_policy','authorized',true),pg_advisory_xact_lock(hashtextextended(?,0))`, p.TenantID+":"+hospital.String()+":"+key).Error
+	return tx.Exec(`SELECT set_config(?,'authorized',true),pg_advisory_xact_lock(hashtextextended(?,0))`, flag, p.TenantID+":"+hospital.String()+":"+key).Error
 }
 
 func (h *handlers) getRosterSettings(c *gin.Context) {

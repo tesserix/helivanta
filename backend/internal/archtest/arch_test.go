@@ -352,6 +352,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /iam/me/tenants":                                                  "bounded: one person's memberships",
 	"GET /iam/me/permissions":                                              "bounded: one resolved permission set",
 	"GET /workforce/hospitals/:hospital/hr/roster-settings":                "single current hospital roster policy",
+	"GET /workforce/hospitals/:hospital/hr/rosters/:id":                    "single roster head; allocations are paginated separately",
 }
 
 // TestEveryCollectionGETIsPaginated is the one hole platform.ListRoute's

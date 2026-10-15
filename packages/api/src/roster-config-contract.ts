@@ -12,6 +12,12 @@ export const ROSTER_AUTO_POPULATION = {
   fixed_shift: "Fixed-shift staff only",
   all_assigned: "All staff with an active template",
 } as const;
+export const ROSTER_STATUS = { draft: "Draft", frozen: "Frozen", discarded: "Discarded" } as const;
+export const ROSTER_MODES = {
+  roster: "Roster-wise (one area)",
+  employee: "Employee-wise (one person)",
+  additional: "Additional shift",
+} as const;
 const identifier = z
   .string()
   .uuid("Choose a valid record.")
@@ -245,3 +251,198 @@ export const staffRosterAssignmentInputContract = z
   })
   .strict();
 export type StaffRosterAssignmentInput = z.infer<typeof staffRosterAssignmentInputContract>;
+
+export const rosterContract = z
+  .object({
+    id: identifier,
+    revision_id: identifier,
+    name: z
+      .string()
+      .trim()
+      .min(1, "Enter a name.")
+      .max(80)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    start_date: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    end_date: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    status: z.enum(["draft", "frozen", "discarded"]),
+    settings_revision_id: identifier,
+    timezone: z
+      .string()
+      .min(1)
+      .max(64)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    week_start: z.number().int().min(0).max(6),
+    auto_population: z.enum(["disabled", "fixed_shift", "all_assigned"]),
+    allocations: z.number().int().min(0),
+    reviewed_by_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    version: z.number().int().min(1),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type Roster = z.infer<typeof rosterContract>;
+
+export const rosterInputContract = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, "Enter a name.")
+      .max(80)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    start_date: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    end_date: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reviewed: z.boolean(),
+  })
+  .strict();
+export type RosterInput = z.infer<typeof rosterInputContract>;
+
+export const datedAllocationContract = z
+  .object({
+    id: identifier,
+    staff_id: identifier,
+    employee_code: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    display_name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    roster_date: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    shift_revision_id: identifier,
+    shift_code: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    shift_name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    start_time: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    end_time: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    area_revision_id: identifier,
+    area_code: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    area_name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    starts_at: z.string().datetime({ offset: true }),
+    ends_at: z.string().datetime({ offset: true }),
+    additional: z.boolean(),
+    added_version: z.number().int().min(1),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type DatedAllocation = z.infer<typeof datedAllocationContract>;
+
+export const datedAllocationInputContract = z
+  .object({
+    id: identifier,
+    staff_id: identifier,
+    roster_date: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    shift_revision_id: identifier,
+    area_revision_id: identifier,
+  })
+  .strict();
+export type DatedAllocationInput = z.infer<typeof datedAllocationInputContract>;
+
+export const rosterChangeInputContract = z
+  .object({
+    change_id: identifier,
+    expected_version: z.number().int().min(1),
+    mode: z.enum(["roster", "employee", "additional"]),
+    add: z.array(datedAllocationInputContract).max(500),
+    remove: z.array(identifier).max(500),
+    reason: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reviewed: z.boolean(),
+  })
+  .strict();
+export type RosterChangeInput = z.infer<typeof rosterChangeInputContract>;
+
+export const rosterPopulateInputContract = z
+  .object({
+    change_id: identifier,
+    expected_version: z.number().int().min(1),
+    staff_ids: z.array(identifier).max(500),
+    reason: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reviewed: z.boolean(),
+  })
+  .strict();
+export type RosterPopulateInput = z.infer<typeof rosterPopulateInputContract>;
+
+export const rosterStatusInputContract = z
+  .object({
+    change_id: identifier,
+    expected_version: z.number().int().min(1),
+    reason: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reviewed: z.boolean(),
+  })
+  .strict();
+export type RosterStatusInput = z.infer<typeof rosterStatusInputContract>;
+
+export const rosterRevisionContract = z
+  .object({
+    id: identifier,
+    revision_id: identifier,
+    roster_id: identifier,
+    action: z.enum(["created", "changed", "populated", "frozen", "unfrozen", "discarded"]),
+    mode: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    status: z.enum(["draft", "frozen", "discarded"]),
+    added: z.number().int().min(0),
+    removed: z.number().int().min(0),
+    skipped_existing: z.number().int().min(0),
+    skipped_unassigned: z.number().int().min(0),
+    skipped_conflicts: z.number().int().min(0),
+    reason: z
+      .string()
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reviewed_by_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    version: z.number().int().min(1),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type RosterRevision = z.infer<typeof rosterRevisionContract>;
+
+export const rosterChangeResultContract = z
+  .object({
+    roster: rosterContract,
+    revision: rosterRevisionContract,
+  })
+  .strict();
+export type RosterChangeResult = z.infer<typeof rosterChangeResultContract>;

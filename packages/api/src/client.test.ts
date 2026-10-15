@@ -60,6 +60,16 @@ describe("apiFetch", () => {
     expect((err as ApiError).message).toBe("already dispensed");
   });
 
+  it("keeps extra problem fields as detail", async () => {
+    mockFetch(409, { error: "conflict", message: "overlap", allocation_ids: ["a"] });
+    const err = (await apiFetch("/x").catch((e: unknown) => e)) as ApiError;
+    expect(err.detail).toEqual({ allocation_ids: ["a"] });
+    mockFetch(500, null);
+    const fallback = (await apiFetch("/x").catch((e: unknown) => e)) as ApiError;
+    expect(fallback.code).toBe("internal");
+    expect(fallback.detail).toEqual({});
+  });
+
   it("falls back to a generic error when the body is not the envelope", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("boom", { status: 500 })));
     const err = await apiFetch("/x").catch((e: unknown) => e);

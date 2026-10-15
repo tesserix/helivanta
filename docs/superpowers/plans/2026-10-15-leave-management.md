@@ -17,9 +17,14 @@ Each slice is one PR, merged and deployed with production verification before th
 
 Leave-year settings; effective-dated staff structure assignments; append-only ledger with idempotency keys; upfront and monthly accrual, join-month proration, carry-forward and expiry at year end (Temporal schedule if a durable batch is needed); reasoned corrections under a separate `workforce.leave.correct` permission; as-of balances.
 
-## Slice 3 — requests and approvals
+## Slice 3 — requests and approvals ([spec](../specs/2026-10-15-leave-requests-design.md))
 
-Requests pin type, structure and calendar revisions; half-day and short-leave units; holidays excluded from counted days; overlap exclusion per person; clubbing rules; balance check for tracked types; approver distinct from requester under `workforce.leave.approve`; cancellation reverses consumption; roster population skips approved leave (#1036).
+1. Migration `0012_workforce_leave_requests` (`leave_requests.sql`): requests with a half-day slot exclusion, per-day children in the creating transaction, append-only events, guarded transitions, separation of filer and approver; ledger `consumption`/`reversal` kinds tied to a request.
+2. Permissions `workforce.leave.request` and `workforce.leave.approve`; event `leave_request_changed.v1` in the contract and arch-test allowlist.
+3. Handlers `leave_requests.go`: file (client id, replay), list, detail with days, history and roster clashes, decide, cancel; year close refuses pending requests; roster population skips approved full-day leave.
+4. Tests `leave_requests_test.go`, roster population and year-close cases.
+5. `@helivanta/api` schemas and tests; `/workforce/leave-requests` page; zone entry.
+6. `scripts/verify-leave-requests.mjs`; `docs/api/workforce.md`; ADR-0021; `docs/hr-capability-coverage.md`.
 
 ## Slice 4 — reports
 

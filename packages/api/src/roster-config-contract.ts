@@ -424,6 +424,7 @@ export const rosterRevisionContract = z
     skipped_existing: z.number().int().min(0),
     skipped_unassigned: z.number().int().min(0),
     skipped_conflicts: z.number().int().min(0),
+    skipped_leave: z.number().int().min(0),
     reason: z
       .string()
       .max(500)

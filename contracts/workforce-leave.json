@@ -601,7 +601,9 @@
           "carry_in",
           "carry_out",
           "expiry",
-          "correction"
+          "correction",
+          "consumption",
+          "reversal"
         ]
       },
       {
@@ -623,6 +625,11 @@
       },
       {
         "name": "run_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "request_id",
         "type": "uuid",
         "optional": true
       },
@@ -716,6 +723,285 @@
         "type": "[]leaveBalance",
         "orm_ignore": true
       }
+    ],
+    "leaveRequestInput": [
+      {
+        "name": "leave_type_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "unit",
+        "type": "string",
+        "enum": ["full_day", "half_day", "short_leave"],
+        "binding": "required,oneof=full_day half_day short_leave"
+      },
+      {
+        "name": "start_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "end_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "session",
+        "type": "string",
+        "enum": ["first_half", "second_half"],
+        "optional": true,
+        "binding": "omitempty,oneof=first_half second_half"
+      },
+      {
+        "name": "minutes",
+        "type": "int",
+        "optional": true,
+        "min": 1,
+        "max": 480,
+        "binding": "omitempty,gte=1,lte=480"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "max=500"
+      }
+    ],
+    "leaveDecisionInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "binding": "required,gte=1"
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject"],
+        "binding": "required,oneof=approve reject"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "max=500"
+      }
+    ],
+    "leaveCancelInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "binding": "required,gte=1"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "max=500"
+      }
+    ],
+    "leaveRequest": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "leave_type_id",
+        "type": "uuid"
+      },
+      {
+        "name": "leave_type_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "assignment_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "leave_year",
+        "type": "int"
+      },
+      {
+        "name": "unit",
+        "type": "string",
+        "enum": ["full_day", "half_day", "short_leave"]
+      },
+      {
+        "name": "start_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "end_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "session",
+        "type": "string",
+        "enum": ["first_half", "second_half"],
+        "optional": true
+      },
+      {
+        "name": "minutes",
+        "type": "int",
+        "optional": true
+      },
+      {
+        "name": "half_days",
+        "type": "int"
+      },
+      {
+        "name": "reason",
+        "type": "string"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending", "approved", "rejected", "cancelled"]
+      },
+      {
+        "name": "requested_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "decided_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "decided_at",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "leaveRequestDay": [
+      {
+        "name": "day",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "half_days",
+        "type": "int",
+        "min": 0,
+        "max": 2
+      },
+      {
+        "name": "holiday",
+        "type": "bool"
+      },
+      {
+        "name": "calendar_revision_id",
+        "type": "uuid"
+      }
+    ],
+    "leaveRosterClash": [
+      {
+        "name": "roster_id",
+        "type": "uuid"
+      },
+      {
+        "name": "roster_name",
+        "type": "string"
+      },
+      {
+        "name": "roster_date",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "starts_at",
+        "type": "time"
+      },
+      {
+        "name": "ends_at",
+        "type": "time"
+      }
+    ],
+    "leaveRequestDetail": [
+      {
+        "name": "request",
+        "type": "leaveRequest"
+      },
+      {
+        "name": "days",
+        "type": "[]leaveRequestDay"
+      },
+      {
+        "name": "roster_clashes",
+        "type": "[]leaveRosterClash"
+      }
+    ],
+    "leaveRequestEvent": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending", "approved", "rejected", "cancelled"]
+      },
+      {
+        "name": "note",
+        "type": "string"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
     ]
   },
   "ledger_kinds": {
@@ -724,6 +1010,23 @@
     "carry_in": "Carried forward in",
     "carry_out": "Carried forward out",
     "expiry": "Expired at year end",
-    "correction": "Correction"
+    "correction": "Correction",
+    "consumption": "Leave taken",
+    "reversal": "Leave cancelled"
+  },
+  "leave_units": {
+    "full_day": "Full days",
+    "half_day": "Half day",
+    "short_leave": "Short leave"
+  },
+  "leave_sessions": {
+    "first_half": "First half",
+    "second_half": "Second half"
+  },
+  "request_statuses": {
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled"
   }
 }

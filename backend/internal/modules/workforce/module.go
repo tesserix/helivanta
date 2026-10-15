@@ -36,6 +36,11 @@ const PermLeaveCorrect authz.Permission = "workforce.leave.correct"
 const StaffLeaveAssignmentChanged = workforcecontract.SubjectStaffLeaveAssignmentChanged
 const LeaveLedgerChanged = workforcecontract.SubjectLeaveLedgerChanged
 
+// PermLeaveRequest files and withdraws requests for staff; PermLeaveApprove decides and revokes them, never on the holder's own filing.
+const PermLeaveRequest authz.Permission = "workforce.leave.request"
+const PermLeaveApprove authz.Permission = "workforce.leave.approve"
+const LeaveRequestChanged = workforcecontract.SubjectLeaveRequestChanged
+
 const PermMasterManage authz.Permission = "workforce.master.manage"
 const EnrollmentChanged = workforcecontract.SubjectStaffEnrollmentChanged
 const MasterChanged = workforcecontract.SubjectMasterChanged
@@ -76,18 +81,21 @@ var leaveSetupSchema string
 //go:embed leave_ledger.sql
 var leaveLedgerSchema string
 
+//go:embed leave_requests.sql
+var leaveRequestsSchema string
+
 type Module struct{}
 
 func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "workforce" }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}, {ID: "0007_workforce_roster_policy", SQL: rosterPolicySchema}, {ID: "0007_workforce_documents", SQL: documentsSchema}, {ID: "0008_workforce_document_worker", SQL: documentWorkerSchema}, {ID: "0009_workforce_rosters", SQL: rostersSchema}, {ID: "0010_workforce_leave_setup", SQL: leaveSetupSchema}, {ID: "0011_workforce_leave_ledger", SQL: leaveLedgerSchema}}
+	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}, {ID: "0007_workforce_roster_policy", SQL: rosterPolicySchema}, {ID: "0007_workforce_documents", SQL: documentsSchema}, {ID: "0008_workforce_document_worker", SQL: documentWorkerSchema}, {ID: "0009_workforce_rosters", SQL: rostersSchema}, {ID: "0010_workforce_leave_setup", SQL: leaveSetupSchema}, {ID: "0011_workforce_leave_ledger", SQL: leaveLedgerSchema}, {ID: "0012_workforce_leave_requests", SQL: leaveRequestsSchema}}
 }
 func (*Module) Permissions() []authz.Grant {
-	return []authz.Grant{{Permission: PermHospitalManage}, {Permission: PermEnrollmentManage}, {Permission: PermDocumentManage}, {Permission: PermMasterManage}, {Permission: PermRosterManage}, {Permission: PermRosterCorrect}, {Permission: PermLeaveConfigure}, {Permission: PermLeaveAllocate}, {Permission: PermLeaveCorrect}}
+	return []authz.Grant{{Permission: PermHospitalManage}, {Permission: PermEnrollmentManage}, {Permission: PermDocumentManage}, {Permission: PermMasterManage}, {Permission: PermRosterManage}, {Permission: PermRosterCorrect}, {Permission: PermLeaveConfigure}, {Permission: PermLeaveAllocate}, {Permission: PermLeaveCorrect}, {Permission: PermLeaveRequest}, {Permission: PermLeaveApprove}}
 }
 func (*Module) Publishes() []string {
-	return []string{EnrollmentChanged, MasterChanged, ShiftChanged, RosterConfigChanged, RosterSettingsChanged, StaffRosterAssignmentChanged, DocumentScanRequested, DocumentChanged, RosterChanged, LeaveConfigChanged, StaffLeaveAssignmentChanged, LeaveLedgerChanged}
+	return []string{EnrollmentChanged, MasterChanged, ShiftChanged, RosterConfigChanged, RosterSettingsChanged, StaffRosterAssignmentChanged, DocumentScanRequested, DocumentChanged, RosterChanged, LeaveConfigChanged, StaffLeaveAssignmentChanged, LeaveLedgerChanged, LeaveRequestChanged}
 }
 func (*Module) DirectedSubjects() []string    { return nil }
 func (*Module) DirectedWriteTables() []string { return nil }
@@ -139,6 +147,13 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET("/:hospital/staff/:id/leave-balances", authz.Public, h.getStaffLeaveBalances)
 	platform.ListRoute(g, "/:hospital/staff/:id/leave-ledger", authz.Public, h.staffLeaveLedger)
 	g.PUT("/:hospital/staff/:id/leave-corrections/:entry", PermLeaveCorrect, h.putLeaveCorrection)
+	platform.ListRoute(g, "/:hospital/hr/leave-requests", authz.Public, h.listLeaveRequests)
+	g.PUT("/:hospital/staff/:id/leave-requests/:request", PermLeaveRequest, h.putLeaveRequest)
+	g.GET("/:hospital/staff/:id/leave-requests/:request", authz.Public, h.getLeaveRequest)
+	platform.ListRoute(g, "/:hospital/staff/:id/leave-requests/:request/history", authz.Public, h.leaveRequestHistory)
+	g.POST("/:hospital/staff/:id/leave-requests/:request/decision", PermLeaveApprove, h.decideLeaveRequest)
+	g.POST("/:hospital/staff/:id/leave-requests/:request/cancellation", PermLeaveRequest, h.cancelLeaveRequest)
+	g.POST("/:hospital/staff/:id/leave-requests/:request/revocation", PermLeaveApprove, h.revokeLeaveRequest)
 	g.PUT("/:hospital/hr/shifts/:id", PermRosterManage, h.putShift)
 	platform.ListRoute(g, "/:hospital/hr/shifts", authz.Public, h.listShifts)
 	platform.ListRoute(g, "/:hospital/hr/shifts/:id/history", authz.Public, h.shiftHistory)

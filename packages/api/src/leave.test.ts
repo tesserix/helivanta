@@ -4,8 +4,11 @@ import {
   leaveConfigContract,
   leaveConfigSchema,
   leaveCorrectionSchema,
+  leaveRequestFormSchema,
+  leaveRequestInputContract,
   leaveSettingsSchema,
   staffLeaveAssignmentSchema,
+  toLeaveRequestInput,
 } from "./leave";
 const id = "11111111-1111-4111-8111-111111111111";
 const other = "22222222-2222-4222-8222-222222222222";
@@ -160,4 +163,69 @@ it("rejects zero, oversized and unexplained corrections", () => {
   expect(paths({ half_days: 0 })).toEqual(["half_days"]);
   expect(paths({ half_days: 1461 })).toEqual(["half_days"]);
   expect(paths({ reason: "  too short  " })).toEqual(["reason"]);
+});
+
+it("checks a leave request against the unit and the type's rules", () => {
+  const type = "33333333-3333-4333-8333-333333333333";
+  const typeRules = new Map([
+    [
+      type,
+      {
+        paid: true,
+        balance_tracked: true,
+        half_day_allowed: false,
+        short_leave_minutes: 60,
+        clubbable: true,
+      },
+    ],
+  ]);
+  const base = {
+    leave_type_id: type,
+    unit: "full_day" as const,
+    start_on: "2026-11-02",
+    end_on: "2026-11-04",
+    session: "first_half" as const,
+    minutes: 0,
+    reason: "",
+  };
+  const errors = (value: object) =>
+    leaveRequestFormSchema(typeRules)
+      .safeParse({ ...base, ...value })
+      .error?.issues.map((i) => `${i.path.join(".")}: ${i.message}`) ?? [];
+  expect(errors({})).toEqual([]);
+  expect(errors({ end_on: "2026-11-01" })).toEqual([
+    "end_on: End the leave on or after its start date.",
+  ]);
+  expect(errors({ end_on: "2027-11-04" })).toEqual(["end_on: Keep one request within a year."]);
+  expect(errors({ end_on: "" })).toEqual(["end_on: Choose an end date."]);
+  expect(errors({ unit: "half_day", end_on: "" })).toEqual([
+    "unit: This leave type cannot be taken as a half day.",
+  ]);
+  expect(errors({ unit: "short_leave", minutes: 20 })).toEqual([
+    "minutes: Enter minutes in steps of 15.",
+  ]);
+  expect(errors({ unit: "short_leave", minutes: 75 })).toEqual([
+    "minutes: Short leave for this type is at most 60 minutes.",
+  ]);
+  expect(errors({ unit: "short_leave", minutes: 60 })).toEqual([]);
+  expect(errors({ leave_type_id: "" })).toEqual(["leave_type_id: Choose a leave type."]);
+  expect(
+    toLeaveRequestInput({ ...base, unit: "half_day", session: "second_half", end_on: "" }),
+  ).toEqual({
+    leave_type_id: type,
+    unit: "half_day",
+    start_on: "2026-11-02",
+    end_on: "2026-11-02",
+    session: "second_half",
+    reason: "",
+  });
+  expect(toLeaveRequestInput({ ...base, unit: "short_leave", minutes: 45 })).toEqual({
+    leave_type_id: type,
+    unit: "short_leave",
+    start_on: "2026-11-02",
+    end_on: "2026-11-02",
+    minutes: 45,
+    reason: "",
+  });
+  expect(leaveRequestInputContract.safeParse(toLeaveRequestInput(base)).success).toBe(true);
 });

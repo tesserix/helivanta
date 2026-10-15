@@ -163,6 +163,7 @@ type leaveLedgerEntry struct {
 	Reason              string     `json:"reason"`
 	ActorSubject        string     `json:"actor_subject"`
 	RunID               *uuid.UUID `json:"run_id,omitempty"`
+	RequestID           *uuid.UUID `json:"request_id,omitempty"`
 	CreatedAt           time.Time  `json:"created_at"`
 }
 
@@ -189,4 +190,82 @@ type staffLeaveBalances struct {
 	Active        bool           `json:"active"`
 	CreatedAt     time.Time      `json:"created_at"`
 	Balances      []leaveBalance `json:"balances" gorm:"-"`
+}
+
+type leaveRequestInput struct {
+	LeaveTypeID uuid.UUID `json:"leave_type_id" binding:"required"`
+	Unit        string    `json:"unit" binding:"required,oneof=full_day half_day short_leave"`
+	StartOn     string    `json:"start_on" binding:"required,len=10"`
+	EndOn       string    `json:"end_on" binding:"required,len=10"`
+	Session     *string   `json:"session,omitempty" binding:"omitempty,oneof=first_half second_half"`
+	Minutes     *int      `json:"minutes,omitempty" binding:"omitempty,gte=1,lte=480"`
+	Reason      string    `json:"reason" binding:"max=500"`
+}
+
+type leaveDecisionInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,gte=1"`
+	Decision        string `json:"decision" binding:"required,oneof=approve reject"`
+	Note            string `json:"note" binding:"max=500"`
+}
+
+type leaveCancelInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,gte=1"`
+	Note            string `json:"note" binding:"max=500"`
+}
+
+type leaveRequest struct {
+	ID                   uuid.UUID  `json:"id"`
+	StaffID              uuid.UUID  `json:"staff_id"`
+	EmployeeCode         string     `json:"employee_code"`
+	DisplayName          string     `json:"display_name"`
+	LeaveTypeID          uuid.UUID  `json:"leave_type_id"`
+	LeaveTypeRevisionID  uuid.UUID  `json:"leave_type_revision_id"`
+	Code                 string     `json:"code"`
+	Name                 string     `json:"name"`
+	AssignmentRevisionID uuid.UUID  `json:"assignment_revision_id"`
+	LeaveYear            int        `json:"leave_year"`
+	Unit                 string     `json:"unit"`
+	StartOn              string     `json:"start_on"`
+	EndOn                string     `json:"end_on"`
+	Session              *string    `json:"session,omitempty"`
+	Minutes              *int       `json:"minutes,omitempty"`
+	HalfDays             int        `json:"half_days"`
+	Reason               string     `json:"reason"`
+	Status               string     `json:"status"`
+	RequestedBySubject   string     `json:"requested_by_subject"`
+	DecidedBySubject     *string    `json:"decided_by_subject,omitempty"`
+	DecidedAt            *time.Time `json:"decided_at,omitempty"`
+	Version              int64      `json:"version"`
+	CreatedAt            time.Time  `json:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at"`
+}
+
+type leaveRequestDay struct {
+	Day                string    `json:"day"`
+	HalfDays           int       `json:"half_days"`
+	Holiday            bool      `json:"holiday"`
+	CalendarRevisionID uuid.UUID `json:"calendar_revision_id"`
+}
+
+type leaveRosterClash struct {
+	RosterID   uuid.UUID `json:"roster_id"`
+	RosterName string    `json:"roster_name"`
+	RosterDate string    `json:"roster_date"`
+	StartsAt   time.Time `json:"starts_at"`
+	EndsAt     time.Time `json:"ends_at"`
+}
+
+type leaveRequestDetail struct {
+	Request       leaveRequest       `json:"request"`
+	Days          []leaveRequestDay  `json:"days"`
+	RosterClashes []leaveRosterClash `json:"roster_clashes"`
+}
+
+type leaveRequestEvent struct {
+	ID           uuid.UUID `json:"id"`
+	Version      int64     `json:"version"`
+	Status       string    `json:"status"`
+	Note         string    `json:"note"`
+	ActorSubject string    `json:"actor_subject"`
+	CreatedAt    time.Time `json:"created_at"`
 }

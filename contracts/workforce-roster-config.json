@@ -848,6 +848,11 @@
         "min": 0
       },
       {
+        "name": "skipped_leave",
+        "type": "int",
+        "min": 0
+      },
+      {
         "name": "reason",
         "type": "string",
         "max": 500

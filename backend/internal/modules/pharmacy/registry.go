@@ -24,7 +24,7 @@ type pharmacyOrganization struct {
 	TenantID           uuid.UUID `json:"-"`
 	OrganizationFields `gorm:"embedded"`
 	OnboardingStatus   string    `json:"onboarding_status"`
-	CreatedAt          time.Time `json:"created_at"`
+	CreatedAt          time.Time `json:"created_at" gorm:"autoCreateTime:false;default:now()"`
 }
 
 func (pharmacyOrganization) TableName() string                 { return "pharmacy_organizations" }
@@ -36,7 +36,7 @@ type pharmacyOutlet struct {
 	PharmacyID       uuid.UUID `json:"pharmacy_id"`
 	OutletFields     `gorm:"embedded"`
 	RegulatoryStatus string    `json:"regulatory_status"`
-	CreatedAt        time.Time `json:"created_at"`
+	CreatedAt        time.Time `json:"created_at" gorm:"autoCreateTime:false;default:now()"`
 }
 
 func (pharmacyOutlet) TableName() string                 { return "pharmacy_outlets" }
@@ -48,7 +48,7 @@ type hospitalAffiliation struct {
 	PharmacyID         uuid.UUID `json:"pharmacy_id"`
 	AffiliationFields  `gorm:"embedded"`
 	VerificationStatus string    `json:"verification_status"`
-	CreatedAt          time.Time `json:"created_at"`
+	CreatedAt          time.Time `json:"created_at" gorm:"autoCreateTime:false;default:now()"`
 }
 
 func (hospitalAffiliation) TableName() string                 { return "pharmacy_hospital_affiliations" }

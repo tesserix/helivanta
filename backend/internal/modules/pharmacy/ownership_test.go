@@ -36,6 +36,7 @@ func TestPharmacyOutletsAndHospitalAffiliationsDoNotShareAccess(t *testing.T) {
 	outletBody := `{"code":"TEST-BRANCH","name":"TEST Branch","country_code":"IN","timezone":"Asia/Kolkata"}`
 	w := do(r, "PUT", root+chain+"/outlets/"+siblingOutlet, "editor", outletBody)
 	require.Equal(t, 200, w.Code, w.Body.String())
+	require.JSONEq(t, w.Body.String(), do(r, "PUT", root+chain+"/outlets/"+siblingOutlet, "editor", outletBody).Body.String())
 	w = do(r, "GET", root+chain+"/outlets", "editor", "")
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), siblingOutlet)

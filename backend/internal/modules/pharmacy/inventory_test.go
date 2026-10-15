@@ -22,10 +22,12 @@ func TestQuarantineReceiptIsIdempotentAndBalanceIsNotDispensable(t *testing.T) {
 	location := uuid.Must(uuid.NewV7()).String()
 	w := do(r, "PUT", root+"/stock/locations/"+location, "editor", `{"code":"TEST-QUARANTINE","name":"TEST Receiving quarantine"}`)
 	require.Equal(t, 200, w.Code, w.Body.String())
+	require.JSONEq(t, w.Body.String(), do(r, "PUT", root+"/stock/locations/"+location, "editor", `{"code":"TEST-QUARANTINE","name":"TEST Receiving quarantine"}`).Body.String())
 	batch := uuid.Must(uuid.NewV7()).String()
 	batchBody := fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT-001","expires_on":"2030-10-31","manufactured_on":"2026-10-01"}`, product)
 	w = do(r, "PUT", root+"/stock/batches/"+batch, "editor", batchBody)
 	require.Equal(t, 200, w.Code, w.Body.String())
+	require.JSONEq(t, w.Body.String(), do(r, "PUT", root+"/stock/batches/"+batch, "editor", batchBody).Body.String())
 	movement := uuid.Must(uuid.NewV7()).String()
 	body := fmt.Sprintf(`{"location_id":%q,"batch_id":%q,"kind":"receipt","quantity_units":100,"reason":"TEST opening receipt","source_reference":"TEST-GRN-001-L1"}`, location, batch)
 	path := root + "/stock/movements/" + movement

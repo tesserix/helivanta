@@ -27,7 +27,7 @@ type stockLocation struct {
 	Code        string    `json:"code"`
 	Name        string    `json:"name"`
 	StockStatus string    `json:"stock_status"`
-	CreatedAt   time.Time `json:"created_at"`
+	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime:false;default:now()"`
 }
 
 func (stockLocation) TableName() string                 { return "pharmacy_stock_locations" }
@@ -39,7 +39,7 @@ type stockBatch struct {
 	OutletID       uuid.UUID  `json:"outlet_id"`
 	BatchFields    batchInput `gorm:"embedded" json:"-"`
 	ProductVersion int64      `json:"product_version"`
-	CreatedAt      time.Time  `json:"created_at"`
+	CreatedAt      time.Time  `json:"created_at" gorm:"autoCreateTime:false;default:now()"`
 }
 
 func (stockBatch) TableName() string                 { return "pharmacy_stock_batches" }
@@ -58,7 +58,7 @@ type stockMovement struct {
 	OutletID       uuid.UUID     `json:"outlet_id"`
 	MovementFields movementInput `gorm:"embedded" json:"-"`
 	ActorSubject   string        `json:"actor_subject"`
-	CreatedAt      time.Time     `json:"created_at"`
+	CreatedAt      time.Time     `json:"created_at" gorm:"autoCreateTime:false;default:now()"`
 }
 
 func (stockMovement) TableName() string                 { return "pharmacy_stock_movements" }

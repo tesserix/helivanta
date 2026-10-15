@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"syscall"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/testutil"
@@ -450,13 +450,13 @@ func captureStdoutStderr(t *testing.T, fn func()) string {
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
 
-	savedOut, err := syscall.Dup(syscall.Stdout)
+	savedOut, err := unix.Dup(unix.Stdout)
 	require.NoError(t, err)
-	savedErr, err := syscall.Dup(syscall.Stderr)
+	savedErr, err := unix.Dup(unix.Stderr)
 	require.NoError(t, err)
 
-	require.NoError(t, syscall.Dup2(int(w.Fd()), syscall.Stdout))
-	require.NoError(t, syscall.Dup2(int(w.Fd()), syscall.Stderr))
+	require.NoError(t, unix.Dup2(int(w.Fd()), unix.Stdout))
+	require.NoError(t, unix.Dup2(int(w.Fd()), unix.Stderr))
 
 	done := make(chan string, 1)
 	go func() {
@@ -469,10 +469,10 @@ func captureStdoutStderr(t *testing.T, fn func()) string {
 
 	// Restore before closing the pipe, so a later failure message from the
 	// test framework still has somewhere to go.
-	require.NoError(t, syscall.Dup2(savedOut, syscall.Stdout))
-	require.NoError(t, syscall.Dup2(savedErr, syscall.Stderr))
-	_ = syscall.Close(savedOut)
-	_ = syscall.Close(savedErr)
+	require.NoError(t, unix.Dup2(savedOut, unix.Stdout))
+	require.NoError(t, unix.Dup2(savedErr, unix.Stderr))
+	_ = unix.Close(savedOut)
+	_ = unix.Close(savedErr)
 	require.NoError(t, w.Close())
 	out := <-done
 	require.NoError(t, r.Close())

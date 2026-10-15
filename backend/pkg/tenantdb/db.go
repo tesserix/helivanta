@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
@@ -201,6 +202,9 @@ func (d *DB) PingContext(ctx context.Context) error {
 
 // Migrate applies migrations in order, once each, on the admin pool.
 func (d *DB) Migrate(ctx context.Context, migs []Migration) error {
+	if d.admin == nil {
+		return errNoSchemaPool
+	}
 	if err := d.admin.WithContext(ctx).Exec(
 		`CREATE TABLE IF NOT EXISTS schema_migrations (id text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`,
 	).Error; err != nil {
@@ -277,6 +281,9 @@ func (d *DB) WithSystem(ctx context.Context, fn func(tx *gorm.DB) error) error {
 // in the type system enforces that boundary, the same as Migrate and
 // LintRLS today — internal/archtest does.
 func (d *DB) WithAdmin(ctx context.Context, fn func(tx *gorm.DB) error) error {
+	if d.admin == nil {
+		return errNoSchemaPool
+	}
 	return d.admin.WithContext(ctx).Transaction(fn)
 }
 
@@ -345,6 +352,9 @@ var lintAllowlist = map[string]bool{
 // protected the tables someone remembered to mark; this one protects
 // everything, and a module that simply forgets the column now fails.
 func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
+	if d.admin == nil {
+		return nil, errNoSchemaPool
+	}
 	type row struct {
 		Relname        string
 		IsView         bool
@@ -483,6 +493,9 @@ func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
 // tables modules declared, so the two have different inputs. It runs
 // beside LintRLS at boot and in cmd/migrate.
 func (d *DB) LintDirectedProvenance(ctx context.Context, tables []string) ([]string, error) {
+	if d.admin == nil {
+		return nil, errNoSchemaPool
+	}
 	if len(tables) == 0 {
 		return nil, nil
 	}
@@ -527,4 +540,38 @@ func (d *DB) LintDirectedProvenance(ctx context.Context, tables []string) ([]str
 		}
 	}
 	return bad, nil
+}
+
+// OpenRuntime connects a runtime identity without owner or cross-tenant pools.
+func OpenRuntime(ctx context.Context, dsn string) (*DB, error) {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	g, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent), DisableAutomaticPing: true})
+	if err != nil {
+		// Connection-parser errors may contain the credential-bearing input.
+		return nil, errors.New("tenantdb: runtime database connection unavailable")
+	}
+	db := &DB{app: g}
+	fail := func(err error) (*DB, error) {
+		return nil, errors.Join(err, db.Close())
+	}
+	if err := assertNoRLSBypass(g.WithContext(ctx)); err != nil {
+		return fail(err)
+	}
+	var caps struct{ CreateRole, CreateDB, CreateSchema, OwnTables bool }
+	result := g.WithContext(ctx).Raw(`SELECT rolcreaterole AS create_role,rolcreatedb AS create_db,
+	 has_schema_privilege(current_user,'public','CREATE') OR has_database_privilege(current_user,current_database(),'CREATE') AS create_schema,
+	 EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+	  WHERE n.nspname='public' AND c.relkind IN('r','p','f') AND pg_has_role(current_user,c.relowner,'USAGE')) AS own_tables
+	 FROM pg_roles WHERE rolname=current_user`).Scan(&caps)
+	if result.Error != nil || result.RowsAffected != 1 || caps.CreateRole || caps.CreateDB || caps.CreateSchema || caps.OwnTables {
+		return fail(errors.New("tenantdb: runtime identity has administrative privileges or cannot be verified"))
+	}
+	pool, err := g.DB()
+	if err != nil {
+		return fail(err)
+	}
+	pool.SetMaxOpenConns(5)
+	pool.SetMaxIdleConns(2)
+	return db, nil
 }

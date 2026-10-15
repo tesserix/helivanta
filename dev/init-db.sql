@@ -18,6 +18,7 @@
 
 -- Runtime role: no superuser, no RLS bypass. Migrations run as `helivanta`.
 CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;
+CREATE ROLE helivanta_document_worker LOGIN PASSWORD 'helivanta_document_worker' NOSUPERUSER NOBYPASSRLS;
 
 -- System role: BYPASSRLS and nothing else. Used by exactly three callers
 -- — the authorization reconciler, the outbox dispatcher and the retention

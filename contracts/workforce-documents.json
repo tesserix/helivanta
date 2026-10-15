@@ -1,0 +1,66 @@
+{
+  "max_bytes": 10485760,
+  "max_filename": 180,
+  "records": {
+    "enrollment": ["employment_evidence", "identity_evidence"],
+    "credential": ["credential_evidence"],
+    "qualification": ["qualification_evidence"]
+  },
+  "content_types": ["image/png", "image/jpeg"],
+  "statuses": [
+    "upload_pending",
+    "scan_pending",
+    "available",
+    "rejected",
+    "scan_error",
+    "revoked"
+  ],
+  "failure_codes": [
+    "unsupported_content",
+    "malware_detected",
+    "scanner_unavailable",
+    "storage_unavailable",
+    "integrity_mismatch"
+  ],
+  "input": [
+    ["record_kind", "record_kind"],
+    ["record_id", "uuid"],
+    ["category", "category"],
+    ["filename", "filename"],
+    ["content_type", "content_type"],
+    ["size", "size"],
+    ["sha256", "sha256"]
+  ],
+  "document": [
+    ["id", "uuid"],
+    ["hospital_id", "uuid"],
+    ["staff_id", "uuid"],
+    ["record_id", "uuid"],
+    ["record_kind", "record_kind"],
+    ["record_version", "positive"],
+    ["category", "category"],
+    ["filename", "filename"],
+    ["content_type", "content_type"],
+    ["size", "size"],
+    ["sha256", "sha256"],
+    ["status", "status"],
+    ["scan_attempt", "positive"],
+    ["uploaded_at", "timestamp?"],
+    ["source_generation", "positive?", "hidden"],
+    ["released_generation", "positive?", "hidden"],
+    ["engine_version", "string?", "hidden"],
+    ["definition_version", "positive?", "hidden"],
+    ["definitions_updated_at", "timestamp?", "hidden"],
+    ["scanned_at", "timestamp?"],
+    ["failure_code", "failure_code?"],
+    ["expires_at", "timestamp"],
+    ["created_at", "timestamp"],
+    ["updated_at", "timestamp"]
+  ],
+  "record_choice": [
+    ["record_kind", "record_kind"],
+    ["record_id", "uuid"],
+    ["label", "label"],
+    ["categories", "categories"]
+  ]
+}

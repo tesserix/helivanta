@@ -132,6 +132,9 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
+      '@types/node':
+        specifier: 24.19.1
+        version: 24.19.1
       '@helivanta/config':
         specifier: workspace:*
         version: link:../config

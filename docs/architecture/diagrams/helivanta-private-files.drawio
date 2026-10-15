@@ -1,0 +1,80 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" type="device">
+  <diagram name="Private file pipeline" id="helivanta-private-files">
+    <mxGraphModel dx="1240" dy="860" grid="1" gridSize="20" guides="1" page="1" pageScale="1" pageWidth="1240" pageHeight="860">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="HELIVANTA  |  PRIVATE DOMAIN FILES&#10;Designed pipeline — release verification remains open" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#163641;strokeColor=#163641;fontColor=#ffffff;fontFamily=Arial;fontSize=22;spacing=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="25" width="1160" height="75" />
+        </mxCell>
+        <mxCell id="user" value="Unified tenant portal&#10;Staff / patient record context" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#e7f4f2;strokeColor=#167b75;fontColor=#163641;fontFamily=Arial;fontSize=15;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="145" width="240" height="80" />
+        </mxCell>
+        <mxCell id="api" value="Owning domain API&#10;Tenant + locked hospital grant&#10;Immutable record / intent binding" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#e7f4f2;strokeColor=#167b75;fontColor=#163641;fontFamily=Arial;fontSize=15;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="340" y="145" width="260" height="95" />
+        </mxCell>
+        <mxCell id="db" value="PostgreSQL + forced RLS&#10;Private metadata and audit&#10;Atomic identifier-only outbox" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#e7f4f2;strokeColor=#167b75;fontColor=#163641;fontFamily=Arial;fontSize=15;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="660" y="145" width="270" height="95" />
+        </mxCell>
+        <mxCell id="q" value="Private GCS quarantine&#10;Create only • exact generation&#10;Opaque tenant / hospital / owner / record / UTC date / version" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff3de;strokeColor=#b58128;fontColor=#163641;fontFamily=Arial;fontSize=15;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="330" width="285" height="115" />
+        </mxCell>
+        <mxCell id="nats" value="NATS JetStream&#10;Committed envelope digest&#10;Retry external start after commit" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#e7f4f2;strokeColor=#167b75;fontColor=#163641;fontFamily=Arial;fontSize=15;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="660" y="305" width="270" height="95" />
+        </mxCell>
+        <mxCell id="temporal" value="Temporal workflow + activities&#10;Deterministic identifier-only input&#10;Load protected domain metadata" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf0f4;strokeColor=#7b8994;fontColor=#163641;fontFamily=Arial;fontSize=15;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="660" y="470" width="270" height="95" />
+        </mxCell>
+        <mxCell id="scan" value="Generation + size + CRC / SHA&#10;Allowlisted complete image&#10;ClamAV: current definitions&#10;Complete attributable verdict" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#eee9fa;strokeColor=#7962a9;fontColor=#163641;fontFamily=Arial;fontSize=15;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="350" y="490" width="265" height="115" />
+        </mxCell>
+        <mxCell id="clean" value="Private GCS released&#10;Create only • verify exact bytes&#10;Retry reconciles matching orphan" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#e4f3e9;strokeColor=#42845b;fontColor=#163641;fontFamily=Arial;fontSize=15;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="670" width="285" height="100" />
+        </mxCell>
+        <mxCell id="commit" value="Conditional release + audit&#10;Exact source and destination&#10;Pending / rejected never available" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf0f4;strokeColor=#7b8994;fontColor=#163641;fontFamily=Arial;fontSize=15;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="350" y="670" width="265" height="100" />
+        </mxCell>
+        <mxCell id="download" value="Authenticated delivery&#10;Current hospital / record grant&#10;Pinned generation • no-store&#10;Attachment + nosniff" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#edf0f4;strokeColor=#7b8994;fontColor=#163641;fontFamily=Arial;fontSize=15;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="660" y="650" width="270" height="120" />
+        </mxCell>
+        <mxCell id="note" value="Current proof: storage/scanner primitives and private intent/list API tested locally.&#10;Remaining: actual GCS/workload identity, upload/finalize/delivery, orchestration and UI.&#10;No names, filenames or medical/employment content in paths, NATS, Temporal or Valkey." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#f4f7f9;strokeColor=#a5b5bd;fontColor=#163641;fontFamily=Arial;fontSize=15;spacing=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="960" y="145" width="240" height="510" />
+        </mxCell>
+        <mxCell id="e1" value="verified authentication" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#547683;fontFamily=Arial;fontSize=12;endArrow=block;" edge="1" parent="1" source="user" target="api">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e2" value="one local transaction" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#547683;fontFamily=Arial;fontSize=12;endArrow=block;" edge="1" parent="1" source="api" target="db">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e3" value="bounded private bytes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#547683;fontFamily=Arial;fontSize=12;endArrow=block;" edge="1" parent="1" source="api" target="q">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e4" value="durable dispatch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#547683;fontFamily=Arial;fontSize=12;endArrow=block;" edge="1" parent="1" source="db" target="nats">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e5" value="after commit • idempotent" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#547683;fontFamily=Arial;fontSize=12;endArrow=block;" edge="1" parent="1" source="nats" target="temporal">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e6" value="owning activity" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#547683;fontFamily=Arial;fontSize=12;endArrow=block;" edge="1" parent="1" source="temporal" target="scan">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e7" value="pinned generation" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#547683;fontFamily=Arial;fontSize=12;endArrow=block;" edge="1" parent="1" source="q" target="scan">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e8" value="verified clean only" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#547683;fontFamily=Arial;fontSize=12;endArrow=block;" edge="1" parent="1" source="scan" target="clean">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e9" value="verify before DB release" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#547683;fontFamily=Arial;fontSize=12;endArrow=block;" edge="1" parent="1" source="clean" target="commit">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e10" value="current authorization" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#547683;fontFamily=Arial;fontSize=12;endArrow=block;" edge="1" parent="1" source="commit" target="download">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e11" value="private mediated response" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;strokeColor=#547683;fontFamily=Arial;fontSize=12;endArrow=block;" edge="1" parent="1" source="download" target="user">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -43,7 +43,7 @@ Every piece of work is tracked by a GitHub issue. Before writing code:
 4. **Link the work back:** PR bodies close their issue (`Closes #<n>`), and
    design specs record the issue they resolve in their header.
 
-The `gh` CLI must be authenticated as the personal account `mahesh-sangawar`
+The `gh` CLI must be authenticated as the personal account `Sam123ben`
 for this repo.
 
 ## Frontend rules

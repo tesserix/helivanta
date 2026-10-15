@@ -143,6 +143,7 @@ func sharedPostgres(t *testing.T) (host, port string) {
 		if err := runSQL(ctx, "hms", `
 			CREATE ROLE hms_owner LOGIN PASSWORD 'hms_owner' NOSUPERUSER NOBYPASSRLS;
 			CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;
+			CREATE ROLE helivanta_document_worker LOGIN PASSWORD 'helivanta_document_worker' NOSUPERUSER NOBYPASSRLS;
 			CREATE ROLE helivanta_system LOGIN PASSWORD 'helivanta_system' NOSUPERUSER BYPASSRLS;
 			GRANT hms_owner TO hms;`); err != nil {
 			pgErr = fmt.Errorf("create roles: %w", err)

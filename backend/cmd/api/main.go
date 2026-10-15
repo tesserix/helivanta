@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cloud.google.com/go/storage"
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
@@ -8,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/valkey-io/valkey-go"
+	"go.temporal.io/sdk/client"
 	"log/slog"
 	"net/http"
 	"os"
@@ -25,6 +27,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
+	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -179,6 +182,34 @@ func run() error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	documentsEnabled, err := cfg.RequireDocumentStorage()
+	if err != nil {
+		return err
+	}
+	var documents *attachments.GCS
+	var workflows client.Client
+	if documentsEnabled {
+		cloud, err := storage.NewClient(ctx)
+		if err != nil {
+			return errors.New("private document storage identity unavailable")
+		}
+		defer func() {
+			if err := cloud.Close(); err != nil {
+				slog.Error("document storage close unavailable")
+			}
+		}()
+		documents, err = attachments.NewGCS(cloud, cfg.DocumentQuarantineBucket, cfg.DocumentReleasedBucket)
+		if err != nil {
+			return err
+		}
+		startup, cancel := context.WithTimeout(ctx, 15*time.Second)
+		workflows, err = client.DialContext(startup, client.Options{HostPort: cfg.TemporalAddress, Namespace: cfg.TemporalNamespace, Logger: slog.Default()})
+		cancel()
+		if err != nil {
+			return errors.New("private document workflow client unavailable")
+		}
+		defer workflows.Close()
+	}
 
 	// OpenWithSystem, not Open: this binary reconciles authorization,
 	// drains the outbox and prunes retention, and all three read across
@@ -316,6 +347,8 @@ func run() error {
 	// negating cfg.IsDev().
 	sessionSecureCookie := !cfg.IsDev()
 	deps := platform.Deps{
+		Documents:           documents,
+		Workflows:           workflows,
 		DB:                  db,
 		Bus:                 bus,
 		Authz:               fga,

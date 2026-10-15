@@ -2,6 +2,8 @@ package events
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -180,6 +182,12 @@ func Migrations() []tenantdb.Migration {
 		SQL: `
 			GRANT SELECT, UPDATE, DELETE ON outbox_events TO helivanta_system;
 			GRANT SELECT, DELETE ON processed_events TO helivanta_system;`,
+	}, {
+		ID: "0005_events_external_delivery_hash",
+		SQL: `SET LOCAL lock_timeout='5s';
+		      SET LOCAL statement_timeout='60s';
+		      ALTER TABLE processed_events ADD COLUMN delivery_hash text
+		      CHECK(delivery_hash IS NULL OR delivery_hash ~ '^[a-f0-9]{64}$');`,
 	}}
 }
 
@@ -361,6 +369,11 @@ func (outboxRow) TableName() string { return "outbox_events" }
 // Delivery happens asynchronously via RunDispatcher — at-least-once,
 // never lost with the business write (issue #2).
 func (b *Bus) Publish(tx *gorm.DB, subject string, evt Event) error {
+	return Enqueue(tx, subject, evt)
+}
+
+// Enqueue records durable work without requiring a broker connection in the writer.
+func Enqueue(tx *gorm.DB, subject string, evt Event) error {
 	var id uuid.UUID
 	if evt.ID == "" {
 		id = uuid.New()
@@ -560,6 +573,11 @@ func (b *Bus) handleMsg(ctx context.Context, db OutboxStore, c Consumer, msg *na
 		}
 	}
 	err := b.runConsumerTx(ctx, db, c, evt)
+	if err == nil && c.AfterCommit != nil {
+		externalCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		defer cancel()
+		err = c.AfterCommit(externalCtx, evt)
+	}
 	if err != nil {
 		slog.Error("consumer handle", "consumer", c.Name, "event_id", evt.ID, "tenant_id", evt.TenantID, "err", err)
 		if meta, mErr := msg.Metadata(); mErr == nil && meta.NumDelivered >= maxDeliver {
@@ -612,6 +630,12 @@ func (b *Bus) runConsumerTx(ctx context.Context, db OutboxStore, c Consumer, evt
 			err = fmt.Errorf("consumer panic: %v", r)
 		}
 	}()
+	encoded, err := json.Marshal(evt)
+	if err != nil {
+		return errors.New("consumer event encoding invalid")
+	}
+	sum := sha256.Sum256(encoded)
+	digest := hex.EncodeToString(sum[:])
 	return db.WithSystem(ctx, func(tx *gorm.DB) error {
 		// Scope the whole consumer tx (claim + handler) to the tenant
 		// whose data this event creates — the destination for a directed
@@ -628,12 +652,22 @@ func (b *Bus) runConsumerTx(ctx context.Context, db OutboxStore, c Consumer, evt
 		if err := tx.Exec(`SELECT set_config(?, ?, true)`, tenantdb.ActorSetting, "system:"+c.Name).Error; err != nil {
 			return err
 		}
-		res := tx.Exec(`INSERT INTO processed_events (consumer, event_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
-			c.Name, evt.ID)
+		res := tx.Exec(`INSERT INTO processed_events (consumer, event_id,delivery_hash) VALUES (?, ?,?) ON CONFLICT DO NOTHING`,
+			c.Name, evt.ID, digest)
 		if res.Error != nil {
 			return res.Error
 		}
 		if res.RowsAffected == 0 {
+			if c.AfterCommit != nil {
+				var matches bool
+				if err := tx.Raw(`SELECT COALESCE(delivery_hash=?,false) FROM processed_events WHERE consumer=? AND event_id=?`, digest, c.Name, evt.ID).Scan(&matches).Error; err != nil {
+					return err
+				}
+				// An existing claim is not authority to start a different external operation.
+				if !matches {
+					return errors.New("consumer duplicate payload conflicts with committed claim")
+				}
+			}
 			return nil // duplicate delivery — no-op (idempotency)
 		}
 		// Handler runs in the SAME tx as the idempotency claim — do not

@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
@@ -24,8 +25,9 @@ import (
 )
 
 type handlers struct {
-	db  *tenantdb.DB
-	bus *events.Bus
+	db        *tenantdb.DB
+	bus       *events.Bus
+	documents *attachments.GCS
 }
 
 type hospital struct {

@@ -149,24 +149,25 @@ type rosterInput struct {
 }
 
 type datedAllocation struct {
-	ID              uuid.UUID `json:"id"`
-	StaffID         uuid.UUID `json:"staff_id"`
-	EmployeeCode    string    `json:"employee_code"`
-	DisplayName     string    `json:"display_name"`
-	RosterDate      string    `json:"roster_date"`
-	ShiftRevisionID uuid.UUID `json:"shift_revision_id"`
-	ShiftCode       string    `json:"shift_code"`
-	ShiftName       string    `json:"shift_name"`
-	StartTime       string    `json:"start_time"`
-	EndTime         string    `json:"end_time"`
-	AreaRevisionID  uuid.UUID `json:"area_revision_id"`
-	AreaCode        string    `json:"area_code"`
-	AreaName        string    `json:"area_name"`
-	StartsAt        time.Time `json:"starts_at"`
-	EndsAt          time.Time `json:"ends_at"`
-	Additional      bool      `json:"additional"`
-	AddedVersion    int64     `json:"added_version"`
-	CreatedAt       time.Time `json:"created_at"`
+	ID              uuid.UUID  `json:"id"`
+	StaffID         uuid.UUID  `json:"staff_id"`
+	EmployeeCode    string     `json:"employee_code"`
+	DisplayName     string     `json:"display_name"`
+	RosterDate      string     `json:"roster_date"`
+	ShiftRevisionID uuid.UUID  `json:"shift_revision_id"`
+	ShiftCode       string     `json:"shift_code"`
+	ShiftName       string     `json:"shift_name"`
+	StartTime       string     `json:"start_time"`
+	EndTime         string     `json:"end_time"`
+	AreaRevisionID  uuid.UUID  `json:"area_revision_id"`
+	AreaCode        string     `json:"area_code"`
+	AreaName        string     `json:"area_name"`
+	StartsAt        time.Time  `json:"starts_at"`
+	EndsAt          time.Time  `json:"ends_at"`
+	Additional      bool       `json:"additional"`
+	AddedVersion    int64      `json:"added_version"`
+	ExchangeID      *uuid.UUID `json:"exchange_id,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
 }
 
 type datedAllocationInput struct {

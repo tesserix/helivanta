@@ -26,6 +26,11 @@ Leave-year settings; effective-dated staff structure assignments; append-only le
 5. `@helivanta/api` schemas and tests; `/workforce/leave-requests` page; zone entry.
 6. `scripts/verify-leave-requests.mjs`; `docs/api/workforce.md`; ADR-0021; `docs/hr-capability-coverage.md`.
 
-## Slice 4 — reports
+## Slice 4 — reports ([spec](../specs/2026-10-16-leave-reports-design.md))
 
-Reports 949 (monthly leave by type) and 954 (leave status) with the observed filters, explicit period boundaries, pagination and reconciliation against the ledger.
+1. Migration `0013_workforce_leave_reports` (`leave_reports.sql`): period indexes on request days and request dates; no new tables, no writes.
+2. Contract models for both report rows and the report filters; regenerate `leave_types.go` and `leave-contract.ts`.
+3. Handlers `leave_reports.go`: `monthly` (949, approved leave split by month and type) and `status` (954, every status overlapping the period); profile columns and the department filter gated by `workforce.enrollment.manage`.
+4. Tests `leave_reports_test.go`: period splitting, filters, pagination, ledger reconciliation, gated columns, validation and foreign hospitals.
+5. `@helivanta/api` filter schema and path builder with tests; `/workforce/leave-reports` page and tests; zone entry.
+6. `scripts/verify-leave-reports.mjs`; `docs/api/workforce.md`; ADR-0021; `docs/hr-capability-coverage.md`.

@@ -45,3 +45,4 @@ export * from "./leave";
 export * from "./pharmacy";
 
 export * from "./country-profiles";
+export * from "./duty";

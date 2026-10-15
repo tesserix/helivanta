@@ -1002,6 +1002,163 @@
         "name": "created_at",
         "type": "time"
       }
+    ],
+    "leaveReportType": [
+      {
+        "name": "leave_type_id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "half_days",
+        "type": "int",
+        "min": 0
+      },
+      {
+        "name": "minutes",
+        "type": "int",
+        "min": 0
+      }
+    ],
+    "leaveReportMonth": [
+      {
+        "name": "month",
+        "type": "string"
+      },
+      {
+        "name": "leave_dates",
+        "type": "[]string"
+      },
+      {
+        "name": "types",
+        "type": "[]leaveReportType"
+      }
+    ],
+    "leaveMonthlyReportRow": [
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "department",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "joined_on",
+        "type": "string",
+        "format": "date",
+        "optional": true
+      },
+      {
+        "name": "months",
+        "type": "[]leaveReportMonth",
+        "orm_ignore": true
+      }
+    ],
+    "leaveStatusReportRow": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "department",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "joined_on",
+        "type": "string",
+        "format": "date",
+        "optional": true
+      },
+      {
+        "name": "leave_type_id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "unit",
+        "type": "string",
+        "enum": ["full_day", "half_day", "short_leave"]
+      },
+      {
+        "name": "start_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "end_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "session",
+        "type": "string",
+        "enum": ["first_half", "second_half"],
+        "optional": true
+      },
+      {
+        "name": "minutes",
+        "type": "int",
+        "optional": true
+      },
+      {
+        "name": "half_days",
+        "type": "int"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending", "approved", "rejected", "cancelled"]
+      },
+      {
+        "name": "requested_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "decided_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
     ]
   },
   "ledger_kinds": {

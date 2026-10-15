@@ -113,6 +113,7 @@ function mock({
   configured = true,
   status = "draft" as "draft" | "frozen",
   reject = null as null | ((body: { add?: { id: string }[] }) => unknown),
+  exchange = null as null | string,
 } = {}) {
   const writes: { method: string; url: string; body: unknown }[] = [];
   vi.stubGlobal(
@@ -146,7 +147,9 @@ function mock({
           ? [200, settings]
           : [404, { error: "not_found", message: "roster settings not found" }];
       else if (url.includes("/allocations"))
-        body = page(url.includes("version=2") ? [] : [allocation]);
+        body = page(
+          url.includes("version=2") ? [] : [{ ...allocation, exchange_id: exchange ?? undefined }],
+        );
       else if (url.includes("/revisions")) body = page([revision]);
       else if (url.endsWith(`/rosters/${rosterID}`)) body = roster(status);
       else if (url.endsWith("/hr/rosters")) body = page([roster(status)]);
@@ -216,6 +219,20 @@ it("shows readers the grid and history without write actions", async () => {
   await user.click(screen.getByRole("button", { name: "View roster as of v2" }));
   expect(await screen.findByText("Allocations as of v2")).toBeInTheDocument();
   expect(await screen.findByText("No shifts are allocated in this version.")).toBeInTheDocument();
+  expect(screen.queryByText(/exchanged/)).not.toBeInTheDocument();
+});
+
+it("marks duties an approved exchange moved on a frozen roster", async () => {
+  mock({
+    grants: [],
+    manager: false,
+    status: "frozen",
+    exchange: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  });
+  const { user } = renderWithProviders(<Rosters />);
+  await user.click(await screen.findByRole("button", { name: "Open Synthetic Ward" }));
+  const grid = await screen.findByRole("region", { name: "Allocations" });
+  expect(await within(grid).findByText("· exchanged")).toBeInTheDocument();
 });
 
 it("sends additions and ticked removals, and marks rows the API reports as overlapping", async () => {

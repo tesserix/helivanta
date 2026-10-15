@@ -16,6 +16,8 @@ const PermEnrollmentManage authz.Permission = "workforce.enrollment.manage"
 const PermRosterManage authz.Permission = "workforce.roster.manage"
 const RosterConfigChanged = workforcecontract.SubjectRosterConfigChanged
 const ShiftChanged = workforcecontract.SubjectShiftChanged
+const RosterSettingsChanged = workforcecontract.SubjectRosterSettingsChanged
+const StaffRosterAssignmentChanged = workforcecontract.SubjectStaffRosterAssignmentChanged
 
 const PermMasterManage authz.Permission = "workforce.master.manage"
 const EnrollmentChanged = workforcecontract.SubjectStaffEnrollmentChanged
@@ -39,18 +41,21 @@ var shiftsSchema string
 //go:embed roster_config.sql
 var rosterConfigSchema string
 
+//go:embed roster_policy.sql
+var rosterPolicySchema string
+
 type Module struct{}
 
 func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "workforce" }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}}
+	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}, {ID: "0007_workforce_roster_policy", SQL: rosterPolicySchema}}
 }
 func (*Module) Permissions() []authz.Grant {
 	return []authz.Grant{{Permission: PermHospitalManage}, {Permission: PermEnrollmentManage}, {Permission: PermMasterManage}, {Permission: PermRosterManage}}
 }
 func (*Module) Publishes() []string {
-	return []string{EnrollmentChanged, MasterChanged, ShiftChanged, RosterConfigChanged}
+	return []string{EnrollmentChanged, MasterChanged, ShiftChanged, RosterConfigChanged, RosterSettingsChanged, StaffRosterAssignmentChanged}
 }
 func (*Module) DirectedSubjects() []string                  { return nil }
 func (*Module) DirectedWriteTables() []string               { return nil }
@@ -76,6 +81,12 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.PUT("/:hospital/hr/shifts/:id", PermRosterManage, h.putShift)
 	platform.ListRoute(g, "/:hospital/hr/shifts", authz.Public, h.listShifts)
 	platform.ListRoute(g, "/:hospital/hr/shifts/:id/history", authz.Public, h.shiftHistory)
+	g.GET("/:hospital/hr/roster-settings", authz.Public, h.getRosterSettings)
+	g.PUT("/:hospital/hr/roster-settings", PermRosterManage, h.putRosterSettings)
+	platform.ListRoute(g, "/:hospital/hr/roster-settings/history", authz.Public, h.rosterSettingsHistory)
+	platform.ListRoute(g, "/:hospital/hr/roster-assignments", authz.Public, h.listStaffRosterAssignments)
+	g.PUT("/:hospital/staff/:id/roster-assignment", PermRosterManage, h.putStaffRosterAssignment)
+	platform.ListRoute(g, "/:hospital/staff/:id/roster-assignment/history", authz.Public, h.staffRosterAssignmentHistory)
 	g.PUT("/:hospital/hr/masters/:id", PermMasterManage, h.putMaster)
 	platform.ListRoute(g, "/:hospital/hr/masters", authz.Public, h.listMasters)
 	platform.ListRoute(g, "/:hospital/hr/masters/:id/history", authz.Public, h.masterHistory)

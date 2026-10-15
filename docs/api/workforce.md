@@ -151,3 +151,22 @@ New references must be current and active; unchanged historical references remai
 Four normalized tables use forced RLS and scoped foreign keys. Revisions and their children cannot be amended later. State, immutable aggregate, audit and identifier-only `helivanta.in.workforce.roster_config_changed.v1` outbox commit together. JetStream publication resumes after broker failure. This configuration transaction needs no Temporal workflow or HR-data cache. Dated allocation, hospital timezone/DST policy, automatic population, leave/credential conflict checks and roster freeze/correction remain under #1036.
 
 Repeatable synthetic acceptance: `scripts/verify-roster-config.mjs`, using the same privately supplied verification scope as the enrollment verifier. Stable reserved IDs distinguish its fixtures from manual UI records; reruns restore baseline through versioned writes without deleting history.
+
+## Roster settings and staff weekly-template assignments
+
+Design: [ADR 0019](../adr/0019-roster-settings-and-staff-assignments.md). UI: `/workforce/roster-policy`.
+
+| Endpoint                                                                   | Authorization                                                | Behavior                                                                                       |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `GET /workforce/hospitals/{hospital}/hr/roster-settings`                   | Tenant membership and explicit hospital reader/manager grant | Current reviewed policy; 404 until a manager reviews one                                       |
+| `PUT /workforce/hospitals/{hospital}/hr/roster-settings`                   | `workforce.roster.manage` and locked hospital manager grant  | Expected version, IANA timezone, week start, auto population, monotonic effective date         |
+| `GET /workforce/hospitals/{hospital}/hr/roster-settings/history`           | Tenant membership and explicit hospital reader/manager grant | Bounded keyset history of immutable revisions                                                  |
+| `GET /workforce/hospitals/{hospital}/hr/roster-assignments`                | Tenant membership and explicit hospital reader/manager grant | Bounded keyset list with staff and pinned template code/name                                   |
+| `PUT /workforce/hospitals/{hospital}/staff/{id}/roster-assignment`         | `workforce.roster.manage` and locked hospital manager grant  | Expected version, pinned weekly-template revision, `fixed`, `active`, monotonic effective date |
+| `GET /workforce/hospitals/{hospital}/staff/{id}/roster-assignment/history` | Tenant membership and explicit hospital reader/manager grant | Bounded keyset history; 404 when the staff member has no assignment                            |
+
+Settings input: `expected_version`, `timezone` (canonical IANA name such as `Asia/Kolkata` or `UTC`; `Local`, aliases and unknown zones are rejected), `week_start` (Monday=0…Sunday=6), `auto_population` (`disabled`, `fixed_shift`, `all_assigned`), `effective_on` and `reviewed: true`. There is no default policy.
+
+Assignment input: `expected_version`, `weekly_template_revision_id`, `fixed`, `active`, `effective_on` and `reviewed: true`. A new pin must be the current revision of an active weekly template effective on or before the assignment; an unchanged pin stays valid after the template is revised. Active assignments require active staff. Bad references return 400 `invalid_reference`.
+
+Effective dates cannot move earlier than the current revision (400). Stale versions return 409, foreign scope 404, missing permission 403. Unchanged retries return the existing revision with no new audit or event. State, revision, audit and identifier-only `helivanta.in.workforce.roster_settings_changed.v1` / `helivanta.in.workforce.staff_roster_assignment_changed.v1` outbox rows commit together; Valkey and Temporal are not involved. Synthetic acceptance: `scripts/verify-roster-policy.mjs` (run after the enrollment and roster-config verifiers, whose fixtures it pins).

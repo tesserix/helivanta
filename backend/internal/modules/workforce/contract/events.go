@@ -38,3 +38,20 @@ type RosterConfigChangedData struct {
 	RevisionID string `json:"revision_id"`
 	Version    int64  `json:"version"`
 }
+
+const SubjectRosterSettingsChanged = "helivanta.in.workforce.roster_settings_changed.v1"
+
+type RosterSettingsChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	RevisionID string `json:"revision_id"`
+	Version    int64  `json:"version"`
+}
+
+const SubjectStaffRosterAssignmentChanged = "helivanta.in.workforce.staff_roster_assignment_changed.v1"
+
+type StaffRosterAssignmentChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	RevisionID string `json:"revision_id"`
+	Version    int64  `json:"version"`
+}

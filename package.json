@@ -14,10 +14,10 @@
     "test": "turbo run test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.57.0",
-    "pg": "^8.13.1",
-    "prettier": "^3.4.2",
-    "turbo": "^2.8.10"
+    "@playwright/test": "^1.64.0",
+    "pg": "^8.23.1",
+    "prettier": "^3.9.10",
+    "turbo": "^2.11.7"
   },
   "pnpm": {
     "overrides": {

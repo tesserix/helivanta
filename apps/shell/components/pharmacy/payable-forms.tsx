@@ -31,7 +31,7 @@ import {
   formatDateTime,
 } from "@helivanta/ui";
 import { CurrencyAmountField, formatPharmacyMoney } from "./currency-amount-field";
-import { PharmacyFailure } from "./pharmacy-feedback";
+import { RequestFailure } from "../request-failure";
 
 const categories = [
   { value: "inventory", label: "Inventory purchase" },
@@ -324,7 +324,7 @@ function ReceiptPicker({
         />
       </Field>
       {receipts.isError && (
-        <PharmacyFailure message="Could not load receiving lines." retry={receipts.retry} />
+        <RequestFailure message="Could not load receiving lines." retry={receipts.retry} />
       )}
       <LoadMore
         hasMore={receipts.hasMore}
@@ -362,7 +362,7 @@ export function PayableHistory({
   }, [detail.data?.id]);
   if (detail.isError)
     return (
-      <PharmacyFailure message="Could not load this financial document." retry={detail.refetch} />
+      <RequestFailure message="Could not load this financial document." retry={detail.refetch} />
     );
   if (!detail.data) return <p role="status">Loading document…</p>;
   const doc = detail.data;
@@ -428,7 +428,7 @@ export function PayableHistory({
       <div>
         <h4 className="mb-3 font-semibold">Payments, credits & reversals</h4>
         {history.isError ? (
-          <PharmacyFailure message="Could not load settlement history." retry={history.retry} />
+          <RequestFailure message="Could not load settlement history." retry={history.retry} />
         ) : history.isPending ? (
           <p role="status">Loading settlements…</p>
         ) : !history.items.length ? (

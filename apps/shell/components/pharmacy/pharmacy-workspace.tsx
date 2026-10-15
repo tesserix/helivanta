@@ -18,7 +18,7 @@ import {
   type PharmacyScope,
 } from "@helivanta/api";
 import { Field, SelectControl, LoadMore, useZodForm } from "@helivanta/ui";
-import { PharmacyFailure } from "./pharmacy-feedback";
+import { RequestFailure } from "../request-failure";
 import { CataloguePanel } from "./catalogue-panel";
 import { AccountsPanel } from "./accounts-panel";
 import { StockPanel } from "./stock-panel";
@@ -32,7 +32,7 @@ export function PharmacyWorkspace({ view }: { view: "catalogue" | "stock" | "acc
   );
   if (identity.isError)
     return (
-      <PharmacyFailure message="Could not verify your active tenant." retry={identity.refetch} />
+      <RequestFailure message="Could not verify your active tenant." retry={identity.refetch} />
     );
   if (!identity.data) return <p role="status">Loading pharmacy workspace…</p>;
   return <TenantPharmacy key={identity.data.tenant_id} identity={identity.data} view={view} />;
@@ -127,13 +127,13 @@ function TenantPharmacy({
         </div>
       </header>
       {pharmacies.isError ? (
-        <PharmacyFailure message="Could not load your pharmacies." retry={pharmacies.retry} />
+        <RequestFailure message="Could not load your pharmacies." retry={pharmacies.retry} />
       ) : pharmacies.isPending ? (
         <p role="status">Loading pharmacies…</p>
       ) : !pharmacy ? (
         <DirectoryEmpty selected={!!selection.pharmacyId} />
       ) : outlets.isError ? (
-        <PharmacyFailure message="Could not load this pharmacy's outlets." retry={outlets.retry} />
+        <RequestFailure message="Could not load this pharmacy's outlets." retry={outlets.retry} />
       ) : outlets.isPending ? (
         <p role="status">Loading outlets…</p>
       ) : outlet ? (
@@ -223,7 +223,7 @@ function OutletPharmacy({
       {access.isPending ? (
         <p role="status">Checking pharmacy access…</p>
       ) : access.isError ? (
-        <PharmacyFailure
+        <RequestFailure
           message="Pharmacy access is unavailable. Ask your administrator for access to this outlet, or retry if it was just updated."
           retry={access.refetch}
         />

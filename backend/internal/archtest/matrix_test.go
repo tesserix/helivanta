@@ -12,6 +12,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/medicore"
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
@@ -24,12 +25,7 @@ const (
 	tenantB = "22222222-2222-2222-2222-222222222222"
 )
 
-func allRoles() []authz.Role {
-	return []authz.Role{
-		authz.RoleTenantAdmin, authz.RoleDoctor, authz.RoleNurse,
-		authz.RolePharmacist, authz.RoleLabTech, authz.RoleReceptionist,
-	}
-}
+func allRoles() []authz.Role { return authz.SystemRoles() }
 
 // expectedPermissions is the ground truth derived from module
 // declarations: which permissions a role should hold after reconcile.
@@ -184,6 +180,12 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 // bug class — a role mapping change must be a deliberate, reviewable edit
 // here.
 var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
+	supply.PermDirectoryRead:      {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RoleSupplyWarehouse, authz.RoleSupplySales},
+	supply.PermPartyRead:          {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor},
+	supply.PermPartyWrite:         {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing},
+	supply.PermOrganizationManage: {authz.RoleTenantAdmin, authz.RoleSupplyAdmin},
+	supply.PermAccessManage:       {authz.RoleTenantAdmin, authz.RoleSupplyAdmin},
+
 	workforce.PermHospitalManage:   {authz.RoleTenantAdmin},
 	workforce.PermEnrollmentManage: {authz.RoleTenantAdmin},
 	workforce.PermDocumentManage:   {authz.RoleTenantAdmin},

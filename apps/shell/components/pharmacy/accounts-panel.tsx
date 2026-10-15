@@ -15,7 +15,7 @@ import {
 import { LoadMore } from "@helivanta/ui";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { PayableForm, PayableHistory } from "./payable-forms";
-import { PharmacyFailure } from "./pharmacy-feedback";
+import { RequestFailure } from "../request-failure";
 
 export function AccountsPanel({
   scope,
@@ -89,7 +89,7 @@ function OutletAccounts({
           )}
         </div>
         {bills.isError ? (
-          <PharmacyFailure message="Could not load bills and expenses." retry={bills.retry} />
+          <RequestFailure message="Could not load bills and expenses." retry={bills.retry} />
         ) : bills.isPending ? (
           <p role="status">Loading bills and expenses…</p>
         ) : !bills.items.length ? (
@@ -209,7 +209,7 @@ function OutletAccounts({
           valuation.
         </p>
         {audit.isError ? (
-          <PharmacyFailure message="Could not load the inventory cost audit." retry={audit.retry} />
+          <RequestFailure message="Could not load the inventory cost audit." retry={audit.retry} />
         ) : audit.isPending ? (
           <p role="status">Loading inventory audit…</p>
         ) : !audit.items.length ? (

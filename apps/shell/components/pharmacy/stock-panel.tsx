@@ -31,7 +31,7 @@ import {
   ConfirmDialog,
   formatDateTime,
 } from "@helivanta/ui";
-import { PharmacyFailure } from "./pharmacy-feedback";
+import { RequestFailure } from "../request-failure";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -82,7 +82,7 @@ export function StockPanel({
           </Link>
         </div>
         {locations.isError || products.isError ? (
-          <PharmacyFailure
+          <RequestFailure
             message="Could not load stock locations or products."
             retry={() => {
               locations.retry();
@@ -153,7 +153,7 @@ export function StockPanel({
               />
             </div>
             {batches.isError && productId && (
-              <PharmacyFailure message="Could not load manufacturer lots." retry={batches.retry} />
+              <RequestFailure message="Could not load manufacturer lots." retry={batches.retry} />
             )}
           </>
         )}
@@ -361,7 +361,7 @@ function StockBucket({
           Selected lot balance
         </h3>
         {balance.isError ? (
-          <PharmacyFailure message="Could not load this stock balance." retry={balance.refetch} />
+          <RequestFailure message="Could not load this stock balance." retry={balance.refetch} />
         ) : balance.isPending ? (
           <p role="status">Loading balance…</p>
         ) : (
@@ -399,7 +399,7 @@ function StockBucket({
       <div className="border-t p-6">
         <h4 className="mb-4 font-medium">Movement history</h4>
         {movements.isError ? (
-          <PharmacyFailure message="Could not load stock movements." retry={movements.retry} />
+          <RequestFailure message="Could not load stock movements." retry={movements.retry} />
         ) : movements.isPending ? (
           <p role="status">Loading movements…</p>
         ) : movements.items.length === 0 ? (

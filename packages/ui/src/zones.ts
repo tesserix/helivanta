@@ -1,4 +1,5 @@
 import {
+  Building2,
   BedDouble,
   CalendarDays,
   Users,
@@ -157,6 +158,22 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/medications",
         icon: ClipboardList,
         permission: "pharmacy.medication.read",
+      },
+    ],
+  },
+  {
+    key: "supply",
+    label: "Supply Connect",
+    icon: Building2,
+    href: "/supply/parties",
+    permission: "supply.directory.read",
+    hue: "amber",
+    pages: [
+      {
+        label: "Organisations & suppliers",
+        href: "/supply/parties",
+        icon: Building2,
+        permission: "supply.directory.read",
       },
     ],
   },

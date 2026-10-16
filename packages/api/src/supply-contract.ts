@@ -166,3 +166,22 @@ export const supplyLicenseInputSchema = supplyLicenseFieldsSchema
     expected_version: z.number().int().min(0).max(9007199254740991),
   })
   .strict();
+
+export const supplyEvidenceFieldsSchema = z
+  .object({
+    filename: z.string().min(1).max(180),
+    content_type: z.enum(["image/png", "image/jpeg"]),
+    size: z.number().int().min(1).max(10485760),
+    sha256: z
+      .string()
+      .min(64)
+      .max(64)
+      .regex(new RegExp("^[a-f0-9]{64}$"), "Use the required format."),
+  })
+  .strict();
+
+export const supplyEvidenceInputSchema = supplyEvidenceFieldsSchema
+  .extend({
+    expected_license_version: z.number().int().min(1).max(9007199254740991),
+  })
+  .strict();

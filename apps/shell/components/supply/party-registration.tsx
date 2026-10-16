@@ -34,6 +34,7 @@ import {
   type FieldPath,
   type UseFormReturn,
 } from "@helivanta/ui";
+import { LicenceEvidence } from "./licence-evidence";
 import { RequestFailure } from "../request-failure";
 
 const readers = ["administrator", "purchasing", "finance", "compliance", "auditor"];
@@ -60,6 +61,8 @@ export function PartyRegistration({
     supplyRegistryRoot(scope, "licenses"),
     { enabled: allowed && can("supply.license.read") },
   );
+  const [evidence, setEvidence] = useState<SupplyLicense | null>(null);
+  const currentEvidence = evidence && licenses.items.find((row) => row.id === evidence.id);
   const [premise, setPremise] = useState<SupplyPremise | null>();
   const [license, setLicense] = useState<SupplyLicense | null>();
   const [history, setHistory] = useState<{ kind: "premises" | "licenses"; id: string } | null>(
@@ -213,7 +216,16 @@ export function PartyRegistration({
                       Declared · verification pending
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    {can("supply.evidence.read") && (
+                      <Button
+                        variant="outline"
+                        onClick={() => setEvidence(row)}
+                        aria-label={`Evidence for licence ${row.number}`}
+                      >
+                        Evidence
+                      </Button>
+                    )}
                     {editLicense && (
                       <Button
                         variant="outline"
@@ -269,6 +281,15 @@ export function PartyRegistration({
           />
         )}
       </div>
+      {currentEvidence && (
+        <LicenceEvidence
+          key={`${scope.tenantId}:${scope.subject}:${scope.partyId}:${currentEvidence.id}:${currentEvidence.version}`}
+          scope={{ ...scope, licenseId: currentEvidence.id }}
+          licence={currentEvidence}
+          roles={roles}
+          onClose={() => setEvidence(null)}
+        />
+      )}
       {history && (
         <RegistryHistory
           key={`${history.kind}:${history.id}`}

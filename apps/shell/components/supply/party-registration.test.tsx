@@ -160,3 +160,82 @@ it("shows the actual licence validity in each retained revision", async () => {
   expect(history).toHaveTextContent("Expires 2031-12-31");
   expect(history).toHaveTextContent("Expires 2030-12-31");
 });
+
+it("marks existing evidence historical immediately after its licence is revised", async () => {
+  const premise = {
+    id: "0199e000-0000-7000-8000-000000000002",
+    code: "TEST-DEPOT",
+    name: "TEST Depot",
+    kind: "warehouse",
+    status: "active",
+  };
+  let licence = {
+    id: "0199e000-0000-7000-8000-000000000003",
+    version: 1,
+    kind: "TEST",
+    number: "TEST-LIC",
+    issuing_authority: "TEST Authority",
+    jurisdiction: "TEST Sindh",
+    premise_id: premise.id,
+    issued_on: "2026-01-01",
+    expires_on: "2030-12-31",
+    product_categories: ["otc"],
+  };
+  const permissions = [
+    "supply.premise.read",
+    "supply.license.read",
+    "supply.license.write",
+    "supply.evidence.read",
+  ];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("permissions"))
+        return new Response(
+          JSON.stringify({ tenant_id: scope.tenantId, subject: scope.subject, data: permissions }),
+        );
+      if (url.includes("/evidence"))
+        return new Response(
+          JSON.stringify(
+            page([
+              {
+                id: "0199e000-0000-7000-8000-000000000004",
+                party_id: scope.partyId,
+                license_id: licence.id,
+                license_version: 1,
+                filename: "TEST old.png",
+                content_type: "image/png",
+                size: 1,
+                status: "revoked",
+                scan_attempt: 1,
+                uploaded_at: "2026-10-16T00:00:00Z",
+                scanned_at: "2026-10-16T00:00:00Z",
+                failure_code: null,
+                uploader_subject: "TEST",
+                created_at: "2026-10-16T00:00:00Z",
+                updated_at: "2026-10-16T00:00:00Z",
+                expires_at: "2026-10-16T00:30:00Z",
+              },
+            ]),
+          ),
+        );
+      if (init?.method === "PUT") {
+        licence = { ...licence, ...JSON.parse(init.body as string), version: 2 };
+        return new Response(JSON.stringify(licence));
+      }
+      if (url.includes("/licenses")) return new Response(JSON.stringify(page([licence])));
+      return new Response(JSON.stringify(page([premise])));
+    }),
+  );
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  const user = userEvent.setup();
+  renderWithProviders(<PartyRegistration scope={scope} country="PK" roles={["administrator"]} />);
+  await user.click(await screen.findByRole("button", { name: "Evidence for licence TEST-LIC" }));
+  expect(await screen.findByText("TEST old.png")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Edit licence TEST-LIC" }));
+  await user.clear(screen.getByLabelText("Expiry date"));
+  await user.type(screen.getByLabelText("Expiry date"), "2032-12-31");
+  await user.click(screen.getByRole("button", { name: "Save licence declaration" }));
+  expect(await screen.findByText(/Current revision 2/)).toBeInTheDocument();
+  expect(await screen.findByText(/Revision 1.*historical/)).toBeInTheDocument();
+});

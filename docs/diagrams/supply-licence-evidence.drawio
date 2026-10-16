@@ -1,0 +1,77 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="Private licence evidence">
+    <mxGraphModel dx="1450" dy="850" grid="1" gridSize="10" page="1" pageWidth="1600" pageHeight="900">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Private licence evidence — organisation boundary" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#cbd5e1;fontColor=#0f172a;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="80" y="30" width="1380" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ui" value="Staff / auditor workspace&lt;br&gt;Explicit party grant" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0f172a;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="80" y="170" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="api" value="Authenticated API&lt;br&gt;Tenant + party + revision checks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0f172a;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="410" y="170" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="pg" value="PostgreSQL + outbox&lt;br&gt;Forced RLS; immutable provenance" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0f172a;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="760" y="170" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="queue" value="JetStream → Temporal&lt;br&gt;Opaque IDs + attempt only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0f172a;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="170" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="quarantine" value="Private GCS quarantine&lt;br&gt;Generation + SHA-256 pinned" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0f172a;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="410" y="420" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="worker" value="Separate Supply worker&lt;br&gt;Restricted DB and KSA identity" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0f172a;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="420" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="av" value="ClamAV&lt;br&gt;Current definitions; passive content" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0f172a;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="650" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="release" value="Private GCS release&lt;br&gt;Clean immutable generation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0f172a;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="760" y="420" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="audit" value="Download rechecks grant&lt;br&gt;No-store attachment + audit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0f172a;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="80" y="420" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="edge0" value="Manage evidence" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=13;strokeColor=#475569;endArrow=block;" edge="1" parent="1" source="ui" target="api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge1" value="Atomic intent and outbox" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=13;strokeColor=#475569;endArrow=block;" edge="1" parent="1" source="api" target="pg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge2" value="Durable delivery" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=13;strokeColor=#475569;endArrow=block;" edge="1" parent="1" source="pg" target="queue">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge3" value="Exactly one workflow" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=13;strokeColor=#475569;endArrow=block;" edge="1" parent="1" source="queue" target="worker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge4" value="Create / verify" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=13;strokeColor=#475569;endArrow=block;" edge="1" parent="1" source="api" target="quarantine">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge5" value="Read pinned generation" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=13;strokeColor=#475569;endArrow=block;" edge="1" parent="1" source="worker" target="quarantine">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge6" value="Scan" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=13;strokeColor=#475569;endArrow=block;" edge="1" parent="1" source="worker" target="av">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge7" value="Promote only clean bytes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=13;strokeColor=#475569;endArrow=block;" edge="1" parent="1" source="worker" target="release">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge8" value="Verdict + audit + event" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=13;strokeColor=#475569;endArrow=block;" edge="1" parent="1" source="worker" target="pg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge9" value="Reauthorize before delivery" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=13;strokeColor=#475569;endArrow=block;" edge="1" parent="1" source="audit" target="api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge10" value="Verified released bytes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=13;strokeColor=#475569;endArrow=block;" edge="1" parent="1" source="release" target="audit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="note" value="A clean scan does not verify a licence or permit trading. Hospital affiliation does not grant organisation access." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontColor=#0f172a;fontSize=16;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="80" y="650" width="870" height="90" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

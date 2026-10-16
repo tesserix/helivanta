@@ -144,6 +144,7 @@ func sharedPostgres(t *testing.T) (host, port string) {
 			CREATE ROLE hms_owner LOGIN PASSWORD 'hms_owner' NOSUPERUSER NOBYPASSRLS;
 			CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;
 			CREATE ROLE helivanta_document_worker LOGIN PASSWORD 'helivanta_document_worker' NOSUPERUSER NOBYPASSRLS;
+ CREATE ROLE helivanta_supply_evidence_worker LOGIN PASSWORD 'helivanta_supply_evidence_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
 			CREATE ROLE helivanta_system LOGIN PASSWORD 'helivanta_system' NOSUPERUSER BYPASSRLS;
 			GRANT hms_owner TO hms;`); err != nil {
 			pgErr = fmt.Errorf("create roles: %w", err)

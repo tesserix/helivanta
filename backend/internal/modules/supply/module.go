@@ -16,6 +16,9 @@ var partySchema string
 //go:embed registration.sql
 var registrationSchema string
 
+//go:embed evidence.sql
+var evidenceSchema string
+
 const (
 	PermPartyRead          authz.Permission = "supply.party.read"
 	PermPartyWrite         authz.Permission = "supply.party.write"
@@ -25,6 +28,8 @@ const (
 	PermPremiseWrite       authz.Permission = "supply.premise.write"
 	PermLicenseRead        authz.Permission = "supply.license.read"
 	PermLicenseWrite       authz.Permission = "supply.license.write"
+	PermEvidenceRead       authz.Permission = "supply.evidence.read"
+	PermEvidenceWrite      authz.Permission = "supply.evidence.write"
 	PermOrganizationManage authz.Permission = "supply.organization.manage"
 )
 
@@ -42,15 +47,24 @@ func (*Module) Permissions() []authz.Grant {
 		{Permission: PermPremiseRead, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor}},
 		{Permission: PermPremiseWrite, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing}},
 		{Permission: PermLicenseRead, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor}},
+		{Permission: PermEvidenceRead, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor}},
+		{Permission: PermEvidenceWrite, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyCompliance}},
 		{Permission: PermLicenseWrite, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyCompliance}},
 	}
 }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}}
+	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &handlers{db: deps.DB, bus: deps.Bus}
 	g := r.Group("/supply")
+	evidence := &evidenceHandlers{handlers: h, files: deps.Documents}
+	g.PUT("/parties/:party/licenses/:license/evidence/:file", PermEvidenceWrite, evidence.putEvidence)
+	g.PUT("/parties/:party/licenses/:license/evidence/:file/content", PermEvidenceWrite, evidence.uploadEvidence)
+	g.GET("/parties/:party/licenses/:license/evidence/:file/download", PermEvidenceRead, evidence.downloadEvidence)
+	g.POST("/parties/:party/licenses/:license/evidence/:file/revoke", PermEvidenceWrite, evidence.revokeEvidence)
+	g.POST("/parties/:party/licenses/:license/evidence/:file/retry/:attempt", PermEvidenceWrite, evidence.retryEvidence)
+	platform.ListRoute(g, "/parties/:party/licenses/:license/evidence", PermEvidenceRead, evidence.listEvidence)
 	platform.ListRoute(g, "/parties", PermDirectoryRead, h.listParties)
 	g.PUT("/parties/:party", PermPartyWrite, h.putParty)
 	g.GET("/parties/:party", PermPartyRead, h.getParty)
@@ -68,9 +82,14 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "/parties/:party/licenses/:license/revisions", PermLicenseRead, h.listLicenseRevisions)
 }
 func (*Module) Publishes() []string {
-	return []string{supplycontract.SubjectPartyUpdated, supplycontract.SubjectPartyAccessChanged, supplycontract.SubjectPremiseUpdated, supplycontract.SubjectLicenseDeclared}
+	return []string{supplycontract.SubjectPartyUpdated, supplycontract.SubjectPartyAccessChanged, supplycontract.SubjectPremiseUpdated, supplycontract.SubjectLicenseDeclared, supplycontract.SubjectEvidenceScanRequested, supplycontract.SubjectEvidenceChanged}
 }
-func (*Module) DirectedSubjects() []string                  { return nil }
-func (*Module) DirectedWriteTables() []string               { return nil }
-func (*Module) Consumers(platform.Deps) []events.Consumer   { return nil }
+func (*Module) DirectedSubjects() []string    { return nil }
+func (*Module) DirectedWriteTables() []string { return nil }
+func (*Module) Consumers(deps platform.Deps) []events.Consumer {
+	if deps.Workflows == nil {
+		return nil
+	}
+	return []events.Consumer{EvidenceScanConsumer(deps.Workflows)}
+}
 func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }

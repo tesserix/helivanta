@@ -370,16 +370,9 @@ func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
 		NonInvokerView bool
 	}
 	var rows []row
-	// has_policy/uses_function/check_uses_func are all EXISTS-ed against the
-	// SAME policy row (p.policyname carried through every clause) rather than
-	// three independent EXISTS subqueries — independent EXISTS clauses could
-	// each be satisfied by a different policy, and RLS permissive policies OR
-	// together, so a second policy on the table (e.g. USING (true)) would
-	// defeat isolation while every clause here still individually passed.
-	// policy_count catches that same hole from the other side: exactly one
-	// policy per tenant table is what every production table has today, and
-	// a second policy — permissive or not — is a red flag regardless of what
-	// it says, so it fails the lint even before its contents are examined.
+	// A single permissive policy grants access; every added restrictive policy
+	// is ANDed with it and can only narrow access. Never count a restrictive
+	// policy as proof that the required permissive tenant policy exists.
 	err := d.admin.WithContext(ctx).Raw(`
 		SELECT c.relname,
 		       (c.relkind = 'v') AS is_view,
@@ -390,16 +383,16 @@ func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
 		       c.relrowsecurity        AS rls,
 		       c.relforcerowsecurity   AS forced,
 		       (SELECT COUNT(*) FROM pg_policies p
-		               WHERE p.schemaname = n.nspname AND p.tablename = c.relname) AS policy_count,
+		               WHERE p.schemaname = n.nspname AND p.tablename = c.relname AND p.permissive = 'PERMISSIVE') AS policy_count,
 		       EXISTS (SELECT 1 FROM pg_policies p
-		               WHERE p.schemaname = n.nspname AND p.tablename = c.relname
+		               WHERE p.schemaname = n.nspname AND p.tablename = c.relname AND p.permissive = 'PERMISSIVE'
 		                 AND p.qual IS NOT NULL AND p.with_check IS NOT NULL) AS has_policy,
 		       EXISTS (SELECT 1 FROM pg_policies p
-		               WHERE p.schemaname = n.nspname AND p.tablename = c.relname
+		               WHERE p.schemaname = n.nspname AND p.tablename = c.relname AND p.permissive = 'PERMISSIVE'
 		                 AND p.qual IS NOT NULL AND p.with_check IS NOT NULL
 		                 AND p.qual LIKE '%hms_tenant_visible%') AS uses_function,
 		       EXISTS (SELECT 1 FROM pg_policies p
-		               WHERE p.schemaname = n.nspname AND p.tablename = c.relname
+		               WHERE p.schemaname = n.nspname AND p.tablename = c.relname AND p.permissive = 'PERMISSIVE'
 		                 AND p.qual IS NOT NULL AND p.with_check IS NOT NULL
 		                 AND p.qual LIKE '%hms_tenant_visible%'
 		                 AND p.with_check LIKE '%hms_tenant_visible%') AS check_uses_func,
@@ -459,7 +452,7 @@ func (d *DB) LintRLS(ctx context.Context) ([]string, error) {
 		case !r.RLS || !r.Forced:
 			bad = append(bad, r.Relname+": row-level security not enabled and forced")
 		case r.PolicyCount != 1:
-			bad = append(bad, r.Relname+": expected exactly one policy, found a different count")
+			bad = append(bad, r.Relname+": expected exactly one permissive policy, found a different count")
 		case !r.HasPolicy:
 			bad = append(bad, r.Relname+": no policy with both USING and WITH CHECK")
 		case !r.UsesFunction:

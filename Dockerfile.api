@@ -83,6 +83,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /out/document-worker \
     ./cmd/document-worker
 
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
+    -o /out/supply-evidence-worker \
+    ./cmd/supply-evidence-worker
+
 # The company-owned distroless image is a Trivy-gated passthrough of
 # distroless/static:nonroot. It has no shell, package manager, or libc and
 # runs the static binaries as UID/GID 65532. `latest` tracks only the last
@@ -100,6 +106,7 @@ COPY --from=builder /out/migrate /app/migrate
 
 # A separate private workload uses only its restricted processing identity.
 COPY --from=builder /out/document-worker /app/document-worker
+COPY --from=builder /out/supply-evidence-worker /app/supply-evidence-worker
 
 # The base image's own USER directive already runs the container as
 # 65532:65532 ("nonroot") — nothing to set here. Left unset deliberately

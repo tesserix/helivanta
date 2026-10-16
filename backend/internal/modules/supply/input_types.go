@@ -111,3 +111,21 @@ type licenseInput struct {
 	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=0,max=9007199254740991"`
 	LicenseFields
 }
+
+type EvidenceFields struct {
+	Filename    string `json:"filename" binding:"required,min=1,max=180"`
+	ContentType string `json:"content_type" binding:"required,oneof=image/png image/jpeg"`
+	Size        int64  `json:"size" binding:"min=1,max=10485760"`
+	Sha256      string `json:"sha256" binding:"required,min=64,max=64"`
+}
+
+var patternEvidenceFieldsSha256 = regexp.MustCompile("^[a-f0-9]{64}$")
+
+func validEvidenceFieldsPatterns(v EvidenceFields) bool {
+	return patternEvidenceFieldsSha256.MatchString(v.Sha256)
+}
+
+type evidenceInput struct {
+	ExpectedLicenseVersion *int64 `json:"expected_license_version" binding:"required,min=1,max=9007199254740991"`
+	EvidenceFields
+}

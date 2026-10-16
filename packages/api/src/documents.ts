@@ -1,3 +1,4 @@
+import { readAttachmentFile } from "./attachment-file";
 import { apiFetch, apiFetchResponse } from "./client";
 import {
   documentInputSchema,
@@ -34,30 +35,6 @@ function receipt(scope: DocumentScope, id: string, value: unknown): StaffDocumen
   return document;
 }
 
-async function readFile(file: File, signal: AbortSignal): Promise<ArrayBuffer> {
-  if (typeof file.arrayBuffer === "function") return file.arrayBuffer();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    const abort = () => reader.abort();
-    const finish = () => signal.removeEventListener("abort", abort);
-    reader.onload = () => {
-      finish();
-      if (reader.result instanceof ArrayBuffer) resolve(reader.result);
-      else reject(new Error("The selected file could not be read safely."));
-    };
-    reader.onerror = () => {
-      finish();
-      reject(new Error("The selected file could not be read safely."));
-    };
-    reader.onabort = () => {
-      finish();
-      reject(new DOMException("File read cancelled", "AbortError"));
-    };
-    signal.addEventListener("abort", abort, { once: true });
-    reader.readAsArrayBuffer(file);
-  });
-}
-
 export async function prepareDocumentUpload(
   id: string,
   file: File,
@@ -78,7 +55,7 @@ export async function prepareDocumentUpload(
     size: file.size,
     sha256: "0".repeat(64),
   });
-  const data = await readFile(file, signal);
+  const data = await readAttachmentFile(file, signal);
   signal.throwIfAborted();
   if (data.byteLength !== file.size || data.byteLength > MAX_DOCUMENT_BYTES)
     throw new Error("The selected file could not be read safely.");

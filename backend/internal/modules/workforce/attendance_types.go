@@ -9,6 +9,7 @@ import (
 var attendanceStatuses = []string{"present", "absent", "on_leave", "missing_in", "missing_out", "in_progress", "upcoming", "unpublished", "no_policy"}
 var attendanceExceptions = []string{"late", "early_departure", "short_duty", "missing_punch", "absent", "duplicate_punch", "punched_on_leave", "stray_punch"}
 var attendanceCorrectionStatuses = []string{"pending", "approved", "rejected", "cancelled"}
+var timesheetChanges = []string{"added", "changed", "unchanged", "removed"}
 
 type attendanceSettingsInput struct {
 	ExpectedVersion            *int64 `json:"expected_version" binding:"required,gte=0"`
@@ -193,4 +194,102 @@ type attendanceCorrectionEvent struct {
 	Note         string    `json:"note"`
 	ActorSubject string    `json:"actor_subject"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+type attendancePeriodInput struct {
+	From string `json:"from" binding:"required,len=10"`
+	To   string `json:"to" binding:"required,len=10"`
+	Note string `json:"note" binding:"max=500"`
+}
+
+type attendancePeriodTransitionInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,gte=1"`
+	Note            string `json:"note" binding:"max=500"`
+}
+
+type attendanceTimesheet struct {
+	ID                      uuid.UUID         `json:"id"`
+	PeriodID                uuid.UUID         `json:"period_id"`
+	Number                  int               `json:"number"`
+	People                  int               `json:"people"`
+	Days                    int               `json:"days"`
+	Shifts                  int               `json:"shifts"`
+	PayableMinutes          int               `json:"payable_minutes"`
+	ApprovedOvertimeMinutes int               `json:"approved_overtime_minutes"`
+	UnpaidHalfDays          int               `json:"unpaid_half_days"`
+	Statuses                []attendanceCount `json:"statuses"`
+	Exceptions              []attendanceCount `json:"exceptions"`
+	AddedDays               int               `json:"added_days"`
+	ChangedDays             int               `json:"changed_days"`
+	RemovedDays             int               `json:"removed_days"`
+	PolicyRevisionIDs       []uuid.UUID       `json:"policy_revision_ids"`
+	Note                    string            `json:"note"`
+	FinalisedBySubject      string            `json:"finalised_by_subject"`
+	CreatedAt               time.Time         `json:"created_at"`
+}
+
+type attendancePeriod struct {
+	ID               uuid.UUID           `json:"id"`
+	From             string              `json:"from"`
+	To               string              `json:"to"`
+	Status           string              `json:"status"`
+	Version          int64               `json:"version"`
+	Timesheet        attendanceTimesheet `json:"timesheet"`
+	CreatedBySubject string              `json:"created_by_subject"`
+	CreatedAt        time.Time           `json:"created_at"`
+	UpdatedAt        time.Time           `json:"updated_at"`
+}
+
+type attendancePeriodEvent struct {
+	ID           uuid.UUID `json:"id"`
+	Version      int64     `json:"version"`
+	Status       string    `json:"status"`
+	TimesheetID  uuid.UUID `json:"timesheet_id"`
+	Note         string    `json:"note"`
+	ActorSubject string    `json:"actor_subject"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type attendanceTimesheetPerson struct {
+	StaffID                 uuid.UUID         `json:"staff_id"`
+	EmployeeCode            string            `json:"employee_code"`
+	DisplayName             string            `json:"display_name"`
+	Days                    int               `json:"days"`
+	Shifts                  int               `json:"shifts"`
+	PayableMinutes          int               `json:"payable_minutes"`
+	ApprovedOvertimeMinutes int               `json:"approved_overtime_minutes"`
+	UnpaidHalfDays          int               `json:"unpaid_half_days"`
+	Statuses                []attendanceCount `json:"statuses"`
+	Exceptions              []attendanceCount `json:"exceptions"`
+}
+
+type attendanceTimesheetDay struct {
+	StaffID                 uuid.UUID      `json:"staff_id"`
+	Date                    string         `json:"date"`
+	Change                  string         `json:"change"`
+	Shifts                  int            `json:"shifts"`
+	PayableMinutes          int            `json:"payable_minutes"`
+	ApprovedOvertimeMinutes int            `json:"approved_overtime_minutes"`
+	UnpaidHalfDays          int            `json:"unpaid_half_days"`
+	Day                     *attendanceDay `json:"day,omitempty"`
+}
+
+type attendancePunchReportRow struct {
+	ID                uuid.UUID  `json:"id"`
+	StaffID           uuid.UUID  `json:"staff_id"`
+	EmployeeCode      string     `json:"employee_code"`
+	DisplayName       string     `json:"display_name"`
+	JobCategory       string     `json:"job_category"`
+	Direction         string     `json:"direction"`
+	PunchedAt         time.Time  `json:"punched_at"`
+	LocalDate         string     `json:"local_date"`
+	Timezone          string     `json:"timezone"`
+	Source            string     `json:"source"`
+	CorrectionID      *uuid.UUID `json:"correction_id,omitempty"`
+	RecordedBySubject string     `json:"recorded_by_subject"`
+	RecordedAt        time.Time  `json:"recorded_at"`
+	Voided            bool       `json:"voided"`
+	VoidedBySubject   *string    `json:"voided_by_subject,omitempty"`
+	VoidedAt          *time.Time `json:"voided_at,omitempty"`
+	VoidCorrectionID  *uuid.UUID `json:"void_correction_id,omitempty"`
 }

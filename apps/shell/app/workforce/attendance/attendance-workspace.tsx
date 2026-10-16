@@ -15,6 +15,8 @@ import { AttendancePolicyPanel } from "./policy-panel";
 import { DaySheet } from "./day-sheet";
 import { PunchLedger } from "./punch-panel";
 import { CorrectionsBoard } from "./corrections-panel";
+import { TimesheetsPanel } from "./timesheets-panel";
+import { PunchReport } from "./punch-report";
 
 export function AttendanceWorkspace() {
   const hospitals = useApiPagedQuery<Hospital>(
@@ -35,7 +37,7 @@ export function AttendanceWorkspace() {
             See who worked their rostered shifts, record punches by hand with a reason, and void
             wrong ones. Missing or mistimed punches are corrected through a request a second person
             approves. Attendance is derived from the roster, leave, overtime and punches; nothing is
-            typed in directly.
+            typed in directly. Finalised periods freeze it for payroll.
           </p>
         </div>
         {hospital && (
@@ -108,6 +110,11 @@ function HospitalAttendance({ hospital }: { hospital: Hospital }) {
         corrector={corrector}
         approver={approver}
       />
+      <TimesheetsPanel
+        hospital={hospital.id}
+        base={base}
+        finaliser={manager && can("workforce.attendance.finalise")}
+      />
       <PunchLedger
         hospital={hospital.id}
         base={base}
@@ -115,6 +122,7 @@ function HospitalAttendance({ hospital }: { hospital: Hospital }) {
         corrector={corrector}
         timezone={roster.data?.timezone}
       />
+      <PunchReport hospital={hospital.id} base={base} />
     </div>
   );
 }

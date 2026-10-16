@@ -64,6 +64,10 @@ const PermAttendanceCorrect authz.Permission = "workforce.attendance.correct"
 const PermAttendanceApprove authz.Permission = "workforce.attendance.approve"
 const AttendanceCorrectionChanged = workforcecontract.SubjectAttendanceCorrectionChanged
 
+// PermAttendanceFinalise finalises, recalculates and reopens timesheet periods.
+const PermAttendanceFinalise authz.Permission = "workforce.attendance.finalise"
+const AttendancePeriodChanged = workforcecontract.SubjectAttendancePeriodChanged
+
 const PermMasterManage authz.Permission = "workforce.master.manage"
 const EnrollmentChanged = workforcecontract.SubjectStaffEnrollmentChanged
 const MasterChanged = workforcecontract.SubjectMasterChanged
@@ -125,18 +129,21 @@ var attendanceSchema string
 //go:embed attendance_corrections.sql
 var attendanceCorrectionsSchema string
 
+//go:embed attendance_timesheets.sql
+var attendanceTimesheetsSchema string
+
 type Module struct{}
 
 func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "workforce" }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}, {ID: "0007_workforce_roster_policy", SQL: rosterPolicySchema}, {ID: "0007_workforce_documents", SQL: documentsSchema}, {ID: "0008_workforce_document_worker", SQL: documentWorkerSchema}, {ID: "0009_workforce_rosters", SQL: rostersSchema}, {ID: "0010_workforce_leave_setup", SQL: leaveSetupSchema}, {ID: "0011_workforce_leave_ledger", SQL: leaveLedgerSchema}, {ID: "0012_workforce_leave_requests", SQL: leaveRequestsSchema}, {ID: "0013_workforce_leave_reports", SQL: leaveReportsSchema}, {ID: "0014_workforce_duty_exchanges", SQL: dutyExchangesSchema}, {ID: "0015_workforce_overtime", SQL: overtimeSchema}, {ID: "0016_workforce_attendance", SQL: attendanceSchema}, {ID: "0017_workforce_attendance_corrections", SQL: attendanceCorrectionsSchema}, {ID: "0018_workforce_worker_outbox_scope", SQL: workerOutboxScopeSchema}}
+	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}, {ID: "0007_workforce_roster_policy", SQL: rosterPolicySchema}, {ID: "0007_workforce_documents", SQL: documentsSchema}, {ID: "0008_workforce_document_worker", SQL: documentWorkerSchema}, {ID: "0009_workforce_rosters", SQL: rostersSchema}, {ID: "0010_workforce_leave_setup", SQL: leaveSetupSchema}, {ID: "0011_workforce_leave_ledger", SQL: leaveLedgerSchema}, {ID: "0012_workforce_leave_requests", SQL: leaveRequestsSchema}, {ID: "0013_workforce_leave_reports", SQL: leaveReportsSchema}, {ID: "0014_workforce_duty_exchanges", SQL: dutyExchangesSchema}, {ID: "0015_workforce_overtime", SQL: overtimeSchema}, {ID: "0016_workforce_attendance", SQL: attendanceSchema}, {ID: "0017_workforce_attendance_corrections", SQL: attendanceCorrectionsSchema}, {ID: "0018_workforce_worker_outbox_scope", SQL: workerOutboxScopeSchema}, {ID: "0019_workforce_attendance_timesheets", SQL: attendanceTimesheetsSchema}}
 }
 func (*Module) Permissions() []authz.Grant {
-	return []authz.Grant{{Permission: PermHospitalManage}, {Permission: PermEnrollmentManage}, {Permission: PermDocumentManage}, {Permission: PermMasterManage}, {Permission: PermRosterManage}, {Permission: PermRosterCorrect}, {Permission: PermLeaveConfigure}, {Permission: PermLeaveAllocate}, {Permission: PermLeaveCorrect}, {Permission: PermLeaveRequest}, {Permission: PermLeaveApprove}, {Permission: PermDutyRequest}, {Permission: PermDutyApprove}, {Permission: PermOvertimeConfigure}, {Permission: PermOvertimeRequest}, {Permission: PermOvertimeApprove}, {Permission: PermAttendanceConfigure}, {Permission: PermAttendanceRecord}, {Permission: PermAttendanceCorrect}, {Permission: PermAttendanceApprove}}
+	return []authz.Grant{{Permission: PermHospitalManage}, {Permission: PermEnrollmentManage}, {Permission: PermDocumentManage}, {Permission: PermMasterManage}, {Permission: PermRosterManage}, {Permission: PermRosterCorrect}, {Permission: PermLeaveConfigure}, {Permission: PermLeaveAllocate}, {Permission: PermLeaveCorrect}, {Permission: PermLeaveRequest}, {Permission: PermLeaveApprove}, {Permission: PermDutyRequest}, {Permission: PermDutyApprove}, {Permission: PermOvertimeConfigure}, {Permission: PermOvertimeRequest}, {Permission: PermOvertimeApprove}, {Permission: PermAttendanceConfigure}, {Permission: PermAttendanceRecord}, {Permission: PermAttendanceCorrect}, {Permission: PermAttendanceApprove}, {Permission: PermAttendanceFinalise}}
 }
 func (*Module) Publishes() []string {
-	return []string{EnrollmentChanged, MasterChanged, ShiftChanged, RosterConfigChanged, RosterSettingsChanged, StaffRosterAssignmentChanged, DocumentScanRequested, DocumentChanged, RosterChanged, LeaveConfigChanged, StaffLeaveAssignmentChanged, LeaveLedgerChanged, LeaveRequestChanged, DutyExchangeChanged, OvertimeSettingsChanged, OvertimeChanged, AttendanceSettingsChanged, AttendancePunchChanged, AttendanceCorrectionChanged}
+	return []string{EnrollmentChanged, MasterChanged, ShiftChanged, RosterConfigChanged, RosterSettingsChanged, StaffRosterAssignmentChanged, DocumentScanRequested, DocumentChanged, RosterChanged, LeaveConfigChanged, StaffLeaveAssignmentChanged, LeaveLedgerChanged, LeaveRequestChanged, DutyExchangeChanged, OvertimeSettingsChanged, OvertimeChanged, AttendanceSettingsChanged, AttendancePunchChanged, AttendanceCorrectionChanged, AttendancePeriodChanged}
 }
 func (*Module) DirectedSubjects() []string    { return nil }
 func (*Module) DirectedWriteTables() []string { return nil }
@@ -231,6 +238,16 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "/:hospital/hr/attendance/corrections/:correction/history", authz.Public, h.correctionHistory)
 	g.POST("/:hospital/hr/attendance/corrections/:correction/decision", PermAttendanceApprove, h.decideCorrection)
 	g.POST("/:hospital/hr/attendance/corrections/:correction/cancellation", PermAttendanceCorrect, h.cancelCorrection)
+	platform.ListRoute(g, "/:hospital/hr/attendance/periods", authz.Public, h.listPeriods)
+	g.PUT("/:hospital/hr/attendance/periods/:period", PermAttendanceFinalise, h.putPeriod)
+	g.GET("/:hospital/hr/attendance/periods/:period", authz.Public, h.getPeriod)
+	g.POST("/:hospital/hr/attendance/periods/:period/finalisation", PermAttendanceFinalise, h.finalisePeriod)
+	g.POST("/:hospital/hr/attendance/periods/:period/reopening", PermAttendanceFinalise, h.reopenPeriod)
+	platform.ListRoute(g, "/:hospital/hr/attendance/periods/:period/history", authz.Public, h.periodHistory)
+	platform.ListRoute(g, "/:hospital/hr/attendance/periods/:period/timesheets", authz.Public, h.listTimesheets)
+	platform.ListRoute(g, "/:hospital/hr/attendance/periods/:period/timesheets/:timesheet/people", authz.Public, h.listTimesheetPeople)
+	platform.ListRoute(g, "/:hospital/hr/attendance/periods/:period/timesheets/:timesheet/days", authz.Public, h.listTimesheetDays)
+	platform.ListRoute(g, "/:hospital/hr/attendance/punch-report", authz.Public, h.punchReport)
 	g.PUT("/:hospital/hr/shifts/:id", PermRosterManage, h.putShift)
 	platform.ListRoute(g, "/:hospital/hr/shifts", authz.Public, h.listShifts)
 	platform.ListRoute(g, "/:hospital/hr/shifts/:id/history", authz.Public, h.shiftHistory)

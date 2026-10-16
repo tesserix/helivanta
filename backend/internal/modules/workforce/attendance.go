@@ -529,6 +529,8 @@ func respondAttendanceError(c *gin.Context, err error) {
 		respond.ConflictWithDetail(c, "This person already has a punch in the same direction within the duplicate window.", gin.H{"reason": "duplicate_punch", "punch_id": duplicate.id})
 	case errors.As(err, &problem):
 		respond.Error(c, problem.status, problem.code, problem.message)
+	case errors.As(err, &pg) && pg.ConstraintName == "workforce_attendance_period_locked":
+		respond.Error(c, errPeriodLocked.status, errPeriodLocked.code, errPeriodLocked.message)
 	case errors.As(err, &pg) && pg.Code == "23505" && pg.ConstraintName == "workforce_attendance_punches_pkey":
 		respond.Error(c, errAttendanceReused.status, errAttendanceReused.code, errAttendanceReused.message)
 	case errors.As(err, &pg) && pg.Code == "23505" && pg.ConstraintName == "workforce_attendance_punch_voids_pkey":

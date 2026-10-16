@@ -142,3 +142,22 @@ type DutyExchangeChangedData struct {
 	Status     string `json:"status"`
 	Version    int64  `json:"version"`
 }
+
+// SubjectOvertimeSettingsChanged reports a new overtime policy revision for a hospital.
+const SubjectOvertimeSettingsChanged = "helivanta.in.workforce.overtime_settings_changed.v1"
+
+type OvertimeSettingsChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	RevisionID string `json:"revision_id"`
+	Version    int64  `json:"version"`
+}
+
+// SubjectOvertimeChanged reports an overtime filing or transition; payroll re-reads payable minutes through the API.
+const SubjectOvertimeChanged = "helivanta.in.workforce.overtime_changed.v1"
+
+type OvertimeChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	RequestID  string `json:"request_id"`
+	Status     string `json:"status"`
+	Version    int64  `json:"version"`
+}

@@ -39,6 +39,9 @@ refused to start jobs because recent account payments failed or the spending
 limit needs increasing. This is not a passing CI run; no merge/deployment is
 claimed.
 
+The editable draw.io diagram was also opened in diagrams.net from its public
+source and visually reviewed; overlapping connector labels were corrected.
+
 ## Remaining acceptance
 
 This package has no production caller yet. Dedicated credential delivery,

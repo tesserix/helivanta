@@ -6,6 +6,8 @@ Owners: PharmaConnect #1135 and #1136, parent #1133. Source prerequisite:
 [onboarding-service #10](https://github.com/tesserix/onboarding-service/issues/10),
 [PR #11](https://github.com/tesserix/onboarding-service/pull/11).
 
+Editable diagram: [live-platform-identity.drawio](../architecture/live-platform-identity.drawio).
+
 ## Context
 
 A Supply party is a tenant-private legal/commercial declaration. Its local UUID,

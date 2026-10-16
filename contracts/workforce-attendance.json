@@ -1,0 +1,539 @@
+{
+  "statuses": {
+    "present": "Present",
+    "absent": "Absent",
+    "on_leave": "On leave",
+    "missing_in": "Missing in punch",
+    "missing_out": "Missing out punch",
+    "in_progress": "In progress",
+    "upcoming": "Upcoming",
+    "unpublished": "Roster not published",
+    "no_policy": "No attendance policy"
+  },
+  "exceptions": {
+    "late": "Late",
+    "early_departure": "Early departure",
+    "short_duty": "Short duty",
+    "missing_punch": "Missing punch",
+    "absent": "Absent",
+    "duplicate_punch": "Duplicate punch",
+    "punched_on_leave": "Punched on leave",
+    "stray_punch": "Punch outside any shift"
+  },
+  "models": {
+    "attendanceSettingsInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "early_arrival_minutes",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 240,
+        "binding": "required,gte=0,lte=240"
+      },
+      {
+        "name": "late_departure_minutes",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 720,
+        "binding": "required,gte=0,lte=720"
+      },
+      {
+        "name": "early_departure_grace_minutes",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 240,
+        "binding": "required,gte=0,lte=240"
+      },
+      {
+        "name": "short_duty_minutes",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 720,
+        "binding": "required,gte=0,lte=720"
+      },
+      {
+        "name": "duplicate_window_minutes",
+        "type": "int",
+        "pointer": true,
+        "min": 1,
+        "max": 60,
+        "binding": "required,gte=1,lte=60"
+      },
+      {
+        "name": "backdate_days",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 92,
+        "binding": "required,gte=0,lte=92"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "attendanceSettings": [
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "early_arrival_minutes",
+        "type": "int"
+      },
+      {
+        "name": "late_departure_minutes",
+        "type": "int"
+      },
+      {
+        "name": "early_departure_grace_minutes",
+        "type": "int"
+      },
+      {
+        "name": "short_duty_minutes",
+        "type": "int"
+      },
+      {
+        "name": "duplicate_window_minutes",
+        "type": "int"
+      },
+      {
+        "name": "backdate_days",
+        "type": "int"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "reviewed_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "attendancePunchInput": [
+      {
+        "name": "staff_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "direction",
+        "type": "string",
+        "enum": [
+          "in",
+          "out"
+        ],
+        "binding": "required,oneof=in out"
+      },
+      {
+        "name": "punched_at",
+        "type": "time",
+        "binding": "required"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text",
+        "binding": "required,max=500"
+      }
+    ],
+    "attendanceVoidInput": [
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text",
+        "binding": "required,max=500"
+      }
+    ],
+    "attendancePunch": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "direction",
+        "type": "string",
+        "enum": [
+          "in",
+          "out"
+        ]
+      },
+      {
+        "name": "punched_at",
+        "type": "time"
+      },
+      {
+        "name": "local_date",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "timezone",
+        "type": "string"
+      },
+      {
+        "name": "source",
+        "type": "string",
+        "enum": [
+          "manual"
+        ]
+      },
+      {
+        "name": "policy_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "reason",
+        "type": "string"
+      },
+      {
+        "name": "recorded_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "voided",
+        "type": "bool"
+      },
+      {
+        "name": "void_reason",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "voided_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "voided_at",
+        "type": "time",
+        "optional": true
+      }
+    ],
+    "attendanceShift": [
+      {
+        "name": "allocation_id",
+        "type": "uuid"
+      },
+      {
+        "name": "roster_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shift_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shift_code",
+        "type": "string"
+      },
+      {
+        "name": "shift_name",
+        "type": "string"
+      },
+      {
+        "name": "status",
+        "type": "kind"
+      },
+      {
+        "name": "starts_at",
+        "type": "time"
+      },
+      {
+        "name": "ends_at",
+        "type": "time"
+      },
+      {
+        "name": "break_minutes",
+        "type": "int"
+      },
+      {
+        "name": "grace_minutes",
+        "type": "int"
+      },
+      {
+        "name": "policy_revision_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "first_in",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "last_out",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "first_in_punch_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "last_out_punch_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "late_minutes",
+        "type": "int"
+      },
+      {
+        "name": "early_departure_minutes",
+        "type": "int"
+      },
+      {
+        "name": "worked_minutes",
+        "type": "int"
+      },
+      {
+        "name": "expected_minutes",
+        "type": "int"
+      },
+      {
+        "name": "payable_minutes",
+        "type": "int"
+      },
+      {
+        "name": "unpaid_half_days",
+        "type": "int"
+      },
+      {
+        "name": "exceptions",
+        "type": "[]string",
+        "enum": [
+          "late",
+          "early_departure",
+          "short_duty",
+          "missing_punch",
+          "absent",
+          "duplicate_punch",
+          "punched_on_leave",
+          "stray_punch"
+        ]
+      },
+      {
+        "name": "punch_ids",
+        "type": "[]uuid"
+      },
+      {
+        "name": "ignored_punch_ids",
+        "type": "[]uuid"
+      }
+    ],
+    "attendanceDay": [
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "date",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "timezone",
+        "type": "string"
+      },
+      {
+        "name": "leave",
+        "type": "string",
+        "enum": [
+          "none",
+          "full_day",
+          "first_half",
+          "second_half",
+          "short"
+        ]
+      },
+      {
+        "name": "short_leave_minutes",
+        "type": "int"
+      },
+      {
+        "name": "approved_overtime_minutes",
+        "type": "int"
+      },
+      {
+        "name": "payable_minutes",
+        "type": "int"
+      },
+      {
+        "name": "shifts",
+        "type": "[]attendanceShift"
+      },
+      {
+        "name": "stray_punch_ids",
+        "type": "[]uuid"
+      },
+      {
+        "name": "exceptions",
+        "type": "[]string",
+        "enum": [
+          "late",
+          "early_departure",
+          "short_duty",
+          "missing_punch",
+          "absent",
+          "duplicate_punch",
+          "punched_on_leave",
+          "stray_punch"
+        ]
+      }
+    ],
+    "attendanceCount": [
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "count",
+        "type": "int"
+      }
+    ],
+    "attendanceTotals": [
+      {
+        "name": "date",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "people",
+        "type": "int"
+      },
+      {
+        "name": "shifts",
+        "type": "int"
+      },
+      {
+        "name": "payable_minutes",
+        "type": "int"
+      },
+      {
+        "name": "approved_overtime_minutes",
+        "type": "int"
+      },
+      {
+        "name": "unpaid_half_days",
+        "type": "int"
+      },
+      {
+        "name": "statuses",
+        "type": "[]attendanceCount"
+      },
+      {
+        "name": "exceptions",
+        "type": "[]attendanceCount"
+      }
+    ],
+    "attendancePersonRange": [
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "from",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "payable_minutes",
+        "type": "int"
+      },
+      {
+        "name": "approved_overtime_minutes",
+        "type": "int"
+      },
+      {
+        "name": "unpaid_half_days",
+        "type": "int"
+      },
+      {
+        "name": "statuses",
+        "type": "[]attendanceCount"
+      },
+      {
+        "name": "exceptions",
+        "type": "[]attendanceCount"
+      },
+      {
+        "name": "days",
+        "type": "[]attendanceDay"
+      }
+    ]
+  }
+}

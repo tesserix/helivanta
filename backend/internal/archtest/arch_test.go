@@ -369,6 +369,10 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/hr/duty-exchanges/:exchange":            "one exchange with at most its six original, replacement and restored allocations",
 	"GET /workforce/hospitals/:hospital/hr/overtime/:request":                   "one overtime request",
 	"GET /workforce/hospitals/:hospital/hr/overtime-settings":                   "the hospital's single current overtime policy revision",
+	"GET /workforce/hospitals/:hospital/hr/attendance-settings":                 "the hospital's single current attendance policy revision",
+	"GET /workforce/hospitals/:hospital/hr/attendance/punches/:punch":           "one punch",
+	"GET /workforce/hospitals/:hospital/hr/attendance-totals":                   "one date's aggregate counts",
+	"GET /workforce/hospitals/:hospital/staff/:id/attendance":                   "one person's derived days over a bounded range of at most 42 days",
 }
 
 // TestEveryCollectionGETIsPaginated is the one hole platform.ListRoute's

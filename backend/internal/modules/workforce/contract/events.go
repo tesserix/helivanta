@@ -161,3 +161,21 @@ type OvertimeChangedData struct {
 	Status     string `json:"status"`
 	Version    int64  `json:"version"`
 }
+
+// SubjectAttendanceSettingsChanged reports a new attendance policy revision for a hospital.
+const SubjectAttendanceSettingsChanged = "helivanta.in.workforce.attendance_settings_changed.v1"
+
+type AttendanceSettingsChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	RevisionID string `json:"revision_id"`
+	Version    int64  `json:"version"`
+}
+
+// SubjectAttendancePunchChanged reports a punch recorded or voided; consumers re-read derived attendance through the API.
+const SubjectAttendancePunchChanged = "helivanta.in.workforce.attendance_punch_changed.v1"
+
+type AttendancePunchChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	PunchID    string `json:"punch_id"`
+	Action     string `json:"action"`
+}

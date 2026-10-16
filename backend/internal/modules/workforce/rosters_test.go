@@ -34,8 +34,8 @@ func newRosterFixture(t *testing.T, timezone string, weekStart int, effective st
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"admin": testutil.TenantA, "planner": testutil.TenantA, "approver": testutil.TenantA, "reader": testutil.TenantA, "directory": testutil.TenantA, "filer": testutil.TenantA, "decider": testutil.TenantA, "decider2": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
-			"admin":   {workforce.PermHospitalManage, workforce.PermRosterManage, workforce.PermRosterCorrect, workforce.PermLeaveConfigure, workforce.PermLeaveAllocate, workforce.PermLeaveRequest, workforce.PermOvertimeConfigure},
-			"planner": {workforce.PermRosterManage}, "approver": {workforce.PermLeaveApprove}, "reader": {workforce.PermRosterManage}, "directory": {}, "foreign": {workforce.PermRosterManage, workforce.PermRosterCorrect, workforce.PermDutyRequest, workforce.PermDutyApprove, workforce.PermOvertimeRequest, workforce.PermOvertimeApprove},
+			"admin":   {workforce.PermHospitalManage, workforce.PermRosterManage, workforce.PermRosterCorrect, workforce.PermLeaveConfigure, workforce.PermLeaveAllocate, workforce.PermLeaveCorrect, workforce.PermLeaveRequest, workforce.PermOvertimeConfigure, workforce.PermAttendanceConfigure, workforce.PermAttendanceRecord},
+			"planner": {workforce.PermRosterManage}, "approver": {workforce.PermLeaveApprove}, "reader": {workforce.PermRosterManage}, "directory": {}, "foreign": {workforce.PermRosterManage, workforce.PermRosterCorrect, workforce.PermDutyRequest, workforce.PermDutyApprove, workforce.PermOvertimeRequest, workforce.PermOvertimeApprove, workforce.PermAttendanceConfigure, workforce.PermAttendanceRecord},
 			"filer": {workforce.PermDutyRequest, workforce.PermOvertimeRequest}, "decider": {workforce.PermDutyApprove, workforce.PermDutyRequest, workforce.PermOvertimeApprove, workforce.PermOvertimeRequest}, "decider2": {workforce.PermDutyApprove, workforce.PermOvertimeApprove},
 		},
 		Modules: []platform.Module{workforce.New()},

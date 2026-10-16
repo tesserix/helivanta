@@ -114,6 +114,12 @@ export const ZONES: Zone[] = [
         icon: CalendarDays,
         permission: "public",
       },
+      {
+        label: "Attendance",
+        href: "/workforce/attendance",
+        icon: CalendarDays,
+        permission: "public",
+      },
     ],
   },
   {

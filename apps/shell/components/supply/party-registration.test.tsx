@@ -239,3 +239,36 @@ it("marks existing evidence historical immediately after its licence is revised"
   expect(await screen.findByText(/Current revision 2/)).toBeInTheDocument();
   expect(await screen.findByText(/Revision 1.*historical/)).toBeInTheDocument();
 });
+
+it("keeps declaration labels separate from the independently loaded review status", async () => {
+  const initial = fixture();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      url.endsWith("/licenses")
+        ? new Response(
+            JSON.stringify(
+              page([
+                {
+                  id: "0199e000-0000-7000-8000-000000000009",
+                  version: 1,
+                  kind: "WHOLESALE",
+                  number: "TEST-REVIEW-LABEL",
+                  issuing_authority: "TEST Authority",
+                  jurisdiction: "TEST-Sindh",
+                  issued_on: "2026-01-01",
+                  expires_on: "2030-12-31",
+                },
+              ]),
+            ),
+          )
+        : initial(url, init),
+    ),
+  );
+  renderWithProviders(<PartyRegistration scope={scope} country="PK" roles={["administrator"]} />);
+  expect(
+    await screen.findByRole("button", { name: "Review for licence TEST-REVIEW-LABEL" }),
+  ).toBeInTheDocument();
+  expect(screen.queryByText("Declared · verification pending")).not.toBeInTheDocument();
+  expect(screen.getByText("Declaration recorded")).toBeInTheDocument();
+});

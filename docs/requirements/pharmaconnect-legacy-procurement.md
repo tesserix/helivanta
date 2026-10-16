@@ -48,3 +48,14 @@ Item columns: item, batch, expiry, quantity, case/pack, MRP per case, purchase r
 Modern acceptance must preserve original units/conversions, source order/challan/receipt/invoice references, ordered/received/free/short/damaged quantities, supplier terms and effective tax/discount/rounding snapshots. Discount/tax ordering is an approved country policy, not a universal switch copied from legacy. Receiving, quality release, financial verification and stock transfer are separately authorized transitions. Services and operational expenses remain distinguishable from received drug cost layers. Repeat requests/imports cannot duplicate stock, liability, posting or a bank transfer.
 
 The existing local payable register stores net-after-discount, explicit tax/recoverable tax/landed charges and receipt cost linkage. It does not claim that all observed PO/challan/e-invoice, service, staged term, statutory tax, vendor-master or bank verification workflows are finished.
+
+## Independent review follow-up — 16 October 2026
+
+Reopened the authenticated Procurement -> Setup -> Vendors form read-only. Save,
+Save And Next, Verify & Approve, licence number, registration, country/location,
+contact, tax and credit controls remain visible. No legacy approval, save or
+customer-record mutation was performed. The new review workflow deliberately
+separates saved declarations, scanned evidence, independent authority review and
+subsequent trading eligibility. It records exact revisions, actor, reason and
+authority-check reference rather than treating a generic Active label as proof.
+Only synthetic TEST identifiers and reserved example addresses are used in tests.

@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="900" viewBox="0 0 1320 900" role="img" aria-labelledby="title desc">
+<title id="title">Independent supplier licence review</title><desc id="desc">Private declarations and scanned evidence require independent authority review; effective validity and trading approval remain separate.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#567399"/></marker></defs>
+<rect width="1320" height="900" fill="#f8fafc"/>
+<text x="60" y="40" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#17324f">PharmaConnect · Independent licence review</text>
+<path d="M300 130H340" fill="none" stroke="#567399" stroke-width="2" marker-end="url(#arrow)"/><text x="305" y="116" font-family="Arial,sans-serif" font-size="11" fill="#49627f">Declare</text>
+<path d="M580 130H620" fill="none" stroke="#567399" stroke-width="2" marker-end="url(#arrow)"/><text x="583" y="116" font-family="Arial,sans-serif" font-size="11" fill="#49627f">Upload</text>
+<path d="M860 130H900" fill="none" stroke="#567399" stroke-width="2" marker-end="url(#arrow)"/><text x="864" y="116" font-family="Arial,sans-serif" font-size="11" fill="#49627f">Clean</text>
+<path d="M1020 180V220H460V280" fill="none" stroke="#567399" stroke-width="2" marker-end="url(#arrow)"/><text x="665" y="211" font-family="Arial,sans-serif" font-size="11" fill="#49627f">Pin released evidence</text>
+<path d="M580 330H620" fill="none" stroke="#567399" stroke-width="2" marker-end="url(#arrow)"/><text x="582" y="315" font-family="Arial,sans-serif" font-size="11" fill="#49627f">Review</text>
+<path d="M860 330H900" fill="none" stroke="#567399" stroke-width="2" marker-end="url(#arrow)"/><text x="863" y="315" font-family="Arial,sans-serif" font-size="11" fill="#49627f">Decide</text>
+<path d="M1020 380V430H740V480" fill="none" stroke="#567399" stroke-width="2" marker-end="url(#arrow)"/><text x="787" y="420" font-family="Arial,sans-serif" font-size="11" fill="#49627f">Current prerequisites</text>
+<path d="M860 530H900" fill="none" stroke="#567399" stroke-width="2" marker-end="url(#arrow)"/><text x="864" y="516" font-family="Arial,sans-serif" font-size="11" fill="#49627f">Block</text>
+<path d="M1140 530H1220V240H460V280" fill="none" stroke="#567399" stroke-width="2" marker-end="url(#arrow)"/><text x="1160" y="385" font-family="Arial,sans-serif" font-size="11" fill="#49627f">Resubmit</text>
+<path d="M740 580V680" fill="none" stroke="#567399" stroke-width="2" marker-end="url(#arrow)"/><text x="760" y="638" font-family="Arial,sans-serif" font-size="11" fill="#49627f">Country / organisation / bilateral consent</text>
+<path d="M340 330H180V480" fill="none" stroke="#567399" stroke-width="2" marker-end="url(#arrow)"/><text x="190" y="399" font-family="Arial,sans-serif" font-size="11" fill="#49627f">Atomic write</text>
+<path d="M1020 380V450H180V480" fill="none" stroke="#567399" stroke-width="2" marker-end="url(#arrow)"/><text x="305" y="442" font-family="Arial,sans-serif" font-size="11" fill="#49627f">Audit and minimized outbox</text>
+<rect x="60" y="80" width="240" height="100" rx="14" fill="#E8F0FE" stroke="#8da6c4"/>
+<text x="180.0" y="126.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Private organisation</text>
+<text x="180.0" y="144.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">and licensed premise</text>
+<rect x="340" y="80" width="240" height="100" rx="14" fill="#E8F0FE" stroke="#8da6c4"/>
+<text x="460.0" y="126.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Licence declaration</text>
+<text x="460.0" y="144.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Immutable source revisions</text>
+<rect x="620" y="80" width="240" height="100" rx="14" fill="#E8F0FE" stroke="#8da6c4"/>
+<text x="740.0" y="126.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Evidence image</text>
+<text x="740.0" y="144.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">GCS quarantine → ClamAV</text>
+<rect x="900" y="80" width="240" height="100" rx="14" fill="#E8F0FE" stroke="#8da6c4"/>
+<text x="1020.0" y="126.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Released generation</text>
+<text x="1020.0" y="144.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Private download only</text>
+<rect x="340" y="280" width="240" height="100" rx="14" fill="#E8F0FE" stroke="#8da6c4"/>
+<text x="460.0" y="317.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Submit for review</text>
+<text x="460.0" y="335.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Pin party / premise / licence /</text>
+<text x="460.0" y="353.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">image</text>
+<rect x="620" y="280" width="240" height="100" rx="14" fill="#E8F0FE" stroke="#8da6c4"/>
+<text x="740.0" y="317.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Independent compliance reviewer</text>
+<text x="740.0" y="335.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Authority check + reference +</text>
+<text x="740.0" y="353.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">reason</text>
+<rect x="900" y="280" width="240" height="100" rx="14" fill="#E8F0FE" stroke="#8da6c4"/>
+<text x="1020.0" y="317.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Verified / rejected / suspended</text>
+<text x="1020.0" y="335.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Append-only actor and decision</text>
+<text x="1020.0" y="353.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">history</text>
+<rect x="620" y="480" width="240" height="100" rx="14" fill="#E8F0FE" stroke="#8da6c4"/>
+<text x="740.0" y="517.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Effective validity</text>
+<text x="740.0" y="535.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Current revisions, dates,</text>
+<text x="740.0" y="553.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">premise and evidence</text>
+<rect x="900" y="480" width="240" height="100" rx="14" fill="#FCE8E6" stroke="#8da6c4"/>
+<text x="1020.0" y="526.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Changed / expired / revoked</text>
+<text x="1020.0" y="544.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Verification is ineffective</text>
+<rect x="620" y="680" width="240" height="100" rx="14" fill="#E6F4EA" stroke="#8da6c4"/>
+<text x="740.0" y="717.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Separate trading gate</text>
+<text x="740.0" y="735.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Country policy + organisation +</text>
+<text x="740.0" y="753.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">bilateral consent</text>
+<rect x="60" y="480" width="240" height="100" rx="14" fill="#E8F0FE" stroke="#8da6c4"/>
+<text x="180.0" y="517.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Atomic PostgreSQL decision</text>
+<text x="180.0" y="535.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">Forced RLS + audit + minimized</text>
+<text x="180.0" y="553.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#17324f">NATS outbox</text>
+<text x="60" y="840" font-family="Arial,sans-serif" font-size="14" fill="#49627f">Verification alone does not authorise trading. Country policy and bilateral consent remain separately required.</text>
+</svg>

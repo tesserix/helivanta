@@ -34,6 +34,7 @@ import {
   type FieldPath,
   type UseFormReturn,
 } from "@helivanta/ui";
+import { LicenceReview } from "./licence-review";
 import { LicenceEvidence } from "./licence-evidence";
 import { RequestFailure } from "../request-failure";
 
@@ -61,6 +62,8 @@ export function PartyRegistration({
     supplyRegistryRoot(scope, "licenses"),
     { enabled: allowed && can("supply.license.read") },
   );
+  const [review, setReview] = useState<SupplyLicense | null>(null);
+  const currentReview = review && licenses.items.find((row) => row.id === review.id);
   const [evidence, setEvidence] = useState<SupplyLicense | null>(null);
   const currentEvidence = evidence && licenses.items.find((row) => row.id === evidence.id);
   const [premise, setPremise] = useState<SupplyPremise | null>();
@@ -213,10 +216,17 @@ export function PartyRegistration({
                       Issued {row.issued_on} · Expires {row.expires_on}
                     </p>
                     <p className="mt-2 text-xs font-medium text-muted-foreground">
-                      Declared · verification pending
+                      Declaration recorded
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setReview(row)}
+                      aria-label={`Review for licence ${row.number}`}
+                    >
+                      Review
+                    </Button>
                     {can("supply.evidence.read") && (
                       <Button
                         variant="outline"
@@ -281,6 +291,15 @@ export function PartyRegistration({
           />
         )}
       </div>
+      {currentReview && (
+        <LicenceReview
+          key={`${scope.tenantId}:${scope.subject}:${scope.partyId}:${currentReview.id}:${currentReview.version}`}
+          scope={{ ...scope, licenseId: currentReview.id }}
+          licence={currentReview}
+          roles={roles}
+          onClose={() => setReview(null)}
+        />
+      )}
       {currentEvidence && (
         <LicenceEvidence
           key={`${scope.tenantId}:${scope.subject}:${scope.partyId}:${currentEvidence.id}:${currentEvidence.version}`}

@@ -1,6 +1,6 @@
 # ADR 0028: Versioned supplier verification and private evidence
 
-Status: accepted design; the private registry is implemented separately, while evidence/review remain pending. Extends ADR 0027 and stories #1135/#1137; it does not activate country trading rules or close those stories before acceptance passes.
+Status: accepted design. Private registry and evidence processing are released. The independent licence-review slice is implemented under #1135 and is undergoing local acceptance; organisation lifecycle and country/trading activation remain separate work. Extends ADR 0027 and stories #1135/#1137; it does not activate country trading rules or close those stories before acceptance passes.
 
 ## Ownership and trust boundaries
 
@@ -37,10 +37,21 @@ The future trading gate requires current verification, valid required licences, 
 
 Clinical keys remain byte-for-byte compatible: `t/<tenant>/h/<hospital>/o/<patient|staff>/<owner>/r/<record>/d/<UTC date>/f/<file>/v/<version>`. Independent organisation keys use `t/<tenant>/o/organisation/<party>/r/<record>/d/<UTC date>/f/<file>/v/<version>`, and reject a hospital identifier. Every key is server-derived from opaque identifiers; names, licence numbers and filenames never become object paths.
 
-Use the existing private GCS buckets, shared attachment integrity/promotion code, fresh ClamAV checks and the existing document-worker fleet. PNG/JPEG are bounded passive evidence formats; unsupported/active formats remain rejected. No unscanned download or broad public bucket is introduced. Upload size, digest, source generation and released generation are checked. Storage calls run outside database authorization locks; final commits recheck current grants/source versions. Revocation or a stale scan cannot authorize release. Broker/workflow data contains opaque IDs and attempt/version references, not licence/contact/finance contents.
+Use the existing private GCS buckets, shared attachment integrity/promotion code and fresh ClamAV checks. Supply evidence runs with its separate scoped worker identity and task queue alongside the HR worker fleet. PNG/JPEG are bounded passive evidence formats; unsupported/active formats remain rejected. No unscanned download or broad public bucket is introduced. Upload size, digest, source generation and released generation are checked. Storage calls run outside database authorization locks; final commits recheck current grants/source versions. Revocation or a stale scan cannot authorize release. Broker/workflow data contains opaque IDs and attempt/version references, not licence/contact/finance contents.
 
 The existing single database transaction remains the source of truth for head, immutable revision, audit and outbox. Exact retries do not create duplicate history/events; conflicting retries return 409. NATS can redeliver and Temporal can retry without promoting a different object generation. Cleanup/retention are explicit lifecycle workflows, not deletion on ordinary user edits.
 
 ## Local acceptance gates
 
 Use real disposable PostgreSQL, NATS/JetStream and OpenFGA. Test unknown/foreign objects, forged tenant input, current role revocation, optimistic and concurrent retries, source edits after submission, expired licences, maker/checker, immutable history, outbox/storage/scan failures, duplicate file delivery, malicious content, generation substitution and country mismatch. Browser acceptance exercises the real API with reserved synthetic identifiers, form focus, shared dropdowns, private views and mobile rendering. Production rollout is a later explicitly approved step after the concrete change is reviewable.
+
+## Independent licence-review implementation
+
+[Review spec](../superpowers/specs/2026-10-16-supply-licence-review.md) defines
+`0004_supply`, the private submit/verify/reject/suspend API, effective-state reads
+and the review panel. PostgreSQL prevents self-review by the submitter, evidence
+uploader and authors of the exact party, premises and licence revisions. Each
+decision references those immutable revisions and the immutable evidence record.
+Versioned source changes and revoked evidence immediately invalidate effective
+verification. Successful verification still returns `trading_approved=false`.
+This does not complete the broader onboarding, policy or relationship stories.

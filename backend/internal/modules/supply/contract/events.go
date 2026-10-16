@@ -52,3 +52,12 @@ type EvidenceChangedData struct {
 	EvidenceScanRequestedData
 	Status string `json:"status"`
 }
+
+const SubjectLicenseReviewChanged = "helivanta.in.supply.license_review_changed.v1"
+
+type LicenseReviewChangedData struct {
+	PartyID   string `json:"party_id"`
+	LicenseID string `json:"license_id"`
+	ReviewID  string `json:"review_id"`
+	Version   int64  `json:"version"`
+}

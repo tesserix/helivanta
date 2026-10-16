@@ -17,3 +17,12 @@ Validation:
 Diagnostics: /tmp/helivanta-1176-red.log, /tmp/helivanta-1176-green-identity.log, /tmp/helivanta-1176-green-docker.log and /tmp/helivanta-1176-full-go-bounded.jsonl. The local Colima port adapter remains outside tracked source.
 
 Go remains 1.27.2. No production migration or business-runtime change is required. Keep #1176 open until hosted CI verifies the full suite and approved release health.
+
+First hosted attempt `38894793923` passed web, browser E2E, scripts, secret scans
+and image builds. Its Go runner spent 854 seconds installing the pinned linter,
+then exceeded the five-minute package-loading deadline before reaching tests.
+The existing build now runs before lint to warm the application compilation
+cache; lint receives a ten-minute analysis deadline inside a thirty-minute step
+bound that also includes installation. No analyzer, assertion or test is removed.
+This separate cold-runner failure is recorded rather than reported as a reaper
+regression or hidden by an unchanged retry.

@@ -71,13 +71,16 @@ jobs:
       - name: Reject MedCora alias
         working-directory: .
         run: "! grep -rn --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=docs --exclude-dir=.superpowers --exclude=ci.yml 'MedCora' . || (echo 'MedCora is a rejected alias (issue 12) - use MediCore' && exit 1)"
+      - run: go build ./...
       - name: golangci-lint
+        # Cold package loading exceeded five minutes in run 38894793923.
+        timeout-minutes: 30
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           install-mode: goinstall
           version: v2.14.0
           working-directory: backend
-      - run: go build ./...
+          args: --timeout=10m
       # Fails on any known vulnerability reachable from our code, stdlib included (SOC 2 CC7.1).
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
       # #963: the shared Postgres container of a test binary has vanished

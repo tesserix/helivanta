@@ -96,7 +96,7 @@ func (h *handlers) uploadDocument(c *gin.Context) {
 		if err != nil || saved.Status != "upload_pending" {
 			return err
 		}
-		result := tx.Raw(`UPDATE workforce_documents SET uploaded_at=COALESCE(uploaded_at,clock_timestamp()),updated_at=clock_timestamp()
+		result := tx.Raw(`UPDATE workforce_documents SET uploaded_at=COALESCE(uploaded_at,GREATEST(clock_timestamp(),created_at)),updated_at=clock_timestamp()
 		 WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND status='upload_pending' AND expires_at>clock_timestamp()
 		 RETURNING `+documentColumns, p.TenantID, hospital, staffID, fileID).Scan(&saved)
 		if result.Error != nil {

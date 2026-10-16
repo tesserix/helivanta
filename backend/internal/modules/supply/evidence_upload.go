@@ -83,7 +83,7 @@ func (h *evidenceHandlers) uploadEvidence(c *gin.Context) {
 		if err != nil || saved.Status != "upload_pending" {
 			return err
 		}
-		res := tx.Raw(`UPDATE supply_license_evidence SET uploaded_at=COALESCE(uploaded_at,clock_timestamp()) WHERE tenant_id=? AND party_id=? AND license_id=? AND id=? AND status='upload_pending' AND expires_at>clock_timestamp() RETURNING `+evidenceColumns, p.TenantID, party, licence, file).Scan(&saved)
+		res := tx.Raw(`UPDATE supply_license_evidence SET uploaded_at=COALESCE(uploaded_at,GREATEST(clock_timestamp(),created_at)) WHERE tenant_id=? AND party_id=? AND license_id=? AND id=? AND status='upload_pending' AND expires_at>clock_timestamp() RETURNING `+evidenceColumns, p.TenantID, party, licence, file).Scan(&saved)
 		if res.Error != nil {
 			return res.Error
 		}

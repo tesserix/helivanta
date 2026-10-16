@@ -32,3 +32,14 @@ as a rollback. Its named production migration and rollout require approval.
 Rejected: granting Supply SELECT on workforce_documents broadens the trust
 boundary; a CASE-only guard still triggers privilege checks; weakening event
 checks makes forged outbox publication possible.
+
+## Upload timestamp ordering: #1167
+
+Local full-suite runs also reproduced `workforce_documents_check2` at the first
+upload timestamp update: the sampled database wall clock preceded immutable
+creation time. Reproduce deterministically by setting the isolated fixture's
+creation default ahead of its current clock before creating an intent. Preserve
+the chronology constraint and set the first upload timestamp to the later of
+database wall time and creation time, for both HR and Supply. Exact replay keeps
+the stored timestamp. No production row rewrite, new migration, clock change or
+new privilege is required. Existing expiry and scanner-provenance checks remain.

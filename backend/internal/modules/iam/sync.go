@@ -20,7 +20,7 @@ type fgaSyncHandlers struct {
 
 // grant applies a member_granted event to OpenFGA. It reconciles the
 // tenant's full permission set first (self-healing any prior drift)
-// before writing the new role tuple.
+// before wiring the role into its tenant and assigning the subject.
 func (h *fgaSyncHandlers) grant(ctx context.Context, _ *gorm.DB, evt events.Event) error {
 	var data iamcontract.MemberChangedData
 	if err := json.Unmarshal(evt.Data, &data); err != nil {
@@ -31,7 +31,12 @@ func (h *fgaSyncHandlers) grant(ctx context.Context, _ *gorm.DB, evt events.Even
 			return fmt.Errorf("reconcile tenant: %w", err)
 		}
 	}
-	return h.authz.GrantRole(ctx, evt.TenantID, data.Subject, authz.Role(data.RoleKey))
+	role := authz.Role(data.RoleKey)
+	// Do not acknowledge a partial grant: membership requires both edges.
+	if err := h.authz.GrantTenantRole(ctx, evt.TenantID, role); err != nil {
+		return fmt.Errorf("grant tenant role: %w", err)
+	}
+	return h.authz.GrantRole(ctx, evt.TenantID, data.Subject, role)
 }
 
 // revoke applies a member_revoked event to OpenFGA.

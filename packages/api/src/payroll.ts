@@ -2,6 +2,8 @@ import { z } from "zod";
 import type {
   IncomeTaxParams,
   IncomeTaxPreviewInput,
+  SalaryAssignmentInput,
+  SalaryAssignmentRevision,
   SalaryHead,
   SalaryHeadInput,
   SalaryPreviewInput,
@@ -13,6 +15,9 @@ import type {
   StatutoryPtSlab,
   StatutoryRevision,
   StatutoryRuleInput,
+  StaffSalaryPreviewInput,
+  TaxRegimeElection,
+  TaxRegimeInput,
 } from "./payroll-contract";
 
 export * from "./payroll-contract";
@@ -1417,3 +1422,153 @@ export const describeStatutoryRevision = (revision: StatutoryRevision) => {
   }
   return "Parameters unavailable";
 };
+
+export const TAX_REGIMES = {
+  new: "New regime",
+  old: "Old regime",
+} as const;
+
+export const staffPayPath = (base: string, staff: string) =>
+  `${base}/hr/payroll/staff/${encodeURIComponent(staff)}`;
+export const salaryAssignmentsPath = (base: string) => `${base}/hr/payroll/salary-assignments`;
+
+const assignmentAmountFormSchema = z.object({ head_id: z.string(), amount: z.string() }).strict();
+export type SalaryAssignmentAmountForm = z.infer<typeof assignmentAmountFormSchema>;
+
+// A blank amount keeps the structure's own figure for that head.
+export const salaryAssignmentFormSchema = z
+  .object({
+    structure_id: z.string().uuid("Choose a structure."),
+    effective_on: date,
+    reason: text("a reason", 500),
+    amounts: z.array(assignmentAmountFormSchema).max(60),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    value.amounts.forEach((a, i) => {
+      if (a.amount.trim() !== "" && parseRupees(a.amount) === undefined)
+        ctx.addIssue({
+          code: "custom",
+          path: ["amounts", i, "amount"],
+          message: "Enter rupees with up to two decimals, or leave blank.",
+        });
+    });
+  });
+export type SalaryAssignmentForm = z.infer<typeof salaryAssignmentFormSchema>;
+
+// Lists every fixed line of the structure, prefilled from the revision's own amounts where it set one.
+export const salaryAssignmentAmountsFor = (
+  lines: { head_id: string; basis: string }[],
+  revision?: Pick<SalaryAssignmentRevision, "amounts">,
+): SalaryAssignmentAmountForm[] => {
+  const set = new Map(revision?.amounts.map((a) => [a.head_id, a.amount_paise]));
+  return lines
+    .filter((l) => l.basis === "fixed")
+    .map((l) => {
+      const paise = set.get(l.head_id);
+      return { head_id: l.head_id, amount: paise === undefined ? "" : paiseToRupees(paise) };
+    });
+};
+
+export const toSalaryAssignmentInput = (
+  form: SalaryAssignmentForm,
+  expectedVersion: number,
+): SalaryAssignmentInput => ({
+  expected_version: expectedVersion,
+  structure_id: form.structure_id,
+  effective_on: form.effective_on,
+  reason: form.reason.trim(),
+  amounts: form.amounts.flatMap((a) => {
+    const paise = a.amount.trim() === "" ? undefined : parseRupees(a.amount);
+    return paise === undefined ? [] : [{ head_id: a.head_id, amount_paise: paise }];
+  }),
+});
+
+export const staffSalaryPreviewFormSchema = z
+  .object({
+    on: date,
+    payable_days: z.string(),
+    disability: z.boolean(),
+    gender: z.enum(["", "female", "male", "other"]),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const result = salaryPreviewFormSchema.safeParse({
+      on: value.on,
+      payable_days: value.payable_days,
+    });
+    for (const i of result.error?.issues ?? [])
+      if (i.path[0] === "payable_days") ctx.addIssue({ ...i, code: "custom" });
+  });
+export type StaffSalaryPreviewForm = z.infer<typeof staffSalaryPreviewFormSchema>;
+
+export const toStaffSalaryPreviewInput = (
+  form: StaffSalaryPreviewForm,
+): StaffSalaryPreviewInput => ({
+  on: form.on,
+  payable_half_days: parseHalfDays(form.payable_days) ?? 0,
+  disability: form.disability,
+  ...(form.gender !== "" && { gender: form.gender }),
+});
+
+const validTaxYear = (year: string) => {
+  const match = /^(\d{4})-(\d{2})$/.exec(year);
+  if (!match) return false;
+  const start = Number(match[1]);
+  return start >= 2000 && start <= 2199 && Number(match[2]) === (start + 1) % 100;
+};
+
+// Mirrors the server: an intimation may precede its year but never follow 31 March, and a change needs a note.
+export const taxRegimeSchemaFor = (current?: TaxRegimeElection) =>
+  z
+    .object({
+      tax_year: z.string().trim(),
+      regime: z.enum(["new", "old"], { message: "Choose the regime the employee intimated." }),
+      intimated_on: date,
+      note: z.string(),
+    })
+    .strict()
+    .superRefine((value, ctx) => {
+      if (!validTaxYear(value.tax_year)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["tax_year"],
+          message: "Write the tax year as 2026-27.",
+        });
+        return;
+      }
+      if (
+        z.string().date().safeParse(value.intimated_on).success &&
+        value.intimated_on > `${Number(value.tax_year.slice(0, 4)) + 1}-03-31`
+      )
+        ctx.addIssue({
+          code: "custom",
+          path: ["intimated_on"],
+          message: "Use a date no later than 31 March of that tax year.",
+        });
+      const note = value.note.trim();
+      if (note.length > 500 || note.includes("\0"))
+        ctx.addIssue({
+          code: "custom",
+          path: ["note"],
+          message: "Keep the note within 500 characters.",
+        });
+      else if (
+        current &&
+        note === "" &&
+        (current.regime !== value.regime || current.intimated_on !== value.intimated_on)
+      )
+        ctx.addIssue({
+          code: "custom",
+          path: ["note"],
+          message: "Give a reason for changing the recorded regime.",
+        });
+    });
+export type TaxRegimeForm = z.infer<ReturnType<typeof taxRegimeSchemaFor>>;
+
+export const toTaxRegimeInput = (form: TaxRegimeForm, expectedVersion: number): TaxRegimeInput => ({
+  expected_version: expectedVersion,
+  regime: form.regime,
+  intimated_on: form.intimated_on,
+  note: form.note.trim(),
+});

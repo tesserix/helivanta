@@ -1,0 +1,724 @@
+{
+  "kinds": {
+    "earning": "Earning",
+    "deduction": "Deduction",
+    "employer_contribution": "Employer contribution"
+  },
+  "models": {
+    "salaryHeadInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "earning",
+          "deduction",
+          "employer_contribution"
+        ],
+        "binding": "required,oneof=earning deduction employer_contribution"
+      },
+      {
+        "name": "code",
+        "type": "string",
+        "format": "code",
+        "binding": "required,max=40"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "format": "name",
+        "min": 1,
+        "max": 80,
+        "binding": "required,max=80"
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "basis",
+        "type": "string",
+        "enum": [
+          "fixed",
+          "percent"
+        ],
+        "binding": "required,oneof=fixed percent"
+      },
+      {
+        "name": "rate_ppm",
+        "type": "int",
+        "optional": true,
+        "min": 1,
+        "max": 1000000,
+        "binding": "omitempty,gte=1,lte=1000000"
+      },
+      {
+        "name": "base_head_ids",
+        "type": "[]uuid",
+        "max": 20,
+        "binding": "max=20,dive,required"
+      },
+      {
+        "name": "proration",
+        "type": "string",
+        "enum": [
+          "none",
+          "calendar_days",
+          "fixed_days"
+        ],
+        "binding": "required,oneof=none calendar_days fixed_days"
+      },
+      {
+        "name": "proration_days",
+        "type": "int",
+        "optional": true,
+        "min": 1,
+        "max": 31,
+        "binding": "omitempty,gte=1,lte=31"
+      },
+      {
+        "name": "minimum_payable_half_days",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 62,
+        "binding": "required,gte=0,lte=62"
+      },
+      {
+        "name": "months",
+        "type": "[]int",
+        "max": 12,
+        "binding": "required,min=1,max=12,dive,gte=1,lte=12"
+      },
+      {
+        "name": "rounding_mode",
+        "type": "string",
+        "enum": [
+          "nearest",
+          "up",
+          "down"
+        ],
+        "binding": "required,oneof=nearest up down"
+      },
+      {
+        "name": "rounding_unit_paise",
+        "type": "int",
+        "pointer": true,
+        "min": 1,
+        "max": 1000,
+        "binding": "required,oneof=1 50 100 500 1000"
+      },
+      {
+        "name": "min_amount_paise",
+        "type": "int64",
+        "optional": true,
+        "min": 0,
+        "max": 1000000000,
+        "binding": "omitempty,gte=0,lte=1000000000"
+      },
+      {
+        "name": "max_amount_paise",
+        "type": "int64",
+        "optional": true,
+        "min": 0,
+        "max": 1000000000,
+        "binding": "omitempty,gte=0,lte=1000000000"
+      },
+      {
+        "name": "in_gross",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "in_ctc",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "arrears_eligible",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "taxability",
+        "type": "string",
+        "enum": [
+          "taxable",
+          "exempt",
+          "not_applicable"
+        ],
+        "binding": "required,oneof=taxable exempt not_applicable"
+      },
+      {
+        "name": "tax_note",
+        "type": "string",
+        "format": "text",
+        "optional": true,
+        "max": 300,
+        "binding": "omitempty,max=300"
+      },
+      {
+        "name": "wage_class",
+        "type": "string",
+        "enum": [
+          "wages",
+          "excluded",
+          "outside"
+        ],
+        "binding": "required,oneof=wages excluded outside"
+      },
+      {
+        "name": "payslip_label",
+        "type": "string",
+        "format": "name",
+        "min": 1,
+        "max": 40,
+        "binding": "required,max=40"
+      },
+      {
+        "name": "payslip_order",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 999,
+        "binding": "required,gte=0,lte=999"
+      },
+      {
+        "name": "show_when_zero",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "salaryHead": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "head_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "earning",
+          "deduction",
+          "employer_contribution"
+        ]
+      },
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "active",
+        "type": "bool"
+      },
+      {
+        "name": "basis",
+        "type": "string",
+        "enum": [
+          "fixed",
+          "percent"
+        ]
+      },
+      {
+        "name": "rate_ppm",
+        "type": "int",
+        "optional": true
+      },
+      {
+        "name": "base_head_ids",
+        "type": "[]uuid",
+        "orm_ignore": true
+      },
+      {
+        "name": "proration",
+        "type": "string",
+        "enum": [
+          "none",
+          "calendar_days",
+          "fixed_days"
+        ]
+      },
+      {
+        "name": "proration_days",
+        "type": "int",
+        "optional": true
+      },
+      {
+        "name": "minimum_payable_half_days",
+        "type": "int"
+      },
+      {
+        "name": "months",
+        "type": "[]int",
+        "orm_ignore": true
+      },
+      {
+        "name": "rounding_mode",
+        "type": "string",
+        "enum": [
+          "nearest",
+          "up",
+          "down"
+        ]
+      },
+      {
+        "name": "rounding_unit_paise",
+        "type": "int"
+      },
+      {
+        "name": "min_amount_paise",
+        "type": "int64",
+        "optional": true
+      },
+      {
+        "name": "max_amount_paise",
+        "type": "int64",
+        "optional": true
+      },
+      {
+        "name": "in_gross",
+        "type": "bool"
+      },
+      {
+        "name": "in_ctc",
+        "type": "bool"
+      },
+      {
+        "name": "arrears_eligible",
+        "type": "bool"
+      },
+      {
+        "name": "taxability",
+        "type": "string",
+        "enum": [
+          "taxable",
+          "exempt",
+          "not_applicable"
+        ]
+      },
+      {
+        "name": "tax_note",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "wage_class",
+        "type": "string",
+        "enum": [
+          "wages",
+          "excluded",
+          "outside"
+        ]
+      },
+      {
+        "name": "payslip_label",
+        "type": "string"
+      },
+      {
+        "name": "payslip_order",
+        "type": "int"
+      },
+      {
+        "name": "show_when_zero",
+        "type": "bool"
+      },
+      {
+        "name": "effective_on",
+        "type": "string"
+      },
+      {
+        "name": "reviewed_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "salaryStructureLineInput": [
+      {
+        "name": "head_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "amount_paise",
+        "type": "int64",
+        "optional": true,
+        "min": 0,
+        "max": 1000000000,
+        "binding": "omitempty,gte=0,lte=1000000000"
+      }
+    ],
+    "salaryStructureInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "code",
+        "type": "string",
+        "format": "code",
+        "binding": "required,max=40"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "format": "name",
+        "min": 1,
+        "max": 80,
+        "binding": "required,max=80"
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "format": "text",
+        "max": 500,
+        "binding": "max=500"
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "department_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "designation_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "grade_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "lines",
+        "type": "[]salaryStructureLineInput",
+        "max": 60,
+        "binding": "required,min=1,max=60,dive"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "salaryStructureLine": [
+      {
+        "name": "position",
+        "type": "int"
+      },
+      {
+        "name": "head_id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "earning",
+          "deduction",
+          "employer_contribution"
+        ]
+      },
+      {
+        "name": "basis",
+        "type": "string",
+        "enum": [
+          "fixed",
+          "percent"
+        ]
+      },
+      {
+        "name": "amount_paise",
+        "type": "int64",
+        "optional": true
+      }
+    ],
+    "salaryStructure": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "structure_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "description",
+        "type": "string"
+      },
+      {
+        "name": "active",
+        "type": "bool"
+      },
+      {
+        "name": "department_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "designation_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "grade_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "effective_on",
+        "type": "string"
+      },
+      {
+        "name": "reviewed_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      },
+      {
+        "name": "lines",
+        "type": "[]salaryStructureLine",
+        "orm_ignore": true
+      }
+    ],
+    "salaryPreviewInput": [
+      {
+        "name": "on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "payable_half_days",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 62,
+        "binding": "required,gte=0,lte=62"
+      }
+    ],
+    "salaryPreviewLine": [
+      {
+        "name": "head_id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "payslip_label",
+        "type": "string"
+      },
+      {
+        "name": "payslip_order",
+        "type": "int"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "earning",
+          "deduction",
+          "employer_contribution"
+        ]
+      },
+      {
+        "name": "amount_paise",
+        "type": "int64"
+      },
+      {
+        "name": "applicable",
+        "type": "bool"
+      },
+      {
+        "name": "shown",
+        "type": "bool"
+      }
+    ],
+    "salaryPreviewTotals": [
+      {
+        "name": "gross_paise",
+        "type": "int64"
+      },
+      {
+        "name": "deductions_paise",
+        "type": "int64"
+      },
+      {
+        "name": "employer_paise",
+        "type": "int64"
+      },
+      {
+        "name": "net_paise",
+        "type": "int64"
+      },
+      {
+        "name": "ctc_paise",
+        "type": "int64"
+      },
+      {
+        "name": "negative_net",
+        "type": "bool"
+      }
+    ],
+    "salaryWageTest": [
+      {
+        "name": "wages_paise",
+        "type": "int64"
+      },
+      {
+        "name": "excluded_paise",
+        "type": "int64"
+      },
+      {
+        "name": "remuneration_paise",
+        "type": "int64"
+      },
+      {
+        "name": "add_back_paise",
+        "type": "int64"
+      },
+      {
+        "name": "statutory_wages_paise",
+        "type": "int64"
+      },
+      {
+        "name": "excluded_share_ppm",
+        "type": "int64"
+      }
+    ],
+    "salaryPreview": [
+      {
+        "name": "structure_id",
+        "type": "uuid"
+      },
+      {
+        "name": "structure_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "on",
+        "type": "string"
+      },
+      {
+        "name": "period_days",
+        "type": "int"
+      },
+      {
+        "name": "payable_half_days",
+        "type": "int"
+      },
+      {
+        "name": "lines",
+        "type": "[]salaryPreviewLine"
+      },
+      {
+        "name": "totals",
+        "type": "salaryPreviewTotals"
+      },
+      {
+        "name": "wage_test",
+        "type": "salaryWageTest"
+      }
+    ]
+  }
+}

@@ -120,6 +120,12 @@ export const ZONES: Zone[] = [
         icon: CalendarDays,
         permission: "public",
       },
+      {
+        label: "Payroll setup",
+        href: "/workforce/payroll-setup",
+        icon: Settings,
+        permission: "workforce.payroll.view",
+      },
     ],
   },
   {

@@ -13,6 +13,8 @@ const structureID = "55555555-5555-4555-8555-555555555555";
 const stamp = "2026-10-16T00:00:00Z";
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 afterEach(() => vi.unstubAllGlobals());
+// Filling a whole rule through the dialog takes many interactions, which shared CI runners run about three times slower.
+const longForm = { timeout: 15_000 };
 
 // Synthetic values only: these prove behaviour, never statutory rates.
 const pfParams = {
@@ -187,7 +189,7 @@ it("offers a retry when statutory rules cannot be loaded", async () => {
   expect(within(section).getByRole("button", { name: "Try again" })).toBeInTheDocument();
 });
 
-it("refuses a blank PF proposal and submits only the cited values", async () => {
+it("refuses a blank PF proposal and submits only the cited values", longForm, async () => {
   const writes = mock();
   const { user } = renderWithProviders(<PayrollSetup />);
   const section = await panel();
@@ -201,11 +203,10 @@ it("refuses a blank PF proposal and submits only the cited values", async () => 
   ).toBeInTheDocument();
   expect(within(form).queryByText("Provident Fund parameters")).toBeNull();
   await chooseOption(user, within(form).getByRole("combobox", { name: "Coverage" }), "Covered");
-  await user.type(within(form).getByLabelText("Name"), "Synthetic PF");
-  await user.type(
-    within(form).getByLabelText("Notification or section relied on"),
-    "Synthetic notification 1",
-  );
+  await user.click(within(form).getByLabelText("Name"));
+  await user.paste("Synthetic PF");
+  await user.click(within(form).getByLabelText("Notification or section relied on"));
+  await user.paste("Synthetic notification 1");
   await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
   expect(await within(form).findAllByText("Choose an option.")).toHaveLength(4);
   expect(within(form).getAllByText(/Enter a percentage from 0 to 100/)).toHaveLength(5);
@@ -248,7 +249,7 @@ it("refuses a blank PF proposal and submits only the cited values", async () => 
   ).toBeInTheDocument();
   expect(writes).toHaveLength(0);
   await user.clear(within(form).getByLabelText("Of which pension (%)"));
-  await user.type(within(form).getByLabelText("Of which pension (%)"), "6");
+  await user.paste("6");
   await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]).toEqual({

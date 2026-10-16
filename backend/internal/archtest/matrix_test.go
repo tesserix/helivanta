@@ -187,6 +187,8 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	supply.PermAccessManage:       {authz.RoleTenantAdmin, authz.RoleSupplyAdmin},
 	supply.PermPremiseRead:        {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor},
 	supply.PermPremiseWrite:       {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing},
+	supply.PermEvidenceRead:       {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor},
+	supply.PermEvidenceWrite:      {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyCompliance},
 	supply.PermLicenseRead:        {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor},
 	supply.PermLicenseWrite:       {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyCompliance},
 

@@ -391,6 +391,50 @@
           "max": 9007199254740991
         }
       ]
+    },
+    {
+      "name": "EvidenceFields",
+      "schema": "supplyEvidenceFieldsSchema",
+      "fields": [
+        {
+          "name": "filename",
+          "type": "string",
+          "min": 1,
+          "max": 180
+        },
+        {
+          "name": "content_type",
+          "type": "string",
+          "enum": ["image/png", "image/jpeg"]
+        },
+        {
+          "name": "size",
+          "type": "int64",
+          "min": 1,
+          "max": 10485760
+        },
+        {
+          "name": "sha256",
+          "type": "string",
+          "min": 64,
+          "max": 64,
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      ]
+    },
+    {
+      "name": "evidenceInput",
+      "schema": "supplyEvidenceInputSchema",
+      "embed": "EvidenceFields",
+      "fields": [
+        {
+          "name": "expected_license_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 1,
+          "max": 9007199254740991
+        }
+      ]
     }
   ]
 }

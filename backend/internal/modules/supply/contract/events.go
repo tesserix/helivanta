@@ -29,3 +29,26 @@ type LicenseDeclaredData struct {
 	LicenseID string `json:"license_id"`
 	Version   int64  `json:"version"`
 }
+
+const SubjectEvidenceScanRequested = "helivanta.in.supply.evidence_scan_requested.v1"
+const SubjectEvidenceChanged = "helivanta.in.supply.evidence_changed.v1"
+
+type EvidenceScanRequestedData struct {
+	PartyID     string `json:"party_id"`
+	LicenseID   string `json:"license_id"`
+	FileID      string `json:"file_id"`
+	ScanAttempt int64  `json:"scan_attempt"`
+}
+
+type EvidenceScanInput struct {
+	TenantID    string `json:"tenant_id"`
+	PartyID     string `json:"party_id"`
+	LicenseID   string `json:"license_id"`
+	FileID      string `json:"file_id"`
+	ScanAttempt int64  `json:"scan_attempt"`
+}
+
+type EvidenceChangedData struct {
+	EvidenceScanRequestedData
+	Status string `json:"status"`
+}

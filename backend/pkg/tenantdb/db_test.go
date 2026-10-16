@@ -300,7 +300,7 @@ func TestLintRLSFlagsWideningWithCheck(t *testing.T) {
 // policies OR together, so a second policy — here a wide-open USING (true)
 // — defeats isolation entirely even while a first, correct policy still
 // makes every per-clause EXISTS true. The lint now also fails outright on
-// any table carrying other than exactly one policy.
+// any table carrying other than exactly one permissive policy.
 func TestLintRLSFlagsSecondPermissivePolicy(t *testing.T) {
 	db := openMigrated(t)
 	ctx := context.Background()
@@ -318,7 +318,7 @@ func TestLintRLSFlagsSecondPermissivePolicy(t *testing.T) {
 	}}))
 	bad, err := db.LintRLS(ctx)
 	require.NoError(t, err)
-	require.Contains(t, bad, "naughty_extra_policy: expected exactly one policy, found a different count")
+	require.Contains(t, bad, "naughty_extra_policy: expected exactly one permissive policy, found a different count")
 }
 
 // TestLintRLSFlagsTableOutsidePublicSchema covers the first escape from
@@ -653,4 +653,18 @@ func TestLintDirectedProvenanceFlagsAllowlistedTable(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, bad, 1)
 	require.Contains(t, bad[0], "allowlist")
+}
+
+func TestLintRLSAcceptsAdditionalRestrictionsWithoutPermittingWiderAccess(t *testing.T) {
+	db := openMigrated(t)
+	require.NoError(t, db.WithAdmin(t.Context(), func(tx *gorm.DB) error {
+		return tx.Exec(`CREATE POLICY additional_boundary ON widgets AS RESTRICTIVE FOR INSERT WITH CHECK(name='allowed')`).Error
+	}))
+	bad, err := db.LintRLS(t.Context())
+	require.NoError(t, err)
+	require.Empty(t, bad, "AND-only restrictions cannot widen the tenant policy")
+	require.NoError(t, db.WithAdmin(t.Context(), func(tx *gorm.DB) error { return tx.Exec(`DROP POLICY tenant_isolation ON widgets`).Error }))
+	bad, err = db.LintRLS(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, bad, "a restrictive policy alone is not a tenant policy")
 }

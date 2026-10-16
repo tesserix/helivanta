@@ -57,3 +57,41 @@ func TestObjectKeyRejectsMissingScopeAndPathInjection(t *testing.T) {
 		})
 	}
 }
+
+func TestOrganisationObjectKeyNeedsNoHospitalAndCannotAliasClinicalOwnership(t *testing.T) {
+	scope := attachments.ObjectScope{
+		TenantID: uuid.Must(uuid.NewV7()), OwnerKind: "organisation", OwnerID: uuid.Must(uuid.NewV7()),
+		RecordID: uuid.Must(uuid.NewV7()), FileID: uuid.Must(uuid.NewV7()), Version: 2,
+		UploadedAt: time.Date(2026, 10, 16, 0, 5, 0, 0, time.FixedZone("organisation", 5*60*60)),
+	}
+	key, err := attachments.ObjectKey(scope)
+	require.NoError(t, err)
+	require.Equal(t, "t/"+scope.TenantID.String()+"/o/organisation/"+scope.OwnerID.String()+"/r/"+scope.RecordID.String()+"/d/2026/10/15/f/"+scope.FileID.String()+"/v/2", key)
+	for _, field := range []string{"tenant", "owner", "record", "file"} {
+		t.Run(field, func(t *testing.T) {
+			changed := scope
+			switch field {
+			case "tenant":
+				changed.TenantID = uuid.Must(uuid.NewV7())
+			case "owner":
+				changed.OwnerID = uuid.Must(uuid.NewV7())
+			case "record":
+				changed.RecordID = uuid.Must(uuid.NewV7())
+			case "file":
+				changed.FileID = uuid.Must(uuid.NewV7())
+			}
+			other, e := attachments.ObjectKey(changed)
+			require.NoError(t, e)
+			require.NotEqual(t, key, other)
+		})
+	}
+	scope.HospitalID = uuid.Must(uuid.NewV7())
+	_, err = attachments.ObjectKey(scope)
+	require.Error(t, err, "organisation keys must reject ambiguous hospital ownership")
+	for _, kind := range []string{"patient", "staff"} {
+		scope.HospitalID = uuid.Nil
+		scope.OwnerKind = kind
+		_, err = attachments.ObjectKey(scope)
+		require.Error(t, err)
+	}
+}

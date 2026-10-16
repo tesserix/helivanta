@@ -14,7 +14,11 @@ const DESCRIPTIONS: Record<string, string> = {
   "/medicore/opd": "Outpatient registration & appointments",
   "/medicore/ipd": "Admissions, beds & ward rounds",
   "/pharmacy": "Dispensing & drug inventory",
+  "/pharmacy/catalogue": "Medicine identities, pack details and catalogue history",
+  "/pharmacy/stock": "Batch receiving, expiry dates and stock movement history",
+  "/pharmacy/accounts": "Supplier invoices, expenses, payments and outstanding balances",
   "/pharmacy/medications": "Formulary & stock reference",
+  "/supply/parties": "Organisations, suppliers, premises and independent licence review",
   "/lab": "Orders, samples & results",
 };
 

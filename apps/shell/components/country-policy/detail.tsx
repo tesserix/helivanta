@@ -118,7 +118,7 @@ function PolicyRecord({
     >
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h3 ref={heading} tabIndex={-1} className="text-xl font-semibold">
+          <h3 ref={heading} tabIndex={-1} className="scroll-mt-24 text-xl font-semibold">
             {countryProfile(scope.country)?.name} · {scope.jurisdiction}
           </h3>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -405,7 +405,7 @@ function PolicyReviewForm({
       onSubmit={form.handleSubmit((value) => save.mutate(value))}
       className="space-y-4 rounded-xl border p-5"
     >
-      <h4 ref={heading} tabIndex={-1} className="font-semibold">
+      <h4 ref={heading} tabIndex={-1} className="scroll-mt-24 font-semibold">
         {verb} policy
       </h4>
       <Field
@@ -471,7 +471,7 @@ function PolicyAccessForm({
       onSubmit={form.handleSubmit((input) => save.mutate(input))}
       className="space-y-4 rounded-xl border p-5"
     >
-      <h4 ref={heading} tabIndex={-1} className="font-semibold">
+      <h4 ref={heading} tabIndex={-1} className="scroll-mt-24 font-semibold">
         Policy scope access
       </h4>
       <p className="text-sm text-muted-foreground">

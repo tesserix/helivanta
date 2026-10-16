@@ -98,7 +98,7 @@ export function CountryPolicyEditor({
       className="space-y-6 rounded-2xl border bg-card p-5 sm:p-7"
     >
       <header>
-        <h3 ref={heading} tabIndex={-1} className="text-xl font-semibold">
+        <h3 ref={heading} tabIndex={-1} className="scroll-mt-24 text-xl font-semibold">
           {scope ? "New policy version" : "New country policy"}
         </h3>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">

@@ -158,10 +158,10 @@ export const ZONES: Zone[] = [
   },
   {
     key: "pharmacy",
-    label: "Pharmacy",
+    label: "PharmaConnect",
     icon: Pill,
     href: "/pharmacy",
-    permission: "pharmacy.dispense.read",
+    permission: "public",
     hue: "amber",
     pages: [
       { label: "Dispenses", href: "/pharmacy", icon: Pill, permission: "pharmacy.dispense.read" },
@@ -227,10 +227,16 @@ export const ZONES: Zone[] = [
 // empty entry in the nav.
 export function visibleZones(can: (permission: string) => boolean, zones: Zone[] = ZONES): Zone[] {
   return zones
-    .map((zone) => ({
-      ...zone,
-      pages: zone.pages.filter((page) => can(page.permission)),
-    }))
+    .map((zone) => {
+      const pages = zone.pages.filter((page) => can(page.permission));
+      return {
+        ...zone,
+        pages,
+        href: pages.some((page) => page.href === zone.href)
+          ? zone.href
+          : (pages[0]?.href ?? zone.href),
+      };
+    })
     .filter((zone) => can(zone.permission) && zone.pages.length > 0);
 }
 

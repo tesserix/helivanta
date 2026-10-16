@@ -23,6 +23,7 @@ import { CataloguePanel } from "./catalogue-panel";
 import { AccountsPanel } from "./accounts-panel";
 import { StockPanel } from "./stock-panel";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
+import { WorkspaceConnections } from "../workspace-connections";
 
 type PharmacyIdentity = { subject: string; tenant_id: string };
 export function PharmacyWorkspace({ view }: { view: "catalogue" | "stock" | "accounts" }) {
@@ -86,7 +87,7 @@ function TenantPharmacy({
         <div>
           <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-(--hms-accent)">
             <Pill className="size-4" />
-            Pharma Connect
+            PharmaConnect
           </p>
           <h2 className="text-3xl font-semibold tracking-tight">
             {view === "catalogue"
@@ -126,6 +127,9 @@ function TenantPharmacy({
           )}
         </div>
       </header>
+      <div className="mb-6">
+        <WorkspaceConnections current="pharmacy" />
+      </div>
       {pharmacies.isError ? (
         <RequestFailure message="Could not load your pharmacies." retry={pharmacies.retry} />
       ) : pharmacies.isPending ? (

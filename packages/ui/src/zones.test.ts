@@ -10,6 +10,16 @@ function canWith(granted: string[]): (permission: string) => boolean {
 }
 
 describe("visibleZones", () => {
+  it("opens PharmaConnect at the first permitted pharmacy screen", () => {
+    const pharmacy = visibleZones(canWith(["pharmacy.catalogue.read"])).find(
+      (zone) => zone.key === "pharmacy",
+    );
+
+    expect(pharmacy?.label).toBe("PharmaConnect");
+    expect(pharmacy?.href).toBe("/pharmacy/catalogue");
+    expect(pharmacy?.pages.map((page) => page.href)).toEqual(["/pharmacy/catalogue"]);
+  });
+
   it("hides zones whose permission the user lacks", () => {
     const keys = visibleZones(canWith(["pharmacy.dispense.read"])).map((z) => z.key);
 

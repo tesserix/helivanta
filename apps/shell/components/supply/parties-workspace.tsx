@@ -19,6 +19,7 @@ import { Field, LoadMore, useZodForm, formatDateTime } from "@helivanta/ui";
 import { RequestFailure } from "../request-failure";
 import { PartyEditor } from "./party-editor";
 import { PartyRegistration } from "./party-registration";
+import { WorkspaceConnections } from "../workspace-connections";
 
 const searchSchema = z.object({ query: z.string().trim().max(200) });
 const readRoles = ["administrator", "purchasing", "finance", "compliance", "auditor"];
@@ -84,6 +85,7 @@ function TenantParties({ scope }: { scope: SupplyScope }) {
           profiles and explicit access.
         </p>
       </header>
+      <WorkspaceConnections current="supply" />
       <div className="flex items-start gap-3 rounded-xl border bg-card p-5">
         <ShieldCheck className="mt-0.5 size-5 shrink-0 text-(--hms-accent)" />
         <p className="text-sm leading-6 text-muted-foreground">

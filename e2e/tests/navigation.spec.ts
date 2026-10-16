@@ -15,7 +15,7 @@ import { login } from "./support/login";
 // another Next app: it failed at the first cross-department hop. Lint cannot
 // enforce this (Next's no-html-link-for-pages only understands the pages/
 // router), so this spec is the control.
-test("moving between OPD, Pharmacy and Lab never reloads the page", async ({ page }) => {
+test("moving between OPD, PharmaConnect and Lab never reloads the page", async ({ page }) => {
   await login(page);
 
   const zoneNav = page.getByRole("navigation", { name: "Zones" });
@@ -29,7 +29,7 @@ test("moving between OPD, Pharmacy and Lab never reloads the page", async ({ pag
     page.evaluate(() => (window as unknown as { __navMarker?: string }).__navMarker ?? null);
 
   for (const [zone, url] of [
-    ["Pharmacy", /\/pharmacy$/],
+    ["PharmaConnect", /\/pharmacy$/],
     ["Lab", /\/lab$/],
     ["MediCore", /\/medicore\/opd$/],
   ] as const) {

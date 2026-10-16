@@ -31,6 +31,7 @@ var errStatutoryState = errors.New("statutory proposal is not pending")
 var errStatutorySelf = errors.New("statutory proposal decided by its author")
 var errStatutoryNotProposer = errors.New("statutory proposal withdrawn by someone else")
 var errStatutoryNoteRequired = errors.New("statutory rejection needs a note")
+var errStatutorySlabs = errors.New("statutory slabs do not cover every wage once")
 
 // Shares the salary lock so a preview-consistent configuration is always serialised.
 const statutoryLock = salaryConfigLock
@@ -86,7 +87,117 @@ func loadStatutoryRevisions(tx *gorm.DB, tenant string, hospital uuid.UUID, q *g
 		params.PeriodStartMonths = monthsFromMask(e.PeriodStartMask)
 		rows[index[e.RevisionID]].Esi = &params
 	}
-	return rows, nil
+	return rows, loadStatutorySlabRules(tx, tenant, hospital, ids, rows, index)
+}
+
+func loadStatutorySlabRules(tx *gorm.DB, tenant string, hospital uuid.UUID, ids []uuid.UUID, rows []statutoryRevision, index map[uuid.UUID]int) error {
+	var pt []struct {
+		RevisionID uuid.UUID
+		StateCode  string
+		WageBasis  string
+	}
+	if err := tx.Table("workforce_statutory_pt_params").Where("tenant_id=? AND hospital_id=? AND revision_id IN ?", tenant, hospital, ids).Find(&pt).Error; err != nil {
+		return err
+	}
+	for _, p := range pt {
+		rows[index[p.RevisionID]].Pt = &statutoryPtParams{StateCode: p.StateCode, WageBasis: p.WageBasis, Slabs: []statutoryPtSlab{}}
+	}
+	var ptSlabs []struct {
+		RevisionID  uuid.UUID
+		MonthsMask  int
+		GendersMask int
+		FromPaise   int64
+		ToPaise     *int64
+		AmountPaise int64
+	}
+	if err := tx.Table("workforce_statutory_pt_slabs").Where("tenant_id=? AND hospital_id=? AND revision_id IN ?", tenant, hospital, ids).Order("revision_id,position").Find(&ptSlabs).Error; err != nil {
+		return err
+	}
+	for _, s := range ptSlabs {
+		pt := rows[index[s.RevisionID]].Pt
+		pt.Slabs = append(pt.Slabs, statutoryPtSlab{Months: monthsFromMask(s.MonthsMask), Genders: gendersFromMask(s.GendersMask), FromPaise: &s.FromPaise, ToPaise: s.ToPaise, AmountPaise: &s.AmountPaise})
+	}
+	var lwf []struct {
+		RevisionID        uuid.UUID
+		StateCode         string
+		WageBasis         string
+		DeductionMask     int
+		RoundingMode      string
+		RoundingUnitPaise int
+	}
+	if err := tx.Table("workforce_statutory_lwf_params").Where("tenant_id=? AND hospital_id=? AND revision_id IN ?", tenant, hospital, ids).Find(&lwf).Error; err != nil {
+		return err
+	}
+	for _, l := range lwf {
+		rows[index[l.RevisionID]].Lwf = &statutoryLwfParams{StateCode: l.StateCode, WageBasis: l.WageBasis, DeductionMonths: monthsFromMask(l.DeductionMask), RoundingMode: l.RoundingMode, RoundingUnitPaise: &l.RoundingUnitPaise, Slabs: []statutoryLwfSlab{}}
+	}
+	var lwfSlabs []struct {
+		RevisionID uuid.UUID
+		Slab       statutoryLwfSlab `gorm:"embedded"`
+	}
+	if err := tx.Table("workforce_statutory_lwf_slabs").Where("tenant_id=? AND hospital_id=? AND revision_id IN ?", tenant, hospital, ids).Order("revision_id,position").Find(&lwfSlabs).Error; err != nil {
+		return err
+	}
+	for _, s := range lwfSlabs {
+		lwf := rows[index[s.RevisionID]].Lwf
+		lwf.Slabs = append(lwf.Slabs, s.Slab)
+	}
+	return nil
+}
+
+func genderMask(genders []string) int {
+	mask := 0
+	for _, g := range genders {
+		mask |= 1 << slices.Index(statutoryGenders, g)
+	}
+	return mask
+}
+
+func gendersFromMask(mask int) []string {
+	out := []string{}
+	for i, g := range statutoryGenders {
+		if mask&(1<<i) != 0 {
+			out = append(out, g)
+		}
+	}
+	return out
+}
+
+func validStateCode(code string) bool {
+	return len(code) == 5 && strings.HasPrefix(code, "IN-") && strings.Trim(code[3:], "ABCDEFGHIJKLMNOPQRSTUVWXYZ") == ""
+}
+
+// uniqueMonths sorts in place and reports whether every month appears once.
+func uniqueMonths(months []int) bool {
+	slices.Sort(months)
+	return len(slices.Compact(slices.Clone(months))) == len(months)
+}
+
+func normalizeStatutorySlabs(in *statutoryRuleInput) error {
+	if pt := in.Pt; pt != nil {
+		if !validStateCode(pt.StateCode) {
+			return errStatutoryInvalid
+		}
+		for i := range pt.Slabs {
+			s := &pt.Slabs[i]
+			if !uniqueMonths(s.Months) || len(gendersFromMask(genderMask(s.Genders))) != len(s.Genders) {
+				return errStatutoryInvalid
+			}
+			s.Genders = gendersFromMask(genderMask(s.Genders))
+		}
+		if !ptComplete(pt.Slabs) {
+			return errStatutorySlabs
+		}
+	}
+	if lwf := in.Lwf; lwf != nil {
+		if !validStateCode(lwf.StateCode) || !uniqueMonths(lwf.DeductionMonths) {
+			return errStatutoryInvalid
+		}
+		if !lwfComplete(lwf.Slabs) {
+			return errStatutorySlabs
+		}
+	}
+	return nil
 }
 
 func statutoryRules(tx *gorm.DB, tenant string, hospital uuid.UUID, parents []statutoryParent) ([]statutoryRule, error) {
@@ -204,7 +315,8 @@ func normalizeStatutoryRule(in *statutoryRuleInput) error {
 		return errStatutoryInvalid
 	}
 	// Coverage is explicit: a covered revision carries exactly its own kind's parameters, an uncovered one none.
-	if (in.Pf != nil) != (*in.Covered && in.Kind == "pf") || (in.Esi != nil) != (*in.Covered && in.Kind == "esi") {
+	if (in.Pf != nil) != (*in.Covered && in.Kind == "pf") || (in.Esi != nil) != (*in.Covered && in.Kind == "esi") ||
+		(in.Pt != nil) != (*in.Covered && in.Kind == "pt") || (in.Lwf != nil) != (*in.Covered && in.Kind == "lwf") {
 		return errStatutoryInvalid
 	}
 	if pf := in.Pf; pf != nil && (*pf.EpsRatePpm > *pf.EmployerRatePpm || *pf.EpsWageCeilingPaise > *pf.WageCeilingPaise) {
@@ -216,12 +328,12 @@ func normalizeStatutoryRule(in *statutoryRuleInput) error {
 			return errStatutoryInvalid
 		}
 	}
-	return nil
+	return normalizeStatutorySlabs(in)
 }
 
 func statutoryInputFromRevision(r statutoryRevision, expected int64) statutoryRuleInput {
 	covered := r.Covered
-	return statutoryRuleInput{ExpectedVersion: &expected, Kind: r.Kind, Name: r.Name, Covered: &covered, EffectiveOn: r.EffectiveOn, Citation: r.Citation, Reference: r.Reference, Pf: r.Pf, Esi: r.Esi}
+	return statutoryRuleInput{ExpectedVersion: &expected, Kind: r.Kind, Name: r.Name, Covered: &covered, EffectiveOn: r.EffectiveOn, Citation: r.Citation, Reference: r.Reference, Pf: r.Pf, Esi: r.Esi, Pt: r.Pt, Lwf: r.Lwf}
 }
 
 func (h *handlers) putStatutoryRule(c *gin.Context) {
@@ -235,7 +347,7 @@ func (h *handlers) putStatutoryRule(c *gin.Context) {
 		return
 	}
 	var in statutoryRuleInput
-	if !decodeSized(c, &in, 8192) {
+	if !decodeSized(c, &in, 16384) {
 		return
 	}
 	if err := normalizeStatutoryRule(&in); err != nil {
@@ -298,6 +410,9 @@ func (h *handlers) putStatutoryRule(c *gin.Context) {
 				return err
 			}
 		}
+		if err := insertStatutorySlabRules(tx, p.TenantID, hospital, revision, in); err != nil {
+			return err
+		}
 		if err := recordStatutoryChange(h, tx, p.TenantID, hospital, p.Subject, in.Kind, "proposed", id, revision, *in.ExpectedVersion); err != nil {
 			return err
 		}
@@ -309,6 +424,33 @@ func (h *handlers) putStatutoryRule(c *gin.Context) {
 		return
 	}
 	respond.OK(c, result)
+}
+
+func insertStatutorySlabRules(tx *gorm.DB, tenant string, hospital, revision uuid.UUID, in statutoryRuleInput) error {
+	if pt := in.Pt; pt != nil {
+		if err := tx.Exec(`INSERT INTO workforce_statutory_pt_params(tenant_id,hospital_id,revision_id,state_code,wage_basis) VALUES(?,?,?,?,?)`, tenant, hospital, revision, pt.StateCode, pt.WageBasis).Error; err != nil {
+			return err
+		}
+		values, args := make([]string, len(pt.Slabs)), []any{}
+		for i, s := range pt.Slabs {
+			values[i] = "(?,?,?,?,?,?,?,?,?)"
+			args = append(args, tenant, hospital, revision, i+1, monthMask(s.Months), genderMask(s.Genders), *s.FromPaise, s.ToPaise, *s.AmountPaise)
+		}
+		return tx.Exec(`INSERT INTO workforce_statutory_pt_slabs(tenant_id,hospital_id,revision_id,position,months_mask,genders_mask,from_paise,to_paise,amount_paise) VALUES`+strings.Join(values, ","), args...).Error
+	}
+	if lwf := in.Lwf; lwf != nil {
+		if err := tx.Exec(`INSERT INTO workforce_statutory_lwf_params(tenant_id,hospital_id,revision_id,state_code,wage_basis,deduction_mask,rounding_mode,rounding_unit_paise) VALUES(?,?,?,?,?,?,?,?)`,
+			tenant, hospital, revision, lwf.StateCode, lwf.WageBasis, monthMask(lwf.DeductionMonths), lwf.RoundingMode, *lwf.RoundingUnitPaise).Error; err != nil {
+			return err
+		}
+		values, args := make([]string, len(lwf.Slabs)), []any{}
+		for i, s := range lwf.Slabs {
+			values[i] = "(?,?,?,?,?,?,?,?,?,?,?,?)"
+			args = append(args, tenant, hospital, revision, i+1, *s.FromPaise, s.ToPaise, *s.EmployeeFixedPaise, *s.EmployeeRatePpm, s.EmployeeCapPaise, *s.EmployerFixedPaise, *s.EmployerRatePpm, s.EmployerCapPaise)
+		}
+		return tx.Exec(`INSERT INTO workforce_statutory_lwf_slabs(tenant_id,hospital_id,revision_id,position,from_paise,to_paise,employee_fixed_paise,employee_rate_ppm,employee_cap_paise,employer_fixed_paise,employer_rate_ppm,employer_cap_paise) VALUES`+strings.Join(values, ","), args...).Error
+	}
+	return nil
 }
 
 // Audit rows and events carry identifiers, kind, status and version only; rates, ceilings and citations stay behind the API.
@@ -476,6 +618,20 @@ func (h *handlers) previewStatutory(c *gin.Context) {
 					res.WagesPaise = statutoryWages(r.Esi.WageBasis, salary.WageTest.StatutoryWagesPaise, salary.Totals.GrossPaise)
 					res.BasePaise = res.WagesPaise
 					res.Status, res.Components = calculateESI(*r.Esi, res.WagesPaise, *in.PayableHalfDays, *in.Disability)
+				case r.Pt != nil:
+					res.WageBasis = &r.Pt.WageBasis
+					res.WagesPaise = statutoryWages(r.Pt.WageBasis, salary.WageTest.StatutoryWagesPaise, salary.Totals.GrossPaise)
+					res.BasePaise = res.WagesPaise
+					if res.Status, res.Components, err = calculatePT(*r.Pt, res.WagesPaise, int(on.Month()), in.Gender); err != nil {
+						return err
+					}
+				case r.Lwf != nil:
+					res.WageBasis = &r.Lwf.WageBasis
+					res.WagesPaise = statutoryWages(r.Lwf.WageBasis, salary.WageTest.StatutoryWagesPaise, salary.Totals.GrossPaise)
+					res.BasePaise = res.WagesPaise
+					if res.Status, res.Components, err = calculateLWF(*r.Lwf, res.WagesPaise, int(on.Month())); err != nil {
+						return err
+					}
 				}
 			}
 			for _, component := range res.Components {
@@ -503,6 +659,8 @@ func respondStatutoryError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, errStatutoryInvalid):
 		respond.Error(c, 400, "invalid_request", "Review the rule: a covered rule needs every parameter of its kind and an uncovered one none, EPS cannot exceed the employer share or the wage ceiling, and the disability ceiling cannot be below the standard one.")
+	case errors.Is(err, errStatutorySlabs), isPG && pg.ConstraintName == "workforce_statutory_slabs":
+		respond.Error(c, 400, "invalid_request", "Review the slabs: they must cover every wage from ₹0 exactly once, each starting where the previous one ends with only the last open-ended, and in every month professional tax applies, every gender must be covered.")
 	case errors.Is(err, errStatutoryNoteRequired):
 		respond.Error(c, 400, "invalid_request", "Give a reason when rejecting a proposal.")
 	case errors.Is(err, errPolicyEffective):

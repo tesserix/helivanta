@@ -219,4 +219,129 @@ const before = await proposer(
   409,
 );
 assert.equal(before.reason, "not_in_force", "the salary structure starts later");
-console.log(`Statutory rules verification passed: rule ${ruleID} version ${approved.version}.`);
+
+// PT and LWF: synthetic slabs on ₹30,000 of Labour Code wages, with a gender split and a month off.
+const levyRules = {
+  pt: "a8888888-8888-4888-8888-888888888821",
+  lwf: "a8888888-8888-4888-8888-888888888822",
+};
+const all = (n) => Array.from({ length: n }, (_, i) => i + 1);
+const pt = {
+  state_code: "IN-ZZ",
+  wage_basis: "statutory_wages",
+  slabs: [
+    {
+      months: all(11),
+      genders: ["female", "male", "other"],
+      from_paise: 0,
+      to_paise: 2000000,
+      amount_paise: 0,
+    },
+    { months: all(11), genders: ["female"], from_paise: 2000000, amount_paise: 100 },
+    { months: all(11), genders: ["male", "other"], from_paise: 2000000, amount_paise: 200 },
+  ],
+};
+const lwf = {
+  state_code: "IN-ZZ",
+  wage_basis: "statutory_wages",
+  deduction_months: [6, 12],
+  rounding_mode: "nearest",
+  rounding_unit_paise: 1,
+  slabs: [
+    {
+      from_paise: 0,
+      to_paise: 1000000,
+      employee_fixed_paise: 100,
+      employee_rate_ppm: 0,
+      employer_fixed_paise: 300,
+      employer_rate_ppm: 0,
+    },
+    {
+      from_paise: 1000000,
+      employee_fixed_paise: 0,
+      employee_rate_ppm: 1000,
+      employee_cap_paise: 2000,
+      employer_fixed_paise: 500,
+      employer_rate_ppm: 0,
+    },
+  ],
+};
+async function approveLevy(kind, params) {
+  const path = `${prefix}/statutory-rules/${levyRules[kind]}`;
+  const found = (await list(`${prefix}/statutory-rules`)).find((r) => r.id === levyRules[kind]);
+  if (found?.pending) {
+    assert.equal(
+      found.pending.proposed_by_subject,
+      proposerSubject,
+      "A stranger's proposal is pending.",
+    );
+    await proposer(`${path}/withdraw`, "POST", { proposal_id: found.pending.id, note: "" }, 200);
+  }
+  const at = found?.version ?? 0;
+  const body = {
+    expected_version: at,
+    kind,
+    name: `Synthetic Verify ${kind.toUpperCase()}`,
+    covered: true,
+    effective_on: "2026-04-01",
+    citation: "Synthetic verification notification",
+    reference: "",
+    [kind]: params,
+  };
+  const gap = { ...params, slabs: params.slabs.slice(1) };
+  assert.match(
+    (await proposer(path, "PUT", { ...body, [kind]: gap }, 400)).message,
+    /cover every wage/,
+    `${kind}: a table that does not start at ₹0 is refused`,
+  );
+  const pending = (await proposer(path, "PUT", body, 200)).pending.id;
+  const done = await approver(
+    `${path}/decision`,
+    "POST",
+    { proposal_id: pending, expected_version: at, decision: "approve", note: "" },
+    200,
+  );
+  assert.equal(done.current.id, pending);
+  assert.deepEqual(done.current[kind], params, `${kind}: slabs round-trip in order`);
+  return pending;
+}
+const ptRevision = await approveLevy("pt", pt);
+const lwfRevision = await approveLevy("lwf", lwf);
+const levies = async (on, gender) => {
+  const body = await proposer(
+    `${prefix}/statutory-preview`,
+    "POST",
+    {
+      structure_id: structureID,
+      on,
+      payable_half_days: 60,
+      disability: false,
+      ...(gender && { gender }),
+    },
+    200,
+  );
+  const pick = (kind) => body.results.find((r) => r.kind === kind);
+  const amounts = (r) => Object.fromEntries(r.components.map((c) => [c.component, c.amount_paise]));
+  return { pt: pick("pt"), lwf: pick("lwf"), amounts, body };
+};
+const nov = await levies("2026-11-15");
+assert.equal(nov.pt.status, "gender_required", "PT that differs by gender is not guessed");
+assert.equal(nov.pt.revision_id, ptRevision);
+assert.deepEqual(nov.pt.components, []);
+assert.equal(nov.lwf.status, "not_due");
+assert.equal(nov.lwf.revision_id, lwfRevision);
+const women = await levies("2026-11-15", "female");
+assert.deepEqual(women.amounts(women.pt), { pt_employee: 100 });
+const men = await levies("2026-11-15", "male");
+assert.deepEqual(men.amounts(men.pt), { pt_employee: 200 });
+const dec = await levies("2026-12-15", "male");
+assert.equal(dec.pt.status, "not_due", "a month no slab names has no PT");
+assert.equal(dec.lwf.status, "applied");
+assert.deepEqual(dec.amounts(dec.lwf), { lwf_employee: 2000, lwf_employer: 500 });
+assert.equal(
+  dec.body.net_after_statutory_paise,
+  dec.body.salary.totals.net_paise - dec.body.employee_paise,
+);
+console.log(
+  `Statutory rules verification passed: rule ${ruleID} version ${approved.version}, PT ${ptRevision}, LWF ${lwfRevision}.`,
+);

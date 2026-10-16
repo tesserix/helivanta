@@ -7,7 +7,7 @@ import (
 )
 
 var salaryHeadKinds = []string{"earning", "deduction", "employer_contribution"}
-var statutoryKinds = []string{"pf", "esi"}
+var statutoryKinds = []string{"pf", "esi", "pt", "lwf"}
 
 type salaryHeadInput struct {
 	ExpectedVersion        *int64      `json:"expected_version" binding:"required,gte=0"`
@@ -196,9 +196,43 @@ type statutoryEsiParams struct {
 	RoundingUnitPaise          *int   `json:"rounding_unit_paise" binding:"required,oneof=1 50 100 500 1000"`
 }
 
+type statutoryPtSlab struct {
+	Months      []int    `json:"months" binding:"required,min=1,max=12,dive,gte=1,lte=12"`
+	Genders     []string `json:"genders" binding:"required,min=1,max=3,dive,oneof=female male other"`
+	FromPaise   *int64   `json:"from_paise" binding:"required,gte=0,lte=1000000000"`
+	ToPaise     *int64   `json:"to_paise,omitempty" binding:"omitempty,gte=1,lte=1000000000"`
+	AmountPaise *int64   `json:"amount_paise" binding:"required,gte=0,lte=10000000"`
+}
+
+type statutoryPtParams struct {
+	StateCode string            `json:"state_code" binding:"required,len=5"`
+	WageBasis string            `json:"wage_basis" binding:"required,oneof=statutory_wages gross"`
+	Slabs     []statutoryPtSlab `json:"slabs" binding:"required,min=1,max=96,dive"`
+}
+
+type statutoryLwfSlab struct {
+	FromPaise          *int64 `json:"from_paise" binding:"required,gte=0,lte=1000000000"`
+	ToPaise            *int64 `json:"to_paise,omitempty" binding:"omitempty,gte=1,lte=1000000000"`
+	EmployeeFixedPaise *int64 `json:"employee_fixed_paise" binding:"required,gte=0,lte=10000000"`
+	EmployeeRatePpm    *int   `json:"employee_rate_ppm" binding:"required,gte=0,lte=1000000"`
+	EmployeeCapPaise   *int64 `json:"employee_cap_paise,omitempty" binding:"omitempty,gte=0,lte=10000000"`
+	EmployerFixedPaise *int64 `json:"employer_fixed_paise" binding:"required,gte=0,lte=10000000"`
+	EmployerRatePpm    *int   `json:"employer_rate_ppm" binding:"required,gte=0,lte=1000000"`
+	EmployerCapPaise   *int64 `json:"employer_cap_paise,omitempty" binding:"omitempty,gte=0,lte=10000000"`
+}
+
+type statutoryLwfParams struct {
+	StateCode         string             `json:"state_code" binding:"required,len=5"`
+	WageBasis         string             `json:"wage_basis" binding:"required,oneof=statutory_wages gross"`
+	DeductionMonths   []int              `json:"deduction_months" binding:"required,min=1,max=12,dive,gte=1,lte=12"`
+	RoundingMode      string             `json:"rounding_mode" binding:"required,oneof=nearest up down"`
+	RoundingUnitPaise *int               `json:"rounding_unit_paise" binding:"required,oneof=1 50 100 500 1000"`
+	Slabs             []statutoryLwfSlab `json:"slabs" binding:"required,min=1,max=24,dive"`
+}
+
 type statutoryRuleInput struct {
 	ExpectedVersion *int64              `json:"expected_version" binding:"required,gte=0"`
-	Kind            string              `json:"kind" binding:"required,oneof=pf esi"`
+	Kind            string              `json:"kind" binding:"required,oneof=pf esi pt lwf"`
 	Name            string              `json:"name" binding:"required,max=80"`
 	Covered         *bool               `json:"covered" binding:"required"`
 	EffectiveOn     string              `json:"effective_on" binding:"required,len=10"`
@@ -206,6 +240,8 @@ type statutoryRuleInput struct {
 	Reference       string              `json:"reference" binding:"max=300"`
 	Pf              *statutoryPfParams  `json:"pf,omitempty"`
 	Esi             *statutoryEsiParams `json:"esi,omitempty"`
+	Pt              *statutoryPtParams  `json:"pt,omitempty"`
+	Lwf             *statutoryLwfParams `json:"lwf,omitempty"`
 }
 
 type statutoryRevision struct {
@@ -223,6 +259,8 @@ type statutoryRevision struct {
 	Reference         string              `json:"reference"`
 	Pf                *statutoryPfParams  `json:"pf,omitempty" gorm:"-"`
 	Esi               *statutoryEsiParams `json:"esi,omitempty" gorm:"-"`
+	Pt                *statutoryPtParams  `json:"pt,omitempty" gorm:"-"`
+	Lwf               *statutoryLwfParams `json:"lwf,omitempty" gorm:"-"`
 	ProposedBySubject string              `json:"proposed_by_subject"`
 	DecidedBySubject  *string             `json:"decided_by_subject,omitempty"`
 	DecidedAt         *time.Time          `json:"decided_at,omitempty"`
@@ -258,6 +296,7 @@ type statutoryPreviewInput struct {
 	On              string    `json:"on" binding:"required,len=10"`
 	PayableHalfDays *int      `json:"payable_half_days" binding:"required,gte=0,lte=62"`
 	Disability      *bool     `json:"disability" binding:"required"`
+	Gender          *string   `json:"gender,omitempty" binding:"omitempty,oneof=female male other"`
 }
 
 type statutoryComponent struct {

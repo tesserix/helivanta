@@ -1089,6 +1089,169 @@
         "binding": "required,min=1,max=24,dive"
       }
     ],
+    "incomeTaxSlab": [
+      {
+        "name": "from_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 100000000000,
+        "binding": "required,gte=0,lte=100000000000"
+      },
+      {
+        "name": "to_paise",
+        "type": "int64",
+        "optional": true,
+        "min": 1,
+        "max": 100000000000,
+        "binding": "omitempty,gte=1,lte=100000000000"
+      },
+      {
+        "name": "rate_ppm",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "required,gte=0,lte=1000000"
+      }
+    ],
+    "incomeTaxAgeBand": [
+      {
+        "name": "min_age",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 120,
+        "binding": "required,gte=0,lte=120"
+      },
+      {
+        "name": "slabs",
+        "type": "[]incomeTaxSlab",
+        "max": 16,
+        "binding": "required,min=1,max=16,dive"
+      }
+    ],
+    "incomeTaxRebate": [
+      {
+        "name": "income_limit_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "max": 100000000000,
+        "binding": "required,gte=1,lte=100000000000"
+      },
+      {
+        "name": "max_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "max": 100000000000,
+        "binding": "required,gte=1,lte=100000000000"
+      },
+      {
+        "name": "marginal_relief",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "incomeTaxSurcharge": [
+      {
+        "name": "above_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "max": 100000000000,
+        "binding": "required,gte=1,lte=100000000000"
+      },
+      {
+        "name": "rate_ppm",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "required,gte=0,lte=1000000"
+      }
+    ],
+    "incomeTaxParams": [
+      {
+        "name": "tax_year",
+        "type": "string",
+        "format": "text",
+        "min": 7,
+        "max": 7,
+        "binding": "required,len=7"
+      },
+      {
+        "name": "standard_deduction_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 100000000,
+        "binding": "required,gte=0,lte=100000000"
+      },
+      {
+        "name": "taxable_rounding_mode",
+        "type": "string",
+        "enum": [
+          "nearest",
+          "up",
+          "down"
+        ],
+        "binding": "required,oneof=nearest up down"
+      },
+      {
+        "name": "taxable_rounding_unit_paise",
+        "type": "int",
+        "pointer": true,
+        "min": 1,
+        "max": 1000,
+        "binding": "required,oneof=1 50 100 500 1000"
+      },
+      {
+        "name": "tax_rounding_mode",
+        "type": "string",
+        "enum": [
+          "nearest",
+          "up",
+          "down"
+        ],
+        "binding": "required,oneof=nearest up down"
+      },
+      {
+        "name": "tax_rounding_unit_paise",
+        "type": "int",
+        "pointer": true,
+        "min": 1,
+        "max": 1000,
+        "binding": "required,oneof=1 50 100 500 1000"
+      },
+      {
+        "name": "age_bands",
+        "type": "[]incomeTaxAgeBand",
+        "max": 4,
+        "binding": "required,min=1,max=4,dive"
+      },
+      {
+        "name": "rebate",
+        "type": "incomeTaxRebate",
+        "optional": true
+      },
+      {
+        "name": "surcharge_bands",
+        "type": "[]incomeTaxSurcharge",
+        "max": 8,
+        "binding": "required,max=8,dive"
+      },
+      {
+        "name": "cess_rate_ppm",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "required,gte=0,lte=1000000"
+      }
+    ],
     "statutoryRuleInput": [
       {
         "name": "expected_version",
@@ -1104,9 +1267,11 @@
           "pf",
           "esi",
           "pt",
-          "lwf"
+          "lwf",
+          "income_tax_new",
+          "income_tax_old"
         ],
-        "binding": "required,oneof=pf esi pt lwf"
+        "binding": "required,oneof=pf esi pt lwf income_tax_new income_tax_old"
       },
       {
         "name": "name",
@@ -1162,6 +1327,11 @@
         "name": "lwf",
         "type": "statutoryLwfParams",
         "optional": true
+      },
+      {
+        "name": "income_tax",
+        "type": "incomeTaxParams",
+        "optional": true
       }
     ],
     "statutoryRevision": [
@@ -1180,7 +1350,9 @@
           "pf",
           "esi",
           "pt",
-          "lwf"
+          "lwf",
+          "income_tax_new",
+          "income_tax_old"
         ]
       },
       {
@@ -1251,6 +1423,12 @@
         "orm_ignore": true
       },
       {
+        "name": "income_tax",
+        "type": "incomeTaxParams",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
         "name": "proposed_by_subject",
         "type": "string"
       },
@@ -1285,7 +1463,9 @@
           "pf",
           "esi",
           "pt",
-          "lwf"
+          "lwf",
+          "income_tax_new",
+          "income_tax_old"
         ]
       },
       {
@@ -1502,12 +1682,121 @@
         "name": "net_after_statutory_paise",
         "type": "int64"
       }
+    ],
+    "incomeTaxPreviewInput": [
+      {
+        "name": "on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "annual_income_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 100000000000,
+        "binding": "required,gte=0,lte=100000000000"
+      },
+      {
+        "name": "age",
+        "type": "int",
+        "optional": true,
+        "min": 0,
+        "max": 120,
+        "binding": "omitempty,gte=0,lte=120"
+      }
+    ],
+    "incomeTaxResult": [
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "income_tax_new",
+          "income_tax_old"
+        ]
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "applied",
+          "not_covered",
+          "not_configured",
+          "tax_year_missing",
+          "age_required"
+        ]
+      },
+      {
+        "name": "rule_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "tax_year",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "age_band_min_age",
+        "type": "int",
+        "optional": true
+      },
+      {
+        "name": "income_paise",
+        "type": "int64"
+      },
+      {
+        "name": "standard_deduction_paise",
+        "type": "int64"
+      },
+      {
+        "name": "taxable_paise",
+        "type": "int64"
+      },
+      {
+        "name": "slab_tax_paise",
+        "type": "int64"
+      },
+      {
+        "name": "rebate_paise",
+        "type": "int64"
+      },
+      {
+        "name": "surcharge_paise",
+        "type": "int64"
+      },
+      {
+        "name": "cess_paise",
+        "type": "int64"
+      },
+      {
+        "name": "total_paise",
+        "type": "int64"
+      }
+    ],
+    "incomeTaxPreview": [
+      {
+        "name": "on",
+        "type": "string"
+      },
+      {
+        "name": "results",
+        "type": "[]incomeTaxResult"
+      }
     ]
   },
   "statutoryKinds": {
     "pf": "Provident Fund",
     "esi": "Employees' State Insurance",
     "pt": "Professional tax",
-    "lwf": "Labour welfare fund"
+    "lwf": "Labour welfare fund",
+    "income_tax_new": "Income tax (new regime)",
+    "income_tax_old": "Income tax (old regime)"
   }
 }

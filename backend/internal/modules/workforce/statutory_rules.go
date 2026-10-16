@@ -142,7 +142,7 @@ func loadStatutorySlabRules(tx *gorm.DB, tenant string, hospital uuid.UUID, ids 
 		lwf := rows[index[s.RevisionID]].Lwf
 		lwf.Slabs = append(lwf.Slabs, s.Slab)
 	}
-	return nil
+	return loadIncomeTaxRules(tx, tenant, hospital, ids, rows, index)
 }
 
 func genderMask(genders []string) int {
@@ -316,8 +316,12 @@ func normalizeStatutoryRule(in *statutoryRuleInput) error {
 	}
 	// Coverage is explicit: a covered revision carries exactly its own kind's parameters, an uncovered one none.
 	if (in.Pf != nil) != (*in.Covered && in.Kind == "pf") || (in.Esi != nil) != (*in.Covered && in.Kind == "esi") ||
-		(in.Pt != nil) != (*in.Covered && in.Kind == "pt") || (in.Lwf != nil) != (*in.Covered && in.Kind == "lwf") {
+		(in.Pt != nil) != (*in.Covered && in.Kind == "pt") || (in.Lwf != nil) != (*in.Covered && in.Kind == "lwf") ||
+		(in.IncomeTax != nil) != (*in.Covered && contains(in.Kind, incomeTaxKinds...)) {
 		return errStatutoryInvalid
+	}
+	if in.IncomeTax != nil && !normalizeIncomeTax(in.IncomeTax, in.EffectiveOn) {
+		return errIncomeTaxInvalid
 	}
 	if pf := in.Pf; pf != nil && (*pf.EpsRatePpm > *pf.EmployerRatePpm || *pf.EpsWageCeilingPaise > *pf.WageCeilingPaise) {
 		return errStatutoryInvalid
@@ -333,7 +337,7 @@ func normalizeStatutoryRule(in *statutoryRuleInput) error {
 
 func statutoryInputFromRevision(r statutoryRevision, expected int64) statutoryRuleInput {
 	covered := r.Covered
-	return statutoryRuleInput{ExpectedVersion: &expected, Kind: r.Kind, Name: r.Name, Covered: &covered, EffectiveOn: r.EffectiveOn, Citation: r.Citation, Reference: r.Reference, Pf: r.Pf, Esi: r.Esi, Pt: r.Pt, Lwf: r.Lwf}
+	return statutoryRuleInput{ExpectedVersion: &expected, Kind: r.Kind, Name: r.Name, Covered: &covered, EffectiveOn: r.EffectiveOn, Citation: r.Citation, Reference: r.Reference, Pf: r.Pf, Esi: r.Esi, Pt: r.Pt, Lwf: r.Lwf, IncomeTax: r.IncomeTax}
 }
 
 func (h *handlers) putStatutoryRule(c *gin.Context) {
@@ -411,6 +415,9 @@ func (h *handlers) putStatutoryRule(c *gin.Context) {
 			}
 		}
 		if err := insertStatutorySlabRules(tx, p.TenantID, hospital, revision, in); err != nil {
+			return err
+		}
+		if err := insertIncomeTaxRule(tx, p.TenantID, hospital, revision, in.Kind, in.IncomeTax); err != nil {
 			return err
 		}
 		if err := recordStatutoryChange(h, tx, p.TenantID, hospital, p.Subject, in.Kind, "proposed", id, revision, *in.ExpectedVersion); err != nil {
@@ -597,7 +604,7 @@ func (h *handlers) previewStatutory(c *gin.Context) {
 			return err
 		}
 		result = statutoryPreview{Salary: salary, Results: []statutoryResult{}}
-		for _, kind := range statutoryKinds {
+		for _, kind := range monthlyStatutoryKinds {
 			res := statutoryResult{Kind: kind, Status: "not_configured", Components: []statutoryComponent{}}
 			revisions, err := loadStatutoryRevisions(tx, p.TenantID, hospital, tx.Table("workforce_statutory_rule_revisions").Select(statutoryRevisionColumns).
 				Where("tenant_id=? AND hospital_id=? AND id=workforce_statutory_rule_on(?::uuid,?::uuid,?::text,?::date)", p.TenantID, hospital, p.TenantID, hospital, kind, in.On))
@@ -661,6 +668,8 @@ func respondStatutoryError(c *gin.Context, err error) {
 		respond.Error(c, 400, "invalid_request", "Review the rule: a covered rule needs every parameter of its kind and an uncovered one none, EPS cannot exceed the employer share or the wage ceiling, and the disability ceiling cannot be below the standard one.")
 	case errors.Is(err, errStatutorySlabs), isPG && pg.ConstraintName == "workforce_statutory_slabs":
 		respond.Error(c, 400, "invalid_request", "Review the slabs: they must cover every wage from ₹0 exactly once, each starting where the previous one ends with only the last open-ended, and in every month professional tax applies, every gender must be covered.")
+	case errors.Is(err, errIncomeTaxInvalid), isPG && (pg.ConstraintName == "workforce_income_tax_complete" || pg.ConstraintName == "workforce_income_tax_rebate"):
+		respond.Error(c, 400, "invalid_request", "Review the income-tax rule: the tax year must contain the effective date, one age band must start at 0 with no age repeated, each band's slabs must run from ₹0 without gaps or overlaps, and surcharge thresholds must rise.")
 	case errors.Is(err, errStatutoryNoteRequired):
 		respond.Error(c, 400, "invalid_request", "Give a reason when rejecting a proposal.")
 	case errors.Is(err, errPolicyEffective):

@@ -16,14 +16,14 @@ import { Field, SelectControl, useFieldArray, type UseFormReturn } from "@heliva
 import { inputClass } from "../roster-policy/policy-ui";
 import { Check } from "./payroll-workspace";
 
-type Form = UseFormReturn<StatutoryRuleForm>;
+export type Form = UseFormReturn<StatutoryRuleForm>;
 type Kind = "pt" | "lwf";
 type Gender = keyof typeof STATUTORY_GENDERS;
 
 const options = (labels: Record<string, string>) =>
   Object.entries(labels).map(([value, label]) => ({ value, label }));
 
-function useSet(form: Form) {
+export function useSet(form: Form) {
   return (name: string, next: unknown) =>
     form.setValue(name as never, next as never, {
       shouldDirty: true,
@@ -31,7 +31,7 @@ function useSet(form: Form) {
     });
 }
 
-function Text({
+export function Text({
   form,
   name,
   label,
@@ -48,7 +48,7 @@ function Text({
       <input
         id={id}
         className={inputClass}
-        inputMode={name.endsWith("state_code") ? undefined : "decimal"}
+        inputMode={/(state_code|tax_year)$/.test(name) ? undefined : "decimal"}
         aria-invalid={!!error}
         {...form.register(name as never)}
       />
@@ -56,7 +56,7 @@ function Text({
   );
 }
 
-function Choose({
+export function Choose({
   form,
   name,
   label,
@@ -128,7 +128,7 @@ function Toggles<T extends string | number>({
 
 const months = MONTH_NAMES.map((m, i): [number, string] => [i + 1, m]);
 
-function TableError({ message }: { message: string | undefined }) {
+export function TableError({ message }: { message: string | undefined }) {
   return message ? (
     <p role="alert" className="text-sm text-destructive">
       {message}

@@ -342,6 +342,118 @@ assert.equal(
   dec.body.net_after_statutory_paise,
   dec.body.salary.totals.net_paise - dec.body.employee_paise,
 );
+
+// Income tax: a synthetic ladder (nil to ₹1 lakh, 10% to ₹2 lakh, 20% above), never the Act's slabs.
+const incomeTaxRules = {
+  income_tax_new: "a8888888-8888-4888-8888-888888888823",
+  income_tax_old: "a8888888-8888-4888-8888-888888888824",
+};
+const incomeTax = {
+  tax_year: "2026-27",
+  standard_deduction_paise: 1000000,
+  taxable_rounding_mode: "nearest",
+  taxable_rounding_unit_paise: 1,
+  tax_rounding_mode: "nearest",
+  tax_rounding_unit_paise: 1,
+  age_bands: [
+    {
+      min_age: 0,
+      slabs: [
+        { from_paise: 0, to_paise: 10000000, rate_ppm: 0 },
+        { from_paise: 10000000, to_paise: 20000000, rate_ppm: 100000 },
+        { from_paise: 20000000, rate_ppm: 200000 },
+      ],
+    },
+  ],
+  rebate: { income_limit_paise: 15000000, max_paise: 1000000, marginal_relief: true },
+  surcharge_bands: [{ above_paise: 50000000, rate_ppm: 100000 }],
+  cess_rate_ppm: 50000,
+};
+async function proposeIncomeTax(kind, covered) {
+  const path = `${prefix}/statutory-rules/${incomeTaxRules[kind]}`;
+  const found = (await list(`${prefix}/statutory-rules`)).find(
+    (r) => r.id === incomeTaxRules[kind],
+  );
+  if (found?.pending) {
+    assert.equal(
+      found.pending.proposed_by_subject,
+      proposerSubject,
+      "A stranger's proposal is pending.",
+    );
+    await proposer(`${path}/withdraw`, "POST", { proposal_id: found.pending.id, note: "" }, 200);
+  }
+  const at = found?.version ?? 0;
+  const body = {
+    expected_version: at,
+    kind,
+    name: `Synthetic Verify ${kind}`,
+    covered,
+    effective_on: "2026-04-01",
+    citation: "Synthetic verification notification",
+    reference: "",
+    ...(covered && { income_tax: incomeTax }),
+  };
+  if (covered) {
+    for (const [why, bad] of [
+      ["a year that does not contain the effective date", { ...incomeTax, tax_year: "2027-28" }],
+      [
+        "a slab table that does not start at ₹0",
+        {
+          ...incomeTax,
+          age_bands: [{ min_age: 0, slabs: incomeTax.age_bands[0].slabs.slice(1) }],
+        },
+      ],
+    ])
+      assert.match(
+        (await proposer(path, "PUT", { ...body, income_tax: bad }, 400)).message,
+        /Review the income-tax rule/,
+        `${kind}: ${why} is refused`,
+      );
+  }
+  const pending = (await proposer(path, "PUT", body, 200)).pending.id;
+  const done = await approver(
+    `${path}/decision`,
+    "POST",
+    { proposal_id: pending, expected_version: at, decision: "approve", note: "" },
+    200,
+  );
+  assert.equal(done.current.id, pending);
+  if (covered) assert.deepEqual(done.current.income_tax, incomeTax, `${kind}: rule round-trips`);
+  return pending;
+}
+const newRegime = await proposeIncomeTax("income_tax_new", true);
+const oldRegime = await proposeIncomeTax("income_tax_old", false);
+const tax = async (on, income) => {
+  const body = await proposer(
+    `${prefix}/income-tax-preview`,
+    "POST",
+    { on, annual_income_paise: income },
+    200,
+  );
+  return Object.fromEntries(body.results.map((r) => [r.kind, r]));
+};
+// ₹1,60,000 taxable owes ₹6,000 on slabs, less than its ₹10,000 above the rebate limit, so no relief; then 5% cess.
+const relief = await tax("2026-10-01", 17000000);
+assert.equal(relief.income_tax_new.status, "applied");
+assert.equal(relief.income_tax_new.revision_id, newRegime);
+assert.equal(relief.income_tax_new.taxable_paise, 16000000);
+assert.equal(relief.income_tax_new.slab_tax_paise, 600000);
+assert.equal(relief.income_tax_new.rebate_paise, 0, "relief no longer helps ₹10,000 above");
+assert.equal(relief.income_tax_new.total_paise, 630000);
+assert.equal(relief.income_tax_old.status, "not_covered");
+assert.equal(relief.income_tax_old.revision_id, oldRegime);
+const nextYear = await tax("2027-04-01", 17000000);
+assert.equal(
+  nextYear.income_tax_new.status,
+  "tax_year_missing",
+  "last year's rates are never rolled into a new tax year",
+);
+assert.equal(nextYear.income_tax_new.total_paise, 0);
+const monthly = await levies("2026-11-15", "male");
+assert(
+  monthly.body.results.every((r) => !r.kind.startsWith("income_tax")),
+  "income tax stays out of the monthly preview",
+);
 console.log(
-  `Statutory rules verification passed: rule ${ruleID} version ${approved.version}, PT ${ptRevision}, LWF ${lwfRevision}.`,
+  `Statutory rules verification passed: rule ${ruleID} version ${approved.version}, PT ${ptRevision}, LWF ${lwfRevision}, income tax ${newRegime}.`,
 );

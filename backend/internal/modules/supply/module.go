@@ -26,6 +26,8 @@ const (
 	PermAccessManage       authz.Permission = "supply.party.access.manage"
 	PermPremiseRead        authz.Permission = "supply.premise.read"
 	PermPremiseWrite       authz.Permission = "supply.premise.write"
+	PermLicenseReview      authz.Permission = "supply.license.review"
+	PermLicenseSubmit      authz.Permission = "supply.license.submit"
 	PermLicenseRead        authz.Permission = "supply.license.read"
 	PermLicenseWrite       authz.Permission = "supply.license.write"
 	PermEvidenceRead       authz.Permission = "supply.evidence.read"
@@ -39,6 +41,8 @@ func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "supply" }
 func (*Module) Permissions() []authz.Grant {
 	return []authz.Grant{
+		{Permission: PermLicenseReview, Roles: []authz.Role{authz.RoleSupplyCompliance}},
+		{Permission: PermLicenseSubmit, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyCompliance}},
 		{Permission: PermDirectoryRead, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RoleSupplyWarehouse, authz.RoleSupplySales}},
 		{Permission: PermPartyRead, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor}},
 		{Permission: PermPartyWrite, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing}},
@@ -53,11 +57,14 @@ func (*Module) Permissions() []authz.Grant {
 	}
 }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}}
+	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &handlers{db: deps.DB, bus: deps.Bus}
 	g := r.Group("/supply")
+	g.PUT("/parties/:party/licenses/:license/reviews/:review", PermLicenseSubmit, h.putLicenseReview)
+	g.GET("/parties/:party/licenses/:license/review", PermLicenseRead, h.getLicenseReview)
+	platform.ListRoute(g, "/parties/:party/licenses/:license/reviews", PermLicenseRead, h.listLicenseReviews)
 	evidence := &evidenceHandlers{handlers: h, files: deps.Documents}
 	g.PUT("/parties/:party/licenses/:license/evidence/:file", PermEvidenceWrite, evidence.putEvidence)
 	g.PUT("/parties/:party/licenses/:license/evidence/:file/content", PermEvidenceWrite, evidence.uploadEvidence)
@@ -82,7 +89,7 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "/parties/:party/licenses/:license/revisions", PermLicenseRead, h.listLicenseRevisions)
 }
 func (*Module) Publishes() []string {
-	return []string{supplycontract.SubjectPartyUpdated, supplycontract.SubjectPartyAccessChanged, supplycontract.SubjectPremiseUpdated, supplycontract.SubjectLicenseDeclared, supplycontract.SubjectEvidenceScanRequested, supplycontract.SubjectEvidenceChanged}
+	return []string{supplycontract.SubjectPartyUpdated, supplycontract.SubjectPartyAccessChanged, supplycontract.SubjectPremiseUpdated, supplycontract.SubjectLicenseDeclared, supplycontract.SubjectEvidenceScanRequested, supplycontract.SubjectEvidenceChanged, supplycontract.SubjectLicenseReviewChanged}
 }
 func (*Module) DirectedSubjects() []string    { return nil }
 func (*Module) DirectedWriteTables() []string { return nil }

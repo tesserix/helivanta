@@ -53,3 +53,6 @@ export * from "./overtime";
 export * from "./attendance";
 export * from "./supply-evidence";
 export * from "./supply-evidence-query";
+
+export * from "./supply-review";
+export * from "./supply-review-query";

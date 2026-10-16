@@ -185,3 +185,22 @@ export const supplyEvidenceInputSchema = supplyEvidenceFieldsSchema
     expected_license_version: z.number().int().min(1).max(9007199254740991),
   })
   .strict();
+
+export const supplyReviewInputSchema = z
+  .object({
+    expected_version: z.number().int().min(0).max(9007199254740990),
+    expected_party_version: z.number().int().min(1).max(9007199254740991),
+    expected_premise_version: z.number().int().min(1).max(9007199254740991),
+    expected_license_version: z.number().int().min(1).max(9007199254740991),
+    evidence_id: identifier,
+    action: z.enum(["submit", "verify", "reject", "suspend"]),
+    reason: z.string().trim().min(5).max(2000),
+    method: z.enum([
+      "not_applicable",
+      "authority_portal",
+      "authority_contact",
+      "physical_inspection",
+    ]),
+    reference: z.string().trim().max(300),
+  })
+  .strict();

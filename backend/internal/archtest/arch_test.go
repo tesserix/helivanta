@@ -341,6 +341,7 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /supply/parties/:party/licenses/:license/review":                       "one current effective licence review with at most one latest receipt and four allowed actions; full immutable history is separately cursor-paginated",
 	"GET /supply/parties/:party/licenses/:license/evidence/:file/download":      "one grant-checked scanned licence evidence attachment, audited and never cached",
 	"GET /supply/parties/:party/premises/:premise":                              "one explicitly scoped organisation premise; ADR 0028",
 	"GET /supply/parties/:party/licenses/:license":                              "one private declared licence with at most four product categories; ADR 0028",

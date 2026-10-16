@@ -1,0 +1,79 @@
+<mxfile host="app.diagrams.net" version="24.7.17">
+  <diagram id="licence-review" name="Independent licence review">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" page="1" pageWidth="1500" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="a" value="Private organisation&lt;br&gt;and licensed premise" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0FE;strokeColor=#567399;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="80" width="240" height="100" />
+        </mxCell>
+        <mxCell id="b" value="Licence declaration&lt;br&gt;Immutable source revisions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0FE;strokeColor=#567399;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="340" y="80" width="240" height="100" />
+        </mxCell>
+        <mxCell id="c" value="Evidence image&lt;br&gt;GCS quarantine → ClamAV" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0FE;strokeColor=#567399;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="620" y="80" width="240" height="100" />
+        </mxCell>
+        <mxCell id="d" value="Released generation&lt;br&gt;Private download only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0FE;strokeColor=#567399;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="900" y="80" width="240" height="100" />
+        </mxCell>
+        <mxCell id="e" value="Submit for review&lt;br&gt;Pin party / premise / licence / image" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0FE;strokeColor=#567399;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="340" y="280" width="240" height="100" />
+        </mxCell>
+        <mxCell id="f" value="Independent compliance reviewer&lt;br&gt;Authority check + reference + reason" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0FE;strokeColor=#567399;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="620" y="280" width="240" height="100" />
+        </mxCell>
+        <mxCell id="g" value="Verified / rejected / suspended&lt;br&gt;Append-only actor and decision history" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0FE;strokeColor=#567399;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="900" y="280" width="240" height="100" />
+        </mxCell>
+        <mxCell id="h" value="Effective validity&lt;br&gt;Current revisions, dates, premise and evidence" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0FE;strokeColor=#567399;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="620" y="480" width="240" height="100" />
+        </mxCell>
+        <mxCell id="i" value="Changed / expired / revoked&lt;br&gt;Verification is ineffective" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE8E6;strokeColor=#567399;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="900" y="480" width="240" height="100" />
+        </mxCell>
+        <mxCell id="j" value="Separate trading gate&lt;br&gt;Country policy + organisation + bilateral consent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E6F4EA;strokeColor=#567399;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="620" y="680" width="240" height="100" />
+        </mxCell>
+        <mxCell id="k" value="Atomic PostgreSQL decision&lt;br&gt;Forced RLS + audit + minimized NATS outbox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0FE;strokeColor=#567399;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="480" width="240" height="100" />
+        </mxCell>
+        <mxCell id="edge0" value="Declare" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#567399;fontSize=13;" edge="1" parent="1" source="a" target="b">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge1" value="Upload" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#567399;fontSize=13;" edge="1" parent="1" source="b" target="c">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge2" value="Clean passive image" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#567399;fontSize=13;" edge="1" parent="1" source="c" target="d">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge3" value="Select current evidence" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#567399;fontSize=13;" edge="1" parent="1" source="d" target="e">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge4" value="No self-review" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#567399;fontSize=13;" edge="1" parent="1" source="e" target="f">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge5" value="Record decision" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#567399;fontSize=13;" edge="1" parent="1" source="f" target="g">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge6" value="Recheck every read" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#567399;fontSize=13;" edge="1" parent="1" source="g" target="h">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge7" value="Fail closed" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#567399;fontSize=13;" edge="1" parent="1" source="h" target="i">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge8" value="Resubmit" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#567399;fontSize=13;" edge="1" parent="1" source="i" target="e">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge9" value="No trading approval inferred" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#567399;fontSize=13;" edge="1" parent="1" source="h" target="j">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge10" value="One transaction" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#567399;fontSize=13;" edge="1" parent="1" source="e" target="k">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge11" value="Immutable facts" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#567399;fontSize=13;" edge="1" parent="1" source="g" target="k">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

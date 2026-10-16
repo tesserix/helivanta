@@ -42,7 +42,7 @@ func newEvidenceScenario(t *testing.T) evidenceScenario {
 	cloud := testinfra.NewGCSProtocol(t)
 	files, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
 	require.NoError(t, err)
-	permissions := []authz.Permission{supply.PermPartyRead, supply.PermPartyWrite, supply.PermAccessManage, supply.PermPremiseRead, supply.PermPremiseWrite, supply.PermLicenseRead, supply.PermLicenseWrite, authz.Permission("supply.evidence.read"), authz.Permission("supply.evidence.write")}
+	permissions := []authz.Permission{supply.PermDirectoryRead, supply.PermPartyRead, supply.PermPartyWrite, supply.PermAccessManage, supply.PermPremiseRead, supply.PermPremiseWrite, supply.PermLicenseRead, supply.PermLicenseWrite, authz.Permission("supply.license.review"), authz.Permission("supply.license.submit"), authz.Permission("supply.evidence.read"), authz.Permission("supply.evidence.write")}
 	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"owner": testutil.TenantA, "auditor": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms:   map[string][]authz.Permission{"owner": permissions, "auditor": permissions, "foreign": permissions},

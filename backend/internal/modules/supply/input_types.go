@@ -129,3 +129,15 @@ type evidenceInput struct {
 	ExpectedLicenseVersion *int64 `json:"expected_license_version" binding:"required,min=1,max=9007199254740991"`
 	EvidenceFields
 }
+
+type reviewInput struct {
+	ExpectedVersion        *int64    `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
+	ExpectedPartyVersion   int64     `json:"expected_party_version" binding:"min=1,max=9007199254740991"`
+	ExpectedPremiseVersion int64     `json:"expected_premise_version" binding:"min=1,max=9007199254740991"`
+	ExpectedLicenseVersion int64     `json:"expected_license_version" binding:"min=1,max=9007199254740991"`
+	EvidenceID             uuid.UUID `json:"evidence_id" binding:"required"`
+	Action                 string    `json:"action" binding:"required,oneof=submit verify reject suspend"`
+	Reason                 string    `json:"reason" binding:"required,min=5,max=2000"`
+	Method                 string    `json:"method" binding:"required,oneof=not_applicable authority_portal authority_contact physical_inspection"`
+	Reference              string    `json:"reference" binding:"max=300"`
+}

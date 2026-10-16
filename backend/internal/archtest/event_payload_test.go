@@ -35,6 +35,10 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"workspace.CountryPolicyChangedData.ScopeID":             "opaque country-configuration scope reference; it does not identify a patient, staff member or clinical record",
+	"workspace.CountryPolicyChangedData.VersionID":           "opaque immutable configuration-version reference; no source content or patient information",
+	"workspace.CountryPolicyChangedData.Action":              "fixed policy lifecycle action enum; no review rationale, actor identity or clinical data",
+	"workspace.CountryPolicyChangedData.Revision":            "monotonic configuration revision, not a patient measure or identifier",
 	"supply.PremiseUpdatedData.PartyID":                      "opaque organisation scope; no legal identity or address",
 	"supply.PremiseUpdatedData.PremiseID":                    "opaque premises reference; no location or contact data",
 	"supply.PremiseUpdatedData.Version":                      "monotonic revision; no declared premises attributes",

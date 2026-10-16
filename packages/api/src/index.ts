@@ -45,6 +45,7 @@ export * from "./leave";
 export * from "./pharmacy";
 
 export * from "./country-profiles";
+export * from "./trading-policy";
 
 export * from "./supply";
 export * from "./duty";

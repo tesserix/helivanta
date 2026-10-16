@@ -19,6 +19,30 @@ function wrapper({ children }: { children: ReactNode }) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("useApiPagedQuery", () => {
+  it("pins a collection request to its tenant and cancels it when unmounted", async () => {
+    const fetcher = vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        }),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    const view = renderHook(
+      () =>
+        useApiPagedQuery(["scoped-rows", "TEST-tenant"], "/rows", {
+          request: { headers: { "X-Helivanta-Expected-Tenant": "TEST-tenant" } },
+        }),
+      { wrapper },
+    );
+    await waitFor(() => expect(fetcher).toHaveBeenCalledOnce());
+    const request = fetcher.mock.calls[0][1];
+    expect(new Headers(request.headers).get("X-Helivanta-Expected-Tenant")).toBe("TEST-tenant");
+    expect(request.signal).toBeInstanceOf(AbortSignal);
+    view.unmount();
+    expect(request.signal?.aborted).toBe(true);
+  });
   it("appends the next page and stops when has_more is false", async () => {
     const pages = [
       { data: [{ id: "1" }, { id: "2" }], page: { next_cursor: "c1", has_more: true } },

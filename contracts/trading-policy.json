@@ -1,0 +1,187 @@
+{
+  "models": {
+    "Source": [
+      {
+        "name": "key",
+        "type": "string",
+        "min": 1,
+        "max": 64
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "url",
+        "type": "string",
+        "min": 1,
+        "max": 2048
+      },
+      {
+        "name": "reviewed_at",
+        "type": "time"
+      }
+    ],
+    "Requirement": [
+      {
+        "name": "domain",
+        "type": "string",
+        "enum": [
+          "licensing",
+          "product_registration",
+          "prescription",
+          "controlled",
+          "cold_chain",
+          "tax_invoice",
+          "credit_note",
+          "retention",
+          "privacy",
+          "residency",
+          "reporting"
+        ]
+      },
+      {
+        "name": "applicability",
+        "type": "string",
+        "enum": ["required", "not_applicable"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 4000
+      },
+      {
+        "name": "source_keys",
+        "type": "[]string",
+        "max": 30,
+        "orm_ignore": true
+      }
+    ],
+    "Submission": [
+      {
+        "name": "id",
+        "type": "string",
+        "min": 36,
+        "max": 36
+      },
+      {
+        "name": "scope_id",
+        "type": "string",
+        "min": 36,
+        "max": 36
+      },
+      {
+        "name": "expected_revision",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740990
+      },
+      {
+        "name": "country",
+        "type": "string",
+        "country_profile": true
+      },
+      {
+        "name": "jurisdiction",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "category",
+        "type": "string",
+        "enum": ["otc", "prescription", "controlled", "cold_chain"]
+      },
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": ["listing", "order", "dispatch", "dispense"]
+      },
+      {
+        "name": "currency",
+        "type": "string",
+        "country_currency": true
+      },
+      {
+        "name": "effective_from",
+        "type": "time"
+      },
+      {
+        "name": "effective_until",
+        "type": "time"
+      },
+      {
+        "name": "sources",
+        "type": "[]Source",
+        "max": 30
+      },
+      {
+        "name": "requirements",
+        "type": "[]Requirement",
+        "max": 11
+      }
+    ],
+    "AccessChange": [
+      {
+        "name": "id",
+        "type": "string",
+        "min": 36,
+        "max": 36
+      },
+      {
+        "name": "expected_revision",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "enum": ["reader", "editor", "reviewer", ""]
+      },
+      {
+        "name": "revoke",
+        "type": "bool"
+      }
+    ],
+    "Review": [
+      {
+        "name": "id",
+        "type": "string",
+        "min": 36,
+        "max": 36
+      },
+      {
+        "name": "version_id",
+        "type": "string",
+        "max": 36
+      },
+      {
+        "name": "expected_revision",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "action",
+        "type": "string",
+        "enum": ["approved", "rejected", "suspended"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 4000
+      }
+    ]
+  }
+}

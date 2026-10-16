@@ -579,7 +579,7 @@ func (h *handlers) transitionStatutory(c *gin.Context, proposal uuid.UUID, expec
 	respond.OK(c, result)
 }
 
-// The preview runs the structure through the salary calculator, then each kind's revision in force; a kind with none is reported, never defaulted.
+// The preview runs the structure through the salary calculator, then the monthly statutory rules in force.
 func (h *handlers) previewStatutory(c *gin.Context) {
 	p, hospital, ok := scope(c)
 	if !ok {
@@ -599,65 +599,71 @@ func (h *handlers) previewStatutory(c *gin.Context) {
 		if err := requireStaffAccess(tx, p.TenantID, hospital, false); err != nil {
 			return err
 		}
-		salary, err := salaryPreviewOn(tx, p.TenantID, hospital, in.StructureID, in.On, on, *in.PayableHalfDays)
+		salary, err := salaryPreviewOn(tx, p.TenantID, hospital, in.StructureID, in.On, on, *in.PayableHalfDays, nil)
 		if err != nil {
 			return err
 		}
-		result = statutoryPreview{Salary: salary, Results: []statutoryResult{}}
-		for _, kind := range monthlyStatutoryKinds {
-			res := statutoryResult{Kind: kind, Status: "not_configured", Components: []statutoryComponent{}}
-			revisions, err := loadStatutoryRevisions(tx, p.TenantID, hospital, tx.Table("workforce_statutory_rule_revisions").Select(statutoryRevisionColumns).
-				Where("tenant_id=? AND hospital_id=? AND id=workforce_statutory_rule_on(?::uuid,?::uuid,?::text,?::date)", p.TenantID, hospital, p.TenantID, hospital, kind, in.On))
-			if err != nil {
-				return err
-			}
-			if len(revisions) == 1 {
-				r := revisions[0]
-				res.RuleID, res.RevisionID, res.Status = &r.RuleID, &r.ID, "not_covered"
-				switch {
-				case r.Pf != nil:
-					res.WageBasis = &r.Pf.WageBasis
-					res.WagesPaise = statutoryWages(r.Pf.WageBasis, salary.WageTest.StatutoryWagesPaise, salary.Totals.GrossPaise)
-					res.BasePaise, res.Components = calculatePF(*r.Pf, res.WagesPaise)
-					res.Status = "applied"
-				case r.Esi != nil:
-					res.WageBasis = &r.Esi.WageBasis
-					res.WagesPaise = statutoryWages(r.Esi.WageBasis, salary.WageTest.StatutoryWagesPaise, salary.Totals.GrossPaise)
-					res.BasePaise = res.WagesPaise
-					res.Status, res.Components = calculateESI(*r.Esi, res.WagesPaise, *in.PayableHalfDays, *in.Disability)
-				case r.Pt != nil:
-					res.WageBasis = &r.Pt.WageBasis
-					res.WagesPaise = statutoryWages(r.Pt.WageBasis, salary.WageTest.StatutoryWagesPaise, salary.Totals.GrossPaise)
-					res.BasePaise = res.WagesPaise
-					if res.Status, res.Components, err = calculatePT(*r.Pt, res.WagesPaise, int(on.Month()), in.Gender); err != nil {
-						return err
-					}
-				case r.Lwf != nil:
-					res.WageBasis = &r.Lwf.WageBasis
-					res.WagesPaise = statutoryWages(r.Lwf.WageBasis, salary.WageTest.StatutoryWagesPaise, salary.Totals.GrossPaise)
-					res.BasePaise = res.WagesPaise
-					if res.Status, res.Components, err = calculateLWF(*r.Lwf, res.WagesPaise, int(on.Month())); err != nil {
-						return err
-					}
-				}
-			}
-			for _, component := range res.Components {
-				if component.Party == "employee" {
-					result.EmployeePaise += component.AmountPaise
-				} else {
-					result.EmployerPaise += component.AmountPaise
-				}
-			}
-			result.Results = append(result.Results, res)
-		}
-		result.NetAfterStatutoryPaise = salary.Totals.NetPaise - result.EmployeePaise
-		return nil
+		result, err = statutoryOn(tx, p.TenantID, hospital, salary, in.On, on, *in.PayableHalfDays, *in.Disability, in.Gender)
+		return err
 	})
 	if err != nil {
 		respondStatutoryError(c, err)
 		return
 	}
 	respond.OK(c, result)
+}
+
+// statutoryOn applies each monthly kind's revision in force on the day to a salary result; a kind with none is reported, never defaulted.
+func statutoryOn(tx *gorm.DB, tenant string, hospital uuid.UUID, salary salaryPreview, day string, on time.Time, payableHalfDays int, disability bool, gender *string) (statutoryPreview, error) {
+	result := statutoryPreview{Salary: salary, Results: []statutoryResult{}}
+	for _, kind := range monthlyStatutoryKinds {
+		res := statutoryResult{Kind: kind, Status: "not_configured", Components: []statutoryComponent{}}
+		revisions, err := loadStatutoryRevisions(tx, tenant, hospital, tx.Table("workforce_statutory_rule_revisions").Select(statutoryRevisionColumns).
+			Where("tenant_id=? AND hospital_id=? AND id=workforce_statutory_rule_on(?::uuid,?::uuid,?::text,?::date)", tenant, hospital, tenant, hospital, kind, day))
+		if err != nil {
+			return statutoryPreview{}, err
+		}
+		if len(revisions) == 1 {
+			r := revisions[0]
+			res.RuleID, res.RevisionID, res.Status = &r.RuleID, &r.ID, "not_covered"
+			switch {
+			case r.Pf != nil:
+				res.WageBasis = &r.Pf.WageBasis
+				res.WagesPaise = statutoryWages(r.Pf.WageBasis, salary.WageTest.StatutoryWagesPaise, salary.Totals.GrossPaise)
+				res.BasePaise, res.Components = calculatePF(*r.Pf, res.WagesPaise)
+				res.Status = "applied"
+			case r.Esi != nil:
+				res.WageBasis = &r.Esi.WageBasis
+				res.WagesPaise = statutoryWages(r.Esi.WageBasis, salary.WageTest.StatutoryWagesPaise, salary.Totals.GrossPaise)
+				res.BasePaise = res.WagesPaise
+				res.Status, res.Components = calculateESI(*r.Esi, res.WagesPaise, payableHalfDays, disability)
+			case r.Pt != nil:
+				res.WageBasis = &r.Pt.WageBasis
+				res.WagesPaise = statutoryWages(r.Pt.WageBasis, salary.WageTest.StatutoryWagesPaise, salary.Totals.GrossPaise)
+				res.BasePaise = res.WagesPaise
+				if res.Status, res.Components, err = calculatePT(*r.Pt, res.WagesPaise, int(on.Month()), gender); err != nil {
+					return statutoryPreview{}, err
+				}
+			case r.Lwf != nil:
+				res.WageBasis = &r.Lwf.WageBasis
+				res.WagesPaise = statutoryWages(r.Lwf.WageBasis, salary.WageTest.StatutoryWagesPaise, salary.Totals.GrossPaise)
+				res.BasePaise = res.WagesPaise
+				if res.Status, res.Components, err = calculateLWF(*r.Lwf, res.WagesPaise, int(on.Month())); err != nil {
+					return statutoryPreview{}, err
+				}
+			}
+		}
+		for _, component := range res.Components {
+			if component.Party == "employee" {
+				result.EmployeePaise += component.AmountPaise
+			} else {
+				result.EmployerPaise += component.AmountPaise
+			}
+		}
+		result.Results = append(result.Results, res)
+	}
+	result.NetAfterStatutoryPaise = salary.Totals.NetPaise - result.EmployeePaise
+	return result, nil
 }
 
 func respondStatutoryError(c *gin.Context, err error) {

@@ -306,3 +306,41 @@ func TestCalculatePayrollAcceptsTheLineLimit(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2*maxPayrollLinePaise, res.Totals.Gross)
 }
+
+func TestWithPersonalAmountsReplacesFixedLines(t *testing.T) {
+	var f calcFixture
+	basic := f.fixed(fixedHead("earning"), 3_000_000)
+	hra := f.fixed(fixedHead("earning"), 1_000_000)
+	pf := f.percent(percentHead("deduction", 120_000, []uuid.UUID{basic}))
+	lines, err := withPersonalAmounts(f.lines, map[uuid.UUID]int64{basic: 4_000_000})
+	require.NoError(t, err)
+	require.Equal(t, int64(3_000_000), *f.lines[0].Amount, "the structure's lines are not modified")
+	f.lines = lines
+	res, err := f.run(t, 10, 30, 60)
+	require.NoError(t, err)
+	got := map[uuid.UUID]int64{}
+	for _, l := range res.Lines {
+		got[l.HeadID] = l.Amount
+	}
+	require.Equal(t, map[uuid.UUID]int64{basic: 4_000_000, hra: 1_000_000, pf: 480_000}, got)
+}
+
+func TestWithPersonalAmountsRefusesOtherHeads(t *testing.T) {
+	var f calcFixture
+	basic := f.fixed(fixedHead("earning"), 3_000_000)
+	pf := f.percent(percentHead("deduction", 120_000, []uuid.UUID{basic}))
+	for name, amounts := range map[string]map[uuid.UUID]int64{
+		"percentage head":   {pf: 100},
+		"head not in lines": {uuid.New(): 100},
+		"negative amount":   {basic: -1},
+		"above the limit":   {basic: maxPayrollAmountPaise + 1},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := withPersonalAmounts(f.lines, amounts)
+			require.ErrorIs(t, err, errPayrollOverride)
+		})
+	}
+	lines, err := withPersonalAmounts(f.lines, map[uuid.UUID]int64{basic: maxPayrollAmountPaise})
+	require.NoError(t, err)
+	require.Equal(t, maxPayrollAmountPaise, *lines[0].Amount)
+}

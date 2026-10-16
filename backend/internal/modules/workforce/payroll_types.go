@@ -388,3 +388,94 @@ type incomeTaxPreview struct {
 	On      string            `json:"on"`
 	Results []incomeTaxResult `json:"results"`
 }
+
+type salaryAssignmentAmount struct {
+	HeadID      uuid.UUID `json:"head_id" binding:"required"`
+	AmountPaise *int64    `json:"amount_paise" binding:"required,gte=0,lte=1000000000"`
+}
+
+type salaryAssignmentInput struct {
+	ExpectedVersion *int64                   `json:"expected_version" binding:"required,gte=0"`
+	StructureID     uuid.UUID                `json:"structure_id" binding:"required"`
+	EffectiveOn     string                   `json:"effective_on" binding:"required,len=10"`
+	Reason          string                   `json:"reason" binding:"required,max=500"`
+	Amounts         []salaryAssignmentAmount `json:"amounts" binding:"max=60,dive"`
+}
+
+type salaryAssignmentRevision struct {
+	ID                uuid.UUID                `json:"id"`
+	StaffID           uuid.UUID                `json:"staff_id"`
+	StructureID       uuid.UUID                `json:"structure_id"`
+	Sequence          int                      `json:"sequence"`
+	BaseVersion       int64                    `json:"base_version"`
+	Status            string                   `json:"status"`
+	ApprovedVersion   *int64                   `json:"approved_version,omitempty"`
+	EffectiveOn       string                   `json:"effective_on"`
+	Reason            string                   `json:"reason"`
+	Amounts           []salaryAssignmentAmount `json:"amounts" gorm:"-"`
+	ProposedBySubject string                   `json:"proposed_by_subject"`
+	DecidedBySubject  *string                  `json:"decided_by_subject,omitempty"`
+	DecidedAt         *time.Time               `json:"decided_at,omitempty"`
+	DecisionNote      string                   `json:"decision_note"`
+	CreatedAt         time.Time                `json:"created_at"`
+}
+
+type salaryAssignment struct {
+	StaffID     uuid.UUID                 `json:"staff_id"`
+	Version     int64                     `json:"version"`
+	EffectiveOn *string                   `json:"effective_on,omitempty"`
+	Current     *salaryAssignmentRevision `json:"current,omitempty" gorm:"-"`
+	Pending     *salaryAssignmentRevision `json:"pending,omitempty" gorm:"-"`
+	CreatedAt   time.Time                 `json:"created_at"`
+	UpdatedAt   time.Time                 `json:"updated_at"`
+}
+
+type staffSalaryPreviewInput struct {
+	On              string  `json:"on" binding:"required,len=10"`
+	PayableHalfDays *int    `json:"payable_half_days" binding:"required,gte=0,lte=62"`
+	Disability      *bool   `json:"disability" binding:"required"`
+	Gender          *string `json:"gender,omitempty" binding:"omitempty,oneof=female male other"`
+}
+
+type staffSalaryPreview struct {
+	StaffID                uuid.UUID         `json:"staff_id"`
+	AssignmentRevisionID   uuid.UUID         `json:"assignment_revision_id"`
+	TaxYear                string            `json:"tax_year"`
+	TaxRegimeStatus        string            `json:"tax_regime_status"`
+	TaxRegime              *string           `json:"tax_regime,omitempty"`
+	Salary                 salaryPreview     `json:"salary"`
+	Results                []statutoryResult `json:"results"`
+	EmployeePaise          int64             `json:"employee_paise"`
+	EmployerPaise          int64             `json:"employer_paise"`
+	NetAfterStatutoryPaise int64             `json:"net_after_statutory_paise"`
+}
+
+type taxRegimeInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,gte=0"`
+	Regime          string `json:"regime" binding:"required,oneof=new old"`
+	IntimatedOn     string `json:"intimated_on" binding:"required,len=10"`
+	Note            string `json:"note" binding:"max=500"`
+}
+
+type taxRegimeElection struct {
+	ID          uuid.UUID `json:"id"`
+	StaffID     uuid.UUID `json:"staff_id"`
+	TaxYear     string    `json:"tax_year"`
+	Regime      string    `json:"regime"`
+	IntimatedOn string    `json:"intimated_on"`
+	Version     int64     `json:"version"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type taxRegimeRevision struct {
+	ID                uuid.UUID `json:"id"`
+	StaffID           uuid.UUID `json:"staff_id"`
+	TaxYear           string    `json:"tax_year"`
+	Version           int64     `json:"version"`
+	Regime            string    `json:"regime"`
+	IntimatedOn       string    `json:"intimated_on"`
+	Note              string    `json:"note"`
+	RecordedBySubject string    `json:"recorded_by_subject"`
+	CreatedAt         time.Time `json:"created_at"`
+}

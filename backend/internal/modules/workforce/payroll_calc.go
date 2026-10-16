@@ -2,6 +2,7 @@ package workforce
 
 import (
 	"errors"
+	"slices"
 
 	"github.com/google/uuid"
 )
@@ -17,6 +18,7 @@ var (
 	errPayrollCycle      = errors.New("salary heads form a dependency cycle")
 	errPayrollIncomplete = errors.New("salary structure cannot be computed")
 	errPayrollOverflow   = errors.New("salary line exceeds the calculation limit")
+	errPayrollOverride   = errors.New("personal amount is not for a fixed line of the structure")
 )
 
 // payrollHead is one head revision as the calculator sees it; amounts are paise, rates parts per million.
@@ -98,6 +100,25 @@ func monthApplies(months []int, month int) bool {
 		}
 	}
 	return false
+}
+
+// withPersonalAmounts replaces fixed line amounts with a staff member's own; an amount for any other head fails closed.
+func withPersonalAmounts(lines []payrollLineInput, amounts map[uuid.UUID]int64) ([]payrollLineInput, error) {
+	out := slices.Clone(lines)
+	used := 0
+	for i, l := range out {
+		if a, ok := amounts[l.HeadID]; ok {
+			if l.Amount == nil || a < 0 || a > maxPayrollAmountPaise {
+				return nil, errPayrollOverride
+			}
+			out[i].Amount = &a
+			used++
+		}
+	}
+	if used != len(amounts) {
+		return nil, errPayrollOverride
+	}
+	return out, nil
 }
 
 // calculatePayroll evaluates a structure in dependency order: applicability, then proration or percentage, then rounding, then floor and cap.

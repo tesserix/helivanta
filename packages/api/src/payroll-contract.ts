@@ -646,3 +646,154 @@ export const incomeTaxPreviewContract = z
   })
   .strict();
 export type IncomeTaxPreview = z.infer<typeof incomeTaxPreviewContract>;
+
+export const salaryAssignmentAmountContract = z
+  .object({
+    head_id: identifier,
+    amount_paise: z.number().int().min(0).max(1000000000),
+  })
+  .strict();
+export type SalaryAssignmentAmount = z.infer<typeof salaryAssignmentAmountContract>;
+
+export const salaryAssignmentInputContract = z
+  .object({
+    expected_version: z.number().int().min(0),
+    structure_id: identifier,
+    effective_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    amounts: z.array(salaryAssignmentAmountContract).max(60),
+  })
+  .strict();
+export type SalaryAssignmentInput = z.infer<typeof salaryAssignmentInputContract>;
+
+export const salaryAssignmentRevisionContract = z
+  .object({
+    id: identifier,
+    staff_id: identifier,
+    structure_id: identifier,
+    sequence: z.number().int(),
+    base_version: z.number().int(),
+    status: z.enum(["pending", "approved", "rejected", "withdrawn"]),
+    approved_version: z.number().int().optional(),
+    effective_on: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reason: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    amounts: z.array(salaryAssignmentAmountContract),
+    proposed_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    decided_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    decided_at: z.string().datetime({ offset: true }).optional(),
+    decision_note: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type SalaryAssignmentRevision = z.infer<typeof salaryAssignmentRevisionContract>;
+
+export const salaryAssignmentContract = z
+  .object({
+    staff_id: identifier,
+    version: z.number().int(),
+    effective_on: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    current: salaryAssignmentRevisionContract.optional(),
+    pending: salaryAssignmentRevisionContract.optional(),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type SalaryAssignment = z.infer<typeof salaryAssignmentContract>;
+
+export const staffSalaryPreviewInputContract = z
+  .object({
+    on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    payable_half_days: z.number().int().min(0).max(62),
+    disability: z.boolean(),
+    gender: z.enum(["female", "male", "other"]).optional(),
+  })
+  .strict();
+export type StaffSalaryPreviewInput = z.infer<typeof staffSalaryPreviewInputContract>;
+
+export const staffSalaryPreviewContract = z
+  .object({
+    staff_id: identifier,
+    assignment_revision_id: identifier,
+    tax_year: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    tax_regime_status: z.enum(["elected", "regime_not_elected"]),
+    tax_regime: z.enum(["new", "old"]).optional(),
+    salary: salaryPreviewContract,
+    results: z.array(statutoryResultContract),
+    employee_paise: z.number().int(),
+    employer_paise: z.number().int(),
+    net_after_statutory_paise: z.number().int(),
+  })
+  .strict();
+export type StaffSalaryPreview = z.infer<typeof staffSalaryPreviewContract>;
+
+export const taxRegimeInputContract = z
+  .object({
+    expected_version: z.number().int().min(0),
+    regime: z.enum(["new", "old"]),
+    intimated_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    note: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type TaxRegimeInput = z.infer<typeof taxRegimeInputContract>;
+
+export const taxRegimeElectionContract = z
+  .object({
+    id: identifier,
+    staff_id: identifier,
+    tax_year: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    regime: z.enum(["new", "old"]),
+    intimated_on: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    version: z.number().int(),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type TaxRegimeElection = z.infer<typeof taxRegimeElectionContract>;
+
+export const taxRegimeRevisionContract = z
+  .object({
+    id: identifier,
+    staff_id: identifier,
+    tax_year: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    version: z.number().int(),
+    regime: z.enum(["new", "old"]),
+    intimated_on: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    note: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    recorded_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type TaxRegimeRevision = z.infer<typeof taxRegimeRevisionContract>;

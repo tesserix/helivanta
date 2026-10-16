@@ -1789,6 +1789,357 @@
         "name": "results",
         "type": "[]incomeTaxResult"
       }
+    ],
+    "salaryAssignmentAmount": [
+      {
+        "name": "head_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "amount_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000000,
+        "binding": "required,gte=0,lte=1000000000"
+      }
+    ],
+    "salaryAssignmentInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "structure_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500,
+        "binding": "required,max=500"
+      },
+      {
+        "name": "amounts",
+        "type": "[]salaryAssignmentAmount",
+        "max": 60,
+        "binding": "max=60,dive"
+      }
+    ],
+    "salaryAssignmentRevision": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "structure_id",
+        "type": "uuid"
+      },
+      {
+        "name": "sequence",
+        "type": "int"
+      },
+      {
+        "name": "base_version",
+        "type": "int64"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected",
+          "withdrawn"
+        ]
+      },
+      {
+        "name": "approved_version",
+        "type": "int64",
+        "optional": true
+      },
+      {
+        "name": "effective_on",
+        "type": "string"
+      },
+      {
+        "name": "reason",
+        "type": "string"
+      },
+      {
+        "name": "amounts",
+        "type": "[]salaryAssignmentAmount",
+        "orm_ignore": true
+      },
+      {
+        "name": "proposed_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "decided_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "decided_at",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "decision_note",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "salaryAssignment": [
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "current",
+        "type": "salaryAssignmentRevision",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
+        "name": "pending",
+        "type": "salaryAssignmentRevision",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "staffSalaryPreviewInput": [
+      {
+        "name": "on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "payable_half_days",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 62,
+        "binding": "required,gte=0,lte=62"
+      },
+      {
+        "name": "disability",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "gender",
+        "type": "string",
+        "enum": [
+          "female",
+          "male",
+          "other"
+        ],
+        "optional": true,
+        "binding": "omitempty,oneof=female male other"
+      }
+    ],
+    "staffSalaryPreview": [
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "assignment_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "tax_year",
+        "type": "string"
+      },
+      {
+        "name": "tax_regime_status",
+        "type": "string",
+        "enum": [
+          "elected",
+          "regime_not_elected"
+        ]
+      },
+      {
+        "name": "tax_regime",
+        "type": "string",
+        "enum": [
+          "new",
+          "old"
+        ],
+        "optional": true
+      },
+      {
+        "name": "salary",
+        "type": "salaryPreview"
+      },
+      {
+        "name": "results",
+        "type": "[]statutoryResult"
+      },
+      {
+        "name": "employee_paise",
+        "type": "int64"
+      },
+      {
+        "name": "employer_paise",
+        "type": "int64"
+      },
+      {
+        "name": "net_after_statutory_paise",
+        "type": "int64"
+      }
+    ],
+    "taxRegimeInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "regime",
+        "type": "string",
+        "enum": [
+          "new",
+          "old"
+        ],
+        "binding": "required,oneof=new old"
+      },
+      {
+        "name": "intimated_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "format": "text",
+        "max": 500,
+        "binding": "max=500"
+      }
+    ],
+    "taxRegimeElection": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "tax_year",
+        "type": "string"
+      },
+      {
+        "name": "regime",
+        "type": "string",
+        "enum": [
+          "new",
+          "old"
+        ]
+      },
+      {
+        "name": "intimated_on",
+        "type": "string"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "taxRegimeRevision": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "tax_year",
+        "type": "string"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "regime",
+        "type": "string",
+        "enum": [
+          "new",
+          "old"
+        ]
+      },
+      {
+        "name": "intimated_on",
+        "type": "string"
+      },
+      {
+        "name": "note",
+        "type": "string"
+      },
+      {
+        "name": "recorded_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
     ]
   },
   "statutoryKinds": {

@@ -6,6 +6,7 @@ import { HmsShell, Field, SelectControl } from "@helivanta/ui";
 import { TenantPicker } from "@/components/tenant-picker";
 import { Failure } from "../roster-policy/policy-ui";
 import { HeadsPanel } from "./heads-panel";
+import { StaffPayPanel } from "./staff-pay-panel";
 import { StatutoryPanel } from "./statutory-panel";
 import { StructuresPanel } from "./structures-panel";
 
@@ -76,6 +77,7 @@ function HospitalPayroll({ hospital }: { hospital: Hospital }) {
       <HeadsPanel hospital={hospital} writable={writable} />
       <StructuresPanel hospital={hospital} writable={writable} />
       <StatutoryPanel hospital={hospital} writable={writable} />
+      <StaffPayPanel hospital={hospital} writable={writable} />
     </div>
   );
 }

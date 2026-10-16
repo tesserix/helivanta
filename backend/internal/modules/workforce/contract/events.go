@@ -223,3 +223,24 @@ type StatutoryRuleChangedData struct {
 	Status     string `json:"status"`
 	Version    int64  `json:"version"`
 }
+
+// SubjectSalaryAssignmentChanged reports a staff pay proposal or decision; payloads never carry structures or amounts.
+const SubjectSalaryAssignmentChanged = "helivanta.in.workforce.salary_assignment_changed.v1"
+
+type SalaryAssignmentChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	RevisionID string `json:"revision_id"`
+	Status     string `json:"status"`
+	Version    int64  `json:"version"`
+}
+
+// SubjectTaxRegimeChanged reports a recorded or changed regime election; payloads never carry the regime.
+const SubjectTaxRegimeChanged = "helivanta.in.workforce.tax_regime_changed.v1"
+
+type TaxRegimeChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	TaxYear    string `json:"tax_year"`
+	Version    int64  `json:"version"`
+}

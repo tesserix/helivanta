@@ -657,7 +657,7 @@ func (h *handlers) previewSalaryStructure(c *gin.Context) {
 			return err
 		}
 		var err error
-		result, err = salaryPreviewOn(tx, p.TenantID, hospital, id, in.On, on, *in.PayableHalfDays)
+		result, err = salaryPreviewOn(tx, p.TenantID, hospital, id, in.On, on, *in.PayableHalfDays, nil)
 		return err
 	})
 	if err != nil {
@@ -668,7 +668,7 @@ func (h *handlers) previewSalaryStructure(c *gin.Context) {
 }
 
 // salaryPreviewOn resolves the structure and its heads in force on the day and runs the calculator a payroll run uses.
-func salaryPreviewOn(tx *gorm.DB, tenant string, hospital, id uuid.UUID, day string, on time.Time, payableHalfDays int) (salaryPreview, error) {
+func salaryPreviewOn(tx *gorm.DB, tenant string, hospital, id uuid.UUID, day string, on time.Time, payableHalfDays int, personal map[uuid.UUID]int64) (salaryPreview, error) {
 	if err := tx.Table("workforce_salary_structures").Select("id").Where("tenant_id=? AND hospital_id=? AND id=?", tenant, hospital, id).Take(&struct{ ID uuid.UUID }{}).Error; err != nil {
 		return salaryPreview{}, err
 	}
@@ -718,6 +718,9 @@ func salaryPreviewOn(tx *gorm.DB, tenant string, hospital, id uuid.UUID, day str
 	for _, l := range lines {
 		calc.Lines = append(calc.Lines, payrollLineInput{HeadID: l.HeadID, Amount: l.AmountPaise})
 		position[l.HeadID] = l.Position
+	}
+	if calc.Lines, err = withPersonalAmounts(calc.Lines, personal); err != nil {
+		return salaryPreview{}, err
 	}
 	computed, err := calculatePayroll(calc)
 	if err != nil {
@@ -772,6 +775,8 @@ func respondSalaryError(c *gin.Context, err error) {
 		conflict("base_unavailable", "head_id", "A percentage head would use a base that is not an active earning on that date.")
 	case isPG && pg.ConstraintName == "workforce_salary_structure_incomplete":
 		conflict("structure_incomplete", "structure_id", "An active structure would be missing a head, a base or a fixed amount on that date, or exceed the calculation limit.")
+	case isPG && pg.ConstraintName == "workforce_salary_assignment_incomplete":
+		conflict("assignment_incomplete", "staff_id", "An approved staff pay assignment would lose its active structure or a fixed head it sets an amount for, or exceed the calculation limit.")
 	case isPG && pg.ConstraintName == "workforce_salary_scope_inactive":
 		respond.Error(c, 400, "invalid_reference", "Select active masters of the matching kind for the scope.")
 	case isPG && pg.Code == "23505":

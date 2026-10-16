@@ -632,7 +632,6 @@ func daysInMonth(day time.Time) int {
 	return time.Date(day.Year(), day.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day()
 }
 
-// The preview resolves the structure and its heads in force on the date and runs the same calculator a payroll run uses.
 func (h *handlers) previewSalaryStructure(c *gin.Context) {
 	p, hospital, ok := scope(c)
 	if !ok {
@@ -657,81 +656,88 @@ func (h *handlers) previewSalaryStructure(c *gin.Context) {
 		if err := requireStaffAccess(tx, p.TenantID, hospital, false); err != nil {
 			return err
 		}
-		if err := tx.Table("workforce_salary_structures").Select("id").Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, id).Take(&struct{ ID uuid.UUID }{}).Error; err != nil {
-			return err
-		}
-		var structure struct {
-			ID     *uuid.UUID
-			Active bool
-		}
-		if err := tx.Raw(`SELECT r.id,r.active FROM workforce_salary_structure_revisions r WHERE r.tenant_id=? AND r.hospital_id=? AND r.id=workforce_salary_structure_on(?::uuid,?::uuid,?::uuid,?::date)`, p.TenantID, hospital, p.TenantID, hospital, id, in.On).Scan(&structure).Error; err != nil {
-			return err
-		}
-		if structure.ID == nil || !structure.Active {
-			return errSalaryNotInForce
-		}
-		var lines []struct {
-			Position    int
-			HeadID      uuid.UUID
-			AmountPaise *int64
-		}
-		if err := tx.Table("workforce_salary_structure_lines").Select("position,head_id,amount_paise").Where("tenant_id=? AND hospital_id=? AND revision_id=?", p.TenantID, hospital, *structure.ID).Order("position").Find(&lines).Error; err != nil {
-			return err
-		}
-		heads := make([]uuid.UUID, len(lines))
-		for i, l := range lines {
-			heads[i] = l.HeadID
-		}
-		revisions, err := loadSalaryHeadRevisions(tx, p.TenantID, hospital, tx.Raw(`SELECT DISTINCT ON (head_id) `+salaryHeadRevisionColumns+` FROM workforce_salary_head_revisions
- WHERE tenant_id=? AND hospital_id=? AND head_id IN ? AND effective_on<=? ORDER BY head_id, version DESC`, p.TenantID, hospital, heads, in.On))
-		if err != nil {
-			return err
-		}
-		calc := payrollCalcInput{Heads: map[uuid.UUID]payrollHead{}, Month: int(on.Month()), PeriodDays: daysInMonth(on), PayableHalfDays: *in.PayableHalfDays}
-		meta := map[uuid.UUID]salaryHead{}
-		for _, r := range revisions {
-			meta[*r.HeadID] = r
-			ph := payrollHead{HeadID: *r.HeadID, RevisionID: r.RevisionID, Code: r.Code, Kind: r.Kind, Basis: r.Basis, Bases: r.BaseHeadIDs, Proration: r.Proration,
-				MinPayableHalfDays: r.MinimumPayableHalfDays, Months: r.Months, RoundingMode: r.RoundingMode, RoundingUnit: int64(r.RoundingUnitPaise),
-				MinAmount: r.MinAmountPaise, MaxAmount: r.MaxAmountPaise, InGross: r.InGross, InCTC: r.InCtc, WageClass: r.WageClass, Active: r.Active}
-			if r.RatePpm != nil {
-				ph.RatePPM = int64(*r.RatePpm)
-			}
-			if r.ProrationDays != nil {
-				ph.ProrationDays = *r.ProrationDays
-			}
-			calc.Heads[ph.HeadID] = ph
-		}
-		position := map[uuid.UUID]int{}
-		for _, l := range lines {
-			calc.Lines = append(calc.Lines, payrollLineInput{HeadID: l.HeadID, Amount: l.AmountPaise})
-			position[l.HeadID] = l.Position
-		}
-		computed, err := calculatePayroll(calc)
-		if err != nil {
-			return err
-		}
-		result = salaryPreview{StructureID: id, StructureRevisionID: *structure.ID, On: in.On, PeriodDays: calc.PeriodDays, PayableHalfDays: calc.PayableHalfDays, Lines: []salaryPreviewLine{},
-			Totals:   salaryPreviewTotals{GrossPaise: computed.Totals.Gross, DeductionsPaise: computed.Totals.Deductions, EmployerPaise: computed.Totals.Employer, NetPaise: computed.Totals.Net, CtcPaise: computed.Totals.CTC, NegativeNet: computed.Totals.NegativeNet},
-			WageTest: salaryWageTest{WagesPaise: computed.CodeWages.Wages, ExcludedPaise: computed.CodeWages.Excluded, RemunerationPaise: computed.CodeWages.Remuneration, AddBackPaise: computed.CodeWages.AddBack, StatutoryWagesPaise: computed.CodeWages.StatutoryWages, ExcludedSharePpm: computed.CodeWages.ExcludedSharePPM}}
-		for _, l := range computed.Lines {
-			m := meta[l.HeadID]
-			result.Lines = append(result.Lines, salaryPreviewLine{HeadID: l.HeadID, RevisionID: l.RevisionID, Code: m.Code, PayslipLabel: m.PayslipLabel, PayslipOrder: m.PayslipOrder, Kind: m.Kind,
-				AmountPaise: l.Amount, Applicable: l.Applicable, Shown: l.Amount != 0 || m.ShowWhenZero})
-		}
-		slices.SortStableFunc(result.Lines, func(a, b salaryPreviewLine) int {
-			if a.PayslipOrder != b.PayslipOrder {
-				return a.PayslipOrder - b.PayslipOrder
-			}
-			return position[a.HeadID] - position[b.HeadID]
-		})
-		return nil
+		var err error
+		result, err = salaryPreviewOn(tx, p.TenantID, hospital, id, in.On, on, *in.PayableHalfDays)
+		return err
 	})
 	if err != nil {
 		respondSalaryError(c, err)
 		return
 	}
 	respond.OK(c, result)
+}
+
+// salaryPreviewOn resolves the structure and its heads in force on the day and runs the calculator a payroll run uses.
+func salaryPreviewOn(tx *gorm.DB, tenant string, hospital, id uuid.UUID, day string, on time.Time, payableHalfDays int) (salaryPreview, error) {
+	if err := tx.Table("workforce_salary_structures").Select("id").Where("tenant_id=? AND hospital_id=? AND id=?", tenant, hospital, id).Take(&struct{ ID uuid.UUID }{}).Error; err != nil {
+		return salaryPreview{}, err
+	}
+	var structure struct {
+		ID     *uuid.UUID
+		Active bool
+	}
+	if err := tx.Raw(`SELECT r.id,r.active FROM workforce_salary_structure_revisions r WHERE r.tenant_id=? AND r.hospital_id=? AND r.id=workforce_salary_structure_on(?::uuid,?::uuid,?::uuid,?::date)`, tenant, hospital, tenant, hospital, id, day).Scan(&structure).Error; err != nil {
+		return salaryPreview{}, err
+	}
+	if structure.ID == nil || !structure.Active {
+		return salaryPreview{}, errSalaryNotInForce
+	}
+	var lines []struct {
+		Position    int
+		HeadID      uuid.UUID
+		AmountPaise *int64
+	}
+	if err := tx.Table("workforce_salary_structure_lines").Select("position,head_id,amount_paise").Where("tenant_id=? AND hospital_id=? AND revision_id=?", tenant, hospital, *structure.ID).Order("position").Find(&lines).Error; err != nil {
+		return salaryPreview{}, err
+	}
+	heads := make([]uuid.UUID, len(lines))
+	for i, l := range lines {
+		heads[i] = l.HeadID
+	}
+	revisions, err := loadSalaryHeadRevisions(tx, tenant, hospital, tx.Raw(`SELECT DISTINCT ON (head_id) `+salaryHeadRevisionColumns+` FROM workforce_salary_head_revisions
+ WHERE tenant_id=? AND hospital_id=? AND head_id IN ? AND effective_on<=? ORDER BY head_id, version DESC`, tenant, hospital, heads, day))
+	if err != nil {
+		return salaryPreview{}, err
+	}
+	calc := payrollCalcInput{Heads: map[uuid.UUID]payrollHead{}, Month: int(on.Month()), PeriodDays: daysInMonth(on), PayableHalfDays: payableHalfDays}
+	meta := map[uuid.UUID]salaryHead{}
+	for _, r := range revisions {
+		meta[*r.HeadID] = r
+		ph := payrollHead{HeadID: *r.HeadID, RevisionID: r.RevisionID, Code: r.Code, Kind: r.Kind, Basis: r.Basis, Bases: r.BaseHeadIDs, Proration: r.Proration,
+			MinPayableHalfDays: r.MinimumPayableHalfDays, Months: r.Months, RoundingMode: r.RoundingMode, RoundingUnit: int64(r.RoundingUnitPaise),
+			MinAmount: r.MinAmountPaise, MaxAmount: r.MaxAmountPaise, InGross: r.InGross, InCTC: r.InCtc, WageClass: r.WageClass, Active: r.Active}
+		if r.RatePpm != nil {
+			ph.RatePPM = int64(*r.RatePpm)
+		}
+		if r.ProrationDays != nil {
+			ph.ProrationDays = *r.ProrationDays
+		}
+		calc.Heads[ph.HeadID] = ph
+	}
+	position := map[uuid.UUID]int{}
+	for _, l := range lines {
+		calc.Lines = append(calc.Lines, payrollLineInput{HeadID: l.HeadID, Amount: l.AmountPaise})
+		position[l.HeadID] = l.Position
+	}
+	computed, err := calculatePayroll(calc)
+	if err != nil {
+		return salaryPreview{}, err
+	}
+	result := salaryPreview{StructureID: id, StructureRevisionID: *structure.ID, On: day, PeriodDays: calc.PeriodDays, PayableHalfDays: calc.PayableHalfDays, Lines: []salaryPreviewLine{},
+		Totals:   salaryPreviewTotals{GrossPaise: computed.Totals.Gross, DeductionsPaise: computed.Totals.Deductions, EmployerPaise: computed.Totals.Employer, NetPaise: computed.Totals.Net, CtcPaise: computed.Totals.CTC, NegativeNet: computed.Totals.NegativeNet},
+		WageTest: salaryWageTest{WagesPaise: computed.CodeWages.Wages, ExcludedPaise: computed.CodeWages.Excluded, RemunerationPaise: computed.CodeWages.Remuneration, AddBackPaise: computed.CodeWages.AddBack, StatutoryWagesPaise: computed.CodeWages.StatutoryWages, ExcludedSharePpm: computed.CodeWages.ExcludedSharePPM}}
+	for _, l := range computed.Lines {
+		m := meta[l.HeadID]
+		result.Lines = append(result.Lines, salaryPreviewLine{HeadID: l.HeadID, RevisionID: l.RevisionID, Code: m.Code, PayslipLabel: m.PayslipLabel, PayslipOrder: m.PayslipOrder, Kind: m.Kind,
+			AmountPaise: l.Amount, Applicable: l.Applicable, Shown: l.Amount != 0 || m.ShowWhenZero})
+	}
+	slices.SortStableFunc(result.Lines, func(a, b salaryPreviewLine) int {
+		if a.PayslipOrder != b.PayslipOrder {
+			return a.PayslipOrder - b.PayslipOrder
+		}
+		return position[a.HeadID] - position[b.HeadID]
+	})
+	return result, nil
 }
 
 func respondSalaryError(c *gin.Context, err error) {

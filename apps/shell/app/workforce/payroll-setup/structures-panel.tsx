@@ -195,6 +195,7 @@ export function StructuresPanel({ hospital, writable }: { hospital: Hospital; wr
           label={`${open.structure.name} history`}
           queryKey={[...structuresKey(hospital.id), "history", open.structure.id]}
           path={`${salaryStructuresPath(base)}/${open.structure.id}/history`}
+          rowKey={(r) => r.revision_id}
           onClose={close}
           render={(r) => (
             <>

@@ -49,6 +49,8 @@ function useCachedPermissions(): PermissionsCacheEntry | null {
 export function usePermissions(): {
   permissions: Set<string>;
   isLoading: boolean;
+  // The caller's subject, for hiding actions the API refuses to self (e.g. approving one's own proposal).
+  subject: string | undefined;
   can: (permission: string) => boolean;
 } {
   const cached = useCachedPermissions();
@@ -97,6 +99,7 @@ export function usePermissions(): {
   return {
     permissions,
     isLoading,
+    subject: data?.subject,
     can: (permission: string) =>
       // Public is always allowed, even while loading — it needs no data
       // from /iam/me/permissions to resolve, so there is nothing to wait

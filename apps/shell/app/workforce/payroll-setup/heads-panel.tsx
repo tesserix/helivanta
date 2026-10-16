@@ -176,6 +176,7 @@ export function HeadsPanel({ hospital, writable }: { hospital: Hospital; writabl
           label={`${history.name} history`}
           queryKey={[...headsKey(hospital.id), "history", history.id]}
           path={`${base}/hr/payroll/salary-heads/${history.id}/history`}
+          rowKey={(r) => r.revision_id}
           onClose={close}
           render={(r) => (
             <>

@@ -6,6 +6,7 @@ import { HmsShell, Field, SelectControl } from "@helivanta/ui";
 import { TenantPicker } from "@/components/tenant-picker";
 import { Failure } from "../roster-policy/policy-ui";
 import { HeadsPanel } from "./heads-panel";
+import { StatutoryPanel } from "./statutory-panel";
 import { StructuresPanel } from "./structures-panel";
 
 export function PayrollWorkspace() {
@@ -24,9 +25,9 @@ export function PayrollWorkspace() {
           </p>
           <h2 className="text-3xl font-semibold tracking-tight">Payroll setup</h2>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Define the salary heads and structures this hospital pays. Nothing is pre-loaded: every
-            head, rate, cap and exemption is entered and reviewed by your payroll team, and each
-            change becomes a dated revision.
+            Define the salary heads, structures and statutory contributions this hospital pays.
+            Nothing is pre-loaded: every head, rate, cap and exemption is entered and reviewed by
+            your payroll team, and each change becomes a dated revision.
           </p>
         </div>
         {hospital && (
@@ -74,6 +75,7 @@ function HospitalPayroll({ hospital }: { hospital: Hospital }) {
     <div className="space-y-6">
       <HeadsPanel hospital={hospital} writable={writable} />
       <StructuresPanel hospital={hospital} writable={writable} />
+      <StatutoryPanel hospital={hospital} writable={writable} />
     </div>
   );
 }
@@ -150,16 +152,18 @@ export function ReviewCheck({
   );
 }
 
-export function RevisionHistory<T extends { revision_id: string }>({
+export function RevisionHistory<T extends object>({
   label,
   queryKey,
   path,
+  rowKey,
   render,
   onClose,
 }: {
   label: string;
   queryKey: unknown[];
   path: string;
+  rowKey: (row: T) => string;
   render: (row: T) => ReactNode;
   onClose: () => void;
 }) {
@@ -183,7 +187,7 @@ export function RevisionHistory<T extends { revision_id: string }>({
       ) : (
         <ul className="space-y-3">
           {history.items.map((r) => (
-            <li key={r.revision_id} className="rounded-xl border p-4 text-sm">
+            <li key={rowKey(r)} className="rounded-xl border p-4 text-sm">
               {render(r)}
             </li>
           ))}

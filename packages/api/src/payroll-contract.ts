@@ -7,6 +7,7 @@ export const SALARY_HEAD_KINDS = {
   employer_contribution: "Employer contribution",
 } as const;
 export const salaryHeadKindSchema = z.enum(["earning", "deduction", "employer_contribution"]);
+export const STATUTORY_KINDS = { pf: "Provident Fund", esi: "Employees' State Insurance" } as const;
 const identifier = z
   .string()
   .uuid("Choose a valid record.")
@@ -259,3 +260,204 @@ export const salaryPreviewContract = z
   })
   .strict();
 export type SalaryPreview = z.infer<typeof salaryPreviewContract>;
+
+export const statutoryPfParamsContract = z
+  .object({
+    wage_basis: z.enum(["statutory_wages", "gross"]),
+    contribution_basis: z.enum(["capped", "actual"]),
+    wage_ceiling_paise: z.number().int().min(1).max(1000000000),
+    employee_rate_ppm: z.number().int().min(0).max(1000000),
+    employer_rate_ppm: z.number().int().min(0).max(1000000),
+    eps_rate_ppm: z.number().int().min(0).max(1000000),
+    eps_wage_ceiling_paise: z.number().int().min(0).max(1000000000),
+    edli_rate_ppm: z.number().int().min(0).max(1000000),
+    edli_wage_ceiling_paise: z.number().int().min(0).max(1000000000),
+    admin_rate_ppm: z.number().int().min(0).max(1000000),
+    admin_minimum_paise: z.number().int().min(0).max(1000000000),
+    rounding_mode: z.enum(["nearest", "up", "down"]),
+    rounding_unit_paise: z.number().int().min(1).max(1000),
+  })
+  .strict();
+export type StatutoryPfParams = z.infer<typeof statutoryPfParamsContract>;
+
+export const statutoryEsiParamsContract = z
+  .object({
+    wage_basis: z.enum(["statutory_wages", "gross"]),
+    wage_ceiling_paise: z.number().int().min(1).max(1000000000),
+    disability_wage_ceiling_paise: z.number().int().min(1).max(1000000000),
+    employee_rate_ppm: z.number().int().min(0).max(1000000),
+    employer_rate_ppm: z.number().int().min(0).max(1000000),
+    employee_exempt_daily_paise: z.number().int().min(1).max(10000000).optional(),
+    period_start_months: z.array(z.number().int()).max(12),
+    rounding_mode: z.enum(["nearest", "up", "down"]),
+    rounding_unit_paise: z.number().int().min(1).max(1000),
+  })
+  .strict();
+export type StatutoryEsiParams = z.infer<typeof statutoryEsiParamsContract>;
+
+export const statutoryRuleInputContract = z
+  .object({
+    expected_version: z.number().int().min(0),
+    kind: z.enum(["pf", "esi"]),
+    name: z
+      .string()
+      .trim()
+      .min(1, "Enter a name.")
+      .max(80)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    covered: z.boolean(),
+    effective_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    citation: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reference: z
+      .string()
+      .trim()
+      .max(300)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    pf: statutoryPfParamsContract.optional(),
+    esi: statutoryEsiParamsContract.optional(),
+  })
+  .strict();
+export type StatutoryRuleInput = z.infer<typeof statutoryRuleInputContract>;
+
+export const statutoryRevisionContract = z
+  .object({
+    id: identifier,
+    rule_id: identifier,
+    kind: z.enum(["pf", "esi"]),
+    sequence: z.number().int(),
+    base_version: z.number().int(),
+    status: z.enum(["pending", "approved", "rejected", "withdrawn"]),
+    approved_version: z.number().int().optional(),
+    name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    covered: z.boolean(),
+    effective_on: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    citation: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reference: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    pf: statutoryPfParamsContract.optional(),
+    esi: statutoryEsiParamsContract.optional(),
+    proposed_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    decided_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    decided_at: z.string().datetime({ offset: true }).optional(),
+    decision_note: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type StatutoryRevision = z.infer<typeof statutoryRevisionContract>;
+
+export const statutoryRuleContract = z
+  .object({
+    id: identifier,
+    kind: z.enum(["pf", "esi"]),
+    version: z.number().int(),
+    effective_on: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    current: statutoryRevisionContract.optional(),
+    pending: statutoryRevisionContract.optional(),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type StatutoryRule = z.infer<typeof statutoryRuleContract>;
+
+export const statutoryDecisionInputContract = z
+  .object({
+    proposal_id: identifier,
+    expected_version: z.number().int().min(0),
+    decision: z.enum(["approve", "reject"]),
+    note: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type StatutoryDecisionInput = z.infer<typeof statutoryDecisionInputContract>;
+
+export const statutoryWithdrawInputContract = z
+  .object({
+    proposal_id: identifier,
+    note: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type StatutoryWithdrawInput = z.infer<typeof statutoryWithdrawInputContract>;
+
+export const statutoryPreviewInputContract = z
+  .object({
+    structure_id: identifier,
+    on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    payable_half_days: z.number().int().min(0).max(62),
+    disability: z.boolean(),
+  })
+  .strict();
+export type StatutoryPreviewInput = z.infer<typeof statutoryPreviewInputContract>;
+
+export const statutoryComponentContract = z
+  .object({
+    component: z.enum([
+      "pf_employee",
+      "pf_employer_epf",
+      "pf_employer_eps",
+      "pf_edli",
+      "pf_admin",
+      "esi_employee",
+      "esi_employer",
+    ]),
+    party: z.enum(["employee", "employer"]),
+    amount_paise: z.number().int(),
+  })
+  .strict();
+export type StatutoryComponent = z.infer<typeof statutoryComponentContract>;
+
+export const statutoryResultContract = z
+  .object({
+    kind: z.enum(["pf", "esi"]),
+    status: z.enum(["applied", "not_covered", "above_ceiling", "not_configured"]),
+    rule_id: identifier.optional(),
+    revision_id: identifier.optional(),
+    wage_basis: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    wages_paise: z.number().int(),
+    base_paise: z.number().int(),
+    components: z.array(statutoryComponentContract),
+  })
+  .strict();
+export type StatutoryResult = z.infer<typeof statutoryResultContract>;
+
+export const statutoryPreviewContract = z
+  .object({
+    salary: salaryPreviewContract,
+    results: z.array(statutoryResultContract),
+    employee_paise: z.number().int(),
+    employer_paise: z.number().int(),
+    net_after_statutory_paise: z.number().int(),
+  })
+  .strict();
+export type StatutoryPreview = z.infer<typeof statutoryPreviewContract>;

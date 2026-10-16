@@ -5,6 +5,10 @@ import type {
   SalaryPreviewInput,
   SalaryStructure,
   SalaryStructureInput,
+  StatutoryPfParams,
+  StatutoryPreviewInput,
+  StatutoryRevision,
+  StatutoryRuleInput,
 } from "./payroll-contract";
 
 export * from "./payroll-contract";
@@ -440,4 +444,359 @@ export const describeSalaryHead = (head: SalaryHead, names: Map<string, string>)
   const months =
     head.months.length === 12 ? "" : ` · ${head.months.map((m) => MONTH_NAMES[m - 1]).join(", ")}`;
   return `${rule}${months}`;
+};
+
+export const STATUTORY_WAGE_BASES = {
+  statutory_wages: "Labour Code wages",
+  gross: "Gross pay",
+} as const;
+export const STATUTORY_CONTRIBUTION_BASES = {
+  capped: "Capped at the wage ceiling",
+  actual: "Actual wages",
+} as const;
+export const STATUTORY_STATUSES = {
+  pending: "Awaiting approval",
+  approved: "Approved",
+  rejected: "Rejected",
+  withdrawn: "Withdrawn",
+} as const;
+export const STATUTORY_RESULT_STATUSES = {
+  applied: "Applied",
+  not_covered: "Not covered",
+  above_ceiling: "Above the coverage ceiling",
+  not_configured: "Not configured",
+} as const;
+export const STATUTORY_COMPONENTS = {
+  pf_employee: "PF employee share",
+  pf_employer_epf: "PF employer share (EPF)",
+  pf_employer_eps: "Pension (EPS)",
+  pf_edli: "EDLI",
+  pf_admin: "PF admin charges",
+  esi_employee: "ESI employee share",
+  esi_employer: "ESI employer share",
+} as const;
+
+// Statutory rates may legitimately be zero, unlike salary head rates.
+export const parseRate = (value: string): number | undefined => {
+  const match = /^(\d{1,3})(?:\.(\d{1,4}))?$/.exec(value.trim());
+  if (!match) return undefined;
+  const ppm = Number(match[1]) * 10_000 + Number((match[2] ?? "").padEnd(4, "0"));
+  return ppm <= 1_000_000 ? ppm : undefined;
+};
+
+const choice = <T extends string>(options: Record<T, string>) =>
+  z.string().refine((value) => value in options, "Choose an option.");
+
+// Every statutory choice starts blank: nothing is pre-loaded, so each value is read from the cited source.
+const pfFormSchema = z
+  .object({
+    wage_basis: z.string(),
+    contribution_basis: z.string(),
+    wage_ceiling: z.string(),
+    employee_rate: z.string(),
+    employer_rate: z.string(),
+    eps_rate: z.string(),
+    eps_wage_ceiling: z.string(),
+    edli_rate: z.string(),
+    edli_wage_ceiling: z.string(),
+    admin_rate: z.string(),
+    admin_minimum: z.string(),
+    rounding_mode: z.string(),
+    rounding_unit: z.string(),
+  })
+  .strict();
+const esiFormSchema = z
+  .object({
+    wage_basis: z.string(),
+    wage_ceiling: z.string(),
+    disability_wage_ceiling: z.string(),
+    employee_rate: z.string(),
+    employer_rate: z.string(),
+    employee_exempt_daily: z.string(),
+    period_start_months: z.array(z.number().int().min(1).max(12)),
+    rounding_mode: z.string(),
+    rounding_unit: z.string(),
+  })
+  .strict();
+
+export const statutoryRuleFormSchema = z
+  .object({
+    expected_version: z.number().int().min(0),
+    kind: z.enum(["pf", "esi"]),
+    name: text("a name", 80),
+    coverage: z.string(),
+    effective_on: date,
+    citation: text("the notification or section relied on", 500),
+    reference: z
+      .string()
+      .trim()
+      .max(300, "Keep the reference within 300 characters.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    pf: pfFormSchema,
+    esi: esiFormSchema,
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const issue = (path: string[], message: string) =>
+      ctx.addIssue({ code: "custom", path, message });
+    if (!["covered", "not_covered"].includes(value.coverage))
+      issue(["coverage"], "State whether the hospital is covered.");
+    if (value.coverage !== "covered") return;
+    const params = value.kind === "pf" ? value.pf : value.esi;
+    const at = (field: string) => [value.kind, field];
+    const pick = (field: string, raw: string, options: Record<string, string>) => {
+      if (!choice(options).safeParse(raw).success) issue(at(field), "Choose an option.");
+    };
+    const money = (field: string, raw: string, min = 0) => {
+      const paise = parseRupees(raw);
+      if (paise !== undefined && paise >= min) return paise;
+      issue(at(field), `Enter rupees with up to 2 decimals${min ? ", above 0" : ""}.`);
+      return undefined;
+    };
+    const rate = (field: string, raw: string) => {
+      const ppm = parseRate(raw);
+      if (ppm === undefined)
+        issue(at(field), "Enter a percentage from 0 to 100, with up to 4 decimals.");
+      return ppm;
+    };
+    pick("wage_basis", params.wage_basis, STATUTORY_WAGE_BASES);
+    pick("rounding_mode", params.rounding_mode, SALARY_ROUNDING_MODES);
+    pick("rounding_unit", params.rounding_unit, SALARY_ROUNDING_UNITS);
+    if (value.kind === "pf") {
+      const pf = value.pf;
+      pick("contribution_basis", pf.contribution_basis, STATUTORY_CONTRIBUTION_BASES);
+      const ceiling = money("wage_ceiling", pf.wage_ceiling, 1);
+      rate("employee_rate", pf.employee_rate);
+      const employer = rate("employer_rate", pf.employer_rate);
+      const eps = rate("eps_rate", pf.eps_rate);
+      const epsCeiling = money("eps_wage_ceiling", pf.eps_wage_ceiling);
+      rate("edli_rate", pf.edli_rate);
+      money("edli_wage_ceiling", pf.edli_wage_ceiling);
+      rate("admin_rate", pf.admin_rate);
+      money("admin_minimum", pf.admin_minimum);
+      if (eps !== undefined && employer !== undefined && eps > employer)
+        issue(
+          at("eps_rate"),
+          "The pension share comes out of the employer share, so it cannot exceed it.",
+        );
+      if (epsCeiling !== undefined && ceiling !== undefined && epsCeiling > ceiling)
+        issue(at("eps_wage_ceiling"), "Keep the pension ceiling at or below the wage ceiling.");
+    } else {
+      const esi = value.esi;
+      const ceiling = money("wage_ceiling", esi.wage_ceiling, 1);
+      const disability = money("disability_wage_ceiling", esi.disability_wage_ceiling, 1);
+      rate("employee_rate", esi.employee_rate);
+      rate("employer_rate", esi.employer_rate);
+      if (esi.employee_exempt_daily.trim() !== "") {
+        const exempt = parseRupees(esi.employee_exempt_daily);
+        if (exempt === undefined || exempt < 1 || exempt > 10_000_000)
+          issue(
+            at("employee_exempt_daily"),
+            "Enter a daily wage above 0 and at most ₹1 lakh, or leave it blank.",
+          );
+      }
+      if (esi.period_start_months.length === 0)
+        issue(at("period_start_months"), "Choose the months that start a contribution period.");
+      if (ceiling !== undefined && disability !== undefined && disability < ceiling)
+        issue(
+          at("disability_wage_ceiling"),
+          "Keep the disability ceiling at or above the standard one.",
+        );
+    }
+  });
+export type StatutoryRuleForm = z.infer<typeof statutoryRuleFormSchema>;
+
+const blankPf: StatutoryRuleForm["pf"] = {
+  wage_basis: "",
+  contribution_basis: "",
+  wage_ceiling: "",
+  employee_rate: "",
+  employer_rate: "",
+  eps_rate: "",
+  eps_wage_ceiling: "",
+  edli_rate: "",
+  edli_wage_ceiling: "",
+  admin_rate: "",
+  admin_minimum: "",
+  rounding_mode: "",
+  rounding_unit: "",
+};
+const blankEsi: StatutoryRuleForm["esi"] = {
+  wage_basis: "",
+  wage_ceiling: "",
+  disability_wage_ceiling: "",
+  employee_rate: "",
+  employer_rate: "",
+  employee_exempt_daily: "",
+  period_start_months: [],
+  rounding_mode: "",
+  rounding_unit: "",
+};
+
+export const newStatutoryRuleForm = (
+  kind: StatutoryRuleForm["kind"],
+  today: string,
+): StatutoryRuleForm => ({
+  expected_version: 0,
+  kind,
+  name: "",
+  coverage: "",
+  effective_on: today,
+  citation: "",
+  reference: "",
+  pf: blankPf,
+  esi: blankEsi,
+});
+
+// A revision opens as the base of the next proposal; the date and citation stay so a reviewer sees what changed.
+export const statutoryRevisionToForm = (
+  revision: StatutoryRevision,
+  version: number,
+): StatutoryRuleForm => ({
+  expected_version: version,
+  kind: revision.kind,
+  name: revision.name,
+  coverage: revision.covered ? "covered" : "not_covered",
+  effective_on: revision.effective_on,
+  citation: revision.citation,
+  reference: revision.reference,
+  pf: revision.pf
+    ? {
+        wage_basis: revision.pf.wage_basis,
+        contribution_basis: revision.pf.contribution_basis,
+        wage_ceiling: paiseToRupees(revision.pf.wage_ceiling_paise),
+        employee_rate: ppmToPercent(revision.pf.employee_rate_ppm),
+        employer_rate: ppmToPercent(revision.pf.employer_rate_ppm),
+        eps_rate: ppmToPercent(revision.pf.eps_rate_ppm),
+        eps_wage_ceiling: paiseToRupees(revision.pf.eps_wage_ceiling_paise),
+        edli_rate: ppmToPercent(revision.pf.edli_rate_ppm),
+        edli_wage_ceiling: paiseToRupees(revision.pf.edli_wage_ceiling_paise),
+        admin_rate: ppmToPercent(revision.pf.admin_rate_ppm),
+        admin_minimum: paiseToRupees(revision.pf.admin_minimum_paise),
+        rounding_mode: revision.pf.rounding_mode,
+        rounding_unit: String(revision.pf.rounding_unit_paise),
+      }
+    : blankPf,
+  esi: revision.esi
+    ? {
+        wage_basis: revision.esi.wage_basis,
+        wage_ceiling: paiseToRupees(revision.esi.wage_ceiling_paise),
+        disability_wage_ceiling: paiseToRupees(revision.esi.disability_wage_ceiling_paise),
+        employee_rate: ppmToPercent(revision.esi.employee_rate_ppm),
+        employer_rate: ppmToPercent(revision.esi.employer_rate_ppm),
+        employee_exempt_daily:
+          revision.esi.employee_exempt_daily_paise === undefined
+            ? ""
+            : paiseToRupees(revision.esi.employee_exempt_daily_paise),
+        period_start_months: revision.esi.period_start_months,
+        rounding_mode: revision.esi.rounding_mode,
+        rounding_unit: String(revision.esi.rounding_unit_paise),
+      }
+    : blankEsi,
+});
+
+type Mode = StatutoryPfParams["rounding_mode"];
+
+// Only the kind's own parameters are sent, and only when covered, matching the server's coverage rule.
+export const toStatutoryRuleInput = (form: StatutoryRuleForm): StatutoryRuleInput => {
+  const covered = form.coverage === "covered";
+  const money = (raw: string) => parseRupees(raw) ?? 0;
+  const rate = (raw: string) => parseRate(raw) ?? 0;
+  const { pf, esi } = form;
+  const exempt = esi.employee_exempt_daily.trim();
+  return {
+    expected_version: form.expected_version,
+    kind: form.kind,
+    name: form.name,
+    covered,
+    effective_on: form.effective_on,
+    citation: form.citation,
+    reference: form.reference,
+    ...(covered &&
+      form.kind === "pf" && {
+        pf: {
+          wage_basis: pf.wage_basis as keyof typeof STATUTORY_WAGE_BASES,
+          contribution_basis: pf.contribution_basis as keyof typeof STATUTORY_CONTRIBUTION_BASES,
+          wage_ceiling_paise: money(pf.wage_ceiling),
+          employee_rate_ppm: rate(pf.employee_rate),
+          employer_rate_ppm: rate(pf.employer_rate),
+          eps_rate_ppm: rate(pf.eps_rate),
+          eps_wage_ceiling_paise: money(pf.eps_wage_ceiling),
+          edli_rate_ppm: rate(pf.edli_rate),
+          edli_wage_ceiling_paise: money(pf.edli_wage_ceiling),
+          admin_rate_ppm: rate(pf.admin_rate),
+          admin_minimum_paise: money(pf.admin_minimum),
+          rounding_mode: pf.rounding_mode as Mode,
+          rounding_unit_paise: Number(pf.rounding_unit),
+        },
+      }),
+    ...(covered &&
+      form.kind === "esi" && {
+        esi: {
+          wage_basis: esi.wage_basis as keyof typeof STATUTORY_WAGE_BASES,
+          wage_ceiling_paise: money(esi.wage_ceiling),
+          disability_wage_ceiling_paise: money(esi.disability_wage_ceiling),
+          employee_rate_ppm: rate(esi.employee_rate),
+          employer_rate_ppm: rate(esi.employer_rate),
+          ...(exempt !== "" && { employee_exempt_daily_paise: money(exempt) }),
+          period_start_months: [...esi.period_start_months].sort((a, b) => a - b),
+          rounding_mode: esi.rounding_mode as Mode,
+          rounding_unit_paise: Number(esi.rounding_unit),
+        },
+      }),
+  };
+};
+
+export const statutoryDecisionFormSchema = z
+  .object({ decision: z.enum(["approve", "reject"]), note: z.string() })
+  .strict()
+  .superRefine((value, ctx) => {
+    const note = value.note.trim();
+    if (value.decision === "reject" && note === "")
+      ctx.addIssue({ code: "custom", path: ["note"], message: "Give a reason for rejecting." });
+    if (note.length > 500 || note.includes("\0"))
+      ctx.addIssue({
+        code: "custom",
+        path: ["note"],
+        message: "Keep the note within 500 characters.",
+      });
+  });
+export type StatutoryDecisionForm = z.infer<typeof statutoryDecisionFormSchema>;
+
+export const statutoryPreviewFormSchema = z
+  .object({
+    structure_id: z.string().uuid("Choose a structure."),
+    on: date,
+    payable_days: z.string(),
+    disability: z.boolean(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const result = salaryPreviewFormSchema.safeParse({
+      on: value.on,
+      payable_days: value.payable_days,
+    });
+    for (const i of result.error?.issues ?? [])
+      if (i.path[0] === "payable_days") ctx.addIssue({ ...i, code: "custom" });
+  });
+export type StatutoryPreviewForm = z.infer<typeof statutoryPreviewFormSchema>;
+
+export const toStatutoryPreviewInput = (form: StatutoryPreviewForm): StatutoryPreviewInput => ({
+  structure_id: form.structure_id,
+  on: form.on,
+  payable_half_days: parseHalfDays(form.payable_days) ?? 0,
+  disability: form.disability,
+});
+
+export const statutoryRulesPath = (base: string) => `${base}/hr/payroll/statutory-rules`;
+export const statutoryPreviewPath = (base: string) => `${base}/hr/payroll/statutory-preview`;
+
+// Summarises a revision's parameters for cards and history.
+export const describeStatutoryRevision = (revision: StatutoryRevision) => {
+  if (!revision.covered) return "Not covered";
+  if (revision.pf)
+    return `Employee ${ppmToPercent(revision.pf.employee_rate_ppm)}% · employer ${ppmToPercent(revision.pf.employer_rate_ppm)}% (pension ${ppmToPercent(revision.pf.eps_rate_ppm)}%) · ceiling ${formatPaise(revision.pf.wage_ceiling_paise)}`;
+  if (revision.esi)
+    return `Employee ${ppmToPercent(revision.esi.employee_rate_ppm)}% · employer ${ppmToPercent(revision.esi.employer_rate_ppm)}% · ceiling ${formatPaise(revision.esi.wage_ceiling_paise)} · periods from ${revision.esi.period_start_months.map((m) => MONTH_NAMES[m - 1]).join(", ")}`;
+  return "Parameters unavailable";
 };

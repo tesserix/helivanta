@@ -152,10 +152,10 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 			// oversight (#781 — PermCredentialRevoke is declared with no
 			// system roles precisely so only tenant_admin's implicit
 			// grant reaches it).
-			// Workforce hospital setup, access and HR configuration (rosters, leave, duty exchanges, overtime, attendance) are also admin-only;
+			// Workforce hospital setup, access and HR configuration (rosters, leave, duty exchanges, overtime, attendance, payroll) are also admin-only;
 			// staff data still requires an independent hospital grant (ADR 0009).
 			// Pharmacy grant administration is likewise admin-only; pharmacists cannot self-grant outlet or financial access. Operational finance permissions are separately admin-only (ADR 0025).
-			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workforce.PermLeaveRequest && perm != workforce.PermLeaveApprove && perm != workforce.PermDutyRequest && perm != workforce.PermDutyApprove && perm != workforce.PermOvertimeConfigure && perm != workforce.PermOvertimeRequest && perm != workforce.PermOvertimeApprove && perm != workforce.PermAttendanceConfigure && perm != workforce.PermAttendanceRecord && perm != workforce.PermAttendanceCorrect && perm != workforce.PermAttendanceApprove && perm != workforce.PermAttendanceFinalise && perm != workspace.PermBrandingManage && perm != patientmaster.PermPatientAccessManage && perm != pharmacy.PermAccessManage && perm != pharmacy.PermStockCorrect && perm != pharmacy.PermAccountsRead && perm != pharmacy.PermAccountsWrite && perm != pharmacy.PermAccountsPayment && perm != pharmacy.PermAccountsAdjust {
+			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workforce.PermLeaveRequest && perm != workforce.PermLeaveApprove && perm != workforce.PermDutyRequest && perm != workforce.PermDutyApprove && perm != workforce.PermOvertimeConfigure && perm != workforce.PermOvertimeRequest && perm != workforce.PermOvertimeApprove && perm != workforce.PermAttendanceConfigure && perm != workforce.PermAttendanceRecord && perm != workforce.PermAttendanceCorrect && perm != workforce.PermAttendanceApprove && perm != workforce.PermAttendanceFinalise && perm != workforce.PermPayrollConfigure && perm != workforce.PermPayrollView && perm != workspace.PermBrandingManage && perm != patientmaster.PermPatientAccessManage && perm != pharmacy.PermAccessManage && perm != pharmacy.PermStockCorrect && perm != pharmacy.PermAccountsRead && perm != pharmacy.PermAccountsWrite && perm != pharmacy.PermAccountsPayment && perm != pharmacy.PermAccountsAdjust {
 
 				t.Errorf("module %q guards a route with %q, held by tenant_admin only; declare the role that needs it", m.Name(), perm)
 			}
@@ -213,6 +213,8 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workforce.PermAttendanceCorrect:   {authz.RoleTenantAdmin},
 	workforce.PermAttendanceApprove:   {authz.RoleTenantAdmin},
 	workforce.PermAttendanceFinalise:  {authz.RoleTenantAdmin},
+	workforce.PermPayrollConfigure:    {authz.RoleTenantAdmin},
+	workforce.PermPayrollView:         {authz.RoleTenantAdmin},
 	workspace.PermBrandingManage:      {authz.RoleTenantAdmin},
 	iam.PermMemberManage:              {authz.RoleTenantAdmin},
 	iam.PermCredentialRevoke:          {authz.RoleTenantAdmin},

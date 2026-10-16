@@ -200,3 +200,14 @@ type AttendancePeriodChangedData struct {
 	Version     int64  `json:"version"`
 	TimesheetID string `json:"timesheet_id"`
 }
+
+// SubjectSalaryConfigChanged reports a salary head or structure revision; consumers re-read the configuration through the API.
+const SubjectSalaryConfigChanged = "helivanta.in.workforce.salary_config_changed.v1"
+
+type SalaryConfigChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	ConfigID   string `json:"config_id"`
+	RevisionID string `json:"revision_id"`
+	Kind       string `json:"kind"`
+	Version    int64  `json:"version"`
+}

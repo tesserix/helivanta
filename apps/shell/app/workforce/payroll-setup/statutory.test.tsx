@@ -119,12 +119,14 @@ function mock({
   rules = [] as unknown[],
   fail = false,
   reject = "",
+  previewBody = preview,
 }: {
   permissions?: string[];
   subject?: string;
   rules?: unknown[];
   fail?: boolean;
   reject?: string;
+  previewBody?: unknown;
 } = {}) {
   const writes: { url: string; body: unknown }[] = [];
   vi.stubGlobal(
@@ -145,7 +147,7 @@ function mock({
         writes.push({ url, body: JSON.parse(String(init.body)) });
         [code, body] = reject
           ? [409, { error: "conflict", message: reject }]
-          : [200, url.endsWith("/statutory-preview") ? preview : rule(false)];
+          : [200, url.endsWith("/statutory-preview") ? previewBody : rule(false)];
       }
       return new Response(JSON.stringify(body), { status: code });
     }),
@@ -358,6 +360,7 @@ it("previews contributions for a structure without storing anything", async () =
       disability: true,
     },
   });
+  expect(writes[0]?.body).not.toHaveProperty("gender");
   const region = within(section).getByRole("region", { name: "Statutory preview" });
   expect(await within(region).findByText("Provident Fund · Applied")).toBeInTheDocument();
   expect(
@@ -365,4 +368,233 @@ it("previews contributions for a structure without storing anything", async () =
   ).toBeInTheDocument();
   expect(within(region).getByRole("cell", { name: "Pension (EPS)" })).toBeInTheDocument();
   expect(within(region).getByText("Net after contributions")).toBeInTheDocument();
+});
+
+const fill = async (
+  user: Awaited<ReturnType<typeof renderWithProviders>>["user"],
+  scope: HTMLElement | ReturnType<typeof within>,
+  fields: [string, string][],
+) => {
+  const q = scope instanceof HTMLElement ? within(scope) : scope;
+  for (const [label, value] of fields) {
+    await user.click(q.getByLabelText(label));
+    await user.paste(value);
+  }
+};
+const openProposal = async (kind: string) => {
+  const writes = mock();
+  const { user } = renderWithProviders(<PayrollSetup />);
+  const section = await panel();
+  await user.click(await within(section).findByRole("button", { name: `Propose ${kind} change` }));
+  const form = within(section).getByRole("form", { name: `Propose ${kind} rule` });
+  await chooseOption(user, within(form).getByRole("combobox", { name: "Coverage" }), "Covered");
+  await fill(user, form, [
+    ["Name", `Synthetic ${kind}`],
+    ["Notification or section relied on", "Synthetic notification"],
+  ]);
+  return { writes, user, form };
+};
+
+it("builds a professional tax table and refuses one with a gender left out", async () => {
+  const { writes, user, form } = await openProposal("Professional tax");
+  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+  expect(
+    await within(form).findByText("Enter the state code, for example IN-MH."),
+  ).toBeInTheDocument();
+  expect(within(form).getByText("Choose its months.")).toBeInTheDocument();
+  expect(within(form).getByText("Choose who it applies to.")).toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+  await fill(user, form, [["State code (for example IN-MH)", "in-zz"]]);
+  await chooseOption(user, within(form).getByRole("combobox", { name: "Wages" }), "Gross pay");
+  const first = within(within(form).getByRole("group", { name: "Slab 1" }));
+  await fill(user, first, [
+    ["Monthly wages from (₹)", "0"],
+    ["Up to, excluding (₹, blank for no limit)", "100"],
+    ["Tax per month (₹)", "0"],
+  ]);
+  const firstMonths = within(first.getByRole("group", { name: "Months slab 1 applies in" }));
+  await user.click(firstMonths.getByRole("checkbox", { name: "Feb" }));
+  const firstWho = within(first.getByRole("group", { name: "Slab 1 applies to" }));
+  await user.click(firstWho.getByRole("checkbox", { name: "Women" }));
+  await user.click(firstWho.getByRole("checkbox", { name: "Men" }));
+  await user.click(firstWho.getByRole("checkbox", { name: "Other genders" }));
+  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+  expect(
+    await within(form).findByText(
+      "Feb, women: the table needs a last slab from ₹100.00 with no upper limit.",
+    ),
+  ).toBeInTheDocument();
+  await user.click(within(form).getByRole("button", { name: "Add slab" }));
+  const second = within(within(form).getByRole("group", { name: "Slab 2" }));
+  await fill(user, second, [
+    ["Monthly wages from (₹)", "100"],
+    ["Tax per month (₹)", "3"],
+  ]);
+  await user.click(
+    within(second.getByRole("group", { name: "Months slab 2 applies in" })).getByRole("checkbox", {
+      name: "Feb",
+    }),
+  );
+  const secondWho = within(second.getByRole("group", { name: "Slab 2 applies to" }));
+  await user.click(secondWho.getByRole("checkbox", { name: "Women" }));
+  await user.click(secondWho.getByRole("checkbox", { name: "Men" }));
+  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+  expect(
+    await within(form).findByText(
+      "Feb, other genders: the table needs a last slab from ₹100.00 with no upper limit.",
+    ),
+  ).toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+  await user.click(secondWho.getByRole("checkbox", { name: "Other genders" }));
+  expect(
+    within(form).getByText("Highest yearly tax: women ₹3.00 · men ₹3.00 · other genders ₹3.00"),
+  ).toBeInTheDocument();
+  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]?.body).toEqual({
+    expected_version: 0,
+    kind: "pt",
+    name: "Synthetic Professional tax",
+    covered: true,
+    effective_on: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    citation: "Synthetic notification",
+    reference: "",
+    pt: {
+      state_code: "IN-ZZ",
+      wage_basis: "gross",
+      slabs: [
+        {
+          months: [2],
+          genders: ["female", "male", "other"],
+          from_paise: 0,
+          to_paise: 10000,
+          amount_paise: 0,
+        },
+        { months: [2], genders: ["female", "male", "other"], from_paise: 10000, amount_paise: 300 },
+      ],
+    },
+  });
+});
+
+it("removes a professional tax slab but always keeps one", async () => {
+  const { user, form } = await openProposal("Professional tax");
+  expect(within(form).getByRole("button", { name: "Remove slab 1" })).toBeDisabled();
+  await user.click(within(form).getByRole("button", { name: "Add slab" }));
+  await fill(user, within(within(form).getByRole("group", { name: "Slab 2" })), [
+    ["Tax per month (₹)", "7"],
+  ]);
+  await user.click(within(form).getByRole("button", { name: "Remove slab 1" }));
+  expect(within(form).queryByRole("group", { name: "Slab 2" })).toBeNull();
+  expect(
+    within(within(form).getByRole("group", { name: "Slab 1" })).getByLabelText("Tax per month (₹)"),
+  ).toHaveValue("7");
+});
+
+it("submits labour welfare fund slabs with optional caps", async () => {
+  const { writes, user, form } = await openProposal("Labour welfare fund");
+  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+  expect(
+    await within(form).findByText("Choose the months LWF is deducted in."),
+  ).toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+  await fill(user, form, [["State code (for example IN-MH)", "IN-ZZ"]]);
+  await chooseOption(
+    user,
+    within(form).getByRole("combobox", { name: "Wages" }),
+    "Labour Code wages",
+  );
+  await chooseOption(user, within(form).getByRole("combobox", { name: "Rounding" }), "Always up");
+  await chooseOption(user, within(form).getByRole("combobox", { name: "Round to" }), "₹1");
+  const months = within(within(form).getByRole("group", { name: "Deducted in" }));
+  await user.click(months.getByRole("checkbox", { name: "Dec" }));
+  await user.click(months.getByRole("checkbox", { name: "Jun" }));
+  await fill(user, within(within(form).getByRole("group", { name: "Slab 1" })), [
+    ["Wages from (₹)", "0"],
+    ["Employee fixed (₹)", "0"],
+    ["Employee rate (%)", "0.2"],
+    ["Employee cap (₹, optional)", "5"],
+    ["Employer fixed (₹)", "10"],
+    ["Employer rate (%)", "0"],
+  ]);
+  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]?.body).toMatchObject({
+    kind: "lwf",
+    lwf: {
+      state_code: "IN-ZZ",
+      wage_basis: "statutory_wages",
+      deduction_months: [6, 12],
+      rounding_mode: "up",
+      rounding_unit_paise: 100,
+      slabs: [
+        {
+          from_paise: 0,
+          employee_fixed_paise: 0,
+          employee_rate_ppm: 2000,
+          employee_cap_paise: 500,
+          employer_fixed_paise: 1000,
+          employer_rate_ppm: 0,
+        },
+      ],
+    },
+  });
+  expect(writes[0]?.body).not.toHaveProperty("pt");
+});
+
+it("explains a state levy recorded as not covered", async () => {
+  const { user, form } = await openProposal("Professional tax");
+  await chooseOption(user, within(form).getByRole("combobox", { name: "Coverage" }), "Not covered");
+  expect(within(form).getByText(/assessed half-yearly or yearly/)).toBeInTheDocument();
+  expect(within(form).queryByText("Professional tax parameters")).toBeNull();
+});
+
+it("sends a chosen gender and labels state levy statuses", async () => {
+  const writes = mock({
+    rules: [rule(false)],
+    previewBody: {
+      ...preview,
+      results: [
+        {
+          kind: "pt",
+          status: "gender_required",
+          wages_paise: 1200000,
+          base_paise: 1200000,
+          components: [],
+        },
+        {
+          kind: "lwf",
+          status: "not_due",
+          wages_paise: 1200000,
+          base_paise: 1200000,
+          components: [],
+        },
+      ],
+      employee_paise: 0,
+      employer_paise: 0,
+    },
+  });
+  const { user } = renderWithProviders(<PayrollSetup />);
+  const section = await panel();
+  await user.click(await within(section).findByRole("button", { name: "Preview contributions" }));
+  const form = within(section).getByRole("form", { name: "Statutory preview inputs" });
+  await chooseOption(
+    user,
+    within(form).getByRole("combobox", { name: "Salary structure" }),
+    "Synthetic Nurse Pay · SYN-NURSE",
+  );
+  await user.type(within(form).getByLabelText("Payable days"), "30");
+  await chooseOption(
+    user,
+    within(form).getByRole("combobox", { name: "Gender (professional tax)" }),
+    "Women",
+  );
+  await user.click(within(form).getByRole("button", { name: "Compute contributions" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]?.body).toMatchObject({ gender: "female" });
+  const region = within(section).getByRole("region", { name: "Statutory preview" });
+  expect(
+    await within(region).findByText("Professional tax · Needs the employee's gender"),
+  ).toBeInTheDocument();
+  expect(within(region).getByText(/differs by gender/)).toBeInTheDocument();
+  expect(within(region).getByText("Labour welfare fund · Not due this month")).toBeInTheDocument();
 });

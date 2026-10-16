@@ -5,8 +5,10 @@ import type {
   SalaryPreviewInput,
   SalaryStructure,
   SalaryStructureInput,
+  StatutoryLwfSlab,
   StatutoryPfParams,
   StatutoryPreviewInput,
+  StatutoryPtSlab,
   StatutoryRevision,
   StatutoryRuleInput,
 } from "./payroll-contract";
@@ -465,6 +467,8 @@ export const STATUTORY_RESULT_STATUSES = {
   not_covered: "Not covered",
   above_ceiling: "Above the coverage ceiling",
   not_configured: "Not configured",
+  not_due: "Not due this month",
+  gender_required: "Needs the employee's gender",
 } as const;
 export const STATUTORY_COMPONENTS = {
   pf_employee: "PF employee share",
@@ -474,7 +478,18 @@ export const STATUTORY_COMPONENTS = {
   pf_admin: "PF admin charges",
   esi_employee: "ESI employee share",
   esi_employer: "ESI employer share",
+  pt_employee: "Professional tax",
+  lwf_employee: "LWF employee share",
+  lwf_employer: "LWF employer share",
 } as const;
+export const STATUTORY_GENDERS = {
+  female: "Women",
+  male: "Men",
+  other: "Other genders",
+} as const;
+type Gender = keyof typeof STATUTORY_GENDERS;
+const GENDERS = Object.keys(STATUTORY_GENDERS) as Gender[];
+const MAX_LEVY_PAISE = 10_000_000;
 
 // Statutory rates may legitimately be zero, unlike salary head rates.
 export const parseRate = (value: string): number | undefined => {
@@ -519,10 +534,122 @@ const esiFormSchema = z
   })
   .strict();
 
+const ptSlabFormSchema = z
+  .object({
+    months: z.array(z.number().int().min(1).max(12)),
+    genders: z.array(z.enum(["female", "male", "other"])),
+    from: z.string(),
+    to: z.string(),
+    amount: z.string(),
+  })
+  .strict();
+const ptFormSchema = z
+  .object({ state_code: z.string(), wage_basis: z.string(), slabs: z.array(ptSlabFormSchema) })
+  .strict();
+const lwfSlabFormSchema = z
+  .object({
+    from: z.string(),
+    to: z.string(),
+    employee_fixed: z.string(),
+    employee_rate: z.string(),
+    employee_cap: z.string(),
+    employer_fixed: z.string(),
+    employer_rate: z.string(),
+    employer_cap: z.string(),
+  })
+  .strict();
+const lwfFormSchema = z
+  .object({
+    state_code: z.string(),
+    wage_basis: z.string(),
+    deduction_months: z.array(z.number().int().min(1).max(12)),
+    rounding_mode: z.string(),
+    rounding_unit: z.string(),
+    slabs: z.array(lwfSlabFormSchema),
+  })
+  .strict();
+export type StatutoryPtSlabForm = z.infer<typeof ptSlabFormSchema>;
+export type StatutoryLwfSlabForm = z.infer<typeof lwfSlabFormSchema>;
+
+const optionalRupees = (raw: string) => (raw.trim() === "" ? undefined : parseRupees(raw));
+
+type Band = { from: number; to?: number };
+// Mirrors the server's partition rule and names the first fault, so the editor can say what to fix.
+export const statutoryBandProblem = (bands: Band[]): string | undefined => {
+  const sorted = [...bands].sort((a, b) => a.from - b.from);
+  if (sorted.length === 0) return "has no slab";
+  let next = 0;
+  for (const [i, band] of sorted.entries()) {
+    if (band.from !== next)
+      return band.from > next
+        ? `leaves wages from ${formatPaise(next)} to ${formatPaise(band.from)} without a slab`
+        : `has slabs that overlap from ${formatPaise(band.from)}`;
+    if (band.to === undefined && i < sorted.length - 1)
+      return "has an open-ended slab before the last one";
+    if (band.to === undefined) return undefined;
+    next = band.to;
+  }
+  return `needs a last slab from ${formatPaise(next)} with no upper limit`;
+};
+
+const parsedPtSlabs = (slabs: StatutoryPtSlabForm[]) =>
+  slabs.map((s) => ({
+    months: s.months,
+    genders: s.genders,
+    from: parseRupees(s.from),
+    to: optionalRupees(s.to),
+    amount: parseRupees(s.amount),
+  }));
+
+// Every gender must be partitioned in every month any slab names; an unnamed month has no PT.
+const ptProblem = (slabs: StatutoryPtSlabForm[]) => {
+  const parsed = parsedPtSlabs(slabs) as {
+    months: number[];
+    genders: Gender[];
+    from: number;
+    to?: number;
+  }[];
+  for (let month = 1; month <= 12; month++) {
+    if (!parsed.some((s) => s.months.includes(month))) continue;
+    for (const gender of GENDERS) {
+      const problem = statutoryBandProblem(
+        parsed.filter((s) => s.months.includes(month) && s.genders.includes(gender)),
+      );
+      if (problem)
+        return `${MONTH_NAMES[month - 1]}, ${STATUTORY_GENDERS[gender].toLowerCase()}: the table ${problem}.`;
+    }
+  }
+  return undefined;
+};
+
+// The highest yearly PT a person of each gender can owe, for the approver to check against the constitutional ceiling.
+export const ptAnnualTotals = (
+  slabs: StatutoryPtSlabForm[],
+): Record<Gender, number> | undefined => {
+  const parsed = parsedPtSlabs(slabs);
+  if (parsed.some((s) => s.from === undefined || s.amount === undefined)) return undefined;
+  const totals = { female: 0, male: 0, other: 0 };
+  for (const gender of GENDERS)
+    for (const wages of new Set(parsed.map((s) => s.from as number))) {
+      let year = 0;
+      for (let month = 1; month <= 12; month++)
+        year +=
+          parsed.find(
+            (s) =>
+              s.months.includes(month) &&
+              s.genders.includes(gender) &&
+              wages >= (s.from as number) &&
+              (s.to === undefined || wages < s.to),
+          )?.amount ?? 0;
+      totals[gender] = Math.max(totals[gender], year);
+    }
+  return totals;
+};
+
 export const statutoryRuleFormSchema = z
   .object({
     expected_version: z.number().int().min(0),
-    kind: z.enum(["pf", "esi"]),
+    kind: z.enum(["pf", "esi", "pt", "lwf"]),
     name: text("a name", 80),
     coverage: z.string(),
     effective_on: date,
@@ -534,6 +661,8 @@ export const statutoryRuleFormSchema = z
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     pf: pfFormSchema,
     esi: esiFormSchema,
+    pt: ptFormSchema,
+    lwf: lwfFormSchema,
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -542,8 +671,7 @@ export const statutoryRuleFormSchema = z
     if (!["covered", "not_covered"].includes(value.coverage))
       issue(["coverage"], "State whether the hospital is covered.");
     if (value.coverage !== "covered") return;
-    const params = value.kind === "pf" ? value.pf : value.esi;
-    const at = (field: string) => [value.kind, field];
+    const at = (...field: (string | number)[]) => [value.kind, ...field] as string[];
     const pick = (field: string, raw: string, options: Record<string, string>) => {
       if (!choice(options).safeParse(raw).success) issue(at(field), "Choose an option.");
     };
@@ -559,6 +687,85 @@ export const statutoryRuleFormSchema = z
         issue(at(field), "Enter a percentage from 0 to 100, with up to 4 decimals.");
       return ppm;
     };
+    // Slab fields report under their row so the editor can show each error beside its input.
+    const levy = (path: (string | number)[], raw: string, optional = false) => {
+      const paise = optional ? optionalRupees(raw) : parseRupees(raw);
+      if (paise === undefined ? !(optional && raw.trim() === "") : paise > MAX_LEVY_PAISE)
+        issue(
+          at(...path),
+          `Enter up to ₹1 lakh, with up to 2 decimals${optional ? ", or leave it blank" : ""}.`,
+        );
+    };
+    const band = (path: (string | number)[], from: string, to: string) => {
+      const start = parseRupees(from);
+      if (start === undefined) issue(at(...path, "from"), "Enter rupees with up to 2 decimals.");
+      const end = optionalRupees(to);
+      if (to.trim() !== "" && (end === undefined || (start !== undefined && end <= start)))
+        issue(
+          at(...path, "to"),
+          "Enter an amount above the start, or leave it blank for no limit.",
+        );
+      return start !== undefined && (to.trim() === "" || (end !== undefined && end > start));
+    };
+    const state = (raw: string) => {
+      if (!/^IN-[A-Z]{2}$/.test(raw.trim().toUpperCase()))
+        issue(at("state_code"), "Enter the state code, for example IN-MH.");
+    };
+    const months = (field: string, chosen: number[], message: string) => {
+      if (chosen.length === 0) issue(at(field), message);
+    };
+    if (value.kind === "pt") {
+      const pt = value.pt;
+      state(pt.state_code);
+      pick("wage_basis", pt.wage_basis, STATUTORY_WAGE_BASES);
+      if (pt.slabs.length === 0 || pt.slabs.length > 96)
+        return issue(at("slabs"), "Add between 1 and 96 slabs.");
+      let complete = true;
+      for (const [i, slab] of pt.slabs.entries()) {
+        if (slab.months.length === 0) issue(at("slabs", i, "months"), "Choose its months.");
+        if (slab.genders.length === 0)
+          issue(at("slabs", i, "genders"), "Choose who it applies to.");
+        levy(["slabs", i, "amount"], slab.amount);
+        complete = band(["slabs", i], slab.from, slab.to) && slab.months.length > 0 && complete;
+      }
+      const problem = complete ? ptProblem(pt.slabs) : undefined;
+      if (problem) issue(at("slabs"), problem);
+      return;
+    }
+    if (value.kind === "lwf") {
+      const lwf = value.lwf;
+      state(lwf.state_code);
+      pick("wage_basis", lwf.wage_basis, STATUTORY_WAGE_BASES);
+      pick("rounding_mode", lwf.rounding_mode, SALARY_ROUNDING_MODES);
+      pick("rounding_unit", lwf.rounding_unit, SALARY_ROUNDING_UNITS);
+      months("deduction_months", lwf.deduction_months, "Choose the months LWF is deducted in.");
+      if (lwf.slabs.length === 0 || lwf.slabs.length > 24)
+        return issue(at("slabs"), "Add between 1 and 24 slabs.");
+      let complete = true;
+      for (const [i, slab] of lwf.slabs.entries()) {
+        for (const party of ["employee", "employer"] as const) {
+          levy(["slabs", i, `${party}_fixed`], slab[`${party}_fixed`]);
+          if (parseRate(slab[`${party}_rate`]) === undefined)
+            issue(
+              at("slabs", i, `${party}_rate`),
+              "Enter a percentage from 0 to 100, with up to 4 decimals.",
+            );
+          levy(["slabs", i, `${party}_cap`], slab[`${party}_cap`], true);
+        }
+        complete = band(["slabs", i], slab.from, slab.to) && complete;
+      }
+      const problem = complete
+        ? statutoryBandProblem(
+            lwf.slabs.map((s) => ({
+              from: parseRupees(s.from) as number,
+              to: optionalRupees(s.to),
+            })),
+          )
+        : undefined;
+      if (problem) issue(at("slabs"), `The table ${problem}.`);
+      return;
+    }
+    const params = value.kind === "pf" ? value.pf : value.esi;
     pick("wage_basis", params.wage_basis, STATUTORY_WAGE_BASES);
     pick("rounding_mode", params.rounding_mode, SALARY_ROUNDING_MODES);
     pick("rounding_unit", params.rounding_unit, SALARY_ROUNDING_UNITS);
@@ -633,6 +840,37 @@ const blankEsi: StatutoryRuleForm["esi"] = {
   rounding_unit: "",
 };
 
+export const blankPtSlab = (): StatutoryPtSlabForm => ({
+  months: [],
+  genders: [],
+  from: "",
+  to: "",
+  amount: "",
+});
+export const blankLwfSlab = (): StatutoryLwfSlabForm => ({
+  from: "",
+  to: "",
+  employee_fixed: "",
+  employee_rate: "",
+  employee_cap: "",
+  employer_fixed: "",
+  employer_rate: "",
+  employer_cap: "",
+});
+const blankPt = (): StatutoryRuleForm["pt"] => ({
+  state_code: "",
+  wage_basis: "",
+  slabs: [blankPtSlab()],
+});
+const blankLwf = (): StatutoryRuleForm["lwf"] => ({
+  state_code: "",
+  wage_basis: "",
+  deduction_months: [],
+  rounding_mode: "",
+  rounding_unit: "",
+  slabs: [blankLwfSlab()],
+});
+
 export const newStatutoryRuleForm = (
   kind: StatutoryRuleForm["kind"],
   today: string,
@@ -646,6 +884,8 @@ export const newStatutoryRuleForm = (
   reference: "",
   pf: blankPf,
   esi: blankEsi,
+  pt: blankPt(),
+  lwf: blankLwf(),
 });
 
 // A revision opens as the base of the next proposal; the date and citation stay so a reviewer sees what changed.
@@ -693,6 +933,40 @@ export const statutoryRevisionToForm = (
         rounding_unit: String(revision.esi.rounding_unit_paise),
       }
     : blankEsi,
+  pt: revision.pt
+    ? {
+        state_code: revision.pt.state_code,
+        wage_basis: revision.pt.wage_basis,
+        slabs: revision.pt.slabs.map((s) => ({
+          months: s.months,
+          genders: s.genders,
+          from: paiseToRupees(s.from_paise),
+          to: s.to_paise === undefined ? "" : paiseToRupees(s.to_paise),
+          amount: paiseToRupees(s.amount_paise),
+        })),
+      }
+    : blankPt(),
+  lwf: revision.lwf
+    ? {
+        state_code: revision.lwf.state_code,
+        wage_basis: revision.lwf.wage_basis,
+        deduction_months: revision.lwf.deduction_months,
+        rounding_mode: revision.lwf.rounding_mode,
+        rounding_unit: String(revision.lwf.rounding_unit_paise),
+        slabs: revision.lwf.slabs.map((s) => ({
+          from: paiseToRupees(s.from_paise),
+          to: s.to_paise === undefined ? "" : paiseToRupees(s.to_paise),
+          employee_fixed: paiseToRupees(s.employee_fixed_paise),
+          employee_rate: ppmToPercent(s.employee_rate_ppm),
+          employee_cap:
+            s.employee_cap_paise === undefined ? "" : paiseToRupees(s.employee_cap_paise),
+          employer_fixed: paiseToRupees(s.employer_fixed_paise),
+          employer_rate: ppmToPercent(s.employer_rate_ppm),
+          employer_cap:
+            s.employer_cap_paise === undefined ? "" : paiseToRupees(s.employer_cap_paise),
+        })),
+      }
+    : blankLwf(),
 });
 
 type Mode = StatutoryPfParams["rounding_mode"];
@@ -702,8 +976,14 @@ export const toStatutoryRuleInput = (form: StatutoryRuleForm): StatutoryRuleInpu
   const covered = form.coverage === "covered";
   const money = (raw: string) => parseRupees(raw) ?? 0;
   const rate = (raw: string) => parseRate(raw) ?? 0;
-  const { pf, esi } = form;
+  const { pf, esi, pt, lwf } = form;
   const exempt = esi.employee_exempt_daily.trim();
+  const upper = (raw: string) => {
+    const paise = optionalRupees(raw);
+    return paise === undefined ? {} : { to_paise: paise };
+  };
+  const cap = (raw: string) => optionalRupees(raw);
+  const sortedMonths = (months: number[]) => [...months].sort((a, b) => a - b);
   return {
     expected_version: form.expected_version,
     kind: form.kind,
@@ -739,9 +1019,47 @@ export const toStatutoryRuleInput = (form: StatutoryRuleForm): StatutoryRuleInpu
           employee_rate_ppm: rate(esi.employee_rate),
           employer_rate_ppm: rate(esi.employer_rate),
           ...(exempt !== "" && { employee_exempt_daily_paise: money(exempt) }),
-          period_start_months: [...esi.period_start_months].sort((a, b) => a - b),
+          period_start_months: sortedMonths(esi.period_start_months),
           rounding_mode: esi.rounding_mode as Mode,
           rounding_unit_paise: Number(esi.rounding_unit),
+        },
+      }),
+    ...(covered &&
+      form.kind === "pt" && {
+        pt: {
+          state_code: pt.state_code.trim().toUpperCase(),
+          wage_basis: pt.wage_basis as keyof typeof STATUTORY_WAGE_BASES,
+          slabs: pt.slabs.map((s): StatutoryPtSlab => ({
+            months: sortedMonths(s.months),
+            genders: GENDERS.filter((g) => s.genders.includes(g)),
+            from_paise: money(s.from),
+            ...upper(s.to),
+            amount_paise: money(s.amount),
+          })),
+        },
+      }),
+    ...(covered &&
+      form.kind === "lwf" && {
+        lwf: {
+          state_code: lwf.state_code.trim().toUpperCase(),
+          wage_basis: lwf.wage_basis as keyof typeof STATUTORY_WAGE_BASES,
+          deduction_months: sortedMonths(lwf.deduction_months),
+          rounding_mode: lwf.rounding_mode as Mode,
+          rounding_unit_paise: Number(lwf.rounding_unit),
+          slabs: lwf.slabs.map((s): StatutoryLwfSlab => {
+            const employeeCap = cap(s.employee_cap);
+            const employerCap = cap(s.employer_cap);
+            return {
+              from_paise: money(s.from),
+              ...upper(s.to),
+              employee_fixed_paise: money(s.employee_fixed),
+              employee_rate_ppm: rate(s.employee_rate),
+              ...(employeeCap !== undefined && { employee_cap_paise: employeeCap }),
+              employer_fixed_paise: money(s.employer_fixed),
+              employer_rate_ppm: rate(s.employer_rate),
+              ...(employerCap !== undefined && { employer_cap_paise: employerCap }),
+            };
+          }),
         },
       }),
   };
@@ -769,6 +1087,7 @@ export const statutoryPreviewFormSchema = z
     on: date,
     payable_days: z.string(),
     disability: z.boolean(),
+    gender: z.enum(["", "female", "male", "other"]),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -786,6 +1105,7 @@ export const toStatutoryPreviewInput = (form: StatutoryPreviewForm): StatutoryPr
   on: form.on,
   payable_half_days: parseHalfDays(form.payable_days) ?? 0,
   disability: form.disability,
+  ...(form.gender !== "" && { gender: form.gender }),
 });
 
 export const statutoryRulesPath = (base: string) => `${base}/hr/payroll/statutory-rules`;
@@ -798,5 +1118,19 @@ export const describeStatutoryRevision = (revision: StatutoryRevision) => {
     return `Employee ${ppmToPercent(revision.pf.employee_rate_ppm)}% · employer ${ppmToPercent(revision.pf.employer_rate_ppm)}% (pension ${ppmToPercent(revision.pf.eps_rate_ppm)}%) · ceiling ${formatPaise(revision.pf.wage_ceiling_paise)}`;
   if (revision.esi)
     return `Employee ${ppmToPercent(revision.esi.employee_rate_ppm)}% · employer ${ppmToPercent(revision.esi.employer_rate_ppm)}% · ceiling ${formatPaise(revision.esi.wage_ceiling_paise)} · periods from ${revision.esi.period_start_months.map((m) => MONTH_NAMES[m - 1]).join(", ")}`;
+  const slabs = (n: number) => `${n} slab${n === 1 ? "" : "s"}`;
+  if (revision.pt) {
+    const months = new Set(revision.pt.slabs.flatMap((s) => s.months));
+    return `${revision.pt.state_code} · ${slabs(revision.pt.slabs.length)} · due ${
+      months.size === 12
+        ? "every month"
+        : `in ${[...months]
+            .sort((a, b) => a - b)
+            .map((m) => MONTH_NAMES[m - 1])
+            .join(", ")}`
+    }`;
+  }
+  if (revision.lwf)
+    return `${revision.lwf.state_code} · ${slabs(revision.lwf.slabs.length)} · deducted in ${revision.lwf.deduction_months.map((m) => MONTH_NAMES[m - 1]).join(", ")}`;
   return "Parameters unavailable";
 };

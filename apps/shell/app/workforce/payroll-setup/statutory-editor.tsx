@@ -23,6 +23,7 @@ import { Field, SelectControl, useZodForm } from "@helivanta/ui";
 import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Check } from "./payroll-workspace";
+import { LwfFields, PtFields } from "./statutory-slabs";
 
 const options = (labels: Record<string, string>) =>
   Object.entries(labels).map(([value, label]) => ({ value, label }));
@@ -277,6 +278,14 @@ export function StatutoryEditor({
               )}
             </div>
           </fieldset>
+        )}
+        {value.coverage === "covered" && kind === "pt" && <PtFields form={form} />}
+        {value.coverage === "covered" && kind === "lwf" && <LwfFields form={form} />}
+        {value.coverage === "not_covered" && (kind === "pt" || kind === "lwf") && (
+          <p className="text-xs text-muted-foreground">
+            Record not covered where the state levies none, or where its professional tax is
+            assessed half-yearly or yearly, which payroll runs will support. Cite the reason.
+          </p>
         )}
         <p className="text-xs text-muted-foreground">
           Nothing is pre-filled. Enter each value from the notification you cite. Someone other than

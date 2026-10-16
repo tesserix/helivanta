@@ -906,6 +906,189 @@
         "binding": "required,oneof=1 50 100 500 1000"
       }
     ],
+    "statutoryPtSlab": [
+      {
+        "name": "months",
+        "type": "[]int",
+        "max": 12,
+        "binding": "required,min=1,max=12,dive,gte=1,lte=12"
+      },
+      {
+        "name": "genders",
+        "type": "[]string",
+        "enum": [
+          "female",
+          "male",
+          "other"
+        ],
+        "max": 3,
+        "binding": "required,min=1,max=3,dive,oneof=female male other"
+      },
+      {
+        "name": "from_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000000,
+        "binding": "required,gte=0,lte=1000000000"
+      },
+      {
+        "name": "to_paise",
+        "type": "int64",
+        "optional": true,
+        "min": 1,
+        "max": 1000000000,
+        "binding": "omitempty,gte=1,lte=1000000000"
+      },
+      {
+        "name": "amount_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 10000000,
+        "binding": "required,gte=0,lte=10000000"
+      }
+    ],
+    "statutoryPtParams": [
+      {
+        "name": "state_code",
+        "type": "string",
+        "format": "text",
+        "min": 5,
+        "max": 5,
+        "binding": "required,len=5"
+      },
+      {
+        "name": "wage_basis",
+        "type": "string",
+        "enum": [
+          "statutory_wages",
+          "gross"
+        ],
+        "binding": "required,oneof=statutory_wages gross"
+      },
+      {
+        "name": "slabs",
+        "type": "[]statutoryPtSlab",
+        "max": 96,
+        "binding": "required,min=1,max=96,dive"
+      }
+    ],
+    "statutoryLwfSlab": [
+      {
+        "name": "from_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000000,
+        "binding": "required,gte=0,lte=1000000000"
+      },
+      {
+        "name": "to_paise",
+        "type": "int64",
+        "optional": true,
+        "min": 1,
+        "max": 1000000000,
+        "binding": "omitempty,gte=1,lte=1000000000"
+      },
+      {
+        "name": "employee_fixed_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 10000000,
+        "binding": "required,gte=0,lte=10000000"
+      },
+      {
+        "name": "employee_rate_ppm",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "required,gte=0,lte=1000000"
+      },
+      {
+        "name": "employee_cap_paise",
+        "type": "int64",
+        "optional": true,
+        "min": 0,
+        "max": 10000000,
+        "binding": "omitempty,gte=0,lte=10000000"
+      },
+      {
+        "name": "employer_fixed_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 10000000,
+        "binding": "required,gte=0,lte=10000000"
+      },
+      {
+        "name": "employer_rate_ppm",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "required,gte=0,lte=1000000"
+      },
+      {
+        "name": "employer_cap_paise",
+        "type": "int64",
+        "optional": true,
+        "min": 0,
+        "max": 10000000,
+        "binding": "omitempty,gte=0,lte=10000000"
+      }
+    ],
+    "statutoryLwfParams": [
+      {
+        "name": "state_code",
+        "type": "string",
+        "format": "text",
+        "min": 5,
+        "max": 5,
+        "binding": "required,len=5"
+      },
+      {
+        "name": "wage_basis",
+        "type": "string",
+        "enum": [
+          "statutory_wages",
+          "gross"
+        ],
+        "binding": "required,oneof=statutory_wages gross"
+      },
+      {
+        "name": "deduction_months",
+        "type": "[]int",
+        "max": 12,
+        "binding": "required,min=1,max=12,dive,gte=1,lte=12"
+      },
+      {
+        "name": "rounding_mode",
+        "type": "string",
+        "enum": [
+          "nearest",
+          "up",
+          "down"
+        ],
+        "binding": "required,oneof=nearest up down"
+      },
+      {
+        "name": "rounding_unit_paise",
+        "type": "int",
+        "pointer": true,
+        "min": 1,
+        "max": 1000,
+        "binding": "required,oneof=1 50 100 500 1000"
+      },
+      {
+        "name": "slabs",
+        "type": "[]statutoryLwfSlab",
+        "max": 24,
+        "binding": "required,min=1,max=24,dive"
+      }
+    ],
     "statutoryRuleInput": [
       {
         "name": "expected_version",
@@ -919,9 +1102,11 @@
         "type": "string",
         "enum": [
           "pf",
-          "esi"
+          "esi",
+          "pt",
+          "lwf"
         ],
-        "binding": "required,oneof=pf esi"
+        "binding": "required,oneof=pf esi pt lwf"
       },
       {
         "name": "name",
@@ -967,6 +1152,16 @@
         "name": "esi",
         "type": "statutoryEsiParams",
         "optional": true
+      },
+      {
+        "name": "pt",
+        "type": "statutoryPtParams",
+        "optional": true
+      },
+      {
+        "name": "lwf",
+        "type": "statutoryLwfParams",
+        "optional": true
       }
     ],
     "statutoryRevision": [
@@ -983,7 +1178,9 @@
         "type": "string",
         "enum": [
           "pf",
-          "esi"
+          "esi",
+          "pt",
+          "lwf"
         ]
       },
       {
@@ -1042,6 +1239,18 @@
         "orm_ignore": true
       },
       {
+        "name": "pt",
+        "type": "statutoryPtParams",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
+        "name": "lwf",
+        "type": "statutoryLwfParams",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
         "name": "proposed_by_subject",
         "type": "string"
       },
@@ -1074,7 +1283,9 @@
         "type": "string",
         "enum": [
           "pf",
-          "esi"
+          "esi",
+          "pt",
+          "lwf"
         ]
       },
       {
@@ -1176,6 +1387,17 @@
         "type": "bool",
         "pointer": true,
         "binding": "required"
+      },
+      {
+        "name": "gender",
+        "type": "string",
+        "enum": [
+          "female",
+          "male",
+          "other"
+        ],
+        "optional": true,
+        "binding": "omitempty,oneof=female male other"
       }
     ],
     "statutoryComponent": [
@@ -1189,7 +1411,10 @@
           "pf_edli",
           "pf_admin",
           "esi_employee",
-          "esi_employer"
+          "esi_employer",
+          "pt_employee",
+          "lwf_employee",
+          "lwf_employer"
         ]
       },
       {
@@ -1211,7 +1436,9 @@
         "type": "string",
         "enum": [
           "pf",
-          "esi"
+          "esi",
+          "pt",
+          "lwf"
         ]
       },
       {
@@ -1221,7 +1448,9 @@
           "applied",
           "not_covered",
           "above_ceiling",
-          "not_configured"
+          "not_configured",
+          "not_due",
+          "gender_required"
         ]
       },
       {
@@ -1277,6 +1506,8 @@
   },
   "statutoryKinds": {
     "pf": "Provident Fund",
-    "esi": "Employees' State Insurance"
+    "esi": "Employees' State Insurance",
+    "pt": "Professional tax",
+    "lwf": "Labour welfare fund"
   }
 }

@@ -15,6 +15,7 @@ import {
   useApiPagedQuery,
   usePermissions,
   STATUTORY_COMPONENTS,
+  STATUTORY_GENDERS,
   STATUTORY_KINDS,
   STATUTORY_RESULT_STATUSES,
   STATUTORY_STATUSES,
@@ -383,6 +384,7 @@ function StatutoryPreview({
     on: today(),
     payable_days: "",
     disability: false,
+    gender: "",
   });
   const preview = useApiMutation(
     (input: StatutoryPreviewInput) =>
@@ -462,7 +464,20 @@ function StatutoryPreview({
           <Button type="submit" disabled={preview.isPending}>
             {preview.isPending ? "Computing…" : "Compute contributions"}
           </Button>
-          <div className="sm:col-span-4">
+          <Field id="statutory-preview-gender" label="Gender (professional tax)">
+            <SelectControl
+              id="statutory-preview-gender"
+              value={value.gender}
+              onValueChange={(next) =>
+                form.setValue("gender", next as typeof value.gender, { shouldDirty: true })
+              }
+              options={[
+                { value: "", label: "Not stated" },
+                ...Object.entries(STATUTORY_GENDERS).map(([g, label]) => ({ value: g, label })),
+              ]}
+            />
+          </Field>
+          <div className="self-center sm:col-span-3">
             <Check
               label="Employee is a person with disability (uses the higher ESI ceiling)"
               checked={value.disability}
@@ -483,7 +498,8 @@ function StatutoryPreview({
       )}
       <p className="mt-2 text-xs text-muted-foreground">
         Uses the salary and statutory revisions in force on that date. Nothing is stored. Whether
-        ESI continues through a contribution period is decided when payroll runs.
+        ESI continues through a contribution period is decided when payroll runs. Professional tax
+        needs a gender only where the state&apos;s slabs differ by gender.
       </p>
       {preview.isError && <SaveError message={preview.error.message} />}
       {result && (
@@ -517,6 +533,11 @@ function StatutoryPreview({
                     ))}
                   </tbody>
                 </table>
+              )}
+              {r.status === "gender_required" && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  The amount at these wages differs by gender. Choose a gender and compute again.
+                </p>
               )}
               <p className="mt-2 text-xs text-muted-foreground">
                 Wages {formatPaise(r.wages_paise)} · contribution base {formatPaise(r.base_paise)}

@@ -8,6 +8,7 @@ import (
 
 var attendanceStatuses = []string{"present", "absent", "on_leave", "missing_in", "missing_out", "in_progress", "upcoming", "unpublished", "no_policy"}
 var attendanceExceptions = []string{"late", "early_departure", "short_duty", "missing_punch", "absent", "duplicate_punch", "punched_on_leave", "stray_punch"}
+var attendanceCorrectionStatuses = []string{"pending", "approved", "rejected", "cancelled"}
 
 type attendanceSettingsInput struct {
 	ExpectedVersion            *int64 `json:"expected_version" binding:"required,gte=0"`
@@ -57,6 +58,7 @@ type attendancePunch struct {
 	LocalDate         string     `json:"local_date"`
 	Timezone          string     `json:"timezone"`
 	Source            string     `json:"source"`
+	CorrectionID      *uuid.UUID `json:"correction_id,omitempty"`
 	PolicyRevisionID  uuid.UUID  `json:"policy_revision_id"`
 	Reason            string     `json:"reason"`
 	RecordedBySubject string     `json:"recorded_by_subject"`
@@ -65,6 +67,7 @@ type attendancePunch struct {
 	VoidReason        *string    `json:"void_reason,omitempty"`
 	VoidedBySubject   *string    `json:"voided_by_subject,omitempty"`
 	VoidedAt          *time.Time `json:"voided_at,omitempty"`
+	VoidCorrectionID  *uuid.UUID `json:"void_correction_id,omitempty"`
 }
 
 type attendanceShift struct {
@@ -137,4 +140,57 @@ type attendancePersonRange struct {
 	Statuses                []attendanceCount `json:"statuses"`
 	Exceptions              []attendanceCount `json:"exceptions"`
 	Days                    []attendanceDay   `json:"days"`
+}
+
+type attendanceCorrectionInput struct {
+	StaffID       uuid.UUID  `json:"staff_id" binding:"required"`
+	Kind          string     `json:"kind" binding:"required,oneof=add void replace"`
+	Direction     *string    `json:"direction,omitempty" binding:"omitempty,oneof=in out"`
+	PunchedAt     *time.Time `json:"punched_at,omitempty"`
+	TargetPunchID *uuid.UUID `json:"target_punch_id,omitempty"`
+	Reason        string     `json:"reason" binding:"required,max=500"`
+}
+
+type attendanceCorrectionDecisionInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,gte=1"`
+	Decision        string `json:"decision" binding:"required,oneof=approve reject"`
+	Note            string `json:"note" binding:"max=500"`
+}
+
+type attendanceCorrectionCancelInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,gte=1"`
+	Note            string `json:"note" binding:"max=500"`
+}
+
+type attendanceCorrection struct {
+	ID                 uuid.UUID  `json:"id"`
+	StaffID            uuid.UUID  `json:"staff_id"`
+	EmployeeCode       string     `json:"employee_code"`
+	DisplayName        string     `json:"display_name"`
+	Kind               string     `json:"kind"`
+	TargetPunchID      *uuid.UUID `json:"target_punch_id,omitempty"`
+	TargetDirection    *string    `json:"target_direction,omitempty"`
+	TargetPunchedAt    *time.Time `json:"target_punched_at,omitempty"`
+	Direction          *string    `json:"direction,omitempty"`
+	PunchedAt          *time.Time `json:"punched_at,omitempty"`
+	LocalDate          string     `json:"local_date"`
+	Timezone           string     `json:"timezone"`
+	Reason             string     `json:"reason"`
+	Status             string     `json:"status"`
+	RequestedBySubject string     `json:"requested_by_subject"`
+	DecidedBySubject   *string    `json:"decided_by_subject,omitempty"`
+	DecidedAt          *time.Time `json:"decided_at,omitempty"`
+	AppliedPunchID     *uuid.UUID `json:"applied_punch_id,omitempty"`
+	Version            int64      `json:"version"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+
+type attendanceCorrectionEvent struct {
+	ID           uuid.UUID `json:"id"`
+	Version      int64     `json:"version"`
+	Status       string    `json:"status"`
+	Note         string    `json:"note"`
+	ActorSubject string    `json:"actor_subject"`
+	CreatedAt    time.Time `json:"created_at"`
 }

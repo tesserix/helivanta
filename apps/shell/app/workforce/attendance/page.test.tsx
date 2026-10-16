@@ -104,6 +104,29 @@ const punch = (voided = false, reason = "Synthetic register entry") => ({
     ? { void_reason: "Wrong person", voided_by_subject: "synthetic-lead", voided_at: stamp }
     : {}),
 });
+const correctionID = "77777777-7777-4777-8777-777777777777";
+const correction = {
+  id: correctionID,
+  staff_id: nurse,
+  employee_code: "SYN-001",
+  display_name: "Synthetic Nurse",
+  kind: "replace",
+  target_punch_id: punchID,
+  target_direction: "in",
+  target_punched_at: "2026-10-12T04:00:00Z",
+  direction: "in",
+  punched_at: "2026-10-12T02:30:00Z",
+  local_date: "2026-10-12",
+  timezone: "Asia/Kolkata",
+  reason: "Synthetic clock running fast",
+  status: "pending",
+  requested_by_subject: "synthetic-filer",
+  version: 1,
+  created_at: stamp,
+  updated_at: stamp,
+};
+const corrector = ["workforce.attendance.correct"];
+const approver = ["workforce.attendance.approve"];
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 afterEach(() => vi.unstubAllGlobals());
 function mock({
@@ -114,6 +137,7 @@ function mock({
   voided = false,
   fail = false,
   reject = "",
+  corrections = [] as unknown[],
 }: {
   permissions?: string[];
   policy?: boolean;
@@ -122,6 +146,7 @@ function mock({
   voided?: boolean;
   fail?: boolean;
   reject?: string;
+  corrections?: unknown[];
 } = {}) {
   const writes: { method: string; url: string; body: unknown }[] = [];
   const reads: string[] = [];
@@ -150,7 +175,23 @@ function mock({
           : [404, { error: "not_found", message: "roster settings not found" }];
       else if (url.includes("/hr/attendance-totals"))
         body = people ? totals : { ...totals, people: 0, shifts: 0, statuses: [], exceptions: [] };
-      else if (url.includes("/hr/attendance/punches")) {
+      else if (url.includes("/hr/attendance/corrections")) {
+        reads.push(url);
+        body = url.endsWith("/history")
+          ? page([
+              {
+                id: revision,
+                version: 1,
+                status: "pending",
+                note: "",
+                actor_subject: "synthetic-filer",
+                created_at: stamp,
+              },
+            ])
+          : url.endsWith(correctionID)
+            ? correction
+            : page(corrections);
+      } else if (url.includes("/hr/attendance/punches")) {
         reads.push(url);
         body = page([punch(voided, permissions.length ? "Synthetic register entry" : "")]);
       } else if (url.includes("/hr/attendance?")) {
@@ -175,7 +216,14 @@ function mock({
         writes.push({ method: init.method, url, body: JSON.parse(String(init.body)) });
         [code, body] = reject
           ? [409, { error: "conflict", message: reject }]
-          : [200, url.endsWith("/attendance-settings") ? settings : punch(init.method === "POST")];
+          : [
+              200,
+              url.endsWith("/attendance-settings")
+                ? settings
+                : url.includes("/corrections")
+                  ? correction
+                  : punch(init.method === "POST"),
+            ];
       }
       return new Response(JSON.stringify(body), { status: code });
     }),
@@ -404,4 +452,180 @@ it("requires a reason and confirmation before voiding a punch", async () => {
     url: expect.stringContaining(`/hr/attendance/punches/${punchID}/void`),
     body: { reason: "Recorded against the wrong person" },
   });
+});
+
+const openLedger = async (user: ReturnType<typeof renderWithProviders>["user"]) => {
+  const ledger = await screen.findByRole("region", { name: "Punch ledger" });
+  await chooseOption(
+    user,
+    within(ledger).getByRole("combobox", { name: "Staff member" }),
+    /SYN-001/,
+  );
+  const from = within(ledger).getByLabelText("From");
+  await user.clear(from);
+  await user.type(from, "2026-10-01");
+  const to = within(ledger).getByLabelText("To");
+  await user.clear(to);
+  await user.type(to, "2026-10-12");
+  return ledger;
+};
+
+it("files a retime from the ledger in hospital time and replays the same id on retry", async () => {
+  const { writes } = mock({
+    permissions: corrector,
+    reject: "a pending correction already targets this punch",
+  });
+  const { user } = renderWithProviders(<Attendance />);
+  const ledger = await openLedger(user);
+  expect(within(ledger).queryByRole("button", { name: /^Void in punch/ })).toBeNull();
+  await user.click(
+    await within(ledger).findByRole("button", {
+      name: "Request correction to in punch on 2026-10-12 at 08:05",
+    }),
+  );
+  const form = within(ledger).getByRole("form", { name: "Request correction" });
+  expect(within(form).getByLabelText("Time (24-hour)")).toHaveValue("08:05");
+  await user.click(within(form).getByRole("button", { name: "Request correction" }));
+  expect(await within(form).findByText("Say why this correction is needed.")).toBeInTheDocument();
+  const time = within(form).getByLabelText("Time (24-hour)");
+  await user.clear(time);
+  await user.type(time, "08:00");
+  await user.type(within(form).getByLabelText("Reason"), " Synthetic clock running fast ");
+  await user.click(within(form).getByRole("button", { name: "Request correction" }));
+  expect(
+    await within(form).findByText(/a pending correction already targets this punch/),
+  ).toBeInTheDocument();
+  await user.click(within(form).getByRole("button", { name: "Request correction" }));
+  await waitFor(() => expect(writes).toHaveLength(2));
+  expect(writes[0]).toEqual({
+    method: "PUT",
+    url: expect.stringMatching(/\/hr\/attendance\/corrections\/[0-9a-f-]{36}$/),
+    body: {
+      staff_id: nurse,
+      kind: "replace",
+      target_punch_id: punchID,
+      direction: "in",
+      punched_at: "2026-10-12T02:30:00Z",
+      reason: "Synthetic clock running fast",
+    },
+  });
+  expect(writes[1].url).toBe(writes[0].url);
+});
+
+it("sends only the target when a punch is voided by correction", async () => {
+  const { writes } = mock({ permissions: corrector });
+  const { user } = renderWithProviders(<Attendance />);
+  const ledger = await openLedger(user);
+  await user.click(
+    await within(ledger).findByRole("button", { name: /^Request correction to in punch/ }),
+  );
+  const form = within(ledger).getByRole("form", { name: "Request correction" });
+  await chooseOption(
+    user,
+    within(form).getByRole("combobox", { name: "Correction" }),
+    "Void punch",
+  );
+  expect(within(form).queryByLabelText("Time (24-hour)")).toBeNull();
+  await user.type(within(form).getByLabelText("Reason"), "Synthetic wrong person");
+  await user.click(within(form).getByRole("button", { name: "Request correction" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].body).toEqual({
+    staff_id: nurse,
+    kind: "void",
+    target_punch_id: punchID,
+    reason: "Synthetic wrong person",
+  });
+});
+
+it("adds a missing punch from the corrections board", async () => {
+  const { writes } = mock({ permissions: corrector });
+  const { user } = renderWithProviders(<Attendance />);
+  const board = await screen.findByRole("region", { name: "Attendance corrections" });
+  expect(await within(board).findByText("No pending corrections.")).toBeInTheDocument();
+  await user.click(await within(board).findByRole("button", { name: "Add missing punch" }));
+  const form = within(board).getByRole("form", { name: "Request correction" });
+  await user.click(within(form).getByRole("button", { name: "Request correction" }));
+  expect(await within(form).findByText("Choose a staff member.")).toBeInTheDocument();
+  expect(within(form).getByText("Use a 24-hour time such as 08:05.")).toBeInTheDocument();
+  await chooseOption(user, within(form).getByRole("combobox", { name: "Staff member" }), /SYN-001/);
+  await chooseOption(user, within(form).getByRole("combobox", { name: "Direction" }), "Out");
+  const date = within(form).getByLabelText("Date");
+  await user.clear(date);
+  await user.type(date, "2026-10-12");
+  await user.type(within(form).getByLabelText("Time (24-hour)"), "16:00");
+  await user.type(within(form).getByLabelText("Reason"), "Synthetic missed out punch");
+  await user.click(within(form).getByRole("button", { name: "Request correction" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].body).toEqual({
+    staff_id: nurse,
+    kind: "add",
+    direction: "out",
+    punched_at: "2026-10-12T10:30:00Z",
+    reason: "Synthetic missed out punch",
+  });
+});
+
+it("rejects only with a note and approves a retime only after confirmation", async () => {
+  const { writes } = mock({ permissions: approver, corrections: [correction] });
+  const { user } = renderWithProviders(<Attendance />);
+  const board = await screen.findByRole("region", { name: "Attendance corrections" });
+  expect(
+    await within(board).findByText("2026-10-12 · Retime punch · In at 09:30 → In at 08:00"),
+  ).toBeInTheDocument();
+  expect(within(board).queryByRole("button", { name: "Add missing punch" })).toBeNull();
+  await user.click(
+    within(board).getByRole("button", {
+      name: "Review correction for Synthetic Nurse on 2026-10-12",
+    }),
+  );
+  const review = await within(board).findByRole("region", { name: "Correction request" });
+  expect(
+    await within(review).findByText("Reason: Synthetic clock running fast"),
+  ).toBeInTheDocument();
+  expect(within(review).queryByRole("button", { name: "Cancel correction" })).toBeNull();
+  await user.click(within(review).getByRole("button", { name: "Reject correction" }));
+  expect(
+    await within(review).findByText("Add a note explaining the rejection."),
+  ).toBeInTheDocument();
+  await user.click(within(review).getByRole("button", { name: "Approve correction" }));
+  const dialog = await screen.findByRole("dialog");
+  expect(writes).toHaveLength(0);
+  await user.click(within(dialog).getByRole("button", { name: "Approve correction" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toEqual({
+    method: "POST",
+    url: expect.stringContaining(`/hr/attendance/corrections/${correctionID}/decision`),
+    body: { expected_version: 1, decision: "approve", note: "" },
+  });
+});
+
+it("lets a filer cancel a pending correction", async () => {
+  const { writes } = mock({ permissions: corrector, corrections: [correction] });
+  const { user } = renderWithProviders(<Attendance />);
+  const board = await screen.findByRole("region", { name: "Attendance corrections" });
+  await user.click(
+    await within(board).findByRole("button", { name: /^Review correction for Synthetic Nurse/ }),
+  );
+  const review = await within(board).findByRole("region", { name: "Correction request" });
+  expect(within(review).queryByRole("button", { name: "Approve correction" })).toBeNull();
+  await user.click(await within(review).findByRole("button", { name: "Cancel correction" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toEqual({
+    method: "POST",
+    url: expect.stringContaining(`/hr/attendance/corrections/${correctionID}/cancellation`),
+    body: { expected_version: 1, note: "" },
+  });
+});
+
+it("shows readers the corrections board without actions", async () => {
+  mock({ permissions: [], corrections: [correction] });
+  const { user } = renderWithProviders(<Attendance />);
+  const board = await screen.findByRole("region", { name: "Attendance corrections" });
+  await user.click(
+    await within(board).findByRole("button", { name: /^Review correction for Synthetic Nurse/ }),
+  );
+  const review = await within(board).findByRole("region", { name: "Correction request" });
+  expect(await within(review).findByText("Version 1")).toBeInTheDocument();
+  expect(within(review).queryByRole("form", { name: "Decide correction" })).toBeNull();
+  expect(within(board).queryByRole("button", { name: "Add missing punch" })).toBeNull();
 });

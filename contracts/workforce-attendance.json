@@ -150,10 +150,7 @@
       {
         "name": "direction",
         "type": "string",
-        "enum": [
-          "in",
-          "out"
-        ],
+        "enum": ["in", "out"],
         "binding": "required,oneof=in out"
       },
       {
@@ -200,10 +197,7 @@
       {
         "name": "direction",
         "type": "string",
-        "enum": [
-          "in",
-          "out"
-        ]
+        "enum": ["in", "out"]
       },
       {
         "name": "punched_at",
@@ -221,9 +215,12 @@
       {
         "name": "source",
         "type": "string",
-        "enum": [
-          "manual"
-        ]
+        "enum": ["manual", "correction"]
+      },
+      {
+        "name": "correction_id",
+        "type": "uuid",
+        "optional": true
       },
       {
         "name": "policy_revision_id",
@@ -258,6 +255,11 @@
       {
         "name": "voided_at",
         "type": "time",
+        "optional": true
+      },
+      {
+        "name": "void_correction_id",
+        "type": "uuid",
         "optional": true
       }
     ],
@@ -399,13 +401,7 @@
       {
         "name": "leave",
         "type": "string",
-        "enum": [
-          "none",
-          "full_day",
-          "first_half",
-          "second_half",
-          "short"
-        ]
+        "enum": ["none", "full_day", "first_half", "second_half", "short"]
       },
       {
         "name": "short_leave_minutes",
@@ -534,6 +530,218 @@
         "name": "days",
         "type": "[]attendanceDay"
       }
+    ],
+    "attendanceCorrectionInput": [
+      {
+        "name": "staff_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": ["add", "void", "replace"],
+        "binding": "required,oneof=add void replace"
+      },
+      {
+        "name": "direction",
+        "type": "string",
+        "enum": ["in", "out"],
+        "optional": true,
+        "binding": "omitempty,oneof=in out"
+      },
+      {
+        "name": "punched_at",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "target_punch_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "required,max=500"
+      }
+    ],
+    "attendanceCorrectionDecisionInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "binding": "required,gte=1"
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject"],
+        "binding": "required,oneof=approve reject"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "max=500"
+      }
+    ],
+    "attendanceCorrectionCancelInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "binding": "required,gte=1"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "max": 500,
+        "format": "text",
+        "binding": "max=500"
+      }
+    ],
+    "attendanceCorrection": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": ["add", "void", "replace"]
+      },
+      {
+        "name": "target_punch_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "target_direction",
+        "type": "string",
+        "enum": ["in", "out"],
+        "optional": true
+      },
+      {
+        "name": "target_punched_at",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "direction",
+        "type": "string",
+        "enum": ["in", "out"],
+        "optional": true
+      },
+      {
+        "name": "punched_at",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "local_date",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "timezone",
+        "type": "string"
+      },
+      {
+        "name": "reason",
+        "type": "string"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending", "approved", "rejected", "cancelled"]
+      },
+      {
+        "name": "requested_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "decided_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "decided_at",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "applied_punch_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "attendanceCorrectionEvent": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending", "approved", "rejected", "cancelled"]
+      },
+      {
+        "name": "note",
+        "type": "string"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
     ]
+  },
+  "correction_kinds": {
+    "add": "Add missing punch",
+    "void": "Void punch",
+    "replace": "Retime punch"
+  },
+  "correction_statuses": {
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled"
   }
 }

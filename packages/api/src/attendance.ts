@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
   attendanceSettingsInputContract,
+  type AttendanceCorrectionDecisionInput,
+  type AttendanceCorrectionInput,
   type AttendancePunchInput,
   type AttendanceVoidInput,
 } from "./attendance-contract";
@@ -128,3 +130,87 @@ export const attendancePunchesPath = (base: string, staff: string, from: string,
 
 export const staffAttendancePath = (base: string, staff: string, from: string, to: string) =>
   `${base}/staff/${encodeURIComponent(staff)}/attendance?${new URLSearchParams({ from, to })}`;
+
+// A correction adds a punch (direction and time), voids one (target) or retimes one (target, direction and time).
+export const attendanceCorrectionFormSchema = z
+  .object({
+    staff_id: z.string().min(1, "Choose a staff member."),
+    kind: z.enum(["add", "void", "replace"], {
+      errorMap: () => ({ message: "Choose the kind of correction." }),
+    }),
+    target_punch_id: z.string(),
+    direction: z.enum(["in", "out", ""]),
+    date: z.string(),
+    time: z.string(),
+    reason: reason("Say why this correction is needed."),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.kind !== "add" && value.target_punch_id === "")
+      ctx.addIssue({
+        code: "custom",
+        path: ["target_punch_id"],
+        message: "Choose the punch to correct.",
+      });
+    if (value.kind === "void") return;
+    if (value.direction === "")
+      ctx.addIssue({ code: "custom", path: ["direction"], message: "Choose in or out." });
+    if (!z.string().date().safeParse(value.date).success)
+      ctx.addIssue({ code: "custom", path: ["date"], message: "Choose the punch date." });
+    if (!clock.test(value.time))
+      ctx.addIssue({
+        code: "custom",
+        path: ["time"],
+        message: "Use a 24-hour time such as 08:05.",
+      });
+  });
+export type AttendanceCorrectionForm = z.infer<typeof attendanceCorrectionFormSchema>;
+
+// Returns null when the wall-clock time does not exist in the hospital timezone.
+export const toAttendanceCorrection = (
+  form: AttendanceCorrectionForm,
+  timeZone: string,
+): AttendanceCorrectionInput | null => {
+  const base = { staff_id: form.staff_id, kind: form.kind, reason: form.reason };
+  const target = form.kind === "add" ? {} : { target_punch_id: form.target_punch_id };
+  if (form.kind === "void") return { ...base, ...target };
+  const at = zonedInstant(form.date, form.time, timeZone);
+  if (at === null || form.direction === "") return null;
+  return { ...base, ...target, direction: form.direction, punched_at: at };
+};
+
+export const attendanceCorrectionDecisionFormSchema = z
+  .object({
+    note: z
+      .string()
+      .trim()
+      .max(500, "Keep the note within 500 characters.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type AttendanceCorrectionDecisionForm = z.infer<
+  typeof attendanceCorrectionDecisionFormSchema
+>;
+
+export const toAttendanceCorrectionDecision = (
+  version: number,
+  decision: "approve" | "reject",
+  form: AttendanceCorrectionDecisionForm,
+): AttendanceCorrectionDecisionInput => ({ expected_version: version, decision, note: form.note });
+
+// Builds the list path; an empty filter value is not sent.
+export const attendanceCorrectionsPath = (
+  base: string,
+  f: { status?: string; staff_id?: string; from?: string; to?: string },
+) => {
+  const query = new URLSearchParams();
+  if (f.status && f.status !== "all") query.set("status", f.status);
+  if (f.staff_id) query.set("staff_id", f.staff_id);
+  if (f.from) query.set("from", f.from);
+  if (f.to) query.set("to", f.to);
+  const q = query.toString();
+  return `${base}/hr/attendance/corrections${q ? `?${q}` : ""}`;
+};
+
+export const attendanceCorrectionPath = (base: string, id: string) =>
+  `${base}/hr/attendance/corrections/${encodeURIComponent(id)}`;

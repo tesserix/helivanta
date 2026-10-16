@@ -14,6 +14,7 @@ import { Failure } from "../roster-policy/policy-ui";
 import { AttendancePolicyPanel } from "./policy-panel";
 import { DaySheet } from "./day-sheet";
 import { PunchLedger } from "./punch-panel";
+import { CorrectionsBoard } from "./corrections-panel";
 
 export function AttendanceWorkspace() {
   const hospitals = useApiPagedQuery<Hospital>(
@@ -32,8 +33,9 @@ export function AttendanceWorkspace() {
           <h2 className="text-3xl font-semibold tracking-tight">Attendance</h2>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             See who worked their rostered shifts, record punches by hand with a reason, and void
-            wrong ones. Attendance is derived from the roster, leave, overtime and punches; nothing
-            is typed in directly.
+            wrong ones. Missing or mistimed punches are corrected through a request a second person
+            approves. Attendance is derived from the roster, leave, overtime and punches; nothing is
+            typed in directly.
           </p>
         </div>
         {hospital && (
@@ -78,12 +80,14 @@ function HospitalAttendance({ hospital }: { hospital: Hospital }) {
   const { can } = usePermissions();
   const manager = hospital.access_level === "manager";
   const recorder = manager && can("workforce.attendance.record");
+  const corrector = manager && can("workforce.attendance.correct");
+  const approver = manager && can("workforce.attendance.approve");
   const base = `/workforce/hospitals/${hospital.id}`;
   // The server re-checks the timezone in force on the punch date, so the current one only guides entry.
   const roster = useApiQuery<RosterSettings>(
     ["workforce", "roster-settings", hospital.id],
     `${base}/hr/roster-settings`,
-    { enabled: recorder },
+    { enabled: recorder || corrector },
   );
   return (
     <div className="space-y-6">
@@ -97,7 +101,20 @@ function HospitalAttendance({ hospital }: { hospital: Hospital }) {
         recorder={recorder}
         timezone={roster.data?.timezone}
       />
-      <PunchLedger hospital={hospital.id} base={base} recorder={recorder} />
+      <CorrectionsBoard
+        hospital={hospital.id}
+        base={base}
+        timezone={roster.data?.timezone}
+        corrector={corrector}
+        approver={approver}
+      />
+      <PunchLedger
+        hospital={hospital.id}
+        base={base}
+        recorder={recorder}
+        corrector={corrector}
+        timezone={roster.data?.timezone}
+      />
     </div>
   );
 }

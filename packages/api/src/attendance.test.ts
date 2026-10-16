@@ -1,7 +1,15 @@
 import { expect, it } from "vitest";
 import {
+  ATTENDANCE_CORRECTION_KINDS,
+  ATTENDANCE_CORRECTION_STATUSES,
   ATTENDANCE_EXCEPTIONS,
   ATTENDANCE_STATUSES,
+  attendanceCorrectionContract,
+  attendanceCorrectionDecisionFormSchema,
+  attendanceCorrectionFormSchema,
+  attendanceCorrectionInputContract,
+  attendanceCorrectionPath,
+  attendanceCorrectionsPath,
   attendanceDayContract,
   attendancePunchContract,
   attendancePunchFormSchema,
@@ -14,6 +22,8 @@ import {
   attendanceTotalsPath,
   attendanceVoidFormSchema,
   staffAttendancePath,
+  toAttendanceCorrection,
+  toAttendanceCorrectionDecision,
   toAttendancePunch,
   toAttendanceVoid,
   zonedClock,
@@ -198,4 +208,126 @@ it("parses server rows and labels every status and exception", () => {
   ).toBe(true);
   expect(Object.keys(ATTENDANCE_STATUSES)).toHaveLength(9);
   expect(Object.keys(ATTENDANCE_EXCEPTIONS)).toHaveLength(8);
+});
+
+const correction = {
+  staff_id: a,
+  kind: "add" as const,
+  target_punch_id: "",
+  direction: "out" as const,
+  date: "2026-01-05",
+  time: "16:00",
+  reason: " Forgot to punch out ",
+};
+
+it("builds each correction kind's body and nothing the kind does not carry", () => {
+  const add = attendanceCorrectionFormSchema.parse(correction);
+  expect(toAttendanceCorrection(add, "Asia/Kolkata")).toEqual({
+    staff_id: a,
+    kind: "add",
+    direction: "out",
+    punched_at: "2026-01-05T10:30:00Z",
+    reason: "Forgot to punch out",
+  });
+  const voided = attendanceCorrectionFormSchema.parse({
+    ...correction,
+    kind: "void",
+    target_punch_id: a,
+    direction: "",
+    date: "",
+    time: "",
+  });
+  expect(toAttendanceCorrection(voided, "Asia/Kolkata")).toEqual({
+    staff_id: a,
+    kind: "void",
+    target_punch_id: a,
+    reason: "Forgot to punch out",
+  });
+  const retime = attendanceCorrectionFormSchema.parse({
+    ...correction,
+    kind: "replace",
+    target_punch_id: a,
+  });
+  const body = toAttendanceCorrection(retime, "Asia/Kolkata");
+  expect(body).toMatchObject({
+    kind: "replace",
+    target_punch_id: a,
+    punched_at: "2026-01-05T10:30:00Z",
+  });
+  expect(attendanceCorrectionInputContract.parse(body)).toEqual(body);
+  expect(
+    toAttendanceCorrection({ ...add, date: "2026-03-08", time: "02:30" }, "America/New_York"),
+  ).toBeNull();
+});
+
+it("refuses a correction missing what its kind needs", () => {
+  const issues = (value: object) =>
+    attendanceCorrectionFormSchema
+      .safeParse({ ...correction, ...value })
+      .error?.issues.map((i) => i.path.join("."));
+  expect(issues({ direction: "", time: "8am", date: "" })).toEqual(["direction", "date", "time"]);
+  expect(issues({ kind: "void" })).toEqual(["target_punch_id"]);
+  expect(issues({ kind: "replace", target_punch_id: "", direction: "" })).toEqual([
+    "target_punch_id",
+    "direction",
+  ]);
+  expect(issues({ reason: "  " })).toEqual(["reason"]);
+  expect(issues({ kind: "move" })).toEqual(["kind"]);
+});
+
+it("builds decisions and correction paths", () => {
+  const form = attendanceCorrectionDecisionFormSchema.parse({ note: " Checked " });
+  expect(toAttendanceCorrectionDecision(3, "reject", form)).toEqual({
+    expected_version: 3,
+    decision: "reject",
+    note: "Checked",
+  });
+  expect(attendanceCorrectionDecisionFormSchema.safeParse({ note: "x".repeat(501) }).success).toBe(
+    false,
+  );
+  expect(attendanceCorrectionsPath("/h", { status: "all" })).toBe("/h/hr/attendance/corrections");
+  expect(
+    attendanceCorrectionsPath("/h", {
+      status: "pending",
+      staff_id: a,
+      from: "2026-01-01",
+      to: "2026-01-31",
+    }),
+  ).toBe(`/h/hr/attendance/corrections?status=pending&staff_id=${a}&from=2026-01-01&to=2026-01-31`);
+  expect(attendanceCorrectionPath("/h", "a/b")).toBe("/h/hr/attendance/corrections/a%2Fb");
+});
+
+it("parses a correction row and labels every kind and status", () => {
+  const row = {
+    id: a,
+    staff_id: a,
+    employee_code: "N1",
+    display_name: "Nurse One",
+    kind: "replace",
+    target_punch_id: a,
+    target_direction: "in",
+    target_punched_at: "2026-01-05T04:00:00Z",
+    direction: "in",
+    punched_at: "2026-01-05T02:30:00Z",
+    local_date: "2026-01-05",
+    timezone: "Asia/Kolkata",
+    reason: "",
+    status: "approved",
+    requested_by_subject: "user-a",
+    decided_by_subject: "user-b",
+    decided_at: "2026-01-06T00:00:00Z",
+    applied_punch_id: a,
+    version: 2,
+    created_at: "2026-01-05T05:00:00Z",
+    updated_at: "2026-01-06T00:00:00Z",
+  };
+  expect(attendanceCorrectionContract.parse(row)).toEqual(row);
+  expect(attendanceCorrectionContract.safeParse({ ...row, status: "revoked" }).success).toBe(false);
+  expect(Object.keys(ATTENDANCE_CORRECTION_KINDS)).toEqual(["add", "void", "replace"]);
+  expect(Object.keys(ATTENDANCE_CORRECTION_STATUSES)).toEqual([
+    "pending",
+    "approved",
+    "rejected",
+    "cancelled",
+  ]);
 });

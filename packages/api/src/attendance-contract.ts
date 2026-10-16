@@ -33,6 +33,17 @@ export const ATTENDANCE_EXCEPTIONS = {
   punched_on_leave: "Punched on leave",
   stray_punch: "Punch outside any shift",
 } as const;
+export const ATTENDANCE_CORRECTION_KINDS = {
+  add: "Add missing punch",
+  void: "Void punch",
+  replace: "Retime punch",
+} as const;
+export const ATTENDANCE_CORRECTION_STATUSES = {
+  pending: "Pending",
+  approved: "Approved",
+  rejected: "Rejected",
+  cancelled: "Cancelled",
+} as const;
 const identifier = z
   .string()
   .uuid("Choose a valid record.")
@@ -123,7 +134,8 @@ export const attendancePunchContract = z
       .refine((value) => value >= "0001-01-01", "Use a valid date.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     timezone: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
-    source: z.enum(["manual"]),
+    source: z.enum(["manual", "correction"]),
+    correction_id: identifier.optional(),
     policy_revision_id: identifier,
     reason: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
     recorded_by_subject: z
@@ -140,6 +152,7 @@ export const attendancePunchContract = z
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .optional(),
     voided_at: z.string().datetime({ offset: true }).optional(),
+    void_correction_id: identifier.optional(),
   })
   .strict();
 export type AttendancePunch = z.infer<typeof attendancePunchContract>;
@@ -272,3 +285,100 @@ export const attendancePersonRangeContract = z
   })
   .strict();
 export type AttendancePersonRange = z.infer<typeof attendancePersonRangeContract>;
+
+export const attendanceCorrectionInputContract = z
+  .object({
+    staff_id: identifier,
+    kind: z.enum(["add", "void", "replace"]),
+    direction: z.enum(["in", "out"]).optional(),
+    punched_at: z.string().datetime({ offset: true }).optional(),
+    target_punch_id: identifier.optional(),
+    reason: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type AttendanceCorrectionInput = z.infer<typeof attendanceCorrectionInputContract>;
+
+export const attendanceCorrectionDecisionInputContract = z
+  .object({
+    expected_version: z.number().int().min(1),
+    decision: z.enum(["approve", "reject"]),
+    note: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type AttendanceCorrectionDecisionInput = z.infer<
+  typeof attendanceCorrectionDecisionInputContract
+>;
+
+export const attendanceCorrectionCancelInputContract = z
+  .object({
+    expected_version: z.number().int().min(1),
+    note: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type AttendanceCorrectionCancelInput = z.infer<
+  typeof attendanceCorrectionCancelInputContract
+>;
+
+export const attendanceCorrectionContract = z
+  .object({
+    id: identifier,
+    staff_id: identifier,
+    employee_code: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    display_name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    kind: z.enum(["add", "void", "replace"]),
+    target_punch_id: identifier.optional(),
+    target_direction: z.enum(["in", "out"]).optional(),
+    target_punched_at: z.string().datetime({ offset: true }).optional(),
+    direction: z.enum(["in", "out"]).optional(),
+    punched_at: z.string().datetime({ offset: true }).optional(),
+    local_date: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    timezone: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reason: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    status: z.enum(["pending", "approved", "rejected", "cancelled"]),
+    requested_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    decided_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    decided_at: z.string().datetime({ offset: true }).optional(),
+    applied_punch_id: identifier.optional(),
+    version: z.number().int(),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type AttendanceCorrection = z.infer<typeof attendanceCorrectionContract>;
+
+export const attendanceCorrectionEventContract = z
+  .object({
+    id: identifier,
+    version: z.number().int(),
+    status: z.enum(["pending", "approved", "rejected", "cancelled"]),
+    note: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type AttendanceCorrectionEvent = z.infer<typeof attendanceCorrectionEventContract>;

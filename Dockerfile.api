@@ -89,6 +89,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 # green weekly base build.
 FROM ghcr.io/tesserix/base-distroless-static:latest
 
+ENV GIN_MODE=release
+
 WORKDIR /app
 COPY --from=builder /out/api /app/api
 

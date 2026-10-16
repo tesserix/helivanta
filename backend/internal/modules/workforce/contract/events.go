@@ -189,3 +189,14 @@ type AttendanceCorrectionChangedData struct {
 	Status       string `json:"status"`
 	Version      int64  `json:"version"`
 }
+
+// SubjectAttendancePeriodChanged reports a timesheet period finalised, recalculated or reopened; consumers re-read the timesheet through the API.
+const SubjectAttendancePeriodChanged = "helivanta.in.workforce.attendance_period_changed.v1"
+
+type AttendancePeriodChangedData struct {
+	HospitalID  string `json:"hospital_id"`
+	PeriodID    string `json:"period_id"`
+	Status      string `json:"status"`
+	Version     int64  `json:"version"`
+	TimesheetID string `json:"timesheet_id"`
+}

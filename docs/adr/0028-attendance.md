@@ -17,7 +17,7 @@ Four layers that never write into each other:
 3. **Corrections** (#1038 slice 3), separately approved rows that add or void punches; they reuse layer 1 and add an approval trail.
 4. **Finalised timesheets**: a finalisation snapshots the derived rows for a closed period with the calculation inputs' revision ids, versions each recalculation, and locks punches and voids inside the period. Reports read finalised rows and reconcile to the individual records.
 
-This ADR's first slice delivers layers 1 and 2 plus the policy. Corrections and finalisation follow as separate slices against the same tables.
+This ADR's first slice delivered layers 1 and 2 plus the policy; corrections (layer 3) and finalised timesheets (layer 4, [spec](../superpowers/specs/2026-10-16-attendance-timesheets-design.md)) followed against the same tables. A finalised period also refuses correction filings and policy revisions reaching its days, and a deferred trigger proves each version reconciles to its people and days.
 
 Derivation rules:
 
@@ -42,10 +42,10 @@ Punch writes take the hospital attendance advisory lock, so the duplicate check 
 
 Threats: a foreign tenant or sibling hospital, an unauthorised person fabricating presence, silent edits to worked time, replayed writes, and punch reasons revealing health details. Reads need tenant membership and a hospital grant; writes need the permission, a hospital manager grant locked `FOR SHARE`, and the `app.workforce_attendance` flag in RLS `WITH CHECK`. Permissions: `workforce.attendance.configure` sets the policy; `workforce.attendance.record` records and voids punches; `workforce.attendance.correct` files and cancels corrections; `workforce.attendance.approve` decides them, never on the holder's own filing. Cross-tenant and foreign-hospital requests are 404, a missing permission 403, database errors fail closed.
 
-SOC 2 (CC6.1, CC7.2, CC8.1) and HIPAA (§164.312(b) audit controls, §164.312(c)(1) integrity): punches and voids are append-only at the database (statement triggers reject UPDATE, DELETE and TRUNCATE), each write adds an identifier-only `workforce_audit` row and outbox event in the same transaction, and every row records its actor. Reasons may mention health, so they are returned only to holders of `workforce.attendance.record`, never placed in events or audit rows, and capped at 500 characters. Punches cannot be in the future or older than the policy's back-dating window, which the finalisation lock will tighten.
+SOC 2 (CC6.1, CC7.2, CC8.1) and HIPAA (§164.312(b) audit controls, §164.312(c)(1) integrity): punches and voids are append-only at the database (statement triggers reject UPDATE, DELETE and TRUNCATE), each write adds an identifier-only `workforce_audit` row and outbox event in the same transaction, and every row records its actor. Reasons may mention health, so they are returned only to holders of `workforce.attendance.record`, never placed in events or audit rows, and capped at 500 characters. Punches cannot be in the future or older than the policy's back-dating window, and none can land on a day of a finalised period. `workforce.attendance.finalise` finalises, recalculates and reopens periods; snapshots, versions and period events are append-only, and a reopening reason is shown only to attendance permission holders.
 
 ## Consequences
 
-- Payroll (#1040) reads derived payable minutes and approved overtime per day, and later the finalised snapshot.
+- Payroll (#1040) reads the finalised snapshot, never the live derivation.
 - Device and import sources add a source value and an ingestion path, not a new model.
 - A day's figures can change until finalisation; finalisation is the point where they stop changing, by design.

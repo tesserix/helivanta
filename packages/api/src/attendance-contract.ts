@@ -44,6 +44,13 @@ export const ATTENDANCE_CORRECTION_STATUSES = {
   rejected: "Rejected",
   cancelled: "Cancelled",
 } as const;
+export const ATTENDANCE_PERIOD_STATUSES = { finalised: "Finalised", reopened: "Reopened" } as const;
+export const TIMESHEET_CHANGES = {
+  added: "Added",
+  changed: "Changed",
+  unchanged: "Unchanged",
+  removed: "Removed",
+} as const;
 const identifier = z
   .string()
   .uuid("Choose a valid record.")
@@ -382,3 +389,156 @@ export const attendanceCorrectionEventContract = z
   })
   .strict();
 export type AttendanceCorrectionEvent = z.infer<typeof attendanceCorrectionEventContract>;
+
+export const attendancePeriodInputContract = z
+  .object({
+    from: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    to: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    note: z
+      .string()
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type AttendancePeriodInput = z.infer<typeof attendancePeriodInputContract>;
+
+export const attendancePeriodTransitionInputContract = z
+  .object({
+    expected_version: z.number().int().min(1),
+    note: z
+      .string()
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type AttendancePeriodTransitionInput = z.infer<
+  typeof attendancePeriodTransitionInputContract
+>;
+
+export const attendanceTimesheetContract = z
+  .object({
+    id: identifier,
+    period_id: identifier,
+    number: z.number().int(),
+    people: z.number().int(),
+    days: z.number().int(),
+    shifts: z.number().int(),
+    payable_minutes: z.number().int(),
+    approved_overtime_minutes: z.number().int(),
+    unpaid_half_days: z.number().int(),
+    statuses: z.array(attendanceCountContract),
+    exceptions: z.array(attendanceCountContract),
+    added_days: z.number().int(),
+    changed_days: z.number().int(),
+    removed_days: z.number().int(),
+    policy_revision_ids: z.array(identifier),
+    note: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    finalised_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type AttendanceTimesheet = z.infer<typeof attendanceTimesheetContract>;
+
+export const attendancePeriodContract = z
+  .object({
+    id: identifier,
+    from: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    to: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    status: z.enum(["finalised", "reopened"]),
+    version: z.number().int(),
+    timesheet: attendanceTimesheetContract,
+    created_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type AttendancePeriod = z.infer<typeof attendancePeriodContract>;
+
+export const attendancePeriodEventContract = z
+  .object({
+    id: identifier,
+    version: z.number().int(),
+    status: z.enum(["finalised", "reopened"]),
+    timesheet_id: identifier,
+    note: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type AttendancePeriodEvent = z.infer<typeof attendancePeriodEventContract>;
+
+export const attendanceTimesheetPersonContract = z
+  .object({
+    staff_id: identifier,
+    employee_code: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    display_name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    days: z.number().int(),
+    shifts: z.number().int(),
+    payable_minutes: z.number().int(),
+    approved_overtime_minutes: z.number().int(),
+    unpaid_half_days: z.number().int(),
+    statuses: z.array(attendanceCountContract),
+    exceptions: z.array(attendanceCountContract),
+  })
+  .strict();
+export type AttendanceTimesheetPerson = z.infer<typeof attendanceTimesheetPersonContract>;
+
+export const attendanceTimesheetDayContract = z
+  .object({
+    staff_id: identifier,
+    date: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    change: z.enum(["added", "changed", "unchanged", "removed"]),
+    shifts: z.number().int(),
+    payable_minutes: z.number().int(),
+    approved_overtime_minutes: z.number().int(),
+    unpaid_half_days: z.number().int(),
+    day: attendanceDayContract.optional(),
+  })
+  .strict();
+export type AttendanceTimesheetDay = z.infer<typeof attendanceTimesheetDayContract>;
+
+export const attendancePunchReportRowContract = z
+  .object({
+    id: identifier,
+    staff_id: identifier,
+    employee_code: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    display_name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    job_category: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    direction: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    punched_at: z.string().datetime({ offset: true }),
+    local_date: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    timezone: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    source: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    correction_id: identifier.optional(),
+    recorded_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    recorded_at: z.string().datetime({ offset: true }),
+    voided: z.boolean(),
+    voided_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    voided_at: z.string().datetime({ offset: true }).optional(),
+    void_correction_id: identifier.optional(),
+  })
+  .strict();
+export type AttendancePunchReportRow = z.infer<typeof attendancePunchReportRowContract>;

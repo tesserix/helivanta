@@ -731,6 +731,337 @@
         "name": "created_at",
         "type": "time"
       }
+    ],
+    "attendancePeriodInput": [
+      {
+        "name": "from",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "max": 500,
+        "binding": "max=500"
+      }
+    ],
+    "attendancePeriodTransitionInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "binding": "required,gte=1"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "max": 500,
+        "binding": "max=500"
+      }
+    ],
+    "attendanceTimesheet": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "period_id",
+        "type": "uuid"
+      },
+      {
+        "name": "number",
+        "type": "int"
+      },
+      {
+        "name": "people",
+        "type": "int"
+      },
+      {
+        "name": "days",
+        "type": "int"
+      },
+      {
+        "name": "shifts",
+        "type": "int"
+      },
+      {
+        "name": "payable_minutes",
+        "type": "int"
+      },
+      {
+        "name": "approved_overtime_minutes",
+        "type": "int"
+      },
+      {
+        "name": "unpaid_half_days",
+        "type": "int"
+      },
+      {
+        "name": "statuses",
+        "type": "[]attendanceCount"
+      },
+      {
+        "name": "exceptions",
+        "type": "[]attendanceCount"
+      },
+      {
+        "name": "added_days",
+        "type": "int"
+      },
+      {
+        "name": "changed_days",
+        "type": "int"
+      },
+      {
+        "name": "removed_days",
+        "type": "int"
+      },
+      {
+        "name": "policy_revision_ids",
+        "type": "[]uuid"
+      },
+      {
+        "name": "note",
+        "type": "string"
+      },
+      {
+        "name": "finalised_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "attendancePeriod": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "from",
+        "type": "string"
+      },
+      {
+        "name": "to",
+        "type": "string"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["finalised", "reopened"]
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "timesheet",
+        "type": "attendanceTimesheet"
+      },
+      {
+        "name": "created_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "attendancePeriodEvent": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["finalised", "reopened"]
+      },
+      {
+        "name": "timesheet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "note",
+        "type": "string"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "attendanceTimesheetPerson": [
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "days",
+        "type": "int"
+      },
+      {
+        "name": "shifts",
+        "type": "int"
+      },
+      {
+        "name": "payable_minutes",
+        "type": "int"
+      },
+      {
+        "name": "approved_overtime_minutes",
+        "type": "int"
+      },
+      {
+        "name": "unpaid_half_days",
+        "type": "int"
+      },
+      {
+        "name": "statuses",
+        "type": "[]attendanceCount"
+      },
+      {
+        "name": "exceptions",
+        "type": "[]attendanceCount"
+      }
+    ],
+    "attendanceTimesheetDay": [
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "date",
+        "type": "string"
+      },
+      {
+        "name": "change",
+        "type": "string",
+        "enum": ["added", "changed", "unchanged", "removed"]
+      },
+      {
+        "name": "shifts",
+        "type": "int"
+      },
+      {
+        "name": "payable_minutes",
+        "type": "int"
+      },
+      {
+        "name": "approved_overtime_minutes",
+        "type": "int"
+      },
+      {
+        "name": "unpaid_half_days",
+        "type": "int"
+      },
+      {
+        "name": "day",
+        "type": "attendanceDay",
+        "optional": true
+      }
+    ],
+    "attendancePunchReportRow": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "job_category",
+        "type": "string"
+      },
+      {
+        "name": "direction",
+        "type": "string"
+      },
+      {
+        "name": "punched_at",
+        "type": "time"
+      },
+      {
+        "name": "local_date",
+        "type": "string"
+      },
+      {
+        "name": "timezone",
+        "type": "string"
+      },
+      {
+        "name": "source",
+        "type": "string"
+      },
+      {
+        "name": "correction_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "recorded_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "recorded_at",
+        "type": "time"
+      },
+      {
+        "name": "voided",
+        "type": "bool"
+      },
+      {
+        "name": "voided_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "voided_at",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "void_correction_id",
+        "type": "uuid",
+        "optional": true
+      }
     ]
   },
   "correction_kinds": {
@@ -743,5 +1074,15 @@
     "approved": "Approved",
     "rejected": "Rejected",
     "cancelled": "Cancelled"
+  },
+  "period_statuses": {
+    "finalised": "Finalised",
+    "reopened": "Reopened"
+  },
+  "timesheet_changes": {
+    "added": "Added",
+    "changed": "Changed",
+    "unchanged": "Unchanged",
+    "removed": "Removed"
   }
 }

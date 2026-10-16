@@ -3,6 +3,8 @@ import {
   attendanceSettingsInputContract,
   type AttendanceCorrectionDecisionInput,
   type AttendanceCorrectionInput,
+  type AttendancePeriodInput,
+  type AttendancePeriodTransitionInput,
   type AttendancePunchInput,
   type AttendanceVoidInput,
 } from "./attendance-contract";
@@ -214,3 +216,97 @@ export const attendanceCorrectionsPath = (
 
 export const attendanceCorrectionPath = (base: string, id: string) =>
   `${base}/hr/attendance/corrections/${encodeURIComponent(id)}`;
+
+const MAX_PERIOD_DAYS = 31;
+const dayCount = (from: string, to: string) =>
+  (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000 + 1;
+const note = z
+  .string()
+  .trim()
+  .max(500, "Keep the note within 500 characters.")
+  .refine((value) => !value.includes("\0"), "Remove invalid characters.");
+
+// A period is whole hospital days; the server also refuses a day that has not ended.
+export const attendancePeriodFormSchema = z
+  .object({
+    from: z.string().date("Choose the first day."),
+    to: z.string().date("Choose the last day."),
+    note,
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (
+      !z.string().date().safeParse(value.from).success ||
+      !z.string().date().safeParse(value.to).success
+    )
+      return;
+    const days = dayCount(value.from, value.to);
+    if (days < 1)
+      ctx.addIssue({ code: "custom", path: ["to"], message: "End on or after the first day." });
+    else if (days > MAX_PERIOD_DAYS)
+      ctx.addIssue({
+        code: "custom",
+        path: ["to"],
+        message: `Keep the period within ${MAX_PERIOD_DAYS} days.`,
+      });
+  });
+export type AttendancePeriodForm = z.infer<typeof attendancePeriodFormSchema>;
+
+export const toAttendancePeriod = (form: AttendancePeriodForm): AttendancePeriodInput => ({
+  from: form.from,
+  to: form.to,
+  note: form.note,
+});
+
+export const attendancePeriodTransitionFormSchema = z
+  .object({ note: note.pipe(z.string().min(1, "Say why.")) })
+  .strict();
+export type AttendancePeriodTransitionForm = z.infer<typeof attendancePeriodTransitionFormSchema>;
+
+export const toAttendancePeriodTransition = (
+  version: number,
+  form: AttendancePeriodTransitionForm,
+): AttendancePeriodTransitionInput => ({ expected_version: version, note: form.note });
+
+export const attendancePeriodsPath = (base: string) => `${base}/hr/attendance/periods`;
+
+export const attendancePeriodPath = (base: string, id: string) =>
+  `${base}/hr/attendance/periods/${encodeURIComponent(id)}`;
+
+export const attendancePeriodStepPath = (
+  base: string,
+  id: string,
+  step: "finalisation" | "reopening",
+) => `${attendancePeriodPath(base, id)}/${step}`;
+
+export const attendancePeriodHistoryPath = (base: string, id: string) =>
+  `${attendancePeriodPath(base, id)}/history`;
+
+export const attendanceTimesheetsPath = (base: string, id: string) =>
+  `${attendancePeriodPath(base, id)}/timesheets`;
+
+export const attendanceTimesheetPeoplePath = (base: string, id: string, timesheet: string) =>
+  `${attendanceTimesheetsPath(base, id)}/${encodeURIComponent(timesheet)}/people`;
+
+// Builds the day listing path; an empty filter value is not sent.
+export const attendanceTimesheetDaysPath = (
+  base: string,
+  id: string,
+  timesheet: string,
+  f: { staff_id?: string; change?: string },
+) => {
+  const query = new URLSearchParams();
+  if (f.staff_id) query.set("staff_id", f.staff_id);
+  if (f.change && f.change !== "all") query.set("change", f.change);
+  const q = query.toString();
+  return `${attendanceTimesheetsPath(base, id)}/${encodeURIComponent(timesheet)}/days${q ? `?${q}` : ""}`;
+};
+
+export const attendancePunchReportPath = (
+  base: string,
+  f: { from: string; to: string; staff_id?: string },
+) => {
+  const query = new URLSearchParams({ from: f.from, to: f.to });
+  if (f.staff_id) query.set("staff_id", f.staff_id);
+  return `${base}/hr/attendance/punch-report?${query}`;
+};

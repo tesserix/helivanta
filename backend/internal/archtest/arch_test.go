@@ -373,6 +373,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/hr/attendance-settings":                "the hospital's single current attendance policy revision",
 	"GET /workforce/hospitals/:hospital/hr/attendance/punches/:punch":          "one punch",
 	"GET /workforce/hospitals/:hospital/hr/attendance/corrections/:correction": "one correction request",
+	"GET /workforce/hospitals/:hospital/hr/attendance/periods/:period":         "one timesheet period",
 	"GET /workforce/hospitals/:hospital/hr/attendance-totals":                  "one date's aggregate counts",
 	"GET /workforce/hospitals/:hospital/staff/:id/attendance":                  "one person's derived days over a bounded range of at most 42 days",
 }

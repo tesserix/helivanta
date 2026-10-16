@@ -1,5 +1,22 @@
 import { expect, it } from "vitest";
 import {
+  ATTENDANCE_PERIOD_STATUSES,
+  TIMESHEET_CHANGES,
+  attendancePeriodContract,
+  attendancePeriodFormSchema,
+  attendancePeriodHistoryPath,
+  attendancePeriodPath,
+  attendancePeriodStepPath,
+  attendancePeriodTransitionFormSchema,
+  attendancePeriodsPath,
+  attendancePunchReportPath,
+  attendancePunchReportRowContract,
+  attendanceTimesheetDayContract,
+  attendanceTimesheetDaysPath,
+  attendanceTimesheetPeoplePath,
+  attendanceTimesheetsPath,
+  toAttendancePeriod,
+  toAttendancePeriodTransition,
   ATTENDANCE_CORRECTION_KINDS,
   ATTENDANCE_CORRECTION_STATUSES,
   ATTENDANCE_EXCEPTIONS,
@@ -330,4 +347,134 @@ it("parses a correction row and labels every kind and status", () => {
     "rejected",
     "cancelled",
   ]);
+});
+
+it("accepts a closed period of up to 31 days and refuses anything else", () => {
+  const ok = attendancePeriodFormSchema.parse({
+    from: "2026-02-01",
+    to: "2026-03-03",
+    note: " Month ",
+  });
+  expect(toAttendancePeriod(ok)).toEqual({ from: "2026-02-01", to: "2026-03-03", note: "Month" });
+  expect(
+    attendancePeriodFormSchema.safeParse({ from: "2026-02-01", to: "2026-03-04", note: "" })
+      .success,
+  ).toBe(false);
+  expect(
+    attendancePeriodFormSchema.safeParse({ from: "2026-02-02", to: "2026-02-01", note: "" })
+      .success,
+  ).toBe(false);
+  expect(
+    attendancePeriodFormSchema.safeParse({ from: "2026-02-30", to: "2026-03-01", note: "" })
+      .success,
+  ).toBe(false);
+  expect(
+    attendancePeriodFormSchema.safeParse({
+      from: "2026-02-01",
+      to: "2026-02-01",
+      note: "x".repeat(501),
+    }).success,
+  ).toBe(false);
+});
+
+it("requires a reason for each period step and sends the version it read", () => {
+  expect(attendancePeriodTransitionFormSchema.safeParse({ note: "   " }).success).toBe(false);
+  const form = attendancePeriodTransitionFormSchema.parse({ note: " Ward register arrived " });
+  expect(toAttendancePeriodTransition(2, form)).toEqual({
+    expected_version: 2,
+    note: "Ward register arrived",
+  });
+});
+
+it("builds encoded period, timesheet and report paths", () => {
+  expect(attendancePeriodsPath("/h")).toBe("/h/hr/attendance/periods");
+  expect(attendancePeriodPath("/h", "a/b")).toBe("/h/hr/attendance/periods/a%2Fb");
+  expect(attendancePeriodStepPath("/h", a, "reopening")).toBe(
+    `/h/hr/attendance/periods/${a}/reopening`,
+  );
+  expect(attendancePeriodHistoryPath("/h", a)).toBe(`/h/hr/attendance/periods/${a}/history`);
+  expect(attendanceTimesheetsPath("/h", a)).toBe(`/h/hr/attendance/periods/${a}/timesheets`);
+  expect(attendanceTimesheetPeoplePath("/h", a, a)).toBe(
+    `/h/hr/attendance/periods/${a}/timesheets/${a}/people`,
+  );
+  expect(attendanceTimesheetDaysPath("/h", a, a, { change: "all" })).toBe(
+    `/h/hr/attendance/periods/${a}/timesheets/${a}/days`,
+  );
+  expect(attendanceTimesheetDaysPath("/h", a, a, { staff_id: a, change: "removed" })).toBe(
+    `/h/hr/attendance/periods/${a}/timesheets/${a}/days?staff_id=${a}&change=removed`,
+  );
+  expect(attendancePunchReportPath("/h", { from: "2026-10-01", to: "2026-10-12" })).toBe(
+    "/h/hr/attendance/punch-report?from=2026-10-01&to=2026-10-12",
+  );
+  expect(
+    attendancePunchReportPath("/h", { from: "2026-10-01", to: "2026-10-12", staff_id: a }),
+  ).toBe(`/h/hr/attendance/punch-report?from=2026-10-01&to=2026-10-12&staff_id=${a}`);
+});
+
+it("parses periods, removed days and punch report rows without reasons", () => {
+  const timesheet = {
+    id: a,
+    period_id: a,
+    number: 1,
+    people: 1,
+    days: 1,
+    shifts: 1,
+    payable_minutes: 445,
+    approved_overtime_minutes: 0,
+    unpaid_half_days: 0,
+    statuses: [{ code: "present", count: 1 }],
+    exceptions: [],
+    added_days: 1,
+    changed_days: 0,
+    removed_days: 0,
+    policy_revision_ids: [a],
+    note: "",
+    finalised_by_subject: "user-1",
+    created_at: "2026-10-13T04:00:00Z",
+  };
+  const period = {
+    id: a,
+    from: "2026-10-01",
+    to: "2026-10-07",
+    status: "finalised",
+    version: 1,
+    timesheet,
+    created_by_subject: "user-1",
+    created_at: "2026-10-13T04:00:00Z",
+    updated_at: "2026-10-13T04:00:00Z",
+  };
+  expect(attendancePeriodContract.parse(period).timesheet.number).toBe(1);
+  expect(attendancePeriodContract.safeParse({ ...period, status: "draft" }).success).toBe(false);
+  const removed = {
+    staff_id: a,
+    date: "2026-10-03",
+    change: "removed",
+    shifts: 0,
+    payable_minutes: 0,
+    approved_overtime_minutes: 0,
+    unpaid_half_days: 0,
+  };
+  expect(attendanceTimesheetDayContract.parse(removed).day).toBeUndefined();
+  expect(attendanceTimesheetDayContract.safeParse({ ...removed, change: "moved" }).success).toBe(
+    false,
+  );
+  const row = {
+    id: a,
+    staff_id: a,
+    employee_code: "SYN-1",
+    display_name: "Synthetic",
+    job_category: "nurse",
+    direction: "in",
+    punched_at: "2026-10-12T02:35:00Z",
+    local_date: "2026-10-12",
+    timezone: "Asia/Kolkata",
+    source: "manual",
+    recorded_by_subject: "user-1",
+    recorded_at: "2026-10-12T02:36:00Z",
+    voided: false,
+  };
+  expect(attendancePunchReportRowContract.parse(row).job_category).toBe("nurse");
+  expect(attendancePunchReportRowContract.safeParse({ ...row, reason: "x" }).success).toBe(false);
+  expect(Object.keys(ATTENDANCE_PERIOD_STATUSES)).toEqual(["finalised", "reopened"]);
+  expect(Object.keys(TIMESHEET_CHANGES)).toEqual(["added", "changed", "unchanged", "removed"]);
 });

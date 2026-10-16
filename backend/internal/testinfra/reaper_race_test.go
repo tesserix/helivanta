@@ -18,8 +18,8 @@ const reaperRaceHelperEnv = "HELIVANTA_REAPER_RACE_HELPER"
 
 // TestConcurrentBinariesAllConnectToTheReaper is #963's regression test.
 //
-// `go test ./...` starts several package binaries at once, and they all share
-// one Ryuk (the session id is derived from their common parent's pid). The
+// With an explicit shared session, several package binaries share
+// one Ryuk. The
 // first to need a container creates Ryuk; the others find it and REUSE it. In
 // testcontainers-go v0.43.0 the reuse path waited only for Docker's port
 // proxy, not for Ryuk to be listening, so a binary that reused a just-created
@@ -28,8 +28,8 @@ const reaperRaceHelperEnv = "HELIVANTA_REAPER_RACE_HELPER"
 // client, and pruned its containers as soon as every other binary had exited:
 // on CI, the iam binary's Postgres, mid-run.
 //
-// This reproduces the shape exactly: four copies of this binary, started at
-// once under one parent, each starting a container. Measured with this
+// This reproduces the shape: four copies of this binary inherit the parent's
+// explicit session and start at once, each starting a container. Measured with this
 // harness's shape: v0.43.0 failed the handshake in every reusing process (30
 // of 30 over six trials); v0.44.0, which also waits for Ryuk's "Started" log
 // line, in none. testinfra's init (tclog.go) makes the library's log visible,
@@ -38,6 +38,7 @@ func TestConcurrentBinariesAllConnectToTheReaper(t *testing.T) {
 	if os.Getenv(reaperRaceHelperEnv) == "1" {
 		t.Skip("helper process; runs only TestReaperRaceHelper")
 	}
+	t.Logf("Shared Test SessionID: %s", testcontainers.SessionID())
 	const binaries = 4
 	var (
 		wg   sync.WaitGroup

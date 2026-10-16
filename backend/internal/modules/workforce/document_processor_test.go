@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -74,6 +77,34 @@ func newDocumentScenario(t *testing.T) documentScenario {
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, worker.Close()) })
 	return documentScenario{router: r, db: db, worker: worker, bus: bus, cloud: cloud, files: files, path: path, content: data, input: workforcecontract.DocumentScanInput{TenantID: testutil.TenantA, HospitalID: hospital, StaffID: staff, FileID: file, ScanAttempt: 1}}
+}
+
+func TestStaffDocumentUploadPreservesChronologyAcrossClockCorrections(t *testing.T) {
+	s := newDocumentScenario(t)
+	require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_staff_creation_clock", SQL: `ALTER TABLE workforce_documents ALTER COLUMN created_at SET DEFAULT clock_timestamp()+interval '2 minutes'`}}))
+	path := s.path[:strings.LastIndex(s.path, "/")+1] + uuid.NewString()
+	intent := fmt.Sprintf(`{"record_kind":"enrollment","record_id":%q,"category":"employment_evidence","filename":"TEST-clock.png","content_type":"image/png","size":%d,"sha256":"%x"}`, s.input.StaffID, len(s.content), sha256.Sum256(s.content))
+	res := testutil.Do(s.router, "PUT", path, "manager", intent)
+	require.Equal(t, 201, res.Code, res.Body.String())
+	upload := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPut, path+"/content", bytes.NewReader(s.content))
+		req.Header.Set("Authorization", "Bearer manager")
+		req.Header.Set("Content-Type", "image/png")
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+		return w
+	}
+	first := upload()
+	require.Equal(t, 202, first.Code, first.Body.String())
+	var saved struct {
+		CreatedAt  time.Time `json:"created_at"`
+		UploadedAt time.Time `json:"uploaded_at"`
+	}
+	require.NoError(t, json.Unmarshal(first.Body.Bytes(), &saved))
+	require.False(t, saved.UploadedAt.Before(saved.CreatedAt))
+	replay := upload()
+	require.Equal(t, 200, replay.Code, replay.Body.String())
+	require.JSONEq(t, first.Body.String(), replay.Body.String())
 }
 
 func TestDocumentProcessorReleasesOnlyScopedVerifiedBytesOnce(t *testing.T) {

@@ -137,6 +137,23 @@ func TestLicenceEvidenceUploadsValidateBytesBeforeDurableQuarantine(t *testing.T
 	}))
 }
 
+func TestLicenceEvidenceUploadPreservesChronologyAcrossClockCorrections(t *testing.T) {
+	s := newEvidenceScenario(t)
+	require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_supply_creation_clock", SQL: `ALTER TABLE supply_license_evidence ALTER COLUMN created_at SET DEFAULT clock_timestamp()+interval '2 minutes'`}}))
+	require.Equal(t, 201, testutil.Do(s.r, "PUT", s.path, "owner", s.body).Code)
+	first := uploadEvidence(s, s.path+"/content", "owner", "image/png", s.data)
+	require.Equal(t, 202, first.Code, first.Body.String())
+	var saved struct {
+		CreatedAt  time.Time `json:"created_at"`
+		UploadedAt time.Time `json:"uploaded_at"`
+	}
+	require.NoError(t, json.Unmarshal(first.Body.Bytes(), &saved))
+	require.False(t, saved.UploadedAt.Before(saved.CreatedAt))
+	replay := uploadEvidence(s, s.path+"/content", "owner", "image/png", s.data)
+	require.Equal(t, 200, replay.Code, replay.Body.String())
+	require.JSONEq(t, first.Body.String(), replay.Body.String())
+}
+
 func evidenceWorker(t *testing.T, s evidenceScenario) *tenantdb.DB {
 	t.Helper()
 	var database string

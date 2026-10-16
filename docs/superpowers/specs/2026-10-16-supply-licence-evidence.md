@@ -36,4 +36,8 @@ Prepare CNPG managed role, OpenBao-backed ExternalSecret, dedicated workload ide
 
 ## Validation
 
+Production registry composition is covered by the worker outbox regression and
+append-only Workforce migration in [worker policy isolation](2026-10-16-worker-outbox-policy-isolation.md).
+Role checks inside a shared CASE do not suppress PostgreSQL subquery privilege checks.
+
 Red/green tests: organisation object-key separation/UTC and clinical rejection; strict intent/version/replay/scopes; byte bounds/hash/type/passive-content validation; outbox rollback and concurrent exact replay; real PostgreSQL forced RLS including widened group visibility; worker role rejection and clinical isolation; real GCS protocol generation/copy ambiguity with ClamAV protocol rejection/freshness; restricted audit/outbox inserts; Temporal duplicate receipts/history minimization; permission-aware UI, retained retry IDs, focus, loading/errors/history and clean-only downloads. Run affected and full required race/coverage, lint/vet/build/typecheck/contract/format gates, synthetic local API-backed browser flow and then approved production acceptance. Never close #1135 or claim regulatory verification from this evidence slice.

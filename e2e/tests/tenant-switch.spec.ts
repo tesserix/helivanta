@@ -69,7 +69,7 @@ test("switching tenant re-mints the session and changes what the user can do", a
     .not.toContain("medicore.visit.read");
   expect(await permissions(page)).toContain("pharmacy.dispense.read");
 
-  await expect(zoneNav.getByRole("link", { name: "Pharmacy" })).toBeVisible();
+  await expect(zoneNav.getByRole("link", { name: "PharmaConnect" })).toBeVisible();
   await expect(zoneNav.getByRole("link", { name: "MediCore" })).toHaveCount(0);
   await expect(zoneNav.getByRole("link", { name: "Lab" })).toHaveCount(0);
 });

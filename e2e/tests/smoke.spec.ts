@@ -11,7 +11,7 @@ test("seeded admin sees every zone", async ({ page }) => {
   // under Playwright's default substring name matching even though both
   // surfaces now apply the same visibleZones(can) permission filter.
   const zoneNav = page.getByRole("navigation", { name: "Zones" });
-  for (const zone of ["MediCore", "Pharmacy", "Lab"]) {
+  for (const zone of ["MediCore", "PharmaConnect", "Lab"]) {
     await expect(zoneNav.getByRole("link", { name: zone })).toBeVisible();
   }
 });

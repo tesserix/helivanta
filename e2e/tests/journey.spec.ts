@@ -40,7 +40,7 @@ test("pharmacist sees only the pharmacy zone, in the sidebar and on the dashboar
   // why an unscoped query is ambiguous even though the dashboard's cards
   // (apps/shell/app/page.tsx) apply the same visibleZones(can) filter.
   const zoneNav = page.getByRole("navigation", { name: "Zones" });
-  await expect(zoneNav.getByRole("link", { name: "Pharmacy" })).toBeVisible();
+  await expect(zoneNav.getByRole("link", { name: "PharmaConnect" })).toBeVisible();
   await expect(zoneNav.getByRole("link", { name: "MediCore" })).toHaveCount(0);
   await expect(zoneNav.getByRole("link", { name: "Lab" })).toHaveCount(0);
 

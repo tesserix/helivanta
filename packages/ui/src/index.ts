@@ -3,7 +3,12 @@ export { ZONES, activeZone, visibleZones, type Zone, type ZoneHue, type ZonePage
 export { ConfirmDialog } from "./confirm-dialog";
 export { IdleWarning, type IdleWarningProps } from "./idle-warning";
 export { Field, useZodForm } from "./form";
-export { useFieldArray, type FieldPath } from "react-hook-form";
+export {
+  useFieldArray,
+  type FieldPath,
+  type FieldValues,
+  type UseFormReturn,
+} from "react-hook-form";
 export { EmptyState } from "./empty-state";
 export { LoadMore } from "./load-more";
 export { formatDateTime, formatTime } from "./format";

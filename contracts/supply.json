@@ -52,18 +52,9 @@
       ]
     },
     {
-      "name": "AddressFields",
-      "schema": "supplyAddressSchema",
+      "name": "PostalAddressFields",
+      "schema": "supplyPostalAddressSchema",
       "fields": [
-        {
-          "name": "id",
-          "type": "uuid"
-        },
-        {
-          "name": "kind",
-          "type": "string",
-          "enum": ["registered", "correspondence", "billing"]
-        },
         {
           "name": "line1",
           "type": "string",
@@ -104,6 +95,22 @@
           "country_profile": true
         }
       ]
+    },
+    {
+      "name": "AddressFields",
+      "schema": "supplyAddressSchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "enum": ["registered", "correspondence", "billing"]
+        }
+      ],
+      "embed": "PostalAddressFields"
     },
     {
       "name": "TaxRegistrationFields",
@@ -244,6 +251,137 @@
       "name": "partyInput",
       "schema": "supplyPartyInputSchema",
       "embed": "PartyFields",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740991
+        }
+      ]
+    },
+    {
+      "name": "PremiseFields",
+      "schema": "supplyPremiseFieldsSchema",
+      "embed": "PostalAddressFields",
+      "fields": [
+        {
+          "name": "code",
+          "type": "string",
+          "max": 40,
+          "trim": true,
+          "min": 1,
+          "upper": true,
+          "pattern": "^[A-Z0-9][A-Z0-9._-]{0,39}$"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "max": 200,
+          "trim": true,
+          "min": 1
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "enum": ["registered", "branch", "warehouse", "depot", "pharmacy"]
+        },
+        {
+          "name": "time_zone",
+          "type": "string",
+          "max": 100,
+          "trim": true,
+          "min": 1
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "enum": ["active", "inactive"]
+        }
+      ]
+    },
+    {
+      "name": "LicenseFields",
+      "schema": "supplyLicenseFieldsSchema",
+      "fields": [
+        {
+          "name": "kind",
+          "type": "string",
+          "max": 60,
+          "trim": true,
+          "min": 1,
+          "upper": true,
+          "pattern": "^[A-Z0-9][A-Z0-9._-]{0,59}$"
+        },
+        {
+          "name": "number",
+          "type": "string",
+          "max": 100,
+          "trim": true,
+          "min": 1,
+          "upper": true
+        },
+        {
+          "name": "issuing_authority",
+          "type": "string",
+          "max": 200,
+          "trim": true,
+          "min": 1
+        },
+        {
+          "name": "jurisdiction",
+          "type": "string",
+          "max": 100,
+          "trim": true,
+          "min": 1
+        },
+        {
+          "name": "premise_id",
+          "type": "uuid"
+        },
+        {
+          "name": "issued_on",
+          "type": "string",
+          "format": "date",
+          "min": 10,
+          "max": 10
+        },
+        {
+          "name": "expires_on",
+          "type": "string",
+          "format": "date",
+          "min": 10,
+          "max": 10
+        },
+        {
+          "name": "product_categories",
+          "type": "[]string",
+          "min": 1,
+          "max": 4,
+          "enum": ["otc", "prescription", "controlled", "cold_chain"],
+          "gorm": "serializer:json;type:jsonb"
+        }
+      ]
+    },
+    {
+      "name": "premiseInput",
+      "schema": "supplyPremiseInputSchema",
+      "embed": "PremiseFields",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740991
+        }
+      ]
+    },
+    {
+      "name": "licenseInput",
+      "schema": "supplyLicenseInputSchema",
+      "embed": "LicenseFields",
       "fields": [
         {
           "name": "expected_version",

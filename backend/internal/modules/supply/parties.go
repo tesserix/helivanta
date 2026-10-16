@@ -98,16 +98,10 @@ func (h *handlers) transaction(ctx context.Context, p authn.Principal, id uuid.U
 	})
 }
 func requireAccess(tx *gorm.DB, p authn.Principal, id uuid.UUID, write bool) error {
-	var grants []string
-	if e := tx.Raw(`SELECT role FROM supply_party_access WHERE tenant_id=? AND party_id=? AND subject=? FOR SHARE`, p.TenantID, id, p.Subject).Scan(&grants).Error; e != nil {
-		return e
+	if write {
+		return requireRoles(tx, p, id, premiseWriters)
 	}
-	for _, r := range grants {
-		if r == "administrator" || r == "purchasing" || (!write && (r == "compliance" || r == "finance" || r == "auditor")) {
-			return nil
-		}
-	}
-	return gorm.ErrRecordNotFound
+	return requireRoles(tx, p, id, registryReaders)
 }
 func supplierError(c *gin.Context, e error) {
 	if errors.Is(e, gorm.ErrRecordNotFound) {

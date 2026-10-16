@@ -20,6 +20,10 @@ function fixture(roles: string[] = [], allowed = true) {
                 "supply.party.read",
                 "supply.party.write",
                 "supply.organization.manage",
+                "supply.premise.read",
+                "supply.premise.write",
+                "supply.license.read",
+                "supply.license.write",
               ]
             : [],
         }),
@@ -45,6 +49,8 @@ function fixture(roles: string[] = [], allowed = true) {
           updated_at: "2026-10-16T00:00:00Z",
         }),
       );
+    if (url.endsWith("/premises") || url.endsWith("/licenses"))
+      return new Response(JSON.stringify(page([])));
     if (url.endsWith("/revisions")) return new Response(JSON.stringify(page([])));
     if (url.includes("/supply/parties"))
       return new Response(
@@ -121,6 +127,7 @@ it("keeps an explicitly granted auditor read-only despite global write permissio
   renderWithProviders(<PartiesWorkspace />);
   await userEvent.click(await screen.findByRole("button", { name: /TEST Private Supplier/ }));
   expect(await screen.findByText("TEST-REG-001")).toBeInTheDocument();
+  expect(await screen.findByText("No premises recorded.")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Edit profile" })).not.toBeInTheDocument();
   expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
 });

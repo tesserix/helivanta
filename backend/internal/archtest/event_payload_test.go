@@ -35,6 +35,12 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"supply.PremiseUpdatedData.PartyID":                     "opaque organisation scope; no legal identity or address",
+	"supply.PremiseUpdatedData.PremiseID":                   "opaque premises reference; no location or contact data",
+	"supply.PremiseUpdatedData.Version":                     "monotonic revision; no declared premises attributes",
+	"supply.LicenseDeclaredData.PartyID":                    "opaque organisation scope; no business identity",
+	"supply.LicenseDeclaredData.LicenseID":                  "opaque licence reference; no licence number, authority or evidence",
+	"supply.LicenseDeclaredData.Version":                    "monotonic declaration revision; not proof of validity or approval",
 	"supply.PartyUpdatedData.PartyID":                       "opaque private supplier reference; no legal identity, address, contacts or tax numbers",
 	"supply.PartyUpdatedData.Version":                       "monotonic profile revision for invalidation; no business or personal attributes",
 	"supply.PartyAccessChangedData.PartyID":                 "opaque profile scope; private lookup still requires a current explicit grant",

@@ -341,7 +341,9 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
-	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id": "one immutable payable with at most one hundred lines",
+	"GET /supply/parties/:party/premises/:premise":                              "one explicitly scoped organisation premise; ADR 0028",
+	"GET /supply/parties/:party/licenses/:license":                              "one private declared licence with at most four product categories; ADR 0028",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id":  "one immutable payable with at most one hundred lines",
 	"GET /supply/parties/:party":                                                "One scoped profile with at most 20 contacts, 20 addresses and 20 tax records; ADR 0027.",
 	"GET /supply/parties/:party/access":                                         "Current actor's at most eight scoped roles for one profile; ADR 0027.",
 	"GET /pharmacy/configuration":                                               "one bounded shared country metadata configuration, with no legal approval or tenant records",

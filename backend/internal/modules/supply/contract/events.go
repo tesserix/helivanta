@@ -15,3 +15,17 @@ type PartyAccessChangedData struct {
 	AccessID  string `json:"access_id"`
 	Operation string `json:"operation"`
 }
+
+const SubjectPremiseUpdated = "helivanta.in.supply.premise_updated.v1"
+const SubjectLicenseDeclared = "helivanta.in.supply.license_declared.v1"
+
+type PremiseUpdatedData struct {
+	PartyID   string `json:"party_id"`
+	PremiseID string `json:"premise_id"`
+	Version   int64  `json:"version"`
+}
+type LicenseDeclaredData struct {
+	PartyID   string `json:"party_id"`
+	LicenseID string `json:"license_id"`
+	Version   int64  `json:"version"`
+}

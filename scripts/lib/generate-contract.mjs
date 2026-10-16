@@ -59,9 +59,9 @@ export async function generateContract(moduleName) {
       if (field.optional) validation.push("omitempty");
       if (field.min !== undefined) validation.push(`min=${field.min}`);
       if (field.max !== undefined) validation.push(`max=${field.max}`);
+      if (array) validation.push("dive");
       if (field.enum) validation.push(`required,oneof=${field.enum.join(" ")}`);
       if (field.format === "optional_email") validation.push("omitempty,email");
-      if (array) validation.push("dive");
       const tags = [`json:"${field.name}"`];
       if (validation.length) tags.push(`binding:"${validation.join(",")}"`);
       if (field.gorm) tags.push(`gorm:"${field.gorm}"`);

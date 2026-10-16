@@ -19,6 +19,7 @@ import {
 import { ConfirmDialog, Field, SelectControl, useZodForm } from "@helivanta/ui";
 import { Failure, inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
+import { CorrectionForm } from "./correction-form";
 
 const MAX_RANGE_DAYS = 42;
 const daysBetween = (from: string, to: string) =>
@@ -181,10 +182,14 @@ export function PunchLedger({
   hospital,
   base,
   recorder,
+  corrector,
+  timezone,
 }: {
   hospital: string;
   base: string;
   recorder: boolean;
+  corrector: boolean;
+  timezone?: string;
 }) {
   const [person, setPerson] = useState("");
   const [to, setTo] = useState(today);
@@ -206,6 +211,7 @@ export function PunchLedger({
     { enabled: ready },
   );
   const [voiding, setVoiding] = useState<AttendancePunch | null>(null);
+  const [correcting, setCorrecting] = useState<AttendancePunch | null>(null);
   return (
     <section
       aria-label="Punch ledger"
@@ -229,6 +235,7 @@ export function PunchLedger({
                 onValueChange={(v) => {
                   setPerson(v);
                   setVoiding(null);
+                  setCorrecting(null);
                 }}
                 options={options}
               />
@@ -300,14 +307,33 @@ export function PunchLedger({
                     : ""}
                 </p>
               </div>
-              {recorder && !p.voided && (
-                <Button
-                  variant="outline"
-                  aria-label={`Void ${p.direction} punch on ${p.local_date} at ${zonedClock(p.punched_at, p.timezone)}`}
-                  onClick={() => setVoiding(p)}
-                >
-                  Void punch
-                </Button>
+              {!p.voided && (recorder || corrector) && (
+                <div className="flex flex-wrap gap-2">
+                  {corrector && timezone && (
+                    <Button
+                      variant="outline"
+                      aria-label={`Request correction to ${p.direction} punch on ${p.local_date} at ${zonedClock(p.punched_at, p.timezone)}`}
+                      onClick={() => {
+                        setVoiding(null);
+                        setCorrecting(p);
+                      }}
+                    >
+                      Request correction
+                    </Button>
+                  )}
+                  {recorder && (
+                    <Button
+                      variant="outline"
+                      aria-label={`Void ${p.direction} punch on ${p.local_date} at ${zonedClock(p.punched_at, p.timezone)}`}
+                      onClick={() => {
+                        setCorrecting(null);
+                        setVoiding(p);
+                      }}
+                    >
+                      Void punch
+                    </Button>
+                  )}
+                </div>
               )}
             </li>
           ))}
@@ -327,6 +353,17 @@ export function PunchLedger({
           base={base}
           punch={voiding}
           onClose={() => setVoiding(null)}
+        />
+      )}
+      {correcting && timezone && (
+        <CorrectionForm
+          key={correcting.id}
+          hospital={hospital}
+          base={base}
+          timezone={timezone}
+          date={correcting.local_date}
+          punch={correcting}
+          onClose={() => setCorrecting(null)}
         />
       )}
     </section>

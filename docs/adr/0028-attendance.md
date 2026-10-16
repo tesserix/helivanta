@@ -1,6 +1,6 @@
 # ADR 0028: Attendance punches, derived attendance and finalised timesheets
 
-Status: accepted for implementation. Parent: #1039 / #979. Extends ADR-0020 (rosters), ADR-0021 (leave) and ADR-0022 (duty adjustments); spec: [attendance](../superpowers/specs/2026-10-16-attendance-design.md); plan: [attendance](../superpowers/plans/2026-10-16-attendance.md).
+Status: accepted for implementation. Parent: #1039 / #979. Extends ADR-0020 (rosters), ADR-0021 (leave) and ADR-0022 (duty adjustments); spec: [attendance](../superpowers/specs/2026-10-16-attendance-design.md); plan: [attendance](../superpowers/plans/2026-10-16-attendance.md). Layer 3 (corrections): [spec](../superpowers/specs/2026-10-16-attendance-corrections-design.md), [plan](../superpowers/plans/2026-10-16-attendance-corrections.md).
 
 ## Requirements and evidence
 
@@ -40,7 +40,7 @@ Punch writes take the hospital attendance advisory lock, so the duplicate check 
 
 ## Security and compliance
 
-Threats: a foreign tenant or sibling hospital, an unauthorised person fabricating presence, silent edits to worked time, replayed writes, and punch reasons revealing health details. Reads need tenant membership and a hospital grant; writes need the permission, a hospital manager grant locked `FOR SHARE`, and the `app.workforce_attendance` flag in RLS `WITH CHECK`. Permissions: `workforce.attendance.configure` sets the policy; `workforce.attendance.record` records and voids punches. Cross-tenant and foreign-hospital requests are 404, a missing permission 403, database errors fail closed.
+Threats: a foreign tenant or sibling hospital, an unauthorised person fabricating presence, silent edits to worked time, replayed writes, and punch reasons revealing health details. Reads need tenant membership and a hospital grant; writes need the permission, a hospital manager grant locked `FOR SHARE`, and the `app.workforce_attendance` flag in RLS `WITH CHECK`. Permissions: `workforce.attendance.configure` sets the policy; `workforce.attendance.record` records and voids punches; `workforce.attendance.correct` files and cancels corrections; `workforce.attendance.approve` decides them, never on the holder's own filing. Cross-tenant and foreign-hospital requests are 404, a missing permission 403, database errors fail closed.
 
 SOC 2 (CC6.1, CC7.2, CC8.1) and HIPAA (§164.312(b) audit controls, §164.312(c)(1) integrity): punches and voids are append-only at the database (statement triggers reject UPDATE, DELETE and TRUNCATE), each write adds an identifier-only `workforce_audit` row and outbox event in the same transaction, and every row records its actor. Reasons may mention health, so they are returned only to holders of `workforce.attendance.record`, never placed in events or audit rows, and capped at 500 characters. Punches cannot be in the future or older than the policy's back-dating window, which the finalisation lock will tighten.
 

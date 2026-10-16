@@ -179,3 +179,13 @@ type AttendancePunchChangedData struct {
 	PunchID    string `json:"punch_id"`
 	Action     string `json:"action"`
 }
+
+// SubjectAttendanceCorrectionChanged reports a correction request filed or moved to a new status.
+const SubjectAttendanceCorrectionChanged = "helivanta.in.workforce.attendance_correction_changed.v1"
+
+type AttendanceCorrectionChangedData struct {
+	HospitalID   string `json:"hospital_id"`
+	CorrectionID string `json:"correction_id"`
+	Status       string `json:"status"`
+	Version      int64  `json:"version"`
+}

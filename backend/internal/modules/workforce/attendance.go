@@ -54,10 +54,10 @@ const attendanceSettingsColumns = "revision_id,early_arrival_minutes,late_depart
 const attendanceSettingsRevisionColumns = "id AS revision_id,early_arrival_minutes,late_departure_minutes,early_departure_grace_minutes,short_duty_minutes,duplicate_window_minutes,backdate_days,effective_on::text AS effective_on,reviewed_by_subject,version,created_at,created_at AS updated_at"
 
 const attendancePunchView = `(SELECT p.tenant_id,p.hospital_id,p.id,p.staff_id,s.employee_code,s.display_name,p.direction,p.punched_at AT TIME ZONE 'UTC' AS punched_at,p.local_date::text AS local_date,
- p.timezone,p.source,p.policy_revision_id,p.reason,p.recorded_by_subject,p.created_at,v.punch_id IS NOT NULL AS voided,v.reason AS void_reason,v.voided_by_subject,v.created_at AS voided_at
+ p.timezone,p.source,p.correction_id,p.policy_revision_id,p.reason,p.recorded_by_subject,p.created_at,v.punch_id IS NOT NULL AS voided,v.reason AS void_reason,v.voided_by_subject,v.created_at AS voided_at,v.correction_id AS void_correction_id
  FROM workforce_attendance_punches p JOIN workforce_staff s ON (s.tenant_id,s.hospital_id,s.id)=(p.tenant_id,p.hospital_id,p.staff_id)
  LEFT JOIN workforce_attendance_punch_voids v ON (v.tenant_id,v.hospital_id,v.punch_id)=(p.tenant_id,p.hospital_id,p.id)) AS v`
-const attendancePunchColumns = "id,staff_id,employee_code,display_name,direction,punched_at,local_date,timezone,source,policy_revision_id,reason,recorded_by_subject,created_at,voided,void_reason,voided_by_subject,voided_at"
+const attendancePunchColumns = "id,staff_id,employee_code,display_name,direction,punched_at,local_date,timezone,source,correction_id,policy_revision_id,reason,recorded_by_subject,created_at,voided,void_reason,voided_by_subject,voided_at,void_correction_id"
 
 func attendancePunchID(c *gin.Context) (uuid.UUID, bool) {
 	id, err := uuid.Parse(c.Param("punch"))
@@ -71,7 +71,7 @@ func attendancePunchID(c *gin.Context) (uuid.UUID, bool) {
 // attendanceReader may see punch and void reasons, which can describe personal circumstances.
 func attendanceReader(c *gin.Context) bool {
 	set, ok := authz.PermissionsFrom(c)
-	return ok && set.Has(PermAttendanceRecord)
+	return ok && (set.Has(PermAttendanceRecord) || set.Has(PermAttendanceCorrect) || set.Has(PermAttendanceApprove))
 }
 
 func redactPunch(c *gin.Context, p *attendancePunch) {
@@ -271,12 +271,32 @@ func placePunch(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, at time.Time
 
 // insideBackdate reports whether a local date is no older than the back-dating window, counted in the hospital's own today.
 func insideBackdate(localDate, timezone string, backdate int) (bool, error) {
+	return insideBackdateAt(localDate, timezone, backdate, time.Now())
+}
+
+// insideBackdateAt counts the window back from the hospital date of at.
+func insideBackdateAt(localDate, timezone string, backdate int, at time.Time) (bool, error) {
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
 		return false, err
 	}
-	today, _ := time.Parse(time.DateOnly, time.Now().In(loc).Format(time.DateOnly))
+	today, _ := time.Parse(time.DateOnly, at.In(loc).Format(time.DateOnly))
 	return localDate >= today.AddDate(0, 0, -backdate).Format(time.DateOnly), nil
+}
+
+// checkDuplicatePunch refuses a live punch in the same direction within the window, other than the one being replaced.
+func checkDuplicatePunch(tx *gorm.DB, tenant string, hospital, staff uuid.UUID, direction string, at time.Time, windowMinutes int, replacing uuid.UUID) error {
+	window := time.Duration(windowMinutes) * time.Minute
+	var duplicate struct{ ID uuid.UUID }
+	if err := tx.Raw(`SELECT p.id FROM workforce_attendance_punches p WHERE p.tenant_id=? AND p.hospital_id=? AND p.staff_id=? AND p.direction=? AND p.punched_at > ? AND p.punched_at < ? AND p.id<>?
+ AND NOT EXISTS(SELECT 1 FROM workforce_attendance_punch_voids v WHERE (v.tenant_id,v.hospital_id,v.punch_id)=(p.tenant_id,p.hospital_id,p.id)) ORDER BY p.punched_at,p.id LIMIT 1`,
+		tenant, hospital, staff, direction, at.Add(-window), at.Add(window), replacing).Scan(&duplicate).Error; err != nil {
+		return err
+	}
+	if duplicate.ID != uuid.Nil {
+		return attendanceDuplicate{id: duplicate.ID}
+	}
+	return nil
 }
 
 // putPunch records a punch under a client-chosen id; an identical retry returns the stored punch.
@@ -337,15 +357,8 @@ func (h *handlers) putPunch(c *gin.Context) {
 		if person.EmploymentStatus != "active" {
 			return errAttendanceStaffInactive
 		}
-		window := time.Duration(place.duplicateWindow) * time.Minute
-		var duplicate struct{ ID uuid.UUID }
-		if err := tx.Raw(`SELECT p.id FROM workforce_attendance_punches p WHERE p.tenant_id=? AND p.hospital_id=? AND p.staff_id=? AND p.direction=? AND p.punched_at > ? AND p.punched_at < ?
- AND NOT EXISTS(SELECT 1 FROM workforce_attendance_punch_voids v WHERE (v.tenant_id,v.hospital_id,v.punch_id)=(p.tenant_id,p.hospital_id,p.id)) ORDER BY p.punched_at,p.id LIMIT 1`,
-			p.TenantID, hospital, in.StaffID, in.Direction, at.Add(-window), at.Add(window)).Scan(&duplicate).Error; err != nil {
+		if err := checkDuplicatePunch(tx, p.TenantID, hospital, in.StaffID, in.Direction, at, place.duplicateWindow, uuid.Nil); err != nil {
 			return err
-		}
-		if duplicate.ID != uuid.Nil {
-			return attendanceDuplicate{id: duplicate.ID}
 		}
 		if err := tx.Exec(`INSERT INTO workforce_attendance_punches(tenant_id,hospital_id,id,staff_id,direction,punched_at,local_date,timezone,settings_revision_id,policy_revision_id,source,reason,recorded_by_subject)
  VALUES(?,?,?,?,?,?,?::date,?,?,?,'manual',?,?)`, p.TenantID, hospital, id, in.StaffID, in.Direction, at, place.localDate, place.timezone, place.settingsRevision, place.policy, in.Reason, p.Subject).Error; err != nil {

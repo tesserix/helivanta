@@ -50,7 +50,18 @@ const partyColumns = "id,tenant_id,code,record_kind,legal_name,trading_name,busi
 func principal(c *gin.Context) (authn.Principal, bool) {
 	c.Header("Cache-Control", "no-store")
 	p, _, ok := authn.TenantPrincipal(c)
-	return p, ok
+	if !ok {
+		return p, false
+	}
+	if expected := c.GetHeader("X-Helivanta-Expected-Tenant"); expected != "" {
+		requested, err := uuid.Parse(expected)
+		// The session selects the tenant; stale workspace preconditions fail closed.
+		if err != nil || requested == uuid.Nil || requested.String() != p.TenantID {
+			respond.Error(c, http.StatusConflict, "session_changed", "Your workspace changed. Refresh the page before continuing.")
+			return p, false
+		}
+	}
+	return p, true
 }
 func partyID(c *gin.Context) (uuid.UUID, bool) {
 	id, e := uuid.Parse(c.Param("party"))

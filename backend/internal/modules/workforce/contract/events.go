@@ -211,3 +211,15 @@ type SalaryConfigChangedData struct {
 	Kind       string `json:"kind"`
 	Version    int64  `json:"version"`
 }
+
+// SubjectStatutoryRuleChanged reports a statutory proposal or decision; payloads never carry rates, ceilings or citations.
+const SubjectStatutoryRuleChanged = "helivanta.in.workforce.statutory_rule_changed.v1"
+
+type StatutoryRuleChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	RuleID     string `json:"rule_id"`
+	RevisionID string `json:"revision_id"`
+	Kind       string `json:"kind"`
+	Status     string `json:"status"`
+	Version    int64  `json:"version"`
+}

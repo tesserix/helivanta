@@ -7,6 +7,7 @@ import (
 )
 
 var salaryHeadKinds = []string{"earning", "deduction", "employer_contribution"}
+var statutoryKinds = []string{"pf", "esi"}
 
 type salaryHeadInput struct {
 	ExpectedVersion        *int64      `json:"expected_version" binding:"required,gte=0"`
@@ -165,4 +166,121 @@ type salaryPreview struct {
 	Lines               []salaryPreviewLine `json:"lines"`
 	Totals              salaryPreviewTotals `json:"totals"`
 	WageTest            salaryWageTest      `json:"wage_test"`
+}
+
+type statutoryPfParams struct {
+	WageBasis            string `json:"wage_basis" binding:"required,oneof=statutory_wages gross"`
+	ContributionBasis    string `json:"contribution_basis" binding:"required,oneof=capped actual"`
+	WageCeilingPaise     *int64 `json:"wage_ceiling_paise" binding:"required,gte=1,lte=1000000000"`
+	EmployeeRatePpm      *int   `json:"employee_rate_ppm" binding:"required,gte=0,lte=1000000"`
+	EmployerRatePpm      *int   `json:"employer_rate_ppm" binding:"required,gte=0,lte=1000000"`
+	EpsRatePpm           *int   `json:"eps_rate_ppm" binding:"required,gte=0,lte=1000000"`
+	EpsWageCeilingPaise  *int64 `json:"eps_wage_ceiling_paise" binding:"required,gte=0,lte=1000000000"`
+	EdliRatePpm          *int   `json:"edli_rate_ppm" binding:"required,gte=0,lte=1000000"`
+	EdliWageCeilingPaise *int64 `json:"edli_wage_ceiling_paise" binding:"required,gte=0,lte=1000000000"`
+	AdminRatePpm         *int   `json:"admin_rate_ppm" binding:"required,gte=0,lte=1000000"`
+	AdminMinimumPaise    *int64 `json:"admin_minimum_paise" binding:"required,gte=0,lte=1000000000"`
+	RoundingMode         string `json:"rounding_mode" binding:"required,oneof=nearest up down"`
+	RoundingUnitPaise    *int   `json:"rounding_unit_paise" binding:"required,oneof=1 50 100 500 1000"`
+}
+
+type statutoryEsiParams struct {
+	WageBasis                  string `json:"wage_basis" binding:"required,oneof=statutory_wages gross"`
+	WageCeilingPaise           *int64 `json:"wage_ceiling_paise" binding:"required,gte=1,lte=1000000000"`
+	DisabilityWageCeilingPaise *int64 `json:"disability_wage_ceiling_paise" binding:"required,gte=1,lte=1000000000"`
+	EmployeeRatePpm            *int   `json:"employee_rate_ppm" binding:"required,gte=0,lte=1000000"`
+	EmployerRatePpm            *int   `json:"employer_rate_ppm" binding:"required,gte=0,lte=1000000"`
+	EmployeeExemptDailyPaise   *int64 `json:"employee_exempt_daily_paise,omitempty" binding:"omitempty,gte=1,lte=10000000"`
+	PeriodStartMonths          []int  `json:"period_start_months" binding:"required,min=1,max=12,dive,gte=1,lte=12" gorm:"-"`
+	RoundingMode               string `json:"rounding_mode" binding:"required,oneof=nearest up down"`
+	RoundingUnitPaise          *int   `json:"rounding_unit_paise" binding:"required,oneof=1 50 100 500 1000"`
+}
+
+type statutoryRuleInput struct {
+	ExpectedVersion *int64              `json:"expected_version" binding:"required,gte=0"`
+	Kind            string              `json:"kind" binding:"required,oneof=pf esi"`
+	Name            string              `json:"name" binding:"required,max=80"`
+	Covered         *bool               `json:"covered" binding:"required"`
+	EffectiveOn     string              `json:"effective_on" binding:"required,len=10"`
+	Citation        string              `json:"citation" binding:"required,max=500"`
+	Reference       string              `json:"reference" binding:"max=300"`
+	Pf              *statutoryPfParams  `json:"pf,omitempty"`
+	Esi             *statutoryEsiParams `json:"esi,omitempty"`
+}
+
+type statutoryRevision struct {
+	ID                uuid.UUID           `json:"id"`
+	RuleID            uuid.UUID           `json:"rule_id"`
+	Kind              string              `json:"kind"`
+	Sequence          int                 `json:"sequence"`
+	BaseVersion       int64               `json:"base_version"`
+	Status            string              `json:"status"`
+	ApprovedVersion   *int64              `json:"approved_version,omitempty"`
+	Name              string              `json:"name"`
+	Covered           bool                `json:"covered"`
+	EffectiveOn       string              `json:"effective_on"`
+	Citation          string              `json:"citation"`
+	Reference         string              `json:"reference"`
+	Pf                *statutoryPfParams  `json:"pf,omitempty" gorm:"-"`
+	Esi               *statutoryEsiParams `json:"esi,omitempty" gorm:"-"`
+	ProposedBySubject string              `json:"proposed_by_subject"`
+	DecidedBySubject  *string             `json:"decided_by_subject,omitempty"`
+	DecidedAt         *time.Time          `json:"decided_at,omitempty"`
+	DecisionNote      string              `json:"decision_note"`
+	CreatedAt         time.Time           `json:"created_at"`
+}
+
+type statutoryRule struct {
+	ID          uuid.UUID          `json:"id"`
+	Kind        string             `json:"kind"`
+	Version     int64              `json:"version"`
+	EffectiveOn *string            `json:"effective_on,omitempty"`
+	Current     *statutoryRevision `json:"current,omitempty" gorm:"-"`
+	Pending     *statutoryRevision `json:"pending,omitempty" gorm:"-"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+}
+
+type statutoryDecisionInput struct {
+	ProposalID      uuid.UUID `json:"proposal_id" binding:"required"`
+	ExpectedVersion *int64    `json:"expected_version" binding:"required,gte=0"`
+	Decision        string    `json:"decision" binding:"required,oneof=approve reject"`
+	Note            string    `json:"note" binding:"max=500"`
+}
+
+type statutoryWithdrawInput struct {
+	ProposalID uuid.UUID `json:"proposal_id" binding:"required"`
+	Note       string    `json:"note" binding:"max=500"`
+}
+
+type statutoryPreviewInput struct {
+	StructureID     uuid.UUID `json:"structure_id" binding:"required"`
+	On              string    `json:"on" binding:"required,len=10"`
+	PayableHalfDays *int      `json:"payable_half_days" binding:"required,gte=0,lte=62"`
+	Disability      *bool     `json:"disability" binding:"required"`
+}
+
+type statutoryComponent struct {
+	Component   string `json:"component"`
+	Party       string `json:"party"`
+	AmountPaise int64  `json:"amount_paise"`
+}
+
+type statutoryResult struct {
+	Kind       string               `json:"kind"`
+	Status     string               `json:"status"`
+	RuleID     *uuid.UUID           `json:"rule_id,omitempty"`
+	RevisionID *uuid.UUID           `json:"revision_id,omitempty"`
+	WageBasis  *string              `json:"wage_basis,omitempty"`
+	WagesPaise int64                `json:"wages_paise"`
+	BasePaise  int64                `json:"base_paise"`
+	Components []statutoryComponent `json:"components"`
+}
+
+type statutoryPreview struct {
+	Salary                 salaryPreview     `json:"salary"`
+	Results                []statutoryResult `json:"results"`
+	EmployeePaise          int64             `json:"employee_paise"`
+	EmployerPaise          int64             `json:"employer_paise"`
+	NetAfterStatutoryPaise int64             `json:"net_after_statutory_paise"`
 }

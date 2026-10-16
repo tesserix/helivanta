@@ -719,6 +719,564 @@
         "name": "wage_test",
         "type": "salaryWageTest"
       }
+    ],
+    "statutoryPfParams": [
+      {
+        "name": "wage_basis",
+        "type": "string",
+        "enum": [
+          "statutory_wages",
+          "gross"
+        ],
+        "binding": "required,oneof=statutory_wages gross"
+      },
+      {
+        "name": "contribution_basis",
+        "type": "string",
+        "enum": [
+          "capped",
+          "actual"
+        ],
+        "binding": "required,oneof=capped actual"
+      },
+      {
+        "name": "wage_ceiling_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "max": 1000000000,
+        "binding": "required,gte=1,lte=1000000000"
+      },
+      {
+        "name": "employee_rate_ppm",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "required,gte=0,lte=1000000"
+      },
+      {
+        "name": "employer_rate_ppm",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "required,gte=0,lte=1000000"
+      },
+      {
+        "name": "eps_rate_ppm",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "required,gte=0,lte=1000000"
+      },
+      {
+        "name": "eps_wage_ceiling_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000000,
+        "binding": "required,gte=0,lte=1000000000"
+      },
+      {
+        "name": "edli_rate_ppm",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "required,gte=0,lte=1000000"
+      },
+      {
+        "name": "edli_wage_ceiling_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000000,
+        "binding": "required,gte=0,lte=1000000000"
+      },
+      {
+        "name": "admin_rate_ppm",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "required,gte=0,lte=1000000"
+      },
+      {
+        "name": "admin_minimum_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000000,
+        "binding": "required,gte=0,lte=1000000000"
+      },
+      {
+        "name": "rounding_mode",
+        "type": "string",
+        "enum": [
+          "nearest",
+          "up",
+          "down"
+        ],
+        "binding": "required,oneof=nearest up down"
+      },
+      {
+        "name": "rounding_unit_paise",
+        "type": "int",
+        "pointer": true,
+        "min": 1,
+        "max": 1000,
+        "binding": "required,oneof=1 50 100 500 1000"
+      }
+    ],
+    "statutoryEsiParams": [
+      {
+        "name": "wage_basis",
+        "type": "string",
+        "enum": [
+          "statutory_wages",
+          "gross"
+        ],
+        "binding": "required,oneof=statutory_wages gross"
+      },
+      {
+        "name": "wage_ceiling_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "max": 1000000000,
+        "binding": "required,gte=1,lte=1000000000"
+      },
+      {
+        "name": "disability_wage_ceiling_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "max": 1000000000,
+        "binding": "required,gte=1,lte=1000000000"
+      },
+      {
+        "name": "employee_rate_ppm",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "required,gte=0,lte=1000000"
+      },
+      {
+        "name": "employer_rate_ppm",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "required,gte=0,lte=1000000"
+      },
+      {
+        "name": "employee_exempt_daily_paise",
+        "type": "int64",
+        "optional": true,
+        "min": 1,
+        "max": 10000000,
+        "binding": "omitempty,gte=1,lte=10000000"
+      },
+      {
+        "name": "period_start_months",
+        "type": "[]int",
+        "max": 12,
+        "binding": "required,min=1,max=12,dive,gte=1,lte=12",
+        "orm_ignore": true
+      },
+      {
+        "name": "rounding_mode",
+        "type": "string",
+        "enum": [
+          "nearest",
+          "up",
+          "down"
+        ],
+        "binding": "required,oneof=nearest up down"
+      },
+      {
+        "name": "rounding_unit_paise",
+        "type": "int",
+        "pointer": true,
+        "min": 1,
+        "max": 1000,
+        "binding": "required,oneof=1 50 100 500 1000"
+      }
+    ],
+    "statutoryRuleInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "pf",
+          "esi"
+        ],
+        "binding": "required,oneof=pf esi"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "format": "name",
+        "min": 1,
+        "max": 80,
+        "binding": "required,max=80"
+      },
+      {
+        "name": "covered",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "citation",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500,
+        "binding": "required,max=500"
+      },
+      {
+        "name": "reference",
+        "type": "string",
+        "format": "text",
+        "max": 300,
+        "binding": "max=300"
+      },
+      {
+        "name": "pf",
+        "type": "statutoryPfParams",
+        "optional": true
+      },
+      {
+        "name": "esi",
+        "type": "statutoryEsiParams",
+        "optional": true
+      }
+    ],
+    "statutoryRevision": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "rule_id",
+        "type": "uuid"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "pf",
+          "esi"
+        ]
+      },
+      {
+        "name": "sequence",
+        "type": "int"
+      },
+      {
+        "name": "base_version",
+        "type": "int64"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected",
+          "withdrawn"
+        ]
+      },
+      {
+        "name": "approved_version",
+        "type": "int64",
+        "optional": true
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "covered",
+        "type": "bool"
+      },
+      {
+        "name": "effective_on",
+        "type": "string"
+      },
+      {
+        "name": "citation",
+        "type": "string"
+      },
+      {
+        "name": "reference",
+        "type": "string"
+      },
+      {
+        "name": "pf",
+        "type": "statutoryPfParams",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
+        "name": "esi",
+        "type": "statutoryEsiParams",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
+        "name": "proposed_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "decided_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "decided_at",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "decision_note",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "statutoryRule": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "pf",
+          "esi"
+        ]
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "effective_on",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "current",
+        "type": "statutoryRevision",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
+        "name": "pending",
+        "type": "statutoryRevision",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "statutoryDecisionInput": [
+      {
+        "name": "proposal_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": [
+          "approve",
+          "reject"
+        ],
+        "binding": "required,oneof=approve reject"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "format": "text",
+        "max": 500,
+        "binding": "max=500"
+      }
+    ],
+    "statutoryWithdrawInput": [
+      {
+        "name": "proposal_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "format": "text",
+        "max": 500,
+        "binding": "max=500"
+      }
+    ],
+    "statutoryPreviewInput": [
+      {
+        "name": "structure_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "on",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "payable_half_days",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "max": 62,
+        "binding": "required,gte=0,lte=62"
+      },
+      {
+        "name": "disability",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "statutoryComponent": [
+      {
+        "name": "component",
+        "type": "string",
+        "enum": [
+          "pf_employee",
+          "pf_employer_epf",
+          "pf_employer_eps",
+          "pf_edli",
+          "pf_admin",
+          "esi_employee",
+          "esi_employer"
+        ]
+      },
+      {
+        "name": "party",
+        "type": "string",
+        "enum": [
+          "employee",
+          "employer"
+        ]
+      },
+      {
+        "name": "amount_paise",
+        "type": "int64"
+      }
+    ],
+    "statutoryResult": [
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "pf",
+          "esi"
+        ]
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "applied",
+          "not_covered",
+          "above_ceiling",
+          "not_configured"
+        ]
+      },
+      {
+        "name": "rule_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "wage_basis",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "wages_paise",
+        "type": "int64"
+      },
+      {
+        "name": "base_paise",
+        "type": "int64"
+      },
+      {
+        "name": "components",
+        "type": "[]statutoryComponent"
+      }
+    ],
+    "statutoryPreview": [
+      {
+        "name": "salary",
+        "type": "salaryPreview"
+      },
+      {
+        "name": "results",
+        "type": "[]statutoryResult"
+      },
+      {
+        "name": "employee_paise",
+        "type": "int64"
+      },
+      {
+        "name": "employer_paise",
+        "type": "int64"
+      },
+      {
+        "name": "net_after_statutory_paise",
+        "type": "int64"
+      }
     ]
+  },
+  "statutoryKinds": {
+    "pf": "Provident Fund",
+    "esi": "Employees' State Insurance"
   }
 }

@@ -34,16 +34,21 @@ export const supplyContactSchema = z
   })
   .strict();
 
-export const supplyAddressSchema = z
+export const supplyPostalAddressSchema = z
   .object({
-    id: identifier,
-    kind: z.enum(["registered", "correspondence", "billing"]),
     line1: z.string().trim().min(1).max(200),
     line2: z.string().trim().max(200),
     city: z.string().trim().min(1).max(100),
     region: z.string().trim().min(1).max(100),
     postal_code: z.string().trim().min(1).max(20),
     country_code: z.enum(["IN", "PK"]),
+  })
+  .strict();
+
+export const supplyAddressSchema = supplyPostalAddressSchema
+  .extend({
+    id: identifier,
+    kind: z.enum(["registered", "correspondence", "billing"]),
   })
   .strict();
 
@@ -107,6 +112,56 @@ export const supplyPartyFieldsSchema = z
   .strict();
 
 export const supplyPartyInputSchema = supplyPartyFieldsSchema
+  .extend({
+    expected_version: z.number().int().min(0).max(9007199254740991),
+  })
+  .strict();
+
+export const supplyPremiseFieldsSchema = supplyPostalAddressSchema
+  .extend({
+    code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .min(1)
+      .max(40)
+      .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
+    name: z.string().trim().min(1).max(200),
+    kind: z.enum(["registered", "branch", "warehouse", "depot", "pharmacy"]),
+    time_zone: z.string().trim().min(1).max(100),
+    status: z.enum(["active", "inactive"]),
+  })
+  .strict();
+
+export const supplyLicenseFieldsSchema = z
+  .object({
+    kind: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .min(1)
+      .max(60)
+      .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,59}$"), "Use the required format."),
+    number: z.string().trim().toUpperCase().min(1).max(100),
+    issuing_authority: z.string().trim().min(1).max(200),
+    jurisdiction: z.string().trim().min(1).max(100),
+    premise_id: identifier,
+    issued_on: z.string().min(10).max(10).date("Use a full valid date."),
+    expires_on: z.string().min(10).max(10).date("Use a full valid date."),
+    product_categories: z
+      .array(z.enum(["otc", "prescription", "controlled", "cold_chain"]))
+      .min(1)
+      .max(4),
+  })
+  .strict();
+
+export const supplyPremiseInputSchema = supplyPremiseFieldsSchema
+  .extend({
+    expected_version: z.number().int().min(0).max(9007199254740991),
+  })
+  .strict();
+
+export const supplyLicenseInputSchema = supplyLicenseFieldsSchema
   .extend({
     expected_version: z.number().int().min(0).max(9007199254740991),
   })

@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" type="device">
+  <diagram id="supply-registry" name="Private registration">
+    <mxGraphModel dx="1280" dy="810" grid="1" gridSize="10" page="1" pageWidth="1280" pageHeight="810">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Private supplier registration" style="text;html=1;fontSize=28;fontStyle=1;align=left;fontColor=#172c40;" vertex="1" parent="1">
+          <mxGeometry x="60" y="30" width="1000" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="PharmaConnect / India &amp;amp; Pakistan / Current implementation boundary" style="text;html=1;fontSize=16;align=left;fontColor=#516579;" vertex="1" parent="1">
+          <mxGeometry x="60" y="72" width="1100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="transaction" value="ONE POSTGRESQL TRANSACTION · FORCED TENANT / PARTY / SUBJECT RLS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e4f1ed;strokeColor=#83b7a9;verticalAlign=top;align=left;spacing=24;fontSize=15;fontStyle=1;fontColor=#116252;" vertex="1" parent="1">
+          <mxGeometry x="50" y="280" width="1180" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="note" value="DECLARATION ≠ VERIFICATION · Evidence, independent review and country trading gates remain separate requirements." style="text;html=1;fontSize=15;align=left;fontColor=#9b6716;" vertex="1" parent="1">
+          <mxGeometry x="60" y="745" width="1160" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="scope" value="&lt;b&gt;Verified tenant + subject&lt;/b&gt;&lt;br&gt;&lt;br&gt;Route permission + current party grant&lt;br&gt;Independent organisation; hospital optional" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eaf3ff;strokeColor=#2563a6;fontColor=#172c40;fontSize=14;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="118" width="330" height="108" as="geometry" />
+        </mxCell>
+        <mxCell id="premise" value="&lt;b&gt;Private premises&lt;/b&gt;&lt;br&gt;&lt;br&gt;Country, address, time zone, status&lt;br&gt;Administrator / purchasing writes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eaf8f4;strokeColor=#087f72;fontColor=#172c40;fontSize=14;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="475" y="118" width="330" height="108" as="geometry" />
+        </mxCell>
+        <mxCell id="license" value="&lt;b&gt;Declared licences&lt;/b&gt;&lt;br&gt;&lt;br&gt;Same-party premise, dates, categories&lt;br&gt;Compliance also maintains declarations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff5e6;strokeColor=#a56a16;fontColor=#172c40;fontSize=14;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="890" y="118" width="330" height="108" as="geometry" />
+        </mxCell>
+        <mxCell id="head" value="&lt;b&gt;Guarded head&lt;/b&gt;&lt;br&gt;&lt;br&gt;UUIDv7 + expected version&lt;br&gt;Exact replay returns saved result" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#087f72;fontColor=#172c40;fontSize=14;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="346" width="250" height="116" as="geometry" />
+        </mxCell>
+        <mxCell id="history" value="&lt;b&gt;Immutable revisions&lt;/b&gt;&lt;br&gt;&lt;br&gt;Full snapshot + actor + time&lt;br&gt;Head references committed revision" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#087f72;fontColor=#172c40;fontSize=14;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="370" y="346" width="250" height="116" as="geometry" />
+        </mxCell>
+        <mxCell id="audit" value="&lt;b&gt;Append-only audit&lt;/b&gt;&lt;br&gt;&lt;br&gt;Resource IDs + changed fields&lt;br&gt;No sensitive payload in logs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#087f72;fontColor=#172c40;fontSize=14;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="660" y="346" width="250" height="116" as="geometry" />
+        </mxCell>
+        <mxCell id="outbox" value="&lt;b&gt;Transactional outbox&lt;/b&gt;&lt;br&gt;&lt;br&gt;Opaque references + version&lt;br&gt;Commit with the business write" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#087f72;fontColor=#172c40;fontSize=14;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="950" y="346" width="250" height="116" as="geometry" />
+        </mxCell>
+        <mxCell id="read" value="&lt;b&gt;Private screen + history&lt;/b&gt;&lt;br&gt;&lt;br&gt;Auditor: read only; revoked grant: denied&lt;br&gt;Unknown / foreign object: 404" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eaf3ff;strokeColor=#2563a6;fontColor=#172c40;fontSize=14;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="230" y="603" width="370" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="bus" value="&lt;b&gt;NATS JetStream relay&lt;/b&gt;&lt;br&gt;&lt;br&gt;Broker outage leaves durable pending events&lt;br&gt;At-least-once delivery; no second mutation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eaf8f4;strokeColor=#087f72;fontColor=#172c40;fontSize=14;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="700" y="603" width="370" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="e0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#698297;" edge="1" parent="1" source="scope" target="premise">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#698297;" edge="1" parent="1" source="premise" target="license">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#698297;" edge="1" parent="1" source="premise" target="head">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="640" y="250" />
+              <mxPoint x="40" y="250" />
+              <mxPoint x="40" y="404" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#698297;" edge="1" parent="1" source="license" target="outbox">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#698297;" edge="1" parent="1" source="head" target="history">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#698297;" edge="1" parent="1" source="history" target="audit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#698297;" edge="1" parent="1" source="audit" target="outbox">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#698297;" edge="1" parent="1" source="head" target="read">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;strokeColor=#698297;" edge="1" parent="1" source="outbox" target="bus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

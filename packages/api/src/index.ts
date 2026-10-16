@@ -48,3 +48,5 @@ export * from "./country-profiles";
 
 export * from "./supply";
 export * from "./duty";
+
+export * from "./supply-registration";

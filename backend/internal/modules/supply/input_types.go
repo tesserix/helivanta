@@ -22,15 +22,19 @@ func validContactFieldsPatterns(v ContactFields) bool {
 	return patternContactFieldsPhone.MatchString(v.Phone) && patternContactFieldsAlternatePhone.MatchString(v.AlternatePhone)
 }
 
+type PostalAddressFields struct {
+	Line1       string `json:"line1" binding:"required,min=1,max=200"`
+	Line2       string `json:"line2" binding:"max=200"`
+	City        string `json:"city" binding:"required,min=1,max=100"`
+	Region      string `json:"region" binding:"required,min=1,max=100"`
+	PostalCode  string `json:"postal_code" binding:"required,min=1,max=20"`
+	CountryCode string `json:"country_code" binding:"required,oneof=IN PK"`
+}
+
 type AddressFields struct {
-	ID          uuid.UUID `json:"id" binding:"required"`
-	Kind        string    `json:"kind" binding:"required,oneof=registered correspondence billing"`
-	Line1       string    `json:"line1" binding:"required,min=1,max=200"`
-	Line2       string    `json:"line2" binding:"max=200"`
-	City        string    `json:"city" binding:"required,min=1,max=100"`
-	Region      string    `json:"region" binding:"required,min=1,max=100"`
-	PostalCode  string    `json:"postal_code" binding:"required,min=1,max=20"`
-	CountryCode string    `json:"country_code" binding:"required,oneof=IN PK"`
+	ID   uuid.UUID `json:"id" binding:"required"`
+	Kind string    `json:"kind" binding:"required,oneof=registered correspondence billing"`
+	PostalAddressFields
 }
 
 type TaxRegistrationFields struct {
@@ -64,4 +68,46 @@ func validPartyFieldsPatterns(v PartyFields) bool { return patternPartyFieldsCod
 type partyInput struct {
 	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=0,max=9007199254740991"`
 	PartyFields
+}
+
+type PremiseFields struct {
+	Code     string `json:"code" binding:"required,min=1,max=40"`
+	Name     string `json:"name" binding:"required,min=1,max=200"`
+	Kind     string `json:"kind" binding:"required,oneof=registered branch warehouse depot pharmacy"`
+	TimeZone string `json:"time_zone" binding:"required,min=1,max=100"`
+	Status   string `json:"status" binding:"required,oneof=active inactive"`
+	PostalAddressFields
+}
+
+var patternPremiseFieldsCode = regexp.MustCompile("^[A-Z0-9][A-Z0-9._-]{0,39}$")
+
+func validPremiseFieldsPatterns(v PremiseFields) bool {
+	return patternPremiseFieldsCode.MatchString(v.Code)
+}
+
+type LicenseFields struct {
+	Kind              string    `json:"kind" binding:"required,min=1,max=60"`
+	Number            string    `json:"number" binding:"required,min=1,max=100"`
+	IssuingAuthority  string    `json:"issuing_authority" binding:"required,min=1,max=200"`
+	Jurisdiction      string    `json:"jurisdiction" binding:"required,min=1,max=100"`
+	PremiseID         uuid.UUID `json:"premise_id" binding:"required"`
+	IssuedOn          string    `json:"issued_on" binding:"required,min=10,max=10"`
+	ExpiresOn         string    `json:"expires_on" binding:"required,min=10,max=10"`
+	ProductCategories []string  `json:"product_categories" binding:"required,min=1,max=4,dive,required,oneof=otc prescription controlled cold_chain" gorm:"serializer:json;type:jsonb"`
+}
+
+var patternLicenseFieldsKind = regexp.MustCompile("^[A-Z0-9][A-Z0-9._-]{0,59}$")
+
+func validLicenseFieldsPatterns(v LicenseFields) bool {
+	return patternLicenseFieldsKind.MatchString(v.Kind)
+}
+
+type premiseInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=0,max=9007199254740991"`
+	PremiseFields
+}
+
+type licenseInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=0,max=9007199254740991"`
+	LicenseFields
 }

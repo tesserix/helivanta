@@ -185,6 +185,10 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	supply.PermPartyWrite:         {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing},
 	supply.PermOrganizationManage: {authz.RoleTenantAdmin, authz.RoleSupplyAdmin},
 	supply.PermAccessManage:       {authz.RoleTenantAdmin, authz.RoleSupplyAdmin},
+	supply.PermPremiseRead:        {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor},
+	supply.PermPremiseWrite:       {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing},
+	supply.PermLicenseRead:        {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor},
+	supply.PermLicenseWrite:       {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyCompliance},
 
 	workforce.PermHospitalManage:   {authz.RoleTenantAdmin},
 	workforce.PermEnrollmentManage: {authz.RoleTenantAdmin},

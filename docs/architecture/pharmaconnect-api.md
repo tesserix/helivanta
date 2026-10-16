@@ -93,3 +93,24 @@ flowchart LR
 ```
 
 Migration `0006_pharmacy` is additive and forward-only. No production migration, financial posting, bank verification, statutory tax filing, certified accounting/compliance status or production deployment is claimed. Sensitive file evidence will reuse authorized GCS/ClamAV document handling when integrated; there is no unauthenticated evidence-upload shortcut.
+
+## Private organisation premises and declared licences
+
+![Private supplier registry and atomic publication](diagrams/13-supply-premises-licences.svg)
+
+[Editable draw.io source](diagrams/13-supply-premises-licences.drawio).
+
+Issues #1135/#1137 remain open for their wider verification and distributor requirements. These endpoints extend the private Supply profile under `/v1/supply/parties/{party}`; they require no hospital. The verified session supplies tenant/subject, and every lookup also requires a current party-specific role.
+
+| Method and path                                               | Route permission       | Party roles                                             |
+| ------------------------------------------------------------- | ---------------------- | ------------------------------------------------------- |
+| GET `/premises`, `/premises/{id}`, `/premises/{id}/revisions` | `supply.premise.read`  | administrator, purchasing, finance, compliance, auditor |
+| PUT `/premises/{id}`                                          | `supply.premise.write` | administrator, purchasing                               |
+| GET `/licenses`, `/licenses/{id}`, `/licenses/{id}/revisions` | `supply.license.read`  | administrator, purchasing, finance, compliance, auditor |
+| PUT `/licenses/{id}`                                          | `supply.license.write` | administrator, purchasing, compliance                   |
+
+Premises include unique organisation code, name/type, postal address, country, country-appropriate time zone, and active/inactive state. Licences include type code, number, authority, jurisdiction, premise ID, exact issue/expiry dates and a unique category set (`otc`, `prescription`, `controlled`, `cold_chain`). Categories declare intended coverage; they never authorize restricted transactions. The parent party country is immutable, and compound foreign keys prohibit cross-party/country/tenant premise references.
+
+Both PUTs require a stable client UUIDv7 and `expected_version` (zero for creation). Exact current/current-minus-one replays return the saved record; changed stale/future versions conflict. All lists use bounded keyset pagination. Every head update retains an immutable private revision and atomic audit/outbox entry. Revisions expose actor/time/version/snapshot only to the same scoped readers. Missing and inaccessible heads/history return 404; malformed fields return 400; duplicate code/licence identity and version conflicts return 409. Unknown fields, self-declared approval, and forged tenant IDs are rejected.
+
+All licence statuses remain `declared`. Evidence scanning, independent review, lifecycle transitions and effective country trading eligibility are separate remaining gates in [ADR 0028](../adr/0028-supply-verification-and-evidence.md). A saved declaration never makes a seller eligible to trade. See the [registry spec](../superpowers/specs/2026-10-16-supply-premises-licences.md) for migration/recovery, security and test boundaries.

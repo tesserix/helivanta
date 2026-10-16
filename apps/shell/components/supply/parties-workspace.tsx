@@ -18,6 +18,7 @@ import {
 import { Field, LoadMore, useZodForm, formatDateTime } from "@helivanta/ui";
 import { RequestFailure } from "../request-failure";
 import { PartyEditor } from "./party-editor";
+import { PartyRegistration } from "./party-registration";
 
 const searchSchema = z.object({ query: z.string().trim().max(200) });
 const readRoles = ["administrator", "purchasing", "finance", "compliance", "auditor"];
@@ -391,6 +392,11 @@ function PrivateParty({
           </ul>
         )}
       </section>
+      <PartyRegistration
+        scope={{ ...scope, partyId: id }}
+        country={party.country_code}
+        roles={roles}
+      />
       <details className="border-t pt-5">
         <summary className="cursor-pointer text-sm font-medium">Profile revision history</summary>
         <PartyHistory scope={scope} id={id} />

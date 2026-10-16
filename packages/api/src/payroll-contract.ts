@@ -12,6 +12,8 @@ export const STATUTORY_KINDS = {
   esi: "Employees' State Insurance",
   pt: "Professional tax",
   lwf: "Labour welfare fund",
+  income_tax_new: "Income tax (new regime)",
+  income_tax_old: "Income tax (old regime)",
 } as const;
 const identifier = z
   .string()
@@ -356,10 +358,65 @@ export const statutoryLwfParamsContract = z
   .strict();
 export type StatutoryLwfParams = z.infer<typeof statutoryLwfParamsContract>;
 
+export const incomeTaxSlabContract = z
+  .object({
+    from_paise: z.number().int().min(0).max(100000000000),
+    to_paise: z.number().int().min(1).max(100000000000).optional(),
+    rate_ppm: z.number().int().min(0).max(1000000),
+  })
+  .strict();
+export type IncomeTaxSlab = z.infer<typeof incomeTaxSlabContract>;
+
+export const incomeTaxAgeBandContract = z
+  .object({
+    min_age: z.number().int().min(0).max(120),
+    slabs: z.array(incomeTaxSlabContract).max(16),
+  })
+  .strict();
+export type IncomeTaxAgeBand = z.infer<typeof incomeTaxAgeBandContract>;
+
+export const incomeTaxRebateContract = z
+  .object({
+    income_limit_paise: z.number().int().min(1).max(100000000000),
+    max_paise: z.number().int().min(1).max(100000000000),
+    marginal_relief: z.boolean(),
+  })
+  .strict();
+export type IncomeTaxRebate = z.infer<typeof incomeTaxRebateContract>;
+
+export const incomeTaxSurchargeContract = z
+  .object({
+    above_paise: z.number().int().min(1).max(100000000000),
+    rate_ppm: z.number().int().min(0).max(1000000),
+  })
+  .strict();
+export type IncomeTaxSurcharge = z.infer<typeof incomeTaxSurchargeContract>;
+
+export const incomeTaxParamsContract = z
+  .object({
+    tax_year: z
+      .string()
+      .trim()
+      .min(7)
+      .max(7)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    standard_deduction_paise: z.number().int().min(0).max(100000000),
+    taxable_rounding_mode: z.enum(["nearest", "up", "down"]),
+    taxable_rounding_unit_paise: z.number().int().min(1).max(1000),
+    tax_rounding_mode: z.enum(["nearest", "up", "down"]),
+    tax_rounding_unit_paise: z.number().int().min(1).max(1000),
+    age_bands: z.array(incomeTaxAgeBandContract).max(4),
+    rebate: incomeTaxRebateContract.optional(),
+    surcharge_bands: z.array(incomeTaxSurchargeContract).max(8),
+    cess_rate_ppm: z.number().int().min(0).max(1000000),
+  })
+  .strict();
+export type IncomeTaxParams = z.infer<typeof incomeTaxParamsContract>;
+
 export const statutoryRuleInputContract = z
   .object({
     expected_version: z.number().int().min(0),
-    kind: z.enum(["pf", "esi", "pt", "lwf"]),
+    kind: z.enum(["pf", "esi", "pt", "lwf", "income_tax_new", "income_tax_old"]),
     name: z
       .string()
       .trim()
@@ -387,6 +444,7 @@ export const statutoryRuleInputContract = z
     esi: statutoryEsiParamsContract.optional(),
     pt: statutoryPtParamsContract.optional(),
     lwf: statutoryLwfParamsContract.optional(),
+    income_tax: incomeTaxParamsContract.optional(),
   })
   .strict();
 export type StatutoryRuleInput = z.infer<typeof statutoryRuleInputContract>;
@@ -395,7 +453,7 @@ export const statutoryRevisionContract = z
   .object({
     id: identifier,
     rule_id: identifier,
-    kind: z.enum(["pf", "esi", "pt", "lwf"]),
+    kind: z.enum(["pf", "esi", "pt", "lwf", "income_tax_new", "income_tax_old"]),
     sequence: z.number().int(),
     base_version: z.number().int(),
     status: z.enum(["pending", "approved", "rejected", "withdrawn"]),
@@ -409,6 +467,7 @@ export const statutoryRevisionContract = z
     esi: statutoryEsiParamsContract.optional(),
     pt: statutoryPtParamsContract.optional(),
     lwf: statutoryLwfParamsContract.optional(),
+    income_tax: incomeTaxParamsContract.optional(),
     proposed_by_subject: z
       .string()
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
@@ -428,7 +487,7 @@ export type StatutoryRevision = z.infer<typeof statutoryRevisionContract>;
 export const statutoryRuleContract = z
   .object({
     id: identifier,
-    kind: z.enum(["pf", "esi", "pt", "lwf"]),
+    kind: z.enum(["pf", "esi", "pt", "lwf", "income_tax_new", "income_tax_old"]),
     version: z.number().int(),
     effective_on: z
       .string()
@@ -537,3 +596,53 @@ export const statutoryPreviewContract = z
   })
   .strict();
 export type StatutoryPreview = z.infer<typeof statutoryPreviewContract>;
+
+export const incomeTaxPreviewInputContract = z
+  .object({
+    on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    annual_income_paise: z.number().int().min(0).max(100000000000),
+    age: z.number().int().min(0).max(120).optional(),
+  })
+  .strict();
+export type IncomeTaxPreviewInput = z.infer<typeof incomeTaxPreviewInputContract>;
+
+export const incomeTaxResultContract = z
+  .object({
+    kind: z.enum(["income_tax_new", "income_tax_old"]),
+    status: z.enum([
+      "applied",
+      "not_covered",
+      "not_configured",
+      "tax_year_missing",
+      "age_required",
+    ]),
+    rule_id: identifier.optional(),
+    revision_id: identifier.optional(),
+    tax_year: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    age_band_min_age: z.number().int().optional(),
+    income_paise: z.number().int(),
+    standard_deduction_paise: z.number().int(),
+    taxable_paise: z.number().int(),
+    slab_tax_paise: z.number().int(),
+    rebate_paise: z.number().int(),
+    surcharge_paise: z.number().int(),
+    cess_paise: z.number().int(),
+    total_paise: z.number().int(),
+  })
+  .strict();
+export type IncomeTaxResult = z.infer<typeof incomeTaxResultContract>;
+
+export const incomeTaxPreviewContract = z
+  .object({
+    on: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    results: z.array(incomeTaxResultContract),
+  })
+  .strict();
+export type IncomeTaxPreview = z.infer<typeof incomeTaxPreviewContract>;

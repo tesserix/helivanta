@@ -23,6 +23,7 @@ import { Field, SelectControl, useZodForm } from "@helivanta/ui";
 import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Check } from "./payroll-workspace";
+import { IncomeTaxFields } from "./income-tax-fields";
 import { LwfFields, PtFields } from "./statutory-slabs";
 
 const options = (labels: Record<string, string>) =>
@@ -281,12 +282,23 @@ export function StatutoryEditor({
         )}
         {value.coverage === "covered" && kind === "pt" && <PtFields form={form} />}
         {value.coverage === "covered" && kind === "lwf" && <LwfFields form={form} />}
+        {value.coverage === "covered" &&
+          (kind === "income_tax_new" || kind === "income_tax_old") && (
+            <IncomeTaxFields form={form} />
+          )}
         {value.coverage === "not_covered" && (kind === "pt" || kind === "lwf") && (
           <p className="text-xs text-muted-foreground">
             Record not covered where the state levies none, or where its professional tax is
             assessed half-yearly or yearly, which payroll runs will support. Cite the reason.
           </p>
         )}
+        {value.coverage === "not_covered" &&
+          (kind === "income_tax_new" || kind === "income_tax_old") && (
+            <p className="text-xs text-muted-foreground">
+              Record not covered where this hospital will not deduct tax under this regime, and cite
+              the reason. Staff electing it then have no deduction computed.
+            </p>
+          )}
         <p className="text-xs text-muted-foreground">
           Nothing is pre-filled. Enter each value from the notification you cite. Someone other than
           you must approve the proposal before it takes effect, and it cannot take effect before the

@@ -1,5 +1,7 @@
 import { z } from "zod";
 import type {
+  IncomeTaxParams,
+  IncomeTaxPreviewInput,
   SalaryHead,
   SalaryHeadInput,
   SalaryPreviewInput,
@@ -573,6 +575,161 @@ export type StatutoryLwfSlabForm = z.infer<typeof lwfSlabFormSchema>;
 
 const optionalRupees = (raw: string) => (raw.trim() === "" ? undefined : parseRupees(raw));
 
+const MAX_INCOME_PAISE = 100_000_000_000;
+const MAX_STANDARD_DEDUCTION_PAISE = 100_000_000;
+
+// Income-tax amounts reach surcharge thresholds in crores, beyond the salary parser's ceiling.
+export const parseIncome = (value: string): number | undefined => {
+  const match = /^(\d{1,10})(?:\.(\d{1,2}))?$/.exec(value.trim().replaceAll(",", ""));
+  if (!match) return undefined;
+  const paise = Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0"));
+  return paise <= MAX_INCOME_PAISE ? paise : undefined;
+};
+const optionalIncome = (raw: string) => (raw.trim() === "" ? undefined : parseIncome(raw));
+
+// The Act's tax year runs from 1 April to 31 March and is written YYYY-YY.
+export const taxYearOf = (day: string) => {
+  const [year, month] = day.split("-").map(Number) as [number, number];
+  const start = month < 4 ? year - 1 : year;
+  return `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
+};
+
+export const INCOME_TAX_REBATES = {
+  none: "No rebate",
+  relief: "Rebate with marginal relief",
+  cliff: "Rebate without marginal relief",
+} as const;
+export const INCOME_TAX_RESULT_STATUSES = {
+  applied: "Applied",
+  not_covered: "Not covered",
+  not_configured: "Not configured",
+  tax_year_missing: "No rule for this tax year",
+  age_required: "Needs the employee's age",
+} as const;
+
+const taxSlabFormSchema = z.object({ from: z.string(), to: z.string(), rate: z.string() }).strict();
+const incomeTaxBandFormSchema = z
+  .object({ min_age: z.string(), slabs: z.array(taxSlabFormSchema) })
+  .strict();
+const surchargeFormSchema = z.object({ above: z.string(), rate: z.string() }).strict();
+const incomeTaxFormSchema = z
+  .object({
+    tax_year: z.string(),
+    standard_deduction: z.string(),
+    taxable_rounding_mode: z.string(),
+    taxable_rounding_unit: z.string(),
+    tax_rounding_mode: z.string(),
+    tax_rounding_unit: z.string(),
+    age_bands: z.array(incomeTaxBandFormSchema),
+    rebate: z.string(),
+    rebate_income_limit: z.string(),
+    rebate_max: z.string(),
+    surcharges: z.array(surchargeFormSchema),
+    cess_rate: z.string(),
+  })
+  .strict();
+export type IncomeTaxSlabForm = z.infer<typeof taxSlabFormSchema>;
+export type IncomeTaxBandForm = z.infer<typeof incomeTaxBandFormSchema>;
+export type IncomeTaxSurchargeForm = z.infer<typeof surchargeFormSchema>;
+type IncomeTaxForm = z.infer<typeof incomeTaxFormSchema>;
+type Issue = (path: (string | number)[], message: string) => void;
+
+const parseAge = (raw: string) => (/^\d{1,3}$/.test(raw.trim()) ? Number(raw) : undefined);
+
+// Mirrors the server: the year contains the effective date, one band starts at age 0, slabs partition ₹0 upward and surcharge thresholds rise.
+const incomeTaxIssues = (form: IncomeTaxForm, effectiveOn: string, issue: Issue) => {
+  const rateIssue = (path: (string | number)[], raw: string) => {
+    if (parseRate(raw) === undefined)
+      issue(path, "Enter a percentage from 0 to 100, with up to 4 decimals.");
+  };
+  const pick = (field: string, raw: string, options: Record<string, string>) => {
+    if (!choice(options).safeParse(raw).success) issue([field], "Choose an option.");
+  };
+  const amount = (path: (string | number)[], raw: string) => {
+    const paise = parseIncome(raw);
+    if (paise === undefined || paise < 1)
+      issue(path, "Enter rupees above 0, with up to 2 decimals.");
+    return paise;
+  };
+  const year = /^(\d{4})-(\d{2})$/.exec(form.tax_year.trim());
+  if (
+    !year ||
+    (Number(year[1]) + 1) % 100 !== Number(year[2]) ||
+    Number(year[1]) < 2000 ||
+    Number(year[1]) > 2199
+  )
+    issue(["tax_year"], "Enter the tax year as YYYY-YY, for example 2026-27.");
+  else if (
+    /^\d{4}-\d{2}-\d{2}$/.test(effectiveOn) &&
+    taxYearOf(effectiveOn) !== form.tax_year.trim()
+  )
+    issue(
+      ["tax_year"],
+      `The effective date falls in tax year ${taxYearOf(effectiveOn)}. A rule covers one tax year, from 1 April to 31 March.`,
+    );
+  const deduction = parseRupees(form.standard_deduction);
+  if (deduction === undefined || deduction > MAX_STANDARD_DEDUCTION_PAISE)
+    issue(["standard_deduction"], "Enter up to ₹10 lakh, with up to 2 decimals. Enter 0 for none.");
+  pick("taxable_rounding_mode", form.taxable_rounding_mode, SALARY_ROUNDING_MODES);
+  pick("taxable_rounding_unit", form.taxable_rounding_unit, SALARY_ROUNDING_UNITS);
+  pick("tax_rounding_mode", form.tax_rounding_mode, SALARY_ROUNDING_MODES);
+  pick("tax_rounding_unit", form.tax_rounding_unit, SALARY_ROUNDING_UNITS);
+  rateIssue(["cess_rate"], form.cess_rate);
+  pick("rebate", form.rebate, INCOME_TAX_REBATES);
+  if (form.rebate === "relief" || form.rebate === "cliff") {
+    amount(["rebate_income_limit"], form.rebate_income_limit);
+    amount(["rebate_max"], form.rebate_max);
+  }
+  if (form.age_bands.length === 0 || form.age_bands.length > 4)
+    issue(["age_bands"], "Add between 1 and 4 age bands.");
+  const ages = form.age_bands.map((b) => parseAge(b.min_age));
+  for (const [i, band] of form.age_bands.entries()) {
+    const age = ages[i];
+    if (age === undefined || age > 120)
+      issue(["age_bands", i, "min_age"], "Enter an age from 0 to 120.");
+    else if (ages.indexOf(age) !== i)
+      issue(["age_bands", i, "min_age"], "Each band needs its own starting age.");
+    if (band.slabs.length === 0 || band.slabs.length > 16) {
+      issue(["age_bands", i, "slabs"], "Add between 1 and 16 slabs.");
+      continue;
+    }
+    let complete = true;
+    for (const [j, slab] of band.slabs.entries()) {
+      const path = ["age_bands", i, "slabs", j];
+      const start = parseIncome(slab.from);
+      if (start === undefined) issue([...path, "from"], "Enter rupees with up to 2 decimals.");
+      const end = optionalIncome(slab.to);
+      const bounded = slab.to.trim() !== "";
+      if (bounded && (end === undefined || (start !== undefined && end <= start)))
+        issue([...path, "to"], "Enter an amount above the start, or leave it blank for no limit.");
+      rateIssue([...path, "rate"], slab.rate);
+      complete =
+        complete && start !== undefined && (!bounded || (end !== undefined && end > start));
+    }
+    const problem = complete
+      ? statutoryBandProblem(
+          band.slabs.map((s) => ({
+            from: parseIncome(s.from) as number,
+            to: optionalIncome(s.to),
+          })),
+        )
+      : undefined;
+    if (problem)
+      issue(["age_bands", i, "slabs"], `The table ${problem.replaceAll("wages", "income")}.`);
+  }
+  if (!ages.includes(0) && form.age_bands.length > 0)
+    issue(["age_bands"], "One band must start at age 0, so everyone has a slab table.");
+  if (form.surcharges.length > 8) issue(["surcharges"], "Add at most 8 surcharge bands.");
+  let previous: number | undefined;
+  for (const [i, band] of form.surcharges.entries()) {
+    const above = amount(["surcharges", i, "above"], band.above);
+    rateIssue(["surcharges", i, "rate"], band.rate);
+    if (above !== undefined && previous !== undefined && above <= previous)
+      issue(["surcharges", i, "above"], "Each threshold must be above the one before it.");
+    previous = above ?? previous;
+  }
+};
+
 type Band = { from: number; to?: number };
 // Mirrors the server's partition rule and names the first fault, so the editor can say what to fix.
 export const statutoryBandProblem = (bands: Band[]): string | undefined => {
@@ -649,7 +806,7 @@ export const ptAnnualTotals = (
 export const statutoryRuleFormSchema = z
   .object({
     expected_version: z.number().int().min(0),
-    kind: z.enum(["pf", "esi", "pt", "lwf"]),
+    kind: z.enum(["pf", "esi", "pt", "lwf", "income_tax_new", "income_tax_old"]),
     name: text("a name", 80),
     coverage: z.string(),
     effective_on: date,
@@ -663,6 +820,7 @@ export const statutoryRuleFormSchema = z
     esi: esiFormSchema,
     pt: ptFormSchema,
     lwf: lwfFormSchema,
+    income_tax: incomeTaxFormSchema,
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -671,6 +829,10 @@ export const statutoryRuleFormSchema = z
     if (!["covered", "not_covered"].includes(value.coverage))
       issue(["coverage"], "State whether the hospital is covered.");
     if (value.coverage !== "covered") return;
+    if (value.kind === "income_tax_new" || value.kind === "income_tax_old")
+      return incomeTaxIssues(value.income_tax, value.effective_on, (path, message) =>
+        issue(["income_tax", ...path] as string[], message),
+      );
     const at = (...field: (string | number)[]) => [value.kind, ...field] as string[];
     const pick = (field: string, raw: string, options: Record<string, string>) => {
       if (!choice(options).safeParse(raw).success) issue(at(field), "Choose an option.");
@@ -857,6 +1019,26 @@ export const blankLwfSlab = (): StatutoryLwfSlabForm => ({
   employer_rate: "",
   employer_cap: "",
 });
+export const blankTaxSlab = (): IncomeTaxSlabForm => ({ from: "", to: "", rate: "" });
+export const blankIncomeTaxBand = (): IncomeTaxBandForm => ({
+  min_age: "",
+  slabs: [blankTaxSlab()],
+});
+export const blankSurcharge = (): IncomeTaxSurchargeForm => ({ above: "", rate: "" });
+const blankIncomeTax = (): IncomeTaxForm => ({
+  tax_year: "",
+  standard_deduction: "",
+  taxable_rounding_mode: "",
+  taxable_rounding_unit: "",
+  tax_rounding_mode: "",
+  tax_rounding_unit: "",
+  age_bands: [blankIncomeTaxBand()],
+  rebate: "",
+  rebate_income_limit: "",
+  rebate_max: "",
+  surcharges: [],
+  cess_rate: "",
+});
 const blankPt = (): StatutoryRuleForm["pt"] => ({
   state_code: "",
   wage_basis: "",
@@ -886,7 +1068,69 @@ export const newStatutoryRuleForm = (
   esi: blankEsi,
   pt: blankPt(),
   lwf: blankLwf(),
+  income_tax: blankIncomeTax(),
 });
+
+const incomeTaxToForm = (p: IncomeTaxParams): IncomeTaxForm => ({
+  tax_year: p.tax_year,
+  standard_deduction: paiseToRupees(p.standard_deduction_paise),
+  taxable_rounding_mode: p.taxable_rounding_mode,
+  taxable_rounding_unit: String(p.taxable_rounding_unit_paise),
+  tax_rounding_mode: p.tax_rounding_mode,
+  tax_rounding_unit: String(p.tax_rounding_unit_paise),
+  age_bands: p.age_bands.map((b) => ({
+    min_age: String(b.min_age),
+    slabs: b.slabs.map((s) => ({
+      from: paiseToRupees(s.from_paise),
+      to: s.to_paise === undefined ? "" : paiseToRupees(s.to_paise),
+      rate: ppmToPercent(s.rate_ppm),
+    })),
+  })),
+  rebate: !p.rebate ? "none" : p.rebate.marginal_relief ? "relief" : "cliff",
+  rebate_income_limit: p.rebate ? paiseToRupees(p.rebate.income_limit_paise) : "",
+  rebate_max: p.rebate ? paiseToRupees(p.rebate.max_paise) : "",
+  surcharges: p.surcharge_bands.map((s) => ({
+    above: paiseToRupees(s.above_paise),
+    rate: ppmToPercent(s.rate_ppm),
+  })),
+  cess_rate: ppmToPercent(p.cess_rate_ppm),
+});
+
+const toIncomeTaxParams = (form: IncomeTaxForm): IncomeTaxParams => {
+  const income = (raw: string) => parseIncome(raw) ?? 0;
+  const rate = (raw: string) => parseRate(raw) ?? 0;
+  return {
+    tax_year: form.tax_year.trim(),
+    standard_deduction_paise: parseRupees(form.standard_deduction) ?? 0,
+    taxable_rounding_mode: form.taxable_rounding_mode as Mode,
+    taxable_rounding_unit_paise: Number(form.taxable_rounding_unit),
+    tax_rounding_mode: form.tax_rounding_mode as Mode,
+    tax_rounding_unit_paise: Number(form.tax_rounding_unit),
+    age_bands: form.age_bands.map((b) => ({
+      min_age: Number(b.min_age),
+      slabs: b.slabs.map((s) => {
+        const to = optionalIncome(s.to);
+        return {
+          from_paise: income(s.from),
+          ...(to !== undefined && { to_paise: to }),
+          rate_ppm: rate(s.rate),
+        };
+      }),
+    })),
+    ...(form.rebate !== "none" && {
+      rebate: {
+        income_limit_paise: income(form.rebate_income_limit),
+        max_paise: income(form.rebate_max),
+        marginal_relief: form.rebate === "relief",
+      },
+    }),
+    surcharge_bands: form.surcharges.map((s) => ({
+      above_paise: income(s.above),
+      rate_ppm: rate(s.rate),
+    })),
+    cess_rate_ppm: rate(form.cess_rate),
+  };
+};
 
 // A revision opens as the base of the next proposal; the date and citation stay so a reviewer sees what changed.
 export const statutoryRevisionToForm = (
@@ -967,6 +1211,7 @@ export const statutoryRevisionToForm = (
         })),
       }
     : blankLwf(),
+  income_tax: revision.income_tax ? incomeTaxToForm(revision.income_tax) : blankIncomeTax(),
 });
 
 type Mode = StatutoryPfParams["rounding_mode"];
@@ -1062,6 +1307,10 @@ export const toStatutoryRuleInput = (form: StatutoryRuleForm): StatutoryRuleInpu
           }),
         },
       }),
+    ...(covered &&
+      (form.kind === "income_tax_new" || form.kind === "income_tax_old") && {
+        income_tax: toIncomeTaxParams(form.income_tax),
+      }),
   };
 };
 
@@ -1108,6 +1357,33 @@ export const toStatutoryPreviewInput = (form: StatutoryPreviewForm): StatutoryPr
   ...(form.gender !== "" && { gender: form.gender }),
 });
 
+export const incomeTaxPreviewFormSchema = z
+  .object({ on: date, annual_income: z.string(), age: z.string() })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (parseIncome(value.annual_income) === undefined)
+      ctx.addIssue({
+        code: "custom",
+        path: ["annual_income"],
+        message: "Enter the annual salary in rupees, with up to 2 decimals.",
+      });
+    const age = parseAge(value.age);
+    if (value.age.trim() !== "" && (age === undefined || age > 120))
+      ctx.addIssue({
+        code: "custom",
+        path: ["age"],
+        message: "Enter an age from 0 to 120, or leave it blank.",
+      });
+  });
+export type IncomeTaxPreviewForm = z.infer<typeof incomeTaxPreviewFormSchema>;
+
+export const toIncomeTaxPreviewInput = (form: IncomeTaxPreviewForm): IncomeTaxPreviewInput => ({
+  on: form.on,
+  annual_income_paise: parseIncome(form.annual_income) ?? 0,
+  ...(form.age.trim() !== "" && { age: Number(form.age) }),
+});
+
+export const incomeTaxPreviewPath = (base: string) => `${base}/hr/payroll/income-tax-preview`;
 export const statutoryRulesPath = (base: string) => `${base}/hr/payroll/statutory-rules`;
 export const statutoryPreviewPath = (base: string) => `${base}/hr/payroll/statutory-preview`;
 
@@ -1132,5 +1408,12 @@ export const describeStatutoryRevision = (revision: StatutoryRevision) => {
   }
   if (revision.lwf)
     return `${revision.lwf.state_code} · ${slabs(revision.lwf.slabs.length)} · deducted in ${revision.lwf.deduction_months.map((m) => MONTH_NAMES[m - 1]).join(", ")}`;
+  if (revision.income_tax) {
+    const it = revision.income_tax;
+    const bands = it.age_bands.length;
+    return `Tax year ${it.tax_year} · ${bands === 1 ? "one slab table" : `${bands} age bands`} · ${
+      it.rebate ? `rebate to ${formatPaise(it.rebate.income_limit_paise)}` : "no rebate"
+    } · cess ${ppmToPercent(it.cess_rate_ppm)}%`;
+  }
   return "Parameters unavailable";
 };

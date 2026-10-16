@@ -33,6 +33,7 @@ import { Field, SelectControl, useZodForm } from "@helivanta/ui";
 import { Failure, inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Check, Fact, RevisionHistory, structuresKey } from "./payroll-workspace";
+import { IncomeTaxPreview } from "./income-tax-preview";
 import { StatutoryEditor } from "./statutory-editor";
 
 type Kind = keyof typeof STATUTORY_KINDS;
@@ -47,7 +48,7 @@ export function StatutoryPanel({ hospital, writable }: { hospital: Hospital; wri
   const [open, setOpen] = useState<{ rule: StatutoryRule; view: "decide" | "history" } | null>(
     null,
   );
-  const [previewing, setPreviewing] = useState(false);
+  const [previewing, setPreviewing] = useState<"contributions" | "income_tax" | null>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
   const rules = useApiPagedQuery<StatutoryRule>(
     statutoryKey(hospital.id),
@@ -57,14 +58,14 @@ export function StatutoryPanel({ hospital, writable }: { hospital: Hospital; wri
   const close = () => {
     setEditing(null);
     setOpen(null);
-    setPreviewing(false);
+    setPreviewing(null);
     opener.current?.focus();
   };
   const remember = (ev: React.MouseEvent<HTMLButtonElement>) => {
     opener.current = ev.currentTarget;
     setEditing(null);
     setOpen(null);
-    setPreviewing(false);
+    setPreviewing(null);
   };
   return (
     <section
@@ -75,21 +76,33 @@ export function StatutoryPanel({ hospital, writable }: { hospital: Hospital; wri
         <div>
           <h3 className="font-semibold">Statutory contributions</h3>
           <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
-            Provident Fund and ESI rules for this hospital. Nothing is pre-loaded: each rate and
-            ceiling is entered from the notification you cite, and a second person approves every
-            change before it takes effect.
+            Provident Fund, ESI, professional tax, labour welfare fund and income-tax rules for this
+            hospital. Nothing is pre-loaded: each rate, ceiling and slab is entered from the
+            notification you cite, and a second person approves every change before it takes effect.
           </p>
         </div>
-        <Button
-          variant="outline"
-          disabled={rules.isPending || rules.isError}
-          onClick={(ev) => {
-            remember(ev);
-            setPreviewing(true);
-          }}
-        >
-          Preview contributions
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            disabled={rules.isPending || rules.isError}
+            onClick={(ev) => {
+              remember(ev);
+              setPreviewing("contributions");
+            }}
+          >
+            Preview contributions
+          </Button>
+          <Button
+            variant="outline"
+            disabled={rules.isPending || rules.isError}
+            onClick={(ev) => {
+              remember(ev);
+              setPreviewing("income_tax");
+            }}
+          >
+            Preview income tax
+          </Button>
+        </div>
       </div>
       {editing !== null && (
         <StatutoryEditor
@@ -222,7 +235,10 @@ export function StatutoryPanel({ hospital, writable }: { hospital: Hospital; wri
           )}
         />
       )}
-      {previewing && <StatutoryPreview hospital={hospital.id} base={base} onClose={close} />}
+      {previewing === "contributions" && (
+        <StatutoryPreview hospital={hospital.id} base={base} onClose={close} />
+      )}
+      {previewing === "income_tax" && <IncomeTaxPreview base={base} onClose={close} />}
     </section>
   );
 }

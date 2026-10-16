@@ -318,6 +318,7 @@ func TestStatutoryPreviewResolvesTheRevisionInForce(t *testing.T) {
 	for _, kind := range []string{"pf", "esi"} {
 		require.Equal(t, "not_configured", results(out)[kind]["status"], "nothing is defaulted: %s", kind)
 	}
+	require.Equal(t, []string{"esi", "lwf", "pf", "pt"}, slices.Sorted(maps.Keys(results(out))), "income tax is annual, so the monthly preview leaves it out")
 	require.EqualValues(t, 0, out["employee_paise"])
 	pf := uuid.NewString()
 	first := h.approved(pf, pfRule(0, "2026-01-01"))

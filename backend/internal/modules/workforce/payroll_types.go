@@ -7,7 +7,7 @@ import (
 )
 
 var salaryHeadKinds = []string{"earning", "deduction", "employer_contribution"}
-var statutoryKinds = []string{"pf", "esi", "pt", "lwf"}
+var statutoryKinds = []string{"pf", "esi", "pt", "lwf", "income_tax_new", "income_tax_old"}
 
 type salaryHeadInput struct {
 	ExpectedVersion        *int64      `json:"expected_version" binding:"required,gte=0"`
@@ -230,9 +230,44 @@ type statutoryLwfParams struct {
 	Slabs             []statutoryLwfSlab `json:"slabs" binding:"required,min=1,max=24,dive"`
 }
 
+type incomeTaxSlab struct {
+	FromPaise *int64 `json:"from_paise" binding:"required,gte=0,lte=100000000000"`
+	ToPaise   *int64 `json:"to_paise,omitempty" binding:"omitempty,gte=1,lte=100000000000"`
+	RatePpm   *int   `json:"rate_ppm" binding:"required,gte=0,lte=1000000"`
+}
+
+type incomeTaxAgeBand struct {
+	MinAge *int            `json:"min_age" binding:"required,gte=0,lte=120"`
+	Slabs  []incomeTaxSlab `json:"slabs" binding:"required,min=1,max=16,dive"`
+}
+
+type incomeTaxRebate struct {
+	IncomeLimitPaise *int64 `json:"income_limit_paise" binding:"required,gte=1,lte=100000000000"`
+	MaxPaise         *int64 `json:"max_paise" binding:"required,gte=1,lte=100000000000"`
+	MarginalRelief   *bool  `json:"marginal_relief" binding:"required"`
+}
+
+type incomeTaxSurcharge struct {
+	AbovePaise *int64 `json:"above_paise" binding:"required,gte=1,lte=100000000000"`
+	RatePpm    *int   `json:"rate_ppm" binding:"required,gte=0,lte=1000000"`
+}
+
+type incomeTaxParams struct {
+	TaxYear                  string               `json:"tax_year" binding:"required,len=7"`
+	StandardDeductionPaise   *int64               `json:"standard_deduction_paise" binding:"required,gte=0,lte=100000000"`
+	TaxableRoundingMode      string               `json:"taxable_rounding_mode" binding:"required,oneof=nearest up down"`
+	TaxableRoundingUnitPaise *int                 `json:"taxable_rounding_unit_paise" binding:"required,oneof=1 50 100 500 1000"`
+	TaxRoundingMode          string               `json:"tax_rounding_mode" binding:"required,oneof=nearest up down"`
+	TaxRoundingUnitPaise     *int                 `json:"tax_rounding_unit_paise" binding:"required,oneof=1 50 100 500 1000"`
+	AgeBands                 []incomeTaxAgeBand   `json:"age_bands" binding:"required,min=1,max=4,dive"`
+	Rebate                   *incomeTaxRebate     `json:"rebate,omitempty"`
+	SurchargeBands           []incomeTaxSurcharge `json:"surcharge_bands" binding:"required,max=8,dive"`
+	CessRatePpm              *int                 `json:"cess_rate_ppm" binding:"required,gte=0,lte=1000000"`
+}
+
 type statutoryRuleInput struct {
 	ExpectedVersion *int64              `json:"expected_version" binding:"required,gte=0"`
-	Kind            string              `json:"kind" binding:"required,oneof=pf esi pt lwf"`
+	Kind            string              `json:"kind" binding:"required,oneof=pf esi pt lwf income_tax_new income_tax_old"`
 	Name            string              `json:"name" binding:"required,max=80"`
 	Covered         *bool               `json:"covered" binding:"required"`
 	EffectiveOn     string              `json:"effective_on" binding:"required,len=10"`
@@ -242,6 +277,7 @@ type statutoryRuleInput struct {
 	Esi             *statutoryEsiParams `json:"esi,omitempty"`
 	Pt              *statutoryPtParams  `json:"pt,omitempty"`
 	Lwf             *statutoryLwfParams `json:"lwf,omitempty"`
+	IncomeTax       *incomeTaxParams    `json:"income_tax,omitempty"`
 }
 
 type statutoryRevision struct {
@@ -261,6 +297,7 @@ type statutoryRevision struct {
 	Esi               *statutoryEsiParams `json:"esi,omitempty" gorm:"-"`
 	Pt                *statutoryPtParams  `json:"pt,omitempty" gorm:"-"`
 	Lwf               *statutoryLwfParams `json:"lwf,omitempty" gorm:"-"`
+	IncomeTax         *incomeTaxParams    `json:"income_tax,omitempty" gorm:"-"`
 	ProposedBySubject string              `json:"proposed_by_subject"`
 	DecidedBySubject  *string             `json:"decided_by_subject,omitempty"`
 	DecidedAt         *time.Time          `json:"decided_at,omitempty"`
@@ -322,4 +359,32 @@ type statutoryPreview struct {
 	EmployeePaise          int64             `json:"employee_paise"`
 	EmployerPaise          int64             `json:"employer_paise"`
 	NetAfterStatutoryPaise int64             `json:"net_after_statutory_paise"`
+}
+
+type incomeTaxPreviewInput struct {
+	On                string `json:"on" binding:"required,len=10"`
+	AnnualIncomePaise *int64 `json:"annual_income_paise" binding:"required,gte=0,lte=100000000000"`
+	Age               *int   `json:"age,omitempty" binding:"omitempty,gte=0,lte=120"`
+}
+
+type incomeTaxResult struct {
+	Kind                   string     `json:"kind"`
+	Status                 string     `json:"status"`
+	RuleID                 *uuid.UUID `json:"rule_id,omitempty"`
+	RevisionID             *uuid.UUID `json:"revision_id,omitempty"`
+	TaxYear                *string    `json:"tax_year,omitempty"`
+	AgeBandMinAge          *int       `json:"age_band_min_age,omitempty"`
+	IncomePaise            int64      `json:"income_paise"`
+	StandardDeductionPaise int64      `json:"standard_deduction_paise"`
+	TaxablePaise           int64      `json:"taxable_paise"`
+	SlabTaxPaise           int64      `json:"slab_tax_paise"`
+	RebatePaise            int64      `json:"rebate_paise"`
+	SurchargePaise         int64      `json:"surcharge_paise"`
+	CessPaise              int64      `json:"cess_paise"`
+	TotalPaise             int64      `json:"total_paise"`
+}
+
+type incomeTaxPreview struct {
+	On      string            `json:"on"`
+	Results []incomeTaxResult `json:"results"`
 }

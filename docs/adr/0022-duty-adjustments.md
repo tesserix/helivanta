@@ -1,6 +1,6 @@
 # ADR 0022: Duty exchanges, overtime and missing-punch corrections
 
-Status: accepted for implementation. Parent: #1038 / #979. Extends ADR-0020 and ADR-0021; spec: [duty exchanges](../superpowers/specs/2026-10-16-duty-exchanges-design.md); plan: [duty adjustments](../superpowers/plans/2026-10-16-duty-adjustments.md).
+Status: accepted for implementation. Parent: #1038 / #979. Extends ADR-0020 and ADR-0021; specs: [duty exchanges](../superpowers/specs/2026-10-16-duty-exchanges-design.md), [overtime](../superpowers/specs/2026-10-16-overtime-design.md); plan: [duty adjustments](../superpowers/plans/2026-10-16-duty-adjustments.md).
 
 ## Requirements and evidence
 
@@ -40,6 +40,6 @@ SOC 2 (CC6.1, CC6.3, CC7.2, CC8.1): segregation between filing and approval, cli
 
 ## UI and delivery
 
-`/workforce/duty-exchanges` lists and files exchanges, shows history and offers decision, cancellation and revocation by permission; the roster grid marks exchanged allocations. Delivery uses GitOps (build → Kargo → Argo); the schema change is additive and rollback keeps data. `scripts/verify-duty-exchanges.mjs` repeats the acceptance checks against a designated synthetic tenant.
+`/workforce/duty-exchanges` lists and files exchanges, shows history and offers decision, cancellation and revocation by permission; the roster grid marks exchanged allocations. `/workforce/overtime` shows the policy and its history, files, decides, withdraws and revokes overtime by permission, and summarises payable minutes by month. Delivery uses GitOps (build → Kargo → Argo); the schema change is additive and rollback keeps data. `scripts/verify-duty-exchanges.mjs` and `scripts/verify-overtime.mjs` repeat the acceptance checks against a designated synthetic tenant.
 
-Not covered by slice 1: counterpart consent given by the staff member themselves (attested by the filer until #1132), credential conflicts (#1108), overtime and missing punches (slices 2 and 3).
+Not covered by slice 1: counterpart consent given by the staff member themselves (attested by the filer until #1132), credential conflicts (#1108), overtime and missing punches (slices 2 and 3). Not covered by slice 2: overtime filed by staff themselves (#1132), payroll period locks, rates and multipliers (#1040) and notifications. Missing punches (slice 3) wait for #1039.

@@ -108,6 +108,12 @@ export const ZONES: Zone[] = [
         icon: CalendarDays,
         permission: "public",
       },
+      {
+        label: "Overtime",
+        href: "/workforce/overtime",
+        icon: CalendarDays,
+        permission: "public",
+      },
     ],
   },
   {

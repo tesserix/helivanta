@@ -41,3 +41,7 @@ The production Next build on localhost:4310 used a loopback-only test API on :80
 Evidence upload/scanning/download, independent maker/checker review, onboarding lifecycle, restricted banking references, bilateral relationships, offers, orders, warehouse fulfilment, deliveries, trade finance, recalls and automation remain under their owning open stories. ADR 0028 describes intended evidence/review architecture, not a claim of implementation. No unused organisation attachment path is included in this slice. Country policy remains review_required; no regulatory approval or SOC 2/HIPAA certification is claimed. Planning SLOs are not load-test results.
 
 Migration `0002_supply` is additive and bounded, creates empty new tables and preserves existing profiles. Code rollback retains immutable data; destructive down migration is intentionally unsupported. Named approval is required before the production migration and rollout.
+
+## Integration with subsequent main changes
+
+Workforce overtime PR #1160 merged as `88f9155` after registry testing. Integrated it without discarding either API export set or either module’s independent architecture/permission assertions. The combined web run passed all 20 tasks and 498 tests (255 shell, 153 API, 90 UI), including the new overtime coverage. Go lint/vet/build passed. The combined full backend race/coverage gate also passed (Supply 83.7%); reloaded the integrated production build and verified both licence revisions and a clean browser console. No workforce implementation was rewritten as part of the registry work.

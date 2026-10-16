@@ -15,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	workspacecontract "github.com/tesserix/helivanta/internal/modules/workspace/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
@@ -26,19 +27,27 @@ import (
 )
 
 const PermBrandingManage authz.Permission = "workspace.branding.manage"
+const PermCountryPolicyManage authz.Permission = "workspace.country_policy.manage"
+const PermCountryPolicyRead authz.Permission = "workspace.country_policy.read"
+const PermCountryPolicyReview authz.Permission = "workspace.country_policy.review"
 
 //go:embed schema.sql
 var schema string
+
+//go:embed country_policy.sql
+var countryPolicySchema string
 
 type Module struct{}
 
 func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "workspace" }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_workspace", SQL: schema}}
+	return []tenantdb.Migration{{ID: "0001_workspace", SQL: schema}, {ID: "0002_workspace_country_policies", SQL: countryPolicySchema}}
 }
-func (*Module) Permissions() []authz.Grant                  { return []authz.Grant{{Permission: PermBrandingManage}} }
-func (*Module) Publishes() []string                         { return nil }
+func (*Module) Permissions() []authz.Grant {
+	return []authz.Grant{{Permission: PermBrandingManage}, {Permission: PermCountryPolicyManage}, {Permission: PermCountryPolicyRead, Roles: []authz.Role{authz.RoleSupplyCompliance, authz.RoleSupplyAuditor}}, {Permission: PermCountryPolicyReview, Roles: []authz.Role{authz.RoleSupplyCompliance}}}
+}
+func (*Module) Publishes() []string                         { return []string{workspacecontract.SubjectCountryPolicyChanged} }
 func (*Module) DirectedSubjects() []string                  { return nil }
 func (*Module) DirectedWriteTables() []string               { return nil }
 func (*Module) Consumers(platform.Deps) []events.Consumer   { return nil }
@@ -48,6 +57,14 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/workspace")
 	g.GET("/branding", authz.Public, h.get)
 	g.PUT("/branding", PermBrandingManage, h.put)
+	g.POST("/country-policies", PermCountryPolicyManage, h.submitCountryPolicy)
+	g.GET("/country-policies/:scope", PermCountryPolicyRead, h.getCountryPolicy)
+	g.POST("/country-policies/:scope/access", PermCountryPolicyManage, h.changeCountryPolicyAccess)
+	g.POST("/country-policies/:scope/review", PermCountryPolicyReview, h.reviewCountryPolicy)
+	g.GET("/country-policies/:scope/versions/:version", PermCountryPolicyRead, h.getCountryPolicyVersion)
+	platform.ListRoute(g, "/country-policies", PermCountryPolicyRead, h.listCountryPolicies)
+	platform.ListRoute(g, "/country-policies/:scope/versions", PermCountryPolicyRead, h.listCountryPolicyVersions)
+	platform.ListRoute(g, "/country-policies/:scope/actions", PermCountryPolicyRead, h.listCountryPolicyActions)
 }
 
 type branding struct {

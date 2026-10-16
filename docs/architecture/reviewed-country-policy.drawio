@@ -1,0 +1,62 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" version="26.0.0">
+  <diagram name="Reviewed country policy">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" page="1" pageWidth="1600" pageHeight="900">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="draft" value="Tenant administrator&#10;Policy version + cited sources" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#667085;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="60" y="100" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="review" value="Independent compliance reviewer&#10;Approve / reject / suspend" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#e1d5e7;strokeColor=#667085;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="360" y="100" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="authority" value="Tenant-scoped policy authority&#10;Configuration API + UI + current-policy preview" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#667085;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="660" y="100" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="command" value="FUTURE INTEGRATION&#10;Pharmacy / Supply command&#10;Verified identity + object scope" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#667085;fontSize=15;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="330" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="gate" value="Exact-scope current-policy guard&#10;Preview wired; trading integrations pending" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff2cc;strokeColor=#667085;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="660" y="330" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="deny" value="Deny restricted commitment&#10;Missing / stale / suspended / unavailable" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#f8cecc;strokeColor=#667085;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="480" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="commit" value="FUTURE INTEGRATION&#10;Additional licence / relationship / credit / stock checks&#10;Atomic business write + audit + outbox" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#667085;fontSize=15;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="250" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="bus" value="NATS JetStream&#10;At-least-once + idempotent consumers" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#667085;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="660" y="650" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="e0" value="Immutable submission" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;endArrow=block;" edge="1" parent="1" source="draft" target="review">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="Append reviewed decision" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;endArrow=block;" edge="1" parent="1" source="review" target="authority">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="Evaluate exact scope" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;endArrow=block;dashed=1;" edge="1" parent="1" source="command" target="gate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="Strict tenant RLS" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;endArrow=block;" edge="1" parent="1" source="authority" target="gate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="Denied" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;endArrow=block;" edge="1" parent="1" source="gate" target="deny">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="Eligible" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;endArrow=block;dashed=1;" edge="1" parent="1" source="gate" target="commit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="Committed outbox" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;endArrow=block;dashed=1;" edge="1" parent="1" source="commit" target="bus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="scope-note" value="#1182: configuration, independent review, audit and preview implemented locally.&#10;Dotted paths remain under #1134; no legal approval or trading activation is claimed." style="text;whiteSpace=wrap;html=0;fontSize=17;align=left;" vertex="1" parent="1">
+          <mxGeometry x="60" y="20" width="1450" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="Atomic policy change + audit + outbox" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=0;endArrow=block;" edge="1" parent="1" source="authority" target="bus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

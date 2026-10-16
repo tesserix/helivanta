@@ -10,6 +10,13 @@ function canWith(granted: string[]): (permission: string) => boolean {
 }
 
 describe("visibleZones", () => {
+  it("opens country policies for a reviewer without branding administration", () => {
+    const settings = visibleZones(canWith(["workspace.country_policy.read"])).find(
+      (zone) => zone.key === "settings",
+    );
+    expect(settings?.href).toBe("/settings/country-policies");
+    expect(settings?.pages.map((page) => page.label)).toEqual(["Country policies"]);
+  });
   it("opens PharmaConnect at the first permitted pharmacy screen", () => {
     const pharmacy = visibleZones(canWith(["pharmacy.catalogue.read"])).find(
       (zone) => zone.key === "pharmacy",

@@ -2,7 +2,7 @@
 
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useRef } from "react";
-import { POLL_INTERVAL_MS, apiFetch } from "./client";
+import { POLL_INTERVAL_MS, apiFetch, type ApiQueryRequest } from "./client";
 
 /** The paginated envelope every collection endpoint returns (#816). */
 export type Page<T> = {
@@ -43,18 +43,18 @@ export type UseApiPagedQueryResult<T> = {
 export function useApiPagedQuery<T>(
   key: unknown[],
   path: string,
-  opts: { poll?: boolean; request?: { method: "POST"; body: string }; enabled?: boolean } = {},
+  opts: { poll?: boolean; request?: ApiQueryRequest; enabled?: boolean } = {},
 ): UseApiPagedQueryResult<T> {
   const query = useInfiniteQuery({
     queryKey: [...key, path, opts.request?.body ?? null],
     enabled: opts.enabled,
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) =>
+    queryFn: ({ pageParam, signal }) =>
       apiFetch<Page<T>>(
         pageParam
           ? `${path}${path.includes("?") ? "&" : "?"}cursor=${encodeURIComponent(pageParam)}`
           : path,
-        opts.request,
+        { ...opts.request, signal },
       ),
     getNextPageParam: (last) => (last.page.has_more ? last.page.next_cursor : undefined),
     refetchInterval: opts.poll ? POLL_INTERVAL_MS : undefined,

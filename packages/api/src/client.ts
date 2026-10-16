@@ -2,6 +2,13 @@ const API_PREFIX = "/api/v1";
 
 export const POLL_INTERVAL_MS = 3000;
 
+export type ApiQueryRequest = {
+  method?: "GET" | "POST";
+  body?: string;
+  headers?: HeadersInit;
+  cache?: RequestCache;
+};
+
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number;

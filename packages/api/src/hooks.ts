@@ -9,7 +9,7 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { POLL_INTERVAL_MS, apiFetch } from "./client";
+import { POLL_INTERVAL_MS, apiFetch, type ApiQueryRequest } from "./client";
 
 // Borrowed from React Query rather than restated: it guards `placeholderData`
 // with a conditional type it does not export, so a hand-written `T` is
@@ -27,11 +27,12 @@ export function useApiQuery<T>(
     enabled?: boolean;
     gcTime?: number;
     refetchOnWindowFocus?: boolean;
+    request?: ApiQueryRequest;
   } = {},
 ): UseQueryResult<T, Error> {
   return useQuery({
     queryKey: key,
-    queryFn: () => apiFetch<T>(path),
+    queryFn: ({ signal }) => apiFetch<T>(path, { ...opts.request, signal }),
     refetchInterval: opts.poll ? POLL_INTERVAL_MS : undefined,
     // placeholderData, not initialData: it is shown while the request is
     // in flight but never written to the query cache, so a locally cached

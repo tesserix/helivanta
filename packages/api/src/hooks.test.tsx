@@ -10,6 +10,13 @@ function QueryProbe() {
   return <p>{q.data.data[0].id}</p>;
 }
 
+function ScopedQueryProbe() {
+  useApiQuery(["scoped-probe", "TEST-tenant"], "/probe", {
+    request: { headers: { "X-Helivanta-Expected-Tenant": "TEST-tenant" } },
+  });
+  return <p>Scoped request</p>;
+}
+
 function MutationProbe() {
   const m = useApiMutation(() => Promise.reject(new Error("nope")));
   return <button onClick={() => m.mutate(undefined)}>go</button>;
@@ -31,6 +38,24 @@ function SilentMutationProbe() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("useApiQuery", () => {
+  it("pins the expected tenant and aborts an in-flight request when unmounted", async () => {
+    const fetcher = vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        }),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    const view = renderWithProviders(<ScopedQueryProbe />);
+    await waitFor(() => expect(fetcher).toHaveBeenCalledOnce());
+    const request = fetcher.mock.calls[0][1];
+    expect(new Headers(request.headers).get("X-Helivanta-Expected-Tenant")).toBe("TEST-tenant");
+    expect(request.signal).toBeInstanceOf(AbortSignal);
+    view.unmount();
+    expect(request.signal?.aborted).toBe(true);
+  });
   it("fetches through apiFetch and renders data", async () => {
     vi.stubGlobal(
       "fetch",

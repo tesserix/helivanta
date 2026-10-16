@@ -133,9 +133,15 @@ export const ZONES: Zone[] = [
     label: "Settings",
     icon: Settings,
     href: "/settings/branding",
-    permission: "workspace.branding.manage",
+    permission: "public",
     hue: "violet",
     pages: [
+      {
+        label: "Country policies",
+        href: "/settings/country-policies",
+        icon: Settings,
+        permission: "workspace.country_policy.read",
+      },
       {
         label: "Branding",
         href: "/settings/branding",

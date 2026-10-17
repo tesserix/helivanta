@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useNow } from "@/lib/use-now";
 import { z } from "zod";
 import { Button } from "@tesserix/web";
 import { FileCheck2, FileText, Loader2, ShieldCheck, X } from "lucide-react";
@@ -155,6 +156,7 @@ function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
   const records = useDocumentRecords(scope, true);
   const [cursor, setCursor] = useState<string | null>(null);
   const documents = useStaffDocuments(scope, cursor, true);
+  const now = useNow();
   const [purpose, setPurpose] = useState<DocumentInput["category"]>("employment_evidence");
   const [recordKey, setRecordKey] = useState("");
   const form = useZodForm(fileFormSchema, { file: null });
@@ -167,6 +169,8 @@ function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
   const prepared = useRef<DocumentUpload | null>(null);
   const controller = useRef<AbortController | null>(null);
   const retryAttempts = useRef(new Map<string, number>());
+  // Render mirror of `retryAttempts`: which documents have an unconfirmed retry to replay.
+  const [pendingRetries, setPendingRetries] = useState<ReadonlySet<string>>(new Set());
   const fileInput = useRef<HTMLInputElement>(null);
   const urls = useRef(new Set<string>());
   useEffect(() => {
@@ -234,8 +238,10 @@ function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
         const attempt =
           retryAttempts.current.get(operation.document.id) ?? operation.document.scan_attempt + 1;
         retryAttempts.current.set(operation.document.id, attempt);
+        setPendingRetries(new Set(retryAttempts.current.keys()));
         result = await retryDocumentScan(scope, operation.document.id, attempt, active.signal);
         retryAttempts.current.delete(operation.document.id);
+        setPendingRetries(new Set(retryAttempts.current.keys()));
       } else if (operation.kind === "revoke") {
         result = await revokeStaffDocument(scope, operation.document.id, active.signal);
       } else {
@@ -503,7 +509,7 @@ function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
         <ul className="mt-4 divide-y rounded-xl border">
           {documents.data?.data.map((document) => {
             const expired =
-              document.status === "upload_pending" && Date.parse(document.expires_at) < Date.now();
+              document.status === "upload_pending" && Date.parse(document.expires_at) < now;
             return (
               <li key={document.id} className="p-5">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -563,9 +569,7 @@ function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
                         action.mutate({ kind: "retry", document });
                       }}
                     >
-                      {retryAttempts.current.has(document.id)
-                        ? "Retry previous request"
-                        : "Retry scan"}
+                      {pendingRetries.has(document.id) ? "Retry previous request" : "Retry scan"}
                     </Button>
                   )}
                   {document.status === "upload_pending" && !expired && (

@@ -75,6 +75,8 @@ export function LicenceEvidence({ scope, licence, roles, onClose }: Props) {
   const controller = useRef<AbortController | null>(null);
   const busy = useRef(false);
   const prepared = useRef<SupplyEvidenceUpload | null>(null);
+  // Mirrors `prepared` for rendering: a prepared upload whose submission failed is retried as-is.
+  const [retryable, setRetryable] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const urls = useRef(new Set<string>());
   const [revoking, setRevoking] = useState<SupplyEvidence | null>(null);
@@ -146,6 +148,7 @@ export function LicenceEvidence({ scope, licence, roles, onClose }: Props) {
     mutation.mutate(operation, {
       onSettled: () => {
         busy.current = false;
+        setRetryable(prepared.current !== null);
       },
     });
   }
@@ -192,7 +195,7 @@ export function LicenceEvidence({ scope, licence, roles, onClose }: Props) {
           {write && (
             <form
               className="my-5 space-y-3 rounded-xl border bg-muted/20 p-4"
-              onSubmit={form.handleSubmit(() => perform({ kind: "upload" }))}
+              onSubmit={(event) => void form.handleSubmit(() => perform({ kind: "upload" }))(event)}
             >
               <Field
                 label="Licence evidence image"
@@ -208,6 +211,7 @@ export function LicenceEvidence({ scope, licence, roles, onClose }: Props) {
                   className="w-full min-w-0 rounded-md border p-2 text-sm"
                   onChange={(event) => {
                     prepared.current = null;
+                    setRetryable(false);
                     mutation.reset();
                     form.setValue("file", event.target.files?.[0] ?? null, {
                       shouldValidate: true,
@@ -219,11 +223,7 @@ export function LicenceEvidence({ scope, licence, roles, onClose }: Props) {
                 PNG or JPEG · Up to 10 MiB · Saved against revision {licence.version}
               </p>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending
-                  ? "Working…"
-                  : prepared.current
-                    ? "Retry upload"
-                    : "Upload evidence"}
+                {mutation.isPending ? "Working…" : retryable ? "Retry upload" : "Upload evidence"}
               </Button>
             </form>
           )}

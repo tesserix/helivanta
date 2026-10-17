@@ -288,15 +288,17 @@ function ReviewForm({
       noValidate
       aria-label={actionLabels[action]}
       className="space-y-4 rounded-xl border bg-background p-4 sm:p-5"
-      onSubmit={form.handleSubmit((input) => {
-        if (busy.current) return;
-        busy.current = true;
-        mutation.mutate(input, {
-          onSettled: () => {
-            busy.current = false;
-          },
-        });
-      })}
+      onSubmit={(event) =>
+        void form.handleSubmit((input) => {
+          if (busy.current) return;
+          busy.current = true;
+          mutation.mutate(input, {
+            onSettled: () => {
+              busy.current = false;
+            },
+          });
+        })(event)
+      }
     >
       <h6 className="font-semibold">{actionLabels[action]}</h6>
       <fieldset disabled={mutation.isPending} className="space-y-4">

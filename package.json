@@ -22,7 +22,7 @@
   "pnpm": {
     "overrides": {
       "nanoid": "^3.3.18",
-      "postcss": "^8.5.23",
+      "postcss": "^8.5.30",
       "sharp": "^0.35.0",
       "brace-expansion@<1.1.21": "^1.1.21",
       "brace-expansion@>=4 <5.0.12": "^5.0.12",

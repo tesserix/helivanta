@@ -48,6 +48,7 @@ export * from "./country-profiles";
 export * from "./trading-policy";
 
 export * from "./supply";
+export * from "./supply-identity";
 export * from "./duty";
 export * from "./supply-registration";
 export * from "./overtime";

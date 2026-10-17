@@ -3,6 +3,7 @@ import { apiFetch, apiFetchResponse } from "./client";
 import { readAttachmentFile } from "./attachment-file";
 import { supplyEvidenceInputSchema as generatedEvidenceInputSchema } from "./supply-contract";
 import { supplyRegistryKey, type SupplyRegistryScope } from "./supply-registration";
+import { supplyHeaders } from "./supply";
 
 const filename = generatedEvidenceInputSchema.shape.filename.refine(
   (value) =>
@@ -64,7 +65,7 @@ export function supplyEvidenceRoot(scope: SupplyEvidenceScope) {
 }
 export function supplyEvidenceHeaders(scope: SupplyEvidenceScope) {
   supplyEvidenceRoot(scope);
-  return new Headers({ "X-Helivanta-Expected-Tenant": scope.tenantId });
+  return supplyHeaders(scope);
 }
 export function supplyEvidenceReceipt(scope: SupplyEvidenceScope, value: unknown, id?: string) {
   const saved = supplyEvidenceSchema.parse(value);

@@ -19,6 +19,7 @@ import { Field, LoadMore, useZodForm, formatDateTime } from "@helivanta/ui";
 import { RequestFailure } from "../request-failure";
 import { PartyEditor } from "./party-editor";
 import { PartyRegistration } from "./party-registration";
+import { PlatformIdentity } from "./platform-identity";
 import { WorkspaceConnections } from "../workspace-connections";
 
 const searchSchema = z.object({ query: z.string().trim().max(200) });
@@ -394,6 +395,13 @@ function PrivateParty({
           </ul>
         )}
       </section>
+      {party.record_kind === "owned_organisation" && (
+        <PlatformIdentity
+          key={`${scope.tenantId}:${scope.subject}:${id}:${party.version}`}
+          scope={{ ...scope, partyId: id }}
+          partyVersion={party.version}
+        />
+      )}
       <PartyRegistration
         scope={{ ...scope, partyId: id }}
         country={party.country_code}

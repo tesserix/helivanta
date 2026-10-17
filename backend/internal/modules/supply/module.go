@@ -60,8 +60,9 @@ func (*Module) Migrations() []tenantdb.Migration {
 	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
-	h := &handlers{db: deps.DB, bus: deps.Bus}
+	h := &handlers{db: deps.DB, bus: deps.Bus, identity: deps.OrganizationIdentity}
 	g := r.Group("/supply")
+	g.GET("/parties/:party/platform-identity", PermPartyRead, h.getPlatformIdentity)
 	g.PUT("/parties/:party/licenses/:license/reviews/:review", PermLicenseSubmit, h.putLicenseReview)
 	g.GET("/parties/:party/licenses/:license/review", PermLicenseRead, h.getLicenseReview)
 	platform.ListRoute(g, "/parties/:party/licenses/:license/reviews", PermLicenseRead, h.listLicenseReviews)

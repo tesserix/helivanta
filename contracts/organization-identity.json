@@ -1,0 +1,32 @@
+{
+  "models": {
+    "Revisions": [
+      { "name": "organization", "type": "string", "min": 1, "max": 20 },
+      { "name": "metadata", "type": "string", "min": 1, "max": 20 },
+      { "name": "project", "type": "string", "min": 1, "max": 20 },
+      { "name": "grant", "type": "string", "min": 1, "max": 20 }
+    ],
+    "Proof": [
+      { "name": "schema_version", "type": "int", "min": 1, "max": 1 },
+      { "name": "tenant_id", "type": "uuid" },
+      { "name": "product_key", "type": "string", "min": 1, "max": 200 },
+      { "name": "organization_id", "type": "string", "min": 1, "max": 200 },
+      { "name": "project_id", "type": "string", "min": 1, "max": 200 },
+      { "name": "grant_id", "type": "string", "min": 1, "max": 200 },
+      { "name": "state", "type": "string", "enum": ["active", "inactive"] },
+      { "name": "verified_at", "type": "time" },
+      { "name": "source_revisions", "type": "Revisions" }
+    ],
+    "PartyProof": [
+      { "name": "party_id", "type": "uuid" },
+      {
+        "name": "party_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      { "name": "identity", "type": "Proof" },
+      { "name": "trading_approved", "type": "bool" }
+    ]
+  }
+}

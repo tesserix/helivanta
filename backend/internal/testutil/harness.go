@@ -19,6 +19,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/organizationidentity"
 	"github.com/tesserix/helivanta/pkg/session"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -161,12 +162,13 @@ func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
 // SessionSigner/SessionTTL explicitly, typically from
 // NewSessionSignerForTest.
 type HarnessOptions struct {
-	Documents  *attachments.GCS
-	Tokens     map[string]string
-	Perms      map[string][]authz.Permission
-	Writer     platform.TupleWriter
-	Roles      platform.RoleLister
-	Membership authz.MembershipChecker
+	OrganizationIdentity *organizationidentity.Client
+	Documents            *attachments.GCS
+	Tokens               map[string]string
+	Perms                map[string][]authz.Permission
+	Writer               platform.TupleWriter
+	Roles                platform.RoleLister
+	Membership           authz.MembershipChecker
 	// Revocation defaults to a checker that answers "never revoked" for
 	// every subject — see neverRevoked's doc comment. Set it explicitly
 	// to exercise the credential-revocation gate in authn.Middleware
@@ -281,8 +283,9 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	t.Cleanup(bus.Close)
 
 	deps := platform.Deps{
-		Documents: opts.Documents,
-		DB:        db, Bus: bus, Authz: writer, Roles: roles,
+		OrganizationIdentity: opts.OrganizationIdentity,
+		Documents:            opts.Documents,
+		DB:                   db, Bus: bus, Authz: writer, Roles: roles,
 		SessionSigner:       opts.SessionSigner,
 		SessionTTL:          opts.SessionTTL,
 		SessionSecureCookie: opts.SessionSecureCookie,

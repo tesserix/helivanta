@@ -75,6 +75,9 @@ export type SupplyPartyRevision = {
   created_at: string;
 };
 export type SupplyScope = { tenantId: string; subject: string };
+export function supplyHeaders(scope: SupplyScope) {
+  return new Headers({ "X-Helivanta-Expected-Tenant": scope.tenantId });
+}
 export function supplyKey(scope: SupplyScope, ...parts: unknown[]) {
   return ["supply", scope.tenantId, scope.subject, ...parts];
 }

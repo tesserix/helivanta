@@ -797,3 +797,134 @@ export const taxRegimeRevisionContract = z
   })
   .strict();
 export type TaxRegimeRevision = z.infer<typeof taxRegimeRevisionContract>;
+
+export const staffBankChangeContract = z
+  .object({
+    action: z.enum(["keep", "set", "clear"]),
+    account_number: z
+      .string()
+      .max(18)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    ifsc: z
+      .string()
+      .max(11)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    holder_name: z
+      .string()
+      .trim()
+      .max(150)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+  })
+  .strict();
+export type StaffBankChange = z.infer<typeof staffBankChangeContract>;
+
+export const staffIdentifierChangeContract = z
+  .object({
+    action: z.enum(["keep", "set", "clear"]),
+    value: z
+      .string()
+      .max(12)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+  })
+  .strict();
+export type StaffIdentifierChange = z.infer<typeof staffIdentifierChangeContract>;
+
+export const staffIdentifiersInputContract = z
+  .object({
+    expected_version: z.number().int().min(0),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    bank: staffBankChangeContract,
+    pan: staffIdentifierChangeContract,
+    uan: staffIdentifierChangeContract,
+  })
+  .strict();
+export type StaffIdentifiersInput = z.infer<typeof staffIdentifiersInputContract>;
+
+export const staffIdentifierRevisionContract = z
+  .object({
+    id: identifier,
+    staff_id: identifier,
+    sequence: z.number().int(),
+    base_version: z.number().int(),
+    status: z.enum(["pending", "approved", "rejected", "withdrawn"]),
+    approved_version: z.number().int().optional(),
+    reason: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    bank_account_masked: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    bank_ifsc: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    bank_holder_name: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    pan_masked: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    uan_masked: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    proposed_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    decided_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    decided_at: z.string().datetime({ offset: true }).optional(),
+    decision_note: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type StaffIdentifierRevision = z.infer<typeof staffIdentifierRevisionContract>;
+
+export const staffIdentifiersContract = z
+  .object({
+    staff_id: identifier,
+    version: z.number().int(),
+    current: staffIdentifierRevisionContract.optional(),
+    pending: staffIdentifierRevisionContract.optional(),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type StaffIdentifiers = z.infer<typeof staffIdentifiersContract>;
+
+export const staffIdentifierRevealInputContract = z
+  .object({
+    revision_id: identifier,
+    field: z.enum(["bank_account", "pan", "uan"]),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type StaffIdentifierRevealInput = z.infer<typeof staffIdentifierRevealInputContract>;
+
+export const staffIdentifierRevealContract = z
+  .object({
+    revision_id: identifier,
+    field: z.enum(["bank_account", "pan", "uan"]),
+    value: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type StaffIdentifierReveal = z.infer<typeof staffIdentifierRevealContract>;

@@ -28,6 +28,10 @@ type Config struct {
 	TemporalNamespace                  string
 	DocumentWorkerDatabaseURL          string
 	ClamAVAddress                      string
+	OpenBaoAddr                        string
+	OpenBaoTransitMount                string
+	OpenBaoAuthRole                    string
+	OpenBaoTokenPath                   string
 	OrganizationIdentityURL            string
 	OrganizationIdentityProductKey     string
 	OrganizationIdentityTokenProjectID string
@@ -234,6 +238,10 @@ func Load() Config {
 		TemporalNamespace:                  os.Getenv("TEMPORAL_NAMESPACE"),
 		DocumentWorkerDatabaseURL:          os.Getenv("DOCUMENT_WORKER_DATABASE_URL"),
 		ClamAVAddress:                      os.Getenv("CLAMAV_ADDRESS"),
+		OpenBaoAddr:                        os.Getenv("OPENBAO_ADDR"),
+		OpenBaoTransitMount:                os.Getenv("OPENBAO_TRANSIT_MOUNT"),
+		OpenBaoAuthRole:                    os.Getenv("OPENBAO_AUTH_ROLE"),
+		OpenBaoTokenPath:                   os.Getenv("OPENBAO_TOKEN_PATH"),
 		OrganizationIdentityURL:            os.Getenv("ORGANIZATION_IDENTITY_URL"),
 		OrganizationIdentityProductKey:     os.Getenv("ORGANIZATION_IDENTITY_PRODUCT_KEY"),
 		OrganizationIdentityTokenProjectID: os.Getenv("ORGANIZATION_IDENTITY_TOKEN_PROJECT_ID"),

@@ -75,6 +75,10 @@ var redactionPatterns = []struct {
 	// was masked as an Aadhaar; with it, about 8% of arbitrary 12-digit
 	// numbers still are, and every real one is.
 	{"aadhaar", bounded(`[2-9]\d{3}[-\s]?\d{4}[-\s]?\d{4}`), verhoeffValid},
+	// UAN: EPFO's 12-digit number, issued from 10; the Aadhaar rule above never starts with 1.
+	{"uan", bounded(`10\d{10}`), nil},
+	// PAN: five letters, four digits, a letter, in either case.
+	{"pan", bounded(`(?i:[a-z]{5}\d{4}[a-z])`), nil},
 	// Indian mobile, bare: 10 digits beginning 5-9, 5-5 grouping accepted.
 	{"mobile", bounded(`[5-9]\d{4}[-\s]?\d{5}`), nil},
 }
@@ -283,6 +287,7 @@ func (rw *redactingWriter) Write(p []byte) (int, error) {
 //   - aadhaar is three `\d{4}` groups; each one alone clears the bar.
 //   - abha's `\d{2}` head is short, but it is always followed by three
 //     `\d{4}` groups, each of which clears the bar on its own.
+//   - uan is twelve contiguous digits, and pan carries an unbroken `\d{4}`.
 //
 // And digits are never escaped in valid JSON output: `encoding/json` (which
 // is what slog's JSON handler uses) only ever escapes control characters,

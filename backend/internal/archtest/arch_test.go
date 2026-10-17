@@ -380,6 +380,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/hr/attendance/periods/:period":             "one timesheet period",
 	"GET /workforce/hospitals/:hospital/hr/attendance-totals":                      "one date's aggregate counts",
 	"GET /workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment": "one staff member's assignment with at most its current and pending revisions",
+	"GET /workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers":       "one staff member's masked identifiers with at most their current and pending revisions",
 	"GET /workforce/hospitals/:hospital/staff/:id/attendance":                      "one person's derived days over a bounded range of at most 42 days",
 }
 

@@ -32,6 +32,12 @@ func TestRedactPatterns(t *testing.T) {
 		{"mobile 5-5 grouping", "call 98765 43210 now", "call [REDACTED:mobile] now"},
 		{"mobile plus91 5-5", "call +91 98765 43210 now", "call [REDACTED:mobile] now"},
 		{"mobile starting five", "call 5876543210 now", "call [REDACTED:mobile] now"},
+		{"pan", "pan AAAPZ1234Z end", "pan [REDACTED:pan] end"},
+		{"pan lower case", "pan=aaapz1234z", "pan=[REDACTED:pan]"},
+		{"uan", "uan 100000000001 end", "uan [REDACTED:uan] end"},
+		{"pan inside a longer token untouched", "ref_AAAPZ1234Z9", "ref_AAAPZ1234Z9"},
+		{"pan-like but four letters untouched", "code AAAP1234Z", "code AAAP1234Z"},
+		{"uan-like starting 11 untouched", "n 110000000001", "n 110000000001"},
 		{"two values in one string", "a 234567890124 b 9876543210", "a [REDACTED:aadhaar] b [REDACTED:mobile]"},
 		// Two matches of the SAME pattern sharing one separator. The first
 		// match consumes the space, so a single pass would leave the second

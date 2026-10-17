@@ -22,12 +22,14 @@ import (
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/transit"
 )
 
 type handlers struct {
 	db        *tenantdb.DB
 	bus       *events.Bus
 	documents *attachments.GCS
+	transit   *transit.Client
 }
 
 type hospital struct {

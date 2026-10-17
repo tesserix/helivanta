@@ -479,3 +479,64 @@ type taxRegimeRevision struct {
 	RecordedBySubject string    `json:"recorded_by_subject"`
 	CreatedAt         time.Time `json:"created_at"`
 }
+
+type staffBankChange struct {
+	Action        string  `json:"action" binding:"required,oneof=keep set clear"`
+	AccountNumber *string `json:"account_number,omitempty" binding:"omitempty,max=18"`
+	Ifsc          *string `json:"ifsc,omitempty" binding:"omitempty,max=11"`
+	HolderName    *string `json:"holder_name,omitempty" binding:"omitempty,max=150"`
+}
+
+type staffIdentifierChange struct {
+	Action string  `json:"action" binding:"required,oneof=keep set clear"`
+	Value  *string `json:"value,omitempty" binding:"omitempty,max=12"`
+}
+
+type staffIdentifiersInput struct {
+	ExpectedVersion *int64                `json:"expected_version" binding:"required,gte=0"`
+	Reason          string                `json:"reason" binding:"required,max=500"`
+	Bank            staffBankChange       `json:"bank" binding:"required"`
+	Pan             staffIdentifierChange `json:"pan" binding:"required"`
+	Uan             staffIdentifierChange `json:"uan" binding:"required"`
+}
+
+type staffIdentifierRevision struct {
+	ID                uuid.UUID  `json:"id"`
+	StaffID           uuid.UUID  `json:"staff_id"`
+	Sequence          int        `json:"sequence"`
+	BaseVersion       int64      `json:"base_version"`
+	Status            string     `json:"status"`
+	ApprovedVersion   *int64     `json:"approved_version,omitempty"`
+	Reason            string     `json:"reason"`
+	BankAccountMasked *string    `json:"bank_account_masked,omitempty"`
+	BankIfsc          *string    `json:"bank_ifsc,omitempty"`
+	BankHolderName    *string    `json:"bank_holder_name,omitempty"`
+	PanMasked         *string    `json:"pan_masked,omitempty"`
+	UanMasked         *string    `json:"uan_masked,omitempty"`
+	ProposedBySubject string     `json:"proposed_by_subject"`
+	DecidedBySubject  *string    `json:"decided_by_subject,omitempty"`
+	DecidedAt         *time.Time `json:"decided_at,omitempty"`
+	DecisionNote      string     `json:"decision_note"`
+	CreatedAt         time.Time  `json:"created_at"`
+}
+
+type staffIdentifiers struct {
+	StaffID   uuid.UUID                `json:"staff_id"`
+	Version   int64                    `json:"version"`
+	Current   *staffIdentifierRevision `json:"current,omitempty" gorm:"-"`
+	Pending   *staffIdentifierRevision `json:"pending,omitempty" gorm:"-"`
+	CreatedAt time.Time                `json:"created_at"`
+	UpdatedAt time.Time                `json:"updated_at"`
+}
+
+type staffIdentifierRevealInput struct {
+	RevisionID uuid.UUID `json:"revision_id" binding:"required"`
+	Field      string    `json:"field" binding:"required,oneof=bank_account pan uan"`
+	Reason     string    `json:"reason" binding:"required,max=200"`
+}
+
+type staffIdentifierReveal struct {
+	RevisionID uuid.UUID `json:"revision_id"`
+	Field      string    `json:"field"`
+	Value      string    `json:"value"`
+}

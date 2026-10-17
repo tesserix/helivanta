@@ -35,6 +35,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/ratelimit"
 	"github.com/tesserix/helivanta/pkg/session"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/transit"
 )
 
 // sessionSigningKeyID is the `kid` Helivanta's session tokens carry until key
@@ -214,6 +215,17 @@ func run() error {
 		}
 		defer workflows.Close()
 	}
+	transitEnabled, err := cfg.RequireTransit()
+	if err != nil {
+		return err
+	}
+	var vault *transit.Client
+	if transitEnabled {
+		vault, err = transit.New(cfg.OpenBaoAddr, cfg.OpenBaoTransitMount, transit.KubernetesLogin(cfg.OpenBaoAuthRole, cfg.OpenBaoTokenPath), nil)
+		if err != nil {
+			return err
+		}
+	}
 
 	// OpenWithSystem, not Open: this binary reconciles authorization,
 	// drains the outbox and prunes retention, and all three read across
@@ -353,6 +365,7 @@ func run() error {
 	deps := platform.Deps{
 		OrganizationIdentity: identityClient,
 		Documents:            documents,
+		Transit:              vault,
 		Workflows:            workflows,
 		DB:                   db,
 		Bus:                  bus,

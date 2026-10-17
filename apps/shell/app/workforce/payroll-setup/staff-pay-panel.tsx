@@ -27,6 +27,7 @@ import { Failure, inputClass } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Fact, RevisionHistory, structuresKey } from "./payroll-workspace";
 import { StaffPayEditor } from "./staff-pay-editor";
+import { StaffIdentifiers } from "./staff-identifiers";
 import { StaffPayPreview } from "./staff-pay-preview";
 import { TaxRegimes } from "./tax-regimes";
 
@@ -268,6 +269,7 @@ function StaffPay({
         <StaffPayPreview path={staffPayPath(base, member.id)} onClose={close} />
       )}
       <TaxRegimes hospital={hospital.id} base={base} staff={member.id} writable={writable} />
+      <StaffIdentifiers hospital={hospital} base={base} member={member} writable={writable} />
     </>
   );
 }

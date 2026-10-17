@@ -25,7 +25,7 @@ func syntheticIncomeTax() incomeTaxParams {
 
 func taxOn(p incomeTaxParams, taxable int64, age *int) incomeTaxResult {
 	res := incomeTaxResult{}
-	calculateIncomeTax(p, taxable+*p.StandardDeductionPaise, age, &res)
+	calculateIncomeTax(p, taxable+*p.StandardDeductionPaise, age, incomeTaxClaimsIn{}, &res)
 	return res
 }
 
@@ -101,7 +101,7 @@ func TestIncomeTaxRoundingAndDeduction(t *testing.T) {
 	require.EqualValues(t, 10101000, taxOn(p, 10100500, nil).TaxablePaise, "half a unit rounds up")
 
 	low := incomeTaxResult{}
-	calculateIncomeTax(syntheticIncomeTax(), 500000, nil, &low)
+	calculateIncomeTax(syntheticIncomeTax(), 500000, nil, incomeTaxClaimsIn{}, &low)
 	require.EqualValues(t, 500000, low.StandardDeductionPaise, "the deduction is limited to the income")
 	require.EqualValues(t, 0, low.TaxablePaise)
 	require.EqualValues(t, 0, low.TotalPaise)

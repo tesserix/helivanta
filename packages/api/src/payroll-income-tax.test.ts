@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import {
+  blankClaim,
   describeStatutoryRevision,
   incomeTaxPreviewFormSchema,
   incomeTaxPreviewPath,
@@ -49,6 +50,8 @@ const incomeTax = {
     { above: "1,00,00,000", rate: "20" },
   ],
   cess_rate: "5",
+  claim_groups: [] as { code: string; label: string; cap: string }[],
+  claims: [] as ReturnType<typeof blankClaim>[],
 };
 const form = {
   ...newStatutoryRuleForm("income_tax_new", "2026-04-01"),
@@ -295,7 +298,13 @@ it("round-trips an income-tax revision and describes it", () => {
 });
 
 it("validates and converts the income-tax preview", () => {
-  const preview = { on: "2026-10-01", annual_income: "12,00,000.50", age: "" };
+  const preview = {
+    on: "2026-10-01",
+    annual_income: "12,00,000.50",
+    age: "",
+    claims: [],
+    hra: { received: "", salary: "", rent_paid: "", city: "" },
+  };
   expect(toIncomeTaxPreviewInput(incomeTaxPreviewFormSchema.parse(preview))).toEqual({
     on: "2026-10-01",
     annual_income_paise: 120_000_050,
@@ -313,4 +322,209 @@ it("validates and converts the income-tax preview", () => {
   expect(paths(incomeTaxPreviewFormSchema, { ...preview, age: "121" })).toEqual(["age"]);
   expect(paths(incomeTaxPreviewFormSchema, { ...preview, age: "6.5" })).toEqual(["age"]);
   expect(paths(incomeTaxPreviewFormSchema, { ...preview, on: "2026-13-01" })).toEqual(["on"]);
+});
+
+// Synthetic claim heads only: HRA at 10%/50%/40%, one ₹15,000 group over two investments and ₹20,000 interest.
+const claimHead = (patch: Partial<ReturnType<typeof blankClaim>>) => ({
+  ...blankClaim(),
+  ...patch,
+});
+const claims = {
+  claim_groups: [{ code: "invest", label: " Investments ", cap: "15,000" }],
+  claims: [
+    claimHead({
+      code: "HRA",
+      label: "House rent",
+      kind: "hra",
+      cap: "9",
+      cap_group: "INVEST",
+      rent_excess_rate: "10",
+      metro_rate: "50",
+      other_rate: "40",
+      landlord_pan_above: "1,00,000",
+    }),
+    claimHead({
+      code: "savings",
+      label: "Savings",
+      kind: "deduction",
+      cap: "12,000",
+      cap_group: "invest",
+    }),
+    claimHead({ code: "PENSION", label: "Pension", kind: "deduction", cap_group: "INVEST" }),
+    claimHead({
+      code: "HOMELOAN",
+      label: "Home loan interest",
+      kind: "house_property_interest",
+      cap: "20,000",
+      cap_group: "INVEST",
+    }),
+  ],
+};
+
+it("converts claim heads, sending only each kind's own fields", () => {
+  const input = toStatutoryRuleInput(statutoryRuleFormSchema.parse(withTax(claims)));
+  expect(statutoryRuleInputContract.parse(input)).toEqual(input);
+  expect(input.income_tax?.claim_groups).toEqual([
+    { code: "INVEST", label: "Investments", cap_paise: 1_500_000 },
+  ]);
+  expect(input.income_tax?.claims).toEqual([
+    {
+      code: "HRA",
+      label: "House rent",
+      kind: "hra",
+      hra_rent_excess_rate_ppm: 100_000,
+      hra_metro_rate_ppm: 500_000,
+      hra_other_rate_ppm: 400_000,
+      landlord_pan_rent_above_paise: 10_000_000,
+    },
+    {
+      code: "SAVINGS",
+      label: "Savings",
+      kind: "deduction",
+      cap_paise: 1_200_000,
+      cap_group: "INVEST",
+    },
+    { code: "PENSION", label: "Pension", kind: "deduction", cap_group: "INVEST" },
+    {
+      code: "HOMELOAN",
+      label: "Home loan interest",
+      kind: "house_property_interest",
+      cap_paise: 2_000_000,
+    },
+  ]);
+  const none = toStatutoryRuleInput(statutoryRuleFormSchema.parse(form)).income_tax;
+  expect(none).not.toHaveProperty("claims");
+  expect(none).not.toHaveProperty("claim_groups");
+});
+
+it("refuses claim heads the server would refuse", () => {
+  const change = (i: number, patch: Partial<ReturnType<typeof blankClaim>>) =>
+    withTax({ ...claims, claims: claims.claims.map((c, j) => (j === i ? { ...c, ...patch } : c)) });
+  expect(paths(statutoryRuleFormSchema, change(2, { code: " Savings " }))).toEqual([
+    "income_tax.claims.2.code",
+  ]);
+  expect(paths(statutoryRuleFormSchema, change(2, { code: "PEN SION" }))).toEqual([
+    "income_tax.claims.2.code",
+  ]);
+  expect(paths(statutoryRuleFormSchema, change(2, { label: " " }))).toEqual([
+    "income_tax.claims.2.label",
+  ]);
+  expect(paths(statutoryRuleFormSchema, change(2, { kind: "lta" }))).toEqual([
+    "income_tax.claims.2.kind",
+  ]);
+  expect(paths(statutoryRuleFormSchema, change(1, { cap_group: "OTHER" }))).toEqual([
+    "income_tax.claims.1.cap_group",
+  ]);
+  expect(paths(statutoryRuleFormSchema, change(1, { cap: "1,00,00,000.01" }))).toEqual([
+    "income_tax.claims.1.cap",
+  ]);
+  expect(paths(statutoryRuleFormSchema, change(3, { cap: "" }))).toEqual([
+    "income_tax.claims.3.cap",
+  ]);
+  expect(
+    paths(statutoryRuleFormSchema, change(0, { metro_rate: "100.5", landlord_pan_above: "" })),
+  ).toEqual(["income_tax.claims.0.metro_rate", "income_tax.claims.0.landlord_pan_above"]);
+  expect(paths(statutoryRuleFormSchema, change(2, { ...claims.claims[0], code: "HRA2" }))).toEqual([
+    "income_tax.claims.2.kind",
+  ]);
+  expect(messages(change(3, { code: "LOAN" }))).toBeUndefined();
+  const unused = withTax({
+    ...claims,
+    claims: claims.claims.map((c) => ({ ...c, cap_group: "" })),
+  });
+  expect(paths(statutoryRuleFormSchema, unused)).toEqual(["income_tax.claim_groups.0.code"]);
+  expect(
+    paths(
+      statutoryRuleFormSchema,
+      withTax({ ...claims, claim_groups: [...claims.claim_groups, claims.claim_groups[0]] }),
+    ),
+  ).toEqual(["income_tax.claim_groups.1.code"]);
+  expect(
+    paths(
+      statutoryRuleFormSchema,
+      withTax({ ...claims, claim_groups: [{ ...claims.claim_groups[0], cap: "" }] }),
+    ),
+  ).toEqual(["income_tax.claim_groups.0.cap"]);
+  expect(
+    paths(
+      statutoryRuleFormSchema,
+      withTax({ ...claims, claims: Array.from({ length: 25 }, () => claims.claims[2]) }),
+    ),
+  ).toContain("income_tax.claims");
+});
+
+it("round-trips claim heads and counts them in the summary", () => {
+  const input = toStatutoryRuleInput(statutoryRuleFormSchema.parse(withTax(claims)));
+  const content: Omit<typeof input, "expected_version"> & { expected_version?: number } = {
+    ...input,
+  };
+  delete content.expected_version;
+  const revision = statutoryRevisionContract.parse({
+    ...content,
+    id,
+    rule_id: id,
+    sequence: 1,
+    base_version: 0,
+    status: "approved",
+    approved_version: 1,
+    proposed_by_subject: "user-a",
+    decided_by_subject: "user-b",
+    decided_at: "2026-09-16T10:00:00Z",
+    decision_note: "",
+    created_at: "2026-09-16T09:00:00Z",
+  });
+  expect(
+    toStatutoryRuleInput(statutoryRuleFormSchema.parse(statutoryRevisionToForm(revision, 1))),
+  ).toEqual({
+    ...input,
+    expected_version: 1,
+  });
+  expect(describeStatutoryRevision(revision)).toBe(
+    "Tax year 2026-27 · 2 age bands · rebate to ₹1,50,000.00 · cess 5% · 4 claim heads",
+  );
+});
+
+it("validates and converts claims and HRA in the preview", () => {
+  const preview = {
+    on: "2026-10-01",
+    annual_income: "3,00,000",
+    age: "40",
+    claims: [
+      { code: "medical", amount: "3,000" },
+      { code: "SAVINGS", amount: "0" },
+    ],
+    hra: { received: "3,000", salary: "10,000", rent_paid: "6,000", city: "metro" },
+  };
+  expect(toIncomeTaxPreviewInput(incomeTaxPreviewFormSchema.parse(preview))).toEqual({
+    on: "2026-10-01",
+    annual_income_paise: 30_000_000,
+    age: 40,
+    claims: [
+      { code: "MEDICAL", amount_paise: 300_000 },
+      { code: "SAVINGS", amount_paise: 0 },
+    ],
+    hra: {
+      received_paise: 300_000,
+      salary_paise: 1_000_000,
+      rent_paid_paise: 600_000,
+      metro: true,
+    },
+  });
+  const other = { ...preview, hra: { ...preview.hra, city: "other" } };
+  expect(toIncomeTaxPreviewInput(incomeTaxPreviewFormSchema.parse(other)).hra?.metro).toBe(false);
+  expect(
+    paths(incomeTaxPreviewFormSchema, {
+      ...preview,
+      claims: [...preview.claims, { code: "Medical ", amount: "1" }],
+    }),
+  ).toEqual(["claims.2.code"]);
+  expect(
+    paths(incomeTaxPreviewFormSchema, { ...preview, claims: [{ code: "MEDICAL", amount: "-1" }] }),
+  ).toEqual(["claims.0.amount"]);
+  expect(
+    paths(incomeTaxPreviewFormSchema, {
+      ...preview,
+      hra: { received: "1", salary: "", rent_paid: "", city: "" },
+    }),
+  ).toEqual(["hra.salary", "hra.rent_paid", "hra.city"]);
 });

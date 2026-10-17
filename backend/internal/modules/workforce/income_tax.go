@@ -15,6 +15,8 @@ import (
 
 var errIncomeTaxInvalid = errors.New("income-tax rule is invalid")
 
+var errIncomeTaxClaims = errors.New("income-tax claims are invalid")
+
 var incomeTaxKinds = []string{"income_tax_new", "income_tax_old"}
 
 // Income tax is an annual liability, so the monthly statutory preview leaves it to its own preview.
@@ -78,6 +80,42 @@ func loadIncomeTaxRules(tx *gorm.DB, tenant string, hospital uuid.UUID, ids []uu
 		it := rows[index[s.RevisionID]].IncomeTax
 		it.SurchargeBands = append(it.SurchargeBands, incomeTaxSurcharge{AbovePaise: &s.AbovePaise, RatePpm: &s.RatePpm})
 	}
+	return loadIncomeTaxClaims(tx, tenant, hospital, ids, rows, index)
+}
+
+// A revision without claims keeps nil lists, so it reads back and replays exactly as it was proposed.
+func loadIncomeTaxClaims(tx *gorm.DB, tenant string, hospital uuid.UUID, ids []uuid.UUID, rows []statutoryRevision, index map[uuid.UUID]int) error {
+	var groups []struct {
+		RevisionID  uuid.UUID
+		Code, Label string
+		CapPaise    int64
+	}
+	if err := tx.Table("workforce_income_tax_claim_groups").Select("revision_id,code,label,cap_paise").Where("tenant_id=? AND hospital_id=? AND revision_id IN ?", tenant, hospital, ids).Order("revision_id,position").Find(&groups).Error; err != nil {
+		return err
+	}
+	for _, g := range groups {
+		it := rows[index[g.RevisionID]].IncomeTax
+		it.ClaimGroups = append(it.ClaimGroups, incomeTaxClaimGroup{Code: g.Code, Label: g.Label, CapPaise: &g.CapPaise})
+	}
+	var claims []struct {
+		RevisionID                uuid.UUID
+		Code, Label, Kind         string
+		CapPaise                  *int64
+		CapGroup                  *string
+		HraRentExcessRatePpm      *int
+		HraMetroRatePpm           *int
+		HraOtherRatePpm           *int
+		LandlordPanRentAbovePaise *int64
+	}
+	if err := tx.Table("workforce_income_tax_claims").Select("revision_id,code,label,kind,cap_paise,cap_group,hra_rent_excess_rate_ppm,hra_metro_rate_ppm,hra_other_rate_ppm,landlord_pan_rent_above_paise").
+		Where("tenant_id=? AND hospital_id=? AND revision_id IN ?", tenant, hospital, ids).Order("revision_id,position").Find(&claims).Error; err != nil {
+		return err
+	}
+	for _, k := range claims {
+		it := rows[index[k.RevisionID]].IncomeTax
+		it.Claims = append(it.Claims, incomeTaxClaim{Code: k.Code, Label: k.Label, Kind: k.Kind, CapPaise: k.CapPaise, CapGroup: k.CapGroup, HraRentExcessRatePpm: k.HraRentExcessRatePpm,
+			HraMetroRatePpm: k.HraMetroRatePpm, HraOtherRatePpm: k.HraOtherRatePpm, LandlordPanRentAbovePaise: k.LandlordPanRentAbovePaise})
+	}
 	return nil
 }
 
@@ -111,15 +149,40 @@ func insertIncomeTaxRule(tx *gorm.DB, tenant string, hospital, revision uuid.UUI
 	if err := tx.Exec(`INSERT INTO workforce_income_tax_slabs(tenant_id,hospital_id,revision_id,min_age,position,from_paise,to_paise,rate_ppm) VALUES`+strings.Join(slabs, ","), slabArgs...).Error; err != nil {
 		return err
 	}
-	if len(p.SurchargeBands) == 0 {
+	if len(p.SurchargeBands) > 0 {
+		values, args := make([]string, len(p.SurchargeBands)), []any{}
+		for i, s := range p.SurchargeBands {
+			values[i] = "(?,?,?,?,?,?)"
+			args = append(args, tenant, hospital, revision, i+1, *s.AbovePaise, *s.RatePpm)
+		}
+		if err := tx.Exec(`INSERT INTO workforce_income_tax_surcharges(tenant_id,hospital_id,revision_id,position,above_paise,rate_ppm) VALUES`+strings.Join(values, ","), args...).Error; err != nil {
+			return err
+		}
+	}
+	return insertIncomeTaxClaims(tx, tenant, hospital, revision, p)
+}
+
+// Groups go first because each claim's cap group references one.
+func insertIncomeTaxClaims(tx *gorm.DB, tenant string, hospital, revision uuid.UUID, p *incomeTaxParams) error {
+	if len(p.ClaimGroups) > 0 {
+		values, args := make([]string, len(p.ClaimGroups)), []any{}
+		for i, g := range p.ClaimGroups {
+			values[i] = "(?,?,?,?,?,?,?)"
+			args = append(args, tenant, hospital, revision, i+1, g.Code, g.Label, *g.CapPaise)
+		}
+		if err := tx.Exec(`INSERT INTO workforce_income_tax_claim_groups(tenant_id,hospital_id,revision_id,position,code,label,cap_paise) VALUES`+strings.Join(values, ","), args...).Error; err != nil {
+			return err
+		}
+	}
+	if len(p.Claims) == 0 {
 		return nil
 	}
-	values, args := make([]string, len(p.SurchargeBands)), []any{}
-	for i, s := range p.SurchargeBands {
-		values[i] = "(?,?,?,?,?,?)"
-		args = append(args, tenant, hospital, revision, i+1, *s.AbovePaise, *s.RatePpm)
+	values, args := make([]string, len(p.Claims)), []any{}
+	for i, k := range p.Claims {
+		values[i] = "(?,?,?,?,?,?,?,?,?,?,?,?,?)"
+		args = append(args, tenant, hospital, revision, i+1, k.Code, k.Label, k.Kind, k.CapPaise, k.CapGroup, k.HraRentExcessRatePpm, k.HraMetroRatePpm, k.HraOtherRatePpm, k.LandlordPanRentAbovePaise)
 	}
-	return tx.Exec(`INSERT INTO workforce_income_tax_surcharges(tenant_id,hospital_id,revision_id,position,above_paise,rate_ppm) VALUES`+strings.Join(values, ","), args...).Error
+	return tx.Exec(`INSERT INTO workforce_income_tax_claims(tenant_id,hospital_id,revision_id,position,code,label,kind,cap_paise,cap_group,hra_rent_excess_rate_ppm,hra_metro_rate_ppm,hra_other_rate_ppm,landlord_pan_rent_above_paise) VALUES`+strings.Join(values, ","), args...).Error
 }
 
 // The preview reports each regime's annual liability under the revision in force; last year's rates are never rolled into a new tax year.
@@ -129,7 +192,7 @@ func (h *handlers) previewIncomeTax(c *gin.Context) {
 		return
 	}
 	var in incomeTaxPreviewInput
-	if !decodeSized(c, &in, 1024) {
+	if !decodeSized(c, &in, 8192) {
 		return
 	}
 	on, err := time.Parse(time.DateOnly, in.On)
@@ -137,13 +200,23 @@ func (h *handlers) previewIncomeTax(c *gin.Context) {
 		respond.Error(c, 400, "invalid_request", "Choose a date between 2000 and 2200.")
 		return
 	}
+	seen := map[string]bool{}
+	for i := range in.Claims {
+		code := strings.ToUpper(strings.TrimSpace(in.Claims[i].Code))
+		if !employeeCode.MatchString(code) || seen[code] {
+			respond.Error(c, 400, "invalid_request", "Claim each code once, using letters, numbers, underscores or hyphens.")
+			return
+		}
+		in.Claims[i].Code, seen[code] = code, true
+	}
+	claims := incomeTaxClaimsIn{Lines: in.Claims, Hra: in.Hra}
 	result := incomeTaxPreview{On: in.On, Results: []incomeTaxResult{}}
 	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
 		if err := requireStaffAccess(tx, p.TenantID, hospital, false); err != nil {
 			return err
 		}
 		for _, kind := range incomeTaxKinds {
-			res := incomeTaxResult{Kind: kind, Status: "not_configured", IncomePaise: *in.AnnualIncomePaise}
+			res := incomeTaxResult{Kind: kind, Status: "not_configured", IncomePaise: *in.AnnualIncomePaise, Claims: []incomeTaxClaimResult{}}
 			revisions, err := loadStatutoryRevisions(tx, p.TenantID, hospital, tx.Table("workforce_statutory_rule_revisions").Select(statutoryRevisionColumns).
 				Where("tenant_id=? AND hospital_id=? AND id=workforce_statutory_rule_on(?::uuid,?::uuid,?::text,?::date)", p.TenantID, hospital, p.TenantID, hospital, kind, in.On))
 			if err != nil {
@@ -157,7 +230,7 @@ func (h *handlers) previewIncomeTax(c *gin.Context) {
 					if it.TaxYear != taxYearOf(on) {
 						res.Status = "tax_year_missing"
 					} else {
-						calculateIncomeTax(*it, *in.AnnualIncomePaise, in.Age, &res)
+						calculateIncomeTax(*it, *in.AnnualIncomePaise, in.Age, claims, &res)
 					}
 				}
 			}

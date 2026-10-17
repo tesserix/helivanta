@@ -10,6 +10,7 @@ import {
 } from "@helivanta/api";
 import { useFieldArray } from "@helivanta/ui";
 import { Choose, TableError, Text, type Form } from "./statutory-slabs";
+import { IncomeTaxClaims } from "./income-tax-claims";
 
 function SlabTable({ form, band }: { form: Form; band: number }) {
   const name = `income_tax.age_bands.${band}.slabs` as const;
@@ -228,12 +229,14 @@ export function IncomeTaxFields({ form }: { form: Form }) {
           Add surcharge band
         </Button>
       </div>
+      <IncomeTaxClaims form={form} />
       <p className="text-xs text-muted-foreground">
         One rule covers one tax year, 1 April to 31 March, and its effective date must fall in it; a
         new year needs a new revision. Tax is the slabs on taxable income after the standard
-        deduction, less the rebate, plus the highest surcharge band exceeded with marginal relief,
-        plus cess. One band must start at age 0; add older bands only where the regime has them.
-        Each table must run from ₹0 without gaps or overlaps, ending in one with no limit.
+        deduction and any allowed claims, less the rebate, plus the highest surcharge band exceeded
+        with marginal relief, plus cess. One band must start at age 0; add older bands only where
+        the regime has them. Each table must run from ₹0 without gaps or overlaps, ending in one
+        with no limit.
       </p>
     </fieldset>
   );

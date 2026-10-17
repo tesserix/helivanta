@@ -69,6 +69,39 @@ export type PharmacyRevision = {
   actor_subject: string;
   created_at: string;
 };
+export type PharmacyStockPosition = {
+  id: string;
+  created_at: string;
+  batch_id: string;
+  location_id: string;
+  product_id: string;
+  location_code: string;
+  location_name: string;
+  sku: string;
+  brand_name: string;
+  unit_of_issue: string;
+  lot_number: string;
+  expires_on: string;
+  stock_status: "quarantine";
+  expiry_status: "expired" | "unexpired";
+  product_status: PharmacyProduct["status"];
+  regulatory_status: "pending_review";
+  on_hand_units: number;
+  receipt_units: string;
+  correction_units: string;
+  dispensable_units: 0;
+};
+export type PharmacyStockReconciliation = {
+  location_id: string;
+  batch_id: string;
+  from: string;
+  as_of: string;
+  opening_units: number;
+  receipt_units: string;
+  correction_units: string;
+  closing_units: number;
+  movement_count: number;
+};
 export type PharmacyScope = { tenantId: string; pharmacyId: string; outletId: string };
 export function pharmacyRoot(scope: PharmacyScope) {
   return `/pharmacy/pharmacies/${z.string().uuid().parse(scope.pharmacyId)}/outlets/${z.string().uuid().parse(scope.outletId)}`;

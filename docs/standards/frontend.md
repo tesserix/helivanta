@@ -495,6 +495,16 @@ covers:
   `.shellcheckrc`. Files are discovered rather than listed, so a new script
   is checked without anyone adding it anywhere. A finding is fixed, or
   disabled at its own site with the reason written next to the directive.
+
+TypeScript runs side by side. `@typescript/native` (`npm:typescript@^7`)
+provides the `tsc` that `type-check` runs. `typescript` is aliased to
+`@typescript/typescript6`, because 7.0 ships no compiler API and
+typescript-eslint and Next.js import that API by the name `typescript`. Every
+package with a `type-check` script lists both. `packages/config` lists only
+the 6.0 alias: it owns typescript-eslint, and without it pnpm resolves
+typescript-eslint's peer to 7.0 and lint refuses to start. Remove the 6.0
+alias once typescript-eslint supports TypeScript 7
+([typescript-eslint#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940)).
   There is no blanket exclusion.
 
 Running the suite itself is still a separate step — this command is static

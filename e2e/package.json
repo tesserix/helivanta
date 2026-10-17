@@ -12,8 +12,9 @@
     "@helivanta/config": "workspace:*",
     "@playwright/test": "^1.64.0",
     "@types/node": "^22",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "^9.18.0",
-    "typescript": "^5.7.0"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "prettier": "@helivanta/config/prettier"
 }

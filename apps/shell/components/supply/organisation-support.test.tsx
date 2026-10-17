@@ -136,6 +136,8 @@ it("records only an allowed independent decision and retries the same version an
             data: ["supply.support.read", "supply.support.manage"],
           }),
         );
+      if (url.endsWith("/access-limits"))
+        return new Response(JSON.stringify({ max_grant_hours: 8784, max_support_hours: 24 }));
       if (init?.method === "POST") {
         writes.push({ url, body: String(init.body) });
         return new Response(
@@ -229,6 +231,8 @@ it("creates a scoped request from trusted options with one stable identity acros
             ],
           }),
         );
+      if (url.endsWith("/access-limits"))
+        return new Response(JSON.stringify({ max_grant_hours: 8784, max_support_hours: 24 }));
       if (init?.method === "PUT") {
         writes.push({ url, body: String(init.body) });
         return new Response(

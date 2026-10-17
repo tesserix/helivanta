@@ -42,6 +42,8 @@ it("explains missing tenant member selection permission and does not browse IAM"
 it("uses trusted members and keeps grant identity and payload stable when retrying a failed save", async () => {
   const writes: Array<{ url: string; body: string }> = [];
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/access-limits"))
+      return new Response(JSON.stringify({ max_grant_hours: 8784, max_support_hours: 24 }));
     if (url.endsWith("permissions"))
       return new Response(
         JSON.stringify({

@@ -25,6 +25,12 @@ import {
 import { Field, FormSelectField, LoadMore, useZodForm } from "@helivanta/ui";
 import { RequestFailure } from "../request-failure";
 import { dateTimeInputISO, dateTimeInputValue, formatAbsoluteTime } from "./time-input";
+import {
+  AccessWindowPolicyStatus,
+  accessWindowLabel,
+  useAccessWindowPolicy,
+  validateAccessWindow,
+} from "./access-window-policy";
 
 type Member = { id: string; subject: string; role_key: string; created_at: string };
 const decisionActions = (actions: string[], manage: boolean, revoke: boolean) =>
@@ -212,15 +218,21 @@ function SupportEditor({
 }) {
   const { can } = usePermissions();
   const id = useRef(newSupplyId());
-  const form = useZodForm(supplySupportInputSchema, {
-    expected_version: 0,
-    beneficiary_subject: "",
-    premise_id: "",
-    ticket_reference: "",
-    reason: "",
-    valid_from: new Date().toISOString(),
-    expires_at: "",
-  });
+  const policy = useAccessWindowPolicy(scope);
+  const form = useZodForm(
+    supplySupportInputSchema.superRefine((value, ctx) => {
+      validateAccessWindow(value, policy.data?.max_support_hours, ctx);
+    }),
+    {
+      expected_version: 0,
+      beneficiary_subject: "",
+      premise_id: "",
+      ticket_reference: "",
+      reason: "",
+      valid_from: new Date().toISOString(),
+      expires_at: "",
+    },
+  );
   const members = useApiPagedQuery<Member>(
     ["iam", "members", "support", scope.tenantId, scope.subject],
     "/iam/members",
@@ -259,10 +271,11 @@ function SupportEditor({
       aria-label="Support request form"
       className="space-y-4 rounded-xl bg-muted/30 p-4"
       onSubmit={form.handleSubmit((value) => {
-        if (!save.isPending && !premises.isError) save.mutate(value);
+        if (!save.isPending && !premises.isError && policy.ready) save.mutate(value);
       })}
     >
       <h5 className="font-medium">New support access request</h5>
+      <AccessWindowPolicyStatus policy={policy} />
       <div className="grid gap-4 sm:grid-cols-2">
         <FormSelectField
           control={form.control}
@@ -359,10 +372,13 @@ function SupportEditor({
           </Field>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">
-        Choose a window of no more than 24 hours. Another administrator must approve; the requester
-        and beneficiary cannot approve this request.
-      </p>
+      {policy.data && (
+        <p className="text-xs text-muted-foreground">
+          Choose a window of no more than {accessWindowLabel(policy.data.max_support_hours)}.
+          Another administrator must approve; the requester and beneficiary cannot approve this
+          request. The server checks the current policy when saving or approving.
+        </p>
+      )}
       {save.error && (
         <p role="alert" className="text-sm text-destructive">
           {save.error.message}
@@ -371,7 +387,9 @@ function SupportEditor({
       <div className="flex flex-wrap gap-2">
         <Button
           type="submit"
-          disabled={save.isPending || premises.isError || !can("supply.premise.read")}
+          disabled={
+            save.isPending || premises.isError || !can("supply.premise.read") || !policy.ready
+          }
         >
           {save.isPending ? "Recording…" : "Submit support request"}
         </Button>
@@ -397,11 +415,18 @@ function SupportDecision({
     can("supply.support.manage"),
     can("supply.support.revoke"),
   );
-  const form = useZodForm(supplySupportDecisionInputSchema, {
-    expected_version: row.version,
-    action: actions[0] as SupplySupportDecisionInput["action"],
-    reason: "",
-  });
+  const policy = useAccessWindowPolicy(scope, actions.includes("approve"));
+  const form = useZodForm(
+    supplySupportDecisionInputSchema.superRefine((value, ctx) => {
+      if (value.action === "approve")
+        validateAccessWindow(row, policy.data?.max_support_hours, ctx, "action");
+    }),
+    {
+      expected_version: row.version,
+      action: actions[0] as SupplySupportDecisionInput["action"],
+      reason: "",
+    },
+  );
   const save = useApiMutation(
     (value: SupplySupportDecisionInput) =>
       apiFetch<SupplySupportRequest>(
@@ -429,9 +454,15 @@ function SupportDecision({
       aria-label={`Decision for ${row.ticket_reference}`}
       className="space-y-3 border-t pt-3"
       onSubmit={form.handleSubmit((value) => {
-        if (actions.includes(value.action) && !save.isPending) save.mutate(value);
+        if (
+          actions.includes(value.action) &&
+          !save.isPending &&
+          (value.action !== "approve" || policy.ready)
+        )
+          save.mutate(value);
       })}
     >
+      {form.watch("action") === "approve" && <AccessWindowPolicyStatus policy={policy} />}
       <FormSelectField
         control={form.control}
         name="action"
@@ -460,7 +491,14 @@ function SupportDecision({
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={save.isPending || actions.length === 0}>
+        <Button
+          type="submit"
+          disabled={
+            save.isPending ||
+            actions.length === 0 ||
+            (form.watch("action") === "approve" && !policy.ready)
+          }
+        >
           {save.isPending ? "Recording…" : "Record support decision"}
         </Button>
         <Button type="button" variant="ghost" disabled={save.isPending} onClick={onDone}>

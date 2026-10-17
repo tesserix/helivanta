@@ -26,6 +26,12 @@ import { Field, FormSelectField, LoadMore, useZodForm } from "@helivanta/ui";
 import { RequestFailure } from "../request-failure";
 import { OrganisationAccessLimits } from "./organisation-access-limits";
 import {
+  AccessWindowPolicyStatus,
+  accessWindowLabel,
+  useAccessWindowPolicy,
+  validateAccessWindow,
+} from "./access-window-policy";
+import {
   dateTimeInputValue as dateInput,
   dateTimeInputISO as isoInput,
   formatAbsoluteTime as timestamp,
@@ -277,8 +283,15 @@ function GrantEditor({
   const { changed } = useSupplyAccessRefresh(scope);
   const { can } = usePermissions();
   const id = useRef(grant?.id ?? newSupplyId());
+  const policy = useAccessWindowPolicy(scope);
+  const requiresPolicy = (value: GrantInput) =>
+    value.status !== "revoked" &&
+    value.role !== "administrator" &&
+    (!grant || Date.parse(value.expires_at) > Date.parse(grant.expires_at));
   const form = useZodForm(
-    supplyAccessGrantInputSchema,
+    supplyAccessGrantInputSchema.superRefine((value, ctx) => {
+      if (requiresPolicy(value)) validateAccessWindow(value, policy.data?.max_grant_hours, ctx);
+    }),
     grant
       ? {
           expected_version: grant.version,
@@ -377,11 +390,20 @@ function GrantEditor({
     <form
       noValidate
       onSubmit={form.handleSubmit((values) => {
-        if (!unavailable && !mutation.isPending) mutation.mutate(values);
+        if (!unavailable && !mutation.isPending && (!requiresPolicy(values) || policy.ready))
+          mutation.mutate(values);
       })}
       className="space-y-4 rounded-xl bg-muted/30 p-4"
     >
       <h5 className="font-medium">{grant ? "Manage access grant" : "New time-limited grant"}</h5>
+      <AccessWindowPolicyStatus policy={policy} />
+      {policy.data && (
+        <p className="text-xs text-muted-foreground">
+          New or extended non-administrator access is limited to{" "}
+          {accessWindowLabel(policy.data.max_grant_hours)}. Existing access may be shortened or
+          revoked. The server checks the current policy when saving.
+        </p>
+      )}
       {!can("iam.member.manage") && !grant && (
         <p className="text-sm text-muted-foreground">
           Tenant administrator permission is required to select a new member. You may reuse an
@@ -526,6 +548,7 @@ function GrantEditor({
           type="submit"
           disabled={
             mutation.isPending ||
+            (requiresPolicy(form.watch()) && !policy.ready) ||
             unavailable ||
             (!grant && !subjects.includes(form.watch("subject")))
           }

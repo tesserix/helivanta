@@ -2,9 +2,11 @@
 
 Issue [#1137](https://github.com/tesserix/helivanta/issues/1137), under epic [#1133](https://github.com/tesserix/helivanta/issues/1133). See the [architecture and editable diagram](../architecture/distributor-scoped-access.md), [design](../superpowers/specs/2026-10-17-distributor-structure-and-access.md), and [Mednet comparison](../requirements/pharmaconnect-legacy-procurement.md).
 
-This records the current local implementation. Migrations `0007_supply` and
-`0008_supply` have not been approved or released to production. The story remains
-open until the complete local/CI gates and approved production acceptance pass.
+The implementation was merged in [#1199](https://github.com/tesserix/helivanta/pull/1199)
+and released as `51a91d7a6c6f862f90e08cd042499222df707468` after explicit approval
+for the rollout and migrations `0007_supply` and `0008_supply`. The story remains
+open while production API/UI acceptance and the policy-aware form follow-up are
+completed. Deployment health alone is not completion evidence.
 
 ## Behavior and evidence
 
@@ -43,8 +45,8 @@ worktrees were preserved.
 
 Both migrations applied to the scratch database. Subsequent unreleased function
 corrections were reapplied transactionally only there; fresh database test
-harnesses exercise the final embedded migrations. There is no production SQL
-application in this evidence.
+harnesses exercise the final embedded migrations. Production migrations were
+subsequently applied by the approved GitOps PreSync hook, as recorded below.
 
 ## Commands and limits
 
@@ -91,14 +93,87 @@ Observed execution times were approximately 0.54 ms, 0.09 ms and 8.06 ms
 respectively. These are synthetic fixture measurements, not a capacity benchmark
 or evidence for the planning p99 target.
 
+## Production release
+
+The main image workflow [39019887790](https://github.com/tesserix/helivanta/actions/runs/39019887790)
+passed builds, scans, SBOM generation, signing and deploy advancement. The main
+repository checks [39019887948](https://github.com/tesserix/helivanta/actions/runs/39019887948)
+also passed. Kargo promotion `prod.01m54j6dmp8z331me2kfhcqhmk.48bbb07` succeeded
+at 09:14:41 UTC on 2026-10-17 through the normal image/deploy/Kargo/Argo pipeline.
+
+Read-only verification in GCP project `tesseracthub-480811`, context
+`gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`, namespace `helivanta`,
+confirmed:
+
+- All four deployments reached 2/2 desired, updated and available replicas;
+  all eight application pods were Ready with zero restarts on the exact release.
+- Argo applications were Healthy/Synced, and the migration hook succeeded at
+  09:14:01 UTC. The Supply ledger recorded `0007_supply` at 09:13:53.427503 UTC
+  and `0008_supply` at 09:13:53.715493 UTC.
+- All 14 new Supply tables enabled both RLS and FORCE RLS. CNPG remained 2/2
+  healthy, continuous archiving succeeded and the latest backup completed at
+  06:00:19 UTC.
+
+No imperative SQL, deployment, scaling or quota edits were used. Temporary
+startup/quota warnings resolved through normal reconciliation. The repository
+remains public. A separate read-only acceptance preflight pinned the release,
+image digests, all replicas, migration hook and schema before fixture writes.
+
+A bounded follow-up at 09:28:17 UTC confirmed all eight pods still Ready with
+zero restarts. Sampling the preceding ten minutes (at most 500 lines per pod)
+found no warning/error/panic/fatal/SQLSTATE or logged 5xx entries. The 34 events
+then emitted for the two synthetic acceptance organisations were all published;
+the whole outbox had no unpublished rows, and the Workforce/Supply scanner
+consumers had no pending, unacknowledged or redelivered messages. This is a
+point-in-time operational check, not a claim about unsampled logs.
+
+## Policy-aware form follow-up
+
+Production acceptance identified a client validation gap: the backend enforced
+organisation access limits, but grant/support forms did not consistently load
+and display those limits. The follow-up shares a tenant/subject/organisation
+scoped policy query, applies the configured maximum to new or extended grants,
+support requests and approvals, and preserves administrator exemptions and
+unchanged/shortened historical grants. Access-expanding actions wait for valid
+policy data; revocation and rejection remain available if that query fails.
+
+The local Supply suite passed 104 tests across 13 files, including 17 focused
+policy regressions. The full workspace gate passed 421 shell, 229 API, 93 shared
+UI and two script tests. Static checks (15 tasks) and the production build passed.
+Commands run for the follow-up were:
+
+```sh
+pnpm exec turbo run test --concurrency=1 -- --maxWorkers=1
+pnpm exec turbo run lint format:check type-check --concurrency=1
+pnpm build
+gitleaks git --pre-commit --staged --redact --no-banner --no-color
+git diff --cached --check
+```
+
+The new standalone build runs on the registered local origin with a synthetic
+one-hour policy. Authenticated HTTP checks through that UI proxy returned 200
+for Supply entry, directory, the exact synthetic organisation and its one-hour
+policy; a two-hour grant returned 400. This does not substitute for browser
+acceptance. Historical unchanged/shortened access semantics were covered by
+component regressions; no suitable local historical grant was mutated for the
+HTTP smoke. Local visual acceptance subsequently passed through native Chrome
+controls on the running standalone build: both forms displayed the one-hour
+policy, rejected two-hour entries inline, cleared the error after correction to
+one hour and preserved the other inputs. The grant's expiry started blank;
+keyboard member selection, cancel actions, policy/grant revision histories and
+navigation expansion were exercised. The invalid grant stayed in the editor
+after submission; no valid grant or support request was submitted. Desktop
+screenshots showed aligned fields and readable policy guidance. This patch has
+not yet been released; production visual acceptance remains the release gate.
+
 ## Ordered release and recovery
 
-1. The migration-free legacy grant security hotfix [#1197](https://github.com/tesserix/helivanta/pull/1197) was merged as `e6eb72d` after all CI passed and released through the normal image/deploy/Kargo/Argo pipeline. All four deployments reached 2/2 and CNPG stayed 2/2; the Supply ledger remained `0001`–`0006`. Live permission acceptance is being completed with a dedicated synthetic test user.
+1. The migration-free legacy grant security hotfix [#1197](https://github.com/tesserix/helivanta/pull/1197) was merged as `e6eb72d` after all CI passed and released through the normal image/deploy/Kargo/Argo pipeline. All four deployments reached 2/2 and CNPG stayed 2/2; the Supply ledger remained `0001`–`0006`. Live permission acceptance passed with a dedicated synthetic test user; see the [security release evidence](https://github.com/tesserix/helivanta/pull/1197#issuecomment-6231743272).
    Review the separate security release evidence before proceeding.
    Verify every API replica runs that exact safe image before introducing timed
    grants. The vulnerable pre-hotfix image must not reappear through promotion or
    rollback.
-2. Obtain explicit approval for the concrete `0007_supply`/`0008_supply`
+2. Explicit approval was obtained for the concrete `0007_supply`/`0008_supply`
    migration and feature release. Both migrations are additive and bounded by
    lock/statement timeouts. They retain existing identities, grants and history.
 3. Use the owning GitOps/Kargo/Argo pipeline. Verify migration completion, exact

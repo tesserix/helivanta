@@ -163,16 +163,20 @@ func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination
 	return rows, nil
 }
 
+type stockReconciliationTotals struct {
+	OpeningUnits    int64  `json:"opening_units"`
+	ReceiptUnits    string `json:"receipt_units"`
+	CorrectionUnits string `json:"correction_units"`
+	ClosingUnits    int64  `json:"closing_units"`
+	MovementCount   int64  `json:"movement_count"`
+}
+
 type stockReconciliation struct {
-	LocationID      uuid.UUID `json:"location_id"`
-	BatchID         uuid.UUID `json:"batch_id"`
-	From            time.Time `json:"from"`
-	AsOf            time.Time `json:"as_of"`
-	OpeningUnits    int64     `json:"opening_units"`
-	ReceiptUnits    string    `json:"receipt_units"`
-	CorrectionUnits string    `json:"correction_units"`
-	ClosingUnits    int64     `json:"closing_units"`
-	MovementCount   int64     `json:"movement_count"`
+	LocationID uuid.UUID `json:"location_id"`
+	BatchID    uuid.UUID `json:"batch_id"`
+	From       time.Time `json:"from"`
+	AsOf       time.Time `json:"as_of"`
+	stockReconciliationTotals
 }
 
 func (h *catalogueHandlers) getStockReconciliation(c *gin.Context) {
@@ -192,6 +196,7 @@ func (h *catalogueHandlers) getStockReconciliation(c *gin.Context) {
 	if !ok {
 		return
 	}
+	// Scan resets its destination, so totals land in their own struct and never touch the echoed period.
 	result := stockReconciliation{LocationID: location, BatchID: batch, From: window.From, AsOf: window.AsOf}
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
 		if err := validateStockCutoff(tx, window.AsOf); err != nil {
@@ -208,7 +213,7 @@ func (h *catalogueHandlers) getStockReconciliation(c *gin.Context) {
    COALESCE(sum(quantity_units) FILTER(WHERE created_at >= ? AND kind='correction'),0)::text AS correction_units,
    COALESCE(sum(quantity_units),0)::bigint AS closing_units,
    count(*) FILTER(WHERE created_at >= ?) AS movement_count
-   FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=? AND location_id=? AND batch_id=? AND created_at<=?`, window.From, window.From, window.From, window.From, p.TenantID, outlet, location, batch, window.AsOf).Scan(&result).Error
+   FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=? AND location_id=? AND batch_id=? AND created_at<=?`, window.From, window.From, window.From, window.From, p.TenantID, outlet, location, batch, window.AsOf).Scan(&result.stockReconciliationTotals).Error
 	})
 	if err != nil {
 		stockError(c, err)

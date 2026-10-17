@@ -73,6 +73,10 @@ func run() error {
 	// checks (see Config.IsDev) — a prod process accidentally started with
 	// HELIVANTA_ENV=dev would otherwise disable them with no signal anywhere.
 	slog.Info("resolved environment", "env", cfg.Env, "is_dev", cfg.IsDev())
+	identityClient, err := newOrganizationIdentity(cfg)
+	if err != nil {
+		return err
+	}
 
 	// Resolved before anything else that costs time or a network round
 	// trip (DB, NATS, OpenFGA): a missing or malformed signing key is a
@@ -347,15 +351,16 @@ func run() error {
 	// negating cfg.IsDev().
 	sessionSecureCookie := !cfg.IsDev()
 	deps := platform.Deps{
-		Documents:           documents,
-		Workflows:           workflows,
-		DB:                  db,
-		Bus:                 bus,
-		Authz:               fga,
-		Roles:               fga,
-		SessionSigner:       sessionSigner,
-		SessionTTL:          sessionTTL,
-		SessionSecureCookie: sessionSecureCookie,
+		OrganizationIdentity: identityClient,
+		Documents:            documents,
+		Workflows:            workflows,
+		DB:                   db,
+		Bus:                  bus,
+		Authz:                fga,
+		Roles:                fga,
+		SessionSigner:        sessionSigner,
+		SessionTTL:           sessionTTL,
+		SessionSecureCookie:  sessionSecureCookie,
 		Reconcile: func(ctx context.Context, tenantID string) error {
 			return platform.ReconcileTenant(ctx, registry, fga, tenantID)
 		},

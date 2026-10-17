@@ -27,27 +27,6 @@ type TokenSource interface {
 	Token(context.Context) (string, error)
 }
 
-// Revisions preserves lossless source sequence provenance.
-type Revisions struct {
-	Organization string `json:"organization"`
-	Metadata     string `json:"metadata"`
-	Project      string `json:"project"`
-	Grant        string `json:"grant"`
-}
-
-// Proof is a bounded point-in-time identity observation, not trading permission.
-type Proof struct {
-	SchemaVersion  int       `json:"schema_version"`
-	TenantID       uuid.UUID `json:"tenant_id"`
-	ProductKey     string    `json:"product_key"`
-	OrganizationID string    `json:"organization_id"`
-	ProjectID      string    `json:"project_id"`
-	GrantID        string    `json:"grant_id"`
-	State          string    `json:"state"`
-	VerifiedAt     time.Time `json:"verified_at"`
-	Revisions      Revisions `json:"source_revisions"`
-}
-
 // Client verifies canonical identity without retaining an eligibility cache.
 type Client struct {
 	base, product string
@@ -107,7 +86,7 @@ func (c *Client) Verify(ctx context.Context, tenantID uuid.UUID) (Proof, error) 
 	if json.Unmarshal(raw, &proof) != nil || proof.SchemaVersion != 1 || proof.TenantID != tenantID || proof.ProductKey != c.product || !sourceID.MatchString(proof.OrganizationID) || !sourceID.MatchString(proof.ProjectID) || !sourceID.MatchString(proof.GrantID) || proof.VerifiedAt.Before(started.Add(-2*time.Second)) || proof.VerifiedAt.After(time.Now().UTC().Add(2*time.Second)) {
 		return empty, ErrUnavailable
 	}
-	for _, seq := range []string{proof.Revisions.Organization, proof.Revisions.Metadata, proof.Revisions.Project, proof.Revisions.Grant} {
+	for _, seq := range []string{proof.SourceRevisions.Organization, proof.SourceRevisions.Metadata, proof.SourceRevisions.Project, proof.SourceRevisions.Grant} {
 		n, e := strconv.ParseUint(seq, 10, 64)
 		if e != nil || n == 0 || strconv.FormatUint(n, 10) != seq {
 			return empty, ErrUnavailable

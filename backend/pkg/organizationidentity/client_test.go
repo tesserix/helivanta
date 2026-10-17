@@ -64,7 +64,7 @@ func TestClientUsesTheScopedMachineAndFreshCanonicalContract(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		if proof.TenantID != testTenant || proof.ProductKey != "hms" || proof.OrganizationID != "org-1" || proof.ProjectID != "project-1" || proof.GrantID != "grant-1" || proof.Revisions.Metadata != "102" || proof.VerifiedAt.IsZero() {
+		if proof.TenantID != testTenant || proof.ProductKey != "hms" || proof.OrganizationID != "org-1" || proof.ProjectID != "project-1" || proof.GrantID != "grant-1" || proof.SourceRevisions.Metadata != "102" || proof.VerifiedAt.IsZero() {
 			t.Fatal("canonical source provenance lost")
 		}
 		raw, e := json.Marshal(proof)

@@ -55,23 +55,29 @@ enabled product; the broader sharing model remains a target where not delivered.
 
 ## 2. Submit once through the authorized control plane
 
-The currently delivered admin page is
-`https://onboard.tesserix.app/orgs/hospital`. Its replacement in
-`https://console.tesserix.app` must pass the cutover checks below before this
-address is retired. Do not assume the console's existing funnel reporting page
-already provisions identity.
+Open [Identity onboarding](https://console.tesserix.app/platform/provisioning) in
+the platform console. Its **Products** page reviews/registers product metadata;
+**Tenants** handles generic customer identities; **Helivanta onboarding** uses the
+retained hospital workflow. Existing signup funnel reporting remains separate.
 
-1. Sign in as an authorized platform administrator. Choose Helivanta and new
-   customer or existing-tenant adoption.
+1. Sign in to `console.tesserix.app` with the approved platform identity. Open
+   **Identity onboarding → Helivanta onboarding**, then choose new customer or
+   existing-tenant adoption. Reading requires `platform`; provisioning writes
+   additionally require `rotate-credentials`. Destructive identity actions require
+   `hard-delete`. The private API verifies the console project/client and grants.
+
 2. Enter the approved display name and verified initial-admin subject. Supply
    existing IDs only for adoption; this operation is platform-admin-only.
 3. Retain one request/idempotency key for this intent. If the request times out,
    resume/query that request or replay its identical payload with the same key.
    A changed payload requires a separately reviewed request, not a blind retry.
 4. Save the returned tenant UUID and resume/status reference in the private
-   customer record. Do not publish customer bindings in GitHub or example YAML.
+   customer record. Use **Resume an existing request** on the identity onboarding
+   landing page, or the returned hospital status link. Do not publish customer
+   bindings in GitHub or example YAML.
 
-Approved product backends can submit `POST /v1/hospital-onboardings` with a
+Approved product backends use `https://console.tesserix.app` and submit
+`POST /v1/hospital-onboardings` with a
 short-lived product-scoped OAuth token and `Idempotency-Key`. The API derives the
 new UUID from the verified caller/product/key. Product callers cannot adopt
 existing UUIDs or read another product's requests (404); a changed payload for an

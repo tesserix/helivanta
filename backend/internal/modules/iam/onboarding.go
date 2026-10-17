@@ -28,6 +28,8 @@ type WorkloadVerifier interface {
 var onboardingID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,200}$`)
 var errExistingMembership = errors.New("existing tenant requires its current administrator")
 
+const hospitalProvisioningActor = "system:serviceaccount:onboarding:onboarding-api"
+
 type onboardingInput struct {
 	AllowBootstrap     bool   `json:"allowBootstrap"`
 	TenantID           string `json:"tenantId"`
@@ -82,16 +84,31 @@ func NewOnboardingHandler(deps platform.Deps, caller WorkloadVerifier) gin.Handl
 			if e := tx.Raw(`SELECT count(*) AS total,count(*) FILTER (WHERE subject=? AND role_key='tenant_admin') AS admin FROM iam_members WHERE tenant_id=?`, in.InitialAdminUserID, in.TenantID).Scan(&counts).Error; e != nil {
 				return e
 			}
+			recordMembership := func() error {
+				return tx.Exec(`INSERT INTO audit_events (tenant_id,actor_subject,action,resource_type,resource_id)
+					SELECT ?,?,'membership_verified','hospital_onboarding',?
+					WHERE NOT EXISTS (SELECT 1 FROM audit_events WHERE tenant_id=? AND resource_type='hospital_onboarding' AND resource_id=? AND action='membership_verified')`, in.TenantID, hospitalProvisioningActor, in.TenantID, in.TenantID, in.TenantID).Error
+			}
 			if counts.Total > 0 {
 				if counts.Admin == 0 {
 					return errExistingMembership
 				}
-				return nil
+				return recordMembership()
 			}
 			if !in.AllowBootstrap {
 				return errExistingMembership
 			}
+			var bootstrapped bool
+			if e := tx.Raw(`SELECT EXISTS(SELECT 1 FROM audit_events WHERE tenant_id=? AND resource_type='hospital_onboarding' AND resource_id=? AND action='membership_verified')`, in.TenantID, in.TenantID).Scan(&bootstrapped).Error; e != nil {
+				return e
+			}
+			if bootstrapped {
+				return errExistingMembership
+			}
 			if e := tx.Create(&member{TenantID: tenant, Subject: in.InitialAdminUserID, RoleKey: string(authz.RoleTenantAdmin)}).Error; e != nil {
+				return e
+			}
+			if e := recordMembership(); e != nil {
 				return e
 			}
 			data, e := json.Marshal(iamcontract.MemberChangedData{Subject: in.InitialAdminUserID, RoleKey: string(authz.RoleTenantAdmin)})
@@ -119,7 +136,7 @@ func NewOnboardingHandler(deps platform.Deps, caller WorkloadVerifier) gin.Handl
 			respond.Error(c, 503, "onboarding_pending", "hospital authorization pending")
 			return
 		}
-		slog.InfoContext(c.Request.Context(), "hospital onboarding verified", "tenant_id", in.TenantID, "organization_id", in.OrganizationID, "actor", "system:serviceaccount:onboarding:onboarding-api")
+		slog.InfoContext(c.Request.Context(), "hospital onboarding verified", "tenant_id", in.TenantID, "organization_id", in.OrganizationID, "actor", hospitalProvisioningActor)
 		c.JSON(200, gin.H{"tenantId": in.TenantID, "organizationId": in.OrganizationID, "state": "complete"})
 	}
 }

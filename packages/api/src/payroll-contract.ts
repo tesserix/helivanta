@@ -394,6 +394,56 @@ export const incomeTaxSurchargeContract = z
   .strict();
 export type IncomeTaxSurcharge = z.infer<typeof incomeTaxSurchargeContract>;
 
+export const incomeTaxClaimGroupContract = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    label: z
+      .string()
+      .trim()
+      .min(1, "Enter a name.")
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    cap_paise: z.number().int().min(1).max(1000000000),
+  })
+  .strict();
+export type IncomeTaxClaimGroup = z.infer<typeof incomeTaxClaimGroupContract>;
+
+export const incomeTaxClaimContract = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    label: z
+      .string()
+      .trim()
+      .min(1, "Enter a name.")
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    kind: z.enum(["deduction", "house_property_interest", "hra"]),
+    cap_paise: z.number().int().min(1).max(1000000000).optional(),
+    cap_group: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    hra_rent_excess_rate_ppm: z.number().int().min(0).max(1000000).optional(),
+    hra_metro_rate_ppm: z.number().int().min(0).max(1000000).optional(),
+    hra_other_rate_ppm: z.number().int().min(0).max(1000000).optional(),
+    landlord_pan_rent_above_paise: z.number().int().min(1).max(1000000000).optional(),
+  })
+  .strict();
+export type IncomeTaxClaim = z.infer<typeof incomeTaxClaimContract>;
+
 export const incomeTaxParamsContract = z
   .object({
     tax_year: z
@@ -411,6 +461,8 @@ export const incomeTaxParamsContract = z
     rebate: incomeTaxRebateContract.optional(),
     surcharge_bands: z.array(incomeTaxSurchargeContract).max(8),
     cess_rate_ppm: z.number().int().min(0).max(1000000),
+    claim_groups: z.array(incomeTaxClaimGroupContract).max(8).optional(),
+    claims: z.array(incomeTaxClaimContract).max(24).optional(),
   })
   .strict();
 export type IncomeTaxParams = z.infer<typeof incomeTaxParamsContract>;
@@ -612,6 +664,29 @@ export const statutoryPreviewContract = z
   .strict();
 export type StatutoryPreview = z.infer<typeof statutoryPreviewContract>;
 
+export const incomeTaxClaimInputContract = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    amount_paise: z.number().int().min(0).max(100000000000),
+  })
+  .strict();
+export type IncomeTaxClaimInput = z.infer<typeof incomeTaxClaimInputContract>;
+
+export const incomeTaxHraInputContract = z
+  .object({
+    received_paise: z.number().int().min(0).max(100000000000),
+    salary_paise: z.number().int().min(0).max(100000000000),
+    rent_paid_paise: z.number().int().min(0).max(100000000000),
+    metro: z.boolean(),
+  })
+  .strict();
+export type IncomeTaxHraInput = z.infer<typeof incomeTaxHraInputContract>;
+
 export const incomeTaxPreviewInputContract = z
   .object({
     on: z
@@ -621,9 +696,22 @@ export const incomeTaxPreviewInputContract = z
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     annual_income_paise: z.number().int().min(0).max(100000000000),
     age: z.number().int().min(0).max(120).optional(),
+    claims: z.array(incomeTaxClaimInputContract).max(24).optional(),
+    hra: incomeTaxHraInputContract.optional(),
   })
   .strict();
 export type IncomeTaxPreviewInput = z.infer<typeof incomeTaxPreviewInputContract>;
+
+export const incomeTaxClaimResultContract = z
+  .object({
+    code: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    kind: z.enum(["deduction", "house_property_interest", "hra"]).optional(),
+    claimed_paise: z.number().int(),
+    allowed_paise: z.number().int(),
+    status: z.enum(["allowed", "capped", "not_allowed"]),
+  })
+  .strict();
+export type IncomeTaxClaimResult = z.infer<typeof incomeTaxClaimResultContract>;
 
 export const incomeTaxResultContract = z
   .object({
@@ -643,13 +731,17 @@ export const incomeTaxResultContract = z
       .optional(),
     age_band_min_age: z.number().int().optional(),
     income_paise: z.number().int(),
+    exemption_paise: z.number().int(),
     standard_deduction_paise: z.number().int(),
+    house_property_loss_paise: z.number().int(),
+    deductions_paise: z.number().int(),
     taxable_paise: z.number().int(),
     slab_tax_paise: z.number().int(),
     rebate_paise: z.number().int(),
     surcharge_paise: z.number().int(),
     cess_paise: z.number().int(),
     total_paise: z.number().int(),
+    claims: z.array(incomeTaxClaimResultContract),
   })
   .strict();
 export type IncomeTaxResult = z.infer<typeof incomeTaxResultContract>;

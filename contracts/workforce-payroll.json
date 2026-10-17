@@ -1190,6 +1190,103 @@
         "binding": "required,gte=0,lte=1000000"
       }
     ],
+    "incomeTaxClaimGroup": [
+      {
+        "name": "code",
+        "type": "string",
+        "format": "code",
+        "binding": "required,max=40"
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "format": "name",
+        "min": 1,
+        "max": 100,
+        "binding": "required,max=100"
+      },
+      {
+        "name": "cap_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "max": 1000000000,
+        "binding": "required,gte=1,lte=1000000000"
+      }
+    ],
+    "incomeTaxClaim": [
+      {
+        "name": "code",
+        "type": "string",
+        "format": "code",
+        "binding": "required,max=40"
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "format": "name",
+        "min": 1,
+        "max": 100,
+        "binding": "required,max=100"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "deduction",
+          "house_property_interest",
+          "hra"
+        ],
+        "binding": "required,oneof=deduction house_property_interest hra"
+      },
+      {
+        "name": "cap_paise",
+        "type": "int64",
+        "optional": true,
+        "min": 1,
+        "max": 1000000000,
+        "binding": "omitempty,gte=1,lte=1000000000"
+      },
+      {
+        "name": "cap_group",
+        "type": "string",
+        "format": "code",
+        "optional": true,
+        "binding": "omitempty,max=40"
+      },
+      {
+        "name": "hra_rent_excess_rate_ppm",
+        "type": "int",
+        "optional": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "omitempty,gte=0,lte=1000000"
+      },
+      {
+        "name": "hra_metro_rate_ppm",
+        "type": "int",
+        "optional": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "omitempty,gte=0,lte=1000000"
+      },
+      {
+        "name": "hra_other_rate_ppm",
+        "type": "int",
+        "optional": true,
+        "min": 0,
+        "max": 1000000,
+        "binding": "omitempty,gte=0,lte=1000000"
+      },
+      {
+        "name": "landlord_pan_rent_above_paise",
+        "type": "int64",
+        "optional": true,
+        "min": 1,
+        "max": 1000000000,
+        "binding": "omitempty,gte=1,lte=1000000000"
+      }
+    ],
     "incomeTaxParams": [
       {
         "name": "tax_year",
@@ -1267,6 +1364,20 @@
         "min": 0,
         "max": 1000000,
         "binding": "required,gte=0,lte=1000000"
+      },
+      {
+        "name": "claim_groups",
+        "type": "[]incomeTaxClaimGroup",
+        "optional": true,
+        "max": 8,
+        "binding": "max=8,dive"
+      },
+      {
+        "name": "claims",
+        "type": "[]incomeTaxClaim",
+        "optional": true,
+        "max": 24,
+        "binding": "max=24,dive"
       }
     ],
     "statutoryRuleInput": [
@@ -1739,6 +1850,54 @@
         "type": "int64"
       }
     ],
+    "incomeTaxClaimInput": [
+      {
+        "name": "code",
+        "type": "string",
+        "format": "code",
+        "binding": "required,max=40"
+      },
+      {
+        "name": "amount_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 100000000000,
+        "binding": "required,gte=0,lte=100000000000"
+      }
+    ],
+    "incomeTaxHraInput": [
+      {
+        "name": "received_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 100000000000,
+        "binding": "required,gte=0,lte=100000000000"
+      },
+      {
+        "name": "salary_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 100000000000,
+        "binding": "required,gte=0,lte=100000000000"
+      },
+      {
+        "name": "rent_paid_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 100000000000,
+        "binding": "required,gte=0,lte=100000000000"
+      },
+      {
+        "name": "metro",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
     "incomeTaxPreviewInput": [
       {
         "name": "on",
@@ -1761,6 +1920,51 @@
         "min": 0,
         "max": 120,
         "binding": "omitempty,gte=0,lte=120"
+      },
+      {
+        "name": "claims",
+        "type": "[]incomeTaxClaimInput",
+        "optional": true,
+        "max": 24,
+        "binding": "max=24,dive"
+      },
+      {
+        "name": "hra",
+        "type": "incomeTaxHraInput",
+        "optional": true
+      }
+    ],
+    "incomeTaxClaimResult": [
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "deduction",
+          "house_property_interest",
+          "hra"
+        ],
+        "optional": true
+      },
+      {
+        "name": "claimed_paise",
+        "type": "int64"
+      },
+      {
+        "name": "allowed_paise",
+        "type": "int64"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "allowed",
+          "capped",
+          "not_allowed"
+        ]
       }
     ],
     "incomeTaxResult": [
@@ -1808,7 +2012,19 @@
         "type": "int64"
       },
       {
+        "name": "exemption_paise",
+        "type": "int64"
+      },
+      {
         "name": "standard_deduction_paise",
+        "type": "int64"
+      },
+      {
+        "name": "house_property_loss_paise",
+        "type": "int64"
+      },
+      {
+        "name": "deductions_paise",
         "type": "int64"
       },
       {
@@ -1834,6 +2050,10 @@
       {
         "name": "total_paise",
         "type": "int64"
+      },
+      {
+        "name": "claims",
+        "type": "[]incomeTaxClaimResult"
       }
     ],
     "incomeTaxPreview": [

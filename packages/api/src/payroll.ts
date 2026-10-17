@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type {
+  IncomeTaxClaim,
   IncomeTaxParams,
   IncomeTaxPreviewInput,
   SalaryAssignmentInput,
@@ -630,6 +631,22 @@ const incomeTaxBandFormSchema = z
   .object({ min_age: z.string(), slabs: z.array(taxSlabFormSchema) })
   .strict();
 const surchargeFormSchema = z.object({ above: z.string(), rate: z.string() }).strict();
+const claimGroupFormSchema = z
+  .object({ code: z.string(), label: z.string(), cap: z.string() })
+  .strict();
+const claimFormSchema = z
+  .object({
+    code: z.string(),
+    label: z.string(),
+    kind: z.string(),
+    cap: z.string(),
+    cap_group: z.string(),
+    rent_excess_rate: z.string(),
+    metro_rate: z.string(),
+    other_rate: z.string(),
+    landlord_pan_above: z.string(),
+  })
+  .strict();
 const incomeTaxFormSchema = z
   .object({
     tax_year: z.string(),
@@ -644,11 +661,15 @@ const incomeTaxFormSchema = z
     rebate_max: z.string(),
     surcharges: z.array(surchargeFormSchema),
     cess_rate: z.string(),
+    claim_groups: z.array(claimGroupFormSchema),
+    claims: z.array(claimFormSchema),
   })
   .strict();
 export type IncomeTaxSlabForm = z.infer<typeof taxSlabFormSchema>;
 export type IncomeTaxBandForm = z.infer<typeof incomeTaxBandFormSchema>;
 export type IncomeTaxSurchargeForm = z.infer<typeof surchargeFormSchema>;
+export type IncomeTaxClaimGroupForm = z.infer<typeof claimGroupFormSchema>;
+export type IncomeTaxClaimForm = z.infer<typeof claimFormSchema>;
 type IncomeTaxForm = z.infer<typeof incomeTaxFormSchema>;
 type Issue = (path: (string | number)[], message: string) => void;
 
@@ -746,6 +767,88 @@ const incomeTaxIssues = (form: IncomeTaxForm, effectiveOn: string, issue: Issue)
       issue(["surcharges", i, "above"], "Each threshold must be above the one before it.");
     previous = above ?? previous;
   }
+  claimIssues(form, issue);
+};
+
+export const INCOME_TAX_CLAIM_KINDS = {
+  deduction: "Deduction",
+  house_property_interest: "Home loan interest",
+  hra: "House rent allowance",
+} as const;
+export const INCOME_TAX_CLAIM_STATUSES = {
+  allowed: "Allowed",
+  capped: "Capped",
+  not_allowed: "Not allowed",
+} as const;
+const MAX_CLAIM_CAP_PAISE = 1_000_000_000;
+const claimCode = (raw: string) => raw.trim().toUpperCase();
+
+// Mirrors the server: codes once each, only the kind's own fields, every group named and used, one HRA and one interest head.
+const claimIssues = (form: IncomeTaxForm, issue: Issue) => {
+  const cap = (path: (string | number)[], raw: string, required: boolean) => {
+    if (raw.trim() === "") {
+      if (required) issue(path, "Enter a cap.");
+      return;
+    }
+    const paise = parseIncome(raw);
+    if (paise === undefined || paise < 1 || paise > MAX_CLAIM_CAP_PAISE)
+      issue(path, "Enter rupees above 0 and up to ₹1 crore, with up to 2 decimals.");
+  };
+  const named = (path: (string | number)[], raw: string, seen: Set<string>) => {
+    const value = claimCode(raw);
+    if (!/^[A-Z0-9_-]{1,40}$/.test(value))
+      issue([...path, "code"], "Use up to 40 letters, numbers, underscores or hyphens.");
+    else if (seen.has(value)) issue([...path, "code"], "Use each code once.");
+    seen.add(value);
+  };
+  const label = (path: (string | number)[], raw: string) => {
+    if (raw.trim() === "" || raw.trim().length > 100 || raw.includes("\0"))
+      issue([...path, "label"], "Enter a name of up to 100 characters.");
+  };
+  if (form.claim_groups.length > 8) issue(["claim_groups"], "Add at most 8 claim groups.");
+  if (form.claims.length > 24) issue(["claims"], "Add at most 24 claims.");
+  const groups = new Set<string>();
+  for (const [i, g] of form.claim_groups.entries()) {
+    named(["claim_groups", i], g.code, groups);
+    label(["claim_groups", i], g.label);
+    cap(["claim_groups", i, "cap"], g.cap, true);
+  }
+  const codes = new Set<string>();
+  const used = new Set<string>();
+  const once = new Set<string>();
+  for (const [i, c] of form.claims.entries()) {
+    const path = ["claims", i];
+    named(path, c.code, codes);
+    label(path, c.label);
+    if (!(c.kind in INCOME_TAX_CLAIM_KINDS)) {
+      issue([...path, "kind"], "Choose an option.");
+      continue;
+    }
+    if (c.kind !== "deduction") {
+      if (once.has(c.kind))
+        issue(
+          [...path, "kind"],
+          "A rule has at most one house rent and one home loan interest head.",
+        );
+      once.add(c.kind);
+    }
+    if (c.kind === "hra") {
+      for (const field of ["rent_excess_rate", "metro_rate", "other_rate"] as const)
+        if (parseRate(c[field]) === undefined)
+          issue([...path, field], "Enter a percentage from 0 to 100, up to 4 decimals.");
+      cap([...path, "landlord_pan_above"], c.landlord_pan_above, true);
+      continue;
+    }
+    cap([...path, "cap"], c.cap, c.kind === "house_property_interest");
+    const group = claimCode(c.cap_group);
+    if (c.kind === "deduction" && group !== "") {
+      if (!groups.has(group)) issue([...path, "cap_group"], "Choose a group defined above.");
+      used.add(group);
+    }
+  }
+  for (const [i, g] of form.claim_groups.entries())
+    if (groups.has(claimCode(g.code)) && !used.has(claimCode(g.code)))
+      issue(["claim_groups", i, "code"], "Cap at least one claim with this group, or remove it.");
 };
 
 type Band = { from: number; to?: number };
@@ -1071,6 +1174,18 @@ export const blankIncomeTaxBand = (): IncomeTaxBandForm => ({
   slabs: [blankTaxSlab()],
 });
 export const blankSurcharge = (): IncomeTaxSurchargeForm => ({ above: "", rate: "" });
+export const blankClaimGroup = (): IncomeTaxClaimGroupForm => ({ code: "", label: "", cap: "" });
+export const blankClaim = (): IncomeTaxClaimForm => ({
+  code: "",
+  label: "",
+  kind: "",
+  cap: "",
+  cap_group: "",
+  rent_excess_rate: "",
+  metro_rate: "",
+  other_rate: "",
+  landlord_pan_above: "",
+});
 const blankIncomeTax = (): IncomeTaxForm => ({
   tax_year: "",
   standard_deduction: "",
@@ -1084,6 +1199,8 @@ const blankIncomeTax = (): IncomeTaxForm => ({
   rebate_max: "",
   surcharges: [],
   cess_rate: "",
+  claim_groups: [],
+  claims: [],
 });
 const blankPt = (): StatutoryRuleForm["pt"] => ({
   state_code: "",
@@ -1142,7 +1259,50 @@ const incomeTaxToForm = (p: IncomeTaxParams): IncomeTaxForm => ({
     rate: ppmToPercent(s.rate_ppm),
   })),
   cess_rate: ppmToPercent(p.cess_rate_ppm),
+  claim_groups: (p.claim_groups ?? []).map((g) => ({
+    code: g.code,
+    label: g.label,
+    cap: paiseToRupees(g.cap_paise),
+  })),
+  claims: (p.claims ?? []).map((c) => ({
+    ...blankClaim(),
+    code: c.code,
+    label: c.label,
+    kind: c.kind,
+    cap: c.cap_paise === undefined ? "" : paiseToRupees(c.cap_paise),
+    cap_group: c.cap_group ?? "",
+    ...(c.kind === "hra" && {
+      rent_excess_rate: ppmToPercent(c.hra_rent_excess_rate_ppm ?? 0),
+      metro_rate: ppmToPercent(c.hra_metro_rate_ppm ?? 0),
+      other_rate: ppmToPercent(c.hra_other_rate_ppm ?? 0),
+      landlord_pan_above: paiseToRupees(c.landlord_pan_rent_above_paise ?? 0),
+    }),
+  })),
 });
+
+// Sends only the kind's own fields, so a field left over from another kind never reaches the server.
+const toIncomeTaxClaim = (c: IncomeTaxClaimForm): IncomeTaxClaim => {
+  const head = {
+    code: claimCode(c.code),
+    label: c.label.trim(),
+    kind: c.kind as IncomeTaxClaim["kind"],
+  };
+  if (c.kind === "hra")
+    return {
+      ...head,
+      hra_rent_excess_rate_ppm: parseRate(c.rent_excess_rate) ?? 0,
+      hra_metro_rate_ppm: parseRate(c.metro_rate) ?? 0,
+      hra_other_rate_ppm: parseRate(c.other_rate) ?? 0,
+      landlord_pan_rent_above_paise: parseIncome(c.landlord_pan_above) ?? 0,
+    };
+  const cap = optionalIncome(c.cap);
+  const group = claimCode(c.cap_group);
+  return {
+    ...head,
+    ...(cap !== undefined && { cap_paise: cap }),
+    ...(c.kind === "deduction" && group !== "" && { cap_group: group }),
+  };
+};
 
 const toIncomeTaxParams = (form: IncomeTaxForm): IncomeTaxParams => {
   const income = (raw: string) => parseIncome(raw) ?? 0;
@@ -1177,6 +1337,14 @@ const toIncomeTaxParams = (form: IncomeTaxForm): IncomeTaxParams => {
       rate_ppm: rate(s.rate),
     })),
     cess_rate_ppm: rate(form.cess_rate),
+    ...(form.claim_groups.length > 0 && {
+      claim_groups: form.claim_groups.map((g) => ({
+        code: claimCode(g.code),
+        label: g.label.trim(),
+        cap_paise: income(g.cap),
+      })),
+    }),
+    ...(form.claims.length > 0 && { claims: form.claims.map(toIncomeTaxClaim) }),
   };
 };
 
@@ -1411,10 +1579,46 @@ export const toStatutoryPreviewInput = (form: StatutoryPreviewForm): StatutoryPr
   ...(form.gender !== "" && { gender: form.gender }),
 });
 
+const previewClaimFormSchema = z.object({ code: z.string(), amount: z.string() }).strict();
+const previewHraFormSchema = z
+  .object({ received: z.string(), salary: z.string(), rent_paid: z.string(), city: z.string() })
+  .strict();
+export type IncomeTaxPreviewClaimForm = z.infer<typeof previewClaimFormSchema>;
+export const blankPreviewClaim = (): IncomeTaxPreviewClaimForm => ({ code: "", amount: "" });
+export const HRA_CITIES = { metro: "Metro city", other: "Other city" } as const;
+const hraStated = (hra: z.infer<typeof previewHraFormSchema>) =>
+  Object.values(hra).some((v) => v.trim() !== "");
+
 export const incomeTaxPreviewFormSchema = z
-  .object({ on: date, annual_income: z.string(), age: z.string() })
+  .object({
+    on: date,
+    annual_income: z.string(),
+    age: z.string(),
+    claims: z.array(previewClaimFormSchema),
+    hra: previewHraFormSchema,
+  })
   .strict()
   .superRefine((value, ctx) => {
+    const issue = (path: (string | number)[], message: string) =>
+      ctx.addIssue({ code: "custom", path, message });
+    if (value.claims.length > 24) issue(["claims"], "Claim at most 24 heads.");
+    const seen = new Set<string>();
+    for (const [i, c] of value.claims.entries()) {
+      const code = claimCode(c.code);
+      if (!/^[A-Z0-9_-]{1,40}$/.test(code))
+        issue(["claims", i, "code"], "Use up to 40 letters, numbers, underscores or hyphens.");
+      else if (seen.has(code)) issue(["claims", i, "code"], "Claim each code once.");
+      seen.add(code);
+      if (parseIncome(c.amount) === undefined)
+        issue(["claims", i, "amount"], "Enter rupees, with up to 2 decimals.");
+    }
+    // HRA needs all four figures or none, so a partly typed claim is never previewed as no claim.
+    if (hraStated(value.hra)) {
+      for (const field of ["received", "salary", "rent_paid"] as const)
+        if (parseIncome(value.hra[field]) === undefined)
+          issue(["hra", field], "Enter rupees, with up to 2 decimals.");
+      if (!(value.hra.city in HRA_CITIES)) issue(["hra", "city"], "Choose an option.");
+    }
     if (parseIncome(value.annual_income) === undefined)
       ctx.addIssue({
         code: "custom",
@@ -1435,6 +1639,20 @@ export const toIncomeTaxPreviewInput = (form: IncomeTaxPreviewForm): IncomeTaxPr
   on: form.on,
   annual_income_paise: parseIncome(form.annual_income) ?? 0,
   ...(form.age.trim() !== "" && { age: Number(form.age) }),
+  ...(form.claims.length > 0 && {
+    claims: form.claims.map((c) => ({
+      code: claimCode(c.code),
+      amount_paise: parseIncome(c.amount) ?? 0,
+    })),
+  }),
+  ...(hraStated(form.hra) && {
+    hra: {
+      received_paise: parseIncome(form.hra.received) ?? 0,
+      salary_paise: parseIncome(form.hra.salary) ?? 0,
+      rent_paid_paise: parseIncome(form.hra.rent_paid) ?? 0,
+      metro: form.hra.city === "metro",
+    },
+  }),
 });
 
 export const incomeTaxPreviewPath = (base: string) => `${base}/hr/payroll/income-tax-preview`;
@@ -1471,7 +1689,11 @@ export const describeStatutoryRevision = (revision: StatutoryRevision) => {
     const bands = it.age_bands.length;
     return `Tax year ${it.tax_year} · ${bands === 1 ? "one slab table" : `${bands} age bands`} · ${
       it.rebate ? `rebate to ${formatPaise(it.rebate.income_limit_paise)}` : "no rebate"
-    } · cess ${ppmToPercent(it.cess_rate_ppm)}%`;
+    } · cess ${ppmToPercent(it.cess_rate_ppm)}%${
+      it.claims?.length
+        ? ` · ${it.claims.length} claim head${it.claims.length === 1 ? "" : "s"}`
+        : ""
+    }`;
   }
   return "Parameters unavailable";
 };

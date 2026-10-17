@@ -333,6 +333,9 @@ func normalizeStatutoryRule(in *statutoryRuleInput) error {
 		(in.IncomeTax != nil) != (*in.Covered && contains(in.Kind, incomeTaxKinds...)) {
 		return errStatutoryInvalid
 	}
+	if in.IncomeTax != nil && !normalizeIncomeTaxClaims(in.IncomeTax) {
+		return errIncomeTaxClaims
+	}
 	if in.IncomeTax != nil && !normalizeIncomeTax(in.IncomeTax, in.EffectiveOn) {
 		return errIncomeTaxInvalid
 	}
@@ -703,6 +706,8 @@ func respondStatutoryError(c *gin.Context, err error) {
 		respond.Error(c, 400, "invalid_request", "Review the professional tax periods: a monthly rule has no period starts, a half-yearly rule starts two periods six months apart, an annual rule starts one, and each period must be charged in exactly one month.")
 	case errors.Is(err, errIncomeTaxInvalid), isPG && (pg.ConstraintName == "workforce_income_tax_complete" || pg.ConstraintName == "workforce_income_tax_rebate"):
 		respond.Error(c, 400, "invalid_request", "Review the income-tax rule: the tax year must contain the effective date, one age band must start at 0 with no age repeated, each band's slabs must run from ₹0 without gaps or overlaps, and surcharge thresholds must rise.")
+	case errors.Is(err, errIncomeTaxClaims), isPG && strings.HasPrefix(pg.ConstraintName, "workforce_income_tax_claim"):
+		respond.Error(c, 400, "invalid_request", "Review the claims: each code once, only the fields of its kind, every group used by a claim and naming one that exists, and at most one house rent and one home loan interest head.")
 	case errors.Is(err, errStatutoryNoteRequired):
 		respond.Error(c, 400, "invalid_request", "Give a reason when rejecting a proposal.")
 	case errors.Is(err, errPolicyEffective):

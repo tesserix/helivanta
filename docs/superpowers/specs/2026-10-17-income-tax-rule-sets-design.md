@@ -26,7 +26,7 @@ Every figure in that chain is set by the annual Finance Act and changes by tax y
 
 Not in this slice:
 
-- **Per-employee regime election and declarations** (Form 124 data, HRA, chapter deductions under the old regime). These are employee data and arrive with salary assignment (slice 4). The old-regime preview therefore covers salary income less the standard deduction only, and says so.
+- **Per-employee regime election and declarations** (Form 124 data, HRA, chapter deductions under the old regime). These are employee data and arrive with salary assignment (slice 4). The old-regime preview therefore covers salary income less the standard deduction only, and says so. Claim heads and their calculation followed in [income-tax claims](2026-10-19-income-tax-claims-design.md); staff declarations follow in slice 5b.
 - **Monthly TDS.** Spreading the remaining liability over the remaining months needs year-to-date paid salary and tax, which only the payroll run (#1040) has.
 - **Non-salary income, and the special-rate surcharge cap on dividends and capital gains.** Salary income takes the normal surcharge, so neither applies.
 - **Non-resident rules.** The preview assumes a resident individual.

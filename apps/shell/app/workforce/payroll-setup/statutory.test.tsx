@@ -826,6 +826,10 @@ it("previews each regime's annual tax and explains what is missing", async () =>
     surcharge_paise: 0,
     cess_paise: 0,
     total_paise: 0,
+    exemption_paise: 0,
+    house_property_loss_paise: 0,
+    deductions_paise: 0,
+    claims: [],
     ...over,
   });
   const writes = mock({
@@ -904,6 +908,10 @@ it("asks for an age when a regime's slabs differ by age", async () => {
           surcharge_paise: 0,
           cess_paise: 0,
           total_paise: 0,
+          exemption_paise: 0,
+          house_property_loss_paise: 0,
+          deductions_paise: 0,
+          claims: [],
         },
       ],
     },
@@ -925,4 +933,215 @@ it("asks for an age when a regime's slabs differ by age", async () => {
   ).toBeInTheDocument();
   expect(within(region).getByText(/Enter the age and compute again/)).toBeInTheDocument();
   expect(within(region).queryByRole("table")).toBeNull();
+});
+
+it("edits each kind of claim head and refuses a repeated code inline", longForm, async () => {
+  const { writes, user, form } = await openProposal("Income tax (old regime)");
+  await user.clear(within(form).getByLabelText("Effective date"));
+  await user.type(within(form).getByLabelText("Effective date"), "2026-04-01");
+  await fill(user, form, [
+    ["Tax year (for example 2026-27)", "2026-27"],
+    ["Standard deduction (₹)", "10000"],
+    ["Health and education cess (%)", "5"],
+  ]);
+  for (const [name, option] of [
+    ["Round taxable income", "Nearest (half up)"],
+    ["Taxable income to", "₹10"],
+    ["Round tax payable", "Always up"],
+    ["Tax payable to", "₹10"],
+    ["Rebate", "No rebate"],
+  ]) {
+    await chooseOption(user, within(form).getByRole("combobox", { name }), option);
+  }
+  await fill(user, within(within(form).getByRole("group", { name: "Age band 1" })), [
+    ["Applies from age", "0"],
+    ["Slab 1 taxable income from (₹)", "0"],
+    ["Rate (%)", "0"],
+  ]);
+  for (let i = 0; i < 3; i++)
+    await user.click(within(form).getByRole("button", { name: "Add claim" }));
+  const claim = (n: number) => within(within(form).getByRole("group", { name: `Claim ${n}` }));
+  await chooseOption(
+    user,
+    claim(1).getByRole("combobox", { name: "Kind" }),
+    "House rent allowance",
+  );
+  expect(claim(1).queryByLabelText("Cap (₹)")).toBeNull();
+  await fill(user, claim(1), [
+    ["Code", "hra"],
+    ["Name", "House rent"],
+    ["Rent above this share of salary (%)", "10"],
+    ["Metro city cap (% of salary)", "50"],
+    ["Other city cap (% of salary)", "40"],
+    ["Landlord PAN above annual rent (₹)", "100000"],
+  ]);
+  await chooseOption(user, claim(2).getByRole("combobox", { name: "Kind" }), "Deduction");
+  await fill(user, claim(2), [
+    ["Code", "SAVINGS"],
+    ["Name", "Savings"],
+    ["Cap (₹, blank for none)", "12000"],
+    ["Shared cap group code (optional)", "invest"],
+  ]);
+  await chooseOption(user, claim(3).getByRole("combobox", { name: "Kind" }), "Home loan interest");
+  expect(claim(3).queryByLabelText("Shared cap group code (optional)")).toBeNull();
+  await fill(user, claim(3), [
+    ["Code", "savings"],
+    ["Name", "Home loan interest"],
+    ["Cap (₹)", "20000"],
+  ]);
+  await user.click(within(form).getByRole("button", { name: "Add shared cap group" }));
+  await fill(user, form, [
+    ["Group 1 code", "INVEST"],
+    ["Group 1 name", "Investments"],
+    ["Shared cap (₹)", "15000"],
+  ]);
+  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+  expect(await claim(3).findByText("Use each code once.")).toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+  await user.clear(claim(3).getByLabelText("Code"));
+  await user.type(claim(3).getByLabelText("Code"), "HOMELOAN");
+  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect((writes[0]?.body as { income_tax: object }).income_tax).toMatchObject({
+    claim_groups: [{ code: "INVEST", label: "Investments", cap_paise: 1_500_000 }],
+    claims: [
+      {
+        code: "HRA",
+        label: "House rent",
+        kind: "hra",
+        hra_rent_excess_rate_ppm: 100_000,
+        hra_metro_rate_ppm: 500_000,
+        hra_other_rate_ppm: 400_000,
+        landlord_pan_rent_above_paise: 10_000_000,
+      },
+      {
+        code: "SAVINGS",
+        label: "Savings",
+        kind: "deduction",
+        cap_paise: 1_200_000,
+        cap_group: "INVEST",
+      },
+      {
+        code: "HOMELOAN",
+        label: "Home loan interest",
+        kind: "house_property_interest",
+        cap_paise: 2_000_000,
+      },
+    ],
+  });
+});
+
+it("refuses a shared cap group no claim uses", async () => {
+  const { writes, user, form } = await openProposal("Income tax (old regime)");
+  await user.click(within(form).getByRole("button", { name: "Add shared cap group" }));
+  await fill(user, form, [["Group 1 code", "INVEST"]]);
+  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+  expect(
+    await within(form).findByText("Cap at least one claim with this group, or remove it."),
+  ).toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+  await user.click(within(form).getByRole("button", { name: "Remove claim group 1" }));
+  expect(within(form).queryByText(/Cap at least one claim/)).toBeNull();
+});
+
+it("previews stated claims and shows each claim's outcome per regime", async () => {
+  const lines = (status: "allowed" | "capped" | "not_allowed", hra: string) => [
+    {
+      code: hra,
+      kind: "hra",
+      claimed_paise: 300_000,
+      allowed_paise: status === "not_allowed" ? 0 : 300_000,
+      status: status === "not_allowed" ? status : "allowed",
+    },
+    {
+      code: "SAVINGS",
+      kind: status === "not_allowed" ? undefined : "deduction",
+      claimed_paise: 1_500_000,
+      allowed_paise: status === "not_allowed" ? 0 : 1_200_000,
+      status,
+    },
+  ];
+  const writes = mock({
+    rules: [rule(false)],
+    incomeTaxBody: {
+      on: "2026-10-01",
+      results: ["income_tax_old", "income_tax_new"].map((kind) => ({
+        kind,
+        status: "applied",
+        tax_year: "2026-27",
+        income_paise: 30_000_000,
+        standard_deduction_paise: 1_000_000,
+        taxable_paise: kind === "income_tax_old" ? 27_500_000 : 29_000_000,
+        slab_tax_paise: 0,
+        rebate_paise: 0,
+        surcharge_paise: 0,
+        cess_paise: 0,
+        total_paise: 0,
+        exemption_paise: kind === "income_tax_old" ? 300_000 : 0,
+        house_property_loss_paise: 0,
+        deductions_paise: kind === "income_tax_old" ? 1_200_000 : 0,
+        claims: kind === "income_tax_old" ? lines("capped", "HRA") : lines("not_allowed", ""),
+      })),
+    },
+  });
+  const { user } = renderWithProviders(<PayrollSetup />);
+  const section = await panel();
+  await user.click(await within(section).findByRole("button", { name: "Preview income tax" }));
+  const form = within(section).getByRole("form", { name: "Income-tax preview inputs" });
+  await user.clear(within(form).getByLabelText("Tax year containing"));
+  await user.type(within(form).getByLabelText("Tax year containing"), "2026-10-01");
+  await fill(user, form, [
+    ["Annual salary (₹)", "3,00,000"],
+    ["HRA received in the year (₹)", "3000"],
+  ]);
+  await user.click(within(form).getByRole("button", { name: "Add claim" }));
+  await fill(user, form, [
+    ["Claim 1 code", "savings"],
+    ["Amount for the year (₹)", "15000"],
+  ]);
+  await user.click(within(form).getByRole("button", { name: "Compute tax" }));
+  expect(await within(form).findByText("Choose an option.")).toBeInTheDocument();
+  expect(within(form).getAllByText("Enter rupees, with up to 2 decimals.")).toHaveLength(2);
+  expect(writes).toHaveLength(0);
+  await fill(user, form, [
+    ["Salary for HRA (₹)", "10000"],
+    ["Rent paid in the year (₹)", "6000"],
+  ]);
+  await chooseOption(user, within(form).getByRole("combobox", { name: "City" }), "Metro city");
+  await user.click(within(form).getByRole("button", { name: "Compute tax" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]?.body).toEqual({
+    on: "2026-10-01",
+    annual_income_paise: 30_000_000,
+    claims: [{ code: "SAVINGS", amount_paise: 1_500_000 }],
+    hra: {
+      received_paise: 300_000,
+      salary_paise: 1_000_000,
+      rent_paid_paise: 600_000,
+      metro: true,
+    },
+  });
+  const region = within(section).getByRole("region", { name: "Income-tax preview" });
+  const old = await within(region).findByRole("table", {
+    name: "Income tax (old regime) for tax year 2026-27",
+  });
+  expect(
+    within(old).getByRole("row", { name: "House rent exemption − ₹3,000.00" }),
+  ).toBeInTheDocument();
+  expect(within(old).getByRole("row", { name: "Deductions − ₹12,000.00" })).toBeInTheDocument();
+  const oldClaims = within(region).getByRole("table", {
+    name: "Claims under Income tax (old regime)",
+  });
+  expect(
+    within(oldClaims).getByRole("row", { name: "SAVINGS · Capped ₹15,000.00 ₹12,000.00" }),
+  ).toBeInTheDocument();
+  const newClaims = within(region).getByRole("table", {
+    name: "Claims under Income tax (new regime)",
+  });
+  expect(
+    within(newClaims).getByRole("row", { name: "House rent · Not allowed ₹3,000.00 ₹0.00" }),
+  ).toBeInTheDocument();
+  expect(
+    within(newClaims).getByRole("row", { name: "SAVINGS · Not allowed ₹15,000.00 ₹0.00" }),
+  ).toBeInTheDocument();
 });

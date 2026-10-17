@@ -156,8 +156,15 @@ for Supply entry, directory, the exact synthetic organisation and its one-hour
 policy; a two-hour grant returned 400. This does not substitute for browser
 acceptance. Historical unchanged/shortened access semantics were covered by
 component regressions; no suitable local historical grant was mutated for the
-HTTP smoke. Visual acceptance remains pending while the browser automation
-connection is unavailable; this patch has not yet been released to production.
+HTTP smoke. Local visual acceptance subsequently passed through native Chrome
+controls on the running standalone build: both forms displayed the one-hour
+policy, rejected two-hour entries inline, cleared the error after correction to
+one hour and preserved the other inputs. The grant's expiry started blank;
+keyboard member selection, cancel actions, policy/grant revision histories and
+navigation expansion were exercised. The invalid grant stayed in the editor
+after submission; no valid grant or support request was submitted. Desktop
+screenshots showed aligned fields and readable policy guidance. This patch has
+not yet been released; production visual acceptance remains the release gate.
 
 ## Ordered release and recovery
 

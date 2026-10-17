@@ -405,7 +405,7 @@ const openProposal = async (kind: string) => {
   return { writes, user, form };
 };
 
-it("builds a professional tax table and refuses one with a gender left out", async () => {
+it("builds a professional tax table and refuses one with a gender left out", longForm, async () => {
   const { writes, user, form } = await openProposal("Professional tax");
   await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
   expect(
@@ -500,7 +500,7 @@ it("removes a professional tax slab but always keeps one", async () => {
   ).toHaveValue("7");
 });
 
-it("submits labour welfare fund slabs with optional caps", async () => {
+it("submits labour welfare fund slabs with optional caps", longForm, async () => {
   const { writes, user, form } = await openProposal("Labour welfare fund");
   await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
   expect(
@@ -609,101 +609,105 @@ it("sends a chosen gender and labels state levy statuses", async () => {
   expect(within(region).getByText("Labour welfare fund · Not due this month")).toBeInTheDocument();
 });
 
-it("builds an income-tax rule for one tax year with age bands, rebate and surcharge", async () => {
-  const { writes, user, form } = await openProposal("Income tax (new regime)");
-  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
-  expect(
-    await within(form).findByText("Enter the tax year as YYYY-YY, for example 2026-27."),
-  ).toBeInTheDocument();
-  expect(writes).toHaveLength(0);
-  const effective = (within(form).getByLabelText("Effective date") as HTMLInputElement).value;
-  await user.clear(within(form).getByLabelText("Effective date"));
-  await user.type(within(form).getByLabelText("Effective date"), "2027-04-01");
-  await fill(user, form, [
-    ["Tax year (for example 2026-27)", "2026-27"],
-    ["Standard deduction (₹)", "10000"],
-    ["Health and education cess (%)", "5"],
-  ]);
-  for (const [name, option] of [
-    ["Round taxable income", "Nearest (half up)"],
-    ["Taxable income to", "₹10"],
-    ["Round tax payable", "Always up"],
-    ["Tax payable to", "₹10"],
-    ["Rebate", "Rebate with marginal relief"],
-  ]) {
-    await chooseOption(user, within(form).getByRole("combobox", { name }), option);
-  }
-  const base = within(within(form).getByRole("group", { name: "Age band 1" }));
-  await fill(user, base, [
-    ["Applies from age", "0"],
-    ["Slab 1 taxable income from (₹)", "0"],
-    ["Up to (₹, blank for no limit)", "100000"],
-    ["Rate (%)", "0"],
-  ]);
-  await user.click(base.getByRole("button", { name: "Add slab" }));
-  await fill(user, base, [["Slab 2 taxable income from (₹)", "150000"]]);
-  await user.click(base.getAllByLabelText("Rate (%)")[1] as HTMLElement);
-  await user.paste("10");
-  await user.click(within(form).getByRole("button", { name: "Add age band" }));
-  await fill(user, within(within(form).getByRole("group", { name: "Age band 2" })), [
-    ["Applies from age", "60"],
-    ["Slab 1 taxable income from (₹)", "0"],
-    ["Rate (%)", "0"],
-  ]);
-  await fill(user, form, [
-    ["Taxable income up to (₹)", "150000"],
-    ["Rebate at most (₹)", "10000"],
-  ]);
-  await user.click(within(form).getByRole("button", { name: "Add surcharge band" }));
-  await fill(user, form, [
-    ["Band 1 on taxable income above (₹)", "5000000"],
-    ["Rate on tax (%)", "10"],
-  ]);
-  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
-  expect(
-    await within(form).findByText(/The effective date falls in tax year 2027-28/),
-  ).toBeInTheDocument();
-  expect(
-    within(form).getByText(
-      "The table leaves income from ₹1,00,000.00 to ₹1,50,000.00 without a slab.",
-    ),
-  ).toBeInTheDocument();
-  expect(writes).toHaveLength(0);
-  await user.clear(within(form).getByLabelText("Effective date"));
-  await user.type(within(form).getByLabelText("Effective date"), "2027-03-31");
-  await user.clear(base.getByLabelText("Slab 2 taxable income from (₹)"));
-  await user.type(base.getByLabelText("Slab 2 taxable income from (₹)"), "100000");
-  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
-  await waitFor(() => expect(writes).toHaveLength(1));
-  expect(effective).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-  expect(writes[0]?.body).toMatchObject({
-    kind: "income_tax_new",
-    covered: true,
-    effective_on: "2027-03-31",
-    income_tax: {
-      tax_year: "2026-27",
-      standard_deduction_paise: 1_000_000,
-      taxable_rounding_mode: "nearest",
-      taxable_rounding_unit_paise: 1000,
-      tax_rounding_mode: "up",
-      tax_rounding_unit_paise: 1000,
-      age_bands: [
-        {
-          min_age: 0,
-          slabs: [
-            { from_paise: 0, to_paise: 10_000_000, rate_ppm: 0 },
-            { from_paise: 10_000_000, rate_ppm: 100_000 },
-          ],
-        },
-        { min_age: 60, slabs: [{ from_paise: 0, rate_ppm: 0 }] },
-      ],
-      rebate: { income_limit_paise: 15_000_000, max_paise: 1_000_000, marginal_relief: true },
-      surcharge_bands: [{ above_paise: 500_000_000, rate_ppm: 100_000 }],
-      cess_rate_ppm: 50_000,
-    },
-  });
-  expect(writes[0]?.body).not.toHaveProperty("pt");
-});
+it(
+  "builds an income-tax rule for one tax year with age bands, rebate and surcharge",
+  longForm,
+  async () => {
+    const { writes, user, form } = await openProposal("Income tax (new regime)");
+    await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+    expect(
+      await within(form).findByText("Enter the tax year as YYYY-YY, for example 2026-27."),
+    ).toBeInTheDocument();
+    expect(writes).toHaveLength(0);
+    const effective = (within(form).getByLabelText("Effective date") as HTMLInputElement).value;
+    await user.clear(within(form).getByLabelText("Effective date"));
+    await user.type(within(form).getByLabelText("Effective date"), "2027-04-01");
+    await fill(user, form, [
+      ["Tax year (for example 2026-27)", "2026-27"],
+      ["Standard deduction (₹)", "10000"],
+      ["Health and education cess (%)", "5"],
+    ]);
+    for (const [name, option] of [
+      ["Round taxable income", "Nearest (half up)"],
+      ["Taxable income to", "₹10"],
+      ["Round tax payable", "Always up"],
+      ["Tax payable to", "₹10"],
+      ["Rebate", "Rebate with marginal relief"],
+    ]) {
+      await chooseOption(user, within(form).getByRole("combobox", { name }), option);
+    }
+    const base = within(within(form).getByRole("group", { name: "Age band 1" }));
+    await fill(user, base, [
+      ["Applies from age", "0"],
+      ["Slab 1 taxable income from (₹)", "0"],
+      ["Up to (₹, blank for no limit)", "100000"],
+      ["Rate (%)", "0"],
+    ]);
+    await user.click(base.getByRole("button", { name: "Add slab" }));
+    await fill(user, base, [["Slab 2 taxable income from (₹)", "150000"]]);
+    await user.click(base.getAllByLabelText("Rate (%)")[1] as HTMLElement);
+    await user.paste("10");
+    await user.click(within(form).getByRole("button", { name: "Add age band" }));
+    await fill(user, within(within(form).getByRole("group", { name: "Age band 2" })), [
+      ["Applies from age", "60"],
+      ["Slab 1 taxable income from (₹)", "0"],
+      ["Rate (%)", "0"],
+    ]);
+    await fill(user, form, [
+      ["Taxable income up to (₹)", "150000"],
+      ["Rebate at most (₹)", "10000"],
+    ]);
+    await user.click(within(form).getByRole("button", { name: "Add surcharge band" }));
+    await fill(user, form, [
+      ["Band 1 on taxable income above (₹)", "5000000"],
+      ["Rate on tax (%)", "10"],
+    ]);
+    await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+    expect(
+      await within(form).findByText(/The effective date falls in tax year 2027-28/),
+    ).toBeInTheDocument();
+    expect(
+      within(form).getByText(
+        "The table leaves income from ₹1,00,000.00 to ₹1,50,000.00 without a slab.",
+      ),
+    ).toBeInTheDocument();
+    expect(writes).toHaveLength(0);
+    await user.clear(within(form).getByLabelText("Effective date"));
+    await user.type(within(form).getByLabelText("Effective date"), "2027-03-31");
+    await user.clear(base.getByLabelText("Slab 2 taxable income from (₹)"));
+    await user.type(base.getByLabelText("Slab 2 taxable income from (₹)"), "100000");
+    await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(effective).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(writes[0]?.body).toMatchObject({
+      kind: "income_tax_new",
+      covered: true,
+      effective_on: "2027-03-31",
+      income_tax: {
+        tax_year: "2026-27",
+        standard_deduction_paise: 1_000_000,
+        taxable_rounding_mode: "nearest",
+        taxable_rounding_unit_paise: 1000,
+        tax_rounding_mode: "up",
+        tax_rounding_unit_paise: 1000,
+        age_bands: [
+          {
+            min_age: 0,
+            slabs: [
+              { from_paise: 0, to_paise: 10_000_000, rate_ppm: 0 },
+              { from_paise: 10_000_000, rate_ppm: 100_000 },
+            ],
+          },
+          { min_age: 60, slabs: [{ from_paise: 0, rate_ppm: 0 }] },
+        ],
+        rebate: { income_limit_paise: 15_000_000, max_paise: 1_000_000, marginal_relief: true },
+        surcharge_bands: [{ above_paise: 500_000_000, rate_ppm: 100_000 }],
+        cess_rate_ppm: 50_000,
+      },
+    });
+    expect(writes[0]?.body).not.toHaveProperty("pt");
+  },
+);
 
 it("hides rebate amounts without a rebate and explains an uncovered regime", async () => {
   const { user, form } = await openProposal("Income tax (old regime)");

@@ -414,9 +414,7 @@ export function HmsShell({
 
   return (
     <BrandThemeContext value={branding.theme}>
-      {warningDeadline && (
-        <IdleCountdown deadline={warningDeadline} onStay={handleStayLoggedIn} />
-      )}
+      {warningDeadline && <IdleCountdown deadline={warningDeadline} onStay={handleStayLoggedIn} />}
       <div data-brand-theme={branding.theme} className="flex h-screen overflow-hidden">
         {navigationOpen && <div aria-hidden="true" className="w-16 shrink-0 md:hidden" />}
         <aside

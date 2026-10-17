@@ -569,9 +569,7 @@ function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
                         action.mutate({ kind: "retry", document });
                       }}
                     >
-                      {pendingRetries.has(document.id)
-                        ? "Retry previous request"
-                        : "Retry scan"}
+                      {pendingRetries.has(document.id) ? "Retry previous request" : "Retry scan"}
                     </Button>
                   )}
                   {document.status === "upload_pending" && !expired && (

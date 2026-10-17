@@ -83,3 +83,46 @@ func TestHospitalProvisioningPreservesExistingMembershipsAndRetriesFGA(t *testin
 		return nil
 	}))
 }
+
+func TestHospitalProvisioningUsesDedicatedWorkloadHeader(t *testing.T) {
+	for _, tc := range []struct {
+		name, workload, authorization string
+		status                        int
+	}{
+		{"dedicated header", "Bearer approved", "", 400},
+		{"legacy direct header", "", "Bearer approved", 400},
+		{"foreign workload", "Bearer foreign", "", 401},
+		{"ambiguous credentials", "Bearer approved", "Bearer approved", 401},
+		{"missing credentials", "", "", 401},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := gin.New()
+			r.POST("/onboard", iam.NewOnboardingHandler(platform.Deps{}, provisioningCaller{}))
+			req := httptest.NewRequest("POST", "/onboard", strings.NewReader(`{}`))
+			if tc.workload != "" {
+				req.Header.Set("X-Onboarding-Token", tc.workload)
+			}
+			if tc.authorization != "" {
+				req.Header.Set("Authorization", tc.authorization)
+			}
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			require.Equal(t, tc.status, w.Code)
+		})
+	}
+}
+
+func TestHospitalProvisioningRejectsRepeatedCredentialHeaders(t *testing.T) {
+	for _, header := range []string{"X-Onboarding-Token", "Authorization"} {
+		t.Run(header, func(t *testing.T) {
+			r := gin.New()
+			r.POST("/onboard", iam.NewOnboardingHandler(platform.Deps{}, provisioningCaller{}))
+			req := httptest.NewRequest("POST", "/onboard", strings.NewReader(`{}`))
+			req.Header.Add(header, "Bearer approved")
+			req.Header.Add(header, "Bearer approved")
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			require.Equal(t, 401, w.Code)
+		})
+	}
+}

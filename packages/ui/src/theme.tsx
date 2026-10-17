@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 
 export const THEME_STORAGE_KEY = "hms.theme";
@@ -16,43 +16,36 @@ export const THEME_STORAGE_KEY = "hms.theme";
 // place rather than breaking the page.
 export const THEME_INIT_SCRIPT = `(function(){try{var k="${THEME_STORAGE_KEY}";var s=localStorage.getItem(k);var dark=s==="dark"||(!s&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.dataset.theme=dark?"dark":"default";}catch(e){}})();`;
 
+function subscribeTheme(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
+  });
+  return () => observer.disconnect();
+}
+
 /**
  * Tracks `document.documentElement.dataset.theme` and stays in sync via a
- * MutationObserver on the html element's `data-theme` attribute. Initial
- * state is "default" for SSR safety, corrected on mount — same
- * hydration-safe pattern as ThemeToggle below.
+ * MutationObserver on the html element's `data-theme` attribute. The server
+ * snapshot is "default", so hydration matches and the client re-renders with
+ * whatever THEME_INIT_SCRIPT already stamped.
  */
 export function useThemeAttribute(): "default" | "dark" {
-  const [theme, setTheme] = useState<"default" | "dark">("default");
-
-  useEffect(() => {
-    const read = () => (document.documentElement.dataset.theme === "dark" ? "dark" : "default");
-    setTheme(read());
-
-    const observer = new MutationObserver(() => setTheme(read()));
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["data-theme"],
-    });
-    return () => observer.disconnect();
-  }, []);
-
-  return theme;
+  return useSyncExternalStore(
+    subscribeTheme,
+    () => (document.documentElement.dataset.theme === "dark" ? "dark" : "default"),
+    () => "default",
+  );
 }
 
 /**
  * 32px icon button that flips `document.documentElement.dataset.theme`
  * between "default" (light) and "dark" and persists the choice to
- * localStorage. Initial state is read from the DOM on mount so it matches
- * whatever THEME_INIT_SCRIPT already stamped before hydration — starting
- * from a hardcoded default here would flash the wrong icon for one frame.
+ * localStorage. The icon follows the attribute through useThemeAttribute.
  */
 export function ThemeToggle() {
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    setIsDark(document.documentElement.dataset.theme === "dark");
-  }, []);
+  const isDark = useThemeAttribute() === "dark";
 
   const toggle = () => {
     const next = !isDark;
@@ -62,7 +55,6 @@ export function ThemeToggle() {
     } catch {
       // localStorage unavailable — theme still applies for this page load.
     }
-    setIsDark(next);
   };
 
   return (

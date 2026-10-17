@@ -44,7 +44,7 @@ export function TaxRegimes({
     election?: TaxRegimeElection;
   } | null>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
-  const show = (next: typeof open) => (ev: React.MouseEvent<HTMLButtonElement>) => {
+  const show = (next: typeof open, ev: React.MouseEvent<HTMLButtonElement>) => {
     opener.current = ev.currentTarget;
     setOpen(next);
   };
@@ -63,7 +63,7 @@ export function TaxRegimes({
           </p>
         </div>
         {writable && (
-          <Button variant="outline" onClick={show({ view: "record" })}>
+          <Button variant="outline" onClick={(ev) => show({ view: "record" }, ev)}>
             Record election
           </Button>
         )}
@@ -93,7 +93,7 @@ export function TaxRegimes({
                 <Button
                   variant="outline"
                   aria-label={`History of ${e.tax_year} election`}
-                  onClick={show({ view: "history", election: e })}
+                  onClick={(ev) => show({ view: "history", election: e }, ev)}
                 >
                   History
                 </Button>
@@ -101,7 +101,7 @@ export function TaxRegimes({
                   <Button
                     variant="outline"
                     aria-label={`Change ${e.tax_year} election`}
-                    onClick={show({ view: "record", election: e })}
+                    onClick={(ev) => show({ view: "record", election: e }, ev)}
                   >
                     Change
                   </Button>

@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { LogOut, PanelLeftClose, PanelLeftOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import {
@@ -33,25 +41,58 @@ import { IdleWarning } from "./idle-warning";
 const PANEL_KEY = "hms.panel.open";
 const NAVIGATION_KEY = "hms.navigation.open";
 
+// Same-tab writes fire no `storage` event, and unwritable storage keeps the flag in memory.
+const flagListeners = new Set<() => void>();
+const unpersistedFlags = new Map<string, boolean>();
+
+function subscribeFlags(listener: () => void) {
+  flagListeners.add(listener);
+  window.addEventListener("storage", listener);
+  return () => {
+    flagListeners.delete(listener);
+    window.removeEventListener("storage", listener);
+  };
+}
+
+function readFlag(key: string, fallback: boolean) {
+  const unpersisted = unpersistedFlags.get(key);
+  if (unpersisted !== undefined) return unpersisted;
+  try {
+    const stored = window.localStorage.getItem(key);
+    return stored === null ? fallback : stored === "1";
+  } catch {
+    return fallback;
+  }
+}
+
+// The server snapshot is the fallback, so hydration matches and stored values apply right after.
 function usePersistedFlag(key: string, fallback: boolean) {
-  const [value, setValue] = useState(fallback);
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(key);
-      if (stored !== null) setValue(stored === "1");
-    } catch {
-      return;
-    }
-  }, [key]);
+  const value = useSyncExternalStore(
+    subscribeFlags,
+    () => readFlag(key, fallback),
+    () => fallback,
+  );
   const update = (next: boolean) => {
-    setValue(next);
     try {
       window.localStorage.setItem(key, next ? "1" : "0");
+      unpersistedFlags.delete(key);
     } catch {
-      return;
+      unpersistedFlags.set(key, next);
     }
+    flagListeners.forEach((listener) => listener());
   };
   return [value, update] as const;
+}
+
+// Seconds are derived from the server's deadline on every tick, never decremented locally.
+function IdleCountdown({ deadline, onStay }: { deadline: Date; onStay: () => void }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+  const secondsRemaining = Math.max(0, Math.round((deadline.getTime() - now) / 1000));
+  return <IdleWarning secondsRemaining={secondsRemaining} onStay={onStay} />;
 }
 
 /**
@@ -308,28 +349,6 @@ export function HmsShell({
     };
   }, [reportActivity, endIdleSession]);
 
-  // The warning modal's countdown re-derives seconds-remaining from the
-  // deadline on every tick (spec "Errors and failure handling": "the
-  // client's countdown is a display derived from the server's returned
-  // deadline, never its own arithmetic on a locally-stored timestamp") —
-  // this recomputes from `Date.now()` each second rather than
-  // decrementing a counter, so clock drift or a paused/backgrounded tab
-  // can never desync the displayed time from the real deadline.
-  const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
-  useEffect(() => {
-    if (!warningDeadline) {
-      setSecondsRemaining(null);
-      return;
-    }
-    const tick = () => {
-      const remainingMs = warningDeadline.getTime() - Date.now();
-      setSecondsRemaining(Math.max(0, Math.round(remainingMs / 1000)));
-    };
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [warningDeadline]);
-
   // "Stay signed in" — and any other dismissal of the modal, per
   // IdleWarning's own onStay contract — reports activity exactly like a
   // qualifying interaction would, extending the session rather than
@@ -395,9 +414,7 @@ export function HmsShell({
 
   return (
     <BrandThemeContext value={branding.theme}>
-      {warningDeadline && secondsRemaining !== null && (
-        <IdleWarning secondsRemaining={secondsRemaining} onStay={handleStayLoggedIn} />
-      )}
+      {warningDeadline && <IdleCountdown deadline={warningDeadline} onStay={handleStayLoggedIn} />}
       <div data-brand-theme={branding.theme} className="flex h-screen overflow-hidden">
         {navigationOpen && <div aria-hidden="true" className="w-16 shrink-0 md:hidden" />}
         <aside

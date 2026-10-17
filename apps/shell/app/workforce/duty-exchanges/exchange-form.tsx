@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useNow } from "@/lib/use-now";
 import { Button } from "@tesserix/web";
 import {
   apiFetch,
@@ -33,7 +34,7 @@ function useDuties(hospital: string, base: string, roster: string, staff: string
     `${base}/hr/rosters/${roster}/allocations?staff_id=${staff}`,
     { enabled: !!roster && !!staff },
   );
-  const now = Date.now();
+  const now = useNow();
   return {
     ...duties,
     options: duties.items

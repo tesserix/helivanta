@@ -300,3 +300,138 @@ it("opens owned warehouse bins without copying the premises master", async () =>
   );
   expect(await screen.findByText("No bins recorded for this premise.")).toBeInTheDocument();
 });
+
+it("selects an owned branch for a warehouse through the reusable selector", async () => {
+  const branch = {
+    id: "0199e000-0000-7000-8000-000000000041",
+    code: "TEST-BRANCH",
+    name: "TEST Central branch",
+    kind: "branch",
+    status: "active",
+  };
+  const fetcher = fixture();
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("permissions"))
+      return new Response(
+        JSON.stringify({ data: ["supply.premise.read", "supply.premise.write"] }),
+      );
+    if (init?.method === "PUT")
+      return new Response(
+        JSON.stringify({ error: "unavailable", message: "TEST retry warehouse" }),
+        { status: 503 },
+      );
+    return new Response(JSON.stringify(page(url.endsWith("/premises") ? [branch] : [])));
+  });
+  const { user } = renderWithProviders(
+    <PartyRegistration scope={scope} country="IN" roles={["administrator"]} owned />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Add premise" }));
+  await user.click(screen.getByRole("combobox", { name: "Operating branch" }));
+  await user.click(screen.getByRole("option", { name: "TEST-BRANCH · TEST Central branch" }));
+  for (const [name, value] of [
+    ["Premise code", "TEST-WH"],
+    ["Premise name", "TEST Warehouse"],
+    ["Address line 1", "TEST Building"],
+    ["City", "TEST Mumbai"],
+    ["State or province", "TEST Maharashtra"],
+    ["Postal code", "400001"],
+  ])
+    await user.type(screen.getByLabelText(name), value);
+  await user.click(screen.getByRole("button", { name: "Save premise" }));
+  await screen.findByText("TEST retry warehouse");
+  const put = fetcher.mock.calls.find(([, init]) => init?.method === "PUT");
+  expect(JSON.parse(put?.[1]?.body as string)).toMatchObject({ branch_premise_id: branch.id });
+  expect(screen.getByRole("combobox", { name: "Operating branch" })).toHaveTextContent(
+    "TEST Central branch",
+  );
+});
+
+const linkedWarehouse = {
+  id: "0199e000-0000-7000-8000-000000000051",
+  code: "TEST-LINKED-WH",
+  name: "TEST Linked warehouse",
+  kind: "warehouse",
+  status: "active",
+  version: 2,
+  line1: "TEST Building",
+  line2: "",
+  city: "TEST City",
+  region: "TEST Region",
+  postal_code: "TEST-001",
+  country_code: "IN",
+  time_zone: "Asia/Kolkata",
+  branch_premise_id: "0199e000-0000-7000-8000-000000000052",
+};
+
+it("resolves a branch outside the loaded premise page and explicitly unlinks it", async () => {
+  const fetcher = fixture();
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("permissions"))
+      return new Response(
+        JSON.stringify({ data: ["supply.premise.read", "supply.premise.write"] }),
+      );
+    if (init?.method === "PUT")
+      return new Response(
+        JSON.stringify({ error: "unavailable", message: "TEST preserve unlink draft" }),
+        { status: 503 },
+      );
+    if (url.endsWith(linkedWarehouse.branch_premise_id))
+      return new Response(
+        JSON.stringify({
+          id: linkedWarehouse.branch_premise_id,
+          code: "TEST-OLD-BRANCH",
+          name: "TEST Previous branch",
+          kind: "branch",
+          status: "inactive",
+        }),
+      );
+    return new Response(JSON.stringify(page(url.endsWith("/premises") ? [linkedWarehouse] : [])));
+  });
+  const { user } = renderWithProviders(
+    <PartyRegistration scope={scope} country="IN" roles={["administrator"]} owned />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Edit premise TEST-LINKED-WH" }));
+  await waitFor(() =>
+    expect(screen.getByRole("combobox", { name: "Operating branch" })).toHaveTextContent(
+      "TEST Previous branch · Inactive",
+    ),
+  );
+  await user.click(screen.getByRole("combobox", { name: "Operating branch" }));
+  await user.click(screen.getByRole("option", { name: "Standalone location" }));
+  await user.click(screen.getByRole("button", { name: "Save premise" }));
+  await screen.findByText("TEST preserve unlink draft");
+  const put = fetcher.mock.calls.find(([, init]) => init?.method === "PUT");
+  expect(JSON.parse(put?.[1]?.body as string)).toMatchObject({
+    expected_version: 2,
+    branch_premise_id: null,
+  });
+  expect(screen.getByRole("combobox", { name: "Operating branch" })).toHaveTextContent(
+    "Standalone location",
+  );
+});
+
+it("blocks saving and offers recovery when the selected private branch is unavailable", async () => {
+  const fetcher = fixture();
+  fetcher.mockImplementation(async (url: string) => {
+    if (url.endsWith("permissions"))
+      return new Response(
+        JSON.stringify({ data: ["supply.premise.read", "supply.premise.write"] }),
+      );
+    if (url.endsWith(linkedWarehouse.branch_premise_id))
+      return new Response(
+        JSON.stringify({ error: "not_found", message: "TEST inaccessible branch" }),
+        { status: 404 },
+      );
+    return new Response(JSON.stringify(page(url.endsWith("/premises") ? [linkedWarehouse] : [])));
+  });
+  const { user } = renderWithProviders(
+    <PartyRegistration scope={scope} country="IN" roles={["administrator"]} owned />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Edit premise TEST-LINKED-WH" }));
+  await screen.findByText("Could not load the selected branch. Refresh before saving.");
+  expect(screen.getByRole("button", { name: "Save premise" })).toBeDisabled();
+  expect(screen.getByRole("combobox", { name: "Operating branch" })).not.toHaveTextContent(
+    "TEST Previous branch",
+  );
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+});

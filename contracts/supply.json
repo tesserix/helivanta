@@ -298,6 +298,11 @@
           "name": "status",
           "type": "string",
           "enum": ["active", "inactive"]
+        },
+        {
+          "name": "branch_premise_id",
+          "type": "uuid",
+          "optional": true
         }
       ]
     },

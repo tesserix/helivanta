@@ -104,3 +104,36 @@ it("carries the tenant theme into a menu rendered outside the workspace", async 
   expect(screen.getByRole("listbox")).toHaveAttribute("data-brand-theme", "blue");
   vi.unstubAllGlobals();
 });
+
+it("submits null when a nullable form selector is explicitly cleared", async () => {
+  const { FormSelectField } = await import("./select");
+  const { useZodForm } = await import("./form");
+  const { z } = await import("zod");
+  const { vi } = await import("vitest");
+  const saved = vi.fn();
+  function NullablePicker() {
+    const form = useZodForm(z.object({ branch: z.string().nullable() }), { branch: "branch-a" });
+    return (
+      <form noValidate onSubmit={form.handleSubmit(saved)}>
+        <FormSelectField
+          control={form.control}
+          name="branch"
+          id="branch"
+          label="Branch"
+          emptyValue={null}
+          options={[
+            { value: "", label: "Standalone" },
+            { value: "branch-a", label: "Branch A" },
+          ]}
+        />
+        <button type="submit">Save branch</button>
+      </form>
+    );
+  }
+  const user = userEvent.setup();
+  render(<NullablePicker />);
+  await user.click(screen.getByRole("combobox", { name: "Branch" }));
+  await user.click(screen.getByRole("option", { name: "Standalone" }));
+  await user.click(screen.getByRole("button", { name: "Save branch" }));
+  expect(saved).toHaveBeenCalledWith({ branch: null }, expect.anything());
+});

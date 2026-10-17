@@ -14,6 +14,9 @@ Deliver independently verified vertical slices in this order:
 1. Warehouse/depot bins with immutable revision history and explicit existing
    organisation grants. This change implements this slice only.
 2. Explicit legal-entity/branch links and sales territories/representative assignments.
+   The warehouse/depot-to-branch relationship is specified in
+   [the branch premise follow-up](2026-10-17-distributor-branch-premises.md); it does
+   not implement corporate parent entities or territory assignments.
 3. Expiring, reasoned location role grants: inventory, picker, packer, dispatcher,
    read-only auditor/regulator, with immediate revocation and independent operation checks.
 4. Assigned-delivery-only driver views, approval settings and approved support escalation,

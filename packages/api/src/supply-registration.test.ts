@@ -86,3 +86,27 @@ it("rejects cross-country operating time zones, reversed validity and duplicate 
     }).success,
   ).toBe(false);
 });
+
+it("accepts scoped branch references, explicit unlinking and old-client omission", () => {
+  const input = {
+    ...address,
+    expected_version: 0,
+    code: "TEST-WH",
+    name: "TEST Warehouse",
+    kind: "warehouse",
+    time_zone: "Asia/Kolkata",
+    status: "active",
+  };
+  const branch = "0199e000-0000-7000-8000-000000000001";
+  expect(supplyPremiseInputSchema.parse({ ...input, branch_premise_id: branch })).toMatchObject({
+    branch_premise_id: branch,
+  });
+  expect(supplyPremiseInputSchema.parse({ ...input, branch_premise_id: null })).toMatchObject({
+    branch_premise_id: null,
+  });
+  expect(supplyPremiseInputSchema.parse(input)).not.toHaveProperty("branch_premise_id");
+  expect(
+    supplyPremiseInputSchema.safeParse({ ...input, branch_premise_id: crypto.randomUUID() })
+      .success,
+  ).toBe(false);
+});

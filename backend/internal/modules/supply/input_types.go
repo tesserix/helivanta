@@ -71,11 +71,12 @@ type partyInput struct {
 }
 
 type PremiseFields struct {
-	Code     string `json:"code" binding:"required,min=1,max=40"`
-	Name     string `json:"name" binding:"required,min=1,max=200"`
-	Kind     string `json:"kind" binding:"required,oneof=registered branch warehouse depot pharmacy"`
-	TimeZone string `json:"time_zone" binding:"required,min=1,max=100"`
-	Status   string `json:"status" binding:"required,oneof=active inactive"`
+	Code            string     `json:"code" binding:"required,min=1,max=40"`
+	Name            string     `json:"name" binding:"required,min=1,max=200"`
+	Kind            string     `json:"kind" binding:"required,oneof=registered branch warehouse depot pharmacy"`
+	TimeZone        string     `json:"time_zone" binding:"required,min=1,max=100"`
+	Status          string     `json:"status" binding:"required,oneof=active inactive"`
+	BranchPremiseID *uuid.UUID `json:"branch_premise_id" binding:"omitempty"`
 	PostalAddressFields
 }
 

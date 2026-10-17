@@ -146,6 +146,13 @@ export function PartyRegistration({
                     <p className="mt-1 text-sm text-muted-foreground">
                       {row.code} · {label(row.kind)} · {label(row.status)}
                     </p>
+                    {row.branch_premise_id && (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Operating branch:{" "}
+                        {premises.items.find((p) => p.id === row.branch_premise_id)?.name ??
+                          "Assigned operating branch"}
+                      </p>
+                    )}
                     <p className="mt-1 break-words text-sm text-muted-foreground">
                       {[row.line1, row.line2, row.city, row.region, row.postal_code]
                         .filter(Boolean)
@@ -314,6 +321,8 @@ export function PartyRegistration({
             scope={scope}
             country={country}
             row={premise}
+            owned={owned}
+            premises={premises}
             onClose={() => setPremise(undefined)}
           />
         )}
@@ -363,11 +372,15 @@ function PremiseEditor({
   scope,
   country,
   row,
+  owned,
+  premises,
   onClose,
 }: {
   scope: SupplyRegistryScope;
   country: string;
   row: SupplyPremise | null;
+  owned: boolean;
+  premises: ReturnType<typeof useApiPagedQuery<SupplyPremise>>;
   onClose: () => void;
 }) {
   const [id] = useState(() => row?.id ?? newSupplyId());
@@ -389,8 +402,27 @@ function PremiseEditor({
           postal_code: "",
           country_code: profile?.code ?? "IN",
           time_zone: profile?.timezone ?? "",
+          branch_premise_id: null,
         },
   );
+  const branchId = form.watch("branch_premise_id");
+  const kind = form.watch("kind");
+  const storage = kind === "warehouse" || kind === "depot";
+  const missingBranch = owned && !!branchId && !premises.items.some((p) => p.id === branchId);
+  const selectedBranch = useApiQuery<SupplyPremise>(
+    supplyRegistryKey(scope, "premise", branchId),
+    `${supplyRegistryRoot(scope, "premises")}/${branchId ?? ""}`,
+    { enabled: missingBranch && !premises.isError, gcTime: 0 },
+  );
+  const branches = premises.isError
+    ? []
+    : (missingBranch && selectedBranch.data && !selectedBranch.isError
+        ? [...premises.items, selectedBranch.data]
+        : premises.items
+      ).filter((p) => p.kind === "branch" && (p.status === "active" || p.id === branchId));
+  const branchUnavailable =
+    owned &&
+    (premises.isError || (missingBranch && (selectedBranch.isPending || selectedBranch.isError)));
   const save = useApiMutation(
     (value: SupplyPremiseInput) =>
       apiFetch<SupplyPremise>(`${supplyRegistryRoot(scope, "premises")}/${id}`, {
@@ -424,7 +456,10 @@ function PremiseEditor({
         {profile?.name} · Operating location for this organisation. A hospital affiliation is
         optional.
       </p>
-      <fieldset disabled={save.isPending} className="grid gap-4 sm:grid-cols-2">
+      <fieldset
+        disabled={save.isPending || branchUnavailable}
+        className="grid gap-4 sm:grid-cols-2"
+      >
         <RegistryInput form={form} name="code" label="Premise code" />
         <RegistryInput form={form} name="name" label="Premise name" />
         <FormSelectField
@@ -447,6 +482,49 @@ function PremiseEditor({
             label: label(value),
           }))}
         />
+        {owned && (
+          <div className="space-y-2 sm:col-span-2">
+            <FormSelectField
+              control={form.control}
+              name="branch_premise_id"
+              id="premise-branch"
+              label="Operating branch"
+              emptyValue={null}
+              disabled={!storage && !branchId}
+              options={[
+                { value: "", label: "Standalone location" },
+                ...branches.map((p) => ({
+                  value: p.id,
+                  label: `${p.code} · ${p.name}${p.status === "inactive" ? " · Inactive" : ""}`,
+                  disabled: !storage,
+                })),
+              ]}
+            />
+            <p className="text-sm text-muted-foreground">
+              Group a warehouse or depot under this organisation’s branch. This does not change
+              permissions or trading approval.
+            </p>
+            {!storage && branchId && (
+              <p role="alert">Clear the branch assignment before saving a non-storage premise.</p>
+            )}
+            {missingBranch && selectedBranch.isPending && !premises.isError && (
+              <p role="status">Loading selected branch…</p>
+            )}
+            {missingBranch && selectedBranch.isError && !premises.isError && (
+              <RequestFailure
+                message="Could not load the selected branch. Refresh before saving."
+                retry={() => {
+                  void selectedBranch.refetch();
+                }}
+              />
+            )}
+            <LoadMore
+              hasMore={premises.hasMore}
+              isLoading={premises.isFetchingMore}
+              onClick={premises.loadMore}
+            />
+          </div>
+        )}
         <RegistryInput form={form} name="line1" label="Address line 1" />
         <RegistryInput form={form} name="line2" label="Address line 2" />
         <RegistryInput form={form} name="city" label="City" />
@@ -460,12 +538,21 @@ function PremiseEditor({
           options={(profile?.timezones ?? []).map((value) => ({ value, label: value }))}
         />
       </fieldset>
+      {owned && premises.isError && (
+        <RequestFailure
+          message="Could not load branches. Refresh before saving."
+          retry={premises.retry}
+        />
+      )}
       {save.isError && (
         <p role="alert" className="text-sm text-destructive">
           {save.error.message}
         </p>
       )}
-      <Button type="submit" disabled={save.isPending}>
+      <Button
+        type="submit"
+        disabled={save.isPending || branchUnavailable || (!storage && !!branchId)}
+      >
         {save.isPending ? "Saving…" : "Save premise"}
       </Button>
     </form>
@@ -692,6 +779,9 @@ function RegistryHistory({
                   <p>
                     {row.snapshot.country_code} · {row.snapshot.time_zone}
                   </p>
+                  {row.snapshot.branch_premise_id && (
+                    <p>Branch assignment recorded · {row.snapshot.branch_premise_id}</p>
+                  )}
                 </div>
               ) : (
                 <div className="mt-2 space-y-1 break-words text-muted-foreground">

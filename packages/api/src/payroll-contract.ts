@@ -1035,3 +1035,190 @@ export const staffIdentifierRevealContract = z
   })
   .strict();
 export type StaffIdentifierReveal = z.infer<typeof staffIdentifierRevealContract>;
+
+export const taxDeclarationClaimContract = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    amount_paise: z.number().int().min(1).max(100000000000),
+  })
+  .strict();
+export type TaxDeclarationClaim = z.infer<typeof taxDeclarationClaimContract>;
+
+export const taxDeclarationPanChangeContract = z
+  .object({
+    action: z.enum(["keep", "set", "none"]),
+    value: z
+      .string()
+      .max(10)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+  })
+  .strict();
+export type TaxDeclarationPanChange = z.infer<typeof taxDeclarationPanChangeContract>;
+
+export const taxDeclarationLandlordInputContract = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, "Enter a name.")
+      .max(150)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    address: z
+      .string()
+      .trim()
+      .min(1)
+      .max(300)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    rent_paise: z.number().int().min(1).max(1000000000),
+    pan: taxDeclarationPanChangeContract,
+  })
+  .strict();
+export type TaxDeclarationLandlordInput = z.infer<typeof taxDeclarationLandlordInputContract>;
+
+export const taxDeclarationLenderInputContract = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, "Enter a name.")
+      .max(150)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    address: z
+      .string()
+      .trim()
+      .min(1)
+      .max(300)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    pan: taxDeclarationPanChangeContract,
+  })
+  .strict();
+export type TaxDeclarationLenderInput = z.infer<typeof taxDeclarationLenderInputContract>;
+
+export const taxDeclarationHraInputContract = z
+  .object({
+    metro: z.boolean(),
+    landlords: z.array(taxDeclarationLandlordInputContract).max(4),
+  })
+  .strict();
+export type TaxDeclarationHraInput = z.infer<typeof taxDeclarationHraInputContract>;
+
+export const taxDeclarationHomeLoanInputContract = z
+  .object({
+    interest_paise: z.number().int().min(1).max(1000000000),
+    lenders: z.array(taxDeclarationLenderInputContract).max(4),
+  })
+  .strict();
+export type TaxDeclarationHomeLoanInput = z.infer<typeof taxDeclarationHomeLoanInputContract>;
+
+export const taxDeclarationInputContract = z
+  .object({
+    expected_version: z.number().int().min(0),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    claims: z.array(taxDeclarationClaimContract).max(24),
+    hra: taxDeclarationHraInputContract.optional(),
+    home_loan: taxDeclarationHomeLoanInputContract.optional(),
+  })
+  .strict();
+export type TaxDeclarationInput = z.infer<typeof taxDeclarationInputContract>;
+
+export const taxDeclarationClaimLineContract = z
+  .object({
+    code: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    amount_paise: z.number().int(),
+  })
+  .strict();
+export type TaxDeclarationClaimLine = z.infer<typeof taxDeclarationClaimLineContract>;
+
+export const taxDeclarationPartyContract = z
+  .object({
+    role: z.enum(["landlord", "lender"]),
+    position: z.number().int(),
+    name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    address: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    rent_paise: z.number().int().optional(),
+    pan_masked: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+  })
+  .strict();
+export type TaxDeclarationParty = z.infer<typeof taxDeclarationPartyContract>;
+
+export const taxDeclarationRevisionContract = z
+  .object({
+    id: identifier,
+    staff_id: identifier,
+    tax_year: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    sequence: z.number().int(),
+    base_version: z.number().int(),
+    status: z.enum(["pending", "approved", "rejected", "withdrawn"]),
+    approved_version: z.number().int().optional(),
+    reason: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    hra_metro: z.boolean().optional(),
+    home_loan_interest_paise: z.number().int().optional(),
+    claims: z.array(taxDeclarationClaimLineContract),
+    parties: z.array(taxDeclarationPartyContract),
+    proposed_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    decided_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    decided_at: z.string().datetime({ offset: true }).optional(),
+    decision_note: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type TaxDeclarationRevision = z.infer<typeof taxDeclarationRevisionContract>;
+
+export const taxDeclarationContract = z
+  .object({
+    staff_id: identifier,
+    tax_year: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    version: z.number().int(),
+    current: taxDeclarationRevisionContract.optional(),
+    pending: taxDeclarationRevisionContract.optional(),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type TaxDeclaration = z.infer<typeof taxDeclarationContract>;
+
+export const taxDeclarationRevealInputContract = z
+  .object({
+    revision_id: identifier,
+    role: z.enum(["landlord", "lender"]),
+    position: z.number().int().min(1).max(4),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type TaxDeclarationRevealInput = z.infer<typeof taxDeclarationRevealInputContract>;
+
+export const taxDeclarationRevealContract = z
+  .object({
+    revision_id: identifier,
+    role: z.enum(["landlord", "lender"]),
+    position: z.number().int(),
+    value: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type TaxDeclarationReveal = z.infer<typeof taxDeclarationRevealContract>;

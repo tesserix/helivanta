@@ -27,7 +27,7 @@ This slice delivers the rules and the calculation. The staff member's own declar
 
 Not in this slice:
 
-- **Staff declarations** (amounts, landlords, lenders, evidence and approval) are slice 5b.
+- **Staff declarations** (amounts, landlords, lenders, evidence and approval) are slice 5b; amounts, parties and approval landed in the [income-tax declarations spec](2026-10-18-income-tax-declarations-design.md), evidence documents in 5b-ii.
 - **Salary-derived inputs.** The HRA received, the salary the HRA rates apply to, and the annual income come from the salary assignment in slice 6. Here they are stated inputs.
 - **Leave travel**, which depends on journeys within a block of years and on actual reimbursement through the payroll run (#1040).
 - Perquisites, other income reported to the employer, and relief for arrears. All of these need payroll history (#1040).

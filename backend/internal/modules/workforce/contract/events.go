@@ -265,3 +265,27 @@ type StaffIdentifierRevealedData struct {
 	RevisionID string `json:"revision_id"`
 	Field      string `json:"field"`
 }
+
+// SubjectTaxDeclarationChanged reports a tax declaration proposal or decision; payloads never carry amounts, parties or PANs.
+const SubjectTaxDeclarationChanged = "helivanta.in.workforce.tax_declaration_changed.v1"
+
+type TaxDeclarationChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	TaxYear    string `json:"tax_year"`
+	RevisionID string `json:"revision_id"`
+	Status     string `json:"status"`
+	Version    int64  `json:"version"`
+}
+
+// SubjectTaxDeclarationPartyRevealed reports that someone viewed a landlord's or lender's PAN; the reason stays in the audit log.
+const SubjectTaxDeclarationPartyRevealed = "helivanta.in.workforce.tax_declaration_party_revealed.v1"
+
+type TaxDeclarationPartyRevealedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	TaxYear    string `json:"tax_year"`
+	RevisionID string `json:"revision_id"`
+	Role       string `json:"role"`
+	Position   int    `json:"position"`
+}

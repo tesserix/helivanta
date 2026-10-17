@@ -18,6 +18,9 @@ import type {
   StatutoryRuleInput,
   StaffSalaryPreviewInput,
   StaffIdentifiersInput,
+  TaxDeclarationInput,
+  TaxDeclarationPanChange,
+  TaxDeclarationRevision,
   TaxRegimeElection,
   TaxRegimeInput,
 } from "./payroll-contract";
@@ -1931,3 +1934,178 @@ export const staffIdentifierRevealFormSchema = z
   .object({ reason: text("why you need to see it", 200) })
   .strict();
 export type StaffIdentifierRevealForm = z.infer<typeof staffIdentifierRevealFormSchema>;
+
+export const taxDeclarationPath = (base: string, staff: string, year: string) =>
+  `${staffPayPath(base, staff)}/tax-declarations/${encodeURIComponent(year)}`;
+
+export const DECLARATION_PAN_ACTIONS = {
+  keep: "Keep the PAN on record",
+  set: "Enter a PAN",
+  none: "No PAN",
+} as const;
+export const DECLARATION_ROLES = { landlord: "Landlord", lender: "Lender" } as const;
+export const MAX_DECLARATION_PARTIES = 4;
+export const MAX_DECLARATION_CLAIMS = 24;
+
+const declarationPan = z.enum(["keep", "set", "none"]);
+const declarationParty = {
+  name: z.string(),
+  address: z.string(),
+  pan: declarationPan,
+  pan_value: z.string(),
+};
+
+// Whether a landlord's PAN is required depends on the rule in force, so only the API decides it.
+export const taxDeclarationFormSchema = z
+  .object({
+    reason: text("a reason", 500),
+    claims: z.array(z.object({ code: z.string(), amount: z.string() }).strict()),
+    hra: z.boolean(),
+    metro: z.boolean(),
+    landlords: z.array(z.object({ ...declarationParty, rent: z.string() }).strict()),
+    home_loan: z.boolean(),
+    interest: z.string(),
+    lenders: z.array(z.object(declarationParty).strict()),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const issue = (path: (string | number)[], message: string) =>
+      ctx.addIssue({ code: "custom", path, message });
+    const seen = new Set<string>();
+    if (value.claims.length > MAX_DECLARATION_CLAIMS)
+      issue(["claims"], `Declare at most ${MAX_DECLARATION_CLAIMS} claims.`);
+    value.claims.forEach((claim, i) => {
+      const parsed = code.safeParse(claim.code);
+      if (!parsed.success)
+        issue(["claims", i, "code"], "Use up to 40 letters, numbers, underscores or hyphens.");
+      else if (seen.has(parsed.data)) issue(["claims", i, "code"], "Declare each claim code once.");
+      else seen.add(parsed.data);
+      const amount = parseIncome(claim.amount);
+      if (amount === undefined || amount < 1)
+        issue(["claims", i, "amount"], "Enter an amount up to ₹1,000 crore.");
+    });
+    const parties = (role: "landlords" | "lenders", rows: typeof value.lenders) => {
+      if (rows.length < 1 || rows.length > MAX_DECLARATION_PARTIES)
+        issue([role], `Add 1 to ${MAX_DECLARATION_PARTIES} ${role}.`);
+      rows.forEach((row, i) => {
+        const name = row.name.trim();
+        if (name === "" || name.length > 150 || name.includes("\0"))
+          issue([role, i, "name"], "Enter the name, up to 150 characters.");
+        const address = row.address.trim();
+        if (address === "" || address.length > 300 || address.includes("\0"))
+          issue([role, i, "address"], "Enter the address, up to 300 characters.");
+        if (row.pan === "set" && !/^[A-Z]{5}\d{4}[A-Z]$/.test(row.pan_value.trim().toUpperCase()))
+          issue([role, i, "pan_value"], "Enter the 10-character PAN, such as ABCDE1234F.");
+      });
+    };
+    if (value.hra) {
+      parties("landlords", value.landlords);
+      value.landlords.forEach((row, i) => {
+        const rent = parseRupees(row.rent);
+        if (rent === undefined || rent < 1)
+          issue(["landlords", i, "rent"], "Enter the rent paid this year, up to ₹1 crore.");
+      });
+    }
+    if (value.home_loan) {
+      const interest = parseRupees(value.interest);
+      if (interest === undefined || interest < 1)
+        issue(["interest"], "Enter the interest payable this year, up to ₹1 crore.");
+      parties("lenders", value.lenders);
+    }
+  });
+export type TaxDeclarationForm = z.infer<typeof taxDeclarationFormSchema>;
+
+const toPanChange = (row: {
+  pan: "keep" | "set" | "none";
+  pan_value: string;
+}): TaxDeclarationPanChange =>
+  row.pan === "set"
+    ? { action: "set", value: row.pan_value.trim().toUpperCase() }
+    : { action: row.pan };
+
+export const toTaxDeclarationInput = (
+  form: TaxDeclarationForm,
+  expectedVersion: number,
+): TaxDeclarationInput => ({
+  expected_version: expectedVersion,
+  reason: form.reason.trim(),
+  claims: form.claims.map((c) => ({
+    code: c.code.trim().toUpperCase(),
+    amount_paise: parseIncome(c.amount) ?? 0,
+  })),
+  ...(form.hra && {
+    hra: {
+      metro: form.metro,
+      landlords: form.landlords.map((l) => ({
+        name: l.name.trim(),
+        address: l.address.trim(),
+        rent_paise: parseRupees(l.rent) ?? 0,
+        pan: toPanChange(l),
+      })),
+    },
+  }),
+  ...(form.home_loan && {
+    home_loan: {
+      interest_paise: parseRupees(form.interest) ?? 0,
+      lenders: form.lenders.map((l) => ({
+        name: l.name.trim(),
+        address: l.address.trim(),
+        pan: toPanChange(l),
+      })),
+    },
+  }),
+});
+
+// Declarations are usually for this year; the year before stays open for late corrections, the next for early ones.
+export const taxYearsAround = (day: string) => {
+  const start = Number(taxYearOf(day).slice(0, 4));
+  return [start - 1, start, start + 1].map((y) => `${y}-${String((y + 1) % 100).padStart(2, "0")}`);
+};
+
+export const blankDeclarationClaim = () => ({ code: "", amount: "" });
+export const blankLandlord = () => ({
+  name: "",
+  address: "",
+  rent: "",
+  pan: "set" as const,
+  pan_value: "",
+});
+export const blankLender = () => ({ name: "", address: "", pan: "none" as const, pan_value: "" });
+
+// A PAN on record is kept by default, so a proposal never re-keys values it does not change.
+export const taxDeclarationFormOf = (current?: TaxDeclarationRevision): TaxDeclarationForm => {
+  const of = (role: "landlord" | "lender") =>
+    (current?.parties ?? []).filter((p) => p.role === role);
+  const party = (p: TaxDeclarationRevision["parties"][number]) => ({
+    name: p.name,
+    address: p.address,
+    pan: p.pan_masked ? ("keep" as const) : ("none" as const),
+    pan_value: "",
+  });
+  const landlords = of("landlord").map((p) => ({
+    ...party(p),
+    rent: p.rent_paise === undefined ? "" : paiseToRupees(p.rent_paise),
+  }));
+  const lenders = of("lender").map(party);
+  return {
+    reason: "",
+    claims: (current?.claims ?? []).map((c) => ({
+      code: c.code,
+      amount: paiseToRupees(c.amount_paise),
+    })),
+    hra: current?.hra_metro !== undefined,
+    metro: current?.hra_metro ?? false,
+    landlords: landlords.length ? landlords : [blankLandlord()],
+    home_loan: current?.home_loan_interest_paise !== undefined,
+    interest:
+      current?.home_loan_interest_paise === undefined
+        ? ""
+        : paiseToRupees(current.home_loan_interest_paise),
+    lenders: lenders.length ? lenders : [blankLender()],
+  };
+};
+
+export const taxDeclarationRevealFormSchema = z
+  .object({ reason: text("why you need to see it", 200) })
+  .strict();
+export type TaxDeclarationRevealForm = z.infer<typeof taxDeclarationRevealFormSchema>;

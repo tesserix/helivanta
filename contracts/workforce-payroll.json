@@ -2659,6 +2659,372 @@
         "name": "value",
         "type": "string"
       }
+    ],
+    "taxDeclarationClaim": [
+      {
+        "name": "code",
+        "type": "string",
+        "format": "code",
+        "binding": "required,max=40"
+      },
+      {
+        "name": "amount_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "max": 100000000000,
+        "binding": "required,gte=1,lte=100000000000"
+      }
+    ],
+    "taxDeclarationPanChange": [
+      {
+        "name": "action",
+        "type": "string",
+        "enum": [
+          "keep",
+          "set",
+          "none"
+        ],
+        "binding": "required,oneof=keep set none"
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "optional": true,
+        "max": 10,
+        "binding": "omitempty,max=10"
+      }
+    ],
+    "taxDeclarationLandlordInput": [
+      {
+        "name": "name",
+        "type": "string",
+        "format": "name",
+        "min": 1,
+        "max": 150,
+        "binding": "required,max=150"
+      },
+      {
+        "name": "address",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 300,
+        "binding": "required,max=300"
+      },
+      {
+        "name": "rent_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "max": 1000000000,
+        "binding": "required,gte=1,lte=1000000000"
+      },
+      {
+        "name": "pan",
+        "type": "taxDeclarationPanChange",
+        "binding": "required"
+      }
+    ],
+    "taxDeclarationLenderInput": [
+      {
+        "name": "name",
+        "type": "string",
+        "format": "name",
+        "min": 1,
+        "max": 150,
+        "binding": "required,max=150"
+      },
+      {
+        "name": "address",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 300,
+        "binding": "required,max=300"
+      },
+      {
+        "name": "pan",
+        "type": "taxDeclarationPanChange",
+        "binding": "required"
+      }
+    ],
+    "taxDeclarationHraInput": [
+      {
+        "name": "metro",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "landlords",
+        "type": "[]taxDeclarationLandlordInput",
+        "max": 4,
+        "binding": "required,min=1,max=4,dive"
+      }
+    ],
+    "taxDeclarationHomeLoanInput": [
+      {
+        "name": "interest_paise",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "max": 1000000000,
+        "binding": "required,gte=1,lte=1000000000"
+      },
+      {
+        "name": "lenders",
+        "type": "[]taxDeclarationLenderInput",
+        "max": 4,
+        "binding": "required,min=1,max=4,dive"
+      }
+    ],
+    "taxDeclarationInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500,
+        "binding": "required,max=500"
+      },
+      {
+        "name": "claims",
+        "type": "[]taxDeclarationClaim",
+        "max": 24,
+        "binding": "max=24,dive"
+      },
+      {
+        "name": "hra",
+        "type": "taxDeclarationHraInput",
+        "optional": true,
+        "binding": "omitempty"
+      },
+      {
+        "name": "home_loan",
+        "type": "taxDeclarationHomeLoanInput",
+        "optional": true,
+        "binding": "omitempty"
+      }
+    ],
+    "taxDeclarationClaimLine": [
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "amount_paise",
+        "type": "int64"
+      }
+    ],
+    "taxDeclarationParty": [
+      {
+        "name": "role",
+        "type": "string",
+        "enum": [
+          "landlord",
+          "lender"
+        ]
+      },
+      {
+        "name": "position",
+        "type": "int"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "address",
+        "type": "string"
+      },
+      {
+        "name": "rent_paise",
+        "type": "int64",
+        "optional": true
+      },
+      {
+        "name": "pan_masked",
+        "type": "string",
+        "optional": true
+      }
+    ],
+    "taxDeclarationRevision": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "tax_year",
+        "type": "string"
+      },
+      {
+        "name": "sequence",
+        "type": "int"
+      },
+      {
+        "name": "base_version",
+        "type": "int64"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected",
+          "withdrawn"
+        ]
+      },
+      {
+        "name": "approved_version",
+        "type": "int64",
+        "optional": true
+      },
+      {
+        "name": "reason",
+        "type": "string"
+      },
+      {
+        "name": "hra_metro",
+        "type": "bool",
+        "optional": true
+      },
+      {
+        "name": "home_loan_interest_paise",
+        "type": "int64",
+        "optional": true
+      },
+      {
+        "name": "claims",
+        "type": "[]taxDeclarationClaimLine",
+        "orm_ignore": true
+      },
+      {
+        "name": "parties",
+        "type": "[]taxDeclarationParty",
+        "orm_ignore": true
+      },
+      {
+        "name": "proposed_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "decided_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "decided_at",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "decision_note",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "taxDeclaration": [
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "tax_year",
+        "type": "string"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "current",
+        "type": "taxDeclarationRevision",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
+        "name": "pending",
+        "type": "taxDeclarationRevision",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "taxDeclarationRevealInput": [
+      {
+        "name": "revision_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "enum": [
+          "landlord",
+          "lender"
+        ],
+        "binding": "required,oneof=landlord lender"
+      },
+      {
+        "name": "position",
+        "type": "int",
+        "min": 1,
+        "max": 4,
+        "binding": "required,gte=1,lte=4"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 200,
+        "binding": "required,max=200"
+      }
+    ],
+    "taxDeclarationReveal": [
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "enum": [
+          "landlord",
+          "lender"
+        ]
+      },
+      {
+        "name": "position",
+        "type": "int"
+      },
+      {
+        "name": "value",
+        "type": "string"
+      }
     ]
   },
   "statutoryKinds": {

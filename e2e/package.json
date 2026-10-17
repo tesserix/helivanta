@@ -13,7 +13,7 @@
     "@playwright/test": "^1.64.0",
     "@types/node": "^22",
     "eslint": "^9.18.0",
-    "typescript": "^5.7.0"
+    "typescript": "^7.0.2"
   },
   "prettier": "@helivanta/config/prettier"
 }

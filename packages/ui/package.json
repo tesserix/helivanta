@@ -39,7 +39,7 @@
     "eslint": "^9.18.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "typescript": "^5.7.0",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   },
   "prettier": "@helivanta/config/prettier"

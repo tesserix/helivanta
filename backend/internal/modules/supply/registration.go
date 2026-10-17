@@ -294,6 +294,10 @@ var errInvalidRegistry = errors.New("premise or licence declaration is incompati
 
 func registryError(c *gin.Context, e error) {
 	var pg *pgconn.PgError
+	if errors.As(e, &pg) && pg.ConstraintName == "supply_premise_bins_kind" {
+		respond.Conflict(c, "premise has retained bins; use a separate non-storage address")
+		return
+	}
 	if errors.As(e, &pg) && pg.Code == "23505" && (pg.TableName == "supply_premises" || pg.TableName == "supply_licenses") {
 		respond.Conflict(c, "premise code or licence identity already exists")
 		return

@@ -59,3 +59,4 @@ export * from "./supply-evidence-query";
 
 export * from "./supply-review";
 export * from "./supply-review-query";
+export * from "./supply-bins";

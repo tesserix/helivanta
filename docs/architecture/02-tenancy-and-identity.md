@@ -2,6 +2,12 @@
 
 [Architecture index](README.md) · Proposed target · incorporates multi-hospital tenant and CRM clarification
 
+For the implemented operator-backed identity flow, follow the
+[hospital onboarding runbook](../delivery/hospital-onboarding.md). It covers new
+customers, safe adoption, multitenancy, shared users and verification. The Temporal
+lifecycle and full clinical sharing model below remain target architecture; a
+Ready identity claim is not proof that all clinical setup has completed.
+
 ## Model the customer and hospital separately
 
 ![Tenant and hospital boundaries](diagrams/02-tenant-boundaries.png)

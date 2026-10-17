@@ -36,6 +36,8 @@ import (
 	"github.com/tesserix/helivanta/pkg/session"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"github.com/tesserix/helivanta/pkg/transit"
+	"github.com/tesserix/helivanta/pkg/workloadidentity"
+	"k8s.io/client-go/rest"
 )
 
 // sessionSigningKeyID is the `kid` Helivanta's session tokens carry until key
@@ -385,6 +387,18 @@ func run() error {
 		// map, the same mechanism (and the same limiter instance built
 		// below) every other authenticated route already uses.
 		IdleTimeout: idleTimeout,
+	}
+
+	if os.Getenv("HOSPITAL_PROVISIONING_ENABLED") == "true" {
+		kubeConfig, err := rest.InClusterConfig()
+		if err != nil {
+			return errors.New("hospital provisioning requires Kubernetes identity")
+		}
+		caller, err := workloadidentity.New(kubeConfig, "helivanta-provisioning", "system:serviceaccount:onboarding:onboarding-api")
+		if err != nil {
+			return err
+		}
+		srv.Engine.POST("/internal/v1/hospital-enrolments", iam.NewOnboardingHandler(deps, caller))
 	}
 
 	// The chain itself lives in bootstrap.V1Chain, not inline here, so

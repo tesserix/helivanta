@@ -2,6 +2,7 @@ package workforce
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -130,10 +131,10 @@ func TestNormalizeRefusesIncompleteSlabsBeforeWriting(t *testing.T) {
 	rule := func(kind string, pt *statutoryPtParams, lwf *statutoryLwfParams) *statutoryRuleInput {
 		return &statutoryRuleInput{ExpectedVersion: ptr[int64](0), Kind: kind, Name: "Synthetic", Covered: ptr(true), EffectiveOn: "2026-04-01", Citation: "Synthetic", Pt: pt, Lwf: lwf}
 	}
-	pt := &statutoryPtParams{StateCode: "IN-ZZ", WageBasis: "gross", Slabs: []statutoryPtSlab{ptSlab(allMonths(), []string{"other", "female", "male"}, 0, nil, 0)}}
+	pt := &statutoryPtParams{StateCode: "IN-ZZ", WageBasis: "gross", Cadence: "monthly", Slabs: []statutoryPtSlab{ptSlab(allMonths(), []string{"other", "female", "male"}, 0, nil, 0)}}
 	require.NoError(t, normalizeStatutoryRule(rule("pt", pt, nil)))
 	require.Equal(t, statutoryGenders, pt.Slabs[0].Genders, "genders are put in canonical order")
-	require.ErrorIs(t, normalizeStatutoryRule(rule("pt", &statutoryPtParams{StateCode: "IN-ZZ", WageBasis: "gross", Slabs: []statutoryPtSlab{ptSlab(allMonths(), statutoryGenders, 0, ptr[int64](5), 0)}}, nil)), errStatutorySlabs)
+	require.ErrorIs(t, normalizeStatutoryRule(rule("pt", &statutoryPtParams{StateCode: "IN-ZZ", WageBasis: "gross", Cadence: "monthly", Slabs: []statutoryPtSlab{ptSlab(allMonths(), statutoryGenders, 0, ptr[int64](5), 0)}}, nil)), errStatutorySlabs)
 	lwf := func(slabs ...statutoryLwfSlab) *statutoryLwfParams {
 		return &statutoryLwfParams{StateCode: "IN-ZZ", WageBasis: "gross", DeductionMonths: []int{12, 6}, RoundingMode: "nearest", RoundingUnitPaise: ptr(1), Slabs: slabs}
 	}
@@ -141,5 +142,64 @@ func TestNormalizeRefusesIncompleteSlabsBeforeWriting(t *testing.T) {
 	require.ErrorIs(t, normalizeStatutoryRule(rule("lwf", nil, lwf(lwfSlab(1, nil, 0, 0)))), errStatutorySlabs)
 	for code, valid := range map[string]bool{"IN-MH": true, "IN-KA": true, "IN-M": false, "IN-mh": false, "XX-MH": false, "IN-M1": false, "IN-MHX": false} {
 		require.Equal(t, valid, validStateCode(code), code)
+	}
+}
+
+func TestPTPeriodContainsTheMonth(t *testing.T) {
+	day := func(s string) time.Time { v, _ := time.Parse(time.DateOnly, s); return v }
+	half := statutoryPtParams{Cadence: "half_yearly", PeriodStartMonths: []int{4, 10}}
+	for on, want := range map[string][2]string{
+		"2026-04-01": {"2026-04-01", "2026-09-30"},
+		"2026-09-30": {"2026-04-01", "2026-09-30"},
+		"2026-10-15": {"2026-10-01", "2027-03-31"},
+		"2027-02-28": {"2026-10-01", "2027-03-31"},
+		"2027-03-31": {"2026-10-01", "2027-03-31"},
+	} {
+		got, ok := ptPeriodOn(half, day(on))
+		require.True(t, ok, on)
+		require.Equal(t, ptPeriodSpan{Start: day(want[0]), End: day(want[1]), Months: 6}, got, on)
+	}
+	annual := statutoryPtParams{Cadence: "annual", PeriodStartMonths: []int{4}}
+	got, ok := ptPeriodOn(annual, day("2027-01-10"))
+	require.True(t, ok)
+	require.Equal(t, ptPeriodSpan{Start: day("2026-04-01"), End: day("2027-03-31"), Months: 12}, got, "an annual period wraps the year end")
+	got, _ = ptPeriodOn(statutoryPtParams{Cadence: "annual", PeriodStartMonths: []int{1}}, day("2026-12-31"))
+	require.Equal(t, ptPeriodSpan{Start: day("2026-01-01"), End: day("2026-12-31"), Months: 12}, got)
+	for start := 1; start <= 6; start++ {
+		p := statutoryPtParams{Cadence: "half_yearly", PeriodStartMonths: []int{start, start + 6}}
+		for m := 1; m <= 12; m++ {
+			got, ok := ptPeriodOn(p, time.Date(2026, time.Month(m), 1, 0, 0, 0, 0, time.UTC))
+			require.True(t, ok)
+			on := time.Date(2026, time.Month(m), 1, 0, 0, 0, 0, time.UTC)
+			require.False(t, on.Before(got.Start) || on.After(got.End), "start %d month %d", start, m)
+			require.Equal(t, got.Start.AddDate(0, 6, -1), got.End)
+		}
+	}
+	_, ok = ptPeriodOn(statutoryPtParams{Cadence: "monthly"}, day("2026-04-01"))
+	require.False(t, ok, "monthly PT has no period")
+}
+
+func TestPTPeriodsChargeOncePerPeriod(t *testing.T) {
+	slabs := func(months ...int) []statutoryPtSlab {
+		return []statutoryPtSlab{ptSlab(months, statutoryGenders, 0, nil, 100)}
+	}
+	for name, tc := range map[string]struct {
+		p    statutoryPtParams
+		want bool
+	}{
+		"monthly":                        {statutoryPtParams{Cadence: "monthly", Slabs: slabs(1, 2, 3)}, true},
+		"monthly with starts":            {statutoryPtParams{Cadence: "monthly", PeriodStartMonths: []int{4}, Slabs: slabs(1)}, false},
+		"half-yearly":                    {statutoryPtParams{Cadence: "half_yearly", PeriodStartMonths: []int{4, 10}, Slabs: slabs(8, 2)}, true},
+		"half-yearly at period ends":     {statutoryPtParams{Cadence: "half_yearly", PeriodStartMonths: []int{4, 10}, Slabs: slabs(9, 3)}, true},
+		"half-yearly one start":          {statutoryPtParams{Cadence: "half_yearly", PeriodStartMonths: []int{4}, Slabs: slabs(8)}, false},
+		"half-yearly starts not 6 apart": {statutoryPtParams{Cadence: "half_yearly", PeriodStartMonths: []int{4, 9}, Slabs: slabs(8, 2)}, false},
+		"half-yearly period uncharged":   {statutoryPtParams{Cadence: "half_yearly", PeriodStartMonths: []int{4, 10}, Slabs: slabs(8)}, false},
+		"half-yearly charged twice":      {statutoryPtParams{Cadence: "half_yearly", PeriodStartMonths: []int{4, 10}, Slabs: []statutoryPtSlab{ptSlab([]int{8, 2}, statutoryGenders, 0, nil, 1), ptSlab([]int{9}, statutoryGenders, 0, nil, 1)}}, false},
+		"annual":                         {statutoryPtParams{Cadence: "annual", PeriodStartMonths: []int{4}, Slabs: slabs(3)}, true},
+		"annual two starts":              {statutoryPtParams{Cadence: "annual", PeriodStartMonths: []int{4, 10}, Slabs: slabs(3)}, false},
+		"annual charged twice":           {statutoryPtParams{Cadence: "annual", PeriodStartMonths: []int{4}, Slabs: slabs(3, 9)}, false},
+		"unknown cadence":                {statutoryPtParams{Cadence: "weekly", Slabs: slabs(1)}, false},
+	} {
+		require.Equal(t, tc.want, ptPeriodsValid(tc.p), name)
 	}
 }

@@ -405,3 +405,20 @@ func TestSalaryAssignmentDatabaseGuards(t *testing.T) {
 		return nil
 	}))
 }
+
+func TestStaffSalaryPreviewProjectsPeriodicPT(t *testing.T) {
+	f := newPayFixture(t)
+	f.approvedPay(f.staff, assignmentBody(0, f.structure, "2026-04-01"))
+	f.approved(uuid.NewString(), ptHalfYearlyRule(0, "2026-04-01"))
+	code, out := f.preview(f.staff, "viewer", "2026-09-15")
+	require.Equal(t, 200, code, out)
+	for _, r := range out["results"].([]any) {
+		if res := r.(map[string]any); res["kind"] == "pt" {
+			require.EqualValues(t, 4000000, res["wages_paise"])
+			require.Equal(t, map[string]any{"cadence": "half_yearly", "starts_on": "2026-04-01", "ends_on": "2026-09-30", "months": 6.0, "wages_paise": 24000000.0, "basis": "projected"}, res["period"])
+			require.Equal(t, map[string]int64{"pt_employee": 60000}, componentAmounts(res))
+			return
+		}
+	}
+	t.Fatalf("no PT result: %v", out)
+}

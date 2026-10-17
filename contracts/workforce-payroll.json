@@ -968,6 +968,23 @@
         "binding": "required,oneof=statutory_wages gross"
       },
       {
+        "name": "cadence",
+        "type": "string",
+        "enum": [
+          "monthly",
+          "half_yearly",
+          "annual"
+        ],
+        "binding": "required,oneof=monthly half_yearly annual"
+      },
+      {
+        "name": "period_start_months",
+        "type": "[]int",
+        "optional": true,
+        "max": 2,
+        "binding": "max=2,dive,gte=1,lte=12"
+      },
+      {
         "name": "slabs",
         "type": "[]statutoryPtSlab",
         "max": 96,
@@ -1610,6 +1627,40 @@
         "type": "int64"
       }
     ],
+    "statutoryPeriod": [
+      {
+        "name": "cadence",
+        "type": "string",
+        "enum": [
+          "half_yearly",
+          "annual"
+        ]
+      },
+      {
+        "name": "starts_on",
+        "type": "string"
+      },
+      {
+        "name": "ends_on",
+        "type": "string"
+      },
+      {
+        "name": "months",
+        "type": "int"
+      },
+      {
+        "name": "wages_paise",
+        "type": "int64"
+      },
+      {
+        "name": "basis",
+        "type": "string",
+        "enum": [
+          "projected",
+          "actual"
+        ]
+      }
+    ],
     "statutoryResult": [
       {
         "name": "kind",
@@ -1659,6 +1710,11 @@
       {
         "name": "components",
         "type": "[]statutoryComponent"
+      },
+      {
+        "name": "period",
+        "type": "statutoryPeriod",
+        "optional": true
       }
     ],
     "statutoryPreview": [

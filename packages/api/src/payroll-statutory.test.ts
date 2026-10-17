@@ -279,6 +279,8 @@ const pt = {
   pt: {
     state_code: " in-zz ",
     wage_basis: "gross",
+    cadence: "monthly",
+    period_start_months: [] as number[],
     slabs: [
       slab(all, ["female"], "0", "200", "0"),
       slab(all, ["male", "other"], "0", "100", "0"),
@@ -350,6 +352,7 @@ it("starts PT and LWF with one blank slab and requires every value", () => {
   expect(issues(statutoryRuleFormSchema, blank)).toEqual([
     "pt.state_code",
     "pt.wage_basis",
+    "pt.cadence",
     "pt.slabs.0.months",
     "pt.slabs.0.genders",
     "pt.slabs.0.amount",
@@ -358,6 +361,7 @@ it("starts PT and LWF with one blank slab and requires every value", () => {
   expect(issues(statutoryRuleFormSchema, { ...blank, pt: { ...blank.pt, slabs: [] } })).toEqual([
     "pt.state_code",
     "pt.wage_basis",
+    "pt.cadence",
     "pt.slabs",
   ]);
   const blankLwf = {
@@ -564,4 +568,81 @@ it("round-trips PT and LWF revisions and describes them", () => {
   expect(
     describeStatutoryRevision({ ...(input as unknown as StatutoryRevision), covered: true }),
   ).toBe("IN-ZZ · 1 slab · due in Feb");
+});
+
+// Synthetic half-yearly PT charged in each period's last month, never a real state's schedule.
+const halfYearly = {
+  ...pt,
+  pt: {
+    ...pt.pt,
+    cadence: "half_yearly",
+    period_start_months: [10, 4],
+    slabs: [slab([9, 3], everyone, "0", "72000", "0"), slab([9, 3], everyone, "72000", "", "600")],
+  },
+};
+
+it("converts, round-trips and describes a half-yearly PT revision", () => {
+  expect(issues(statutoryRuleFormSchema, halfYearly)).toBeUndefined();
+  const input = toStatutoryRuleInput(statutoryRuleFormSchema.parse(halfYearly));
+  expect(statutoryRuleInputContract.parse(input)).toEqual(input);
+  expect(input.pt?.cadence).toBe("half_yearly");
+  expect(input.pt?.period_start_months).toEqual([4, 10]);
+  const monthly = toStatutoryRuleInput(statutoryRuleFormSchema.parse(pt));
+  expect(monthly.pt?.cadence).toBe("monthly");
+  expect(monthly.pt).not.toHaveProperty("period_start_months");
+  const content: Omit<typeof input, "expected_version"> & { expected_version?: number } = {
+    ...input,
+  };
+  delete content.expected_version;
+  const revision = statutoryRevisionContract.parse({
+    ...content,
+    id,
+    rule_id: id,
+    sequence: 1,
+    base_version: 0,
+    status: "approved",
+    approved_version: 1,
+    proposed_by_subject: "user-a",
+    decided_by_subject: "user-b",
+    decided_at: "2026-09-16T10:00:00Z",
+    decision_note: "",
+    created_at: "2026-09-16T09:00:00Z",
+  });
+  expect(
+    toStatutoryRuleInput(statutoryRuleFormSchema.parse(statutoryRevisionToForm(revision, 1))),
+  ).toEqual({ ...input, expected_version: 1 });
+  expect(describeStatutoryRevision(revision)).toBe(
+    "IN-ZZ · half-yearly from Apr, Oct · 2 slabs · due in Mar, Sep",
+  );
+});
+
+it("refuses PT periods that skip or double a period's charge", () => {
+  const withPt = (patch: object) => ({ ...halfYearly, pt: { ...halfYearly.pt, ...patch } });
+  expect(issues(statutoryRuleFormSchema, withPt({ cadence: "" }))).toEqual(["pt.cadence"]);
+  expect(message(withPt({ period_start_months: [4] }))).toBe(
+    "Choose two start months six months apart.",
+  );
+  expect(message(withPt({ period_start_months: [4, 9] }))).toBe(
+    "Choose two start months six months apart.",
+  );
+  expect(message(withPt({ cadence: "annual" }))).toBe("Choose the one month the year starts.");
+  expect(message(withPt({ slabs: [slab([9], everyone, "0", "", "1")] }))).toBe(
+    "The period starting in Oct must be charged in exactly one month; the slabs name none.",
+  );
+  expect(message(withPt({ slabs: [slab([8, 9, 3], everyone, "0", "", "1")] }))).toBe(
+    "The period starting in Apr must be charged in exactly one month; the slabs name Aug, Sep.",
+  );
+  expect(
+    issues(statutoryRuleFormSchema, withPt({ slabs: [slab([8, 9, 3], everyone, "0", "", "1")] })),
+  ).toEqual(["pt.period_start_months"]);
+  expect(
+    issues(
+      statutoryRuleFormSchema,
+      withPt({
+        cadence: "annual",
+        period_start_months: [1],
+        slabs: [slab([12], everyone, "0", "", "1")],
+      }),
+    ),
+  ).toBeUndefined();
 });

@@ -460,6 +460,12 @@ export const STATUTORY_WAGE_BASES = {
   statutory_wages: "Labour Code wages",
   gross: "Gross pay",
 } as const;
+export const PT_CADENCES = {
+  monthly: "Monthly",
+  half_yearly: "Half-yearly",
+  annual: "Annual",
+} as const;
+const PT_PERIOD_MONTHS = { monthly: 1, half_yearly: 6, annual: 12 } as const;
 export const STATUTORY_CONTRIBUTION_BASES = {
   capped: "Capped at the wage ceiling",
   actual: "Actual wages",
@@ -552,7 +558,13 @@ const ptSlabFormSchema = z
   })
   .strict();
 const ptFormSchema = z
-  .object({ state_code: z.string(), wage_basis: z.string(), slabs: z.array(ptSlabFormSchema) })
+  .object({
+    state_code: z.string(),
+    wage_basis: z.string(),
+    cadence: z.string(),
+    period_start_months: z.array(z.number().int().min(1).max(12)),
+    slabs: z.array(ptSlabFormSchema),
+  })
   .strict();
 const lwfSlabFormSchema = z
   .object({
@@ -785,6 +797,29 @@ const ptProblem = (slabs: StatutoryPtSlabForm[]) => {
   return undefined;
 };
 
+// A periodic PT needs the starts its cadence implies and exactly one charged month per period, so no period is skipped or charged twice.
+const ptPeriodProblem = (pt: StatutoryRuleForm["pt"]) => {
+  const cadence = pt.cadence as keyof typeof PT_CADENCES;
+  const starts = [...pt.period_start_months].sort((a, b) => a - b);
+  if (cadence === "monthly") return undefined;
+  if (cadence === "half_yearly" && (starts.length !== 2 || starts[1]! - starts[0]! !== 6))
+    return "Choose two start months six months apart.";
+  if (cadence === "annual" && starts.length !== 1) return "Choose the one month the year starts.";
+  const charged = new Set(pt.slabs.flatMap((s) => s.months));
+  for (const start of starts) {
+    const months = Array.from(
+      { length: PT_PERIOD_MONTHS[cadence] },
+      (_, i) => ((start - 1 + i) % 12) + 1,
+    );
+    const due = months.filter((m) => charged.has(m));
+    if (due.length !== 1)
+      return `The period starting in ${MONTH_NAMES[start - 1]} must be charged in exactly one month; the slabs name ${
+        due.length === 0 ? "none" : due.map((m) => MONTH_NAMES[m - 1]).join(", ")
+      }.`;
+  }
+  return undefined;
+};
+
 // The highest yearly PT a person of each gender can owe, for the approver to check against the constitutional ceiling.
 export const ptAnnualTotals = (
   slabs: StatutoryPtSlabForm[],
@@ -886,6 +921,11 @@ export const statutoryRuleFormSchema = z
       const pt = value.pt;
       state(pt.state_code);
       pick("wage_basis", pt.wage_basis, STATUTORY_WAGE_BASES);
+      pick("cadence", pt.cadence, PT_CADENCES);
+      if (pt.cadence !== "monthly" && pt.cadence in PT_CADENCES) {
+        const problem = ptPeriodProblem(pt);
+        if (problem) issue(at("period_start_months"), problem);
+      }
       if (pt.slabs.length === 0 || pt.slabs.length > 96)
         return issue(at("slabs"), "Add between 1 and 96 slabs.");
       let complete = true;
@@ -1048,6 +1088,8 @@ const blankIncomeTax = (): IncomeTaxForm => ({
 const blankPt = (): StatutoryRuleForm["pt"] => ({
   state_code: "",
   wage_basis: "",
+  cadence: "",
+  period_start_months: [],
   slabs: [blankPtSlab()],
 });
 const blankLwf = (): StatutoryRuleForm["lwf"] => ({
@@ -1187,6 +1229,8 @@ export const statutoryRevisionToForm = (
     ? {
         state_code: revision.pt.state_code,
         wage_basis: revision.pt.wage_basis,
+        cadence: revision.pt.cadence,
+        period_start_months: revision.pt.period_start_months ?? [],
         slabs: revision.pt.slabs.map((s) => ({
           months: s.months,
           genders: s.genders,
@@ -1280,6 +1324,10 @@ export const toStatutoryRuleInput = (form: StatutoryRuleForm): StatutoryRuleInpu
         pt: {
           state_code: pt.state_code.trim().toUpperCase(),
           wage_basis: pt.wage_basis as keyof typeof STATUTORY_WAGE_BASES,
+          cadence: pt.cadence as keyof typeof PT_CADENCES,
+          ...(pt.cadence !== "monthly" && {
+            period_start_months: sortedMonths(pt.period_start_months),
+          }),
           slabs: pt.slabs.map((s): StatutoryPtSlab => ({
             months: sortedMonths(s.months),
             genders: GENDERS.filter((g) => s.genders.includes(g)),
@@ -1403,7 +1451,11 @@ export const describeStatutoryRevision = (revision: StatutoryRevision) => {
   const slabs = (n: number) => `${n} slab${n === 1 ? "" : "s"}`;
   if (revision.pt) {
     const months = new Set(revision.pt.slabs.flatMap((s) => s.months));
-    return `${revision.pt.state_code} · ${slabs(revision.pt.slabs.length)} · due ${
+    const cadence =
+      revision.pt.cadence === "monthly"
+        ? ""
+        : ` · ${PT_CADENCES[revision.pt.cadence].toLowerCase()} from ${(revision.pt.period_start_months ?? []).map((m) => MONTH_NAMES[m - 1]).join(", ")}`;
+    return `${revision.pt.state_code}${cadence} · ${slabs(revision.pt.slabs.length)} · due ${
       months.size === 12
         ? "every month"
         : `in ${[...months]

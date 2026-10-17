@@ -16,7 +16,9 @@ func TestWorkloadAudienceAndExactAccountAreBothRequired(t *testing.T) {
 		name, user, aud string
 		authenticated   bool
 		want            bool
-	}{{"approved", "system:serviceaccount:onboarding:onboarding-api", "helivanta-provisioning", true, true}, {"foreign", "system:serviceaccount:foreign:onboarding-api", "helivanta-provisioning", true, false}, {"wrong audience", "system:serviceaccount:onboarding:onboarding-api", "other", true, false}, {"revoked", "system:serviceaccount:onboarding:onboarding-api", "helivanta-provisioning", false, false}} {
+	}{{"approved", "system:serviceaccount:onboarding:onboarding-api", "helivanta-provisioning", true, true}, {"foreign", "system:serviceaccount:foreign:onboarding-api", "helivanta-provisioning", true, false},
+		{"wrong service account", "system:serviceaccount:onboarding:onboarding-web", "helivanta-provisioning", true, false},
+		{"missing audience", "system:serviceaccount:onboarding:onboarding-api", "", true, false}, {"wrong audience", "system:serviceaccount:onboarding:onboarding-api", "other", true, false}, {"revoked", "system:serviceaccount:onboarding:onboarding-api", "helivanta-provisioning", false, false}} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")

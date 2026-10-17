@@ -284,6 +284,19 @@ explicitly **not** the model for the per-tenant integration credentials
 #45 also describes, which need rotation without downtime and are why that
 work is a separate, not-yet-built slice.
 
+## Runtime Transit access
+
+Staff bank and tax identifiers are encrypted through OpenBao Transit at runtime, the one exception to ESO-only delivery. The API reads four settings and refuses to boot if only some are set; with none set it serves masked values and returns 503 for anything that needs the vault.
+
+| Env var | Value |
+|---|---|
+| `OPENBAO_ADDR` | OpenBao service URL |
+| `OPENBAO_TRANSIT_MOUNT` | `transit` |
+| `OPENBAO_AUTH_ROLE` | `helivanta-api-transit` (Kubernetes auth, bound to `helivanta/helivanta-api`, TTL 1h) |
+| `OPENBAO_TOKEN_PATH` | Absolute path to the projected service-account token |
+
+Policy `helivanta-api-transit` allows only encrypt, decrypt and HMAC on `transit/*/helivanta-staff-*`; it cannot read KV, export, rotate or delete keys. Keys `helivanta-staff-<tenant>` are created on first use as derived, non-exportable and non-deletable. Rotating a key is an operator action (`transit/keys/<name>/rotate`) and existing ciphertext stays readable; the PAN fingerprint is pinned to key version 1. Deleting a tenant's key crypto-shreds its identifiers and needs explicit approval. Chart and policy: tesserix-k8s PR #1435.
+
 ## What this runbook does not cover
 
 - **Per-tenant integration credentials** — the write-only API, the metadata

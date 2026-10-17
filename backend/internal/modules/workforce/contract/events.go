@@ -244,3 +244,24 @@ type TaxRegimeChangedData struct {
 	TaxYear    string `json:"tax_year"`
 	Version    int64  `json:"version"`
 }
+
+// SubjectStaffIdentifiersChanged reports a bank or tax identifier proposal or decision; payloads never carry values or masks.
+const SubjectStaffIdentifiersChanged = "helivanta.in.workforce.staff_identifiers_changed.v1"
+
+type StaffIdentifiersChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	RevisionID string `json:"revision_id"`
+	Status     string `json:"status"`
+	Version    int64  `json:"version"`
+}
+
+// SubjectStaffIdentifierRevealed reports that someone viewed a full identifier; the reason stays in the audit log.
+const SubjectStaffIdentifierRevealed = "helivanta.in.workforce.staff_identifier_revealed.v1"
+
+type StaffIdentifierRevealedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	RevisionID string `json:"revision_id"`
+	Field      string `json:"field"`
+}

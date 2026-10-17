@@ -11,6 +11,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/organizationidentity"
 	"github.com/tesserix/helivanta/pkg/session"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/transit"
 )
 
 // TupleWriter is the subset of the authz client that modules may use to
@@ -46,9 +47,11 @@ type Deps struct {
 	DB                   *tenantdb.DB
 	Bus                  *events.Bus
 	Documents            *attachments.GCS
-	Workflows            client.Client
-	Authz                TupleWriter
-	Roles                RoleLister
+	// Transit is nil when OpenBao is unconfigured; routes that need it answer 503.
+	Transit   *transit.Client
+	Workflows client.Client
+	Authz     TupleWriter
+	Roles     RoleLister
 	// SessionSigner re-mints the Helivanta session for the one operation that
 	// must change a caller's identity rather than read it: switching
 	// hospitals (#838, spec D3). Post-cutover this is the ONLY way a

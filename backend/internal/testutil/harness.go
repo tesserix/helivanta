@@ -22,6 +22,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/organizationidentity"
 	"github.com/tesserix/helivanta/pkg/session"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/transit"
 )
 
 const (
@@ -164,6 +165,7 @@ func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
 type HarnessOptions struct {
 	OrganizationIdentity *organizationidentity.Client
 	Documents            *attachments.GCS
+	Transit              *transit.Client
 	Tokens               map[string]string
 	Perms                map[string][]authz.Permission
 	Writer               platform.TupleWriter
@@ -285,6 +287,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	deps := platform.Deps{
 		OrganizationIdentity: opts.OrganizationIdentity,
 		Documents:            opts.Documents,
+		Transit:              opts.Transit,
 		DB:                   db, Bus: bus, Authz: writer, Roles: roles,
 		SessionSigner:       opts.SessionSigner,
 		SessionTTL:          opts.SessionTTL,

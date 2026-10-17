@@ -16,6 +16,7 @@ import type {
   StatutoryRevision,
   StatutoryRuleInput,
   StaffSalaryPreviewInput,
+  StaffIdentifiersInput,
   TaxRegimeElection,
   TaxRegimeInput,
 } from "./payroll-contract";
@@ -1572,3 +1573,87 @@ export const toTaxRegimeInput = (form: TaxRegimeForm, expectedVersion: number): 
   intimated_on: form.intimated_on,
   note: form.note.trim(),
 });
+
+export const staffIdentifiersPath = (base: string, staff: string) =>
+  `${staffPayPath(base, staff)}/identifiers`;
+
+export const IDENTIFIER_ACTIONS = {
+  keep: "Keep as it is",
+  set: "Replace",
+  clear: "Remove",
+} as const;
+export const IDENTIFIER_FIELDS = {
+  bank_account: "Bank account",
+  pan: "PAN",
+  uan: "UAN",
+} as const;
+export type IdentifierField = keyof typeof IDENTIFIER_FIELDS;
+
+const identifierAction = z.enum(["keep", "set", "clear"]);
+const compact = (value: string) => value.replace(/\s+/g, "");
+
+// Mirrors the API's shapes so a mistyped value is caught inline; the API checks again.
+export const staffIdentifiersFormSchema = z
+  .object({
+    reason: text("a reason", 500),
+    bank: identifierAction,
+    account_number: z.string(),
+    ifsc: z.string(),
+    holder_name: z.string(),
+    pan: identifierAction,
+    pan_value: z.string(),
+    uan: identifierAction,
+    uan_value: z.string(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const issue = (path: string, message: string) =>
+      ctx.addIssue({ code: "custom", path: [path], message });
+    if (value.bank === "set") {
+      if (!/^\d{9,18}$/.test(compact(value.account_number)))
+        issue("account_number", "Enter the 9 to 18 digit account number.");
+      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(value.ifsc.trim().toUpperCase()))
+        issue("ifsc", "Enter the 11-character IFSC, such as ABCD0123456.");
+      const holder = value.holder_name.trim();
+      if (holder === "" || holder.length > 150 || holder.includes("\0"))
+        issue("holder_name", "Enter the account holder's name, up to 150 characters.");
+    }
+    if (
+      value.pan === "set" &&
+      !/^[A-Z]{3}P[A-Z]\d{4}[A-Z]$/.test(value.pan_value.trim().toUpperCase())
+    )
+      issue("pan_value", "Enter the individual's 10-character PAN; its fourth letter is P.");
+    if (value.uan === "set" && !/^\d{12}$/.test(compact(value.uan_value)))
+      issue("uan_value", "Enter the 12-digit UAN.");
+    if (value.bank === "keep" && value.pan === "keep" && value.uan === "keep")
+      issue("bank", "Replace or remove at least one identifier.");
+  });
+export type StaffIdentifiersForm = z.infer<typeof staffIdentifiersFormSchema>;
+
+export const toStaffIdentifiersInput = (
+  form: StaffIdentifiersForm,
+  expectedVersion: number,
+): StaffIdentifiersInput => ({
+  expected_version: expectedVersion,
+  reason: form.reason.trim(),
+  bank:
+    form.bank === "set"
+      ? {
+          action: "set",
+          account_number: compact(form.account_number),
+          ifsc: form.ifsc.trim().toUpperCase(),
+          holder_name: form.holder_name.trim(),
+        }
+      : { action: form.bank },
+  pan:
+    form.pan === "set"
+      ? { action: "set", value: form.pan_value.trim().toUpperCase() }
+      : { action: form.pan },
+  uan:
+    form.uan === "set" ? { action: "set", value: compact(form.uan_value) } : { action: form.uan },
+});
+
+export const staffIdentifierRevealFormSchema = z
+  .object({ reason: text("why you need to see it", 200) })
+  .strict();
+export type StaffIdentifierRevealForm = z.infer<typeof staffIdentifierRevealFormSchema>;

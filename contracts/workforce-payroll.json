@@ -2140,6 +2140,249 @@
         "name": "created_at",
         "type": "time"
       }
+    ],
+    "staffBankChange": [
+      {
+        "name": "action",
+        "type": "string",
+        "enum": [
+          "keep",
+          "set",
+          "clear"
+        ],
+        "binding": "required,oneof=keep set clear"
+      },
+      {
+        "name": "account_number",
+        "type": "string",
+        "optional": true,
+        "max": 18,
+        "binding": "omitempty,max=18"
+      },
+      {
+        "name": "ifsc",
+        "type": "string",
+        "optional": true,
+        "max": 11,
+        "binding": "omitempty,max=11"
+      },
+      {
+        "name": "holder_name",
+        "type": "string",
+        "format": "name",
+        "optional": true,
+        "max": 150,
+        "binding": "omitempty,max=150"
+      }
+    ],
+    "staffIdentifierChange": [
+      {
+        "name": "action",
+        "type": "string",
+        "enum": [
+          "keep",
+          "set",
+          "clear"
+        ],
+        "binding": "required,oneof=keep set clear"
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "optional": true,
+        "max": 12,
+        "binding": "omitempty,max=12"
+      }
+    ],
+    "staffIdentifiersInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500,
+        "binding": "required,max=500"
+      },
+      {
+        "name": "bank",
+        "type": "staffBankChange",
+        "binding": "required"
+      },
+      {
+        "name": "pan",
+        "type": "staffIdentifierChange",
+        "binding": "required"
+      },
+      {
+        "name": "uan",
+        "type": "staffIdentifierChange",
+        "binding": "required"
+      }
+    ],
+    "staffIdentifierRevision": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "sequence",
+        "type": "int"
+      },
+      {
+        "name": "base_version",
+        "type": "int64"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected",
+          "withdrawn"
+        ]
+      },
+      {
+        "name": "approved_version",
+        "type": "int64",
+        "optional": true
+      },
+      {
+        "name": "reason",
+        "type": "string"
+      },
+      {
+        "name": "bank_account_masked",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "bank_ifsc",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "bank_holder_name",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "pan_masked",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "uan_masked",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "proposed_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "decided_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "decided_at",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "decision_note",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "staffIdentifiers": [
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "current",
+        "type": "staffIdentifierRevision",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
+        "name": "pending",
+        "type": "staffIdentifierRevision",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "staffIdentifierRevealInput": [
+      {
+        "name": "revision_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "field",
+        "type": "string",
+        "enum": [
+          "bank_account",
+          "pan",
+          "uan"
+        ],
+        "binding": "required,oneof=bank_account pan uan"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 200,
+        "binding": "required,max=200"
+      }
+    ],
+    "staffIdentifierReveal": [
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "field",
+        "type": "string",
+        "enum": [
+          "bank_account",
+          "pan",
+          "uan"
+        ]
+      },
+      {
+        "name": "value",
+        "type": "string"
+      }
     ]
   },
   "statutoryKinds": {

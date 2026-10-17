@@ -32,6 +32,7 @@ import {
   formatDateTime,
 } from "@helivanta/ui";
 import { RequestFailure } from "../request-failure";
+import { StockRegister } from "./stock-register";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -63,6 +64,7 @@ export function StockPanel({
   );
   return (
     <div className="space-y-6">
+      <StockRegister scope={scope} />
       <section className="rounded-2xl border bg-card p-6">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
           <div>

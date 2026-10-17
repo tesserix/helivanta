@@ -85,12 +85,18 @@ func inventoryRoutes(g *platform.Router, deps platform.Deps) {
 	s.PUT("/movements/:id", PermStockReceive, h.putReceipt)
 	s.PUT("/corrections/:id", PermStockCorrect, h.putCorrection)
 	s.GET("/balance", PermStockRead, h.getBalance)
+	s.GET("/reconciliation", PermStockRead, h.getStockReconciliation)
+	platform.ListRoute(s, "/positions", PermStockRead, h.listStockPositions)
 	platform.ListRoute(s, "/locations", PermStockRead, h.listLocations)
 	platform.ListRoute(s, "/batches", PermStockRead, h.listBatches)
 	platform.ListRoute(s, "/movements", PermStockRead, h.listMovements)
 }
 
 func stockError(c *gin.Context, err error) {
+	if errors.Is(err, errStockPeriod) {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "stock period cannot end in the future")
+		return
+	}
 	if errors.Is(err, errStockIdentity) {
 		respond.Conflict(c, "stock identity or movement already exists with different details")
 		return
@@ -356,14 +362,33 @@ func (h *catalogueHandlers) listMovements(c *gin.Context, params pagination.Para
 	if !ok {
 		return nil, nil
 	}
+	window, ok := parseStockWindow(c, false)
+	if !ok {
+		return nil, nil
+	}
 	var rows []stockMovement
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
+		if err := stockReference(tx, "pharmacy_stock_locations", p.TenantID, outlet, location); err != nil {
+			return err
+		}
+		if err := stockReference(tx, "pharmacy_stock_batches", p.TenantID, outlet, batch); err != nil {
+			return err
+		}
 		q := tenantdb.ApplyKeyset(tx, params).Select(movementColumns).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet)
 		if location != uuid.Nil {
 			q = q.Where("location_id=?", location)
 		}
 		if batch != uuid.Nil {
 			q = q.Where("batch_id=?", batch)
+		}
+		if c.Query("as_of") != "" {
+			if err := validateStockCutoff(tx, window.AsOf); err != nil {
+				return err
+			}
+			q = q.Where("created_at<=?", window.AsOf)
+		}
+		if c.Query("from") != "" {
+			q = q.Where("created_at>=?", window.From)
 		}
 		return q.Find(&rows).Error
 	})

@@ -1,0 +1,218 @@
+package pharmacy
+
+import (
+	"errors"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
+)
+
+var errStockPeriod = errors.New("stock period ends in the future")
+
+func validateStockCutoff(tx *gorm.DB, asOf time.Time) error {
+	var valid bool
+	if err := tx.Raw(`SELECT ?::timestamptz <= clock_timestamp()`, asOf).Scan(&valid).Error; err != nil {
+		return err
+	}
+	if !valid {
+		return errStockPeriod
+	}
+	return nil
+}
+
+type stockWindow struct{ From, AsOf time.Time }
+
+func parseStockWindow(c *gin.Context, required bool) (stockWindow, bool) {
+	window := stockWindow{From: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), AsOf: time.Now().UTC()}
+	for _, field := range []struct {
+		name   string
+		target *time.Time
+	}{{"from", &window.From}, {"as_of", &window.AsOf}} {
+		raw := c.Query(field.name)
+		if raw == "" {
+			if required && field.name == "as_of" {
+				respond.Error(c, http.StatusBadRequest, "invalid_request", "as_of must be an explicit RFC3339 timestamp")
+				return window, false
+			}
+			continue
+		}
+		value, err := time.Parse(time.RFC3339Nano, raw)
+		if err != nil || value.Year() < 1970 || value.Year() > 9999 || value.Nanosecond()%1000 != 0 {
+			respond.Error(c, http.StatusBadRequest, "invalid_request", "stock period requires RFC3339 timestamps with at most microsecond precision")
+			return window, false
+		}
+		*field.target = value.UTC()
+	}
+	if (required || c.Query("as_of") != "") && window.From.After(window.AsOf) {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "stock period must end at or after its start")
+		return window, false
+	}
+	return window, true
+}
+
+type stockPosition struct {
+	ID               uuid.UUID `json:"id"`
+	CreatedAt        time.Time `json:"created_at"`
+	LocationID       uuid.UUID `json:"location_id"`
+	BatchID          uuid.UUID `json:"batch_id"`
+	ProductID        uuid.UUID `json:"product_id"`
+	LocationCode     string    `json:"location_code"`
+	LocationName     string    `json:"location_name"`
+	SKU              string    `json:"sku"`
+	BrandName        string    `json:"brand_name"`
+	UnitOfIssue      string    `json:"unit_of_issue"`
+	LotNumber        string    `json:"lot_number"`
+	ExpiresOn        string    `json:"expires_on"`
+	StockStatus      string    `json:"stock_status"`
+	ExpiryStatus     string    `json:"expiry_status"`
+	ProductStatus    string    `json:"product_status"`
+	RegulatoryStatus string    `json:"regulatory_status"`
+	OnHandUnits      int64     `json:"on_hand_units"`
+	ReceiptUnits     string    `json:"receipt_units"`
+	CorrectionUnits  string    `json:"correction_units"`
+	DispensableUnits int64     `json:"dispensable_units"`
+}
+
+func (r stockPosition) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
+
+func stockReference(tx *gorm.DB, table string, tenant string, outlet, id uuid.UUID) error {
+	if id == uuid.Nil {
+		return nil
+	}
+	var count int64
+	if err := tx.Table(table).Where("tenant_id=? AND outlet_id=? AND id=?", tenant, outlet, id).Count(&count).Error; err != nil {
+		return err
+	}
+	if count != 1 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination.Params) ([]stockPosition, error) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return nil, nil
+	}
+	location, ok := stockFilter(c, "location_id", false)
+	if !ok {
+		return nil, nil
+	}
+	product, ok := stockFilter(c, "product_id", false)
+	if !ok {
+		return nil, nil
+	}
+	window, ok := parseStockWindow(c, true)
+	if !ok {
+		return nil, nil
+	}
+	expiry := c.DefaultQuery("expiry", "all")
+	if expiry != "all" && expiry != "expired" && expiry != "unexpired" {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid expiry filter")
+		return nil, nil
+	}
+	var rows []stockPosition
+	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
+		if err := validateStockCutoff(tx, window.AsOf); err != nil {
+			return err
+		}
+		if err := stockReference(tx, "pharmacy_stock_locations", p.TenantID, outlet, location); err != nil {
+			return err
+		}
+		if err := stockReference(tx, "pharmacy_catalogue_products", p.TenantID, outlet, product); err != nil {
+			return err
+		}
+		// The hash identifies a read-model bucket only; it never authorises an object or creates a stock master.
+		source := tx.Table("pharmacy_stock_movements m").Select(`md5(m.location_id::text||':'||m.batch_id::text)::uuid AS id,
+   b.created_at,m.location_id,m.batch_id,b.product_id,l.code AS location_code,l.name AS location_name,
+   p.sku,p.brand_name,p.unit_of_issue,b.lot_number,to_char(b.expires_on,'YYYY-MM-DD') AS expires_on,l.stock_status,
+   CASE WHEN b.expires_on < timezone(o.timezone,?::timestamptz)::date THEN 'expired' ELSE 'unexpired' END AS expiry_status,
+   p.status AS product_status,p.regulatory_status,
+   sum(m.quantity_units)::bigint AS on_hand_units,
+   COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='receipt'),0)::text AS receipt_units,
+   COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='correction'),0)::text AS correction_units,
+   0::bigint AS dispensable_units`, window.AsOf).
+			Joins("JOIN pharmacy_stock_batches b ON b.tenant_id=m.tenant_id AND b.outlet_id=m.outlet_id AND b.id=m.batch_id").
+			Joins("JOIN pharmacy_stock_locations l ON l.tenant_id=m.tenant_id AND l.outlet_id=m.outlet_id AND l.id=m.location_id").
+			Joins("JOIN pharmacy_catalogue_products p ON p.tenant_id=b.tenant_id AND p.outlet_id=b.outlet_id AND p.id=b.product_id").
+			Joins("JOIN pharmacy_outlets o ON o.tenant_id=m.tenant_id AND o.id=m.outlet_id").
+			Where("m.tenant_id=? AND m.outlet_id=? AND m.created_at<=?", p.TenantID, outlet, window.AsOf).
+			Group("b.created_at,m.location_id,m.batch_id,b.product_id,l.code,l.name,p.sku,p.brand_name,p.unit_of_issue,b.lot_number,b.expires_on,l.stock_status,o.timezone,p.status,p.regulatory_status")
+		if location != uuid.Nil {
+			source = source.Where("m.location_id=?", location)
+		}
+		if product != uuid.Nil {
+			source = source.Where("b.product_id=?", product)
+		}
+		q := tenantdb.ApplyKeyset(tx, params).Table("(?) AS positions", source)
+		if expiry != "all" {
+			q = q.Where("expiry_status=?", expiry)
+		}
+		return q.Find(&rows).Error
+	})
+	if err != nil {
+		stockError(c, err)
+	}
+	return rows, nil
+}
+
+type stockReconciliation struct {
+	LocationID      uuid.UUID `json:"location_id"`
+	BatchID         uuid.UUID `json:"batch_id"`
+	From            time.Time `json:"from"`
+	AsOf            time.Time `json:"as_of"`
+	OpeningUnits    int64     `json:"opening_units"`
+	ReceiptUnits    string    `json:"receipt_units"`
+	CorrectionUnits string    `json:"correction_units"`
+	ClosingUnits    int64     `json:"closing_units"`
+	MovementCount   int64     `json:"movement_count"`
+}
+
+func (h *catalogueHandlers) getStockReconciliation(c *gin.Context) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return
+	}
+	location, ok := stockFilter(c, "location_id", true)
+	if !ok {
+		return
+	}
+	batch, ok := stockFilter(c, "batch_id", true)
+	if !ok {
+		return
+	}
+	window, ok := parseStockWindow(c, true)
+	if !ok {
+		return
+	}
+	result := stockReconciliation{LocationID: location, BatchID: batch, From: window.From, AsOf: window.AsOf}
+	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
+		if err := validateStockCutoff(tx, window.AsOf); err != nil {
+			return err
+		}
+		if err := stockReference(tx, "pharmacy_stock_locations", p.TenantID, outlet, location); err != nil {
+			return err
+		}
+		if err := stockReference(tx, "pharmacy_stock_batches", p.TenantID, outlet, batch); err != nil {
+			return err
+		}
+		return tx.Raw(`SELECT COALESCE(sum(quantity_units) FILTER(WHERE created_at < ?),0)::bigint AS opening_units,
+   COALESCE(sum(quantity_units) FILTER(WHERE created_at >= ? AND kind='receipt'),0)::text AS receipt_units,
+   COALESCE(sum(quantity_units) FILTER(WHERE created_at >= ? AND kind='correction'),0)::text AS correction_units,
+   COALESCE(sum(quantity_units),0)::bigint AS closing_units,
+   count(*) FILTER(WHERE created_at >= ?) AS movement_count
+   FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=? AND location_id=? AND batch_id=? AND created_at<=?`, window.From, window.From, window.From, window.From, p.TenantID, outlet, location, batch, window.AsOf).Scan(&result).Error
+	})
+	if err != nil {
+		stockError(c, err)
+		return
+	}
+	respond.OK(c, result)
+}

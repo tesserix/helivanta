@@ -378,6 +378,17 @@ const credentialsSchema = z.object({
 const rememberedUsernameKey = "helivanta.login.remembered-username";
 const rememberedUsernameSchema = z.object({ enabled: z.boolean(), username: z.string().max(320) });
 
+function readRememberedUsername(): z.infer<typeof rememberedUsernameSchema> {
+  try {
+    const raw = window.localStorage.getItem(rememberedUsernameKey);
+    const saved = raw ? rememberedUsernameSchema.safeParse(JSON.parse(raw)) : null;
+    if (saved?.success) return saved.data;
+  } catch {
+    // Sign-in stays available when browser storage is blocked.
+  }
+  return { enabled: true, username: "" };
+}
+
 function saveRememberedUsername(enabled: boolean, username: string) {
   try {
     window.localStorage.setItem(
@@ -421,29 +432,16 @@ function CredentialForm({
   onPasswordChangeRequired: (currentPassword: string, change: PasswordChangeRequired) => void;
   onBlocked: (message: string) => void;
 }) {
-  const [values, setValues] = useState<AuthCredentialValues>({ loginName: "", password: "" });
+  // Lazy reads are hydration-safe: this form only mounts after a client-side request check.
+  const [remembered] = useState(readRememberedUsername);
+  const [values, setValues] = useState<AuthCredentialValues>(() => ({
+    loginName: remembered.enabled ? remembered.username : "",
+    password: "",
+  }));
   const [loginNameError, setLoginNameError] = useState<string | undefined>();
   const [passwordError, setPasswordError] = useState<string | undefined>();
-  const [rememberUsername, setRememberUsername] = useState(true);
+  const [rememberUsername, setRememberUsername] = useState(remembered.enabled);
   const formRef = useRef<HTMLFormElement>(null);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(rememberedUsernameKey);
-      if (!raw) return;
-      const saved = rememberedUsernameSchema.safeParse(JSON.parse(raw));
-      if (!saved.success) return;
-      setRememberUsername(saved.data.enabled);
-      if (saved.data.enabled) {
-        setValues((current) => ({
-          ...current,
-          loginName: current.loginName || saved.data.username,
-        }));
-      }
-    } catch {
-      // Sign-in stays available when browser storage is blocked.
-    }
-  }, []);
 
   // The result carries the password that was SUBMITTED, not whatever the
   // field holds by the time the answer arrives: the later steps (#856) must
@@ -1086,6 +1084,8 @@ function RedirectLanding({ message }: { message?: string }) {
     if (message) return;
     try {
       if (window.sessionStorage.getItem(IDLE_ENDED_MARK)) {
+        // Consuming a one-shot storage mark after hydration is the external sync effects exist for.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIdleEnded(true);
         // Consumed: a reload, or coming back here later in the same tab,
         // is no longer "your session just ended from inactivity".

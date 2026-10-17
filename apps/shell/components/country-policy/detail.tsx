@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useNow } from "@/lib/use-now";
 import { Button, Input } from "@tesserix/web";
 import {
   changeCountryPolicyAccess,
@@ -288,7 +289,7 @@ function PolicyRecord({
 }
 
 function VersionRecord({ version, current }: { version: CountryPolicyVersion; current: boolean }) {
-  const now = Date.now();
+  const now = useNow();
   const effective =
     now >= new Date(version.effective_from).getTime() &&
     now < new Date(version.effective_until).getTime();

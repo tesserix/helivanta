@@ -1,19 +1,27 @@
 "use client";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApiQuery, brandingSchema, DEFAULT_BRANDING, type Branding } from "@helivanta/api";
 import { LoginSurface } from "@helivanta/ui";
 const Context = createContext<Branding>(DEFAULT_BRANDING);
 const key = "helivanta.login.branding-tenant";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const subscribeNever = () => () => {};
+function readRetained() {
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
 export function LoginBrandingProvider({ children }: { children: ReactNode }) {
   const params = useSearchParams();
   const requested = params.get("tenant");
-  const [retained, setRetained] = useState<string | null>(null);
+  // Only read when the URL names no tenant, so the write below never needs a re-read.
+  const retained = useSyncExternalStore(subscribeNever, readRetained, () => null);
   useEffect(() => {
     try {
       if (requested && uuid.test(requested)) window.sessionStorage.setItem(key, requested);
-      setRetained(window.sessionStorage.getItem(key));
     } catch {
       /* Cosmetic hint only; storage restrictions never block sign-in. */
     }

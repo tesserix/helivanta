@@ -134,7 +134,7 @@ function StaffPay({
   const byId = new Map(structures.items.map((s) => [s.id, s]));
   const [view, setView] = useState<"propose" | "decide" | "history" | "preview" | null>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
-  const open = (next: typeof view) => (ev: React.MouseEvent<HTMLButtonElement>) => {
+  const open = (next: typeof view, ev: React.MouseEvent<HTMLButtonElement>) => {
     opener.current = ev.currentTarget;
     setView(next);
   };
@@ -196,22 +196,22 @@ function StaffPay({
         </div>
         <div className="flex flex-wrap gap-2">
           {record && (
-            <Button variant="outline" onClick={open("history")}>
+            <Button variant="outline" onClick={(ev) => open("history", ev)}>
               Pay history
             </Button>
           )}
           {record?.current && (
-            <Button variant="outline" onClick={open("preview")}>
+            <Button variant="outline" onClick={(ev) => open("preview", ev)}>
               Preview pay
             </Button>
           )}
           {pending && ((approver && !mine) || (writable && mine)) && (
-            <Button variant="outline" onClick={open("decide")}>
+            <Button variant="outline" onClick={(ev) => open("decide", ev)}>
               {mine ? "Withdraw" : "Review proposal"}
             </Button>
           )}
           {writable && active && !pending && (
-            <Button variant="outline" onClick={open("propose")}>
+            <Button variant="outline" onClick={(ev) => open("propose", ev)}>
               {record ? "Propose pay change" : "Propose pay"}
             </Button>
           )}

@@ -32,6 +32,10 @@ Helivanta is a hospital platform with one workspace for clinical, pharmacy, labo
 
 ## API implementation
 
+[Hospital onboarding and multitenancy](../delivery/hospital-onboarding.md) gives
+the current step-by-step identity provisioning/adoption procedure and the checks
+required before product setup or the console cutover is accepted.
+
 [Workforce API](../api/workforce.md) describes the first implemented hospital-scoped staff slice and its current limits. [ADR 0009](../adr/0009-workforce-foundation.md) records the additive transition, and the [release checklist](../deployment/workforce-release.md) distinguishes local validation from live deployment.
 
 ## Editable diagrams

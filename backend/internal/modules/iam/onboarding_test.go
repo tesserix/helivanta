@@ -69,11 +69,17 @@ func TestHospitalProvisioningPreservesExistingMembershipsAndRetriesFGA(t *testin
 			return e
 		}
 		require.EqualValues(t, 1, count)
+		if e := tx.Table("audit_events").Where("resource_type=? AND action=? AND resource_id=?", "hospital_onboarding", "membership_verified", testutil.TenantA).Count(&count).Error; e != nil {
+			return e
+		}
+		require.EqualValues(t, 1, count, "replays retain exactly one durable membership marker")
 		return nil
 	}))
 	allowBootstrap = false
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error { return tx.Exec("DELETE FROM iam_members").Error }))
 	require.Equal(t, 409, call("Bearer approved", "new-admin"), "a completed onboarding must never recreate revoked membership")
+	allowBootstrap = true
+	require.Equal(t, 409, call("Bearer approved", "new-admin"), "a lost activation status must never recreate revoked membership")
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantB, func(tx *gorm.DB) error {
 		var count int64
 		if e := tx.Table("iam_members").Count(&count).Error; e != nil {
@@ -125,4 +131,38 @@ func TestHospitalProvisioningRejectsRepeatedCredentialHeaders(t *testing.T) {
 			require.Equal(t, 401, w.Code)
 		})
 	}
+}
+
+func TestHospitalAdoptionSealsExistingMembershipWithoutReplacement(t *testing.T) {
+	_, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{iam.New(nil)}})
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members (tenant_id,subject,role_key) VALUES (?,'existing-admin','tenant_admin'),(?,'existing-clinician','clinician')`, testutil.TenantA, testutil.TenantA).Error
+	}))
+	r := gin.New()
+	r.POST("/onboard", iam.NewOnboardingHandler(platform.Deps{DB: db, Bus: bus, Authz: &provisioningFGA{}, Reconcile: func(context.Context, string) error { return nil }}, provisioningCaller{}))
+	call := func(bootstrap bool, admin string) int {
+		req := httptest.NewRequest("POST", "/onboard", strings.NewReader(`{"allowBootstrap":`+fmt.Sprint(bootstrap)+`,"tenantId":"`+testutil.TenantA+`","organizationId":"existing-org","initialAdminUserId":"`+admin+`"}`))
+		req.Header.Set("X-Onboarding-Token", "Bearer approved")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		return w.Code
+	}
+	require.Equal(t, 409, call(false, "replacement-admin"))
+	require.Equal(t, 200, call(false, "existing-admin"))
+	require.Equal(t, 200, call(false, "existing-admin"))
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		var members []struct{ Subject, RoleKey string }
+		if err := tx.Table("iam_members").Select("subject,role_key").Order("subject").Find(&members).Error; err != nil {
+			return err
+		}
+		require.Equal(t, []struct{ Subject, RoleKey string }{{"existing-admin", "tenant_admin"}, {"existing-clinician", "clinician"}}, members)
+		var count int64
+		if err := tx.Table("audit_events").Where("resource_type=? AND action=?", "hospital_onboarding", "membership_verified").Count(&count).Error; err != nil {
+			return err
+		}
+		require.EqualValues(t, 1, count)
+		return tx.Exec("DELETE FROM iam_members").Error
+	}))
+	require.Equal(t, 409, call(false, "existing-admin"))
+	require.Equal(t, 409, call(true, "existing-admin"), "even lost activation state cannot recreate revoked adoption membership")
 }

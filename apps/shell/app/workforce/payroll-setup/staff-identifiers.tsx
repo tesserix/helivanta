@@ -18,7 +18,6 @@ import {
   type Hospital,
   type IdentifierField,
   type Staff,
-  type StaffIdentifierReveal,
   type StaffIdentifierRevealInput,
   type StaffIdentifierRevision,
   type StaffIdentifiers as StaffIdentifiersRecord,
@@ -250,33 +249,41 @@ function RevealableFact({
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="mt-1 font-medium">{value}</dd>
       {revealer && maskedOf(revision, field) && (
-        <Reveal path={path} revision={revision.id} field={field} />
+        <Reveal
+          path={path}
+          id={`reveal-${revision.id}-${field}`}
+          label={IDENTIFIER_FIELDS[field]}
+          input={
+            { revision_id: revision.id, field } satisfies Omit<StaffIdentifierRevealInput, "reason">
+          }
+        />
       )}
     </div>
   );
 }
 
 // The full value lives only in this component's state; it is never cached and is dropped on hide.
-function Reveal({
+export function Reveal({
   path,
-  revision,
-  field,
+  id,
+  label,
+  input,
 }: {
   path: string;
-  revision: string;
-  field: IdentifierField;
+  id: string;
+  label: string;
+  input: Record<string, unknown>;
 }) {
   const [asking, setAsking] = useState(false);
   const [shown, setShown] = useState<string | null>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const refocus = useRef(false);
-  const label = IDENTIFIER_FIELDS[field];
   const form = useZodForm(staffIdentifierRevealFormSchema, { reason: "" });
   const reveal = useApiMutation(
-    (input: StaffIdentifierRevealInput) =>
-      apiFetch<StaffIdentifierReveal>(`${path}/reveal`, {
+    (reason: string) =>
+      apiFetch<{ value: string }>(`${path}/reveal`, {
         method: "POST",
-        body: JSON.stringify(input),
+        body: JSON.stringify({ ...input, reason }),
       }),
     {
       suppressErrorToast: true,
@@ -299,7 +306,6 @@ function Reveal({
     else if (shown === null && refocus.current) toggle.current?.focus();
     refocus.current = false;
   }, [asking, shown, form]);
-  const id = `reveal-${revision}-${field}`;
   if (shown !== null)
     return (
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -323,9 +329,7 @@ function Reveal({
       autoComplete="off"
       aria-label={`Show full ${label}`}
       className="mt-2 space-y-2"
-      onSubmit={form.handleSubmit((values) =>
-        reveal.mutate({ revision_id: revision, field, reason: values.reason.trim() }),
-      )}
+      onSubmit={form.handleSubmit((values) => reveal.mutate(values.reason.trim()))}
     >
       <Field id={id} label="Why you need to see it" error={form.formState.errors.reason?.message}>
         <input

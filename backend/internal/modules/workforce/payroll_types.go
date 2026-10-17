@@ -598,3 +598,102 @@ type staffIdentifierReveal struct {
 	Field      string    `json:"field"`
 	Value      string    `json:"value"`
 }
+
+type taxDeclarationClaim struct {
+	Code        string `json:"code" binding:"required,max=40"`
+	AmountPaise *int64 `json:"amount_paise" binding:"required,gte=1,lte=100000000000"`
+}
+
+type taxDeclarationPanChange struct {
+	Action string  `json:"action" binding:"required,oneof=keep set none"`
+	Value  *string `json:"value,omitempty" binding:"omitempty,max=10"`
+}
+
+type taxDeclarationLandlordInput struct {
+	Name      string                  `json:"name" binding:"required,max=150"`
+	Address   string                  `json:"address" binding:"required,max=300"`
+	RentPaise *int64                  `json:"rent_paise" binding:"required,gte=1,lte=1000000000"`
+	Pan       taxDeclarationPanChange `json:"pan" binding:"required"`
+}
+
+type taxDeclarationLenderInput struct {
+	Name    string                  `json:"name" binding:"required,max=150"`
+	Address string                  `json:"address" binding:"required,max=300"`
+	Pan     taxDeclarationPanChange `json:"pan" binding:"required"`
+}
+
+type taxDeclarationHraInput struct {
+	Metro     *bool                         `json:"metro" binding:"required"`
+	Landlords []taxDeclarationLandlordInput `json:"landlords" binding:"required,min=1,max=4,dive"`
+}
+
+type taxDeclarationHomeLoanInput struct {
+	InterestPaise *int64                      `json:"interest_paise" binding:"required,gte=1,lte=1000000000"`
+	Lenders       []taxDeclarationLenderInput `json:"lenders" binding:"required,min=1,max=4,dive"`
+}
+
+type taxDeclarationInput struct {
+	ExpectedVersion *int64                       `json:"expected_version" binding:"required,gte=0"`
+	Reason          string                       `json:"reason" binding:"required,max=500"`
+	Claims          []taxDeclarationClaim        `json:"claims" binding:"max=24,dive"`
+	Hra             *taxDeclarationHraInput      `json:"hra,omitempty" binding:"omitempty"`
+	HomeLoan        *taxDeclarationHomeLoanInput `json:"home_loan,omitempty" binding:"omitempty"`
+}
+
+type taxDeclarationClaimLine struct {
+	Code        string `json:"code"`
+	AmountPaise int64  `json:"amount_paise"`
+}
+
+type taxDeclarationParty struct {
+	Role      string  `json:"role"`
+	Position  int     `json:"position"`
+	Name      string  `json:"name"`
+	Address   string  `json:"address"`
+	RentPaise *int64  `json:"rent_paise,omitempty"`
+	PanMasked *string `json:"pan_masked,omitempty"`
+}
+
+type taxDeclarationRevision struct {
+	ID                    uuid.UUID                 `json:"id"`
+	StaffID               uuid.UUID                 `json:"staff_id"`
+	TaxYear               string                    `json:"tax_year"`
+	Sequence              int                       `json:"sequence"`
+	BaseVersion           int64                     `json:"base_version"`
+	Status                string                    `json:"status"`
+	ApprovedVersion       *int64                    `json:"approved_version,omitempty"`
+	Reason                string                    `json:"reason"`
+	HraMetro              *bool                     `json:"hra_metro,omitempty"`
+	HomeLoanInterestPaise *int64                    `json:"home_loan_interest_paise,omitempty"`
+	Claims                []taxDeclarationClaimLine `json:"claims" gorm:"-"`
+	Parties               []taxDeclarationParty     `json:"parties" gorm:"-"`
+	ProposedBySubject     string                    `json:"proposed_by_subject"`
+	DecidedBySubject      *string                   `json:"decided_by_subject,omitempty"`
+	DecidedAt             *time.Time                `json:"decided_at,omitempty"`
+	DecisionNote          string                    `json:"decision_note"`
+	CreatedAt             time.Time                 `json:"created_at"`
+}
+
+type taxDeclaration struct {
+	StaffID   uuid.UUID               `json:"staff_id"`
+	TaxYear   string                  `json:"tax_year"`
+	Version   int64                   `json:"version"`
+	Current   *taxDeclarationRevision `json:"current,omitempty" gorm:"-"`
+	Pending   *taxDeclarationRevision `json:"pending,omitempty" gorm:"-"`
+	CreatedAt time.Time               `json:"created_at"`
+	UpdatedAt time.Time               `json:"updated_at"`
+}
+
+type taxDeclarationRevealInput struct {
+	RevisionID uuid.UUID `json:"revision_id" binding:"required"`
+	Role       string    `json:"role" binding:"required,oneof=landlord lender"`
+	Position   int       `json:"position" binding:"required,gte=1,lte=4"`
+	Reason     string    `json:"reason" binding:"required,max=200"`
+}
+
+type taxDeclarationReveal struct {
+	RevisionID uuid.UUID `json:"revision_id"`
+	Role       string    `json:"role"`
+	Position   int       `json:"position"`
+	Value      string    `json:"value"`
+}

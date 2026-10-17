@@ -20,7 +20,7 @@ Purpose: shape the payroll configuration model (#1041) and payroll runs (#1040).
 
 1. **Salary heads, salary structures, deterministic calculator and preview** (this slice). Covers heads for earnings, deductions and employer contributions: fixed or percentage bases, dependency graph, proration, minimum payable days, month applicability, rounding order, caps, taxability, wage class, payslip label and order. Also versioned structures scoped by department, designation and grade, and a synthetic preview.
 2. **Statutory rule sets with maker–checker approval**: PF/EPS/EDLI, ESI, PT by state, LWF by state. Day-effective, cited, approved by a second person.
-3. **Income-tax rule sets and regime election**: slabs, deductions, rebate with marginal relief, surcharge, cess, per-employee regime and declarations (Form 124 data).
+3. **Income-tax rule sets and regime election**: slabs, deductions, rebate with marginal relief, surcharge, cess, per-employee regime and declarations (Form 124 data). Regime election, claim heads (5a) and declarations with encrypted landlord and lender PANs (5b) are delivered; declaration evidence (5b-ii) and the TDS projection (6) remain.
 4. **Employee salary assignment and payslip configuration**: CTC and structure per staff member, private bank/PAN/UAN fields behind their own permission, payslip formats, field sequencing, YTD, and HR settings switches.
 
 Bonus and gratuity rule sets go with payroll processing (#1040), which consumes the finalised attendance snapshot (#1039).

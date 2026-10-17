@@ -18,6 +18,7 @@ import (
 	"gorm.io/gorm"
 
 	supplycontract "github.com/tesserix/helivanta/internal/modules/supply/contract" //nolint:depguard // own data-only event contract
+	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -40,6 +41,7 @@ func (party) TableName() string                 { return "supply_parties" }
 func (p party) PageKey() (time.Time, uuid.UUID) { return p.CreatedAt, p.ID }
 
 type handlers struct {
+	roles    platform.RoleLister
 	db       *tenantdb.DB
 	bus      *events.Bus
 	identity *organizationidentity.Client

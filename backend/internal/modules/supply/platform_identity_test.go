@@ -50,7 +50,7 @@ func platformIdentityHarness(t *testing.T, handler http.HandlerFunc) (*gin.Engin
 	identity, err := organizationidentity.New(server.URL, "TEST-product", server.Client(), identityTestCredential("TEST-machine-token"))
 	require.NoError(t, err)
 	permissions := []authz.Permission{supply.PermPartyRead, supply.PermPartyWrite, supply.PermOrganizationManage, supply.PermAccessManage}
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{OrganizationIdentity: identity, Tokens: map[string]string{"owner": testutil.TenantA, "manager": testutil.TenantA, "foreign": testutil.TenantB}, Perms: map[string][]authz.Permission{"owner": permissions, "manager": permissions, "foreign": permissions}, Modules: []platform.Module{supply.New()}})
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Roles: accessMembership{}, OrganizationIdentity: identity, Tokens: map[string]string{"owner": testutil.TenantA, "manager": testutil.TenantA, "foreign": testutil.TenantB}, Perms: map[string][]authz.Permission{"owner": permissions, "manager": permissions, "foreign": permissions}, Modules: []platform.Module{supply.New()}})
 	return r, db
 }
 
@@ -152,7 +152,7 @@ func TestOwnedOrganisationIdentityUsesOnlySessionTenantAndMinimizedFreshFacts(t 
 	identity, err := organizationidentity.New(server.URL, "TEST-product", server.Client(), identityTestCredential("TEST-machine-token"))
 	require.NoError(t, err)
 	permissions := []authz.Permission{supply.PermPartyRead, supply.PermPartyWrite, supply.PermOrganizationManage}
-	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{OrganizationIdentity: identity, Tokens: map[string]string{"owner": testutil.TenantA, "foreign": testutil.TenantB, "other": testutil.TenantA}, Perms: map[string][]authz.Permission{"owner": permissions, "foreign": permissions, "other": permissions}, Modules: []platform.Module{supply.New()}})
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Roles: accessMembership{}, OrganizationIdentity: identity, Tokens: map[string]string{"owner": testutil.TenantA, "foreign": testutil.TenantB, "other": testutil.TenantA}, Perms: map[string][]authz.Permission{"owner": permissions, "foreign": permissions, "other": permissions}, Modules: []platform.Module{supply.New()}})
 	root := "/v1/supply/parties/" + uuid.Must(uuid.NewV7()).String()
 	body := strings.Replace(partyBody(0, "TEST Canonical Owner"), `"counterparty"`, `"owned_organisation"`, 1)
 	require.Equal(t, 200, testutil.Do(r, "PUT", root, "owner", body).Code)

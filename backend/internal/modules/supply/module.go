@@ -70,7 +70,7 @@ func (*Module) Migrations() []tenantdb.Migration {
 	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}, {ID: "0005_supply", SQL: binSchema}, {ID: "0006_supply", SQL: branchSchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
-	h := &handlers{db: deps.DB, bus: deps.Bus, identity: deps.OrganizationIdentity}
+	h := &handlers{db: deps.DB, bus: deps.Bus, identity: deps.OrganizationIdentity, roles: deps.Roles}
 	g := r.Group("/supply")
 	g.PUT("/parties/:party/premises/:premise/bins/:bin", PermBinWrite, h.putBin)
 	g.GET("/parties/:party/premises/:premise/bins/:bin", PermBinRead, h.getBin)

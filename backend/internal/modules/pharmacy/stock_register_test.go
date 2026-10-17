@@ -56,19 +56,33 @@ func TestStockRegisterReconcilesExactPeriodAndNeverAdvertisesUsableStock(t *test
 	w = do(r, "GET", root+"/reconciliation"+query, "editor", "")
 	require.Equal(t, 200, w.Code, w.Body.String())
 	var report struct {
-		Opening     int64  `json:"opening_units"`
-		Receipts    string `json:"receipt_units"`
-		Corrections string `json:"correction_units"`
-		Closing     int64  `json:"closing_units"`
-		Count       int64  `json:"movement_count"`
+		Location    string    `json:"location_id"`
+		Batch       string    `json:"batch_id"`
+		From        time.Time `json:"from"`
+		AsOf        time.Time `json:"as_of"`
+		Opening     int64     `json:"opening_units"`
+		Receipts    string    `json:"receipt_units"`
+		Corrections string    `json:"correction_units"`
+		Closing     int64     `json:"closing_units"`
+		Count       int64     `json:"movement_count"`
 	}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &report))
+	require.Equal(t, location, report.Location)
+	require.Equal(t, batch, report.Batch)
+	require.True(t, correction.CreatedAt.Equal(report.From), report.From)
+	require.True(t, correction.CreatedAt.Equal(report.AsOf), report.AsOf)
 	require.EqualValues(t, 25, report.Opening)
 	require.Equal(t, "0", report.Receipts)
 	require.Equal(t, "-4", report.Corrections)
 	require.EqualValues(t, 21, report.Closing)
 	require.EqualValues(t, 1, report.Count)
 	require.Equal(t, report.Opening-4, report.Closing)
+	w = do(r, "GET", root+fmt.Sprintf("/reconciliation?location_id=%s&batch_id=%s&%s", location, batch, window), "editor", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &report))
+	require.True(t, time.Unix(0, 0).Equal(report.From), report.From)
+	require.EqualValues(t, 0, report.Opening)
+	require.EqualValues(t, 21, report.Closing)
 	w = do(r, "GET", root+"/movements"+query, "editor", "")
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &raw))

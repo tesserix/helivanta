@@ -61,12 +61,17 @@ GOTOOLCHAIN=go1.26.6 go build ./...
 
 ## Synthetic tenant and remaining integration
 
-[YES HOSPITAL](https://onboard.tesserix.app/orgs/8f8ed375-596b-4633-b90b-27fd3e6f299c) was created through the existing onboarding service, with no direct tenant-table insert:
+This section records the historical 2026-10-13 workforce test. Current automated
+identity provisioning/adoption is described in the [hospital onboarding runbook](../delivery/hospital-onboarding.md).
+Resolve live bindings privately through the console; do not copy them into public
+release evidence.
 
-- Tenant UUID: `8f8ed375-596b-4633-b90b-27fd3e6f299c`.
-- Zitadel organization: `394886004164526645`.
+[YES HOSPITAL](https://console.tesserix.app/platform/provisioning/orgs) was created through the existing onboarding service, with no direct tenant-table insert:
+
+- Tenant UUID: `<tenant UUID>`.
+- Zitadel organization: `<identity organization ID>`.
 - Initial owner: `yes-hospital-owner@example.invalid`, replaced after the first workforce release; retained without organization membership.
-- Active owner: `yes-hospital-test-owner@example.invalid`, subject `394892763469972021`; organization-owner membership and active state verified.
+- Active owner: `yes-hospital-test-owner@example.invalid`, subject `<verified owner subject>`; organization-owner membership and active state verified.
 - Plan: `synthetic-test`; external reference: `helivanta-synthetic-yes-hospital`.
 
 The replacement owner is active and has a one-time HMS tenant_admin bootstrap grant, as detailed below. OpenFGA convergence and signed-in production CRUD remain pending the next API rollout. The operator has no Helivanta product registration or automatic operator-to-IAM membership projection. Real signed-session HTTP isolation tests ran against the test stack; live gateway rejection and database isolation checks are separate evidence.
@@ -77,9 +82,9 @@ No legacy customer records were imported. The generated fixture format remains a
 
 ## Owner activation and workspace follow-up — 2026-10-13
 
-The replacement synthetic owner `yes-hospital-test-owner@example.invalid`, subject `394892763469972021`, is `USER_STATE_ACTIVE` with verified email and `ORG_OWNER` in the existing YES HOSPITAL organization. A real Zitadel password check succeeded and its verification session was revoked. Credentials live in OpenBao at `helivanta/helivanta-api/helivanta-synthetic-owner`; no credential values are in this repository. The original subject is retained without organization membership; pre-change membership metadata was captured locally in `/tmp/helivanta-owner-membership-before.json`.
+The replacement synthetic owner `yes-hospital-test-owner@example.invalid`, subject `<verified owner subject>`, is `USER_STATE_ACTIVE` with verified email and `ORG_OWNER` in the existing YES HOSPITAL organization. A real Zitadel password check succeeded and its verification session was revoked. Credentials live in OpenBao at `helivanta/helivanta-api/helivanta-synthetic-owner`; no credential values are in this repository. The original subject is retained without organization membership; pre-change membership metadata was captured locally in `/tmp/helivanta-owner-membership-before.json`.
 
-The existing `cmd/bootstrap` assigned the active subject `tenant_admin` for tenant `8f8ed375-596b-4633-b90b-27fd3e6f299c`, using the application database role and tenant RLS context. OpenFGA convergence occurs at the next API startup. This is an explicit one-time test setup, not automatic operator integration.
+The existing `cmd/bootstrap` assigned the active subject `tenant_admin` for tenant `<tenant UUID>`, using the application database role and tenant RLS context. OpenFGA convergence occurs at the next API startup. This is an explicit one-time test setup, not automatic operator integration.
 
 The new workforce/branding UI and additive `0001_workspace` migration are under development on `feat/workforce-branded-workspace`. Local browser verification used an isolated development stack with synthetic records: sign-in, hospital creation with explicit self-grant, staff creation/edit/reload, branding publish/reload and the branded login link. These checks do not claim a production UI rollout or signed-in production CRUD. See [workspace API and release contract](../api/workspace.md).
 

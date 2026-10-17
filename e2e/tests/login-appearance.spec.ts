@@ -83,7 +83,7 @@ for (const { theme, button: background } of palettes) {
       await expect(busy).toHaveCSS("background-color", background);
       await expect(busy).toHaveCSS("opacity", "1");
       expect(await busy.evaluate((el) => getComputedStyle(el, "::before").content)).toBe('""');
-      expect(submissions).toBe(1);
+      await expect.poll(() => submissions).toBe(1);
 
       finish();
       await expect(

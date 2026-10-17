@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"slices"
+	"time"
 )
 
 // The tables guarantee one slab per wage, so a miss means the stored rule is corrupt and nothing is calculated.
@@ -124,6 +125,69 @@ func lwfComplete(slabs []statutoryLwfSlab) bool {
 		bands[i] = statutoryBand{*s.FromPaise, s.ToPaise}
 	}
 	return statutoryPartition(bands)
+}
+
+var ptPeriodMonths = map[string]int{"monthly": 1, "half_yearly": 6, "annual": 12}
+
+type ptPeriodSpan struct {
+	Start, End time.Time
+	Months     int
+}
+
+// ptPeriodOn is the period holding the day's month: the latest start at or before it, reaching into the previous year if needed.
+func ptPeriodOn(p statutoryPtParams, on time.Time) (ptPeriodSpan, bool) {
+	length := ptPeriodMonths[p.Cadence]
+	month := int(on.Month())
+	for _, start := range p.PeriodStartMonths {
+		if (month-start+12)%12 < length {
+			year := on.Year()
+			if start > month {
+				year--
+			}
+			first := time.Date(year, time.Month(start), 1, 0, 0, 0, 0, time.UTC)
+			return ptPeriodSpan{Start: first, End: first.AddDate(0, length, -1), Months: length}, true
+		}
+	}
+	return ptPeriodSpan{}, false
+}
+
+// ptPeriodsValid sorts the starts and needs the ones the cadence implies plus, when periodic, exactly one charged month per period, so no period's tax is skipped or doubled.
+func ptPeriodsValid(p statutoryPtParams) bool {
+	length, ok := ptPeriodMonths[p.Cadence]
+	if !ok || !uniqueMonths(p.PeriodStartMonths) {
+		return false
+	}
+	starts := p.PeriodStartMonths
+	switch p.Cadence {
+	case "monthly":
+		return len(starts) == 0
+	case "half_yearly":
+		if len(starts) != 2 || starts[1]-starts[0] != 6 {
+			return false
+		}
+	case "annual":
+		if len(starts) != 1 {
+			return false
+		}
+	}
+	charged := map[int]bool{}
+	for _, s := range p.Slabs {
+		for _, m := range s.Months {
+			charged[m] = true
+		}
+	}
+	for _, start := range starts {
+		n := 0
+		for i := range length {
+			if charged[(start-1+i)%12+1] {
+				n++
+			}
+		}
+		if n != 1 {
+			return false
+		}
+	}
+	return true
 }
 
 func ptAmount(p statutoryPtParams, wages int64, month int, gender string) (int64, bool) {

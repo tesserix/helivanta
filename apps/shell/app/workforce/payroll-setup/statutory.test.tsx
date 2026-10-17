@@ -416,6 +416,8 @@ it("builds a professional tax table and refuses one with a gender left out", lon
   expect(writes).toHaveLength(0);
   await fill(user, form, [["State code (for example IN-MH)", "in-zz"]]);
   await chooseOption(user, within(form).getByRole("combobox", { name: "Wages" }), "Gross pay");
+  await chooseOption(user, within(form).getByRole("combobox", { name: "Charged on" }), "Monthly");
+  expect(within(form).queryByRole("group", { name: "Half-years start in" })).toBeNull();
   const first = within(within(form).getByRole("group", { name: "Slab 1" }));
   await fill(user, first, [
     ["Monthly wages from (₹)", "0"],
@@ -472,6 +474,7 @@ it("builds a professional tax table and refuses one with a gender left out", lon
     pt: {
       state_code: "IN-ZZ",
       wage_basis: "gross",
+      cadence: "monthly",
       slabs: [
         {
           months: [2],
@@ -484,6 +487,98 @@ it("builds a professional tax table and refuses one with a gender left out", lon
       ],
     },
   });
+});
+
+it("charges half-yearly professional tax once in each period", longForm, async () => {
+  const { writes, user, form } = await openProposal("Professional tax");
+  await fill(user, form, [["State code (for example IN-MH)", "IN-ZZ"]]);
+  await chooseOption(user, within(form).getByRole("combobox", { name: "Wages" }), "Gross pay");
+  await chooseOption(
+    user,
+    within(form).getByRole("combobox", { name: "Charged on" }),
+    "Half-yearly",
+  );
+  const slab = within(within(form).getByRole("group", { name: "Slab 1" }));
+  await fill(user, slab, [
+    ["Half-yearly wages from (₹)", "0"],
+    ["Tax for the period (₹)", "6"],
+  ]);
+  const charged = within(slab.getByRole("group", { name: "Month slab 1 is charged in" }));
+  await user.click(charged.getByRole("checkbox", { name: "Sep" }));
+  const who = within(slab.getByRole("group", { name: "Slab 1 applies to" }));
+  for (const name of ["Women", "Men", "Other genders"])
+    await user.click(who.getByRole("checkbox", { name }));
+  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+  expect(
+    await within(form).findByText("Choose two start months six months apart."),
+  ).toBeInTheDocument();
+  const starts = within(within(form).getByRole("group", { name: "Half-years start in" }));
+  await user.click(starts.getByRole("checkbox", { name: "Apr" }));
+  await user.click(starts.getByRole("checkbox", { name: "Oct" }));
+  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+  expect(
+    await within(form).findByText(
+      "The period starting in Oct must be charged in exactly one month; the slabs name none.",
+    ),
+  ).toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+  await user.click(charged.getByRole("checkbox", { name: "Mar" }));
+  await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]?.body).toMatchObject({
+    pt: {
+      cadence: "half_yearly",
+      period_start_months: [4, 10],
+      slabs: [
+        { months: [3, 9], genders: ["female", "male", "other"], from_paise: 0, amount_paise: 600 },
+      ],
+    },
+  });
+});
+
+it("shows the projected period a half-yearly professional tax was matched on", async () => {
+  mock({
+    rules: [rule(false)],
+    previewBody: {
+      ...preview,
+      results: [
+        {
+          kind: "pt",
+          status: "applied",
+          wages_paise: 1200000,
+          base_paise: 1200000,
+          components: [{ component: "pt_employee", party: "employee", amount_paise: 60000 }],
+          period: {
+            cadence: "half_yearly",
+            starts_on: "2026-04-01",
+            ends_on: "2026-09-30",
+            months: 6,
+            wages_paise: 7200000,
+            basis: "projected",
+          },
+        },
+      ],
+      employee_paise: 60000,
+      employer_paise: 0,
+    },
+  });
+  const { user } = renderWithProviders(<PayrollSetup />);
+  const section = await panel();
+  await user.click(await within(section).findByRole("button", { name: "Preview contributions" }));
+  const form = within(section).getByRole("form", { name: "Statutory preview inputs" });
+  await chooseOption(
+    user,
+    within(form).getByRole("combobox", { name: "Salary structure" }),
+    "Synthetic Nurse Pay · SYN-NURSE",
+  );
+  await user.type(within(form).getByLabelText("Payable days"), "30");
+  await user.click(within(form).getByRole("button", { name: "Compute contributions" }));
+  const region = within(section).getByRole("region", { name: "Statutory preview" });
+  expect(
+    await within(region).findByText(
+      "Half-yearly period 2026-04-01 to 2026-09-30 · wages projected at ₹72,000.00 over 6 months",
+    ),
+  ).toBeInTheDocument();
 });
 
 it("removes a professional tax slab but always keeps one", async () => {

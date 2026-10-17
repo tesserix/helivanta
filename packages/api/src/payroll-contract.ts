@@ -322,6 +322,8 @@ export const statutoryPtParamsContract = z
       .max(5)
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     wage_basis: z.enum(["statutory_wages", "gross"]),
+    cadence: z.enum(["monthly", "half_yearly", "annual"]),
+    period_start_months: z.array(z.number().int()).max(2).optional(),
     slabs: z.array(statutoryPtSlabContract).max(96),
   })
   .strict();
@@ -562,6 +564,18 @@ export const statutoryComponentContract = z
   .strict();
 export type StatutoryComponent = z.infer<typeof statutoryComponentContract>;
 
+export const statutoryPeriodContract = z
+  .object({
+    cadence: z.enum(["half_yearly", "annual"]),
+    starts_on: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    ends_on: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    months: z.number().int(),
+    wages_paise: z.number().int(),
+    basis: z.enum(["projected", "actual"]),
+  })
+  .strict();
+export type StatutoryPeriod = z.infer<typeof statutoryPeriodContract>;
+
 export const statutoryResultContract = z
   .object({
     kind: z.enum(["pf", "esi", "pt", "lwf"]),
@@ -582,6 +596,7 @@ export const statutoryResultContract = z
     wages_paise: z.number().int(),
     base_paise: z.number().int(),
     components: z.array(statutoryComponentContract),
+    period: statutoryPeriodContract.optional(),
   })
   .strict();
 export type StatutoryResult = z.infer<typeof statutoryResultContract>;

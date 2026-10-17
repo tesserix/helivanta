@@ -1,6 +1,7 @@
 package workforce_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -22,13 +23,22 @@ func ptSlab(months []int, genders []string, from int64, to any, amount int64) ma
 func ptRule(version int, effective string) map[string]any {
 	rest := []int{12, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11}
 	return map[string]any{"expected_version": version, "kind": "pt", "name": "Synthetic PT", "covered": true, "effective_on": effective, "citation": "Synthetic PT notification", "reference": "",
-		"pt": map[string]any{"state_code": "IN-ZZ", "wage_basis": "gross", "slabs": []any{
+		"pt": map[string]any{"state_code": "IN-ZZ", "wage_basis": "gross", "cadence": "monthly", "slabs": []any{
 			ptSlab(rest, []string{"other", "male"}, 0, 1000000, 0),
 			ptSlab(rest, []string{"female"}, 0, 1500000, 0),
 			ptSlab(rest, []string{"male", "other"}, 1000000, 1500000, 17500),
 			ptSlab(rest, everyGender, 1500000, nil, 20000),
 			ptSlab([]int{2}, everyGender, 0, 1000000, 0),
 			ptSlab([]int{2}, everyGender, 1000000, nil, 30000),
+		}}}
+}
+
+// Synthetic half-yearly PT charged in each period's last month: nothing below 72,000 a half-year, 600 at or above it.
+func ptHalfYearlyRule(version int, effective string) map[string]any {
+	return map[string]any{"expected_version": version, "kind": "pt", "name": "Synthetic half-yearly PT", "covered": true, "effective_on": effective, "citation": "Synthetic PT notification", "reference": "",
+		"pt": map[string]any{"state_code": "IN-ZZ", "wage_basis": "gross", "cadence": "half_yearly", "period_start_months": []int{10, 4}, "slabs": []any{
+			ptSlab([]int{9, 3}, everyGender, 0, 7200000, 0),
+			ptSlab([]int{9, 3}, everyGender, 7200000, nil, 60000),
 		}}}
 }
 
@@ -69,6 +79,7 @@ func TestPTAndLWFRulesNeedCompleteSlabs(t *testing.T) {
 
 	slabsError := "Review the slabs"
 	ruleError := "Review the rule"
+	periodsError := "Review the professional tax periods"
 	rest := []int{1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
 	for name, tc := range map[string]struct {
 		body map[string]any
@@ -86,6 +97,12 @@ func TestPTAndLWFRulesNeedCompleteSlabs(t *testing.T) {
 		"state code":                         {withParams(ptRule(0, "2026-04-01"), "pt", map[string]any{"state_code": "IN-mh"}), ruleError},
 		"PT parameters on LWF":               {with(lwfRule(0, "2026-04-01"), map[string]any{"pt": ptRule(0, "2026-04-01")["pt"]}), ruleError},
 		"covered PT without parameters":      {with(ptRule(0, "2026-04-01"), map[string]any{"pt": nil}), ruleError},
+		"monthly PT with period starts":      {withParams(ptRule(0, "2026-04-01"), "pt", map[string]any{"period_start_months": []int{4}}), periodsError},
+		"half-yearly PT with one start":      {withParams(ptHalfYearlyRule(0, "2026-04-01"), "pt", map[string]any{"period_start_months": []int{4}}), periodsError},
+		"half-yearly starts not 6 apart":     {withParams(ptHalfYearlyRule(0, "2026-04-01"), "pt", map[string]any{"period_start_months": []int{4, 9}}), periodsError},
+		"half-yearly period never charged":   {withSlabs(ptHalfYearlyRule(0, "2026-04-01"), "pt", ptSlab([]int{9}, everyGender, 0, nil, 0)), periodsError},
+		"half-yearly period charged twice":   {withSlabs(ptHalfYearlyRule(0, "2026-04-01"), "pt", ptSlab([]int{8, 9, 3}, everyGender, 0, nil, 0)), periodsError},
+		"annual PT with two starts":          {withParams(ptHalfYearlyRule(0, "2026-04-01"), "pt", map[string]any{"cadence": "annual"}), periodsError},
 	} {
 		code, out := h.propose(uuid.NewString(), "admin", tc.body)
 		require.Equal(t, 400, code, "%s: %v", name, out)
@@ -96,6 +113,9 @@ func TestPTAndLWFRulesNeedCompleteSlabs(t *testing.T) {
 		"month 13":       withSlabs(ptRule(0, "2026-04-01"), "pt", ptSlab([]int{13}, everyGender, 0, nil, 0)),
 		"no slabs":       withSlabs(ptRule(0, "2026-04-01"), "pt"),
 		"amount too big": withSlabs(ptRule(0, "2026-04-01"), "pt", ptSlab(allMonthsList, everyGender, 0, nil, 10000001)),
+		"no cadence":     withParams(ptRule(0, "2026-04-01"), "pt", map[string]any{"cadence": nil}),
+		"weekly cadence": withParams(ptRule(0, "2026-04-01"), "pt", map[string]any{"cadence": "weekly"}),
+		"month 13 start": withParams(ptHalfYearlyRule(0, "2026-04-01"), "pt", map[string]any{"period_start_months": []int{7, 13}}),
 	} {
 		code, out := h.propose(uuid.NewString(), "admin", body)
 		require.Equal(t, 400, code, "%s: %v", name, out)
@@ -238,6 +258,7 @@ func TestStatutoryPreviewAppliesPTAndLWF(t *testing.T) {
 	got = preview("2026-03-16", "male")
 	require.Equal(t, "applied", got["pt"]["status"])
 	require.EqualValues(t, 1200000, got["pt"]["wages_paise"])
+	require.NotContains(t, got["pt"], "period", "monthly PT has no period")
 	require.Equal(t, map[string]int64{"pt_employee": 17500}, componentAmounts(got["pt"]))
 	got = preview("2026-03-16", "female")
 	require.Equal(t, map[string]int64{"pt_employee": 0}, componentAmounts(got["pt"]), "an exempt band is an explicit zero")
@@ -255,4 +276,107 @@ func TestStatutoryPreviewAppliesPTAndLWF(t *testing.T) {
 
 	code, out = h.call("POST", "/statutory-preview", "viewer", map[string]any{"structure_id": structure, "on": "2026-12-16", "payable_half_days": 62, "disability": false, "gender": "unknown"})
 	require.Equal(t, 400, code, out)
+}
+
+func TestPeriodicPTIsStoredAndEnforcedByTheDatabase(t *testing.T) {
+	h := newStatutoryHarness(t)
+	pt := uuid.NewString()
+	h.approved(pt, ptHalfYearlyRule(0, "2026-04-01"))
+	code, history := h.call("GET", "/statutory-rules/"+pt+"/history", "viewer", nil)
+	require.Equal(t, 200, code, history)
+	params := history["data"].([]any)[0].(map[string]any)["pt"].(map[string]any)
+	require.Equal(t, "half_yearly", params["cadence"])
+	require.Equal(t, []any{4.0, 10.0}, params["period_start_months"], "period starts come back sorted")
+	code, out := h.propose(pt, "admin", ptHalfYearlyRule(1, "2026-04-01"))
+	require.Equal(t, 200, code, out)
+	require.Nil(t, out["pending"], "the periodic revision in force replays")
+
+	// Each case writes a covered proposal outside the API, checks every deferred constraint, then rolls back.
+	errRolledBack := errors.New("rolled back")
+	write := func(cadence string, mask any, months ...int) error {
+		return h.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_payroll','authorized',true)`, h.hospital).Error; err != nil {
+				return err
+			}
+			revision := uuid.New()
+			if err := tx.Exec(`INSERT INTO workforce_statutory_rule_revisions(tenant_id,hospital_id,id,rule_id,kind,sequence,base_version,status,name,covered,effective_on,citation,reference,proposed_by_subject,decision_note)
+ SELECT tenant_id,hospital_id,?,id,kind,version+10,version,'pending','Synthetic',true,'2026-04-01','Synthetic','','user-admin','' FROM workforce_statutory_rules WHERE tenant_id=? AND hospital_id=? AND kind='pt'`, revision, testutil.TenantA, h.hospital).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec(`INSERT INTO workforce_statutory_pt_params(tenant_id,hospital_id,revision_id,state_code,wage_basis,cadence,period_start_mask) VALUES(?,?,?,'IN-ZZ','gross',?,?)`, testutil.TenantA, h.hospital, revision, cadence, mask).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec(`INSERT INTO workforce_statutory_pt_slabs(tenant_id,hospital_id,revision_id,position,months_mask,genders_mask,from_paise,to_paise,amount_paise) VALUES(?,?,?,1,?,7,0,NULL,0)`, testutil.TenantA, h.hospital, revision, monthMaskOf(months...)).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec(`SET CONSTRAINTS ALL IMMEDIATE`).Error; err != nil {
+				return err
+			}
+			return errRolledBack
+		})
+	}
+	aprOct := monthMaskOf(4, 10)
+	for name, tc := range map[string]struct {
+		err   error
+		guard string
+	}{
+		"monthly with a start":           {write("monthly", monthMaskOf(4), 1), "workforce_statutory_pt_period_starts"},
+		"half-yearly with one start":     {write("half_yearly", monthMaskOf(4), 9, 3), "workforce_statutory_pt_period_starts"},
+		"half-yearly 5 months apart":     {write("half_yearly", monthMaskOf(4, 9), 9, 3), "workforce_statutory_pt_period_starts"},
+		"annual with two starts":         {write("annual", aprOct, 3), "workforce_statutory_pt_period_starts"},
+		"half-yearly without a start":    {write("half_yearly", nil, 9, 3), "workforce_statutory_pt_period_starts"},
+		"a period never charged":         {write("half_yearly", aprOct, 9), "charged in exactly one month of each period"},
+		"a period charged twice":         {write("half_yearly", aprOct, 8, 9, 3), "charged in exactly one month of each period"},
+		"annual charged twice":           {write("annual", monthMaskOf(4), 3, 9), "charged in exactly one month of each period"},
+		"a wrapped period charged twice": {write("half_yearly", monthMaskOf(1, 7), 6, 12, 1), "charged in exactly one month of each period"},
+	} {
+		require.ErrorContains(t, tc.err, tc.guard, name)
+	}
+	require.ErrorIs(t, write("half_yearly", aprOct, 9, 3), errRolledBack, "one charge per period passes every constraint")
+	require.ErrorIs(t, write("half_yearly", monthMaskOf(1, 7), 12, 6), errRolledBack, "periods that end the year pass")
+	require.ErrorIs(t, write("annual", monthMaskOf(4), 3), errRolledBack, "an annual period that wraps the year end passes")
+	require.ErrorIs(t, write("monthly", nil, 1, 2), errRolledBack, "a monthly rule needs no starts")
+}
+
+func monthMaskOf(months ...int) int {
+	mask := 0
+	for _, m := range months {
+		mask |= 1 << (m - 1)
+	}
+	return mask
+}
+
+func TestStatutoryPreviewProjectsPeriodicPT(t *testing.T) {
+	h := newStatutoryHarness(t)
+	basic := h.head(fixedEarning("SYN-BASIC", "wages"))
+	structure := uuid.NewString()
+	code, out := h.putStructure(structure, structureBody("SYN-NURSE", fixedLine(basic, 1200000)))
+	require.Equal(t, 200, code, out)
+	preview := func(on string) map[string]any {
+		day, err := time.Parse(time.DateOnly, on)
+		require.NoError(t, err)
+		code, out := h.call("POST", "/statutory-preview", "viewer", map[string]any{"structure_id": structure, "on": on, "payable_half_days": 2 * time.Date(day.Year(), day.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day(), "disability": false})
+		require.Equal(t, 200, code, out)
+		for _, r := range out["results"].([]any) {
+			if r.(map[string]any)["kind"] == "pt" {
+				return r.(map[string]any)
+			}
+		}
+		t.Fatalf("no PT result: %v", out)
+		return nil
+	}
+	h.approved(uuid.NewString(), ptHalfYearlyRule(0, "2026-01-01"))
+
+	got := preview("2026-09-16")
+	require.Equal(t, "applied", got["status"])
+	require.EqualValues(t, 1200000, got["wages_paise"], "the month's wages stay comparable with the other kinds")
+	require.Equal(t, map[string]any{"cadence": "half_yearly", "starts_on": "2026-04-01", "ends_on": "2026-09-30", "months": 6.0, "wages_paise": 7200000.0, "basis": "projected"}, got["period"])
+	require.Equal(t, map[string]int64{"pt_employee": 60000}, componentAmounts(got), "six months at 12,000 reach the 72,000 band")
+	got = preview("2027-03-10")
+	require.Equal(t, "2026-10-01", got["period"].(map[string]any)["starts_on"], "the second period wraps the year end")
+	require.Equal(t, "2027-03-31", got["period"].(map[string]any)["ends_on"])
+	got = preview("2026-08-16")
+	require.Equal(t, "not_due", got["status"], "August is not this period's charge month")
+	require.Nil(t, got["period"])
+	require.Empty(t, got["components"])
 }

@@ -6,6 +6,7 @@ import {
   formatPaise,
   ptAnnualTotals,
   MONTH_NAMES,
+  PT_CADENCES,
   SALARY_ROUNDING_MODES,
   SALARY_ROUNDING_UNITS,
   STATUTORY_GENDERS,
@@ -164,6 +165,9 @@ export function PtFields({ form }: { form: Form }) {
   const slabs = useFieldArray({ control: form.control, name: "pt.slabs", keyName: "fieldKey" });
   const errors = form.formState.errors.pt;
   const value = form.watch("pt.slabs");
+  const cadence = form.watch("pt.cadence");
+  const periodic = cadence === "half_yearly" || cadence === "annual";
+  const wages = { half_yearly: "Half-yearly", annual: "Annual" }[cadence] ?? "Monthly";
   const totals = ptAnnualTotals(value);
   const genders = Object.entries(STATUTORY_GENDERS) as [Gender, string][];
   return (
@@ -171,7 +175,25 @@ export function PtFields({ form }: { form: Form }) {
       <legend className="px-1 text-sm font-semibold">Professional tax parameters</legend>
       <div className="grid gap-5 sm:grid-cols-3">
         <StateFields form={form} kind="pt" />
+        <Choose
+          form={form}
+          name="pt.cadence"
+          label="Charged on"
+          current={cadence}
+          labels={PT_CADENCES}
+          error={errors?.cadence?.message}
+        />
       </div>
+      {periodic && (
+        <Toggles
+          id="statutory-pt-periods"
+          label={cadence === "annual" ? "The year starts in" : "Half-years start in"}
+          choices={months}
+          chosen={form.watch("pt.period_start_months")}
+          onChange={(next) => set("pt.period_start_months", next)}
+          error={errors?.period_start_months?.message}
+        />
+      )}
       {slabs.fields.map((slab, index) => {
         const slabErrors = errors?.slabs?.[index];
         const row = value[index];
@@ -182,7 +204,7 @@ export function PtFields({ form }: { form: Form }) {
               <Text
                 form={form}
                 name={`pt.slabs.${index}.from`}
-                label="Monthly wages from (₹)"
+                label={`${wages} wages from (₹)`}
                 error={slabErrors?.from?.message}
               />
               <Text
@@ -194,7 +216,7 @@ export function PtFields({ form }: { form: Form }) {
               <Text
                 form={form}
                 name={`pt.slabs.${index}.amount`}
-                label="Tax per month (₹)"
+                label={periodic ? "Tax for the period (₹)" : "Tax per month (₹)"}
                 error={slabErrors?.amount?.message}
               />
               <Button
@@ -209,7 +231,11 @@ export function PtFields({ form }: { form: Form }) {
             </div>
             <Toggles
               id={`statutory-pt-slab-${index}-months`}
-              label={`Months slab ${index + 1} applies in`}
+              label={
+                periodic
+                  ? `Month slab ${index + 1} is charged in`
+                  : `Months slab ${index + 1} applies in`
+              }
               choices={months}
               chosen={row?.months ?? []}
               onChange={(next) => set(`pt.slabs.${index}.months`, next)}
@@ -249,6 +275,13 @@ export function PtFields({ form }: { form: Form }) {
         names has no professional tax. Check the yearly total against the ceiling in Article 276 of
         the Constitution.
       </p>
+      {periodic && (
+        <p className="text-xs text-muted-foreground">
+          Slabs apply to the period&apos;s wages, and each period is charged once, in the one month
+          its slabs name. Previews project the period&apos;s wages from the month they compute; the
+          payroll run uses the wages actually paid.
+        </p>
+      )}
     </fieldset>
   );
 }

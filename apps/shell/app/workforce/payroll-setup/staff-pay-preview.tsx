@@ -19,6 +19,7 @@ import { Field, SelectControl, useZodForm } from "@helivanta/ui";
 import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Check, Fact } from "./payroll-workspace";
+import { PeriodLine } from "./statutory-panel";
 
 export function StaffPayPreview({ path, onClose }: { path: string; onClose: () => void }) {
   const heading = useRef<HTMLHeadingElement>(null);
@@ -142,6 +143,7 @@ export function StaffPayPreview({ path, onClose }: { path: string; onClose: () =
             {result.results.map((r) => (
               <li key={r.kind}>
                 {STATUTORY_KINDS[r.kind]} · {STATUTORY_RESULT_STATUSES[r.status]}
+                {r.period && <PeriodLine period={r.period} />}
               </li>
             ))}
           </ul>

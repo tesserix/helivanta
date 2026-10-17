@@ -32,6 +32,7 @@ var errStatutorySelf = errors.New("statutory proposal decided by its author")
 var errStatutoryNotProposer = errors.New("statutory proposal withdrawn by someone else")
 var errStatutoryNoteRequired = errors.New("statutory rejection needs a note")
 var errStatutorySlabs = errors.New("statutory slabs do not cover every wage once")
+var errStatutoryPeriods = errors.New("professional tax periods are not charged once each")
 
 // Shares the salary lock so a preview-consistent configuration is always serialised.
 const statutoryLock = salaryConfigLock
@@ -92,15 +93,21 @@ func loadStatutoryRevisions(tx *gorm.DB, tenant string, hospital uuid.UUID, q *g
 
 func loadStatutorySlabRules(tx *gorm.DB, tenant string, hospital uuid.UUID, ids []uuid.UUID, rows []statutoryRevision, index map[uuid.UUID]int) error {
 	var pt []struct {
-		RevisionID uuid.UUID
-		StateCode  string
-		WageBasis  string
+		RevisionID      uuid.UUID
+		StateCode       string
+		WageBasis       string
+		Cadence         string
+		PeriodStartMask *int
 	}
 	if err := tx.Table("workforce_statutory_pt_params").Where("tenant_id=? AND hospital_id=? AND revision_id IN ?", tenant, hospital, ids).Find(&pt).Error; err != nil {
 		return err
 	}
 	for _, p := range pt {
-		rows[index[p.RevisionID]].Pt = &statutoryPtParams{StateCode: p.StateCode, WageBasis: p.WageBasis, Slabs: []statutoryPtSlab{}}
+		pt := &statutoryPtParams{StateCode: p.StateCode, WageBasis: p.WageBasis, Cadence: p.Cadence, Slabs: []statutoryPtSlab{}}
+		if p.PeriodStartMask != nil {
+			pt.PeriodStartMonths = monthsFromMask(*p.PeriodStartMask)
+		}
+		rows[index[p.RevisionID]].Pt = pt
 	}
 	var ptSlabs []struct {
 		RevisionID  uuid.UUID
@@ -187,6 +194,12 @@ func normalizeStatutorySlabs(in *statutoryRuleInput) error {
 		}
 		if !ptComplete(pt.Slabs) {
 			return errStatutorySlabs
+		}
+		if len(pt.PeriodStartMonths) == 0 {
+			pt.PeriodStartMonths = nil
+		}
+		if !ptPeriodsValid(*pt) {
+			return errStatutoryPeriods
 		}
 	}
 	if lwf := in.Lwf; lwf != nil {
@@ -435,7 +448,13 @@ func (h *handlers) putStatutoryRule(c *gin.Context) {
 
 func insertStatutorySlabRules(tx *gorm.DB, tenant string, hospital, revision uuid.UUID, in statutoryRuleInput) error {
 	if pt := in.Pt; pt != nil {
-		if err := tx.Exec(`INSERT INTO workforce_statutory_pt_params(tenant_id,hospital_id,revision_id,state_code,wage_basis) VALUES(?,?,?,?,?)`, tenant, hospital, revision, pt.StateCode, pt.WageBasis).Error; err != nil {
+		var starts *int
+		if pt.PeriodStartMonths != nil {
+			mask := monthMask(pt.PeriodStartMonths)
+			starts = &mask
+		}
+		if err := tx.Exec(`INSERT INTO workforce_statutory_pt_params(tenant_id,hospital_id,revision_id,state_code,wage_basis,cadence,period_start_mask) VALUES(?,?,?,?,?,?,?)`,
+			tenant, hospital, revision, pt.StateCode, pt.WageBasis, pt.Cadence, starts).Error; err != nil {
 			return err
 		}
 		values, args := make([]string, len(pt.Slabs)), []any{}
@@ -641,7 +660,13 @@ func statutoryOn(tx *gorm.DB, tenant string, hospital uuid.UUID, salary salaryPr
 				res.WageBasis = &r.Pt.WageBasis
 				res.WagesPaise = statutoryWages(r.Pt.WageBasis, salary.WageTest.StatutoryWagesPaise, salary.Totals.GrossPaise)
 				res.BasePaise = res.WagesPaise
-				if res.Status, res.Components, err = calculatePT(*r.Pt, res.WagesPaise, int(on.Month()), gender); err != nil {
+				wages := res.WagesPaise
+				// Without wage history the preview projects a periodic levy's wages from this month, and says so.
+				if span, ok := ptPeriodOn(*r.Pt, on); ok && slices.ContainsFunc(r.Pt.Slabs, func(s statutoryPtSlab) bool { return slices.Contains(s.Months, int(on.Month())) }) {
+					wages *= int64(span.Months)
+					res.Period = &statutoryPeriod{Cadence: r.Pt.Cadence, StartsOn: span.Start.Format(time.DateOnly), EndsOn: span.End.Format(time.DateOnly), Months: span.Months, WagesPaise: wages, Basis: "projected"}
+				}
+				if res.Status, res.Components, err = calculatePT(*r.Pt, wages, int(on.Month()), gender); err != nil {
 					return statutoryPreview{}, err
 				}
 			case r.Lwf != nil:
@@ -674,6 +699,8 @@ func respondStatutoryError(c *gin.Context, err error) {
 		respond.Error(c, 400, "invalid_request", "Review the rule: a covered rule needs every parameter of its kind and an uncovered one none, EPS cannot exceed the employer share or the wage ceiling, and the disability ceiling cannot be below the standard one.")
 	case errors.Is(err, errStatutorySlabs), isPG && pg.ConstraintName == "workforce_statutory_slabs":
 		respond.Error(c, 400, "invalid_request", "Review the slabs: they must cover every wage from ₹0 exactly once, each starting where the previous one ends with only the last open-ended, and in every month professional tax applies, every gender must be covered.")
+	case errors.Is(err, errStatutoryPeriods), isPG && (pg.ConstraintName == "workforce_statutory_pt_periods" || pg.ConstraintName == "workforce_statutory_pt_period_starts"):
+		respond.Error(c, 400, "invalid_request", "Review the professional tax periods: a monthly rule has no period starts, a half-yearly rule starts two periods six months apart, an annual rule starts one, and each period must be charged in exactly one month.")
 	case errors.Is(err, errIncomeTaxInvalid), isPG && (pg.ConstraintName == "workforce_income_tax_complete" || pg.ConstraintName == "workforce_income_tax_rebate"):
 		respond.Error(c, 400, "invalid_request", "Review the income-tax rule: the tax year must contain the effective date, one age band must start at 0 with no age repeated, each band's slabs must run from ₹0 without gaps or overlaps, and surcharge thresholds must rise.")
 	case errors.Is(err, errStatutoryNoteRequired):

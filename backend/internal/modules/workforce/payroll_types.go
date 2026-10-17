@@ -205,9 +205,11 @@ type statutoryPtSlab struct {
 }
 
 type statutoryPtParams struct {
-	StateCode string            `json:"state_code" binding:"required,len=5"`
-	WageBasis string            `json:"wage_basis" binding:"required,oneof=statutory_wages gross"`
-	Slabs     []statutoryPtSlab `json:"slabs" binding:"required,min=1,max=96,dive"`
+	StateCode         string            `json:"state_code" binding:"required,len=5"`
+	WageBasis         string            `json:"wage_basis" binding:"required,oneof=statutory_wages gross"`
+	Cadence           string            `json:"cadence" binding:"required,oneof=monthly half_yearly annual"`
+	PeriodStartMonths []int             `json:"period_start_months,omitempty" binding:"max=2,dive,gte=1,lte=12"`
+	Slabs             []statutoryPtSlab `json:"slabs" binding:"required,min=1,max=96,dive"`
 }
 
 type statutoryLwfSlab struct {
@@ -342,6 +344,15 @@ type statutoryComponent struct {
 	AmountPaise int64  `json:"amount_paise"`
 }
 
+type statutoryPeriod struct {
+	Cadence    string `json:"cadence"`
+	StartsOn   string `json:"starts_on"`
+	EndsOn     string `json:"ends_on"`
+	Months     int    `json:"months"`
+	WagesPaise int64  `json:"wages_paise"`
+	Basis      string `json:"basis"`
+}
+
 type statutoryResult struct {
 	Kind       string               `json:"kind"`
 	Status     string               `json:"status"`
@@ -351,6 +362,7 @@ type statutoryResult struct {
 	WagesPaise int64                `json:"wages_paise"`
 	BasePaise  int64                `json:"base_paise"`
 	Components []statutoryComponent `json:"components"`
+	Period     *statutoryPeriod     `json:"period,omitempty"`
 }
 
 type statutoryPreview struct {

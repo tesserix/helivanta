@@ -14,6 +14,7 @@ import {
   useApiMutation,
   useApiPagedQuery,
   usePermissions,
+  PT_CADENCES,
   STATUTORY_COMPONENTS,
   STATUTORY_GENDERS,
   STATUTORY_KINDS,
@@ -25,6 +26,7 @@ import {
   type StatutoryDecisionInput,
   type StatutoryPreview as StatutoryPreviewResult,
   type StatutoryPreviewInput,
+  type StatutoryPeriod,
   type StatutoryRevision,
   type StatutoryRule,
   type StatutoryWithdrawInput,
@@ -558,6 +560,7 @@ function StatutoryPreview({
               <p className="mt-2 text-xs text-muted-foreground">
                 Wages {formatPaise(r.wages_paise)} · contribution base {formatPaise(r.base_paise)}
               </p>
+              {r.period && <PeriodLine period={r.period} />}
             </div>
           ))}
           <dl className="grid gap-4 text-sm sm:grid-cols-3">
@@ -571,5 +574,16 @@ function StatutoryPreview({
         </div>
       )}
     </div>
+  );
+}
+
+// A periodic levy is matched on the period's wages; the basis says whether they were paid or projected.
+export function PeriodLine({ period }: { period: StatutoryPeriod }) {
+  return (
+    <p className="mt-1 text-xs text-muted-foreground">
+      {PT_CADENCES[period.cadence]} period {period.starts_on} to {period.ends_on} · wages{" "}
+      {period.basis === "projected" ? "projected" : "paid"} at {formatPaise(period.wages_paise)}{" "}
+      over {period.months} months
+    </p>
   );
 }

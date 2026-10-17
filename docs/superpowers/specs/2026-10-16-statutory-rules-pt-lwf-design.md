@@ -16,7 +16,7 @@ Professional tax (PT) and labour welfare fund (LWF) are state levies. Each state
 
 Not in this slice:
 
-- **Half-yearly and annual PT regimes** (for example Kerala and Tamil Nadu), whose slab applies to the half-year's income. They need aggregation across months, which belongs to the payroll run (#1040). This slice supports monthly PT only. A hospital in such a state records `covered: false` until that regime ships, citing the reason. No value is approximated.
+- **Half-yearly and annual PT regimes** (for example Kerala and Tamil Nadu), whose slab applies to the half-year's income. They need aggregation across months, which belongs to the payroll run (#1040). This slice supports monthly PT only. Since delivered with projected period wages in [professional tax periods](2026-10-18-professional-tax-periods-design.md); actual period wages stay with #1040.
 - Employee eligibility from the profile, such as gender, LWF exemptions for managerial staff, and the PT exemptions for disability or senior citizens that some states grant. These come with employee salary assignment (slice 4). The preview takes gender as an input, and exempt categories are out of scope until then.
 - The Art. 276 annual PT ceiling is not hard-coded, because that would pre-load a statutory value. The editor shows the highest yearly total each gender can owe, so the approver can check it.
 - LWF establishment thresholds (employee counts) and remittance and challan due dates belong to the run.

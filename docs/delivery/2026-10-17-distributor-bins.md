@@ -2,7 +2,9 @@
 
 Parent #1137 and related legacy store-location story #1011 remain open. This is a
 configuration slice, not completion of distributor structure, scoped staff roles,
-warehouse movements, store/category/unit mappings or import. Release is pending.
+warehouse movements, store/category/unit mappings or import. This document records the
+original local acceptance. PR #1192 subsequently merged and passed production acceptance
+on 17 October 2026; see the release evidence below.
 
 ## Delivered scope
 
@@ -76,13 +78,19 @@ to 200. No users, credentials, production identity resources or migration rows w
 
 ## Release boundary
 
-No production change was made for this feature during local acceptance. Read-only
-production inspection found API/shell/document-worker/supply-evidence-worker 2/2 ready
-on `7ca6d17601975110d2083fa51c1fb68fa6eed235`; CNPG 2/2 ready. The release target is
-project `tesseracthub-480811`, context
-`gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`, namespace `helivanta`.
+PR #1192 merged as `30152a4f9815a6ca8baac7b39d24015df22094e0`. Main CI
+39004966657 and signed image/release run 39004966482 passed. Kargo promotion
+`prod.01m5447qnnr38hpzc66774asr8.09b62f3` succeeded. Read-only inspection confirmed
+API, shell, document-worker and supply-evidence-worker on that exact image, all 2/2
+ready and updated; Argo API/shell/PostgreSQL Synced/Healthy and CNPG healthy at 2/2.
+Production browser acceptance created synthetic owned organisation/premise/bin records,
+updated shelf S03 to S04, verified versions 1/2 with actor/time and confirmed row/history
+persistence after reload. Unauthenticated API access returned 401. No real customer data,
+trading activity, licence approval or permission expansion was used. Evidence:
+https://github.com/tesserix/helivanta/issues/1137#issuecomment-6230113294.
 
-Before declaring release complete: full hosted CI, reviewed merge, signed image and
-Kargo/Argo advancement, exact image/readiness verification, production UI/API synthetic
-acceptance and relevant log checks. Keep #1137/#1011/#1133 open for their remaining
-acceptance criteria; add release evidence without an automatic parent closing keyword.
+These are point-in-time observations for that release. The GitOps target was project
+`tesseracthub-480811`, context
+`gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`, namespace `helivanta`.
+No imperative rollout, live SQL, scaling or pod deletion was used. Keep #1137/#1011/#1133
+open for their remaining acceptance; the bins release does not complete those stories.

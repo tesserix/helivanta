@@ -36,7 +36,7 @@ type premise struct {
 func (premise) TableName() string                 { return "supply_premises" }
 func (r premise) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
 
-const premiseColumns = "id,tenant_id,party_id,version,created_at,updated_at,code,name,kind,line1,line2,city,region,postal_code,country_code,time_zone,status"
+const premiseColumns = "id,tenant_id,party_id,version,created_at,updated_at,code,name,kind,line1,line2,city,region,postal_code,country_code,time_zone,status,branch_premise_id"
 
 type license struct {
 	ID          uuid.UUID `json:"id"`
@@ -94,7 +94,7 @@ func (in *premiseInput) normalize() bool {
 	f := &in.PremiseFields
 	f.Code = strings.ToUpper(strings.TrimSpace(f.Code))
 	f.CountryCode = strings.ToUpper(strings.TrimSpace(f.CountryCode))
-	return cleanText(&f.Name, &f.Line1, &f.Line2, &f.City, &f.Region, &f.PostalCode, &f.TimeZone) && validPremiseFieldsPatterns(*f) && countryprofile.ValidTimezone(f.CountryCode, f.TimeZone)
+	return cleanText(&f.Name, &f.Line1, &f.Line2, &f.City, &f.Region, &f.PostalCode, &f.TimeZone) && validPremiseFieldsPatterns(*f) && countryprofile.ValidTimezone(f.CountryCode, f.TimeZone) && (f.BranchPremiseID == nil || (f.BranchPremiseID.Version() == 7 && f.BranchPremiseID.Variant() == uuid.RFC4122))
 }
 func (in *licenseInput) normalize() bool {
 	f := &in.LicenseFields
@@ -171,7 +171,7 @@ func (h *handlers) putPremise(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var in premiseInput
+	var in premiseRequest
 	if !decode(c, &in) {
 		return
 	}
@@ -182,6 +182,9 @@ func (h *handlers) putPremise(c *gin.Context) {
 	var saved premise
 	err := h.transaction(c.Request.Context(), p, partyID, false, false, func(tx *gorm.DB) error {
 		if e := requireRoles(tx, p, partyID, premiseWriters); e != nil {
+			return e
+		}
+		if e := lockPremiseStructure(tx, p, partyID); e != nil {
 			return e
 		}
 		if e := lockRegistry(tx, p, partyID, id, "premise"); e != nil {
@@ -199,8 +202,14 @@ func (h *handlers) putPremise(c *gin.Context) {
 		if e != nil && !errors.Is(e, gorm.ErrRecordNotFound) {
 			return e
 		}
+		if exists && !in.branchProvided {
+			in.BranchPremiseID = saved.BranchPremiseID
+		}
 		replay, e := registryVersion(exists, *in.ExpectedVersion, saved.Version, reflect.DeepEqual(saved.PremiseFields, in.PremiseFields))
 		if e != nil || replay {
+			return e
+		}
+		if e := validateBranch(tx, p, partyID, id, saved.BranchPremiseID, in.PremiseFields); e != nil {
 			return e
 		}
 		if !exists {
@@ -209,7 +218,7 @@ func (h *handlers) putPremise(c *gin.Context) {
 		saved.PremiseFields = in.PremiseFields
 		saved.Version++
 		if exists {
-			e = tx.Model(&premise{}).Where("tenant_id=? AND party_id=? AND id=?", p.TenantID, partyID, id).Select("code", "name", "kind", "line1", "line2", "city", "region", "postal_code", "country_code", "time_zone", "status", "version").Updates(&saved).Error
+			e = tx.Model(&premise{}).Where("tenant_id=? AND party_id=? AND id=?", p.TenantID, partyID, id).Select("code", "name", "kind", "line1", "line2", "city", "region", "postal_code", "country_code", "time_zone", "status", "branch_premise_id", "version").Updates(&saved).Error
 		} else {
 			e = tx.Create(&saved).Error
 		}
@@ -294,6 +303,14 @@ var errInvalidRegistry = errors.New("premise or licence declaration is incompati
 
 func registryError(c *gin.Context, e error) {
 	var pg *pgconn.PgError
+	if errors.As(e, &pg) && pg.ConstraintName == "supply_premise_branch_kind" {
+		respond.Conflict(c, "branch has linked warehouses or depots; reassign them before changing its type")
+		return
+	}
+	if errors.Is(e, errBranchKind) {
+		respond.Error(c, 400, "invalid_request", "only a warehouse or depot can be assigned to a branch")
+		return
+	}
 	if errors.As(e, &pg) && pg.ConstraintName == "supply_premise_bins_kind" {
 		respond.Conflict(c, "premise has retained bins; use a separate non-storage address")
 		return

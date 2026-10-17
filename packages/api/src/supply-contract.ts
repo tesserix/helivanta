@@ -130,6 +130,7 @@ export const supplyPremiseFieldsSchema = supplyPostalAddressSchema
     kind: z.enum(["registered", "branch", "warehouse", "depot", "pharmacy"]),
     time_zone: z.string().trim().min(1).max(100),
     status: z.enum(["active", "inactive"]),
+    branch_premise_id: identifier.nullable().optional(),
   })
   .strict();
 

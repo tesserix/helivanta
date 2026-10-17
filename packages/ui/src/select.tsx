@@ -76,6 +76,7 @@ export function FormSelectField<T extends FieldValues>({
   label,
   options,
   disabled,
+  emptyValue = "",
 }: {
   control: Control<T>;
   name: FieldPath<T>;
@@ -83,6 +84,7 @@ export function FormSelectField<T extends FieldValues>({
   label: string;
   options: readonly SelectOption[];
   disabled?: boolean;
+  emptyValue?: "" | null;
 }) {
   return (
     <Controller
@@ -95,7 +97,7 @@ export function FormSelectField<T extends FieldValues>({
             name={field.name}
             ref={field.ref}
             value={field.value ?? ""}
-            onValueChange={field.onChange}
+            onValueChange={(value) => field.onChange(value === "" ? emptyValue : value)}
             onBlur={field.onBlur}
             options={options}
             disabled={disabled}

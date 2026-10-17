@@ -123,6 +123,10 @@ func supplierError(c *gin.Context, e error) {
 		respond.NotFound(c, "party")
 		return
 	}
+	if errors.Is(e, errPermanentAdministrator) {
+		respond.Conflict(c, "Keep at least one permanent organisation administrator. Grant another administrator before revoking this access.")
+		return
+	}
 	if errors.Is(e, errConflict) {
 		respond.Conflict(c, "supplier version or identity already differs")
 		return
@@ -137,9 +141,14 @@ func supplierError(c *gin.Context, e error) {
 			respond.NotFound(c, "party")
 			return
 		case "23514", "23502":
-			if pg.ConstraintName == "supply_party_identity" {
+			switch pg.ConstraintName {
+			case "supply_operational_access_duration":
+				respond.Error(c, 400, "invalid_request", "Access window exceeds the current organisation operational access limits. Shorten it or ask an administrator to review the limits.")
+			case "supply_operational_access_permanent":
+				respond.Error(c, 400, "invalid_request", "Use a timed access grant within the organisation operational access limits.")
+			case "supply_party_identity":
 				respond.Conflict(c, "supplier identity is immutable")
-			} else {
+			default:
 				respond.Error(c, 400, "invalid_request", "invalid supplier fields")
 			}
 			return

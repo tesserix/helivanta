@@ -161,3 +161,160 @@ type binInput struct {
 	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
 	BinFields
 }
+
+type CorporateFields struct {
+	ParentPartyID *uuid.UUID `json:"parent_party_id" binding:"omitempty"`
+}
+
+type corporateInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
+	CorporateFields
+}
+
+type TerritoryFields struct {
+	Code                  string     `json:"code" binding:"required,min=1,max=40"`
+	Name                  string     `json:"name" binding:"required,min=1,max=200"`
+	CountryCode           string     `json:"country_code" binding:"required,oneof=IN PK"`
+	Region                string     `json:"region" binding:"required,min=1,max=100"`
+	City                  string     `json:"city" binding:"max=100"`
+	Description           string     `json:"description" binding:"max=1000"`
+	Status                string     `json:"status" binding:"required,oneof=active inactive"`
+	BranchPremiseID       *uuid.UUID `json:"branch_premise_id" binding:"omitempty"`
+	AssignedSalesSubjects []string   `json:"assigned_sales_subjects" binding:"required,min=0,max=50,dive" gorm:"-"`
+}
+
+var patternTerritoryFieldsCode = regexp.MustCompile("^[A-Z0-9][A-Z0-9._-]{0,39}$")
+
+func validTerritoryFieldsPatterns(v TerritoryFields) bool {
+	return patternTerritoryFieldsCode.MatchString(v.Code)
+}
+
+type territoryInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
+	TerritoryFields
+}
+
+type AccessGrantFields struct {
+	Subject   string     `json:"subject" binding:"required,min=1,max=200"`
+	Role      string     `json:"role" binding:"required,oneof=administrator purchasing finance compliance auditor warehouse sales driver inventory picker packer dispatcher regulator"`
+	PremiseID *uuid.UUID `json:"premise_id" binding:"omitempty"`
+	ValidFrom string     `json:"valid_from" binding:"required,min=20,max=35"`
+	ExpiresAt string     `json:"expires_at" binding:"required,min=20,max=35"`
+	Reason    string     `json:"reason" binding:"required,min=5,max=500"`
+	Status    string     `json:"status" binding:"required,oneof=active revoked"`
+}
+
+var patternAccessGrantFieldsSubject = regexp.MustCompile("^[A-Za-z0-9._:@|+\\-]{1,200}$")
+
+func validAccessGrantFieldsPatterns(v AccessGrantFields) bool {
+	return patternAccessGrantFieldsSubject.MatchString(v.Subject)
+}
+
+type accessGrantInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
+	AccessGrantFields
+}
+
+func validaccessGrantInputScope(v accessGrantInput) bool {
+	if v.Status == "revoked" {
+		return true
+	}
+	if v.PremiseID != nil {
+		switch v.Role {
+		case "warehouse", "inventory", "picker", "packer", "dispatcher", "driver", "auditor", "regulator":
+			return true
+		}
+		return false
+	}
+	switch v.Role {
+	case "regulator":
+		return false
+	}
+	return true
+}
+func validaccessGrantInputPremiseKind(kind string) bool {
+	switch kind {
+	case "warehouse", "depot":
+		return true
+	}
+	return false
+}
+
+type DeliveryTaskFields struct {
+	Code                    string `json:"code" binding:"required,min=1,max=40"`
+	SourceReference         string `json:"source_reference" binding:"required,min=1,max=100"`
+	DestinationBusinessName string `json:"destination_business_name" binding:"required,min=1,max=200"`
+	DestinationLine1        string `json:"destination_line1" binding:"required,min=1,max=200"`
+	DestinationLine2        string `json:"destination_line2" binding:"min=0,max=200"`
+	DestinationCity         string `json:"destination_city" binding:"required,min=1,max=100"`
+	DestinationRegion       string `json:"destination_region" binding:"required,min=1,max=100"`
+	DestinationPostalCode   string `json:"destination_postal_code" binding:"required,min=1,max=20"`
+	CountryCode             string `json:"country_code" binding:"required,oneof=IN PK"`
+	BusinessContactName     string `json:"business_contact_name" binding:"min=0,max=200"`
+	BusinessContactPhone    string `json:"business_contact_phone" binding:"min=0,max=16"`
+	WindowStart             string `json:"window_start" binding:"required,min=20,max=35"`
+	WindowEnd               string `json:"window_end" binding:"required,min=20,max=35"`
+	PackageCount            int    `json:"package_count" binding:"min=1,max=100000"`
+	HandlingNotes           string `json:"handling_notes" binding:"min=0,max=500"`
+	DriverSubject           string `json:"driver_subject" binding:"min=0,max=200"`
+	AssignmentExpiresAt     string `json:"assignment_expires_at" binding:"min=0,max=35"`
+	Status                  string `json:"status" binding:"required,oneof=draft assigned cancelled"`
+}
+
+var patternDeliveryTaskFieldsCode = regexp.MustCompile("^[A-Z0-9][A-Z0-9._-]{0,39}$")
+var patternDeliveryTaskFieldsBusinessContactPhone = regexp.MustCompile("^(?:|\\+[1-9][0-9]{7,14})$")
+
+func validDeliveryTaskFieldsPatterns(v DeliveryTaskFields) bool {
+	return patternDeliveryTaskFieldsCode.MatchString(v.Code) && patternDeliveryTaskFieldsBusinessContactPhone.MatchString(v.BusinessContactPhone)
+}
+
+type deliveryTaskInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
+	ChangeReason    string `json:"change_reason" binding:"required,min=5,max=500"`
+	DeliveryTaskFields
+}
+
+type deliveryActionInput struct {
+	ExpectedVersion              *int64 `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
+	ExpectedAssignmentGeneration int64  `json:"expected_assignment_generation" binding:"min=1,max=9007199254740990"`
+	Action                       string `json:"action" binding:"required,oneof=start deliver exception"`
+	Reason                       string `json:"reason" binding:"required,min=5,max=500"`
+}
+
+type SupportRequestFields struct {
+	BeneficiarySubject string    `json:"beneficiary_subject" binding:"required,min=1,max=200"`
+	PremiseID          uuid.UUID `json:"premise_id" binding:"required"`
+	TicketReference    string    `json:"ticket_reference" binding:"required,min=1,max=100"`
+	Reason             string    `json:"reason" binding:"required,min=5,max=500"`
+	ValidFrom          string    `json:"valid_from" binding:"required,min=20,max=35"`
+	ExpiresAt          string    `json:"expires_at" binding:"required,min=20,max=35"`
+}
+
+var patternSupportRequestFieldsBeneficiarySubject = regexp.MustCompile("^[A-Za-z0-9._:@|+\\-]{1,200}$")
+
+func validSupportRequestFieldsPatterns(v SupportRequestFields) bool {
+	return patternSupportRequestFieldsBeneficiarySubject.MatchString(v.BeneficiarySubject)
+}
+
+type supportRequestInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
+	SupportRequestFields
+}
+
+type supportDecisionInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=1,max=9007199254740990"`
+	Action          string `json:"action" binding:"required,oneof=approve reject revoke"`
+	Reason          string `json:"reason" binding:"required,min=5,max=500"`
+}
+
+type supportRevokeInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=1,max=9007199254740990"`
+	Reason          string `json:"reason" binding:"required,min=5,max=500"`
+}
+
+type accessLimitsInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
+	MaxGrantHours   int64  `json:"max_grant_hours" binding:"min=1,max=8784"`
+	MaxSupportHours int64  `json:"max_support_hours" binding:"min=1,max=24"`
+	Reason          string `json:"reason" binding:"required,min=5,max=500"`
+}

@@ -70,3 +70,42 @@ type BinUpdatedData struct {
 	BinID     string `json:"bin_id"`
 	Version   int64  `json:"version"`
 }
+
+const SubjectCorporateUpdated = "helivanta.in.supply.corporate_updated.v1"
+const SubjectTerritoryUpdated = "helivanta.in.supply.territory_updated.v1"
+
+type CorporateUpdatedData struct {
+	PartyID string `json:"party_id"`
+	Version int64  `json:"version"`
+}
+
+type TerritoryUpdatedData struct {
+	PartyID     string `json:"party_id"`
+	TerritoryID string `json:"territory_id"`
+	Version     int64  `json:"version"`
+}
+
+const SubjectSupportAccessChanged = "helivanta.in.supply.support_access_changed.v1"
+const SubjectDeliveryTaskChanged = "helivanta.in.supply.delivery_task_changed.v1"
+
+type SupportAccessChangedData struct {
+	PartyID   string `json:"party_id"`
+	SupportID string `json:"support_id"`
+	Version   int64  `json:"version"`
+	Operation string `json:"operation"`
+}
+
+type DeliveryTaskChangedData struct {
+	PartyID    string `json:"party_id"`
+	PremiseID  string `json:"premise_id"`
+	DeliveryID string `json:"delivery_id"`
+	Version    int64  `json:"version"`
+	Operation  string `json:"operation"`
+}
+
+const SubjectOperationalAccessLimitsUpdated = "helivanta.in.supply.operational_access_limits_updated.v1"
+
+type OperationalAccessLimitsUpdatedData struct {
+	PartyID string `json:"party_id"`
+	Version int64  `json:"version"`
+}

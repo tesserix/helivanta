@@ -13,6 +13,27 @@ import (
 //go:embed branches.sql
 var branchSchema string
 
+//go:embed access_scope.sql
+var accessScopeSchema string
+
+//go:embed corporate.sql
+var corporateSchema string
+
+//go:embed territories.sql
+var territorySchema string
+
+//go:embed operations.sql
+var operationsSchema string
+
+//go:embed delivery_tasks.sql
+var deliveryTaskSchema string
+
+//go:embed support_access.sql
+var supportAccessSchema string
+
+//go:embed access_limits.sql
+var accessLimitsSchema string
+
 //go:embed bins.sql
 var binSchema string
 
@@ -26,6 +47,18 @@ var registrationSchema string
 var evidenceSchema string
 
 const (
+	PermSupportRevoke  authz.Permission = "supply.support.revoke"
+	PermOperatingRead  authz.Permission = "supply.operations.read"
+	PermOperatingWrite authz.Permission = "supply.operations.write"
+	PermDeliveryRead   authz.Permission = "supply.delivery.read"
+	PermDeliveryWrite  authz.Permission = "supply.delivery.write"
+	PermDriverRead     authz.Permission = "supply.delivery.assigned.read"
+	PermDriverAction   authz.Permission = "supply.delivery.assigned.action"
+	PermSupportRead    authz.Permission = "supply.support.read"
+	PermSupportManage  authz.Permission = "supply.support.manage"
+
+	PermTerritoryRead      authz.Permission = "supply.territory.read"
+	PermTerritoryWrite     authz.Permission = "supply.territory.write"
 	PermBinRead            authz.Permission = "supply.bin.read"
 	PermBinWrite           authz.Permission = "supply.bin.write"
 	PermPartyRead          authz.Permission = "supply.party.read"
@@ -48,7 +81,18 @@ type Module struct{}
 func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "supply" }
 func (*Module) Permissions() []authz.Grant {
-	return []authz.Grant{
+	grants := []authz.Grant{
+		{Permission: PermSupportRevoke, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplySupport}},
+		{Permission: PermOperatingRead, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyWarehouse, authz.RoleSupplyInventory, authz.RoleSupplyPicker, authz.RoleSupplyPacker, authz.RoleSupplyDispatcher, authz.RoleSupplyDriver, authz.RoleSupplyAuditor, authz.RoleSupplyRegulator}},
+		{Permission: PermOperatingWrite, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyInventory}},
+		{Permission: PermDeliveryRead, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyDispatcher, authz.RoleSupplyAuditor, authz.RoleSupplyRegulator}},
+		{Permission: PermDeliveryWrite, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyDispatcher}},
+		{Permission: PermDriverRead, Roles: []authz.Role{authz.RoleSupplyDriver}},
+		{Permission: PermDriverAction, Roles: []authz.Role{authz.RoleSupplyDriver}},
+		{Permission: PermSupportRead, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplySupport}},
+		{Permission: PermSupportManage, Roles: []authz.Role{authz.RoleSupplyAdmin}},
+		{Permission: PermTerritoryRead, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RoleSupplySales}},
+		{Permission: PermTerritoryWrite, Roles: []authz.Role{authz.RoleSupplyAdmin}},
 		{Permission: PermBinRead, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor}},
 		{Permission: PermBinWrite, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing}},
 		{Permission: PermLicenseReview, Roles: []authz.Role{authz.RoleSupplyCompliance}},
@@ -65,9 +109,21 @@ func (*Module) Permissions() []authz.Grant {
 		{Permission: PermEvidenceWrite, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyCompliance}},
 		{Permission: PermLicenseWrite, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyCompliance}},
 	}
+	for index := range grants {
+		if grants[index].Permission == PermDirectoryRead {
+			grants[index].Roles = append(grants[index].Roles, authz.RoleSupplyInventory, authz.RoleSupplyPicker, authz.RoleSupplyPacker, authz.RoleSupplyDispatcher, authz.RoleSupplyDriver, authz.RoleSupplyRegulator, authz.RoleSupplySupport)
+		}
+		for _, role := range grants[index].Roles {
+			if role == authz.RoleSupplyAdmin {
+				grants[index].Roles = append(grants[index].Roles, authz.RoleSupplyOwner)
+				break
+			}
+		}
+	}
+	return grants
 }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}, {ID: "0005_supply", SQL: binSchema}, {ID: "0006_supply", SQL: branchSchema}}
+	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}, {ID: "0005_supply", SQL: binSchema}, {ID: "0006_supply", SQL: branchSchema}, {ID: "0007_supply", SQL: accessScopeSchema + corporateSchema + territorySchema}, {ID: "0008_supply", SQL: operationsSchema + deliveryTaskSchema + supportAccessSchema + accessLimitsSchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &handlers{db: deps.DB, bus: deps.Bus, identity: deps.OrganizationIdentity, roles: deps.Roles}
@@ -92,6 +148,19 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET("/parties/:party", PermPartyRead, h.getParty)
 	platform.ListRoute(g, "/parties/:party/revisions", PermPartyRead, h.listRevisions)
 	g.GET("/parties/:party/access", PermDirectoryRead, h.getAccess)
+	registerAccessRoutes(g, h)
+	registerOperatingRoutes(g, h)
+	g.PUT("/parties/:party/operating-locations/:premise/bins/:bin", PermOperatingWrite, h.putOperatingBin)
+	registerDeliveryRoutes(g, h)
+	registerSupportAccessRoutes(g, h)
+	registerAccessLimitsRoutes(g, h)
+	g.GET("/parties/:party/corporate-structure", PermPartyRead, h.getCorporate)
+	g.PUT("/parties/:party/corporate-structure", PermOrganizationManage, h.putCorporate)
+	platform.ListRoute(g, "/parties/:party/corporate-structure/revisions", PermPartyRead, h.listCorporateRevisions)
+	platform.ListRoute(g, "/parties/:party/territories", PermTerritoryRead, h.listTerritories)
+	g.GET("/parties/:party/territories/:territory", PermTerritoryRead, h.getTerritory)
+	g.PUT("/parties/:party/territories/:territory", PermTerritoryWrite, h.putTerritory)
+	platform.ListRoute(g, "/parties/:party/territories/:territory/revisions", PermTerritoryRead, h.listTerritoryRevisions)
 	g.PUT("/parties/:party/access/:subject/:role", PermAccessManage, h.putGrant)
 	g.DELETE("/parties/:party/access/:subject/:role", PermAccessManage, h.deleteGrant)
 	g.PUT("/parties/:party/premises/:premise", PermPremiseWrite, h.putPremise)
@@ -104,7 +173,7 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "/parties/:party/licenses/:license/revisions", PermLicenseRead, h.listLicenseRevisions)
 }
 func (*Module) Publishes() []string {
-	return []string{supplycontract.SubjectBinUpdated, supplycontract.SubjectPartyUpdated, supplycontract.SubjectPartyAccessChanged, supplycontract.SubjectPremiseUpdated, supplycontract.SubjectLicenseDeclared, supplycontract.SubjectEvidenceScanRequested, supplycontract.SubjectEvidenceChanged, supplycontract.SubjectLicenseReviewChanged}
+	return []string{supplycontract.SubjectSupportAccessChanged, supplycontract.SubjectDeliveryTaskChanged, supplycontract.SubjectCorporateUpdated, supplycontract.SubjectTerritoryUpdated, supplycontract.SubjectBinUpdated, supplycontract.SubjectPartyUpdated, supplycontract.SubjectPartyAccessChanged, supplycontract.SubjectPremiseUpdated, supplycontract.SubjectLicenseDeclared, supplycontract.SubjectEvidenceScanRequested, supplycontract.SubjectEvidenceChanged, supplycontract.SubjectLicenseReviewChanged}
 }
 func (*Module) DirectedSubjects() []string    { return nil }
 func (*Module) DirectedWriteTables() []string { return nil }

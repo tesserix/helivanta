@@ -35,6 +35,23 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"supply.OperationalAccessLimitsUpdatedData.PartyID": "opaque organisation policy owner reference; no identities, limit values or reasons",
+	"supply.OperationalAccessLimitsUpdatedData.Version": "monotonic operational limit revision; no grant, member or support attributes",
+	"supply.CorporateUpdatedData.PartyID":               "opaque corporate-structure owner reference; no parent legal identity or contacts",
+	"supply.CorporateUpdatedData.Version":               "monotonic corporate structure revision without attributes",
+	"supply.TerritoryUpdatedData.PartyID":               "opaque owning organisation reference; no legal entity data",
+	"supply.TerritoryUpdatedData.TerritoryID":           "opaque territory reference; no geography or assigned representative identities",
+	"supply.TerritoryUpdatedData.Version":               "monotonic territory revision without assignment payload",
+	"supply.SupportAccessChangedData.PartyID":           "opaque organisation scope; no legal or personal data",
+	"supply.SupportAccessChangedData.SupportID":         "opaque support request reference; no beneficiary, ticket or reason",
+	"supply.SupportAccessChangedData.Version":           "monotonic support decision revision without approval evidence",
+	"supply.SupportAccessChangedData.Operation":         "fixed request/decision lifecycle operation; no user-provided reason",
+	"supply.DeliveryTaskChangedData.PartyID":            "opaque task-owning organisation reference; no customer identity",
+	"supply.DeliveryTaskChangedData.PremiseID":          "opaque dispatch-location reference; no address",
+	"supply.DeliveryTaskChangedData.DeliveryID":         "opaque logistics-task reference; no destination, contact or handling details",
+	"supply.DeliveryTaskChangedData.Version":            "monotonic task revision without quantities or delivery attributes",
+	"supply.DeliveryTaskChangedData.Operation":          "fixed logistics lifecycle operation; no driver or business contact identity",
+
 	"supply.BinUpdatedData.PartyID":                          "opaque owning organisation reference; no legal identity, contacts or grant recipient",
 	"supply.BinUpdatedData.PremiseID":                        "opaque storage-premise reference; no address, name or location attributes",
 	"supply.BinUpdatedData.BinID":                            "opaque bin reference within an organisation/premise; no patient, product, stock or storage labels",

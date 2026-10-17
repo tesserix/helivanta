@@ -9,6 +9,7 @@ import {
   supplyBinInputSchema,
   supplyBinsKey,
   supplyBinsRoot,
+  supplyHeaders,
   useApiMutation,
   useApiPagedQuery,
   usePermissions,
@@ -27,23 +28,31 @@ export function WarehouseBins({
   premise,
   roles,
   onClose,
+  operational,
 }: {
   scope: SupplyRegistryScope;
-  premise: SupplyPremise;
+  premise: Pick<SupplyPremise, "id" | "code" | "name" | "status">;
+  operational?: { read: boolean; write: boolean };
   roles: string[];
   onClose: () => void;
 }) {
   const { can } = usePermissions();
-  const allowed =
-    can("supply.bin.read") &&
-    roles.some((role) => ["administrator", "purchasing", "compliance", "auditor"].includes(role));
-  const writable =
-    can("supply.bin.write") && roles.some((role) => ["administrator", "purchasing"].includes(role));
-  const bins = useApiPagedQuery<SupplyBin>(
-    supplyBinsKey(scope, premise.id),
-    supplyBinsRoot(scope, premise.id),
-    { enabled: allowed },
-  );
+  const allowed = operational
+    ? can("supply.operations.read") && operational.read
+    : can("supply.bin.read") &&
+      roles.some((role) => ["administrator", "purchasing", "compliance", "auditor"].includes(role));
+  const writable = operational
+    ? can("supply.operations.write") && operational.write
+    : can("supply.bin.write") &&
+      roles.some((role) => ["administrator", "purchasing"].includes(role));
+  const route = operational
+    ? `/supply/parties/${scope.partyId}/operating-locations/${premise.id}/bins`
+    : supplyBinsRoot(scope, premise.id);
+  const queryKey = supplyBinsKey(scope, premise.id, ...(operational ? ["operating"] : []));
+  const bins = useApiPagedQuery<SupplyBin>(queryKey, route, {
+    enabled: allowed,
+    request: { headers: supplyHeaders(scope) },
+  });
   const [editing, setEditing] = useState<SupplyBin | null>();
   const [history, setHistory] = useState<string | null>(null);
   const target = useRef<HTMLDivElement>(null);
@@ -141,12 +150,13 @@ export function WarehouseBins({
             isLoading={bins.isFetchingMore}
             onClick={bins.loadMore}
           />
-          <div ref={target}>
+          <div ref={target} className="scroll-mt-32">
             {writable && editing !== undefined && (
               <BinEditor
                 key={editing ? `${editing.id}:${editing.version}` : "new"}
                 scope={scope}
-                premiseId={premise.id}
+                route={route}
+                queryKey={queryKey}
                 row={editing}
                 onClose={() => setEditing(undefined)}
               />
@@ -156,7 +166,8 @@ export function WarehouseBins({
             <BinHistory
               key={history}
               scope={scope}
-              premiseId={premise.id}
+              route={route}
+              queryKey={queryKey}
               id={history}
               onClose={() => setHistory(null)}
             />
@@ -168,12 +179,14 @@ export function WarehouseBins({
 }
 function BinEditor({
   scope,
-  premiseId,
+  route,
+  queryKey,
   row,
   onClose,
 }: {
   scope: SupplyRegistryScope;
-  premiseId: string;
+  route: string;
+  queryKey: unknown[];
   row: SupplyBin | null;
   onClose: () => void;
 }) {
@@ -195,12 +208,13 @@ function BinEditor({
   );
   const save = useApiMutation(
     (value: SupplyBinInput) =>
-      apiFetch<SupplyBin>(`${supplyBinsRoot(scope, premiseId)}/${id}`, {
+      apiFetch<SupplyBin>(`${route}/${id}`, {
         method: "PUT",
+        headers: supplyHeaders(scope),
         body: JSON.stringify(value),
       }),
     {
-      invalidate: [supplyBinsKey(scope, premiseId)],
+      invalidate: [queryKey],
       successToast: "Bin saved",
       suppressErrorToast: true,
       onSuccess: onClose,
@@ -278,18 +292,21 @@ function BinEditor({
 }
 function BinHistory({
   scope,
-  premiseId,
+  route,
+  queryKey,
   id,
   onClose,
 }: {
   scope: SupplyRegistryScope;
-  premiseId: string;
+  route: string;
+  queryKey: unknown[];
   id: string;
   onClose: () => void;
 }) {
   const history = useApiPagedQuery<SupplyRegistryRevision<SupplyBin>>(
-    supplyBinsKey(scope, premiseId, "history", id),
-    `${supplyBinsRoot(scope, premiseId)}/${id}/revisions`,
+    [...queryKey, "history", id],
+    `${route}/${id}/revisions`,
+    { request: { headers: supplyHeaders(scope) } },
   );
   return (
     <section aria-label="Bin revision history" className="space-y-4 rounded-xl border p-4">

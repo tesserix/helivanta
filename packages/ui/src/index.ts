@@ -4,6 +4,7 @@ export { ConfirmDialog } from "./confirm-dialog";
 export { IdleWarning, type IdleWarningProps } from "./idle-warning";
 export { Field, useZodForm } from "./form";
 export {
+  Controller,
   useFieldArray,
   type FieldPath,
   type FieldValues,

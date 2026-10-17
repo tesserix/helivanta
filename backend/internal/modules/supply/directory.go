@@ -25,6 +25,7 @@ type partySummary struct {
 	CountryCode      string          `json:"country_code"`
 	OnboardingStatus string          `json:"onboarding_status"`
 	AccessRoles      json.RawMessage `json:"access_roles" gorm:"type:jsonb"`
+	OperatingRoles   json.RawMessage `json:"operating_roles" gorm:"type:jsonb"`
 	CreatedAt        time.Time       `json:"created_at"`
 }
 
@@ -43,7 +44,8 @@ func (h *handlers) listParties(c *gin.Context, params pagination.Params) ([]part
 	var rows []partySummary
 	e := h.transaction(c.Request.Context(), p, uuid.Nil, true, has(c, PermAccessManage), func(tx *gorm.DB) error {
 		query := tenantdb.ApplyKeyset(tx, params).Table("supply_parties").Select(`id,code,record_kind,legal_name,trading_name,business_kind,country_code,onboarding_status,created_at,
-   COALESCE((SELECT jsonb_agg(a.role ORDER BY a.role) FROM supply_party_access a WHERE a.tenant_id=supply_parties.tenant_id AND a.party_id=supply_parties.id AND a.subject=?),'[]'::jsonb) AS access_roles`, p.Subject).
+   supply_access_roles(supply_parties.tenant_id,supply_parties.id,?) AS access_roles,
+   supply_operating_roles(supply_parties.tenant_id,supply_parties.id,?) AS operating_roles`, p.Subject, p.Subject).
 			Where("tenant_id=?", p.TenantID)
 		if q != "" {
 			prefix := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(q) + "%"

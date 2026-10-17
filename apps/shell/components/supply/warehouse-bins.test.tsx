@@ -152,3 +152,25 @@ it("hides previously loaded rows and forms if refresh fails after a save", async
   expect(screen.queryByText("TEST-BIN · TEST Private Bin")).not.toBeInTheDocument();
   expect(screen.queryByRole("form", { name: "Storage bin form" })).not.toBeInTheDocument();
 });
+it("uses the operating projection without requesting private premise bins", async () => {
+  const fetcher = fixture(["supply.operations.read"]);
+  renderWithProviders(
+    <WarehouseBins
+      scope={scope}
+      premise={{ id: premise.id, code: premise.code, name: premise.name, status: premise.status }}
+      roles={["picker"]}
+      operational={{ read: true, write: false }}
+      onClose={() => {}}
+    />,
+  );
+  expect(await screen.findByRole("region", { name: "Warehouse bins" })).toBeInTheDocument();
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.some(
+        ([url]) => url.includes("/operating-locations/") && url.endsWith("/bins"),
+      ),
+    ).toBe(true),
+  );
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/premises/"))).toBe(false);
+  expect(screen.queryByRole("button", { name: "Add bin" })).not.toBeInTheDocument();
+});

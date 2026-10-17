@@ -141,3 +141,22 @@ type reviewInput struct {
 	Method                 string    `json:"method" binding:"required,oneof=not_applicable authority_portal authority_contact physical_inspection"`
 	Reference              string    `json:"reference" binding:"max=300"`
 }
+
+type BinFields struct {
+	Code         string `json:"code" binding:"required,min=1,max=40"`
+	Name         string `json:"name" binding:"required,min=1,max=200"`
+	Aisle        string `json:"aisle" binding:"max=60"`
+	Rack         string `json:"rack" binding:"max=60"`
+	Shelf        string `json:"shelf" binding:"max=60"`
+	StorageClass string `json:"storage_class" binding:"required,oneof=ambient cold_chain controlled quarantine"`
+	Status       string `json:"status" binding:"required,oneof=active inactive"`
+}
+
+var patternBinFieldsCode = regexp.MustCompile("^[A-Z0-9][A-Z0-9._-]{0,39}$")
+
+func validBinFieldsPatterns(v BinFields) bool { return patternBinFieldsCode.MatchString(v.Code) }
+
+type binInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
+	BinFields
+}

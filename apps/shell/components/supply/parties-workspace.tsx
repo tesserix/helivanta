@@ -405,6 +405,7 @@ function PrivateParty({
       <PartyRegistration
         scope={{ ...scope, partyId: id }}
         country={party.country_code}
+        owned={party.record_kind === "owned_organisation"}
         roles={roles}
       />
       <details className="border-t pt-5">

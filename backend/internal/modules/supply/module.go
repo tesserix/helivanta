@@ -10,6 +10,9 @@ import (
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
+//go:embed bins.sql
+var binSchema string
+
 //go:embed parties.sql
 var partySchema string
 
@@ -20,6 +23,8 @@ var registrationSchema string
 var evidenceSchema string
 
 const (
+	PermBinRead            authz.Permission = "supply.bin.read"
+	PermBinWrite           authz.Permission = "supply.bin.write"
 	PermPartyRead          authz.Permission = "supply.party.read"
 	PermPartyWrite         authz.Permission = "supply.party.write"
 	PermDirectoryRead      authz.Permission = "supply.directory.read"
@@ -41,6 +46,8 @@ func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "supply" }
 func (*Module) Permissions() []authz.Grant {
 	return []authz.Grant{
+		{Permission: PermBinRead, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor}},
+		{Permission: PermBinWrite, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing}},
 		{Permission: PermLicenseReview, Roles: []authz.Role{authz.RoleSupplyCompliance}},
 		{Permission: PermLicenseSubmit, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyCompliance}},
 		{Permission: PermDirectoryRead, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RoleSupplyWarehouse, authz.RoleSupplySales}},
@@ -57,11 +64,15 @@ func (*Module) Permissions() []authz.Grant {
 	}
 }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}}
+	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}, {ID: "0005_supply", SQL: binSchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &handlers{db: deps.DB, bus: deps.Bus, identity: deps.OrganizationIdentity}
 	g := r.Group("/supply")
+	g.PUT("/parties/:party/premises/:premise/bins/:bin", PermBinWrite, h.putBin)
+	g.GET("/parties/:party/premises/:premise/bins/:bin", PermBinRead, h.getBin)
+	platform.ListRoute(g, "/parties/:party/premises/:premise/bins", PermBinRead, h.listBins)
+	platform.ListRoute(g, "/parties/:party/premises/:premise/bins/:bin/revisions", PermBinRead, h.listBinRevisions)
 	g.GET("/parties/:party/platform-identity", PermPartyRead, h.getPlatformIdentity)
 	g.PUT("/parties/:party/licenses/:license/reviews/:review", PermLicenseSubmit, h.putLicenseReview)
 	g.GET("/parties/:party/licenses/:license/review", PermLicenseRead, h.getLicenseReview)
@@ -90,7 +101,7 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "/parties/:party/licenses/:license/revisions", PermLicenseRead, h.listLicenseRevisions)
 }
 func (*Module) Publishes() []string {
-	return []string{supplycontract.SubjectPartyUpdated, supplycontract.SubjectPartyAccessChanged, supplycontract.SubjectPremiseUpdated, supplycontract.SubjectLicenseDeclared, supplycontract.SubjectEvidenceScanRequested, supplycontract.SubjectEvidenceChanged, supplycontract.SubjectLicenseReviewChanged}
+	return []string{supplycontract.SubjectBinUpdated, supplycontract.SubjectPartyUpdated, supplycontract.SubjectPartyAccessChanged, supplycontract.SubjectPremiseUpdated, supplycontract.SubjectLicenseDeclared, supplycontract.SubjectEvidenceScanRequested, supplycontract.SubjectEvidenceChanged, supplycontract.SubjectLicenseReviewChanged}
 }
 func (*Module) DirectedSubjects() []string    { return nil }
 func (*Module) DirectedWriteTables() []string { return nil }

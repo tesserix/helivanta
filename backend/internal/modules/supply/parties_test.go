@@ -32,10 +32,10 @@ func partyHarness(t *testing.T) (*gin.Engine, *tenantdb.DB) {
 
 func partySetup(t *testing.T) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
-	admin := []authz.Permission{"supply.party.read", "supply.party.write", "supply.directory.read", "supply.party.access.manage", "supply.organization.manage", "supply.premise.read", "supply.premise.write", "supply.license.read", "supply.license.write"}
+	admin := []authz.Permission{"supply.party.read", "supply.party.write", "supply.directory.read", "supply.party.access.manage", "supply.organization.manage", "supply.premise.read", "supply.premise.write", "supply.license.read", "supply.license.write", "supply.bin.read", "supply.bin.write"}
 	return testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"owner": testutil.TenantA, "auditor": testutil.TenantA, "manager": testutil.TenantA, "foreign": testutil.TenantB, "denied": testutil.TenantA},
-		Perms:   map[string][]authz.Permission{"owner": admin, "manager": admin, "foreign": admin, "auditor": {"supply.party.read", "supply.party.write", "supply.directory.read", "supply.premise.read", "supply.premise.write", "supply.license.read", "supply.license.write"}},
+		Perms:   map[string][]authz.Permission{"owner": admin, "manager": admin, "foreign": admin, "auditor": {"supply.party.read", "supply.party.write", "supply.directory.read", "supply.premise.read", "supply.premise.write", "supply.license.read", "supply.license.write", "supply.bin.read", "supply.bin.write"}},
 		Modules: []platform.Module{supply.New()},
 	})
 }

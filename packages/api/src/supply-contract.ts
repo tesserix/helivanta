@@ -204,3 +204,27 @@ export const supplyReviewInputSchema = z
     reference: z.string().trim().max(300),
   })
   .strict();
+
+export const supplyBinFieldsSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .min(1)
+      .max(40)
+      .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
+    name: z.string().trim().min(1).max(200),
+    aisle: z.string().trim().max(60),
+    rack: z.string().trim().max(60),
+    shelf: z.string().trim().max(60),
+    storage_class: z.enum(["ambient", "cold_chain", "controlled", "quarantine"]),
+    status: z.enum(["active", "inactive"]),
+  })
+  .strict();
+
+export const supplyBinInputSchema = supplyBinFieldsSchema
+  .extend({
+    expected_version: z.number().int().min(0).max(9007199254740990),
+  })
+  .strict();

@@ -272,3 +272,31 @@ it("keeps declaration labels separate from the independently loaded review statu
   expect(screen.queryByText("Declared · verification pending")).not.toBeInTheDocument();
   expect(screen.getByText("Declaration recorded")).toBeInTheDocument();
 });
+
+it("opens owned warehouse bins without copying the premises master", async () => {
+  const premise = {
+    id: "0199e000-0000-7000-8000-000000000002",
+    code: "TEST-WAREHOUSE",
+    name: "TEST Warehouse",
+    kind: "warehouse",
+    status: "active",
+  };
+  const initial = fixture(["supply.premise.read", "supply.bin.read", "supply.bin.write"]);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      url.includes("/premises") && !url.includes("/bins")
+        ? new Response(JSON.stringify(page([premise])))
+        : initial(url, init),
+    ),
+  );
+  const user = userEvent.setup();
+  renderWithProviders(
+    <PartyRegistration scope={scope} country="IN" roles={["administrator"]} owned />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Bins for premise TEST-WAREHOUSE" }));
+  expect(await screen.findByRole("region", { name: "Warehouse bins" })).toHaveTextContent(
+    "TEST Warehouse",
+  );
+  expect(await screen.findByText("No bins recorded for this premise.")).toBeInTheDocument();
+});

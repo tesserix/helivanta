@@ -34,6 +34,7 @@ import {
   type FieldPath,
   type UseFormReturn,
 } from "@helivanta/ui";
+import { WarehouseBins } from "./warehouse-bins";
 import { LicenceReview } from "./licence-review";
 import { LicenceEvidence } from "./licence-evidence";
 import { RequestFailure } from "../request-failure";
@@ -45,10 +46,12 @@ export function PartyRegistration({
   scope,
   country,
   roles,
+  owned = false,
 }: {
   scope: SupplyRegistryScope;
   country: string;
   roles: string[];
+  owned?: boolean;
 }) {
   const { can } = usePermissions();
   const allowed = roles.some((role) => readers.includes(role));
@@ -62,6 +65,8 @@ export function PartyRegistration({
     supplyRegistryRoot(scope, "licenses"),
     { enabled: allowed && can("supply.license.read") },
   );
+  const [binPremise, setBinPremise] = useState<string | null>(null);
+  const currentBinPremise = premises.items.find((row) => row.id === binPremise);
   const [review, setReview] = useState<SupplyLicense | null>(null);
   const currentReview = review && licenses.items.find((row) => row.id === review.id);
   const [evidence, setEvidence] = useState<SupplyLicense | null>(null);
@@ -94,6 +99,17 @@ export function PartyRegistration({
           evidence review before verification or trading approval.
         </p>
       </div>
+      {owned && !premises.isError && currentBinPremise && (
+        <div id="warehouse-bins-panel">
+          <WarehouseBins
+            key={`${scope.tenantId}:${scope.subject}:${scope.partyId}:${currentBinPremise.id}`}
+            scope={scope}
+            premise={currentBinPremise}
+            roles={roles}
+            onClose={() => setBinPremise(null)}
+          />
+        </div>
+      )}
       {can("supply.premise.read") && (
         <section aria-label="Organisation premises" className="rounded-xl border p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -137,6 +153,29 @@ export function PartyRegistration({
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {owned &&
+                      can("supply.bin.read") &&
+                      roles.some((role) =>
+                        ["administrator", "purchasing", "compliance", "auditor"].includes(role),
+                      ) &&
+                      ["warehouse", "depot"].includes(row.kind) && (
+                        <Button
+                          variant="outline"
+                          aria-label={`Bins for premise ${row.code}`}
+                          onClick={() => {
+                            setBinPremise(row.id);
+                            requestAnimationFrame(() => {
+                              const panel = document.getElementById("warehouse-bins-panel");
+                              panel?.scrollIntoView({ block: "start", behavior: "instant" });
+                              panel
+                                ?.querySelector<HTMLElement>("h5")
+                                ?.focus({ preventScroll: true });
+                            });
+                          }}
+                        >
+                          Bins
+                        </Button>
+                      )}
                     {editPremise && (
                       <Button
                         variant="outline"

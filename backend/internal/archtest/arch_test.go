@@ -341,6 +341,7 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /supply/parties/:party/premises/:premise/bins/:bin":                    "one grant-checked bin under an owned warehouse/depot; directory and retained revisions use cursor pagination; distributor operations spec 2026-10-17",
 	"GET /supply/parties/:party/platform-identity":                              "one current live identity observation for one grant-checked owned organisation; four source revision strings, never a directory or trading approval; ADR 0031",
 	"GET /workspace/country-policies/:scope":                                    "one explicitly grant-checked country policy scope and its current eligibility decision; the scope directory is separately cursor-paginated",
 	"GET /workspace/country-policies/:scope/versions/:version":                  "one immutable policy version bounded to thirty sources and eleven requirements; full version and decision histories are separately cursor-paginated",

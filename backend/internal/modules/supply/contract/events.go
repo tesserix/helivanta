@@ -61,3 +61,12 @@ type LicenseReviewChangedData struct {
 	ReviewID  string `json:"review_id"`
 	Version   int64  `json:"version"`
 }
+
+const SubjectBinUpdated = "helivanta.in.supply.bin_updated.v1"
+
+type BinUpdatedData struct {
+	PartyID   string `json:"party_id"`
+	PremiseID string `json:"premise_id"`
+	BinID     string `json:"bin_id"`
+	Version   int64  `json:"version"`
+}

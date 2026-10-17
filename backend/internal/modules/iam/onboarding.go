@@ -42,7 +42,16 @@ func NewOnboardingHandler(deps platform.Deps, caller WorkloadVerifier) gin.Handl
 		defer cancel()
 		c.Request = c.Request.WithContext(ctx)
 		c.Header("Cache-Control", "no-store")
-		if caller == nil || caller.Verify(c.Request.Context(), c.GetHeader("Authorization")) != nil {
+		credential := c.GetHeader("X-Onboarding-Token")
+		authorization := c.GetHeader("Authorization")
+		if len(c.Request.Header.Values("X-Onboarding-Token")) > 1 || len(c.Request.Header.Values("Authorization")) > 1 || (credential != "" && authorization != "") {
+			respond.Unauthenticated(c, "ambiguous provisioning credentials")
+			return
+		}
+		if credential == "" {
+			credential = authorization
+		}
+		if caller == nil || caller.Verify(c.Request.Context(), credential) != nil {
 			respond.Unauthenticated(c, "provisioning credential required")
 			return
 		}

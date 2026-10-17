@@ -341,6 +341,17 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /supply/parties/:party/access-limits":                              "one current organisation operational access-limit policy with two bounded integer limits; immutable revisions are cursor-paginated",
+	"GET /supply/parties/:party/grants/:grant":                              "one explicitly administrator-scoped versioned grant; the directory and revisions are cursor-paginated",
+	"GET /supply/parties/:party/corporate-structure":                        "one current corporate relationship with a nullable parent; revision history is paginated",
+	"GET /supply/parties/:party/territories/:territory":                     "one explicitly scoped territory, capped at fifty representative references; directory and history are paginated",
+	"GET /supply/parties/:party/operating-locations/:premise":               "one authorized operating-location projection, without private address or finance fields",
+	"GET /supply/parties/:party/operating-locations/:premise/bins/:bin":     "one authorized operating bin; its directory and immutable history are paginated",
+	"GET /supply/parties/:party/premises/:premise/delivery-tasks/:delivery": "one explicitly location-scoped logistics task; task directory and revisions are paginated",
+	"GET /supply/parties/:party/premises/:premise/my-deliveries/:delivery":  "one current driver assignment with minimal business handoff data; assignment directory is paginated",
+	"GET /supply/parties/:party/support/:support":                           "one named scoped support request and bounded allowed-action vocabulary; directories and history are paginated",
+	"GET /supply/parties/:party/support/:support/diagnostics":               "one audited approved support observation containing only premise state and three bin counts",
+
 	"GET /supply/parties/:party/premises/:premise/bins/:bin":                    "one grant-checked bin under an owned warehouse/depot; directory and retained revisions use cursor pagination; distributor operations spec 2026-10-17",
 	"GET /supply/parties/:party/platform-identity":                              "one current live identity observation for one grant-checked owned organisation; four source revision strings, never a directory or trading approval; ADR 0031",
 	"GET /workspace/country-policies/:scope":                                    "one explicitly grant-checked country policy scope and its current eligibility decision; the scope directory is separately cursor-paginated",
@@ -351,7 +362,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /supply/parties/:party/licenses/:license":                              "one private declared licence with at most four product categories; ADR 0028",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id":  "one immutable payable with at most one hundred lines",
 	"GET /supply/parties/:party":                                                "One scoped profile with at most 20 contacts, 20 addresses and 20 tax records; ADR 0027.",
-	"GET /supply/parties/:party/access":                                         "Current actor's at most eight scoped roles for one profile; ADR 0027.",
+	"GET /supply/parties/:party/access":                                         "Current actor's bounded scoped role vocabulary for one profile; ADR 0027.",
 	"GET /pharmacy/configuration":                                               "one bounded shared country metadata configuration, with no legal approval or tenant records",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/access":                 "the current subject's single outlet pharmacy grant",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/balance":          "one explicitly scoped location/batch quarantine balance; not a collection",

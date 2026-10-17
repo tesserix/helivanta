@@ -1,18 +1,20 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import { Building2, ChevronRight, Plus, Search, ShieldCheck } from "lucide-react";
 import {
   countryProfile,
   supplyKey,
+  supplyHeaders,
   useApiPagedQuery,
   useApiQuery,
   usePermissions,
   type SupplyScope,
   type SupplyParty,
   type SupplyPartySummary,
+  type SupplyPartyAccess,
   type SupplyPartyRevision,
 } from "@helivanta/api";
 import { Field, LoadMore, useZodForm, formatDateTime } from "@helivanta/ui";
@@ -20,10 +22,22 @@ import { RequestFailure } from "../request-failure";
 import { PartyEditor } from "./party-editor";
 import { PartyRegistration } from "./party-registration";
 import { PlatformIdentity } from "./platform-identity";
+import { OrganisationStructure } from "./organisation-structure";
+import { OrganisationAccess } from "./organisation-access";
+import { OrganisationOperations } from "./organisation-operations";
+import { OrganisationSupport } from "./organisation-support";
 import { WorkspaceConnections } from "../workspace-connections";
 
 const searchSchema = z.object({ query: z.string().trim().max(200) });
 const readRoles = ["administrator", "purchasing", "finance", "compliance", "auditor"];
+
+function useWorkspaceHeading() {
+  return useCallback((heading: HTMLHeadingElement | null) => {
+    if (!heading) return;
+    heading.scrollIntoView({ block: "start", behavior: "instant" });
+    heading.focus({ preventScroll: true });
+  }, []);
+}
 
 export function PartiesWorkspace() {
   const identity = useApiQuery<{ tenant_id: string; subject: string }>(
@@ -55,11 +69,10 @@ function TenantParties({ scope }: { scope: SupplyScope }) {
   );
   function reveal(party: SupplyPartySummary | null) {
     setSelected(party);
+    if (party) return;
     requestAnimationFrame(() => {
       editor.current?.scrollIntoView({ block: "start", behavior: "instant" });
-      editor.current
-        ?.querySelector<HTMLElement>(party ? "h3" : "input")
-        ?.focus({ preventScroll: true });
+      editor.current?.querySelector<HTMLElement>("input")?.focus({ preventScroll: true });
     });
   }
   if (!can("supply.directory.read"))
@@ -182,7 +195,7 @@ function TenantParties({ scope }: { scope: SupplyScope }) {
         />
       </section>
       {selected !== undefined && (
-        <section ref={editor} className="scroll-mt-6" aria-label="Selected organisation">
+        <section ref={editor} className="scroll-mt-32" aria-label="Selected organisation">
           {selected === null ? (
             <PartyEditor
               key="new"
@@ -214,12 +227,37 @@ function PartyDetail({
   summary: SupplyPartySummary;
   onClose: () => void;
 }) {
-  const access = useApiQuery<{ roles: string[] }>(
+  const { can } = usePermissions();
+  const heading = useWorkspaceHeading();
+  const supportOnly =
+    summary.record_kind === "owned_organisation" &&
+    summary.access_roles.length === 0 &&
+    (summary.operating_roles?.length ?? 0) === 0 &&
+    can("supply.support.read");
+  const access = useApiQuery<SupplyPartyAccess>(
     supplyKey(scope, "party", summary.id, "access"),
     `/supply/parties/${summary.id}/access`,
-    { gcTime: 0, refetchOnWindowFocus: true },
+    {
+      enabled: !supportOnly,
+      gcTime: 0,
+      refetchOnWindowFocus: true,
+      request: { headers: supplyHeaders(scope) },
+    },
   );
-  const { can } = usePermissions();
+  if (supportOnly)
+    return (
+      <div className="space-y-5 rounded-2xl border bg-card p-3 sm:p-7">
+        <div className="flex flex-wrap justify-between gap-3">
+          <h3 ref={heading} tabIndex={-1} className="scroll-mt-32 text-xl font-semibold">
+            {summary.legal_name}
+          </h3>
+          <Button variant="outline" onClick={onClose}>
+            Close support workspace
+          </Button>
+        </div>
+        <OrganisationSupport scope={{ ...scope, partyId: summary.id }} roles={[]} />
+      </div>
+    );
   if (access.isPending) return <p role="status">Checking organisation access…</p>;
   if (access.isError)
     return (
@@ -228,10 +266,59 @@ function PartyDetail({
         retry={access.refetch}
       />
     );
-  if (!can("supply.party.read") || !access.data?.roles.some((role) => readRoles.includes(role)))
+  const globalRoles = access.data?.roles ?? [];
+  const operatingRoles = [...new Set([...globalRoles, ...(access.data?.operating_roles ?? [])])];
+  const privateProfile =
+    can("supply.party.read") && globalRoles.some((role) => readRoles.includes(role));
+  if (
+    !privateProfile &&
+    summary.record_kind === "owned_organisation" &&
+    operatingRoles.some((role) =>
+      [
+        "sales",
+        "auditor",
+        "warehouse",
+        "inventory",
+        "picker",
+        "packer",
+        "dispatcher",
+        "driver",
+        "regulator",
+      ].includes(role),
+    )
+  )
+    return (
+      <div className="space-y-5 rounded-2xl border bg-card p-3 sm:p-7">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3
+              ref={heading}
+              tabIndex={-1}
+              className="scroll-mt-32 break-words text-xl font-semibold"
+            >
+              {summary.legal_name}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Assigned operations · Your role does not include the private organisation profile.
+            </p>
+          </div>
+          <Button variant="outline" onClick={onClose}>
+            Close assigned operations
+          </Button>
+        </div>
+        <OrganisationStructure
+          scope={{ ...scope, partyId: summary.id }}
+          country={summary.country_code}
+          roles={globalRoles}
+        />
+        <OrganisationOperations scope={{ ...scope, partyId: summary.id }} roles={operatingRoles} />
+        <OrganisationSupport scope={{ ...scope, partyId: summary.id }} roles={globalRoles} />
+      </div>
+    );
+  if (!privateProfile)
     return (
       <div className="rounded-2xl border bg-card p-6">
-        <h3 tabIndex={-1} className="font-semibold">
+        <h3 ref={heading} tabIndex={-1} className="scroll-mt-32 font-semibold">
           Private profile access required
         </h3>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -242,25 +329,36 @@ function PartyDetail({
         </Button>
       </div>
     );
-  return <PrivateParty scope={scope} id={summary.id} roles={access.data.roles} onClose={onClose} />;
+  return (
+    <PrivateParty
+      scope={scope}
+      id={summary.id}
+      roles={globalRoles}
+      operatingRoles={operatingRoles}
+      onClose={onClose}
+    />
+  );
 }
 function PrivateParty({
   scope,
   id,
   roles,
+  operatingRoles,
   onClose,
 }: {
   scope: SupplyScope;
   id: string;
   roles: string[];
+  operatingRoles: string[];
   onClose: () => void;
 }) {
   const { can } = usePermissions();
   const [editing, setEditing] = useState(false);
+  const heading = useWorkspaceHeading();
   const profile = useApiQuery<SupplyParty>(
     supplyKey(scope, "party", id, "detail"),
     `/supply/parties/${id}`,
-    { gcTime: 0, refetchOnWindowFocus: true },
+    { gcTime: 0, refetchOnWindowFocus: true, request: { headers: supplyHeaders(scope) } },
   );
   if (profile.isError)
     return (
@@ -287,13 +385,17 @@ function PrivateParty({
       />
     );
   return (
-    <div className="space-y-5 rounded-2xl border bg-card p-5 sm:p-7">
+    <div className="space-y-5 rounded-2xl border bg-card p-3 sm:p-7">
       <div className="flex flex-wrap justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Private profile · Version {party.version}
           </p>
-          <h3 tabIndex={-1} className="mt-2 break-words text-xl font-semibold">
+          <h3
+            ref={heading}
+            tabIndex={-1}
+            className="mt-2 scroll-mt-32 break-words text-xl font-semibold"
+          >
             {party.legal_name}
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -396,11 +498,26 @@ function PrivateParty({
         )}
       </section>
       {party.record_kind === "owned_organisation" && (
-        <PlatformIdentity
-          key={`${scope.tenantId}:${scope.subject}:${id}:${party.version}`}
-          scope={{ ...scope, partyId: id }}
-          partyVersion={party.version}
-        />
+        <>
+          <PlatformIdentity
+            key={`${scope.tenantId}:${scope.subject}:${id}:${party.version}`}
+            scope={{ ...scope, partyId: id }}
+            partyVersion={party.version}
+          />
+          <OrganisationStructure
+            key={`structure:${scope.tenantId}:${scope.subject}:${id}`}
+            scope={{ ...scope, partyId: id }}
+            country={party.country_code}
+            roles={roles}
+          />
+          <OrganisationAccess
+            key={`access:${scope.tenantId}:${scope.subject}:${id}`}
+            scope={{ ...scope, partyId: id }}
+            roles={roles}
+          />
+          <OrganisationOperations scope={{ ...scope, partyId: id }} roles={operatingRoles} />
+          <OrganisationSupport scope={{ ...scope, partyId: id }} roles={roles} />
+        </>
       )}
       <PartyRegistration
         scope={{ ...scope, partyId: id }}

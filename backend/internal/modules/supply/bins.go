@@ -96,38 +96,8 @@ func (h *handlers) putBin(c *gin.Context) {
 		if e != nil {
 			return e
 		}
-		if e := lockRegistry(tx, p, partyID, id, "bin:"+premiseID.String()); e != nil {
-			return e
-		}
-		e = tx.Select(binColumns).Where("tenant_id=? AND party_id=? AND premise_id=? AND id=?", p.TenantID, partyID, premiseID, id).First(&saved).Error
-		exists := e == nil
-		if e != nil && !errors.Is(e, gorm.ErrRecordNotFound) {
-			return e
-		}
-		replay, e := registryVersion(exists, *in.ExpectedVersion, saved.Version, reflect.DeepEqual(saved.BinFields, in.BinFields))
-		if e != nil || replay {
-			return e
-		}
-		if parent.Status != "active" && in.Status == "active" {
-			return errConflict
-		}
-		if !exists {
-			saved = storageBin{ID: id, TenantID: uuid.MustParse(p.TenantID), PartyID: partyID, PremiseID: premiseID, CountryCode: parent.CountryCode}
-		}
-		saved.BinFields = in.BinFields
-		saved.Version++
-		if exists {
-			e = tx.Model(&storageBin{}).Where("tenant_id=? AND party_id=? AND premise_id=? AND id=?", p.TenantID, partyID, premiseID, id).Select("code", "name", "aisle", "rack", "shelf", "storage_class", "status", "version").Updates(&saved).Error
-		} else {
-			e = tx.Create(&saved).Error
-		}
-		if e != nil {
-			return e
-		}
-		if e = tx.Select(binColumns).Where("tenant_id=? AND party_id=? AND premise_id=? AND id=?", p.TenantID, partyID, premiseID, id).First(&saved).Error; e != nil {
-			return e
-		}
-		return h.recordBin(tx, p, saved)
+		saved, e = h.saveBin(tx, p, partyID, premiseID, id, in, parent)
+		return e
 	})
 	if e != nil {
 		binError(c, e)
@@ -135,6 +105,82 @@ func (h *handlers) putBin(c *gin.Context) {
 	}
 	respond.OK(c, saved)
 }
+func (h *handlers) putOperatingBin(c *gin.Context) {
+	p, partyID, premiseID, ok := binScope(c)
+	if !ok {
+		return
+	}
+	id, ok := resourceID(c, "bin")
+	if !ok {
+		return
+	}
+	var in binInput
+	if !decode(c, &in) {
+		return
+	}
+	if !in.normalize() || binding.Validator.ValidateStruct(&in) != nil {
+		respond.Error(c, 400, "invalid_request", "invalid storage bin fields")
+		return
+	}
+	var saved storageBin
+	err := h.transaction(c.Request.Context(), p, partyID, false, false, func(tx *gorm.DB) error {
+		if err := lockAccessAdministration(tx, p, partyID); err != nil {
+			return err
+		}
+		parent, err := operatingParent(tx, p, partyID, premiseID, []string{"administrator", "inventory"})
+		if err != nil {
+			return err
+		}
+		// Existing bin guards verify ownership through the private party row.
+		if err = tx.Exec(`SELECT set_config('app.supply_directory','on',true),set_config('app.supply_manager','on',true)`).Error; err != nil {
+			return err
+		}
+		saved, err = h.saveBin(tx, p, partyID, premiseID, id, in, parent)
+		return err
+	})
+	if err != nil {
+		binError(c, err)
+		return
+	}
+	respond.OK(c, saved)
+}
+
+func (h *handlers) saveBin(tx *gorm.DB, p authn.Principal, partyID, premiseID, id uuid.UUID, in binInput, parent premise) (storageBin, error) {
+	var saved storageBin
+	if e := lockRegistry(tx, p, partyID, id, "bin:"+premiseID.String()); e != nil {
+		return saved, e
+	}
+	e := tx.Select(binColumns).Where("tenant_id=? AND party_id=? AND premise_id=? AND id=?", p.TenantID, partyID, premiseID, id).First(&saved).Error
+	exists := e == nil
+	if e != nil && !errors.Is(e, gorm.ErrRecordNotFound) {
+		return saved, e
+	}
+	replay, e := registryVersion(exists, *in.ExpectedVersion, saved.Version, reflect.DeepEqual(saved.BinFields, in.BinFields))
+	if e != nil || replay {
+		return saved, e
+	}
+	if parent.Status != "active" && in.Status == "active" {
+		return saved, errConflict
+	}
+	if !exists {
+		saved = storageBin{ID: id, TenantID: uuid.MustParse(p.TenantID), PartyID: partyID, PremiseID: premiseID, CountryCode: parent.CountryCode}
+	}
+	saved.BinFields = in.BinFields
+	saved.Version++
+	if exists {
+		e = tx.Model(&storageBin{}).Where("tenant_id=? AND party_id=? AND premise_id=? AND id=?", p.TenantID, partyID, premiseID, id).Select("code", "name", "aisle", "rack", "shelf", "storage_class", "status", "version").Updates(&saved).Error
+	} else {
+		e = tx.Create(&saved).Error
+	}
+	if e != nil {
+		return saved, e
+	}
+	if e = tx.Select(binColumns).Where("tenant_id=? AND party_id=? AND premise_id=? AND id=?", p.TenantID, partyID, premiseID, id).First(&saved).Error; e != nil {
+		return saved, e
+	}
+	return saved, h.recordBin(tx, p, saved)
+}
+
 func (h *handlers) recordBin(tx *gorm.DB, p authn.Principal, saved storageBin) error {
 	snapshot, e := json.Marshal(saved)
 	if e != nil {

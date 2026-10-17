@@ -60,9 +60,20 @@ var premiseWriters = []string{"administrator", "purchasing"}
 var licenseWriters = []string{"administrator", "purchasing", "compliance"}
 
 func requireRoles(tx *gorm.DB, p authn.Principal, partyID uuid.UUID, roles []string) error {
-	var access partyGrant
-	return tx.Clauses(clause.Locking{Strength: "SHARE"}).Select("id").Where("tenant_id=? AND party_id=? AND subject=? AND role IN ?", p.TenantID, partyID, p.Subject, roles).First(&access).Error
+	var legacy []partyGrant
+	if e := tx.Clauses(clause.Locking{Strength: "SHARE"}).Select("id").Where("tenant_id=? AND party_id=? AND subject=? AND role IN ?", p.TenantID, partyID, p.Subject, roles).Find(&legacy).Error; e != nil {
+		return e
+	}
+	var explicit []accessGrant
+	if e := tx.Clauses(clause.Locking{Strength: "SHARE"}).Select("id").Where("tenant_id=? AND party_id=? AND subject=? AND role IN ? AND premise_id IS NULL AND supply_effective_role(tenant_id,party_id,subject,ARRAY[role],NULL)", p.TenantID, partyID, p.Subject, roles).Find(&explicit).Error; e != nil {
+		return e
+	}
+	if len(legacy)+len(explicit) == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
+
 func registryScope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
 	p, ok := principal(c)
 	if !ok {
@@ -309,6 +320,10 @@ func registryError(c *gin.Context, e error) {
 	}
 	if errors.Is(e, errBranchKind) {
 		respond.Error(c, 400, "invalid_request", "only a warehouse or depot can be assigned to a branch")
+		return
+	}
+	if errors.As(e, &pg) && pg.ConstraintName == "supply_premise_territory_kind" {
+		respond.Conflict(c, "This branch still has linked sales territories. Reassign them before changing its type.")
 		return
 	}
 	if errors.As(e, &pg) && pg.ConstraintName == "supply_premise_bins_kind" {

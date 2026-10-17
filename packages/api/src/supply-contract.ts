@@ -229,3 +229,256 @@ export const supplyBinInputSchema = supplyBinFieldsSchema
     expected_version: z.number().int().min(0).max(9007199254740990),
   })
   .strict();
+
+export const supplyCorporateFieldsSchema = z
+  .object({
+    parent_party_id: identifier.nullable().optional(),
+  })
+  .strict();
+
+export const supplyCorporateInputSchema = supplyCorporateFieldsSchema
+  .extend({
+    expected_version: z.number().int().min(0).max(9007199254740990),
+  })
+  .strict();
+
+export const supplyTerritoryFieldsSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .min(1)
+      .max(40)
+      .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
+    name: z.string().trim().min(1).max(200),
+    country_code: z.enum(["IN", "PK"]),
+    region: z.string().trim().min(1).max(100),
+    city: z.string().trim().max(100),
+    description: z.string().trim().max(1000),
+    status: z.enum(["active", "inactive"]),
+    branch_premise_id: identifier.nullable().optional(),
+    assigned_sales_subjects: z
+      .array(z.string())
+      .min(0)
+      .max(50)
+      .refine((value) => new Set(value).size === value.length, "Choose each value once."),
+  })
+  .strict();
+
+export const supplyTerritoryInputSchema = supplyTerritoryFieldsSchema
+  .extend({
+    expected_version: z.number().int().min(0).max(9007199254740990),
+  })
+  .strict();
+
+export const supplyAccessGrantFieldsSchema = z
+  .object({
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^[A-Za-z0-9._:@|+\\-]{1,200}$"), "Use the required format."),
+    role: z.enum([
+      "administrator",
+      "purchasing",
+      "finance",
+      "compliance",
+      "auditor",
+      "warehouse",
+      "sales",
+      "driver",
+      "inventory",
+      "picker",
+      "packer",
+      "dispatcher",
+      "regulator",
+    ]),
+    premise_id: identifier.nullable().optional(),
+    valid_from: z
+      .string()
+      .min(20)
+      .max(35)
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    expires_at: z
+      .string()
+      .min(20)
+      .max(35)
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    reason: z.string().trim().min(5).max(500),
+    status: z.enum(["active", "revoked"]),
+  })
+  .strict();
+
+export const supplyAccessScopePolicy = {
+  global_only: ["administrator", "purchasing", "finance", "compliance", "sales"],
+  location_required: ["regulator"],
+  location_optional: [
+    "warehouse",
+    "inventory",
+    "picker",
+    "packer",
+    "dispatcher",
+    "driver",
+    "auditor",
+  ],
+  premise_kinds: ["warehouse", "depot"],
+} as const;
+export const supplyAccessGrantInputSchema = supplyAccessGrantFieldsSchema
+  .extend({
+    expected_version: z.number().int().min(0).max(9007199254740990),
+  })
+  .strict()
+  .refine((value) => Date.parse(value.expires_at) > Date.parse(value.valid_from), {
+    path: ["expires_at"],
+    message: "Expiry must be after the start time.",
+  })
+  .superRefine((value, ctx) => {
+    if (value.status === "revoked") return;
+    const scoped = value.premise_id != null;
+    if (
+      scoped &&
+      ![
+        "warehouse",
+        "inventory",
+        "picker",
+        "packer",
+        "dispatcher",
+        "driver",
+        "auditor",
+        "regulator",
+      ].includes(value.role)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["premise_id"],
+        message: "This role requires organisation-wide access.",
+      });
+    if (!scoped && ["regulator"].includes(value.role))
+      ctx.addIssue({
+        code: "custom",
+        path: ["premise_id"],
+        message: "Choose a warehouse or depot for this role.",
+      });
+  });
+
+export const supplyDeliveryTaskFieldsSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .min(1)
+      .max(40)
+      .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
+    source_reference: z.string().trim().min(1).max(100),
+    destination_business_name: z.string().trim().min(1).max(200),
+    destination_line1: z.string().trim().min(1).max(200),
+    destination_line2: z.string().trim().min(0).max(200),
+    destination_city: z.string().trim().min(1).max(100),
+    destination_region: z.string().trim().min(1).max(100),
+    destination_postal_code: z.string().trim().min(1).max(20),
+    country_code: z.enum(["IN", "PK"]),
+    business_contact_name: z.string().trim().min(0).max(200),
+    business_contact_phone: z
+      .string()
+      .trim()
+      .min(0)
+      .max(16)
+      .regex(new RegExp("^(?:|\\+[1-9][0-9]{7,14})$"), "Use the required format."),
+    window_start: z
+      .string()
+      .trim()
+      .min(20)
+      .max(35)
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    window_end: z
+      .string()
+      .trim()
+      .min(20)
+      .max(35)
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    package_count: z.number().int().min(1).max(100000),
+    handling_notes: z.string().trim().min(0).max(500),
+    driver_subject: z.string().trim().min(0).max(200),
+    assignment_expires_at: z.string().trim().min(0).max(35),
+    status: z.enum(["draft", "assigned", "cancelled"]),
+  })
+  .strict();
+
+export const supplyDeliveryTaskInputSchema = supplyDeliveryTaskFieldsSchema
+  .extend({
+    expected_version: z.number().int().min(0).max(9007199254740990),
+    change_reason: z.string().trim().min(5).max(500),
+  })
+  .strict()
+  .refine((value) => Date.parse(value.window_end) > Date.parse(value.window_start), {
+    path: ["window_end"],
+    message: "Expiry must be after the start time.",
+  });
+
+export const supplyDeliveryActionInputSchema = z
+  .object({
+    expected_version: z.number().int().min(0).max(9007199254740990),
+    expected_assignment_generation: z.number().int().min(1).max(9007199254740990),
+    action: z.enum(["start", "deliver", "exception"]),
+    reason: z.string().trim().min(5).max(500),
+  })
+  .strict();
+
+export const supplySupportRequestFieldsSchema = z
+  .object({
+    beneficiary_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^[A-Za-z0-9._:@|+\\-]{1,200}$"), "Use the required format."),
+    premise_id: identifier,
+    ticket_reference: z.string().trim().min(1).max(100),
+    reason: z.string().trim().min(5).max(500),
+    valid_from: z
+      .string()
+      .min(20)
+      .max(35)
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    expires_at: z
+      .string()
+      .min(20)
+      .max(35)
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
+export const supplySupportRequestInputSchema = supplySupportRequestFieldsSchema
+  .extend({
+    expected_version: z.number().int().min(0).max(9007199254740990),
+  })
+  .strict()
+  .refine((value) => Date.parse(value.expires_at) > Date.parse(value.valid_from), {
+    path: ["expires_at"],
+    message: "Expiry must be after the start time.",
+  });
+
+export const supplySupportDecisionInputSchema = z
+  .object({
+    expected_version: z.number().int().min(1).max(9007199254740990),
+    action: z.enum(["approve", "reject", "revoke"]),
+    reason: z.string().trim().min(5).max(500),
+  })
+  .strict();
+
+export const supplySupportRevokeInputSchema = z
+  .object({
+    expected_version: z.number().int().min(1).max(9007199254740990),
+    reason: z.string().trim().min(5).max(500),
+  })
+  .strict();
+
+export const supplyAccessLimitsInputSchema = z
+  .object({
+    expected_version: z.number().int().min(0).max(9007199254740990),
+    max_grant_hours: z.number().int().min(1).max(8784),
+    max_support_hours: z.number().int().min(1).max(24),
+    reason: z.string().trim().min(5).max(500),
+  })
+  .strict();

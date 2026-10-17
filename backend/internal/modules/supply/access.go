@@ -31,6 +31,8 @@ func (r partyGrant) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID 
 
 const grantColumns = "id,tenant_id,party_id,subject,role,created_at"
 
+var errAccessScope = errors.New("unsupported operational access scope")
+
 var subjectID = regexp.MustCompile(`^[A-Za-z0-9._:@|+\-]{1,200}$`)
 
 func validPartyRole(role string) bool {
@@ -58,7 +60,7 @@ func (h *handlers) changeGrant(c *gin.Context, remove bool) {
 	if !remove {
 		var existing int64
 		err := h.transaction(c.Request.Context(), p, id, false, false, func(tx *gorm.DB) error {
-			if e := requireRoles(tx, p, id, []string{"administrator"}); e != nil {
+			if e := requireAccessAdministrator(tx, p, id); e != nil {
 				return e
 			}
 			return tx.Model(&partyGrant{}).Where("tenant_id=? AND party_id=? AND subject=? AND role=?", p.TenantID, id, subject, role).Count(&existing).Error
@@ -79,7 +81,7 @@ func (h *handlers) changeGrant(c *gin.Context, remove bool) {
 		if e := lockAccessAdministration(tx, p, id); e != nil {
 			return e
 		}
-		if e := requireRoles(tx, p, id, []string{"administrator"}); e != nil {
+		if e := requireAccessAdministrator(tx, p, id); e != nil {
 			return e
 		}
 		var header struct{ ID uuid.UUID }
@@ -98,7 +100,7 @@ func (h *handlers) changeGrant(c *gin.Context, remove bool) {
 				return nil
 			}
 			if row.Role == "administrator" {
-				if e := retainLegacyAdministrator(tx, p, id, row.Subject); e != nil {
+				if e := retainAdministrator(tx, p, id, row.Subject); e != nil {
 					return e
 				}
 			}
@@ -111,6 +113,20 @@ func (h *handlers) changeGrant(c *gin.Context, remove bool) {
 			return nil
 		}
 		if !verifiedNewTarget {
+			return errConflict
+		}
+		var permanentAdministrator int64
+		if e := tx.Table("supply_party_access").Where("tenant_id=? AND party_id=? AND subject=? AND role='administrator'", p.TenantID, id, p.Subject).Count(&permanentAdministrator).Error; e != nil {
+			return e
+		}
+		if permanentAdministrator == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		var explicit int64
+		if e := tx.Table("supply_access_grants").Where("tenant_id=? AND party_id=? AND subject=? AND role=? AND premise_id IS NULL AND status='active'", p.TenantID, id, subject, role).Count(&explicit).Error; e != nil {
+			return e
+		}
+		if explicit > 0 {
 			return errConflict
 		}
 
@@ -171,31 +187,24 @@ func (h *handlers) getAccess(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var roles []string
+	var roles, operatingRoles []string
 	e := h.transaction(c.Request.Context(), p, id, false, false, func(tx *gorm.DB) error {
-		return tx.Table("supply_party_access").Where("tenant_id=? AND party_id=? AND subject=?", p.TenantID, id, p.Subject).Order("role").Pluck("role", &roles).Error
+		var row struct{ Roles, OperatingRoles json.RawMessage }
+		if err := tx.Raw("SELECT supply_access_roles(?,?,?) AS roles,supply_operating_roles(?,?,?) AS operating_roles", p.TenantID, id, p.Subject, p.TenantID, id, p.Subject).Scan(&row).Error; err != nil {
+			return err
+		}
+		if err := json.Unmarshal(row.Roles, &roles); err != nil {
+			return err
+		}
+		return json.Unmarshal(row.OperatingRoles, &operatingRoles)
 	})
 	if e != nil {
 		supplierError(c, e)
 		return
 	}
-	if len(roles) == 0 {
+	if len(roles)+len(operatingRoles) == 0 {
 		respond.NotFound(c, "party")
 		return
 	}
-	respond.OK(c, gin.H{"roles": roles})
-}
-
-func lockAccessAdministration(tx *gorm.DB, p authn.Principal, partyID uuid.UUID) error {
-	return tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?,0))`, p.TenantID+":supply-access-admin:"+partyID.String()).Error
-}
-func retainLegacyAdministrator(tx *gorm.DB, p authn.Principal, partyID uuid.UUID, subject string) error {
-	var remaining int64
-	if e := tx.Model(&partyGrant{}).Where("tenant_id=? AND party_id=? AND role='administrator' AND subject<>?", p.TenantID, partyID, subject).Count(&remaining).Error; e != nil {
-		return e
-	}
-	if remaining == 0 {
-		return errConflict
-	}
-	return nil
+	respond.OK(c, gin.H{"roles": roles, "operating_roles": operatingRoles})
 }

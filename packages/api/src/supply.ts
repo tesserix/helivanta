@@ -65,7 +65,8 @@ export type SupplyPartySummary = Pick<
   | "country_code"
   | "onboarding_status"
   | "created_at"
-> & { access_roles: string[] };
+> & { access_roles: string[]; operating_roles?: string[] };
+export type SupplyPartyAccess = { roles: string[]; operating_roles?: string[] };
 export type SupplyPartyRevision = {
   id: string;
   party_id: string;

@@ -50,21 +50,32 @@ const (
 	// for one feature's view of them, so it stays correct as the front
 	// office gains responsibilities. A nurse is not a clerk — conflating
 	// the two would put clinical staff in the registration audit trail.
-	RoleReceptionist     Role = "receptionist"
-	RoleSupplyAdmin      Role = "supply_admin"
-	RoleSupplyPurchasing Role = "supply_purchasing"
-	RoleSupplyFinance    Role = "supply_finance"
-	RoleSupplyCompliance Role = "supply_compliance"
-	RoleSupplyAuditor    Role = "supply_auditor"
-	RoleSupplyWarehouse  Role = "supply_warehouse"
-	RoleSupplySales      Role = "supply_sales"
+	RoleReceptionist       Role = "receptionist"
+	RoleSupplyAdmin        Role = "supply_admin"
+	RoleSupplyPurchasing   Role = "supply_purchasing"
+	RoleSupplyFinance      Role = "supply_finance"
+	RoleSupplyCompliance   Role = "supply_compliance"
+	RoleSupplyAuditor      Role = "supply_auditor"
+	RoleSupplyWarehouse    Role = "supply_warehouse"
+	RoleSupplySales        Role = "supply_sales"
+	RoleSupplyOwner        Role = "supply_owner"
+	RoleSupplyInventory    Role = "supply_inventory"
+	RoleSupplyPicker       Role = "supply_picker"
+	RoleSupplyPacker       Role = "supply_packer"
+	RoleSupplyDispatcher   Role = "supply_dispatcher"
+	RoleSupplyDriver       Role = "supply_driver"
+	RoleSupplyRegulator    Role = "supply_regulator"
+	RoleSupplySupport      Role = "supply_support"
+	RolePharmacyOwner      Role = "pharmacy_owner"
+	RolePharmacyPurchasing Role = "pharmacy_purchasing"
+	RolePharmacyInventory  Role = "pharmacy_inventory"
 )
 
 // systemRoles is every seeded system role. It is the single source of
 // truth KnownRole validates against, so a role_key read from anywhere
 // outside this package (an HTTP request body, a raw-SQL row from
 // iam_members) can be checked without hand-copying the role list.
-var systemRoles = []Role{RoleTenantAdmin, RoleDoctor, RoleNurse, RolePharmacist, RoleLabTech, RoleReceptionist, RoleSupplyAdmin, RoleSupplyPurchasing, RoleSupplyFinance, RoleSupplyCompliance, RoleSupplyAuditor, RoleSupplyWarehouse, RoleSupplySales}
+var systemRoles = []Role{RoleTenantAdmin, RoleDoctor, RoleNurse, RolePharmacist, RoleLabTech, RoleReceptionist, RoleSupplyAdmin, RoleSupplyPurchasing, RoleSupplyFinance, RoleSupplyCompliance, RoleSupplyAuditor, RoleSupplyWarehouse, RoleSupplySales, RoleSupplyOwner, RoleSupplyInventory, RoleSupplyPicker, RoleSupplyPacker, RoleSupplyDispatcher, RoleSupplyDriver, RoleSupplyRegulator, RoleSupplySupport, RolePharmacyOwner, RolePharmacyPurchasing, RolePharmacyInventory}
 
 // KnownRole reports whether r is one of the seeded system roles. Custom
 // roles are supported by the data model but not yet creatable, so

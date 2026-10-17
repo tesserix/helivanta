@@ -59,3 +59,32 @@ separates saved declarations, scanned evidence, independent authority review and
 subsequent trading eligibility. It records exact revisions, actor, reason and
 authority-check reference rather than treating a generic Active label as proof.
 Only synthetic TEST identifiers and reserved example addresses are used in tests.
+
+## Distributor structure and access comparison — 17 October 2026
+
+The authenticated Mednet session was also reopened on 17 October. Its module menu
+again showed Fixed Asset, Pharmacy, Procurement and Store, with separate Finance,
+Accounts and Access Control. Changing the Procurement selector label did not
+leave the current EMR frame during that check; no detailed transaction workflow
+is claimed as freshly exercised. The original EMR selection was restored, with
+no saves, approvals, customer-record reads or copied customer values.
+
+This comparison uses the recorded read-only observations above. It does not
+assert that an unobserved legacy feature is absent. No real vendor, customer,
+staff, bank or transaction values are used in development fixtures.
+
+| Recorded legacy evidence                                                                                                                                                         | Modern design and acceptance boundary                                                                                                                                                                                                                                                                       | Owning story                  |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Vendor Setup includes corporate group, vendor type and registration fields.                                                                                                      | Keep the owned parent-company relationship separate from legal registrations, commercial counterparties and tenant boundaries. Linking a company never grants access to its parent, subsidiary, hospital or another tenant.                                                                                 | #1137 #1135                   |
+| Vendor Setup includes contact/address fields and two fixed bank-information groups.                                                                                              | Use structured contacts, country-aware addresses and tax identifiers. Payment destinations remain separately protected finance data; the operational warehouse, driver and sales roles do not acquire bank access.                                                                                          | #1005 #1135 #1142             |
+| Country/state/city fields, receiving-store selection and inventory menus are visible.                                                                                            | Branch, warehouse/depot and bin identity are explicit. Operational grants apply to the exact owned location; country consistency and current authority are checked on the server. Territories and assigned representatives are modern requirements; their legacy screens and enforcement were not observed. | #1137 #1004 #1140             |
+| Challan states Draft, Final, Partial and Completed were observed; receiving exposes Direct, Ordered, Challan and B2B source modes.                                               | A manual delivery task records bounded logistics planning and an assigned driver's progress. It is not a challan, goods receipt, purchase order, stock movement, proof of payment or invoice, and cannot complete those workflows implicitly.                                                               | #1137 #1002 #1139 #1140 #1141 |
+| Save and Verify & Approve controls appear on vendor and receiving forms. Procurement settings include finance-review and automation-related controls in the earlier exploration. | Saving a declaration, changing access, approving evidence and authorising a commercial transaction remain different actions. Require current object authority, reasoned immutable history and independent support approval; do not infer the legacy approval matrix or permission rules from button labels. | #1137 #1006 #532 #1139        |
+
+The legacy approval-setting values, approval transitions, sales-territory screens
+and enforcement against direct requests were not exercised. Their owning stories
+need synthetic end-to-end evidence before closure. Access controls and manual
+logistics alone do not establish complete B2B procurement or SOC 2/HIPAA
+certification. Commercial purchase-approval configuration remains with #532;
+country regulatory policy remains separately reviewed rather than overridden by
+an organisation's access settings.

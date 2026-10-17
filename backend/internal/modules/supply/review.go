@@ -233,7 +233,7 @@ func (h *handlers) getLicenseReview(c *gin.Context) {
 			state.EffectiveStatus = prerequisite
 		}
 		var writers int64
-		if err := tx.Table("supply_party_access").Where("tenant_id=? AND party_id=? AND subject=? AND role IN ?", p.TenantID, partyID, p.Subject, licenseWriters).Count(&writers).Error; err != nil {
+		if err := tx.Raw("SELECT CASE WHEN supply_roles_allowed(?,?,ARRAY['administrator','purchasing','compliance']) THEN 1 ELSE 0 END", p.TenantID, partyID).Scan(&writers).Error; err != nil {
 			return err
 		}
 		if has(c, PermLicenseSubmit) && writers > 0 && prerequisite == "" {
@@ -278,7 +278,7 @@ UNION ALL SELECT actor_subject FROM supply_license_revisions WHERE tenant_id=? A
 			return gorm.ErrRecordNotFound
 		}
 		var compliance int64
-		if err := tx.Table("supply_party_access").Where("tenant_id=? AND party_id=? AND subject=? AND role='compliance'", p.TenantID, partyID, p.Subject).Count(&compliance).Error; err != nil {
+		if err := tx.Raw("SELECT CASE WHEN supply_roles_allowed(?,?,ARRAY['compliance']) THEN 1 ELSE 0 END", p.TenantID, partyID).Scan(&compliance).Error; err != nil {
 			return err
 		}
 		if has(c, PermLicenseReview) && compliance > 0 {

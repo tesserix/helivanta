@@ -567,6 +567,539 @@
           "max": 9007199254740990
         }
       ]
+    },
+    {
+      "name": "CorporateFields",
+      "schema": "supplyCorporateFieldsSchema",
+      "fields": [
+        {
+          "name": "parent_party_id",
+          "type": "uuid",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "name": "corporateInput",
+      "schema": "supplyCorporateInputSchema",
+      "embed": "CorporateFields",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740990
+        }
+      ]
+    },
+    {
+      "name": "TerritoryFields",
+      "schema": "supplyTerritoryFieldsSchema",
+      "fields": [
+        {
+          "name": "code",
+          "type": "string",
+          "min": 1,
+          "max": 40,
+          "trim": true,
+          "upper": true,
+          "pattern": "^[A-Z0-9][A-Z0-9._-]{0,39}$"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "country_code",
+          "type": "string",
+          "country_profile": true
+        },
+        {
+          "name": "region",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true
+        },
+        {
+          "name": "city",
+          "type": "string",
+          "max": 100,
+          "trim": true
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "max": 1000,
+          "trim": true
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "enum": ["active", "inactive"]
+        },
+        {
+          "name": "branch_premise_id",
+          "type": "uuid",
+          "optional": true
+        },
+        {
+          "name": "assigned_sales_subjects",
+          "type": "[]string",
+          "min": 0,
+          "max": 50,
+          "gorm": "-",
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "territoryInput",
+      "schema": "supplyTerritoryInputSchema",
+      "embed": "TerritoryFields",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740990
+        }
+      ]
+    },
+    {
+      "name": "AccessGrantFields",
+      "schema": "supplyAccessGrantFieldsSchema",
+      "fields": [
+        {
+          "name": "subject",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "pattern": "^[A-Za-z0-9._:@|+\\-]{1,200}$"
+        },
+        {
+          "name": "role",
+          "type": "string",
+          "enum": [
+            "administrator",
+            "purchasing",
+            "finance",
+            "compliance",
+            "auditor",
+            "warehouse",
+            "sales",
+            "driver",
+            "inventory",
+            "picker",
+            "packer",
+            "dispatcher",
+            "regulator"
+          ]
+        },
+        {
+          "name": "premise_id",
+          "type": "uuid",
+          "optional": true
+        },
+        {
+          "name": "valid_from",
+          "type": "string",
+          "min": 20,
+          "max": 35,
+          "format": "datetime"
+        },
+        {
+          "name": "expires_at",
+          "type": "string",
+          "min": 20,
+          "max": 35,
+          "format": "datetime"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 5,
+          "max": 500,
+          "trim": true
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "enum": ["active", "revoked"]
+        }
+      ]
+    },
+    {
+      "name": "accessGrantInput",
+      "schema": "supplyAccessGrantInputSchema",
+      "embed": "AccessGrantFields",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740990
+        }
+      ],
+      "date_order": {
+        "start": "valid_from",
+        "end": "expires_at"
+      },
+      "scope_export": "supplyAccessScopePolicy",
+      "scope_policy": {
+        "global_only": [
+          "administrator",
+          "purchasing",
+          "finance",
+          "compliance",
+          "sales"
+        ],
+        "location_required": ["regulator"],
+        "location_optional": [
+          "warehouse",
+          "inventory",
+          "picker",
+          "packer",
+          "dispatcher",
+          "driver",
+          "auditor"
+        ],
+        "premise_kinds": ["warehouse", "depot"]
+      }
+    },
+    {
+      "name": "DeliveryTaskFields",
+      "schema": "supplyDeliveryTaskFieldsSchema",
+      "fields": [
+        {
+          "name": "code",
+          "type": "string",
+          "min": 1,
+          "max": 40,
+          "trim": true,
+          "upper": true,
+          "pattern": "^[A-Z0-9][A-Z0-9._-]{0,39}$"
+        },
+        {
+          "name": "source_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true
+        },
+        {
+          "name": "destination_business_name",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "destination_line1",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "destination_line2",
+          "type": "string",
+          "min": 0,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "destination_city",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true
+        },
+        {
+          "name": "destination_region",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true
+        },
+        {
+          "name": "destination_postal_code",
+          "type": "string",
+          "min": 1,
+          "max": 20,
+          "trim": true
+        },
+        {
+          "name": "country_code",
+          "type": "string",
+          "country_profile": true
+        },
+        {
+          "name": "business_contact_name",
+          "type": "string",
+          "min": 0,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "business_contact_phone",
+          "type": "string",
+          "min": 0,
+          "max": 16,
+          "trim": true,
+          "pattern": "^(?:|\\+[1-9][0-9]{7,14})$"
+        },
+        {
+          "name": "window_start",
+          "type": "string",
+          "min": 20,
+          "max": 35,
+          "trim": true,
+          "format": "datetime"
+        },
+        {
+          "name": "window_end",
+          "type": "string",
+          "min": 20,
+          "max": 35,
+          "trim": true,
+          "format": "datetime"
+        },
+        {
+          "name": "package_count",
+          "type": "int",
+          "min": 1,
+          "max": 100000
+        },
+        {
+          "name": "handling_notes",
+          "type": "string",
+          "min": 0,
+          "max": 500,
+          "trim": true
+        },
+        {
+          "name": "driver_subject",
+          "type": "string",
+          "min": 0,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "assignment_expires_at",
+          "type": "string",
+          "min": 0,
+          "max": 35,
+          "trim": true
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "enum": ["draft", "assigned", "cancelled"]
+        }
+      ]
+    },
+    {
+      "name": "deliveryTaskInput",
+      "schema": "supplyDeliveryTaskInputSchema",
+      "embed": "DeliveryTaskFields",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740990
+        },
+        {
+          "name": "change_reason",
+          "type": "string",
+          "min": 5,
+          "max": 500,
+          "trim": true
+        }
+      ],
+      "date_order": {
+        "start": "window_start",
+        "end": "window_end"
+      }
+    },
+    {
+      "name": "deliveryActionInput",
+      "schema": "supplyDeliveryActionInputSchema",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740990
+        },
+        {
+          "name": "expected_assignment_generation",
+          "type": "int64",
+          "min": 1,
+          "max": 9007199254740990
+        },
+        {
+          "name": "action",
+          "type": "string",
+          "enum": ["start", "deliver", "exception"]
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 5,
+          "max": 500,
+          "trim": true
+        }
+      ]
+    },
+    {
+      "name": "SupportRequestFields",
+      "schema": "supplySupportRequestFieldsSchema",
+      "fields": [
+        {
+          "name": "beneficiary_subject",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "pattern": "^[A-Za-z0-9._:@|+\\-]{1,200}$"
+        },
+        {
+          "name": "premise_id",
+          "type": "uuid"
+        },
+        {
+          "name": "ticket_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 5,
+          "max": 500,
+          "trim": true
+        },
+        {
+          "name": "valid_from",
+          "type": "string",
+          "min": 20,
+          "max": 35,
+          "format": "datetime"
+        },
+        {
+          "name": "expires_at",
+          "type": "string",
+          "min": 20,
+          "max": 35,
+          "format": "datetime"
+        }
+      ]
+    },
+    {
+      "name": "supportRequestInput",
+      "schema": "supplySupportRequestInputSchema",
+      "embed": "SupportRequestFields",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740990
+        }
+      ],
+      "date_order": {
+        "start": "valid_from",
+        "end": "expires_at"
+      }
+    },
+    {
+      "name": "supportDecisionInput",
+      "schema": "supplySupportDecisionInputSchema",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 1,
+          "max": 9007199254740990
+        },
+        {
+          "name": "action",
+          "type": "string",
+          "enum": ["approve", "reject", "revoke"]
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 5,
+          "max": 500,
+          "trim": true
+        }
+      ]
+    },
+    {
+      "name": "supportRevokeInput",
+      "schema": "supplySupportRevokeInputSchema",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 1,
+          "max": 9007199254740990
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 5,
+          "max": 500,
+          "trim": true
+        }
+      ]
+    },
+    {
+      "name": "accessLimitsInput",
+      "schema": "supplyAccessLimitsInputSchema",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740990
+        },
+        {
+          "name": "max_grant_hours",
+          "type": "int64",
+          "min": 1,
+          "max": 8784
+        },
+        {
+          "name": "max_support_hours",
+          "type": "int64",
+          "min": 1,
+          "max": 24
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 5,
+          "max": 500,
+          "trim": true
+        }
+      ]
     }
   ]
 }

@@ -1,5 +1,7 @@
 import { z } from "zod";
 import {
+  pharmacyStorageAddressSchema,
+  pharmacyLocationInputSchema,
   pharmacyProductInputSchema,
   pharmacyProductFieldsSchema,
   pharmacyMovementInputSchema,
@@ -42,11 +44,9 @@ export type PharmacyProduct = z.infer<typeof pharmacyProductFieldsSchema> & {
   created_at: string;
   updated_at: string;
 };
-export type PharmacyLocation = {
+export type PharmacyLocation = z.infer<typeof pharmacyLocationInputSchema> & {
   id: string;
   outlet_id: string;
-  code: string;
-  name: string;
   stock_status: "quarantine";
   created_at: string;
 };
@@ -78,6 +78,7 @@ export type PharmacyStockPosition = z.infer<typeof pharmacyStockExpiryFieldsSche
   product_id: string;
   location_code: string;
   location_name: string;
+  storage_address?: PharmacyLocation["storage_address"];
   sku: string;
   brand_name: string;
   unit_of_issue: string;
@@ -258,3 +259,19 @@ export type PharmacySafetyIncident = Omit<
   actor_subject: string;
   recorded_at: string;
 };
+
+export function formatPharmacyStorageAddress(
+  address?: z.infer<typeof pharmacyStorageAddressSchema> | null,
+) {
+  const parts = (
+    [
+      ["Zone", address?.zone_code],
+      ["Aisle", address?.aisle_code],
+      ["Rack", address?.rack_code],
+      ["Shelf", address?.shelf_code],
+    ] as const
+  )
+    .filter(([, code]) => code)
+    .map(([label, code]) => `${label} ${code}`);
+  return parts.length ? parts.join(" · ") : "Address not recorded";
+}

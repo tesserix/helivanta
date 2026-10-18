@@ -75,6 +75,31 @@ export const pharmacyMovementInputSchema = z
   })
   .strict();
 
+export const pharmacyStorageAddressSchema = z
+  .object({
+    zone_code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(new RegExp("^(?:[A-Z0-9][A-Z0-9._-]{0,31})?$"), "Use the required format."),
+    aisle_code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(new RegExp("^(?:[A-Z0-9][A-Z0-9._-]{0,31})?$"), "Use the required format."),
+    rack_code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(new RegExp("^(?:[A-Z0-9][A-Z0-9._-]{0,31})?$"), "Use the required format."),
+    shelf_code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(new RegExp("^(?:[A-Z0-9][A-Z0-9._-]{0,31})?$"), "Use the required format."),
+  })
+  .strict();
+
 export const pharmacyLocationInputSchema = z
   .object({
     code: z
@@ -85,6 +110,7 @@ export const pharmacyLocationInputSchema = z
       .max(40)
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
     name: z.string().trim().min(1).max(200),
+    storage_address: pharmacyStorageAddressSchema.nullable().optional(),
   })
   .strict();
 

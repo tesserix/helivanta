@@ -21,13 +21,14 @@ import (
 )
 
 type stockLocation struct {
-	ID          uuid.UUID `json:"id"`
-	TenantID    uuid.UUID `json:"-"`
-	OutletID    uuid.UUID `json:"outlet_id"`
-	Code        string    `json:"code"`
-	Name        string    `json:"name"`
-	StockStatus string    `json:"stock_status"`
-	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime:false;default:now()"`
+	StorageAddress StorageAddressFields `json:"storage_address" gorm:"embedded"`
+	ID             uuid.UUID            `json:"id"`
+	TenantID       uuid.UUID            `json:"-"`
+	OutletID       uuid.UUID            `json:"outlet_id"`
+	Code           string               `json:"code"`
+	Name           string               `json:"name"`
+	StockStatus    string               `json:"stock_status"`
+	CreatedAt      time.Time            `json:"created_at" gorm:"autoCreateTime:false;default:now()"`
 }
 
 func (stockLocation) TableName() string                 { return "pharmacy_stock_locations" }
@@ -72,7 +73,7 @@ func (r stockMovement) MarshalJSON() ([]byte, error) {
 }
 
 const batchColumns = "id,tenant_id,outlet_id,product_id,product_version,lot_number,to_char(expires_on,'YYYY-MM-DD') AS expires_on,to_char(manufactured_on,'YYYY-MM-DD') AS manufactured_on,created_at"
-const locationColumns = "id,tenant_id,outlet_id,code,name,stock_status,created_at"
+const locationColumns = "id,tenant_id,outlet_id,code,name,zone_code,aisle_code,rack_code,shelf_code,stock_status,created_at"
 const movementColumns = "id,tenant_id,outlet_id,location_id,batch_id,kind,quantity_units,reason,source_reference,actor_subject,created_at"
 
 var errStockIdentity = errors.New("stock identity is immutable")
@@ -144,6 +145,17 @@ func (h *catalogueHandlers) putLocation(c *gin.Context) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid stock location")
 		return
 	}
+	address := StorageAddressFields{}
+	if in.StorageAddress != nil {
+		address = *in.StorageAddress
+	}
+	for _, code := range []*string{&address.ZoneCode, &address.AisleCode, &address.RackCode, &address.ShelfCode} {
+		*code = strings.ToUpper(strings.TrimSpace(*code))
+		if len(*code) > 32 || (*code != "" && !skuPattern.MatchString(*code)) {
+			respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid storage address code")
+			return
+		}
+	}
 	var result stockLocation
 	err := h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) error {
 		if err := stockLock(tx, p.TenantID+":"+outlet.String()+":"+id.String()); err != nil {
@@ -151,7 +163,7 @@ func (h *catalogueHandlers) putLocation(c *gin.Context) {
 		}
 		err := tx.Select(locationColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&result).Error
 		if err == nil {
-			if result.Code != in.Code || result.Name != in.Name {
+			if result.Code != in.Code || result.Name != in.Name || result.StorageAddress != address {
 				return errStockIdentity
 			}
 			return nil
@@ -159,7 +171,7 @@ func (h *catalogueHandlers) putLocation(c *gin.Context) {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
-		result = stockLocation{ID: id, TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, Code: in.Code, Name: in.Name, StockStatus: "quarantine"}
+		result = stockLocation{ID: id, TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, Code: in.Code, Name: in.Name, StockStatus: "quarantine", StorageAddress: address}
 		return tx.Create(&result).Error
 	})
 	if err != nil {

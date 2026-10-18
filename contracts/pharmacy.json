@@ -205,6 +205,40 @@
       ]
     },
     {
+      "name": "StorageAddressFields",
+      "schema": "pharmacyStorageAddressSchema",
+      "fields": [
+        {
+          "name": "zone_code",
+          "type": "string",
+          "trim": true,
+          "upper": true,
+          "pattern": "^(?:[A-Z0-9][A-Z0-9._-]{0,31})?$"
+        },
+        {
+          "name": "aisle_code",
+          "type": "string",
+          "trim": true,
+          "upper": true,
+          "pattern": "^(?:[A-Z0-9][A-Z0-9._-]{0,31})?$"
+        },
+        {
+          "name": "rack_code",
+          "type": "string",
+          "trim": true,
+          "upper": true,
+          "pattern": "^(?:[A-Z0-9][A-Z0-9._-]{0,31})?$"
+        },
+        {
+          "name": "shelf_code",
+          "type": "string",
+          "trim": true,
+          "upper": true,
+          "pattern": "^(?:[A-Z0-9][A-Z0-9._-]{0,31})?$"
+        }
+      ]
+    },
+    {
       "name": "locationInput",
       "schema": "pharmacyLocationInputSchema",
       "fields": [
@@ -223,6 +257,12 @@
           "min": 1,
           "max": 200,
           "trim": true
+        },
+        {
+          "name": "storage_address",
+          "type": "StorageAddressFields",
+          "optional": true,
+          "gorm": "embedded"
         }
       ]
     },

@@ -1,0 +1,22 @@
+{
+  "name": "@helivanta/emergency-access",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "format:check": "prettier --check . --ignore-path ../../.prettierignore",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@helivanta/config": "workspace:*",
+    "@types/node": "24.19.1",
+    "eslint": "^9.18.0",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.11"
+  },
+  "prettier": "@helivanta/config/prettier"
+}

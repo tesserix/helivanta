@@ -30,7 +30,13 @@ const PUBLIC_PATHS = ["/login", "/api/auth", "/api/v1/auth/login", "/api/v1/auth
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (pathname === "/" || pathname === "/signup" || pathname === "/icon.svg") {
+  if (
+    pathname === "/" ||
+    pathname === "/signup" ||
+    pathname === "/icon.svg" ||
+    pathname === "/ambulance" ||
+    pathname === "/api/emergency/access"
+  ) {
     return NextResponse.next();
   }
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {

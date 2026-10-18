@@ -35,6 +35,13 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"emergency.FleetChangedData.BaseID":                 "opaque operating-base scope; no hospital identity or address",
+	"emergency.FleetChangedData.ResourceID":             "opaque fleet mutation reference; no registration, staff subject or qualification",
+	"emergency.FleetChangedData.Operation":              "fixed fleet mutation vocabulary; no measurements, location or verification evidence",
+	"emergency.CaseChangedData.BaseID":                  "opaque operating-base scope; no address, facility name or staff identity",
+	"emergency.CaseChangedData.CaseID":                  "opaque internal case reference requiring authorized lookup; no patient identity or clinical content",
+	"emergency.CaseChangedData.Version":                 "monotonic version for idempotent invalidation; no patient attributes",
+	"emergency.CaseChangedData.Status":                  "bounded received/closed lifecycle; no triage priority, clinical outcome or narrative",
 	"supply.OperationalAccessLimitsUpdatedData.PartyID": "opaque organisation policy owner reference; no identities, limit values or reasons",
 	"supply.OperationalAccessLimitsUpdatedData.Version": "monotonic operational limit revision; no grant, member or support attributes",
 	"supply.CorporateUpdatedData.PartyID":               "opaque corporate-structure owner reference; no parent legal identity or contacts",

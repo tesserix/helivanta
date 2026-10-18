@@ -1,5 +1,6 @@
 import {
   Building2,
+  Ambulance,
   BedDouble,
   CalendarDays,
   Users,
@@ -32,6 +33,22 @@ export type Zone = {
 // renders them with next/link, so moving between zones is client-side
 // navigation (#933).
 export const ZONES: Zone[] = [
+  {
+    key: "emergency",
+    label: "EmergencyConnect",
+    icon: Ambulance,
+    href: "/emergency",
+    permission: "emergency.base.read",
+    hue: "rose",
+    pages: [
+      {
+        label: "Operating bases & reports",
+        href: "/emergency",
+        icon: Ambulance,
+        permission: "emergency.base.read",
+      },
+    ],
+  },
   {
     key: "dashboard",
     label: "Dashboard",

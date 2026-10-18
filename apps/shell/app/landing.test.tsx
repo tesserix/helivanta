@@ -45,3 +45,11 @@ it("covers the platform catalogue without presenting planned clinical workflows 
   expect(within(patients).getByText("Foundation available")).toBeInTheDocument();
   expect(within(platform).getByText(/Availability varies by module/)).toBeInTheDocument();
 });
+
+it("offers public emergency call access from the homepage", () => {
+  renderWithProviders(<LandingPage />);
+  expect(screen.getByRole("link", { name: "Emergency help" })).toHaveAttribute(
+    "href",
+    "/ambulance",
+  );
+});

@@ -28,6 +28,7 @@ function isPublicPath(pathname: string): boolean {
   return (
     pathname === "/" ||
     pathname === "/signup" ||
+    pathname === "/ambulance" ||
     pathname.startsWith("/login") ||
     pathname.startsWith(AUTH_CALLBACK_PATH)
   );

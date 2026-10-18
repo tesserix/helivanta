@@ -58,11 +58,11 @@ prompt for scripts.
 Seeded accounts (Zitadel, verified by a real hosted-UI login as part of
 `make seed` — see `scripts/seed-dev.mjs`):
 
-| User                 | Password      | Tenant                 | Role           | Sees              |
-| -------------------- | ------------- | ---------------------- | -------------- | ----------------- |
-| `test@helivanta.dev`       | `HmsDev123!`  | `1111…1111` (default)  | `tenant_admin` | every zone        |
-| `test@helivanta.dev`       | `HmsDev123!`  | `2222…2222`            | `pharmacist`   | Pharmacy only     |
-| `pharmacist@helivanta.dev` | `HmsDev123!`  | `1111…1111`            | `pharmacist`   | Pharmacy only     |
+| User                       | Password     | Tenant                | Role           | Sees          |
+| -------------------------- | ------------ | --------------------- | -------------- | ------------- |
+| `test@helivanta.dev`       | `HmsDev123!` | `1111…1111` (default) | `tenant_admin` | every zone    |
+| `test@helivanta.dev`       | `HmsDev123!` | `2222…2222`           | `pharmacist`   | Pharmacy only |
+| `pharmacist@helivanta.dev` | `HmsDev123!` | `1111…1111`           | `pharmacist`   | Pharmacy only |
 
 `test@helivanta.dev` is deliberately a member of **two** tenants so tenant
 switching is exercisable end to end: OpenFGA
@@ -115,9 +115,9 @@ else, and the app's OIDC redirect URIs are registered against
 This is deliberate, and it is not cosmetic (#916, design spec D6). Production
 serves the app at `helivanta.app` and the IdP at `auth.tesserix.app` —
 **different registrable domains**, so every browser request from the app to the
-IdP is *cross-site* and a `SameSite=Lax` IdP cookie is withheld. The old dev
+IdP is _cross-site_ and a `SameSite=Lax` IdP cookie is withheld. The old dev
 setup put both on `localhost` and differed only by port, and **ports are not
-part of a "site"** — so dev was *same-site*, a cross-site defect worked
+part of a "site"** — so dev was _same-site_, a cross-site defect worked
 perfectly here, and #916 reached production with no test able to fail.
 `helivanta.localhost` and `tesserix.localhost` are distinct registrable domains,
 so dev now reproduces production's relationship;
@@ -186,7 +186,7 @@ the containers themselves. See `.env.example` for the full variable list.
   `docs/superpowers/spikes/2026-08-15-zitadel-spike.md`'s "Task 0"). This
   means `make seed` needs a Chromium binary Playwright can drive —
   `pnpm install` pulls in `@playwright/test`; run `pnpm exec playwright
-  install chromium` once if seeding fails with a "browser not found" error.
+install chromium` once if seeding fails with a "browser not found" error.
 - Backend tests need Docker (testcontainers): `cd backend && go test ./...`
 - `make verify-local` retries the web check: `next dev` compiles a route on
   its first request, so a cold route can take tens of seconds to answer once
@@ -210,7 +210,6 @@ the containers themselves. See `.env.example` for the full variable list.
 
 Deployment lives in `tesserix-k8s` (charts/apps/hms-*), not here.
 
-
 The backend toolchain is pinned to Go 1.27.2 in `backend/go.mod`. Make targets
 and preflight select that exact toolchain; CI reads the module version, and the
 shared Docker builder explicitly selects `go1.27.2`. Install the linter with
@@ -219,3 +218,21 @@ the matching toolchain if an older binary refuses the module:
 ```sh
 GOTOOLCHAIN=go1.27.2 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 ```
+
+## AmbulanceConnect / EmergencyConnect
+
+The citizen emergency-access app lives in
+[`apps/ambulanceconnect`](apps/ambulanceconnect/README.md). The public web page
+is `/ambulance`; calling information is also exposed by the read-only
+`GET /api/emergency/access?country=IN|OTHER`. This first slice provides emergency
+calling, not live ambulance booking.
+
+[India research](docs/research/2026-10-18-india-emergency-transport.md),
+[design](docs/superpowers/specs/2026-10-18-ambulanceconnect-design.md) and
+[delivery plan](docs/superpowers/plans/2026-10-18-ambulanceconnect-plan.md) map the
+citizen, dispatch, fleet, crew, hospital and CRM work under
+[programme #1220](https://github.com/tesserix/helivanta/issues/1220).
+
+Staff intake and base-scoped case review are documented in
+[EmergencyConnect operations](docs/architecture/emergencyconnect-operations.md).
+The staff console is `/emergency`; public calling remains `/ambulance`.

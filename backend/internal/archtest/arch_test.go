@@ -26,6 +26,7 @@ import (
 	"golang.org/x/tools/go/packages"
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/modules/emergency"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/modules/lab"
@@ -50,7 +51,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil), reference.New(), medicore.New(), pharmacy.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
+	return []platform.Module{iam.New(nil), reference.New(), emergency.New(), medicore.New(), pharmacy.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under
@@ -341,6 +342,8 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /emergency/bases/:base/access":                                     "one current-subject base grant; no other subject or clinical information",
+	"GET /emergency/bases/:base/cases/:case":                                "one audited base-scoped encrypted case; queue and timeline use cursor pagination",
 	"GET /workforce/hospitals/:hospital/insights":                           "one explicitly hospital-grant-checked snapshot, bounded to seven job categories and two employment statuses",
 	"GET /medicore/insights":                                                "one aggregate response, maximum 366 calendar buckets and two clinical categories; no patient rows",
 	"GET /pharmacy/insights":                                                "one aggregate response, maximum 366 calendar buckets and two dispense statuses; no patient rows",
@@ -483,9 +486,11 @@ var withAdminAllowlist = map[string]bool{
 // for these three callers alone. Adding a file here is an RLS-bypass
 // decision and belongs in code review, not a casual addition.
 var withAllTenantsAllowlist = map[string]bool{
-	"internal/platform/reconcile.go": true,
-	"pkg/events/bus.go":              true,
-	"pkg/events/retention.go":        true,
+	// #1227: bounded contact expiry maintenance, invoked only by the retention binary; never a request handler.
+	"internal/modules/emergency/retention.go": true,
+	"internal/platform/reconcile.go":          true,
+	"pkg/events/bus.go":                       true,
+	"pkg/events/retention.go":                 true,
 	// The one _test.go entry, here because the ASSERTIONS need the bypass
 	// rather than the code under test. cmd/bootstrap/main.go uses
 	// WithTenant — its write is scoped by the policy, not exempt from it —

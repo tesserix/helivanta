@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -357,6 +358,10 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 		if err := replaceEnrollmentRows(tx, p.TenantID, hospital, id, in); err != nil {
 			return err
 		}
+		// Surface the deferred reviewed-credential key here, as a mapped error, rather than at commit.
+		if err := tx.Exec(`SET CONSTRAINTS workforce_credential_validity_enrolled IMMEDIATE`).Error; err != nil {
+			return err
+		}
 		if err := tx.Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error; err != nil {
 			return err
 		}
@@ -376,6 +381,11 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 	})
 	if errors.Is(err, errEnrollmentVersion) {
 		respond.Conflict(c, "Staff changed since you opened this form. Reload before saving.")
+		return
+	}
+	var pg *pgconn.PgError
+	if errors.As(err, &pg) && (pg.ConstraintName == "workforce_credential_reviewed" || pg.ConstraintName == "workforce_credential_validity_enrolled") {
+		respond.ConflictWithDetail(c, "A reviewed credential changes only through a credential review, and cannot be removed.", gin.H{"reason": "credential_reviewed"})
 		return
 	}
 	if err != nil {

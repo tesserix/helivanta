@@ -289,3 +289,26 @@ type TaxDeclarationPartyRevealedData struct {
 	Role       string `json:"role"`
 	Position   int    `json:"position"`
 }
+
+// SubjectCredentialReviewChanged reports a credential review proposal or decision; payloads never carry numbers, issuers or dates.
+const SubjectCredentialReviewChanged = "helivanta.in.workforce.credential_review_changed.v1" //nolint:gosec // G101: an event subject, not a secret
+
+type CredentialReviewChangedData struct {
+	HospitalID   string `json:"hospital_id"`
+	StaffID      string `json:"staff_id"`
+	CredentialID string `json:"credential_id"`
+	ReviewID     string `json:"review_id"`
+	Status       string `json:"status"`
+	Version      int64  `json:"version"`
+}
+
+// SubjectCredentialValidityChanged reports that an approved review replaced a credential's reviewed validity.
+const SubjectCredentialValidityChanged = "helivanta.in.workforce.credential_validity_changed.v1" //nolint:gosec // G101: an event subject, not a secret
+
+type CredentialValidityChangedData struct {
+	HospitalID   string `json:"hospital_id"`
+	StaffID      string `json:"staff_id"`
+	CredentialID string `json:"credential_id"`
+	ReviewID     string `json:"review_id"`
+	Version      int64  `json:"version"`
+}

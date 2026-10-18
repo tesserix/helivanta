@@ -27,6 +27,9 @@ func setupWithTransit(t *testing.T, v *transit.Client) *fixture {
 	return setupWithSubjectAliases(t, v, nil)
 }
 func setupWithSubjectAliases(t *testing.T, v *transit.Client, aliases map[string]string, entry ...bool) *fixture {
+	return setupWithOwner(t, v, aliases, false, entry...)
+}
+func setupWithOwner(t *testing.T, v *transit.Client, aliases map[string]string, productionOwner bool, entry ...bool) *fixture {
 	t.Helper()
 	all := []authz.Permission{"emergency.receiving.manage", "emergency.receiving.read", "emergency.receiving.act", "emergency.crew.read", "emergency.crew.act", "emergency.base.manage", "emergency.base.read", "emergency.case.read", "emergency.case.intake", "emergency.dispatch.manage", "emergency.case.close", "emergency.fleet.read", "emergency.fleet.manage", "emergency.fleet.check", "emergency.clinical.manage", "emergency.case.assess"}
 	tokens := map[string]string{"admin": testutil.TenantA, "verifier": testutil.TenantA, "dispatcher": testutil.TenantA, "supervisor": testutil.TenantA, "reader": testutil.TenantA, "doctor": testutil.TenantA, "driver": testutil.TenantA, "medic": testutil.TenantA, "unassigned": testutil.TenantA, "other": testutil.TenantB, "badmin": testutil.TenantB, "bdispatcher": testutil.TenantB, "bsupervisor": testutil.TenantB, "bdoctor": testutil.TenantB, "bdriver": testutil.TenantB, "bmedic": testutil.TenantB, "bmanager": testutil.TenantB, "breceiver": testutil.TenantB}
@@ -42,7 +45,7 @@ func setupWithSubjectAliases(t *testing.T, v *transit.Client, aliases map[string
 	for _, name := range []string{"dispatcher", "supervisor", "doctor", "driver", "medic"} {
 		perms["b"+name] = perms[name]
 	}
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{EmergencyDispatchEnabled: len(entry) == 0 || entry[0], Transit: v, Tokens: tokens, Perms: perms, Verifier: subjectAliasVerifier{tokens: tokens, aliases: aliases}, Modules: []platform.Module{emergency.New()}})
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{ProductionOwner: productionOwner, EmergencyDispatchEnabled: len(entry) == 0 || entry[0], Transit: v, Tokens: tokens, Perms: perms, Verifier: subjectAliasVerifier{tokens: tokens, aliases: aliases}, Modules: []platform.Module{emergency.New()}})
 	return &fixture{r: r, db: db, base: uuid.Must(uuid.NewV7()).String()}
 }
 func (f *fixture) path() string { return "/v1/emergency/bases/" + f.base }

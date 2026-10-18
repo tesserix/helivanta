@@ -48,6 +48,9 @@ var dispatchWorkerSchema string
 //go:embed receiving.sql
 var receivingSchema string
 
+//go:embed schema_owner.sql
+var schemaOwnerSQL string
+
 //go:embed contract/intake.json
 var intakeCatalogue string
 
@@ -56,7 +59,7 @@ type Module struct{}
 func New() *Module             { return &Module{} }
 func (m *Module) Name() string { return "emergency" }
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_emergency", SQL: schema}, {ID: "0002_emergency", SQL: fleetSchema}, {ID: "0003_emergency", SQL: transportReviewSchema}, {ID: "0004_emergency", SQL: dispatchContractSchema + "\n" + dispatchSchema}, {ID: "0005_emergency", SQL: dispatchWorkerSchema}, {ID: "0006_emergency", SQL: receivingSchema}}
+	return []tenantdb.Migration{{ID: "0001_emergency", SQL: schema}, {ID: "0002_emergency", SQL: fleetSchema}, {ID: "0003_emergency", SQL: transportReviewSchema}, {ID: "0004_emergency", SQL: dispatchContractSchema + "\n" + dispatchSchema}, {ID: "0005_emergency", SQL: dispatchWorkerSchema}, {ID: "0006_emergency", SQL: receivingSchema}, {ID: "0007_emergency", SQL: schemaOwnerSQL}}
 }
 func (m *Module) Permissions() []authz.Grant {
 	operators := []authz.Role{authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor}

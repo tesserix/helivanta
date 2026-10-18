@@ -163,6 +163,7 @@ func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
 // SessionSigner/SessionTTL explicitly, typically from
 // NewSessionSignerForTest.
 type HarnessOptions struct {
+	ProductionOwner          bool
 	EmergencyDispatchEnabled bool
 	OrganizationIdentity     *organizationidentity.Client
 	Documents                *attachments.GCS
@@ -242,7 +243,11 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		idleTimeout = TestSessionTTL
 	}
 
-	appDSN, adminDSN, systemDSN := testinfra.StartPostgres(t)
+	start := testinfra.StartPostgres
+	if opts.ProductionOwner {
+		start = testinfra.StartProductionOwnerPostgres
+	}
+	appDSN, adminDSN, systemDSN := start(t)
 	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 

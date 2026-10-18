@@ -57,7 +57,7 @@ intake/read. NATS failure retains committed intent. Temporal failure leaves
 visible pending work and held capacity. Telephony/routing failure provides no ETA
 or acceptance claim; staff follow the approved fallback.
 
-Add forward-only migration `0006_emergency` after the unpublished dispatch migrations. Test
+Add forward-only migration `0006_emergency` and `0007_emergency` after the unpublished dispatch migrations. Test
 against disposable Postgres, including cross-tenant and unassigned denial,
 concurrent decisions, lost-response replay, revoked/expired delegation and
 acceptance, destination supersession and both handover signatures. Rollback stops

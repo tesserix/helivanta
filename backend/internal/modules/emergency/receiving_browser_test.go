@@ -22,7 +22,7 @@ func TestReceivingTransportBrowser(t *testing.T) {
 	parsed, err := url.Parse(origin)
 	require.NoError(t, err)
 	require.Contains(t, []string{"localhost", "127.0.0.1"}, parsed.Hostname())
-	f := setupWithTransit(t, vault(t))
+	f := setupWithOwner(t, vault(t), nil, true)
 	dispatch := prepareScene(t, f)
 	facility := prepareReceivingFacility(t, f)
 	prepareReceivingLink(t, f, facility)

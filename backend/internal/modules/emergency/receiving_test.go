@@ -207,7 +207,27 @@ func tripCommand(t *testing.T, f *fixture, dispatch, actor, operation string, ve
 	return w.Code
 }
 func TestTransportWaitsForAcceptanceAndTwoHandoverSubjects(t *testing.T) {
-	f := setupWithTransit(t, vault(t))
+	verifyTransportAndIndependentReceipt(t, setupWithTransit(t, vault(t)))
+}
+func TestProductionNamedOwnerCanOfferAndCompleteIndependentHospitalReceipt(t *testing.T) {
+	f := setupWithOwner(t, vault(t), nil, true)
+	verifyTransportAndIndependentReceipt(t, f)
+	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		var owner bool
+		if err := tx.Raw(`SELECT emergency_schema_owner()`).Scan(&owner).Error; err != nil {
+			return err
+		}
+		require.False(t, owner, "an application connection cannot impersonate the relation owner")
+		var stale int64
+		if err := tx.Raw(`SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename LIKE 'emergency_%' AND (qual LIKE '%hms_owner%' OR with_check LIKE '%hms_owner%')`).Scan(&stale).Error; err != nil {
+			return err
+		}
+		require.Zero(t, stale, "all emergency policies must resolve the actual owner")
+		return nil
+	}))
+}
+func verifyTransportAndIndependentReceipt(t *testing.T, f *fixture) {
+	t.Helper()
 	dispatch := prepareScene(t, f)
 	require.Equal(t, 409, tripCommand(t, f, dispatch, "driver", "transporting", 6), "preference alone is not hospital acceptance")
 	facility := prepareReceivingFacility(t, f)

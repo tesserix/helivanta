@@ -28,3 +28,16 @@ Screenshots: [receiving](receiving-mobile.png), [crew transport](transport-mobil
 Public booking/status/cancellation, native booking/device evidence, canonical
 workforce qualification linkage and the clinical pilot safety case are not covered
 by this verification. Deployment evidence is recorded separately after promotion.
+
+A production-name regression reproduced a hidden owner assumption: the protected
+journey failed with the CNPG owner `helivanta` while passing under `hms_owner`.
+Forward migration `0007_emergency` resolves the actual relation owner without
+changing role attributes, grants, tenant predicates or existing migrations. Both
+owner variants now complete the same full journey. The receiving browser fixture
+uses the production-named non-superuser owner. The application connection remains
+unable to impersonate the owner, including when supplied purpose settings.
+
+The public GitHub run also caught a missing NOLOGIN emergency worker role in the
+fresh development bootstrap; the one-line role creation fixes that migration
+prerequisite. CI subsequently began running after the earlier billing failures;
+the fallback recipe remains documented for recovery, not a visibility workaround.

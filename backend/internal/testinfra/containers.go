@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -142,6 +143,7 @@ func sharedPostgres(t *testing.T) (host, port string) {
 		// roles and grants) and is never handed to code under test.
 		if err := runSQL(ctx, "hms", `
 			CREATE ROLE hms_owner LOGIN PASSWORD 'hms_owner' NOSUPERUSER NOBYPASSRLS;
+ CREATE ROLE helivanta LOGIN PASSWORD 'helivanta' NOSUPERUSER NOBYPASSRLS;
 			CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;
 			CREATE ROLE helivanta_emergency_worker LOGIN PASSWORD 'helivanta_emergency_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
  CREATE ROLE helivanta_document_worker LOGIN PASSWORD 'helivanta_document_worker' NOSUPERUSER NOBYPASSRLS;
@@ -501,4 +503,23 @@ func startOpenFGA(t *testing.T) (string, error) {
 		return "", fmt.Errorf("openfga endpoint: %w", err)
 	}
 	return url, nil
+}
+
+// StartProductionOwnerPostgres uses the CNPG owner's actual name without bypassing RLS.
+func StartProductionOwnerPostgres(t *testing.T) (string, string, string) {
+	t.Helper()
+	app, admin, system := StartPostgres(t)
+	parsed, err := url.Parse(admin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := strings.TrimPrefix(parsed.Path, "/")
+	if err := runSQL(t.Context(), name, `ALTER DATABASE `+name+` OWNER TO helivanta;
+ ALTER SCHEMA public OWNER TO helivanta;
+ ALTER DEFAULT PRIVILEGES FOR ROLE helivanta IN SCHEMA public GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO hms_app;
+ ALTER DEFAULT PRIVILEGES FOR ROLE helivanta IN SCHEMA public GRANT USAGE,SELECT ON SEQUENCES TO hms_app;`); err != nil {
+		t.Fatal(err)
+	}
+	parsed.User = url.UserPassword("helivanta", "helivanta")
+	return app, parsed.String(), system
 }

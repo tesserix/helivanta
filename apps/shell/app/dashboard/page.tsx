@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePermissions } from "@helivanta/api";
 import { HmsShell, visibleZones, type Zone, type ZoneHue } from "@helivanta/ui";
 import { TenantPicker } from "@/components/tenant-picker";
+import { OperationalDashboard } from "@/components/dashboard/operational-dashboard";
 
 // Per-page descriptions, keyed by href — the registry (packages/ui/src/zones.ts)
 // owns titles and hrefs, this map only supplies the dashboard-card copy.
@@ -11,8 +12,8 @@ const DESCRIPTIONS: Record<string, string> = {
   "/patients": "Hospital-scoped registration, patient search and consent receipts",
   "/workforce": "Hospital teams, staff profiles and employment status",
   "/settings/branding": "Your logo, medical theme and sign-in experience",
-  "/medicore/opd": "Outpatient registration & appointments",
-  "/medicore/ipd": "Admissions, beds & ward rounds",
+  "/medicore/opd": "Outpatient visit registrations",
+  "/medicore/ipd": "Inpatient visit registrations",
   "/pharmacy": "Dispensing & drug inventory",
   "/pharmacy/catalogue": "Medicine identities, pack details and catalogue history",
   "/pharmacy/stock": "Batch receiving, expiry dates and stock movement history",
@@ -69,11 +70,12 @@ export default function Dashboard() {
   // handleSignOut and zitadel-session.ts.
   return (
     <HmsShell active="/dashboard" tenantPicker={<TenantPicker />}>
+      <OperationalDashboard />
       <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
         <h2 className="text-sm font-semibold text-muted-foreground">Jump into a department</h2>
         <p className="text-xs text-muted-foreground">Manage visits, dispensing and lab work.</p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <nav aria-label="Department shortcuts" className="grid gap-4 sm:grid-cols-2">
         {cards.map((z) => (
           <Link
             key={z.href}
@@ -97,7 +99,7 @@ export default function Dashboard() {
             </span>
           </Link>
         ))}
-      </div>
+      </nav>
     </HmsShell>
   );
 }

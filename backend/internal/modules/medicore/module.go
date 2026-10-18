@@ -6,6 +6,7 @@ package medicore
 import (
 	medicorecontract "github.com/tesserix/helivanta/internal/modules/medicore/contract"
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/platform/insights"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -76,6 +77,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/medicore")
+	g.GET("/insights", PermVisitRead, insights.Counts(deps.DB, "medicore_visits", "department", []string{"OPD", "IPD"}))
 	visits := &visitHandlers{db: deps.DB, bus: deps.Bus}
 
 	g.POST("/visits", PermVisitCreate, visits.create)

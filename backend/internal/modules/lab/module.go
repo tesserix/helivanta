@@ -6,6 +6,7 @@ package lab
 import (
 	labcontract "github.com/tesserix/helivanta/internal/modules/lab/contract"
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/platform/insights"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -70,6 +71,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/lab")
+	g.GET("/insights", PermOrderRead, insights.Counts(deps.DB, "lab_orders", "status", []string{"pending", "completed"}))
 	orders := &orderHandlers{db: deps.DB, bus: deps.Bus}
 
 	platform.ListRoute(g, "/orders", PermOrderRead, orders.list)

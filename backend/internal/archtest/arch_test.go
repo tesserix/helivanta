@@ -341,6 +341,10 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /workforce/hospitals/:hospital/insights":                           "one explicitly hospital-grant-checked snapshot, bounded to seven job categories and two employment statuses",
+	"GET /medicore/insights":                                                "one aggregate response, maximum 366 calendar buckets and two clinical categories; no patient rows",
+	"GET /pharmacy/insights":                                                "one aggregate response, maximum 366 calendar buckets and two dispense statuses; no patient rows",
+	"GET /lab/insights":                                                     "one aggregate response, maximum 366 calendar buckets and two order statuses; no patient rows",
 	"GET /supply/parties/:party/access-limits":                              "one current organisation operational access-limit policy with two bounded integer limits; immutable revisions are cursor-paginated",
 	"GET /supply/parties/:party/grants/:grant":                              "one explicitly administrator-scoped versioned grant; the directory and revisions are cursor-paginated",
 	"GET /supply/parties/:party/corporate-structure":                        "one current corporate relationship with a nullable parent; revision history is paginated",

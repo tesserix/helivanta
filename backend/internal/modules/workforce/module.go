@@ -206,6 +206,7 @@ func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &handlers{db: deps.DB, bus: deps.Bus, documents: deps.Documents, transit: deps.Transit}
 	g := r.Group("/workforce/hospitals")
+	g.GET("/:hospital/insights", authz.Public, h.insights)
 	platform.ListRoute(g, "", authz.Public, h.listHospitals)
 	g.PUT("/:hospital", PermHospitalManage, h.putHospital)
 	g.PUT("/:hospital/access/:subject", PermHospitalManage, h.putAccess)

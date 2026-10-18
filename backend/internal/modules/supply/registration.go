@@ -373,17 +373,23 @@ func (h *handlers) getLicense(c *gin.Context) {
 		return
 	}
 	var saved license
+	var result []licenseRead
 	e := h.transaction(c.Request.Context(), p, partyID, false, false, func(tx *gorm.DB) error {
 		if e := requireRoles(tx, p, partyID, registryReaders); e != nil {
 			return e
 		}
-		return tx.Select(licenseColumns).Where("tenant_id=? AND party_id=? AND id=?", p.TenantID, partyID, id).First(&saved).Error
+		if err := tx.Select(licenseColumns).Where("tenant_id=? AND party_id=? AND id=?", p.TenantID, partyID, id).First(&saved).Error; err != nil {
+			return err
+		}
+		var err error
+		result, err = licenceRenewalReads(tx, p, partyID, []license{saved})
+		return err
 	})
 	if e != nil {
 		registryError(c, e)
 		return
 	}
-	respond.OK(c, saved)
+	respond.OK(c, result[0])
 }
 func (h *handlers) listPremises(c *gin.Context, params pagination.Params) ([]premise, error) {
 	p, partyID, ok := registryScope(c)
@@ -402,20 +408,26 @@ func (h *handlers) listPremises(c *gin.Context, params pagination.Params) ([]pre
 	}
 	return rows, nil
 }
-func (h *handlers) listLicenses(c *gin.Context, params pagination.Params) ([]license, error) {
+func (h *handlers) listLicenses(c *gin.Context, params pagination.Params) ([]licenseRead, error) {
 	p, partyID, ok := registryScope(c)
 	if !ok {
 		return nil, nil
 	}
 	var rows []license
+	var result []licenseRead
 	e := h.transaction(c.Request.Context(), p, partyID, false, false, func(tx *gorm.DB) error {
 		if e := requireRoles(tx, p, partyID, registryReaders); e != nil {
 			return e
 		}
-		return tenantdb.ApplyKeyset(tx, params).Select(licenseColumns).Where("tenant_id=? AND party_id=?", p.TenantID, partyID).Find(&rows).Error
+		if err := tenantdb.ApplyKeyset(tx, params).Select(licenseColumns).Where("tenant_id=? AND party_id=?", p.TenantID, partyID).Find(&rows).Error; err != nil {
+			return err
+		}
+		var err error
+		result, err = licenceRenewalReads(tx, p, partyID, rows)
+		return err
 	})
 	if e != nil {
 		registryError(c, e)
 	}
-	return rows, nil
+	return result, e
 }

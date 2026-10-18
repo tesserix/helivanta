@@ -19,6 +19,37 @@ function wrapper({ children }: { children: ReactNode }) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("useApiPagedQuery", () => {
+  it("exposes a background refresh separately from loading another page", async () => {
+    let finish: (response: Response) => void = () => {};
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ data: [{ id: "first" }], page: { has_more: false, next_cursor: null } }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            finish = resolve;
+          }),
+      );
+    vi.stubGlobal("fetch", fetcher);
+    const { result } = renderHook(
+      () => useApiPagedQuery<{ id: string }>(["refresh-state"], "/rows"),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.items).toHaveLength(1));
+    expect(result.current.isRefreshing).toBe(false);
+    act(() => result.current.retry());
+    await waitFor(() => expect(result.current.isRefreshing).toBe(true));
+    expect(result.current.isFetchingMore).toBe(false);
+    act(() =>
+      finish(
+        jsonResponse({ data: [{ id: "updated" }], page: { has_more: false, next_cursor: null } }),
+      ),
+    );
+    await waitFor(() => expect(result.current.isRefreshing).toBe(false));
+    expect(result.current.items).toEqual([{ id: "updated" }]);
+  });
   it("pins a collection request to its tenant and cancels it when unmounted", async () => {
     const fetcher = vi.fn(
       (_url: string, init: RequestInit) =>

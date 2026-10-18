@@ -16,6 +16,7 @@ export type UseApiPagedQueryResult<T> = {
   loadMore: () => void;
   isPending: boolean;
   isFetchingMore: boolean;
+  isRefreshing: boolean;
   isError: boolean;
   error: Error | null;
   retry: () => void;
@@ -86,6 +87,7 @@ export function useApiPagedQuery<T>(
     },
     isPending: query.isPending,
     isFetchingMore: query.isFetchingNextPage,
+    isRefreshing: query.isFetching && !query.isFetchingNextPage,
   };
 }
 

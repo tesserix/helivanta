@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { PartyRegistration } from "./party-registration";
 const scope = {
@@ -10,6 +10,97 @@ const scope = {
 };
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 afterEach(() => vi.unstubAllGlobals());
+beforeEach(() => localStorage.clear());
+
+it("shows a server-calculated expiry notice in the saved premise timezone and focuses renewal", async () => {
+  const initial = fixture();
+  const licence = {
+    id: "0199e000-0000-7000-8000-000000000003",
+    version: 1,
+    kind: "WHOLESALE",
+    number: "TEST-RENEWAL",
+    issuing_authority: "TEST Authority",
+    jurisdiction: "TEST-Sindh",
+    premise_id: "0199e000-0000-7000-8000-000000000002",
+    issued_on: "2026-01-01",
+    expires_on: "2026-10-18",
+    product_categories: ["otc"],
+    renewal: {
+      date_status: "expires_today",
+      days_remaining: 0,
+      local_date: "2026-10-18",
+      time_zone: "Asia/Karachi",
+      observed_at: "2026-10-18T18:45:00Z",
+      premise_status: "active",
+    },
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/licenses")) return new Response(JSON.stringify(page([licence])));
+      return initial(url, init);
+    }),
+  );
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  renderWithProviders(<PartyRegistration scope={scope} country="PK" roles={["administrator"]} />);
+  expect(await screen.findByText("Expires today · renew now")).toBeInTheDocument();
+  expect(screen.getByText(/2026-10-18 · Asia\/Karachi/)).toBeInTheDocument();
+  expect(screen.getByText(/Date notice only/)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Edit licence TEST-RENEWAL" }));
+  await waitFor(() => expect(screen.getByLabelText("Licence type code")).toHaveFocus());
+});
+
+it("clears renewal notices during refresh and after a failed request", async () => {
+  const initial = fixture();
+  let reads = 0;
+  let finish: (response: Response) => void = () => {};
+  const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/licenses")) {
+      reads++;
+      if (reads > 1)
+        return new Promise<Response>((resolve) => {
+          finish = resolve;
+        });
+      return new Response(
+        JSON.stringify(
+          page([
+            {
+              id: "0199e000-0000-7000-8000-000000000003",
+              number: "TEST-EXPIRED",
+              kind: "WHOLESALE",
+              renewal: {
+                date_status: "expired",
+                days_remaining: -1,
+                local_date: "2026-10-19",
+                time_zone: "Asia/Kolkata",
+                observed_at: "2026-10-18T18:45:00Z",
+                premise_status: "inactive",
+              },
+            },
+          ]),
+        ),
+      );
+    }
+    return initial(url, init);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(<PartyRegistration scope={scope} country="IN" roles={["auditor"]} />);
+  expect(await screen.findByText("Expired 1 day ago · renew before review")).toBeInTheDocument();
+  expect(screen.getByText("Premise inactive · review operating details")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Refresh licence notices" }));
+  expect(await screen.findByText("Loading licences…")).toBeInTheDocument();
+  expect(screen.queryByText("Expired 1 day ago · renew before review")).not.toBeInTheDocument();
+  finish(
+    new Response(JSON.stringify({ error: "unavailable", message: "TEST unavailable" }), {
+      status: 503,
+    }),
+  );
+  expect(
+    await screen.findByText("Could not load private licence declarations."),
+  ).toBeInTheDocument();
+  expect(screen.queryByText("TEST-EXPIRED")).not.toBeInTheDocument();
+  expect(screen.queryByText(/Expired 1 day/)).not.toBeInTheDocument();
+});
 function fixture(
   permissions = [
     "supply.premise.read",

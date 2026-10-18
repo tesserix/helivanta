@@ -1100,6 +1100,52 @@
           "trim": true
         }
       ]
+    },
+    {
+      "name": "LicenseRenewalFields",
+      "schema": "supplyLicenseRenewalSchema",
+      "fields": [
+        {
+          "name": "date_status",
+          "type": "string",
+          "enum": [
+            "not_yet_valid",
+            "expired",
+            "expires_today",
+            "renewal_due_30",
+            "renewal_due_90",
+            "renewal_due_180",
+            "current"
+          ]
+        },
+        {
+          "name": "days_remaining",
+          "type": "int",
+          "min": -3652059,
+          "max": 3652059
+        },
+        {
+          "name": "local_date",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "time_zone",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "observed_at",
+          "type": "string",
+          "format": "datetime"
+        },
+        {
+          "name": "premise_status",
+          "type": "string",
+          "enum": ["active", "inactive"]
+        }
+      ]
     }
   ]
 }

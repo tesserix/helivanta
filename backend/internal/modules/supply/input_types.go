@@ -318,3 +318,12 @@ type accessLimitsInput struct {
 	MaxSupportHours int64  `json:"max_support_hours" binding:"min=1,max=24"`
 	Reason          string `json:"reason" binding:"required,min=5,max=500"`
 }
+
+type LicenseRenewalFields struct {
+	DateStatus    string `json:"date_status" binding:"required,oneof=not_yet_valid expired expires_today renewal_due_30 renewal_due_90 renewal_due_180 current"`
+	DaysRemaining int    `json:"days_remaining" binding:"min=-3652059,max=3652059"`
+	LocalDate     string `json:"local_date"`
+	TimeZone      string `json:"time_zone" binding:"required,min=1,max=100"`
+	ObservedAt    string `json:"observed_at"`
+	PremiseStatus string `json:"premise_status" binding:"required,oneof=active inactive"`
+}

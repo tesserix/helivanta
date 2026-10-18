@@ -46,7 +46,15 @@ func TestPremisesAndLicenceDeclarationsArePrivateVersionedAndCountryBound(t *tes
 	require.Contains(t, w.Body.String(), `"status":"declared"`)
 	require.Contains(t, w.Body.String(), `"product_categories":["otc","prescription"]`)
 	require.JSONEq(t, w.Body.String(), testutil.Do(r, "PUT", licence, "owner", licenseBody(0, premise)).Body.String())
-	require.JSONEq(t, w.Body.String(), testutil.Do(r, "GET", licence, "owner", "").Body.String())
+	read := testutil.Do(r, "GET", licence, "owner", "")
+	require.Equal(t, 200, read.Code, read.Body.String())
+	var projected map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(read.Body.Bytes(), &projected))
+	require.Contains(t, projected, "renewal")
+	delete(projected, "renewal")
+	unchanged, err := json.Marshal(projected)
+	require.NoError(t, err)
+	require.JSONEq(t, w.Body.String(), string(unchanged))
 	for _, actor := range []string{"auditor", "manager", "foreign"} {
 		require.Equal(t, 404, testutil.Do(r, "GET", licence, actor, "").Code)
 	}

@@ -33,6 +33,33 @@ function downloads() {
   return { create, revoke, click };
 }
 
+it("shows workspace-change guidance without creating a CSV download", async () => {
+  const { click, create } = downloads();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "session_changed",
+          message: "Your workspace changed. Refresh the page before continuing.",
+        }),
+        { status: 409 },
+      ),
+    ),
+  );
+  const { user } = renderWithProviders(
+    <StockExport scope={scope} filters={filters} disabled={false} />,
+  );
+  await user.click(screen.getByRole("button", { name: "Download CSV" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Your workspace changed. Refresh the page before continuing.",
+  );
+  expect(click).not.toHaveBeenCalled();
+  expect(create).not.toHaveBeenCalled();
+  expect(screen.getByRole("status", { name: "Stock CSV export" })).toBeEmptyDOMElement();
+  expect(screen.getByRole("button", { name: "Download CSV" })).toBeEnabled();
+});
+
 it("shows an explicit oversize error and allows a fresh successful retry", async () => {
   const { click } = downloads();
   const fetcher = vi

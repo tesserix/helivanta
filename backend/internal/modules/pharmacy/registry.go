@@ -60,7 +60,7 @@ const affiliationColumns = "id,tenant_id,pharmacy_id,hospital_id,relationship,ve
 
 func registryRoutes(g *platform.Router, deps platform.Deps) {
 	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus}
-	g.GET("/configuration", PermCatalogueRead, func(c *gin.Context) {
+	g.GET("/configuration", PermCatalogueRead, requirePharmacyTenant, func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
 		respond.OK(c, countryprofile.Configuration())
 	})
@@ -107,7 +107,7 @@ func pharmacyVisible(tx *gorm.DB, p authn.Principal, id uuid.UUID, manager bool)
 
 func (h *catalogueHandlers) listOrganizations(c *gin.Context, params pagination.Params) ([]pharmacyOrganization, error) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -123,7 +123,7 @@ func (h *catalogueHandlers) listOrganizations(c *gin.Context, params pagination.
 	return rows, nil
 }
 func (h *catalogueHandlers) putOrganization(c *gin.Context) {
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return
 	}
@@ -164,7 +164,7 @@ func (h *catalogueHandlers) putOrganization(c *gin.Context) {
 	respond.OK(c, result)
 }
 func (h *catalogueHandlers) listOutlets(c *gin.Context, params pagination.Params) ([]pharmacyOutlet, error) {
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -185,7 +185,7 @@ func (h *catalogueHandlers) listOutlets(c *gin.Context, params pagination.Params
 	return rows, nil
 }
 func (h *catalogueHandlers) putOutlet(c *gin.Context) {
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return
 	}
@@ -230,7 +230,7 @@ func (h *catalogueHandlers) putOutlet(c *gin.Context) {
 	respond.OK(c, result)
 }
 func (h *catalogueHandlers) listAffiliations(c *gin.Context, params pagination.Params) ([]hospitalAffiliation, error) {
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -251,7 +251,7 @@ func (h *catalogueHandlers) listAffiliations(c *gin.Context, params pagination.P
 	return rows, nil
 }
 func (h *catalogueHandlers) putAffiliation(c *gin.Context) {
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return
 	}

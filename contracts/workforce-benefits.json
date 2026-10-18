@@ -1,0 +1,580 @@
+{
+  "plan_kinds": {
+    "health": "Health",
+    "life": "Life",
+    "accident": "Accident",
+    "other": "Other"
+  },
+  "models": {
+    "benefitPlanInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "code",
+        "type": "string",
+        "format": "code",
+        "max": 40,
+        "binding": "required,max=40"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "format": "name",
+        "min": 1,
+        "max": 80,
+        "binding": "required,max=80"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": ["health", "life", "accident", "other"],
+        "binding": "required,oneof=health life accident other"
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "format": "text",
+        "max": 500,
+        "binding": "max=500"
+      },
+      {
+        "name": "covers_dependents",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "covered_relationships",
+        "type": "[]uuid",
+        "max": 20,
+        "binding": "max=20"
+      },
+      {
+        "name": "effective_from",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "effective_until",
+        "type": "string",
+        "format": "date",
+        "optional": true,
+        "binding": "omitempty,len=10"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["active", "retired"],
+        "binding": "required,oneof=active retired"
+      }
+    ],
+    "benefitPlan": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": ["health", "life", "accident", "other"]
+      },
+      {
+        "name": "description",
+        "type": "string"
+      },
+      {
+        "name": "covers_dependents",
+        "type": "bool"
+      },
+      {
+        "name": "covered_relationships",
+        "type": "[]uuid",
+        "max": 20,
+        "orm_ignore": true
+      },
+      {
+        "name": "effective_from",
+        "type": "string"
+      },
+      {
+        "name": "effective_until",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["active", "retired"]
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "benefitPlanRevision": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "plan_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": ["health", "life", "accident", "other"]
+      },
+      {
+        "name": "description",
+        "type": "string"
+      },
+      {
+        "name": "covers_dependents",
+        "type": "bool"
+      },
+      {
+        "name": "covered_relationships",
+        "type": "[]uuid",
+        "max": 20,
+        "orm_ignore": true
+      },
+      {
+        "name": "effective_from",
+        "type": "string"
+      },
+      {
+        "name": "effective_until",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["active", "retired"]
+      },
+      {
+        "name": "changed_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "dependentInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "full_name",
+        "type": "string",
+        "format": "name",
+        "min": 1,
+        "max": 150,
+        "binding": "required,max=150"
+      },
+      {
+        "name": "relationship_revision_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "birth_date",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "phone",
+        "type": "string",
+        "max": 16,
+        "binding": "max=16"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["active", "removed"],
+        "binding": "required,oneof=active removed"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500,
+        "binding": "required,max=500"
+      }
+    ],
+    "dependent": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "full_name",
+        "type": "string"
+      },
+      {
+        "name": "relationship_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "relationship_master_id",
+        "type": "uuid"
+      },
+      {
+        "name": "relationship_name",
+        "type": "string"
+      },
+      {
+        "name": "birth_date",
+        "type": "string"
+      },
+      {
+        "name": "phone",
+        "type": "string"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["active", "removed"]
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "dependentRevision": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "dependent_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "full_name",
+        "type": "string"
+      },
+      {
+        "name": "relationship_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "relationship_master_id",
+        "type": "uuid"
+      },
+      {
+        "name": "relationship_name",
+        "type": "string"
+      },
+      {
+        "name": "birth_date",
+        "type": "string"
+      },
+      {
+        "name": "phone",
+        "type": "string"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["active", "removed"]
+      },
+      {
+        "name": "reason",
+        "type": "string"
+      },
+      {
+        "name": "changed_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "benefitProposalInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "plan_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "dependent_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "coverage_from",
+        "type": "string",
+        "format": "date",
+        "binding": "required,len=10"
+      },
+      {
+        "name": "coverage_until",
+        "type": "string",
+        "format": "date",
+        "optional": true,
+        "binding": "omitempty,len=10"
+      },
+      {
+        "name": "eligibility_basis",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500,
+        "binding": "required,max=500"
+      }
+    ],
+    "benefitDecisionInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject"],
+        "binding": "required,oneof=approve reject"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "format": "text",
+        "max": 500,
+        "binding": "max=500"
+      }
+    ],
+    "benefitWithdrawInput": [
+      {
+        "name": "note",
+        "type": "string",
+        "format": "text",
+        "max": 500,
+        "binding": "max=500"
+      }
+    ],
+    "benefitProposal": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "enrollment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "plan_id",
+        "type": "uuid"
+      },
+      {
+        "name": "plan_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "dependent_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "dependent_revision_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "base_version",
+        "type": "int64"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending", "approved", "rejected", "withdrawn"]
+      },
+      {
+        "name": "approved_version",
+        "type": "int64",
+        "optional": true
+      },
+      {
+        "name": "coverage_from",
+        "type": "string"
+      },
+      {
+        "name": "coverage_until",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "eligibility_basis",
+        "type": "string"
+      },
+      {
+        "name": "proposed_by_subject",
+        "type": "string"
+      },
+      {
+        "name": "decided_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "decided_at",
+        "type": "time",
+        "optional": true
+      },
+      {
+        "name": "decision_note",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "benefitCoverage": [
+      {
+        "name": "original_plan_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "coverage_from",
+        "type": "string"
+      },
+      {
+        "name": "coverage_until",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      },
+      {
+        "name": "proposal_id",
+        "type": "uuid"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "benefitEnrollment": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "plan_id",
+        "type": "uuid"
+      },
+      {
+        "name": "dependent_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "coverage",
+        "type": "benefitCoverage",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
+        "name": "pending",
+        "type": "benefitProposal",
+        "optional": true,
+        "orm_ignore": true
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ]
+  }
+}

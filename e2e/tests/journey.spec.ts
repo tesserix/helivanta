@@ -49,7 +49,8 @@ test("pharmacist sees only the pharmacy zone, in the sidebar and on the dashboar
   // as the sidebar — scoped by href since the dashboard's card titles are
   // per-page ("OPD"/"IPD"), not the zone name.
   const dashboard = page.getByRole("main");
-  await expect(dashboard.locator('a[href="/pharmacy"]')).toBeVisible();
+  const shortcuts = dashboard.getByRole("navigation", { name: "Department shortcuts" });
+  await expect(shortcuts.locator('a[href="/pharmacy"]')).toBeVisible();
   await expect(dashboard.locator('a[href^="/medicore"]')).toHaveCount(0);
   await expect(dashboard.locator('a[href="/lab"]')).toHaveCount(0);
 });

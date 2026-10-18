@@ -75,7 +75,7 @@ export default function Dashboard() {
         <h2 className="text-sm font-semibold text-muted-foreground">Jump into a department</h2>
         <p className="text-xs text-muted-foreground">Manage visits, dispensing and lab work.</p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <nav aria-label="Department shortcuts" className="grid gap-4 sm:grid-cols-2">
         {cards.map((z) => (
           <Link
             key={z.href}
@@ -99,7 +99,7 @@ export default function Dashboard() {
             </span>
           </Link>
         ))}
-      </div>
+      </nav>
     </HmsShell>
   );
 }

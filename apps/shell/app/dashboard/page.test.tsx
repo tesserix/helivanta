@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import Dashboard from "./page";
@@ -51,6 +51,11 @@ describe("Dashboard", () => {
     renderWithProviders(<Dashboard />);
 
     expect(await screen.findByText("Dispenses")).toBeInTheDocument();
+    const shortcuts = screen.getByRole("navigation", { name: "Department shortcuts" });
+    expect(within(shortcuts).getByRole("link", { name: /^Dispenses/ })).toHaveAttribute(
+      "href",
+      "/pharmacy",
+    );
     expect(screen.getByText("Medications")).toBeInTheDocument();
     expect(screen.queryByText("OPD")).not.toBeInTheDocument();
     expect(screen.queryByText("IPD")).not.toBeInTheDocument();

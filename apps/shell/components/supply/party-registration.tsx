@@ -9,6 +9,7 @@ import {
   newSupplyId,
   supplyRegistryKey,
   supplyRegistryRoot,
+  supplyHeaders,
   supplyPremiseFieldsSchema,
   supplyPremiseFormSchema,
   supplyLicenseFieldsSchema,
@@ -17,6 +18,7 @@ import {
   useApiQuery,
   useApiMutation,
   usePermissions,
+  useTenantTransition,
   type SupplyPremise,
   type SupplyLicense,
   type SupplyRegistryScope,
@@ -37,6 +39,7 @@ import {
 import { WarehouseBins } from "./warehouse-bins";
 import { LicenceReview } from "./licence-review";
 import { LicenceEvidence } from "./licence-evidence";
+import { LicenceRenewalNotice } from "./licence-renewal-notice";
 import { RequestFailure } from "../request-failure";
 
 const readers = ["administrator", "purchasing", "finance", "compliance", "auditor"];
@@ -54,16 +57,23 @@ export function PartyRegistration({
   owned?: boolean;
 }) {
   const { can } = usePermissions();
+  const switching = useTenantTransition();
   const allowed = roles.some((role) => readers.includes(role));
   const premises = useApiPagedQuery<SupplyPremise>(
     supplyRegistryKey(scope, "premises"),
     supplyRegistryRoot(scope, "premises"),
-    { enabled: allowed && can("supply.premise.read") },
+    {
+      enabled: allowed && !switching && can("supply.premise.read"),
+      request: { headers: supplyHeaders(scope) },
+    },
   );
   const licenses = useApiPagedQuery<SupplyLicense>(
     supplyRegistryKey(scope, "licenses"),
     supplyRegistryRoot(scope, "licenses"),
-    { enabled: allowed && can("supply.license.read") },
+    {
+      enabled: allowed && !switching && can("supply.license.read"),
+      request: { headers: supplyHeaders(scope) },
+    },
   );
   const [binPremise, setBinPremise] = useState<string | null>(null);
   const currentBinPremise = premises.items.find((row) => row.id === binPremise);
@@ -90,6 +100,8 @@ export function PartyRegistration({
     });
   }
   if (!allowed || (!can("supply.premise.read") && !can("supply.license.read"))) return null;
+  if (switching)
+    return <p role="status">Switching workspace. Registration details have been cleared.</p>;
   return (
     <section className="space-y-6 border-t pt-6" aria-label="Premises and licences">
       <div>
@@ -222,26 +234,31 @@ export function PartyRegistration({
               <FileCheck2 className="size-4" />
               Declared licences
             </h5>
-            {editLicense && premises.items.length > 0 && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setPremise(undefined);
-                  setLicense(null);
-                  focusForm();
-                }}
-              >
-                <Plus className="mr-2 size-4" />
-                Declare licence
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" disabled={licenses.isRefreshing} onClick={licenses.retry}>
+                Refresh licence notices
               </Button>
-            )}
+              {editLicense && premises.items.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setPremise(undefined);
+                    setLicense(null);
+                    focusForm();
+                  }}
+                >
+                  <Plus className="mr-2 size-4" />
+                  Declare licence
+                </Button>
+              )}
+            </div>
           </div>
           {licenses.isError ? (
             <RequestFailure
               message="Could not load private licence declarations."
               retry={licenses.retry}
             />
-          ) : licenses.isPending ? (
+          ) : licenses.isPending || licenses.isRefreshing ? (
             <p role="status">Loading licences…</p>
           ) : licenses.items.length === 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -264,6 +281,7 @@ export function PartyRegistration({
                     <p className="mt-2 text-xs font-medium text-muted-foreground">
                       Declaration recorded
                     </p>
+                    <LicenceRenewalNotice renewal={row.renewal} />
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button

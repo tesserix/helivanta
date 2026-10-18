@@ -482,3 +482,24 @@ export const supplyAccessLimitsInputSchema = z
     reason: z.string().trim().min(5).max(500),
   })
   .strict();
+
+export const supplyLicenseRenewalSchema = z
+  .object({
+    date_status: z.enum([
+      "not_yet_valid",
+      "expired",
+      "expires_today",
+      "renewal_due_30",
+      "renewal_due_90",
+      "renewal_due_180",
+      "current",
+    ]),
+    days_remaining: z.number().int().min(-3652059).max(3652059),
+    local_date: z.string().date("Use a full valid date."),
+    time_zone: z.string().min(1).max(100),
+    observed_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    premise_status: z.enum(["active", "inactive"]),
+  })
+  .strict();

@@ -5,6 +5,7 @@ import {
   supplyLicenseInputSchema,
   supplyPremiseFieldsSchema,
   supplyPremiseInputSchema,
+  supplyLicenseRenewalSchema,
 } from "./supply-contract";
 import { supplyKey, type SupplyScope } from "./supply";
 
@@ -42,7 +43,12 @@ type RegistryHead = {
 };
 export type SupplyPremise = z.infer<typeof supplyPremiseFieldsSchema> & RegistryHead;
 export type SupplyLicense = z.infer<typeof supplyLicenseFieldsSchema> &
-  RegistryHead & { country_code: string; status: "declared" };
+  RegistryHead & {
+    country_code: string;
+    status: "declared";
+    renewal?: z.infer<typeof supplyLicenseRenewalSchema>;
+  };
+export { supplyLicenseRenewalSchema } from "./supply-contract";
 export type SupplyPremiseInput = z.infer<typeof supplyPremiseInputSchema>;
 export type SupplyLicenseInput = z.infer<typeof supplyLicenseInputSchema>;
 export type SupplyRegistryScope = SupplyScope & { partyId: string };

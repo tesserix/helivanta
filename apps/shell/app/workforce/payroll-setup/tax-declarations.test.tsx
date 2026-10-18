@@ -83,18 +83,43 @@ const declaration = (pending: boolean) => ({
   updated_at: stamp,
 });
 
+const evidenceFile = (over: object) => ({
+  id: "88888888-8888-4888-8888-888888888888",
+  hospital_id: hospital,
+  staff_id: staffID,
+  record_id: proposal,
+  record_kind: "tax_declaration",
+  record_version: 2,
+  category: "tax_declaration_evidence",
+  filename: "synthetic-rent-receipt.png",
+  content_type: "image/png",
+  size: 2048,
+  sha256: "a".repeat(64),
+  status: "available",
+  scan_attempt: 1,
+  uploaded_at: stamp,
+  scanned_at: stamp,
+  failure_code: null,
+  expires_at: stamp,
+  created_at: stamp,
+  updated_at: stamp,
+  ...over,
+});
+
 function mock({
   permissions = ["workforce.payroll.view", "workforce.payroll.configure"],
   subject = "user-maker",
   record = null as unknown,
   status = 200,
   write = [200, declaration(false)] as [number, unknown],
+  evidence = [] as ReturnType<typeof evidenceFile>[],
 }: {
   permissions?: string[];
   subject?: string;
   record?: unknown;
   status?: number;
   write?: [number, unknown];
+  evidence?: ReturnType<typeof evidenceFile>[];
 } = {}) {
   const writes: { url: string; body: unknown }[] = [];
   const reads: string[] = [];
@@ -123,7 +148,29 @@ function mock({
             ? [status, { error: status === 404 ? "not_found" : "internal", message: "x" }]
             : [200, record];
       }
-      if (init?.method === "PUT" || init?.method === "POST") {
+      const upload = url.match(/\/evidence\/([0-9a-f-]{36})(\/content)?$/);
+      if (url.includes("/evidence?revision_id="))
+        body = {
+          evidence: evidence.filter((f) => url.endsWith(f.record_id)),
+          uploads_available: true,
+        };
+      else if (upload && init?.method === "PUT") {
+        const content = !!upload[2];
+        writes.push({ url, body: content ? init.body : JSON.parse(String(init.body)) });
+        const intent = content ? writes.at(-2)!.body : writes.at(-1)!.body;
+        const { revision_id, ...file } = intent as { revision_id: string };
+        return new Response(
+          JSON.stringify(
+            evidenceFile({
+              ...file,
+              id: upload[1],
+              record_id: revision_id,
+              status: content ? "scan_pending" : "upload_pending",
+            }),
+          ),
+          { status: content ? 202 : 201 },
+        );
+      } else if (init?.method === "PUT" || init?.method === "POST") {
         writes.push({ url, body: JSON.parse(String(init.body)) });
         [code, body] = write;
       }
@@ -393,4 +440,65 @@ it("keeps the proposer to withdrawing and never offers them a reveal of their ow
     url: expect.stringMatching(new RegExp(`/tax-declarations/${thisYear}/withdraw$`)),
     body: { proposal_id: proposal, note: "" },
   });
+});
+
+it("attaches evidence to a pending proposal after checking the file inline", async () => {
+  const { writes } = mock({ record: declaration(true), evidence: [evidenceFile({})] });
+  const { user } = renderWithProviders(<PayrollSetup />);
+  const section = await choose(user);
+  const evidence = await within(section).findByRole("region", {
+    name: "Evidence for the proposed change",
+  });
+  expect(await within(evidence).findByText("synthetic-rent-receipt.png")).toBeInTheDocument();
+  expect(within(evidence).getByText("Ready")).toBeInTheDocument();
+  expect(
+    within(evidence).getByRole("button", { name: "Download synthetic-rent-receipt.png" }),
+  ).toBeInTheDocument();
+  const form = within(evidence).getByRole("form", { name: "Attach declaration evidence" });
+  await user.click(within(form).getByRole("button", { name: "Upload evidence" }));
+  expect(await within(form).findByText("Choose a file first.")).toBeInTheDocument();
+  const input = within(form).getByLabelText(/Rent receipt/);
+  await user.upload(input, new File([new Uint8Array(10485761)], "huge.png", { type: "image/png" }));
+  expect(await within(form).findByText("Choose an image up to 10 MB.")).toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+  const image = new File([new Uint8Array([137, 80, 78, 71])], "synthetic-interest.png", {
+    type: "image/png",
+  });
+  await user.upload(input, image);
+  await user.click(within(form).getByRole("button", { name: "Upload evidence" }));
+  await waitFor(() => expect(writes).toHaveLength(2));
+  expect(writes[0]).toEqual({
+    url: expect.stringMatching(new RegExp(`/tax-declarations/${thisYear}/evidence/[0-9a-f-]{36}$`)),
+    body: {
+      revision_id: proposal,
+      filename: "synthetic-interest.png",
+      content_type: "image/png",
+      size: 4,
+      sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+    },
+  });
+  expect(writes[1]!.url).toBe(`${writes[0]!.url}/content`);
+  expect(writes[1]!.body).toBe(image);
+  expect(await screen.findByText("Evidence uploaded")).toBeInTheDocument();
+});
+
+it("holds every decision with the reason while evidence is still scanning", async () => {
+  const { writes } = mock({
+    permissions: ["workforce.payroll.view", "workforce.payroll.approve"],
+    subject: "user-approver",
+    record: declaration(true),
+    evidence: [evidenceFile({ status: "scan_pending", scanned_at: null })],
+  });
+  const { user } = renderWithProviders(<PayrollSetup />);
+  const section = await choose(user);
+  await user.click(await within(section).findByRole("button", { name: "Review declaration" }));
+  const decision = within(section).getByRole("region", { name: "Declaration decision" });
+  expect(await within(decision).findByText("Scanning")).toBeInTheDocument();
+  expect(
+    within(decision).getByText(/Evidence is still being scanned. You can decide once/),
+  ).toBeInTheDocument();
+  expect(within(decision).getByRole("button", { name: "Approve declaration" })).toBeDisabled();
+  expect(within(decision).getByRole("button", { name: "Reject declaration" })).toBeDisabled();
+  expect(within(decision).queryByRole("form", { name: "Attach declaration evidence" })).toBeNull();
+  expect(writes).toHaveLength(0);
 });

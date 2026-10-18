@@ -56,6 +56,8 @@ export * from "./supply-registration";
 export * from "./overtime";
 export * from "./attendance";
 export * from "./payroll";
+export * from "./payroll-evidence";
+export * from "./payroll-evidence-query";
 export * from "./supply-evidence";
 export * from "./supply-evidence-query";
 

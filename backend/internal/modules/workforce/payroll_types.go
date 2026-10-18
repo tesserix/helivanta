@@ -697,3 +697,11 @@ type taxDeclarationReveal struct {
 	Position   int       `json:"position"`
 	Value      string    `json:"value"`
 }
+
+type taxEvidenceInput struct {
+	RevisionID  uuid.UUID `json:"revision_id" binding:"required"`
+	Filename    string    `json:"filename" binding:"required,max=180"`
+	ContentType string    `json:"content_type" binding:"required,oneof=image/png image/jpeg"`
+	Size        int64     `json:"size" binding:"required,min=1,max=10485760"`
+	Sha256      string    `json:"sha256" binding:"required,len=64"`
+}

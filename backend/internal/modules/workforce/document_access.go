@@ -18,14 +18,14 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func authorizedDocument(tx *gorm.DB, p authn.Principal, hospital, staffID, fileID uuid.UUID) (document, error) {
-	if _, err := documentOwner(tx, p, hospital, staffID); err != nil {
+func authorizedDocument(tx *gorm.DB, gate documentGate, p authn.Principal, hospital, staffID, fileID uuid.UUID, writing bool) (document, error) {
+	if err := gate.authorize(tx, p, hospital, staffID, writing); err != nil {
 		return document{}, err
 	}
 	var saved document
 	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select(documentColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, hospital, staffID, fileID).First(&saved).Error
 	if err == nil {
-		err = documentRecord(tx, p, hospital, staffID, documentInput{RecordKind: saved.RecordKind, RecordID: saved.RecordID})
+		err = gate.owns(tx, p, hospital, staffID, saved.RecordKind, saved.RecordID)
 	}
 	return saved, err
 }
@@ -47,7 +47,7 @@ func (h *handlers) revokeDocument(c *gin.Context) {
 	var saved document
 	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
 		var err error
-		saved, err = authorizedDocument(tx, p, hospital, staffID, fileID)
+		saved, err = authorizedDocument(tx, staffDocuments{}, p, hospital, staffID, fileID, true)
 		if err != nil {
 			return err
 		}
@@ -90,6 +90,11 @@ func (h *handlers) retryDocument(c *gin.Context) {
 		respond.NotFound(c, "staff document")
 		return
 	}
+	h.requeueDocument(c, staffDocuments{}, p, hospital, staffID, fileID)
+}
+
+// requeueDocument starts the next processing attempt of a file whose scan ended in error.
+func (h *handlers) requeueDocument(c *gin.Context, gate documentGate, p authn.Principal, hospital, staffID, fileID uuid.UUID) {
 	attempt, err := strconv.ParseInt(c.Param("attempt"), 10, 64)
 	if err != nil || attempt < 2 || strconv.FormatInt(attempt, 10) != c.Param("attempt") {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "A canonical processing attempt greater than one is required.")
@@ -103,7 +108,7 @@ func (h *handlers) retryDocument(c *gin.Context) {
 	queued := false
 	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
 		var err error
-		saved, err = authorizedDocument(tx, p, hospital, staffID, fileID)
+		saved, err = authorizedDocument(tx, gate, p, hospital, staffID, fileID, true)
 		if err != nil {
 			return err
 		}
@@ -158,14 +163,19 @@ func (h *handlers) downloadDocument(c *gin.Context) {
 		respond.NotFound(c, "staff document")
 		return
 	}
+	h.sendDocument(c, staffDocuments{}, p, hospital, staffID, fileID)
+}
+
+// sendDocument serves released bytes only while the verdict still holds, auditing the read before any byte leaves.
+func (h *handlers) sendDocument(c *gin.Context, gate documentGate, p authn.Principal, hospital, staffID, fileID uuid.UUID) {
 	if h.documents == nil {
 		documentUploadError(c, errDocumentsUnavailable)
 		return
 	}
 	var saved document
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
 		var err error
-		saved, err = authorizedDocument(tx, p, hospital, staffID, fileID)
+		saved, err = authorizedDocument(tx, gate, p, hospital, staffID, fileID, false)
 		if err != nil {
 			return err
 		}
@@ -189,14 +199,14 @@ func (h *handlers) downloadDocument(c *gin.Context) {
 		return
 	}
 	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		current, err := authorizedDocument(tx, p, hospital, staffID, fileID)
+		current, err := authorizedDocument(tx, gate, p, hospital, staffID, fileID, false)
 		if err != nil {
 			return err
 		}
 		if current.Status != "available" || current.ReleasedGeneration == nil || *current.ReleasedGeneration != content.Generation {
 			return errDocumentConflict
 		}
-		return tx.Exec(`INSERT INTO workforce_audit (tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES (?,?,?,'workforce.document.downloaded',?,jsonb_build_object('file_id',?::uuid))`, p.TenantID, hospital, p.Subject, staffID, fileID).Error
+		return tx.Exec(`INSERT INTO workforce_audit (tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES (?,?,?,?,?,jsonb_build_object('file_id',?::uuid))`, p.TenantID, hospital, p.Subject, gate.downloadAction(), staffID, fileID).Error
 	})
 	if errors.Is(err, errDocumentConflict) {
 		respond.Conflict(c, "Document is not available for download. Refresh its status.")

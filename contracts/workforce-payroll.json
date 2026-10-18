@@ -3025,6 +3025,43 @@
         "name": "value",
         "type": "string"
       }
+    ],
+    "taxEvidenceInput": [
+      {
+        "name": "revision_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "filename",
+        "type": "string",
+        "min": 1,
+        "max": 180,
+        "binding": "required,max=180"
+      },
+      {
+        "name": "content_type",
+        "type": "string",
+        "enum": [
+          "image/png",
+          "image/jpeg"
+        ],
+        "binding": "required,oneof=image/png image/jpeg"
+      },
+      {
+        "name": "size",
+        "type": "int64",
+        "min": 1,
+        "max": 10485760,
+        "binding": "required,min=1,max=10485760"
+      },
+      {
+        "name": "sha256",
+        "type": "string",
+        "min": 64,
+        "max": 64,
+        "binding": "required,len=64"
+      }
     ]
   },
   "statutoryKinds": {

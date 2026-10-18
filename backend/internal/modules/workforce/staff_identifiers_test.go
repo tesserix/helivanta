@@ -22,6 +22,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/transit"
 )
@@ -62,13 +63,18 @@ func downVault(t *testing.T) *transit.Client {
 
 func newIdentifierFixture(t *testing.T, vault *transit.Client) *identifierFixture {
 	t.Helper()
+	return newIdentifierFixtureWith(t, vault, nil)
+}
+
+func newIdentifierFixtureWith(t *testing.T, vault *transit.Client, files *attachments.GCS) *identifierFixture {
+	t.Helper()
 	all := []authz.Permission{workforce.PermPayrollConfigure, workforce.PermPayrollView, workforce.PermPayrollApprove, workforce.PermPayrollIdentifiersReveal}
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Transit: vault,
 		Tokens:  map[string]string{"admin": testutil.TenantA, "approver": testutil.TenantA, "auditor": testutil.TenantA, "viewer": testutil.TenantA, "reader": testutil.TenantA, "foreign": testutil.TenantB},
-		Perms: map[string][]authz.Permission{"admin": append([]authz.Permission{workforce.PermHospitalManage, workforce.PermMasterManage}, all...), "approver": all, "auditor": all,
+		Perms: map[string][]authz.Permission{"admin": append([]authz.Permission{workforce.PermHospitalManage, workforce.PermMasterManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage}, all...), "approver": all, "auditor": all,
 			"viewer": {workforce.PermPayrollView, workforce.PermPayrollConfigure, workforce.PermPayrollApprove}, "reader": all, "foreign": all},
-		Modules: []platform.Module{workforce.New()},
+		Modules: []platform.Module{workforce.New()}, Documents: files,
 	})
 	h := &payrollHarness{t: t, db: db, hospital: uuid.NewString(), do: func(method, path, user, body string) (int, string) {
 		w := testutil.Do(r, method, path, user, body)

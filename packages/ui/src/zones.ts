@@ -121,6 +121,12 @@ export const ZONES: Zone[] = [
         permission: "public",
       },
       {
+        label: "Credential register",
+        href: "/workforce/credentials",
+        icon: ClipboardList,
+        permission: "workforce.enrollment.manage",
+      },
+      {
         label: "Payroll setup",
         href: "/workforce/payroll-setup",
         icon: Settings,

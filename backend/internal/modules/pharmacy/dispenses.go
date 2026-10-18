@@ -12,7 +12,6 @@ import (
 
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform/respond"
-	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -50,7 +49,7 @@ type dispenseHandlers struct {
 // platform.ListRoute owns all three, so they cannot be got wrong per
 // endpoint.
 func (h *dispenseHandlers) list(c *gin.Context, p pagination.Params) ([]dispense, error) {
-	principal, _, ok := authn.TenantPrincipal(c)
+	principal, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -65,7 +64,7 @@ func (h *dispenseHandlers) list(c *gin.Context, p pagination.Params) ([]dispense
 // makes concurrent fulfilment safe: the loser matches zero rows and gets
 // a 409 rather than double-dispensing.
 func (h *dispenseHandlers) fulfil(c *gin.Context) {
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return
 	}

@@ -130,7 +130,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/pharmacy")
-	g.GET("/insights", PermDispenseRead, insights.Counts(deps.DB, "pharmacy_dispenses", "status", []string{"pending", "dispensed"}))
+	g.GET("/insights", PermDispenseRead, requirePharmacyTenant, insights.Counts(deps.DB, "pharmacy_dispenses", "status", []string{"pending", "dispensed"}))
 	registryRoutes(g, deps)
 	catalogueRoutes(g, deps)
 	inventoryRoutes(g, deps)

@@ -101,7 +101,7 @@ func decodeCatalogue(c *gin.Context, in any) bool {
 
 func catalogueScope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return p, uuid.Nil, false
 	}

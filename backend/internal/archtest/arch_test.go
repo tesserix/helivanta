@@ -342,24 +342,35 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
-	"GET /emergency/bases/:base/clinical-reviewer":                          "one current-subject verification; no other employee or patient record",
-	"GET /emergency/bases/:base/clinical-reviewers/:subject":                "one administrator-selected subject's current verification, not a collection",
-	"GET /emergency/bases/:base/access":                                     "one current-subject base grant; no other subject or clinical information",
-	"GET /emergency/bases/:base/cases/:case":                                "one audited base-scoped encrypted case; queue and timeline use cursor pagination",
-	"GET /workforce/hospitals/:hospital/insights":                           "one explicitly hospital-grant-checked snapshot, bounded to seven job categories and two employment statuses",
-	"GET /medicore/insights":                                                "one aggregate response, maximum 366 calendar buckets and two clinical categories; no patient rows",
-	"GET /pharmacy/insights":                                                "one aggregate response, maximum 366 calendar buckets and two dispense statuses; no patient rows",
-	"GET /lab/insights":                                                     "one aggregate response, maximum 366 calendar buckets and two order statuses; no patient rows",
-	"GET /supply/parties/:party/access-limits":                              "one current organisation operational access-limit policy with two bounded integer limits; immutable revisions are cursor-paginated",
-	"GET /supply/parties/:party/grants/:grant":                              "one explicitly administrator-scoped versioned grant; the directory and revisions are cursor-paginated",
-	"GET /supply/parties/:party/corporate-structure":                        "one current corporate relationship with a nullable parent; revision history is paginated",
-	"GET /supply/parties/:party/territories/:territory":                     "one explicitly scoped territory, capped at fifty representative references; directory and history are paginated",
-	"GET /supply/parties/:party/operating-locations/:premise":               "one authorized operating-location projection, without private address or finance fields",
-	"GET /supply/parties/:party/operating-locations/:premise/bins/:bin":     "one authorized operating bin; its directory and immutable history are paginated",
-	"GET /supply/parties/:party/premises/:premise/delivery-tasks/:delivery": "one explicitly location-scoped logistics task; task directory and revisions are paginated",
-	"GET /supply/parties/:party/premises/:premise/my-deliveries/:delivery":  "one current driver assignment with minimal business handoff data; assignment directory is paginated",
-	"GET /supply/parties/:party/support/:support":                           "one named scoped support request and bounded allowed-action vocabulary; directories and history are paginated",
-	"GET /supply/parties/:party/support/:support/diagnostics":               "one audited approved support observation containing only premise state and three bin counts",
+	"GET /emergency/receiving/facilities/:facility":                             "one current campus revision; campus history/inbox collections are separately paginated",
+	"GET /emergency/receiving/facilities/:facility/requests/:provider/:request": "one explicitly addressed pre-alert and current decision, not a request collection",
+	"GET /emergency/receiving/facilities/:facility/links/:provider/:link":       "one explicitly addressed bilateral service link and current decision",
+	"GET /emergency/receiving/facilities/:facility/access/:subject":             "one current subject delegation for one receiving campus",
+	"GET /emergency/crew/bases/:base/dispatches/:dispatch":                      "one offered assignment for the verified crew subject",
+	"GET /emergency/crew/bases/:base/dispatches/:dispatch/receiving/:request":   "one current directed pre-alert reference for an offered assignment",
+	"GET /emergency/crew/bases/:base/dispatches/:dispatch/incident":             "one audited/decrypted incident for the offered assignment; private collection discovery is denied",
+	"GET /emergency/bases/:base/cases/:case/dispatch-eligibility":               "one case assessment summary with at most eight fixed blocker codes; fleet choices are separately paginated",
+	"GET /emergency/bases/:base/dispatches/:dispatch":                           "one base-scoped dispatch; dispatch queues are separately paginated",
+	"GET /emergency/bases/:base/dispatches/:dispatch/receiving/:request":        "one directed pre-alert and its latest decision for one trip",
+	"GET /emergency/bases/:base/receiving-links/:link":                          "one explicitly addressed bilateral service link",
+	"GET /emergency/bases/:base/clinical-reviewer":                              "one current-subject verification; no other employee or patient record",
+	"GET /emergency/bases/:base/clinical-reviewers/:subject":                    "one administrator-selected subject's current verification, not a collection",
+	"GET /emergency/bases/:base/access":                                         "one current-subject base grant; no other subject or clinical information",
+	"GET /emergency/bases/:base/cases/:case":                                    "one audited base-scoped encrypted case; queue and timeline use cursor pagination",
+	"GET /workforce/hospitals/:hospital/insights":                               "one explicitly hospital-grant-checked snapshot, bounded to seven job categories and two employment statuses",
+	"GET /medicore/insights":                                                    "one aggregate response, maximum 366 calendar buckets and two clinical categories; no patient rows",
+	"GET /pharmacy/insights":                                                    "one aggregate response, maximum 366 calendar buckets and two dispense statuses; no patient rows",
+	"GET /lab/insights":                                                         "one aggregate response, maximum 366 calendar buckets and two order statuses; no patient rows",
+	"GET /supply/parties/:party/access-limits":                                  "one current organisation operational access-limit policy with two bounded integer limits; immutable revisions are cursor-paginated",
+	"GET /supply/parties/:party/grants/:grant":                                  "one explicitly administrator-scoped versioned grant; the directory and revisions are cursor-paginated",
+	"GET /supply/parties/:party/corporate-structure":                            "one current corporate relationship with a nullable parent; revision history is paginated",
+	"GET /supply/parties/:party/territories/:territory":                         "one explicitly scoped territory, capped at fifty representative references; directory and history are paginated",
+	"GET /supply/parties/:party/operating-locations/:premise":                   "one authorized operating-location projection, without private address or finance fields",
+	"GET /supply/parties/:party/operating-locations/:premise/bins/:bin":         "one authorized operating bin; its directory and immutable history are paginated",
+	"GET /supply/parties/:party/premises/:premise/delivery-tasks/:delivery":     "one explicitly location-scoped logistics task; task directory and revisions are paginated",
+	"GET /supply/parties/:party/premises/:premise/my-deliveries/:delivery":      "one current driver assignment with minimal business handoff data; assignment directory is paginated",
+	"GET /supply/parties/:party/support/:support":                               "one named scoped support request and bounded allowed-action vocabulary; directories and history are paginated",
+	"GET /supply/parties/:party/support/:support/diagnostics":                   "one audited approved support observation containing only premise state and three bin counts",
 
 	"GET /supply/parties/:party/premises/:premise/bins/:bin":                    "one grant-checked bin under an owned warehouse/depot; directory and retained revisions use cursor pagination; distributor operations spec 2026-10-17",
 	"GET /supply/parties/:party/platform-identity":                              "one current live identity observation for one grant-checked owned organisation; four source revision strings, never a directory or trading approval; ADR 0031",
@@ -467,11 +478,11 @@ var withAdminAllowlist = map[string]bool{
 	// it connects as the schema owner and FORCE RLS binds the owner. They
 	// use WithAllTenants now; see withAllTenantsAllowlist below.
 	//
-	// Nothing remains. Every caller that reached for WithAdmin wanted to
-	// cross tenants, and none of them ever could — so an empty allowlist
-	// is the honest state, not an oversight. WithAdmin is still used
-	// inside pkg/tenantdb (Migrate, LintRLS, its own tests), which
-	// withAdminAllowedDir covers.
+	// The tagged performance fixture alone needs DDL authority to seed synthetic
+	// terminal history and analyze its indexes. Its assertions use the application
+	// role under FORCE RLS; this permits no runtime request-path caller.
+	"internal/modules/emergency/query_plan_test.go": true,
+	// pkg/tenantdb migration/lint plumbing remains covered by withAdminAllowedDir.
 }
 
 // withAllTenantsAllowlist names the files permitted to call

@@ -79,3 +79,23 @@ Synthetic approvals prove software behavior only. A real YES Hospital dispatch
 and clinical lead must approve receiving/crew protocols, fallback and pilot
 readiness before clinical or public activation. This work is not a compliance
 certification or evidence of an emergency-services integration.
+
+## Architecture review records
+
+The independent permission matrix records six additional permissions: dispatch
+management for dispatchers/supervisors, own-assignment crew read/action and
+campus-delegated receiver read/action. Campus configuration/delegation is
+administrator-only; base/campus row grants remain independent and mandatory.
+
+Single-resource GET declarations identify the exact case, trip, request, link,
+campus or current delegation. All queue/history/inbox collections retain cursor
+pagination. Case eligibility returns one assessment with at most eight fixed
+blocker codes. Published workflow notifications contain only scoped opaque IDs
+and revision counters; their ten fields are classified individually, with no
+automatic exemption for identifier-shaped fields.
+
+The `emergencyplans` performance fixture alone has a reviewed owner-access
+exception to generate 100,000 synthetic terminal history rows and analyze indexes
+in its disposable database. Its query-plan assertions run under the application
+role and forced RLS. No request handler, runtime worker, general test-file pattern
+or production identity receives this exception.

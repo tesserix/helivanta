@@ -786,6 +786,13 @@
         "type": "bool",
         "pointer": true,
         "binding": "required"
+      },
+      {
+        "name": "acknowledged_clashes",
+        "type": "[]uuid",
+        "max": 2000,
+        "optional": true,
+        "binding": "max=2000"
       }
     ],
     "rosterRevision": [
@@ -858,6 +865,11 @@
         "min": 0
       },
       {
+        "name": "credential_clashes",
+        "type": "int",
+        "min": 0
+      },
+      {
         "name": "reason",
         "type": "string",
         "max": 500
@@ -886,6 +898,66 @@
       {
         "name": "revision",
         "type": "rosterRevision"
+      }
+    ],
+    "rosterClashCredential": [
+      {
+        "name": "credential_id",
+        "type": "uuid"
+      },
+      {
+        "name": "type",
+        "type": "string"
+      },
+      {
+        "name": "valid_from",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "valid_until",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "validity_version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "standing",
+        "type": "string",
+        "enum": [
+          "expired",
+          "not_yet_valid"
+        ]
+      }
+    ],
+    "rosterCredentialClash": [
+      {
+        "name": "allocation_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "roster_date",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "credentials",
+        "type": "[]rosterClashCredential"
       }
     ]
   },

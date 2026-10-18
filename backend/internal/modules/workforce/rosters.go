@@ -96,11 +96,12 @@ type rosterOutcome struct {
 	remove                                                      []uuid.UUID
 	removeAll                                                   bool
 	skippedExisting, skippedUnassigned, conflicts, skippedLeave int
+	clashes                                                     []credentialClashAck
 }
 
 const rosterView = `(SELECT r.*,(SELECT count(*) FROM workforce_roster_allocations a WHERE (a.tenant_id,a.hospital_id,a.roster_id)=(r.tenant_id,r.hospital_id,r.id) AND a.removed_version IS NULL) AS allocations FROM workforce_rosters r) AS v`
 const rosterColumns = "id,revision_id,name,start_date::text AS start_date,end_date::text AS end_date,status,settings_revision_id,timezone,week_start,auto_population,allocations,reviewed_by_subject,version,created_at,updated_at"
-const rosterRevisionColumns = "id,id AS revision_id,roster_id,action,mode,status,added,removed,skipped_existing,skipped_unassigned,skipped_conflicts,skipped_leave,reason,reviewed_by_subject,version,created_at"
+const rosterRevisionColumns = "id,id AS revision_id,roster_id,action,mode,status,added,removed,skipped_existing,skipped_unassigned,skipped_conflicts,skipped_leave,credential_clashes,reason,reviewed_by_subject,version,created_at"
 const allocationView = `(SELECT a.tenant_id,a.hospital_id,a.roster_id,a.id,a.staff_id,s.employee_code,s.display_name,a.roster_date::text AS roster_date,
  a.shift_revision_id,sr.code AS shift_code,sr.name AS shift_name,sr.start_time,sr.end_time,a.area_revision_id,ar.code AS area_code,ar.name AS area_name,
  a.starts_at AT TIME ZONE 'UTC' AS starts_at,a.ends_at AT TIME ZONE 'UTC' AS ends_at,a.additional,a.added_version,a.removed_version,a.created_at,ad.exchange_id
@@ -378,14 +379,14 @@ func (h *handlers) putRoster(c *gin.Context) {
 
 func insertRosterRevision(tx *gorm.DB, p authn.Principal, hospital, id, revision uuid.UUID, version int64, o rosterOutcome) error {
 	removed := len(o.remove)
-	return tx.Exec(`INSERT INTO workforce_roster_revisions(tenant_id,hospital_id,id,roster_id,action,mode,status,added,removed,skipped_existing,skipped_unassigned,skipped_conflicts,skipped_leave,reason,reviewed_by_subject,version,exchange_id)
- VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, hospital, revision, id, o.action, o.mode, o.status, len(o.add), removed, o.skippedExisting, o.skippedUnassigned, o.conflicts, o.skippedLeave, o.reason, p.Subject, version, o.exchange).Error
+	return tx.Exec(`INSERT INTO workforce_roster_revisions(tenant_id,hospital_id,id,roster_id,action,mode,status,added,removed,skipped_existing,skipped_unassigned,skipped_conflicts,skipped_leave,credential_clashes,reason,reviewed_by_subject,version,exchange_id)
+ VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, hospital, revision, id, o.action, o.mode, o.status, len(o.add), removed, o.skippedExisting, o.skippedUnassigned, o.conflicts, o.skippedLeave, len(o.clashes), o.reason, p.Subject, version, o.exchange).Error
 }
 
 // recordRosterChange writes the audit row and the identifier-only event inside the business transaction.
 func (h *handlers) recordRosterChange(tx *gorm.DB, p authn.Principal, hospital, id, revision uuid.UUID, version int64, o rosterOutcome) error {
-	if err := tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint,'previous_version',?::bigint,'revision_id',?::uuid,'added',?::int,'removed',?::int))`,
-		p.TenantID, hospital, p.Subject, "workforce.roster."+o.action, id, version, version-1, revision, len(o.add), len(o.remove)).Error; err != nil {
+	if err := tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint,'previous_version',?::bigint,'revision_id',?::uuid,'added',?::int,'removed',?::int,'credential_clashes',?::int))`,
+		p.TenantID, hospital, p.Subject, "workforce.roster."+o.action, id, version, version-1, revision, len(o.add), len(o.remove), len(o.clashes)).Error; err != nil {
 		return err
 	}
 	data, err := json.Marshal(workforcecontract.RosterChangedData{HospitalID: hospital.String(), RosterID: id.String(), RevisionID: revision.String(), Version: version})
@@ -443,6 +444,9 @@ func (h *handlers) writeRoster(c *gin.Context, changeID uuid.UUID, expected int6
 		}
 		version := head.Version + 1
 		if err := insertRosterRevision(tx, p, hospital, id, changeID, version, o); err != nil {
+			return err
+		}
+		if err := insertClashAcknowledgements(tx, p, hospital, changeID, o.clashes); err != nil {
 			return err
 		}
 		if err := tx.Exec(`UPDATE workforce_rosters SET status=?,version=?,revision_id=?,updated_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND id=?`, o.status, version, changeID, p.TenantID, hospital, id).Error; err != nil {
@@ -834,6 +838,7 @@ type rosterTransition struct {
 	from, to     string
 	needsReason  bool
 	clearsRoster bool
+	checkClashes bool
 }
 
 func (h *handlers) transitionRoster(t rosterTransition, action string) gin.HandlerFunc {
@@ -853,6 +858,9 @@ func (h *handlers) transitionRoster(t rosterTransition, action string) gin.Handl
 		case t.needsReason && reason == "":
 			respondRosterError(c, errRosterReasonRequired)
 			return
+		case !t.checkClashes && len(in.AcknowledgedClashes) > 0:
+			respondRosterError(c, errClashAckNotFreezing)
+			return
 		}
 		h.writeRoster(c, in.ChangeID, *in.ExpectedVersion, action, func(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, head roster) (rosterOutcome, error) {
 			if head.Status != t.from {
@@ -861,7 +869,15 @@ func (h *handlers) transitionRoster(t rosterTransition, action string) gin.Handl
 			if err := refusePendingExchanges(tx, p, hospital, head.ID); err != nil {
 				return rosterOutcome{}, err
 			}
-			return rosterOutcome{status: t.to, reason: reason, removeAll: t.clearsRoster}, nil
+			o := rosterOutcome{status: t.to, reason: reason, removeAll: t.clearsRoster}
+			if t.checkClashes {
+				clashes, err := checkCredentialClashes(tx, p, hospital, head.ID, in.AcknowledgedClashes)
+				if err != nil {
+					return rosterOutcome{}, err
+				}
+				o.clashes = clashes
+			}
+			return o, nil
 		})
 	}
 }
@@ -869,10 +885,13 @@ func (h *handlers) transitionRoster(t rosterTransition, action string) gin.Handl
 func respondRosterError(c *gin.Context, err error) {
 	var problem *rosterProblem
 	var overlap allocationOverlap
+	var outstanding credentialClashesOutstanding
 	var pg *pgconn.PgError
 	switch {
 	case errors.As(err, &problem):
 		respond.Error(c, problem.status, problem.code, problem.message)
+	case errors.As(err, &outstanding):
+		respond.ConflictWithDetail(c, "Some allocations clash with reviewed credentials. Review and acknowledge each one before freezing.", gin.H{"reason": "credential_clashes", "outstanding": outstanding.outstanding})
 	case errors.As(err, &overlap):
 		respond.ConflictWithDetail(c, "These allocations overlap existing shifts or give someone two primary shifts on one date.", gin.H{"reason": "allocation_overlap", "allocation_ids": overlap.ids})
 	case errors.As(err, &pg) && pg.ConstraintName == "workforce_roster_period_overlap":

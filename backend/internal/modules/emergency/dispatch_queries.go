@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
@@ -70,6 +71,23 @@ func (h *handlers) getDispatchEligibility(c *gin.Context) {
 	respond.OK(c, out)
 }
 func (d dispatch) PageKey() (time.Time, uuid.UUID) { return d.CreatedAt, d.ID }
+func (h *handlers) listCrewAssignments(c *gin.Context, params pagination.Params) ([]dispatch, error) {
+	c.Header("Cache-Control", "no-store")
+	p, _, ok := authn.TenantPrincipal(c)
+	if !ok {
+		return nil, nil
+	}
+	var rows []dispatch
+	err := h.transaction(c.Request.Context(), p, uuid.Nil, false, func(tx *gorm.DB) error {
+		query := tx.Where("tenant_id=? AND ? IN(driver_subject,clinician_subject) AND acknowledgement_deadline IS NOT NULL AND state NOT IN('workflow_pending','cleared','cancelled')", p.TenantID, p.Subject)
+		return tenantdb.ApplyKeyset(query, params).Select(dispatchColumns).Find(&rows).Error
+	})
+	if err != nil {
+		respondError(c, err)
+		return nil, nil
+	}
+	return rows, nil
+}
 func (h *handlers) getDispatch(c *gin.Context) {
 	p, b, ok := scope(c)
 	if !ok {
@@ -137,11 +155,31 @@ func (h *handlers) getCrewDispatch(c *gin.Context) {
 	}
 	var out dispatch
 	err := h.transaction(c.Request.Context(), p, b, false, func(tx *gorm.DB) error {
-		return tx.Select(dispatchColumns).Where("tenant_id=? AND base_id=? AND id=? AND ? IN(driver_subject,clinician_subject) AND acknowledgement_deadline IS NOT NULL AND state NOT IN('workflow_pending','cleared','cancelled')", p.TenantID, b, id, p.Subject).First(&out).Error
+		return tx.Table("emergency_dispatches").Select(dispatchColumns+", CASE WHEN driver_subject=? THEN driver_acknowledged ELSE clinician_acknowledged END AS own_acknowledged", p.Subject).Where("tenant_id=? AND base_id=? AND id=? AND ? IN(driver_subject,clinician_subject) AND acknowledgement_deadline IS NOT NULL AND state NOT IN('workflow_pending','cleared','cancelled')", p.TenantID, b, id, p.Subject).First(&out).Error
 	})
 	if err != nil {
 		respondError(c, err)
 		return
 	}
 	respond.OK(c, out)
+}
+
+func (h *handlers) getCrewIncident(c *gin.Context) {
+	p, b, ok := scope(c)
+	if !ok {
+		return
+	}
+	id, ok := resourceID(c, "dispatch")
+	if !ok {
+		return
+	}
+	var row struct{ CaseID uuid.UUID }
+	err := h.transaction(c.Request.Context(), p, b, false, func(tx *gorm.DB) error {
+		return tx.Table("emergency_dispatches").Select("case_id").Where("tenant_id=? AND base_id=? AND id=? AND ? IN(driver_subject,clinician_subject) AND acknowledgement_deadline IS NOT NULL AND state NOT IN('workflow_pending','cleared','cancelled')", p.TenantID, b, id, p.Subject).Take(&row).Error
+	})
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	h.caseDetails(c, p, b, row.CaseID)
 }

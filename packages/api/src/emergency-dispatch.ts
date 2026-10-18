@@ -52,6 +52,7 @@ export type EmergencyDispatchEligibility = {
   blockers: string[];
   computed_at: string;
 };
+export type EmergencyCrewDispatch = EmergencyDispatch & { own_acknowledged: boolean };
 export type EmergencyDispatchCommandReceipt = {
   id: string;
   dispatch_id: string;

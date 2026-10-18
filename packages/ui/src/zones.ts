@@ -38,7 +38,7 @@ export const ZONES: Zone[] = [
     label: "EmergencyConnect",
     icon: Ambulance,
     href: "/emergency",
-    permission: "emergency.base.read",
+    permission: "public",
     hue: "rose",
     pages: [
       {
@@ -46,6 +46,12 @@ export const ZONES: Zone[] = [
         href: "/emergency",
         icon: Ambulance,
         permission: "emergency.base.read",
+      },
+      {
+        label: "My crew assignments",
+        href: "/emergency/crew",
+        icon: Ambulance,
+        permission: "emergency.crew.read",
       },
     ],
   },

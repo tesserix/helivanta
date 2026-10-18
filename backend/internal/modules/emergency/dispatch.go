@@ -15,6 +15,7 @@ import (
 var errDispatchDisabled = errors.New("dispatch disabled")
 
 type dispatch struct {
+	OwnAcknowledged         *bool      `json:"own_acknowledged,omitempty" gorm:"->"`
 	BaseID                  uuid.UUID  `json:"base_id"`
 	DriverAcknowledged      bool       `json:"driver_acknowledged"`
 	ClinicianAcknowledged   bool       `json:"clinician_acknowledged"`

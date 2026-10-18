@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useId } from "react";
 import { Badge, Button, Input } from "@tesserix/web";
 import {
   newEmergencyId,
@@ -119,6 +119,7 @@ function ReservationForm({
   baseID: string;
   eligibility: EmergencyDispatchEligibility;
 }) {
+  const secondsID = useId();
   const [vehicleID, setVehicle] = useState("");
   const [seconds, setSeconds] = useState("");
   const [error, setError] = useState<string>();
@@ -215,10 +216,10 @@ function ReservationForm({
             ))}
           </select>
         </label>
-        <label className="space-y-2">
+        <label className="space-y-2" htmlFor={secondsID}>
           Crew acknowledgement window (seconds)
           <Input
-            aria-label="Crew acknowledgement window (seconds)"
+            id={secondsID}
             className="min-h-11"
             type="number"
             min={15}
@@ -262,6 +263,7 @@ function DispatchCancellation({
   row: EmergencyDispatch;
   supervisor: boolean;
 }) {
+  const referenceID = useId();
   const [reference, setReference] = useState("");
   const [error, setError] = useState<string>();
   const commandID = useRef<string | null>(null);
@@ -311,11 +313,11 @@ function DispatchCancellation({
           ? "Confirm the crew was contacted and this assignment can safely stand down before releasing capacity."
           : "Requesting cancellation keeps capacity held until a supervisor confirms the outcome with the crew."}
       </p>
-      <label className="block space-y-2">
+      <label className="block space-y-2" htmlFor={referenceID}>
         Operational confirmation reference
         <Input
           className="min-h-11"
-          aria-label="Operational confirmation reference"
+          id={referenceID}
           value={reference}
           onChange={(event) => setReference(event.target.value)}
           disabled={command.frozen}

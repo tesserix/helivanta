@@ -29,7 +29,7 @@ export function EmergencyWorkspace() {
       <header>
         <h1 className="text-2xl font-semibold">EmergencyConnect</h1>
         <p className="mt-2 text-muted-foreground">
-          Staff intake and case review. No ambulance has been assigned through this workflow.
+          Review received reports, fleet readiness and current dispatch status.
         </p>
       </header>
       {bases.isPending && can("emergency.base.read") && (

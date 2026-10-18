@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	emergencycontract "github.com/tesserix/helivanta/internal/modules/emergency/contract"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"gorm.io/gorm"
 	"time"
 )
@@ -44,6 +45,18 @@ func (h *handlers) putDispatchCommand(c *gin.Context) {
 	if !decode(c, &in) {
 		return
 	}
+	crewOperation := in.Operation == "acknowledge" || in.Operation == "en_route" || in.Operation == "on_scene"
+	permission := PermDispatchManage
+	if crewOperation {
+		permission = PermCrewAct
+	} else if in.Operation == "reconcile_cancelled" {
+		permission = PermCaseClose
+	}
+	permissions, ok := authz.PermissionsFrom(c)
+	if !ok || !permissions.Has(permission) {
+		respond.Forbidden(c, "missing permission "+string(permission))
+		return
+	}
 	if !policyShape.MatchString(in.EvidenceReference) {
 		respond.Error(c, 400, "invalid_request", "approved operational evidence reference required")
 		return
@@ -54,7 +67,6 @@ func (h *handlers) putDispatchCommand(c *gin.Context) {
 		if in.Operation == "reconcile_cancelled" {
 			ability = "close"
 		}
-		crewOperation := in.Operation == "acknowledge" || in.Operation == "en_route" || in.Operation == "on_scene"
 		if !crewOperation {
 			if err := requireAccess(tx, p, b, ability); err != nil {
 				return err

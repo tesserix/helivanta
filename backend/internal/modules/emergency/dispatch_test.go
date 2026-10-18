@@ -97,7 +97,7 @@ func TestCancellationRetainsCapacityUntilExplicitSupervisorReconciliation(t *tes
 	reconcile := path + "/commands/" + newID()
 	body = `{"version":2,"operation":"reconcile_cancelled","evidence_reference":"SYN-CREW-CONTACT-VERIFIED"}`
 	w := testutil.Do(f.r, "PUT", reconcile, "dispatcher", body)
-	require.Equal(t, 404, w.Code, w.Body.String())
+	require.Equal(t, 403, w.Code, w.Body.String())
 	w = testutil.Do(f.r, "PUT", reconcile, "supervisor", body)
 	require.Equal(t, 200, w.Code, w.Body.String())
 	row := decodeBody(t, w.Body.Bytes())
@@ -249,4 +249,92 @@ func TestSharedCrewIdentityCannotAcknowledgeTwoProvidersAtOnce(t *testing.T) {
 	require.NotContains(t, w.Body.String(), testutil.TenantA)
 	require.NotContains(t, w.Body.String(), first)
 	require.Equal(t, 404, testutil.Do(f.r, "GET", firstPath, "bdriver", "").Code)
+}
+
+func TestCrewSeesOnlyItsOfferedIncidentAndLosesPrivateAccessAfterStandDown(t *testing.T) {
+	f := setupWithTransit(t, vault(t))
+	c, a, v, d := prepareDispatch(t, f)
+	id := newID()
+	require.Equal(t, 202, testutil.Do(f.r, "PUT", f.path()+"/dispatches/"+id, "dispatcher", dispatchBody(c, a, v, d)).Code)
+	path := "/v1/emergency/crew/bases/" + f.base + "/dispatches/" + id + "/incident"
+	require.Equal(t, 404, testutil.Do(f.r, "GET", path, "driver", "").Code)
+	_, err := dispatchProcessor(t, f).Offer(t.Context(), emergencycontract.DispatchWorkflowInput{TenantID: testutil.TenantA, BaseID: f.base, DispatchID: id})
+	require.NoError(t, err)
+	w := testutil.Do(f.r, "GET", path, "driver", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), "Synthetic Caller")
+	require.Equal(t, 404, testutil.Do(f.r, "GET", path, "unassigned", "").Code)
+	require.Equal(t, 404, testutil.Do(f.r, "GET", path, "admin", "").Code)
+	require.Equal(t, 200, testutil.Do(f.r, "PUT", f.path()+"/dispatches/"+id+"/commands/"+newID(), "dispatcher", `{"version":2,"operation":"request_cancel","evidence_reference":"SYN-REQUEST-CANCEL"}`).Code)
+	require.Equal(t, 200, testutil.Do(f.r, "PUT", f.path()+"/dispatches/"+id+"/commands/"+newID(), "supervisor", `{"version":3,"operation":"reconcile_cancelled","evidence_reference":"SYN-CONTACT-CONFIRMED"}`).Code)
+	require.Equal(t, 404, testutil.Do(f.r, "GET", path, "driver", "").Code)
+}
+
+func TestCrewAssignmentDiscoveryIsLimitedToOfferedWorkForItsIdentity(t *testing.T) {
+	f := setupWithTransit(t, vault(t))
+	c, a, v, d := prepareDispatch(t, f)
+	id := newID()
+	require.Equal(t, 202, testutil.Do(f.r, "PUT", f.path()+"/dispatches/"+id, "dispatcher", dispatchBody(c, a, v, d)).Code)
+	path := "/v1/emergency/crew/assignments"
+	w := testutil.Do(f.r, "GET", path, "driver", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.Empty(t, decodeBody(t, w.Body.Bytes())["data"])
+	_, err := dispatchProcessor(t, f).Offer(t.Context(), emergencycontract.DispatchWorkflowInput{TenantID: testutil.TenantA, BaseID: f.base, DispatchID: id})
+	require.NoError(t, err)
+	w = testutil.Do(f.r, "GET", path, "driver", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), id)
+	crewPath := "/v1/emergency/crew/bases/" + f.base + "/dispatches/" + id
+	w = testutil.Do(f.r, "GET", crewPath, "driver", "")
+	require.Equal(t, false, decodeBody(t, w.Body.Bytes())["own_acknowledged"])
+	require.Equal(t, 200, testutil.Do(f.r, "PUT", crewPath+"/commands/"+newID(), "driver", `{"version":2,"operation":"acknowledge","evidence_reference":"SYN-CREW-ACK"}`).Code)
+	w = testutil.Do(f.r, "GET", crewPath, "driver", "")
+	require.Equal(t, true, decodeBody(t, w.Body.Bytes())["own_acknowledged"])
+	w = testutil.Do(f.r, "GET", crewPath, "medic", "")
+	require.Equal(t, false, decodeBody(t, w.Body.Bytes())["own_acknowledged"])
+	for _, actor := range []string{"unassigned", "admin", "other"} {
+		w = testutil.Do(f.r, "GET", path, actor, "")
+		require.Equal(t, 200, w.Code, w.Body.String())
+		require.Empty(t, decodeBody(t, w.Body.Bytes())["data"])
+	}
+}
+
+func TestCrewRouteCannotSubstituteForDispatchPermission(t *testing.T) {
+	f := setupWithTransit(t, vault(t))
+	c, a, v, d := prepareDispatch(t, f)
+	id := newID()
+	require.Equal(t, 202, testutil.Do(f.r, "PUT", f.path()+"/dispatches/"+id, "dispatcher", dispatchBody(c, a, v, d)).Code)
+	require.Equal(t, 200, testutil.Do(f.r, "PUT", f.path()+"/access/user-driver", "admin", `{"level":"dispatcher"}`).Code)
+	path := "/v1/emergency/crew/bases/" + f.base + "/dispatches/" + id + "/commands/" + newID()
+	w := testutil.Do(f.r, "PUT", path, "driver", `{"version":1,"operation":"request_cancel","evidence_reference":"SYN-CANCEL"}`)
+	require.Equal(t, 403, w.Code, w.Body.String())
+}
+
+func TestBaseSupervisorGrantCannotSubstituteForReconciliationPermission(t *testing.T) {
+	f := setupWithTransit(t, vault(t))
+	c, a, v, d := prepareDispatch(t, f)
+	id := newID()
+	require.Equal(t, 202, testutil.Do(f.r, "PUT", f.path()+"/dispatches/"+id, "dispatcher", dispatchBody(c, a, v, d)).Code)
+	path := f.path() + "/dispatches/" + id + "/commands/"
+	require.Equal(t, 200, testutil.Do(f.r, "PUT", path+newID(), "dispatcher", `{"version":1,"operation":"request_cancel","evidence_reference":"SYN-CANCEL"}`).Code)
+	require.Equal(t, 200, testutil.Do(f.r, "PUT", f.path()+"/access/user-dispatcher", "admin", `{"level":"supervisor"}`).Code)
+	w := testutil.Do(f.r, "PUT", path+newID(), "dispatcher", `{"version":2,"operation":"reconcile_cancelled","evidence_reference":"SYN-CONFIRMED"}`)
+	require.Equal(t, 403, w.Code, w.Body.String())
+}
+
+func TestDispatchPermissionCannotSubstituteForCrewActionPermission(t *testing.T) {
+	f := setupWithTransit(t, vault(t))
+	c, a, v, d := prepareDispatch(t, f)
+	require.Equal(t, 200, testutil.Do(f.r, "POST", f.path()+"/duties/"+d+"/end", "supervisor", `{}`).Code)
+	require.Equal(t, 200, testutil.Do(f.r, "PUT", f.path()+"/crew/"+newID(), "supervisor", crewBody("user-dispatcher", "driver")).Code)
+	d = newID()
+	dutyBody := fmt.Sprintf(`{"vehicle_id":%q,"driver_subject":"user-dispatcher","clinician_subject":"user-medic","ends_at":%q}`, v, time.Now().UTC().Add(8*time.Hour).Format(time.RFC3339))
+	require.Equal(t, 200, testutil.Do(f.r, "PUT", f.path()+"/duties/"+d, "supervisor", dutyBody).Code)
+	require.Equal(t, 200, testutil.Do(f.r, "PUT", f.path()+"/readiness/"+newID(), "dispatcher", readinessBody(v, d, 150, true)).Code)
+	id := newID()
+	require.Equal(t, 202, testutil.Do(f.r, "PUT", f.path()+"/dispatches/"+id, "dispatcher", dispatchBody(c, a, v, d)).Code)
+	_, err := dispatchProcessor(t, f).Offer(t.Context(), emergencycontract.DispatchWorkflowInput{TenantID: testutil.TenantA, BaseID: f.base, DispatchID: id})
+	require.NoError(t, err)
+	w := testutil.Do(f.r, "PUT", f.path()+"/dispatches/"+id+"/commands/"+newID(), "dispatcher", `{"version":2,"operation":"acknowledge","evidence_reference":"SYN-ACK"}`)
+	require.Equal(t, 403, w.Code, w.Body.String())
 }

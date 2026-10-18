@@ -94,3 +94,50 @@ func TestCrewCannotAcknowledgeAnOfferWhoseClinicalAuthorityWasRevoked(t *testing
 	require.Equal(t, "offered", snapshot.State)
 	require.Equal(t, int64(2), snapshot.Version)
 }
+
+func TestEligibilityPurposeCannotElevateApplicationOrUnassignedSubjects(t *testing.T) {
+	f := setupWithTransit(t, vault(t))
+	c, a, v, d := prepareDispatch(t, f)
+	id := newID()
+	require.Equal(t, 202, testutil.Do(f.r, "PUT", f.path()+"/dispatches/"+id, "dispatcher", dispatchBody(c, a, v, d)).Code)
+	_, err := dispatchProcessor(t, f).Offer(t.Context(), emergencycontract.DispatchWorkflowInput{TenantID: testutil.TenantA, BaseID: f.base, DispatchID: id})
+	require.NoError(t, err)
+	for _, subject := range []string{"user-admin", "user-unassigned", "service:emergency-dispatch-worker"} {
+		require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			require.NoError(t, tx.Exec(`SELECT set_config('app.emergency_subject',?,true),set_config('app.emergency_base',?,true),set_config('app.emergency_dispatch',?,true),set_config('app.emergency_eligibility','true',true)`, subject, f.base, id).Error)
+			var allowed bool
+			require.NoError(t, tx.Raw(`SELECT emergency_dispatch_offer_eligible(?::uuid,?::uuid,?::uuid)`, testutil.TenantA, f.base, id).Scan(&allowed).Error)
+			require.False(t, allowed, subject)
+			var count int64
+			require.NoError(t, tx.Table("emergency_cases").Where("tenant_id=? AND base_id=?", testutil.TenantA, f.base).Count(&count).Error)
+			require.Zero(t, count, subject)
+			return nil
+		}))
+	}
+}
+
+func TestDispatchWorkerCannotReadPrivatePayloadOrAssumeApplicationRole(t *testing.T) {
+	f := setupWithTransit(t, vault(t))
+	c, a, v, d := prepareDispatch(t, f)
+	id := newID()
+	require.Equal(t, 202, testutil.Do(f.r, "PUT", f.path()+"/dispatches/"+id, "dispatcher", dispatchBody(c, a, v, d)).Code)
+	var database string
+	require.NoError(t, f.db.WithSystem(t.Context(), func(tx *gorm.DB) error { return tx.Raw(`SELECT current_database()`).Scan(&database).Error }))
+	db, err := tenantdb.OpenRuntime(t.Context(), testinfra.EmergencyWorkerDSN(t, database))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	for _, statement := range []string{
+		`SELECT contact_ciphertext,incident_ciphertext FROM emergency_cases`,
+		`SELECT evidence_reference FROM emergency_crew`,
+		`SET ROLE hms_app`,
+		`SET ROLE hms_owner`,
+	} {
+		err := db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.emergency_subject','service:emergency-dispatch-worker',true),set_config('app.emergency_base',?,true),set_config('app.emergency_dispatch',?,true)`, f.base, id).Error; err != nil {
+				return err
+			}
+			return tx.Exec(statement).Error
+		})
+		require.ErrorContains(t, err, "permission denied", statement)
+	}
+}

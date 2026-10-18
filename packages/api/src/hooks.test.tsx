@@ -93,3 +93,27 @@ describe("useApiMutation", () => {
     expect(occurrences - 1).toBe(1);
   });
 });
+
+it("executes an explicit non-queued mutation immediately when offline", async () => {
+  const { onlineManager } = await import("@tanstack/react-query");
+  const action = vi.fn().mockRejectedValue(new Error("TEST offline failure"));
+  function Probe() {
+    const mutation = useApiMutation(action, { networkMode: "always", suppressErrorToast: true });
+    return (
+      <>
+        <button onClick={() => mutation.mutate(undefined)}>Attempt now</button>
+        {mutation.error && <p role="alert">{mutation.error.message}</p>}
+      </>
+    );
+  }
+  onlineManager.setOnline(false);
+  try {
+    const { user, unmount } = renderWithProviders(<Probe />);
+    await user.click(screen.getByRole("button", { name: "Attempt now" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("TEST offline failure");
+    expect(action).toHaveBeenCalledOnce();
+    unmount();
+  } finally {
+    onlineManager.setOnline(true);
+  }
+});

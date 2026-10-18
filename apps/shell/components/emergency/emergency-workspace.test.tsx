@@ -63,7 +63,9 @@ it("opens only an explicitly granted base and shows metadata without caller deta
     "href",
     `/emergency/bases/${base.id}/cases/${record.id}`,
   );
-  expect(screen.getByText(/No ambulance has been assigned/)).toBeInTheDocument();
+  expect(
+    screen.getByText(/Review received reports, fleet readiness and current dispatch status/),
+  ).toBeInTheDocument();
   expect(screen.queryByLabelText("Caller name (optional)")).not.toBeInTheDocument();
 });
 

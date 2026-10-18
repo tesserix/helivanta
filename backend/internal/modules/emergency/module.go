@@ -59,8 +59,10 @@ func (m *Module) Permissions() []authz.Grant {
 }
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &handlers{db: deps.DB, transit: deps.Transit, dispatchEnabled: deps.EmergencyDispatchEnabled}
+	platform.ListRoute(r.Group("/emergency/crew"), "/assignments", PermCrewRead, h.listCrewAssignments)
 	crew := r.Group("/emergency/crew/bases")
 	crew.GET("/:base/dispatches/:dispatch", PermCrewRead, h.getCrewDispatch)
+	crew.GET("/:base/dispatches/:dispatch/incident", PermCrewRead, h.getCrewIncident)
 	crew.PUT("/:base/dispatches/:dispatch/commands/:command", PermCrewAct, h.putDispatchCommand)
 	g := r.Group("/emergency/bases")
 	platform.ListRoute(g, "", PermBaseRead, h.listBases)

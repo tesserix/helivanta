@@ -103,7 +103,7 @@ func DispatchConsumer(c client.Client) events.Consumer {
 					return errors.New("dispatch workflow signal unavailable")
 				}
 				description, err := c.DescribeWorkflowExecution(ctx, id, "")
-				if err != nil || description.GetWorkflowExecutionInfo().GetStatus() != enums.WORKFLOW_EXECUTION_STATUS_COMPLETED {
+				if err != nil || description.GetWorkflowExecutionInfo().GetStatus() != enums.WORKFLOW_EXECUTION_STATUS_COMPLETED || description.GetWorkflowExecutionInfo().GetExecution().GetRunId() == "" {
 					return errors.New("dispatch workflow needs reconciliation")
 				}
 				if err := verifyDispatchExecution(ctx, c, id, description.GetWorkflowExecutionInfo().GetExecution().GetRunId(), in); err != nil {

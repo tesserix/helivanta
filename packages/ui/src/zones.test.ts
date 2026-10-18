@@ -113,3 +113,11 @@ it("offers the supply directory to non-clinical purchasing users", () => {
   expect(supply?.pages.map((page) => page.href)).toEqual(["/supply/parties"]);
   expect(zones.some((zone) => zone.key === "pharmacy")).toBe(false);
 });
+
+it("opens only crew assignments for an emergency crew user", () => {
+  const emergency = visibleZones(canWith(["emergency.crew.read"])).find(
+    (zone) => zone.key === "emergency",
+  );
+  expect(emergency?.href).toBe("/emergency/crew");
+  expect(emergency?.pages.map((page) => page.href)).toEqual(["/emergency/crew"]);
+});

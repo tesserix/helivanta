@@ -31,15 +31,17 @@ provider to take a global commitment on another person's behalf.
 
 ## Commands and durable processing
 
-| Endpoint under `/v1/emergency` | Authority |
-| --- | --- |
-| `PUT /bases/:base/dispatches/:id` | Dispatch permission plus base intake grant |
-| `GET /bases/:base/cases/:case/dispatch-eligibility` | Dispatch permission plus base intake grant |
-| `GET /bases/:base/dispatches/:id` | Case-read permission plus base reader grant |
-| `GET /bases/:base/cases/:case/dispatches` | Same scoped read, cursor paginated |
-| `PUT /bases/:base/dispatches/:id/commands/:command` | Operation-specific base grant and actor-bound receipt |
-| `GET /crew/bases/:base/dispatches/:id` | Crew permission plus assigned identity and actual offer |
-| `PUT /crew/bases/:base/dispatches/:id/commands/:command` | Same assignment, legal state/version and crew command |
+| Endpoint under `/v1/emergency`                           | Authority                                                                         |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `PUT /bases/:base/dispatches/:id`                        | Dispatch permission plus base intake grant                                        |
+| `GET /bases/:base/cases/:case/dispatch-eligibility`      | Dispatch permission plus base intake grant                                        |
+| `GET /bases/:base/dispatches/:id`                        | Case-read permission plus base reader grant                                       |
+| `GET /bases/:base/cases/:case/dispatches`                | Same scoped read, cursor paginated                                                |
+| `PUT /bases/:base/dispatches/:id/commands/:command`      | Operation-specific base grant and actor-bound receipt                             |
+| `GET /crew/assignments`                                  | Crew permission, own offered active assignments only, cursor paginated            |
+| `GET /crew/bases/:base/dispatches/:id`                   | Crew permission plus assigned identity and actual offer; own acknowledgement flag |
+| `GET /crew/bases/:base/dispatches/:id/incident`          | Same assignment, audited/decrypted protected read, no-store                       |
+| `PUT /crew/bases/:base/dispatches/:id/commands/:command` | Same assignment, legal state/version and crew command                             |
 
 Reservation binds the current case version, latest clinical assessment, reviewer
 delegation, vehicle and duty. It locks the base without conflicting with foreign-key
@@ -52,8 +54,23 @@ statement about the current crew state. Read the dispatch for current status.
 The web form freezes the command ID/body on an uncertain response and retries
 that same request. It never replaces uncertainty with another booking.
 
+The crew workspace is `/emergency/crew` in the production shell. It discovers
+only the verified subject’s actually offered active assignments, with no base
+reader grant. Selecting an assignment reads the protected incident through a
+separate audited endpoint. Unmount discards the protected query immediately; a
+failed or revoked read hides any previously displayed detail. Reconciled stand-down
+removes private access. Both HTTP and browser requests use `no-store`.
+
+Crew actions record acknowledgement, departure and arrival on scene. They use
+current assignment versions and retain the original ID/body after an uncertain
+response, including when polling observes a newer version. Commands are not
+queued for later reconnection. Offline action attempts show a contact-dispatch
+message; connectivity restoration alone cannot initiate a command. An encrypted
+native offline queue and transport/hospital stages are still separate programme
+work, not delivered by this screen.
+
 Only the dedicated `helivanta_emergency_worker` database identity runs workflow
-activities. It is non-superuser, non-bypass, NOINHERIT and has selected metadata
+activities. It is non-superuser, non-bypass, NOINHERIT, has no other role memberships, and has selected metadata
 privileges, not private incident columns. Role-specific restrictive outbox/audit
 policies cannot be overwritten by another module's canonical tenant policy.
 Temporal and NATS retain identifiers, versions and operational timing/state only.
@@ -93,7 +110,10 @@ post-offer clinical revocation, two-person acknowledgement, shared identities
 across provider tenants and safe cancellation. The Temporal time-skipping test
 runs the real SQL processor through expiry and a subsequent real supervisor
 reconciliation. The web panel uses shared generated request contracts and tests
-uncertain retries and disabled activation. These synthetic checks are not proof
+uncertain retries and disabled activation. The mobile-sized browser suite uses
+the production Next build and real disposable Postgres/OpenBao/NATS API, verifying
+separate crew identities, acknowledgement/departure/scene transitions and private
+access removal after real supervisor reconciliation. These synthetic checks are not proof
 of professional licensing, real receiving acceptance, device operation or a
 production citizen journey.
 

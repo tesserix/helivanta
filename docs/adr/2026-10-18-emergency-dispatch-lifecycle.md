@@ -20,8 +20,9 @@ end must not bypass active commitments.
 
 Command IDs bind actor, immutable body and assignment generation. Retries return
 the original result; changed bodies/actors conflict. Crew acknowledgement and
-ordered progress require assigned identity and current version. Offline commands
-preserve original IDs and sequence and remain pending until accepted server-side.
+ordered progress require assigned identity and current version. The web crew flow does not queue commands offline; it preserves the original ID
+and body only for an explicit retry after uncertainty. A future encrypted native
+queue must preserve assignment generation and sequence; it is not implemented.
 Ambiguous cancellation, timeout and reassignment need explicit reconciliation.
 
 A read-only clinical-ledger eligibility policy permits scoped base dispatchers

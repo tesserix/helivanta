@@ -31,6 +31,14 @@ CREATE TABLE emergency_dispatches (
  FOREIGN KEY(tenant_id,base_id,clinician_subject) REFERENCES emergency_crew(tenant_id,base_id,subject) ON DELETE RESTRICT,
  CHECK(driver_subject<>clinician_subject)
 );
+ALTER POLICY tenant_isolation ON emergency_cases
+ USING(hms_tenant_visible(tenant_id) AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
+ AND base_id=NULLIF(current_setting('app.emergency_base',true),'')::uuid
+ AND (emergency_allowed(tenant_id,base_id,'read') OR EXISTS(SELECT 1 FROM emergency_dispatches d
+ WHERE d.tenant_id=emergency_cases.tenant_id AND d.base_id=emergency_cases.base_id AND d.case_id=emergency_cases.id
+ AND current_setting('app.emergency_subject',true) IN(d.driver_subject,d.clinician_subject)
+ AND d.acknowledgement_deadline IS NOT NULL AND d.state NOT IN('workflow_pending','cleared','cancelled'))));
+
 CREATE UNIQUE INDEX emergency_dispatch_case_active ON emergency_dispatches(tenant_id,case_id) WHERE state NOT IN('cleared','cancelled');
 CREATE UNIQUE INDEX emergency_dispatch_vehicle_active ON emergency_dispatches(tenant_id,vehicle_id) WHERE state NOT IN('cleared','cancelled');
 CREATE INDEX ON emergency_dispatches(tenant_id,base_id,created_at DESC,id DESC);

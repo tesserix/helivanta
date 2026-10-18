@@ -31,7 +31,7 @@ func NewDispatchProcessor(ctx context.Context, db *tenantdb.DB) (*DispatchProces
 	}
 	var allowed bool
 	err := db.WithSystem(ctx, func(tx *gorm.DB) error {
-		return tx.Raw(`SELECT current_user='helivanta_emergency_worker' AND NOT rolsuper AND NOT rolbypassrls AND NOT rolcreatedb AND NOT rolcreaterole AND NOT rolinherit FROM pg_roles WHERE rolname=current_user`).Scan(&allowed).Error
+		return tx.Raw(`SELECT current_user='helivanta_emergency_worker' AND NOT rolsuper AND NOT rolbypassrls AND NOT rolcreatedb AND NOT rolcreaterole AND NOT rolinherit AND NOT EXISTS(SELECT 1 FROM pg_auth_members WHERE member=pg_roles.oid) FROM pg_roles WHERE rolname=current_user`).Scan(&allowed).Error
 	})
 	if err != nil || !allowed {
 		return nil, errors.New("dispatch workflow database identity is not authorized")

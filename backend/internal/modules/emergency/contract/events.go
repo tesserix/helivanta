@@ -31,3 +31,28 @@ type CaseChangedData struct {
 	Version int64  `json:"case_version"`
 	Status  string `json:"status"`
 }
+
+const SubjectDispatchChanged = "helivanta.in.emergency.dispatch_changed.v1"
+
+type DispatchChangedData struct {
+	BaseID     string `json:"base_id"`
+	DispatchID string `json:"dispatch_id"`
+	Version    int64  `json:"version"`
+}
+
+// DispatchWorkflowInput deliberately excludes patient, contact and location payloads.
+type DispatchWorkflowInput struct {
+	TenantID   string `json:"tenant_id"`
+	BaseID     string `json:"base_id"`
+	DispatchID string `json:"dispatch_id"`
+}
+
+// SubjectReceivingChanged directs an operational receipt notification back to its provider.
+const SubjectReceivingChanged = "helivanta.in.emergency.receiving_changed.v1"
+
+type ReceivingChangedData struct {
+	BaseID     string `json:"base_id"`
+	DispatchID string `json:"dispatch_id"`
+	RequestID  string `json:"request_id"`
+	Version    int64  `json:"version"`
+}

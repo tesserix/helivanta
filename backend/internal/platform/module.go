@@ -48,10 +48,12 @@ type Deps struct {
 	Bus                  *events.Bus
 	Documents            *attachments.GCS
 	// Transit is nil when OpenBao is unconfigured; routes that need it answer 503.
-	Transit   *transit.Client
-	Workflows client.Client
-	Authz     TupleWriter
-	Roles     RoleLister
+	Transit                   *transit.Client
+	Workflows                 client.Client
+	EmergencyDispatchEnabled  bool
+	EmergencyWorkflowsEnabled bool
+	Authz                     TupleWriter
+	Roles                     RoleLister
 	// SessionSigner re-mints the Helivanta session for the one operation that
 	// must change a caller's identity rather than read it: switching
 	// hospitals (#838, spec D3). Post-cutover this is the ONLY way a

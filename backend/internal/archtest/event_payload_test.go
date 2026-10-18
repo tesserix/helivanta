@@ -35,6 +35,16 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"emergency.DispatchChangedData.BaseID":              "opaque provider operating-base UUID; no address or name",
+	"emergency.DispatchChangedData.DispatchID":          "opaque trip UUID requiring protected lookup; no patient, vehicle, crew or destination details",
+	"emergency.DispatchChangedData.Version":             "monotonic operational revision, not clinical content",
+	"emergency.DispatchWorkflowInput.TenantID":          "opaque tenant UUID for the transaction boundary; no organization or patient profile",
+	"emergency.DispatchWorkflowInput.BaseID":            "opaque operating-base UUID for the worker boundary; no location",
+	"emergency.DispatchWorkflowInput.DispatchID":        "opaque trip UUID for workflow identity; protected data remains in the database",
+	"emergency.ReceivingChangedData.BaseID":             "opaque provider scope returned only through an approved directed relationship",
+	"emergency.ReceivingChangedData.DispatchID":         "opaque trip reference; no caller, patient, contact, location or hospital name",
+	"emergency.ReceivingChangedData.RequestID":          "opaque pre-alert UUID used to validate committed lineage, not clinical communication content",
+	"emergency.ReceivingChangedData.Version":            "decision revision for replay/order validation, not personal data",
 	"emergency.ClinicalAccessChangedData.BaseID":        "opaque operating-base scope; no facility identity",
 	"emergency.ClinicalAccessChangedData.GrantID":       "opaque verification record reference; no staff subject or evidence reference",
 	"emergency.ClinicalAccessChangedData.Version":       "append-only verification version; no professional or clinical attributes",

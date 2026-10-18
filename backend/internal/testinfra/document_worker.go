@@ -24,3 +24,12 @@ func SupplyEvidenceWorkerDSN(t *testing.T, database string) string {
 	u.RawQuery = url.Values{"sslmode": {"disable"}}.Encode()
 	return u.String()
 }
+
+// EmergencyWorkerDSN connects only the scoped dispatch-workflow fixture identity.
+func EmergencyWorkerDSN(t *testing.T, database string) string {
+	t.Helper()
+	host, port := sharedPostgres(t)
+	u := url.URL{Scheme: "postgres", Host: net.JoinHostPort(host, port), Path: "/" + database, User: url.UserPassword("helivanta_emergency_worker", "helivanta_emergency_worker")}
+	u.RawQuery = url.Values{"sslmode": {"disable"}}.Encode()
+	return u.String()
+}

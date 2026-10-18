@@ -11,14 +11,30 @@ export function useEmergencyCommand<T, R = unknown>(
   onSuccess?: (data: R) => void,
   invalidate: unknown[][] = [["emergency", "fleet", base]],
 ) {
-  const attempt = useRef<T | null>(null);
+  return useEmergencyRequest<T, R>(
+    () => `/emergency/bases/${base}/${path()}`,
+    method,
+    successToast,
+    onSuccess,
+    invalidate,
+  );
+}
+
+export function useEmergencyRequest<T, R = unknown>(
+  path: () => string,
+  method: "PUT" | "POST",
+  successToast: string,
+  onSuccess?: (data: R) => void,
+  invalidate: unknown[][] = [["emergency"]],
+) {
+  const attempt = useRef<{ path: string; body: T } | null>(null);
   const mutation = useApiMutation(
     async (values: T) => {
-      attempt.current ??= structuredClone(values);
+      attempt.current ??= { path: path(), body: structuredClone(values) };
       try {
-        return await apiFetch<R>(`/emergency/bases/${base}/${path()}`, {
+        return await apiFetch<R>(attempt.current.path, {
           method,
-          body: JSON.stringify(attempt.current),
+          body: JSON.stringify(attempt.current.body),
         });
       } catch (error) {
         if (error instanceof ApiError && [400, 413].includes(error.status)) attempt.current = null;
@@ -26,6 +42,7 @@ export function useEmergencyCommand<T, R = unknown>(
       }
     },
     {
+      networkMode: "always",
       successToast,
       suppressErrorToast: true,
       invalidate,

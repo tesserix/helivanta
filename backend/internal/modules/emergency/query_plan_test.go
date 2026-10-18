@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	emergencycontract "github.com/tesserix/helivanta/internal/modules/emergency/contract"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"gorm.io/gorm"
 )
@@ -51,6 +52,35 @@ func TestQueueAndExpiryAccessPathsAtOneHundredThousandCases(t *testing.T) {
 			require.NotContains(t, plan, "Seq Scan on emergency_cases")
 			require.Contains(t, plan, "Index Scan")
 		}
+		return nil
+	}))
+}
+
+func TestCrewDiscoveryDoesNotScanDispatchHistory(t *testing.T) {
+	f := setupWithTransit(t, vault(t))
+	c, a, v, d := prepareDispatch(t, f)
+	id := newID()
+	require.Equal(t, 202, testutil.Do(f.r, "PUT", f.path()+"/dispatches/"+id, "dispatcher", dispatchBody(c, a, v, d)).Code)
+	_, err := dispatchProcessor(t, f).Offer(t.Context(), emergencycontract.DispatchWorkflowInput{TenantID: testutil.TenantA, BaseID: f.base, DispatchID: id})
+	require.NoError(t, err)
+	require.NoError(t, f.db.WithAdmin(t.Context(), func(tx *gorm.DB) error {
+		require.NoError(t, tx.Exec(`SELECT set_config('app.tenant_id',?,true),set_config('app.emergency_subject','user-supervisor',true),set_config('app.emergency_base',?,true)`, testutil.TenantA, f.base).Error)
+		// Only this disposable plan fixture bypasses lifecycle triggers; all foreign keys and checks remain enforced.
+		require.NoError(t, tx.Exec(`ALTER TABLE emergency_dispatches DISABLE TRIGGER USER`).Error)
+		require.NoError(t, tx.Exec(`INSERT INTO emergency_dispatches(tenant_id,base_id,id,case_id,case_version,assessment_id,vehicle_id,duty_id,acknowledgement_seconds,requested_by,driver_subject,clinician_subject,state,acknowledgement_deadline)
+ SELECT d.tenant_id,d.base_id,('01990000-0000-7000-8000-'||lpad(to_hex(n),12,'0'))::uuid,d.case_id,d.case_version,d.assessment_id,d.vehicle_id,d.duty_id,d.acknowledgement_seconds,d.requested_by,d.driver_subject,d.clinician_subject,'cancelled',d.acknowledgement_deadline
+ FROM emergency_dispatches d CROSS JOIN generate_series(1,100000)n WHERE d.tenant_id=? AND d.base_id=? AND d.id=?`, testutil.TenantA, f.base, id).Error)
+		require.NoError(t, tx.Exec(`ALTER TABLE emergency_dispatches ENABLE TRIGGER USER`).Error)
+		return tx.Exec(`ANALYZE emergency_dispatches`).Error
+	}))
+	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		require.NoError(t, tx.Exec(`SELECT set_config('app.emergency_subject','user-driver',true)`).Error)
+		var plan []string
+		require.NoError(t, tx.Raw(`EXPLAIN(ANALYZE,BUFFERS) SELECT id,base_id,state,version,created_at FROM emergency_dispatches WHERE tenant_id=? AND ? IN(driver_subject,clinician_subject) AND acknowledgement_deadline IS NOT NULL AND state NOT IN('workflow_pending','cleared','cancelled') ORDER BY created_at DESC,id DESC LIMIT 51`, testutil.TenantA, "user-driver").Scan(&plan).Error)
+		text := strings.Join(plan, "\n")
+		t.Log(text)
+		require.NotContains(t, text, "Seq Scan on emergency_dispatches")
+		require.Contains(t, text, "Index Scan")
 		return nil
 	}))
 }

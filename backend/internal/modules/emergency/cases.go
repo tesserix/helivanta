@@ -255,6 +255,10 @@ func (h *handlers) getCase(c *gin.Context) {
 	if !ok {
 		return
 	}
+	h.caseDetails(c, p, b, id)
+}
+
+func (h *handlers) caseDetails(c *gin.Context, p authn.Principal, b, id uuid.UUID) {
 	var row caseRow
 	var expired bool
 	err := h.transaction(c.Request.Context(), p, b, false, func(tx *gorm.DB) error {

@@ -77,11 +77,13 @@ export function useApiMutation<TData, TVars = void>(
     // falling back to a hand-rolled useMutation that would drift from
     // this hook's shared contract.
     suppressErrorToast?: boolean;
+    networkMode?: "online" | "always";
   } = {},
 ): UseMutationResult<TData, Error, TVars> {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: fn,
+    networkMode: opts.networkMode,
     onSuccess: (data) => {
       if (opts.successToast) toast.success(opts.successToast);
       for (const key of opts.invalidate ?? []) {

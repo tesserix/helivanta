@@ -156,7 +156,7 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 			// Workforce hospital setup, access and HR configuration (rosters, leave, duty exchanges, overtime, attendance, payroll, identifier reveal, benefits) are also admin-only;
 			// staff data still requires an independent hospital grant (ADR 0009).
 			// Pharmacy grant administration is likewise admin-only; pharmacists cannot self-grant outlet or financial access. Operational finance permissions are separately admin-only (ADR 0025).
-			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != emergency.PermClinicalManage && perm != emergency.PermBaseManage && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermCredentialReview && perm != workforce.PermBenefitsView && perm != workforce.PermBenefitsManage && perm != workforce.PermBenefitsApprove && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workforce.PermLeaveRequest && perm != workforce.PermLeaveApprove && perm != workforce.PermDutyRequest && perm != workforce.PermDutyApprove && perm != workforce.PermOvertimeConfigure && perm != workforce.PermOvertimeRequest && perm != workforce.PermOvertimeApprove && perm != workforce.PermAttendanceConfigure && perm != workforce.PermAttendanceRecord && perm != workforce.PermAttendanceCorrect && perm != workforce.PermAttendanceApprove && perm != workforce.PermAttendanceFinalise && perm != workforce.PermPayrollConfigure && perm != workforce.PermPayrollView && perm != workforce.PermPayrollApprove && perm != workforce.PermPayrollIdentifiersReveal && perm != workspace.PermBrandingManage && perm != workspace.PermCountryPolicyManage && perm != patientmaster.PermPatientAccessManage && perm != pharmacy.PermAccessManage && perm != pharmacy.PermStockCorrect && perm != pharmacy.PermAccountsRead && perm != pharmacy.PermAccountsWrite && perm != pharmacy.PermAccountsPayment && perm != pharmacy.PermAccountsAdjust {
+			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != emergency.PermReceivingManage && perm != emergency.PermClinicalManage && perm != emergency.PermBaseManage && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermCredentialReview && perm != workforce.PermBenefitsView && perm != workforce.PermBenefitsManage && perm != workforce.PermBenefitsApprove && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workforce.PermLeaveRequest && perm != workforce.PermLeaveApprove && perm != workforce.PermDutyRequest && perm != workforce.PermDutyApprove && perm != workforce.PermOvertimeConfigure && perm != workforce.PermOvertimeRequest && perm != workforce.PermOvertimeApprove && perm != workforce.PermAttendanceConfigure && perm != workforce.PermAttendanceRecord && perm != workforce.PermAttendanceCorrect && perm != workforce.PermAttendanceApprove && perm != workforce.PermAttendanceFinalise && perm != workforce.PermPayrollConfigure && perm != workforce.PermPayrollView && perm != workforce.PermPayrollApprove && perm != workforce.PermPayrollIdentifiersReveal && perm != workspace.PermBrandingManage && perm != workspace.PermCountryPolicyManage && perm != patientmaster.PermPatientAccessManage && perm != pharmacy.PermAccessManage && perm != pharmacy.PermStockCorrect && perm != pharmacy.PermAccountsRead && perm != pharmacy.PermAccountsWrite && perm != pharmacy.PermAccountsPayment && perm != pharmacy.PermAccountsAdjust {
 
 				t.Errorf("module %q guards a route with %q, held by tenant_admin only; declare the role that needs it", m.Name(), perm)
 			}
@@ -181,27 +181,35 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 // bug class — a role mapping change must be a deliberate, reviewable edit
 // here.
 var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
-	emergency.PermBaseRead:       {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor, authz.RoleDoctor},
-	emergency.PermBaseManage:     {authz.RoleTenantAdmin},
-	emergency.PermClinicalManage: {authz.RoleTenantAdmin},
-	emergency.PermCaseAssess:     {authz.RoleTenantAdmin, authz.RoleDoctor},
-	emergency.PermCaseRead:       {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor, authz.RoleDoctor},
-	emergency.PermCaseIntake:     {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
-	emergency.PermCaseClose:      {authz.RoleTenantAdmin, authz.RoleEmergencySupervisor},
-	emergency.PermFleetRead:      {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
-	emergency.PermFleetManage:    {authz.RoleTenantAdmin, authz.RoleEmergencySupervisor},
-	emergency.PermFleetCheck:     {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
-	supply.PermTerritoryRead:     {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RoleSupplySales},
-	supply.PermTerritoryWrite:    {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin},
-	supply.PermOperatingRead:     {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyWarehouse, authz.RoleSupplyInventory, authz.RoleSupplyPicker, authz.RoleSupplyPacker, authz.RoleSupplyDispatcher, authz.RoleSupplyDriver, authz.RoleSupplyAuditor, authz.RoleSupplyRegulator},
-	supply.PermOperatingWrite:    {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyInventory},
-	supply.PermDeliveryRead:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyDispatcher, authz.RoleSupplyAuditor, authz.RoleSupplyRegulator},
-	supply.PermDeliveryWrite:     {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyDispatcher},
-	supply.PermDriverRead:        {authz.RoleTenantAdmin, authz.RoleSupplyDriver},
-	supply.PermDriverAction:      {authz.RoleTenantAdmin, authz.RoleSupplyDriver},
-	supply.PermSupportRead:       {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplySupport},
-	supply.PermSupportManage:     {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin},
-	supply.PermSupportRevoke:     {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplySupport},
+	emergency.PermBaseRead: {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor, authz.RoleDoctor},
+	// Receiving configuration/delegation is admin-only; operational authority
+	// additionally requires independently verified campus grants (receiving ADR).
+	emergency.PermReceivingManage: {authz.RoleTenantAdmin},
+	emergency.PermReceivingRead:   {authz.RoleTenantAdmin, authz.RoleEmergencyReceiver},
+	emergency.PermReceivingAct:    {authz.RoleTenantAdmin, authz.RoleEmergencyReceiver},
+	emergency.PermCrewRead:        {authz.RoleTenantAdmin, authz.RoleEmergencyCrew},
+	emergency.PermCrewAct:         {authz.RoleTenantAdmin, authz.RoleEmergencyCrew},
+	emergency.PermDispatchManage:  {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
+	emergency.PermBaseManage:      {authz.RoleTenantAdmin},
+	emergency.PermClinicalManage:  {authz.RoleTenantAdmin},
+	emergency.PermCaseAssess:      {authz.RoleTenantAdmin, authz.RoleDoctor},
+	emergency.PermCaseRead:        {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor, authz.RoleDoctor},
+	emergency.PermCaseIntake:      {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
+	emergency.PermCaseClose:       {authz.RoleTenantAdmin, authz.RoleEmergencySupervisor},
+	emergency.PermFleetRead:       {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
+	emergency.PermFleetManage:     {authz.RoleTenantAdmin, authz.RoleEmergencySupervisor},
+	emergency.PermFleetCheck:      {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
+	supply.PermTerritoryRead:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RoleSupplySales},
+	supply.PermTerritoryWrite:     {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin},
+	supply.PermOperatingRead:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyWarehouse, authz.RoleSupplyInventory, authz.RoleSupplyPicker, authz.RoleSupplyPacker, authz.RoleSupplyDispatcher, authz.RoleSupplyDriver, authz.RoleSupplyAuditor, authz.RoleSupplyRegulator},
+	supply.PermOperatingWrite:     {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyInventory},
+	supply.PermDeliveryRead:       {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyDispatcher, authz.RoleSupplyAuditor, authz.RoleSupplyRegulator},
+	supply.PermDeliveryWrite:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyDispatcher},
+	supply.PermDriverRead:         {authz.RoleTenantAdmin, authz.RoleSupplyDriver},
+	supply.PermDriverAction:       {authz.RoleTenantAdmin, authz.RoleSupplyDriver},
+	supply.PermSupportRead:        {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplySupport},
+	supply.PermSupportManage:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin},
+	supply.PermSupportRevoke:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplySupport},
 
 	supply.PermBinRead:            {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyOwner, authz.RoleSupplyPurchasing, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor},
 	supply.PermBinWrite:           {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyOwner, authz.RoleSupplyPurchasing},

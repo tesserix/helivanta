@@ -18,6 +18,7 @@ import { HmsShell, Field, useZodForm, SelectControl, FormSelectField } from "@he
 import { TenantPicker } from "@/components/tenant-picker";
 import { EnrollmentEditor } from "./enrollment-editor";
 import { StaffDocumentPanel } from "./document-panel";
+import { StaffCredentialPanel } from "./credential-panel";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -113,6 +114,7 @@ function Directory({ hospital }: { hospital: Hospital }) {
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<Staff | "new" | null>(null);
   const [documentStaff, setDocumentStaff] = useState<Staff | null>(null);
+  const [credentialStaff, setCredentialStaff] = useState<Staff | null>(null);
   useEffect(() => {
     if (!editing) opener.current?.focus();
   }, [editing]);
@@ -142,6 +144,7 @@ function Directory({ hospital }: { hospital: Hospital }) {
               onClick={(event) => {
                 opener.current = event.currentTarget;
                 setDocumentStaff(null);
+                setCredentialStaff(null);
                 setEditing("new");
               }}
             >
@@ -235,6 +238,7 @@ function Directory({ hospital }: { hospital: Hospital }) {
                           onClick={(event) => {
                             opener.current = event.currentTarget;
                             setDocumentStaff(null);
+                            setCredentialStaff(null);
                             setEditing(row);
                           }}
                           aria-label={`Edit ${row.display_name}`}
@@ -248,10 +252,25 @@ function Directory({ hospital }: { hospital: Hospital }) {
                             aria-label={`Documents for ${row.display_name}`}
                             onClick={() => {
                               setEditing(null);
+                              setCredentialStaff(null);
                               setDocumentStaff(row);
                             }}
                           >
                             Documents
+                          </Button>
+                        )}
+                        {can("workforce.enrollment.manage") && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Credentials for ${row.display_name}`}
+                            onClick={() => {
+                              setEditing(null);
+                              setDocumentStaff(null);
+                              setCredentialStaff(row);
+                            }}
+                          >
+                            Credentials
                           </Button>
                         )}
                       </td>
@@ -290,6 +309,14 @@ function Directory({ hospital }: { hospital: Hospital }) {
           hospital={hospital}
           staff={documentStaff}
           onClose={() => setDocumentStaff(null)}
+        />
+      )}
+      {credentialStaff && writable && can("workforce.enrollment.manage") && (
+        <StaffCredentialPanel
+          key={credentialStaff.id}
+          hospital={hospital}
+          staff={credentialStaff}
+          onClose={() => setCredentialStaff(null)}
         />
       )}
       {editing && can("workforce.enrollment.manage") ? (

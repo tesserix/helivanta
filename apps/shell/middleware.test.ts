@@ -40,6 +40,7 @@ it("keeps only exact emergency access routes public", () => {
     "/api/emergency/access/admin",
     "/api/emergency/access-token",
     "/api/v1/emergency/cases",
+    "/api/v1/emergency/bases",
   ]) {
     const response = middleware(new NextRequest(`https://helivanta.app${path}`));
     expect(response.status).toBe(path.startsWith("/api/") ? 401 : 307);

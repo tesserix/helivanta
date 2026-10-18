@@ -43,7 +43,7 @@ test("public configuration is narrow and neighbouring emergency routes remain pr
     400,
   );
   expect((await request.get("/api/emergency/access/admin")).status()).toBe(401);
-  expect((await request.get("/api/v1/emergency/cases")).status()).toBe(401);
+  expect((await request.get("/api/v1/emergency/bases")).status()).toBe(401);
   expect((await request.get("/ambulance/admin", { maxRedirects: 0 })).status()).toBe(307);
   expect(
     (await request.post("/api/emergency/access", { data: { phone: "not-collected" } })).status(),

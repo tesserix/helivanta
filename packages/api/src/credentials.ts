@@ -5,8 +5,13 @@ import {
   credentialReviewInputContract,
   credentialDecisionInputContract,
   credentialWithdrawInputContract,
+  credentialReminderContract,
+  credentialReminderPolicyContract,
+  credentialReminderPolicyInputContract,
   staffCredentialsContract,
   type CredentialDecisionInput,
+  type CredentialReminder,
+  type CredentialReminderPolicy,
   type CredentialReview,
   type CredentialReviewInput,
   type CredentialWithdrawInput,
@@ -162,3 +167,79 @@ export const credentialRegisterFilterSchema = z
   })
   .strict();
 export type CredentialRegisterFilter = z.infer<typeof credentialRegisterFilterSchema>;
+
+export type CredentialReminderStatus = CredentialReminder["status"];
+const hrPath = (hospitalId: string) => `/workforce/hospitals/${identifier.parse(hospitalId)}/hr`;
+export const credentialReminderPolicyPath = (hospitalId: string) =>
+  `${hrPath(hospitalId)}/credential-reminder-policy`;
+export const credentialReminderPolicyKey = (hospitalId: string) => [
+  "workforce",
+  "credential-reminder-policy",
+  hospitalId,
+];
+export const credentialRemindersPath = (hospitalId: string, status: CredentialReminderStatus) =>
+  `${hrPath(hospitalId)}/credential-reminders?status=${credentialReminderContract.shape.status.parse(status)}`;
+export const credentialRemindersKey = (hospitalId: string) => [
+  "workforce",
+  "credential-reminders",
+  hospitalId,
+];
+
+// Days are typed as a list ("90, 30, 0") and must be 1 to 6 different whole days from 0 to 365.
+export const parseReminderDays = (text: string): number[] =>
+  text
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part !== "")
+    .map(Number);
+export const credentialReminderPolicyFormSchema = z
+  .object({ days: z.string().max(100, "Keep it to 100 characters.") })
+  .strict()
+  .superRefine((value, ctx) => {
+    const parts = value.days.split(",").map((part) => part.trim());
+    const days = parseReminderDays(value.days);
+    if (days.length === 0)
+      ctx.addIssue({ code: "custom", path: ["days"], message: "Enter at least one day." });
+    else if (parts.some((part) => !/^\d{1,3}$/.test(part)) || days.some((d) => d > 365))
+      ctx.addIssue({
+        code: "custom",
+        path: ["days"],
+        message: "Use whole days from 0 to 365, separated by commas.",
+      });
+    else if (days.length > 6)
+      ctx.addIssue({ code: "custom", path: ["days"], message: "Use up to 6 reminder days." });
+    else if (new Set(days).size !== days.length)
+      ctx.addIssue({ code: "custom", path: ["days"], message: "List each day once." });
+  });
+export type CredentialReminderPolicyForm = z.infer<typeof credentialReminderPolicyFormSchema>;
+
+export async function saveCredentialReminderPolicy(
+  hospitalId: string,
+  expectedVersion: number,
+  thresholds: number[],
+): Promise<CredentialReminderPolicy> {
+  const body = credentialReminderPolicyInputContract.parse({
+    expected_version: expectedVersion,
+    thresholds,
+  });
+  return credentialReminderPolicyContract.parse(
+    await apiFetch(credentialReminderPolicyPath(hospitalId), {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+export async function acknowledgeCredentialReminder(
+  hospitalId: string,
+  reminder: string,
+): Promise<CredentialReminder> {
+  const saved = credentialReminderContract.parse(
+    await apiFetch(
+      `${hrPath(hospitalId)}/credential-reminders/${identifier.parse(reminder)}/acknowledgement`,
+      { method: "POST" },
+    ),
+  );
+  if (saved.id !== reminder) throw new Error("The acknowledged reminder did not match.");
+  return saved;
+}

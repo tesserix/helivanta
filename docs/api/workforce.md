@@ -135,6 +135,19 @@ Design: [credential validity spec](../superpowers/specs/2026-10-20-credential-va
 
 Status is computed per request in the hospital roster time zone: `unreviewed`, `not_yet_valid`, `valid`, `expires_today`, `expired`, or `date_unknown` when no zone is set. The expiry day counts as valid. Once a credential is reviewed, an enrollment `PUT` that changes its type, number, issuer or dates, or removes it, answers 409 `credential_reviewed`. Responses are `Cache-Control: no-store`. Each proposal and decision publishes `credential_review_changed.v1`, and an approval also publishes `credential_validity_changed.v1` and `enrollment_changed.v1`, all through the outbox and carrying identifiers, status and version only.
 
+## Credential renewal reminders
+
+Design: [credential renewal reminders spec](../superpowers/specs/2026-10-18-credential-renewal-reminders-design.md) (#1108 slice B). UI: `/workforce/credential-reminders`.
+
+| Route                                                                 | Permission                                                | Behaviour                                                                                                                                                     |
+| --------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /workforce/hospitals/{hospital}/hr/credential-reminder-policy`   | `workforce.enrollment.manage` and hospital manager        | Current policy; `version: 0, thresholds: []` when reminders are off                                                                                           |
+| `PUT /workforce/hospitals/{hospital}/hr/credential-reminder-policy`   | `workforce.enrollment.manage` and locked hospital manager | `expected_version`, `thresholds` (1–6 distinct whole days, 0–365), stored descending; identical thresholds return the current version; 409 `version_conflict` |
+| `GET /workforce/hospitals/{hospital}/hr/credential-reminders?status=` | `workforce.enrollment.manage` and hospital manager        | `open` (default), `acknowledged` or `superseded`; keyset pages, soonest `due_on` first; never includes number or issuer; audited                              |
+| `POST …/hr/credential-reminders/{reminder}/acknowledgement`           | `workforce.enrollment.manage` and locked hospital manager | Records the acknowledging subject; idempotent for an acknowledged reminder; 409 `reminder_superseded`                                                         |
+
+Each approved revision gets one Temporal schedule (`workforce-credential-reminders-v1` on the document worker), started by the `workforce-credential-reminders` consumer of `credential_validity_changed.v1`. Threshold _t_ is due when `valid_until − t` is on or before the hospital's local date; only the smallest due threshold is written, superseding larger open ones, and approving a new revision supersedes the old revision's open reminders. With no policy or no roster time zone nothing is written. Responses are `Cache-Control: no-store`. Policy saves publish `credential_reminder_policy_changed.v1`; reminder creation, acknowledgement and supersession publish `credential_reminder_changed.v1`, through the outbox with identifiers, status, threshold and version only.
+
 ## Versioned shift definitions
 
 | Route                                                        | Access                                                      | Behavior                                                                                                                  |

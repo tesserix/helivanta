@@ -109,3 +109,10 @@ type safetyIncidentInput struct {
 	OccurredAt                      string     `json:"occurred_at" binding:"required,min=1"`
 	MeasuredTemperatureMillicelsius *int64     `json:"measured_temperature_millicelsius" binding:"omitempty,min=-273150,max=1000000"`
 }
+
+type StockExpiryFields struct {
+	ExpiryTimeZone  string `json:"expiry_time_zone" binding:"required,min=1,max=64"`
+	ExpiryLocalDate string `json:"expiry_local_date"`
+	DaysToExpiry    int    `json:"days_to_expiry" binding:"min=-3652058,max=3652058"`
+	ExpiryBand      string `json:"expiry_band" binding:"required,oneof=expired today days_30 days_90 days_180 later"`
+}

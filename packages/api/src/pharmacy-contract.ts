@@ -201,3 +201,12 @@ export const pharmacySafetyIncidentFieldsSchema = z
       .optional(),
   })
   .strict();
+
+export const pharmacyStockExpiryFieldsSchema = z
+  .object({
+    expiry_time_zone: z.string().min(1).max(64),
+    expiry_local_date: z.string().date("Use a full valid date."),
+    days_to_expiry: z.number().int().min(-3652058).max(3652058),
+    expiry_band: z.enum(["expired", "today", "days_30", "days_90", "days_180", "later"]),
+  })
+  .strict();

@@ -147,6 +147,11 @@ func TestStockRegisterPaginatesZeroPositionsAndUsesOutletLocalExpiry(t *testing.
 		}))
 	}
 	cursor := ""
+	w = do(r, "GET", root+"/positions?as_of="+url.QueryEscape(cutoff)+"&balance=on_hand", "editor", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	var positive struct{ Data []json.RawMessage }
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &positive))
+	require.Empty(t, positive.Data)
 	seen := map[string]bool{}
 	for {
 		w = do(r, "GET", root+"/positions?limit=1&as_of="+url.QueryEscape(cutoff)+"&cursor="+url.QueryEscape(cursor), "editor", "")

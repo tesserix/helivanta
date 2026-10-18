@@ -53,6 +53,12 @@ export const ZONES: Zone[] = [
         icon: Ambulance,
         permission: "emergency.crew.read",
       },
+      {
+        label: "Hospital receiving",
+        href: "/emergency/receiving",
+        icon: Ambulance,
+        permission: "emergency.receiving.read",
+      },
     ],
   },
   {

@@ -25,6 +25,28 @@ export const EMERGENCY_DISPATCH_OPERATIONS = {
   acknowledge: "Acknowledge assigned duty",
   en_route: "Record departure to scene",
   on_scene: "Record arrival at scene",
+  transporting: "Record departure to receiving hospital",
+  arrived: "Record arrival at receiving hospital",
+  handover_complete: "Confirm crew handover",
+  clear: "Clear trip after post-handover check",
+} as const;
+export const EMERGENCY_DISPATCH_RECEIVING_OPERATIONS = [
+  "transporting",
+  "arrived",
+  "handover_complete",
+] as const;
+export const EMERGENCY_RECEIVING_STATES = {
+  pending: "Awaiting hospital response",
+  accepted: "Hospital acceptance recorded",
+  rejected: "Hospital declined",
+  revoked: "Acceptance withdrawn",
+  handover_received: "Physical receipt confirmed",
+} as const;
+export const EMERGENCY_RECEIVING_LINK_STATES = {
+  proposed: "Awaiting receiving manager",
+  approved: "Service link approved",
+  rejected: "Service link declined",
+  revoked: "Service link ended",
 } as const;
 const identifier = z
   .string()
@@ -51,7 +73,73 @@ export const DispatchCommandInputContract = z
       "acknowledge",
       "en_route",
       "on_scene",
+      "transporting",
+      "arrived",
+      "handover_complete",
+      "clear",
     ]),
+    evidence_reference: z
+      .string()
+      .min(1)
+      .max(120)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    receiving_request_id: identifier.optional(),
+  })
+  .strict();
+export type DispatchCommandInput = z.infer<typeof DispatchCommandInputContract>;
+
+export const ReceivingFacilityInputContract = z
+  .object({
+    version: z.number().int().min(0),
+    name: z
+      .string()
+      .min(1)
+      .max(150)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    enabled: z.boolean(),
+    policy_reference: z
+      .string()
+      .min(1)
+      .max(120)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    expires_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ReceivingFacilityInput = z.infer<typeof ReceivingFacilityInputContract>;
+
+export const ReceivingAccessInputContract = z
+  .object({
+    version: z.number().int().min(0),
+    level: z.enum(["receiver", "manager"]),
+    enabled: z.boolean(),
+    policy_reference: z
+      .string()
+      .min(1)
+      .max(120)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    expires_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ReceivingAccessInput = z.infer<typeof ReceivingAccessInputContract>;
+
+export const ReceivingLinkInputContract = z
+  .object({
+    destination_tenant_id: identifier,
+    facility_id: identifier,
+    policy_reference: z
+      .string()
+      .min(1)
+      .max(120)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    valid_until: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ReceivingLinkInput = z.infer<typeof ReceivingLinkInputContract>;
+
+export const ReceivingLinkCommandInputContract = z
+  .object({
+    version: z.number().int().min(1),
+    operation: z.enum(["approve", "reject", "revoke"]),
     evidence_reference: z
       .string()
       .min(1)
@@ -59,4 +147,33 @@ export const DispatchCommandInputContract = z
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
-export type DispatchCommandInput = z.infer<typeof DispatchCommandInputContract>;
+export type ReceivingLinkCommandInput = z.infer<typeof ReceivingLinkCommandInputContract>;
+
+export const ReceivingRequestInputContract = z
+  .object({
+    version: z.number().int().min(1),
+    link_id: identifier,
+    previous_request_id: identifier.optional(),
+    response_seconds: z.number().int().min(15).max(300),
+    evidence_reference: z
+      .string()
+      .min(1)
+      .max(120)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type ReceivingRequestInput = z.infer<typeof ReceivingRequestInputContract>;
+
+export const ReceivingCommandInputContract = z
+  .object({
+    version: z.number().int().min(1),
+    operation: z.enum(["accept", "reject", "revoke", "handover_received"]),
+    evidence_reference: z
+      .string()
+      .min(1)
+      .max(120)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    valid_until: z.string().datetime({ offset: true }).optional(),
+  })
+  .strict();
+export type ReceivingCommandInput = z.infer<typeof ReceivingCommandInputContract>;

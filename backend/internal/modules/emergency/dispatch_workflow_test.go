@@ -46,3 +46,41 @@ func TestDispatchWorkflowDurablyExpiresAnOfferAndWaitsForRealReconciliation(t *t
 	require.Equal(t, "cancelled", state)
 	require.True(t, fleetRows(t, f)[0]["dispatchable"].(bool))
 }
+
+func TestDispatchWorkflowDurablyEscalatesReceivingExpiryWithoutLosingCapacity(t *testing.T) {
+	f := setupWithTransit(t, vault(t))
+	a := prepareAcceptedReceivingTrip(t, f)
+	processor := dispatchProcessor(t, f)
+	in := emergencycontract.DispatchWorkflowInput{TenantID: testutil.TenantA, BaseID: f.base, DispatchID: a.dispatch}
+	var suite testsuite.WorkflowTestSuite
+	env := suite.NewTestWorkflowEnvironment()
+	env.SetTestTimeout(10 * time.Second)
+	env.SetStartTime(time.Now().UTC())
+	setDispatchClock(t, f, env.Now())
+	env.RegisterActivityWithOptions(processor.OfferActivity, activity.RegisterOptions{Name: emergency.DispatchOfferActivity})
+	env.RegisterActivityWithOptions(processor.RefreshActivity, activity.RegisterOptions{Name: emergency.DispatchRefreshActivity})
+	env.RegisterActivityWithOptions(func(ctx context.Context, input emergency.DispatchReceivingExpiryInput) (emergency.DispatchSnapshot, error) {
+		setDispatchClock(t, f, env.Now())
+		return processor.ExpireReceiving(ctx, input)
+	}, activity.RegisterOptions{Name: "emergency-dispatch-receiving-expire-v1"})
+	env.RegisterDelayedCallback(func() {
+		setDispatchClock(t, f, env.Now())
+		current, err := processor.Snapshot(t.Context(), in)
+		require.NoError(t, err)
+		if !current.ReceivingTimedOut {
+			t.Error("receiving deadline did not produce its durable escalation")
+		}
+		require.Equal(t, "on_scene", current.State)
+		require.Equal(t, int64(6), current.Version)
+		w := testutil.Do(f.r, "PUT", f.path()+"/dispatches/"+a.dispatch+"/commands/"+newID(), "dispatcher", `{"version":6,"operation":"request_cancel","evidence_reference":"SYN-VOICE-STANDDOWN"}`)
+		require.Equal(t, 200, w.Code, w.Body.String())
+		require.Equal(t, 200, testutil.Do(f.r, "PUT", f.path()+"/dispatches/"+a.dispatch+"/commands/"+newID(), "supervisor", `{"version":7,"operation":"reconcile_cancelled","evidence_reference":"SYN-CONFIRMED-STANDDOWN"}`).Code)
+		env.SignalWorkflow(emergency.DispatchVersionSignal, int64(8))
+	}, 31*time.Minute)
+	env.ExecuteWorkflow(emergency.DispatchWorkflow, in)
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+	var result string
+	require.NoError(t, env.GetWorkflowResult(&result))
+	require.Equal(t, "cancelled", result)
+}

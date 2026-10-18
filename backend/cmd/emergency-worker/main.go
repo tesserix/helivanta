@@ -81,6 +81,7 @@ func run(ctx context.Context) error {
 	w.RegisterActivityWithOptions(processor.OfferActivity, activity.RegisterOptions{Name: emergency.DispatchOfferActivity})
 	w.RegisterActivityWithOptions(processor.RefreshActivity, activity.RegisterOptions{Name: emergency.DispatchRefreshActivity})
 	w.RegisterActivityWithOptions(processor.ExpireActivity, activity.RegisterOptions{Name: emergency.DispatchExpireActivity})
+	w.RegisterActivityWithOptions(processor.ReceivingExpireActivity, activity.RegisterOptions{Name: emergency.DispatchReceivingExpireActivity})
 	if err := w.Start(); err != nil {
 		return errors.New("emergency workflow worker unavailable")
 	}

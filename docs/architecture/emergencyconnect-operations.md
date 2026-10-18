@@ -175,3 +175,13 @@ and hospital choice (#1223), CRM/tariffs/resolution (#1224), and clinical pilot 
 case (#1222). There is no assumed government dispatch API. The transport clinical
 lead and real operator/hospital owners must approve protocols and operational
 readiness before citizen booking can promise a response.
+
+## Directed hospital receiving and transport completion
+
+The receiving release adds independently delegated campus receivers/managers,
+bilateral provider service links, directed pre-alerts, expiring acceptance and
+separate physical receipt. Follow [the receiving guide](emergencyconnect-receiving.md).
+Provider/hospital tenancy remains unchanged: a tenant can configure multiple
+receiving campuses, with explicit authority for each. A user with memberships in
+several hospitals switches the active tenant and needs each campus delegation.
+Public booking and canonical workforce qualification integration remain separate.

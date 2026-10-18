@@ -210,12 +210,12 @@ func run() error {
 			return err
 		}
 	}
-	if cfg.EmergencyDispatchEnabled {
+	if cfg.EmergencyWorkflowsEnabled {
 		if err := cfg.RequireEmergencyWorkflows(); err != nil {
 			return err
 		}
 	}
-	if documentsEnabled || cfg.EmergencyDispatchEnabled {
+	if documentsEnabled || cfg.EmergencyWorkflowsEnabled {
 		startup, cancel := context.WithTimeout(ctx, 15*time.Second)
 		workflows, err = client.DialContext(startup, client.Options{HostPort: cfg.TemporalAddress, Namespace: cfg.TemporalNamespace, Logger: slog.Default()})
 		cancel()
@@ -373,18 +373,19 @@ func run() error {
 	// negating cfg.IsDev().
 	sessionSecureCookie := !cfg.IsDev()
 	deps := platform.Deps{
-		EmergencyDispatchEnabled: cfg.EmergencyDispatchEnabled,
-		OrganizationIdentity:     identityClient,
-		Documents:                documents,
-		Transit:                  vault,
-		Workflows:                workflows,
-		DB:                       db,
-		Bus:                      bus,
-		Authz:                    fga,
-		Roles:                    fga,
-		SessionSigner:            sessionSigner,
-		SessionTTL:               sessionTTL,
-		SessionSecureCookie:      sessionSecureCookie,
+		EmergencyDispatchEnabled:  cfg.EmergencyDispatchEnabled,
+		EmergencyWorkflowsEnabled: cfg.EmergencyWorkflowsEnabled,
+		OrganizationIdentity:      identityClient,
+		Documents:                 documents,
+		Transit:                   vault,
+		Workflows:                 workflows,
+		DB:                        db,
+		Bus:                       bus,
+		Authz:                     fga,
+		Roles:                     fga,
+		SessionSigner:             sessionSigner,
+		SessionTTL:                sessionTTL,
+		SessionSecureCookie:       sessionSecureCookie,
 		Reconcile: func(ctx context.Context, tenantID string) error {
 			return platform.ReconcileTenant(ctx, registry, fga, tenantID)
 		},

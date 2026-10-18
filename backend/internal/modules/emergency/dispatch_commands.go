@@ -13,20 +13,21 @@ import (
 )
 
 type dispatchCommand struct {
-	ID                uuid.UUID `json:"id"`
-	DispatchID        uuid.UUID `json:"dispatch_id"`
-	ExpectedVersion   int64     `json:"expected_version"`
-	Operation         string    `json:"operation"`
-	EvidenceReference string    `json:"evidence_reference"`
-	ActorSubject      string    `json:"actor_subject"`
-	State             string    `json:"state" gorm:"column:result_state"`
-	Version           int64     `json:"version" gorm:"column:result_version"`
-	CreatedAt         time.Time `json:"created_at"`
+	ReceivingRequestID *uuid.UUID `json:"receiving_request_id,omitempty"`
+	ID                 uuid.UUID  `json:"id"`
+	DispatchID         uuid.UUID  `json:"dispatch_id"`
+	ExpectedVersion    int64      `json:"expected_version"`
+	Operation          string     `json:"operation"`
+	EvidenceReference  string     `json:"evidence_reference"`
+	ActorSubject       string     `json:"actor_subject"`
+	State              string     `json:"state" gorm:"column:result_state"`
+	Version            int64      `json:"version" gorm:"column:result_version"`
+	CreatedAt          time.Time  `json:"created_at"`
 }
 
 func (dispatchCommand) TableName() string { return "emergency_dispatch_commands" }
 
-const commandColumns = "id,dispatch_id,expected_version,operation,evidence_reference,actor_subject,result_state,result_version,created_at"
+const commandColumns = "id,receiving_request_id,dispatch_id,expected_version,operation,evidence_reference,actor_subject,result_state,result_version,created_at"
 
 func (h *handlers) putDispatchCommand(c *gin.Context) {
 	p, b, ok := scope(c)
@@ -45,11 +46,11 @@ func (h *handlers) putDispatchCommand(c *gin.Context) {
 	if !decode(c, &in) {
 		return
 	}
-	crewOperation := in.Operation == "acknowledge" || in.Operation == "en_route" || in.Operation == "on_scene"
+	crewOperation := in.Operation == "acknowledge" || in.Operation == "en_route" || in.Operation == "on_scene" || receivingRequestOperations[in.Operation]
 	permission := PermDispatchManage
 	if crewOperation {
 		permission = PermCrewAct
-	} else if in.Operation == "reconcile_cancelled" {
+	} else if in.Operation == "reconcile_cancelled" || in.Operation == "clear" {
 		permission = PermCaseClose
 	}
 	permissions, ok := authz.PermissionsFrom(c)
@@ -64,7 +65,7 @@ func (h *handlers) putDispatchCommand(c *gin.Context) {
 	var out dispatchCommand
 	err := h.transaction(c.Request.Context(), p, b, false, func(tx *gorm.DB) error {
 		ability := "intake"
-		if in.Operation == "reconcile_cancelled" {
+		if in.Operation == "reconcile_cancelled" || in.Operation == "clear" {
 			ability = "close"
 		}
 		if !crewOperation {
@@ -77,7 +78,7 @@ func (h *handlers) putDispatchCommand(c *gin.Context) {
 		}
 		err := tx.Select(commandColumns).Where("tenant_id=? AND base_id=? AND id=?", p.TenantID, b, id).First(&out).Error
 		if err == nil {
-			if out.DispatchID != d || out.ExpectedVersion != in.Version || out.Operation != in.Operation || out.EvidenceReference != in.EvidenceReference || out.ActorSubject != p.Subject {
+			if !sameOptionalID(out.ReceivingRequestID, in.ReceivingRequestID) || out.DispatchID != d || out.ExpectedVersion != in.Version || out.Operation != in.Operation || out.EvidenceReference != in.EvidenceReference || out.ActorSubject != p.Subject {
 				return errCaseConflict
 			}
 			return nil
@@ -91,7 +92,7 @@ func (h *handlers) putDispatchCommand(c *gin.Context) {
 				return err
 			}
 		}
-		if err := tx.Exec(`INSERT INTO emergency_dispatch_commands(tenant_id,base_id,id,dispatch_id,expected_version,operation,evidence_reference,actor_subject) VALUES(?,?,?,?,?,?,?,?)`, p.TenantID, b, id, d, in.Version, in.Operation, in.EvidenceReference, p.Subject).Error; err != nil {
+		if err := tx.Exec(`INSERT INTO emergency_dispatch_commands(tenant_id,base_id,id,dispatch_id,expected_version,operation,evidence_reference,actor_subject,receiving_request_id) VALUES(?,?,?,?,?,?,?,?,?)`, p.TenantID, b, id, d, in.Version, in.Operation, in.EvidenceReference, p.Subject, in.ReceivingRequestID).Error; err != nil {
 			return err
 		}
 		if err := tx.Select(commandColumns).Where("tenant_id=? AND base_id=? AND id=?", p.TenantID, b, id).First(&out).Error; err != nil {

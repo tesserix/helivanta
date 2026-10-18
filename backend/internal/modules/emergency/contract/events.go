@@ -46,3 +46,13 @@ type DispatchWorkflowInput struct {
 	BaseID     string `json:"base_id"`
 	DispatchID string `json:"dispatch_id"`
 }
+
+// SubjectReceivingChanged directs an operational receipt notification back to its provider.
+const SubjectReceivingChanged = "helivanta.in.emergency.receiving_changed.v1"
+
+type ReceivingChangedData struct {
+	BaseID     string `json:"base_id"`
+	DispatchID string `json:"dispatch_id"`
+	RequestID  string `json:"request_id"`
+	Version    int64  `json:"version"`
+}

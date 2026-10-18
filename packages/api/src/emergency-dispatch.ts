@@ -5,6 +5,7 @@ import {
   EMERGENCY_DISPATCH_CAPABILITIES,
   EMERGENCY_DISPATCH_OPERATIONS,
   EMERGENCY_DISPATCH_STATES,
+  EMERGENCY_DISPATCH_RECEIVING_OPERATIONS,
 } from "./emergency-dispatch-contract";
 
 export { EMERGENCY_DISPATCH_OPERATIONS, EMERGENCY_DISPATCH_STATES };
@@ -25,7 +26,24 @@ export const emergencyDispatchReservationSchema = DispatchReservationInputContra
 }).strict();
 export const emergencyDispatchCommandSchema = DispatchCommandInputContract.extend({
   evidence_reference: reference,
-}).strict();
+  receiving_request_id: id.optional(),
+})
+  .strict()
+  .superRefine((value, ctx) => {
+    const needs = EMERGENCY_DISPATCH_RECEIVING_OPERATIONS.some(
+      (operation) => operation === value.operation,
+    );
+    if (needs !== !!value.receiving_request_id)
+      ctx.addIssue({
+        code: "custom",
+        path: ["receiving_request_id"],
+        message: needs
+          ? "Select the current receiving request"
+          : "This command does not accept a receiving request",
+      });
+  });
+export const emergencyOperationalReferenceSchema = reference;
+export const emergencyResourceIdentifierSchema = id;
 export type EmergencyDispatchReservationInput = z.infer<typeof emergencyDispatchReservationSchema>;
 export type EmergencyDispatchCommandInput = z.infer<typeof emergencyDispatchCommandSchema>;
 export type EmergencyDispatchState = keyof typeof EMERGENCY_DISPATCH_STATES;

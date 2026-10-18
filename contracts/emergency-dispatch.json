@@ -18,7 +18,11 @@
     "reconcile_cancelled": "Confirm cancellation reconciliation",
     "acknowledge": "Acknowledge assigned duty",
     "en_route": "Record departure to scene",
-    "on_scene": "Record arrival at scene"
+    "on_scene": "Record arrival at scene",
+    "transporting": "Record departure to receiving hospital",
+    "arrived": "Record arrival at receiving hospital",
+    "handover_complete": "Confirm crew handover",
+    "clear": "Clear trip after post-handover check"
   },
   "models": {
     "DispatchReservationInput": [
@@ -71,9 +75,135 @@
           "reconcile_cancelled",
           "acknowledge",
           "en_route",
-          "on_scene"
+          "on_scene",
+          "transporting",
+          "arrived",
+          "handover_complete",
+          "clear"
         ],
-        "binding": "required,oneof=request_cancel reconcile_cancelled acknowledge en_route on_scene"
+        "binding": "required,oneof=request_cancel reconcile_cancelled acknowledge en_route on_scene transporting arrived handover_complete clear"
+      },
+      {
+        "name": "evidence_reference",
+        "type": "string",
+        "min": 1,
+        "max": 120,
+        "binding": "required,max=120"
+      },
+      {
+        "name": "receiving_request_id",
+        "type": "uuid",
+        "optional": true
+      }
+    ],
+    "ReceivingFacilityInput": [
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 0,
+        "binding": "min=0"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 150,
+        "binding": "required,max=150"
+      },
+      {
+        "name": "enabled",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "policy_reference",
+        "type": "string",
+        "min": 1,
+        "max": 120,
+        "binding": "required,max=120"
+      },
+      {
+        "name": "expires_at",
+        "type": "time",
+        "binding": "required"
+      }
+    ],
+    "ReceivingAccessInput": [
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 0,
+        "binding": "min=0"
+      },
+      {
+        "name": "level",
+        "type": "string",
+        "enum": [
+          "receiver",
+          "manager"
+        ],
+        "binding": "required,oneof=receiver manager"
+      },
+      {
+        "name": "enabled",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      },
+      {
+        "name": "policy_reference",
+        "type": "string",
+        "min": 1,
+        "max": 120,
+        "binding": "required,max=120"
+      },
+      {
+        "name": "expires_at",
+        "type": "time",
+        "binding": "required"
+      }
+    ],
+    "ReceivingLinkInput": [
+      {
+        "name": "destination_tenant_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "facility_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "policy_reference",
+        "type": "string",
+        "min": 1,
+        "max": 120,
+        "binding": "required,max=120"
+      },
+      {
+        "name": "valid_until",
+        "type": "time",
+        "binding": "required"
+      }
+    ],
+    "ReceivingLinkCommandInput": [
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "binding": "min=1"
+      },
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": [
+          "approve",
+          "reject",
+          "revoke"
+        ],
+        "binding": "required,oneof=approve reject revoke"
       },
       {
         "name": "evidence_reference",
@@ -82,6 +212,69 @@
         "max": 120,
         "binding": "required,max=120"
       }
+    ],
+    "ReceivingRequestInput": [
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "binding": "min=1"
+      },
+      {
+        "name": "link_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "previous_request_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "response_seconds",
+        "type": "int",
+        "min": 15,
+        "max": 300,
+        "binding": "min=15,max=300"
+      },
+      {
+        "name": "evidence_reference",
+        "type": "string",
+        "min": 1,
+        "max": 120,
+        "binding": "required,max=120"
+      }
+    ],
+    "ReceivingCommandInput": [
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "binding": "min=1"
+      },
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": [
+          "accept",
+          "reject",
+          "revoke",
+          "handover_received"
+        ],
+        "binding": "required,oneof=accept reject revoke handover_received"
+      },
+      {
+        "name": "evidence_reference",
+        "type": "string",
+        "min": 1,
+        "max": 120,
+        "binding": "required,max=120"
+      },
+      {
+        "name": "valid_until",
+        "type": "time",
+        "optional": true
+      }
     ]
   },
   "worker_operations": {
@@ -89,8 +282,35 @@
     "acknowledgement_timeout": "Escalate unanswered offer"
   },
   "capabilities": {
-    "patient_transport": ["patient_transport"],
-    "bls": ["patient_transport", "bls"],
-    "als": ["patient_transport", "bls", "als"]
+    "patient_transport": [
+      "patient_transport"
+    ],
+    "bls": [
+      "patient_transport",
+      "bls"
+    ],
+    "als": [
+      "patient_transport",
+      "bls",
+      "als"
+    ]
+  },
+  "receiving_request_operations": [
+    "transporting",
+    "arrived",
+    "handover_complete"
+  ],
+  "receiving_states": {
+    "pending": "Awaiting hospital response",
+    "accepted": "Hospital acceptance recorded",
+    "rejected": "Hospital declined",
+    "revoked": "Acceptance withdrawn",
+    "handover_received": "Physical receipt confirmed"
+  },
+  "receiving_link_states": {
+    "proposed": "Awaiting receiving manager",
+    "approved": "Service link approved",
+    "rejected": "Service link declined",
+    "revoked": "Service link ended"
   }
 }

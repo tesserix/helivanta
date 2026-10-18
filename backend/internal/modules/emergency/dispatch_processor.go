@@ -9,6 +9,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"time"
 )
 
@@ -16,6 +17,10 @@ const dispatchWorkerActor = "service:emergency-dispatch-worker"
 
 // DispatchSnapshot is operational state safe to retain in workflow history.
 type DispatchSnapshot struct {
+	ReceivingRequestID      *uuid.UUID `json:"receiving_request_id"`
+	ReceivingDeadline       *time.Time `json:"receiving_deadline"`
+	ReceivingDeadlineKind   string     `json:"receiving_deadline_kind"`
+	ReceivingTimedOut       bool       `json:"receiving_timed_out"`
 	State                   string     `json:"state"`
 	Version                 int64      `json:"version"`
 	AcknowledgementDeadline *time.Time `json:"acknowledgement_deadline"`
@@ -61,7 +66,28 @@ func (p *DispatchProcessor) transaction(ctx context.Context, in emergencycontrac
 func dispatchSnapshot(tx *gorm.DB, in emergencycontract.DispatchWorkflowInput) (DispatchSnapshot, error) {
 	var out DispatchSnapshot
 	err := tx.Table("emergency_dispatches").Select("state,version,acknowledgement_deadline").Where("tenant_id=? AND base_id=? AND id=?", in.TenantID, in.BaseID, in.DispatchID).Take(&out).Error
-	return out, err
+	if err != nil || out.State == "cleared" || out.State == "cancelled" {
+		return out, err
+	}
+	var receiving struct {
+		ID       uuid.UUID
+		Deadline *time.Time
+		Kind     string
+		TimedOut bool
+	}
+	err = tx.Raw(`SELECT r.id,r.deadline,r.kind,
+ EXISTS(SELECT 1 FROM emergency_receiving_timeouts e WHERE e.tenant_id=r.tenant_id AND e.base_id=r.base_id AND e.request_id=r.id AND e.kind=r.kind)AS timed_out
+ FROM emergency_receiving_workflow_state r WHERE r.tenant_id=? AND r.base_id=? AND r.dispatch_id=? ORDER BY r.sequence DESC LIMIT 1`, in.TenantID, in.BaseID, in.DispatchID).Scan(&receiving).Error
+	if err != nil {
+		return out, err
+	}
+	if receiving.ID != uuid.Nil {
+		out.ReceivingRequestID = &receiving.ID
+		out.ReceivingDeadline = receiving.Deadline
+		out.ReceivingDeadlineKind = receiving.Kind
+		out.ReceivingTimedOut = receiving.TimedOut
+	}
+	return out, nil
 }
 
 // Snapshot reads only the dispatch identified by its committed workflow key.
@@ -122,6 +148,60 @@ func (p *DispatchProcessor) Expire(ctx context.Context, in emergencycontract.Dis
 			}
 		}
 		out, err = dispatchSnapshot(tx, in)
+		return err
+	})
+	return out, err
+}
+
+// DispatchReceivingExpiryInput identifies one receiving deadline without private payloads.
+type DispatchReceivingExpiryInput struct {
+	emergencycontract.DispatchWorkflowInput
+	RequestID string `json:"request_id"`
+	Kind      string `json:"kind"`
+}
+
+// ExpireReceiving escalates the selected receiving wait without releasing capacity.
+func (p *DispatchProcessor) ExpireReceiving(ctx context.Context, in DispatchReceivingExpiryInput) (DispatchSnapshot, error) {
+	request, err := uuid.Parse(in.RequestID)
+	if !validDispatchWorkflowInput(in.DispatchWorkflowInput) || err != nil || request.Version() != 7 || (in.Kind != "response" && in.Kind != "acceptance") {
+		return DispatchSnapshot{}, errors.New("invalid receiving deadline identifiers")
+	}
+	var out DispatchSnapshot
+	err = p.transaction(ctx, in.DispatchWorkflowInput, func(tx *gorm.DB) error {
+		var locked struct{ ID uuid.UUID }
+		if err := tx.Table("emergency_bases").Select("id").Clauses(clause.Locking{Strength: "NO KEY UPDATE"}).Where("tenant_id=? AND id=?", in.TenantID, in.BaseID).Take(&locked).Error; err != nil {
+			return err
+		}
+		locked.ID = uuid.Nil
+		if err := tx.Table("emergency_dispatches").Select("id").Clauses(clause.Locking{Strength: "UPDATE"}).Where("tenant_id=? AND base_id=? AND id=?", in.TenantID, in.BaseID, in.DispatchID).Take(&locked).Error; err != nil {
+			return err
+		}
+		current, err := dispatchSnapshot(tx, in.DispatchWorkflowInput)
+		if err != nil {
+			return err
+		}
+		if current.ReceivingRequestID == nil || *current.ReceivingRequestID != request || current.ReceivingDeadlineKind != in.Kind || current.ReceivingDeadline == nil || current.ReceivingTimedOut {
+			out = current
+			return nil
+		}
+		result := tx.Exec(`INSERT INTO emergency_receiving_timeouts(tenant_id,base_id,dispatch_id,request_id,kind,deadline)VALUES(?,?,?,?,?,?)ON CONFLICT DO NOTHING`, in.TenantID, in.BaseID, in.DispatchID, request, in.Kind, current.ReceivingDeadline)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 1 {
+			principal := authn.Principal{TenantID: in.TenantID, Subject: dispatchWorkerActor}
+			if err := audit(tx, principal, uuid.MustParse(in.BaseID), uuid.MustParse(in.DispatchID), "dispatch.receiving_timeout", nil); err != nil {
+				return err
+			}
+			data, err := json.Marshal(emergencycontract.DispatchChangedData{BaseID: in.BaseID, DispatchID: in.DispatchID, Version: current.Version})
+			if err != nil {
+				return err
+			}
+			if err := transportEvent(tx, principal, emergencycontract.SubjectDispatchChanged, data); err != nil {
+				return err
+			}
+		}
+		out, err = dispatchSnapshot(tx, in.DispatchWorkflowInput)
 		return err
 	})
 	return out, err

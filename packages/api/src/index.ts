@@ -75,3 +75,5 @@ export * from "./emergency-fleet";
 export * from "./emergency-review";
 
 export * from "./emergency-dispatch";
+
+export * from "./emergency-receiving";

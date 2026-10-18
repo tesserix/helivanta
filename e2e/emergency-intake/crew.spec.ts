@@ -93,6 +93,8 @@ test("assigned driver and clinician acknowledge separately, progress and lose pr
     await expect(page.getByText("Synthetic Gate C", { exact: true })).toHaveCount(0);
     await expect(page.getByLabel("Operational evidence reference")).toHaveCount(0);
   } finally {
+    await context.unrouteAll({ behavior: "wait" });
+    await clinical.unrouteAll({ behavior: "wait" });
     await clinical.close();
   }
 });

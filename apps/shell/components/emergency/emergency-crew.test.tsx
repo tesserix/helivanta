@@ -163,3 +163,49 @@ it("retains an uncertain command across a failed refresh and a newer current ver
   const writes = fetcher.mock.calls.filter(([, init]) => init?.method === "PUT");
   expect(writes[0]).toEqual(writes[1]);
 });
+
+it("binds hospital transport to the current actionable receiving request", async () => {
+  const fetcher = fixture();
+  const read = fetcher.getMockImplementation()!;
+  const receiving = {
+    id: base,
+    provider_tenant_id: base,
+    base_id: base,
+    dispatch_id: id,
+    facility_id: base,
+    version: 2,
+    sequence: 1,
+    status: "accepted",
+    usable: true,
+    handover_ready: false,
+    destination_name: "Synthetic Receiving Hospital",
+    superseded: false,
+  };
+  fetcher.mockImplementation(async (url, init) => {
+    if (init?.method !== "PUT" && url.includes("/dispatches/")) {
+      if (url.endsWith("/incident")) return read(url, init);
+      if (url.endsWith("/receiving"))
+        return json({ data: [receiving], page: { has_more: false, next_cursor: null } });
+      if (url.includes("/receiving/")) return json(receiving);
+      return json({ ...row, version: 6, state: "on_scene", own_acknowledged: true });
+    }
+    return read(url, init);
+  });
+  const { user } = renderWithProviders(<EmergencyCrewWorkspace />);
+  await user.click(await screen.findByRole("button", { name: "Open assignment" }));
+  expect(await screen.findByText("Synthetic Receiving Hospital")).toBeInTheDocument();
+  await user.type(
+    screen.getByLabelText("Operational evidence reference"),
+    "TEST-HOSPITAL-TRANSPORT",
+  );
+  await user.click(screen.getByRole("button", { name: "Start hospital transport" }));
+  await screen.findByText(/TEST response uncertain/);
+  const writes = fetcher.mock.calls.filter(([, init]) => init?.method === "PUT");
+  expect(writes).toHaveLength(1);
+  expect(JSON.parse(String(writes[0][1]?.body))).toEqual({
+    version: 6,
+    operation: "transporting",
+    receiving_request_id: base,
+    evidence_reference: "TEST-HOSPITAL-TRANSPORT",
+  });
+});

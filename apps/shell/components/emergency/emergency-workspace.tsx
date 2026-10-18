@@ -14,6 +14,7 @@ import { LoadMore, formatTime } from "@helivanta/ui";
 import { EmergencyBaseAdmin } from "./emergency-base-admin";
 import { EmergencyIntake } from "./emergency-intake";
 import { EmergencyFleet } from "./emergency-fleet";
+import { EmergencyReceivingPartners } from "./emergency-receiving-dispatch";
 
 export function EmergencyWorkspace() {
   const { can } = usePermissions();
@@ -100,6 +101,7 @@ function EmergencyBaseCases({ base }: { base: EmergencyBase }) {
     <section className="space-y-5">
       <h2 className="text-xl font-semibold">{base.name} reports</h2>
       {base.access_level && <EmergencyFleet base={base.id} level={base.access_level} />}
+      <EmergencyReceivingPartners base={base} />
       {(base.access_level === "dispatcher" || base.access_level === "supervisor") &&
         can("emergency.case.intake") && <EmergencyIntake base={base} />}
       {cases.isPending && <p role="status">Loading reports…</p>}

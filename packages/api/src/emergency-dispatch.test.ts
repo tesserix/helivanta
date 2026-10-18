@@ -55,3 +55,19 @@ describe("dispatch commands", () => {
     expect(emergencyClassSupports(null, "patient_transport")).toBe(false);
   });
 });
+
+it("binds transport and handover commands to an explicit receiving request", () => {
+  const body = {
+    version: 6,
+    operation: "transporting",
+    evidence_reference: "SYN-TRIP",
+    receiving_request_id: id,
+  };
+  expect(emergencyDispatchCommandSchema.parse(body)).toEqual(body);
+  expect(
+    emergencyDispatchCommandSchema.safeParse({ ...body, receiving_request_id: undefined }).success,
+  ).toBe(false);
+  expect(
+    emergencyDispatchCommandSchema.safeParse({ ...body, operation: "acknowledge" }).success,
+  ).toBe(false);
+});

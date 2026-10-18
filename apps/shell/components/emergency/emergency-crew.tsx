@@ -17,9 +17,11 @@ import {
   type EmergencyCaseDetail,
   type EmergencyDispatchCommandInput,
   type EmergencyDispatchCommandReceipt,
+  type EmergencyReceivingRequest,
 } from "@helivanta/api";
 import { LoadMore, formatTime } from "@helivanta/ui";
 import { EmergencyCommandFailure } from "./emergency-command";
+import { useEmergencyReceivingTrip, ReceivingTripStatus } from "./emergency-receiving-dispatch";
 
 export function EmergencyCrewWorkspace() {
   const { can } = usePermissions();
@@ -108,6 +110,16 @@ function CrewAssignment({
       request: { cache: "no-store" },
     },
   );
+  const receivingEnabled =
+    !!row.data &&
+    !row.isError &&
+    ["on_scene", "transporting", "arrived", "handover_complete"].includes(row.data.state);
+  const receiving = useEmergencyReceivingTrip(baseID, id, true, receivingEnabled);
+  const receivingHealthy =
+    !receiving.records.isError &&
+    !receiving.current.isError &&
+    !receiving.records.isPending &&
+    (!receiving.latest || !receiving.current.isPending);
   return (
     <section
       aria-label="Current crew assignment"
@@ -121,6 +133,10 @@ function CrewAssignment({
         onClick={() => {
           void row.refetch();
           void incident.refetch();
+          if (receivingEnabled) {
+            receiving.records.retry();
+            if (receiving.latest) void receiving.current.refetch();
+          }
         }}
       >
         Refresh current assignment
@@ -135,6 +151,10 @@ function CrewAssignment({
             onClick={() => {
               void row.refetch();
               void incident.refetch();
+              if (receivingEnabled) {
+                receiving.records.retry();
+                if (receiving.latest) void receiving.current.refetch();
+              }
             }}
           >
             Refresh access
@@ -171,6 +191,21 @@ function CrewAssignment({
               </dd>
             </div>
           </dl>
+          {receivingEnabled &&
+            (receivingHealthy ? (
+              <ReceivingTripStatus request={receiving.current.data} />
+            ) : (
+              <p role="status">Checking the current receiving hospital plan…</p>
+            ))}
+          {row.data.state === "arrived" && !receiving.current.data?.handover_ready && (
+            <p role="status">Waiting for the receiving team to confirm physical receipt.</p>
+          )}
+          {row.data.state === "handover_complete" && (
+            <p role="status">
+              Handover recorded. A supervisor must review the post-trip check and clear this
+              assignment.
+            </p>
+          )}
           {row.data.own_acknowledged && <p role="status">Your acknowledgement is recorded.</p>}
           {["cancel_requested", "reconciliation_required"].includes(row.data.state) && (
             <p role="status">
@@ -185,7 +220,14 @@ function CrewAssignment({
           path={path}
           baseID={baseID}
           row={row.data}
-          visible={!!row.data && !row.isError && !!incident.data && !incident.isError}
+          receiving={receiving.current.data}
+          visible={
+            !!row.data &&
+            !row.isError &&
+            !!incident.data &&
+            !incident.isError &&
+            (!receivingEnabled || receivingHealthy)
+          }
         />
       )}
     </section>
@@ -196,11 +238,13 @@ function CrewAction({
   path,
   baseID,
   row,
+  receiving,
   visible,
 }: {
   path: string;
   baseID: string;
   row?: EmergencyCrewDispatch;
+  receiving?: EmergencyReceivingRequest;
   visible: boolean;
 }) {
   const referenceID = useId();
@@ -245,7 +289,13 @@ function CrewAction({
         ? "en_route"
         : row.state === "en_route"
           ? "on_scene"
-          : null;
+          : row.state === "on_scene" && receiving?.usable
+            ? "transporting"
+            : row.state === "transporting" && receiving?.usable
+              ? "arrived"
+              : row.state === "arrived" && receiving?.handover_ready
+                ? "handover_complete"
+                : null;
   const uncertain =
     mutation.isError &&
     !(mutation.error instanceof ApiError && [400, 413].includes(mutation.error.status));
@@ -254,6 +304,9 @@ function CrewAction({
     acknowledge: "Acknowledge assignment",
     en_route: "Record departure",
     on_scene: "Record arrival on scene",
+    transporting: "Start hospital transport",
+    arrived: "Record hospital arrival",
+    handover_complete: "Confirm crew handover",
   };
   if (mutation.data && mutation.data.version > row.version) {
     return (
@@ -270,7 +323,14 @@ function CrewAction({
     }
     const body = uncertain
       ? attempt.current?.body
-      : { version: currentVersion, operation, evidence_reference: reference };
+      : {
+          version: currentVersion,
+          operation,
+          evidence_reference: reference,
+          ...(operation && ["transporting", "arrived", "handover_complete"].includes(operation)
+            ? { receiving_request_id: receiving?.id }
+            : {}),
+        };
     const parsed = emergencyDispatchCommandSchema.safeParse(body);
     if (!parsed.success) {
       setValidation("Enter an operational reference without patient or contact details.");

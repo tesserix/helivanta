@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/emergency" //nolint:depguard // module under test
 	emergencycontract "github.com/tesserix/helivanta/internal/modules/emergency/contract"
+	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/events"
 	commonpb "go.temporal.io/api/common/v1"
@@ -162,4 +163,15 @@ func TestDispatchConsumerAcceptsOnlyCompletedMatchingReceipts(t *testing.T) {
 			c.AssertExpectations(t)
 		})
 	}
+}
+
+func TestExistingTripsKeepTheirConsumersWhenNewEntryIsSuspended(t *testing.T) {
+	deps := platform.Deps{Workflows: &mocks.Client{}}
+	module := &emergency.Module{}
+	require.Empty(t, module.Consumers(deps))
+	deps.EmergencyWorkflowsEnabled = true
+	consumers := module.Consumers(deps)
+	require.Len(t, consumers, 2)
+	require.Equal(t, "emergency-dispatch", consumers[0].Name)
+	require.Equal(t, "emergency-receiving", consumers[1].Name)
 }

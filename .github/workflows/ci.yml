@@ -253,7 +253,7 @@ jobs:
             sleep 1
           done
           curl --fail --silent --max-time 2 "$HELIVANTA_BROWSER_ORIGIN/ambulance" > /dev/null
-          go -C backend test -tags emergencybrowser -run TestEmergencyConsoleBrowser -count=1 -v ./internal/modules/emergency
+          go -C backend test -tags emergencybrowser -run "Test(EmergencyConsole|ReceivingTransport)Browser" -count=1 -v ./internal/modules/emergency
       - name: Upload emergency runtime diagnostics on failure
         if: ${{ failure() && steps.emergency_browser.outcome == 'failure' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

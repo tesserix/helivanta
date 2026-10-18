@@ -1,5 +1,7 @@
 "use client";
 
+import { EmergencyReceivingDispatch } from "./emergency-receiving-dispatch";
+
 import { useState, useRef, useId } from "react";
 import { Badge, Button, Input } from "@tesserix/web";
 import {
@@ -75,9 +77,10 @@ export function EmergencyDispatchPanel({ baseID, caseID }: { baseID: string; cas
               </div>
             )}
           </dl>
+          {canManage && <EmergencyReceivingDispatch baseID={baseID} row={row} />}
           {canManage && row.state !== "cleared" && row.state !== "cancelled" && (
             <DispatchCancellation
-              key={`${row.id}-${row.version}`}
+              key={row.id}
               row={row}
               supervisor={can("emergency.case.close") && access.data?.level === "supervisor"}
             />
@@ -282,7 +285,8 @@ function DispatchCancellation({
     ],
   );
   const reconciling = row.state === "cancel_requested" || row.state === "reconciliation_required";
-  const operation = reconciling ? "reconcile_cancelled" : "request_cancel";
+  const clearing = row.state === "handover_complete";
+  const operation = clearing ? "clear" : reconciling ? "reconcile_cancelled" : "request_cancel";
   async function execute() {
     const parsed = emergencyDispatchCommandSchema.safeParse({
       version: row.version,
@@ -300,7 +304,14 @@ function DispatchCancellation({
       setError(err instanceof Error ? err.message : "Command could not be confirmed");
     }
   }
-  if (reconciling && !supervisor)
+  if (["transporting", "arrived"].includes(row.state))
+    return (
+      <p className="text-sm text-muted-foreground">
+        Patient transport is in progress. Coordinate any diversion through a new receiving request;
+        ordinary cancellation cannot release this capacity.
+      </p>
+    );
+  if ((reconciling || clearing) && !supervisor)
     return (
       <p className="text-sm">
         Capacity remains held until a scoped supervisor confirms reconciliation.
@@ -309,9 +320,11 @@ function DispatchCancellation({
   return (
     <div className="space-y-3 border-t pt-3">
       <p className="text-sm text-muted-foreground">
-        {reconciling
-          ? "Confirm the crew was contacted and this assignment can safely stand down before releasing capacity."
-          : "Requesting cancellation keeps capacity held until a supervisor confirms the outcome with the crew."}
+        {clearing
+          ? "Record a new post-handover readiness check before clearing the trip. Failed checks continue to block the vehicle from dispatch."
+          : reconciling
+            ? "Confirm the crew was contacted and this assignment can safely stand down before releasing capacity."
+            : "Requesting cancellation keeps capacity held until a supervisor confirms the outcome with the crew."}
       </p>
       <label className="block space-y-2" htmlFor={referenceID}>
         Operational confirmation reference
@@ -324,7 +337,11 @@ function DispatchCancellation({
         />
       </label>
       <Button className="min-h-11" disabled={command.frozen} onClick={() => void execute()}>
-        {reconciling ? "Confirm reconciled cancellation" : "Request cancellation"}
+        {clearing
+          ? "Clear trip after post-handover check"
+          : reconciling
+            ? "Confirm reconciled cancellation"
+            : "Request cancellation"}
       </Button>
       <EmergencyCommandFailure message={error} uncertain={command.uncertain} />
       {command.uncertain && (

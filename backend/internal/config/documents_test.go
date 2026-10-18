@@ -59,3 +59,16 @@ func TestEmergencyWorkflowsDoNotRequirePrivateDocumentBuckets(t *testing.T) {
 	cfg.TemporalNamespace = ""
 	require.Error(t, cfg.RequireEmergencyWorkflows())
 }
+
+func TestEmergencyProcessingCanContinueWithoutAcceptingNewTrips(t *testing.T) {
+	t.Setenv("EMERGENCY_DISPATCH_ENABLED", "false")
+	t.Setenv("EMERGENCY_WORKFLOWS_ENABLED", "true")
+	cfg := config.Load()
+	require.False(t, cfg.EmergencyDispatchEnabled)
+	require.True(t, cfg.EmergencyWorkflowsEnabled)
+	t.Setenv("EMERGENCY_DISPATCH_ENABLED", "true")
+	t.Setenv("EMERGENCY_WORKFLOWS_ENABLED", "")
+	require.True(t, config.Load().EmergencyWorkflowsEnabled)
+	t.Setenv("EMERGENCY_DISPATCH_ENABLED", "false")
+	require.False(t, config.Load().EmergencyWorkflowsEnabled)
+}

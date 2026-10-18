@@ -12,3 +12,8 @@ func TestEmergencyOperationalRolesAreSeededAndDistinct(t *testing.T) {
 	}
 	require.False(t, authz.KnownRole("emergency_admin_bypass"))
 }
+
+func TestReceivingRoleIsGrantableThroughIAM(t *testing.T) {
+	require.True(t, authz.KnownRole("emergency_receiver"))
+	require.False(t, authz.KnownRole("emergency_receiving_admin_bypass"))
+}

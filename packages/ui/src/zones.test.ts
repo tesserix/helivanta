@@ -121,3 +121,11 @@ it("opens only crew assignments for an emergency crew user", () => {
   expect(emergency?.href).toBe("/emergency/crew");
   expect(emergency?.pages.map((page) => page.href)).toEqual(["/emergency/crew"]);
 });
+
+it("opens only the receiving inbox for a hospital receiver", () => {
+  const emergency = visibleZones(canWith(["emergency.receiving.read"])).find(
+    (zone) => zone.key === "emergency",
+  );
+  expect(emergency?.href).toBe("/emergency/receiving");
+  expect(emergency?.pages.map((page) => page.href)).toEqual(["/emergency/receiving"]);
+});

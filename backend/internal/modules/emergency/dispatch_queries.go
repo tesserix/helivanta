@@ -54,7 +54,8 @@ func (h *handlers) getDispatchEligibility(c *gin.Context) {
      CASE WHEN a.case_version<>c.version THEN 'case_version_changed' END,
      CASE WHEN a.valid_until<=statement_timestamp() THEN 'assessment_expired' END,
      CASE WHEN r.id IS NULL OR r.id IS DISTINCT FROM a.reviewer_grant_id OR NOT r.enabled OR r.expires_at<=statement_timestamp() THEN 'clinical_delegation_inactive' END,
-     CASE WHEN EXISTS(SELECT 1 FROM emergency_dispatches d WHERE d.tenant_id=c.tenant_id AND d.base_id=c.base_id AND d.case_id=c.id AND d.state NOT IN('cleared','cancelled')) THEN 'active_dispatch' END
+     CASE WHEN EXISTS(SELECT 1 FROM emergency_dispatches d WHERE d.tenant_id=c.tenant_id AND d.base_id=c.base_id AND d.case_id=c.id AND d.state NOT IN('cleared','cancelled')) THEN 'active_dispatch' END,
+ CASE WHEN EXISTS(SELECT 1 FROM emergency_dispatches d WHERE d.tenant_id=c.tenant_id AND d.base_id=c.base_id AND d.case_id=c.id AND d.state='cleared') THEN 'trip_completed' END
     ]::text[],NULL) AS reasons
    FROM emergency_cases c
    LEFT JOIN LATERAL(SELECT id,case_version,required_class,valid_until,reviewer_subject,reviewer_grant_id FROM emergency_transport_assessments

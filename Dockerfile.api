@@ -14,7 +14,9 @@
 # Tesserix rebuilds and Trivy-gates this company-owned builder every week.
 # `latest` is the last green weekly build for shared OS maintenance. The
 # application selects its exact Go toolchain below to match backend/go.mod.
-FROM ghcr.io/tesserix/base-go-builder:latest AS builder
+ARG GO_BUILDER_IMAGE=ghcr.io/tesserix/base-go-builder@sha256:f9214aed0fe09af409811bd4581bbd4af586d1a72bb667a67d03a446857dd47c
+ARG GO_RUNTIME_IMAGE=ghcr.io/tesserix/base-distroless-static@sha256:7c885c37cb2f61400256bef39b9221b48a4860f8080101765da1c262b994cdf1
+FROM ${GO_BUILDER_IMAGE} AS builder
 
 ENV GOTOOLCHAIN=go1.27.2
 
@@ -105,7 +107,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 # distroless/static:nonroot. It has no shell, package manager, or libc and
 # runs the static binaries as UID/GID 65532. `latest` tracks only the last
 # green weekly base build.
-FROM ghcr.io/tesserix/base-distroless-static:latest
+FROM ${GO_RUNTIME_IMAGE}
 
 ENV GIN_MODE=release
 

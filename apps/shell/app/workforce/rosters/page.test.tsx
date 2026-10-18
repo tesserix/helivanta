@@ -104,6 +104,23 @@ const revision = {
   version: 2,
   created_at: at,
 };
+const clash = {
+  allocation_id: existing,
+  staff_id: nurse,
+  employee_code: "SYN-001",
+  display_name: "Synthetic Nurse",
+  roster_date: "2026-10-19",
+  credentials: [
+    {
+      credential_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      type: "Nursing registration",
+      valid_from: "2025-01-01",
+      valid_until: "2026-10-18",
+      validity_version: 1,
+      standing: "expired",
+    },
+  ],
+};
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -114,14 +131,29 @@ function mock({
   status = "draft" as "draft" | "frozen",
   reject = null as null | ((body: { add?: { id: string }[] }) => unknown),
   exchange = null as null | string,
+  clashes = [] as unknown[],
+  refuseFreeze = 0,
 } = {}) {
   const writes: { method: string; url: string; body: unknown }[] = [];
+  const clashReads: string[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       const method = init?.method ?? "GET";
       if (method !== "GET") {
         writes.push({ method, url, body: JSON.parse(String(init?.body)) });
+        if (url.endsWith("/freeze") && refuseFreeze > 0) {
+          refuseFreeze--;
+          return Response.json(
+            {
+              error: "conflict",
+              message: "Some allocations clash with reviewed credentials.",
+              reason: "credential_clashes",
+              outstanding: 1,
+            },
+            { status: 409 },
+          );
+        }
         if (reject)
           return new Response(JSON.stringify(reject(writes.at(-1)!.body as never)), {
             status: 409,
@@ -150,7 +182,10 @@ function mock({
         body = page(
           url.includes("version=2") ? [] : [{ ...allocation, exchange_id: exchange ?? undefined }],
         );
-      else if (url.includes("/revisions")) body = page([revision]);
+      else if (url.includes("/credential-clashes")) {
+        clashReads.push(url);
+        body = page(clashes);
+      } else if (url.includes("/revisions")) body = page([revision]);
       else if (url.endsWith(`/rosters/${rosterID}`)) body = roster(status);
       else if (url.endsWith("/hr/rosters")) body = page([roster(status)]);
       else if (url.includes("roster-configs")) body = page([area]);
@@ -170,7 +205,7 @@ function mock({
       return new Response(JSON.stringify(body), { status: code });
     }),
   );
-  return writes;
+  return Object.assign(writes, { clashReads });
 }
 
 it("sends unconfigured hospitals to roster policy instead of offering a roster", async () => {
@@ -212,7 +247,13 @@ it("shows readers the grid and history without write actions", async () => {
   const grid = await screen.findByRole("region", { name: "Allocations" });
   expect(await within(grid).findByText(/DAY 08:00–16:00 · WARD/)).toBeInTheDocument();
   expect(within(grid).getByRole("rowheader", { name: /Synthetic Nurse/ })).toBeInTheDocument();
-  for (const name of ["Change shifts", "Populate", "Freeze roster", "Discard roster"])
+  for (const name of [
+    "Change shifts",
+    "Populate",
+    "Freeze roster",
+    "Discard roster",
+    "Credential clashes",
+  ])
     expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Roster history" }));
   expect(await screen.findByText(/Cover the ward/)).toBeInTheDocument();
@@ -338,4 +379,73 @@ it("offers correction of a frozen roster only with the correct permission", asyn
   expect(
     await screen.findByRole("button", { name: "Unfreeze for correction" }),
   ).toBeInTheDocument();
+});
+
+async function openFreeze(user: ReturnType<typeof renderWithProviders>["user"]) {
+  await user.click(await screen.findByRole("button", { name: "Open Synthetic Ward" }));
+  await user.click(await screen.findByRole("button", { name: "Freeze roster" }));
+  const form = screen.getByRole("form", { name: "Freeze roster" });
+  await user.click(
+    within(form).getByRole("checkbox", { name: "I reviewed the shifts, including leave" }),
+  );
+  return form;
+}
+
+it("lists credential clashes and freezes only after they are acknowledged", async () => {
+  const writes = mock({ clashes: [clash] });
+  const { user } = renderWithProviders(<Rosters />);
+  const form = await openFreeze(user);
+  const row = await within(form).findByRole("row", { name: /Synthetic Nurse · SYN-001/ });
+  expect(row).toHaveTextContent("Nursing registration: Expired (valid 2025-01-01 to 2026-10-18)");
+  await user.click(within(form).getByRole("button", { name: "Freeze roster" }));
+  expect(
+    await within(form).findByText("Acknowledge the credential clashes before freezing."),
+  ).toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+  await user.click(
+    within(form).getByRole("checkbox", { name: /I acknowledge 1 shift outside a reviewed/ }),
+  );
+  await user.click(within(form).getByRole("button", { name: "Freeze roster" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({
+    url: expect.stringMatching(/\/freeze$/),
+    body: { expected_version: 3, reviewed: true, acknowledged_clashes: [existing] },
+  });
+});
+
+it("freezes with an empty acknowledgement when nothing clashes", async () => {
+  const writes = mock();
+  const { user } = renderWithProviders(<Rosters />);
+  const form = await openFreeze(user);
+  expect(
+    await within(form).findByText(/No current shift falls outside a reviewed credential/),
+  ).toBeInTheDocument();
+  expect(within(form).queryByRole("checkbox", { name: /I acknowledge/ })).not.toBeInTheDocument();
+  await user.click(within(form).getByRole("button", { name: "Freeze roster" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]!.body).toMatchObject({ acknowledged_clashes: [] });
+});
+
+it("refreshes the clashes and asks again when new ones appear before the freeze", async () => {
+  const writes = mock({ clashes: [clash], refuseFreeze: 1 });
+  const { user } = renderWithProviders(<Rosters />);
+  const form = await openFreeze(user);
+  const ack = await within(form).findByRole("checkbox", { name: /I acknowledge 1 shift/ });
+  await user.click(ack);
+  const reads = writes.clashReads.length;
+  await user.click(within(form).getByRole("button", { name: "Freeze roster" }));
+  expect(await within(form).findByRole("alert")).toHaveTextContent(
+    "1 new credential clash appeared. Review the refreshed list and acknowledge again.",
+  );
+  await waitFor(() => expect(writes.clashReads.length).toBeGreaterThan(reads));
+  expect(within(form).getByRole("checkbox", { name: /I acknowledge 1 shift/ })).not.toBeChecked();
+});
+
+it("shows managers the clash list without freezing", async () => {
+  mock({ clashes: [clash], status: "frozen" });
+  const { user } = renderWithProviders(<Rosters />);
+  await user.click(await screen.findByRole("button", { name: "Open Synthetic Ward" }));
+  await user.click(await screen.findByRole("button", { name: "Credential clashes" }));
+  const panel = screen.getByRole("region", { name: "Credential clashes" });
+  expect(await within(panel).findByText(/Expired \(valid 2025-01-01/)).toBeInTheDocument();
 });

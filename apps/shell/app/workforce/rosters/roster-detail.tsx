@@ -21,9 +21,11 @@ import {
 import { ConfirmDialog, Field, useZodForm } from "@helivanta/ui";
 import { Failure, inputClass } from "../roster-policy/policy-ui";
 import { ChangeEditor } from "./roster-change";
+import { ClashPanel, ClashTable, outstandingClashes, useRosterClashes } from "./roster-clashes";
 import { ReviewCheck, SaveError, useRosterWrite } from "./roster-ui";
 
-type Panel = "change" | "populate" | "freeze" | "unfreeze" | "discard" | "history" | null;
+type Panel =
+  "change" | "populate" | "freeze" | "unfreeze" | "discard" | "history" | "clashes" | null;
 
 export function RosterDetail({
   base,
@@ -76,6 +78,11 @@ export function RosterDetail({
               Roster history
             </Button>
           )}
+          {writable && current?.status !== "discarded" && (
+            <Button variant="outline" onClick={() => show("clashes")}>
+              Credential clashes
+            </Button>
+          )}
           {writable && draft && (
             <>
               <Button variant="outline" onClick={() => show("change")}>
@@ -114,8 +121,8 @@ export function RosterDetail({
         <>
           {draft && (
             <p className="border-b bg-muted/30 px-5 py-3 text-xs text-muted-foreground">
-              Overlapping shifts are blocked. Leave and credential conflicts are not checked yet;
-              confirm them before freezing.
+              Overlapping shifts are blocked. Shifts outside a reviewed credential must be
+              acknowledged to freeze. Leave conflicts are not checked yet; confirm them first.
             </p>
           )}
           {panel === "change" && (
@@ -141,6 +148,14 @@ export function RosterDetail({
             <StatusPanel
               key={panel}
               action={panel}
+              path={path}
+              hospital={hospital}
+              roster={current}
+              onClose={() => show(null)}
+            />
+          )}
+          {panel === "clashes" && (
+            <ClashPanel
               path={path}
               hospital={hospital}
               roster={current}
@@ -431,7 +446,7 @@ const STATUS_COPY = {
     body: "Publishes the roster. Changes need a correction by someone allowed to unfreeze it.",
     button: "Freeze roster",
     toast: "Roster frozen",
-    review: "I reviewed the shifts, including leave and credentials",
+    review: "I reviewed the shifts, including leave",
   },
   unfreeze: {
     title: "Unfreeze for correction",
@@ -465,6 +480,12 @@ function StatusPanel({
   const copy = STATUS_COPY[action];
   const [changeID] = useState(() => crypto.randomUUID());
   const [confirming, setConfirming] = useState<RosterStatusInput | null>(null);
+  const freezing = action === "freeze";
+  const clashes = useRosterClashes(path, hospital, roster, freezing);
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [ackError, setAckError] = useState<string | null>(null);
+  const clashIDs = clashes.items.map((c) => c.allocation_id);
+  const clashesReady = !freezing || (!clashes.isPending && !clashes.isError && !clashes.hasMore);
   const form = useZodForm(rosterStatusSchema(action !== "freeze"), {
     change_id: changeID,
     expected_version: roster.version,
@@ -480,14 +501,30 @@ function StatusPanel({
       onClose();
     },
   );
+  const refused = outstandingClashes(save.error);
   const errors = form.formState.errors;
+  const submit = (input: RosterStatusInput) => {
+    if (!freezing) return action === "discard" ? setConfirming(input) : save.mutate(input);
+    if (clashIDs.length && !acknowledged) {
+      setAckError("Acknowledge the credential clashes before freezing.");
+      return;
+    }
+    save.mutate(
+      { ...input, acknowledged_clashes: clashIDs },
+      {
+        onError: (error) => {
+          if (outstandingClashes(error) === null) return;
+          setAcknowledged(false);
+          clashes.retry();
+        },
+      },
+    );
+  };
   return (
     <form
       noValidate
       aria-label={copy.title}
-      onSubmit={form.handleSubmit((input) =>
-        action === "discard" ? setConfirming(input) : save.mutate(input),
-      )}
+      onSubmit={form.handleSubmit(submit)}
       className="space-y-5 border-b p-5"
     >
       <fieldset disabled={save.isPending} className="space-y-5">
@@ -503,6 +540,40 @@ function StatusPanel({
             />
           </Field>
         )}
+        {freezing && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold">Credential clashes</h4>
+            <ClashTable clashes={clashes} />
+            {clashes.hasMore && (
+              <p className="text-xs text-muted-foreground">
+                Load every clash before acknowledging them.
+              </p>
+            )}
+            {clashesReady && clashIDs.length > 0 && (
+              <div className="rounded-xl border bg-muted/30 p-4">
+                <label className="flex items-start gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-4 shrink-0 accent-(--hms-accent)"
+                    checked={acknowledged}
+                    aria-describedby={ackError ? "freeze-ack-error" : undefined}
+                    onChange={(e) => {
+                      setAcknowledged(e.target.checked);
+                      setAckError(null);
+                    }}
+                  />
+                  I acknowledge {clashIDs.length} shift{clashIDs.length === 1 ? "" : "s"} outside a
+                  reviewed credential. The people stay booked.
+                </label>
+                {ackError && (
+                  <p id="freeze-ack-error" className="mt-2 text-xs text-destructive">
+                    {ackError}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <ReviewCheck
           id={`${action}-review`}
           error={errors.reviewed?.message}
@@ -511,12 +582,20 @@ function StatusPanel({
           {copy.review}
         </ReviewCheck>
       </fieldset>
-      {save.isError && <SaveError message={save.error.message} />}
+      {save.isError && (
+        <SaveError
+          message={
+            refused === null
+              ? save.error.message
+              : `${refused} new credential clash${refused === 1 ? "" : "es"} appeared. Review the refreshed list and acknowledge again.`
+          }
+        />
+      )}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
           Cancel
         </Button>
-        <Button type="submit" disabled={save.isPending}>
+        <Button type="submit" disabled={save.isPending || !clashesReady}>
           {copy.button}
         </Button>
       </div>

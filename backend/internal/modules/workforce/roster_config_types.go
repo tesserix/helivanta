@@ -197,10 +197,11 @@ type rosterPopulateInput struct {
 }
 
 type rosterStatusInput struct {
-	ChangeID        uuid.UUID `json:"change_id" binding:"required"`
-	ExpectedVersion *int64    `json:"expected_version" binding:"required,gte=1"`
-	Reason          string    `json:"reason" binding:"max=500"`
-	Reviewed        *bool     `json:"reviewed" binding:"required"`
+	ChangeID            uuid.UUID   `json:"change_id" binding:"required"`
+	ExpectedVersion     *int64      `json:"expected_version" binding:"required,gte=1"`
+	Reason              string      `json:"reason" binding:"max=500"`
+	Reviewed            *bool       `json:"reviewed" binding:"required"`
+	AcknowledgedClashes []uuid.UUID `json:"acknowledged_clashes,omitempty" binding:"max=2000"`
 }
 
 type rosterRevision struct {
@@ -216,6 +217,7 @@ type rosterRevision struct {
 	SkippedUnassigned int       `json:"skipped_unassigned"`
 	SkippedConflicts  int       `json:"skipped_conflicts"`
 	SkippedLeave      int       `json:"skipped_leave"`
+	CredentialClashes int       `json:"credential_clashes"`
 	Reason            string    `json:"reason"`
 	ReviewedBySubject string    `json:"reviewed_by_subject"`
 	Version           int64     `json:"version"`
@@ -225,4 +227,22 @@ type rosterRevision struct {
 type rosterChangeResult struct {
 	Roster   roster         `json:"roster"`
 	Revision rosterRevision `json:"revision"`
+}
+
+type rosterClashCredential struct {
+	CredentialID    uuid.UUID `json:"credential_id"`
+	Type            string    `json:"type"`
+	ValidFrom       string    `json:"valid_from"`
+	ValidUntil      string    `json:"valid_until"`
+	ValidityVersion int64     `json:"validity_version"`
+	Standing        string    `json:"standing"`
+}
+
+type rosterCredentialClash struct {
+	AllocationID uuid.UUID               `json:"allocation_id"`
+	StaffID      uuid.UUID               `json:"staff_id"`
+	EmployeeCode string                  `json:"employee_code"`
+	DisplayName  string                  `json:"display_name"`
+	RosterDate   string                  `json:"roster_date"`
+	Credentials  []rosterClashCredential `json:"credentials"`
 }

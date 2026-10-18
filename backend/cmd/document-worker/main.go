@@ -81,9 +81,6 @@ func run() error {
 	}
 	startup, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	if _, err := scanner.Status(startup, time.Now().UTC()); err != nil {
-		return errors.New("private document scanner readiness unavailable")
-	}
 	c, err := client.DialContext(startup, client.Options{HostPort: cfg.TemporalAddress, Namespace: cfg.TemporalNamespace, Logger: slog.Default()})
 	if err != nil {
 		return errors.New("private document workflow client unavailable")
@@ -112,7 +109,7 @@ func run() error {
 			_, err := c.CheckHealth(ctx, &client.CheckHealthRequest{})
 			return err
 		}},
-		{Name: "scanner", Check: func(ctx context.Context) error { _, err := scanner.Status(ctx, time.Now().UTC()); return err }},
+		{Name: "scanner", Check: scanner.Ready},
 	}, nil)
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: http.TimeoutHandler(probes.Engine, 5*time.Second, "readiness deadline exceeded"), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 30 * time.Second}
 	errorsCh := make(chan error, 1)

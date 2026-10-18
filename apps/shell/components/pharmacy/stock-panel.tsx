@@ -15,6 +15,7 @@ import {
   pharmacyRoot,
   pharmacyKey,
   pharmacyLocationInputSchema,
+  formatPharmacyStorageAddress,
   pharmacyBatchInputSchema,
   pharmacyMovementInputSchema,
   type PharmacyScope,
@@ -106,7 +107,7 @@ export function StockPanel({
                   placeholder="Select a location"
                   options={locations.items.map((row) => ({
                     value: row.id,
-                    label: `${row.code} · ${row.name}`,
+                    label: `${row.code} · ${row.name} · ${formatPharmacyStorageAddress(row.storage_address)}`,
                   }))}
                   disabled={locations.isPending}
                 />
@@ -198,7 +199,11 @@ export function StockPanel({
 
 function LocationForm({ scope }: { scope: PharmacyScope }) {
   const [id, setId] = useState(() => newPharmacyId());
-  const form = useZodForm(pharmacyLocationInputSchema, { code: "", name: "" });
+  const form = useZodForm(pharmacyLocationInputSchema, {
+    code: "",
+    name: "",
+    storage_address: { zone_code: "", aisle_code: "", rack_code: "", shelf_code: "" },
+  });
   const save = useApiMutation(
     (values: z.infer<typeof pharmacyLocationInputSchema>) =>
       apiFetch(`${pharmacyRoot(scope)}/stock/locations/${id}`, {
@@ -232,6 +237,36 @@ function LocationForm({ scope }: { scope: PharmacyScope }) {
         <Field id="location-name" label="Location name" error={form.formState.errors.name?.message}>
           <Input id="location-name" {...form.register("name")} />
         </Field>
+        <fieldset className="space-y-4">
+          <legend className="text-sm font-medium">Physical storage address (optional)</legend>
+          <p className="text-sm text-muted-foreground">
+            Leave unknown labels blank. The location code identifies the bin; several bins may share
+            a shelf. Saved locations cannot be relabelled.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {(
+              [
+                ["zone_code", "Zone"],
+                ["aisle_code", "Aisle"],
+                ["rack_code", "Rack"],
+                ["shelf_code", "Shelf"],
+              ] as const
+            ).map(([key, label]) => (
+              <Field
+                key={key}
+                id={`location-${key}`}
+                label={`${label} code (optional)`}
+                error={form.formState.errors.storage_address?.[key]?.message}
+              >
+                <Input
+                  id={`location-${key}`}
+                  maxLength={32}
+                  {...form.register(`storage_address.${key}`)}
+                />
+              </Field>
+            ))}
+          </div>
+        </fieldset>
         {save.isError && (
           <p role="alert" className="text-sm text-destructive">
             {save.error.message}

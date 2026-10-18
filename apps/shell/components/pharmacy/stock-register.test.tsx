@@ -22,6 +22,12 @@ const row = {
   product_id: product,
   location_code: "TEST-Q",
   location_name: "TEST Receiving",
+  storage_address: {
+    zone_code: "TEST-Z1",
+    aisle_code: "",
+    rack_code: "TEST-R1",
+    shelf_code: "TEST-S1",
+  },
   sku: "TEST-500",
   brand_name: "TEST capsule",
   unit_of_issue: "capsule",
@@ -90,6 +96,7 @@ it("retains zero stock and opens a focused reconciliation using one frozen snaps
     name: "Stock by location and manufacturer lot",
   });
   expect(within(table).getByText("TEST-LOT")).toBeInTheDocument();
+  expect(within(table).getByText("Zone TEST-Z1 · Rack TEST-R1 · Shelf TEST-S1")).toBeVisible();
   expect(within(table).getByText("Base unit: capsule")).toBeVisible();
   expect(within(table).getByText("Expires in 25 days")).toBeVisible();
   expect(within(table).getByText("As of 2026-10-17 · Asia/Kolkata")).toBeVisible();
@@ -140,7 +147,7 @@ it("keeps filters and cursor pages on the same snapshot and replaces detail when
   await chooseOption(
     user,
     screen.getByLabelText("Filter stock location"),
-    "TEST-Q · TEST Receiving",
+    "TEST-Q · TEST Receiving · Address not recorded",
   );
   expect(
     screen.queryByRole("region", { name: "Selected stock reconciliation" }),

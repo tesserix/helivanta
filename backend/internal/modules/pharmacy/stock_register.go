@@ -58,6 +58,7 @@ func parseStockWindow(c *gin.Context, required bool) (stockWindow, bool) {
 }
 
 type stockPosition struct {
+	StorageAddress    StorageAddressFields `json:"storage_address" gorm:"embedded"`
 	StockExpiryFields `gorm:"embedded"`
 	ID                uuid.UUID `json:"id"`
 	CreatedAt         time.Time `json:"created_at"`
@@ -148,7 +149,7 @@ func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination
 		}
 		// The hash identifies a read-model bucket only; it never authorises an object or creates a stock master.
 		source := tx.Table("pharmacy_stock_movements m").Select(`md5(m.location_id::text||':'||m.batch_id::text)::uuid AS id,
-   b.created_at,m.location_id,m.batch_id,b.product_id,l.code AS location_code,l.name AS location_name,
+   b.created_at,m.location_id,m.batch_id,b.product_id,l.code AS location_code,l.name AS location_name,l.zone_code,l.aisle_code,l.rack_code,l.shelf_code,
    p.sku,p.brand_name,p.unit_of_issue,b.lot_number,to_char(b.expires_on,'YYYY-MM-DD') AS expires_on,l.stock_status,
    CASE WHEN b.expires_on < snapshot.local_date THEN 'expired' ELSE 'unexpired' END AS expiry_status,
    o.timezone AS expiry_time_zone,to_char(snapshot.local_date,'YYYY-MM-DD') AS expiry_local_date,
@@ -170,7 +171,7 @@ func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination
 			Joins("JOIN pharmacy_outlets o ON o.tenant_id=m.tenant_id AND o.id=m.outlet_id").
 			Joins("CROSS JOIN LATERAL (SELECT timezone(o.timezone,?::timestamptz)::date AS local_date) snapshot", window.AsOf).
 			Where("m.tenant_id=? AND m.outlet_id=? AND m.created_at<=?", p.TenantID, outlet, window.AsOf).
-			Group("b.created_at,m.location_id,m.batch_id,b.product_id,l.code,l.name,p.sku,p.brand_name,p.unit_of_issue,b.lot_number,b.expires_on,l.stock_status,o.timezone,snapshot.local_date,p.status,p.regulatory_status")
+			Group("b.created_at,m.location_id,m.batch_id,b.product_id,l.code,l.name,l.zone_code,l.aisle_code,l.rack_code,l.shelf_code,p.sku,p.brand_name,p.unit_of_issue,b.lot_number,b.expires_on,l.stock_status,o.timezone,snapshot.local_date,p.status,p.regulatory_status")
 		if location != uuid.Nil {
 			source = source.Where("m.location_id=?", location)
 		}

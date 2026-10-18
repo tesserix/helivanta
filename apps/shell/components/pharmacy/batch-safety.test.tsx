@@ -340,7 +340,7 @@ it("rejects invalid evidence and temperature, and removes temperature for a diff
   await chooseOption(
     user,
     screen.getByRole("combobox", { name: "Concern location" }),
-    "TEST-Q · TEST Receiving",
+    "TEST-Q · TEST Receiving · Address not recorded",
   );
   await user.click(screen.getByRole("button", { name: "Record safety concern" }));
   await screen.findByText("Safety concern recorded. Stock remains quarantined.");

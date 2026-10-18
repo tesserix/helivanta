@@ -17,6 +17,7 @@ import {
   zonedDateTimeInput,
   zonedDateTimeISO,
   type PharmacyBatch,
+  formatPharmacyStorageAddress,
   type PharmacyLocation,
   type PharmacyProduct,
   type PharmacySafetyIncident,
@@ -318,7 +319,7 @@ function SelectedBatchSafety({
                       <dd className="break-words">
                         {incident.location_id
                           ? location
-                            ? `${location.code} · ${location.name}`
+                            ? `${location.code} · ${location.name} · ${formatPharmacyStorageAddress(location.storage_address)}`
                             : `Location ${incident.location_id}`
                           : "Batch across this outlet"}
                       </dd>
@@ -500,7 +501,7 @@ function ConcernForm({
               { value: "all", label: "Batch across this outlet" },
               ...locations.map((location) => ({
                 value: location.id,
-                label: `${location.code} · ${location.name}`,
+                label: `${location.code} · ${location.name} · ${formatPharmacyStorageAddress(location.storage_address)}`,
               })),
             ]}
             disabled={submitted !== null}

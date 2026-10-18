@@ -344,7 +344,7 @@ it("shows quarantine on-hand separately and records a receipt against selected r
   await chooseOption(
     user,
     await screen.findByLabelText("Quarantine location"),
-    "TEST-Q · TEST Quarantine",
+    "TEST-Q · TEST Quarantine · Address not recorded",
   );
   await chooseOption(user, screen.getByLabelText("Product"), "TEST-500 · TEST Counter capsule");
   await chooseOption(
@@ -466,4 +466,51 @@ it("defaults a new Pakistan product to PKR without changing an existing INR prod
   expect(await screen.findByText("TEST Counter capsule")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Add product" }));
   expect(screen.getByLabelText("Currency code")).toHaveValue("PKR");
+});
+
+it("captures optional physical location labels and retries the same immutable identity", async () => {
+  const fallback = mockPharmacy();
+  let attempts = 0;
+  const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.includes("/stock/locations/") && init?.method === "PUT") {
+      attempts++;
+      return new Response(
+        JSON.stringify(attempts === 1 ? { message: "TEST retryable failure" } : { id: "TEST" }),
+        { status: attempts === 1 ? 503 : 200 },
+      );
+    }
+    return fallback(url, init);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderWithProviders(<PharmacyWorkspace view="stock" />);
+  await user.type(await screen.findByLabelText("Location code"), "TEST-BIN");
+  await user.type(screen.getByLabelText("Location name"), "TEST quarantine");
+  await user.type(screen.getByLabelText("Zone code (optional)"), " test-z1 ");
+  await user.type(screen.getByLabelText("Shelf code (optional)"), " test-s1 ");
+  await user.click(screen.getByRole("button", { name: "Add quarantine location" }));
+  expect(await screen.findByText("TEST retryable failure")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Add quarantine location" }));
+  await waitFor(() => expect(screen.getByLabelText("Location code")).toHaveValue(""));
+  const writes = fetcher.mock.calls.filter(
+    ([url, init]) => url.includes("/stock/locations/") && init?.method === "PUT",
+  );
+  expect(writes).toHaveLength(2);
+  expect(writes[0][0]).toBe(writes[1][0]);
+  expect(JSON.parse(writes[1][1]?.body as string)).toEqual({
+    code: "TEST-BIN",
+    name: "TEST quarantine",
+    storage_address: { zone_code: "TEST-Z1", aisle_code: "", rack_code: "", shelf_code: "TEST-S1" },
+  });
+  expect(screen.getByLabelText("Shelf code (optional)")).toHaveValue("");
+});
+
+it("shows malformed storage labels inline before sending a location", async () => {
+  const fetcher = mockPharmacy();
+  const { user } = renderWithProviders(<PharmacyWorkspace view="stock" />);
+  await user.type(await screen.findByLabelText("Location code"), "TEST-BIN");
+  await user.type(screen.getByLabelText("Location name"), "TEST quarantine");
+  await user.type(screen.getByLabelText("Rack code (optional)"), "TEST/R1");
+  await user.click(screen.getByRole("button", { name: "Add quarantine location" }));
+  expect(await screen.findByText("Use the required format.")).toBeVisible();
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
 });

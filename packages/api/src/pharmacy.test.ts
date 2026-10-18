@@ -1,5 +1,7 @@
 import { expect, it } from "vitest";
 import {
+  pharmacyLocationInputSchema,
+  formatPharmacyStorageAddress,
   pharmacyProductFormSchema,
   pharmacyMovementInputSchema,
   pharmacyBatchInputSchema,
@@ -89,4 +91,50 @@ it("partitions query keys by tenant and outlet and mints retry-safe v7 identitie
   expect(pharmacyRoot(scope)).toBe(`/pharmacy/pharmacies/${pharmacyId}/outlets/${outletId}`);
   expect(() => pharmacyRoot({ ...scope, outletId: "../another-outlet" })).toThrow();
   expect(new Set(Array.from({ length: 100 }, () => newPharmacyId())).size).toBe(100);
+});
+
+it("normalizes independent storage codes and identifies unknown addresses", () => {
+  const address = {
+    zone_code: " test-z1 ",
+    aisle_code: "",
+    rack_code: "",
+    shelf_code: " test-s1 ",
+  };
+  const input = { code: "TEST-BIN", name: "TEST", storage_address: address };
+  expect(pharmacyLocationInputSchema.parse(input).storage_address).toEqual({
+    zone_code: "TEST-Z1",
+    aisle_code: "",
+    rack_code: "",
+    shelf_code: "TEST-S1",
+  });
+  expect(pharmacyLocationInputSchema.safeParse({ code: "TEST-BIN", name: "TEST" }).success).toBe(
+    true,
+  );
+  for (const value of ["A/B", "A B", "é", "药", "A".repeat(33), "_R1"]) {
+    expect(
+      pharmacyLocationInputSchema.safeParse({
+        ...input,
+        storage_address: { ...address, rack_code: value },
+      }).success,
+    ).toBe(false);
+  }
+  expect(
+    pharmacyLocationInputSchema.safeParse({
+      ...input,
+      storage_address: { ...address, shelf_code: "A".repeat(32) },
+    }).success,
+  ).toBe(true);
+  expect(formatPharmacyStorageAddress(undefined)).toBe("Address not recorded");
+  expect(formatPharmacyStorageAddress(null)).toBe("Address not recorded");
+  expect(
+    formatPharmacyStorageAddress({ zone_code: "", aisle_code: "", rack_code: "", shelf_code: "" }),
+  ).toBe("Address not recorded");
+  expect(
+    formatPharmacyStorageAddress({
+      zone_code: "",
+      aisle_code: "TEST-A1",
+      rack_code: "",
+      shelf_code: "TEST-S1",
+    }),
+  ).toBe("Aisle TEST-A1 · Shelf TEST-S1");
 });

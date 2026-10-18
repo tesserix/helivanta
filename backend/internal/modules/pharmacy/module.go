@@ -23,6 +23,9 @@ var payablesSchema string
 //go:embed batch_safety.sql
 var batchSafetySchema string
 
+//go:embed storage_address.sql
+var storageAddressSchema string
+
 const (
 	PermAccountsRead    authz.Permission = "pharmacy.accounts.read"
 	PermAccountsWrite   authz.Permission = "pharmacy.accounts.write"
@@ -122,7 +125,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 			CREATE TRIGGER pharmacy_dispenses_audit AFTER INSERT OR UPDATE OR DELETE ON pharmacy_dispenses
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
-	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}}
+	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {

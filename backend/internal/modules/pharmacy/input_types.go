@@ -46,9 +46,17 @@ type movementInput struct {
 	SourceReference string    `json:"source_reference" binding:"required,min=1,max=100"`
 }
 
+type StorageAddressFields struct {
+	ZoneCode  string `json:"zone_code"`
+	AisleCode string `json:"aisle_code"`
+	RackCode  string `json:"rack_code"`
+	ShelfCode string `json:"shelf_code"`
+}
+
 type locationInput struct {
-	Code string `json:"code" binding:"required,min=1,max=40"`
-	Name string `json:"name" binding:"required,min=1,max=200"`
+	Code           string                `json:"code" binding:"required,min=1,max=40"`
+	Name           string                `json:"name" binding:"required,min=1,max=200"`
+	StorageAddress *StorageAddressFields `json:"storage_address" binding:"omitempty" gorm:"embedded"`
 }
 
 type OrganizationFields struct {

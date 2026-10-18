@@ -11,6 +11,7 @@ import {
   useApiPagedQuery,
   useApiQuery,
   type PharmacyScope,
+  formatPharmacyStorageAddress,
   type PharmacyLocation,
   type PharmacyProduct,
   type PharmacyStockPosition,
@@ -123,7 +124,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
               { value: "all", label: "All locations" },
               ...locations.items.map((row) => ({
                 value: row.id,
-                label: `${row.code} · ${row.name}`,
+                label: `${row.code} · ${row.name} · ${formatPharmacyStorageAddress(row.storage_address)}`,
               })),
             ]}
           />
@@ -255,6 +256,9 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
                     <td className="p-3">
                       {row.location_code}
                       <div className="text-xs text-muted-foreground">{row.location_name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatPharmacyStorageAddress(row.storage_address)}
+                      </div>
                     </td>
                     <td className="p-3">
                       <time dateTime={row.expires_on}>{row.expires_on}</time>

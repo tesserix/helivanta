@@ -25,6 +25,7 @@ type SystemRole struct {
 var systemRoleLabels = map[authz.Role]string{
 	authz.RoleEmergencyDispatcher: "Emergency dispatcher",
 	authz.RoleEmergencySupervisor: "Emergency supervisor",
+	authz.RoleEmergencyCrew:       "Assigned ambulance crew",
 	authz.RoleSupplyOwner:         "Supply owner",
 	authz.RoleSupplyInventory:     "Supply inventory",
 	authz.RoleSupplyPicker:        "Supply picker",

@@ -27,6 +27,8 @@ type Config struct {
 	TemporalAddress                    string
 	TemporalNamespace                  string
 	DocumentWorkerDatabaseURL          string
+	EmergencyWorkerDatabaseURL         string
+	EmergencyDispatchEnabled           bool
 	ClamAVAddress                      string
 	OpenBaoAddr                        string
 	OpenBaoTransitMount                string
@@ -237,6 +239,8 @@ func Load() Config {
 		TemporalAddress:                    os.Getenv("TEMPORAL_ADDRESS"),
 		TemporalNamespace:                  os.Getenv("TEMPORAL_NAMESPACE"),
 		DocumentWorkerDatabaseURL:          os.Getenv("DOCUMENT_WORKER_DATABASE_URL"),
+		EmergencyWorkerDatabaseURL:         os.Getenv("EMERGENCY_WORKER_DATABASE_URL"),
+		EmergencyDispatchEnabled:           os.Getenv("EMERGENCY_DISPATCH_ENABLED") == "true",
 		ClamAVAddress:                      os.Getenv("CLAMAV_ADDRESS"),
 		OpenBaoAddr:                        os.Getenv("OPENBAO_ADDR"),
 		OpenBaoTransitMount:                os.Getenv("OPENBAO_TRANSIT_MOUNT"),

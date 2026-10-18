@@ -31,3 +31,18 @@ type CaseChangedData struct {
 	Version int64  `json:"case_version"`
 	Status  string `json:"status"`
 }
+
+const SubjectDispatchChanged = "helivanta.in.emergency.dispatch_changed.v1"
+
+type DispatchChangedData struct {
+	BaseID     string `json:"base_id"`
+	DispatchID string `json:"dispatch_id"`
+	Version    int64  `json:"version"`
+}
+
+// DispatchWorkflowInput deliberately excludes patient, contact and location payloads.
+type DispatchWorkflowInput struct {
+	TenantID   string `json:"tenant_id"`
+	BaseID     string `json:"base_id"`
+	DispatchID string `json:"dispatch_id"`
+}

@@ -1,0 +1,96 @@
+{
+  "states": {
+    "workflow_pending": "Waiting for dispatch workflow",
+    "offered": "Waiting for crew acknowledgement",
+    "acknowledged": "Crew acknowledged",
+    "en_route": "En route to scene",
+    "on_scene": "At the scene",
+    "transporting": "Transport in progress",
+    "arrived": "At the receiving hospital",
+    "handover_complete": "Handover confirmed",
+    "cleared": "Trip cleared",
+    "reconciliation_required": "Operator reconciliation required",
+    "cancel_requested": "Cancellation awaiting reconciliation",
+    "cancelled": "Cancellation reconciled"
+  },
+  "operations": {
+    "request_cancel": "Request cancellation",
+    "reconcile_cancelled": "Confirm cancellation reconciliation",
+    "acknowledge": "Acknowledge assigned duty",
+    "en_route": "Record departure to scene",
+    "on_scene": "Record arrival at scene"
+  },
+  "models": {
+    "DispatchReservationInput": [
+      {
+        "name": "case_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "case_version",
+        "type": "int64",
+        "min": 1,
+        "binding": "min=1"
+      },
+      {
+        "name": "assessment_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "vehicle_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "duty_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "acknowledgement_seconds",
+        "type": "int",
+        "min": 15,
+        "max": 300,
+        "binding": "min=15,max=300"
+      }
+    ],
+    "DispatchCommandInput": [
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "binding": "min=1"
+      },
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": [
+          "request_cancel",
+          "reconcile_cancelled",
+          "acknowledge",
+          "en_route",
+          "on_scene"
+        ],
+        "binding": "required,oneof=request_cancel reconcile_cancelled acknowledge en_route on_scene"
+      },
+      {
+        "name": "evidence_reference",
+        "type": "string",
+        "min": 1,
+        "max": 120,
+        "binding": "required,max=120"
+      }
+    ]
+  },
+  "worker_operations": {
+    "offer": "Offer reservation",
+    "acknowledgement_timeout": "Escalate unanswered offer"
+  },
+  "capabilities": {
+    "patient_transport": ["patient_transport"],
+    "bls": ["patient_transport", "bls"],
+    "als": ["patient_transport", "bls", "als"]
+  }
+}

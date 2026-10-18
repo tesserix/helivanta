@@ -163,14 +163,15 @@ func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
 // SessionSigner/SessionTTL explicitly, typically from
 // NewSessionSignerForTest.
 type HarnessOptions struct {
-	OrganizationIdentity *organizationidentity.Client
-	Documents            *attachments.GCS
-	Transit              *transit.Client
-	Tokens               map[string]string
-	Perms                map[string][]authz.Permission
-	Writer               platform.TupleWriter
-	Roles                platform.RoleLister
-	Membership           authz.MembershipChecker
+	EmergencyDispatchEnabled bool
+	OrganizationIdentity     *organizationidentity.Client
+	Documents                *attachments.GCS
+	Transit                  *transit.Client
+	Tokens                   map[string]string
+	Perms                    map[string][]authz.Permission
+	Writer                   platform.TupleWriter
+	Roles                    platform.RoleLister
+	Membership               authz.MembershipChecker
 	// Revocation defaults to a checker that answers "never revoked" for
 	// every subject — see neverRevoked's doc comment. Set it explicitly
 	// to exercise the credential-revocation gate in authn.Middleware
@@ -285,10 +286,11 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	t.Cleanup(bus.Close)
 
 	deps := platform.Deps{
-		OrganizationIdentity: opts.OrganizationIdentity,
-		Documents:            opts.Documents,
-		Transit:              opts.Transit,
-		DB:                   db, Bus: bus, Authz: writer, Roles: roles,
+		EmergencyDispatchEnabled: opts.EmergencyDispatchEnabled,
+		OrganizationIdentity:     opts.OrganizationIdentity,
+		Documents:                opts.Documents,
+		Transit:                  opts.Transit,
+		DB:                       db, Bus: bus, Authz: writer, Roles: roles,
 		SessionSigner:       opts.SessionSigner,
 		SessionTTL:          opts.SessionTTL,
 		SessionSecureCookie: opts.SessionSecureCookie,

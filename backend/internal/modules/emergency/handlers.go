@@ -24,8 +24,9 @@ import (
 )
 
 type handlers struct {
-	db      *tenantdb.DB
-	transit *transit.Client
+	dispatchEnabled bool
+	db              *tenantdb.DB
+	transit         *transit.Client
 }
 type base struct {
 	ID                   uuid.UUID `json:"id"`
@@ -109,6 +110,10 @@ func audit(tx *gorm.DB, p authn.Principal, b, id uuid.UUID, action string, targe
 	return tx.Exec(`INSERT INTO emergency_audit(tenant_id,base_id,actor_subject,action,resource_id,target_subject) VALUES(?,?,?,?,?,?)`, p.TenantID, b, p.Subject, action, id, target).Error
 }
 func respondError(c *gin.Context, err error) {
+	if errors.Is(err, errDispatchDisabled) {
+		respond.Error(c, 503, "dispatch_disabled", "dispatch activation is not enabled")
+		return
+	}
 	if errors.Is(err, errCaseConflict) {
 		respond.Conflict(c, "case content or version conflict")
 		return
@@ -126,6 +131,9 @@ func respondError(c *gin.Context, err error) {
 		switch pg.Code {
 		case "23503", "42501":
 			respond.NotFound(c, "resource")
+			return
+		case "40001", "40P01":
+			respond.Conflict(c, "reservation or eligibility changed; refresh before retrying")
 			return
 		case "23505":
 			respond.Conflict(c, "resource already exists")

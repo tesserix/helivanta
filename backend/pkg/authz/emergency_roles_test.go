@@ -7,7 +7,7 @@ import (
 )
 
 func TestEmergencyOperationalRolesAreSeededAndDistinct(t *testing.T) {
-	for _, key := range []string{"emergency_dispatcher", "emergency_supervisor"} {
+	for _, key := range []string{"emergency_dispatcher", "emergency_supervisor", "emergency_crew"} {
 		require.True(t, authz.KnownRole(authz.Role(key)), "emergency role must be grantable through IAM")
 	}
 	require.False(t, authz.KnownRole("emergency_admin_bypass"))

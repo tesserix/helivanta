@@ -45,3 +45,17 @@ func TestDocumentWorkerRefusesMissingRuntimeIdentityAndScanner(t *testing.T) {
 	require.NotContains(t, err.Error(), "never-print-this")
 	require.Error(t, (config.Config{}).RequireDocumentWorker())
 }
+
+func TestEmergencyWorkflowsDoNotRequirePrivateDocumentBuckets(t *testing.T) {
+	cfg := config.Config{EmergencyDispatchEnabled: true, TemporalAddress: "temporal:7233", TemporalNamespace: "helivanta-fixture"}
+	enabled, err := cfg.RequireDocumentStorage()
+	require.NoError(t, err)
+	require.False(t, enabled)
+	require.NoError(t, cfg.RequireEmergencyWorkflows())
+	cfg.DocumentQuarantineBucket = "one-incomplete-bucket"
+	_, err = cfg.RequireDocumentStorage()
+	require.Error(t, err)
+	cfg.DocumentQuarantineBucket = ""
+	cfg.TemporalNamespace = ""
+	require.Error(t, cfg.RequireEmergencyWorkflows())
+}

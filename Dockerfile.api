@@ -86,6 +86,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -trimpath \
     -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
+    -o /out/emergency-worker \
+    ./cmd/emergency-worker
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
     -o /out/supply-evidence-worker \
     ./cmd/supply-evidence-worker
 
@@ -112,6 +118,7 @@ COPY --from=builder /out/migrate /app/migrate
 
 # A separate private workload uses only its restricted processing identity.
 COPY --from=builder /out/document-worker /app/document-worker
+COPY --from=builder /out/emergency-worker /app/emergency-worker
 COPY --from=builder /out/supply-evidence-worker /app/supply-evidence-worker
 COPY --from=builder /out/emergency-retention /app/emergency-retention
 

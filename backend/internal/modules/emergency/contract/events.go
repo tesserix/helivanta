@@ -4,6 +4,20 @@ package contract
 const SubjectCaseReceived = "helivanta.in.emergency.case_received.v1"
 const SubjectCaseClosed = "helivanta.in.emergency.case_closed.v1"
 const SubjectFleetChanged = "helivanta.in.emergency.fleet_changed.v1"
+const SubjectClinicalAccessChanged = "helivanta.in.emergency.clinical_access_changed.v1"
+const SubjectCaseAssessed = "helivanta.in.emergency.case_assessed.v1"
+
+type ClinicalAccessChangedData struct {
+	BaseID  string `json:"base_id"`
+	GrantID string `json:"grant_id"`
+	Version int64  `json:"verification_version"`
+}
+type CaseAssessedData struct {
+	BaseID       string `json:"base_id"`
+	CaseID       string `json:"case_id"`
+	AssessmentID string `json:"assessment_id"`
+	Sequence     int64  `json:"assessment_sequence"`
+}
 
 type FleetChangedData struct {
 	BaseID     string `json:"base_id"`

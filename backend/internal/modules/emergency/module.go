@@ -12,14 +12,16 @@ import (
 )
 
 const (
-	PermBaseRead    authz.Permission = "emergency.base.read"
-	PermBaseManage  authz.Permission = "emergency.base.manage"
-	PermCaseRead    authz.Permission = "emergency.case.read"
-	PermCaseIntake  authz.Permission = "emergency.case.intake"
-	PermCaseClose   authz.Permission = "emergency.case.close"
-	PermFleetRead   authz.Permission = "emergency.fleet.read"
-	PermFleetManage authz.Permission = "emergency.fleet.manage"
-	PermFleetCheck  authz.Permission = "emergency.fleet.check"
+	PermBaseRead       authz.Permission = "emergency.base.read"
+	PermBaseManage     authz.Permission = "emergency.base.manage"
+	PermCaseRead       authz.Permission = "emergency.case.read"
+	PermCaseIntake     authz.Permission = "emergency.case.intake"
+	PermCaseClose      authz.Permission = "emergency.case.close"
+	PermFleetRead      authz.Permission = "emergency.fleet.read"
+	PermFleetManage    authz.Permission = "emergency.fleet.manage"
+	PermFleetCheck     authz.Permission = "emergency.fleet.check"
+	PermClinicalManage authz.Permission = "emergency.clinical.manage"
+	PermCaseAssess     authz.Permission = "emergency.case.assess"
 )
 
 //go:embed schema.sql
@@ -27,6 +29,9 @@ var schema string
 
 //go:embed fleet.sql
 var fleetSchema string
+
+//go:embed transport_review.sql
+var transportReviewSchema string
 
 //go:embed contract/intake.json
 var intakeCatalogue string
@@ -36,11 +41,12 @@ type Module struct{}
 func New() *Module             { return &Module{} }
 func (m *Module) Name() string { return "emergency" }
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_emergency", SQL: schema}, {ID: "0002_emergency", SQL: fleetSchema}}
+	return []tenantdb.Migration{{ID: "0001_emergency", SQL: schema}, {ID: "0002_emergency", SQL: fleetSchema}, {ID: "0003_emergency", SQL: transportReviewSchema}}
 }
 func (m *Module) Permissions() []authz.Grant {
 	operators := []authz.Role{authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor}
-	return []authz.Grant{{Permission: PermBaseRead, Roles: operators}, {Permission: PermBaseManage}, {Permission: PermCaseRead, Roles: operators}, {Permission: PermCaseIntake, Roles: operators}, {Permission: PermCaseClose, Roles: []authz.Role{authz.RoleEmergencySupervisor}}, {Permission: PermFleetRead, Roles: operators}, {Permission: PermFleetManage, Roles: []authz.Role{authz.RoleEmergencySupervisor}}, {Permission: PermFleetCheck, Roles: operators}}
+	readers := []authz.Role{authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor, authz.RoleDoctor}
+	return []authz.Grant{{Permission: PermBaseRead, Roles: readers}, {Permission: PermBaseManage}, {Permission: PermCaseRead, Roles: readers}, {Permission: PermCaseIntake, Roles: operators}, {Permission: PermCaseClose, Roles: []authz.Role{authz.RoleEmergencySupervisor}}, {Permission: PermFleetRead, Roles: operators}, {Permission: PermFleetManage, Roles: []authz.Role{authz.RoleEmergencySupervisor}}, {Permission: PermFleetCheck, Roles: operators}, {Permission: PermClinicalManage}, {Permission: PermCaseAssess, Roles: []authz.Role{authz.RoleDoctor}}}
 }
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &handlers{db: deps.DB, transit: deps.Transit}
@@ -59,6 +65,11 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "/:base/duties", PermFleetRead, h.listDuties)
 	g.PUT("/:base/readiness/:check", PermFleetCheck, h.putReadiness)
 	g.POST("/:base/constraints/:check/:code/clear", PermFleetManage, h.clearConstraint)
+	g.PUT("/:base/clinical-reviewers/:subject", PermClinicalManage, h.putClinicalReviewer)
+	g.GET("/:base/clinical-reviewers/:subject", PermClinicalManage, h.getClinicalReviewer)
+	g.GET("/:base/clinical-reviewer", PermCaseAssess, h.getClinicalReviewer)
+	g.PUT("/:base/cases/:case/assessments/:assessment", PermCaseAssess, h.putTransportAssessment)
+	platform.ListRoute(g, "/:base/cases/:case/assessments", PermCaseRead, h.listTransportAssessments)
 	g.PUT("/:base/cases/:case", PermCaseIntake, h.putCase)
 	platform.ListRoute(g, "/:base/cases", PermCaseRead, h.listCases)
 	g.GET("/:base/cases/:case", PermCaseRead, h.getCase)
@@ -66,7 +77,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "/:base/cases/:case/timeline", PermCaseRead, h.timeline)
 }
 func (m *Module) Publishes() []string {
-	return []string{emergencycontract.SubjectCaseReceived, emergencycontract.SubjectCaseClosed, emergencycontract.SubjectFleetChanged}
+	return []string{emergencycontract.SubjectCaseReceived, emergencycontract.SubjectCaseClosed, emergencycontract.SubjectFleetChanged, emergencycontract.SubjectClinicalAccessChanged, emergencycontract.SubjectCaseAssessed}
 }
 func (m *Module) DirectedSubjects() []string                  { return nil }
 func (m *Module) DirectedWriteTables() []string               { return nil }

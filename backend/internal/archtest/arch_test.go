@@ -342,6 +342,8 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /emergency/bases/:base/clinical-reviewer":                          "one current-subject verification; no other employee or patient record",
+	"GET /emergency/bases/:base/clinical-reviewers/:subject":                "one administrator-selected subject's current verification, not a collection",
 	"GET /emergency/bases/:base/access":                                     "one current-subject base grant; no other subject or clinical information",
 	"GET /emergency/bases/:base/cases/:case":                                "one audited base-scoped encrypted case; queue and timeline use cursor pagination",
 	"GET /workforce/hospitals/:hospital/insights":                           "one explicitly hospital-grant-checked snapshot, bounded to seven job categories and two employment statuses",

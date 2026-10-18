@@ -216,6 +216,51 @@ jobs:
           # cover it. Treat a green build as saying nothing about runtime env.
           NEXT_PUBLIC_ZITADEL_CLIENT_ID: ci-build-client-id
           NEXT_PUBLIC_ZITADEL_ISSUER_URL: http://auth.tesserix.localhost:20080
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: backend/go.mod
+      - name: Install emergency browser dependencies
+        run: pnpm --dir e2e exec playwright install --with-deps chromium
+      - name: Verify built emergency web workflows
+        id: emergency_browser
+        timeout-minutes: 6
+        env:
+          NEXT_PUBLIC_ZITADEL_CLIENT_ID: ci-build-client-id
+          NEXT_PUBLIC_ZITADEL_ISSUER_URL: http://auth.tesserix.localhost:20080
+          HOSTNAME: 127.0.0.1
+          PORT: "4344"
+          API_URL: http://127.0.0.1:1
+          HELIVANTA_BROWSER_ORIGIN: http://127.0.0.1:4344
+        run: |
+          set -euo pipefail
+          standalone=apps/shell/.next/standalone/apps/shell
+          mkdir -p "$standalone/.next/static"
+          cp -R apps/shell/.next/static/. "$standalone/.next/static/"
+          if [ -d apps/shell/public ]; then
+            mkdir -p "$standalone/public"
+            cp -R apps/shell/public/. "$standalone/public/"
+          fi
+          node "$standalone/server.js" > "$RUNNER_TEMP/emergency-web.log" 2>&1 &
+          emergency_pid=$!
+          trap 'kill "$emergency_pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            kill -0 "$emergency_pid"
+            if curl --fail --silent --max-time 2 "$HELIVANTA_BROWSER_ORIGIN/ambulance" > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent --max-time 2 "$HELIVANTA_BROWSER_ORIGIN/ambulance" > /dev/null
+          go -C backend test -tags emergencybrowser -run TestEmergencyConsoleBrowser -count=1 -v ./internal/modules/emergency
+      - name: Upload emergency runtime diagnostics on failure
+        if: ${{ failure() && steps.emergency_browser.outcome == 'failure' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: emergency-web-runtime
+          path: |
+            ${{ runner.temp }}/emergency-web.log
+            e2e/test-results/
+          retention-days: 7
   scripts:
     runs-on: ubuntu-latest
     steps:

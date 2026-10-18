@@ -58,6 +58,20 @@ Authentication and the permission-response boundary used explicit synthetic
 identities. This is not evidence of production clinical activation or mobile
 device operation.
 
+## Automated runtime regression
+
+The web CI job now reuses its completed production build, assembles Next's
+standalone static/public assets as the container does, and runs the same five
+Go-backed browser journeys on loopback. It installs Go and Chromium without new
+cloud credentials or workflow permissions. Failure diagnostics contain synthetic
+fixture data and expire after seven days. The new CI step awaits its own run.
+
+The standalone bundle was also booted locally on port 4346: its India access API
+returned the reviewed public call information with booking disabled, and the
+signed-out base API returned `401`. `actionlint` found the pre-existing SC2016
+diagnostic in the nested Ryuk logging shell at line 106; filtering that exact
+baseline diagnostic produced no new findings for this workflow change.
+
 ## Release limits
 
 This slice records a requirement without changing case priority or reserving or

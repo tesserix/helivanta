@@ -19,9 +19,15 @@ type ScannerStatus struct {
 	DefinitionsUpdatedAt time.Time
 }
 
+// MaxDefinitionAge tolerates one missed roughly daily upstream publish; older definitions cannot release files.
+const MaxDefinitionAge = 48 * time.Hour
+
+// ReadyDefinitionAge fails readiness well before MaxDefinitionAge so the owner is alerted while scans still work.
+const ReadyDefinitionAge = 36 * time.Hour
+
 var engineVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 
-// Status requires a complete VERSION response with definitions at most 24h old.
+// Status requires a complete VERSION response with definitions at most MaxDefinitionAge old.
 func (s *ClamAV) Status(ctx context.Context, now time.Time) (ScannerStatus, error) {
 	if now.IsZero() {
 		return ScannerStatus{}, errors.New("document scanner time is invalid")
@@ -61,8 +67,21 @@ func parseScannerStatus(reply string, now time.Time) (ScannerStatus, error) {
 	}
 	updated, err := time.ParseInLocation(time.ANSIC, parts[2], time.UTC)
 	// Unverifiable or stale definitions cannot authorize a clean release.
-	if err != nil || now.Sub(updated) > 24*time.Hour || updated.Sub(now) > 5*time.Minute {
+	if err != nil || now.Sub(updated) > MaxDefinitionAge || updated.Sub(now) > 5*time.Minute {
 		return ScannerStatus{}, errors.New("document scanner definitions are not current")
 	}
 	return ScannerStatus{EngineVersion: version, DefinitionVersion: number, DefinitionsUpdatedAt: updated}, nil
+}
+
+// Ready reports the scanner unready once definitions pass ReadyDefinitionAge; workers keep running.
+func (s *ClamAV) Ready(ctx context.Context) error {
+	now := time.Now().UTC()
+	status, err := s.Status(ctx, now)
+	if err != nil {
+		return err
+	}
+	if now.Sub(status.DefinitionsUpdatedAt) > ReadyDefinitionAge {
+		return errors.New("document scanner definitions are ageing")
+	}
+	return nil
 }

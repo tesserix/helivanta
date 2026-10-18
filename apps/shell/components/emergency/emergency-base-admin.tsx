@@ -15,6 +15,7 @@ import {
 } from "@helivanta/api";
 import { ConfirmDialog, Field, FormSelectField, useZodForm } from "@helivanta/ui";
 import type { z } from "zod";
+import { EmergencyClinicalAdmin } from "./emergency-review";
 
 export function EmergencyBaseAdmin({ base }: { base?: EmergencyBase }) {
   const id = useRef(base?.id ?? newEmergencyId());
@@ -143,6 +144,9 @@ export function EmergencyBaseAdmin({ base }: { base?: EmergencyBase }) {
             </Button>
           </div>
         </form>
+      )}
+      {(base?.id ?? save.data?.id) && (
+        <EmergencyClinicalAdmin base={(base?.id ?? save.data?.id)!} />
       )}
       <ConfirmDialog
         open={revokeSubject !== null}

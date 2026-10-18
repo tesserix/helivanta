@@ -172,7 +172,7 @@ it("requires confirmation before revoking a grant and accepts an empty 204 respo
   const { user } = renderWithProviders(<EmergencyBaseAdmin base={base} />);
   await user.type(screen.getByLabelText("Verified identity subject"), "synthetic-dispatcher");
   await user.click(screen.getByRole("button", { name: "Revoke access" }));
-  expect(fetcher).not.toHaveBeenCalled();
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
   await user.click(screen.getByRole("button", { name: "Confirm revoke" }));
   await waitFor(() =>
     expect(fetcher).toHaveBeenCalledWith(

@@ -7,6 +7,7 @@ import { Button, Input } from "@tesserix/web";
 import { PackageCheck, Warehouse, Layers3 } from "lucide-react";
 import {
   apiFetch,
+  formatZonedDateTime,
   useApiPagedQuery,
   useApiQuery,
   useApiMutation,
@@ -29,10 +30,10 @@ import {
   LoadMore,
   useZodForm,
   ConfirmDialog,
-  formatDateTime,
 } from "@helivanta/ui";
 import { RequestFailure } from "../request-failure";
 import { StockRegister } from "./stock-register";
+import { BatchSafety } from "./batch-safety";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -41,10 +42,12 @@ export function StockPanel({
   scope,
   writable,
   correctable,
+  timeZone = "UTC",
 }: {
   scope: PharmacyScope;
   writable: boolean;
   correctable: boolean;
+  timeZone?: string;
 }) {
   const [locationId, setLocation] = useState("");
   const [productId, setProduct] = useState("");
@@ -64,7 +67,8 @@ export function StockPanel({
   );
   return (
     <div className="space-y-6">
-      <StockRegister scope={scope} />
+      <StockRegister scope={scope} timeZone={timeZone} />
+      <BatchSafety scope={scope} timeZone={timeZone} />
       <section className="rounded-2xl border bg-card p-6">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -162,10 +166,11 @@ export function StockPanel({
       </section>
       {locationId && batchId && (
         <StockBucket
-          key={`${locationId}:${batchId}`}
+          key={`${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}:${locationId}:${batchId}:${timeZone}`}
           scope={scope}
           locationId={locationId}
           batchId={batchId}
+          timeZone={timeZone}
           writable={writable}
           correctable={correctable}
         />
@@ -335,12 +340,14 @@ function StockBucket({
   batchId,
   writable,
   correctable,
+  timeZone,
 }: {
   scope: PharmacyScope;
   locationId: string;
   batchId: string;
   writable: boolean;
   correctable: boolean;
+  timeZone: string;
 }) {
   const balance = useApiQuery<{
     on_hand_units: number;
@@ -414,7 +421,10 @@ function StockBucket({
                   <p className="font-medium">{row.source_reference}</p>
                   <p className="mt-1 text-muted-foreground">{row.reason}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {formatDateTime(row.created_at)} · {row.actor_subject}
+                    <time dateTime={row.created_at} title={row.created_at}>
+                      {formatZonedDateTime(row.created_at, timeZone)}
+                    </time>{" "}
+                    · {row.actor_subject}
                   </p>
                 </div>
                 <p className="font-semibold tabular-nums">

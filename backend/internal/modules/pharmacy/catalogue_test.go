@@ -39,10 +39,10 @@ func catalogueSetup(t *testing.T) (*gin.Engine, *tenantdb.DB, *events.Bus, conte
 	r, db, bus, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"editor": testutil.TenantA, "reader": testutil.TenantA, "sibling": testutil.TenantA, "foreign": testutil.TenantB, "denied": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"editor":  {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust", "pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.access.manage", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.correct"},
-			"reader":  {"pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive"},
-			"sibling": {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust", "pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive"},
-			"foreign": {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust", "pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive"},
+			"editor":  {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust", "pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.access.manage", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.correct", "pharmacy.stock.quarantine"},
+			"reader":  {"pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.quarantine"},
+			"sibling": {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust", "pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.quarantine"},
+			"foreign": {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust", "pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.quarantine"},
 		}, Modules: []platform.Module{pharmacy.New()},
 	})
 	// Exercise PostgreSQL's microsecond precision even on clocks with lower resolution.

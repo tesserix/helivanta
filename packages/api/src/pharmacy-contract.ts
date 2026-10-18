@@ -176,3 +176,28 @@ export const pharmacySettlementInputSchema = z
     reversal_of: identifier.nullable().optional(),
   })
   .strict();
+
+export const pharmacySafetyIncidentFieldsSchema = z
+  .object({
+    batch_id: identifier,
+    location_id: identifier.nullable().optional(),
+    kind: z.enum([
+      "quality_concern",
+      "temperature_excursion",
+      "packaging_damage",
+      "suspected_recall",
+    ]),
+    reason: z.string().trim().min(10).max(500),
+    occurred_at: z
+      .string()
+      .min(1)
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    measured_temperature_millicelsius: z
+      .number()
+      .int()
+      .min(-273150)
+      .max(1000000)
+      .nullable()
+      .optional(),
+  })
+  .strict();

@@ -21,10 +21,12 @@ export function AccountsPanel({
   scope,
   writable,
   defaultCurrency,
+  timeZone = "UTC",
 }: {
   scope: PharmacyScope;
   writable: boolean;
   defaultCurrency: string;
+  timeZone?: string;
 }) {
   const { can } = usePermissions();
   if (!can("pharmacy.accounts.read"))
@@ -36,16 +38,26 @@ export function AccountsPanel({
         </p>
       </section>
     );
-  return <OutletAccounts scope={scope} writable={writable} defaultCurrency={defaultCurrency} />;
+  return (
+    <OutletAccounts
+      key={`${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}:${timeZone}`}
+      scope={scope}
+      writable={writable}
+      defaultCurrency={defaultCurrency}
+      timeZone={timeZone}
+    />
+  );
 }
 function OutletAccounts({
   scope,
   writable,
   defaultCurrency,
+  timeZone,
 }: {
   scope: PharmacyScope;
   writable: boolean;
   defaultCurrency: string;
+  timeZone: string;
 }) {
   const { can } = usePermissions();
   const [selected, setSelected] = useState<string | null>(null);
@@ -190,6 +202,7 @@ function OutletAccounts({
             key={selected}
             scope={scope}
             id={selected}
+            timeZone={timeZone}
             writable={writable}
             onClose={() => setSelected(null)}
           />

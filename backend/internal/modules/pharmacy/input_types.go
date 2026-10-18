@@ -100,3 +100,12 @@ type settlementInput struct {
 	Reason          string     `json:"reason" binding:"required,min=1,max=500"`
 	ReversalOf      *uuid.UUID `json:"reversal_of" binding:"omitempty"`
 }
+
+type safetyIncidentInput struct {
+	BatchID                         uuid.UUID  `json:"batch_id" binding:"required"`
+	LocationID                      *uuid.UUID `json:"location_id" binding:"omitempty"`
+	Kind                            string     `json:"kind" binding:"required,oneof=quality_concern temperature_excursion packaging_damage suspected_recall"`
+	Reason                          string     `json:"reason" binding:"required,min=10,max=500"`
+	OccurredAt                      string     `json:"occurred_at" binding:"required,min=1"`
+	MeasuredTemperatureMillicelsius *int64     `json:"measured_temperature_millicelsius" binding:"omitempty,min=-273150,max=1000000"`
+}

@@ -2,6 +2,17 @@
 // medicore/contract for why this package exists and why it is data only.
 package contract
 
+// SubjectBatchSafetyRecorded identifies an immutable, unreviewed safety concern.
+const SubjectBatchSafetyRecorded = "helivanta.in.pharmacy.batch_safety_recorded.v1"
+
+// BatchSafetyRecordedData carries identifiers only, never incident descriptions.
+type BatchSafetyRecordedData struct {
+	PharmacyID string `json:"pharmacy_id"`
+	OutletID   string `json:"outlet_id"`
+	BatchID    string `json:"batch_id"`
+	IncidentID string `json:"incident_id"`
+}
+
 // SubjectDispenseRecorded is published when a pharmacist records a
 // dispense. No module consumes it today; publishing it is how the
 // dispense becomes visible to anything added later without changing

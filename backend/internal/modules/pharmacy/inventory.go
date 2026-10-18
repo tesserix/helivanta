@@ -84,6 +84,8 @@ func inventoryRoutes(g *platform.Router, deps platform.Deps) {
 	s.PUT("/batches/:id", PermStockReceive, h.putBatch)
 	s.PUT("/movements/:id", PermStockReceive, h.putReceipt)
 	s.PUT("/corrections/:id", PermStockCorrect, h.putCorrection)
+	s.PUT("/safety-incidents/:id", PermStockQuarantine, h.putBatchSafetyIncident)
+	platform.ListRoute(s, "/safety-incidents", PermStockRead, h.listBatchSafetyIncidents)
 	s.GET("/balance", PermStockRead, h.getBalance)
 	s.GET("/reconciliation", PermStockRead, h.getStockReconciliation)
 	platform.ListRoute(s, "/positions", PermStockRead, h.listStockPositions)

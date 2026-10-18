@@ -218,3 +218,42 @@ export type PharmacyInventoryAudit = {
   valuation_minor: string | null;
   valuation_status: "complete" | "no_receipts" | "cost_missing" | "valuation_review";
 };
+
+import { pharmacySafetyIncidentFieldsSchema } from "./pharmacy-contract";
+export const pharmacySafetyIncidentInputSchema = pharmacySafetyIncidentFieldsSchema.superRefine(
+  (value, ctx) => {
+    if (
+      (value.kind === "temperature_excursion") !==
+      (value.measured_temperature_millicelsius != null)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["measured_temperature_millicelsius"],
+        message: "Record a temperature only for a temperature excursion.",
+      });
+    const date = new Date(value.occurred_at);
+    const fraction = value.occurred_at.match(/\.(\d+)/)?.[1] ?? "";
+    if (
+      date.getUTCFullYear() < 1 ||
+      fraction.length > 6 ||
+      !/(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$/.test(value.occurred_at)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["occurred_at"],
+        message: "Use a date from year 1 with at most microsecond precision.",
+      });
+  },
+);
+export type PharmacySafetyIncidentInput = z.infer<typeof pharmacySafetyIncidentInputSchema>;
+export type PharmacySafetyIncident = Omit<
+  PharmacySafetyIncidentInput,
+  "location_id" | "measured_temperature_millicelsius"
+> & {
+  location_id: string | null;
+  measured_temperature_millicelsius: number | null;
+  id: string;
+  outlet_id: string;
+  actor_subject: string;
+  recorded_at: string;
+};

@@ -19,6 +19,9 @@ var inventorySchema string
 //go:embed payables.sql
 var payablesSchema string
 
+//go:embed batch_safety.sql
+var batchSafetySchema string
+
 const (
 	PermAccountsRead    authz.Permission = "pharmacy.accounts.read"
 	PermAccountsWrite   authz.Permission = "pharmacy.accounts.write"
@@ -27,6 +30,7 @@ const (
 	PermStockRead       authz.Permission = "pharmacy.stock.read"
 	PermStockReceive    authz.Permission = "pharmacy.stock.receive"
 	PermStockCorrect    authz.Permission = "pharmacy.stock.correct"
+	PermStockQuarantine authz.Permission = "pharmacy.stock.quarantine"
 	PermCatalogueRead   authz.Permission = "pharmacy.catalogue.read"
 	PermCatalogueWrite  authz.Permission = "pharmacy.catalogue.write"
 	PermAccessManage    authz.Permission = "pharmacy.access.manage"
@@ -51,6 +55,7 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermStockRead, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing, authz.RolePharmacyInventory}},
 		{Permission: PermStockReceive, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner, authz.RolePharmacyInventory}},
 		{Permission: PermStockCorrect, Roles: []authz.Role{authz.RolePharmacyOwner, authz.RolePharmacyInventory}},
+		{Permission: PermStockQuarantine, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner, authz.RolePharmacyInventory}},
 		{Permission: PermCatalogueRead, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing, authz.RolePharmacyInventory}},
 		{Permission: PermCatalogueWrite, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing}},
 		{Permission: PermAccessManage, Roles: []authz.Role{authz.RolePharmacyOwner}},
@@ -116,7 +121,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 			CREATE TRIGGER pharmacy_dispenses_audit AFTER INSERT OR UPDATE OR DELETE ON pharmacy_dispenses
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
-	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}}
+	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -136,7 +141,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 
 // Publishes declares the module's clinical, catalogue, inventory and financial events.
 func (m *Module) Publishes() []string {
-	return []string{pharmacycontract.SubjectDispenseRecorded, pharmacycontract.SubjectCatalogueUpdated, pharmacycontract.SubjectStockMovementRecorded, pharmacycontract.SubjectPayableRecorded, pharmacycontract.SubjectSettlementRecorded}
+	return []string{pharmacycontract.SubjectDispenseRecorded, pharmacycontract.SubjectCatalogueUpdated, pharmacycontract.SubjectStockMovementRecorded, pharmacycontract.SubjectPayableRecorded, pharmacycontract.SubjectSettlementRecorded, pharmacycontract.SubjectBatchSafetyRecorded}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that

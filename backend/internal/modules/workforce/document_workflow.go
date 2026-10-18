@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/temporal"
@@ -64,7 +65,9 @@ func (p *DocumentProcessor) ProcessActivity(ctx context.Context, in workforcecon
 		return status, nil
 	}
 	// Raw storage, SQL and scanner errors must never enter durable history.
-	if errors.Is(err, ErrDocumentNotReady) || errors.Is(err, ErrDocumentIntegrity) || errors.Is(err, gorm.ErrRecordNotFound) {
+	var pg *pgconn.PgError
+	// Evidence frozen by a declaration decision never scans again, so retrying cannot help.
+	if errors.Is(err, ErrDocumentNotReady) || errors.Is(err, ErrDocumentIntegrity) || errors.Is(err, gorm.ErrRecordNotFound) || errors.As(err, &pg) && pg.ConstraintName == "workforce_tax_evidence_frozen" {
 		return "", temporal.NewNonRetryableApplicationError("document processing input unavailable", "document_invalid", nil)
 	}
 	return "", temporal.NewApplicationError("document processing unavailable", "document_unavailable")

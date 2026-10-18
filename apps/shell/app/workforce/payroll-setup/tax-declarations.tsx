@@ -16,6 +16,7 @@ import {
   useApiMutation,
   useApiQuery,
   usePermissions,
+  useTaxEvidence,
   ApiError,
   DECLARATION_PAN_ACTIONS,
   DECLARATION_ROLES,
@@ -40,6 +41,7 @@ import { SaveError } from "../leave-balances/years-panel";
 import { Check, Fact, RevisionHistory } from "./payroll-workspace";
 import { TableError } from "./statutory-slabs";
 import { Reveal } from "./staff-identifiers";
+import { DeclarationEvidence, evidenceScanning } from "./tax-declaration-evidence";
 
 type Form = UseFormReturn<TaxDeclarationForm>;
 type Role = TaxDeclarationParty["role"];
@@ -140,7 +142,14 @@ export function TaxDeclarations({
       ) : (
         <>
           {data?.current ? (
-            <Declaration path={path} revision={data.current} revealer={revealer} />
+            <>
+              <Declaration path={path} revision={data.current} revealer={revealer} />
+              <DeclarationEvidence
+                label="Evidence for the declaration in force"
+                scope={{ declarationPath: path, staffId: member.id, revisionId: data.current.id }}
+                attachable={false}
+              />
+            </>
           ) : (
             <p className="text-sm text-muted-foreground">
               No declaration approved for {member.display_name} in {year}.
@@ -154,6 +163,13 @@ export function TaxDeclarations({
               Change proposed by {mine ? "you" : pending.proposed_by_subject} · {pending.reason}
             </p>
           )}
+          {pending && view !== "decide" && (
+            <DeclarationEvidence
+              label="Evidence for the proposed change"
+              scope={{ declarationPath: path, staffId: member.id, revisionId: pending.id }}
+              attachable={writable}
+            />
+          )}
         </>
       )}
       {view === "propose" && (
@@ -166,6 +182,7 @@ export function TaxDeclarations({
           queryKey={key}
           record={data}
           proposal={pending}
+          staffId={member.id}
           mine={mine}
           revealer={revealer}
           onClose={close}
@@ -572,6 +589,7 @@ function DeclarationDecision({
   queryKey,
   record,
   proposal,
+  staffId,
   mine,
   revealer,
   onClose,
@@ -580,6 +598,7 @@ function DeclarationDecision({
   queryKey: unknown[];
   record: TaxDeclaration;
   proposal: TaxDeclarationRevision;
+  staffId: string;
   mine: boolean;
   revealer: boolean;
   onClose: () => void;
@@ -611,7 +630,10 @@ function DeclarationDecision({
       }),
     settle("Proposal withdrawn"),
   );
-  const busy = approve.isPending || reject.isPending || withdraw.isPending;
+  const scope = { declarationPath: path, staffId, revisionId: proposal.id };
+  // The server refuses any decision while evidence scans; waiting here keeps the reason visible.
+  const scanning = evidenceScanning(useTaxEvidence(scope).data?.evidence);
+  const busy = approve.isPending || reject.isPending || withdraw.isPending || scanning;
   const failure = approve.error ?? reject.error ?? withdraw.error;
   const errors = form.formState.errors;
   const submit = (decision: StatutoryDecisionForm["decision"]) =>
@@ -635,6 +657,11 @@ function DeclarationDecision({
       </div>
       {/* Only someone other than the proposer may check proposed PANs against the evidence. */}
       <Declaration path={path} revision={proposal} revealer={revealer && !mine} />
+      <DeclarationEvidence
+        label="Evidence for the proposed change"
+        scope={scope}
+        attachable={false}
+      />
       <dl className="my-4 grid gap-4 text-sm sm:grid-cols-3">
         <Fact
           label="In force now"
@@ -677,6 +704,11 @@ function DeclarationDecision({
             {...form.register("note")}
           />
         </Field>
+        {scanning && (
+          <p role="status" className="text-sm text-muted-foreground">
+            Evidence is still being scanned. You can decide once every file has finished.
+          </p>
+        )}
         {failure && (
           <SaveError
             message={

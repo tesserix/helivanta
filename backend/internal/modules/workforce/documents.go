@@ -28,17 +28,53 @@ var documentDigest = regexp.MustCompile(`^[a-f0-9]{64}$`)
 var errDocumentConflict = errors.New("document intent conflicts")
 var errDocumentsUnavailable = errors.New("document storage not configured")
 
-func (in *documentInput) valid(staffID uuid.UUID) bool {
-	in.Filename = strings.TrimSpace(in.Filename)
-	if in.RecordID == uuid.Nil || in.Filename == "" || in.Filename == "." || in.Filename == ".." || strings.ContainsAny(in.Filename, "/\\") || !documentDigest.MatchString(in.SHA256) || in.Size > attachments.MaxFileBytes {
+// documentGate authorises one route family's files for a staff member and binds new files to a record that still takes them.
+type documentGate interface {
+	authorize(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID, writing bool) error
+	// bind returns the version a new file records, or fails when the record no longer takes files.
+	bind(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID, kind string, record uuid.UUID) (int64, error)
+	owns(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID, kind string, record uuid.UUID) error
+	downloadAction() string
+}
+
+// staffDocuments gates HR enrollment, credential and qualification files.
+type staffDocuments struct{}
+
+func (staffDocuments) authorize(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID, _ bool) error {
+	_, err := documentOwner(tx, p, hospital, staffID)
+	return err
+}
+
+func (staffDocuments) bind(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID, kind string, record uuid.UUID) (int64, error) {
+	var owner staff
+	if err := tx.Clauses(clause.Locking{Strength: "SHARE"}).Select("version").Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, staffID).First(&owner).Error; err != nil {
+		return 0, err
+	}
+	return owner.Version, documentRecord(tx, p, hospital, staffID, documentInput{RecordKind: kind, RecordID: record})
+}
+
+func (staffDocuments) owns(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID, kind string, record uuid.UUID) error {
+	return documentRecord(tx, p, hospital, staffID, documentInput{RecordKind: kind, RecordID: record})
+}
+
+func (staffDocuments) downloadAction() string { return "workforce.document.downloaded" }
+
+func validDocumentFile(filename *string, digest string, size int64) bool {
+	*filename = strings.TrimSpace(*filename)
+	if *filename == "" || *filename == "." || *filename == ".." || strings.ContainsAny(*filename, "/\\") || !documentDigest.MatchString(digest) || size > attachments.MaxFileBytes {
 		return false
 	}
-	for _, r := range in.Filename {
+	for _, r := range *filename {
 		if unicode.IsControl(r) {
 			return false
 		}
 	}
-	return contains(in.Category, documentCategoryBindings[in.RecordKind]...) && (in.RecordKind != "enrollment" || in.RecordID == staffID)
+	return true
+}
+
+func (in *documentInput) valid(staffID uuid.UUID) bool {
+	return in.RecordID != uuid.Nil && validDocumentFile(&in.Filename, in.SHA256, in.Size) &&
+		contains(in.Category, documentCategoryBindings[in.RecordKind]...) && (in.RecordKind != "enrollment" || in.RecordID == staffID)
 }
 
 func documentOwner(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID) (staff, error) {
@@ -101,11 +137,15 @@ func (h *handlers) putDocument(c *gin.Context) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid document intent")
 		return
 	}
+	h.registerDocument(c, staffDocuments{}, p, hospital, staffID, id, in)
+}
+
+// registerDocument records an upload intent once; an identical replay returns it and a different one conflicts.
+func (h *handlers) registerDocument(c *gin.Context, gate documentGate, p authn.Principal, hospital, staffID, id uuid.UUID, in documentInput) {
 	var saved document
 	var created bool
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		owner, err := documentOwner(tx, p, hospital, staffID)
-		if err != nil {
+	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+		if err := gate.authorize(tx, p, hospital, staffID, true); err != nil {
 			return err
 		}
 		existing := tx.Select(documentColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, hospital, staffID, id).First(&saved).Error
@@ -116,11 +156,12 @@ func (h *handlers) putDocument(c *gin.Context) {
 			if h.documents == nil {
 				return errDocumentsUnavailable
 			}
-			if err := documentRecord(tx, p, hospital, staffID, in); err != nil {
+			version, err := gate.bind(tx, p, hospital, staffID, in.RecordKind, in.RecordID)
+			if err != nil {
 				return err
 			}
 			result := tx.Exec(`INSERT INTO workforce_documents(tenant_id,hospital_id,id,staff_id,record_id,record_kind,record_version,category,filename,content_type,size,sha256)
-		 VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(tenant_id,hospital_id,id) DO NOTHING`, p.TenantID, hospital, id, staffID, in.RecordID, in.RecordKind, owner.Version, in.Category, in.Filename, in.ContentType, in.Size, in.SHA256)
+		 VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(tenant_id,hospital_id,id) DO NOTHING`, p.TenantID, hospital, id, staffID, in.RecordID, in.RecordKind, version, in.Category, in.Filename, in.ContentType, in.Size, in.SHA256)
 			if result.Error != nil {
 				return result.Error
 			}
@@ -142,8 +183,7 @@ func (h *handlers) putDocument(c *gin.Context) {
 		respond.Error(c, http.StatusServiceUnavailable, "documents_unavailable", "Document uploads are not configured.")
 		return
 	}
-	if err != nil {
-		respondError(c, err)
+	if documentUploadError(c, err) {
 		return
 	}
 	if created {

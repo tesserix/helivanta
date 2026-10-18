@@ -1222,3 +1222,22 @@ export const taxDeclarationRevealContract = z
   })
   .strict();
 export type TaxDeclarationReveal = z.infer<typeof taxDeclarationRevealContract>;
+
+export const taxEvidenceInputContract = z
+  .object({
+    revision_id: identifier,
+    filename: z
+      .string()
+      .min(1)
+      .max(180)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    content_type: z.enum(["image/png", "image/jpeg"]),
+    size: z.number().int().min(1).max(10485760),
+    sha256: z
+      .string()
+      .min(64)
+      .max(64)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type TaxEvidenceInput = z.infer<typeof taxEvidenceInputContract>;

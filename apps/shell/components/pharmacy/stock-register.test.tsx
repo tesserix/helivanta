@@ -88,6 +88,57 @@ function fixture() {
   return fetcher;
 }
 
+it("downloads all matching stock using the current snapshot and expected tenant", async () => {
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-17T12:00:00Z"));
+  const fallback = fixture().getMockImplementation()!;
+  const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async (url) => {
+    if (url.includes("/stock/positions.csv?"))
+      return new Response("sku,on_hand_units\r\nTEST-500,0\r\n", {
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": 'attachment; filename="pharmacy-stock-report.csv"',
+        },
+      });
+    return fallback(url);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const create = vi.fn(() => "blob:test-stock-export");
+  const revoke = vi.fn();
+  vi.stubGlobal(
+    "URL",
+    Object.assign(class extends URL {}, { createObjectURL: create, revokeObjectURL: revoke }),
+  );
+  const download = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+  const { user } = renderWithProviders(<StockRegister scope={scope} timeZone="Asia/Kolkata" />);
+  await screen.findByRole("table");
+  await chooseOption(
+    user,
+    screen.getByRole("combobox", { name: "Filter stock location" }),
+    /^TEST-Q · TEST Receiving/,
+  );
+  await chooseOption(
+    user,
+    screen.getByRole("combobox", { name: "Filter expiry at snapshot" }),
+    "Due within 30 days (including today)",
+  );
+  await user.click(screen.getByRole("button", { name: "Download CSV" }));
+  await waitFor(() => expect(download).toHaveBeenCalledOnce());
+  const call = fetcher.mock.calls.find(([path]) => path.includes("/positions.csv?"))!;
+  const params = new URL(call[0], "http://localhost").searchParams;
+  expect(params.get("as_of")).toBe("2026-10-17T12:00:00.000Z");
+  expect(params.get("location_id")).toBe(location);
+  expect(params.get("expiry")).toBe("due_30");
+  expect(params.has("cursor")).toBe(false);
+  expect(new Headers(call[1]?.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+  expect(call[1]?.cache).toBe("no-store");
+  expect(call[1]?.signal).toBeInstanceOf(AbortSignal);
+  expect(create).toHaveBeenCalledOnce();
+  expect(revoke).toHaveBeenCalledWith("blob:test-stock-export");
+  expect(await screen.findByRole("status", { name: "Stock CSV export" })).toHaveTextContent(
+    "CSV download started",
+  );
+});
+
 it("retains zero stock and opens a focused reconciliation using one frozen snapshot", async () => {
   vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-17T12:00:00Z"));
   const fetcher = fixture();

@@ -20,6 +20,7 @@ import {
 } from "@helivanta/api";
 import { Field, LoadMore, SelectControl } from "@helivanta/ui";
 import { RequestFailure } from "../request-failure";
+import { StockExport } from "./stock-export";
 
 type Props = { scope: PharmacyScope; timeZone?: string };
 const quantity = (value: number | string) =>
@@ -110,6 +111,20 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
         Expiry uses the outlet’s saved time zone at this snapshot. Due windows include today and
         exclude already expired stock.
       </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-2xl text-xs text-muted-foreground">
+          CSV includes all matching rows, including unloaded pages. Snapshot and filters apply;
+          quantities use each product’s base unit. Narrow the filters if the export is too large.
+        </p>
+        <StockExport
+          key={`${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}:${params}`}
+          scope={scope}
+          filters={params.toString()}
+          disabled={
+            positions.isPending || positions.isError || locations.isError || products.isError
+          }
+        />
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Field id="register-location" label="Filter stock location">
           <SelectControl

@@ -23,6 +23,11 @@ import { RequestFailure } from "../request-failure";
 type Props = { scope: PharmacyScope; timeZone?: string };
 const quantity = (value: number | string) =>
   typeof value === "string" ? BigInt(value).toLocaleString() : value.toLocaleString();
+const expiryDescription = (days: number) => {
+  if (days === 0) return "Expires today";
+  const duration = `${Math.abs(days)} ${Math.abs(days) === 1 ? "day" : "days"}`;
+  return days < 0 ? `Expired ${duration} ago` : `Expires in ${duration}`;
+};
 const requestFor = (scope: PharmacyScope) => ({
   headers: new Headers({ "X-Helivanta-Expected-Tenant": scope.tenantId }),
   cache: "no-store" as const,
@@ -49,6 +54,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
   const [locationId, setLocation] = useState("all");
   const [productId, setProduct] = useState("all");
   const [expiry, setExpiry] = useState("all");
+  const [balance, setBalance] = useState("all");
   const [selected, setSelected] = useState<PharmacyStockPosition | null>(null);
   const selectedTrigger = useRef<HTMLButtonElement | null>(null);
   const locations = useApiPagedQuery<PharmacyLocation>(
@@ -61,11 +67,11 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
     `${pharmacyRoot(scope)}/catalogue/products`,
     { request: requestFor(scope) },
   );
-  const params = new URLSearchParams({ as_of: asOf, expiry });
+  const params = new URLSearchParams({ as_of: asOf, expiry, balance });
   if (locationId !== "all") params.set("location_id", locationId);
   if (productId !== "all") params.set("product_id", productId);
   const positions = useApiPagedQuery<PharmacyStockPosition>(
-    pharmacyKey(scope, "stock", "positions", asOf, locationId, productId, expiry),
+    pharmacyKey(scope, "stock", "positions", asOf, locationId, productId, expiry, balance),
     `${pharmacyRoot(scope)}/stock/positions?${params}`,
     { request: requestFor(scope) },
   );
@@ -99,7 +105,11 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
         ({timeZone}). Quantities use this cutoff; product and location details show current records.
         All stock remains quarantined and unavailable for dispensing.
       </p>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <p className="text-sm text-muted-foreground">
+        Expiry uses the outlet’s saved time zone at this snapshot. Due windows include today and
+        exclude already expired stock.
+      </p>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Field id="register-location" label="Filter stock location">
           <SelectControl
             id="register-location"
@@ -147,7 +157,25 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
             options={[
               { value: "all", label: "All expiry dates" },
               { value: "expired", label: "Expired" },
+              { value: "today", label: "Expires today" },
+              { value: "due_30", label: "Due within 30 days (including today)" },
+              { value: "due_90", label: "Due within 90 days (including today)" },
+              { value: "due_180", label: "Due within 180 days (including today)" },
               { value: "unexpired", label: "Unexpired" },
+            ]}
+          />
+        </Field>
+        <Field id="register-balance" label="Filter stock balance">
+          <SelectControl
+            id="register-balance"
+            value={balance}
+            onValueChange={(value) => {
+              setBalance(value);
+              setSelected(null);
+            }}
+            options={[
+              { value: "all", label: "All balances (including zero)" },
+              { value: "on_hand", label: "Positive stock on hand" },
             ]}
           />
         </Field>
@@ -230,7 +258,14 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
                     </td>
                     <td className="p-3">
                       <time dateTime={row.expires_on}>{row.expires_on}</time>
-                      <div className="mt-1 capitalize">{row.expiry_status}</div>
+                      <div
+                        className={`mt-1 font-medium ${row.expiry_band === "expired" ? "text-destructive" : ""}`}
+                      >
+                        {expiryDescription(row.days_to_expiry)}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        As of {row.expiry_local_date} · {row.expiry_time_zone}
+                      </div>
                     </td>
                     <td className="p-3">
                       <span className="capitalize">{row.stock_status}</span>

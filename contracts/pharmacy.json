@@ -516,6 +516,41 @@
           "max": 1000000
         }
       ]
+    },
+    {
+      "name": "StockExpiryFields",
+      "schema": "pharmacyStockExpiryFieldsSchema",
+      "fields": [
+        {
+          "name": "expiry_time_zone",
+          "type": "string",
+          "min": 1,
+          "max": 64
+        },
+        {
+          "name": "expiry_local_date",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "days_to_expiry",
+          "type": "int",
+          "min": -3652058,
+          "max": 3652058
+        },
+        {
+          "name": "expiry_band",
+          "type": "string",
+          "enum": [
+            "expired",
+            "today",
+            "days_30",
+            "days_90",
+            "days_180",
+            "later"
+          ]
+        }
+      ]
     }
   ]
 }

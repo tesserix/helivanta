@@ -26,9 +26,13 @@ const row = {
   brand_name: "TEST capsule",
   unit_of_issue: "capsule",
   lot_number: "TEST-LOT",
-  expires_on: "2030-10-31",
+  expires_on: "2026-11-11",
   stock_status: "quarantine",
   expiry_status: "unexpired",
+  expiry_time_zone: "Asia/Kolkata",
+  expiry_local_date: "2026-10-17",
+  days_to_expiry: 25,
+  expiry_band: "days_30",
   product_status: "active",
   regulatory_status: "pending_review",
   on_hand_units: 0,
@@ -87,6 +91,8 @@ it("retains zero stock and opens a focused reconciliation using one frozen snaps
   });
   expect(within(table).getByText("TEST-LOT")).toBeInTheDocument();
   expect(within(table).getByText("Base unit: capsule")).toBeVisible();
+  expect(within(table).getByText("Expires in 25 days")).toBeVisible();
+  expect(within(table).getByText("As of 2026-10-17 · Asia/Kolkata")).toBeVisible();
   expect(screen.getByRole("region", { name: "Scrollable stock register" })).toHaveAttribute(
     "tabindex",
     "0",
@@ -144,7 +150,12 @@ it("keeps filters and cursor pages on the same snapshot and replaces detail when
     screen.getByLabelText("Filter stock product"),
     "TEST-500 · TEST capsule",
   );
-  await chooseOption(user, screen.getByLabelText("Filter expiry at snapshot"), "Expired");
+  await chooseOption(
+    user,
+    screen.getByLabelText("Filter expiry at snapshot"),
+    "Due within 30 days (including today)",
+  );
+  await chooseOption(user, screen.getByLabelText("Filter stock balance"), "Positive stock on hand");
   await user.click(await screen.findByRole("button", { name: "Load more" }));
   expect(await screen.findByText("TEST-LOT-2")).toBeInTheDocument();
   const request = fetcher.mock.calls
@@ -153,7 +164,8 @@ it("keeps filters and cursor pages on the same snapshot and replaces detail when
   expect(Object.fromEntries(request.searchParams)).toMatchObject({
     location_id: location,
     product_id: product,
-    expiry: "expired",
+    expiry: "due_30",
+    balance: "on_hand",
     cursor: "TEST cursor/+",
   });
   expect(request.searchParams.get("as_of")).toBe(

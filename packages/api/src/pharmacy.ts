@@ -4,6 +4,7 @@ import {
   pharmacyProductFieldsSchema,
   pharmacyMovementInputSchema,
   pharmacyBatchInputSchema,
+  pharmacyStockExpiryFieldsSchema,
 } from "./pharmacy-contract";
 export { v7 as newPharmacyId } from "uuid";
 export {
@@ -69,7 +70,7 @@ export type PharmacyRevision = {
   actor_subject: string;
   created_at: string;
 };
-export type PharmacyStockPosition = {
+export type PharmacyStockPosition = z.infer<typeof pharmacyStockExpiryFieldsSchema> & {
   id: string;
   created_at: string;
   batch_id: string;

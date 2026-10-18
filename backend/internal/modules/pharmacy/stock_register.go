@@ -58,26 +58,27 @@ func parseStockWindow(c *gin.Context, required bool) (stockWindow, bool) {
 }
 
 type stockPosition struct {
-	ID               uuid.UUID `json:"id"`
-	CreatedAt        time.Time `json:"created_at"`
-	LocationID       uuid.UUID `json:"location_id"`
-	BatchID          uuid.UUID `json:"batch_id"`
-	ProductID        uuid.UUID `json:"product_id"`
-	LocationCode     string    `json:"location_code"`
-	LocationName     string    `json:"location_name"`
-	SKU              string    `json:"sku"`
-	BrandName        string    `json:"brand_name"`
-	UnitOfIssue      string    `json:"unit_of_issue"`
-	LotNumber        string    `json:"lot_number"`
-	ExpiresOn        string    `json:"expires_on"`
-	StockStatus      string    `json:"stock_status"`
-	ExpiryStatus     string    `json:"expiry_status"`
-	ProductStatus    string    `json:"product_status"`
-	RegulatoryStatus string    `json:"regulatory_status"`
-	OnHandUnits      int64     `json:"on_hand_units"`
-	ReceiptUnits     string    `json:"receipt_units"`
-	CorrectionUnits  string    `json:"correction_units"`
-	DispensableUnits int64     `json:"dispensable_units"`
+	StockExpiryFields `gorm:"embedded"`
+	ID                uuid.UUID `json:"id"`
+	CreatedAt         time.Time `json:"created_at"`
+	LocationID        uuid.UUID `json:"location_id"`
+	BatchID           uuid.UUID `json:"batch_id"`
+	ProductID         uuid.UUID `json:"product_id"`
+	LocationCode      string    `json:"location_code"`
+	LocationName      string    `json:"location_name"`
+	SKU               string    `json:"sku"`
+	BrandName         string    `json:"brand_name"`
+	UnitOfIssue       string    `json:"unit_of_issue"`
+	LotNumber         string    `json:"lot_number"`
+	ExpiresOn         string    `json:"expires_on"`
+	StockStatus       string    `json:"stock_status"`
+	ExpiryStatus      string    `json:"expiry_status"`
+	ProductStatus     string    `json:"product_status"`
+	RegulatoryStatus  string    `json:"regulatory_status"`
+	OnHandUnits       int64     `json:"on_hand_units"`
+	ReceiptUnits      string    `json:"receipt_units"`
+	CorrectionUnits   string    `json:"correction_units"`
+	DispensableUnits  int64     `json:"dispensable_units"`
 }
 
 func (r stockPosition) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
@@ -114,8 +115,24 @@ func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination
 		return nil, nil
 	}
 	expiry := c.DefaultQuery("expiry", "all")
-	if expiry != "all" && expiry != "expired" && expiry != "unexpired" {
+	dueDays := -1
+	switch expiry {
+	case "all", "expired", "unexpired":
+	case "today":
+		dueDays = 0
+	case "due_30":
+		dueDays = 30
+	case "due_90":
+		dueDays = 90
+	case "due_180":
+		dueDays = 180
+	default:
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid expiry filter")
+		return nil, nil
+	}
+	balance := c.DefaultQuery("balance", "all")
+	if (balance != "all" && balance != "on_hand") || len(c.QueryArray("expiry")) > 1 || len(c.QueryArray("balance")) > 1 {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid or repeated stock filter")
 		return nil, nil
 	}
 	var rows []stockPosition
@@ -133,18 +150,27 @@ func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination
 		source := tx.Table("pharmacy_stock_movements m").Select(`md5(m.location_id::text||':'||m.batch_id::text)::uuid AS id,
    b.created_at,m.location_id,m.batch_id,b.product_id,l.code AS location_code,l.name AS location_name,
    p.sku,p.brand_name,p.unit_of_issue,b.lot_number,to_char(b.expires_on,'YYYY-MM-DD') AS expires_on,l.stock_status,
-   CASE WHEN b.expires_on < timezone(o.timezone,?::timestamptz)::date THEN 'expired' ELSE 'unexpired' END AS expiry_status,
+   CASE WHEN b.expires_on < snapshot.local_date THEN 'expired' ELSE 'unexpired' END AS expiry_status,
+   o.timezone AS expiry_time_zone,to_char(snapshot.local_date,'YYYY-MM-DD') AS expiry_local_date,
+   b.expires_on-snapshot.local_date AS days_to_expiry,
+   CASE WHEN b.expires_on < snapshot.local_date THEN 'expired'
+        WHEN b.expires_on = snapshot.local_date THEN 'today'
+        WHEN b.expires_on-snapshot.local_date <= 30 THEN 'days_30'
+        WHEN b.expires_on-snapshot.local_date <= 90 THEN 'days_90'
+        WHEN b.expires_on-snapshot.local_date <= 180 THEN 'days_180'
+        ELSE 'later' END AS expiry_band,
    p.status AS product_status,p.regulatory_status,
    sum(m.quantity_units)::bigint AS on_hand_units,
    COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='receipt'),0)::text AS receipt_units,
    COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='correction'),0)::text AS correction_units,
-   0::bigint AS dispensable_units`, window.AsOf).
+   0::bigint AS dispensable_units`).
 			Joins("JOIN pharmacy_stock_batches b ON b.tenant_id=m.tenant_id AND b.outlet_id=m.outlet_id AND b.id=m.batch_id").
 			Joins("JOIN pharmacy_stock_locations l ON l.tenant_id=m.tenant_id AND l.outlet_id=m.outlet_id AND l.id=m.location_id").
 			Joins("JOIN pharmacy_catalogue_products p ON p.tenant_id=b.tenant_id AND p.outlet_id=b.outlet_id AND p.id=b.product_id").
 			Joins("JOIN pharmacy_outlets o ON o.tenant_id=m.tenant_id AND o.id=m.outlet_id").
+			Joins("CROSS JOIN LATERAL (SELECT timezone(o.timezone,?::timestamptz)::date AS local_date) snapshot", window.AsOf).
 			Where("m.tenant_id=? AND m.outlet_id=? AND m.created_at<=?", p.TenantID, outlet, window.AsOf).
-			Group("b.created_at,m.location_id,m.batch_id,b.product_id,l.code,l.name,p.sku,p.brand_name,p.unit_of_issue,b.lot_number,b.expires_on,l.stock_status,o.timezone,p.status,p.regulatory_status")
+			Group("b.created_at,m.location_id,m.batch_id,b.product_id,l.code,l.name,p.sku,p.brand_name,p.unit_of_issue,b.lot_number,b.expires_on,l.stock_status,o.timezone,snapshot.local_date,p.status,p.regulatory_status")
 		if location != uuid.Nil {
 			source = source.Where("m.location_id=?", location)
 		}
@@ -152,8 +178,13 @@ func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination
 			source = source.Where("b.product_id=?", product)
 		}
 		q := tenantdb.ApplyKeyset(tx, params).Table("(?) AS positions", source)
-		if expiry != "all" {
+		if dueDays >= 0 {
+			q = q.Where("days_to_expiry BETWEEN 0 AND ?", dueDays)
+		} else if expiry != "all" {
 			q = q.Where("expiry_status=?", expiry)
+		}
+		if balance == "on_hand" {
+			q = q.Where("on_hand_units>0")
 		}
 		return q.Find(&rows).Error
 	})

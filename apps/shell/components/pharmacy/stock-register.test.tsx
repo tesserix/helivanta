@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "../../test/select";
 import { StockRegister } from "./stock-register";
+import { formatZonedDateTime } from "@helivanta/api";
 import { useState } from "react";
 
 const scope = {
@@ -323,9 +324,9 @@ it("hides a previous period ledger and totals when the new reconciliation is den
     await screen.findByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }),
   );
   expect(await screen.findByText(/TEST-PERIOD-LINE/)).toBeInTheDocument();
-  expect(screen.getByText("2026-10-17T21:00:00.123456+11:00").parentElement).not.toHaveTextContent(
-    "(UTC)",
-  );
+  expect(
+    screen.getByText(formatZonedDateTime("2026-10-17T21:00:00.123456+11:00", "UTC")),
+  ).toHaveAttribute("datetime", "2026-10-17T21:00:00.123456+11:00");
   fireEvent.change(screen.getByLabelText("Period starts at (UTC, optional)"), {
     target: { value: "2020-01-01T00:00" },
   });
@@ -334,6 +335,54 @@ it("hides a previous period ledger and totals when the new reconciliation is den
   expect(screen.queryByText(/TEST-PERIOD-LINE/)).not.toBeInTheDocument();
   expect(screen.queryByText("Closing stock")).not.toBeInTheDocument();
   expect(fetcher.mock.calls.every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
+});
+
+it("uses the persisted outlet zone for snapshots, period input and reloads", async () => {
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-17T12:00:00Z"));
+  const fetcher = fixture();
+  function ZoneHarness() {
+    const [timeZone, setZone] = useState("Asia/Kolkata");
+    return (
+      <>
+        <button onClick={() => setZone("Asia/Karachi")}>Change outlet time zone</button>
+        <StockRegister scope={scope} timeZone={timeZone} />
+      </>
+    );
+  }
+  const { user } = renderWithProviders(<ZoneHarness />);
+  await user.click(
+    await screen.findByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }),
+  );
+  expect(
+    screen.getByText(formatZonedDateTime("2026-10-17T12:00:00.000Z", "Asia/Kolkata")),
+  ).toBeVisible();
+  fireEvent.change(screen.getByLabelText("Period starts at (Asia/Kolkata, optional)"), {
+    target: { value: "2026-10-17T10:30" },
+  });
+  await user.click(screen.getByRole("button", { name: "Apply period" }));
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.some(
+        ([url]) =>
+          new URL(url, "http://localhost").searchParams.get("from") === "2026-10-17T05:00:00.000Z",
+      ),
+    ).toBe(true),
+  );
+  await user.click(screen.getByRole("button", { name: "Change outlet time zone" }));
+  expect(
+    screen.queryByLabelText("Period starts at (Asia/Kolkata, optional)"),
+  ).not.toBeInTheDocument();
+  await user.click(
+    await screen.findByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }),
+  );
+  expect(screen.getByLabelText("Period starts at (Asia/Karachi, optional)")).toHaveValue("");
+});
+
+it("refuses invalid outlet time zones before querying stock", () => {
+  const fetcher = fixture();
+  renderWithProviders(<StockRegister scope={scope} timeZone="Wrong/Zone" />);
+  expect(screen.getByRole("alert")).toHaveTextContent("outlet time zone");
+  expect(fetcher).not.toHaveBeenCalled();
 });
 
 it.each(["tenantId", "pharmacyId", "outletId"] as const)(

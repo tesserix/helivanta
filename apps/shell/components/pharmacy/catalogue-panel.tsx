@@ -6,6 +6,7 @@ import { Button, Input } from "@tesserix/web";
 import { Plus, Search, History, Package, ArrowLeft } from "lucide-react";
 import {
   apiFetch,
+  formatZonedDateTime,
   useApiPagedQuery,
   useApiMutation,
   pharmacyKey,
@@ -25,7 +26,6 @@ import {
   useZodForm,
   useFieldArray,
   ConfirmDialog,
-  formatDateTime,
 } from "@helivanta/ui";
 import { CurrencyAmountField } from "./currency-amount-field";
 import { RequestFailure } from "../request-failure";
@@ -52,10 +52,12 @@ export function CataloguePanel({
   scope,
   writable,
   defaultCurrency,
+  timeZone = "UTC",
 }: {
   scope: PharmacyScope;
   writable: boolean;
   defaultCurrency: string;
+  timeZone?: string;
 }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<PharmacyProduct | null | undefined>();
@@ -181,7 +183,7 @@ export function CataloguePanel({
           ) : (
             selected && <ProductSummary product={selected} />
           )}{" "}
-          {selected && <ProductHistory scope={scope} product={selected} />}
+          {selected && <ProductHistory scope={scope} product={selected} timeZone={timeZone} />}
         </section>
       )}
     </div>
@@ -429,7 +431,15 @@ function ProductSummary({ product }: { product: PharmacyProduct }) {
     </dl>
   );
 }
-function ProductHistory({ scope, product }: { scope: PharmacyScope; product: PharmacyProduct }) {
+function ProductHistory({
+  scope,
+  product,
+  timeZone,
+}: {
+  scope: PharmacyScope;
+  product: PharmacyProduct;
+  timeZone: string;
+}) {
   const history = useApiPagedQuery<PharmacyRevision>(
     pharmacyKey(scope, "history", product.id),
     `${pharmacyRoot(scope)}/catalogue/products/${product.id}/revisions`,
@@ -452,7 +462,10 @@ function ProductHistory({ scope, product }: { scope: PharmacyScope; product: Pha
                 Revision {row.version} · {row.snapshot.brand_name}
               </p>
               <p className="mt-1 text-muted-foreground">
-                {formatDateTime(row.created_at)} · {row.actor_subject} · {row.snapshot.status}
+                <time dateTime={row.created_at} title={row.created_at}>
+                  {formatZonedDateTime(row.created_at, timeZone)}
+                </time>{" "}
+                · {row.actor_subject} · {row.snapshot.status}
               </p>
               <details className="mt-2">
                 <summary className="cursor-pointer">View recorded identity</summary>

@@ -36,7 +36,16 @@ function mockAccounts(financial = true, country = "IN") {
       );
     if (url.endsWith("/outlets"))
       return new Response(
-        JSON.stringify(page([{ id: outlet, name: "TEST Main Outlet", country_code: country }])),
+        JSON.stringify(
+          page([
+            {
+              id: outlet,
+              name: "TEST Main Outlet",
+              country_code: country,
+              timezone: "Asia/Karachi",
+            },
+          ]),
+        ),
       );
     if (url.endsWith("/access")) return new Response(JSON.stringify({ level: "editor" }));
     if (url.endsWith("/accounts/payables"))
@@ -154,4 +163,52 @@ it("defaults Pakistan expenses to PKR instead of an India fallback", async () =>
   await user.click(await screen.findByRole("button", { name: "Record bill or expense" }));
   expect(screen.getByLabelText("Currency")).toHaveTextContent("PKR");
   expect(screen.getByLabelText("Net amount 1 (PKR)")).toBeInTheDocument();
+});
+
+it("uses the configured timezone for payable and settlement recording times without changing document dates", async () => {
+  const base = mockAccounts();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.endsWith(`/accounts/payables/${id}`)) {
+        const list = await (await base(url.slice(0, -(id.length + 1)))).json();
+        return new Response(
+          JSON.stringify({ ...list.data[0], lines: [], actor_subject: "TEST-finance" }),
+        );
+      }
+      if (url.endsWith(`/accounts/payables/${id}/settlements`))
+        return new Response(
+          JSON.stringify(
+            page([
+              {
+                id: "TEST-payment",
+                kind: "payment",
+                currency: "INR",
+                amount_minor: 3000,
+                occurred_on: "2026-10-14",
+                paid_by: "TEST payer",
+                method: "bank_transfer",
+                source_reference: "TEST-external",
+                actor_subject: "TEST-finance",
+                created_at: "2026-10-14T23:30:00Z",
+                reason: "TEST external settlement",
+              },
+            ]),
+          ),
+        );
+      return base(url);
+    }),
+  );
+  const { user } = renderWithProviders(<PharmacyWorkspace view="accounts" />);
+  await user.click(await screen.findByRole("button", { name: "Open TEST-EXPENSE-001" }));
+  expect(await screen.findByText("2026-10-15 05:00:00 GMT+05:00")).toHaveAttribute(
+    "datetime",
+    "2026-10-15T00:00:00Z",
+  );
+  expect(await screen.findByText("2026-10-15 04:30:00 GMT+05:00")).toHaveAttribute(
+    "datetime",
+    "2026-10-14T23:30:00Z",
+  );
+  expect(screen.getByText(/Document date 2026-10-01 · Due 2026-10-31/)).toBeInTheDocument();
+  expect(screen.getByText("2026-10-14")).toBeInTheDocument();
 });

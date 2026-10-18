@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" type="device">
+  <diagram id="batch-safety" name="Pharmacy batch safety">
+    <mxGraphModel dx="1200" dy="760" grid="1" gridSize="10" page="1" pageWidth="1200" pageHeight="760">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="&lt;b&gt;PharmaConnect · immutable batch safety concerns&lt;/b&gt;&lt;br&gt;Story #1213 · parent #166 · additive migration 0007_pharmacy" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=14;fillColor=#e0f2fe;strokeColor=#0284c7;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="140" y="30" width="920" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="staff" value="&lt;b&gt;Pharmacist / owner / inventory&lt;/b&gt;&lt;br&gt;Observed concern&lt;br&gt;Record evidence for review" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=14;fillColor=#eff6ff;strokeColor=#3b82f6;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="170" width="210" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="ui" value="&lt;b&gt;Pharmacy stock UI&lt;/b&gt;&lt;br&gt;Saved outlet time zone&lt;br&gt;Exact product / lot&lt;br&gt;Stable UUID and retry payload" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=14;fillColor=#ecfdf5;strokeColor=#059669;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="310" y="155" width="245" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="auth" value="&lt;b&gt;Server authorization&lt;/b&gt;&lt;br&gt;Verified tenant + actor&lt;br&gt;stock.quarantine permission&lt;br&gt;Current explicit outlet editor grant" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=14;fillColor=#f5f3ff;strokeColor=#7c3aed;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="625" y="155" width="245" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="db" value="&lt;b&gt;One PostgreSQL transaction&lt;/b&gt;&lt;br&gt;Tenant + pharmacy + outlet RLS&lt;br&gt;Owned batch / location references&lt;br&gt;Actor-bound immutable journal + audit&lt;br&gt;Database-stamped recorded time" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=14;fillColor=#fefce8;strokeColor=#ca8a04;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="350" y="370" width="300" height="155" as="geometry" />
+        </mxCell>
+        <mxCell id="outbox" value="&lt;b&gt;Atomic outbox&lt;/b&gt;&lt;br&gt;BatchSafetyRecorded&lt;br&gt;Identifiers only&lt;br&gt;No evidence narrative or patient data" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=14;fillColor=#fff7ed;strokeColor=#ea580c;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="740" y="380" width="245" height="135" as="geometry" />
+        </mxCell>
+        <mxCell id="nats" value="&lt;b&gt;NATS JetStream&lt;/b&gt;&lt;br&gt;Existing durable relay&lt;br&gt;Retry-safe publication" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=14;fillColor=#f0fdfa;strokeColor=#0d9488;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="740" y="575" width="245" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="limits" value="&lt;b&gt;Safety boundary&lt;/b&gt;&lt;br&gt;Stock stays quarantined; dispensable quantity stays zero.&lt;br&gt;Concerns do not verify recalls, clear stock, change balances, or implement clinical batch trace.&lt;br&gt;Future governed review / release / expiry / FEFO remain in their owning stories." style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=14;fillColor=#fff1f2;strokeColor=#e11d48;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="50" y="585" width="600" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="Record concern" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=12;strokeColor=#475569;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="staff" target="ui">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="Scoped PUT&lt;br&gt;Stable UUIDv7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=12;strokeColor=#475569;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="ui" target="auth">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="Recheck scope&lt;br&gt;Serialize identity" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=12;strokeColor=#475569;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="auth" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="Row + audit + event&lt;br&gt;One commit" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=12;strokeColor=#475569;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="db" target="outbox">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="Existing relay" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=12;strokeColor=#475569;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="outbox" target="nats">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="Preserve existing invariants" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;fontSize=12;strokeColor=#475569;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="db" target="limits">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

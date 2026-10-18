@@ -142,7 +142,7 @@ function TenantPharmacy({
         <p role="status">Loading outlets…</p>
       ) : outlet ? (
         <OutletPharmacy
-          key={`${pharmacy.id}:${outlet.id}`}
+          key={`${identity.tenant_id}:${pharmacy.id}:${outlet.id}:${outlet.timezone}`}
           pharmacy={pharmacy}
           outlet={outlet}
           scope={{ tenantId: identity.tenant_id, pharmacyId: pharmacy.id, outletId: outlet.id }}
@@ -217,7 +217,8 @@ function OutletPharmacy({
           <strong>
             {pharmacy.name} · {outlet.name}
           </strong>
-          <span className="ml-2 text-muted-foreground">
+          <span className="block text-muted-foreground">Time zone: {outlet.timezone}</span>
+          <span className="text-muted-foreground">
             Outlet access is explicit. Common ownership or a hospital affiliation does not share
             patient records or stock. Products and quarantine stock awaiting review are unavailable
             for dispensing.
@@ -234,18 +235,21 @@ function OutletPharmacy({
       ) : view === "accounts" ? (
         <AccountsPanel
           scope={scope}
+          timeZone={outlet.timezone}
           defaultCurrency={countryProfile(outlet.country_code)?.currency ?? ""}
           writable={access.data?.level === "editor"}
         />
       ) : view === "catalogue" ? (
         <CataloguePanel
           scope={scope}
+          timeZone={outlet.timezone}
           defaultCurrency={countryProfile(outlet.country_code)?.currency ?? ""}
           writable={access.data?.level === "editor" && can("pharmacy.catalogue.write")}
         />
       ) : (
         <StockPanel
           scope={scope}
+          timeZone={outlet.timezone}
           writable={access.data?.level === "editor" && can("pharmacy.stock.receive")}
           correctable={access.data?.level === "editor" && can("pharmacy.stock.correct")}
         />

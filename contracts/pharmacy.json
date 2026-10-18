@@ -117,11 +117,7 @@
         {
           "name": "status",
           "type": "string",
-          "enum": [
-            "active",
-            "discontinued",
-            "withdrawn"
-          ]
+          "enum": ["active", "discontinued", "withdrawn"]
         }
       ]
     },
@@ -183,10 +179,7 @@
         {
           "name": "kind",
           "type": "string",
-          "enum": [
-            "receipt",
-            "correction"
-          ]
+          "enum": ["receipt", "correction"]
         },
         {
           "name": "quantity_units",
@@ -256,11 +249,7 @@
         {
           "name": "ownership_type",
           "type": "string",
-          "enum": [
-            "independent",
-            "chain",
-            "hospital_owned"
-          ]
+          "enum": ["independent", "chain", "hospital_owned"]
         }
       ]
     },
@@ -309,11 +298,7 @@
         {
           "name": "relationship",
           "type": "string",
-          "enum": [
-            "owner",
-            "serving",
-            "partner"
-          ]
+          "enum": ["owner", "serving", "partner"]
         }
       ]
     },
@@ -433,11 +418,7 @@
         {
           "name": "kind",
           "type": "string",
-          "enum": [
-            "payment",
-            "credit",
-            "payment_reversal"
-          ]
+          "enum": ["payment", "credit", "payment_reversal"]
         },
         {
           "name": "amount_minor",
@@ -462,13 +443,7 @@
         {
           "name": "method",
           "type": "string",
-          "enum": [
-            "cash",
-            "bank",
-            "card",
-            "upi",
-            "other"
-          ]
+          "enum": ["cash", "bank", "card", "upi", "other"]
         },
         {
           "name": "source_reference",
@@ -494,6 +469,51 @@
           "name": "reversal_of",
           "type": "uuid",
           "optional": true
+        }
+      ]
+    },
+    {
+      "name": "safetyIncidentInput",
+      "schema": "pharmacySafetyIncidentFieldsSchema",
+      "fields": [
+        {
+          "name": "batch_id",
+          "type": "uuid"
+        },
+        {
+          "name": "location_id",
+          "type": "uuid",
+          "optional": true
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "enum": [
+            "quality_concern",
+            "temperature_excursion",
+            "packaging_damage",
+            "suspected_recall"
+          ]
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "trim": true,
+          "min": 10,
+          "max": 500
+        },
+        {
+          "name": "occurred_at",
+          "type": "string",
+          "format": "datetime",
+          "min": 1
+        },
+        {
+          "name": "measured_temperature_millicelsius",
+          "type": "int64",
+          "optional": true,
+          "min": -273150,
+          "max": 1000000
         }
       ]
     }

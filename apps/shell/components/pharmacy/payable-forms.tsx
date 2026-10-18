@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Input } from "@tesserix/web";
 import {
   apiFetch,
+  formatZonedDateTime,
   countryConfiguration,
   useApiMutation,
   useApiQuery,
@@ -28,7 +29,6 @@ import {
   useZodForm,
   useFieldArray,
   LoadMore,
-  formatDateTime,
 } from "@helivanta/ui";
 import { CurrencyAmountField, formatPharmacyMoney } from "./currency-amount-field";
 import { RequestFailure } from "../request-failure";
@@ -339,11 +339,13 @@ export function PayableHistory({
   id,
   writable,
   onClose,
+  timeZone = "UTC",
 }: {
   scope: PharmacyScope;
   id: string;
   writable: boolean;
   onClose: () => void;
+  timeZone?: string;
 }) {
   const detail = useApiQuery<PharmacyPayableDetail>(
     pharmacyKey(scope, "accounts", "detail", id),
@@ -405,7 +407,10 @@ export function PayableHistory({
       <div className="text-xs leading-6 text-muted-foreground">
         Document date {doc.issued_on} · Due {doc.due_on}
         <br />
-        Recorded by {doc.actor_subject} · {formatDateTime(doc.created_at)}
+        Recorded by {doc.actor_subject} ·{" "}
+        <time dateTime={doc.created_at} title={doc.created_at}>
+          {formatZonedDateTime(doc.created_at, timeZone)}
+        </time>
       </div>
       <ol className="divide-y rounded-xl border">
         {doc.lines.map((line, i) => (
@@ -449,7 +454,9 @@ export function PayableHistory({
                 </p>
                 <p className="mt-1 break-all text-xs text-muted-foreground">
                   {entry.source_reference} · Recorded by {entry.actor_subject} ·{" "}
-                  {formatDateTime(entry.created_at)}
+                  <time dateTime={entry.created_at} title={entry.created_at}>
+                    {formatZonedDateTime(entry.created_at, timeZone)}
+                  </time>
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">{entry.reason}</p>
                 {entry.reversal_of && (

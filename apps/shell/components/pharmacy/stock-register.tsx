@@ -5,6 +5,9 @@ import { Button, Input } from "@tesserix/web";
 import {
   pharmacyKey,
   pharmacyRoot,
+  formatZonedDateTime,
+  isCustomerTimeZone,
+  zonedDateTimeISO,
   useApiPagedQuery,
   useApiQuery,
   type PharmacyScope,
@@ -17,7 +20,7 @@ import {
 import { Field, LoadMore, SelectControl } from "@helivanta/ui";
 import { RequestFailure } from "../request-failure";
 
-type Props = { scope: PharmacyScope };
+type Props = { scope: PharmacyScope; timeZone?: string };
 const quantity = (value: number | string) =>
   typeof value === "string" ? BigInt(value).toLocaleString() : value.toLocaleString();
 const requestFor = (scope: PharmacyScope) => ({
@@ -26,15 +29,22 @@ const requestFor = (scope: PharmacyScope) => ({
 });
 
 export function StockRegister(props: Props) {
+  const timeZone = props.timeZone ?? "UTC";
+  if (!isCustomerTimeZone(timeZone))
+    return (
+      <p role="alert">
+        The configured outlet time zone is invalid. Ask your administrator to correct it.
+      </p>
+    );
   return (
     <OutletStockRegister
-      key={`${props.scope.tenantId}:${props.scope.pharmacyId}:${props.scope.outletId}`}
+      key={`${props.scope.tenantId}:${props.scope.pharmacyId}:${props.scope.outletId}:${timeZone}`}
       {...props}
     />
   );
 }
 
-function OutletStockRegister({ scope }: Props) {
+function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
   const [asOf, setAsOf] = useState(() => new Date(Date.now()).toISOString());
   const [locationId, setLocation] = useState("all");
   const [productId, setProduct] = useState("all");
@@ -82,9 +92,12 @@ function OutletStockRegister({ scope }: Props) {
         </Button>
       </div>
       <p className="break-words text-xs text-muted-foreground">
-        Snapshot ends at <time dateTime={asOf}>{asOf}</time> (UTC). Quantities use this cutoff;
-        product and location details show current records. All stock remains quarantined and
-        unavailable for dispensing.
+        Snapshot ends at{" "}
+        <time dateTime={asOf} title={asOf}>
+          {formatZonedDateTime(asOf, timeZone)}
+        </time>{" "}
+        ({timeZone}). Quantities use this cutoff; product and location details show current records.
+        All stock remains quarantined and unavailable for dispensing.
       </p>
       <div className="grid gap-4 sm:grid-cols-3">
         <Field id="register-location" label="Filter stock location">
@@ -273,6 +286,7 @@ function OutletStockRegister({ scope }: Props) {
           scope={scope}
           row={selected}
           asOf={asOf}
+          timeZone={timeZone}
           onClose={() => {
             setSelected(null);
             selectedTrigger.current?.focus();
@@ -285,6 +299,7 @@ function OutletStockRegister({ scope }: Props) {
 
 function PositionDetail({
   scope,
+  timeZone = "UTC",
   row,
   asOf,
   onClose,
@@ -327,18 +342,20 @@ function PositionDetail({
         className="flex flex-wrap items-end gap-3"
         onSubmit={(event) => {
           event.preventDefault();
-          const timestamp = fromInput ? Date.parse(`${fromInput}Z`) : null;
-          if (timestamp !== null && (!Number.isFinite(timestamp) || timestamp > Date.parse(asOf))) {
-            setError("Period start must be a valid UTC time at or before the snapshot.");
+          const instant = fromInput ? zonedDateTimeISO(fromInput, timeZone) : null;
+          if (fromInput && (!instant || Date.parse(instant) > Date.parse(asOf))) {
+            setError(
+              `Period start must be an unambiguous time in ${timeZone} at or before the snapshot.`,
+            );
             return;
           }
           setError("");
-          setFrom(timestamp === null ? null : new Date(timestamp).toISOString());
+          setFrom(instant);
         }}
       >
         <Field
           id="register-period-from"
-          label="Period starts at (UTC, optional)"
+          label={`Period starts at (${timeZone}, optional)`}
           error={error || undefined}
         >
           <Input
@@ -355,8 +372,9 @@ function PositionDetail({
         </Button>
       </form>
       <p className="break-words text-xs text-muted-foreground">
-        {from ? `Period from ${from}` : "All recorded history"} through {asOf} (UTC). Opening +
-        receipts + corrections = closing stock.
+        {from ? `Period from ${formatZonedDateTime(from, timeZone)}` : "All recorded history"}{" "}
+        through {formatZonedDateTime(asOf, timeZone)} ({timeZone}). Opening + receipts + corrections
+        = closing stock.
       </p>
       {reconciliation.isError ? (
         <RequestFailure
@@ -404,8 +422,10 @@ function PositionDetail({
                   </p>
                   <p className="break-words text-muted-foreground">{movement.reason}</p>
                   <p className="break-words text-xs text-muted-foreground">
-                    <time dateTime={movement.created_at}>{movement.created_at}</time> ·{" "}
-                    {movement.actor_subject}
+                    <time dateTime={movement.created_at} title={movement.created_at}>
+                      {formatZonedDateTime(movement.created_at, timeZone)}
+                    </time>{" "}
+                    · {movement.actor_subject}
                   </p>
                 </li>
               ))}

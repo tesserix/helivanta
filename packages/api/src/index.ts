@@ -43,6 +43,7 @@ export * from "./roster-config";
 export * from "./leave";
 
 export * from "./pharmacy";
+export * from "./customer-time";
 
 export * from "./country-profiles";
 export * from "./trading-policy";

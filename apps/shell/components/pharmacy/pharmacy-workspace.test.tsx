@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "../../test/select";
@@ -71,12 +71,14 @@ function mockPharmacy(level = "editor", denied = false, country = "IN") {
             {
               id: outlet,
               name: "TEST Main Outlet",
+              timezone: "Asia/Kolkata",
               country_code: country,
               access_level: "manager",
             },
             {
               id: sibling,
               name: "TEST Sister Outlet",
+              timezone: "Asia/Karachi",
               country_code: country,
               access_level: "manager",
             },
@@ -112,6 +114,76 @@ it("shows private catalogue identity and clears rows when switching outlet", asy
       url.includes(`/pharmacies/${pharmacy}/outlets/${sibling}/catalogue/products`),
     ),
   ).toBe(true);
+});
+
+it("uses each configured outlet timezone for revision history and clears the previous outlet details", async () => {
+  const base = mockPharmacy();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith(`/pharmacies/${pharmacy}/outlets`))
+        return new Response(
+          JSON.stringify(
+            page([
+              {
+                id: outlet,
+                name: "TEST Main Outlet",
+                country_code: "IN",
+                timezone: "Asia/Kolkata",
+              },
+              {
+                id: sibling,
+                name: "TEST Sister Outlet",
+                country_code: "PK",
+                timezone: "Asia/Karachi",
+              },
+            ]),
+          ),
+        );
+      if (url.endsWith("/revisions"))
+        return new Response(
+          JSON.stringify(
+            page([
+              {
+                id: "TEST-revision",
+                version: 1,
+                created_at: "2026-10-17T00:00:00Z",
+                actor_subject: "TEST-editor",
+                snapshot: product,
+              },
+            ]),
+          ),
+        );
+      if (url.includes(sibling) && url.includes("/catalogue/products"))
+        return new Response(JSON.stringify(page([{ ...product, outlet_id: sibling }])));
+      return base(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(<PharmacyWorkspace view="catalogue" />);
+  await user.click(await screen.findByRole("button", { name: "Open TEST-500" }));
+  expect(screen.getByText("Time zone: Asia/Kolkata")).toBeInTheDocument();
+  const firstTime = await screen.findByText("2026-10-17 05:30:00 GMT+05:30");
+  expect(firstTime).toHaveAttribute("datetime", "2026-10-17T00:00:00Z");
+  await chooseOption(user, screen.getByLabelText("Outlet"), "TEST Sister Outlet");
+  expect(await screen.findByText("Time zone: Asia/Karachi")).toBeInTheDocument();
+  expect(screen.queryByText("Revision history")).not.toBeInTheDocument();
+  expect(screen.queryByText("2026-10-17 05:30:00 GMT+05:30")).not.toBeInTheDocument();
+  await user.click(await screen.findByRole("button", { name: "Open TEST-500" }));
+  expect(await screen.findByText("2026-10-17 05:00:00 GMT+05:00")).toHaveAttribute(
+    "datetime",
+    "2026-10-17T00:00:00Z",
+  );
+});
+
+it("propagates the configured timezone through receiving to the stock register on outlet switches", async () => {
+  mockPharmacy();
+  const { user } = renderWithProviders(<PharmacyWorkspace view="stock" />);
+  const register = await screen.findByRole("region", { name: "Stock register" });
+  expect(within(register).getByText(/\(Asia\/Kolkata\)/)).toBeInTheDocument();
+  await chooseOption(user, screen.getByLabelText("Outlet"), "TEST Sister Outlet");
+  const nextRegister = await screen.findByRole("region", { name: "Stock register" });
+  expect(within(nextRegister).getByText(/\(Asia\/Karachi\)/)).toBeInTheDocument();
+  expect(within(nextRegister).queryByText(/\(Asia\/Kolkata\)/)).not.toBeInTheDocument();
 });
 
 it("denies missing outlet grants and hides writes from outlet readers", async () => {
@@ -249,7 +321,22 @@ it("shows quarantine on-hand separately and records a receipt against selected r
       saved = true;
       return new Response(JSON.stringify({ id: url.split("/").at(-1) }));
     }
-    if (url.includes("/stock/movements")) return new Response(JSON.stringify(page([])));
+    if (url.includes("/stock/movements"))
+      return new Response(
+        JSON.stringify(
+          page([
+            {
+              id: "TEST-receipt",
+              source_reference: "TEST-OLD-RECEIPT",
+              reason: "TEST received stock",
+              created_at: "2026-10-17T00:00:00Z",
+              actor_subject: "TEST-receiver",
+              quantity_units: 1,
+              kind: "receipt",
+            },
+          ]),
+        ),
+      );
     return base(url, init);
   });
   vi.stubGlobal("fetch", fetcher);
@@ -266,6 +353,10 @@ it("shows quarantine on-hand separately and records a receipt against selected r
     "TEST-LOT · Expires 2030-10-31",
   );
   expect(await screen.findByText("Available to dispense")).toBeInTheDocument();
+  expect(await screen.findByText("2026-10-17 05:30:00 GMT+05:30")).toHaveAttribute(
+    "datetime",
+    "2026-10-17T00:00:00Z",
+  );
   await user.clear(screen.getByLabelText("Quantity in base units"));
   await user.type(screen.getByLabelText("Quantity in base units"), "12");
   await user.type(screen.getByLabelText("Receipt / correction line reference"), "TEST-GRN-12-L1");

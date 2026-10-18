@@ -28,14 +28,15 @@ type clinicalReviewer struct {
 	ID      uuid.UUID `json:"id"`
 	Subject string    `json:"subject"`
 	ClinicalReviewerInput
-	VerifiedBy string    `json:"verified_by"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	VerifiedBy      string    `json:"verified_by"`
+	CurrentlyActive bool      `json:"currently_active"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 func (clinicalReviewer) TableName() string { return "emergency_clinical_reviewers" }
 
-const reviewerColumns = "id,subject,version,enabled,evidence_reference,expires_at,verified_by,created_at,updated_at"
+const reviewerColumns = "id,subject,version,enabled,evidence_reference,expires_at,verified_by,created_at,updated_at,(enabled AND expires_at>statement_timestamp()) AS currently_active"
 
 func clinicalBaseLock(tx *gorm.DB, p authn.Principal, b uuid.UUID, strength string) error {
 	return tx.Select("id").Clauses(clause.Locking{Strength: strength}).Where("tenant_id=? AND id=?", p.TenantID, b).First(&base{}).Error
@@ -71,7 +72,7 @@ func (h *handlers) putClinicalReviewer(c *gin.Context) {
 		}
 		current, err := currentClinicalReviewer(tx, p, b, subject)
 		if err == nil {
-			if current.Version == in.Version+1 && *current.Enabled == *in.Enabled && current.EvidenceReference == in.EvidenceReference && current.ExpiresAt.Equal(in.ExpiresAt) {
+			if current.Version == in.Version+1 && current.VerifiedBy == p.Subject && *current.Enabled == *in.Enabled && current.EvidenceReference == in.EvidenceReference && current.ExpiresAt.Equal(in.ExpiresAt) {
 				out = current
 				return nil
 			}

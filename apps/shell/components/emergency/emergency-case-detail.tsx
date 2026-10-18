@@ -24,6 +24,7 @@ import {
   formatTime,
   useZodForm,
 } from "@helivanta/ui";
+import { EmergencyTransportReviewPanel } from "./emergency-review";
 
 export function EmergencyCaseDetailPanel({ baseID, caseID }: { baseID: string; caseID: string }) {
   const path = `/emergency/bases/${encodeURIComponent(baseID)}/cases/${encodeURIComponent(caseID)}`;
@@ -109,6 +110,7 @@ export function EmergencyCaseDetailPanel({ baseID, caseID }: { baseID: string; c
           <p className="whitespace-pre-wrap">Closure review: {row.closure_explanation}</p>
         )}
       </section>
+      <EmergencyTransportReviewPanel key={`${row.id}-${row.version}`} row={row} />
       {row.status === "received" && <EmergencyClose key={row.version} row={row} path={path} />}
       <EmergencyHistory baseID={baseID} caseID={caseID} path={path} />
     </div>

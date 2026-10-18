@@ -3,9 +3,6 @@
 import { useRef, useState } from "react";
 import { Button, Input, Badge } from "@tesserix/web";
 import {
-  ApiError,
-  apiFetch,
-  useApiMutation,
   useApiPagedQuery,
   usePermissions,
   newEmergencyId,
@@ -35,50 +32,8 @@ import {
   ConfirmDialog,
 } from "@helivanta/ui";
 
-function useFleetCommand<T, R = unknown>(
-  base: string,
-  path: () => string,
-  method: "PUT" | "POST",
-  successToast: string,
-  onSuccess?: (data: R) => void,
-) {
-  const attempt = useRef<T | null>(null);
-  const mutation = useApiMutation(
-    async (values: T) => {
-      attempt.current ??= structuredClone(values);
-      try {
-        return await apiFetch<R>(`/emergency/bases/${base}/${path()}`, {
-          method,
-          body: JSON.stringify(attempt.current),
-        });
-      } catch (error) {
-        if (error instanceof ApiError && [400, 413].includes(error.status)) attempt.current = null;
-        throw error;
-      }
-    },
-    {
-      successToast,
-      invalidate: [["emergency", "fleet", base]],
-      onSuccess: (data) => {
-        attempt.current = null;
-        onSuccess?.(data);
-      },
-    },
-  );
-  const uncertain =
-    mutation.isError &&
-    !(mutation.error instanceof ApiError && [400, 413].includes(mutation.error.status));
-  return { ...mutation, frozen: mutation.isPending || uncertain, uncertain };
-}
-function CommandFailure({ message, uncertain }: { message?: string; uncertain: boolean }) {
-  return message ? (
-    <p role="alert" className="text-sm text-destructive">
-      {message}
-      {uncertain &&
-        " Retry the original command. Refresh the fleet before starting a different command."}
-    </p>
-  ) : null;
-}
+import { useEmergencyCommand, EmergencyCommandFailure } from "./emergency-command";
+
 const options = (group: Record<string, string>) =>
   Object.entries(group).map(([value, label]) => ({ value, label }));
 
@@ -236,7 +191,7 @@ function VehicleForm({ base, vehicle }: { base: string; vehicle?: EmergencyVehic
           retired: false,
         },
   );
-  const save = useFleetCommand<EmergencyVehicleInput, EmergencyVehicle>(
+  const save = useEmergencyCommand<EmergencyVehicleInput, EmergencyVehicle>(
     base,
     () => `vehicles/${id.current}`,
     "PUT",
@@ -317,7 +272,7 @@ function VehicleForm({ base, vehicle }: { base: string; vehicle?: EmergencyVehic
             Vehicle retired
           </label>
         </fieldset>
-        <CommandFailure message={save.error?.message} uncertain={save.uncertain} />
+        <EmergencyCommandFailure message={save.error?.message} uncertain={save.uncertain} />
         <Button type="submit" disabled={save.isPending}>
           Save vehicle
         </Button>
@@ -396,7 +351,7 @@ function CrewEditor({ base, person }: { base: string; person?: EmergencyCrew }) 
           suspended: false,
         },
   );
-  const save = useFleetCommand<EmergencyCrewInput, EmergencyCrew>(
+  const save = useEmergencyCommand<EmergencyCrewInput, EmergencyCrew>(
     base,
     () => `crew/${id.current}`,
     "PUT",
@@ -451,7 +406,7 @@ function CrewEditor({ base, person }: { base: string; person?: EmergencyCrew }) 
           Credential suspended
         </label>
       </fieldset>
-      <CommandFailure message={save.error?.message} uncertain={save.uncertain} />
+      <EmergencyCommandFailure message={save.error?.message} uncertain={save.uncertain} />
       <Button type="submit" disabled={save.isPending}>
         Save credential
       </Button>
@@ -470,7 +425,7 @@ function DutyForm({ base, vehicles }: { base: string; vehicles: EmergencyVehicle
     clinician_subject: "",
     ends_at: "",
   });
-  const save = useFleetCommand<EmergencyDutyInput>(
+  const save = useEmergencyCommand<EmergencyDutyInput>(
     base,
     () => `duties/${id.current}`,
     "PUT",
@@ -523,7 +478,7 @@ function DutyForm({ base, vehicles }: { base: string; vehicles: EmergencyVehicle
             />
           </Field>
         </fieldset>
-        <CommandFailure message={save.error?.message} uncertain={save.uncertain} />
+        <EmergencyCommandFailure message={save.error?.message} uncertain={save.uncertain} />
         <Button type="submit" disabled={save.isPending}>
           Start duty
         </Button>
@@ -553,7 +508,7 @@ function DutyForm({ base, vehicles }: { base: string; vehicles: EmergencyVehicle
 }
 function EndDuty({ base, duty }: { base: string; duty: string }) {
   const [confirm, setConfirm] = useState(false);
-  const end = useFleetCommand<Record<string, never>>(
+  const end = useEmergencyCommand<Record<string, never>>(
     base,
     () => `duties/${duty}/end`,
     "POST",
@@ -565,7 +520,7 @@ function EndDuty({ base, duty }: { base: string; duty: string }) {
       <Button variant="outline" onClick={() => setConfirm(true)}>
         End duty
       </Button>
-      <CommandFailure message={end.error?.message} uncertain={end.uncertain} />
+      <EmergencyCommandFailure message={end.error?.message} uncertain={end.uncertain} />
       <ConfirmDialog
         open={confirm}
         onOpenChange={setConfirm}
@@ -589,7 +544,7 @@ function ReadinessForm({ base, vehicle }: { base: string; vehicle: EmergencyVehi
     equipment_complete: false,
     roadworthy: false,
   });
-  const save = useFleetCommand<EmergencyReadinessInput>(
+  const save = useEmergencyCommand<EmergencyReadinessInput>(
     base,
     () => `readiness/${id.current}`,
     "PUT",
@@ -636,7 +591,7 @@ function ReadinessForm({ base, vehicle }: { base: string; vehicle: EmergencyVehi
             Roadworthiness check passed
           </label>
         </fieldset>
-        <CommandFailure message={save.error?.message} uncertain={save.uncertain} />
+        <EmergencyCommandFailure message={save.error?.message} uncertain={save.uncertain} />
         <Button type="submit" disabled={save.isPending}>
           Record readiness
         </Button>
@@ -647,7 +602,7 @@ function ReadinessForm({ base, vehicle }: { base: string; vehicle: EmergencyVehi
 function ClearConstraint({ base, constraint }: { base: string; constraint: EmergencyConstraint }) {
   const form = useZodForm(emergencyConstraintClearanceSchema, { evidence_reference: "" });
   const [confirmation, setConfirmation] = useState<{ evidence_reference: string } | null>(null);
-  const clear = useFleetCommand<{ evidence_reference: string }>(
+  const clear = useEmergencyCommand<{ evidence_reference: string }>(
     base,
     () => `constraints/${constraint.id}/${constraint.code}/clear`,
     "POST",
@@ -675,7 +630,7 @@ function ClearConstraint({ base, constraint }: { base: string; constraint: Emerg
         <Button type="submit" disabled={clear.isPending}>
           Clear constraint
         </Button>
-        <CommandFailure message={clear.error?.message} uncertain={clear.uncertain} />
+        <EmergencyCommandFailure message={clear.error?.message} uncertain={clear.uncertain} />
       </form>
       <ConfirmDialog
         open={confirmation !== null}

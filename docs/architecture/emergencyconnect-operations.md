@@ -159,6 +159,10 @@ constraints. Follow [the fleet guide](emergencyconnect-fleet.md) for the exact
 permissions, setup, replay semantics and limitations. This is not live dispatch
 or a completed workforce/asset integration; #126 and #127 remain open.
 
+The separately developed [clinical transport review guide](emergencyconnect-transport-review.md)
+covers independent delegation, versioned requirements, retry and revocation. This
+records a requirement and does not reserve or dispatch an ambulance.
+
 ## Dependent programme work
 
 The following remain separate deliverables in #1220: approved structured triage

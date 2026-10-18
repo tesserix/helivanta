@@ -25,8 +25,8 @@ func setupWithTransit(t *testing.T, v *transit.Client) *fixture {
 	t.Helper()
 	all := []authz.Permission{"emergency.base.manage", "emergency.base.read", "emergency.case.read", "emergency.case.intake", "emergency.case.close", "emergency.fleet.read", "emergency.fleet.manage", "emergency.fleet.check", "emergency.clinical.manage", "emergency.case.assess"}
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Transit: v, Tokens: map[string]string{"admin": testutil.TenantA, "dispatcher": testutil.TenantA, "supervisor": testutil.TenantA, "reader": testutil.TenantA, "other": testutil.TenantB, "doctor": testutil.TenantA},
-		Perms:   map[string][]authz.Permission{"admin": all, "other": all, "dispatcher": {"emergency.base.read", "emergency.case.read", "emergency.case.intake", "emergency.fleet.read", "emergency.fleet.check"}, "supervisor": {"emergency.base.read", "emergency.case.read", "emergency.case.intake", "emergency.case.close", "emergency.fleet.read", "emergency.fleet.manage", "emergency.fleet.check"}, "reader": {"emergency.base.read", "emergency.case.read", "emergency.fleet.read"}, "doctor": {"emergency.base.read", "emergency.case.read", "emergency.case.assess"}},
+		Transit: v, Tokens: map[string]string{"admin": testutil.TenantA, "verifier": testutil.TenantA, "dispatcher": testutil.TenantA, "supervisor": testutil.TenantA, "reader": testutil.TenantA, "other": testutil.TenantB, "doctor": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"admin": all, "verifier": all, "other": all, "dispatcher": {"emergency.base.read", "emergency.case.read", "emergency.case.intake", "emergency.fleet.read", "emergency.fleet.check"}, "supervisor": {"emergency.base.read", "emergency.case.read", "emergency.case.intake", "emergency.case.close", "emergency.fleet.read", "emergency.fleet.manage", "emergency.fleet.check"}, "reader": {"emergency.base.read", "emergency.case.read", "emergency.fleet.read"}, "doctor": {"emergency.base.read", "emergency.case.read", "emergency.case.assess"}},
 		Modules: []platform.Module{emergency.New()},
 	})
 	return &fixture{r: r, db: db, base: uuid.Must(uuid.NewV7()).String()}

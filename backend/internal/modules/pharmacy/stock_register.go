@@ -165,9 +165,10 @@ func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination
    COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='receipt'),0)::text AS receipt_units,
    COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='correction'),0)::text AS correction_units,
    0::bigint AS dispensable_units`).
-			Joins("JOIN pharmacy_stock_batches b ON b.tenant_id=m.tenant_id AND b.outlet_id=m.outlet_id AND b.id=m.batch_id").
-			Joins("JOIN pharmacy_stock_locations l ON l.tenant_id=m.tenant_id AND l.outlet_id=m.outlet_id AND l.id=m.location_id").
-			Joins("JOIN pharmacy_catalogue_products p ON p.tenant_id=b.tenant_id AND p.outlet_id=b.outlet_id AND p.id=b.product_id").
+			// Unique-key lookup bounds prevent repeated outlet-wide scans under fresh-table RLS estimates.
+			Joins("JOIN LATERAL (SELECT created_at,product_id,lot_number,expires_on FROM pharmacy_stock_batches WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=m.batch_id LIMIT 1) b ON true").
+			Joins("JOIN LATERAL (SELECT code,name,zone_code,aisle_code,rack_code,shelf_code,stock_status FROM pharmacy_stock_locations WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=m.location_id LIMIT 1) l ON true").
+			Joins("JOIN LATERAL (SELECT sku,brand_name,unit_of_issue,status,regulatory_status FROM pharmacy_catalogue_products WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=b.product_id LIMIT 1) p ON true").
 			Joins("JOIN pharmacy_outlets o ON o.tenant_id=m.tenant_id AND o.id=m.outlet_id").
 			Joins("CROSS JOIN LATERAL (SELECT timezone(o.timezone,?::timestamptz)::date AS local_date) snapshot", window.AsOf).
 			Where("m.tenant_id=? AND m.outlet_id=? AND m.created_at<=?", p.TenantID, outlet, window.AsOf).

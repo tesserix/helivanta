@@ -89,6 +89,7 @@ func inventoryRoutes(g *platform.Router, deps platform.Deps) {
 	platform.ListRoute(s, "/safety-incidents", PermStockRead, h.listBatchSafetyIncidents)
 	s.GET("/balance", PermStockRead, h.getBalance)
 	s.GET("/reconciliation", PermStockRead, h.getStockReconciliation)
+	s.GET("/positions.csv", PermStockRead, h.exportStockPositions)
 	platform.ListRoute(s, "/positions", PermStockRead, h.listStockPositions)
 	platform.ListRoute(s, "/locations", PermStockRead, h.listLocations)
 	platform.ListRoute(s, "/batches", PermStockRead, h.listBatches)

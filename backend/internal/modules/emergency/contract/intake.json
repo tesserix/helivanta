@@ -1,0 +1,8 @@
+{
+  "channels": {"phone":"Phone call","walk_in":"Walk-in report","inter_facility":"Inter-facility request"},
+  "services": {"unknown":"Needs dispatcher review","bls":"Basic life support requested","als":"Advanced life support requested","neonatal":"Neonatal transport requested","patient_transport":"Patient transport requested","mortuary":"Mortuary transport requested","home_visit":"Home response requested"},
+  "bases": {"medical_emergency":"Medical emergency under the reviewed policy","consent":"Consent under the reviewed policy"},
+  "relationships": {"unknown":"Unknown","self":"Self","relative":"Relative or caregiver","bystander":"Bystander","clinician":"Referring clinician"},
+  "closure_reasons": {"duplicate_report":"Related or duplicate report","caller_withdrew":"Caller withdrew the report","no_response_required":"Qualified review found no response required","entered_in_error":"Entered in error"},
+  "access_levels": {"reader":"Case reader","dispatcher":"Dispatcher","supervisor":"Supervisor"}
+}

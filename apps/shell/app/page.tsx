@@ -48,6 +48,12 @@ export default function LandingPage() {
             </a>
           </div>
           <div className="flex items-center gap-5 text-sm font-medium">
+            <a
+              href="/ambulance"
+              className="inline-flex min-h-11 items-center text-teal-800 underline underline-offset-4"
+            >
+              Emergency help
+            </a>
             <a href="/login" className="hover:underline">
               Sign in
             </a>

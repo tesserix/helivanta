@@ -29,3 +29,19 @@ it("serves the favicon before login without opening similarly named routes", () 
     expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status).toBe(307);
   }
 });
+
+it("keeps only exact emergency access routes public", () => {
+  for (const path of ["/ambulance", "/api/emergency/access?country=IN"]) {
+    expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status).toBe(200);
+  }
+  for (const path of [
+    "/ambulance/admin",
+    "/ambulance-records",
+    "/api/emergency/access/admin",
+    "/api/emergency/access-token",
+    "/api/v1/emergency/cases",
+  ]) {
+    const response = middleware(new NextRequest(`https://helivanta.app${path}`));
+    expect(response.status).toBe(path.startsWith("/api/") ? 401 : 307);
+  }
+});

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tesserix/helivanta/internal/modules/emergency"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/lab"
 	"github.com/tesserix/helivanta/internal/modules/medicore"
@@ -155,7 +156,7 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 			// Workforce hospital setup, access and HR configuration (rosters, leave, duty exchanges, overtime, attendance, payroll, identifier reveal) are also admin-only;
 			// staff data still requires an independent hospital grant (ADR 0009).
 			// Pharmacy grant administration is likewise admin-only; pharmacists cannot self-grant outlet or financial access. Operational finance permissions are separately admin-only (ADR 0025).
-			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workforce.PermLeaveRequest && perm != workforce.PermLeaveApprove && perm != workforce.PermDutyRequest && perm != workforce.PermDutyApprove && perm != workforce.PermOvertimeConfigure && perm != workforce.PermOvertimeRequest && perm != workforce.PermOvertimeApprove && perm != workforce.PermAttendanceConfigure && perm != workforce.PermAttendanceRecord && perm != workforce.PermAttendanceCorrect && perm != workforce.PermAttendanceApprove && perm != workforce.PermAttendanceFinalise && perm != workforce.PermPayrollConfigure && perm != workforce.PermPayrollView && perm != workforce.PermPayrollApprove && perm != workforce.PermPayrollIdentifiersReveal && perm != workspace.PermBrandingManage && perm != workspace.PermCountryPolicyManage && perm != patientmaster.PermPatientAccessManage && perm != pharmacy.PermAccessManage && perm != pharmacy.PermStockCorrect && perm != pharmacy.PermAccountsRead && perm != pharmacy.PermAccountsWrite && perm != pharmacy.PermAccountsPayment && perm != pharmacy.PermAccountsAdjust {
+			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != emergency.PermBaseManage && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workforce.PermLeaveRequest && perm != workforce.PermLeaveApprove && perm != workforce.PermDutyRequest && perm != workforce.PermDutyApprove && perm != workforce.PermOvertimeConfigure && perm != workforce.PermOvertimeRequest && perm != workforce.PermOvertimeApprove && perm != workforce.PermAttendanceConfigure && perm != workforce.PermAttendanceRecord && perm != workforce.PermAttendanceCorrect && perm != workforce.PermAttendanceApprove && perm != workforce.PermAttendanceFinalise && perm != workforce.PermPayrollConfigure && perm != workforce.PermPayrollView && perm != workforce.PermPayrollApprove && perm != workforce.PermPayrollIdentifiersReveal && perm != workspace.PermBrandingManage && perm != workspace.PermCountryPolicyManage && perm != patientmaster.PermPatientAccessManage && perm != pharmacy.PermAccessManage && perm != pharmacy.PermStockCorrect && perm != pharmacy.PermAccountsRead && perm != pharmacy.PermAccountsWrite && perm != pharmacy.PermAccountsPayment && perm != pharmacy.PermAccountsAdjust {
 
 				t.Errorf("module %q guards a route with %q, held by tenant_admin only; declare the role that needs it", m.Name(), perm)
 			}
@@ -180,6 +181,14 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 // bug class — a role mapping change must be a deliberate, reviewable edit
 // here.
 var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
+	emergency.PermBaseRead:    {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
+	emergency.PermBaseManage:  {authz.RoleTenantAdmin},
+	emergency.PermCaseRead:    {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
+	emergency.PermCaseIntake:  {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
+	emergency.PermCaseClose:   {authz.RoleTenantAdmin, authz.RoleEmergencySupervisor},
+	emergency.PermFleetRead:   {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
+	emergency.PermFleetManage: {authz.RoleTenantAdmin, authz.RoleEmergencySupervisor},
+	emergency.PermFleetCheck:  {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
 	supply.PermTerritoryRead:  {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RoleSupplySales},
 	supply.PermTerritoryWrite: {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin},
 	supply.PermOperatingRead:  {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyWarehouse, authz.RoleSupplyInventory, authz.RoleSupplyPicker, authz.RoleSupplyPacker, authz.RoleSupplyDispatcher, authz.RoleSupplyDriver, authz.RoleSupplyAuditor, authz.RoleSupplyRegulator},

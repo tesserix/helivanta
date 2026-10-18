@@ -43,10 +43,14 @@ WORKDIR /src
 # `apps/*` glob does not match it as a package.)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/shell/package.json ./apps/shell/
+COPY apps/ambulanceconnect/package.json ./apps/ambulanceconnect/
 COPY packages/api/package.json ./packages/api/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/config/package.json ./packages/config/
+COPY packages/emergency-access/package.json ./packages/emergency-access/
 COPY e2e/package.json ./e2e/
+COPY scripts/package.json ./scripts/
+COPY patches ./patches
 
 # `--filter @helivanta/shell...` installs the shell and its workspace
 # dependency closure ONLY. Without it a plain install also pulls the root's
@@ -58,6 +62,7 @@ RUN pnpm install --frozen-lockfile --filter @helivanta/shell...
 
 COPY apps/shell ./apps/shell
 COPY packages ./packages
+COPY backend/internal/modules/emergency/contract ./backend/internal/modules/emergency/contract
 
 # ---------------------------------------------------------------------------
 # Build-time configuration. ALL of these are baked into the output and none

@@ -63,17 +63,20 @@ describe("SessionRenewal", () => {
   });
 
   // "/" and "/signup" are public pages a signed-out visitor reaches; renewing there would 401.
-  it.each(["/", "/signup"])("does not schedule a renewal on the public page %s", async (path) => {
-    usePathname.mockReturnValue(path);
-    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+  it.each(["/", "/signup", "/ambulance"])(
+    "does not schedule a renewal on the public page %s",
+    async (path) => {
+      usePathname.mockReturnValue(path);
+      const setTimeoutSpy = vi.spyOn(window, "setTimeout");
 
-    renderWithProviders(<SessionRenewal />);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+      renderWithProviders(<SessionRenewal />);
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS)).toBeUndefined();
-    expect(renewSession).not.toHaveBeenCalled();
-    setTimeoutSpy.mockRestore();
-  });
+      expect(findScheduledCall(setTimeoutSpy, FALLBACK_RENEWAL_INTERVAL_MS)).toBeUndefined();
+      expect(renewSession).not.toHaveBeenCalled();
+      setTimeoutSpy.mockRestore();
+    },
+  );
 
   it("does not schedule a renewal on the auth callback route", async () => {
     usePathname.mockReturnValue("/api/auth/callback");

@@ -1,0 +1,16 @@
+{
+  "classes": {"patient_transport":"Patient transport", "bls":"Basic life support", "als":"Advanced life support"},
+  "qualifications": {"driver":"Verified ambulance driver", "emt":"Verified emergency medical technician", "paramedic":"Verified paramedic"},
+  "blockers": {
+    "retired":"Vehicle retired",
+    "vehicle_certification_expired":"Vehicle certification expired",
+    "no_current_duty":"No current duty",
+    "driver_not_qualified":"Driver qualification unavailable, expired or suspended",
+    "clinician_not_qualified":"Clinical qualification unavailable, expired or suspended",
+    "readiness_missing_or_expired":"Readiness missing, expired or invalidated by policy/duty change",
+    "oxygen_low":"Oxygen below reviewed minimum",
+    "defibrillator_failed":"Defibrillator check failed",
+    "equipment_incomplete":"Equipment checklist incomplete",
+    "not_roadworthy":"Vehicle not roadworthy"
+  }
+}

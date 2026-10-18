@@ -13,3 +13,7 @@ playwright-report
 pnpm-lock.yaml
 .superpowers
 backend/
+
+# Expo generates these locally; source lives in app/ and src/.
+.expo
+expo-env.d.ts

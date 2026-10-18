@@ -6,10 +6,16 @@ const API_URL = process.env.API_URL ?? "http://localhost:8080";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  transpilePackages: ["@helivanta/ui", "@helivanta/api"],
+  transpilePackages: ["@helivanta/ui", "@helivanta/api", "@helivanta/emergency-access"],
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: [...SECURITY_HEADERS] }];
+    return [
+      { source: "/:path*", headers: [...SECURITY_HEADERS] },
+      {
+        source: "/api/emergency/access",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
+    ];
   },
   async rewrites() {
     return [

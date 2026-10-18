@@ -13,6 +13,7 @@
 package bootstrap
 
 import (
+	"github.com/tesserix/helivanta/internal/modules/emergency"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/lab"
 	"github.com/tesserix/helivanta/internal/modules/medicore"
@@ -45,6 +46,7 @@ func Modules(revocationChecker *iam.RevocationChecker, userState iam.UserStateCh
 	return []platform.Module{
 		iam.New(revocationChecker).SetUserStateChecker(userState),
 		reference.New(),
+		emergency.New(),
 		medicore.New(),
 		pharmacy.New(),
 		supply.New(),

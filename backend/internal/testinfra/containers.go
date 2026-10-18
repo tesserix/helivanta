@@ -3,6 +3,7 @@ package testinfra
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"io"
 	"net/url"
@@ -143,7 +144,7 @@ func sharedPostgres(t *testing.T) (host, port string) {
 		// roles and grants) and is never handed to code under test.
 		if err := runSQL(ctx, "hms", `
 			CREATE ROLE hms_owner LOGIN PASSWORD 'hms_owner' NOSUPERUSER NOBYPASSRLS;
- CREATE ROLE helivanta LOGIN PASSWORD 'helivanta' NOSUPERUSER NOBYPASSRLS;
+ CREATE ROLE helivanta LOGIN NOSUPERUSER NOBYPASSRLS;
 			CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;
 			CREATE ROLE helivanta_emergency_worker LOGIN PASSWORD 'helivanta_emergency_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
  CREATE ROLE helivanta_document_worker LOGIN PASSWORD 'helivanta_document_worker' NOSUPERUSER NOBYPASSRLS;
@@ -151,6 +152,10 @@ func sharedPostgres(t *testing.T) (host, port string) {
 			CREATE ROLE helivanta_system LOGIN PASSWORD 'helivanta_system' NOSUPERUSER BYPASSRLS;
 			GRANT hms_owner TO hms;`); err != nil {
 			pgErr = fmt.Errorf("create roles: %w", err)
+			return
+		}
+		if err := runSQL(ctx, "hms", `ALTER ROLE helivanta PASSWORD '`+productionOwnerPassword+`';`); err != nil {
+			pgErr = fmt.Errorf("initialize production-name test role: %w", err)
 			return
 		}
 		h, err := pgCont.Host(ctx)
@@ -505,6 +510,8 @@ func startOpenFGA(t *testing.T) (string, error) {
 	return url, nil
 }
 
+var productionOwnerPassword = rand.Text()
+
 // StartProductionOwnerPostgres uses the CNPG owner's actual name without bypassing RLS.
 func StartProductionOwnerPostgres(t *testing.T) (string, string, string) {
 	t.Helper()
@@ -520,6 +527,6 @@ func StartProductionOwnerPostgres(t *testing.T) (string, string, string) {
  ALTER DEFAULT PRIVILEGES FOR ROLE helivanta IN SCHEMA public GRANT USAGE,SELECT ON SEQUENCES TO hms_app;`); err != nil {
 		t.Fatal(err)
 	}
-	parsed.User = url.UserPassword("helivanta", "helivanta")
+	parsed.User = url.UserPassword("helivanta", productionOwnerPassword)
 	return app, parsed.String(), system
 }

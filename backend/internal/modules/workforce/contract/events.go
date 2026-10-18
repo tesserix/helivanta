@@ -350,3 +350,38 @@ type CredentialReminderStep struct {
 	Done   bool      `json:"done"`
 	WakeAt time.Time `json:"wake_at"`
 }
+
+// SubjectBenefitPlanChanged reports a new benefit plan revision; payloads never carry plan names or dates.
+const SubjectBenefitPlanChanged = "helivanta.in.workforce.benefit_plan_changed.v1" //nolint:gosec // G101: event subject, not secret
+
+type BenefitPlanChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	PlanID     string `json:"plan_id"`
+	RevisionID string `json:"revision_id"`
+	Version    int64  `json:"version"`
+	Status     string `json:"status"`
+}
+
+// SubjectDependentChanged reports a new dependent revision; names, relationships and birth dates stay behind the API.
+const SubjectDependentChanged = "helivanta.in.workforce.dependent_changed.v1" //nolint:gosec // G101: event subject, not secret
+
+type DependentChangedData struct {
+	HospitalID  string `json:"hospital_id"`
+	StaffID     string `json:"staff_id"`
+	DependentID string `json:"dependent_id"`
+	RevisionID  string `json:"revision_id"`
+	Version     int64  `json:"version"`
+	Status      string `json:"status"`
+}
+
+// SubjectBenefitEnrollmentChanged reports a coverage proposal or decision; coverage dates stay behind the API.
+const SubjectBenefitEnrollmentChanged = "helivanta.in.workforce.benefit_enrollment_changed.v1" //nolint:gosec // G101: event subject, not secret
+
+type BenefitEnrollmentChangedData struct {
+	HospitalID   string `json:"hospital_id"`
+	StaffID      string `json:"staff_id"`
+	EnrollmentID string `json:"enrollment_id"`
+	ProposalID   string `json:"proposal_id"`
+	Status       string `json:"status"`
+	Version      int64  `json:"version"`
+}

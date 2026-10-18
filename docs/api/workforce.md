@@ -453,3 +453,17 @@ A staff member's Form 124 declaration for a tax year holds claimed amounts by cl
 | `POST /workforce/hospitals/{hospital}/hr/payroll/staff/{staff}/tax-declarations/{tax_year}/reveal`   | `workforce.payroll.identifiers.reveal` and locked hospital manager | `revision_id`, `role` (`landlord`/`lender`), `position` (1–4), `reason` (1–200); the proposer cannot view a pending proposal's PAN (403); 409 `not_revealable` for anything but the declaration in force or a pending proposal; `Cache-Control: no-store`                                                                                                                                                                                         |
 
 When OpenBao is unreachable, refusing or not configured, proposals that set a PAN and reveals return 503 `identifier_vault_unavailable` while masked reads keep working; a ciphertext that fails authentication is 500 and never returned. Each change and reveal writes an audit row and an identifier-only event (`tax_declaration_changed.v1`, `tax_declaration_party_revealed.v1`) in the same transaction; neither carries amounts, names or PANs. TDS computation from declarations is #1040.
+
+### Declaration evidence
+
+Design: [tax declaration evidence spec](../superpowers/specs/2026-10-19-tax-declaration-evidence-design.md). Evidence is a workforce document whose record is a declaration revision (`record_kind` `tax_declaration`, category `tax_declaration_evidence`). It uses the staff document pipeline for quarantine, malware scanning and release. Row-level security admits these rows only to the payroll evidence routes, so the staff document routes never list, download or revoke them.
+
+| Route | Permission | Behaviour |
+| --- | --- | --- |
+| `GET …/tax-declarations/{tax_year}/evidence?revision_id=` | `workforce.payroll.view` and reader/manager grant | `{evidence, uploads_available}`: at most 10 files of that revision, newest first. Expired intents are left out. 404 unless the revision belongs to this staff member and year |
+| `PUT …/tax-declarations/{tax_year}/evidence/{file}` | `workforce.payroll.configure` and locked hospital manager | `revision_id`, `filename`, `content_type` (`image/png`/`image/jpeg`), `size` (≤ 10 MiB), `sha256`. 201 when created, 200 for an identical replay. 409 `not_pending` once the proposal is decided, `evidence_limit` for an 11th file |
+| `PUT …/tax-declarations/{tax_year}/evidence/{file}/content` | `workforce.payroll.configure` and locked hospital manager | Streams the bytes, verifies them against size and digest, and queues the scan (202). 409 `not_pending` once decided |
+| `PUT …/tax-declarations/{tax_year}/evidence/{file}/retries/{attempt}` | `workforce.payroll.configure` and locked hospital manager | Re-queues a `scan_error` file. 409 `not_pending` once decided |
+| `GET …/tax-declarations/{tax_year}/evidence/{file}/content` | `workforce.payroll.view` and reader/manager grant | Released bytes of an `available` file. Audited as `workforce.tax_declaration.evidence_downloaded`, `Cache-Control: private, no-store` |
+
+A decision or withdrawal answers 409 `evidence_scanning` while any of the proposal's files is `scan_pending`. A decision freezes the proposal's evidence. Approval keeps available files readable, while rejection and withdrawal revoke them, each with a `document_changed.v1` event. The database refuses to unfreeze a file or scan it again.

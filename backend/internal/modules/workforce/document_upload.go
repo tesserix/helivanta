@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
@@ -21,9 +22,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func pendingDocument(tx *gorm.DB, p authn.Principal, hospital, staffID, fileID uuid.UUID) (document, error) {
-	owner, err := documentOwner(tx, p, hospital, staffID)
-	if err != nil {
+func pendingDocument(tx *gorm.DB, gate documentGate, p authn.Principal, hospital, staffID, fileID uuid.UUID) (document, error) {
+	if err := gate.authorize(tx, p, hospital, staffID, true); err != nil {
 		return document{}, err
 	}
 	var saved document
@@ -34,11 +34,12 @@ func pendingDocument(tx *gorm.DB, p authn.Principal, hospital, staffID, fileID u
 	if saved.Status != "upload_pending" {
 		return saved, nil
 	}
-	if saved.RecordVersion != owner.Version {
-		return document{}, errDocumentConflict
-	}
-	if err := documentRecord(tx, p, hospital, staffID, documentInput{RecordKind: saved.RecordKind, RecordID: saved.RecordID}); err != nil {
+	version, err := gate.bind(tx, p, hospital, staffID, saved.RecordKind, saved.RecordID)
+	if err != nil {
 		return document{}, err
+	}
+	if saved.RecordVersion != version {
+		return document{}, errDocumentConflict
 	}
 	return saved, nil
 }
@@ -57,10 +58,15 @@ func (h *handlers) uploadDocument(c *gin.Context) {
 		respond.NotFound(c, "document")
 		return
 	}
+	h.receiveDocument(c, staffDocuments{}, p, hospital, staffID, fileID)
+}
+
+// receiveDocument verifies bytes against the intent, quarantines them, then queues the scan.
+func (h *handlers) receiveDocument(c *gin.Context, gate documentGate, p authn.Principal, hospital, staffID, fileID uuid.UUID) {
 	var saved document
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
 		var err error
-		saved, err = pendingDocument(tx, p, hospital, staffID, fileID)
+		saved, err = pendingDocument(tx, gate, p, hospital, staffID, fileID)
 		return err
 	})
 	if documentUploadError(c, err) {
@@ -92,7 +98,7 @@ func (h *handlers) uploadDocument(c *gin.Context) {
 	}
 	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
 		var err error
-		saved, err = pendingDocument(tx, p, hospital, staffID, fileID)
+		saved, err = pendingDocument(tx, gate, p, hospital, staffID, fileID)
 		if err != nil || saved.Status != "upload_pending" {
 			return err
 		}
@@ -129,7 +135,7 @@ func (h *handlers) uploadDocument(c *gin.Context) {
 	var committed bool
 	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
 		var err error
-		saved, err = pendingDocument(tx, p, hospital, staffID, fileID)
+		saved, err = pendingDocument(tx, gate, p, hospital, staffID, fileID)
 		if err != nil {
 			return err
 		}
@@ -175,7 +181,13 @@ func documentUploadError(c *gin.Context, err error) bool {
 	if err == nil {
 		return false
 	}
-	if errors.Is(err, errDocumentConflict) {
+	var pg *pgconn.PgError
+	isPG := errors.As(err, &pg)
+	if errors.Is(err, errDeclarationState) || isPG && (pg.ConstraintName == "workforce_tax_evidence_pending" || pg.ConstraintName == "workforce_tax_evidence_frozen") {
+		respond.ConflictWithDetail(c, "This proposal has been decided, so its evidence can no longer change.", gin.H{"reason": "not_pending"})
+	} else if isPG && pg.ConstraintName == "workforce_tax_evidence_limit" {
+		respond.ConflictWithDetail(c, "A proposal takes at most 10 evidence files.", gin.H{"reason": "evidence_limit"})
+	} else if errors.Is(err, errDocumentConflict) {
 		respond.Conflict(c, "The document intent is expired, changed or conflicts with stored bytes. Create a new intent.")
 	} else if errors.Is(err, errDocumentsUnavailable) {
 		// Storage uncertainty never advances a file into a downloadable state.

@@ -17,7 +17,9 @@ function mockPermissions(perms: string[]) {
       if (url.includes("/iam/me/permissions")) {
         return Promise.resolve(jsonResponse(200, { data: perms }));
       }
-      return Promise.resolve(jsonResponse(200, { data: [] }));
+      return Promise.resolve(
+        jsonResponse(200, { data: [], page: { next_cursor: null, has_more: false } }),
+      );
     }),
   );
 }

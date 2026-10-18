@@ -10,7 +10,7 @@ The overview and patient activity view now expose emergency, maternity/births, a
 - All 15 repository frontend lint/typecheck/format tasks passed. The Next.js 16 production build passed, including a second build with the real local issuer/client configuration for browser acceptance. A first default-fork targeted test command was terminated after stalling; the explicit thread-pool red/green run completed without changing assertions or test timeouts.
 - Native Chrome opened a dedicated local tab at `http://helivanta1217.localhost:14401/dashboard` using the existing synthetic local session and real API. All six groups appeared without counts; selecting Patient activity retained them, and selecting Diagnostics & pharmacy removed them while retaining real service panels. The current local tenant's empty cohorts were visibly distinguished from unsupported reporting.
 - A private read-only helper compared nine real authenticated API aggregates against SQL under the existing local application role: MediCore, lab and pharmacy in UTC, Asia/Kolkata and Asia/Karachi. All matched; anonymous clinical access returned 401. No clinical record or grant was created, and no unsupported event count was inferred.
-- Fresh narrow-device manual acceptance remains pending. No production mutation or release has occurred.
+- A native narrow-window walkthrough confirmed the single-column layout, wrapped filters, emergency/birth and remaining clinical cards without clipping. The browser window was restored afterward. This was a desktop narrow-window check, not real-device mobile acceptance. No production mutation or release has occurred.
 
 ## Commands
 

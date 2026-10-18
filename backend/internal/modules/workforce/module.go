@@ -42,6 +42,8 @@ const TaxDeclarationChanged = workforcecontract.SubjectTaxDeclarationChanged
 const TaxDeclarationPartyRevealed = workforcecontract.SubjectTaxDeclarationPartyRevealed
 const CredentialReviewChanged = workforcecontract.SubjectCredentialReviewChanged
 const CredentialValidityChanged = workforcecontract.SubjectCredentialValidityChanged
+const CredentialReminderPolicyChanged = workforcecontract.SubjectCredentialReminderPolicyChanged
+const CredentialReminderChanged = workforcecontract.SubjectCredentialReminderChanged
 
 // PermLeaveAllocate assigns structures and posts or closes leave years; PermLeaveCorrect is held apart for reasoned balance corrections.
 const PermLeaveAllocate authz.Permission = "workforce.leave.allocate"
@@ -188,18 +190,21 @@ var taxDeclarationEvidenceSchema string
 //go:embed credential_validity.sql
 var credentialValiditySchema string
 
+//go:embed credential_reminders.sql
+var credentialRemindersSchema string
+
 type Module struct{}
 
 func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "workforce" }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}, {ID: "0007_workforce_roster_policy", SQL: rosterPolicySchema}, {ID: "0007_workforce_documents", SQL: documentsSchema}, {ID: "0008_workforce_document_worker", SQL: documentWorkerSchema}, {ID: "0009_workforce_rosters", SQL: rostersSchema}, {ID: "0010_workforce_leave_setup", SQL: leaveSetupSchema}, {ID: "0011_workforce_leave_ledger", SQL: leaveLedgerSchema}, {ID: "0012_workforce_leave_requests", SQL: leaveRequestsSchema}, {ID: "0013_workforce_leave_reports", SQL: leaveReportsSchema}, {ID: "0014_workforce_duty_exchanges", SQL: dutyExchangesSchema}, {ID: "0015_workforce_overtime", SQL: overtimeSchema}, {ID: "0016_workforce_attendance", SQL: attendanceSchema}, {ID: "0017_workforce_attendance_corrections", SQL: attendanceCorrectionsSchema}, {ID: "0018_workforce_worker_outbox_scope", SQL: workerOutboxScopeSchema}, {ID: "0019_workforce_attendance_timesheets", SQL: attendanceTimesheetsSchema}, {ID: "0020_workforce_salary_config", SQL: salaryConfigSchema}, {ID: "0021_workforce_statutory_rules", SQL: statutoryRulesSchema}, {ID: "0022_workforce_statutory_pt_lwf", SQL: statutoryPtLwfSchema}, {ID: "0023_workforce_income_tax", SQL: incomeTaxSchema}, {ID: "0024_workforce_salary_assignment", SQL: salaryAssignmentSchema}, {ID: "0025_workforce_staff_identifiers", SQL: staffIdentifiersSchema}, {ID: "0026_workforce_pt_periods", SQL: ptPeriodsSchema}, {ID: "0027_workforce_income_tax_claims", SQL: incomeTaxClaimsSchema}, {ID: "0028_workforce_tax_declarations", SQL: taxDeclarationsSchema}, {ID: "0029_workforce_tax_declaration_evidence", SQL: taxDeclarationEvidenceSchema}, {ID: "0030_workforce_credential_validity", SQL: credentialValiditySchema}}
+	return []tenantdb.Migration{{ID: "0001_workforce", SQL: schema}, {ID: "0002_workforce_enrollment", SQL: enrollmentSchema}, {ID: "0003_workforce_staff_code_casefold", SQL: staffCodeSchema}, {ID: "0004_workforce_hr_masters", SQL: mastersSchema}, {ID: "0005_workforce_shifts", SQL: shiftsSchema}, {ID: "0006_workforce_roster_config", SQL: rosterConfigSchema}, {ID: "0007_workforce_roster_policy", SQL: rosterPolicySchema}, {ID: "0007_workforce_documents", SQL: documentsSchema}, {ID: "0008_workforce_document_worker", SQL: documentWorkerSchema}, {ID: "0009_workforce_rosters", SQL: rostersSchema}, {ID: "0010_workforce_leave_setup", SQL: leaveSetupSchema}, {ID: "0011_workforce_leave_ledger", SQL: leaveLedgerSchema}, {ID: "0012_workforce_leave_requests", SQL: leaveRequestsSchema}, {ID: "0013_workforce_leave_reports", SQL: leaveReportsSchema}, {ID: "0014_workforce_duty_exchanges", SQL: dutyExchangesSchema}, {ID: "0015_workforce_overtime", SQL: overtimeSchema}, {ID: "0016_workforce_attendance", SQL: attendanceSchema}, {ID: "0017_workforce_attendance_corrections", SQL: attendanceCorrectionsSchema}, {ID: "0018_workforce_worker_outbox_scope", SQL: workerOutboxScopeSchema}, {ID: "0019_workforce_attendance_timesheets", SQL: attendanceTimesheetsSchema}, {ID: "0020_workforce_salary_config", SQL: salaryConfigSchema}, {ID: "0021_workforce_statutory_rules", SQL: statutoryRulesSchema}, {ID: "0022_workforce_statutory_pt_lwf", SQL: statutoryPtLwfSchema}, {ID: "0023_workforce_income_tax", SQL: incomeTaxSchema}, {ID: "0024_workforce_salary_assignment", SQL: salaryAssignmentSchema}, {ID: "0025_workforce_staff_identifiers", SQL: staffIdentifiersSchema}, {ID: "0026_workforce_pt_periods", SQL: ptPeriodsSchema}, {ID: "0027_workforce_income_tax_claims", SQL: incomeTaxClaimsSchema}, {ID: "0028_workforce_tax_declarations", SQL: taxDeclarationsSchema}, {ID: "0029_workforce_tax_declaration_evidence", SQL: taxDeclarationEvidenceSchema}, {ID: "0030_workforce_credential_validity", SQL: credentialValiditySchema}, {ID: "0031_workforce_credential_reminders", SQL: credentialRemindersSchema}}
 }
 func (*Module) Permissions() []authz.Grant {
 	return []authz.Grant{{Permission: PermHospitalManage}, {Permission: PermEnrollmentManage}, {Permission: PermDocumentManage}, {Permission: PermCredentialReview}, {Permission: PermMasterManage}, {Permission: PermRosterManage}, {Permission: PermRosterCorrect}, {Permission: PermLeaveConfigure}, {Permission: PermLeaveAllocate}, {Permission: PermLeaveCorrect}, {Permission: PermLeaveRequest}, {Permission: PermLeaveApprove}, {Permission: PermDutyRequest}, {Permission: PermDutyApprove}, {Permission: PermOvertimeConfigure}, {Permission: PermOvertimeRequest}, {Permission: PermOvertimeApprove}, {Permission: PermAttendanceConfigure}, {Permission: PermAttendanceRecord}, {Permission: PermAttendanceCorrect}, {Permission: PermAttendanceApprove}, {Permission: PermAttendanceFinalise}, {Permission: PermPayrollConfigure}, {Permission: PermPayrollView}, {Permission: PermPayrollApprove}, {Permission: PermPayrollIdentifiersReveal}}
 }
 func (*Module) Publishes() []string {
-	return []string{EnrollmentChanged, MasterChanged, ShiftChanged, RosterConfigChanged, RosterSettingsChanged, StaffRosterAssignmentChanged, DocumentScanRequested, DocumentChanged, RosterChanged, LeaveConfigChanged, StaffLeaveAssignmentChanged, LeaveLedgerChanged, LeaveRequestChanged, DutyExchangeChanged, OvertimeSettingsChanged, OvertimeChanged, AttendanceSettingsChanged, AttendancePunchChanged, AttendanceCorrectionChanged, AttendancePeriodChanged, SalaryConfigChanged, StatutoryRuleChanged, SalaryAssignmentChanged, TaxRegimeChanged, StaffIdentifiersChanged, StaffIdentifierRevealed, TaxDeclarationChanged, TaxDeclarationPartyRevealed, CredentialReviewChanged, CredentialValidityChanged}
+	return []string{EnrollmentChanged, MasterChanged, ShiftChanged, RosterConfigChanged, RosterSettingsChanged, StaffRosterAssignmentChanged, DocumentScanRequested, DocumentChanged, RosterChanged, LeaveConfigChanged, StaffLeaveAssignmentChanged, LeaveLedgerChanged, LeaveRequestChanged, DutyExchangeChanged, OvertimeSettingsChanged, OvertimeChanged, AttendanceSettingsChanged, AttendancePunchChanged, AttendanceCorrectionChanged, AttendancePeriodChanged, SalaryConfigChanged, StatutoryRuleChanged, SalaryAssignmentChanged, TaxRegimeChanged, StaffIdentifiersChanged, StaffIdentifierRevealed, TaxDeclarationChanged, TaxDeclarationPartyRevealed, CredentialReviewChanged, CredentialValidityChanged, CredentialReminderPolicyChanged, CredentialReminderChanged}
 }
 func (*Module) DirectedSubjects() []string    { return nil }
 func (*Module) DirectedWriteTables() []string { return nil }
@@ -207,7 +212,7 @@ func (*Module) Consumers(deps platform.Deps) []events.Consumer {
 	if deps.Workflows == nil {
 		return nil
 	}
-	return []events.Consumer{DocumentScanConsumer(deps.Workflows)}
+	return []events.Consumer{DocumentScanConsumer(deps.Workflows), CredentialReminderConsumer(deps.Workflows)}
 }
 func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 
@@ -238,6 +243,10 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.POST("/:hospital/staff/:id/credentials/:credential/reviews/:review/decision", PermCredentialReview, h.decideCredentialReview)
 	g.POST("/:hospital/staff/:id/credentials/:credential/reviews/:review/withdraw", PermEnrollmentManage, h.withdrawCredentialReview)
 	platform.ListRoute(g, "/:hospital/hr/credentials", PermEnrollmentManage, h.credentialRegister)
+	g.GET("/:hospital/hr/credential-reminder-policy", PermEnrollmentManage, h.getReminderPolicy)
+	g.PUT("/:hospital/hr/credential-reminder-policy", PermEnrollmentManage, h.putReminderPolicy)
+	platform.ListRoute(g, "/:hospital/hr/credential-reminders", PermEnrollmentManage, h.listCredentialReminders)
+	g.POST("/:hospital/hr/credential-reminders/:reminder/acknowledgement", PermEnrollmentManage, h.acknowledgeCredentialReminder)
 	g.PUT("/:hospital/hr/roster-configs/:id", PermRosterManage, h.putRosterConfig)
 	platform.ListRoute(g, "/:hospital/hr/roster-configs", authz.Public, h.listRosterConfigs)
 	platform.ListRoute(g, "/:hospital/hr/roster-configs/:id/history", authz.Public, h.rosterConfigHistory)

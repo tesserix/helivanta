@@ -552,6 +552,9 @@ func approveCredential(h *handlers, tx *gorm.DB, tenant string, hospital uuid.UU
 	if err := h.bus.Publish(tx, EnrollmentChanged, events.Event{Type: EnrollmentChanged, Version: 1, TenantID: tenant, Data: enrollment}); err != nil {
 		return err
 	}
+	if err := supersedeOlderReminders(h, tx, tenant, hospital, r.StaffID, r.CredentialID, version); err != nil {
+		return err
+	}
 	data, err := json.Marshal(workforcecontract.CredentialValidityChangedData{HospitalID: hospital.String(), StaffID: r.StaffID.String(), CredentialID: r.CredentialID.String(), ReviewID: r.ID.String(), Version: version})
 	if err != nil {
 		return err

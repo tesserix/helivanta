@@ -89,3 +89,32 @@ type credentialRegisterEntry struct {
 	Status        string    `json:"status"`
 	DaysRemaining *int      `json:"days_remaining,omitempty"`
 }
+
+type credentialReminderPolicyInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,gte=0"`
+	Thresholds      []int  `json:"thresholds" binding:"required,min=1,max=6,dive,gte=0,lte=365"`
+}
+
+type credentialReminderPolicy struct {
+	Version          int64      `json:"version"`
+	Thresholds       []int      `json:"thresholds" gorm:"-"`
+	CreatedBySubject *string    `json:"created_by_subject,omitempty"`
+	CreatedAt        *time.Time `json:"created_at,omitempty"`
+}
+
+type credentialReminder struct {
+	ID                    uuid.UUID  `json:"id"`
+	StaffID               uuid.UUID  `json:"staff_id"`
+	EmployeeCode          string     `json:"employee_code"`
+	DisplayName           string     `json:"display_name"`
+	CredentialID          uuid.UUID  `json:"credential_id"`
+	Type                  string     `json:"type"`
+	ValidUntil            string     `json:"valid_until"`
+	ValidityVersion       int64      `json:"validity_version"`
+	ThresholdDays         int        `json:"threshold_days"`
+	DueOn                 string     `json:"due_on"`
+	Status                string     `json:"status"`
+	AcknowledgedBySubject *string    `json:"acknowledged_by_subject,omitempty"`
+	AcknowledgedAt        *time.Time `json:"acknowledged_at,omitempty"`
+	CreatedAt             time.Time  `json:"created_at"`
+}

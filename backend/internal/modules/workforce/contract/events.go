@@ -1,6 +1,8 @@
 // Package contract defines workforce's published event interface.
 package contract
 
+import "time"
+
 // SubjectStaffEnrollmentChanged carries no personal enrollment data.
 const SubjectStaffEnrollmentChanged = "helivanta.in.workforce.enrollment_changed.v1"
 
@@ -311,4 +313,40 @@ type CredentialValidityChangedData struct {
 	CredentialID string `json:"credential_id"`
 	ReviewID     string `json:"review_id"`
 	Version      int64  `json:"version"`
+}
+
+// SubjectCredentialReminderPolicyChanged reports a new version of a hospital's reminder thresholds.
+const SubjectCredentialReminderPolicyChanged = "helivanta.in.workforce.credential_reminder_policy_changed.v1" //nolint:gosec // G101: an event subject, not a secret
+
+type CredentialReminderPolicyChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	Version    int64  `json:"version"`
+}
+
+// SubjectCredentialReminderChanged reports a renewal reminder opening, being acknowledged or being superseded.
+const SubjectCredentialReminderChanged = "helivanta.in.workforce.credential_reminder_changed.v1" //nolint:gosec // G101: an event subject, not a secret
+
+type CredentialReminderChangedData struct {
+	HospitalID    string `json:"hospital_id"`
+	StaffID       string `json:"staff_id"`
+	CredentialID  string `json:"credential_id"`
+	ReminderID    string `json:"reminder_id"`
+	Status        string `json:"status"`
+	ThresholdDays int    `json:"threshold_days"`
+	Version       int64  `json:"version"`
+}
+
+// CredentialReminderInput is the durable schedule input: identifiers and the reviewed revision only.
+type CredentialReminderInput struct {
+	TenantID     string `json:"tenant_id"`
+	HospitalID   string `json:"hospital_id"`
+	StaffID      string `json:"staff_id"`
+	CredentialID string `json:"credential_id"`
+	Version      int64  `json:"version"`
+}
+
+// CredentialReminderStep is one schedule cycle's outcome.
+type CredentialReminderStep struct {
+	Done   bool      `json:"done"`
+	WakeAt time.Time `json:"wake_at"`
 }

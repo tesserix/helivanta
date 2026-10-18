@@ -75,6 +75,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	advancer, err := workforce.NewCredentialReminderAdvancer(ctx, db)
+	if err != nil {
+		return err
+	}
 	startup, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	if _, err := scanner.Status(startup, time.Now().UTC()); err != nil {
@@ -92,6 +96,13 @@ func run() error {
 		return errors.New("private document workflow worker unavailable")
 	}
 	defer w.Stop()
+	reminders := worker.New(c, workforce.CredentialReminderTaskQueue, worker.Options{MaxConcurrentActivityExecutionSize: 4, WorkerStopTimeout: 30 * time.Second})
+	reminders.RegisterWorkflowWithOptions(workforce.CredentialReminderWorkflow, workflow.RegisterOptions{Name: workforce.CredentialReminderWorkflowName})
+	reminders.RegisterActivityWithOptions(advancer.Advance, activity.RegisterOptions{Name: workforce.CredentialReminderActivityName})
+	if err := reminders.Start(); err != nil {
+		return errors.New("credential reminder workflow worker unavailable")
+	}
+	defer reminders.Stop()
 	cancel()
 	gin.SetMode(gin.ReleaseMode)
 	gin.DefaultErrorWriter = logging.NewRedactingWriter(gin.DefaultErrorWriter)

@@ -15,7 +15,10 @@ claim live booking, dispatch, crew mobile workflows or hospital acceptance.
   all 29 tasks after the mobile layout correction. Shell 511 tests, API 287,
   shared UI 93, emergency access 9 and native interactions 5 passed.
   A subsequent strict-clock regression adds one API test; its targeted suite
-  passes. Complete release gates must be rerun after rebasing current main.
+  passes. Post-rebase verification at `1e89d3b` passed all 29 tasks, including
+  521 shell and 290 API tests, with pharmacy expiry/storage-address changes intact.
+  The complete backend race/70% gate also passed after that rebase (76.2%
+  emergency coverage).
 - Tagged `TestEmergencyConsoleBrowser`, against a production-built local shell
   and disposable actual backend dependencies, passes all four Chromium scenarios
   concurrently. Fleet: configure → verify two people → start duty → failed
@@ -60,11 +63,28 @@ the user's authenticated browser. Its route is
 under the shared `HmsShell`. Production Kubernetes serves the `helivanta-shell`
 image at `main-ef8adfd…`. The image workflow builds `Dockerfile.shell`; there is
 no separate current `apps/web` package. The emergency worktree initially preceded
-the latest pharmacy expiry/address changes; it must include current main before
-release. No stock data or pharmacy settings were changed during this check.
+the latest pharmacy expiry/address changes; `1e89d3b` includes production base
+`ef8adfd`, and the pharmacy route and components have no changes against that base.
+A subsequent workforce credential release (`6dfa658`, #1231) is being integrated
+separately. No stock data or pharmacy settings were changed during this check.
 
 The real Linux image-build check caught a missing patched-dependency input in
 the Docker context (`/src/patches/node-forge@1.4.0.patch`). The Dockerfile change
 also supplies every added workspace manifest and shared emergency contract JSON.
-Container build and standalone runtime verification remain explicit release
-checks; a local Next build alone is insufficient evidence for them.
+The Linux builder completed locally. CI built, scanned and published both images
+for `1e89d3bc5cba9adcd1febd23ce69c1bbb88b1f94` successfully. The web image was pulled
+through `asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/` by that full
+commit tag, not directly from GHCR. Its OCI revision matches that exact commit;
+manifest digest `sha256:40f5fbf8107ca13e9206fc04f3963de724f72674c605f83cd062bfd0cef926c1`.
+
+All four browser scenarios then passed against that actual standalone runtime
+on port 4343: UID/GID 10001, read-only filesystem, all capabilities dropped,
+no-new-privileges, 512 MiB memory limit. Backend dependencies and identity remained
+the explicitly synthetic disposable harness; no production API credential was
+used by those tests. This verifies the built web image, not just `next start`.
+
+Application checkpoint: https://github.com/tesserix/helivanta/pull/1233.
+Infrastructure companion: https://github.com/tesserix/tesserix-k8s/pull/1456;
+all its required CI checks passed after chart versions were incremented to
+API 0.1.14 and OpenBao 0.1.65. Both remain unmerged; production API and web were
+observed healthy at 2/2 replicas without applying emergency changes.

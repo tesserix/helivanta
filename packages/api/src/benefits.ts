@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { apiFetch } from "./client";
+import { internationalPhone } from "./enrollment-fields";
 import {
   benefitDecisionInputContract,
   benefitPlanContract,
@@ -91,6 +92,7 @@ export type BenefitPlanForm = z.infer<typeof benefitPlanFormSchema>;
 
 export const dependentFormSchema = dependentInputContract
   .extend({
+    phone: internationalPhone,
     reason: z
       .string()
       .trim()

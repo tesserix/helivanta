@@ -13,7 +13,7 @@ const dateOnly = z
         value <= "2200-12-31"),
     "Enter a valid date.",
   );
-const phone = z
+export const internationalPhone = z
   .string()
   .regex(/^(\+[1-9][0-9]{6,14})?$/, "Use an international number, for example +61400000001.");
 const country = z
@@ -33,8 +33,8 @@ export const enrollmentProfileSchema = z
     gender: z.enum(["", "female", "male", "other", "prefer_not_to_say"]),
     work_email: email,
     personal_email: email,
-    mobile_phone: phone,
-    work_phone: phone,
+    mobile_phone: internationalPhone,
+    work_phone: internationalPhone,
     preferred_language: z.string().trim().max(80),
     blood_group: z.enum(["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]),
     engagement_type: z.enum([
@@ -127,7 +127,7 @@ export const enrollmentContactSchema = z
       .trim()
       .max(60)
       .refine((value) => value !== "", "Complete this field."),
-    phone: phone.refine((value) => value !== "", "Complete this field."),
+    phone: internationalPhone.refine((value) => value !== "", "Complete this field."),
     email: email,
     priority: z.number().int().min(1).max(5),
   })

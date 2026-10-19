@@ -96,6 +96,27 @@ it("refuses a future birth date and a dependent without a source", () => {
   });
 });
 
+it("accepts only an international phone number or none, as the server does", () => {
+  const dependent = (phone: string) =>
+    dependentFormSchema.safeParse({
+      expected_version: 0,
+      full_name: "Synthetic Child",
+      relationship_revision_id: relationship,
+      birth_date: "2020-01-01",
+      phone,
+      status: "active",
+      reason: "Synthetic birth certificate",
+    });
+  expect(dependent("").success).toBe(true);
+  expect(dependent("+61400000001").success).toBe(true);
+  expect(issues(dependent("0400000001"))).toEqual({
+    phone: "Use an international number, for example +61400000001.",
+  });
+  expect(issues(dependent("+0400000001"))).toEqual({
+    phone: "Use an international number, for example +61400000001.",
+  });
+});
+
 it("needs a basis, an ordered period and a note only to reject", () => {
   expect(
     issues(

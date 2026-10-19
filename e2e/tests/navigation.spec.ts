@@ -151,3 +151,26 @@ test("the tenant switcher is on every department page", async ({ page }) => {
     await expect(page.getByRole("combobox", { name: "Tenant" }), path).toBeVisible();
   }
 });
+
+// #1091: a page whose data is still loading renders inside the chrome; the
+// rail is not torn down while the next page waits on the API.
+test("a page that is still loading keeps the chrome", async ({ page }) => {
+  await login(page);
+  await goByRail(page, "MediCore");
+  await markChrome(page);
+
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/api/v1/pharmacy/**", async (route) => {
+    await held;
+    await route.continue();
+  });
+  await page
+    .getByRole("navigation", { name: "Zones" })
+    .getByRole("link", { name: "PharmaConnect", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/pharmacy$/);
+  expect(await chromeMarker(page), "a loading page remounted the chrome").toBe("same-node");
+
+  release();
+});

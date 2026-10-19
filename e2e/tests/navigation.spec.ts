@@ -1,5 +1,5 @@
-import { test, expect } from "@playwright/test";
-import { login } from "./support/login";
+import { test, expect, type Page } from "@playwright/test";
+import { login, specAdmin } from "./support/login";
 
 // #933, design spec docs/superpowers/specs/2026-10-13-one-next-app-design.md
 // D2: moving between departments is client-side navigation inside one
@@ -61,5 +61,93 @@ test("every department URL still lands on its own page", async ({ page }) => {
       page.locator('a[aria-current="page"]', { hasText: current }),
       `${path} did not render its own page`,
     ).toBeVisible();
+  }
+});
+
+// #1091, design spec docs/superpowers/specs/2026-10-20-workspace-layout-design.md
+// D6. The chrome is mounted once, by app/(workspace)/layout.tsx, and survives
+// every client-side move. The proof is a property set on the rail's own DOM
+// node: a remount replaces the node and the property is gone, so this tests
+// "same element" directly rather than "looks the same".
+//
+// Every rail link is visited, read from the rail at runtime, so a zone added
+// later is covered without editing this spec.
+const CHROME_MARKER = "__chromeMarker";
+
+async function markChrome(page: Page) {
+  await page
+    .getByRole("navigation", { name: "Zones" })
+    .evaluate(
+      (el, key) => ((el as unknown as Record<string, string>)[key] = "same-node"),
+      CHROME_MARKER,
+    );
+}
+
+async function chromeMarker(page: Page) {
+  return page
+    .getByRole("navigation", { name: "Zones" })
+    .evaluate((el, key) => (el as unknown as Record<string, string>)[key] ?? null, CHROME_MARKER);
+}
+
+async function goByRail(page: Page, name: string) {
+  const link = page
+    .getByRole("navigation", { name: "Zones" })
+    .getByRole("link", { name, exact: true });
+  const href = await link.getAttribute("href");
+  await link.click();
+  await expect(page).toHaveURL(
+    new RegExp(`${(href ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
+  );
+}
+
+test("the chrome is not remounted when moving between departments", async ({ page }) => {
+  await login(page);
+  await goByRail(page, "MediCore");
+  await markChrome(page);
+
+  const names = await page
+    .getByRole("navigation", { name: "Zones" })
+    .getByRole("link")
+    .evaluateAll((links) =>
+      links.map((a) => a.getAttribute("aria-label") ?? a.textContent?.trim() ?? ""),
+    );
+  expect(names.length, "the rail lists no zones").toBeGreaterThan(1);
+
+  for (const name of [...names.filter((n) => n !== "MediCore"), "MediCore"]) {
+    await goByRail(page, name);
+    expect(await chromeMarker(page), `moving to ${name} remounted the chrome`).toBe("same-node");
+  }
+});
+
+// #1092. Each remount used to create a new idle tracker, whose mount-time
+// seed bypassed the 60 s debounce and tripped the endpoint's burst of 3.
+// After the one seed for this page load, rail clicks alone must send none.
+test("moving between departments sends no session-activity requests", async ({ page }) => {
+  const isActivity = (method: string, url: string) =>
+    method === "POST" && url.endsWith("/auth/session/activity");
+  const seeded = page.waitForResponse((r) => isActivity(r.request().method(), r.url()));
+  await login(page);
+  await goByRail(page, "MediCore");
+  await seeded;
+
+  let count = 0;
+  page.on("request", (r) => {
+    if (isActivity(r.method(), r.url())) count++;
+  });
+  for (const name of ["PharmaConnect", "Lab", "MediCore", "PharmaConnect"]) {
+    await goByRail(page, name);
+  }
+  await page.waitForTimeout(1_000);
+  expect(count, "rail navigation sent session-activity requests").toBe(0);
+});
+
+// D4: the tenant switcher is decided once by the layout, so it is on every
+// authenticated page, department pages included. specAdmin has two tenants
+// (scripts/seed-dev.mjs), so TenantPicker renders for them.
+test("the tenant switcher is on every department page", async ({ page }) => {
+  await login(page, specAdmin());
+  for (const path of ["/medicore/opd", "/pharmacy", "/lab"]) {
+    await page.goto(path);
+    await expect(page.getByRole("combobox", { name: "Tenant" }), path).toBeVisible();
   }
 });

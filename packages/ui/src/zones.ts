@@ -302,3 +302,14 @@ export function activeZone(path: string): Zone {
   );
   return match ?? ZONES.find((zone) => zone.key === "dashboard")!;
 }
+
+// The longest page href that `path` equals or sits under. No match marks no
+// page current: aria-current on the wrong link misleads a screen reader.
+export function activePage(zone: Zone, path: string): ZonePage | undefined {
+  return zone.pages
+    .filter((page) => path === page.href || path.startsWith(page.href + "/"))
+    .reduce<ZonePage | undefined>(
+      (best, page) => (best && best.href.length >= page.href.length ? best : page),
+      undefined,
+    );
+}

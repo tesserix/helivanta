@@ -1,5 +1,13 @@
 export { HmsShell } from "./hms-shell";
-export { ZONES, activeZone, visibleZones, type Zone, type ZoneHue, type ZonePage } from "./zones";
+export {
+  ZONES,
+  activeZone,
+  activePage,
+  visibleZones,
+  type Zone,
+  type ZoneHue,
+  type ZonePage,
+} from "./zones";
 export { ConfirmDialog } from "./confirm-dialog";
 export { IdleWarning, type IdleWarningProps } from "./idle-warning";
 export { Field, useZodForm } from "./form";

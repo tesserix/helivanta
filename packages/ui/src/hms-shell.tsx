@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { LogOut, PanelLeftClose, PanelLeftOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   ApiError,
@@ -22,7 +23,7 @@ import {
   clearPermissionsCache,
   clearRenewAt,
 } from "@helivanta/api";
-import { visibleZones, activeZone } from "./zones";
+import { visibleZones, activeZone, activePage } from "./zones";
 import { BrandLogo, TesserixFooter } from "./branding";
 import { BrandThemeContext } from "./brand-theme";
 import { ThemeToggle } from "./theme";
@@ -102,16 +103,15 @@ function IdleCountdown({ deadline, onStay }: { deadline: Date; onStay: () => voi
  * client-side token exchange is needed any more, but the call still
  * belongs to the shell app (`apps/shell/components/tenant-picker.tsx`),
  * consistent with `onSignOut` below. Keeping the control here would drag
- * app-specific plumbing into `@helivanta/ui` for no benefit. Zone apps pass
- * nothing and show no switcher; their users switch from the dashboard.
+ * app-specific plumbing into `@helivanta/ui` for no benefit. The workspace
+ * layout (`apps/shell/app/(workspace)/layout.tsx`) always passes it, so it is on
+ * every authenticated page; it renders nothing below two memberships.
  */
 export function HmsShell({
-  active,
   tenantPicker,
   onSignOut,
   children,
 }: {
-  active: string;
   tenantPicker?: ReactNode;
   /**
    * An override for the ENTIRE sign-out sequence, for a caller that needs
@@ -129,6 +129,9 @@ export function HmsShell({
   onSignOut?: () => void | Promise<void>;
   children: ReactNode;
 }) {
+  // Read here, not passed per page: one layout renders the shell for every
+  // authenticated route (#1091), so the path is the only source of "where".
+  const pathname = usePathname();
   const { can } = usePermissions();
   const brandQuery = useApiQuery(["workspace", "branding"], "/workspace/branding");
   const parsedBrand = brandingSchema.safeParse(brandQuery.data);
@@ -136,7 +139,7 @@ export function HmsShell({
   const zones = visibleZones(can);
   // Fall back to the dashboard (always present in `zones`) if the active
   // zone was filtered out — e.g. while permissions are still loading.
-  const zone = zones.find((z) => z.key === activeZone(active).key) ?? zones[0];
+  const zone = zones.find((z) => z.key === activeZone(pathname).key) ?? zones[0];
   const [panelOpen, setPanelOpen] = usePersistedFlag(PANEL_KEY, true);
   const [navigationOpen, setNavigationOpen] = usePersistedFlag(NAVIGATION_KEY, false);
 
@@ -410,7 +413,7 @@ export function HmsShell({
     await endZitadelSession(SIGNED_OUT_MARK);
   }
 
-  const activePage = zone.pages.find((p) => p.href === active);
+  const currentPage = activePage(zone, pathname);
 
   return (
     <BrandThemeContext value={branding.theme}>
@@ -528,7 +531,7 @@ export function HmsShell({
             className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"
           >
             {zone.pages.map((pageLink) => {
-              const isActive = active === pageLink.href;
+              const isActive = currentPage?.href === pageLink.href;
               return (
                 <Link
                   key={pageLink.href}
@@ -566,7 +569,7 @@ export function HmsShell({
                   </button>
                 )}
                 <h1 className="text-xl font-semibold text-foreground">
-                  {activePage?.label ?? zone.label}
+                  {currentPage?.label ?? zone.label}
                 </h1>
               </div>
               <div className="flex flex-wrap items-center gap-3">

@@ -150,7 +150,7 @@ Each approved revision gets one Temporal schedule (`workforce-credential-reminde
 
 ## Dependents and benefit enrollment
 
-Design: [dependents and benefits spec](../superpowers/specs/2026-10-18-dependents-benefits-design.md) (#1106 slice A, API only). Paths are relative to `/workforce/hospitals/{hospital}`.
+Design: [dependents and benefits spec](../superpowers/specs/2026-10-18-dependents-benefits-design.md) (#1106 slice A) and [benefits screens spec](../superpowers/specs/2026-10-19-benefits-screens-design.md) (slice B). UI: `/workforce/benefits`. Paths are relative to `/workforce/hospitals/{hospital}`.
 
 | Route                                                                    | Permission                                               | Behaviour                                                                                                                                                                                                                                                                                                                                                                                     |
 | ------------------------------------------------------------------------ | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

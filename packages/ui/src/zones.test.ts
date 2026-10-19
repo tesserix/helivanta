@@ -27,6 +27,19 @@ describe("visibleZones", () => {
     expect(pharmacy?.pages.map((page) => page.href)).toEqual(["/pharmacy/catalogue"]);
   });
 
+  it("lists benefits only for a benefits reader, never for directory access", () => {
+    const staffPages = (granted: string[]) =>
+      visibleZones(canWith(granted))
+        .find((zone) => zone.key === "workforce")
+        ?.pages.map((page) => page.href);
+
+    expect(staffPages([])).not.toContain("/workforce/benefits");
+    expect(staffPages(["workforce.payroll.view", "workforce.enrollment.manage"])).not.toContain(
+      "/workforce/benefits",
+    );
+    expect(staffPages(["workforce.benefits.view"])).toContain("/workforce/benefits");
+  });
+
   it("hides zones whose permission the user lacks", () => {
     const keys = visibleZones(canWith(["pharmacy.dispense.read"])).map((z) => z.key);
 

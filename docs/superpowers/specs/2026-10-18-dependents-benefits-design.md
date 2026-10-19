@@ -79,6 +79,6 @@ Policies are synthetic. No eligibility rule decides anything automatically: the 
 
 ## Not in this slice
 
-- **Slice B:** shell UI for plans, dependents and enrollment.
+- **Slice B:** shell UI for plans, dependents and enrollment, designed in the [benefits screens spec](2026-10-19-benefits-screens-design.md).
 - **Slice C:** scanned eligibility evidence files attached to proposals (the tax-evidence pattern), and a permissioned benefits export (with #1066).
 - Premiums, payroll deductions, insurer integration, employee self-service (#1132) and automatic eligibility rules.

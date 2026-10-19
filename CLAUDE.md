@@ -43,8 +43,10 @@ Every piece of work is tracked by a GitHub issue. Before writing code:
 4. **Link the work back:** PR bodies close their issue (`Closes #<n>`), and
    design specs record the issue they resolve in their header.
 
-The `gh` CLI must be authenticated as the personal account `Sam123ben`
-for this repo.
+The `gh` CLI must be authenticated as the developer's own personal account
+(the repo's maintainers are `@Sam123ben` and `@mahesh-sangawar`, see
+`.github/CODEOWNERS`). An issue assigned to another maintainer is theirs: do
+not pick it up, branch for it or add yourself to it without asking first.
 
 ## Frontend rules
 

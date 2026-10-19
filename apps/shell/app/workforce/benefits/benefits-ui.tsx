@@ -1,11 +1,13 @@
 "use client";
 import {
+  benefitEvidence,
   ApiError,
   useApiPagedQuery,
   type Dependent,
   type HRMaster,
   type Staff,
 } from "@helivanta/api";
+import type { EvidenceSource } from "../evidence-panel";
 
 export const PLAN_STATUSES = { active: "Active", retired: "Retired" } as const;
 export const DEPENDENT_STATUSES = { active: "Active", removed: "Removed" } as const;
@@ -15,6 +17,13 @@ export const PROPOSAL_STATUSES = {
   rejected: "Rejected",
   withdrawn: "Withdrawn",
 } as const;
+
+export const evidenceSource: EvidenceSource = {
+  client: benefitEvidence,
+  form: "Attach eligibility evidence",
+  file: "Marriage, birth or other eligibility proof",
+};
+export const PROPOSED_EVIDENCE = "Evidence for the proposed coverage";
 
 export const useRelationships = (hospital: string) =>
   useApiPagedQuery<HRMaster>(

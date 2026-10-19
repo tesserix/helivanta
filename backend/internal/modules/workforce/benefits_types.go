@@ -154,3 +154,10 @@ type benefitEnrollment struct {
 	Pending     *benefitProposal `json:"pending,omitempty" gorm:"-"`
 	CreatedAt   time.Time        `json:"created_at"`
 }
+
+type benefitEvidenceInput struct {
+	Filename    string `json:"filename" binding:"required,max=180"`
+	ContentType string `json:"content_type" binding:"required,oneof=image/png image/jpeg"`
+	Size        int64  `json:"size" binding:"required,min=1,max=10485760"`
+	Sha256      string `json:"sha256" binding:"required,len=64"`
+}

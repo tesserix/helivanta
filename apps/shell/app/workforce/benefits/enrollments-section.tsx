@@ -24,10 +24,14 @@ import { RevisionHistory } from "../payroll-setup/payroll-workspace";
 import { PROPOSAL_STATUSES, period, personLabel } from "./benefits-ui";
 import { CoverageProposal } from "./coverage-proposal";
 import { ReviewForm, WithdrawForm } from "./coverage-decision";
+import { CoverageEvidence } from "./coverage-evidence";
 
 type View =
   | { kind: "new" }
-  | { kind: "change" | "review" | "withdraw" | "history"; enrollment: BenefitEnrollment };
+  | {
+      kind: "change" | "review" | "withdraw" | "history" | "evidence";
+      enrollment: BenefitEnrollment;
+    };
 
 export function EnrollmentsSection({
   scope,
@@ -128,6 +132,16 @@ export function EnrollmentsSection({
           onClose={close}
         />
       )}
+      {view?.kind === "evidence" && (
+        <CoverageEvidence
+          key={view.enrollment.id}
+          scope={scope}
+          enrollment={view.enrollment}
+          title={title(view.enrollment)}
+          writable={writable}
+          onClose={close}
+        />
+      )}
       {enrollments.isPending ? (
         <p role="status" className="px-5 pb-5">
           Loading coverage…
@@ -168,6 +182,7 @@ export function EnrollmentsSection({
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {action(e, "history", "History", "of")}
+                  {(e.coverage || pending) && action(e, "evidence", "Evidence")}
                   {pending && approver && !mine && action(e, "review", "Review proposal")}
                   {pending && writable && mine && action(e, "withdraw", "Withdraw proposal")}
                   {writable && e.coverage && !pending && action(e, "change", "Change coverage")}

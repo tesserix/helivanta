@@ -295,3 +295,21 @@ export const benefitEnrollmentContract = z
   })
   .strict();
 export type BenefitEnrollment = z.infer<typeof benefitEnrollmentContract>;
+
+export const benefitEvidenceInputContract = z
+  .object({
+    filename: z
+      .string()
+      .min(1)
+      .max(180)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    content_type: z.enum(["image/png", "image/jpeg"]),
+    size: z.number().int().min(1).max(10485760),
+    sha256: z
+      .string()
+      .min(64)
+      .max(64)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type BenefitEvidenceInput = z.infer<typeof benefitEvidenceInputContract>;

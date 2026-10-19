@@ -15,8 +15,8 @@ import {
   toTaxDeclarationInput,
   useApiMutation,
   useApiQuery,
+  taxEvidence,
   usePermissions,
-  useTaxEvidence,
   ApiError,
   DECLARATION_PAN_ACTIONS,
   DECLARATION_ROLES,
@@ -41,9 +41,20 @@ import { SaveError } from "../leave-balances/years-panel";
 import { Check, Fact, RevisionHistory } from "./payroll-workspace";
 import { TableError } from "./statutory-slabs";
 import { Reveal } from "./staff-identifiers";
-import { DeclarationEvidence, evidenceScanning } from "./tax-declaration-evidence";
+import {
+  EvidencePanel,
+  EvidenceScanningNotice,
+  useEvidenceScanning,
+  type EvidenceSource,
+} from "../evidence-panel";
 
 type Form = UseFormReturn<TaxDeclarationForm>;
+
+const evidenceSource: EvidenceSource = {
+  client: taxEvidence,
+  form: "Attach declaration evidence",
+  file: "Rent receipt, interest certificate or investment proof",
+};
 type Role = TaxDeclarationParty["role"];
 
 const declarationKey = (hospital: string, staff: string, year: string) => [
@@ -144,9 +155,10 @@ export function TaxDeclarations({
           {data?.current ? (
             <>
               <Declaration path={path} revision={data.current} revealer={revealer} />
-              <DeclarationEvidence
+              <EvidencePanel
+                source={evidenceSource}
                 label="Evidence for the declaration in force"
-                scope={{ declarationPath: path, staffId: member.id, revisionId: data.current.id }}
+                scope={{ recordPath: path, staffId: member.id, recordId: data.current.id }}
                 attachable={false}
               />
             </>
@@ -164,9 +176,10 @@ export function TaxDeclarations({
             </p>
           )}
           {pending && view !== "decide" && (
-            <DeclarationEvidence
+            <EvidencePanel
+              source={evidenceSource}
               label="Evidence for the proposed change"
-              scope={{ declarationPath: path, staffId: member.id, revisionId: pending.id }}
+              scope={{ recordPath: path, staffId: member.id, recordId: pending.id }}
               attachable={writable}
             />
           )}
@@ -630,9 +643,8 @@ function DeclarationDecision({
       }),
     settle("Proposal withdrawn"),
   );
-  const scope = { declarationPath: path, staffId, revisionId: proposal.id };
-  // The server refuses any decision while evidence scans; waiting here keeps the reason visible.
-  const scanning = evidenceScanning(useTaxEvidence(scope).data?.evidence);
+  const scope = { recordPath: path, staffId, recordId: proposal.id };
+  const scanning = useEvidenceScanning(taxEvidence, scope);
   const busy = approve.isPending || reject.isPending || withdraw.isPending || scanning;
   const failure = approve.error ?? reject.error ?? withdraw.error;
   const errors = form.formState.errors;
@@ -657,7 +669,8 @@ function DeclarationDecision({
       </div>
       {/* Only someone other than the proposer may check proposed PANs against the evidence. */}
       <Declaration path={path} revision={proposal} revealer={revealer && !mine} />
-      <DeclarationEvidence
+      <EvidencePanel
+        source={evidenceSource}
         label="Evidence for the proposed change"
         scope={scope}
         attachable={false}
@@ -704,11 +717,7 @@ function DeclarationDecision({
             {...form.register("note")}
           />
         </Field>
-        {scanning && (
-          <p role="status" className="text-sm text-muted-foreground">
-            Evidence is still being scanned. You can decide once every file has finished.
-          </p>
-        )}
+        {scanning && <EvidenceScanningNotice />}
         {failure && (
           <SaveError
             message={

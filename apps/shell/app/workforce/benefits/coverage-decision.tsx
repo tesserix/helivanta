@@ -4,6 +4,8 @@ import { Button } from "@tesserix/web";
 import {
   benefitDecisionFormSchema,
   benefitEnrollmentsKey,
+  benefitEvidence,
+  benefitEvidenceScope,
   benefitWithdrawInputContract,
   decideBenefitCoverage,
   useApiMutation,
@@ -18,7 +20,8 @@ import { Field, useZodForm } from "@helivanta/ui";
 import { inputClass } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Fact } from "../payroll-setup/payroll-workspace";
-import { period, saveFailure } from "./benefits-ui";
+import { EvidencePanel, EvidenceScanningNotice, useEvidenceScanning } from "../evidence-panel";
+import { evidenceSource, period, PROPOSED_EVIDENCE, saveFailure } from "./benefits-ui";
 
 type Props = {
   scope: BenefitScope;
@@ -28,6 +31,9 @@ type Props = {
   onClose: () => void;
 };
 
+const evidenceOf = ({ scope, enrollment, proposal }: Omit<Props, "title" | "onClose">) =>
+  benefitEvidenceScope(scope, enrollment.id, proposal.id);
+
 const settle = (scope: BenefitScope, successToast: string, onClose: () => void) => ({
   invalidate: [benefitEnrollmentsKey(scope)],
   successToast,
@@ -36,11 +42,12 @@ const settle = (scope: BenefitScope, successToast: string, onClose: () => void) 
 });
 
 function Facts({
+  scope,
   enrollment,
   proposal,
   title,
   mine,
-}: Omit<Props, "scope" | "onClose"> & { mine: boolean }) {
+}: Omit<Props, "onClose"> & { mine: boolean }) {
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => heading.current?.focus(), []);
   const current = enrollment.coverage;
@@ -63,6 +70,12 @@ function Facts({
         <Fact label="Eligibility basis" value={proposal.eligibility_basis} />
         <Fact label="Proposed by" value={mine ? "You" : proposal.proposed_by_subject} />
       </dl>
+      <EvidencePanel
+        source={evidenceSource}
+        label={PROPOSED_EVIDENCE}
+        scope={evidenceOf({ scope, enrollment, proposal })}
+        attachable={false}
+      />
     </>
   );
 }
@@ -77,6 +90,10 @@ export function ReviewForm({ scope, enrollment, proposal, title, onClose }: Prop
   const approve = useApiMutation(decide, settle(scope, "Coverage approved", onClose));
   const reject = useApiMutation(decide, settle(scope, "Coverage rejected", onClose));
   const busy = approve.isPending || reject.isPending;
+  const scanning = useEvidenceScanning(
+    benefitEvidence,
+    evidenceOf({ scope, enrollment, proposal }),
+  );
   const failure = approve.error ?? reject.error;
   const submit = (decision: BenefitDecisionForm["decision"]) => {
     form.setValue("decision", decision);
@@ -94,7 +111,7 @@ export function ReviewForm({ scope, enrollment, proposal, title, onClose }: Prop
         submit("approve");
       }}
     >
-      <Facts enrollment={enrollment} proposal={proposal} title={title} mine={false} />
+      <Facts scope={scope} enrollment={enrollment} proposal={proposal} title={title} mine={false} />
       <Field
         id="coverage-note"
         label="Note (required to reject)"
@@ -110,15 +127,21 @@ export function ReviewForm({ scope, enrollment, proposal, title, onClose }: Prop
           {...form.register("note")}
         />
       </Field>
+      {scanning && <EvidenceScanningNotice />}
       {failure && <SaveError message={saveFailure(failure, "enrollment")} />}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" disabled={busy} onClick={onClose}>
           Close
         </Button>
-        <Button type="button" variant="outline" disabled={busy} onClick={() => submit("reject")}>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={busy || scanning}
+          onClick={() => submit("reject")}
+        >
           {reject.isPending ? "Rejecting…" : "Reject coverage"}
         </Button>
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" disabled={busy || scanning}>
           {approve.isPending ? "Approving…" : "Approve coverage"}
         </Button>
       </div>
@@ -133,6 +156,10 @@ export function WithdrawForm({ scope, enrollment, proposal, title, onClose }: Pr
       withdrawBenefitCoverage(scope, enrollment.id, proposal.id, input),
     settle(scope, "Proposal withdrawn", onClose),
   );
+  const scanning = useEvidenceScanning(
+    benefitEvidence,
+    evidenceOf({ scope, enrollment, proposal }),
+  );
   return (
     <form
       noValidate
@@ -140,7 +167,7 @@ export function WithdrawForm({ scope, enrollment, proposal, title, onClose }: Pr
       className="space-y-4 border-b bg-muted/10 p-5"
       onSubmit={form.handleSubmit((values) => withdraw.mutate(values))}
     >
-      <Facts enrollment={enrollment} proposal={proposal} title={title} mine />
+      <Facts scope={scope} enrollment={enrollment} proposal={proposal} title={title} mine />
       <Field
         id="coverage-withdraw-note"
         label="Reason for withdrawing (optional)"
@@ -155,12 +182,13 @@ export function WithdrawForm({ scope, enrollment, proposal, title, onClose }: Pr
           {...form.register("note")}
         />
       </Field>
+      {scanning && <EvidenceScanningNotice />}
       {withdraw.error && <SaveError message={saveFailure(withdraw.error, "enrollment")} />}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" disabled={withdraw.isPending} onClick={onClose}>
           Close
         </Button>
-        <Button type="submit" variant="outline" disabled={withdraw.isPending}>
+        <Button type="submit" variant="outline" disabled={withdraw.isPending || scanning}>
           {withdraw.isPending ? "Withdrawing…" : "Withdraw proposal"}
         </Button>
       </div>

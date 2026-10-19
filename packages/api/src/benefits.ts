@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { apiFetch } from "./client";
 import { internationalPhone } from "./enrollment-fields";
+import { evidenceClient, type EvidenceScope } from "./workforce-evidence";
 import {
   benefitDecisionInputContract,
+  benefitEvidenceInputContract,
   benefitPlanContract,
   benefitPlanInputContract,
   benefitProposalContract,
@@ -30,6 +32,8 @@ export const benefitPlansPath = (hospitalId: string) =>
 export const benefitPlanHistoryPath = (hospitalId: string, plan: string) =>
   `${benefitPlansPath(hospitalId)}/${identifier.parse(plan)}/history`;
 export const benefitPlansKey = (hospitalId: string) => ["workforce", "benefit-plans", hospitalId];
+export const benefitCoveragePath = (hospitalId: string) =>
+  `${hospitalPath(hospitalId)}/hr/benefits/coverage.csv`;
 
 const staffPath = (scope: BenefitScope) =>
   `${hospitalPath(scope.hospitalId)}/staff/${identifier.parse(scope.staffId)}`;
@@ -54,6 +58,22 @@ export const benefitEnrollmentsKey = (scope: BenefitScope) => [
 ];
 const proposalPath = (scope: BenefitScope, enrollment: string, proposal: string) =>
   `${benefitEnrollmentsPath(scope)}/${identifier.parse(enrollment)}/proposals/${identifier.parse(proposal)}`;
+
+export const benefitEvidence = evidenceClient({
+  key: "benefit-evidence",
+  recordKind: "benefit_proposal",
+  category: "benefit_eligibility_evidence",
+  input: benefitEvidenceInputContract,
+});
+export const benefitEvidenceScope = (
+  scope: BenefitScope,
+  enrollment: string,
+  proposal: string,
+): EvidenceScope => ({
+  recordPath: proposalPath(scope, enrollment, proposal),
+  staffId: scope.staffId,
+  recordId: proposal,
+});
 
 // The form adds what the contract leaves to the server: an ordered period and relationships only when dependents are covered.
 export const benefitPlanFormSchema = benefitPlanInputContract.superRefine((value, ctx) => {

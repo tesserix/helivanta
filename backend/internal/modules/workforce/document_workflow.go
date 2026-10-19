@@ -66,8 +66,8 @@ func (p *DocumentProcessor) ProcessActivity(ctx context.Context, in workforcecon
 	}
 	// Raw storage, SQL and scanner errors must never enter durable history.
 	var pg *pgconn.PgError
-	// Evidence frozen by a declaration decision never scans again, so retrying cannot help.
-	if errors.Is(err, ErrDocumentNotReady) || errors.Is(err, ErrDocumentIntegrity) || errors.Is(err, gorm.ErrRecordNotFound) || errors.As(err, &pg) && pg.ConstraintName == "workforce_tax_evidence_frozen" {
+	// Evidence frozen by a proposal decision never scans again, so retrying cannot help.
+	if errors.Is(err, ErrDocumentNotReady) || errors.Is(err, ErrDocumentIntegrity) || errors.Is(err, gorm.ErrRecordNotFound) || errors.As(err, &pg) && (pg.ConstraintName == "workforce_tax_evidence_frozen" || pg.ConstraintName == "workforce_benefit_evidence_frozen") {
 		return "", temporal.NewNonRetryableApplicationError("document processing input unavailable", "document_invalid", nil)
 	}
 	return "", temporal.NewApplicationError("document processing unavailable", "document_unavailable")

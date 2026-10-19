@@ -16,6 +16,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/audit"
+	"github.com/tesserix/helivanta/pkg/csvsafe"
 	"github.com/tesserix/helivanta/pkg/pagination"
 )
 
@@ -60,7 +61,7 @@ func (h *catalogueHandlers) exportStockPositions(c *gin.Context) {
 	}
 	asOf, _ := time.Parse(time.RFC3339Nano, c.Query("as_of"))
 	data, err := encodeStockCSV(rows, asOf)
-	if errors.Is(err, errStockCSVTooLarge) {
+	if errors.Is(err, csvsafe.ErrTooLarge) {
 		respond.Error(c, http.StatusRequestEntityTooLarge, "stock_export_too_large", "stock export exceeds 8 MiB; narrow the filters")
 		return
 	}

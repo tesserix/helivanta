@@ -5,6 +5,7 @@ import { useApiPagedQuery, usePermissions, type Hospital } from "@helivanta/api"
 import { HmsShell, Field, SelectControl } from "@helivanta/ui";
 import { TenantPicker } from "@/components/tenant-picker";
 import { Failure } from "../roster-policy/policy-ui";
+import { CoverageExport } from "./coverage-export";
 import { PlansPanel } from "./plans-panel";
 import { StaffBenefitsPanel } from "./staff-benefits-panel";
 
@@ -86,6 +87,7 @@ function HospitalBenefits({ hospital }: { hospital: Hospital }) {
     <div className="space-y-6">
       <PlansPanel hospital={hospital} writable={writable} />
       <StaffBenefitsPanel hospital={hospital} writable={writable} approver={approver} />
+      {can("workforce.benefits.export") && <CoverageExport hospital={hospital} />}
     </div>
   );
 }

@@ -4,6 +4,7 @@ export * from "./documents";
 export * from "./document-queries";
 export * from "./credentials";
 export * from "./benefits";
+export * from "./benefit-coverage-export";
 export * from "./tenant-transition";
 export * from "./hr-masters";
 export * from "./shifts";
@@ -59,8 +60,9 @@ export * from "./supply-registration";
 export * from "./overtime";
 export * from "./attendance";
 export * from "./payroll";
+export * from "./workforce-evidence";
+export * from "./workforce-evidence-query";
 export * from "./payroll-evidence";
-export * from "./payroll-evidence-query";
 export * from "./supply-evidence";
 export * from "./supply-evidence-query";
 

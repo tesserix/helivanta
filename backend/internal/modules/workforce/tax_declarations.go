@@ -598,7 +598,7 @@ func (h *handlers) transitionDeclaration(c *gin.Context, proposal uuid.UUID, exp
 		if to != "withdrawn" && r.ProposedBySubject == p.Subject {
 			return errDeclarationSelf
 		}
-		if err := settleDeclarationEvidence(tx, p.TenantID, hospital, staff, proposal, to); err != nil {
+		if err := settleEvidence(tx, taxEvidenceKind, p.TenantID, hospital, staff, proposal, to); err != nil {
 			return err
 		}
 		set := "status=?,decided_by_subject=?,decided_at=clock_timestamp(),decision_note=?"
@@ -752,7 +752,7 @@ func respondDeclarationError(c *gin.Context, err error) {
 		respond.Conflict(c, "The declaration changed since you opened it. Reload before saving.")
 	case errors.Is(err, errDeclarationPending), isPG && pg.ConstraintName == "workforce_tax_declaration_one_pending":
 		respond.ConflictWithDetail(c, "Another declaration proposal for this staff member and year is waiting for a decision.", gin.H{"reason": "proposal_pending"})
-	case errors.Is(err, errDeclarationEvidenceScanning), isPG && pg.ConstraintName == "workforce_tax_evidence_scanning":
+	case errors.Is(err, errEvidenceScanning), isPG && pg.ConstraintName == "workforce_tax_evidence_scanning":
 		respond.ConflictWithDetail(c, "Evidence for this proposal is still being scanned. Decide once every file has finished.", gin.H{"reason": "evidence_scanning"})
 	case errors.Is(err, errDeclarationState):
 		respond.ConflictWithDetail(c, "This proposal has already been decided.", gin.H{"reason": "not_pending"})

@@ -1,26 +1,24 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@tesserix/web";
 import { FileCheck2 } from "lucide-react";
 import {
-  downloadTaxEvidence,
-  prepareTaxEvidence,
-  retryTaxEvidence,
-  submitTaxEvidence,
-  taxEvidenceFileSchema,
-  taxEvidenceKey,
   useApiMutation,
-  useTaxEvidence,
-  MAX_TAX_EVIDENCE,
-  type TaxEvidence,
-  type TaxEvidenceScope,
-  type TaxEvidenceUpload,
+  useEvidence,
+  MAX_EVIDENCE,
+  type Evidence,
+  type EvidenceClient,
+  type EvidenceScope,
+  type EvidenceUpload,
 } from "@helivanta/api";
 import { Field, useZodForm } from "@helivanta/ui";
-import { Failure } from "../roster-policy/policy-ui";
-import { SaveError } from "../leave-balances/years-panel";
+import { Failure } from "./roster-policy/policy-ui";
+import { SaveError } from "./leave-balances/years-panel";
 
-const states: Record<TaxEvidence["status"], string> = {
+// One per record kind: the client and the words its attach form uses.
+export type EvidenceSource = { client: EvidenceClient; form: string; file: string };
+
+const states: Record<Evidence["status"], string> = {
   upload_pending: "Upload incomplete",
   scan_pending: "Scanning",
   available: "Ready",
@@ -29,23 +27,33 @@ const states: Record<TaxEvidence["status"], string> = {
   revoked: "Revoked",
 };
 
-export const evidenceScanning = (files: TaxEvidence[] | undefined) =>
-  !!files?.some((file) => file.status === "scan_pending");
+// The server refuses any decision while evidence scans; holding the buttons keeps the reason visible.
+export const useEvidenceScanning = (client: EvidenceClient, scope: EvidenceScope) =>
+  !!useEvidence(client, scope).data?.evidence.some((file) => file.status === "scan_pending");
 
-export function DeclarationEvidence({
+export const EvidenceScanningNotice = () => (
+  <p role="status" className="text-sm text-muted-foreground">
+    Evidence is still being scanned. You can decide once every file has finished.
+  </p>
+);
+
+export function EvidencePanel({
+  source: { client, ...words },
   label,
   scope,
   attachable,
 }: {
+  source: EvidenceSource;
   label: string;
-  scope: TaxEvidenceScope;
+  scope: EvidenceScope;
   attachable: boolean;
 }) {
-  const evidence = useTaxEvidence(scope);
-  const form = useZodForm(taxEvidenceFileSchema, { file: null });
+  const evidence = useEvidence(client, scope);
+  const form = useZodForm(client.fileSchema, { file: null });
   const file = form.watch("file");
+  const fileID = useId();
   const fileInput = useRef<HTMLInputElement>(null);
-  const prepared = useRef<TaxEvidenceUpload | null>(null);
+  const prepared = useRef<EvidenceUpload | null>(null);
   const controller = useRef<AbortController | null>(null);
   const [intent, setIntent] = useState(() => crypto.randomUUID());
   useEffect(() => () => controller.current?.abort(), []);
@@ -54,12 +62,12 @@ export function DeclarationEvidence({
     controller.current = new AbortController();
     return controller.current.signal;
   };
-  const settle = { invalidate: [taxEvidenceKey(scope)], suppressErrorToast: true };
+  const settle = { invalidate: [client.key(scope)], suppressErrorToast: true };
   const upload = useApiMutation(
     async () => {
       const active = signal();
-      prepared.current ??= await prepareTaxEvidence(scope, intent, file!, active);
-      return submitTaxEvidence(scope, prepared.current, active);
+      prepared.current ??= await client.prepare(scope, intent, file!, active);
+      return client.submit(scope, prepared.current, active);
     },
     {
       ...settle,
@@ -73,12 +81,12 @@ export function DeclarationEvidence({
     },
   );
   const retry = useApiMutation(
-    (f: TaxEvidence) => retryTaxEvidence(scope, f, f.scan_attempt + 1, signal()),
+    (f: Evidence) => client.retry(scope, f, f.scan_attempt + 1, signal()),
     { ...settle, successToast: "Scan retried" },
   );
   const download = useApiMutation(
-    async (f: TaxEvidence) => {
-      const blob = await downloadTaxEvidence(scope, f, signal());
+    async (f: Evidence) => {
+      const blob = await client.download(scope, f, signal());
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -92,7 +100,7 @@ export function DeclarationEvidence({
   const failure = upload.error ?? retry.error ?? download.error;
   const files = evidence.data?.evidence ?? [];
   const storage = evidence.data?.uploads_available ?? false;
-  const full = files.length >= MAX_TAX_EVIDENCE;
+  const full = files.length >= MAX_EVIDENCE;
   const errors = form.formState.errors;
   return (
     <section aria-label={label} className="mt-4 rounded-xl border p-4">
@@ -131,6 +139,7 @@ export function DeclarationEvidence({
                     </span>
                     {f.status === "available" && (
                       <Button
+                        type="button"
                         size="sm"
                         variant="outline"
                         disabled={!storage || busy}
@@ -142,6 +151,7 @@ export function DeclarationEvidence({
                     )}
                     {f.status === "scan_error" && attachable && (
                       <Button
+                        type="button"
                         size="sm"
                         variant="outline"
                         disabled={!storage || busy}
@@ -163,30 +173,26 @@ export function DeclarationEvidence({
           )}
           {attachable && storage && full && (
             <p className="mt-3 text-xs text-muted-foreground">
-              This proposal has the maximum of {MAX_TAX_EVIDENCE} evidence files.
+              This proposal has the maximum of {MAX_EVIDENCE} evidence files.
             </p>
           )}
           {attachable && storage && !full && (
             <form
               noValidate
-              aria-label="Attach declaration evidence"
+              aria-label={words.form}
               className="mt-4"
               onSubmit={form.handleSubmit(() => {
                 if (!busy) upload.mutate();
               })}
             >
-              <Field
-                id="tax-evidence-file"
-                label="Rent receipt, interest certificate or investment proof"
-                error={errors.file?.message}
-              >
+              <Field id={fileID} label={words.file} error={errors.file?.message}>
                 <input
-                  id="tax-evidence-file"
+                  id={fileID}
                   ref={fileInput}
                   type="file"
                   accept="image/png,image/jpeg"
                   aria-invalid={!!errors.file}
-                  aria-describedby={errors.file ? "tax-evidence-file-error" : undefined}
+                  aria-describedby={errors.file ? `${fileID}-error` : undefined}
                   disabled={busy}
                   onChange={(ev) => {
                     prepared.current = null;

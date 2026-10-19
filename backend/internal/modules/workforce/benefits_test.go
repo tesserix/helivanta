@@ -13,6 +13,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/workforce" //nolint:depguard // module under test
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -27,13 +28,20 @@ type benefitFixture struct {
 
 func newBenefitFixture(t *testing.T) *benefitFixture {
 	t.Helper()
+	return newBenefitFixtureWith(t, nil)
+}
+
+func newBenefitFixtureWith(t *testing.T, files *attachments.GCS) *benefitFixture {
+	t.Helper()
 	benefits := []authz.Permission{workforce.PermBenefitsView, workforce.PermBenefitsManage, workforce.PermBenefitsApprove}
 	admin := append([]authz.Permission{workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermMasterManage}, benefits...)
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"hr": testutil.TenantA, "approver": testutil.TenantA, "manage-only": testutil.TenantA, "reader": testutil.TenantA, "staff-only": testutil.TenantA, "foreign": testutil.TenantB},
+		Tokens: map[string]string{"hr": testutil.TenantA, "approver": testutil.TenantA, "manage-only": testutil.TenantA, "reader": testutil.TenantA, "staff-only": testutil.TenantA,
+			"exporter": testutil.TenantA, "export-ungranted": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{"hr": admin, "approver": benefits, "manage-only": {workforce.PermBenefitsView, workforce.PermBenefitsManage}, "reader": benefits,
-			"staff-only": {workforce.PermEnrollmentManage, workforce.PermPayrollView, workforce.PermCredentialReview}, "foreign": admin},
-		Modules: []platform.Module{workforce.New()},
+			"staff-only": {workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermPayrollView, workforce.PermCredentialReview},
+			"exporter":   {workforce.PermBenefitsExport}, "export-ungranted": {workforce.PermBenefitsExport}, "foreign": append(admin, workforce.PermBenefitsExport)},
+		Modules: []platform.Module{workforce.New()}, Documents: files,
 	})
 	f := &benefitFixture{t: t, r: r, db: db, hospital: uuid.NewString()}
 	f.base = "/v1/workforce/hospitals/" + f.hospital
@@ -41,7 +49,7 @@ func newBenefitFixture(t *testing.T) *benefitFixture {
 	for _, base := range []string{f.base, f.other} {
 		require.Equal(t, 200, testutil.Do(r, "PUT", base, "hr", `{"name":"Synthetic Benefits Hospital"}`).Code)
 	}
-	for user, level := range map[string]string{"hr": "manager", "approver": "manager", "manage-only": "manager", "staff-only": "manager", "reader": "reader"} {
+	for user, level := range map[string]string{"hr": "manager", "approver": "manager", "manage-only": "manager", "staff-only": "manager", "reader": "reader", "exporter": "reader"} {
 		require.Equal(t, 200, testutil.Do(r, "PUT", f.base+"/access/user-"+user, "hr", `{"level":"`+level+`"}`).Code)
 	}
 	f.spouse = f.master("SPOUSE", "Synthetic spouse")
@@ -180,6 +188,23 @@ func (f *benefitFixture) audits(action string) int {
 		return tx.Raw(`SELECT count(*) FROM workforce_audit WHERE action=?`, action).Scan(&n).Error
 	}))
 	return n
+}
+
+// auditChanges returns the change sets recorded under one action, oldest first.
+func (f *benefitFixture) auditChanges(action string) []map[string]any {
+	f.t.Helper()
+	var raw []string
+	require.NoError(f.t, f.db.WithTenant(f.t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-hr',true),set_config('app.workforce_hospital',?,true)`, f.hospital).Error; err != nil {
+			return err
+		}
+		return tx.Raw(`SELECT changes::text FROM workforce_audit WHERE action=? ORDER BY created_at,id`, action).Scan(&raw).Error
+	}))
+	result := make([]map[string]any, len(raw))
+	for i, changes := range raw {
+		require.NoError(f.t, json.Unmarshal([]byte(changes), &result[i]))
+	}
+	return result
 }
 
 func TestBenefitPlansAreVersionedAndRetireOnce(t *testing.T) {

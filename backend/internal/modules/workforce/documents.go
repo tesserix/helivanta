@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
@@ -217,4 +218,40 @@ func (h *handlers) listDocuments(c *gin.Context, params pagination.Params) ([]do
 		return nil, errors.New("staff document listing unavailable")
 	}
 	return rows, nil
+}
+
+// evidenceLimit matches the per-proposal limit each evidence kind's creation trigger enforces.
+const evidenceLimit = 10
+
+var errEvidenceScanning = errors.New("proposal evidence is still being scanned")
+
+// evidenceRows lists a proposal's evidence newest first; expired intents never received bytes and no longer count towards the limit.
+func evidenceRows(tx *gorm.DB, kind, tenant string, hospital, staff, record uuid.UUID, rows *[]document) error {
+	return tx.Select(documentColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND record_kind=? AND record_id=? AND NOT(status='upload_pending' AND expires_at<=clock_timestamp())",
+		tenant, hospital, staff, kind, record).Order("created_at DESC,id DESC").Limit(evidenceLimit).Find(rows).Error
+}
+
+// settleEvidence freezes a proposal's evidence at its decision and revokes what was readable unless the proposal took effect.
+func settleEvidence(tx *gorm.DB, kind, tenant string, hospital, staff, proposal uuid.UUID, to string) error {
+	var scanning int64
+	if err := tx.Table("workforce_documents").Where("tenant_id=? AND hospital_id=? AND record_kind=? AND record_id=? AND status='scan_pending'", tenant, hospital, kind, proposal).Count(&scanning).Error; err != nil {
+		return err
+	}
+	if scanning > 0 {
+		return errEvidenceScanning
+	}
+	var settled []document
+	if err := tx.Raw(`UPDATE workforce_documents SET frozen=true,status=CASE WHEN ?::text<>'approved' AND status='available' THEN 'revoked' ELSE status END,updated_at=clock_timestamp()
+	 WHERE tenant_id=? AND hospital_id=? AND record_kind=? AND record_id=? AND NOT frozen RETURNING `+documentColumns, to, tenant, hospital, kind, proposal).Scan(&settled).Error; err != nil {
+		return err
+	}
+	for _, d := range settled {
+		if d.Status != "revoked" {
+			continue
+		}
+		if err := documentStateEvent(tx, workforcecontract.DocumentScanInput{TenantID: tenant, HospitalID: hospital.String(), StaffID: staff.String(), FileID: d.ID.String(), ScanAttempt: d.ScanAttempt}, "revoked"); err != nil {
+			return err
+		}
+	}
+	return nil
 }

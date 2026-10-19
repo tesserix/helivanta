@@ -221,6 +221,12 @@ func TestTaxEvidenceDeniesOtherTenantsHospitalsAndStaff(t *testing.T) {
 	require.Equal(t, 404, res.Code, res.Body.String())
 	code, out = f.call("GET", "/staff/"+f.staff+"/tax-declarations/2025-26/evidence?revision_id="+proposal, "viewer", nil)
 	require.Equal(t, 404, code, "a revision answers only for its own tax year: %v", out)
+	req := httptest.NewRequest(http.MethodPut, f.base+"/hr/payroll/staff/"+f.staff+"/tax-declarations/2025-26/evidence/"+file+"/content", bytes.NewReader(f.content))
+	req.Header.Set("Authorization", "Bearer admin")
+	req.Header.Set("Content-Type", "image/png")
+	w := httptest.NewRecorder()
+	f.router.ServeHTTP(w, req)
+	require.Equal(t, 404, w.Code, "an uploaded file answers only under its own tax year: %s", w.Body.String())
 }
 
 func TestTaxEvidenceLimitAndDecisionSettlement(t *testing.T) {

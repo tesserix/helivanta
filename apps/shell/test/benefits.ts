@@ -18,6 +18,9 @@ export const stamp = "2026-10-19T00:00:00Z";
 export const VIEW = "workforce.benefits.view";
 export const MANAGE = "workforce.benefits.manage";
 export const APPROVE = "workforce.benefits.approve";
+export const EXPORT = "workforce.benefits.export";
+export const otherHospital = "12121212-1212-4212-8212-121212121212";
+export const coverageCSV = "as_of,enrollment_id\r\n2026-10-19,synthetic\r\n";
 
 const page = (data: unknown[], more = false) => ({
   data,
@@ -132,7 +135,32 @@ export const coverage = {
   updated_at: stamp,
 };
 
+export const evidenceFile = (over: object = {}) => ({
+  id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+  hospital_id: hospital,
+  staff_id: staffID,
+  record_id: proposalID,
+  record_kind: "benefit_proposal",
+  record_version: 1,
+  category: "benefit_eligibility_evidence",
+  filename: "synthetic-marriage-certificate.png",
+  content_type: "image/png",
+  size: 2048,
+  sha256: "a".repeat(64),
+  status: "available",
+  scan_attempt: 1,
+  uploaded_at: stamp,
+  scanned_at: stamp,
+  failure_code: null,
+  expires_at: stamp,
+  created_at: stamp,
+  updated_at: stamp,
+  ...over,
+});
+
 export type Write = { method: string; url: string; body: Record<string, unknown> };
+export type Upload = { url: string; body: unknown };
+export type Export = { url: string; signal?: AbortSignal | null };
 type Reply = { status: number; body: unknown };
 
 const last = (url: string, from = 1) => url.split("/").at(-from)!;
@@ -209,6 +237,12 @@ export function mockBenefits({
   fail = "",
   replies = [] as Reply[],
   secondPage = {},
+  evidence = [] as unknown[],
+  hospitals = [] as object[],
+  exportRows = 3,
+  exportHeaders = {} as Record<string, string>,
+  exportFailure,
+  exportHeld,
 }: {
   permissions?: string[];
   subject?: string;
@@ -222,9 +256,19 @@ export function mockBenefits({
   replies?: Reply[];
   // Served after a first page that reports more.
   secondPage?: { plans?: unknown[]; dependents?: unknown[] };
+  evidence?: unknown[];
+  // Listed after the default hospital.
+  hospitals?: object[];
+  exportRows?: number;
+  exportHeaders?: Record<string, string>;
+  exportFailure?: Reply;
+  // Holds the coverage file until the test resolves it.
+  exportHeld?: Promise<void>;
 } = {}) {
   const writes: Write[] = [];
   const reads: string[] = [];
+  const uploads: Upload[] = [];
+  const exports: Export[] = [];
   const queue = [...replies];
   vi.stubGlobal(
     "fetch",
@@ -233,6 +277,42 @@ export function mockBenefits({
       const listed = (data: unknown[], next?: unknown[]) =>
         url === requested ? page(data, !!next) : page(next ?? []);
       let reply: Reply = { status: 200, body: page([]) };
+      const file = url.match(
+        /\/proposals\/([0-9a-f-]{36})\/evidence\/([0-9a-f-]{36})(\/content)?$/,
+      );
+      if (file && init?.method === "PUT") {
+        const content = !!file[3];
+        uploads.push({ url, body: content ? init.body : JSON.parse(String(init.body)) });
+        const intent = uploads.at(content ? -2 : -1)!.body as object;
+        return new Response(
+          JSON.stringify(
+            evidenceFile({
+              ...intent,
+              id: file[2],
+              record_id: file[1],
+              status: content ? "scan_pending" : "upload_pending",
+            }),
+          ),
+          { status: content ? 202 : 201 },
+        );
+      }
+      if (url.includes("/hr/benefits/coverage.csv")) {
+        exports.push({ url: requested, signal: init?.signal });
+        await exportHeld;
+        if (exportFailure)
+          return new Response(JSON.stringify(exportFailure.body), { status: exportFailure.status });
+        const bytes = new TextEncoder().encode(coverageCSV);
+        const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+        return new Response(bytes, {
+          headers: {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": `attachment; filename="benefits-coverage-${url.match(/as_of=([0-9-]+)/)![1]}.csv"`,
+            "X-Export-Row-Count": String(exportRows),
+            "X-Export-Sha256": Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join(""),
+            ...exportHeaders,
+          },
+        });
+      }
       if (init?.method === "PUT" || init?.method === "POST") {
         const body = JSON.parse(String(init.body)) as Record<string, unknown>;
         writes.push({ method: init.method, url, body });
@@ -249,7 +329,10 @@ export function mockBenefits({
           tenant_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
         };
       else if (url.endsWith("/workforce/hospitals"))
-        reply.body = page([{ id: hospital, name: "Synthetic Hospital", access_level: access }]);
+        reply.body = page([
+          { id: hospital, name: "Synthetic Hospital", access_level: access },
+          ...hospitals,
+        ]);
       else if (url.endsWith(`/hospitals/${hospital}/staff`)) reply.body = page([staff]);
       else if (url.endsWith("/hr/masters?kind=relationship")) reply.body = page(relationships);
       else if (url.endsWith("/history")) reply.body = page(history);
@@ -262,10 +345,22 @@ export function mockBenefits({
         };
       else if (url.endsWith(`/staff/${staffID}/benefit-enrollments`))
         reply = failing("enrollments") || { status: 200, body: page(enrollments) };
+      else if (/\/evidence\/[0-9a-f-]{36}\/content$/.test(url)) {
+        const held = evidence.find((f) => url.includes((f as { id: string }).id)) as {
+          size: number;
+        };
+        return new Response(new Uint8Array(held.size));
+      } else if (url.endsWith("/evidence"))
+        reply.body = {
+          evidence: evidence.filter((f) =>
+            url.endsWith(`/proposals/${(f as { record_id: string }).record_id}/evidence`),
+          ),
+          uploads_available: true,
+        };
       return new Response(JSON.stringify(reply.body), { status: reply.status });
     }),
   );
-  return { writes, reads };
+  return { writes, reads, uploads, exports };
 }
 
 export const conflict = (reason: string, message: string): Reply => ({

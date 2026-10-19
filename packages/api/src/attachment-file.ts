@@ -1,4 +1,4 @@
-export async function readAttachmentFile(file: File, signal: AbortSignal): Promise<ArrayBuffer> {
+export async function readAttachmentFile(file: Blob, signal: AbortSignal): Promise<ArrayBuffer> {
   if (typeof file.arrayBuffer === "function") return file.arrayBuffer();
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -20,4 +20,9 @@ export async function readAttachmentFile(file: File, signal: AbortSignal): Promi
     signal.addEventListener("abort", abort, { once: true });
     reader.readAsArrayBuffer(file);
   });
+}
+
+export async function sha256Hex(data: BufferSource): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

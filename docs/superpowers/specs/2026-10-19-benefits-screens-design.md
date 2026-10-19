@@ -34,5 +34,5 @@ Each test checks the request bodies the UI actually sends.
 
 ## Not in this slice
 
-- **Slice C:** eligibility evidence files on proposals and a permissioned benefits export (with #1066).
+- **Slice C:** eligibility evidence files on proposals and a permissioned benefits export (with #1066), delivered by the [benefit evidence and export spec](2026-10-19-benefit-evidence-export-design.md).
 - **Playwright.** The e2e environment seeds no hospital HR users or benefit grants, so these journeys are covered by component tests, as for the other workforce pages.

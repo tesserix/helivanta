@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -19,16 +20,12 @@ import (
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/events"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
+// pendingDocument answers only for a file of the gate's own record, whatever its state, so a replay never reaches another record's file.
 func pendingDocument(tx *gorm.DB, gate documentGate, p authn.Principal, hospital, staffID, fileID uuid.UUID) (document, error) {
-	if err := gate.authorize(tx, p, hospital, staffID, true); err != nil {
-		return document{}, err
-	}
-	var saved document
-	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select(documentColumns).
-		Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, hospital, staffID, fileID).First(&saved).Error; err != nil {
+	saved, err := authorizedDocument(tx, gate, p, hospital, staffID, fileID, true)
+	if err != nil {
 		return document{}, err
 	}
 	if saved.Status != "upload_pending" {
@@ -177,15 +174,17 @@ func (h *handlers) receiveDocument(c *gin.Context, gate documentGate, p authn.Pr
 	respond.OK(c, saved)
 }
 
+var evidenceDecidedGuards = []string{"workforce_tax_evidence_pending", "workforce_tax_evidence_frozen", "workforce_benefit_evidence_pending", "workforce_benefit_evidence_frozen"}
+
 func documentUploadError(c *gin.Context, err error) bool {
 	if err == nil {
 		return false
 	}
 	var pg *pgconn.PgError
 	isPG := errors.As(err, &pg)
-	if errors.Is(err, errDeclarationState) || isPG && (pg.ConstraintName == "workforce_tax_evidence_pending" || pg.ConstraintName == "workforce_tax_evidence_frozen") {
+	if errors.Is(err, errDeclarationState) || errors.Is(err, errBenefitState) || isPG && slices.Contains(evidenceDecidedGuards, pg.ConstraintName) {
 		respond.ConflictWithDetail(c, "This proposal has been decided, so its evidence can no longer change.", gin.H{"reason": "not_pending"})
-	} else if isPG && pg.ConstraintName == "workforce_tax_evidence_limit" {
+	} else if isPG && (pg.ConstraintName == "workforce_tax_evidence_limit" || pg.ConstraintName == "workforce_benefit_evidence_limit") {
 		respond.ConflictWithDetail(c, "A proposal takes at most 10 evidence files.", gin.H{"reason": "evidence_limit"})
 	} else if errors.Is(err, errDocumentConflict) {
 		respond.Conflict(c, "The document intent is expired, changed or conflicts with stored bytes. Create a new intent.")

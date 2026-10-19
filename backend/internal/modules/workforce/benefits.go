@@ -71,6 +71,7 @@ var (
 		"workforce_benefit_dependent_removed":              {"dependent_removed", "The dependent has been removed."},
 		"workforce_benefit_proposal_separation":            {"self_review", "The person who proposed the coverage must not approve or reject it."},
 		"workforce_benefit_proposal_withdrawn_by_proposer": {"not_proposer", "Only the person who proposed the coverage can withdraw it."},
+		"workforce_benefit_evidence_scanning":              {"evidence_scanning", "Evidence for this proposal is still being scanned. Decide once every file has finished."},
 	}
 )
 
@@ -918,6 +919,9 @@ func (h *handlers) transitionBenefitProposal(c *gin.Context, expected *int64, to
 		if to != "withdrawn" && r.ProposedBySubject == p.Subject {
 			return errBenefitSelf
 		}
+		if err := settleEvidence(tx, benefitEvidenceKind, p.TenantID, hospital, staff, proposal, to); err != nil {
+			return err
+		}
 		version := cur.Coverage.Version
 		set := "status=?,decided_by_subject=?,decided_at=clock_timestamp(),decision_note=?"
 		if to == "approved" {
@@ -1007,6 +1011,8 @@ func respondBenefitError(c *gin.Context, err error) {
 		respond.ConflictWithDetail(c, "The person who proposed the coverage must not approve or reject it.", gin.H{"reason": "self_review"})
 	case errors.Is(err, errBenefitNotProposer):
 		respond.ConflictWithDetail(c, "Only the person who proposed the coverage can withdraw it.", gin.H{"reason": "not_proposer"})
+	case errors.Is(err, errEvidenceScanning):
+		respond.ConflictWithDetail(c, benefitConstraintReasons["workforce_benefit_evidence_scanning"][1], gin.H{"reason": "evidence_scanning"})
 	case errors.Is(err, errBenefitState):
 		respond.ConflictWithDetail(c, "This proposal has already been decided.", gin.H{"reason": "not_pending"})
 	case isPG && pg.Code == "23505":

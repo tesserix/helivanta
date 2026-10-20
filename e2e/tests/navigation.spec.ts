@@ -174,3 +174,36 @@ test("a page that is still loading keeps the chrome", async ({ page }) => {
 
   release();
 });
+
+// #1091 D7. The server cannot read localStorage, so its HTML renders the
+// default chrome: panel open, rail collapsed. Without the pre-hydration
+// script a clinician who collapsed the panel saw it painted open on every
+// hard load, then snap shut. The widths are recorded from the first DOM
+// mutation onward, so the first paint is included.
+test("a collapsed panel is never painted open on a hard load", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await login(page);
+  await page.goto("/pharmacy");
+  await page.evaluate(() => {
+    localStorage.setItem("hms.panel.open", "0");
+    localStorage.setItem("hms.navigation.open", "1");
+  });
+  await page.addInitScript(() => {
+    const seen: string[] = [];
+    (window as unknown as { __chromeWidths: string[] }).__chromeWidths = seen;
+    new MutationObserver(() => {
+      const [rail, panel] = document.querySelectorAll("aside");
+      if (rail && panel)
+        seen.push(`rail=${getComputedStyle(rail).width} panel=${getComputedStyle(panel).width}`);
+    }).observe(document, { subtree: true, childList: true, attributes: true });
+  });
+  await page.goto("/pharmacy");
+  await expect(page.getByRole("button", { name: "Collapse navigation" })).toBeVisible();
+  const seen = await page.evaluate(
+    () => (window as unknown as { __chromeWidths: string[] }).__chromeWidths,
+  );
+  expect(seen.length, "no chrome was observed").toBeGreaterThan(0);
+  expect([...new Set(seen)], "the chrome painted in a state the user did not choose").toEqual([
+    "rail=208px panel=0px",
+  ]);
+});

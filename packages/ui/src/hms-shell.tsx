@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -35,12 +36,15 @@ import {
 } from "./zitadel-session";
 import { createIdleTracker, WARNING_LEAD_MS, type IdleTracker } from "./idle-timer";
 import { IdleWarning } from "./idle-warning";
+import {
+  CHROME_FLAG_ATTRIBUTES,
+  NAVIGATION_KEY,
+  PANEL_KEY,
+  flagAttributeValue,
+} from "./chrome-flags";
 
 // Navigation stays within the unified app. Sign-out remains a POST because
 // it revokes server-side credentials.
-
-const PANEL_KEY = "hms.panel.open";
-const NAVIGATION_KEY = "hms.navigation.open";
 
 // Same-tab writes fire no `storage` event, and unwritable storage keeps the flag in memory.
 const flagListeners = new Set<() => void>();
@@ -73,6 +77,12 @@ function usePersistedFlag(key: string, fallback: boolean) {
     () => readFlag(key, fallback),
     () => fallback,
   );
+  // Mirrored to <html> for styles.css (#1091 D7), from every source: this tab,
+  // another tab, unwritable storage. A layout effect, so the attribute and the
+  // classes change in the same paint.
+  useLayoutEffect(() => {
+    document.documentElement.dataset[CHROME_FLAG_ATTRIBUTES[key]] = flagAttributeValue(value);
+  }, [key, value]);
   const update = (next: boolean) => {
     try {
       window.localStorage.setItem(key, next ? "1" : "0");
@@ -421,7 +431,7 @@ export function HmsShell({
       <div data-brand-theme={branding.theme} className="flex h-screen overflow-hidden">
         {navigationOpen && <div aria-hidden="true" className="w-16 shrink-0 md:hidden" />}
         <aside
-          className={`hms-sidebar-border flex shrink-0 flex-col border-r bg-(--sidebar-rail) ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 shadow-xl md:relative md:inset-auto md:shadow-none" : "w-16"}`}
+          className={`hms-rail hms-sidebar-border flex shrink-0 flex-col border-r bg-(--sidebar-rail) ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 shadow-xl md:relative md:inset-auto md:shadow-none" : "w-16"}`}
         >
           <div className={`flex h-16 items-center ${navigationOpen ? "px-4" : "justify-center"}`}>
             <Link
@@ -505,7 +515,7 @@ export function HmsShell({
 
         {/* Page panel: open or hidden */}
         <aside
-          className={`flex shrink-0 flex-col overflow-hidden bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
+          className={`hms-page-panel flex shrink-0 flex-col overflow-hidden bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
             panelOpen ? "hidden w-56 md:flex" : "w-0"
           }`}
           aria-hidden={!panelOpen}

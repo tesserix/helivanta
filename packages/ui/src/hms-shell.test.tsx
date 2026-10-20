@@ -898,5 +898,27 @@ describe("expandable navigation", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(createdTrackers).toHaveLength(1);
     expect(createdTrackers[0]).toBe(trackerBeforeNavigation);
+    // This describe has no afterEach; later tests use real timers.
+    vi.useRealTimers();
+  });
+
+  // #1091 D7: styles.css sizes the chrome from these attributes, so they must
+  // follow the flag whichever way it changes, or the CSS would hold a panel
+  // shut that React has opened.
+  it("mirrors the panel state to <html> when toggled here and from another tab", async () => {
+    window.localStorage.clear();
+    delete document.documentElement.dataset.hmsPanel;
+    pathname.current = "/patients";
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(document.documentElement.dataset.hmsPanel).toBe("open");
+
+    await user.click(screen.getByRole("button", { name: "Collapse page panel" }));
+    expect(document.documentElement.dataset.hmsPanel).toBe("closed");
+
+    act(() => {
+      window.localStorage.setItem("hms.panel.open", "1");
+      window.dispatchEvent(new StorageEvent("storage", { key: "hms.panel.open" }));
+    });
+    expect(document.documentElement.dataset.hmsPanel).toBe("open");
   });
 });

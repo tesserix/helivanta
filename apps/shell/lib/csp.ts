@@ -9,6 +9,10 @@ export const CSP_REPORT_PATH = "/api/csp-report";
 // no nonce support; csp.test.ts recomputes this from the installed package.
 export const SONNER_STYLE_HASH = "'sha256-StEaX+se6YS7pqjzrzMIA0KaX9zF/8zAhvQXZAe5epY='";
 
+// sha256 of "". sonner appends its <style> empty and fills it afterwards, and the
+// browser checks the empty element too; an empty stylesheet applies nothing.
+export const EMPTY_STYLE_HASH = "'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='";
+
 export function createNonce(): string {
   return btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
 }
@@ -21,7 +25,7 @@ export function contentSecurityPolicy(
     "default-src 'self'",
     // React needs eval in development only, to rebuild server error stacks.
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
-    `style-src 'self' 'nonce-${nonce}' ${SONNER_STYLE_HASH}`,
+    `style-src 'self' 'nonce-${nonce}' ${SONNER_STYLE_HASH} ${EMPTY_STYLE_HASH}`,
     // Server-rendered style="" attributes cannot carry a nonce; an injected
     // attribute styles only its own element, unlike an injected <style>.
     "style-src-attr 'unsafe-inline'",

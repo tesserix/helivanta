@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { SONNER_STYLE_HASH, contentSecurityPolicy, createNonce } from "./csp";
+import { EMPTY_STYLE_HASH, SONNER_STYLE_HASH, contentSecurityPolicy, createNonce } from "./csp";
 
 describe("contentSecurityPolicy", () => {
   it("builds the production policy", () => {
@@ -12,7 +12,7 @@ describe("contentSecurityPolicy", () => {
       [
         "default-src 'self'",
         "script-src 'self' 'nonce-abc' 'strict-dynamic'",
-        `style-src 'self' 'nonce-abc' ${SONNER_STYLE_HASH}`,
+        `style-src 'self' 'nonce-abc' ${SONNER_STYLE_HASH} ${EMPTY_STYLE_HASH}`,
         "style-src-attr 'unsafe-inline'",
         "img-src 'self' data: blob: https:",
         "font-src 'self'",
@@ -46,6 +46,11 @@ describe("contentSecurityPolicy", () => {
     const css = JSON.parse(`"${literals[0]![1]}"`) as string;
     const hash = createHash("sha256").update(css).digest("base64");
     expect(SONNER_STYLE_HASH).toBe(`'sha256-${hash}'`);
+  });
+
+  it("allows the empty stylesheet sonner inserts before filling it", () => {
+    const hash = createHash("sha256").update("").digest("base64");
+    expect(EMPTY_STYLE_HASH).toBe(`'sha256-${hash}'`);
   });
 
   it("mints a distinct 16-byte nonce", () => {

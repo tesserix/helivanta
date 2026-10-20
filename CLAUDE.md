@@ -56,7 +56,7 @@ Binding rules for all frontend work. Full document: docs/standards/frontend.md
 - Navigation: in-app links (rail, panel, cards) are `next/link`; zones are routes of one app (`apps/shell`, #933), so moving between them never reloads the page (`e2e/tests/navigation.spec.ts` enforces it). Zone nav lives only in `packages/ui/src/zones.ts`.
 - Permission gating uses `Can`/`usePermissions` from `@helivanta/api` and is convenience only — the API enforces. Every zone/page in `packages/ui/src/zones.ts` declares a permission.
 - Styling: design tokens only — no hardcoded colors. Read the pitfall comments in `packages/ui/styles.css` before touching sidebar/border styles.
-- New zones are route segments in `apps/shell/app/<name>/` plus an entry in `packages/ui/src/zones.ts`; there are no separate zone apps.
+- New zones are route segments in `apps/shell/app/(workspace)/<name>/` plus an entry in `packages/ui/src/zones.ts`; there are no separate zone apps. Authenticated routes outside `(workspace)/` get no chrome and no idle tracking; only its layout may import `HmsShell` (lint-enforced).
 - Every new/changed panel component needs a Vitest test using `renderWithProviders` from `@helivanta/api/testing`.
 - Before done: `pnpm turbo lint type-check test build format:check` green — this covers `apps/*`, `packages/*`, `e2e/` (lint, type-check, format:check) and `scripts/` (lint, format:check only — see docs/standards/frontend.md); it does not run the Playwright suite itself. Shell scripts have their own gate: `make lint-shell` (shellcheck, every severity) green. Keep `e2e/tests/smoke.spec.ts` selectors working.
 

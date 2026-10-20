@@ -170,6 +170,19 @@ hydration does not change anything visible. Add an e2e assertion that the
 collapsed panel is never painted open after a hard load. If it is not
 visible, record the measurement in the PR and make no change.
 
+**As built (2026-10-20):** the flash was visible. With the panel collapsed
+and navigation expanded, the first paint showed rail 64px / panel 224px
+before snapping to 208px / 0px. It comes from the server HTML, so a production
+build shows it too. `CHROME_INIT_SCRIPT` and the flag keys live in
+`packages/ui/src/chrome-flags.ts`, a module without `"use client"` that the
+server root layout can import. `usePersistedFlag` mirrors each flag to
+`<html>` in a layout effect, so a change from another tab (a `storage` event)
+keeps the attribute in step as well. CSS applies only the non-default values:
+`data-hms-panel="closed"` from every width, and `data-hms-navigation="open"`
+from `md` up. Below `md` the expanded navigation is an overlay that React
+opens after hydration, and its text labels appear on hydration at every
+width. Only the widths are fixed before hydration.
+
 ### D8. Docs corrected in the same change
 
 - `docs/standards/frontend.md` §2: the example becomes "the workspace layout

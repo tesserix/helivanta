@@ -9,18 +9,19 @@ new code in the same area.
 
 ## 1. App anatomy
 
-Helivanta's clinician frontend is **one** Next.js app, `apps/shell`, on port
-4301. MediCore, Pharmacy and Lab ("zones") are route segments inside it —
-`app/medicore/`, `app/pharmacy/`, `app/lab/` — not separate apps (#933,
+Helivanta's clinician frontend is **one** Next.js app, `apps/shell`, on
+port 4301. MediCore, Pharmacy and Lab ("zones") are route segments inside it —
+`app/(workspace)/medicore/`, `app/(workspace)/pharmacy/`,
+`app/(workspace)/lab/` — not separate apps (#933,
 design spec `docs/superpowers/specs/2026-10-13-one-next-app-design.md`;
 ADR-0010). A zone is a product area of one app, not a deployment unit:
 entitlement decides what a tenant sees at runtime, not which apps exist.
 
-| Zone     | Routes                                      | Components                     |
-| -------- | ------------------------------------------- | ------------------------------ |
-| MediCore | `app/medicore/{opd,ipd}`                    | `components/medicore/`         |
-| Pharmacy | `app/pharmacy`, `app/pharmacy/medications`  | `components/pharmacy/`         |
-| Lab      | `app/lab`                                   | `components/lab/`              |
+| Zone     | Routes                                                             | Components             |
+| -------- | ------------------------------------------------------------------ | ---------------------- |
+| MediCore | `app/(workspace)/medicore/{opd,ipd}`                               | `components/medicore/` |
+| Pharmacy | `app/(workspace)/pharmacy`, `app/(workspace)/pharmacy/medications` | `components/pharmacy/` |
+| Lab      | `app/(workspace)/lab`                                              | `components/lab/`      |
 
 `apps/shell/next.config.ts` sets `output: "standalone"` (the app builds and
 deploys as one self-contained server, `Dockerfile.shell`) and
@@ -29,7 +30,8 @@ TypeScript source packages, not pre-built libraries, so Next compiles them).
 Its one rewrite sends `/api/:path*` to the Go backend for `next dev`;
 production routes `/api/v1/*` at the ingress instead.
 
-Adding a zone is a route segment under `apps/shell/app/<name>/`, its
+Adding a zone is a route segment under
+`apps/shell/app/(workspace)/<name>/`, its
 components under `apps/shell/components/<name>/`, and an entry in
 `packages/ui/src/zones.ts` (section 6). There is no generator: a new zone
 is ordinary routes in the existing app.
@@ -62,7 +64,8 @@ Pages and layouts (`app/page.tsx`, `app/layout.tsx`) are React Server
 Components by default — no `"use client"` directive, no hooks, no event
 handlers. All interactivity — forms, mutations, polling, local state —
 lives in a `components/*.tsx` file marked `"use client"` that the server
-page renders. `apps/shell/app/pharmacy/page.tsx` renders `HmsShell` around
+page renders. The workspace layout, `apps/shell/app/(workspace)/layout.tsx`,
+renders `HmsShell`; `apps/shell/app/(workspace)/pharmacy/page.tsx` renders
 `<DispenseList />`, and `DispenseList` itself is the client component in
 `apps/shell/components/pharmacy/dispense-list.tsx`.
 
@@ -90,6 +93,7 @@ backend's own `Set-Cookie`, rather than reading or mutating panel data,
 so wrapping them in TanStack Query's cache/retry machinery would be
 wrong, not just unnecessary. Today that set is exactly two functions,
 both in `apps/shell/lib/`, both documented at their own definition:
+
 - `exchangeIdToken` (`lib/auth-exchange.ts`) — `POST /v1/auth/login`,
   called once, by the login callback
   (`app/api/auth/callback/page.tsx`), to exchange a fresh Zitadel ID
@@ -267,21 +271,41 @@ page or a whole new zone means adding an entry to the `ZONES` array
 there; nothing else in the shell chrome should hardcode zone labels,
 hrefs, or icons.
 
-`HmsShell`'s `active` prop is the current page's absolute path (e.g.
-`"/pharmacy/medications"`), not a zone key or a boolean. `HmsShell`
-derives the active zone and active page from that path (via
-`activeZone()` in `zones.ts`) and uses it to set `aria-current="page"`
-on the matching rail and panel links (section 10). Every page
-renders `<HmsShell active="/pharmacy">...</HmsShell>`
-with its own literal path.
+The chrome is rendered once, by the workspace layout
+`apps/shell/app/(workspace)/layout.tsx` (#1091, design spec
+`docs/superpowers/specs/2026-10-20-workspace-layout-design.md`). A layout
+persists across client-side navigation, so the rail, panel, header and idle
+tracker mount once per page load, not once per page;
+`e2e/tests/navigation.spec.ts` fails if a move remounts them. Every
+authenticated route lives under `app/(workspace)/`; the public routes (`/`,
+`/login`, `/signup`, `/logout`, `/ambulance`, `/api/*`) stay outside it. A
+route group does not change URLs. **A new authenticated route placed outside
+the group gets no chrome and no idle tracking**, so put it inside. Pages
+render their content only: importing `HmsShell` anywhere else in
+`apps/shell` is a lint error. The layout always passes the tenant switcher,
+which renders nothing for a user with fewer than two memberships.
+
+`HmsShell` reads the current path itself with `usePathname()`; there is no
+`active` prop. The active zone comes from `activeZone()` and the active page
+from `activePage()` (both in `zones.ts`): the panel link whose `href` the
+path equals or sits under, the longest one winning, so
+`/emergency/bases/b/cases/c` marks `/emergency`. When nothing matches, no
+panel link is marked. These set `aria-current="page"` on the matching rail
+and panel links (section 10).
+
+The panel and navigation open/closed flags are stored in `localStorage`,
+which the server cannot read. `CHROME_INIT_SCRIPT` (root layout, next to the
+theme script) stamps them on `<html>` before paint, and `packages/ui/styles.css`
+sizes the chrome from those attributes, so a collapsed panel is never painted
+open on a hard load.
 
 ### Idle session tracking
 
 Interaction tracking for the idle-timeout feature (#848, design spec D2/
 D4/D7) lives in `@helivanta/ui` (`packages/ui/src/idle-timer.ts`), mounted once
 by `HmsShell` (`packages/ui/src/hms-shell.tsx`) — **not** in `apps/shell`.
-Every page renders `HmsShell`, so every page inherits the same tracker
-automatically; tracking on only some pages would count a clinician
+The workspace layout renders `HmsShell` once, so every authenticated page
+inherits the same tracker automatically; tracking on only some pages would count a clinician
 working inside a zone as idle and sign them out mid-consultation. Do not
 add a second, page-local copy of this tracking — if a zone needs something
 the shared tracker does not do, extend `createIdleTracker` rather than
@@ -437,7 +461,7 @@ three zones (create an OPD visit, see it queued for dispense in
 Pharmacy, dispense it) across actual hard navigations between apps.
 
 **No two e2e spec files may share a login account.** Signing out writes a
-revocation watermark that is per *subject* and global across every tenant
+revocation watermark that is per _subject_ and global across every tenant
 and device (#781) — so a spec that signs out invalidates every live
 session for that account, including sessions other specs are using. Under
 parallel workers that is a race; run serially it is a certainty. Each
@@ -505,7 +529,7 @@ the 6.0 alias: it owns typescript-eslint, and without it pnpm resolves
 typescript-eslint's peer to 7.0 and lint refuses to start. Remove the 6.0
 alias once typescript-eslint supports TypeScript 7
 ([typescript-eslint#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940)).
-  There is no blanket exclusion.
+There is no blanket exclusion.
 
 Running the suite itself is still a separate step — this command is static
 checks only, it does not execute a single Playwright spec:
@@ -568,11 +592,13 @@ on the caller's resolved permissions, fetched from
 
 ```tsx
 const { can } = usePermissions();
-{can("pharmacy.medication.write") && <CreateMedicationButton />}
+{
+  can("pharmacy.medication.write") && <CreateMedicationButton />;
+}
 
 <Can permission="pharmacy.dispense.fulfil">
   <DispenseButton />
-</Can>
+</Can>;
 ```
 
 This is a **convenience layer only** — it decides what to show, not

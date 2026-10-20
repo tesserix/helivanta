@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -29,6 +30,10 @@ const noteDeadlineSpy = vi.hoisted(() => vi.fn());
 // `BroadcastChannel` message from another tab would (idle-timer.ts's own
 // onmessage handler calls exactly this method), without re-testing
 // BroadcastChannel delivery itself (already covered in idle-timer.test.ts).
+// HmsShell reads the path itself (#1091); each test sets it before rendering.
+const pathname = vi.hoisted(() => ({ current: "/" }));
+vi.mock("next/navigation", () => ({ usePathname: () => pathname.current }));
+
 const createdTrackers = vi.hoisted(() => [] as IdleTracker[]);
 vi.mock("./idle-timer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./idle-timer")>();
@@ -69,6 +74,7 @@ describe("HmsShell", () => {
     endZitadelSession.mockResolvedValue(true);
     noteDeadlineSpy.mockReset();
     createdTrackers.length = 0;
+    pathname.current = "/";
     // Deliberately different from the seeded cache: the two prove
     // different things. If the stub matched the cache, `Lab` would render
     // whether or not the cache was ever read, since the network response
@@ -101,14 +107,22 @@ describe("HmsShell", () => {
   // one — usePermissions paints from cache before the fetch resolves.
   it("paints the cached zone before the network response arrives", async () => {
     seedCache(["lab.order.read"]);
-    renderWithProviders(<HmsShell active="/">content</HmsShell>);
+    renderWithProviders(<HmsShell>content</HmsShell>);
 
     expect(screen.getByLabelText("Lab")).toBeInTheDocument();
   });
 
+  // The footer is chrome: pages no longer render it themselves (#1091).
+  it("renders the Powered by footer around the page content", () => {
+    renderWithProviders(<HmsShell>content</HmsShell>);
+
+    expect(screen.getByText(/Powered by/)).toBeInTheDocument();
+  });
+
   // "/" is the public landing page, so the in-app home link targets the dashboard.
   it("links the rail logo to the dashboard, not the public homepage", () => {
-    renderWithProviders(<HmsShell active="/dashboard">content</HmsShell>);
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
 
     expect(screen.getByRole("link", { name: "Helivanta home" })).toHaveAttribute(
       "href",
@@ -120,7 +134,7 @@ describe("HmsShell", () => {
   // user's nav, so signing out drops the cached set.
   it("clears the cached permissions when signing out", async () => {
     seedCache(["lab.order.read"]);
-    const { user } = renderWithProviders(<HmsShell active="/">content</HmsShell>);
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
     await user.click(screen.getByLabelText("Sign out"));
 
@@ -138,7 +152,7 @@ describe("HmsShell", () => {
   it("POSTs to /logout AND ends the Zitadel session by default when no onSignOut is supplied", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
     vi.stubGlobal("fetch", fetchMock);
-    const { user } = renderWithProviders(<HmsShell active="/">content</HmsShell>);
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
     await user.click(screen.getByLabelText("Sign out"));
 
@@ -164,7 +178,7 @@ describe("HmsShell", () => {
     storeRenewAt(new Date(Date.now() + 60_000).toISOString());
     expect(window.sessionStorage.getItem(RENEW_AT_KEY)).not.toBeNull();
 
-    const { user } = renderWithProviders(<HmsShell active="/">content</HmsShell>);
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
     await user.click(screen.getByLabelText("Sign out"));
 
     await waitFor(() => expect(window.sessionStorage.getItem(RENEW_AT_KEY)).toBeNull());
@@ -177,7 +191,7 @@ describe("HmsShell", () => {
   it("does not navigate itself even when ending the Zitadel session falls back", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200 }));
     endZitadelSession.mockResolvedValue(false);
-    const { user } = renderWithProviders(<HmsShell active="/">content</HmsShell>);
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
     await user.click(screen.getByLabelText("Sign out"));
 
@@ -206,11 +220,7 @@ describe("HmsShell", () => {
           resolveSignOut = resolve;
         }),
     );
-    const { user } = renderWithProviders(
-      <HmsShell active="/" onSignOut={onSignOut}>
-        content
-      </HmsShell>,
-    );
+    const { user } = renderWithProviders(<HmsShell onSignOut={onSignOut}>content</HmsShell>);
 
     await user.click(screen.getByLabelText("Sign out"));
 
@@ -236,7 +246,7 @@ describe("HmsShell", () => {
         json: async () => ({ data: [] }),
       });
       vi.stubGlobal("fetch", fetchMock);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       window.dispatchEvent(new Event("keydown"));
 
@@ -260,7 +270,7 @@ describe("HmsShell", () => {
         return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
       });
       vi.stubGlobal("fetch", fetchMock);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       window.dispatchEvent(new Event("keydown"));
 
@@ -295,7 +305,7 @@ describe("HmsShell", () => {
         return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
       });
       vi.stubGlobal("fetch", fetchMock);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       window.dispatchEvent(new Event("keydown"));
 
@@ -330,7 +340,7 @@ describe("HmsShell", () => {
     // deadline from a successful activity response.
     it("reports activity on mount, before any interaction, so an untouched terminal still gets a schedule", async () => {
       const fetchMock = stubActivityFetch(() => new Date(Date.now() + 15 * 60_000));
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await waitFor(() =>
         expect(fetchMock).toHaveBeenCalledWith(
@@ -346,7 +356,7 @@ describe("HmsShell", () => {
       vi.useFakeTimers();
       const deadline = new Date(Date.now() + WARNING_LEAD_MS + 5_000);
       stubActivityFetch(() => deadline);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       // Let the mount-seeded activity call resolve and its
       // .then(noteDeadline) run, which schedules onWarn ~5s out.
@@ -383,7 +393,7 @@ describe("HmsShell", () => {
       vi.useFakeTimers();
       const deadline = new Date(Date.now() + WARNING_LEAD_MS + 1_000);
       const fetchMock = stubActivityFetch(() => deadline);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1_000);
@@ -421,7 +431,7 @@ describe("HmsShell", () => {
       vi.useFakeTimers();
       const shortDeadline = new Date(Date.now() + WARNING_LEAD_MS + 5_000);
       stubActivityFetch(() => shortDeadline);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(0);
@@ -496,7 +506,7 @@ describe("HmsShell", () => {
         return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
       });
       vi.stubGlobal("fetch", fetchMock);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       // 65s: past both the warn point (WARNING_LEAD_MS + 65s - WARNING_LEAD_MS
       // = 65s) AND the mount seed's debounce window (60s), so the
@@ -522,7 +532,7 @@ describe("HmsShell", () => {
       vi.useFakeTimers();
       const deadline = new Date(Date.now() + WARNING_LEAD_MS + 1_000);
       stubActivityFetch(() => deadline);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1_000);
@@ -546,7 +556,7 @@ describe("HmsShell", () => {
     it("does not fire a second activity POST for a qualifying interaction immediately after the mount seed", async () => {
       vi.useFakeTimers();
       const fetchMock = stubActivityFetch(() => new Date(Date.now() + 15 * 60_000));
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(0);
@@ -596,7 +606,7 @@ describe("HmsShell", () => {
       // warn point (max(0, deadline - WARNING_LEAD_MS - now), floored at
       // 0 here since 5s < WARNING_LEAD_MS) and the deadline itself.
       const fetchMock = stubActivityFetch(() => new Date(Date.now() + 5_000));
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       // Two advances: the first crosses the deadline and fires onExpire,
       // whose async body (fetch("/logout") → endZitadelSession(mark))
@@ -639,7 +649,7 @@ describe("HmsShell", () => {
       seedCache(["patients:read"]);
       expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).not.toBeNull();
       stubActivityFetch(() => new Date(Date.now() + 5_000));
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(5_000);
@@ -663,7 +673,7 @@ describe("HmsShell", () => {
     it("never calls anything beyond this-browser teardown on expiry", async () => {
       vi.useFakeTimers();
       const fetchMock = stubActivityFetch(() => new Date(Date.now() + 5_000));
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(5_000);
@@ -704,7 +714,7 @@ describe("HmsShell", () => {
         return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
       });
       vi.stubGlobal("fetch", fetchMock);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" }));
       await waitFor(() => expect(endZitadelSession).toHaveBeenCalledWith(IDLE_ENDED_MARK));
@@ -735,7 +745,7 @@ describe("HmsShell", () => {
         return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
       });
       vi.stubGlobal("fetch", fetchMock);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" }));
       // Teardown ran (endZitadelSession was called), but with no mark —
@@ -763,7 +773,7 @@ describe("HmsShell", () => {
         return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
       });
       vi.stubGlobal("fetch", fetchMock);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await waitFor(() =>
         expect(fetchMock).toHaveBeenCalledWith(
@@ -798,7 +808,8 @@ describe("expandable navigation", () => {
   afterEach(() => vi.unstubAllGlobals());
   it("shows zone labels and preserves the expanded preference", async () => {
     seedCache(["patient.read", "lab.order.read"]);
-    const { user, unmount } = renderWithProviders(<HmsShell active="/patients">content</HmsShell>);
+    pathname.current = "/patients";
+    const { user, unmount } = renderWithProviders(<HmsShell>content</HmsShell>);
     await user.click(screen.getByRole("button", { name: "Expand navigation" }));
     const navigation = screen.getByRole("navigation", { name: "Zones" });
     expect(navigation).toHaveTextContent("Patients");
@@ -809,7 +820,8 @@ describe("expandable navigation", () => {
     );
     expect(window.localStorage.getItem("hms.navigation.open")).toBe("1");
     unmount();
-    renderWithProviders(<HmsShell active="/patients">content</HmsShell>);
+    pathname.current = "/patients";
+    renderWithProviders(<HmsShell>content</HmsShell>);
     expect(await screen.findByRole("button", { name: "Collapse navigation" })).toBeInTheDocument();
   });
   it("keeps navigation usable when preference storage is unavailable", async () => {
@@ -819,12 +831,94 @@ describe("expandable navigation", () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("storage unavailable");
     });
-    const { user } = renderWithProviders(<HmsShell active="/patients">content</HmsShell>);
+    pathname.current = "/patients";
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
     await user.click(screen.getByRole("button", { name: "Expand navigation" }));
     expect(screen.getByRole("button", { name: "Collapse navigation" })).toHaveAttribute(
       "aria-expanded",
       "true",
     );
     vi.restoreAllMocks();
+  });
+
+  // #1091 D3: the shell reads the path itself, and a page nested below a
+  // panel link marks that link, the longest match, as the current one.
+  it("marks the longest matching panel link current on a nested path", () => {
+    seedCache(["emergency.base.read", "emergency.crew.read"]);
+    pathname.current = "/emergency/bases/b/cases/c";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+
+    const panel = screen.getByRole("navigation", { name: "EmergencyConnect" });
+    const current = panel.querySelectorAll('[aria-current="page"]');
+    expect(current).toHaveLength(1);
+    expect(current[0]).toHaveAccessibleName("Operating bases & reports");
+  });
+
+  // #1091: one layout owns the shell, so a navigation is a re-render with a
+  // new path, never a remount. The open idle warning and its tracker must
+  // survive it.
+  it("keeps the idle warning across a pathname change", async () => {
+    vi.useFakeTimers();
+    const deadline = new Date(Date.now() + WARNING_LEAD_MS + 5_000);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => ({
+        ok: true,
+        status: 200,
+        json: async () =>
+          String(url).includes("/auth/session/activity")
+            ? { idle_deadline: deadline.toISOString() }
+            : {
+                data: ["pharmacy.dispense.read", "lab.order.read"],
+                subject: "doc",
+                tenant_id: "tenant-a",
+              },
+      })),
+    );
+    let navigate: (path: string) => void = () => {};
+    function Workspace() {
+      const [, setPath] = useState(pathname.current);
+      navigate = (path) => {
+        pathname.current = path;
+        setPath(path);
+      };
+      return <HmsShell>content</HmsShell>;
+    }
+    createdTrackers.length = 0;
+    pathname.current = "/pharmacy";
+    renderWithProviders(<Workspace />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    const trackerBeforeNavigation = createdTrackers[0];
+    act(() => navigate("/lab"));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(createdTrackers).toHaveLength(1);
+    expect(createdTrackers[0]).toBe(trackerBeforeNavigation);
+    // This describe has no afterEach; later tests use real timers.
+    vi.useRealTimers();
+  });
+
+  // #1091 D7: styles.css sizes the chrome from these attributes, so they must
+  // follow the flag whichever way it changes, or the CSS would hold a panel
+  // shut that React has opened.
+  it("mirrors the panel state to <html> when toggled here and from another tab", async () => {
+    window.localStorage.clear();
+    delete document.documentElement.dataset.hmsPanel;
+    pathname.current = "/patients";
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(document.documentElement.dataset.hmsPanel).toBe("open");
+
+    await user.click(screen.getByRole("button", { name: "Collapse page panel" }));
+    expect(document.documentElement.dataset.hmsPanel).toBe("closed");
+
+    act(() => {
+      window.localStorage.setItem("hms.panel.open", "1");
+      window.dispatchEvent(new StorageEvent("storage", { key: "hms.panel.open" }));
+    });
+    expect(document.documentElement.dataset.hmsPanel).toBe("open");
   });
 });

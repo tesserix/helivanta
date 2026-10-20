@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ZONES, visibleZones, type Zone } from "./zones";
+import { ZONES, activePage, visibleZones, type Zone } from "./zones";
 
 // Mirrors the real can() semantics (packages/api/src/permissions.tsx):
 // "public" always resolves true, everything else must be explicitly
@@ -141,4 +141,26 @@ it("opens only the receiving inbox for a hospital receiver", () => {
   );
   expect(emergency?.href).toBe("/emergency/receiving");
   expect(emergency?.pages.map((page) => page.href)).toEqual(["/emergency/receiving"]);
+});
+
+describe("activePage", () => {
+  const zone = (key: string) => ZONES.find((z) => z.key === key)!;
+
+  it("marks an exact page match", () => {
+    expect(activePage(zone("pharmacy"), "/pharmacy/medications")?.href).toBe(
+      "/pharmacy/medications",
+    );
+  });
+  it("marks the page a nested path sits under", () => {
+    expect(activePage(zone("emergency"), "/emergency/bases/b/cases/c")?.href).toBe("/emergency");
+  });
+  it("prefers the longest matching page over a shorter prefix", () => {
+    expect(activePage(zone("workforce"), "/workforce/setup")?.href).toBe("/workforce/setup");
+  });
+  it("matches only at a segment boundary", () => {
+    expect(activePage(zone("pharmacy"), "/pharmacyx")).toBeUndefined();
+  });
+  it("marks nothing when no page matches", () => {
+    expect(activePage(zone("pharmacy"), "/lab")).toBeUndefined();
+  });
 });

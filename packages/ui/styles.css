@@ -135,6 +135,23 @@
   border-color: var(--sidebar-border) !important;
 }
 
+/* Stored chrome layout from the first paint (#1091 D7). The server renders the
+   defaults (panel open, navigation collapsed); CHROME_INIT_SCRIPT stamps the
+   stored values on <html> before paint and HmsShell keeps them in step, so
+   these rules only differ from the utilities while React has not yet applied
+   the stored state. Unlayered, so they beat the layered width utilities.
+   Only the non-default values need a rule. The open navigation is sized from
+   md up only: below md it is an overlay React opens after hydration, and
+   widening it in flow there would push the page. */
+html[data-hms-panel="closed"] .hms-page-panel {
+  width: 0;
+}
+@media (min-width: 48rem) {
+  html[data-hms-navigation="open"] .hms-rail {
+    width: 13rem;
+  }
+}
+
 /* Autofill honours the theme (#858).
    Chrome and Safari paint an autofilled field with their OWN colours
    (measured on the dark login card: background rgb(232,240,254), text

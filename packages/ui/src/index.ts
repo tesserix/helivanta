@@ -1,5 +1,13 @@
 export { HmsShell } from "./hms-shell";
-export { ZONES, activeZone, visibleZones, type Zone, type ZoneHue, type ZonePage } from "./zones";
+export {
+  ZONES,
+  activeZone,
+  activePage,
+  visibleZones,
+  type Zone,
+  type ZoneHue,
+  type ZonePage,
+} from "./zones";
 export { ConfirmDialog } from "./confirm-dialog";
 export { IdleWarning, type IdleWarningProps } from "./idle-warning";
 export { Field, useZodForm } from "./form";
@@ -15,6 +23,7 @@ export { LoadMore } from "./load-more";
 export { formatDateTime, formatTime } from "./format";
 export { sanitizeHtml } from "./sanitize";
 export { THEME_STORAGE_KEY, THEME_INIT_SCRIPT, ThemeToggle, useThemeAttribute } from "./theme";
+export { CHROME_INIT_SCRIPT } from "./chrome-flags";
 export { SIGNED_OUT_MARK, IDLE_ENDED_MARK, endZitadelSession } from "./zitadel-session";
 export {
   ACTIVITY_DEBOUNCE_MS,

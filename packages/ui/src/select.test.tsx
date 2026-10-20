@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { SelectControl } from "./select";
+
+// HmsShell reads the current path itself (#1091).
+vi.mock("next/navigation", () => ({ usePathname: () => "/dashboard" }));
 
 function Picker() {
   const [value, setValue] = useState("A");
@@ -79,7 +82,6 @@ it("carries the tenant theme into a menu rendered outside the workspace", async 
   const { DEFAULT_BRANDING } = await import("@helivanta/api");
   const { renderWithProviders } = await import("@helivanta/api/testing");
   const { HmsShell } = await import("./hms-shell");
-  const { vi } = await import("vitest");
   vi.stubGlobal(
     "fetch",
     vi.fn(
@@ -95,7 +97,7 @@ it("carries the tenant theme into a menu rendered outside the workspace", async 
     ),
   );
   const { user } = renderWithProviders(
-    <HmsShell active="/dashboard">
+    <HmsShell>
       <Picker />
     </HmsShell>,
   );

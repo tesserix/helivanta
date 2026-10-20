@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AppProviders } from "@helivanta/api";
-import { THEME_INIT_SCRIPT } from "@helivanta/ui";
+import { CHROME_INIT_SCRIPT, THEME_INIT_SCRIPT } from "@helivanta/ui";
 import { SessionRenewal } from "@/components/session-renewal";
 import "./globals.css";
 
@@ -23,6 +23,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             get full hydration checking. */}
         {/* eslint-disable-next-line no-restricted-syntax */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* Same reasoning as the theme script above, for the chrome's stored
+            panel and navigation state (#1091 D7): stamped on <html> before
+            paint so a collapsed panel is never drawn open first. Static and
+            package-authored, so sanitizeHtml does not apply. */}
+        {/* eslint-disable-next-line no-restricted-syntax */}
+        <script dangerouslySetInnerHTML={{ __html: CHROME_INIT_SCRIPT }} />
         <AppProviders>
           <SessionRenewal />
           {children}

@@ -59,6 +59,7 @@ Binding rules for all frontend work. Full document: docs/standards/frontend.md
 - Permission gating uses `Can`/`usePermissions` from `@helivanta/api` and is convenience only — the API enforces. Every zone/page in `packages/ui/src/zones.ts` declares a permission.
 - Styling: design tokens only — no hardcoded colors. Read the pitfall comments in `packages/ui/styles.css` before touching sidebar/border styles.
 - New zones are route segments in `apps/shell/app/(workspace)/<name>/` plus an entry in `packages/ui/src/zones.ts`; there are no separate zone apps. Authenticated routes outside `(workspace)/` get no chrome and no idle tracking; only its layout may import `HmsShell` (lint-enforced).
+- Every response carries an enforced nonce CSP (`apps/shell/lib/csp.ts`, #1113): inline `<script>` needs the request nonce, a library that injects `<style>` before hydration needs a hash with a test (spec D5), and a new browser-called origin goes in the policy. `e2e/tests/csp.spec.ts` fails on any violation.
 - Every new/changed panel component needs a Vitest test using `renderWithProviders` from `@helivanta/api/testing`.
 - Before done: `pnpm turbo lint type-check test build format:check` green — this covers `apps/*`, `packages/*`, `e2e/` (lint, type-check, format:check) and `scripts/` (lint, format:check only — see docs/standards/frontend.md); it does not run the Playwright suite itself. Shell scripts have their own gate: `make lint-shell` (shellcheck, every severity) green. Keep `e2e/tests/smoke.spec.ts` selectors working.
 

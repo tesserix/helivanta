@@ -146,6 +146,18 @@ That is why the cost is expected to be small. The measurement, not this
 expectation, decides. If a navigation round trip is more than 150 ms at the
 median, the builder stops and brings the numbers back before going further.
 
+**As built (2026-10-20):** measured on the same machine against `next start`
+production builds of `main` (`d3cd99a`) and of this branch.
+
+|                                                   | `main` (static)     | branch (dynamic)                                          |
+| ------------------------------------------------- | ------------------- | --------------------------------------------------------- |
+| `/login` time to first byte, median of 50         | 1.85 ms             | 4.32 ms                                                   |
+| `Cache-Control` on HTML                           | `s-maxage=31536000` | `private, no-cache, no-store, max-age=0, must-revalidate` |
+| Rail move Lab ↔ PharmaConnect, median / p90 of 20 | 81 / 96 ms          | 79 / 96 ms                                                |
+
+Navigation did not get slower, so the 150 ms stop did not apply. 43 of 44
+routes are dynamic; the static one is `/icon.svg`, which is not HTML.
+
 ### D4. Inline scripts carry the nonce
 
 The root layout passes `nonce={nonce}` to the two package-authored inline
@@ -172,6 +184,23 @@ browser:
    tree (1.0.1), so it resolves to the same module instance.
 3. **React's hoisted `<style precedence>`** is unused in this codebase. It
    would carry a nonce if anyone added one.
+
+**As built (2026-10-20):** the e2e test in D7 found two more style sources
+that a scan of this codebase could not see.
+
+- `sonner` appends its `<style>` empty and fills it afterwards, and the browser
+  checks the empty element as well. The policy also allows the hash of the
+  empty string (`EMPTY_STYLE_HASH`); an empty stylesheet applies nothing.
+- `@tesserix/web`'s sign-in components (`AuthField`, `AuthProviderButton`,
+  `AuthPanel`) render `<style>` on the client with no nonce prop. `AuthPanel`'s
+  CSS is built from the tenant's branding colours, so no hash can name it.
+  `StyleNonce` therefore also stamps the nonce on every `<style>` created
+  through `document.createElement`, which is how React creates them. This is
+  `'strict-dynamic'` applied to styles: code that is already running may add
+  styles, and injected markup stays blocked, because the parser does not call
+  `createElement`. `StyleNonce` latches the first nonce it sees. A later render
+  carries the RSC request's own nonce, which the page's policy never named.
+  Nonce support in `@tesserix/web` would let this stamping go.
 
 The nonce reaches the client inside the RSC payload, not in an attribute. CSS
 attribute selectors can read attributes, and browsers hide the `nonce`
@@ -240,6 +269,20 @@ is #861's job.
      `<script>` element, and an `onerror` attribute on an `<img>`) does not
      run, and a report arrives at `/api/csp-report`. On `main` both run.
 6. **`smoke.spec.ts`** passes unchanged under the enforced policy.
+
+**As built (2026-10-20):**
+
+- The injection test splices its payload into the real `/dashboard` HTML
+  through `page.route`, with the real policy header left in place.
+  `'strict-dynamic'` deliberately trusts scripts that running code inserts,
+  including `createContextualFragment` output, so an in-page `page.evaluate`
+  cannot model an HTML-injection bug.
+- The recorder ignores violations from Next's development overlay chunk
+  (`_next-devtools_`). That overlay styles its shadow-DOM portal without a
+  nonce, and it never ships in a production build. Against `next start` the
+  test passes with nothing filtered.
+- No toast is raised. `sonner` inserts its stylesheet at module load, so every
+  page visit checks it.
 
 The emergency suite's standalone production server serves `/ambulance`, so
 that page is covered under the production policy without `'unsafe-eval'`.

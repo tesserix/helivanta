@@ -375,19 +375,26 @@ rest of the app.
 
 The root layout wraps `children` in `AppProviders` from
 `@helivanta/api` — this is what mounts the shared `QueryClientProvider` and
-the `<Toaster />` that sections 3 and 5 depend on. `apps/shell/app/layout.tsx`:
+the `<Toaster />` that sections 3 and 5 depend on. `apps/shell/app/layout.tsx`
+(trimmed):
 
 ```tsx
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const nonce = (await headers()).get("x-nonce");
+  if (!nonce) throw new Error("missing CSP nonce: middleware did not run");
   return (
-    <html lang="en" data-theme="default">
+    <html lang="en" data-theme="default" suppressHydrationWarning>
       <body>
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+        />
         <AppProviders>
-          <SessionRenewal />
+          <StyleNonce nonce={nonce} />
           {children}
         </AppProviders>
       </body>
@@ -400,6 +407,28 @@ A layout that renders `children` directly without `AppProviders` will
 compile and run, but every `useApiQuery`/`useApiMutation` call beneath
 it throws at runtime because there's no `QueryClientProvider` in the
 tree.
+
+### Content-Security-Policy
+
+Every shell response carries an enforced, per-request nonce policy (#1113,
+`apps/shell/lib/csp.ts`, spec
+`docs/superpowers/specs/2026-10-20-nonce-csp-design.md`). `middleware.ts`
+mints the nonce; the root layout reads it, which makes every page dynamic.
+What that means for code:
+
+- An inline `<script>` needs `nonce={nonce}`. `'strict-dynamic'` trusts
+  whatever a nonced script loads, so bundles and `next/script` need nothing.
+- A `<style>` element is allowed only by nonce or hash. React-rendered and
+  script-created ones are nonced by `StyleNonce`
+  (`apps/shell/components/style-nonce.tsx`). A library that inserts a
+  stylesheet before hydration (sonner) is allowed by hash, with a test that
+  recomputes the hash from the installed package (`lib/csp.test.ts`).
+- `style="…"` attributes are allowed (`style-src-attr 'unsafe-inline'`).
+- A new origin the browser must call (`connect-src`) or load images from
+  goes in `contentSecurityPolicy`, with its reason.
+- `e2e/tests/csp.spec.ts` visits every page and fails on any violation.
+  Production violations are logged by `app/api/csp-report/route.ts` as
+  `csp violation` lines.
 
 ## 9. Copy rules
 

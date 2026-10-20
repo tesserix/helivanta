@@ -16,10 +16,13 @@ let documentNonce: string | undefined;
 // not call createElement) stays blocked. Runs during render, before any child
 // can open a dialog or render a style.
 export function StyleNonce({ nonce }: { nonce: string }) {
+  // On the server this module outlives the request; there is no document to
+  // style, and a latched nonce would carry into the next request.
+  if (typeof document === "undefined") return null;
   if (documentNonce === undefined) {
     documentNonce = nonce;
     setNonce(nonce);
-    if (typeof document !== "undefined") stampStyleElements(document, nonce);
+    stampStyleElements(document, nonce);
   }
   return null;
 }

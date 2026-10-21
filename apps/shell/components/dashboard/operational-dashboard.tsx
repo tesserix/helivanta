@@ -3,16 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, CalendarDays, Info, Stethoscope } from "lucide-react";
-import {
-  Button,
-  Input,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@tesserix/web";
+import { Button, Input, Tabs, TabsList, TabsTrigger } from "@tesserix/web";
 import {
   dashboardFiltersSchema,
   dashboardPeriod,
@@ -22,7 +13,16 @@ import {
   usePermissions,
   type DashboardFilters,
 } from "@helivanta/api";
-import { Field, FormSelectField, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  PageHeading,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  SelectControl,
+  useZodForm,
+} from "@helivanta/ui";
 import { TrendChart, type ChartCategory } from "./trend-chart";
 import { CohortBreakdown } from "./cohort-breakdown";
 import { WorkforceInsights } from "./workforce-insights";
@@ -55,13 +55,12 @@ export function OperationalDashboard({ now }: { now?: Date }) {
   const [mode, setMode] = useState<"line" | "bar">("line");
   const [view, setView] = useState<"overview" | "clinical" | "services" | "team">("overview");
   const [rangeOpen, setRangeOpen] = useState(false);
-  // The Group by menu renders its options in a portal, outside the popover, so
-  // the popover sees choosing one as a click outside. Ignore close requests
-  // while a listbox is open; Escape and a real outside click still close it.
-  const changeRange = (open: boolean) => {
-    if (!open && document.querySelector("[role=listbox]")) return;
-    setRangeOpen(open);
+  const applyPeriod = (key: (typeof periods)[number]["key"]) => {
+    const next = dashboardPeriod(now ?? new Date(), key, filters.timezone);
+    form.reset(next);
+    setFilters(next);
   };
+
   const hasAnalytics =
     can("medicore.visit.read") || can("pharmacy.dispense.read") || can("lab.order.read");
   const views = [
@@ -90,25 +89,31 @@ export function OperationalDashboard({ now }: { now?: Date }) {
               aria-label="Reporting period"
               className="flex flex-wrap items-center gap-2"
             >
-              <div className="flex rounded-md border bg-card p-0.5">
+              {/* Five range buttons do not fit a phone; below sm they are one menu. */}
+              <div className="w-36 sm:hidden">
+                <SelectControl
+                  aria-label="Quick range"
+                  value=""
+                  placeholder="Quick range"
+                  onValueChange={(key) => applyPeriod(key as (typeof periods)[number]["key"])}
+                  options={periods.map((period) => ({ value: period.key, label: period.label }))}
+                />
+              </div>
+              <div className="hidden rounded-md border bg-card p-0.5 sm:flex">
                 {periods.map((period) => (
                   <Button
                     key={period.key}
                     size="sm"
                     variant="ghost"
                     className="h-8 px-3 text-muted-foreground hover:text-foreground"
-                    onClick={() => {
-                      const next = dashboardPeriod(now ?? new Date(), period.key, filters.timezone);
-                      form.reset(next);
-                      setFilters(next);
-                    }}
+                    onClick={() => applyPeriod(period.key)}
                   >
                     {period.label}
                   </Button>
                 ))}
               </div>
-              <div className="relative">
-                <Popover open={rangeOpen} onOpenChange={changeRange}>
+              <div>
+                <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
                   <PopoverTrigger
                     aria-label={`Custom range, ${filters.from} to ${filters.to}`}
                     className="inline-flex h-9 items-center gap-2 rounded-md border bg-card px-3 text-sm tabular-nums transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -116,7 +121,7 @@ export function OperationalDashboard({ now }: { now?: Date }) {
                     <CalendarDays className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     {filters.from} – {filters.to}
                   </PopoverTrigger>
-                  <PopoverContent align="end" className="w-[min(32rem,90vw)] bg-popover">
+                  <PopoverContent align="end" aria-label="Custom range" className="w-[32rem]">
                     <form
                       noValidate
                       aria-label="Dashboard filters"
@@ -189,7 +194,13 @@ export function OperationalDashboard({ now }: { now?: Date }) {
         }
       />
       <Tabs value={activeView} onValueChange={(next) => setView(next as typeof view)}>
-        <TabsList aria-label="Dashboard views">
+        {/* Four tabs do not fit a phone: the bar scrolls inside itself rather
+            than widening the page. */}
+        <TabsList
+          aria-label="Dashboard views"
+          data-scroll-x=""
+          className="max-w-full justify-start overflow-x-auto"
+        >
           {views
             .filter((item) => item.allowed)
             .map((item) => (
@@ -318,7 +329,7 @@ function AnalyticsPanel({
           {/* The definition is #1234's measurement contract: hidden from the
               layout, never removed. A click (not hover) opens it, so it works
               on touch and by keyboard. */}
-          <div className="relative">
+          <div>
             <Popover>
               <PopoverTrigger
                 aria-label={`About ${title}`}
@@ -326,7 +337,7 @@ function AnalyticsPanel({
               >
                 <Info className="h-4 w-4" aria-hidden="true" />
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-72 bg-popover text-sm leading-6">
+              <PopoverContent aria-label={`About ${title}`} className="w-72 text-sm leading-6">
                 {description}
               </PopoverContent>
             </Popover>

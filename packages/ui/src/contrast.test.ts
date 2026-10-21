@@ -75,6 +75,9 @@ const PAIRS: [fg: string, bg: string, min: number][] = [
   ["--hms-band-ink", "--hms-band", BODY],
   ["--hms-band-muted", "--hms-band", BODY],
   ["--ring", "--background", UI],
+  // Inline form errors and destructive text sit on cards and tinted tiles.
+  ["--destructive", "--card", BODY],
+  ["--destructive", "--muted", BODY],
 ];
 
 it.each(PAIRS)("%s on %s passes AA", (fg, bg, min) => {
@@ -92,4 +95,29 @@ it.each(["teal", "blue", "indigo"])("brand %s passes AA", (brand) => {
   );
   expect(contrast(tokens["--hms-accent"], tokens["--background"])).toBeGreaterThanOrEqual(BODY);
   expect(contrast(tokens["--hms-accent"], tokens["--hms-accent-dim"])).toBeGreaterThanOrEqual(BODY);
+});
+
+/** `fg` drawn at `alpha` over `bg`, as Tailwind's `text-x/70` renders it. */
+function blend(fg: string, alpha: number, bg: string): string {
+  const channel = (hex: string, i: number) => parseInt(hex.slice(i, i + 2), 16);
+  return (
+    "#" +
+    [1, 3, 5]
+      .map((i) => Math.round(channel(fg, i) * alpha + channel(bg, i) * (1 - alpha)))
+      .map((c) => c.toString(16).padStart(2, "0"))
+      .join("")
+  );
+}
+
+// The chrome draws some text translucent or on a hover fill; those blended
+// pairs are what people actually read.
+it.each([
+  [
+    "rail and panel links",
+    blend(root["--sidebar-foreground"], 0.7, root["--sidebar"]),
+    root["--sidebar"],
+  ],
+  ["muted text on a hover fill", root["--muted-foreground"], root["--accent"]],
+])("%s pass AA", (_name, fg, bg) => {
+  expect(contrast(fg, bg)).toBeGreaterThanOrEqual(BODY);
 });

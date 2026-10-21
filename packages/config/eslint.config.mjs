@@ -6,8 +6,9 @@ import tseslint from "typescript-eslint";
 
 // Raw Tailwind palette colours and hex arbitrary values bypass the design
 // tokens (frontend.md §7, #1255 spec D2), so the one palette could drift again
-// one class at a time.
-const RAW_COLOUR = String.raw`/\b(bg|text|border|ring|fill|stroke|outline|from|to|via|divide|decoration|shadow|placeholder|caret|accent)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b|\b(bg|text|border|ring|fill|stroke)-(white|black)\b|-\[#[0-9a-fA-F]{3,8}\]/`;
+// one class at a time. Variant prefixes (md:, hover:) and arbitrary values
+// (bg-[rgb(…)], [color:#…]) count, and so does a bare hex attribute (SVG fill).
+const RAW_COLOUR = String.raw`/(^|[\s:])(bg|text|border|ring|ring-offset|fill|stroke|outline|from|to|via|divide|decoration|shadow|placeholder|caret|accent)-((slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}|white|black)\b|-\[(#|rgba?\(|hsla?\(|oklch\(|oklab\(|lab\(|lch\()|\[[\w-]+:#[0-9a-fA-F]{3,8}\]|^#[0-9a-fA-F]{3,8}$/`;
 const COLOUR_MESSAGE =
   "Use a design-token utility (frontend.md §7), not a raw Tailwind colour or hex.";
 
@@ -25,7 +26,7 @@ const DESIGN_SYNTAX = [
 
 // The landing page's marketing type reads as a template inside a working tool
 // (#1255 spec D3). Public pages opt out per file in apps/shell's config.
-const MARKETING_TYPE = String.raw`/(^|\s)(font-serif|italic|bg-linear-\S+|bg-gradient-\S+|tracking-(wider|widest|\[0?\.[1-9]\d*em\]))(\s|$)|(^|\s)uppercase\s(.*\s)?tracking-|(^|\s)tracking-\S+\s(.*\s)?uppercase(\s|$)/`;
+const MARKETING_TYPE = String.raw`/(^|[\s:])(font-serif|font-\[[^\]]*serif[^\]]*\]|italic|bg-linear-\S+|bg-gradient-\S+|tracking-(wider|widest|\[(0?\.0[5-9]|0?\.[1-9]|[1-9])[^\]]*\]))(\s|$)|(^|[\s:])uppercase\s(.*\s)?tracking-|(^|[\s:])tracking-\S+\s(.*\s)?uppercase(\s|$)/`;
 const MARKETING_MESSAGE =
   "Marketing type (serif, italic, gradient, wide-tracked or uppercase eyebrow) belongs to the public pages, not the app (#1255 spec D3).";
 const MARKETING_SYNTAX = [
@@ -82,5 +83,15 @@ export function hmsEslint(rootDir, { design = false } = {}) {
       },
       settings: { next: { rootDir } },
     },
+    // Tests assert on colour values themselves (the contrast test) and render
+    // fixtures, so the design rules cover shipped code only. Sanitize stays.
+    ...(design
+      ? [
+          {
+            files: ["**/*.test.{ts,tsx,mjs}"],
+            rules: { "no-restricted-syntax": ["error", SANITIZE_SYNTAX] },
+          },
+        ]
+      : []),
   );
 }

@@ -105,4 +105,56 @@ describe("design rules", () => {
       await lint(`export const A = () => <div dangerouslySetInnerHTML={{ __html: x }} />;`),
     ).toEqual([expect.stringMatching(/sanitizeHtml/)]);
   });
+
+  // #1255 final review: one-character variants must not walk through.
+  it.each([
+    "md:italic",
+    "hover:font-serif",
+    "sm:tracking-widest",
+    "text-xs uppercase md:tracking-wider",
+    "tracking-[0.08em]",
+    "tracking-[2px]",
+    "font-[ui-serif]",
+  ])("rejects variant marketing type: %s", async (classes) => {
+    expect(await messages(`export const A = () => <p className="${classes}" />;`)).toEqual([
+      expect.stringMatching(/Marketing type/),
+    ]);
+  });
+
+  it.each([
+    "bg-[rgb(0,0,0)]",
+    "text-[oklch(0.5_0.1_200)]",
+    "[color:#fff]",
+    "outline-white",
+    "ring-offset-white",
+    "shadow-black",
+  ])("rejects variant raw colour: %s", async (classes) => {
+    expect(await messages(`export const A = () => <p className="${classes}" />;`)).toEqual([
+      expect.stringMatching(/design-token utility/),
+    ]);
+  });
+
+  it("rejects a hex colour in a style or SVG attribute", async () => {
+    expect(await messages(`export const A = () => <svg><path fill="#ff0000" /></svg>;`)).toEqual([
+      expect.stringMatching(/design-token utility/),
+    ]);
+  });
+
+  it("leaves fragment links and hover tokens alone", async () => {
+    const code = `export const A = () => <a href="#emergency-help" className="hover:bg-accent md:tracking-tight">x</a>;`;
+    expect(await messages(code)).toEqual([]);
+  });
+
+  // Tests assert on colour values themselves (the contrast test), so the UI
+  // design rules apply to shipped code only; sanitize still applies everywhere.
+  it("exempts test files from the design rules but not from sanitize", async () => {
+    const lint = async (code) =>
+      (await linter({ design: true }).lintText(code, { filePath: "x.test.tsx" }))[0].messages.map(
+        (m) => m.message,
+      );
+    expect(await lint(`export const pair = ["#000000", "#ffffff"];`)).toEqual([]);
+    expect(
+      await lint(`export const A = () => <div dangerouslySetInnerHTML={{ __html: x }} />;`),
+    ).toEqual([expect.stringMatching(/sanitizeHtml/)]);
+  });
 });

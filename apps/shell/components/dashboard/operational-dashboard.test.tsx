@@ -238,3 +238,39 @@ it("shows each caveat on demand, word for word", async () => {
   await user.click(screen.getByRole("button", { name: "About Laboratory" }));
   expect(screen.getByText(caveat)).toBeVisible();
 });
+
+// #1255 final review: floating panels are announced and keep the user's place.
+it("announces each caveat as a dialog its info button controls", async () => {
+  mockApi();
+  const { user } = renderWithProviders(
+    <OperationalDashboard now={new Date("2026-10-18T10:00:00Z")} />,
+  );
+  await screen.findByRole("region", { name: "Laboratory" });
+  const info = screen.getByRole("button", { name: "About Laboratory" });
+  await user.click(info);
+  const dialog = screen.getByRole("dialog", { name: "About Laboratory" });
+  expect(info).toHaveAttribute("aria-controls", dialog.id);
+});
+
+it("returns focus to the range control after Apply", async () => {
+  mockApi();
+  const { user } = renderWithProviders(
+    <OperationalDashboard now={new Date("2026-10-18T10:00:00Z")} />,
+  );
+  const form = await openFilters(user);
+  await user.click(within(form).getByRole("button", { name: "Apply" }));
+  await waitFor(() => expect(screen.queryByRole("form", { name: "Dashboard filters" })).toBeNull());
+  expect(screen.getByRole("button", { name: /Custom range/ })).toHaveFocus();
+});
+
+// Five range buttons do not fit a 390px phone; below sm they are one menu.
+it("offers the quick ranges as one menu on a phone", async () => {
+  const reads = mockApi();
+  const { user } = renderWithProviders(
+    <OperationalDashboard now={new Date("2026-10-18T10:00:00Z")} />,
+  );
+  const menu = await screen.findByRole("combobox", { name: "Quick range" });
+  expect(menu.closest(".sm\\:hidden")).not.toBeNull();
+  await chooseOption(user, menu, "Today");
+  await waitFor(() => expect(reads.some((url) => url.includes("from=2026-10-18"))).toBe(true));
+});

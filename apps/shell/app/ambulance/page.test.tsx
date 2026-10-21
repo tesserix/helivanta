@@ -37,6 +37,21 @@ describe("public AmbulanceConnect page", () => {
     );
   });
 
+  // Review focus: the picker works by keyboard alone (Enter opens, arrows
+  // move, Enter chooses) and the dial link follows the choice.
+  it("switches country by keyboard alone", async () => {
+    const user = userEvent.setup();
+    render(<AmbulancePage />);
+    const picker = screen.getByRole("combobox", { name: "Where are you?" });
+    picker.focus();
+    await user.keyboard("{Enter}");
+    await screen.findByRole("listbox");
+    await user.keyboard("{ArrowDown}{Enter}");
+    expect(picker).toHaveTextContent("Outside India");
+    expect(screen.queryByRole("link", { name: "Open dialler for 112" })).not.toBeInTheDocument();
+    expect(picker).toHaveFocus();
+  });
+
   // A phone-first emergency page: the control keeps a large touch target.
   it("keeps the country picker large enough to tap", () => {
     render(<AmbulancePage />);

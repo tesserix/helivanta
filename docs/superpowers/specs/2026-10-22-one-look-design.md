@@ -1,0 +1,277 @@
+# One look: the signed-in app takes the home page's design — design
+
+Issue: #1255 (child of #542 Design tokens & theming; resolves #1088)
+Date: 2026-10-22
+
+## Why
+
+Going from the home page (`/`) into the app (`/dashboard`) feels like moving
+into a different product. Measured on 2026-10-21 against a production build:
+
+| | Home page (`.public-site`) | Signed-in app (`packages/ui/styles.css`) |
+|---|---|---|
+| Palette | warm sage — canvas `#fbfcfa`, ink `#173d3a`, primary `#23685d` | cool blue-grey — `#f4f6f9`, navy `#0f1728`, teal `#0e7569` |
+| Dark mode | never | follows the OS (`THEME_INIT_SCRIPT`) |
+| Headline | 72px, tracking −0.055em, serif italic accent line | 36px, sans only |
+| Shapes | pill buttons, 2rem cards, soft shadow | 0.625rem radius, cards inside cards |
+| Density | one idea per screen | four tabs, seven filter controls, a caveat paragraph under every card |
+
+The chrome adds clutter of its own:
+- The Dashboard zone's page panel lists one link ("Departments").
+- The header says "Departments" while the rail says "Dashboard".
+- "Sign out" appears in both the rail and the header.
+
+Two colour systems exist because the home page defines 31 raw hex values in
+`apps/shell/app/globals.css` `.public-site` (#1088). Matching by eye would
+drift again. The fix is structural: one token set that both surfaces read.
+
+## Goals
+
+1. One light palette, the home page's sage, defined once in
+   `packages/ui/styles.css` and read by the public pages and the app alike.
+2. The app's surfaces use the home page's shapes:
+   - pill buttons;
+   - larger card radius;
+   - the soft shadow in place of nested borders;
+   - the headline type on page headings.
+3. The chrome carries no dead weight:
+   - no page panel for a zone with one page;
+   - one "Sign out";
+   - the header names the zone the rail marks current.
+4. The existing dashboard keeps its data and its permission gating, but
+   reads simply:
+   - its filters sit behind one control;
+   - its caveats sit behind an info hint.
+
+"Zone" in this document means a route section of the one Next app,
+`apps/shell` (#933, ADR 0010). Multi-zones are gone, so every change here
+lands once, in one app.
+
+## Non-goals
+
+- **The role-based "Today" landing page.** It belongs to #573's shared
+  dashboard framework (Sam123ben), with tile sets in #574–#582. Building role
+  cards here would be the parallel tile system #573 exists to prevent. A
+  comment on #573 records what was decided: everyone lands on Today and
+  managers reach Insights from it.
+- **Tidying each zone's own pages** (forms, nested cards, explanatory text):
+  - patients, pharmacy, lab, supply, workforce, emergency and settings get
+    one follow-up issue each;
+  - they still inherit the new palette and shapes through the tokens in this
+    change.
+- **New dashboard metrics.** That is #1234.
+- **Readable tenant names in the tenant picker.** `/v1/iam/me/tenants`
+  returns no name, so this needs an IAM change; it gets a follow-up issue.
+- **New typefaces.** The home page uses the system sans and `ui-serif`, so no
+  web font is added.
+
+## Anti-goals
+
+These would make the change a failure even if it looks right:
+
+- Any text/background pair below WCAG 2.2 AA (4.5:1 body, 3:1 large text and
+  UI components).
+- Clinical status colours (`--hms-good`, `--hms-warn`, `--hms-crit`) shifting
+  in meaning or losing contrast.
+- Tenant brand themes (`data-brand-theme` teal/blue/indigo) no longer
+  recolouring primary actions.
+- A new CSP violation, a page reload between zones, or a broken
+  `smoke.spec.ts` selector.
+
+## Decisions
+
+### D1. Light only
+
+- The app stops following the OS dark setting and drops the theme toggle.
+  Taken by the user on 2026-10-22.
+- Remove:
+  - `THEME_INIT_SCRIPT` and its nonce'd `<script>` in `apps/shell/app/layout.tsx`;
+  - `ThemeToggle` and `useThemeAttribute`;
+  - the `hms.theme` storage key;
+  - every `[data-theme="dark"]` token block in `packages/ui/styles.css`;
+  - the two `dark:` utilities;
+  - the copy of `useThemeAttribute` in `packages/api/src/providers.tsx`.
+- `<html>` keeps `data-theme="default"`. @tesserix/web's light rules key off
+  it.
+- A browser that still holds `hms.theme=dark` from before is ignored: nothing
+  reads the key any more.
+- Fail-closed direction: with no script there is no path to a dark paint, so
+  the remaining risk is a stray dark token. A unit test asserts that
+  `styles.css` contains no `data-theme="dark"` selector.
+
+### D2. One palette, sage, in the shared tokens
+
+- The `:root[data-theme="default"]` block in `packages/ui/styles.css` takes
+  the home page's values. Proposed mapping, final values set in the plan
+  after the contrast check:
+
+  | token | from (app) | to (home page) |
+  |---|---|---|
+  | `--background` | `#f4f6f9` | `#fbfcfa` (`--site-canvas`) |
+  | `--foreground`, `--card-foreground`, `--popover-foreground` | `#0f1728` | `#173d3a` (`--site-ink`) |
+  | `--primary`, `--ring`, `--sidebar-primary`, `--hms-accent` | `#0e7569` | `#23685d` (`--site-primary`) |
+  | `--hms-accent-strong` | `#0a5a50` | `#194e46` (`--site-primary-hover`) |
+  | `--accent`, `--hms-accent-dim` | `#e3f2ef` | `#eaf1e9` (`--site-tint`) |
+  | `--muted-foreground` | `#647082` | `#60796e` (`--site-muted`) |
+  | `--border`, `--input` | `#e5eaf1` | `#dce5df` (`--site-line`) |
+  | `--muted`, `--secondary` | `#f6f8fb`/`#f0f3f7` | `#f1f5ef` (`--site-note`) |
+  | `--sidebar` | `#fafbfd` | `#f4f7f2` (new, between canvas and note) |
+
+- The home page's tokens are needed only there: the dark "Trust" band and the
+  numbered preview rows. They move into `styles.css` as named tokens
+  (`--hms-band`, `--hms-band-ink`, …).
+- `.public-site` then reads the shared tokens. It keeps no hex values, and
+  the raw palette classes on the public pages (`bg-teal-600`, `text-white`,
+  `bg-white/90`) become token utilities. This resolves #1088 minus its
+  dark-mode ask, which D1 overrides; the issue gets a comment saying so.
+- The `[data-brand-theme="teal"]` default moves to the sage primary. Blue and
+  indigo stay as they are, because a tenant's brand is the tenant's choice.
+- Status colours keep their hues. Each is re-checked against the new canvas
+  and card, and darkened only if it fails AA.
+- **Enforced:** a contrast test computes the ratio for every
+  foreground/background pair the UI renders, against AA:
+  - the token pairs;
+  - each brand theme's primary on its foreground;
+  - each status colour on the canvas and on a card.
+
+  §7 of `docs/standards/frontend.md` bans hardcoded colours, but nothing
+  enforces it: no lint rule exists. This change adds one to
+  `apps/shell/eslint.config.mjs` and `packages/ui/eslint.config.mjs`. It
+  fails on raw Tailwind palette classes (`bg-teal-600`, `text-white`, …) and
+  hex arbitrary values in class strings. Today there are 14 such uses in the
+  workspace pages, plus the public pages; this change removes them all.
+
+### D3. Shapes and type as tokens
+
+- Raising `--radius` alone changes nothing. @tesserix/web's components use
+  Tailwind's `rounded-md`/`rounded-lg`, which read Tailwind's own
+  `--radius-*` scale, not `--radius`. Its Button exposes no `data-slot` or
+  other hook to target, and 123 files import it directly.
+- The softer shapes therefore come from the scale itself: an `@theme` block
+  in `apps/shell/app/globals.css` sets `--radius-md: 0.75rem`,
+  `--radius-lg: 1rem`, `--radius-xl: 1.25rem` and `--radius-2xl: 1.5rem`.
+  Every button, input, card and menu softens in one place, with no component
+  edits.
+- Pills: the home page's full-pill shape is used only for page-level primary
+  actions and filter chips, through `rounded-full` at those call sites. App
+  buttons as a whole are not forced to pills. Doing that needs a
+  `shape="pill"` variant upstream in @tesserix/web, which is a follow-up
+  issue on that package, not a CSS override on every `<button>`.
+- `--shadow-card` is the home page's soft shadow, expressed in tokens.
+- The page-heading style moves out of the dashboard into one `PageHeading`
+  component in `packages/ui`:
+  - an eyebrow, a title with tight tracking and an optional serif-italic
+    accent line, and a lede;
+  - the accent line is reserved for the dashboard and empty states, never
+    for working pages.
+- Nested cards are the main visual noise. A card inside a card loses its
+  border and shadow and becomes a tinted region (`--muted`). This is applied
+  where nesting is found, not as a global selector, because a global `.card
+  .card` rule would also restyle dialogs.
+
+### D4. Chrome
+
+- **Page panel.** It renders only when the current zone has more than one
+  page. With one page, the panel and its collapse button are absent, and the
+  content takes the space. This changes behaviour for Dashboard and any other
+  single-page zone. `hms-shell.test.tsx` covers both counts.
+- **Header title.** It shows the current page's label when the zone has
+  several pages, and the zone's label when it has one. The dashboard's single
+  page is renamed from "Departments" to "Overview" in `zones.ts`, so nothing
+  says "Departments" for a page about the whole hospital.
+- **Sign out** stays in the header, which is visible at every width; the
+  rail's copy is removed. The idle-timeout sign-out is unaffected.
+- **Theme toggle** is gone (D1).
+- The tenant picker keeps its current label until the follow-up issue. It
+  already renders nothing for single-tenant users.
+
+### D5. The existing dashboard, simplified
+
+The data, the queries and the `can(...)` gating stay exactly as they are. The
+presentation changes:
+
+- **Heading:** `PageHeading` with the existing eyebrow and title, plus the
+  serif accent line in the home page's style. The "Current tenant ·
+  authorised data" pill is removed; it states what every page already
+  guarantees.
+- **Tabs:** the four tabs stay, as a pill segmented control.
+- **Filters:**
+  - The quick ranges (Today … Last 5 years) stay visible as pills.
+  - From/To, Group by and Timezone move into a "Custom range" popover with
+    its own Apply button.
+  - Lines/Bars moves onto each chart.
+- **Caveats:** each card's caveat paragraph ("Completed does not mean
+  resulted…") moves behind an info button next to the card title. It is
+  keyboard reachable and announced, and the text is unchanged: these
+  definitions are #1234's measurement contract, so they are hidden from view,
+  not deleted.
+- **Cards:** stat tiles inside section cards become tinted regions (D3).
+
+### D6. No native dropdowns
+
+- Every dropdown is @tesserix/web's `Select`, used through the existing
+  wrappers in `packages/ui/src/select.tsx`:
+  - `SelectControl` for plain state;
+  - `FormSelectField` inside a `useZodForm` form.
+- The native `<select>` popup ignores the design tokens: it is drawn by the
+  OS, in OS colours. The wrappers already handle brand themes and the
+  empty-value case. Requested by the user on 2026-10-22.
+- Four native `<select>` elements remain, all in emergency code:
+
+  | file | control |
+  |---|---|
+  | `apps/shell/app/ambulance/page.tsx` | "Where are you?" country |
+  | `apps/shell/components/emergency/emergency-dispatch.tsx` | "Ready vehicle" |
+  | `apps/shell/components/emergency/emergency-receiving.tsx` | receiving-side choice |
+  | `apps/shell/components/emergency/emergency-receiving-dispatch.tsx` | dispatch choice |
+
+  Each one moves to `SelectControl`, or to `FormSelectField` where it already
+  sits in a zod form.
+- `/ambulance` is the public emergency page. It is already a client
+  component, so the change does not add a JavaScript dependency it lacked.
+  The `Select` trigger must still:
+  - keep the `min-h-12`/`text-base` touch target;
+  - keep the label association (`aria-labelledby` the visible label);
+  - open with Enter, Space and the arrow keys.
+- `e2e/tests/emergency-access.spec.ts` drives that control with
+  `selectOption`, which works only on a native select. The two calls become
+  a combobox click and an option click by role and name.
+- **Enforced:** a `no-restricted-syntax` rule on JSX `select` elements in
+  `apps/shell`, `packages/ui` and `packages/api`. Its message names
+  `SelectControl` and `FormSelectField`.
+- The Expo app `apps/ambulanceconnect` is React Native and has no DOM
+  `select`, so the rule does not cover it.
+
+### D7. Proof
+
+- **Unit tests:**
+  - token contrast (D2);
+  - no dark selector (D1);
+  - the page panel with one and with two pages, the header title, a single
+    Sign out (D4);
+  - the dashboard's popover filter applying, and the caveats reachable
+    through the info control (D5).
+- **e2e:** `csp.spec.ts`, `navigation.spec.ts`, `smoke.spec.ts`,
+  `journey.spec.ts`, `login-appearance.spec.ts` and
+  `emergency-access.spec.ts` pass on a production build.
+- **Unit tests for D6:** each converted control selects a value through its
+  combobox. The lint rule is shown to fail on a fixture `<select>`.
+- **Visual check:**
+  - before and after screenshots of `/`, `/login`, `/dashboard` and one page
+    from every zone, in the PR body;
+  - an emulated `prefers-color-scheme: dark` run showing the light theme.
+
+## Follow-up issues opened with this change
+
+- One per zone for page-level tidying: patients, MediCore, PharmaConnect,
+  Lab, Supply Connect, Workforce, EmergencyConnect, Settings.
+- The tenant picker shows a readable tenant name (needs `name` from
+  `/v1/iam/me/tenants`).
+- @tesserix/web: a `shape="pill"` Button variant (D3).
+
+## Left to the builder
+
+- The final hex values after the contrast test, staying within the sage
+  family.
+- The exact shadow, and whether stat tiles use `--muted` or `--accent`.
+- The popover component; reuse what @tesserix/web ships.

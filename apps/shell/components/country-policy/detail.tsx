@@ -300,9 +300,7 @@ function VersionRecord({ version, current }: { version: CountryPolicyVersion; cu
       </p>
       <div className="grid gap-4 rounded-xl bg-muted p-4 sm:grid-cols-2">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Selected version
-          </p>
+          <p className="text-xs font-semibold text-muted-foreground">Selected version</p>
           <p className="mt-1 text-sm">
             {policyLabel(version.state)}
             {current ? " · current configuration" : " · not the current configuration"}

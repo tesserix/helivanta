@@ -69,9 +69,7 @@ export const ZONES: Zone[] = [
     href: "/dashboard",
     permission: "public",
     hue: "rose",
-    pages: [
-      { label: "Departments", href: "/dashboard", icon: LayoutDashboard, permission: "public" },
-    ],
+    pages: [{ label: "Overview", href: "/dashboard", icon: LayoutDashboard, permission: "public" }],
   },
   {
     key: "patients",

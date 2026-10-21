@@ -12,7 +12,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, PanelLeftClose, PanelLeftOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   ApiError,
   useApiQuery,
@@ -423,6 +423,7 @@ export function HmsShell({
   }
 
   const currentPage = activePage(zone, pathname);
+  const hasPagePanel = zone.pages.length > 1;
 
   return (
     <BrandThemeContext value={branding.theme}>
@@ -438,7 +439,7 @@ export function HmsShell({
               aria-label="Helivanta home"
               className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-primary"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-(--hms-accent) to-(--hms-accent-strong) text-(--sidebar-primary-foreground)">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <BrandLogo key={branding.logo_url} branding={branding} compact />
               </span>
               {navigationOpen && <span className="text-sm text-sidebar-foreground">Helivanta</span>}
@@ -497,76 +498,66 @@ export function HmsShell({
               );
             })}
           </nav>
-          <div className={`flex flex-col gap-1 py-3 ${navigationOpen ? "px-3" : "items-center"}`}>
-            <form onSubmit={handleSignOut}>
-              <button
-                type="submit"
-                title="Sign out"
-                aria-label="Sign out"
-                className={`flex h-11 items-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground ${navigationOpen ? "w-full gap-3 px-3" : "w-11 justify-center"}`}
-              >
-                <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-                {navigationOpen && <span className="text-sm">Sign out</span>}
-              </button>
-            </form>
-          </div>
         </aside>
 
-        {/* Page panel: open or hidden */}
-        <aside
-          className={`hms-page-panel flex shrink-0 flex-col overflow-hidden bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
-            panelOpen ? "hidden w-56 md:flex" : "w-0"
-          }`}
-          aria-hidden={!panelOpen}
-        >
-          <div className="flex h-16 w-56 items-center justify-between pl-5 pr-3">
-            <h2 className="truncate text-sm font-semibold text-sidebar-foreground">
-              {branding.display_name}
-            </h2>
-            <button
-              type="button"
-              onClick={() => setPanelOpen(false)}
-              aria-label="Collapse page panel"
-              title="Collapse panel"
-              tabIndex={panelOpen ? 0 : -1}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-            >
-              <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
-          <div className="hms-sidebar-border border-t" />
-          <nav
-            aria-label={zone.label}
-            className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"
+        {/* Page panel: open or hidden. A single-page zone has none: it would
+            repeat the rail's one link (#1255 spec D4). */}
+        {hasPagePanel && (
+          <aside
+            className={`hms-page-panel flex shrink-0 flex-col overflow-hidden bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
+              panelOpen ? "hidden w-56 md:flex" : "w-0"
+            }`}
+            aria-hidden={!panelOpen}
           >
-            {zone.pages.map((pageLink) => {
-              const isActive = currentPage?.href === pageLink.href;
-              return (
-                <Link
-                  key={pageLink.href}
-                  href={pageLink.href}
-                  aria-current={isActive ? "page" : undefined}
-                  tabIndex={panelOpen ? 0 : -1}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-foreground"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                  }`}
-                >
-                  <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  {pageLink.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </aside>
+            <div className="flex h-16 w-56 items-center justify-between pl-5 pr-3">
+              <h2 className="truncate text-sm font-semibold text-sidebar-foreground">
+                {branding.display_name}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setPanelOpen(false)}
+                aria-label="Collapse page panel"
+                title="Collapse panel"
+                tabIndex={panelOpen ? 0 : -1}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              >
+                <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="hms-sidebar-border border-t" />
+            <nav
+              aria-label={zone.label}
+              className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"
+            >
+              {zone.pages.map((pageLink) => {
+                const isActive = currentPage?.href === pageLink.href;
+                return (
+                  <Link
+                    key={pageLink.href}
+                    href={pageLink.href}
+                    aria-current={isActive ? "page" : undefined}
+                    tabIndex={panelOpen ? 0 : -1}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive
+                        ? "bg-sidebar-accent text-sidebar-foreground"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                    }`}
+                  >
+                    <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {pageLink.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </aside>
+        )}
 
         {/* Content */}
         <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
           <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
               <div className="flex items-center gap-2">
-                {!panelOpen && (
+                {hasPagePanel && !panelOpen && (
                   <button
                     type="button"
                     onClick={() => setPanelOpen(true)}
@@ -577,8 +568,23 @@ export function HmsShell({
                     <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
                   </button>
                 )}
+                {/* The page panel names the hospital; without one, the header does,
+                    so the tenant is never off screen. */}
+                {!hasPagePanel && (
+                  <>
+                    <span
+                      data-testid="tenant-name"
+                      className="truncate text-sm font-medium text-muted-foreground"
+                    >
+                      {branding.display_name}
+                    </span>
+                    <span aria-hidden="true" className="text-sm text-border">
+                      /
+                    </span>
+                  </>
+                )}
                 <h1 className="text-xl font-semibold text-foreground">
-                  {currentPage?.label ?? zone.label}
+                  {hasPagePanel ? (currentPage?.label ?? zone.label) : zone.label}
                 </h1>
               </div>
               <div className="flex flex-wrap items-center gap-3">

@@ -86,7 +86,7 @@ test("pharmacist can dispense a visit created by admin", async ({ page }) => {
   // attacker's <img> tag) can navigate to directly — see
   // apps/shell/app/logout/route.ts and #781. Every zone renders the same
   // HmsShell sign-out control, including the medicore page we're on.
-  await page.getByRole("button", { name: "Sign out" }).last().click();
+  await page.getByRole("button", { name: "Sign out" }).click();
   // Sign-out (lib/sign-out.ts) is a MULTI-HOP redirect chain: Helivanta
   // dashboard -> Zitadel's end_session endpoint (which is what actually
   // clears Zitadel's own SSO cookie) -> back to Helivanta's /login -> /login's

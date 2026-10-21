@@ -76,9 +76,7 @@ export function PartyEditor({
     >
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-(--hms-accent)">
-            Organisation profile
-          </p>
+          <p className="text-xs font-semibold text-(--hms-accent)">Organisation profile</p>
           <h3 className="mt-2 text-xl font-semibold">
             {party ? "Edit draft profile" : "Add an organisation"}
           </h3>

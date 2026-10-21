@@ -65,6 +65,19 @@ function seedCache(permissions: string[]) {
   );
 }
 
+function grantPharmacyPages() {
+  const permissions = ["pharmacy.dispense.read", "pharmacy.stock.read"];
+  seedCache(permissions);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: permissions, subject: "doc", tenant_id: "tenant-a" }),
+    }),
+  );
+}
+
 describe("HmsShell", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -136,7 +149,7 @@ describe("HmsShell", () => {
     seedCache(["lab.order.read"]);
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
-    await user.click(screen.getByLabelText("Sign out"));
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull();
   });
@@ -154,7 +167,7 @@ describe("HmsShell", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
-    await user.click(screen.getByLabelText("Sign out"));
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" }));
     // A deliberate sign-out asks for SIGNED_OUT_MARK specifically — never
@@ -179,7 +192,7 @@ describe("HmsShell", () => {
     expect(window.sessionStorage.getItem(RENEW_AT_KEY)).not.toBeNull();
 
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
-    await user.click(screen.getByLabelText("Sign out"));
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     await waitFor(() => expect(window.sessionStorage.getItem(RENEW_AT_KEY)).toBeNull());
   });
@@ -193,7 +206,7 @@ describe("HmsShell", () => {
     endZitadelSession.mockResolvedValue(false);
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
-    await user.click(screen.getByLabelText("Sign out"));
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     await waitFor(() => expect(endZitadelSession).toHaveBeenCalledTimes(1));
     expect(window.location.href).toBe("");
@@ -222,7 +235,7 @@ describe("HmsShell", () => {
     );
     const { user } = renderWithProviders(<HmsShell onSignOut={onSignOut}>content</HmsShell>);
 
-    await user.click(screen.getByLabelText("Sign out"));
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     expect(onSignOut).toHaveBeenCalledTimes(1);
     expect(window.location.href).toBe("");
@@ -908,7 +921,8 @@ describe("expandable navigation", () => {
   it("mirrors the panel state to <html> when toggled here and from another tab", async () => {
     window.localStorage.clear();
     delete document.documentElement.dataset.hmsPanel;
-    pathname.current = "/patients";
+    grantPharmacyPages();
+    pathname.current = "/pharmacy";
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
     expect(document.documentElement.dataset.hmsPanel).toBe("open");
 
@@ -920,5 +934,53 @@ describe("expandable navigation", () => {
       window.dispatchEvent(new StorageEvent("storage", { key: "hms.panel.open" }));
     });
     expect(document.documentElement.dataset.hmsPanel).toBe("open");
+  });
+
+  // #1255 spec D4: a zone with one page gets no page panel. The panel would
+  // repeat the rail's one link, and its toggle would hide nothing.
+  it("renders no page panel for a single-page zone", () => {
+    seedCache(["pharmacy.dispense.read"]);
+    pathname.current = "/dashboard";
+    document.documentElement.dataset.hmsPanel = "closed";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(screen.queryByRole("navigation", { name: "Dashboard" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /page panel/ })).toBeNull();
+    expect(document.querySelector(".hms-page-panel")).toBeNull();
+    delete document.documentElement.dataset.hmsPanel;
+  });
+
+  // Pages are counted after permission filtering: what the panel would list.
+  it("keeps the page panel for a zone with several pages", () => {
+    grantPharmacyPages();
+    pathname.current = "/pharmacy";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(screen.getByRole("navigation", { name: "PharmaConnect" })).toBeInTheDocument();
+  });
+
+  // Without the panel, the hospital name moves into the header so it is never
+  // lost.
+  it("names the tenant in the header when there is no page panel", async () => {
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(await screen.findByTestId("tenant-name")).toHaveTextContent("Helivanta");
+  });
+
+  it("titles a single-page zone by the zone", () => {
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Dashboard");
+  });
+
+  it("offers one Sign out", () => {
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(screen.getAllByRole("button", { name: "Sign out" })).toHaveLength(1);
+  });
+
+  // Light only (#1255 spec D1).
+  it("has no theme toggle", () => {
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(screen.queryByRole("button", { name: /theme/i })).toBeNull();
   });
 });

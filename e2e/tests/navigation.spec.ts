@@ -43,22 +43,26 @@ test("moving between OPD, PharmaConnect and Lab never reloads the page", async (
 // department URL is loaded directly (a hard load, the way a bookmark or a
 // shared link arrives) and must land on its own page: the URL it is meant to
 // (/medicore redirects to OPD, as it did under its basePath) with that page's
-// panel link marked current. A route that failed to move would 404, and one
-// wired to the wrong component would mark a different page current.
+// panel link marked current. A zone with one visible page has no panel
+// (#1255 spec D4), so its own page shows as the header title instead. A route
+// that failed to move would 404, and one wired to the wrong component would
+// mark a different page current.
 test("every department URL still lands on its own page", async ({ page }) => {
   await login(page);
-  for (const { path, lands, current } of [
+  for (const { path, lands, current, title } of [
     { path: "/medicore", lands: /\/medicore\/opd$/, current: "OPD" },
     { path: "/medicore/opd", lands: /\/medicore\/opd$/, current: "OPD" },
     { path: "/medicore/ipd", lands: /\/medicore\/ipd$/, current: "IPD" },
     { path: "/pharmacy", lands: /\/pharmacy$/, current: "Dispenses" },
     { path: "/pharmacy/medications", lands: /\/pharmacy\/medications$/, current: "Medications" },
-    { path: "/lab", lands: /\/lab$/, current: "Orders" },
-  ]) {
+    { path: "/lab", lands: /\/lab$/, title: "Lab" },
+  ] as { path: string; lands: RegExp; current?: string; title?: string }[]) {
     await page.goto(path);
     await expect(page, `${path} landed somewhere else`).toHaveURL(lands);
     await expect(
-      page.locator('a[aria-current="page"]', { hasText: current }),
+      current
+        ? page.locator('a[aria-current="page"]', { hasText: current })
+        : page.getByRole("heading", { level: 1, name: title }),
       `${path} did not render its own page`,
     ).toBeVisible();
   }

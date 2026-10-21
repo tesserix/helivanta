@@ -20,7 +20,7 @@ export function PayrollWorkspace() {
     <>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-(--hms-accent)">
+          <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-(--hms-accent)">
             People & operations
           </p>
           <h2 className="text-3xl font-semibold tracking-tight">Payroll setup</h2>

@@ -87,7 +87,7 @@ function TenantParties({ scope }: { scope: SupplyScope }) {
   return (
     <div className="space-y-6">
       <header className="space-y-3">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-(--hms-accent)">
+        <p className="flex items-center gap-2 text-xs font-semibold text-(--hms-accent)">
           <Building2 className="size-4" />
           Supply Connect
         </p>
@@ -388,7 +388,7 @@ function PrivateParty({
     <div className="space-y-5 rounded-2xl border bg-card p-3 sm:p-7">
       <div className="flex flex-wrap justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="text-xs font-semibold text-muted-foreground">
             Private profile · Version {party.version}
           </p>
           <h3

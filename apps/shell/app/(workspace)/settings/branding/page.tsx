@@ -18,7 +18,7 @@ export default function BrandingPage() {
   return (
     <>
       <div className="mb-8">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-(--hms-accent)">
+        <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-(--hms-accent)">
           Your organization
         </p>
         <h2 className="text-3xl font-semibold tracking-tight">Make it yours</h2>

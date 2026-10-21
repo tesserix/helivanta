@@ -62,7 +62,7 @@ test("draining the login budget is refused with a Retry-After that is honest", a
   test.setTimeout(180_000);
 
   await login(page);
-  await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible();
 
   // readStoredIdToken (support/stored-session.ts, #976 — replaced the
   // dev-only window.__hmsUserManager hook production builds never expose)

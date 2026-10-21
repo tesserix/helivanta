@@ -19,6 +19,7 @@ export {
   type UseFormReturn,
 } from "react-hook-form";
 export { EmptyState } from "./empty-state";
+export { PageHeading } from "./page-heading";
 export { LoadMore } from "./load-more";
 export { formatDateTime, formatTime } from "./format";
 export { sanitizeHtml } from "./sanitize";

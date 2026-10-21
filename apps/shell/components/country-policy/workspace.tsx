@@ -57,7 +57,7 @@ function TenantCountryPolicies({ identity }: { identity: CountryPolicyIdentity }
   return (
     <div className="space-y-6">
       <header className="space-y-3">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-(--hms-accent)">
+        <p className="flex items-center gap-2 text-xs font-semibold text-(--hms-accent)">
           <Globe2 className="size-4" />
           Country governance
         </p>

@@ -23,6 +23,33 @@ const DESIGN_SYNTAX = [
   },
 ];
 
+// The landing page's marketing type reads as a template inside a working tool
+// (#1255 spec D3). Public pages opt out per file in apps/shell's config.
+const MARKETING_TYPE = String.raw`/(^|\s)(font-serif|italic|bg-linear-\S+|bg-gradient-\S+)(\s|$)|(^|\s)uppercase\s(.*\s)?tracking-|(^|\s)tracking-\S+\s(.*\s)?uppercase(\s|$)/`;
+const MARKETING_MESSAGE =
+  "Marketing type (serif, italic, gradient, tracked uppercase eyebrow) belongs to the public pages, not the app (#1255 spec D3).";
+const MARKETING_SYNTAX = [
+  { selector: `Literal[value=${MARKETING_TYPE}]`, message: MARKETING_MESSAGE },
+  { selector: `TemplateElement[value.raw=${MARKETING_TYPE}]`, message: MARKETING_MESSAGE },
+];
+
+const SANITIZE_SYNTAX = {
+  selector:
+    "JSXAttribute[name.name='dangerouslySetInnerHTML']:not([value.expression.callee.name='sanitizeHtml'])",
+  message: "Use sanitizeHtml from @helivanta/ui instead of raw dangerouslySetInnerHTML.",
+};
+
+/**
+ * The public marketing pages keep their headline type but every other design
+ * rule. Spread after hmsEslint(dir, { design: true }) with the page globs.
+ */
+export function hmsPublicPages(files) {
+  return {
+    files,
+    rules: { "no-restricted-syntax": ["error", SANITIZE_SYNTAX, ...DESIGN_SYNTAX] },
+  };
+}
+
 // Shared Helivanta flat config. Apps call hmsEslint(import.meta.dirname);
 // web packages pass { design: true } for the design-token rules.
 export function hmsEslint(rootDir, { design = false } = {}) {
@@ -47,14 +74,10 @@ export function hmsEslint(rootDir, { design = false } = {}) {
         "@next/next/no-html-link-for-pages": "off",
         "no-restricted-syntax": [
           "error",
-          {
-            selector:
-              "JSXAttribute[name.name='dangerouslySetInnerHTML']:not([value.expression.callee.name='sanitizeHtml'])",
-            message: "Use sanitizeHtml from @helivanta/ui instead of raw dangerouslySetInnerHTML.",
-          },
+          SANITIZE_SYNTAX,
           // One array: no-restricted-syntax options do not merge across
           // config objects, so a later object would drop the entry above.
-          ...(design ? DESIGN_SYNTAX : []),
+          ...(design ? [...DESIGN_SYNTAX, ...MARKETING_SYNTAX] : []),
         ],
       },
       settings: { next: { rootDir } },

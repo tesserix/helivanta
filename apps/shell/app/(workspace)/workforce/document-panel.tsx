@@ -104,9 +104,7 @@ export function StaffDocumentPanel({
     >
       <header className="flex items-start justify-between gap-4 border-b px-6 py-5">
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-(--hms-accent)">
-            Protected staff records
-          </p>
+          <p className="mb-1 text-xs font-semibold text-(--hms-accent)">Protected staff records</p>
           <h3
             id="staff-documents-heading"
             ref={heading}

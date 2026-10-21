@@ -106,9 +106,7 @@ export default function LandingPage() {
           >
             <div className="mb-8 flex items-center justify-between text-xs">
               <span className="font-semibold uppercase tracking-widest">Your care ecosystem</span>
-              <span className="rounded-full border border-border px-3 py-1">
-                Product preview
-              </span>
+              <span className="rounded-full border border-border px-3 py-1">Product preview</span>
             </div>
             <div className="rounded-2xl border border-white bg-white/90 p-6 shadow-[0_16px_40px_-24px_var(--hms-shadow)]">
               <div className="flex items-center gap-3 border-b border-border pb-5">
@@ -248,10 +246,7 @@ export default function LandingPage() {
                 detail: "Diagnostic teams working alongside your care network.",
               },
             ].map(({ name, detail }) => (
-              <article
-                key={name}
-                className="rounded-2xl border border-border bg-white p-7"
-              >
+              <article key={name} className="rounded-2xl border border-border bg-white p-7">
                 <p className="text-xs text-muted-foreground">Designed for your team</p>
                 <h3 className="mt-5 text-lg font-semibold">{name}</h3>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{detail}</p>
@@ -259,10 +254,7 @@ export default function LandingPage() {
             ))}
           </div>
         </section>
-        <section
-          id="trust"
-          className="bg-(--hms-band) px-6 py-20 text-(--hms-band-ink) lg:px-10"
-        >
+        <section id="trust" className="bg-(--hms-band) px-6 py-20 text-(--hms-band-ink) lg:px-10">
           <div className="mx-auto max-w-7xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--hms-band-muted)">
               Trust, with transparency
@@ -276,10 +268,7 @@ export default function LandingPage() {
             </p>
             <div className="mt-10 grid gap-5 md:grid-cols-3">
               {["SOC 2 Type II", "ISO/IEC 27001", "HIPAA safeguards"].map((label, i) => (
-                <article
-                  key={label}
-                  className="rounded-2xl border border-(--hms-band-line) p-7"
-                >
+                <article key={label} className="rounded-2xl border border-(--hms-band-line) p-7">
                   <p className="text-xs uppercase tracking-widest text-(--hms-band-muted)">
                     {i === 2 ? "Compliance documentation" : "Certification placeholder"}
                   </p>
@@ -312,10 +301,7 @@ export default function LandingPage() {
           </div>
           <div className="grid gap-4">
             {["Customer testimonials", "Verified reviews"].map((label) => (
-              <div
-                key={label}
-                className="rounded-2xl border border-dashed border-border p-6"
-              >
+              <div key={label} className="rounded-2xl border border-dashed border-border p-6">
                 <h3 className="font-medium">{label}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">Awaiting approved content</p>
               </div>

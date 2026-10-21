@@ -83,7 +83,9 @@ it.each(PAIRS)("%s on %s passes AA", (fg, bg, min) => {
 // the shared canvas.
 it.each(["teal", "blue", "indigo"])("brand %s passes AA", (brand) => {
   const tokens = { ...root, ...tokensOf(`[data-brand-theme="${brand}"]`) };
-  expect(contrast(tokens["--primary-foreground"], tokens["--primary"])).toBeGreaterThanOrEqual(BODY);
+  expect(contrast(tokens["--primary-foreground"], tokens["--primary"])).toBeGreaterThanOrEqual(
+    BODY,
+  );
   expect(contrast(tokens["--hms-accent"], tokens["--background"])).toBeGreaterThanOrEqual(BODY);
   expect(contrast(tokens["--hms-accent"], tokens["--hms-accent-dim"])).toBeGreaterThanOrEqual(BODY);
 });

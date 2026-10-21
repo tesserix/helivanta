@@ -17,10 +17,12 @@ test("citizen call access works signed out when the hospital API is unavailable"
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
-  await page.getByRole("combobox", { name: "Where are you?" }).selectOption("OTHER");
+  await page.getByRole("combobox", { name: "Where are you?" }).click();
+  await page.getByRole("option", { name: "Outside India" }).click();
   await expect(page.getByRole("link", { name: "Open dialler for 112" })).toHaveCount(0);
   await expect(page.getByRole("status")).toContainText("contact the local emergency service");
-  await page.getByRole("combobox", { name: "Where are you?" }).selectOption("IN");
+  await page.getByRole("combobox", { name: "Where are you?" }).click();
+  await page.getByRole("option", { name: "India", exact: true }).click();
   await expect(page.getByRole("link", { name: "Open dialler for 112" })).toHaveAttribute(
     "href",
     "tel:112",

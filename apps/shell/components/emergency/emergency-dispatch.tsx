@@ -19,7 +19,7 @@ import {
   type EmergencyDispatchCommandInput,
   type EmergencyVehicle,
 } from "@helivanta/api";
-import { LoadMore, formatTime } from "@helivanta/ui";
+import { LoadMore, formatTime, SelectControl } from "@helivanta/ui";
 import { useEmergencyCommand, EmergencyCommandFailure } from "./emergency-command";
 
 export function EmergencyDispatchPanel({ baseID, caseID }: { baseID: string; caseID: string }) {
@@ -123,6 +123,7 @@ function ReservationForm({
   eligibility: EmergencyDispatchEligibility;
 }) {
   const secondsID = useId();
+  const vehicleFieldID = useId();
   const [vehicleID, setVehicle] = useState("");
   const [seconds, setSeconds] = useState("");
   const [error, setError] = useState<string>();
@@ -201,24 +202,18 @@ function ReservationForm({
           void reserve();
         }}
       >
-        <label className="space-y-2">
+        <label className="space-y-2" htmlFor={vehicleFieldID}>
           Ready vehicle
-          {/* eslint-disable-next-line no-restricted-syntax -- replaced in Task 6 (#1255) */}
-          <select
+          <SelectControl
+            id={vehicleFieldID}
             aria-label="Ready vehicle"
-            className="min-h-11 w-full rounded-lg border bg-background px-3"
+            className="min-h-11 w-full"
             value={vehicleID}
-            onChange={(event) => setVehicle(event.target.value)}
+            onValueChange={setVehicle}
             disabled={command.frozen || fleet.isPending || fleet.isError}
-            required
-          >
-            <option value="">Choose a ready vehicle</option>
-            {vehicles.map((row) => (
-              <option key={row.id} value={row.id}>
-                {row.code}
-              </option>
-            ))}
-          </select>
+            placeholder="Choose a ready vehicle"
+            options={vehicles.map((row) => ({ value: row.id, label: row.code }))}
+          />
         </label>
         <label className="space-y-2" htmlFor={secondsID}>
           Crew acknowledgement window (seconds)

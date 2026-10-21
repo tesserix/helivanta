@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectControl } from "@helivanta/ui";
 import { useState } from "react";
 import { Ambulance, ArrowUpRight, Phone, ShieldCheck } from "lucide-react";
 import {
@@ -49,16 +50,17 @@ export default function AmbulancePage() {
             <label htmlFor="emergency-country" className="mb-2 block font-medium">
               {copy.countryLabel}
             </label>
-            {/* eslint-disable-next-line no-restricted-syntax -- replaced in Task 6 (#1255) */}
-            <select
+            <SelectControl
               id="emergency-country"
+              aria-label={copy.countryLabel}
               value={country}
-              onChange={(event) => setCountry(event.target.value === "IN" ? "IN" : "OTHER")}
-              className="mb-7 min-h-12 w-full rounded-xl border border-input bg-card px-3 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              <option value="IN">{copy.india}</option>
-              <option value="OTHER">{copy.otherCountry}</option>
-            </select>
+              onValueChange={(next) => setCountry(next === "IN" ? "IN" : "OTHER")}
+              className="mb-7 min-h-12 w-full text-base"
+              options={[
+                { value: "IN", label: copy.india },
+                { value: "OTHER", label: copy.otherCountry },
+              ]}
+            />
             {service ? (
               <>
                 <h2 className="text-xl font-semibold">{service.title}</h2>

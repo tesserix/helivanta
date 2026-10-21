@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { chooseOption } from "../../test/select";
 import AmbulancePage from "./page";
 
 describe("public AmbulanceConnect page", () => {
@@ -18,19 +19,28 @@ describe("public AmbulanceConnect page", () => {
   });
 
   it("does not show Indian call links when the visitor selects outside India", async () => {
+    const user = userEvent.setup();
     render(<AmbulancePage />);
-    await userEvent.selectOptions(
+    // The design-system Select (#1255 spec D6): a combobox and a listbox.
+    await chooseOption(
+      user,
       screen.getByRole("combobox", { name: "Where are you?" }),
-      "OTHER",
+      "Outside India",
     );
     expect(screen.queryByRole("link", { name: "Open dialler for 112" })).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("contact the local emergency service");
     expect(screen.queryByText("108")).not.toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Where are you?" }), "IN");
+    await chooseOption(user, screen.getByRole("combobox", { name: "Where are you?" }), "India");
     expect(screen.getByRole("link", { name: "Open dialler for 112" })).toHaveAttribute(
       "href",
       "tel:112",
     );
+  });
+
+  // A phone-first emergency page: the control keeps a large touch target.
+  it("keeps the country picker large enough to tap", () => {
+    render(<AmbulancePage />);
+    expect(screen.getByRole("combobox", { name: "Where are you?" })).toHaveClass("min-h-12");
   });
 
   it("labels regional services as information and links its official source", () => {

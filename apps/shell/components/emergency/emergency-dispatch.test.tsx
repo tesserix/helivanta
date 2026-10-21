@@ -2,6 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
+import { chooseOption } from "../../test/select";
 import { EmergencyDispatchPanel } from "./emergency-dispatch";
 
 const base = "019a1234-5678-7000-8000-000000000001";
@@ -86,8 +87,10 @@ it("retains exactly the same command and body after an uncertain reservation", a
   const user = userEvent.setup();
   const fetcher = fixture(["emergency.case.read", "emergency.dispatch.manage"]);
   renderWithProviders(<EmergencyDispatchPanel baseID={base} caseID={caseID} />);
-  await screen.findByRole("option", { name: "TEST-ALS-1" });
-  await user.selectOptions(await screen.findByLabelText("Ready vehicle"), vehicle);
+  await waitFor(() =>
+    expect(screen.getByRole("combobox", { name: "Ready vehicle" })).toBeEnabled(),
+  );
+  await chooseOption(user, screen.getByRole("combobox", { name: "Ready vehicle" }), "TEST-ALS-1");
   await user.type(screen.getByLabelText("Crew acknowledgement window (seconds)"), "120");
   await user.click(screen.getByRole("button", { name: "Reserve vehicle and crew" }));
   expect(await screen.findByText(/TEST uncertain request/)).toBeInTheDocument();

@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { type EmergencyDispatch } from "@helivanta/api";
+import { chooseOption } from "../../test/select";
 import { EmergencyReceivingDispatch } from "./emergency-receiving-dispatch";
 const id = "019a1234-5678-7000-8000-000000000001";
 const row = { id, base_id: id, version: 6, state: "on_scene" } as EmergencyDispatch;
@@ -54,7 +55,9 @@ it("freezes a destination request and its response deadline across an uncertain 
     }),
   );
   const { user } = renderWithProviders(<EmergencyReceivingDispatch baseID={id} row={row} />);
-  await user.selectOptions(await screen.findByLabelText("Approved receiving partner"), id);
+  const partner = await screen.findByRole("combobox", { name: "Approved receiving partner" });
+  await waitFor(() => expect(partner).toBeEnabled());
+  await chooseOption(user, partner, "Synthetic Hospital");
   await user.type(
     screen.getByLabelText("Pre-alert communication reference"),
     "TEST-PREALERT-VOICE",

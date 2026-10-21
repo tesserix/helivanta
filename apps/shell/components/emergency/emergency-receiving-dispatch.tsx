@@ -20,14 +20,13 @@ import {
   type EmergencyReceivingRequestInput,
   type EmergencyReceivingReceipt,
 } from "@helivanta/api";
-import { LoadMore, formatTime } from "@helivanta/ui";
+import { LoadMore, formatTime, SelectControl } from "@helivanta/ui";
 import { useEmergencyCommand, EmergencyCommandFailure } from "./emergency-command";
 const invalidates = [
   ["emergency", "receiving"],
   ["emergency", "crew"],
   ["emergency", "dispatches"],
 ];
-const selectClass = "min-h-11 w-full rounded-md border bg-background px-3 py-2";
 export function useEmergencyReceivingTrip(
   baseID: string,
   dispatchID: string,
@@ -217,23 +216,18 @@ function PreAlertForm({
     >
       <label htmlFor={`${prefix}-partner`} className="block space-y-2">
         Approved receiving partner
-        {/* eslint-disable-next-line no-restricted-syntax -- replaced in Task 6 (#1255) */}
-        <select
+        <SelectControl
           id={`${prefix}-partner`}
-          className={selectClass}
+          aria-label="Approved receiving partner"
+          className="min-h-11 w-full"
           value={link}
           disabled={save.frozen || unavailable}
-          onChange={(event) => setLink(event.target.value)}
-        >
-          <option value="">Choose a receiving campus</option>
-          {links
+          onValueChange={setLink}
+          placeholder="Choose a receiving campus"
+          options={links
             .filter((item) => item.status === "approved")
-            .map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.destination_name ?? item.facility_id}
-              </option>
-            ))}
-        </select>
+            .map((item) => ({ value: item.id, label: item.destination_name ?? item.facility_id }))}
+        />
       </label>
       <label htmlFor={`${prefix}-reference`} className="block space-y-2">
         Pre-alert communication reference

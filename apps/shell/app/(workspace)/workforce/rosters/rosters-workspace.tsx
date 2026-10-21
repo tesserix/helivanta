@@ -39,9 +39,7 @@ export function RostersWorkspace() {
     <>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-(--hms-accent)">
-            People & operations
-          </p>
+          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">People & operations</p>
           <h2 className="text-3xl font-semibold tracking-tight">Rosters</h2>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             Plan dated shifts by area or person, populate from weekly templates, and freeze the

@@ -25,9 +25,9 @@ const DESIGN_SYNTAX = [
 
 // The landing page's marketing type reads as a template inside a working tool
 // (#1255 spec D3). Public pages opt out per file in apps/shell's config.
-const MARKETING_TYPE = String.raw`/(^|\s)(font-serif|italic|bg-linear-\S+|bg-gradient-\S+)(\s|$)|(^|\s)uppercase\s(.*\s)?tracking-|(^|\s)tracking-\S+\s(.*\s)?uppercase(\s|$)/`;
+const MARKETING_TYPE = String.raw`/(^|\s)(font-serif|italic|bg-linear-\S+|bg-gradient-\S+|tracking-(wider|widest|\[0?\.[1-9]\d*em\]))(\s|$)|(^|\s)uppercase\s(.*\s)?tracking-|(^|\s)tracking-\S+\s(.*\s)?uppercase(\s|$)/`;
 const MARKETING_MESSAGE =
-  "Marketing type (serif, italic, gradient, tracked uppercase eyebrow) belongs to the public pages, not the app (#1255 spec D3).";
+  "Marketing type (serif, italic, gradient, wide-tracked or uppercase eyebrow) belongs to the public pages, not the app (#1255 spec D3).";
 const MARKETING_SYNTAX = [
   { selector: `Literal[value=${MARKETING_TYPE}]`, message: MARKETING_MESSAGE },
   { selector: `TemplateElement[value.raw=${MARKETING_TYPE}]`, message: MARKETING_MESSAGE },

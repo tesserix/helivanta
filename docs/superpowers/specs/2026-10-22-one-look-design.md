@@ -334,3 +334,25 @@ presentation changes:
   family.
 - The exact shadow, and whether stat tiles use `--muted` or `--accent`.
 - The popover component; reuse what @tesserix/web ships.
+
+## As built
+
+- D2: `--hms-good` #12915e → #0f7a4f, `--hms-warn` #b95e04 → #a85503 and
+  `--hms-amber` #a16207 → #a85503 all failed AA on main and were darkened
+  within their hue. `--muted-foreground` is the home page's body colour
+  #57716a, because its lighter #60796e fails on tinted tiles. New tokens:
+  `--hms-band*` (the Trust band), `--hms-shadow`, and `--hms-sky*` (a
+  platform-catalogue category).
+- D3: shadows live in the same `@theme` block as the radii, as Tailwind
+  shadow variables (alpha is fine there; the no-alpha rule concerns
+  @tesserix/web colour tokens). In-app eyebrows lost their uppercase and
+  tracking; the per-zone issues remove them. The login surface opts out of
+  the marketing rule as a public page.
+- D4: "single-page" counts pages after permission filtering. Without a
+  panel, the header reads "<hospital> / <zone>", so the tenant name never
+  leaves the screen.
+- D5: definitions open in a click popover, not a hover tooltip, so they
+  work on touch. @tesserix/web Tabs render filled, not underlined. The
+  range popover ignores close requests while its Group by menu is open.
+- D6: the campus authority select had no test; one now proves the choice
+  reaches the request body.

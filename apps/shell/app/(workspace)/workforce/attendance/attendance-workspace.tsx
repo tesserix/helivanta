@@ -28,9 +28,7 @@ export function AttendanceWorkspace() {
     <>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-(--hms-accent)">
-            People & operations
-          </p>
+          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">People & operations</p>
           <h2 className="text-3xl font-semibold tracking-tight">Attendance</h2>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             See who worked their rostered shifts, record punches by hand with a reason, and void

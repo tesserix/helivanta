@@ -18,9 +18,7 @@ export default function BrandingPage() {
   return (
     <>
       <div className="mb-8">
-        <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-(--hms-accent)">
-          Your organization
-        </p>
+        <p className="mb-2 text-xs font-semibold text-(--hms-accent)">Your organization</p>
         <h2 className="text-3xl font-semibold tracking-tight">Make it yours</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           A familiar welcome for your team, from sign-in to their daily workspace.

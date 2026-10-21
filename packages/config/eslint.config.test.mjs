@@ -64,10 +64,20 @@ describe("design rules", () => {
     ["gradient", "bg-linear-to-r from-primary"],
     ["legacy gradient", "bg-gradient-to-r"],
     ["tracked uppercase eyebrow", "text-xs uppercase tracking-[0.18em]"],
+    ["wide-tracked eyebrow", "text-xs font-semibold tracking-[0.18em]"],
+    ["widest tracking", "tracking-widest"],
   ])("rejects marketing type: %s", async (_name, classes) => {
     expect(await messages(`export const A = () => <p className="${classes}" />;`)).toEqual([
       expect.stringMatching(/Marketing type/),
     ]);
+  });
+
+  it("accepts tight or normal tracking", async () => {
+    expect(
+      await messages(
+        `export const A = () => <p className="tracking-tight tracking-wide tracking-[-0.02em]" />;`,
+      ),
+    ).toEqual([]);
   });
 
   it("accepts uppercase without tracking (table headers)", async () => {

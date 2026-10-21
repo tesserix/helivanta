@@ -1,7 +1,7 @@
 import { hmsEslint } from "@helivanta/config/eslint";
 
 export default [
-  ...hmsEslint(import.meta.dirname),
+  ...hmsEslint(import.meta.dirname, { design: true }),
   // The chrome is rendered once, by the workspace layout (#1091). A page that
   // rendered its own HmsShell would nest a second rail and a second idle
   // tracker, so importing it anywhere else in the app is an error.

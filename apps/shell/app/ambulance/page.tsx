@@ -16,7 +16,7 @@ export default function AmbulancePage() {
     <div className="public-site min-h-screen bg-background text-foreground">
       <a
         href="#emergency-help"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-card focus:p-4"
       >
         Skip to emergency help
       </a>
@@ -43,17 +43,18 @@ export default function AmbulancePage() {
         </div>
         <div className="grid items-start gap-6 md:grid-cols-[1.2fr_1fr]">
           <section
-            className="rounded-3xl border border-border bg-white p-5 shadow-sm sm:p-8"
+            className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-8"
             aria-label="Emergency calling"
           >
             <label htmlFor="emergency-country" className="mb-2 block font-medium">
               {copy.countryLabel}
             </label>
+            {/* eslint-disable-next-line no-restricted-syntax -- replaced in Task 6 (#1255) */}
             <select
               id="emergency-country"
               value={country}
               onChange={(event) => setCountry(event.target.value === "IN" ? "IN" : "OTHER")}
-              className="mb-7 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+              className="mb-7 min-h-12 w-full rounded-xl border border-input bg-card px-3 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               <option value="IN">{copy.india}</option>
               <option value="OTHER">{copy.otherCountry}</option>
@@ -66,7 +67,7 @@ export default function AmbulancePage() {
                 </p>
                 <a
                   href={service.dialUrl}
-                  className="mt-5 inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-primary px-5 py-4 text-center text-lg font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700"
+                  className="mt-5 inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-primary px-5 py-4 text-center text-lg font-semibold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
                 >
                   <Phone aria-hidden="true" className="size-5 shrink-0" />
                   {copy.callLabel}
@@ -78,7 +79,7 @@ export default function AmbulancePage() {
             ) : (
               <p
                 role="status"
-                className="rounded-xl bg-amber-50 p-4 leading-relaxed text-amber-950"
+                className="rounded-xl bg-(--hms-amber-tint) p-4 leading-relaxed text-(--hms-amber)"
               >
                 {copy.unsupported}
               </p>
@@ -108,7 +109,7 @@ export default function AmbulancePage() {
                 </p>
               </section>
             ) : null}
-            <aside className="rounded-3xl bg-teal-50 p-5 text-teal-950 sm:p-7">
+            <aside className="rounded-3xl bg-accent p-5 text-(--hms-accent-strong) sm:p-7">
               <ShieldCheck aria-hidden="true" className="mb-3 size-6" />
               <p className="font-medium">{copy.bookingNotice}</p>
               <p className="mt-3 text-sm leading-relaxed">{copy.privacyNotice}</p>

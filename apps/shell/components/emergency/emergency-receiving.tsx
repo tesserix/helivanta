@@ -289,6 +289,7 @@ function ReceivingGrant({ facility }: { facility: EmergencyReceivingFacility }) 
           )}
           <label htmlFor={`${prefix}-level`} className="space-y-2">
             Campus authority
+            {/* eslint-disable-next-line no-restricted-syntax -- replaced in Task 6 (#1255) */}
             <select
               id={`${prefix}-level`}
               className={inputClass}

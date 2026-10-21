@@ -203,6 +203,7 @@ function ReservationForm({
       >
         <label className="space-y-2">
           Ready vehicle
+          {/* eslint-disable-next-line no-restricted-syntax -- replaced in Task 6 (#1255) */}
           <select
             aria-label="Ready vehicle"
             className="min-h-11 w-full rounded-lg border bg-background px-3"

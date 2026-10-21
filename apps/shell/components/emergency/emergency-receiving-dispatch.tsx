@@ -217,6 +217,7 @@ function PreAlertForm({
     >
       <label htmlFor={`${prefix}-partner`} className="block space-y-2">
         Approved receiving partner
+        {/* eslint-disable-next-line no-restricted-syntax -- replaced in Task 6 (#1255) */}
         <select
           id={`${prefix}-partner`}
           className={selectClass}

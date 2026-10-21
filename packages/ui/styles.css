@@ -59,10 +59,12 @@
   --hms-crit: #c93b3b !important;
   --hms-rose: #c13b5e !important;
   --hms-rose-tint: #fbedf1 !important;
-  --hms-amber: #a16207 !important;
+  --hms-amber: #a85503 !important;
   --hms-amber-tint: #fbf3e4 !important;
   --hms-violet: #5b5bd6 !important;
   --hms-violet-tint: #eeeefb !important;
+  --hms-sky: #1d5da8 !important;
+  --hms-sky-tint: #e7effa !important;
   --hms-track: #e7ebf1 !important;
 
   /* The home page's dark Trust band (#1255). */

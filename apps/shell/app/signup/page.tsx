@@ -34,7 +34,7 @@ export default function SignupPage() {
           </div>
           <section
             aria-labelledby="signup-status"
-            className="self-center rounded-3xl border border-border bg-white p-8 sm:p-10"
+            className="self-center rounded-3xl border border-border bg-card p-8 sm:p-10"
           >
             <p className="inline-block rounded-full bg-accent px-3 py-1 text-xs text-(--hms-band-line)">
               Onboarding preview
@@ -48,7 +48,7 @@ export default function SignupPage() {
             </p>
             <a
               href="https://tesserix.app"
-              className="mt-7 block rounded-full bg-primary px-6 py-3 text-center text-sm font-semibold text-white hover:bg-(--hms-accent-strong)"
+              className="mt-7 block rounded-full bg-primary px-6 py-3 text-center text-sm font-semibold text-primary-foreground hover:bg-(--hms-accent-strong)"
             >
               Visit Tesserix
             </a>

@@ -4,8 +4,28 @@ import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
-// Shared Helivanta flat config. Apps call hmsEslint(import.meta.dirname).
-export function hmsEslint(rootDir) {
+// Raw Tailwind palette colours and hex arbitrary values bypass the design
+// tokens (frontend.md §7, #1255 spec D2), so the one palette could drift again
+// one class at a time.
+const RAW_COLOUR = String.raw`/\b(bg|text|border|ring|fill|stroke|outline|from|to|via|divide|decoration|shadow|placeholder|caret|accent)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b|\b(bg|text|border|ring|fill|stroke)-(white|black)\b|-\[#[0-9a-fA-F]{3,8}\]/`;
+const COLOUR_MESSAGE =
+  "Use a design-token utility (frontend.md §7), not a raw Tailwind colour or hex.";
+
+const DESIGN_SYNTAX = [
+  { selector: `Literal[value=${RAW_COLOUR}]`, message: COLOUR_MESSAGE },
+  { selector: `TemplateElement[value.raw=${RAW_COLOUR}]`, message: COLOUR_MESSAGE },
+  // The native popup is drawn by the OS in OS colours, outside the tokens
+  // (#1255 spec D6).
+  {
+    selector: "JSXOpeningElement[name.name='select']",
+    message:
+      "Use SelectControl or FormSelectField from @helivanta/ui (@tesserix/web Select), not a native <select>.",
+  },
+];
+
+// Shared Helivanta flat config. Apps call hmsEslint(import.meta.dirname);
+// web packages pass { design: true } for the design-token rules.
+export function hmsEslint(rootDir, { design = false } = {}) {
   return tseslint.config(
     { ignores: [".next/**", "node_modules/**", "dist/**", "coverage/**"] },
     js.configs.recommended,
@@ -32,6 +52,9 @@ export function hmsEslint(rootDir) {
               "JSXAttribute[name.name='dangerouslySetInnerHTML']:not([value.expression.callee.name='sanitizeHtml'])",
             message: "Use sanitizeHtml from @helivanta/ui instead of raw dangerouslySetInnerHTML.",
           },
+          // One array: no-restricted-syntax options do not merge across
+          // config objects, so a later object would drop the entry above.
+          ...(design ? DESIGN_SYNTAX : []),
         ],
       },
       settings: { next: { rootDir } },

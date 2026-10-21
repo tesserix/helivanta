@@ -11,10 +11,10 @@ export const metadata: Metadata = {
 
 export default function LandingPage() {
   return (
-    <div className="public-site min-h-screen bg-background text-foreground selection:bg-teal-200">
+    <div className="public-site min-h-screen bg-background text-foreground selection:bg-accent">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-card focus:p-4"
       >
         Skip to content
       </a>
@@ -30,11 +30,11 @@ export default function LandingPage() {
           >
             <span
               aria-hidden="true"
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-2xl text-white"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-2xl text-primary-foreground"
             >
               <HeartPulse size={20} aria-hidden="true" />
             </span>
-            helivanta<span className="text-teal-600">.</span>
+            helivanta<span className="text-(--hms-accent)">.</span>
           </a>
           <div className="hidden items-center gap-7 text-sm md:flex">
             <a href="#platform" className="hover:underline">
@@ -50,7 +50,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-5 text-sm font-medium">
             <a
               href="/ambulance"
-              className="inline-flex min-h-11 items-center text-teal-800 underline underline-offset-4"
+              className="inline-flex min-h-11 items-center text-(--hms-accent-strong) underline underline-offset-4"
             >
               Emergency help
             </a>
@@ -59,7 +59,7 @@ export default function LandingPage() {
             </a>
             <a
               href="/signup"
-              className="rounded-full bg-primary px-5 py-3 text-white hover:bg-(--hms-accent-strong)"
+              className="rounded-full bg-primary px-5 py-3 text-primary-foreground hover:bg-(--hms-accent-strong)"
             >
               Start your workspace <span aria-hidden="true">↗</span>
             </a>
@@ -70,7 +70,7 @@ export default function LandingPage() {
         <section className="mx-auto grid max-w-7xl items-center gap-14 px-6 py-20 lg:grid-cols-[1.15fr_1fr] lg:px-10 lg:py-28">
           <div>
             <p className="mb-7 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em]">
-              <span className="h-2 w-2 rounded-full bg-teal-600" />
+              <span className="h-2 w-2 rounded-full bg-primary" />
               Built around your care team
             </p>
             <h1 className="max-w-2xl text-5xl leading-[1.08] font-medium tracking-[-0.055em] sm:text-6xl lg:text-7xl">
@@ -85,7 +85,7 @@ export default function LandingPage() {
             <div className="mt-9 flex flex-wrap items-center gap-6">
               <a
                 href="/signup"
-                className="rounded-full bg-primary px-7 py-4 text-sm font-semibold text-white hover:bg-(--hms-accent-strong)"
+                className="rounded-full bg-primary px-7 py-4 text-sm font-semibold text-primary-foreground hover:bg-(--hms-accent-strong)"
               >
                 Start your workspace <span aria-hidden="true">↗</span>
               </a>
@@ -108,10 +108,10 @@ export default function LandingPage() {
               <span className="font-semibold uppercase tracking-widest">Your care ecosystem</span>
               <span className="rounded-full border border-border px-3 py-1">Product preview</span>
             </div>
-            <div className="rounded-2xl border border-white bg-white/90 p-6 shadow-[0_16px_40px_-24px_var(--hms-shadow)]">
+            <div className="rounded-2xl border border-card bg-card/90 p-6 shadow-[0_16px_40px_-24px_var(--hms-shadow)]">
               <div className="flex items-center gap-3 border-b border-border pb-5">
                 <span
-                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-2xl text-white"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-2xl text-primary-foreground"
                   aria-hidden="true"
                 >
                   +
@@ -153,7 +153,7 @@ export default function LandingPage() {
         <section
           id="platform"
           aria-labelledby="platform-heading"
-          className="border-y border-border bg-white px-6 py-20 lg:px-10"
+          className="border-y border-border bg-card px-6 py-20 lg:px-10"
         >
           <div className="mx-auto max-w-7xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -246,7 +246,7 @@ export default function LandingPage() {
                 detail: "Diagnostic teams working alongside your care network.",
               },
             ].map(({ name, detail }) => (
-              <article key={name} className="rounded-2xl border border-border bg-white p-7">
+              <article key={name} className="rounded-2xl border border-border bg-card p-7">
                 <p className="text-xs text-muted-foreground">Designed for your team</p>
                 <h3 className="mt-5 text-lg font-semibold">{name}</h3>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{detail}</p>
@@ -313,7 +313,7 @@ export default function LandingPage() {
           <p className="mt-4 text-muted-foreground">Make room for a more connected working day.</p>
           <a
             href="/signup"
-            className="mt-7 inline-block rounded-full bg-primary px-7 py-4 text-sm font-semibold text-white hover:bg-(--hms-accent-strong)"
+            className="mt-7 inline-block rounded-full bg-primary px-7 py-4 text-sm font-semibold text-primary-foreground hover:bg-(--hms-accent-strong)"
           >
             Start your workspace <span aria-hidden="true">↗</span>
           </a>

@@ -171,7 +171,7 @@ function BrandingEditor({ initial }: { initial: Branding }) {
                   ••••••••••••
                 </div>
               </div>
-              <div className="rounded-lg bg-(--hms-accent) p-3 text-center text-sm font-medium text-white">
+              <div className="rounded-lg bg-(--hms-accent) p-3 text-center text-sm font-medium text-primary-foreground">
                 Sign in
               </div>
               <p className="mt-4 text-center text-xs text-muted-foreground">

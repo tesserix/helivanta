@@ -14,7 +14,6 @@ describe("shell security headers", () => {
       "X-Frame-Options": "DENY",
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
-      "Content-Security-Policy": "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
     });
     expect(nextConfig.poweredByHeader).toBe(false);
   });

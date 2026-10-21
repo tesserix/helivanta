@@ -8,15 +8,16 @@ Date: 2026-10-22
 Going from the home page (`/`) into the app (`/dashboard`) feels like moving
 into a different product. Measured on 2026-10-21 against a production build:
 
-| | Home page (`.public-site`) | Signed-in app (`packages/ui/styles.css`) |
-|---|---|---|
-| Palette | warm sage — canvas `#fbfcfa`, ink `#173d3a`, primary `#23685d` | cool blue-grey — `#f4f6f9`, navy `#0f1728`, teal `#0e7569` |
-| Dark mode | never | follows the OS (`THEME_INIT_SCRIPT`) |
-| Headline | 72px, tracking −0.055em, serif italic accent line | 36px, sans only |
-| Shapes | pill buttons, 2rem cards, soft shadow | 0.625rem radius, cards inside cards |
-| Density | one idea per screen | four tabs, seven filter controls, a caveat paragraph under every card |
+|           | Home page (`.public-site`)                                     | Signed-in app (`packages/ui/styles.css`)                              |
+| --------- | -------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Palette   | warm sage — canvas `#fbfcfa`, ink `#173d3a`, primary `#23685d` | cool blue-grey — `#f4f6f9`, navy `#0f1728`, teal `#0e7569`            |
+| Dark mode | never                                                          | follows the OS (`THEME_INIT_SCRIPT`)                                  |
+| Headline  | 72px, tracking −0.055em, serif italic accent line              | 36px, sans only                                                       |
+| Shapes    | pill buttons, 2rem cards, soft shadow                          | 0.625rem radius, cards inside cards                                   |
+| Density   | one idea per screen                                            | four tabs, seven filter controls, a caveat paragraph under every card |
 
 The chrome adds clutter of its own:
+
 - The Dashboard zone's page panel lists one link ("Departments").
 - The header says "Departments" while the rail says "Dashboard".
 - "Sign out" appears in both the rail and the header.
@@ -29,11 +30,9 @@ drift again. The fix is structural: one token set that both surfaces read.
 
 1. One light palette, the home page's sage, defined once in
    `packages/ui/styles.css` and read by the public pages and the app alike.
-2. The app's surfaces use the home page's shapes:
-   - pill buttons;
-   - larger card radius;
-   - the soft shadow in place of nested borders;
-   - the headline type on page headings.
+2. The app reads as enterprise software, not a template, an open-source demo
+   or generated UI (user, 2026-10-22). It shares the home page's palette and
+   calm, not its marketing devices (D3).
 3. The chrome carries no dead weight:
    - no page panel for a zone with one page;
    - one "Sign out";
@@ -105,17 +104,17 @@ These would make the change a failure even if it looks right:
   the home page's values. Proposed mapping, final values set in the plan
   after the contrast check:
 
-  | token | from (app) | to (home page) |
-  |---|---|---|
-  | `--background` | `#f4f6f9` | `#fbfcfa` (`--site-canvas`) |
-  | `--foreground`, `--card-foreground`, `--popover-foreground` | `#0f1728` | `#173d3a` (`--site-ink`) |
-  | `--primary`, `--ring`, `--sidebar-primary`, `--hms-accent` | `#0e7569` | `#23685d` (`--site-primary`) |
-  | `--hms-accent-strong` | `#0a5a50` | `#194e46` (`--site-primary-hover`) |
-  | `--accent`, `--hms-accent-dim` | `#e3f2ef` | `#eaf1e9` (`--site-tint`) |
-  | `--muted-foreground` | `#647082` | `#60796e` (`--site-muted`) |
-  | `--border`, `--input` | `#e5eaf1` | `#dce5df` (`--site-line`) |
-  | `--muted`, `--secondary` | `#f6f8fb`/`#f0f3f7` | `#f1f5ef` (`--site-note`) |
-  | `--sidebar` | `#fafbfd` | `#f4f7f2` (new, between canvas and note) |
+  | token                                                       | from (app)          | to (home page)                           |
+  | ----------------------------------------------------------- | ------------------- | ---------------------------------------- |
+  | `--background`                                              | `#f4f6f9`           | `#fbfcfa` (`--site-canvas`)              |
+  | `--foreground`, `--card-foreground`, `--popover-foreground` | `#0f1728`           | `#173d3a` (`--site-ink`)                 |
+  | `--primary`, `--ring`, `--sidebar-primary`, `--hms-accent`  | `#0e7569`           | `#23685d` (`--site-primary`)             |
+  | `--hms-accent-strong`                                       | `#0a5a50`           | `#194e46` (`--site-primary-hover`)       |
+  | `--accent`, `--hms-accent-dim`                              | `#e3f2ef`           | `#eaf1e9` (`--site-tint`)                |
+  | `--muted-foreground`                                        | `#647082`           | `#60796e` (`--site-muted`)               |
+  | `--border`, `--input`                                       | `#e5eaf1`           | `#dce5df` (`--site-line`)                |
+  | `--muted`, `--secondary`                                    | `#f6f8fb`/`#f0f3f7` | `#f1f5ef` (`--site-note`)                |
+  | `--sidebar`                                                 | `#fafbfd`           | `#f4f7f2` (new, between canvas and note) |
 
 - The home page's tokens are needed only there: the dark "Trust" band and the
   numbered preview rows. They move into `styles.css` as named tokens
@@ -141,33 +140,79 @@ These would make the change a failure even if it looks right:
   hex arbitrary values in class strings. Today there are 14 such uses in the
   workspace pages, plus the public pages; this change removes them all.
 
-### D3. Shapes and type as tokens
+### D3. Enterprise restraint: shapes, type and surfaces
+
+The user's bar (2026-10-22): an enterprise product, not an open-source demo
+or generated UI. The two share the palette; the app does not borrow the
+landing page's marketing devices, which are what read as templated inside a
+working tool.
+
+**Banned inside the app** (the public pages may keep their own marketing
+headline):
+
+- the serif or italic accent line;
+- the small uppercase, letter-spaced eyebrow over a large headline;
+- slogans as page titles ("Your care, in perspective.") and decorative ledes
+  that restate the page's purpose;
+- gradients, glows, decorative tinted icon tiles beside every heading, and
+  emoji;
+- pill-shaped buttons;
+- cards inside cards.
+
+**Shapes.**
 
 - Raising `--radius` alone changes nothing. @tesserix/web's components use
   Tailwind's `rounded-md`/`rounded-lg`, which read Tailwind's own
-  `--radius-*` scale, not `--radius`. Its Button exposes no `data-slot` or
-  other hook to target, and 123 files import it directly.
-- The softer shapes therefore come from the scale itself: an `@theme` block
-  in `apps/shell/app/globals.css` sets `--radius-md: 0.75rem`,
-  `--radius-lg: 1rem`, `--radius-xl: 1.25rem` and `--radius-2xl: 1.5rem`.
-  Every button, input, card and menu softens in one place, with no component
-  edits.
-- Pills: the home page's full-pill shape is used only for page-level primary
-  actions and filter chips, through `rounded-full` at those call sites. App
-  buttons as a whole are not forced to pills. Doing that needs a
-  `shape="pill"` variant upstream in @tesserix/web, which is a follow-up
-  issue on that package, not a CSS override on every `<button>`.
-- `--shadow-card` is the home page's soft shadow, expressed in tokens.
-- The page-heading style moves out of the dashboard into one `PageHeading`
-  component in `packages/ui`:
-  - an eyebrow, a title with tight tracking and an optional serif-italic
-    accent line, and a lede;
-  - the accent line is reserved for the dashboard and empty states, never
-    for working pages.
-- Nested cards are the main visual noise. A card inside a card loses its
-  border and shadow and becomes a tinted region (`--muted`). This is applied
-  where nesting is found, not as a global selector, because a global `.card
-  .card` rule would also restyle dialogs.
+  `--radius-*` scale, and its Button exposes no hook to restyle (123 files
+  import it directly).
+- The scale is set once in an `@theme` block in `apps/shell/app/globals.css`:
+  - `--radius-sm: 0.25rem`;
+  - `--radius-md: 0.375rem` (controls);
+  - `--radius-lg: 0.5rem` (cards, menus, dialogs);
+  - `--radius-xl: 0.75rem` (the largest surface).
+
+  Modest corners are a large part of what separates a tool from a landing
+  page.
+
+- `rounded-full` is only for status badges, avatars and filter chips.
+
+**Surfaces.**
+
+- Cards are `bg-card` with a 1px `--border` and no shadow. Elevation is
+  reserved for things that float: menus, popovers, dialogs and toasts,
+  through one `--shadow-overlay` token.
+- A grouping inside a card is a divider or a `--muted` region, never another
+  bordered card.
+
+**Type.**
+
+- The system sans throughout. The weight scale is 400/500/600, with no 700+
+  except numbers.
+- `PageHeading` in `packages/ui` is one component for every page:
+  - a title (`text-xl font-semibold`, normal tracking);
+  - an optional one-line description in `text-sm text-muted-foreground`;
+  - an `actions` slot on the right.
+
+  It has no eyebrow and no accent.
+
+- Numbers in stat tiles and tables use `tabular-nums`, so columns align.
+- Sentence case for every label, button and heading.
+
+**Spacing and density.**
+
+- A 4px grid. Page padding is 24px, card padding 16–20px, and the gap
+  between sections is 24px.
+- Tables and lists favour density: a 40px row height, aligned columns and
+  right-aligned numbers.
+
+**Copy.** Plain and specific: a label says what a thing is, a button says
+what it does. No marketing voice inside the app.
+
+**Enforced.** A test over `PageHeading` asserts that no eyebrow or serif
+prop exists. A lint rule bans `font-serif`, `italic`, `bg-gradient-*`,
+`bg-linear-*` and `uppercase tracking-*` combinations in `apps/shell`
+outside `app/page.tsx`, `app/signup/` and `app/ambulance/`, the public
+pages.
 
 ### D4. Chrome
 
@@ -190,13 +235,16 @@ These would make the change a failure even if it looks right:
 The data, the queries and the `can(...)` gating stay exactly as they are. The
 presentation changes:
 
-- **Heading:** `PageHeading` with the existing eyebrow and title, plus the
-  serif accent line in the home page's style. The "Current tenant ·
-  authorised data" pill is removed; it states what every page already
-  guarantees.
-- **Tabs:** the four tabs stay, as a pill segmented control.
+- **Heading:** `PageHeading` with the title "Hospital overview", no
+  description, and the reporting-period control in its `actions` slot. The
+  "Hospital intelligence" eyebrow, the slogan title and the lede go (D3), and
+  so does the "Current tenant · authorised data" pill: it states what every
+  page already guarantees.
+- **Tabs:** the four tabs stay, as @tesserix/web `Tabs` with an underline
+  indicator, not a segmented pill.
 - **Filters:**
-  - The quick ranges (Today … Last 5 years) stay visible as pills.
+  - The quick ranges (Today … Last 5 years) become one compact segmented
+    control.
   - From/To, Group by and Timezone move into a "Custom range" popover with
     its own Apply button.
   - Lines/Bars moves onto each chart.
@@ -205,7 +253,11 @@ presentation changes:
   keyboard reachable and announced, and the text is unchanged: these
   definitions are #1234's measurement contract, so they are hidden from view,
   not deleted.
-- **Cards:** stat tiles inside section cards become tinted regions (D3).
+- **Cards:**
+  - Each section card drops its decorative tinted icon tile; the section
+    title stands alone, with "Open workspace" as a plain link on the right.
+  - Stat tiles inside a section become one row of figures separated by
+    dividers, not a row of bordered cards.
 
 ### D6. No native dropdowns
 
@@ -218,15 +270,16 @@ presentation changes:
   empty-value case. Requested by the user on 2026-10-22.
 - Four native `<select>` elements remain, all in emergency code:
 
-  | file | control |
-  |---|---|
-  | `apps/shell/app/ambulance/page.tsx` | "Where are you?" country |
-  | `apps/shell/components/emergency/emergency-dispatch.tsx` | "Ready vehicle" |
-  | `apps/shell/components/emergency/emergency-receiving.tsx` | receiving-side choice |
-  | `apps/shell/components/emergency/emergency-receiving-dispatch.tsx` | dispatch choice |
+  | file                                                               | control                  |
+  | ------------------------------------------------------------------ | ------------------------ |
+  | `apps/shell/app/ambulance/page.tsx`                                | "Where are you?" country |
+  | `apps/shell/components/emergency/emergency-dispatch.tsx`           | "Ready vehicle"          |
+  | `apps/shell/components/emergency/emergency-receiving.tsx`          | receiving-side choice    |
+  | `apps/shell/components/emergency/emergency-receiving-dispatch.tsx` | dispatch choice          |
 
   Each one moves to `SelectControl`, or to `FormSelectField` where it already
   sits in a zod form.
+
 - `/ambulance` is the public emergency page. It is already a client
   component, so the change does not add a JavaScript dependency it lacked.
   The `Select` trigger must still:
@@ -267,7 +320,6 @@ presentation changes:
   Lab, Supply Connect, Workforce, EmergencyConnect, Settings.
 - The tenant picker shows a readable tenant name (needs `name` from
   `/v1/iam/me/tenants`).
-- @tesserix/web: a `shape="pill"` Button variant (D3).
 
 ## Left to the builder
 

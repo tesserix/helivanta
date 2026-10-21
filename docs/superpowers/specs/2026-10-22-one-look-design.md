@@ -142,8 +142,9 @@ These would make the change a failure even if it looks right:
 
 ### D3. Enterprise restraint: shapes, type and surfaces
 
-The user's bar (2026-10-22): an enterprise product, not an open-source demo
-or generated UI. The two share the palette; the app does not borrow the
+The user's bar (2026-10-22): a _modern_ enterprise product (the register of
+Linear, Stripe or Vercel's dashboards), not an open-source demo, generated UI
+or an old-school dense admin console. The two share the palette; the app does not borrow the
 landing page's marketing devices, which are what read as templated inside a
 working tool.
 
@@ -166,23 +167,27 @@ headline):
   `--radius-*` scale, and its Button exposes no hook to restyle (123 files
   import it directly).
 - The scale is set once in an `@theme` block in `apps/shell/app/globals.css`:
-  - `--radius-sm: 0.25rem`;
-  - `--radius-md: 0.375rem` (controls);
-  - `--radius-lg: 0.5rem` (cards, menus, dialogs);
-  - `--radius-xl: 0.75rem` (the largest surface).
+  - `--radius-sm: 0.375rem` (badges, small controls);
+  - `--radius-md: 0.5rem` (buttons, inputs);
+  - `--radius-lg: 0.75rem` (cards, menus, popovers);
+  - `--radius-xl: 1rem` (dialogs, the largest surfaces).
 
-  Modest corners are a large part of what separates a tool from a landing
-  page.
+  Rounded enough to feel current, short of the landing page's 2rem cards.
 
 - `rounded-full` is only for status badges, avatars and filter chips.
 
 **Surfaces.**
 
-- Cards are `bg-card` with a 1px `--border` and no shadow. Elevation is
-  reserved for things that float: menus, popovers, dialogs and toasts,
-  through one `--shadow-overlay` token.
+- Cards are `bg-card` on the `--background` canvas, with a 1px `--border`
+  and a near-invisible `--shadow-xs`, so they lift slightly off the page.
+  Floating surfaces (menus, popovers, dialogs, toasts) take a stronger
+  `--shadow-overlay`. Nothing else casts a shadow.
 - A grouping inside a card is a divider or a `--muted` region, never another
   bordered card.
+- Every interactive element has hover, active and `focus-visible` states:
+  a subtle `--accent` fill on hover, and a 2px `--ring` focus ring with an
+  offset. Transitions are 150ms and respect `prefers-reduced-motion`.
+  Loading uses skeletons, not spinners on blank pages.
 
 **Type.**
 
@@ -200,10 +205,12 @@ headline):
 
 **Spacing and density.**
 
-- A 4px grid. Page padding is 24px, card padding 16–20px, and the gap
-  between sections is 24px.
-- Tables and lists favour density: a 40px row height, aligned columns and
-  right-aligned numbers.
+- A 4px grid with generous but purposeful space: page padding 32px on
+  desktop and 16px on mobile, card padding 20–24px, and 24–32px between
+  sections.
+- Tables are comfortable, not cramped: a 44px row height, sticky headers,
+  hover rows, aligned columns and right-aligned numbers. Modern means calm
+  and legible, not dense.
 
 **Copy.** Plain and specific: a label says what a thing is, a button says
 what it does. No marketing voice inside the app.

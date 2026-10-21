@@ -1,4 +1,5 @@
-/* Helivanta color tokens — Frost/Night system (light theme, cool teal accent).
+/* Helivanta color tokens — sage, light only (#1255): one palette for the public
+   site and the app.
    Layer AFTER @tesserix/web/styles so these win.
    @tesserix/web's own light theme rule includes a `:not(.dark):not(.light)`
    fallback branch, whose two :not() pseudo-classes each add a class-level
@@ -12,49 +13,49 @@
 :root[data-theme="default"],
 [data-theme="default"] {
   /* Content surface */
-  --background: #f4f6f9 !important;
-  --foreground: #0f1728 !important;
+  --background: #fbfcfa !important;
+  --foreground: #173d3a !important;
   --card: #ffffff !important;
-  --card-foreground: #0f1728 !important;
+  --card-foreground: #173d3a !important;
   --popover: #ffffff !important;
-  --popover-foreground: #0f1728 !important;
+  --popover-foreground: #173d3a !important;
 
-  --primary: #0e7569 !important;
+  --primary: #23685d !important;
   --primary-foreground: #ffffff !important;
 
-  --secondary: #f0f3f7 !important;
-  --secondary-foreground: #3a4557 !important;
+  --secondary: #f1f5ef !important;
+  --secondary-foreground: #244e40 !important;
 
-  --muted: #f6f8fb !important;
-  --muted-foreground: #647082 !important;
+  --muted: #f1f5ef !important;
+  --muted-foreground: #57716a !important;
 
-  --accent: #e3f2ef !important;
-  --accent-foreground: #0a5a50 !important;
+  --accent: #eaf1e9 !important;
+  --accent-foreground: #194e46 !important;
 
   --destructive: #c93b3b !important;
   --destructive-foreground: #ffffff !important;
 
-  --border: #e5eaf1 !important;
-  --input: #e5eaf1 !important;
-  --ring: #0e7569 !important;
+  --border: #dce5df !important;
+  --input: #dce5df !important;
+  --ring: #23685d !important;
 
   /* Sidebar — light rails */
-  --sidebar: #fafbfd !important;
-  --sidebar-foreground: #0f1728 !important;
-  --sidebar-primary: #0e7569 !important;
+  --sidebar: #f4f7f2 !important;
+  --sidebar-foreground: #173d3a !important;
+  --sidebar-primary: #23685d !important;
   --sidebar-primary-foreground: #ffffff !important;
-  --sidebar-accent: #f0f3f7 !important;
-  --sidebar-accent-foreground: #0f1728 !important;
-  --sidebar-border: #ebeff5 !important;
-  --sidebar-ring: #0e7569 !important;
+  --sidebar-accent: #eaf1e9 !important;
+  --sidebar-accent-foreground: #173d3a !important;
+  --sidebar-border: #dce5df !important;
+  --sidebar-ring: #23685d !important;
   --sidebar-rail: #ffffff !important;
 
   /* Helivanta semantic tokens */
-  --hms-accent: #0e7569 !important;
-  --hms-accent-strong: #0a5a50 !important;
-  --hms-accent-dim: #e3f2ef !important;
-  --hms-good: #12915e !important;
-  --hms-warn: #b95e04 !important;
+  --hms-accent: #23685d !important;
+  --hms-accent-strong: #194e46 !important;
+  --hms-accent-dim: #eaf1e9 !important;
+  --hms-good: #0f7a4f !important;
+  --hms-warn: #a85503 !important;
   --hms-crit: #c93b3b !important;
   --hms-rose: #c13b5e !important;
   --hms-rose-tint: #fbedf1 !important;
@@ -63,6 +64,13 @@
   --hms-violet: #5b5bd6 !important;
   --hms-violet-tint: #eeeefb !important;
   --hms-track: #e7ebf1 !important;
+
+  /* The home page's dark Trust band (#1255). */
+  --hms-band: #183e35 !important;
+  --hms-band-ink: #f1f5eb !important;
+  --hms-band-muted: #b9d0c1 !important;
+  --hms-band-line: #466354 !important;
+  --hms-shadow: #426859 !important;
 }
 
 /* @tesserix/web ships an UNLAYERED base rule that forces
@@ -142,10 +150,10 @@ select:autofill {
 }
 
 [data-brand-theme="teal"] {
-  --hms-accent: #0e7569;
-  --hms-accent-strong: #0a5a50;
-  --hms-accent-dim: #e3f2ef;
-  --primary: #0e7569;
+  --hms-accent: #23685d;
+  --hms-accent-strong: #194e46;
+  --hms-accent-dim: #eaf1e9;
+  --primary: #23685d;
   --primary-foreground: #ffffff;
 }
 [data-brand-theme="blue"] {
@@ -241,9 +249,9 @@ select:autofill {
   background: var(--card);
 }
 .login-page [data-brand-theme="teal"] {
-  --hms-accent: #0e7569;
-  --hms-accent-strong: #0a5a50;
-  --hms-accent-dim: #e3f2ef;
+  --hms-accent: #23685d;
+  --hms-accent-strong: #194e46;
+  --hms-accent-dim: #eaf1e9;
 }
 .login-page [data-brand-theme="blue"] {
   --hms-accent: #1d5da8;

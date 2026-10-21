@@ -11,14 +11,14 @@ export const metadata: Metadata = {
 
 export default function LandingPage() {
   return (
-    <div className="public-site min-h-screen bg-(--site-canvas) text-(--site-ink) selection:bg-teal-200">
+    <div className="public-site min-h-screen bg-background text-foreground selection:bg-teal-200">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4"
       >
         Skip to content
       </a>
-      <header className="border-b border-(--site-line)">
+      <header className="border-b border-border">
         <nav
           aria-label="Main navigation"
           className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-6 py-6 lg:px-10"
@@ -30,7 +30,7 @@ export default function LandingPage() {
           >
             <span
               aria-hidden="true"
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-(--site-primary) text-2xl text-white"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-2xl text-white"
             >
               <HeartPulse size={20} aria-hidden="true" />
             </span>
@@ -59,7 +59,7 @@ export default function LandingPage() {
             </a>
             <a
               href="/signup"
-              className="rounded-full bg-(--site-primary) px-5 py-3 text-white hover:bg-(--site-primary-hover)"
+              className="rounded-full bg-primary px-5 py-3 text-white hover:bg-(--hms-accent-strong)"
             >
               Start your workspace <span aria-hidden="true">↗</span>
             </a>
@@ -76,51 +76,51 @@ export default function LandingPage() {
             <h1 className="max-w-2xl text-5xl leading-[1.08] font-medium tracking-[-0.055em] sm:text-6xl lg:text-7xl">
               Better connected teams.
               <br />
-              <span className="font-serif italic text-(--site-accent)">More room for care.</span>
+              <span className="font-serif italic text-(--hms-accent)">More room for care.</span>
             </h1>
-            <p className="mt-7 max-w-lg text-lg leading-relaxed text-(--site-body)">
+            <p className="mt-7 max-w-lg text-lg leading-relaxed text-muted-foreground">
               One thoughtful workspace for your hospitals, pharmacies and laboratories. Bring people
               and everyday workflows together, with your organisation at the centre.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-6">
               <a
                 href="/signup"
-                className="rounded-full bg-(--site-primary) px-7 py-4 text-sm font-semibold text-white hover:bg-(--site-primary-hover)"
+                className="rounded-full bg-primary px-7 py-4 text-sm font-semibold text-white hover:bg-(--hms-accent-strong)"
               >
                 Start your workspace <span aria-hidden="true">↗</span>
               </a>
               <a
                 href="#platform"
-                className="text-sm font-semibold underline decoration-(--site-underline) underline-offset-8"
+                className="text-sm font-semibold underline decoration-border underline-offset-8"
               >
                 Explore the platform
               </a>
             </div>
-            <p className="mt-6 text-xs text-(--site-muted)">
+            <p className="mt-6 text-xs text-muted-foreground">
               Your organisation. Your identity. One connected experience.
             </p>
           </div>
           <div
-            className="relative rounded-[2rem] border border-(--site-preview-line) bg-(--site-tint) p-6 sm:p-9"
+            className="relative rounded-[2rem] border border-border bg-accent p-6 sm:p-9"
             aria-label="Illustration of the Helivanta workspace"
           >
             <div className="mb-8 flex items-center justify-between text-xs">
               <span className="font-semibold uppercase tracking-widest">Your care ecosystem</span>
-              <span className="rounded-full border border-(--site-badge-line) px-3 py-1">
+              <span className="rounded-full border border-border px-3 py-1">
                 Product preview
               </span>
             </div>
-            <div className="rounded-2xl border border-white bg-white/90 p-6 shadow-[0_16px_40px_-24px_var(--site-shadow)]">
-              <div className="flex items-center gap-3 border-b border-(--site-divider) pb-5">
+            <div className="rounded-2xl border border-white bg-white/90 p-6 shadow-[0_16px_40px_-24px_var(--hms-shadow)]">
+              <div className="flex items-center gap-3 border-b border-border pb-5">
                 <span
-                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-(--site-primary) text-2xl text-white"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-2xl text-white"
                   aria-hidden="true"
                 >
                   +
                 </span>
                 <div>
                   <p className="font-semibold">A workspace of your own</p>
-                  <p className="mt-1 text-xs text-(--site-muted)">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Your brand, across your care network
                   </p>
                 </div>
@@ -129,25 +129,25 @@ export default function LandingPage() {
                 {["Hospital teams", "PharmaConnect", "Laboratory"].map((label, i) => (
                   <div
                     key={label}
-                    className="flex items-center gap-4 rounded-xl border border-(--site-card-line) px-4 py-4"
+                    className="flex items-center gap-4 rounded-xl border border-border px-4 py-4"
                   >
-                    <span className="font-mono text-xs text-(--site-number)">0{i + 1}</span>
+                    <span className="font-mono text-xs text-muted-foreground">0{i + 1}</span>
                     <span className="flex-1 text-sm font-medium">{label}</span>
-                    <span aria-hidden="true" className="text-(--site-arrow)">
+                    <span aria-hidden="true" className="text-muted-foreground">
                       ↗
                     </span>
                   </div>
                 ))}
               </div>
-              <div className="mt-6 rounded-xl bg-(--site-note) p-4 text-xs leading-relaxed text-(--site-note-text)">
+              <div className="mt-6 rounded-xl bg-muted p-4 text-xs leading-relaxed text-muted-foreground">
                 Separate organisations. Multiple hospitals.
                 <br />
-                <strong className="font-medium text-(--site-note-strong)">
+                <strong className="font-medium text-secondary-foreground">
                   Access that follows your team's permissions.
                 </strong>
               </div>
             </div>
-            <p className="mt-6 text-center text-xs text-(--site-caption)">
+            <p className="mt-6 text-center text-xs text-muted-foreground">
               A shared interface, designed for distinct responsibilities.
             </p>
           </div>
@@ -155,10 +155,10 @@ export default function LandingPage() {
         <section
           id="platform"
           aria-labelledby="platform-heading"
-          className="border-y border-(--site-line) bg-white px-6 py-20 lg:px-10"
+          className="border-y border-border bg-white px-6 py-20 lg:px-10"
         >
           <div className="mx-auto max-w-7xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--site-eyebrow)">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               The platform
             </p>
             <div className="mt-4 flex flex-wrap items-end justify-between gap-6">
@@ -169,20 +169,20 @@ export default function LandingPage() {
                 Different responsibilities.
                 <br />A familiar place to work.
               </h2>
-              <p className="max-w-sm text-sm leading-relaxed text-(--site-muted)">
+              <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
                 A consistent experience across your organisation, with dedicated workflows for each
                 team.
               </p>
             </div>
-            <p className="mt-6 max-w-3xl text-sm leading-relaxed text-(--site-muted)">
+            <p className="mt-6 max-w-3xl text-sm leading-relaxed text-muted-foreground">
               Explore the full platform and its roadmap. Availability varies by module: foundations
               cover the workflows described below, while planned and future capabilities are not yet
               available. Access depends on your organisation and permissions.
             </p>
-            <div className="mt-10 divide-y divide-(--site-line) border-y border-(--site-line)">
+            <div className="mt-10 divide-y divide-border border-y border-border">
               {platformGroups.map((group, index) => (
                 <details key={group.name} open={index === 0} className="group py-6">
-                  <summary className="flex cursor-pointer list-none items-center gap-5 rounded-lg py-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--site-primary) [&::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer list-none items-center gap-5 rounded-lg py-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
                     <span
                       className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-mono text-xs ${group.color}`}
                     >
@@ -190,7 +190,7 @@ export default function LandingPage() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-lg font-semibold sm:text-xl">{group.name}</span>
-                      <span className="mt-1 block text-sm leading-relaxed text-(--site-muted)">
+                      <span className="mt-1 block text-sm leading-relaxed text-muted-foreground">
                         {group.description}
                       </span>
                     </span>
@@ -223,13 +223,13 @@ export default function LandingPage() {
           </div>
         </section>
         <section id="care-network" className="mx-auto max-w-7xl px-6 py-20 lg:px-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--site-eyebrow)">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             The care network
           </p>
           <h2 className="mt-4 text-3xl font-medium tracking-tight sm:text-4xl">
             Space for every kind of care.
           </h2>
-          <p className="mt-4 max-w-xl text-(--site-muted)">
+          <p className="mt-4 max-w-xl text-muted-foreground">
             Independent hospitals, multi-hospital organisations and pharmacy teams. This directory
             will feature participating organisations with their permission.
           </p>
@@ -250,27 +250,27 @@ export default function LandingPage() {
             ].map(({ name, detail }) => (
               <article
                 key={name}
-                className="rounded-2xl border border-(--site-border) bg-white p-7"
+                className="rounded-2xl border border-border bg-white p-7"
               >
-                <p className="text-xs text-(--site-muted)">Designed for your team</p>
+                <p className="text-xs text-muted-foreground">Designed for your team</p>
                 <h3 className="mt-5 text-lg font-semibold">{name}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-(--site-muted)">{detail}</p>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{detail}</p>
               </article>
             ))}
           </div>
         </section>
         <section
           id="trust"
-          className="bg-(--site-trust) px-6 py-20 text-(--site-trust-ink) lg:px-10"
+          className="bg-(--hms-band) px-6 py-20 text-(--hms-band-ink) lg:px-10"
         >
           <div className="mx-auto max-w-7xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--site-trust-eyebrow)">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--hms-band-muted)">
               Trust, with transparency
             </p>
             <h2 className="mt-4 max-w-2xl text-3xl font-medium tracking-tight sm:text-4xl">
               Care deserves a clear standard.
             </h2>
-            <p className="mt-5 max-w-2xl leading-relaxed text-(--site-trust-body)">
+            <p className="mt-5 max-w-2xl leading-relaxed text-(--hms-band-muted)">
               Our trust centre will make independent assurance and supporting documentation easy to
               find. The items below are placeholders, not claims of certification or compliance.
             </p>
@@ -278,13 +278,13 @@ export default function LandingPage() {
               {["SOC 2 Type II", "ISO/IEC 27001", "HIPAA safeguards"].map((label, i) => (
                 <article
                   key={label}
-                  className="rounded-2xl border border-(--site-trust-border) p-7"
+                  className="rounded-2xl border border-(--hms-band-line) p-7"
                 >
-                  <p className="text-xs uppercase tracking-widest text-(--site-trust-label)">
+                  <p className="text-xs uppercase tracking-widest text-(--hms-band-muted)">
                     {i === 2 ? "Compliance documentation" : "Certification placeholder"}
                   </p>
                   <h3 className="mt-5 text-xl font-medium">{label}</h3>
-                  <p className="mt-5 inline-block rounded-full border border-(--site-trust-badge) px-3 py-1 text-xs">
+                  <p className="mt-5 inline-block rounded-full border border-(--hms-band-line) px-3 py-1 text-xs">
                     {i === 2 ? "Documentation pending" : "Not yet certified"}
                   </p>
                 </article>
@@ -297,7 +297,7 @@ export default function LandingPage() {
           className="mx-auto grid max-w-7xl gap-10 px-6 py-20 md:grid-cols-2 lg:px-10"
         >
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--site-eyebrow)">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Voices from care
             </p>
             <h2 className="mt-4 text-3xl font-medium tracking-tight">
@@ -305,7 +305,7 @@ export default function LandingPage() {
               <br />
               Shared with permission.
             </h2>
-            <p className="mt-5 max-w-md text-sm leading-relaxed text-(--site-muted)">
+            <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground">
               No customer endorsements or ratings are published yet. Verified testimonials and
               reviews will appear here after customer approval.
             </p>
@@ -314,20 +314,20 @@ export default function LandingPage() {
             {["Customer testimonials", "Verified reviews"].map((label) => (
               <div
                 key={label}
-                className="rounded-2xl border border-dashed border-(--site-placeholder) p-6"
+                className="rounded-2xl border border-dashed border-border p-6"
               >
                 <h3 className="font-medium">{label}</h3>
-                <p className="mt-2 text-sm text-(--site-muted)">Awaiting approved content</p>
+                <p className="mt-2 text-sm text-muted-foreground">Awaiting approved content</p>
               </div>
             ))}
           </div>
         </section>
-        <section className="mx-6 mb-16 rounded-3xl bg-(--site-tint) px-6 py-14 text-center lg:mx-auto lg:max-w-7xl">
+        <section className="mx-6 mb-16 rounded-3xl bg-accent px-6 py-14 text-center lg:mx-auto lg:max-w-7xl">
           <h2 className="text-3xl font-medium tracking-tight">Bring your care network together.</h2>
-          <p className="mt-4 text-(--site-muted)">Make room for a more connected working day.</p>
+          <p className="mt-4 text-muted-foreground">Make room for a more connected working day.</p>
           <a
             href="/signup"
-            className="mt-7 inline-block rounded-full bg-(--site-primary) px-7 py-4 text-sm font-semibold text-white hover:bg-(--site-primary-hover)"
+            className="mt-7 inline-block rounded-full bg-primary px-7 py-4 text-sm font-semibold text-white hover:bg-(--hms-accent-strong)"
           >
             Start your workspace <span aria-hidden="true">↗</span>
           </a>

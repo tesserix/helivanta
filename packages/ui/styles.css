@@ -65,67 +65,6 @@
   --hms-track: #e7ebf1 !important;
 }
 
-:root[data-theme="dark"],
-[data-theme="dark"] {
-  /* Content surface */
-  --background: #0f1317 !important;
-  --foreground: #e8edf2 !important;
-  --card: #161c22 !important;
-  --card-foreground: #e8edf2 !important;
-  --popover: #161c22 !important;
-  --popover-foreground: #e8edf2 !important;
-
-  --primary: #45c4b4 !important;
-  --primary-foreground: #06211d !important;
-
-  --secondary: #1b222a !important;
-  --secondary-foreground: #e8edf2 !important;
-
-  --muted: #1b222a !important;
-  --muted-foreground: #8b96a3 !important;
-
-  --accent: #182b2d !important;
-  --accent-foreground: #45c4b4 !important;
-
-  --destructive: #f87171 !important;
-  --destructive-foreground: #0f1317 !important;
-
-  --border: #232b34 !important;
-  --input: #232b34 !important;
-  --ring: #45c4b4 !important;
-
-  /* Sidebar — dark rails */
-  --sidebar: #12161b !important;
-  --sidebar-foreground: #e8edf2 !important;
-  --sidebar-primary: #45c4b4 !important;
-  --sidebar-primary-foreground: #06211d !important;
-  --sidebar-accent: #1b222a !important;
-  --sidebar-accent-foreground: #e8edf2 !important;
-  --sidebar-border: #1c232b !important;
-  --sidebar-ring: #45c4b4 !important;
-  --sidebar-rail: #0b0e11 !important;
-
-  /* Helivanta semantic tokens */
-  --hms-accent: #45c4b4 !important;
-  --hms-accent-strong: #5fd8c8 !important;
-  --hms-accent-dim: #182b2d !important;
-  --hms-good: #4ade80 !important;
-  --hms-warn: #fbbf24 !important;
-  --hms-crit: #f87171 !important;
-  --hms-rose: #f17e9c !important;
-  --hms-rose-tint: #302831 !important;
-  --hms-amber: #f2c464 !important;
-  --hms-amber-tint: #30302a !important;
-  --hms-violet: #9d9df0 !important;
-  --hms-violet-tint: #26273b !important;
-  --hms-track: #232b34 !important;
-
-  /* --radius is only defined under [data-theme="default"] by @tesserix/web;
-     guard it here so it's never undefined in dark mode if a future
-     @tesserix/web release starts consuming it. */
-  --radius: 0.625rem !important;
-}
-
 /* @tesserix/web ships an UNLAYERED base rule that forces
    border-color: var(--border) on every element; unlayered CSS beats
    Tailwind's layered `border-sidebar-border` utility regardless of
@@ -222,21 +161,6 @@ select:autofill {
   --hms-accent-dim: #eeedf9;
   --primary: #5352a6;
   --primary-foreground: #ffffff;
-}
-[data-theme="dark"] [data-brand-theme="teal"] {
-  --hms-accent: #45c4b4;
-  --hms-accent-strong: #5fd8c8;
-  --hms-accent-dim: #182b2d;
-}
-[data-theme="dark"] [data-brand-theme="blue"] {
-  --hms-accent: #80baff;
-  --hms-accent-strong: #a1ccff;
-  --hms-accent-dim: #18283d;
-}
-[data-theme="dark"] [data-brand-theme="indigo"] {
-  --hms-accent: #b2abff;
-  --hms-accent-strong: #ccc6ff;
-  --hms-accent-dim: #29243e;
 }
 
 /* Public authentication stays light independently of the clinical workspace theme. */

@@ -391,7 +391,7 @@ export default async function RootLayout({
       <body>
         <script
           nonce={nonce}
-          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+          dangerouslySetInnerHTML={{ __html: CHROME_INIT_SCRIPT }}
         />
         <AppProviders>
           <StyleNonce nonce={nonce} />

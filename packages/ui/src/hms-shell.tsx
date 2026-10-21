@@ -27,7 +27,6 @@ import {
 import { visibleZones, activeZone, activePage } from "./zones";
 import { BrandLogo, TesserixFooter } from "./branding";
 import { BrandThemeContext } from "./brand-theme";
-import { ThemeToggle } from "./theme";
 import {
   endZitadelSession,
   IDLE_ENDED_MARK,
@@ -584,7 +583,6 @@ export function HmsShell({
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 {tenantPicker}
-                <ThemeToggle />
                 <form onSubmit={handleSignOut}>
                   <button
                     type="submit"

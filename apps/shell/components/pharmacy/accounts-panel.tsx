@@ -294,7 +294,7 @@ function OutletAccounts({
                       </span>
                       {formatPharmacyMoney(row.acquisition_cost_minor, row.currency)}
                       {row.uncosted_receipt_units > 0 && (
-                        <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                        <p className="mt-1 text-xs text-amber-600">
                           {row.uncosted_receipt_units} uncosted units
                         </p>
                       )}
@@ -309,7 +309,7 @@ function OutletAccounts({
                       <p
                         className={
                           row.valuation_minor === null
-                            ? "text-amber-600 dark:text-amber-400"
+                            ? "text-amber-600"
                             : "font-semibold tabular-nums"
                         }
                       >

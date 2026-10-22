@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { PERMISSIONS_CACHE_KEY, RENEW_AT_KEY, storeRenewAt } from "@helivanta/api";
 import { HmsShell } from "./hms-shell";
@@ -985,6 +985,18 @@ describe("expandable navigation", () => {
     pathname.current = "/dashboard";
     renderWithProviders(<HmsShell>content</HmsShell>);
     expect(await screen.findByTestId("tenant-name")).toHaveTextContent("Helivanta");
+  });
+
+  // #1286: the page panel has no header row, so the header names the tenant
+  // on every page and the collapse control sits at the panel's foot.
+  it("names the tenant in the header beside a page panel, which has no heading", async () => {
+    grantPharmacyPages();
+    pathname.current = "/pharmacy";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(await screen.findByTestId("tenant-name")).toHaveTextContent("Helivanta");
+    const panel = screen.getByRole("navigation", { name: "PharmaConnect" }).closest("aside")!;
+    expect(within(panel).queryByRole("heading")).toBeNull();
+    expect(within(panel).getByRole("button", { name: "Collapse page panel" })).toBeVisible();
   });
 
   it("titles a single-page zone by the zone", () => {

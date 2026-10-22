@@ -28,6 +28,11 @@ window. Icon-only rail items also make a zone's name a hover away.
   inset as well as its width, both in React and in the pre-paint `data-hms-panel="closed"`
   rule, so no 1px seam is left behind.
 
+- **D5 No page panel header.** The panel's header row (the hospital name and the collapse
+  button) is removed, so the panel is only its page list. The collapse control moves to
+  the panel's foot, as on the rail. The top bar now names the hospital on every page, not
+  only on pages without a panel, so the tenant is never off screen.
+
 ## Not covered
 
 - Rail grouping, order and the loading placeholders (#1270) are not changed.

@@ -604,24 +604,6 @@ export function HmsShell({
             } md:static md:z-auto md:flex md:max-h-[calc(100dvh-1rem)] md:self-start ${panelOpen ? "md:my-2 md:mr-2 md:w-56 md:rounded-2xl md:border md:shadow-sm" : "md:w-0 md:shadow-none"}`}
             aria-hidden={!(panelOpen || pagesOverlayOpen)}
           >
-            <div className="flex h-16 w-56 items-center justify-between pl-5 pr-3">
-              <h2 className="truncate text-sm font-semibold text-sidebar-foreground">
-                {branding.display_name}
-              </h2>
-              <button
-                type="button"
-                onClick={() =>
-                  pagesOverlayOpen ? setPagesOverlayOpen(false) : setPanelOpen(false)
-                }
-                aria-label="Collapse page panel"
-                title="Collapse panel"
-                tabIndex={panelOpen || pagesOverlayOpen ? 0 : -1}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-              >
-                <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-            <div className="hms-sidebar-border border-t" />
             <nav
               aria-label={zone.label}
               className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"
@@ -665,6 +647,22 @@ export function HmsShell({
                   );
                 })}
             </nav>
+            {/* No header row (#1286): the top bar names the tenant, and the
+                collapse control sits at the foot, as on the rail. */}
+            <div className="hms-sidebar-border mx-3 flex w-50 border-t py-3">
+              <button
+                type="button"
+                onClick={() =>
+                  pagesOverlayOpen ? setPagesOverlayOpen(false) : setPanelOpen(false)
+                }
+                aria-label="Collapse page panel"
+                title="Collapse panel"
+                tabIndex={panelOpen || pagesOverlayOpen ? 0 : -1}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              >
+                <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
           </aside>
         )}
 
@@ -684,21 +682,17 @@ export function HmsShell({
                     <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
                   </button>
                 )}
-                {/* The page panel names the hospital; without one, the header does,
-                    so the tenant is never off screen. */}
-                {!hasPagePanel && (
-                  <>
-                    <span
-                      data-testid="tenant-name"
-                      className="truncate text-sm font-medium text-muted-foreground"
-                    >
-                      {branding.display_name}
-                    </span>
-                    <span aria-hidden="true" className="text-sm text-border">
-                      /
-                    </span>
-                  </>
-                )}
+                {/* The header names the hospital on every page, so the tenant is
+                    never off screen. */}
+                <span
+                  data-testid="tenant-name"
+                  className="truncate text-sm font-medium text-muted-foreground"
+                >
+                  {branding.display_name}
+                </span>
+                <span aria-hidden="true" className="text-sm text-border">
+                  /
+                </span>
                 <h1 className="text-xl font-semibold text-foreground">
                   {hasPagePanel ? (currentPage?.label ?? zone.label) : zone.label}
                 </h1>

@@ -920,7 +920,7 @@ a `json:"-"` field cannot be published because it is never rendered.
 What this layer computes independently is which emitted **key** each tagged
 field corresponds to. Two things decide that, and both are handled without
 guessing: **which tag names `encoding/json` honours** is answered by asking
-`encoding/json` itself, including normalized names. Go 1.27.2 accepts
+`encoding/json` itself, including normalized names. Go 1.27.3 accepts
 international names that older releases rejected and can normalize unusual
 tag syntax; the mask must follow the actual emitted key. A rejected name
 renders under the Go field name instead. The second decision, **which field

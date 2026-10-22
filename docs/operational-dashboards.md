@@ -192,7 +192,7 @@ cd backend
 ./scripts/coverage-gate.sh
 ```
 
-Use Node 24 and Go 1.27.2, an accessible Docker daemon for integration tests,
+Use Node 24 and Go 1.27.3, an accessible Docker daemon for integration tests,
 and the existing documented development Zitadel build variables. The longer
 frontend test timeout accommodates the full suite on a shared development
 machine; assertions are unchanged. No production credentials or environment

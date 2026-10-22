@@ -72,7 +72,11 @@ function StatusList({
         {(items) => (
           <ul className="divide-y text-sm">
             {items.map((d) => (
-              <li key={d.id} className="flex items-center justify-between gap-4 px-5 py-3">
+              // Below sm a waiting row stacks: the form needs the full width (#1293).
+              <li
+                key={d.id}
+                className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+              >
                 <div className="min-w-0">
                   <span className="block truncate font-medium text-foreground">
                     {d.patient_name}
@@ -125,9 +129,9 @@ function DispenseForm({ id }: { id: string }) {
     <form
       noValidate
       onSubmit={form.handleSubmit((values) => dispense.mutate(values))}
-      className="flex shrink-0 items-start gap-2"
+      className="flex w-full items-start gap-2 sm:w-auto sm:shrink-0"
     >
-      <div className="w-56">
+      <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
         <Field id={fieldId} label="Medication" error={form.formState.errors.medication?.message}>
           <Input id={fieldId} {...form.register("medication")} />
         </Field>

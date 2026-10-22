@@ -12,18 +12,22 @@ async function onScreen(page: Page, name: string) {
   expect(box.x + box.width, `${name} ends off screen`).toBeLessThanOrEqual(390);
 }
 
-test("the dashboard fits a phone", async ({ page }) => {
-  await login(page);
-  await page.goto("/dashboard");
-  await page.getByRole("region", { name: "Laboratory", exact: true }).waitFor();
-  await page.waitForLoadState("networkidle");
-  const overflowing = await page.evaluate(() =>
+// Elements inside <main> that reach past the right edge of the viewport.
+function overflowing(page: Page) {
+  return page.evaluate(() =>
     [...document.querySelectorAll("main *")]
       .filter((el) => el.getBoundingClientRect().right > window.innerWidth + 1)
       .filter((el) => !el.closest("[data-scroll-x]"))
       .map((el) => (el.getAttribute("aria-label") ?? el.textContent ?? el.tagName).slice(0, 40)),
   );
-  expect(overflowing).toEqual([]);
+}
+
+test("the dashboard fits a phone", async ({ page }) => {
+  await login(page);
+  await page.goto("/dashboard");
+  await page.getByRole("region", { name: "Laboratory", exact: true }).waitFor();
+  await page.waitForLoadState("networkidle");
+  expect(await overflowing(page)).toEqual([]);
 
   await page.getByRole("button", { name: /Custom range/ }).click();
   await onScreen(page, "Custom range");
@@ -32,4 +36,21 @@ test("the dashboard fits a phone", async ({ page }) => {
 
   await page.getByRole("button", { name: "About Patient activity" }).click();
   await onScreen(page, "About Patient activity");
+});
+
+// #1293: a waiting row's medication form fits a phone, and the patient's name
+// keeps a readable width instead of wrapping a letter at a time.
+test("the dispense queue fits a phone", async ({ page }) => {
+  await login(page);
+  const patient = `Phone Patient ${Date.now()}`;
+  await page.goto("/medicore/opd");
+  await page.getByLabel("Patient name").fill(patient);
+  await page.getByRole("button", { name: "Create visit" }).click();
+  await expect(page.getByText(patient).first()).toBeVisible();
+
+  await page.goto("/pharmacy");
+  const name = page.getByText(patient).first();
+  await expect(name).toBeAttached({ timeout: 30_000 });
+  expect(await overflowing(page)).toEqual([]);
+  expect((await name.boundingBox())!.width, "patient name squeezed").toBeGreaterThan(120);
 });

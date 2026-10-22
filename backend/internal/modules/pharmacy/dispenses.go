@@ -54,9 +54,21 @@ func (h *dispenseHandlers) list(c *gin.Context, p pagination.Params) ([]dispense
 	if !ok {
 		return nil, nil
 	}
+	// The queue splits on the server (#1258): filtering a page in the
+	// browser would hide pending rows behind dispensed ones. An unknown
+	// status is refused, not ignored, so a typo never returns everything.
+	status := c.Query("status")
+	if status != "" && status != "pending" && status != "dispensed" {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "status must be pending or dispensed")
+		return nil, nil
+	}
 	var rows []dispense
 	err := h.db.WithTenant(c.Request.Context(), principal.TenantID, func(tx *gorm.DB) error {
-		return tenantdb.ApplyKeyset(tx, p).Find(&rows).Error
+		q := tenantdb.ApplyKeyset(tx, p)
+		if status != "" {
+			q = q.Where("status = ?", status)
+		}
+		return q.Find(&rows).Error
 	})
 	return rows, err
 }

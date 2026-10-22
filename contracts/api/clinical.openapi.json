@@ -233,6 +233,19 @@
         },
         "parameters": [
           {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Only dispenses in this state. Any other value is a 400 (#1258).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "dispensed"
+              ]
+            }
+          },
+          {
             "$ref": "#/components/parameters/Limit"
           },
           {

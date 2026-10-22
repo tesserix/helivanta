@@ -25,16 +25,16 @@ PharmaConnect reads as a set of unrelated screens, not one pharmacy management p
 - **D1 Page sections.** `ZonePage` gains an optional `section` label. The page panel renders a plain heading (`text-xs font-medium text-muted-foreground`, sentence case) before the first page of each section. A `zones.test.ts` check keeps each zone's sections contiguous, so the headings cannot repeat.
 - **D2 PharmaConnect's pages**, in order:
 
-  | Section    | Page               | Route                    | Permission                 | Content                                  |
-  | ---------- | ------------------ | ------------------------ | -------------------------- | ---------------------------------------- |
-  | Dispensing | Dispense queue     | `/pharmacy`              | `pharmacy.dispense.read`   | D4                                       |
-  | Dispensing | Medication list    | `/pharmacy/medications`  | `pharmacy.medication.read` | unchanged                                |
-  | Inventory  | Stock on hand      | `/pharmacy/stock`        | `pharmacy.stock.read`      | stock register, reconciliation, export   |
-  | Inventory  | Receiving          | `/pharmacy/receiving`    | `pharmacy.stock.read`      | lots, locations, movements, corrections  |
-  | Inventory  | Expiry & safety    | `/pharmacy/safety`       | `pharmacy.stock.read`      | batch safety concerns                    |
-  | Inventory  | Product catalogue  | `/pharmacy/catalogue`    | `pharmacy.catalogue.read`  | unchanged                                |
-  | Purchasing | Supplier bills     | `/pharmacy/accounts`     | `pharmacy.accounts.read`   | payables, payments, inventory audit      |
-  | Setup      | Outlets & access   | `/pharmacy/setup`        | `pharmacy.access.manage`   | pharmacy/outlet registry, outlet access  |
+  | Section    | Page              | Route                   | Permission                 | Content                                 |
+  | ---------- | ----------------- | ----------------------- | -------------------------- | --------------------------------------- |
+  | Dispensing | Dispense queue    | `/pharmacy`             | `pharmacy.dispense.read`   | D4                                      |
+  | Dispensing | Medication list   | `/pharmacy/medications` | `pharmacy.medication.read` | unchanged                               |
+  | Inventory  | Stock on hand     | `/pharmacy/stock`       | `pharmacy.stock.read`      | stock register, reconciliation, export  |
+  | Inventory  | Receiving         | `/pharmacy/receiving`   | `pharmacy.stock.read`      | lots, locations, movements, corrections |
+  | Inventory  | Expiry & safety   | `/pharmacy/safety`      | `pharmacy.stock.read`      | batch safety concerns                   |
+  | Inventory  | Product catalogue | `/pharmacy/catalogue`   | `pharmacy.catalogue.read`  | unchanged                               |
+  | Purchasing | Supplier bills    | `/pharmacy/accounts`    | `pharmacy.accounts.read`   | payables, payments, inventory audit     |
+  | Setup      | Outlets & access  | `/pharmacy/setup`       | `pharmacy.access.manage`   | pharmacy/outlet registry, outlet access |
 
   The landing page stays the dispense queue: it is the pharmacist's daily work, and `/pharmacy` is what the smoke and journey specs use. The Sales section (India first, with tax configurable per country) is #172/#1147, a separate slice. It adds its pages under a "Sales" section here.
 
@@ -43,6 +43,7 @@ PharmaConnect reads as a set of unrelated screens, not one pharmacy management p
   - the outlet caveat box.
 
   Setup holds the registry forms and the outlet access grant, which were appended to every page before.
+
 - **D4 The queue is split on the server.** `GET /pharmacy/dispenses` takes an optional `status` (`pending` | `dispensed`). Any other value is a 400, failing closed instead of returning everything. The page shows "Waiting" (pending) and then "Dispensed", both newest first: the shared keyset pagination (`tenantdb.ApplyKeyset`) has one order, and an oldest-first queue needs a second keyset direction in the platform, which is not covered here. Each is its own paged `QueryState`. The OpenAPI contract and the contract docs record the parameter.
 - **D5 Distinct icons.** Every rail zone, and every page within a zone, has its own icon. `zones.test.ts` enforces this for all zones, including Workforce, so it does not drift.
 - **D6 Pharmacy files leave the surface legacy list** (#1275 D4): `pharmacy/*` is converted to `Panel`.

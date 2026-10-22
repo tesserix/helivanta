@@ -12,7 +12,7 @@ import {
   type PharmacyPayable,
   type PharmacyInventoryAudit,
 } from "@helivanta/api";
-import { LoadMore, RequestFailure } from "@helivanta/ui";
+import { LoadMore, Panel, RequestFailure } from "@helivanta/ui";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { PayableForm, PayableHistory } from "./payable-forms";
 
@@ -30,12 +30,12 @@ export function AccountsPanel({
   const { can } = usePermissions();
   if (!can("pharmacy.accounts.read"))
     return (
-      <section className="rounded-2xl border bg-card p-6">
+      <Panel>
         <h3 className="font-semibold">Financial access required</h3>
         <p className="mt-2 text-sm text-muted-foreground">
           Ask your administrator for financial permissions and access to this outlet.
         </p>
-      </section>
+      </Panel>
     );
   return (
     <OutletAccounts
@@ -80,7 +80,7 @@ function OutletAccounts({
   );
   return (
     <div className="space-y-6">
-      <section aria-labelledby="payables-heading" className="rounded-2xl border bg-card p-5 sm:p-6">
+      <Panel aria-labelledby="payables-heading">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h3 id="payables-heading" className="flex items-center gap-2 font-semibold">
@@ -108,7 +108,7 @@ function OutletAccounts({
             No bills or expenses recorded for this outlet.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border">
+          <div className="overflow-x-auto rounded-md border">
             <table
               aria-label="Bills and expenses"
               className="block w-full text-left text-sm md:table md:min-w-[780px]"
@@ -181,9 +181,9 @@ function OutletAccounts({
           isLoading={bills.isFetchingMore}
           onClick={bills.loadMore}
         />
-      </section>
+      </Panel>
       {creating && (
-        <section ref={editor} className="scroll-mt-24 rounded-2xl border bg-card p-5 sm:p-6">
+        <Panel ref={editor} className="scroll-mt-24">
           <PayableForm
             scope={scope}
             defaultCurrency={defaultCurrency}
@@ -193,10 +193,10 @@ function OutletAccounts({
             }}
             onCancel={() => setCreating(false)}
           />
-        </section>
+        </Panel>
       )}
       {selected && (
-        <section ref={editor} className="scroll-mt-24 rounded-2xl border bg-card p-5 sm:p-6">
+        <Panel ref={editor} className="scroll-mt-24">
           <PayableHistory
             key={selected}
             scope={scope}
@@ -205,12 +205,9 @@ function OutletAccounts({
             writable={writable}
             onClose={() => setSelected(null)}
           />
-        </section>
+        </Panel>
       )}
-      <section
-        aria-labelledby="inventory-audit-heading"
-        className="rounded-2xl border bg-card p-5 sm:p-6"
-      >
+      <Panel aria-labelledby="inventory-audit-heading">
         <h3 id="inventory-audit-heading" className="flex items-center gap-2 font-semibold">
           <PackageSearch className="size-5 text-(--hms-accent)" />
           Inventory cost audit
@@ -229,7 +226,7 @@ function OutletAccounts({
             No inventory batches registered for this outlet.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border">
+          <div className="overflow-x-auto rounded-md border">
             <table
               aria-label="Inventory cost audit"
               className="block w-full text-left text-sm md:table md:min-w-[840px]"
@@ -333,7 +330,7 @@ function OutletAccounts({
           isLoading={audit.isFetchingMore}
           onClick={audit.loadMore}
         />
-      </section>
+      </Panel>
     </div>
   );
 }

@@ -50,22 +50,22 @@ function cardsFor(zones: Zone[]) {
               hue: zone.hue,
             }))
         : zone.pages.length > 1
-        ? zone.pages.map((page) => ({
-            href: page.href,
-            title: page.label,
-            desc: DESCRIPTIONS[page.href] ?? "",
-            icon: zone.icon,
-            hue: zone.hue,
-          }))
-        : [
-            {
-              href: zone.href,
-              title: zone.label,
-              desc: DESCRIPTIONS[zone.href] ?? "",
+          ? zone.pages.map((page) => ({
+              href: page.href,
+              title: page.label,
+              desc: DESCRIPTIONS[page.href] ?? "",
               icon: zone.icon,
               hue: zone.hue,
-            },
-          ],
+            }))
+          : [
+              {
+                href: zone.href,
+                title: zone.label,
+                desc: DESCRIPTIONS[zone.href] ?? "",
+                icon: zone.icon,
+                hue: zone.hue,
+              },
+            ],
     );
 }
 

@@ -17,11 +17,12 @@ import {
 } from "@helivanta/api";
 import {
   Field,
-  SelectControl,
   FormSelectField,
   LoadMore,
-  useZodForm,
+  Panel,
   RequestFailure,
+  SelectControl,
+  useZodForm,
 } from "@helivanta/ui";
 export function PharmacyRegistrySetup({
   tenantId,
@@ -31,9 +32,11 @@ export function PharmacyRegistrySetup({
   pharmacy?: PharmacyOrganization;
 }) {
   return (
-    <details className="mt-7 rounded-2xl border bg-card p-6">
-      <summary className="cursor-pointer font-medium">Pharmacy and outlet administration</summary>
-      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+    <Panel aria-labelledby="pharmacy-registry" className="mt-6">
+      <h3 id="pharmacy-registry" className="font-semibold">
+        Pharmacies and outlets
+      </h3>
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">
         Register independent, chain or hospital-owned pharmacies without a mandatory hospital. Each
         outlet needs its own access grant and regulatory review.
       </p>
@@ -48,7 +51,7 @@ export function PharmacyRegistrySetup({
           pharmacy={pharmacy}
         />
       )}
-    </details>
+    </Panel>
   );
 }
 function OrganizationForm({ tenantId }: { tenantId: string }) {
@@ -72,46 +75,48 @@ function OrganizationForm({ tenantId }: { tenantId: string }) {
     },
   );
   return (
-    <form
-      noValidate
-      className="space-y-4 rounded-xl border p-5"
-      onSubmit={form.handleSubmit((values) => save.mutate(values))}
-    >
-      <h3 className="font-semibold">Register pharmacy</h3>
-      <Field
-        id="organization-code"
-        label="Pharmacy code"
-        error={form.formState.errors.code?.message}
+    <Panel>
+      <form
+        noValidate
+        className="space-y-4"
+        onSubmit={form.handleSubmit((values) => save.mutate(values))}
       >
-        <Input id="organization-code" {...form.register("code")} />
-      </Field>
-      <Field
-        id="organization-name"
-        label="Pharmacy name"
-        error={form.formState.errors.name?.message}
-      >
-        <Input id="organization-name" {...form.register("name")} />
-      </Field>
-      <FormSelectField
-        control={form.control}
-        name="ownership_type"
-        id="organization-type"
-        label="Ownership type"
-        options={[
-          { value: "independent", label: "Independent pharmacy" },
-          { value: "chain", label: "Pharmacy chain" },
-          { value: "hospital_owned", label: "Hospital-owned pharmacy" },
-        ]}
-      />
-      {save.isError && (
-        <p role="alert" className="text-sm text-destructive">
-          {save.error.message}
-        </p>
-      )}
-      <Button type="submit" disabled={save.isPending}>
-        {save.isPending ? "Registering…" : "Register pharmacy"}
-      </Button>
-    </form>
+        <h3 className="font-semibold">Register pharmacy</h3>
+        <Field
+          id="organization-code"
+          label="Pharmacy code"
+          error={form.formState.errors.code?.message}
+        >
+          <Input id="organization-code" {...form.register("code")} />
+        </Field>
+        <Field
+          id="organization-name"
+          label="Pharmacy name"
+          error={form.formState.errors.name?.message}
+        >
+          <Input id="organization-name" {...form.register("name")} />
+        </Field>
+        <FormSelectField
+          control={form.control}
+          name="ownership_type"
+          id="organization-type"
+          label="Ownership type"
+          options={[
+            { value: "independent", label: "Independent pharmacy" },
+            { value: "chain", label: "Pharmacy chain" },
+            { value: "hospital_owned", label: "Hospital-owned pharmacy" },
+          ]}
+        />
+        {save.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {save.error.message}
+          </p>
+        )}
+        <Button type="submit" disabled={save.isPending}>
+          {save.isPending ? "Registering…" : "Register pharmacy"}
+        </Button>
+      </form>
+    </Panel>
   );
 }
 function OutletForm({ tenantId, pharmacy }: { tenantId: string; pharmacy: PharmacyOrganization }) {
@@ -139,65 +144,67 @@ function OutletForm({ tenantId, pharmacy }: { tenantId: string; pharmacy: Pharma
     },
   );
   return (
-    <form
-      noValidate
-      className="space-y-4 rounded-xl border p-5"
-      onSubmit={form.handleSubmit((values) => save.mutate(values))}
-    >
-      <h3 className="font-semibold">Register outlet at {pharmacy.name}</h3>
-      {(
-        [
-          ["code", "Outlet code"],
-          ["name", "Outlet name"],
-        ] as const
-      ).map(([name, label]) => (
+    <Panel>
+      <form
+        noValidate
+        className="space-y-4"
+        onSubmit={form.handleSubmit((values) => save.mutate(values))}
+      >
+        <h3 className="font-semibold">Register outlet at {pharmacy.name}</h3>
+        {(
+          [
+            ["code", "Outlet code"],
+            ["name", "Outlet name"],
+          ] as const
+        ).map(([name, label]) => (
+          <Field
+            key={name}
+            id={`outlet-${name}`}
+            label={label}
+            error={form.formState.errors[name]?.message}
+          >
+            <Input id={`outlet-${name}`} {...form.register(name)} />
+          </Field>
+        ))}
         <Field
-          key={name}
-          id={`outlet-${name}`}
-          label={label}
-          error={form.formState.errors[name]?.message}
-        >
-          <Input id={`outlet-${name}`} {...form.register(name)} />
-        </Field>
-      ))}
-      <Field
-        id="outlet-country_code"
-        label="Country"
-        error={form.formState.errors.country_code?.message}
-      >
-        <SelectControl
           id="outlet-country_code"
-          value={form.watch("country_code")}
-          onValueChange={(value) => {
-            const profile = countryProfile(value);
-            if (profile) {
-              form.setValue("country_code", profile.code, { shouldValidate: true });
-              form.setValue("timezone", profile.timezone, { shouldValidate: true });
-            }
-          }}
-          options={countryConfiguration.countries.map((p) => ({ value: p.code, label: p.name }))}
-        />
-      </Field>
-      <Field
-        id="outlet-timezone"
-        label="IANA time zone"
-        error={form.formState.errors.timezone?.message}
-      >
-        <Input id="outlet-timezone" {...form.register("timezone")} readOnly />
-      </Field>
-      <p className="text-xs leading-6 text-muted-foreground">
-        {countryProfile(form.watch("country_code"))?.currency} · Country metadata requires
-        regulatory review before trading.
-      </p>
-      {save.isError && (
-        <p role="alert" className="text-sm text-destructive">
-          {save.error.message}
+          label="Country"
+          error={form.formState.errors.country_code?.message}
+        >
+          <SelectControl
+            id="outlet-country_code"
+            value={form.watch("country_code")}
+            onValueChange={(value) => {
+              const profile = countryProfile(value);
+              if (profile) {
+                form.setValue("country_code", profile.code, { shouldValidate: true });
+                form.setValue("timezone", profile.timezone, { shouldValidate: true });
+              }
+            }}
+            options={countryConfiguration.countries.map((p) => ({ value: p.code, label: p.name }))}
+          />
+        </Field>
+        <Field
+          id="outlet-timezone"
+          label="IANA time zone"
+          error={form.formState.errors.timezone?.message}
+        >
+          <Input id="outlet-timezone" {...form.register("timezone")} readOnly />
+        </Field>
+        <p className="text-xs leading-6 text-muted-foreground">
+          {countryProfile(form.watch("country_code"))?.currency} · Country metadata requires
+          regulatory review before trading.
         </p>
-      )}
-      <Button type="submit" disabled={save.isPending}>
-        {save.isPending ? "Registering…" : "Register outlet"}
-      </Button>
-    </form>
+        {save.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {save.error.message}
+          </p>
+        )}
+        <Button type="submit" disabled={save.isPending}>
+          {save.isPending ? "Registering…" : "Register outlet"}
+        </Button>
+      </form>
+    </Panel>
   );
 }
 function AffiliationForm({
@@ -234,7 +241,7 @@ function AffiliationForm({
     },
   );
   return (
-    <section className="mt-6 rounded-xl border p-5">
+    <Panel className="mt-6">
       <h3 className="font-semibold">Optional hospital affiliations</h3>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
         Use the canonical hospital reference supplied during onboarding. Each declaration remains
@@ -287,6 +294,6 @@ function AffiliationForm({
         </ul>
       )}
       <LoadMore hasMore={links.hasMore} isLoading={links.isFetchingMore} onClick={links.loadMore} />
-    </section>
+    </Panel>
   );
 }

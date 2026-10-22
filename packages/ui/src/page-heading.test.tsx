@@ -28,3 +28,17 @@ it("carries no marketing type", () => {
   expect(container.querySelector("em, i")).toBeNull();
   expect(container.innerHTML).not.toMatch(/font-serif|italic|uppercase/);
 });
+
+// The shell header's h1 already names the page (#1274), so a page that would
+// only repeat it passes no title and gets no second heading.
+it("renders no heading without a title", () => {
+  render(
+    <PageHeading
+      description="File leave for staff."
+      actions={<button type="button">New request</button>}
+    />,
+  );
+  expect(screen.queryByRole("heading")).toBeNull();
+  expect(screen.getByText("File leave for staff.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "New request" })).toBeInTheDocument();
+});

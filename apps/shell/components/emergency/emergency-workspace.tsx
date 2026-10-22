@@ -10,7 +10,7 @@ import {
   type EmergencyBase,
   type EmergencyCase,
 } from "@helivanta/api";
-import { LoadMore, formatTime } from "@helivanta/ui";
+import { formatTime, LoadMore, PageHeading } from "@helivanta/ui";
 import { EmergencyBaseAdmin } from "./emergency-base-admin";
 import { EmergencyIntake } from "./emergency-intake";
 import { EmergencyFleet } from "./emergency-fleet";
@@ -27,12 +27,7 @@ export function EmergencyWorkspace() {
   const configured = bases.items.find((item) => item.id === configure);
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">EmergencyConnect</h1>
-        <p className="mt-2 text-muted-foreground">
-          Review received reports, fleet readiness and current dispatch status.
-        </p>
-      </header>
+      <PageHeading description="Review received reports, fleet readiness and current dispatch status." />
       {bases.isPending && can("emergency.base.read") && (
         <p role="status">Loading operating bases…</p>
       )}

@@ -9,7 +9,7 @@ import {
   DEFAULT_BRANDING,
   type Branding,
 } from "@helivanta/api";
-import { Field, useZodForm, LoginSurface, FormSelectField } from "@helivanta/ui";
+import { Field, FormSelectField, LoginSurface, PageHeading, useZodForm } from "@helivanta/ui";
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus-visible:outline-2 focus-visible:outline-(--hms-accent)";
 export default function BrandingPage() {
@@ -17,13 +17,7 @@ export default function BrandingPage() {
   const query = useApiQuery<Branding>(["workspace", "branding"], "/workspace/branding");
   return (
     <>
-      <div className="mb-8">
-        <p className="mb-2 text-xs font-semibold text-(--hms-accent)">Your organization</p>
-        <h2 className="text-3xl font-semibold tracking-tight">Make it yours</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          A familiar welcome for your team, from sign-in to their daily workspace.
-        </p>
-      </div>
+      <PageHeading description="The name, logo and colour your team sees on the sign-in page and in the workspace." />
       {isLoading || query.isPending ? (
         <p role="status">Loading branding…</p>
       ) : !can("workspace.branding.manage") ? (

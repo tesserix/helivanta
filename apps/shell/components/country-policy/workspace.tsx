@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@tesserix/web";
-import { ChevronRight, Globe2, Plus, ShieldCheck } from "lucide-react";
+import { ChevronRight, Plus, ShieldCheck } from "lucide-react";
 import {
   COUNTRY_POLICY_ROOT,
   countryPolicyKey,
@@ -14,7 +14,7 @@ import {
   type CountryPolicyIdentity,
   type CountryPolicyScope,
 } from "@helivanta/api";
-import { LoadMore } from "@helivanta/ui";
+import { LoadMore, PageHeading } from "@helivanta/ui";
 import { RequestFailure } from "../request-failure";
 import { CountryPolicyEditor, policyLabel } from "./editor";
 import { CountryPolicyDetail } from "./detail";
@@ -56,17 +56,7 @@ function TenantCountryPolicies({ identity }: { identity: CountryPolicyIdentity }
     );
   return (
     <div className="space-y-6">
-      <header className="space-y-3">
-        <p className="flex items-center gap-2 text-xs font-semibold text-(--hms-accent)">
-          <Globe2 className="size-4" />
-          Country governance
-        </p>
-        <h2 className="text-3xl font-semibold tracking-tight">Country policies</h2>
-        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-          Independent rules for India and Pakistan, with clear sources, explicit access and an
-          accountable review history.
-        </p>
-      </header>
+      <PageHeading description="The rules applied in each country, with their sources, who may change them and their review history." />
       <div className="flex items-start gap-3 rounded-xl border bg-card p-5">
         <ShieldCheck className="mt-0.5 size-5 shrink-0 text-(--hms-accent)" />
         <p className="text-sm leading-6 text-muted-foreground">

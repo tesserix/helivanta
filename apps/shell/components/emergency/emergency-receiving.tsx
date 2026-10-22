@@ -21,7 +21,7 @@ import {
   type EmergencyReceivingLinkCommandInput,
   type EmergencyReceivingReceipt,
 } from "@helivanta/api";
-import { LoadMore, formatTime, SelectControl } from "@helivanta/ui";
+import { formatTime, LoadMore, PageHeading, SelectControl } from "@helivanta/ui";
 import { EmergencyCommandFailure, useEmergencyRequest } from "./emergency-command";
 const root = "/emergency/receiving/facilities";
 const invalidates = [
@@ -55,13 +55,7 @@ export function EmergencyReceivingWorkspace() {
   if (!allowed) return <p>Receiving-facility access is required.</p>;
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Hospital receiving</h1>
-        <p className="mt-2 text-muted-foreground">
-          Review pre-alerts, confirm receiving capacity and record physical handover through your
-          authorized campus.
-        </p>
-      </header>
+      <PageHeading description="Review pre-alerts, confirm receiving capacity and record physical handover through your authorized campus." />
       {facilities.isPending && <p role="status">Checking campus access…</p>}
       {facilities.isError ? (
         <div role="alert">

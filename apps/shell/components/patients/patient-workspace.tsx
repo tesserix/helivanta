@@ -17,7 +17,14 @@ import {
   type PatientRegistrationInput,
   type PatientRegistrationResult,
 } from "@helivanta/api";
-import { Field, LoadMore, useZodForm, SelectControl, FormSelectField } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  LoadMore,
+  PageHeading,
+  SelectControl,
+  useZodForm,
+} from "@helivanta/ui";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -29,30 +36,23 @@ export function PatientWorkspace() {
   const hospital = hospitals.items.find((item) => item.id === hospitalId) ?? hospitals.items[0];
   return (
     <>
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">Patient services</p>
-          <h2 className="text-3xl font-semibold tracking-tight">
-            Every patient. A clear beginning.
-          </h2>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-            Find a patient record or register someone new, with the right hospital context at every
-            step.
-          </p>
-        </div>
-        {hospital && (
-          <div className="w-full max-w-sm sm:w-72">
-            <Field id="patient-hospital" label="Hospital">
-              <SelectControl
-                id="patient-hospital"
-                value={hospital.id}
-                onValueChange={setHospitalId}
-                options={hospitals.items.map((item) => ({ value: item.id, label: item.name }))}
-              />
-            </Field>
-          </div>
-        )}
-      </header>
+      <PageHeading
+        description="Find a patient record or register someone new in the selected hospital."
+        actions={
+          hospital && (
+            <div className="w-full max-w-sm sm:w-72">
+              <Field id="patient-hospital" label="Hospital">
+                <SelectControl
+                  id="patient-hospital"
+                  value={hospital.id}
+                  onValueChange={setHospitalId}
+                  options={hospitals.items.map((item) => ({ value: item.id, label: item.name }))}
+                />
+              </Field>
+            </div>
+          )
+        }
+      />
       {hospitals.isError ? (
         <Failure message="Could not load your hospitals." retry={hospitals.retry} />
       ) : hospitals.isPending ? (

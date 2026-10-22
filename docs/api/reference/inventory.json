@@ -11,7 +11,8 @@
           "permission": "no_tenant_membership",
           "authentication_required": true,
           "membership_required": false,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -19,7 +20,8 @@
           "permission": "no_tenant_membership",
           "authentication_required": true,
           "membership_required": false,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -27,7 +29,8 @@
           "permission": "no_tenant_membership",
           "authentication_required": true,
           "membership_required": false,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -35,7 +38,8 @@
           "permission": "no_tenant_membership",
           "authentication_required": true,
           "membership_required": false,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -43,7 +47,8 @@
           "permission": "no_tenant_membership",
           "authentication_required": true,
           "membership_required": false,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -51,7 +56,8 @@
           "permission": "no_tenant_membership",
           "authentication_required": true,
           "membership_required": false,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "DELETE",
@@ -59,7 +65,8 @@
           "permission": "iam.member.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -67,7 +74,8 @@
           "permission": "iam.member.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -75,7 +83,8 @@
           "permission": "iam.member.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -83,7 +92,8 @@
           "permission": "iam.member.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -91,7 +101,8 @@
           "permission": "iam.credential.revoke",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         }
       ],
       "grants": [
@@ -181,7 +192,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -189,7 +201,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -197,7 +210,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         }
       ],
       "grants": [],
@@ -257,7 +271,8 @@
           "permission": "emergency.base.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -265,7 +280,8 @@
           "permission": "emergency.base.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -273,7 +289,8 @@
           "permission": "emergency.base.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -281,7 +298,8 @@
           "permission": "emergency.case.assess",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -289,7 +307,8 @@
           "permission": "emergency.case.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -297,7 +316,8 @@
           "permission": "emergency.case.close",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -305,7 +325,8 @@
           "permission": "emergency.dispatch.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -313,7 +334,8 @@
           "permission": "emergency.case.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -321,7 +343,8 @@
           "permission": "emergency.case.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -329,7 +352,8 @@
           "permission": "emergency.case.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -337,7 +361,8 @@
           "permission": "emergency.case.intake",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -345,7 +370,8 @@
           "permission": "emergency.case.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -353,7 +379,8 @@
           "permission": "emergency.case.assess",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -361,7 +388,8 @@
           "permission": "emergency.clinical.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -369,7 +397,8 @@
           "permission": "emergency.clinical.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -377,7 +406,8 @@
           "permission": "emergency.fleet.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -385,7 +415,8 @@
           "permission": "emergency.fleet.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -393,7 +424,8 @@
           "permission": "emergency.fleet.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -401,7 +433,8 @@
           "permission": "emergency.dispatch.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -409,7 +442,8 @@
           "permission": "emergency.dispatch.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -417,7 +451,8 @@
           "permission": "emergency.dispatch.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -425,7 +460,8 @@
           "permission": "emergency.dispatch.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -433,7 +469,8 @@
           "permission": "emergency.case.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -441,7 +478,8 @@
           "permission": "emergency.dispatch.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -449,7 +487,8 @@
           "permission": "emergency.case.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -457,7 +496,8 @@
           "permission": "emergency.fleet.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -465,7 +505,8 @@
           "permission": "emergency.fleet.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -473,7 +514,8 @@
           "permission": "emergency.fleet.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -481,7 +523,8 @@
           "permission": "emergency.fleet.check",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -489,7 +532,8 @@
           "permission": "emergency.dispatch.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -497,7 +541,8 @@
           "permission": "emergency.dispatch.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -505,7 +550,8 @@
           "permission": "emergency.dispatch.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -513,7 +559,8 @@
           "permission": "emergency.dispatch.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -521,7 +568,8 @@
           "permission": "emergency.fleet.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -529,7 +577,8 @@
           "permission": "emergency.fleet.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -537,7 +586,8 @@
           "permission": "emergency.base.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -545,7 +595,8 @@
           "permission": "emergency.base.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -553,7 +604,8 @@
           "permission": "emergency.crew.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -561,7 +613,8 @@
           "permission": "emergency.crew.act",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -569,7 +622,8 @@
           "permission": "emergency.crew.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -577,7 +631,8 @@
           "permission": "emergency.crew.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -585,7 +640,8 @@
           "permission": "emergency.crew.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -593,7 +649,8 @@
           "permission": "emergency.crew.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -601,7 +658,8 @@
           "permission": "emergency.receiving.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -609,7 +667,8 @@
           "permission": "emergency.receiving.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -617,7 +676,8 @@
           "permission": "emergency.receiving.act",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -625,7 +685,8 @@
           "permission": "emergency.receiving.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -633,7 +694,8 @@
           "permission": "emergency.receiving.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -641,7 +703,8 @@
           "permission": "emergency.receiving.act",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -649,7 +712,8 @@
           "permission": "emergency.receiving.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -657,7 +721,8 @@
           "permission": "emergency.receiving.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -665,7 +730,8 @@
           "permission": "emergency.receiving.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -673,7 +739,8 @@
           "permission": "emergency.receiving.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -681,7 +748,8 @@
           "permission": "emergency.receiving.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         }
       ],
       "grants": [
@@ -888,7 +956,8 @@
           "permission": "medicore.visit.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -896,7 +965,8 @@
           "permission": "medicore.visit.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -904,7 +974,8 @@
           "permission": "medicore.visit.create",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         }
       ],
       "grants": [
@@ -970,7 +1041,8 @@
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -978,7 +1050,8 @@
           "permission": "pharmacy.dispense.fulfil",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -986,7 +1059,8 @@
           "permission": "pharmacy.dispense.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -994,7 +1068,8 @@
           "permission": "pharmacy.dispense.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1002,7 +1077,8 @@
           "permission": "pharmacy.medication.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -1010,7 +1086,8 @@
           "permission": "pharmacy.medication.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1018,7 +1095,8 @@
           "permission": "pharmacy.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1026,7 +1104,8 @@
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "DELETE",
@@ -1034,7 +1113,8 @@
           "permission": "pharmacy.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1042,7 +1122,8 @@
           "permission": "pharmacy.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1050,7 +1131,8 @@
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1058,7 +1140,8 @@
           "permission": "pharmacy.accounts.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1066,7 +1149,8 @@
           "permission": "pharmacy.accounts.adjust",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1074,7 +1158,8 @@
           "permission": "pharmacy.accounts.payment",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1082,7 +1167,8 @@
           "permission": "pharmacy.accounts.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1090,7 +1176,8 @@
           "permission": "pharmacy.accounts.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1098,7 +1185,8 @@
           "permission": "pharmacy.accounts.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1106,7 +1194,8 @@
           "permission": "pharmacy.accounts.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1114,7 +1203,8 @@
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1122,7 +1212,8 @@
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -1130,7 +1221,8 @@
           "permission": "pharmacy.tax.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1138,7 +1230,8 @@
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1146,7 +1239,8 @@
           "permission": "pharmacy.catalogue.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1154,7 +1248,8 @@
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1162,7 +1257,8 @@
           "permission": "pharmacy.stock.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1170,7 +1266,8 @@
           "permission": "pharmacy.stock.receive",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1178,7 +1275,8 @@
           "permission": "pharmacy.stock.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1186,7 +1284,8 @@
           "permission": "pharmacy.stock.correct",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1194,7 +1293,8 @@
           "permission": "pharmacy.stock.receive",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1202,7 +1302,8 @@
           "permission": "pharmacy.stock.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1210,7 +1311,8 @@
           "permission": "pharmacy.stock.receive",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1218,7 +1320,8 @@
           "permission": "pharmacy.stock.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1226,7 +1329,8 @@
           "permission": "pharmacy.stock.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1234,7 +1338,8 @@
           "permission": "pharmacy.stock.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1242,7 +1347,8 @@
           "permission": "pharmacy.stock.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1250,7 +1356,8 @@
           "permission": "pharmacy.stock.quarantine",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1258,7 +1365,8 @@
           "permission": "pharmacy.stock.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1266,7 +1374,8 @@
           "permission": "pharmacy.tax.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1274,7 +1383,8 @@
           "permission": "pharmacy.tax.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -1282,7 +1392,8 @@
           "permission": "pharmacy.tax.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1290,7 +1401,8 @@
           "permission": "pharmacy.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1298,7 +1410,8 @@
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1306,7 +1419,8 @@
           "permission": "pharmacy.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1314,7 +1428,8 @@
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         }
       ],
       "grants": [
@@ -1530,7 +1645,8 @@
           "permission": "supply.party.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1538,7 +1654,8 @@
           "permission": "supply.party.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1546,7 +1663,8 @@
           "permission": "supply.party.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "DELETE",
@@ -1554,7 +1672,8 @@
           "permission": "supply.party.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1562,7 +1681,8 @@
           "permission": "supply.party.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1570,7 +1690,8 @@
           "permission": "supply.party.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1578,7 +1699,8 @@
           "permission": "supply.directory.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1586,7 +1708,8 @@
           "permission": "supply.party.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1594,7 +1717,8 @@
           "permission": "supply.party.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1602,7 +1726,8 @@
           "permission": "supply.organization.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1610,7 +1735,8 @@
           "permission": "supply.party.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1618,7 +1744,8 @@
           "permission": "supply.party.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1626,7 +1753,8 @@
           "permission": "supply.party.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1634,7 +1762,8 @@
           "permission": "supply.party.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1642,7 +1771,8 @@
           "permission": "supply.evidence.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1650,7 +1780,8 @@
           "permission": "supply.evidence.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -1658,7 +1789,8 @@
           "permission": "supply.evidence.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -1666,7 +1798,8 @@
           "permission": "supply.evidence.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1674,7 +1807,8 @@
           "permission": "supply.evidence.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1682,7 +1816,8 @@
           "permission": "supply.evidence.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1690,7 +1825,8 @@
           "permission": "supply.license.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1698,7 +1834,8 @@
           "permission": "supply.license.submit",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1706,7 +1843,8 @@
           "permission": "supply.license.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1714,7 +1852,8 @@
           "permission": "supply.license.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1722,7 +1861,8 @@
           "permission": "supply.license.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1730,7 +1870,8 @@
           "permission": "supply.license.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1738,7 +1879,8 @@
           "permission": "supply.license.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1746,7 +1888,8 @@
           "permission": "supply.operations.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1754,7 +1897,8 @@
           "permission": "supply.operations.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1762,7 +1906,8 @@
           "permission": "supply.operations.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1770,7 +1915,8 @@
           "permission": "supply.operations.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1778,7 +1924,8 @@
           "permission": "supply.operations.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1786,7 +1933,8 @@
           "permission": "supply.operations.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1794,7 +1942,8 @@
           "permission": "supply.party.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1802,7 +1951,8 @@
           "permission": "supply.bin.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1810,7 +1960,8 @@
           "permission": "supply.bin.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1818,7 +1969,8 @@
           "permission": "supply.bin.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1826,7 +1978,8 @@
           "permission": "supply.bin.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1834,7 +1987,8 @@
           "permission": "supply.delivery.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1842,7 +1996,8 @@
           "permission": "supply.delivery.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1850,7 +2005,8 @@
           "permission": "supply.delivery.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1858,7 +2014,8 @@
           "permission": "supply.delivery.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1866,7 +2023,8 @@
           "permission": "supply.delivery.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1874,7 +2032,8 @@
           "permission": "supply.delivery.assigned.action",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1882,7 +2041,8 @@
           "permission": "supply.delivery.assigned.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1890,7 +2050,8 @@
           "permission": "supply.delivery.assigned.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1898,7 +2059,8 @@
           "permission": "supply.premise.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1906,7 +2068,8 @@
           "permission": "supply.premise.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1914,7 +2077,8 @@
           "permission": "supply.premise.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1922,7 +2086,8 @@
           "permission": "supply.premise.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1930,7 +2095,8 @@
           "permission": "supply.party.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -1938,7 +2104,8 @@
           "permission": "supply.support.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1946,7 +2113,8 @@
           "permission": "supply.support.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1954,7 +2122,8 @@
           "permission": "supply.support.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -1962,7 +2131,8 @@
           "permission": "supply.support.revoke",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1970,7 +2140,8 @@
           "permission": "supply.support.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -1978,7 +2149,8 @@
           "permission": "supply.support.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1986,7 +2158,8 @@
           "permission": "supply.support.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -1994,7 +2167,8 @@
           "permission": "supply.territory.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2002,7 +2176,8 @@
           "permission": "supply.territory.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -2010,7 +2185,8 @@
           "permission": "supply.territory.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2018,7 +2194,8 @@
           "permission": "supply.territory.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2026,7 +2203,8 @@
           "permission": "supply.party.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -2034,7 +2212,8 @@
           "permission": "supply.party.write",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2042,7 +2221,8 @@
           "permission": "supply.directory.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         }
       ],
       "grants": [
@@ -2399,7 +2579,8 @@
           "permission": "lab.order.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -2407,7 +2588,8 @@
           "permission": "lab.order.fulfil",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2415,7 +2597,8 @@
           "permission": "lab.order.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         }
       ],
       "grants": [
@@ -2476,7 +2659,8 @@
           "permission": "patient.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "DELETE",
@@ -2484,7 +2668,8 @@
           "permission": "patient.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -2492,7 +2677,8 @@
           "permission": "patient.access.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2500,7 +2686,8 @@
           "permission": "patient.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -2508,7 +2695,8 @@
           "permission": "patient.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2516,7 +2704,8 @@
           "permission": "patient.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -2524,7 +2713,8 @@
           "permission": "patient.register",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         }
       ],
       "grants": [
@@ -2600,7 +2790,8 @@
           "permission": "workforce.hospital.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -2608,7 +2799,8 @@
           "permission": "workforce.hospital.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2616,7 +2808,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2624,7 +2817,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -2632,7 +2826,8 @@
           "permission": "workforce.attendance.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2640,7 +2835,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -2648,7 +2844,8 @@
           "permission": "workforce.attendance.correct",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -2656,7 +2853,8 @@
           "permission": "workforce.attendance.approve",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2664,7 +2862,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2672,7 +2871,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -2680,7 +2880,8 @@
           "permission": "workforce.attendance.correct",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2688,7 +2889,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -2696,7 +2898,8 @@
           "permission": "workforce.attendance.finalise",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2704,7 +2907,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -2712,7 +2916,8 @@
           "permission": "workforce.attendance.finalise",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2720,7 +2925,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2728,7 +2934,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2736,7 +2943,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2744,7 +2952,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -2752,7 +2961,8 @@
           "permission": "workforce.attendance.finalise",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2760,7 +2970,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2768,7 +2979,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -2776,7 +2988,8 @@
           "permission": "workforce.attendance.record",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2784,7 +2997,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -2792,7 +3006,8 @@
           "permission": "workforce.attendance.record",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2800,7 +3015,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2808,7 +3024,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2816,7 +3033,8 @@
           "permission": "workforce.benefits.export",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2824,7 +3042,8 @@
           "permission": "workforce.benefits.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -2832,7 +3051,8 @@
           "permission": "workforce.benefits.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2840,7 +3060,8 @@
           "permission": "workforce.benefits.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2848,7 +3069,8 @@
           "permission": "workforce.enrollment.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -2856,7 +3078,8 @@
           "permission": "workforce.enrollment.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -2864,7 +3087,8 @@
           "permission": "workforce.enrollment.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2872,7 +3096,8 @@
           "permission": "workforce.enrollment.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2880,7 +3105,8 @@
           "permission": "workforce.enrollment.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -2888,7 +3114,8 @@
           "permission": "workforce.duty.request",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -2896,7 +3123,8 @@
           "permission": "workforce.duty.approve",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2904,7 +3132,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -2912,7 +3141,8 @@
           "permission": "workforce.duty.approve",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2920,7 +3150,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -2928,7 +3159,8 @@
           "permission": "workforce.duty.request",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2936,7 +3168,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2944,7 +3177,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2952,7 +3186,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2960,7 +3195,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -2968,7 +3204,8 @@
           "permission": "workforce.leave.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2976,7 +3213,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2984,7 +3222,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -2992,7 +3231,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3000,7 +3240,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3008,7 +3249,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3016,7 +3258,8 @@
           "permission": "workforce.leave.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3024,7 +3267,8 @@
           "permission": "workforce.leave.allocate",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3032,7 +3276,8 @@
           "permission": "workforce.leave.allocate",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3040,7 +3285,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3048,7 +3294,8 @@
           "permission": "workforce.leave.allocate",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3056,7 +3303,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3064,7 +3312,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3072,7 +3321,8 @@
           "permission": "workforce.master.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3080,7 +3330,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3088,7 +3339,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3096,7 +3348,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3104,7 +3357,8 @@
           "permission": "workforce.overtime.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3112,7 +3366,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3120,7 +3375,8 @@
           "permission": "workforce.overtime.request",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3128,7 +3384,8 @@
           "permission": "workforce.overtime.approve",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3136,7 +3393,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3144,7 +3402,8 @@
           "permission": "workforce.overtime.approve",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3152,7 +3411,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3160,7 +3420,8 @@
           "permission": "workforce.overtime.request",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3168,7 +3429,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3176,7 +3438,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3184,7 +3447,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3192,7 +3456,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3200,7 +3465,8 @@
           "permission": "workforce.payroll.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3208,7 +3474,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3216,7 +3483,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3224,7 +3492,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3232,7 +3501,8 @@
           "permission": "workforce.payroll.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3240,7 +3510,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3248,7 +3519,8 @@
           "permission": "workforce.payroll.approve",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3256,7 +3528,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3264,7 +3537,8 @@
           "permission": "workforce.payroll.identifiers.reveal",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3272,7 +3546,8 @@
           "permission": "workforce.payroll.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3280,7 +3555,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3288,7 +3564,8 @@
           "permission": "workforce.payroll.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3296,7 +3573,8 @@
           "permission": "workforce.payroll.approve",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3304,7 +3582,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3312,7 +3591,8 @@
           "permission": "workforce.payroll.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3320,7 +3600,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3328,7 +3609,8 @@
           "permission": "workforce.payroll.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3336,7 +3618,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3344,7 +3627,8 @@
           "permission": "workforce.payroll.approve",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3352,7 +3636,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3360,7 +3645,8 @@
           "permission": "workforce.payroll.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3368,7 +3654,8 @@
           "permission": "workforce.payroll.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3376,7 +3663,8 @@
           "permission": "workforce.payroll.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3384,7 +3672,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3392,7 +3681,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3400,7 +3690,8 @@
           "permission": "workforce.payroll.identifiers.reveal",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3408,7 +3699,8 @@
           "permission": "workforce.payroll.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3416,7 +3708,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3424,7 +3717,8 @@
           "permission": "workforce.payroll.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3432,7 +3726,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3440,7 +3735,8 @@
           "permission": "workforce.payroll.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3448,7 +3744,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3456,7 +3753,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3464,7 +3762,8 @@
           "permission": "workforce.payroll.approve",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3472,7 +3771,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3480,7 +3780,8 @@
           "permission": "workforce.payroll.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3488,7 +3789,8 @@
           "permission": "workforce.payroll.configure",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3496,7 +3798,8 @@
           "permission": "workforce.payroll.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3504,7 +3807,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3512,7 +3816,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3520,7 +3825,8 @@
           "permission": "workforce.roster.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3528,7 +3834,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3536,7 +3843,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3544,7 +3852,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3552,7 +3861,8 @@
           "permission": "workforce.roster.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3560,7 +3870,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3568,7 +3879,8 @@
           "permission": "workforce.roster.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3576,7 +3888,8 @@
           "permission": "workforce.roster.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3584,7 +3897,8 @@
           "permission": "workforce.roster.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3592,7 +3906,8 @@
           "permission": "workforce.roster.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3600,7 +3915,8 @@
           "permission": "workforce.roster.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3608,7 +3924,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3616,7 +3933,8 @@
           "permission": "workforce.roster.correct",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3624,7 +3942,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3632,7 +3951,8 @@
           "permission": "workforce.roster.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3640,7 +3960,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3648,7 +3969,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3656,7 +3978,8 @@
           "permission": "workforce.roster.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3664,7 +3987,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3672,7 +3996,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3680,7 +4005,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3688,7 +4014,8 @@
           "permission": "workforce.benefits.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3696,7 +4023,8 @@
           "permission": "workforce.benefits.approve",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3704,7 +4032,8 @@
           "permission": "workforce.benefits.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3712,7 +4041,8 @@
           "permission": "workforce.benefits.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3720,7 +4050,8 @@
           "permission": "workforce.benefits.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3728,7 +4059,8 @@
           "permission": "workforce.benefits.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3736,7 +4068,8 @@
           "permission": "workforce.benefits.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3744,7 +4077,8 @@
           "permission": "workforce.benefits.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3752,7 +4086,8 @@
           "permission": "workforce.benefits.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3760,7 +4095,8 @@
           "permission": "workforce.benefits.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3768,7 +4104,8 @@
           "permission": "workforce.credentials.review",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3776,7 +4113,8 @@
           "permission": "workforce.enrollment.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3784,7 +4122,8 @@
           "permission": "workforce.enrollment.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3792,7 +4131,8 @@
           "permission": "workforce.enrollment.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3800,7 +4140,8 @@
           "permission": "workforce.enrollment.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3808,7 +4149,8 @@
           "permission": "workforce.benefits.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3816,7 +4158,8 @@
           "permission": "workforce.benefits.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3824,7 +4167,8 @@
           "permission": "workforce.benefits.view",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3832,7 +4176,8 @@
           "permission": "workforce.documents.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3840,7 +4185,8 @@
           "permission": "workforce.documents.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3848,7 +4194,8 @@
           "permission": "workforce.documents.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3856,7 +4203,8 @@
           "permission": "workforce.documents.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3864,7 +4212,8 @@
           "permission": "workforce.documents.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3872,7 +4221,8 @@
           "permission": "workforce.documents.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3880,7 +4230,8 @@
           "permission": "workforce.documents.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3888,7 +4239,8 @@
           "permission": "workforce.enrollment.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3896,7 +4248,8 @@
           "permission": "workforce.enrollment.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3904,7 +4257,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3912,7 +4266,8 @@
           "permission": "workforce.leave.allocate",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3920,7 +4275,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3928,7 +4284,8 @@
           "permission": "workforce.leave.correct",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3936,7 +4293,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3944,7 +4302,8 @@
           "permission": "workforce.leave.request",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3952,7 +4311,8 @@
           "permission": "workforce.leave.approve",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3960,7 +4320,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -3968,7 +4329,8 @@
           "permission": "workforce.leave.approve",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3976,7 +4338,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -3984,7 +4347,8 @@
           "permission": "workforce.leave.request",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -3992,7 +4356,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -4000,7 +4365,8 @@
           "permission": "workforce.roster.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -4008,7 +4374,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -4016,7 +4383,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -4024,7 +4392,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -4032,7 +4401,8 @@
           "permission": "workforce.hospital.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -4040,7 +4410,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         }
       ],
       "grants": [
@@ -4535,7 +4906,8 @@
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "PUT",
@@ -4543,7 +4915,8 @@
           "permission": "workspace.branding.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "POST",
@@ -4551,7 +4924,8 @@
           "permission": "workspace.country_policy.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -4559,7 +4933,8 @@
           "permission": "workspace.country_policy.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -4567,7 +4942,8 @@
           "permission": "workspace.country_policy.review",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -4575,7 +4951,8 @@
           "permission": "workspace.country_policy.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -4583,7 +4960,8 @@
           "permission": "workspace.country_policy.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "GET",
@@ -4591,7 +4969,8 @@
           "permission": "workspace.country_policy.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         },
         {
           "method": "GET",
@@ -4599,7 +4978,8 @@
           "permission": "workspace.country_policy.read",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": true
+          "paginated": true,
+          "counted": false
         },
         {
           "method": "POST",
@@ -4607,7 +4987,8 @@
           "permission": "workspace.country_policy.manage",
           "authentication_required": true,
           "membership_required": true,
-          "paginated": false
+          "paginated": false,
+          "counted": false
         }
       ],
       "grants": [

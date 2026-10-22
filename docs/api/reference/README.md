@@ -10,19 +10,19 @@ Tables below are historical `CREATE TABLE` declarations found in registered migr
 
 Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modules/iam/module.go). Payloads: `backend/internal/modules/iam/contract/`, owning handlers, and [schema index](../schemas.md).
 
-| Method | Path | Permission | Cursor pagination |
-| --- | --- | --- | --- |
-| POST | `/v1/auth/renew` | `no_tenant_membership` | false |
-| POST | `/v1/auth/session/activity` | `no_tenant_membership` | false |
-| GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false |
-| POST | `/v1/iam/me/sign-out` | `no_tenant_membership` | false |
-| POST | `/v1/iam/me/tenant` | `no_tenant_membership` | false |
-| GET | `/v1/iam/me/tenants` | `no_tenant_membership` | false |
-| DELETE | `/v1/iam/members/:subject/:role` | `iam.member.manage` | false |
-| GET | `/v1/iam/members` | `iam.member.manage` | true |
-| POST | `/v1/iam/members` | `iam.member.manage` | false |
-| GET | `/v1/iam/roles` | `iam.member.manage` | false |
-| POST | `/v1/iam/subjects/:subject/revoke` | `iam.credential.revoke` | false |
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| POST | `/v1/auth/renew` | `no_tenant_membership` | false | false |
+| POST | `/v1/auth/session/activity` | `no_tenant_membership` | false | false |
+| GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |
+| POST | `/v1/iam/me/sign-out` | `no_tenant_membership` | false | false |
+| POST | `/v1/iam/me/tenant` | `no_tenant_membership` | false | false |
+| GET | `/v1/iam/me/tenants` | `no_tenant_membership` | false | false |
+| DELETE | `/v1/iam/members/:subject/:role` | `iam.member.manage` | false | false |
+| GET | `/v1/iam/members` | `iam.member.manage` | true | false |
+| POST | `/v1/iam/members` | `iam.member.manage` | false | false |
+| GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
+| POST | `/v1/iam/subjects/:subject/revoke` | `iam.credential.revoke` | false | false |
 
 Published subjects:
 
@@ -46,11 +46,11 @@ Migration table declarations:
 
 Source: [backend/internal/modules/reference/module.go](../../../backend/internal/modules/reference/module.go). Payloads: `backend/internal/modules/reference/contract/`, owning handlers, and [schema index](../schemas.md).
 
-| Method | Path | Permission | Cursor pagination |
-| --- | --- | --- | --- |
-| POST | `/v1/reference/ping` | `public` | false |
-| GET | `/v1/reference/pings/:id` | `public` | false |
-| GET | `/v1/reference/pings` | `public` | true |
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| POST | `/v1/reference/ping` | `public` | false | false |
+| GET | `/v1/reference/pings/:id` | `public` | false | false |
+| GET | `/v1/reference/pings` | `public` | true | false |
 
 Published subjects:
 
@@ -75,62 +75,62 @@ Migration table declarations:
 
 Source: [backend/internal/modules/emergency/module.go](../../../backend/internal/modules/emergency/module.go). Payloads: `backend/internal/modules/emergency/contract/`, owning handlers, and [schema index](../schemas.md).
 
-| Method | Path | Permission | Cursor pagination |
-| --- | --- | --- | --- |
-| DELETE | `/v1/emergency/bases/:base/access/:subject` | `emergency.base.manage` | false |
-| PUT | `/v1/emergency/bases/:base/access/:subject` | `emergency.base.manage` | false |
-| GET | `/v1/emergency/bases/:base/access` | `emergency.base.read` | false |
-| PUT | `/v1/emergency/bases/:base/cases/:case/assessments/:assessment` | `emergency.case.assess` | false |
-| GET | `/v1/emergency/bases/:base/cases/:case/assessments` | `emergency.case.read` | true |
-| POST | `/v1/emergency/bases/:base/cases/:case/close` | `emergency.case.close` | false |
-| GET | `/v1/emergency/bases/:base/cases/:case/dispatch-eligibility` | `emergency.dispatch.manage` | false |
-| GET | `/v1/emergency/bases/:base/cases/:case/dispatches` | `emergency.case.read` | true |
-| GET | `/v1/emergency/bases/:base/cases/:case/timeline` | `emergency.case.read` | true |
-| GET | `/v1/emergency/bases/:base/cases/:case` | `emergency.case.read` | false |
-| PUT | `/v1/emergency/bases/:base/cases/:case` | `emergency.case.intake` | false |
-| GET | `/v1/emergency/bases/:base/cases` | `emergency.case.read` | true |
-| GET | `/v1/emergency/bases/:base/clinical-reviewer` | `emergency.case.assess` | false |
-| GET | `/v1/emergency/bases/:base/clinical-reviewers/:subject` | `emergency.clinical.manage` | false |
-| PUT | `/v1/emergency/bases/:base/clinical-reviewers/:subject` | `emergency.clinical.manage` | false |
-| POST | `/v1/emergency/bases/:base/constraints/:check/:code/clear` | `emergency.fleet.manage` | false |
-| PUT | `/v1/emergency/bases/:base/crew/:crew` | `emergency.fleet.manage` | false |
-| GET | `/v1/emergency/bases/:base/crew` | `emergency.fleet.read` | true |
-| PUT | `/v1/emergency/bases/:base/dispatches/:dispatch/commands/:command` | `emergency.dispatch.manage` | false |
-| GET | `/v1/emergency/bases/:base/dispatches/:dispatch/receiving/:request` | `emergency.dispatch.manage` | false |
-| PUT | `/v1/emergency/bases/:base/dispatches/:dispatch/receiving/:request` | `emergency.dispatch.manage` | false |
-| GET | `/v1/emergency/bases/:base/dispatches/:dispatch/receiving` | `emergency.dispatch.manage` | true |
-| GET | `/v1/emergency/bases/:base/dispatches/:dispatch` | `emergency.case.read` | false |
-| PUT | `/v1/emergency/bases/:base/dispatches/:dispatch` | `emergency.dispatch.manage` | false |
-| GET | `/v1/emergency/bases/:base/dispatches` | `emergency.case.read` | true |
-| POST | `/v1/emergency/bases/:base/duties/:duty/end` | `emergency.fleet.manage` | false |
-| PUT | `/v1/emergency/bases/:base/duties/:duty` | `emergency.fleet.manage` | false |
-| GET | `/v1/emergency/bases/:base/duties` | `emergency.fleet.read` | true |
-| PUT | `/v1/emergency/bases/:base/readiness/:check` | `emergency.fleet.check` | false |
-| PUT | `/v1/emergency/bases/:base/receiving-links/:link/commands/:command` | `emergency.dispatch.manage` | false |
-| GET | `/v1/emergency/bases/:base/receiving-links/:link` | `emergency.dispatch.manage` | false |
-| PUT | `/v1/emergency/bases/:base/receiving-links/:link` | `emergency.dispatch.manage` | false |
-| GET | `/v1/emergency/bases/:base/receiving-links` | `emergency.dispatch.manage` | true |
-| PUT | `/v1/emergency/bases/:base/vehicles/:vehicle` | `emergency.fleet.manage` | false |
-| GET | `/v1/emergency/bases/:base/vehicles` | `emergency.fleet.read` | true |
-| PUT | `/v1/emergency/bases/:base` | `emergency.base.manage` | false |
-| GET | `/v1/emergency/bases` | `emergency.base.read` | true |
-| GET | `/v1/emergency/crew/assignments` | `emergency.crew.read` | true |
-| PUT | `/v1/emergency/crew/bases/:base/dispatches/:dispatch/commands/:command` | `emergency.crew.act` | false |
-| GET | `/v1/emergency/crew/bases/:base/dispatches/:dispatch/incident` | `emergency.crew.read` | false |
-| GET | `/v1/emergency/crew/bases/:base/dispatches/:dispatch/receiving/:request` | `emergency.crew.read` | false |
-| GET | `/v1/emergency/crew/bases/:base/dispatches/:dispatch/receiving` | `emergency.crew.read` | true |
-| GET | `/v1/emergency/crew/bases/:base/dispatches/:dispatch` | `emergency.crew.read` | false |
-| GET | `/v1/emergency/receiving/facilities/:facility/access/:subject` | `emergency.receiving.read` | false |
-| PUT | `/v1/emergency/receiving/facilities/:facility/access/:subject` | `emergency.receiving.manage` | false |
-| PUT | `/v1/emergency/receiving/facilities/:facility/links/:provider/:link/commands/:command` | `emergency.receiving.act` | false |
-| GET | `/v1/emergency/receiving/facilities/:facility/links/:provider/:link` | `emergency.receiving.read` | false |
-| GET | `/v1/emergency/receiving/facilities/:facility/links` | `emergency.receiving.read` | true |
-| PUT | `/v1/emergency/receiving/facilities/:facility/requests/:provider/:request/commands/:command` | `emergency.receiving.act` | false |
-| GET | `/v1/emergency/receiving/facilities/:facility/requests/:provider/:request` | `emergency.receiving.read` | false |
-| GET | `/v1/emergency/receiving/facilities/:facility/requests` | `emergency.receiving.read` | true |
-| GET | `/v1/emergency/receiving/facilities/:facility` | `emergency.receiving.read` | false |
-| PUT | `/v1/emergency/receiving/facilities/:facility` | `emergency.receiving.manage` | false |
-| GET | `/v1/emergency/receiving/facilities` | `emergency.receiving.read` | true |
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| DELETE | `/v1/emergency/bases/:base/access/:subject` | `emergency.base.manage` | false | false |
+| PUT | `/v1/emergency/bases/:base/access/:subject` | `emergency.base.manage` | false | false |
+| GET | `/v1/emergency/bases/:base/access` | `emergency.base.read` | false | false |
+| PUT | `/v1/emergency/bases/:base/cases/:case/assessments/:assessment` | `emergency.case.assess` | false | false |
+| GET | `/v1/emergency/bases/:base/cases/:case/assessments` | `emergency.case.read` | true | false |
+| POST | `/v1/emergency/bases/:base/cases/:case/close` | `emergency.case.close` | false | false |
+| GET | `/v1/emergency/bases/:base/cases/:case/dispatch-eligibility` | `emergency.dispatch.manage` | false | false |
+| GET | `/v1/emergency/bases/:base/cases/:case/dispatches` | `emergency.case.read` | true | false |
+| GET | `/v1/emergency/bases/:base/cases/:case/timeline` | `emergency.case.read` | true | false |
+| GET | `/v1/emergency/bases/:base/cases/:case` | `emergency.case.read` | false | false |
+| PUT | `/v1/emergency/bases/:base/cases/:case` | `emergency.case.intake` | false | false |
+| GET | `/v1/emergency/bases/:base/cases` | `emergency.case.read` | true | false |
+| GET | `/v1/emergency/bases/:base/clinical-reviewer` | `emergency.case.assess` | false | false |
+| GET | `/v1/emergency/bases/:base/clinical-reviewers/:subject` | `emergency.clinical.manage` | false | false |
+| PUT | `/v1/emergency/bases/:base/clinical-reviewers/:subject` | `emergency.clinical.manage` | false | false |
+| POST | `/v1/emergency/bases/:base/constraints/:check/:code/clear` | `emergency.fleet.manage` | false | false |
+| PUT | `/v1/emergency/bases/:base/crew/:crew` | `emergency.fleet.manage` | false | false |
+| GET | `/v1/emergency/bases/:base/crew` | `emergency.fleet.read` | true | false |
+| PUT | `/v1/emergency/bases/:base/dispatches/:dispatch/commands/:command` | `emergency.dispatch.manage` | false | false |
+| GET | `/v1/emergency/bases/:base/dispatches/:dispatch/receiving/:request` | `emergency.dispatch.manage` | false | false |
+| PUT | `/v1/emergency/bases/:base/dispatches/:dispatch/receiving/:request` | `emergency.dispatch.manage` | false | false |
+| GET | `/v1/emergency/bases/:base/dispatches/:dispatch/receiving` | `emergency.dispatch.manage` | true | false |
+| GET | `/v1/emergency/bases/:base/dispatches/:dispatch` | `emergency.case.read` | false | false |
+| PUT | `/v1/emergency/bases/:base/dispatches/:dispatch` | `emergency.dispatch.manage` | false | false |
+| GET | `/v1/emergency/bases/:base/dispatches` | `emergency.case.read` | true | false |
+| POST | `/v1/emergency/bases/:base/duties/:duty/end` | `emergency.fleet.manage` | false | false |
+| PUT | `/v1/emergency/bases/:base/duties/:duty` | `emergency.fleet.manage` | false | false |
+| GET | `/v1/emergency/bases/:base/duties` | `emergency.fleet.read` | true | false |
+| PUT | `/v1/emergency/bases/:base/readiness/:check` | `emergency.fleet.check` | false | false |
+| PUT | `/v1/emergency/bases/:base/receiving-links/:link/commands/:command` | `emergency.dispatch.manage` | false | false |
+| GET | `/v1/emergency/bases/:base/receiving-links/:link` | `emergency.dispatch.manage` | false | false |
+| PUT | `/v1/emergency/bases/:base/receiving-links/:link` | `emergency.dispatch.manage` | false | false |
+| GET | `/v1/emergency/bases/:base/receiving-links` | `emergency.dispatch.manage` | true | false |
+| PUT | `/v1/emergency/bases/:base/vehicles/:vehicle` | `emergency.fleet.manage` | false | false |
+| GET | `/v1/emergency/bases/:base/vehicles` | `emergency.fleet.read` | true | false |
+| PUT | `/v1/emergency/bases/:base` | `emergency.base.manage` | false | false |
+| GET | `/v1/emergency/bases` | `emergency.base.read` | true | false |
+| GET | `/v1/emergency/crew/assignments` | `emergency.crew.read` | true | false |
+| PUT | `/v1/emergency/crew/bases/:base/dispatches/:dispatch/commands/:command` | `emergency.crew.act` | false | false |
+| GET | `/v1/emergency/crew/bases/:base/dispatches/:dispatch/incident` | `emergency.crew.read` | false | false |
+| GET | `/v1/emergency/crew/bases/:base/dispatches/:dispatch/receiving/:request` | `emergency.crew.read` | false | false |
+| GET | `/v1/emergency/crew/bases/:base/dispatches/:dispatch/receiving` | `emergency.crew.read` | true | false |
+| GET | `/v1/emergency/crew/bases/:base/dispatches/:dispatch` | `emergency.crew.read` | false | false |
+| GET | `/v1/emergency/receiving/facilities/:facility/access/:subject` | `emergency.receiving.read` | false | false |
+| PUT | `/v1/emergency/receiving/facilities/:facility/access/:subject` | `emergency.receiving.manage` | false | false |
+| PUT | `/v1/emergency/receiving/facilities/:facility/links/:provider/:link/commands/:command` | `emergency.receiving.act` | false | false |
+| GET | `/v1/emergency/receiving/facilities/:facility/links/:provider/:link` | `emergency.receiving.read` | false | false |
+| GET | `/v1/emergency/receiving/facilities/:facility/links` | `emergency.receiving.read` | true | false |
+| PUT | `/v1/emergency/receiving/facilities/:facility/requests/:provider/:request/commands/:command` | `emergency.receiving.act` | false | false |
+| GET | `/v1/emergency/receiving/facilities/:facility/requests/:provider/:request` | `emergency.receiving.read` | false | false |
+| GET | `/v1/emergency/receiving/facilities/:facility/requests` | `emergency.receiving.read` | true | false |
+| GET | `/v1/emergency/receiving/facilities/:facility` | `emergency.receiving.read` | false | false |
+| PUT | `/v1/emergency/receiving/facilities/:facility` | `emergency.receiving.manage` | false | false |
+| GET | `/v1/emergency/receiving/facilities` | `emergency.receiving.read` | true | false |
 
 Published subjects:
 
@@ -161,11 +161,11 @@ Migration table declarations:
 
 Source: [backend/internal/modules/medicore/module.go](../../../backend/internal/modules/medicore/module.go). Payloads: `backend/internal/modules/medicore/contract/`, owning handlers, and [schema index](../schemas.md).
 
-| Method | Path | Permission | Cursor pagination |
-| --- | --- | --- | --- |
-| GET | `/v1/medicore/insights` | `medicore.visit.read` | false |
-| GET | `/v1/medicore/visits` | `medicore.visit.read` | true |
-| POST | `/v1/medicore/visits` | `medicore.visit.create` | false |
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/medicore/insights` | `medicore.visit.read` | false | false |
+| GET | `/v1/medicore/visits` | `medicore.visit.read` | true | false |
+| POST | `/v1/medicore/visits` | `medicore.visit.create` | false | false |
 
 Published subjects:
 
@@ -183,52 +183,52 @@ Migration table declarations:
 
 Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/modules/pharmacy/module.go). Payloads: `backend/internal/modules/pharmacy/contract/`, owning handlers, and [schema index](../schemas.md).
 
-| Method | Path | Permission | Cursor pagination |
-| --- | --- | --- | --- |
-| GET | `/v1/pharmacy/configuration` | `pharmacy.catalogue.read` | false |
-| POST | `/v1/pharmacy/dispenses/:id/dispense` | `pharmacy.dispense.fulfil` | false |
-| GET | `/v1/pharmacy/dispenses` | `pharmacy.dispense.read` | true |
-| GET | `/v1/pharmacy/insights` | `pharmacy.dispense.read` | false |
-| GET | `/v1/pharmacy/medications` | `pharmacy.medication.read` | true |
-| POST | `/v1/pharmacy/medications` | `pharmacy.medication.write` | false |
-| PUT | `/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id` | `pharmacy.access.manage` | false |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations` | `pharmacy.catalogue.read` | true |
-| DELETE | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false |
-| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access` | `pharmacy.catalogue.read` | false |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/inventory-audit` | `pharmacy.accounts.read` | true |
-| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/adjustments/:entry` | `pharmacy.accounts.adjust` | false |
-| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/payments/:entry` | `pharmacy.accounts.payment` | false |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/settlements` | `pharmacy.accounts.read` | true |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id` | `pharmacy.accounts.read` | false |
-| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id` | `pharmacy.accounts.write` | false |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables` | `pharmacy.accounts.read` | true |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/revisions` | `pharmacy.catalogue.read` | true |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications` | `pharmacy.catalogue.read` | true |
-| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications` | `pharmacy.tax.manage` | false |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id` | `pharmacy.catalogue.read` | false |
-| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id` | `pharmacy.catalogue.write` | false |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products` | `pharmacy.catalogue.read` | true |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/balance` | `pharmacy.stock.read` | false |
-| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id` | `pharmacy.stock.receive` | false |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches` | `pharmacy.stock.read` | true |
-| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/corrections/:id` | `pharmacy.stock.correct` | false |
-| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/locations/:id` | `pharmacy.stock.receive` | false |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/locations` | `pharmacy.stock.read` | true |
-| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/movements/:id` | `pharmacy.stock.receive` | false |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/movements` | `pharmacy.stock.read` | true |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions.csv` | `pharmacy.stock.read` | false |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions` | `pharmacy.stock.read` | true |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/reconciliation` | `pharmacy.stock.read` | false |
-| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/:id` | `pharmacy.stock.quarantine` | false |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents` | `pharmacy.stock.read` | true |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force` | `pharmacy.tax.manage` | false |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` | `pharmacy.tax.manage` | true |
-| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` | `pharmacy.tax.manage` | false |
-| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet` | `pharmacy.access.manage` | false |
-| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets` | `pharmacy.catalogue.read` | true |
-| PUT | `/v1/pharmacy/pharmacies/:pharmacy` | `pharmacy.access.manage` | false |
-| GET | `/v1/pharmacy/pharmacies` | `pharmacy.catalogue.read` | true |
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/pharmacy/configuration` | `pharmacy.catalogue.read` | false | false |
+| POST | `/v1/pharmacy/dispenses/:id/dispense` | `pharmacy.dispense.fulfil` | false | false |
+| GET | `/v1/pharmacy/dispenses` | `pharmacy.dispense.read` | true | false |
+| GET | `/v1/pharmacy/insights` | `pharmacy.dispense.read` | false | false |
+| GET | `/v1/pharmacy/medications` | `pharmacy.medication.read` | true | false |
+| POST | `/v1/pharmacy/medications` | `pharmacy.medication.write` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id` | `pharmacy.access.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations` | `pharmacy.catalogue.read` | true | false |
+| DELETE | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access` | `pharmacy.catalogue.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/inventory-audit` | `pharmacy.accounts.read` | true | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/adjustments/:entry` | `pharmacy.accounts.adjust` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/payments/:entry` | `pharmacy.accounts.payment` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/settlements` | `pharmacy.accounts.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id` | `pharmacy.accounts.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id` | `pharmacy.accounts.write` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables` | `pharmacy.accounts.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/revisions` | `pharmacy.catalogue.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications` | `pharmacy.catalogue.read` | true | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications` | `pharmacy.tax.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id` | `pharmacy.catalogue.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id` | `pharmacy.catalogue.write` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products` | `pharmacy.catalogue.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/balance` | `pharmacy.stock.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id` | `pharmacy.stock.receive` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches` | `pharmacy.stock.read` | true | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/corrections/:id` | `pharmacy.stock.correct` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/locations/:id` | `pharmacy.stock.receive` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/locations` | `pharmacy.stock.read` | true | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/movements/:id` | `pharmacy.stock.receive` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/movements` | `pharmacy.stock.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions.csv` | `pharmacy.stock.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions` | `pharmacy.stock.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/reconciliation` | `pharmacy.stock.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/:id` | `pharmacy.stock.quarantine` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents` | `pharmacy.stock.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force` | `pharmacy.tax.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` | `pharmacy.tax.manage` | true | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` | `pharmacy.tax.manage` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet` | `pharmacy.access.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets` | `pharmacy.catalogue.read` | true | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy` | `pharmacy.access.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies` | `pharmacy.catalogue.read` | true | false |
 
 Published subjects:
 
@@ -256,73 +256,73 @@ Migration table declarations:
 
 Source: [backend/internal/modules/supply/module.go](../../../backend/internal/modules/supply/module.go). Payloads: `backend/internal/modules/supply/contract/`, owning handlers, and [schema index](../schemas.md).
 
-| Method | Path | Permission | Cursor pagination |
-| --- | --- | --- | --- |
-| GET | `/v1/supply/parties/:party/access-limits/revisions` | `supply.party.access.manage` | true |
-| GET | `/v1/supply/parties/:party/access-limits` | `supply.party.access.manage` | false |
-| PUT | `/v1/supply/parties/:party/access-limits` | `supply.party.access.manage` | false |
-| DELETE | `/v1/supply/parties/:party/access/:subject/:role` | `supply.party.access.manage` | false |
-| PUT | `/v1/supply/parties/:party/access/:subject/:role` | `supply.party.access.manage` | false |
-| GET | `/v1/supply/parties/:party/access/grants` | `supply.party.access.manage` | true |
-| GET | `/v1/supply/parties/:party/access` | `supply.directory.read` | false |
-| GET | `/v1/supply/parties/:party/corporate-structure/revisions` | `supply.party.read` | true |
-| GET | `/v1/supply/parties/:party/corporate-structure` | `supply.party.read` | false |
-| PUT | `/v1/supply/parties/:party/corporate-structure` | `supply.organization.manage` | false |
-| GET | `/v1/supply/parties/:party/grants/:grant/revisions` | `supply.party.access.manage` | true |
-| GET | `/v1/supply/parties/:party/grants/:grant` | `supply.party.access.manage` | false |
-| PUT | `/v1/supply/parties/:party/grants/:grant` | `supply.party.access.manage` | false |
-| GET | `/v1/supply/parties/:party/grants` | `supply.party.access.manage` | true |
-| PUT | `/v1/supply/parties/:party/licenses/:license/evidence/:file/content` | `supply.evidence.write` | false |
-| GET | `/v1/supply/parties/:party/licenses/:license/evidence/:file/download` | `supply.evidence.read` | false |
-| POST | `/v1/supply/parties/:party/licenses/:license/evidence/:file/retry/:attempt` | `supply.evidence.write` | false |
-| POST | `/v1/supply/parties/:party/licenses/:license/evidence/:file/revoke` | `supply.evidence.write` | false |
-| PUT | `/v1/supply/parties/:party/licenses/:license/evidence/:file` | `supply.evidence.write` | false |
-| GET | `/v1/supply/parties/:party/licenses/:license/evidence` | `supply.evidence.read` | true |
-| GET | `/v1/supply/parties/:party/licenses/:license/review` | `supply.license.read` | false |
-| PUT | `/v1/supply/parties/:party/licenses/:license/reviews/:review` | `supply.license.submit` | false |
-| GET | `/v1/supply/parties/:party/licenses/:license/reviews` | `supply.license.read` | true |
-| GET | `/v1/supply/parties/:party/licenses/:license/revisions` | `supply.license.read` | true |
-| GET | `/v1/supply/parties/:party/licenses/:license` | `supply.license.read` | false |
-| PUT | `/v1/supply/parties/:party/licenses/:license` | `supply.license.write` | false |
-| GET | `/v1/supply/parties/:party/licenses` | `supply.license.read` | true |
-| GET | `/v1/supply/parties/:party/operating-locations/:premise/bins/:bin/revisions` | `supply.operations.read` | true |
-| GET | `/v1/supply/parties/:party/operating-locations/:premise/bins/:bin` | `supply.operations.read` | false |
-| PUT | `/v1/supply/parties/:party/operating-locations/:premise/bins/:bin` | `supply.operations.write` | false |
-| GET | `/v1/supply/parties/:party/operating-locations/:premise/bins` | `supply.operations.read` | true |
-| GET | `/v1/supply/parties/:party/operating-locations/:premise` | `supply.operations.read` | false |
-| GET | `/v1/supply/parties/:party/operating-locations` | `supply.operations.read` | true |
-| GET | `/v1/supply/parties/:party/platform-identity` | `supply.party.read` | false |
-| GET | `/v1/supply/parties/:party/premises/:premise/bins/:bin/revisions` | `supply.bin.read` | true |
-| GET | `/v1/supply/parties/:party/premises/:premise/bins/:bin` | `supply.bin.read` | false |
-| PUT | `/v1/supply/parties/:party/premises/:premise/bins/:bin` | `supply.bin.write` | false |
-| GET | `/v1/supply/parties/:party/premises/:premise/bins` | `supply.bin.read` | true |
-| GET | `/v1/supply/parties/:party/premises/:premise/delivery-drivers` | `supply.delivery.write` | true |
-| GET | `/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery/revisions` | `supply.delivery.read` | true |
-| GET | `/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery` | `supply.delivery.read` | false |
-| PUT | `/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery` | `supply.delivery.write` | false |
-| GET | `/v1/supply/parties/:party/premises/:premise/delivery-tasks` | `supply.delivery.read` | true |
-| PUT | `/v1/supply/parties/:party/premises/:premise/my-deliveries/:delivery/actions/:action` | `supply.delivery.assigned.action` | false |
-| GET | `/v1/supply/parties/:party/premises/:premise/my-deliveries/:delivery` | `supply.delivery.assigned.read` | false |
-| GET | `/v1/supply/parties/:party/premises/:premise/my-deliveries` | `supply.delivery.assigned.read` | true |
-| GET | `/v1/supply/parties/:party/premises/:premise/revisions` | `supply.premise.read` | true |
-| GET | `/v1/supply/parties/:party/premises/:premise` | `supply.premise.read` | false |
-| PUT | `/v1/supply/parties/:party/premises/:premise` | `supply.premise.write` | false |
-| GET | `/v1/supply/parties/:party/premises` | `supply.premise.read` | true |
-| GET | `/v1/supply/parties/:party/revisions` | `supply.party.read` | true |
-| POST | `/v1/supply/parties/:party/support/:support/decision` | `supply.support.manage` | false |
-| GET | `/v1/supply/parties/:party/support/:support/diagnostics` | `supply.support.read` | false |
-| GET | `/v1/supply/parties/:party/support/:support/revisions` | `supply.support.read` | true |
-| POST | `/v1/supply/parties/:party/support/:support/revoke` | `supply.support.revoke` | false |
-| GET | `/v1/supply/parties/:party/support/:support` | `supply.support.read` | false |
-| PUT | `/v1/supply/parties/:party/support/:support` | `supply.support.manage` | false |
-| GET | `/v1/supply/parties/:party/support` | `supply.support.read` | true |
-| GET | `/v1/supply/parties/:party/territories/:territory/revisions` | `supply.territory.read` | true |
-| GET | `/v1/supply/parties/:party/territories/:territory` | `supply.territory.read` | false |
-| PUT | `/v1/supply/parties/:party/territories/:territory` | `supply.territory.write` | false |
-| GET | `/v1/supply/parties/:party/territories` | `supply.territory.read` | true |
-| GET | `/v1/supply/parties/:party` | `supply.party.read` | false |
-| PUT | `/v1/supply/parties/:party` | `supply.party.write` | false |
-| GET | `/v1/supply/parties` | `supply.directory.read` | true |
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/supply/parties/:party/access-limits/revisions` | `supply.party.access.manage` | true | false |
+| GET | `/v1/supply/parties/:party/access-limits` | `supply.party.access.manage` | false | false |
+| PUT | `/v1/supply/parties/:party/access-limits` | `supply.party.access.manage` | false | false |
+| DELETE | `/v1/supply/parties/:party/access/:subject/:role` | `supply.party.access.manage` | false | false |
+| PUT | `/v1/supply/parties/:party/access/:subject/:role` | `supply.party.access.manage` | false | false |
+| GET | `/v1/supply/parties/:party/access/grants` | `supply.party.access.manage` | true | false |
+| GET | `/v1/supply/parties/:party/access` | `supply.directory.read` | false | false |
+| GET | `/v1/supply/parties/:party/corporate-structure/revisions` | `supply.party.read` | true | false |
+| GET | `/v1/supply/parties/:party/corporate-structure` | `supply.party.read` | false | false |
+| PUT | `/v1/supply/parties/:party/corporate-structure` | `supply.organization.manage` | false | false |
+| GET | `/v1/supply/parties/:party/grants/:grant/revisions` | `supply.party.access.manage` | true | false |
+| GET | `/v1/supply/parties/:party/grants/:grant` | `supply.party.access.manage` | false | false |
+| PUT | `/v1/supply/parties/:party/grants/:grant` | `supply.party.access.manage` | false | false |
+| GET | `/v1/supply/parties/:party/grants` | `supply.party.access.manage` | true | false |
+| PUT | `/v1/supply/parties/:party/licenses/:license/evidence/:file/content` | `supply.evidence.write` | false | false |
+| GET | `/v1/supply/parties/:party/licenses/:license/evidence/:file/download` | `supply.evidence.read` | false | false |
+| POST | `/v1/supply/parties/:party/licenses/:license/evidence/:file/retry/:attempt` | `supply.evidence.write` | false | false |
+| POST | `/v1/supply/parties/:party/licenses/:license/evidence/:file/revoke` | `supply.evidence.write` | false | false |
+| PUT | `/v1/supply/parties/:party/licenses/:license/evidence/:file` | `supply.evidence.write` | false | false |
+| GET | `/v1/supply/parties/:party/licenses/:license/evidence` | `supply.evidence.read` | true | false |
+| GET | `/v1/supply/parties/:party/licenses/:license/review` | `supply.license.read` | false | false |
+| PUT | `/v1/supply/parties/:party/licenses/:license/reviews/:review` | `supply.license.submit` | false | false |
+| GET | `/v1/supply/parties/:party/licenses/:license/reviews` | `supply.license.read` | true | false |
+| GET | `/v1/supply/parties/:party/licenses/:license/revisions` | `supply.license.read` | true | false |
+| GET | `/v1/supply/parties/:party/licenses/:license` | `supply.license.read` | false | false |
+| PUT | `/v1/supply/parties/:party/licenses/:license` | `supply.license.write` | false | false |
+| GET | `/v1/supply/parties/:party/licenses` | `supply.license.read` | true | false |
+| GET | `/v1/supply/parties/:party/operating-locations/:premise/bins/:bin/revisions` | `supply.operations.read` | true | false |
+| GET | `/v1/supply/parties/:party/operating-locations/:premise/bins/:bin` | `supply.operations.read` | false | false |
+| PUT | `/v1/supply/parties/:party/operating-locations/:premise/bins/:bin` | `supply.operations.write` | false | false |
+| GET | `/v1/supply/parties/:party/operating-locations/:premise/bins` | `supply.operations.read` | true | false |
+| GET | `/v1/supply/parties/:party/operating-locations/:premise` | `supply.operations.read` | false | false |
+| GET | `/v1/supply/parties/:party/operating-locations` | `supply.operations.read` | true | false |
+| GET | `/v1/supply/parties/:party/platform-identity` | `supply.party.read` | false | false |
+| GET | `/v1/supply/parties/:party/premises/:premise/bins/:bin/revisions` | `supply.bin.read` | true | false |
+| GET | `/v1/supply/parties/:party/premises/:premise/bins/:bin` | `supply.bin.read` | false | false |
+| PUT | `/v1/supply/parties/:party/premises/:premise/bins/:bin` | `supply.bin.write` | false | false |
+| GET | `/v1/supply/parties/:party/premises/:premise/bins` | `supply.bin.read` | true | false |
+| GET | `/v1/supply/parties/:party/premises/:premise/delivery-drivers` | `supply.delivery.write` | true | false |
+| GET | `/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery/revisions` | `supply.delivery.read` | true | false |
+| GET | `/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery` | `supply.delivery.read` | false | false |
+| PUT | `/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery` | `supply.delivery.write` | false | false |
+| GET | `/v1/supply/parties/:party/premises/:premise/delivery-tasks` | `supply.delivery.read` | true | false |
+| PUT | `/v1/supply/parties/:party/premises/:premise/my-deliveries/:delivery/actions/:action` | `supply.delivery.assigned.action` | false | false |
+| GET | `/v1/supply/parties/:party/premises/:premise/my-deliveries/:delivery` | `supply.delivery.assigned.read` | false | false |
+| GET | `/v1/supply/parties/:party/premises/:premise/my-deliveries` | `supply.delivery.assigned.read` | true | false |
+| GET | `/v1/supply/parties/:party/premises/:premise/revisions` | `supply.premise.read` | true | false |
+| GET | `/v1/supply/parties/:party/premises/:premise` | `supply.premise.read` | false | false |
+| PUT | `/v1/supply/parties/:party/premises/:premise` | `supply.premise.write` | false | false |
+| GET | `/v1/supply/parties/:party/premises` | `supply.premise.read` | true | false |
+| GET | `/v1/supply/parties/:party/revisions` | `supply.party.read` | true | false |
+| POST | `/v1/supply/parties/:party/support/:support/decision` | `supply.support.manage` | false | false |
+| GET | `/v1/supply/parties/:party/support/:support/diagnostics` | `supply.support.read` | false | false |
+| GET | `/v1/supply/parties/:party/support/:support/revisions` | `supply.support.read` | true | false |
+| POST | `/v1/supply/parties/:party/support/:support/revoke` | `supply.support.revoke` | false | false |
+| GET | `/v1/supply/parties/:party/support/:support` | `supply.support.read` | false | false |
+| PUT | `/v1/supply/parties/:party/support/:support` | `supply.support.manage` | false | false |
+| GET | `/v1/supply/parties/:party/support` | `supply.support.read` | true | false |
+| GET | `/v1/supply/parties/:party/territories/:territory/revisions` | `supply.territory.read` | true | false |
+| GET | `/v1/supply/parties/:party/territories/:territory` | `supply.territory.read` | false | false |
+| PUT | `/v1/supply/parties/:party/territories/:territory` | `supply.territory.write` | false | false |
+| GET | `/v1/supply/parties/:party/territories` | `supply.territory.read` | true | false |
+| GET | `/v1/supply/parties/:party` | `supply.party.read` | false | false |
+| PUT | `/v1/supply/parties/:party` | `supply.party.write` | false | false |
+| GET | `/v1/supply/parties` | `supply.directory.read` | true | false |
 
 Published subjects:
 
@@ -357,11 +357,11 @@ Migration table declarations:
 
 Source: [backend/internal/modules/lab/module.go](../../../backend/internal/modules/lab/module.go). Payloads: `backend/internal/modules/lab/contract/`, owning handlers, and [schema index](../schemas.md).
 
-| Method | Path | Permission | Cursor pagination |
-| --- | --- | --- | --- |
-| GET | `/v1/lab/insights` | `lab.order.read` | false |
-| POST | `/v1/lab/orders/:id/result` | `lab.order.fulfil` | false |
-| GET | `/v1/lab/orders` | `lab.order.read` | true |
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/lab/insights` | `lab.order.read` | false | false |
+| POST | `/v1/lab/orders/:id/result` | `lab.order.fulfil` | false | false |
+| GET | `/v1/lab/orders` | `lab.order.read` | true | false |
 
 Published subjects:
 
@@ -379,15 +379,15 @@ Migration table declarations:
 
 Source: [backend/internal/modules/patientmaster/module.go](../../../backend/internal/modules/patientmaster/module.go). Payloads: `backend/internal/modules/patientmaster/contract/`, owning handlers, and [schema index](../schemas.md).
 
-| Method | Path | Permission | Cursor pagination |
-| --- | --- | --- | --- |
-| GET | `/v1/patients/:id` | `patient.read` | false |
-| DELETE | `/v1/patients/hospitals/:hospital/access/:subject` | `patient.access.manage` | false |
-| PUT | `/v1/patients/hospitals/:hospital/access/:subject` | `patient.access.manage` | false |
-| GET | `/v1/patients/hospitals/:hospital/access` | `patient.read` | false |
-| POST | `/v1/patients/search` | `patient.read` | true |
-| GET | `/v1/patients` | `patient.read` | true |
-| POST | `/v1/patients` | `patient.register` | false |
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/patients/:id` | `patient.read` | false | false |
+| DELETE | `/v1/patients/hospitals/:hospital/access/:subject` | `patient.access.manage` | false | false |
+| PUT | `/v1/patients/hospitals/:hospital/access/:subject` | `patient.access.manage` | false | false |
+| GET | `/v1/patients/hospitals/:hospital/access` | `patient.read` | false | false |
+| POST | `/v1/patients/search` | `patient.read` | true | false |
+| GET | `/v1/patients` | `patient.read` | true | false |
+| POST | `/v1/patients` | `patient.register` | false | false |
 
 Published subjects:
 
@@ -407,189 +407,189 @@ Migration table declarations:
 
 Source: [backend/internal/modules/workforce/module.go](../../../backend/internal/modules/workforce/module.go). Payloads: `backend/internal/modules/workforce/contract/`, owning handlers, and [schema index](../schemas.md).
 
-| Method | Path | Permission | Cursor pagination |
-| --- | --- | --- | --- |
-| DELETE | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings/history` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings` | `public` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/attendance-settings` | `workforce.attendance.configure` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance-totals` | `public` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction/cancellation` | `workforce.attendance.correct` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction/decision` | `workforce.attendance.approve` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction/history` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction` | `public` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction` | `workforce.attendance.correct` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/corrections` | `public` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/finalisation` | `workforce.attendance.finalise` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/history` | `public` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/reopening` | `workforce.attendance.finalise` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/timesheets/:timesheet/days` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/timesheets/:timesheet/people` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/timesheets` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period` | `public` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period` | `workforce.attendance.finalise` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/periods` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/punch-report` | `public` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/attendance/punches/:punch/void` | `workforce.attendance.record` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/punches/:punch` | `public` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/attendance/punches/:punch` | `workforce.attendance.record` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/punches` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/attendance` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/benefits/coverage.csv` | `workforce.benefits.export` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/benefits/plans/:plan/history` | `workforce.benefits.view` | true |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/benefits/plans/:plan` | `workforce.benefits.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/benefits/plans` | `workforce.benefits.view` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/credential-reminder-policy` | `workforce.enrollment.manage` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/credential-reminder-policy` | `workforce.enrollment.manage` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/credential-reminders/:reminder/acknowledgement` | `workforce.enrollment.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/credential-reminders` | `workforce.enrollment.manage` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/credentials` | `workforce.enrollment.manage` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange/cancellation` | `workforce.duty.request` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange/decision` | `workforce.duty.approve` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange/history` | `public` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange/revocation` | `workforce.duty.approve` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange` | `public` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange` | `workforce.duty.request` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/duty-exchanges` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/leave-assignments` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/leave-balances` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/leave-configs/:id/history` | `public` | true |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/leave-configs/:id` | `workforce.leave.configure` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/leave-configs` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/leave-reports/monthly` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/leave-reports/status` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/leave-requests` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/leave-settings` | `public` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/leave-settings` | `workforce.leave.configure` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/leave-years/:year/close` | `workforce.leave.allocate` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/leave-years/:year/postings` | `workforce.leave.allocate` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/leave-years/:year/runs` | `public` | true |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/leave-years/:year` | `workforce.leave.allocate` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/leave-years` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/masters/:id/history` | `public` | true |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/masters/:id` | `workforce.master.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/masters` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/overtime-settings/history` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/overtime-settings` | `public` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/overtime-settings` | `workforce.overtime.configure` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/overtime-summary` | `public` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/overtime/:request/cancellation` | `workforce.overtime.request` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/overtime/:request/decision` | `workforce.overtime.approve` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/overtime/:request/history` | `public` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/overtime/:request/revocation` | `workforce.overtime.approve` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/overtime/:request` | `public` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/overtime/:request` | `workforce.overtime.request` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/overtime` | `public` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/income-tax-preview` | `workforce.payroll.view` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-assignments` | `workforce.payroll.view` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-heads/:id/history` | `workforce.payroll.view` | true |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-heads/:id` | `workforce.payroll.configure` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-heads` | `workforce.payroll.view` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-structures/:id/history` | `workforce.payroll.view` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-structures/:id/preview` | `workforce.payroll.view` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-structures/:id` | `workforce.payroll.configure` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-structures` | `workforce.payroll.view` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers/decision` | `workforce.payroll.approve` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers/history` | `workforce.payroll.view` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers/reveal` | `workforce.payroll.identifiers.reveal` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers/withdraw` | `workforce.payroll.configure` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers` | `workforce.payroll.view` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers` | `workforce.payroll.configure` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment/decision` | `workforce.payroll.approve` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment/history` | `workforce.payroll.view` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment/withdraw` | `workforce.payroll.configure` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment` | `workforce.payroll.view` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment` | `workforce.payroll.configure` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-preview` | `workforce.payroll.view` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/decision` | `workforce.payroll.approve` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence/:file/content` | `workforce.payroll.view` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence/:file/content` | `workforce.payroll.configure` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence/:file/retries/:attempt` | `workforce.payroll.configure` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence/:file` | `workforce.payroll.configure` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence` | `workforce.payroll.view` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/history` | `workforce.payroll.view` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/reveal` | `workforce.payroll.identifiers.reveal` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/withdraw` | `workforce.payroll.configure` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year` | `workforce.payroll.view` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year` | `workforce.payroll.configure` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-regimes/:year/history` | `workforce.payroll.view` | true |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-regimes/:year` | `workforce.payroll.configure` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-regimes` | `workforce.payroll.view` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/statutory-preview` | `workforce.payroll.view` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules/:id/decision` | `workforce.payroll.approve` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules/:id/history` | `workforce.payroll.view` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules/:id/withdraw` | `workforce.payroll.configure` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules/:id` | `workforce.payroll.configure` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules` | `workforce.payroll.view` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/roster-assignments` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/roster-configs/:id/history` | `public` | true |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/roster-configs/:id` | `workforce.roster.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/roster-configs` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/roster-settings/history` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/roster-settings` | `public` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/roster-settings` | `workforce.roster.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/allocations` | `public` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/changes` | `workforce.roster.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/credential-clashes` | `workforce.roster.manage` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/discard` | `workforce.roster.manage` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/freeze` | `workforce.roster.manage` | false |
-| POST | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/populate` | `workforce.roster.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/revisions` | `public` | true |
-| POST | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/unfreeze` | `workforce.roster.correct` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/rosters/:id` | `public` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/rosters/:id` | `workforce.roster.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/rosters` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/hr/shifts/:id/history` | `public` | true |
-| PUT | `/v1/workforce/hospitals/:hospital/hr/shifts/:id` | `workforce.roster.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/hr/shifts` | `public` | true |
-| GET | `/v1/workforce/hospitals/:hospital/insights` | `public` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/attendance` | `public` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/history` | `workforce.benefits.view` | true |
-| POST | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/decision` | `workforce.benefits.approve` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file/content` | `workforce.benefits.view` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file/content` | `workforce.benefits.manage` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file/retries/:attempt` | `workforce.benefits.manage` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file` | `workforce.benefits.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence` | `workforce.benefits.view` | false |
-| POST | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/withdraw` | `workforce.benefits.manage` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal` | `workforce.benefits.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments` | `workforce.benefits.view` | true |
-| POST | `/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews/:review/decision` | `workforce.credentials.review` | false |
-| POST | `/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews/:review/withdraw` | `workforce.enrollment.manage` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews/:review` | `workforce.enrollment.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews` | `workforce.enrollment.manage` | true |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/credentials` | `workforce.enrollment.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/dependents/:dependent/history` | `workforce.benefits.view` | true |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/dependents/:dependent` | `workforce.benefits.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/dependents` | `workforce.benefits.view` | true |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/document-records` | `workforce.documents.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/content` | `workforce.documents.manage` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/content` | `workforce.documents.manage` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/retries/:attempt` | `workforce.documents.manage` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/revocation` | `workforce.documents.manage` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file` | `workforce.documents.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/documents` | `workforce.documents.manage` | true |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/enrollment` | `workforce.enrollment.manage` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/enrollment` | `workforce.enrollment.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-assignment/history` | `public` | true |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/leave-assignment` | `workforce.leave.allocate` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-balances` | `public` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/leave-corrections/:entry` | `workforce.leave.correct` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-ledger` | `public` | true |
-| POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/cancellation` | `workforce.leave.request` | false |
-| POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/decision` | `workforce.leave.approve` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/history` | `public` | true |
-| POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/revocation` | `workforce.leave.approve` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request` | `public` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request` | `workforce.leave.request` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment/history` | `public` | true |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment` | `workforce.roster.manage` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff/:id` | `public` | false |
-| PUT | `/v1/workforce/hospitals/:hospital/staff/:id` | `public` | false |
-| GET | `/v1/workforce/hospitals/:hospital/staff` | `public` | true |
-| PUT | `/v1/workforce/hospitals/:hospital` | `workforce.hospital.manage` | false |
-| GET | `/v1/workforce/hospitals` | `public` | true |
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| DELETE | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings/history` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/attendance-settings` | `workforce.attendance.configure` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance-totals` | `public` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction/cancellation` | `workforce.attendance.correct` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction/decision` | `workforce.attendance.approve` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction/history` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction` | `workforce.attendance.correct` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/corrections` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/finalisation` | `workforce.attendance.finalise` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/history` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/reopening` | `workforce.attendance.finalise` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/timesheets/:timesheet/days` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/timesheets/:timesheet/people` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/timesheets` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period` | `workforce.attendance.finalise` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/periods` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/punch-report` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/attendance/punches/:punch/void` | `workforce.attendance.record` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/punches/:punch` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/attendance/punches/:punch` | `workforce.attendance.record` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance/punches` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/attendance` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/benefits/coverage.csv` | `workforce.benefits.export` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/benefits/plans/:plan/history` | `workforce.benefits.view` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/benefits/plans/:plan` | `workforce.benefits.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/benefits/plans` | `workforce.benefits.view` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/credential-reminder-policy` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/credential-reminder-policy` | `workforce.enrollment.manage` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/credential-reminders/:reminder/acknowledgement` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/credential-reminders` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/credentials` | `workforce.enrollment.manage` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange/cancellation` | `workforce.duty.request` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange/decision` | `workforce.duty.approve` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange/history` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange/revocation` | `workforce.duty.approve` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange` | `workforce.duty.request` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/duty-exchanges` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/leave-assignments` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/leave-balances` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/leave-configs/:id/history` | `public` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/leave-configs/:id` | `workforce.leave.configure` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/leave-configs` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/leave-reports/monthly` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/leave-reports/status` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/leave-requests` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/leave-settings` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/leave-settings` | `workforce.leave.configure` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/leave-years/:year/close` | `workforce.leave.allocate` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/leave-years/:year/postings` | `workforce.leave.allocate` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/leave-years/:year/runs` | `public` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/leave-years/:year` | `workforce.leave.allocate` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/leave-years` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/masters/:id/history` | `public` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/masters/:id` | `workforce.master.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/masters` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/overtime-settings/history` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/overtime-settings` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/overtime-settings` | `workforce.overtime.configure` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/overtime-summary` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/overtime/:request/cancellation` | `workforce.overtime.request` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/overtime/:request/decision` | `workforce.overtime.approve` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/overtime/:request/history` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/overtime/:request/revocation` | `workforce.overtime.approve` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/overtime/:request` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/overtime/:request` | `workforce.overtime.request` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/overtime` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/income-tax-preview` | `workforce.payroll.view` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-assignments` | `workforce.payroll.view` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-heads/:id/history` | `workforce.payroll.view` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-heads/:id` | `workforce.payroll.configure` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-heads` | `workforce.payroll.view` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-structures/:id/history` | `workforce.payroll.view` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-structures/:id/preview` | `workforce.payroll.view` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-structures/:id` | `workforce.payroll.configure` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/salary-structures` | `workforce.payroll.view` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers/decision` | `workforce.payroll.approve` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers/history` | `workforce.payroll.view` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers/reveal` | `workforce.payroll.identifiers.reveal` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers/withdraw` | `workforce.payroll.configure` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers` | `workforce.payroll.view` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers` | `workforce.payroll.configure` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment/decision` | `workforce.payroll.approve` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment/history` | `workforce.payroll.view` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment/withdraw` | `workforce.payroll.configure` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment` | `workforce.payroll.view` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment` | `workforce.payroll.configure` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-preview` | `workforce.payroll.view` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/decision` | `workforce.payroll.approve` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence/:file/content` | `workforce.payroll.view` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence/:file/content` | `workforce.payroll.configure` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence/:file/retries/:attempt` | `workforce.payroll.configure` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence/:file` | `workforce.payroll.configure` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence` | `workforce.payroll.view` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/history` | `workforce.payroll.view` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/reveal` | `workforce.payroll.identifiers.reveal` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/withdraw` | `workforce.payroll.configure` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year` | `workforce.payroll.view` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year` | `workforce.payroll.configure` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-regimes/:year/history` | `workforce.payroll.view` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-regimes/:year` | `workforce.payroll.configure` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-regimes` | `workforce.payroll.view` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/statutory-preview` | `workforce.payroll.view` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules/:id/decision` | `workforce.payroll.approve` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules/:id/history` | `workforce.payroll.view` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules/:id/withdraw` | `workforce.payroll.configure` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules/:id` | `workforce.payroll.configure` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules` | `workforce.payroll.view` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/roster-assignments` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/roster-configs/:id/history` | `public` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/roster-configs/:id` | `workforce.roster.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/roster-configs` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/roster-settings/history` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/roster-settings` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/roster-settings` | `workforce.roster.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/allocations` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/changes` | `workforce.roster.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/credential-clashes` | `workforce.roster.manage` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/discard` | `workforce.roster.manage` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/freeze` | `workforce.roster.manage` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/populate` | `workforce.roster.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/revisions` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/hr/rosters/:id/unfreeze` | `workforce.roster.correct` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/rosters/:id` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/rosters/:id` | `workforce.roster.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/rosters` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/shifts/:id/history` | `public` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/shifts/:id` | `workforce.roster.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/shifts` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/insights` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/attendance` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/history` | `workforce.benefits.view` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/decision` | `workforce.benefits.approve` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file/content` | `workforce.benefits.view` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file/content` | `workforce.benefits.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file/retries/:attempt` | `workforce.benefits.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file` | `workforce.benefits.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence` | `workforce.benefits.view` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/withdraw` | `workforce.benefits.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal` | `workforce.benefits.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments` | `workforce.benefits.view` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews/:review/decision` | `workforce.credentials.review` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews/:review/withdraw` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews/:review` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/credentials` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/dependents/:dependent/history` | `workforce.benefits.view` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/dependents/:dependent` | `workforce.benefits.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/dependents` | `workforce.benefits.view` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/document-records` | `workforce.documents.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/content` | `workforce.documents.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/content` | `workforce.documents.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/retries/:attempt` | `workforce.documents.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/revocation` | `workforce.documents.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file` | `workforce.documents.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/documents` | `workforce.documents.manage` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-assignment/history` | `public` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/leave-assignment` | `workforce.leave.allocate` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-balances` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/leave-corrections/:entry` | `workforce.leave.correct` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-ledger` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/cancellation` | `workforce.leave.request` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/decision` | `workforce.leave.approve` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/history` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/revocation` | `workforce.leave.approve` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request` | `workforce.leave.request` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment/history` | `public` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment` | `workforce.roster.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff` | `public` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital` | `workforce.hospital.manage` | false | false |
+| GET | `/v1/workforce/hospitals` | `public` | true | false |
 
 Published subjects:
 
@@ -669,18 +669,18 @@ Migration table declarations:
 
 Source: [backend/internal/modules/workspace/module.go](../../../backend/internal/modules/workspace/module.go). Payloads: `backend/internal/modules/workspace/contract/`, owning handlers, and [schema index](../schemas.md).
 
-| Method | Path | Permission | Cursor pagination |
-| --- | --- | --- | --- |
-| GET | `/v1/workspace/branding` | `public` | false |
-| PUT | `/v1/workspace/branding` | `workspace.branding.manage` | false |
-| POST | `/v1/workspace/country-policies/:scope/access` | `workspace.country_policy.manage` | false |
-| GET | `/v1/workspace/country-policies/:scope/actions` | `workspace.country_policy.read` | true |
-| POST | `/v1/workspace/country-policies/:scope/review` | `workspace.country_policy.review` | false |
-| GET | `/v1/workspace/country-policies/:scope/versions/:version` | `workspace.country_policy.read` | false |
-| GET | `/v1/workspace/country-policies/:scope/versions` | `workspace.country_policy.read` | true |
-| GET | `/v1/workspace/country-policies/:scope` | `workspace.country_policy.read` | false |
-| GET | `/v1/workspace/country-policies` | `workspace.country_policy.read` | true |
-| POST | `/v1/workspace/country-policies` | `workspace.country_policy.manage` | false |
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/workspace/branding` | `public` | false | false |
+| PUT | `/v1/workspace/branding` | `workspace.branding.manage` | false | false |
+| POST | `/v1/workspace/country-policies/:scope/access` | `workspace.country_policy.manage` | false | false |
+| GET | `/v1/workspace/country-policies/:scope/actions` | `workspace.country_policy.read` | true | false |
+| POST | `/v1/workspace/country-policies/:scope/review` | `workspace.country_policy.review` | false | false |
+| GET | `/v1/workspace/country-policies/:scope/versions/:version` | `workspace.country_policy.read` | false | false |
+| GET | `/v1/workspace/country-policies/:scope/versions` | `workspace.country_policy.read` | true | false |
+| GET | `/v1/workspace/country-policies/:scope` | `workspace.country_policy.read` | false | false |
+| GET | `/v1/workspace/country-policies` | `workspace.country_policy.read` | true | false |
+| POST | `/v1/workspace/country-policies` | `workspace.country_policy.manage` | false | false |
 
 Published subjects:
 

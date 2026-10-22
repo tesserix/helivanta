@@ -30,6 +30,7 @@ type route struct {
 	Authentication bool             `json:"authentication_required"`
 	Membership     bool             `json:"membership_required"`
 	Paginated      bool             `json:"paginated"`
+	Counted        bool             `json:"counted"`
 }
 
 type subscription struct {
@@ -105,7 +106,7 @@ func inventory() reference {
 			DirectedTables: append([]string{}, m.DirectedWriteTables()...), Migrations: migrations(m.Migrations()),
 			Routes: []route{}, Grants: []grant{}, Consumers: []subscription{}, Broadcasts: []string{}}
 		for _, d := range r.Declared() {
-			item.Routes = append(item.Routes, route{d.Method, d.Path, d.Permission, true, d.Permission != authz.NoTenantMembership, d.Paginated})
+			item.Routes = append(item.Routes, route{d.Method, d.Path, d.Permission, true, d.Permission != authz.NoTenantMembership, d.Paginated, d.Counted})
 		}
 		sort.Slice(item.Routes, func(i, j int) bool {
 			return item.Routes[i].Path+item.Routes[i].Method < item.Routes[j].Path+item.Routes[j].Method
@@ -131,9 +132,9 @@ func markdown(doc reference) []byte {
 	b.WriteString("Tables below are historical `CREATE TABLE` declarations found in registered migration SQL, not a reconstructed final schema. Read all later migrations for changes and removals. SQL hashes detect migration drift; no database is queried. Functions, policies, views, triggers, indexes and column constraints remain authoritative in the owning migrations.\n\n")
 	for _, m := range doc.Modules {
 		fmt.Fprintf(&b, "## %s\n\nSource: [%s](../../../%s). Payloads: `backend/internal/modules/%s/contract/`, owning handlers, and [schema index](../schemas.md).\n\n", m.Name, m.Source, m.Source, m.Name)
-		b.WriteString("| Method | Path | Permission | Cursor pagination |\n| --- | --- | --- | --- |\n")
+		b.WriteString("| Method | Path | Permission | Cursor pagination | Page total |\n| --- | --- | --- | --- | --- |\n")
 		for _, r := range m.Routes {
-			fmt.Fprintf(&b, "| %s | `%s` | `%s` | %t |\n", r.Method, r.Path, r.Permission, r.Paginated)
+			fmt.Fprintf(&b, "| %s | `%s` | `%s` | %t | %t |\n", r.Method, r.Path, r.Permission, r.Paginated, r.Counted)
 		}
 		b.WriteString("\nPublished subjects:\n\n")
 		if len(m.Publishes) == 0 {

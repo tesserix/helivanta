@@ -28,12 +28,12 @@ it("connects Supply Connect to the permitted PharmaConnect screens", async () =>
     "href",
     "/pharmacy/catalogue",
   );
-  expect(screen.getByRole("link", { name: "Stock receiving" })).toHaveAttribute(
+  expect(screen.getByRole("link", { name: "Stock on hand" })).toHaveAttribute(
     "href",
     "/pharmacy/stock",
   );
-  expect(screen.queryByRole("link", { name: "Dispenses" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: "Expenses & audit" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Dispense queue" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Supplier bills" })).not.toBeInTheDocument();
 });
 
 it("explains reviewer-only access without requesting pharmacy data", async () => {

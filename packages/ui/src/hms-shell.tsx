@@ -6,13 +6,14 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  Fragment,
   useSyncExternalStore,
   type FormEvent,
   type ReactNode,
 } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PanelLeftClose, PanelLeftOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, ChevronsLeft, ChevronsRight } from "lucide-react";
 import {
   ApiError,
   useApiQuery,
@@ -24,7 +25,7 @@ import {
   clearPermissionsCache,
   clearRenewAt,
 } from "@helivanta/api";
-import { visibleZones, activeZone, activePage } from "./zones";
+import { ZONES, visibleZones, activeZone, activePage, type Zone } from "./zones";
 import { BrandLogo, TesserixFooter } from "./branding";
 import { BrandThemeContext } from "./brand-theme";
 import {
@@ -94,6 +95,42 @@ function usePersistedFlag(key: string, fallback: boolean) {
   return [value, update] as const;
 }
 
+function ZoneLink({ zone, active, expanded }: { zone: Zone; active: boolean; expanded: boolean }) {
+  return (
+    <Link
+      href={zone.href}
+      title={zone.label}
+      aria-label={zone.label}
+      aria-current={active ? "page" : undefined}
+      className={`relative flex h-11 items-center rounded-lg transition-colors ${expanded ? "w-full gap-3 px-3" : "w-11 justify-center"} ${
+        active
+          ? "bg-(--hms-accent-dim) text-(--hms-accent)"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+      }`}
+    >
+      {active && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-(--hms-accent)"
+        />
+      )}
+      <zone.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+      {expanded && <span className="truncate text-sm font-medium">{zone.label}</span>}
+    </Link>
+  );
+}
+
+// A neutral slot holding a link's place while permissions load (#1270 D2).
+function NavPlaceholder({ wide }: { wide: boolean }) {
+  return (
+    <div
+      data-testid="nav-placeholder"
+      aria-hidden="true"
+      className={`h-11 shrink-0 animate-pulse rounded-lg bg-sidebar-accent/40 motion-reduce:animate-none ${wide ? "w-full" : "w-11"}`}
+    />
+  );
+}
+
 // Seconds are derived from the server's deadline on every tick, never decremented locally.
 function IdleCountdown({ deadline, onStay }: { deadline: Date; onStay: () => void }) {
   const [now, setNow] = useState(() => Date.now());
@@ -141,14 +178,19 @@ export function HmsShell({
   // Read here, not passed per page: one layout renders the shell for every
   // authenticated route (#1091), so the path is the only source of "where".
   const pathname = usePathname();
-  const { can } = usePermissions();
+  const { can, isLoading } = usePermissions();
   const brandQuery = useApiQuery(["workspace", "branding"], "/workspace/branding");
   const parsedBrand = brandingSchema.safeParse(brandQuery.data);
   const branding = parsedBrand.success ? parsedBrand.data : DEFAULT_BRANDING;
   const zones = visibleZones(can);
-  // Fall back to the dashboard (always present in `zones`) if the active
-  // zone was filtered out — e.g. while permissions are still loading.
-  const zone = zones.find((z) => z.key === activeZone(pathname).key) ?? zones[0];
+  // While permissions load, the zone comes from the route and the navigation
+  // renders placeholders, never links: a partial list read as items appearing
+  // at random, and showing a link before permissions are known fails open
+  // (#1270 D2). Once loaded, a zone the user cannot see falls back to the
+  // dashboard, which is always present in `zones`.
+  const zone = isLoading
+    ? activeZone(pathname)
+    : (zones.find((z) => z.key === activeZone(pathname).key) ?? zones[0]);
   const [panelOpen, setPanelOpen] = usePersistedFlag(PANEL_KEY, true);
   const [navigationOpen, setNavigationOpen] = usePersistedFlag(NAVIGATION_KEY, false);
 
@@ -446,7 +488,46 @@ export function HmsShell({
             </Link>
           </div>
           <div className="hms-sidebar-border mx-2 border-t" />
-          <div className={`flex py-2 ${navigationOpen ? "px-3" : "justify-center"}`}>
+          <nav
+            id="hms-zone-navigation"
+            aria-label="Zones"
+            aria-busy={isLoading || undefined}
+            className={`flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto py-4 ${navigationOpen ? "px-3" : "items-center"}`}
+          >
+            {isLoading
+              ? ZONES.filter((z) => z.group !== "admin").map((z) => (
+                  <NavPlaceholder key={z.key} wide={navigationOpen} />
+                ))
+              : zones
+                  .filter((z) => z.group !== "admin")
+                  .map((z, index, list) => (
+                    <Fragment key={z.key}>
+                      {index > 0 && list[index - 1].group !== z.group && (
+                        <div
+                          aria-hidden="true"
+                          className="hms-sidebar-border my-2 w-8 self-center border-t"
+                        />
+                      )}
+                      <ZoneLink zone={z} active={z.key === zone.key} expanded={navigationOpen} />
+                    </Fragment>
+                  ))}
+          </nav>
+          {/* The foot of the rail: admin zones, then the collapse control, which
+              is chrome rather than a destination (#1270 D1, D3). */}
+          <div
+            className={`hms-sidebar-border mx-2 flex flex-col gap-1 border-t py-3 ${navigationOpen ? "px-1" : "items-center"}`}
+          >
+            {!isLoading &&
+              zones
+                .filter((z) => z.group === "admin")
+                .map((z) => (
+                  <ZoneLink
+                    key={z.key}
+                    zone={z}
+                    active={z.key === zone.key}
+                    expanded={navigationOpen}
+                  />
+                ))}
             <button
               type="button"
               aria-controls="hms-zone-navigation"
@@ -454,50 +535,15 @@ export function HmsShell({
               aria-label={navigationOpen ? "Collapse navigation" : "Expand navigation"}
               title={navigationOpen ? "Collapse navigation" : "Expand navigation"}
               onClick={() => setNavigationOpen(!navigationOpen)}
-              className={`flex h-11 items-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent) ${navigationOpen ? "w-full gap-3 px-3" : "w-11 justify-center"}`}
+              className={`flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent) ${navigationOpen ? "ml-2" : ""}`}
             >
               {navigationOpen ? (
-                <ChevronLeft className="size-5" aria-hidden="true" />
+                <ChevronsLeft className="size-4" aria-hidden="true" />
               ) : (
-                <ChevronRight className="size-5" aria-hidden="true" />
+                <ChevronsRight className="size-4" aria-hidden="true" />
               )}
-              {navigationOpen && <span className="text-sm">Collapse navigation</span>}
             </button>
           </div>
-          <nav
-            id="hms-zone-navigation"
-            aria-label="Zones"
-            className={`flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto py-4 ${navigationOpen ? "px-3" : "items-center"}`}
-          >
-            {zones.map((z) => {
-              const isActive = z.key === zone.key;
-              return (
-                <Link
-                  key={z.key}
-                  href={z.href}
-                  title={z.label}
-                  aria-label={z.label}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`relative flex h-11 items-center rounded-lg transition-colors ${navigationOpen ? "w-full gap-3 px-3" : "w-11 justify-center"} ${
-                    isActive
-                      ? "bg-(--hms-accent-dim) text-(--hms-accent)"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                  }`}
-                >
-                  {isActive && (
-                    <span
-                      aria-hidden="true"
-                      className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-(--hms-accent)"
-                    />
-                  )}
-                  <z.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                  {navigationOpen && (
-                    <span className="truncate text-sm font-medium">{z.label}</span>
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
         </aside>
 
         {/* Page panel: open or hidden. A single-page zone has none: it would
@@ -529,25 +575,28 @@ export function HmsShell({
               aria-label={zone.label}
               className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"
             >
-              {zone.pages.map((pageLink) => {
-                const isActive = currentPage?.href === pageLink.href;
-                return (
-                  <Link
-                    key={pageLink.href}
-                    href={pageLink.href}
-                    aria-current={isActive ? "page" : undefined}
-                    tabIndex={panelOpen ? 0 : -1}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? "bg-sidebar-accent text-sidebar-foreground"
-                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                    }`}
-                  >
-                    <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    {pageLink.label}
-                  </Link>
-                );
-              })}
+              {isLoading &&
+                zone.pages.map((pageLink) => <NavPlaceholder key={pageLink.href} wide />)}
+              {!isLoading &&
+                zone.pages.map((pageLink) => {
+                  const isActive = currentPage?.href === pageLink.href;
+                  return (
+                    <Link
+                      key={pageLink.href}
+                      href={pageLink.href}
+                      aria-current={isActive ? "page" : undefined}
+                      tabIndex={panelOpen ? 0 : -1}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-sidebar-accent text-sidebar-foreground"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                      }`}
+                    >
+                      <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      {pageLink.label}
+                    </Link>
+                  );
+                })}
             </nav>
           </aside>
         )}

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { DispenseList } from "./dispense-list";
@@ -10,8 +10,15 @@ function jsonResponse(status: number, body: unknown) {
   });
 }
 
-function page(data: unknown[], opts: { hasMore?: boolean; nextCursor?: string | null } = {}) {
-  return { data, page: { next_cursor: opts.nextCursor ?? null, has_more: opts.hasMore ?? false } };
+function page(data: unknown[], opts: { nextCursor?: string | null; total?: number } = {}) {
+  return {
+    data,
+    page: {
+      next_cursor: opts.nextCursor ?? null,
+      has_more: !!opts.nextCursor,
+      total: opts.total ?? data.length,
+    },
+  };
 }
 
 const pendingRow = {
@@ -32,57 +39,149 @@ const dispensedRow = {
   dispensed_at: "2026-08-04T03:00:00Z",
 };
 
-type Lists = { pending?: unknown[]; dispensed?: unknown[] };
+type Lists = { waiting?: unknown[]; dispensed?: unknown[] };
 
-// The queue is split on the server (#1258 D4): each list asks for its own
-// status, so the mock answers by the status query parameter.
+// #1295 D8: each tab is its own counted route.
 function serve(lists: () => Lists, granted: string[] = ["pharmacy.dispense.fulfil"]) {
   return vi.fn().mockImplementation((url: string, init?: RequestInit) => {
     if (url.includes("/iam/me/permissions"))
       return Promise.resolve(jsonResponse(200, { data: granted }));
     if (init?.method === "POST")
       return Promise.resolve(jsonResponse(200, { id: "d-1", status: "dispensed" }));
-    const status = new URL(url, "http://x").searchParams.get("status") as keyof Lists;
-    return Promise.resolve(jsonResponse(200, page(lists()[status] ?? [])));
+    const tab = url.includes("/dispenses/dispensed") ? "dispensed" : "waiting";
+    return Promise.resolve(jsonResponse(200, page(lists()[tab] ?? [])));
   });
 }
 
-const waiting = () => screen.getByRole("region", { name: "Waiting" });
-const done = () => screen.getByRole("region", { name: "Dispensed" });
+// The page state lives in the URL (#1295 D5); tests set it here.
+const nav = vi.hoisted(() => ({ search: "", replace: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/pharmacy",
+  useSearchParams: () => new URLSearchParams(nav.search),
+  useRouter: () => ({ replace: nav.replace }),
+}));
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  nav.search = "";
+  nav.replace.mockReset();
+});
+
+const listUrls = (fetchMock: ReturnType<typeof vi.fn>) =>
+  fetchMock.mock.calls
+    .map(([url]) => String(url))
+    .filter((url) => url.includes("/pharmacy/dispenses"));
 
 describe("DispenseList", () => {
-  it("asks the server for each status rather than splitting one page", async () => {
-    const fetchMock = serve(() => ({ pending: [pendingRow], dispensed: [dispensedRow] }));
+  it("opens on Waiting, 25 a page from the counted route, with the range", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation((url: string) =>
+        Promise.resolve(
+          url.includes("/iam/me/permissions")
+            ? jsonResponse(200, { data: [] })
+            : jsonResponse(200, page([pendingRow], { nextCursor: "c1", total: 30 })),
+        ),
+      );
     vi.stubGlobal("fetch", fetchMock);
     renderWithProviders(<DispenseList />);
-    expect(await within(waiting()).findByText("Asha Rao")).toBeInTheDocument();
-    expect(await within(done()).findByText("Meera Nair")).toBeInTheDocument();
-    const lists = fetchMock.mock.calls
-      .map(([url]) => String(url))
-      .filter((url) => url.includes("/pharmacy/dispenses"));
-    expect(lists.some((url) => url.includes("status=pending"))).toBe(true);
-    expect(lists.some((url) => url.includes("status=dispensed"))).toBe(true);
-    expect(lists.every((url) => url.includes("status="))).toBe(true);
+    expect(await screen.findByText("Asha Rao")).toBeInTheDocument();
+    expect(screen.getByText("1–1 of 30")).toBeInTheDocument();
+    expect(listUrls(fetchMock)).toEqual(["/api/v1/pharmacy/dispenses/waiting?limit=25"]);
+    expect(screen.getByRole("link", { name: "Waiting" })).toHaveAttribute("aria-current", "page");
+    const next = screen.getByRole("link", { name: "Next" }).getAttribute("href")!;
+    const params = new URL(next, "http://x").searchParams;
+    expect(params.get("tab")).toBe("waiting");
+    expect(params.get("page")).toBe("2");
+    expect(params.get("cursor")).toBe("c1");
   });
 
-  it("moves a row from Waiting to Dispensed with the medication typed in that row", async () => {
-    let posted: unknown = null;
-    const base = serve(() =>
-      posted
-        ? {
-            dispensed: [
-              {
-                ...pendingRow,
-                status: "dispensed",
-                medication: "Amoxicillin 250mg",
-                dispensed_at: "2026-08-04T04:01:00Z",
-              },
-            ],
-          }
-        : { pending: [pendingRow] },
+  it("reads the Dispensed tab from the URL", async () => {
+    nav.search = "tab=dispensed";
+    const fetchMock = serve(() => ({ waiting: [pendingRow], dispensed: [dispensedRow] }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<DispenseList />);
+    expect(await screen.findByText("Meera Nair")).toBeInTheDocument();
+    expect(screen.queryByText("Asha Rao")).not.toBeInTheDocument();
+    expect(listUrls(fetchMock).every((url) => url.includes("/dispenses/dispensed"))).toBe(true);
+    expect(screen.getByRole("link", { name: "Dispensed" })).toHaveAttribute("aria-current", "page");
+  });
+
+  // #1295 D5: a reload on page 3 cannot know where page 2 began.
+  it("offers First page, not Previous, when opened on a later page", async () => {
+    nav.search = "tab=waiting&page=3&cursor=c2";
+    const fetchMock = serve(() => ({ waiting: [pendingRow] }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<DispenseList />);
+    await screen.findByText("Asha Rao");
+    expect(listUrls(fetchMock)).toContain("/api/v1/pharmacy/dispenses/waiting?limit=25&cursor=c2");
+    expect(screen.queryByRole("link", { name: "Previous" })).toBeNull();
+    expect(screen.getByRole("link", { name: "First page" })).toHaveAttribute(
+      "href",
+      "/pharmacy?tab=waiting",
     );
+  });
+
+  // Dispensing the last row on a later page empties it; fall back, never
+  // show an empty page under "of N".
+  it("falls back to the first page when a later page is empty", async () => {
+    nav.search = "tab=waiting&page=2&cursor=c1";
+    vi.stubGlobal(
+      "fetch",
+      serve(() => ({ waiting: [] })),
+    );
+    renderWithProviders(<DispenseList />);
+    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/pharmacy?tab=waiting"));
+  });
+
+  // #1295 D9: find the patient at the counter in a long queue.
+  it("searches Waiting by patient name through the URL", async () => {
+    const fetchMock = serve(() => ({ waiting: [pendingRow] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { user } = renderWithProviders(<DispenseList />);
+    await screen.findByText("Asha Rao");
+    await user.type(screen.getByRole("searchbox", { name: "Search waiting patients" }), "asha");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    expect(nav.replace).toHaveBeenCalledWith("/pharmacy?tab=waiting&q=asha");
+  });
+
+  it("asks the server for the searched name, and keeps it when paging", async () => {
+    nav.search = "tab=waiting&q=asha";
+    const fetchMock = vi
+      .fn()
+      .mockImplementation((url: string) =>
+        Promise.resolve(
+          url.includes("/iam/me/permissions")
+            ? jsonResponse(200, { data: [] })
+            : jsonResponse(200, page([pendingRow], { nextCursor: "c1", total: 40 })),
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<DispenseList />);
+    await screen.findByText("Asha Rao");
+    expect(listUrls(fetchMock)).toEqual(["/api/v1/pharmacy/dispenses/waiting?q=asha&limit=25"]);
+    expect(screen.getByRole("searchbox", { name: "Search waiting patients" })).toHaveValue("asha");
+    const next = new URL(
+      screen.getByRole("link", { name: "Next" }).getAttribute("href")!,
+      "http://x",
+    );
+    expect(next.searchParams.get("q")).toBe("asha");
+  });
+
+  it("offers no search on Dispensed", async () => {
+    nav.search = "tab=dispensed";
+    vi.stubGlobal(
+      "fetch",
+      serve(() => ({ dispensed: [dispensedRow] })),
+    );
+    renderWithProviders(<DispenseList />);
+    await screen.findByText("Meera Nair");
+    expect(screen.queryByRole("searchbox")).toBeNull();
+  });
+
+  it("removes a dispensed row from Waiting with the medication typed in that row", async () => {
+    let posted: unknown = null;
+    const base = serve(() => (posted ? {} : { waiting: [pendingRow] }));
     const fetchMock = vi.fn((url: string, init?: RequestInit) => {
       if (init?.method === "POST") posted = JSON.parse(String(init.body));
       return base(url, init);
@@ -92,8 +191,7 @@ describe("DispenseList", () => {
     const { user } = renderWithProviders(<DispenseList />);
     await user.type(await screen.findByLabelText("Medication"), "Amoxicillin 250mg");
     await user.click(screen.getByRole("button", { name: "Dispense" }));
-    await waitFor(() => expect(within(done()).getByText("Amoxicillin 250mg")).toBeInTheDocument());
-    expect(within(waiting()).queryByText("Asha Rao")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Asha Rao")).not.toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/pharmacy/dispenses/d-1/dispense",
       expect.objectContaining({ method: "POST" }),
@@ -102,7 +200,7 @@ describe("DispenseList", () => {
   });
 
   it("refuses a blank medication without posting", async () => {
-    const fetchMock = serve(() => ({ pending: [pendingRow] }));
+    const fetchMock = serve(() => ({ waiting: [pendingRow] }));
     vi.stubGlobal("fetch", fetchMock);
 
     const { user } = renderWithProviders(<DispenseList />);
@@ -116,7 +214,7 @@ describe("DispenseList", () => {
     const secondRow = { ...pendingRow, id: "d-2", visit_id: "v-2", patient_name: "Rohan Iyer" };
     vi.stubGlobal(
       "fetch",
-      serve(() => ({ pending: [pendingRow, secondRow] })),
+      serve(() => ({ waiting: [pendingRow, secondRow] })),
     );
 
     const { user } = renderWithProviders(<DispenseList />);
@@ -126,47 +224,24 @@ describe("DispenseList", () => {
     expect(second).toHaveValue("");
   });
 
-  it("says when nothing is waiting", async () => {
-    vi.stubGlobal(
-      "fetch",
-      serve(() => ({})),
-    );
-    renderWithProviders(<DispenseList />);
-    expect(await within(waiting()).findByText("Nothing waiting")).toBeInTheDocument();
-    expect(await within(done()).findByText("Nothing dispensed yet")).toBeInTheDocument();
-  });
-
   it("hides the dispense button without permission", async () => {
     vi.stubGlobal(
       "fetch",
-      serve(() => ({ pending: [pendingRow] }), []),
+      serve(() => ({ waiting: [pendingRow] }), []),
     );
     renderWithProviders(<DispenseList />);
     await screen.findByText("Asha Rao");
     expect(screen.queryByRole("button", { name: "Dispense" })).not.toBeInTheDocument();
   });
 
-  it("loads the next page on click, then hides Load more once the list is complete", async () => {
-    const secondRow = { ...pendingRow, id: "d-2", patient_name: "Rohan Iyer" };
-    const fetchMock = vi.fn().mockImplementation((url: string) => {
-      if (url.includes("/iam/me/permissions"))
-        return Promise.resolve(jsonResponse(200, { data: [] }));
-      if (url.includes("status=dispensed")) return Promise.resolve(jsonResponse(200, page([])));
-      if (url.includes("cursor=")) return Promise.resolve(jsonResponse(200, page([secondRow])));
-      return Promise.resolve(
-        jsonResponse(200, page([pendingRow], { hasMore: true, nextCursor: "c1" })),
-      );
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { user } = renderWithProviders(<DispenseList />);
-    await screen.findByText("Asha Rao");
-    expect(screen.queryByText("Rohan Iyer")).not.toBeInTheDocument();
-
-    await user.click(within(waiting()).getByRole("button", { name: "Load more" }));
-
-    await waitFor(() => expect(screen.getByText("Rohan Iyer")).toBeInTheDocument());
-    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
+  it("says when nothing is waiting", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serve(() => ({})),
+    );
+    renderWithProviders(<DispenseList />);
+    expect(await screen.findByText("Nothing waiting")).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Pages" })).toBeNull();
   });
 
   // #1276: a failed load is an outage, never an empty list.
@@ -184,9 +259,7 @@ describe("DispenseList", () => {
         ),
     );
     renderWithProviders(<DispenseList />);
-    expect(
-      await within(waiting()).findByText("Could not load waiting dispenses."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Could not load waiting dispenses.")).toBeInTheDocument();
     expect(screen.queryByText("Nothing waiting")).not.toBeInTheDocument();
   });
 });

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -129,4 +131,31 @@ func TestDispenseListsOtherTenantInvisible(t *testing.T) {
 		require.Empty(t, p.Data, path)
 		require.Equal(t, 0, *p.Page.Total, path)
 	}
+}
+
+// #1295 D9: Waiting searches by patient name, so the patient at the counter
+// can be found in a long queue. The match is a case-insensitive substring
+// with LIKE wildcards taken literally, and the total counts the matches.
+func TestWaitingSearchesPatientName(t *testing.T) {
+	useHarness(t)
+	seedDispense(t, testutil.TenantA, "Asha Rao", at(1), nil)
+	seedDispense(t, testutil.TenantA, "Rohan Iyer", at(2), nil)
+	seedDispense(t, testutil.TenantA, "Asha_Mehta 50%", at(3), nil)
+	seedDispense(t, testutil.TenantA, "Asha Done", at(4), ptr(at(5)))
+
+	code, p := getDispenses(t, "/v1/pharmacy/dispenses/waiting?q=asha", "tokA")
+	require.Equal(t, http.StatusOK, code)
+	require.Equal(t, []string{"Asha Rao", "Asha_Mehta 50%"}, names(p))
+	require.Equal(t, 2, *p.Page.Total)
+
+	_, p = getDispenses(t, "/v1/pharmacy/dispenses/waiting?q="+url.QueryEscape("50%"), "tokA")
+	require.Equal(t, []string{"Asha_Mehta 50%"}, names(p))
+	_, p = getDispenses(t, "/v1/pharmacy/dispenses/waiting?q=a_m", "tokA")
+	require.Equal(t, []string{"Asha_Mehta 50%"}, names(p), "_ is literal, not any character")
+
+	code, _ = getDispenses(t, "/v1/pharmacy/dispenses/waiting?q="+strings.Repeat("a", 101), "tokA")
+	require.Equal(t, http.StatusBadRequest, code)
+	// Dispensed history is unbounded; a search there is refused, not ignored.
+	code, _ = getDispenses(t, "/v1/pharmacy/dispenses/dispensed?q=asha", "tokA")
+	require.Equal(t, http.StatusBadRequest, code)
 }

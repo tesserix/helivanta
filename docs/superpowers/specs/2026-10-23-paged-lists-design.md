@@ -86,12 +86,23 @@ and a link to page 2 of Dispensed opens page 2 of Dispensed.
     hospital's dispenses is fast at the volumes this product targets. _(My call; a cap such
     as "10,000+" can follow if one hospital proves otherwise.)_
 
+- **D9 Waiting searches by patient name.** _(Added while building; my call.)_
+  - Oldest first puts a newly arrived patient at the end of the queue. In a long queue the
+    patient standing at the counter would be pages deep, so Waiting takes `?q=`.
+  - The search is a case-insensitive substring match on the patient name. LIKE wildcards in
+    `q` are taken literally, and `q` is at most 100 characters.
+  - The search lives in the URL, is kept while paging, and a new search starts at page 1.
+  - Dispensed history is unbounded, so a search there is refused with a 400, not ignored.
+- **D10 No rows carried over while a page loads.** The range is computed from the page
+  number, so the previous page's rows must never sit under the next page's range. A page
+  shows its loading state until its own rows arrive.
+
 ## Not covered
 
 - Numbered page links: jumping to a page is not offered (agreed: filters narrow instead).
 - Moving any list other than the Dispense queue. The other 90 `useApiPagedQuery` lists keep
   "Load more" until their slice.
-- Filters beyond the status tabs; the Dispense queue has no search in this slice.
+- Filters beyond the status tabs and the Waiting name search.
 - "Dispensed today", which needs an outlet-scoped dispense.
 
 ## Verification

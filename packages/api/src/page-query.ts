@@ -1,6 +1,5 @@
 "use client";
 
-import { keepPreviousData } from "@tanstack/react-query";
 import { useApiQuery } from "./hooks";
 import type { Page } from "./paged";
 
@@ -20,7 +19,7 @@ export type UseApiPageQueryResult<T> = {
 /**
  * useApiPageQuery reads ONE page of a cursor-paginated list (#1295 D6), for
  * Previous / Next paging. useApiPagedQuery stays for lists still on Load
- * more. The previous rows stay on screen while the next page loads.
+ * more. While a page loads it is pending: no rows from the page before.
  */
 export function useApiPageQuery<T>(
   key: unknown[],
@@ -32,10 +31,9 @@ export function useApiPageQuery<T>(
   const url =
     `${path}${path.includes("?") ? "&" : "?"}limit=${limit}` +
     (cursor ? `&cursor=${encodeURIComponent(cursor)}` : "");
-  const query = useApiQuery<Page<T>>([...key, path, limit, cursor], url, {
-    poll: opts.poll,
-    placeholderData: keepPreviousData,
-  });
+  // No placeholder from the previous page: the range is computed from the
+  // page number, so carried-over rows would sit under the wrong range.
+  const query = useApiQuery<Page<T>>([...key, path, limit, cursor], url, { poll: opts.poll });
   return {
     items: query.data?.data ?? [],
     total: query.data?.page.total ?? null,

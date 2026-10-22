@@ -47,4 +47,45 @@ describe("useApiPageQuery", () => {
     expect(result.current.nextCursor).toBeNull();
     expect(result.current.total).toBeNull();
   });
+
+  // The range is computed from the page number, so rows from the previous
+  // page must never be shown under the next page's range (#1295).
+  it("shows no rows from the previous page while the next one loads", async () => {
+    let release: (r: Response) => void = () => {};
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [{ id: "p1" }],
+            page: { has_more: true, next_cursor: "c1", total: 2 },
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => (release = resolve)));
+    vi.stubGlobal("fetch", fetcher);
+    const { result, rerender } = renderHook(
+      ({ cursor }: { cursor: string | null }) =>
+        useApiPageQuery<{ id: string }>(["rows"], "/rows", cursor),
+      { wrapper, initialProps: { cursor: null as string | null } },
+    );
+    await waitFor(() => expect(result.current.items).toEqual([{ id: "p1" }]));
+    rerender({ cursor: "c1" });
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+    expect(result.current.items).toEqual([]);
+    expect(result.current.isPending).toBe(true);
+    release(
+      new Response(
+        JSON.stringify({
+          data: [{ id: "p2" }],
+          page: { has_more: false, next_cursor: null, total: 2 },
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+    await waitFor(() => expect(result.current.items).toEqual([{ id: "p2" }]));
+  });
 });

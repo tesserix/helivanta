@@ -20,5 +20,9 @@ describe("PageTabs", () => {
     expect(waiting).toHaveAttribute("href", "/pharmacy?tab=waiting");
     expect(waiting).not.toHaveAttribute("aria-current");
     expect(dispensed).toHaveAttribute("aria-current", "page");
+    // The underline is its own element: a border colour would be overridden
+    // by @tesserix/web's unlayered border rule (see styles.css).
+    expect(dispensed.querySelector("[data-tab-indicator]")).not.toBeNull();
+    expect(waiting.querySelector("[data-tab-indicator]")).toBeNull();
   });
 });

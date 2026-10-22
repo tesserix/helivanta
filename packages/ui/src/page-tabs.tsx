@@ -29,13 +29,22 @@ export function PageTabs({
             key={tab.key}
             href={tab.href}
             aria-current={active ? "page" : undefined}
-            className={`-mb-px border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
+            className={`relative px-3 py-3 text-sm transition-colors ${
               active
-                ? "border-(--hms-accent) text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "font-semibold text-foreground"
+                : "font-medium text-muted-foreground hover:text-foreground"
             }`}
           >
             {tab.label}
+            {/* Its own element, not a border colour: @tesserix/web's unlayered
+                base rule forces every border to var(--border) (styles.css). */}
+            {active && (
+              <span
+                data-tab-indicator
+                aria-hidden="true"
+                className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-(--hms-accent)"
+              />
+            )}
           </Link>
         );
       })}

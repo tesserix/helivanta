@@ -33,7 +33,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
   sessionStorage.clear();
 });
-function mockPharmacy(level = "editor", denied = false, country = "IN") {
+// denied: the status the access check answers with, or 0 for a grant.
+function mockPharmacy(
+  level = "editor",
+  denied: 0 | 404 | 503 = 0,
+  country = "IN",
+  extra: string[] = [],
+) {
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (init?.method && init.method !== "GET")
       return new Response(JSON.stringify({ message: "Unexpected test mutation" }), { status: 405 });
@@ -47,6 +53,7 @@ function mockPharmacy(level = "editor", denied = false, country = "IN") {
             "pharmacy.catalogue.write",
             "pharmacy.stock.read",
             "pharmacy.stock.receive",
+            ...extra,
           ],
         }),
       );
@@ -88,9 +95,11 @@ function mockPharmacy(level = "editor", denied = false, country = "IN") {
     if (url.endsWith("/access"))
       return new Response(
         JSON.stringify(
-          denied ? { error: "not_found", message: "Pharmacy access is unavailable" } : { level },
+          denied
+            ? { error: denied === 404 ? "not_found" : "authorization_unavailable", message: "x" }
+            : { level },
         ),
-        { status: denied ? 404 : 200 },
+        { status: denied || 200 },
       );
     if (url.endsWith("/revisions")) return new Response(JSON.stringify(page([])));
     if (url.includes("/catalogue/products"))
@@ -194,10 +203,38 @@ it("denies missing outlet grants and hides writes from outlet readers", async ()
 });
 
 it("does not load products after outlet access is denied", async () => {
-  const fetcher = mockPharmacy("editor", true);
+  const fetcher = mockPharmacy("editor", 404);
   renderWithProviders(<PharmacyWorkspace view="catalogue" />);
-  expect(await screen.findByRole("alert")).toHaveTextContent("Pharmacy access");
+  expect(await screen.findByText("You don't have access to this outlet yet")).toBeVisible();
   expect(fetcher.mock.calls.some(([url]) => url.includes("/catalogue/products"))).toBe(false);
+});
+
+// #1285: no grant is not a failure, so it offers no retry.
+it("says a missing grant is missing and points a grant manager to Setup", async () => {
+  mockPharmacy("editor", 404, "IN", ["pharmacy.access.manage"]);
+  renderWithProviders(<PharmacyWorkspace view="catalogue" />);
+  expect(await screen.findByText("You don't have access to this outlet yet")).toBeVisible();
+  expect(screen.getByRole("link", { name: "Grant access in Setup" })).toHaveAttribute(
+    "href",
+    "/pharmacy/setup",
+  );
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});
+
+it("tells someone who cannot grant access to ask an administrator", async () => {
+  mockPharmacy("editor", 404);
+  renderWithProviders(<PharmacyWorkspace view="catalogue" />);
+  expect(await screen.findByText(/Ask your administrator to grant you access/)).toBeVisible();
+  expect(screen.queryByRole("link", { name: "Grant access in Setup" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});
+
+it("keeps retry when the access check itself fails", async () => {
+  mockPharmacy("editor", 503);
+  renderWithProviders(<PharmacyWorkspace view="catalogue" />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("Could not check your access");
+  expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
+  expect(screen.queryByText("You don't have access to this outlet yet")).toBeNull();
 });
 
 it("focuses the new-product form and keeps a UUIDv7 stable across a failed save", async () => {
@@ -460,7 +497,7 @@ it("registers an independent pharmacy without asking for a hospital", async () =
 });
 
 it("defaults a new Pakistan product to PKR without changing an existing INR product", async () => {
-  mockPharmacy("editor", false, "PK");
+  mockPharmacy("editor", 0, "PK");
   const { user } = renderWithProviders(<PharmacyWorkspace view="catalogue" />);
   expect(await screen.findByText("TEST Counter capsule")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Add product" }));

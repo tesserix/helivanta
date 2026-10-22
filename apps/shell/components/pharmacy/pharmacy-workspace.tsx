@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { z } from "zod";
 import { Button } from "@tesserix/web";
 import {
+  ApiError,
   apiFetch,
   countryProfile,
   useApiQuery,
@@ -188,6 +190,28 @@ function DirectoryEmpty({ selected, setup }: { selected: boolean; setup: boolean
     </Panel>
   );
 }
+function NoOutletAccess({ setup, canGrant }: { setup: boolean; canGrant: boolean }) {
+  return (
+    <Panel>
+      <h3 className="font-semibold">You don't have access to this outlet yet</h3>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {!canGrant
+          ? "Ask your administrator to grant you access to this outlet."
+          : setup
+            ? "Grant yourself access with the form below."
+            : "Outlet access is granted per person, administrators included."}
+      </p>
+      {canGrant && !setup && (
+        <Link
+          href="/pharmacy/setup"
+          className="mt-3 inline-flex text-sm font-medium text-(--hms-accent) hover:underline"
+        >
+          Grant access in Setup
+        </Link>
+      )}
+    </Panel>
+  );
+}
 function OutletPharmacy({
   outlet,
   scope,
@@ -210,9 +234,12 @@ function OutletPharmacy({
       <p className="mb-4 text-xs text-muted-foreground">Times are in {outlet.timezone}.</p>
       {access.isPending ? (
         <p role="status">Checking pharmacy access…</p>
+      ) : access.error instanceof ApiError && access.error.status === 404 ? (
+        // 404 is the server's settled "no grant here"; retrying cannot change it (#1285).
+        <NoOutletAccess setup={view === "setup"} canGrant={can("pharmacy.access.manage")} />
       ) : access.isError ? (
         <RequestFailure
-          message="Pharmacy access is unavailable. Ask your administrator for access to this outlet, or retry if it was just updated."
+          message="Could not check your access to this outlet. Try again in a moment."
           retry={access.refetch}
         />
       ) : view === "setup" ? null : view === "accounts" ? (

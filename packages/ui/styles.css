@@ -92,10 +92,12 @@
    Only the non-default values need a rule. The open navigation is sized from
    md up only: below md it is an overlay React opens after hydration, and
    widening it in flow there would push the page. */
-html[data-hms-panel="closed"] .hms-page-panel {
-  width: 0;
-}
 @media (min-width: 48rem) {
+  /* From md only: below md the panel is an overlay (#1270 D4) that the stored
+     desktop preference must not size. */
+  html[data-hms-panel="closed"] .hms-page-panel {
+    width: 0;
+  }
   html[data-hms-navigation="open"] .hms-rail {
     width: 13rem;
   }

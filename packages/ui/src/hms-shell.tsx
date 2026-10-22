@@ -95,10 +95,21 @@ function usePersistedFlag(key: string, fallback: boolean) {
   return [value, update] as const;
 }
 
-function ZoneLink({ zone, active, expanded }: { zone: Zone; active: boolean; expanded: boolean }) {
+function ZoneLink({
+  zone,
+  active,
+  expanded,
+  onNavigate,
+}: {
+  zone: Zone;
+  active: boolean;
+  expanded: boolean;
+  onNavigate: () => void;
+}) {
   return (
     <Link
       href={zone.href}
+      onClick={onNavigate}
       title={zone.label}
       aria-label={zone.label}
       aria-current={active ? "page" : undefined}
@@ -118,6 +129,12 @@ function ZoneLink({ zone, active, expanded }: { zone: Zone; active: boolean; exp
       {expanded && <span className="truncate text-sm font-medium">{zone.label}</span>}
     </Link>
   );
+}
+
+// Matches the `md` breakpoint the chrome's overlay classes use. Without
+// matchMedia (tests, old engines) the persisted desktop behaviour applies.
+function isDesktop() {
+  return window.matchMedia?.("(min-width: 48rem)").matches ?? true;
 }
 
 // A neutral slot holding a link's place while permissions load (#1270 D2).
@@ -193,6 +210,15 @@ export function HmsShell({
     : (zones.find((z) => z.key === activeZone(pathname).key) ?? zones[0]);
   const [panelOpen, setPanelOpen] = usePersistedFlag(PANEL_KEY, true);
   const [navigationOpen, setNavigationOpen] = usePersistedFlag(NAVIGATION_KEY, false);
+  // Below md the rail and the page panel are overlays (#1270 D4, D5). The
+  // page overlay is its own unpersisted state, so a phone never rewrites the
+  // desktop panel preference; both overlays close once a destination is chosen.
+  const [pagesOverlayOpen, setPagesOverlayOpen] = useState(false);
+  const closeOverlays = () => {
+    if (isDesktop()) return;
+    setPagesOverlayOpen(false);
+    if (navigationOpen) setNavigationOpen(false);
+  };
 
   // Idle-session tracking (design spec D2/D4/D7). Mounted here, not in
   // apps/shell, for the exact reason endZitadelSession's doc comment
@@ -472,6 +498,15 @@ export function HmsShell({
       {warningDeadline && <IdleCountdown deadline={warningDeadline} onStay={handleStayLoggedIn} />}
       <div data-brand-theme={branding.theme} className="flex h-screen overflow-hidden">
         {navigationOpen && <div aria-hidden="true" className="w-16 shrink-0 md:hidden" />}
+        {(navigationOpen || pagesOverlayOpen) && (
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label="Close navigation"
+            onClick={closeOverlays}
+            className="fixed inset-0 z-30 bg-foreground/20 md:hidden"
+          />
+        )}
         <aside
           className={`hms-rail hms-sidebar-border flex shrink-0 flex-col border-r bg-(--sidebar-rail) ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 shadow-xl md:relative md:inset-auto md:shadow-none" : "w-16"}`}
         >
@@ -508,7 +543,12 @@ export function HmsShell({
                           className="hms-sidebar-border my-2 w-8 self-center border-t"
                         />
                       )}
-                      <ZoneLink zone={z} active={z.key === zone.key} expanded={navigationOpen} />
+                      <ZoneLink
+                        zone={z}
+                        active={z.key === zone.key}
+                        expanded={navigationOpen}
+                        onNavigate={closeOverlays}
+                      />
                     </Fragment>
                   ))}
           </nav>
@@ -526,6 +566,7 @@ export function HmsShell({
                     zone={z}
                     active={z.key === zone.key}
                     expanded={navigationOpen}
+                    onNavigate={closeOverlays}
                   />
                 ))}
             <button
@@ -551,9 +592,9 @@ export function HmsShell({
         {hasPagePanel && (
           <aside
             className={`hms-page-panel flex shrink-0 flex-col overflow-hidden bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
-              panelOpen ? "hidden w-56 md:flex" : "w-0"
-            }`}
-            aria-hidden={!panelOpen}
+              pagesOverlayOpen ? "fixed inset-y-0 left-16 z-40 w-56 shadow-xl" : "hidden"
+            } md:static md:z-auto md:flex md:shadow-none ${panelOpen ? "md:w-56" : "md:w-0"}`}
+            aria-hidden={!(panelOpen || pagesOverlayOpen)}
           >
             <div className="flex h-16 w-56 items-center justify-between pl-5 pr-3">
               <h2 className="truncate text-sm font-semibold text-sidebar-foreground">
@@ -561,10 +602,12 @@ export function HmsShell({
               </h2>
               <button
                 type="button"
-                onClick={() => setPanelOpen(false)}
+                onClick={() =>
+                  pagesOverlayOpen ? setPagesOverlayOpen(false) : setPanelOpen(false)
+                }
                 aria-label="Collapse page panel"
                 title="Collapse panel"
-                tabIndex={panelOpen ? 0 : -1}
+                tabIndex={panelOpen || pagesOverlayOpen ? 0 : -1}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
               >
                 <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
@@ -585,7 +628,8 @@ export function HmsShell({
                       key={pageLink.href}
                       href={pageLink.href}
                       aria-current={isActive ? "page" : undefined}
-                      tabIndex={panelOpen ? 0 : -1}
+                      onClick={closeOverlays}
+                      tabIndex={panelOpen || pagesOverlayOpen ? 0 : -1}
                       className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                         isActive
                           ? "bg-sidebar-accent text-sidebar-foreground"
@@ -606,13 +650,13 @@ export function HmsShell({
           <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
               <div className="flex items-center gap-2">
-                {hasPagePanel && !panelOpen && (
+                {hasPagePanel && (
                   <button
                     type="button"
-                    onClick={() => setPanelOpen(true)}
+                    onClick={() => (isDesktop() ? setPanelOpen(true) : setPagesOverlayOpen(true))}
                     aria-label="Expand page panel"
                     title="Expand panel"
-                    className="mr-1 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className={`mr-1 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${panelOpen ? "md:hidden" : ""}`}
                   >
                     <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
                   </button>

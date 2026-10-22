@@ -37,6 +37,16 @@ Resolves #1270. Follows the one-look chrome (#1255, spec D4).
   `ChevronsRight`) at the foot of the rail, under Settings, keeps its
   `aria-label`, `aria-expanded` and `aria-controls`. It never has a text label.
 
+- **D4 Pages reachable on a phone.** Below `md` the page panel was always
+  hidden, and its open button only showed when the desktop panel was closed,
+  so a multi-page zone exposed one page. Below `md` the header button always
+  shows for a multi-page zone. It opens the panel as an overlay beside the
+  rail, with a scrim, and it never touches the persisted desktop preference.
+  The stored-closed width rule in `styles.css` applies from `md` up only.
+- **D5 Overlays close on a phone.** Below `md`, choosing a zone or a page, or
+  tapping the scrim, closes the expanded rail and the page overlay. Desktop
+  keeps its persisted state. (Found by the Fable review of the shell.)
+
 ## Not covered
 
 - Zones the user cannot see still fall back to the dashboard after loading

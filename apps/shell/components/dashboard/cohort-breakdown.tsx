@@ -1,6 +1,7 @@
 "use client";
 
 import type { ChartCategory } from "./trend-chart";
+import { Panel } from "@helivanta/ui";
 
 export function CohortBreakdown({
   title,
@@ -16,12 +17,12 @@ export function CohortBreakdown({
   const total = categories.reduce((sum, category) => sum + (totals[category.key] ?? 0), 0);
   if (total === 0)
     return (
-      <section aria-label={title} className="rounded-xl border bg-muted/40 p-4">
+      <Panel aria-label={title}>
         <h4 className="text-sm font-semibold">{title}</h4>
         <p className="mt-3 text-sm text-muted-foreground">
           No records to distribute in this period.
         </p>
-      </section>
+      </Panel>
     );
   const slices = categories.map((category) => ({
     ...category,
@@ -29,7 +30,7 @@ export function CohortBreakdown({
     share: ((totals[category.key] ?? 0) / total) * 100,
   }));
   return (
-    <section aria-label={title} className="min-w-0 rounded-xl border bg-muted/40 p-4">
+    <Panel aria-label={title} className="min-w-0">
       <h4 className="text-sm font-semibold">{title}</h4>
       <p className="mt-1 text-xs leading-5 text-muted-foreground">
         Share of the displayed records.
@@ -113,6 +114,6 @@ export function CohortBreakdown({
           ))}
         </tbody>
       </table>
-    </section>
+    </Panel>
   );
 }

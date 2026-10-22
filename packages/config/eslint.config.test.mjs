@@ -168,7 +168,7 @@ describe("workspace heading rules", () => {
     overrideConfigFile: true,
     overrideConfig: [
       ...hmsEslint(import.meta.dirname, { design: true }),
-      hmsWorkspacePages(["workspace/**"]),
+      ...hmsWorkspacePages(["workspace/**"]),
     ],
   });
   const lint = async (code, filePath = "workspace/page.tsx") =>
@@ -233,5 +233,61 @@ describe("workspace heading rules", () => {
     expect(
       await lint(`export const A = () => <h1 className="text-3xl">x</h1>;`, "workspace/a.test.tsx"),
     ).toEqual([]);
+  });
+});
+
+describe("workspace surface rules", () => {
+  const eslint = new ESLint({
+    cwd: import.meta.dirname,
+    overrideConfigFile: true,
+    overrideConfig: [
+      ...hmsEslint(import.meta.dirname, { design: true }),
+      ...hmsWorkspacePages(["workspace/**"], [], ["workspace/legacy.tsx"]),
+    ],
+  });
+  const lint = async (code, filePath = "workspace/page.tsx") =>
+    (await eslint.lintText(code, { filePath }))[0].messages.map((m) => m.message);
+
+  it.each([
+    "rounded-lg border bg-card p-4",
+    "bg-card p-5",
+    "rounded-2xl p-6",
+    "mt-4 rounded-xl bg-muted/30 p-4",
+    "space-y-4 rounded-lg border p-4",
+    "border p-3 rounded-lg",
+  ])("rejects a hand-painted surface: %s", async (classes) => {
+    expect(await lint(`export const A = () => <div className="${classes}">x</div>;`)).toEqual([
+      expect.stringMatching(/Panel/),
+    ]);
+  });
+
+  it("rejects a hand-painted surface in a template class", async () => {
+    const code =
+      "export const A = ({ c }: { c: string }) => <li className={`${c} rounded-xl border p-3`}>x</li>;";
+    expect(await lint(code)).toEqual([expect.stringMatching(/Panel/)]);
+  });
+
+  it("rejects a surface held in a class constant", async () => {
+    const code = `const card = "rounded-xl border p-4";\nexport const A = () => <div className={card} />;`;
+    expect(await lint(code)).toEqual([expect.stringMatching(/Panel/)]);
+  });
+
+  it.each([
+    "rounded-md border px-2 py-1",
+    "inline-flex h-9 rounded-md border bg-card px-3 text-sm",
+    "rounded-full border px-2 text-xs",
+    "border-b rounded-lg",
+    "rounded-lg bg-muted p-4",
+    "rounded-lg bg-destructive/5 p-4 text-destructive",
+  ])("accepts %s", async (classes) => {
+    expect(await lint(`export const A = () => <div className="${classes}">x</div>;`)).toEqual([]);
+  });
+
+  it("holds a listed legacy file to the other workspace rules only", async () => {
+    const legacy = (jsx) => lint(`export const A = () => ${jsx};`, "workspace/legacy.tsx");
+    expect(await legacy(`<div className="rounded-2xl border bg-card p-6">x</div>`)).toEqual([]);
+    expect(await legacy(`<h1 className="text-xl">x</h1>`)).toEqual([
+      expect.stringMatching(/shell header owns the h1/),
+    ]);
   });
 });

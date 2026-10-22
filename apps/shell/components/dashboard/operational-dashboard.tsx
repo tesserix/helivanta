@@ -17,6 +17,7 @@ import {
   Field,
   FormSelectField,
   PageHeading,
+  Panel,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -271,7 +272,7 @@ export function OperationalDashboard({ now }: { now?: Date }) {
       )}
       {showTeam && <WorkforceInsights />}
       {showClinical && can("medicore.visit.read") && (
-        <aside className="flex gap-3 rounded-lg border bg-card p-4 text-sm">
+        <Panel as="aside" className="flex gap-3 text-sm">
           <Stethoscope
             className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
             aria-hidden="true"
@@ -284,7 +285,7 @@ export function OperationalDashboard({ now }: { now?: Date }) {
               records before they can be reported reliably.
             </p>
           </div>
-        </aside>
+        </Panel>
       )}
     </div>
   );
@@ -322,7 +323,7 @@ function AnalyticsPanel({
     ? (Date.parse(`${data.to}T00:00:00Z`) - Date.parse(`${data.from}T00:00:00Z`)) / 86_400_000 + 1
     : 1;
   return (
-    <section aria-label={title} className="min-w-0 rounded-lg border bg-card shadow-xs">
+    <Panel aria-label={title} flush className="min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
         <div className="flex items-center gap-1.5">
           <h3 className="text-base font-semibold">{title}</h3>
@@ -466,7 +467,7 @@ function AnalyticsPanel({
           </>
         )}
       </div>
-    </section>
+    </Panel>
   );
 }
 

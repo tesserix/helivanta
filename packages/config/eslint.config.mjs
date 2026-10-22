@@ -56,6 +56,25 @@ const WORKSPACE_SYNTAX = [
   { selector: `TemplateElement[value.raw=${EYEBROW}]`, message: EYEBROW_MESSAGE },
 ];
 
+// One card surface (#1275): a card is Panel/PanelLink from @helivanta/ui, so
+// a className may not paint one. A full border (not border-b) with a card
+// radius is a card; small controls (rounded-sm/md/full) keep border and bg-card.
+export const SURFACE_PATTERNS = [
+  /^(?=.*(^|[\s:])bg-card(\s|$))(?!.*(^|\s)rounded-(sm|md|full)(\s|$))/,
+  /(^|[\s:])rounded-(xl|2xl|3xl)(\s|$)/,
+  /^(?=.*(^|\s)border(\s|$))(?=.*(^|\s)rounded-lg(\s|$))/,
+];
+const SURFACE_MESSAGE =
+  "Cards are Panel or PanelLink from @helivanta/ui; a panel inside a panel becomes an inset (#1275).";
+// One alternation, so a className painting a card several ways reports once.
+const SURFACE = `/${SURFACE_PATTERNS.map((re) => `(?:${re.source})`).join("|")}/`;
+// Any string, not only className: a class constant (`const card = "..."`)
+// must not dodge the rule.
+const SURFACE_SYNTAX = [
+  { selector: `Literal[value=${SURFACE}]`, message: SURFACE_MESSAGE },
+  { selector: `TemplateElement[value.raw=${SURFACE}]`, message: SURFACE_MESSAGE },
+];
+
 const SANITIZE_SYNTAX = {
   selector:
     "JSXAttribute[name.name='dangerouslySetInnerHTML']:not([value.expression.callee.name='sanitizeHtml'])",
@@ -74,24 +93,29 @@ export function hmsPublicPages(files) {
 }
 
 /**
- * Workspace pages and their components get the heading rules on top of every
- * design rule. Spread after hmsEslint(dir, { design: true }) with the globs.
- * Tests stay exempt, as they are from the design rules.
+ * Workspace pages and their components get the heading and surface rules on
+ * top of every design rule. Spread after hmsEslint(dir, { design: true }).
+ * Tests stay exempt, as they are from the design rules. `legacy` lists files
+ * not yet moved to Panel (#1275 spec D4): they keep every rule but the
+ * surface one. Rule options do not merge across config objects, so each set
+ * of files gets its own complete list.
  */
-export function hmsWorkspacePages(files, ignores = []) {
-  return {
-    files,
-    ignores: ["**/*.test.{ts,tsx,mjs}", ...ignores],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        SANITIZE_SYNTAX,
-        ...DESIGN_SYNTAX,
-        ...MARKETING_SYNTAX,
-        ...WORKSPACE_SYNTAX,
-      ],
-    },
-  };
+export function hmsWorkspacePages(files, ignores = [], legacy = []) {
+  const syntax = (surface) => ({
+    "no-restricted-syntax": [
+      "error",
+      SANITIZE_SYNTAX,
+      ...DESIGN_SYNTAX,
+      ...MARKETING_SYNTAX,
+      ...WORKSPACE_SYNTAX,
+      ...(surface ? SURFACE_SYNTAX : []),
+    ],
+  });
+  const tests = "**/*.test.{ts,tsx,mjs}";
+  return [
+    { files, ignores: [tests, ...ignores, ...legacy], rules: syntax(true) },
+    ...(legacy.length ? [{ files: legacy, ignores: [tests], rules: syntax(false) }] : []),
+  ];
 }
 
 // Shared Helivanta flat config. Apps call hmsEslint(import.meta.dirname);

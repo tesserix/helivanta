@@ -3,7 +3,7 @@
 import { Activity } from "lucide-react";
 import { Button } from "@tesserix/web";
 import { apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
-import { formatTime, LoadMore, QueryState } from "@helivanta/ui";
+import { formatTime, LoadMore, Panel, QueryState } from "@helivanta/ui";
 
 type Ping = { id: string; message: string; created_at: string };
 
@@ -23,7 +23,7 @@ export function PingPanel({ department }: { department: string }) {
   );
 
   return (
-    <section className="max-w-2xl rounded-lg border bg-card">
+    <Panel flush className="max-w-2xl">
       <div className="flex items-center justify-between border-b px-5 py-4">
         <div>
           <h2 className="text-sm font-semibold text-foreground">Platform check</h2>
@@ -54,6 +54,6 @@ export function PingPanel({ department }: { department: string }) {
         )}
       </QueryState>
       <LoadMore hasMore={pings.hasMore} isLoading={pings.isFetchingMore} onClick={pings.loadMore} />
-    </section>
+    </Panel>
   );
 }

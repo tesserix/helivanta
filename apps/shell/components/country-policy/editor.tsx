@@ -18,7 +18,7 @@ import {
   type CountryPolicyEditorValues,
   type CountryPolicyVersion,
 } from "@helivanta/api";
-import { Field, FormSelectField, useFieldArray, useZodForm } from "@helivanta/ui";
+import { Field, FormSelectField, Panel, useFieldArray, useZodForm } from "@helivanta/ui";
 import { useCountryPolicyCommand } from "./command";
 
 export const policyLabel = (value: string) =>
@@ -27,7 +27,7 @@ export const policyLabel = (value: string) =>
     : value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 type PolicyForm = ReturnType<typeof useZodForm<typeof countryPolicyEditorSchema>>;
 const textareaClass =
-  "min-h-24 w-full rounded-lg border bg-background px-3 py-2 text-sm font-normal";
+  "min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm font-normal";
 const policyFields = countryPolicyEditorSchema.innerType().shape;
 
 function initialPolicy(
@@ -90,236 +90,254 @@ export function CountryPolicyEditor({
   );
   const errors = form.formState.errors;
   return (
-    <form
-      noValidate
-      onSubmit={form.handleSubmit((values) => {
-        save.mutate(countryPolicySubmissionFromEditor(values));
-      })}
-      className="space-y-6 rounded-2xl border bg-card p-5 sm:p-7"
-    >
-      <header>
-        <h3 ref={heading} tabIndex={-1} className="scroll-mt-24 text-xl font-semibold">
-          {scope ? "New policy version" : "New country policy"}
-        </h3>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Record the exact operating scope, reviewed citations and every requirement. Submission
-          needs independent review before it can become active.
-        </p>
-      </header>
-      <fieldset disabled={save.isPending} className="space-y-6">
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-          <FormSelectField
-            control={form.control}
-            name="country"
-            id="policy-country"
-            label="Country"
-            disabled={!!scope}
-            options={countryConfiguration.countries.map((country) => ({
-              value: country.code,
-              label: country.name,
-            }))}
-          />
-          <Field id="policy-jurisdiction" label="Jurisdiction" error={errors.jurisdiction?.message}>
-            <Input
-              id="policy-jurisdiction"
-              readOnly={!!scope}
-              {...form.register("jurisdiction")}
-              placeholder="State, province or local jurisdiction"
+    <Panel>
+      <form
+        noValidate
+        onSubmit={form.handleSubmit((values) => {
+          save.mutate(countryPolicySubmissionFromEditor(values));
+        })}
+        className="space-y-6"
+      >
+        <header>
+          <h3 ref={heading} tabIndex={-1} className="scroll-mt-24 text-xl font-semibold">
+            {scope ? "New policy version" : "New country policy"}
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            Record the exact operating scope, reviewed citations and every requirement. Submission
+            needs independent review before it can become active.
+          </p>
+        </header>
+        <fieldset disabled={save.isPending} className="space-y-6">
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            <FormSelectField
+              control={form.control}
+              name="country"
+              id="policy-country"
+              label="Country"
+              disabled={!!scope}
+              options={countryConfiguration.countries.map((country) => ({
+                value: country.code,
+                label: country.name,
+              }))}
             />
-          </Field>
-          <FormSelectField
-            control={form.control}
-            name="category"
-            id="policy-category"
-            label="Product category"
-            disabled={!!scope}
-            options={policyFields.category.options.map((value) => ({
-              value,
-              label: policyLabel(value),
-            }))}
-          />
-          <FormSelectField
-            control={form.control}
-            name="operation"
-            id="policy-operation"
-            label="Trading operation"
-            disabled={!!scope}
-            options={policyFields.operation.options.map((value) => ({
-              value,
-              label: policyLabel(value),
-            }))}
-          />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Country metadata: {profile?.currency} · {profile?.timezone}. This policy does not activate
-          another country or jurisdiction.
-        </p>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <PolicyTimeField
-            form={form}
-            name="effective_from"
-            id="policy-from"
-            label="Effective from (UTC)"
-          />
-          <PolicyTimeField
-            form={form}
-            name="effective_until"
-            id="policy-until"
-            label="Effective until (UTC)"
-          />
-        </div>
-        <section aria-label="Reviewed policy sources" className="space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h4 className="font-semibold">Reviewed sources</h4>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={sources.fields.length >= 30}
-              onClick={() =>
-                sources.append({
-                  key: `source-${newCountryPolicyId()}`,
-                  title: "",
-                  url: "",
-                  reviewed_at: "",
-                })
-              }
+            <Field
+              id="policy-jurisdiction"
+              label="Jurisdiction"
+              error={errors.jurisdiction?.message}
             >
-              <Plus className="me-2 size-4" />
-              Add source
-            </Button>
-          </div>
-          {sources.fields.map((source, index) => (
-            <fieldset key={source.id} className="space-y-4 rounded-xl border p-4">
-              <legend className="px-1 text-sm font-medium">Source {index + 1}</legend>
-              <Field
-                id={`source-${index}-title`}
-                label={`Source ${index + 1} title`}
-                error={errors.sources?.[index]?.title?.message}
-              >
-                <Input id={`source-${index}-title`} {...form.register(`sources.${index}.title`)} />
-              </Field>
-              <Field
-                id={`source-${index}-url`}
-                label={`Source ${index + 1} HTTPS citation`}
-                error={errors.sources?.[index]?.url?.message}
-              >
-                <Input
-                  id={`source-${index}-url`}
-                  type="url"
-                  {...form.register(`sources.${index}.url`)}
-                  placeholder="https://…"
-                />
-              </Field>
-              <PolicyTimeField
-                form={form}
-                name={`sources.${index}.reviewed_at`}
-                id={`source-${index}-reviewed`}
-                label={`Source ${index + 1} reviewed at (UTC)`}
+              <Input
+                id="policy-jurisdiction"
+                readOnly={!!scope}
+                {...form.register("jurisdiction")}
+                placeholder="State, province or local jurisdiction"
               />
+            </Field>
+            <FormSelectField
+              control={form.control}
+              name="category"
+              id="policy-category"
+              label="Product category"
+              disabled={!!scope}
+              options={policyFields.category.options.map((value) => ({
+                value,
+                label: policyLabel(value),
+              }))}
+            />
+            <FormSelectField
+              control={form.control}
+              name="operation"
+              id="policy-operation"
+              label="Trading operation"
+              disabled={!!scope}
+              options={policyFields.operation.options.map((value) => ({
+                value,
+                label: policyLabel(value),
+              }))}
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Country metadata: {profile?.currency} · {profile?.timezone}. This policy does not
+            activate another country or jurisdiction.
+          </p>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <PolicyTimeField
+              form={form}
+              name="effective_from"
+              id="policy-from"
+              label="Effective from (UTC)"
+            />
+            <PolicyTimeField
+              form={form}
+              name="effective_until"
+              id="policy-until"
+              label="Effective until (UTC)"
+            />
+          </div>
+          <section aria-label="Reviewed policy sources" className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h4 className="font-semibold">Reviewed sources</h4>
               <Button
                 type="button"
                 variant="outline"
-                disabled={sources.fields.length === 1}
-                onClick={() => {
-                  const key = sourceValues[index].key;
-                  sources.remove(index);
-                  form.getValues("requirements").forEach((requirement, row) =>
-                    form.setValue(
-                      `requirements.${row}.source_keys`,
-                      requirement.source_keys.filter((value) => value !== key),
-                    ),
-                  );
-                }}
+                disabled={sources.fields.length >= 30}
+                onClick={() =>
+                  sources.append({
+                    key: `source-${newCountryPolicyId()}`,
+                    title: "",
+                    url: "",
+                    reviewed_at: "",
+                  })
+                }
               >
-                <Trash2 className="me-2 size-4" />
-                Remove source {index + 1}
+                <Plus className="me-2 size-4" />
+                Add source
               </Button>
-            </fieldset>
-          ))}
-          {errors.sources?.message && (
-            <p role="alert" className="text-sm text-destructive">
-              {errors.sources.message}
-            </p>
-          )}
-        </section>
-        <section className="space-y-5">
-          <h4 className="font-semibold">Requirements and applicability</h4>
-          <p className="text-sm leading-6 text-muted-foreground">
-            For each domain, explain the requirements or why they do not apply, and select the
-            reviewed citations that support the decision.
-          </p>
-          {form.getValues("requirements").map((requirement, index) => (
-            <fieldset
-              key={requirement.domain}
-              aria-label={`${policyLabel(requirement.domain)} requirement`}
-              className="space-y-4 rounded-xl border p-4"
-            >
-              <legend className="px-1 text-sm font-semibold">
-                {policyLabel(requirement.domain)}
-              </legend>
-              <FormSelectField
-                control={form.control}
-                name={`requirements.${index}.applicability`}
-                id={`requirement-${index}-applies`}
-                label={`${policyLabel(requirement.domain)} applicability`}
-                options={[
-                  { value: "required", label: "Required" },
-                  { value: "not_applicable", label: "Not applicable — reviewed reason required" },
-                ]}
-              />
-              <Field
-                id={`requirement-${index}-reason`}
-                label={`${policyLabel(requirement.domain)} rationale`}
-                error={errors.requirements?.[index]?.reason?.message}
-              >
-                <textarea
-                  id={`requirement-${index}-reason`}
-                  className={textareaClass}
-                  {...form.register(`requirements.${index}.reason`)}
-                />
-              </Field>
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Supporting citations</p>
-                {sourceValues.map((source, sourceIndex) => (
-                  <label key={source.key} className="flex items-start gap-2 text-sm font-normal">
-                    <input
-                      type="checkbox"
-                      value={source.key}
-                      {...form.register(`requirements.${index}.source_keys`)}
-                      className="mt-1 accent-(--hms-accent)"
+            </div>
+            {sources.fields.map((source, index) => (
+              <Panel key={source.id}>
+                <fieldset className="space-y-4">
+                  <legend className="px-1 text-sm font-medium">Source {index + 1}</legend>
+                  <Field
+                    id={`source-${index}-title`}
+                    label={`Source ${index + 1} title`}
+                    error={errors.sources?.[index]?.title?.message}
+                  >
+                    <Input
+                      id={`source-${index}-title`}
+                      {...form.register(`sources.${index}.title`)}
                     />
-                    <span>{source.title || `Source ${sourceIndex + 1}`}</span>
-                  </label>
-                ))}
-              </div>
-              {errors.requirements?.[index]?.source_keys?.message && (
-                <p role="alert" className="text-sm text-destructive">
-                  {errors.requirements[index]?.source_keys?.message}
-                </p>
-              )}
-            </fieldset>
-          ))}
-          {errors.requirements?.message && (
-            <p role="alert" className="text-sm text-destructive">
-              {errors.requirements.message}
+                  </Field>
+                  <Field
+                    id={`source-${index}-url`}
+                    label={`Source ${index + 1} HTTPS citation`}
+                    error={errors.sources?.[index]?.url?.message}
+                  >
+                    <Input
+                      id={`source-${index}-url`}
+                      type="url"
+                      {...form.register(`sources.${index}.url`)}
+                      placeholder="https://…"
+                    />
+                  </Field>
+                  <PolicyTimeField
+                    form={form}
+                    name={`sources.${index}.reviewed_at`}
+                    id={`source-${index}-reviewed`}
+                    label={`Source ${index + 1} reviewed at (UTC)`}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={sources.fields.length === 1}
+                    onClick={() => {
+                      const key = sourceValues[index].key;
+                      sources.remove(index);
+                      form.getValues("requirements").forEach((requirement, row) =>
+                        form.setValue(
+                          `requirements.${row}.source_keys`,
+                          requirement.source_keys.filter((value) => value !== key),
+                        ),
+                      );
+                    }}
+                  >
+                    <Trash2 className="me-2 size-4" />
+                    Remove source {index + 1}
+                  </Button>
+                </fieldset>
+              </Panel>
+            ))}
+            {errors.sources?.message && (
+              <p role="alert" className="text-sm text-destructive">
+                {errors.sources.message}
+              </p>
+            )}
+          </section>
+          <section className="space-y-5">
+            <h4 className="font-semibold">Requirements and applicability</h4>
+            <p className="text-sm leading-6 text-muted-foreground">
+              For each domain, explain the requirements or why they do not apply, and select the
+              reviewed citations that support the decision.
+            </p>
+            {form.getValues("requirements").map((requirement, index) => (
+              <Panel key={requirement.domain}>
+                <fieldset
+                  aria-label={`${policyLabel(requirement.domain)} requirement`}
+                  className="space-y-4"
+                >
+                  <legend className="px-1 text-sm font-semibold">
+                    {policyLabel(requirement.domain)}
+                  </legend>
+                  <FormSelectField
+                    control={form.control}
+                    name={`requirements.${index}.applicability`}
+                    id={`requirement-${index}-applies`}
+                    label={`${policyLabel(requirement.domain)} applicability`}
+                    options={[
+                      { value: "required", label: "Required" },
+                      {
+                        value: "not_applicable",
+                        label: "Not applicable — reviewed reason required",
+                      },
+                    ]}
+                  />
+                  <Field
+                    id={`requirement-${index}-reason`}
+                    label={`${policyLabel(requirement.domain)} rationale`}
+                    error={errors.requirements?.[index]?.reason?.message}
+                  >
+                    <textarea
+                      id={`requirement-${index}-reason`}
+                      className={textareaClass}
+                      {...form.register(`requirements.${index}.reason`)}
+                    />
+                  </Field>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Supporting citations</p>
+                    {sourceValues.map((source, sourceIndex) => (
+                      <label
+                        key={source.key}
+                        className="flex items-start gap-2 text-sm font-normal"
+                      >
+                        <input
+                          type="checkbox"
+                          value={source.key}
+                          {...form.register(`requirements.${index}.source_keys`)}
+                          className="mt-1 accent-(--hms-accent)"
+                        />
+                        <span>{source.title || `Source ${sourceIndex + 1}`}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {errors.requirements?.[index]?.source_keys?.message && (
+                    <p role="alert" className="text-sm text-destructive">
+                      {errors.requirements[index]?.source_keys?.message}
+                    </p>
+                  )}
+                </fieldset>
+              </Panel>
+            ))}
+            {errors.requirements?.message && (
+              <p role="alert" className="text-sm text-destructive">
+                {errors.requirements.message}
+              </p>
+            )}
+          </section>
+          {save.error && (
+            <p role="alert" className="rounded-md bg-destructive/5 p-4 text-sm text-destructive">
+              {save.error.message}
             </p>
           )}
-        </section>
-        {save.error && (
-          <p role="alert" className="rounded-xl border p-4 text-sm text-destructive">
-            {save.error.message}
-          </p>
-        )}
-        <div className="flex flex-wrap gap-3">
-          <Button type="submit" disabled={save.isPending}>
-            {save.isPending ? "Submitting…" : "Submit policy for review"}
-          </Button>
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-        </div>
-      </fieldset>
-    </form>
+          <div className="flex flex-wrap gap-3">
+            <Button type="submit" disabled={save.isPending}>
+              {save.isPending ? "Submitting…" : "Submit policy for review"}
+            </Button>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+          </div>
+        </fieldset>
+      </form>
+    </Panel>
   );
 }
 

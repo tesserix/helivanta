@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Users } from "lucide-react";
 import { Button } from "@tesserix/web";
 import {
   JOB_LABELS,
@@ -11,22 +10,16 @@ import {
   useApiQuery,
   type Hospital,
 } from "@helivanta/api";
-import { Field, LoadMore, SelectControl } from "@helivanta/ui";
+import { Field, LoadMore, Panel, SelectControl } from "@helivanta/ui";
 
 export function WorkforceInsights() {
   const hospitals = useApiPagedQuery<Hospital>(["workforce", "hospitals"], "/workforce/hospitals");
   const [selected, setSelected] = useState("");
   const hospital = hospitals.items.find((item) => item.id === selected) ?? hospitals.items[0];
   return (
-    <section
-      aria-label="Doctors & care teams"
-      className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6"
-    >
+    <Panel aria-label="Doctors & care teams">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <span className="rounded-xl bg-(--hms-violet-tint) p-2.5 text-(--hms-violet)">
-            <Users className="h-5 w-5" aria-hidden="true" />
-          </span>
           <div>
             <h3 className="text-lg font-semibold tracking-tight">Doctors & care teams</h3>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -48,7 +41,7 @@ export function WorkforceInsights() {
           </Button>
         </div>
       ) : !hospital ? (
-        <p className="rounded-xl bg-muted p-5 text-sm text-muted-foreground">
+        <p className="rounded-md bg-muted p-4 text-sm text-muted-foreground">
           No hospital staff access. Ask your administrator for an explicit hospital grant to view
           team insights.
         </p>
@@ -72,7 +65,7 @@ export function WorkforceInsights() {
           <StaffSnapshot key={hospital.id} hospital={hospital} />
         </>
       )}
-    </section>
+    </Panel>
   );
 }
 

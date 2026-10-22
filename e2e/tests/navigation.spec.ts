@@ -184,11 +184,12 @@ test("a page that is still loading keeps the chrome", async ({ page }) => {
 });
 
 // #1091 D7. The server cannot read localStorage, so its HTML renders the
-// default chrome: panel open, rail collapsed. Without the pre-hydration
-// script a clinician who collapsed the panel saw it painted open on every
-// hard load, then snap shut. The widths are recorded from the first DOM
-// mutation onward, so the first paint is included.
-test("a collapsed panel is never painted open on a hard load", async ({ page }) => {
+// default chrome: rail collapsed. Without the pre-hydration script a clinician
+// who expanded the rail saw it painted collapsed on every hard load, then snap
+// open. #1286 D4: the page panel no longer collapses, so a collapse stored
+// before then must not paint it shut. The widths are recorded from the first
+// DOM mutation onward, so the first paint is included.
+test("the stored chrome is painted from the first frame on a hard load", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await login(page);
   await page.goto("/pharmacy");
@@ -200,7 +201,8 @@ test("a collapsed panel is never painted open on a hard load", async ({ page }) 
     const seen: string[] = [];
     (window as unknown as { __chromeWidths: string[] }).__chromeWidths = seen;
     new MutationObserver(() => {
-      const [rail, panel] = document.querySelectorAll("aside");
+      const rail = document.querySelector("aside.hms-rail");
+      const panel = document.querySelector("aside.hms-page-panel");
       if (rail && panel)
         seen.push(`rail=${getComputedStyle(rail).width} panel=${getComputedStyle(panel).width}`);
     }).observe(document, { subtree: true, childList: true, attributes: true });
@@ -212,6 +214,45 @@ test("a collapsed panel is never painted open on a hard load", async ({ page }) 
   );
   expect(seen.length, "no chrome was observed").toBeGreaterThan(0);
   expect([...new Set(seen)], "the chrome painted in a state the user did not choose").toEqual([
-    "rail=208px panel=0px",
+    "rail=208px panel=224px",
   ]);
+});
+
+// #1286 D1: the rail and the page panel float, sized to their items, not to
+// the window. Measured from the rendered boxes, not inferred from classes.
+test("the rail and the page panel are only as tall as their items", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await login(page);
+  await page
+    .getByRole("navigation", { name: "Zones" })
+    .getByRole("link", { name: "PharmaConnect" })
+    .click();
+  await expect(page.getByRole("navigation", { name: "PharmaConnect" })).toBeVisible();
+
+  for (const selector of ["aside.hms-rail", "aside.hms-page-panel"]) {
+    const box = await page.locator(selector).boundingBox();
+    expect(box, selector).not.toBeNull();
+    expect(box!.y, `${selector} touches the top edge`).toBeGreaterThan(0);
+    expect(box!.y + box!.height, `${selector} spans the window`).toBeLessThan(800);
+  }
+});
+
+// #1286 D6: the header card starts at the rail's top and spans the panel and
+// the page; the panel sits below it rather than beside it.
+test("the header card runs from the rail across the panel, above it", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await login(page);
+  await page
+    .getByRole("navigation", { name: "Zones" })
+    .getByRole("link", { name: "PharmaConnect" })
+    .click();
+  await expect(page.getByRole("navigation", { name: "PharmaConnect" })).toBeVisible();
+
+  const rail = (await page.locator("aside.hms-rail").boundingBox())!;
+  const header = (await page.getByRole("banner").boundingBox())!;
+  const panel = (await page.locator("aside.hms-page-panel").boundingBox())!;
+  expect(Math.abs(header.y - rail.y), "header top meets the rail top").toBeLessThan(1);
+  expect(Math.abs(header.x - panel.x), "header starts where the panel does").toBeLessThan(1);
+  expect(header.x + header.width, "header reaches the window edge").toBeGreaterThan(1260);
+  expect(panel.y, "panel sits below the header").toBeGreaterThan(header.y + header.height);
 });

@@ -167,6 +167,11 @@ describe("activePage", () => {
 
 // #1270 D1: the rail reads in one order, grouped by use, whatever order
 // zones were added in.
+// #1286 D2: a collapsed rail shows this under the icon, so it must fit.
+it("gives every zone a short rail label", () => {
+  for (const zone of ZONES) expect(zone.railLabel, zone.key).toMatch(/^.{1,9}$/);
+});
+
 describe("zone order", () => {
   it("lists zones grouped by use, settings last", () => {
     expect(ZONES.map((zone) => zone.key)).toEqual([

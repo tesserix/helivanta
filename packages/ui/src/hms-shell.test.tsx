@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { PERMISSIONS_CACHE_KEY, RENEW_AT_KEY, storeRenewAt } from "@helivanta/api";
 import { HmsShell } from "./hms-shell";
@@ -851,6 +851,8 @@ describe("expandable navigation", () => {
       "aria-expanded",
       "true",
     );
+    // The fallback lives in module state; leave it collapsed for later tests.
+    await user.click(screen.getByRole("button", { name: "Collapse navigation" }));
     vi.restoreAllMocks();
   });
 
@@ -915,25 +917,19 @@ describe("expandable navigation", () => {
     vi.useRealTimers();
   });
 
-  // #1091 D7: styles.css sizes the chrome from these attributes, so they must
-  // follow the flag whichever way it changes, or the CSS would hold a panel
-  // shut that React has opened.
-  it("mirrors the panel state to <html> when toggled here and from another tab", async () => {
-    window.localStorage.clear();
-    delete document.documentElement.dataset.hmsPanel;
+  // #1286 D4: the page panel no longer collapses. A collapse stored before
+  // that must not hide it, or the pages would be unreachable on a desktop.
+  it("shows the page panel even when an old collapse is stored", () => {
+    window.localStorage.setItem("hms.panel.open", "0");
     grantPharmacyPages();
     pathname.current = "/pharmacy";
-    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
-    expect(document.documentElement.dataset.hmsPanel).toBe("open");
-
-    await user.click(screen.getByRole("button", { name: "Collapse page panel" }));
-    expect(document.documentElement.dataset.hmsPanel).toBe("closed");
-
-    act(() => {
-      window.localStorage.setItem("hms.panel.open", "1");
-      window.dispatchEvent(new StorageEvent("storage", { key: "hms.panel.open" }));
-    });
-    expect(document.documentElement.dataset.hmsPanel).toBe("open");
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    const panel = document.querySelector(".hms-page-panel")!;
+    expect(panel.className).toContain("md:w-56");
+    expect(panel.className).not.toContain("md:w-0");
+    expect(document.documentElement.dataset.hmsPanel).toBeUndefined();
+    expect(screen.queryByRole("button", { name: "Collapse page panel" })).toBeNull();
+    window.localStorage.clear();
   });
 
   // #1255 spec D4: a zone with one page gets no page panel. The panel would
@@ -941,12 +937,10 @@ describe("expandable navigation", () => {
   it("renders no page panel for a single-page zone", () => {
     seedCache(["pharmacy.dispense.read"]);
     pathname.current = "/dashboard";
-    document.documentElement.dataset.hmsPanel = "closed";
     renderWithProviders(<HmsShell>content</HmsShell>);
     expect(screen.queryByRole("navigation", { name: "Dashboard" })).toBeNull();
     expect(screen.queryByRole("button", { name: /page panel/ })).toBeNull();
     expect(document.querySelector(".hms-page-panel")).toBeNull();
-    delete document.documentElement.dataset.hmsPanel;
   });
 
   // Pages are counted after permission filtering: what the panel would list.
@@ -983,6 +977,18 @@ describe("expandable navigation", () => {
     pathname.current = "/dashboard";
     renderWithProviders(<HmsShell>content</HmsShell>);
     expect(await screen.findByTestId("tenant-name")).toHaveTextContent("Helivanta");
+  });
+
+  // #1286: the page panel has no header row, so the header names the tenant
+  // on every page and the collapse control sits at the panel's foot.
+  it("names the tenant in the header beside a page panel, which has no heading", async () => {
+    grantPharmacyPages();
+    pathname.current = "/pharmacy";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(await screen.findByTestId("tenant-name")).toHaveTextContent("Helivanta");
+    const panel = screen.getByRole("navigation", { name: "PharmaConnect" }).closest("aside")!;
+    expect(within(panel).queryByRole("heading")).toBeNull();
+    expect(within(panel).queryByRole("button")).toBeNull();
   });
 
   it("titles a single-page zone by the zone", () => {
@@ -1055,6 +1061,17 @@ describe("zone rail", () => {
     const settings = screen.getByRole("link", { name: "Settings" });
     expect(zones).not.toContainElement(settings);
     expect(zones.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // #1286 D2: the short label is visible text; the link keeps the full name.
+  it("labels each collapsed rail icon with its short name", () => {
+    grant(everyZone);
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+
+    const pharmacy = screen.getByRole("link", { name: "PharmaConnect" });
+    expect(pharmacy).toHaveTextContent("Pharmacy");
+    expect(screen.getByRole("link", { name: "EmergencyConnect" })).toHaveTextContent("Emergency");
   });
 
   it("shows placeholders, not a partial list, while permissions load", () => {

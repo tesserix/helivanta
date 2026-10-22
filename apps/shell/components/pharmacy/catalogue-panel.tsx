@@ -26,9 +26,9 @@ import {
   useZodForm,
   useFieldArray,
   ConfirmDialog,
+  RequestFailure,
 } from "@helivanta/ui";
 import { CurrencyAmountField } from "./currency-amount-field";
-import { RequestFailure } from "../request-failure";
 
 const searchSchema = z.object({ query: z.string().trim().max(200) });
 const newProduct: PharmacyProductInput = {

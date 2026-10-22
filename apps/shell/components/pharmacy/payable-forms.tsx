@@ -29,9 +29,9 @@ import {
   useZodForm,
   useFieldArray,
   LoadMore,
+  RequestFailure,
 } from "@helivanta/ui";
 import { CurrencyAmountField, formatPharmacyMoney } from "./currency-amount-field";
-import { RequestFailure } from "../request-failure";
 
 const categories = [
   { value: "inventory", label: "Inventory purchase" },

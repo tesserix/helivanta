@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Badge, Button, Input } from "@tesserix/web";
 import { FlaskConical } from "lucide-react";
 import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
-import { EmptyState, LoadMore, formatTime } from "@helivanta/ui";
+import { formatTime, LoadMore, QueryState } from "@helivanta/ui";
 
 type Order = {
   id: string;
@@ -45,63 +45,69 @@ export function OrderList() {
             : `${pending} order${pending === 1 ? "" : "s"} awaiting results.`}
         </p>
       </div>
-      <ul className="divide-y text-sm">
-        {orders.items.length === 0 && (
-          <li>
-            <EmptyState
-              icon={FlaskConical}
-              title="No lab orders yet"
-              hint="They appear here when a visit is created in MediCore."
-            />
-          </li>
+      <QueryState
+        query={orders}
+        label="lab orders"
+        empty={{
+          icon: FlaskConical,
+          title: "No lab orders yet",
+          hint: "They appear here when a visit is created in MediCore.",
+        }}
+      >
+        {(items) => (
+          <ul className="divide-y text-sm">
+            {items.map((o) => (
+              <li
+                key={o.id}
+                className="flex flex-wrap items-center justify-between gap-4 px-5 py-3"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-3">
+                    <span className="truncate font-medium text-foreground">{o.patient_name}</span>
+                    <Badge variant={o.status === "pending" ? "secondary" : "outline"}>
+                      {o.test_name}
+                    </Badge>
+                  </div>
+                  <div className="mt-0.5 text-muted-foreground">
+                    {o.status === "completed" ? `Result: ${o.result_value}` : "Awaiting result"}
+                  </div>
+                </div>
+                {o.status === "pending" ? (
+                  <div className="flex items-center gap-2">
+                    <label className="sr-only" htmlFor={`result-${o.id}`}>
+                      Result for {o.patient_name}
+                    </label>
+                    <Input
+                      id={`result-${o.id}`}
+                      value={drafts[o.id] ?? ""}
+                      onChange={(e) => setDrafts((d) => ({ ...d, [o.id]: e.target.value }))}
+                      placeholder="e.g. WBC 6.1"
+                      className="w-44"
+                    />
+                    <Can permission="lab.order.fulfil">
+                      <Button
+                        onClick={() => saveResult.mutate({ id: o.id, value: drafts[o.id] ?? "" })}
+                        disabled={
+                          (saveResult.isPending && saveResult.variables?.id === o.id) ||
+                          !(drafts[o.id] ?? "").trim()
+                        }
+                      >
+                        {saveResult.isPending && saveResult.variables?.id === o.id
+                          ? "Saving…"
+                          : "Save result"}
+                      </Button>
+                    </Can>
+                  </div>
+                ) : (
+                  <time className="shrink-0 tabular-nums text-muted-foreground">
+                    {formatTime(o.resulted_at ?? "")}
+                  </time>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
-        {orders.items.map((o) => (
-          <li key={o.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3">
-                <span className="truncate font-medium text-foreground">{o.patient_name}</span>
-                <Badge variant={o.status === "pending" ? "secondary" : "outline"}>
-                  {o.test_name}
-                </Badge>
-              </div>
-              <div className="mt-0.5 text-muted-foreground">
-                {o.status === "completed" ? `Result: ${o.result_value}` : "Awaiting result"}
-              </div>
-            </div>
-            {o.status === "pending" ? (
-              <div className="flex items-center gap-2">
-                <label className="sr-only" htmlFor={`result-${o.id}`}>
-                  Result for {o.patient_name}
-                </label>
-                <Input
-                  id={`result-${o.id}`}
-                  value={drafts[o.id] ?? ""}
-                  onChange={(e) => setDrafts((d) => ({ ...d, [o.id]: e.target.value }))}
-                  placeholder="e.g. WBC 6.1"
-                  className="w-44"
-                />
-                <Can permission="lab.order.fulfil">
-                  <Button
-                    onClick={() => saveResult.mutate({ id: o.id, value: drafts[o.id] ?? "" })}
-                    disabled={
-                      (saveResult.isPending && saveResult.variables?.id === o.id) ||
-                      !(drafts[o.id] ?? "").trim()
-                    }
-                  >
-                    {saveResult.isPending && saveResult.variables?.id === o.id
-                      ? "Saving…"
-                      : "Save result"}
-                  </Button>
-                </Can>
-              </div>
-            ) : (
-              <time className="shrink-0 tabular-nums text-muted-foreground">
-                {formatTime(o.resulted_at ?? "")}
-              </time>
-            )}
-          </li>
-        ))}
-      </ul>
+      </QueryState>
       <LoadMore
         hasMore={orders.hasMore}
         isLoading={orders.isFetchingMore}

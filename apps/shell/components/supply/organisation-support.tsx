@@ -22,8 +22,7 @@ import {
   type SupplySupportDiagnostics,
   type SupplyRegistryRevision,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, useZodForm } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import { Field, FormSelectField, LoadMore, useZodForm, RequestFailure } from "@helivanta/ui";
 import { dateTimeInputISO, dateTimeInputValue, formatAbsoluteTime } from "./time-input";
 import {
   AccessWindowPolicyStatus,

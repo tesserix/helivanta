@@ -12,10 +12,9 @@ import {
   type PharmacyPayable,
   type PharmacyInventoryAudit,
 } from "@helivanta/api";
-import { LoadMore } from "@helivanta/ui";
+import { LoadMore, RequestFailure } from "@helivanta/ui";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { PayableForm, PayableHistory } from "./payable-forms";
-import { RequestFailure } from "../request-failure";
 
 export function AccountsPanel({
   scope,

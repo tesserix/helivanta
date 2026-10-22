@@ -17,8 +17,7 @@ import {
   type SupplyRegistryRevision,
   type SupplyRegistryScope,
 } from "@helivanta/api";
-import { Controller, Field, LoadMore, useZodForm } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import { Controller, Field, LoadMore, useZodForm, RequestFailure } from "@helivanta/ui";
 import { formatAbsoluteTime } from "./time-input";
 
 const rootFor = (scope: SupplyRegistryScope) => `/supply/parties/${scope.partyId}/access-limits`;

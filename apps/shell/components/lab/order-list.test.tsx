@@ -102,4 +102,23 @@ describe("OrderList", () => {
     await waitFor(() => expect(screen.getByText("Rohan Iyer")).toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
   });
+
+  // #1276: a failed load is an outage, never an empty list.
+  it("shows a failure, not the empty state, when the list cannot load", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation((url: string) =>
+          Promise.resolve(
+            url.includes("/iam/me/permissions")
+              ? jsonResponse(200, { data: [] })
+              : jsonResponse(503, { error: "unavailable" }),
+          ),
+        ),
+    );
+    renderWithProviders(<OrderList />);
+    expect(await screen.findByText("Could not load lab orders.")).toBeInTheDocument();
+    expect(screen.queryByText("No lab orders yet")).not.toBeInTheDocument();
+  });
 });

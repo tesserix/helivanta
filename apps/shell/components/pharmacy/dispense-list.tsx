@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Badge, Button, Input } from "@tesserix/web";
 import { Pill } from "lucide-react";
 import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
-import { EmptyState, Field, LoadMore, formatTime, useZodForm } from "@helivanta/ui";
+import { Field, formatTime, LoadMore, QueryState, useZodForm } from "@helivanta/ui";
 
 type Dispense = {
   id: string;
@@ -40,41 +40,44 @@ export function DispenseList() {
           </p>
         </div>
       </div>
-      <ul className="divide-y text-sm">
-        {dispenses.items.length === 0 && (
-          <li>
-            <EmptyState
-              icon={Pill}
-              title="No dispense tasks yet"
-              hint="They appear here when a visit is created in MediCore."
-            />
-          </li>
+      <QueryState
+        query={dispenses}
+        label="dispense tasks"
+        empty={{
+          icon: Pill,
+          title: "No dispense tasks yet",
+          hint: "They appear here when a visit is created in MediCore.",
+        }}
+      >
+        {(items) => (
+          <ul className="divide-y text-sm">
+            {items.map((d) => (
+              <li key={d.id} className="flex items-center justify-between gap-4 px-5 py-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-3">
+                    <span className="truncate font-medium text-foreground">{d.patient_name}</span>
+                    <Badge variant={d.status === "pending" ? "secondary" : "outline"}>
+                      {d.status === "pending" ? "Pending" : "Dispensed"}
+                    </Badge>
+                  </div>
+                  <div className="mt-0.5 text-muted-foreground">
+                    {d.status === "dispensed" ? d.medication : "Awaiting dispense"}
+                  </div>
+                </div>
+                {d.status === "pending" ? (
+                  <Can permission="pharmacy.dispense.fulfil">
+                    <DispenseForm id={d.id} />
+                  </Can>
+                ) : (
+                  <time className="shrink-0 tabular-nums text-muted-foreground">
+                    {formatTime(d.dispensed_at ?? "")}
+                  </time>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
-        {dispenses.items.map((d) => (
-          <li key={d.id} className="flex items-center justify-between gap-4 px-5 py-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3">
-                <span className="truncate font-medium text-foreground">{d.patient_name}</span>
-                <Badge variant={d.status === "pending" ? "secondary" : "outline"}>
-                  {d.status === "pending" ? "Pending" : "Dispensed"}
-                </Badge>
-              </div>
-              <div className="mt-0.5 text-muted-foreground">
-                {d.status === "dispensed" ? d.medication : "Awaiting dispense"}
-              </div>
-            </div>
-            {d.status === "pending" ? (
-              <Can permission="pharmacy.dispense.fulfil">
-                <DispenseForm id={d.id} />
-              </Can>
-            ) : (
-              <time className="shrink-0 tabular-nums text-muted-foreground">
-                {formatTime(d.dispensed_at ?? "")}
-              </time>
-            )}
-          </li>
-        ))}
-      </ul>
+      </QueryState>
       <LoadMore
         hasMore={dispenses.hasMore}
         isLoading={dispenses.isFetchingMore}

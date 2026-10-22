@@ -15,8 +15,14 @@ import {
   type PharmacyOrganization,
   type PharmacyHospitalAffiliation,
 } from "@helivanta/api";
-import { Field, SelectControl, FormSelectField, LoadMore, useZodForm } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import {
+  Field,
+  SelectControl,
+  FormSelectField,
+  LoadMore,
+  useZodForm,
+  RequestFailure,
+} from "@helivanta/ui";
 export function PharmacyRegistrySetup({
   tenantId,
   pharmacy,

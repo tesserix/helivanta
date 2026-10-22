@@ -18,7 +18,10 @@ export {
   type FieldValues,
   type UseFormReturn,
 } from "react-hook-form";
-export { EmptyState } from "./empty-state";
+// EmptyState is rendered only through QueryState, which checks the pending
+// and failed states first (#1276), so it is deliberately not exported.
+export { QueryState } from "./query-state";
+export { RequestFailure } from "./request-failure";
 export { PageHeading } from "./page-heading";
 export { LoadMore } from "./load-more";
 export { formatDateTime, formatTime } from "./format";

@@ -8,7 +8,7 @@ import {
   type SupplyRegistryScope,
 } from "@helivanta/api";
 import type { z } from "zod";
-import { RequestFailure } from "../request-failure";
+import { RequestFailure } from "@helivanta/ui";
 
 const limitsSchema = supplyAccessLimitsInputSchema
   .pick({ max_grant_hours: true, max_support_hours: true })

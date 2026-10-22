@@ -17,8 +17,7 @@ import {
   type SupplyPartyAccess,
   type SupplyPartyRevision,
 } from "@helivanta/api";
-import { Field, LoadMore, useZodForm, formatDateTime } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import { Field, LoadMore, useZodForm, formatDateTime, RequestFailure } from "@helivanta/ui";
 import { PartyEditor } from "./party-editor";
 import { PartyRegistration } from "./party-registration";
 import { PlatformIdentity } from "./platform-identity";

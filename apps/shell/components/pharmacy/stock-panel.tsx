@@ -31,8 +31,8 @@ import {
   LoadMore,
   useZodForm,
   ConfirmDialog,
+  RequestFailure,
 } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
 import { StockRegister } from "./stock-register";
 import { BatchSafety } from "./batch-safety";
 

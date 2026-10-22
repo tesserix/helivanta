@@ -14,8 +14,7 @@ import {
   type CountryPolicyIdentity,
   type CountryPolicyScope,
 } from "@helivanta/api";
-import { LoadMore } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import { LoadMore, RequestFailure } from "@helivanta/ui";
 import { CountryPolicyEditor, policyLabel } from "./editor";
 import { CountryPolicyDetail } from "./detail";
 

@@ -18,8 +18,7 @@ import {
   type Staff,
   type UseApiPagedQueryResult,
 } from "@helivanta/api";
-import { EmptyState } from "@helivanta/ui";
-import { Failure } from "../roster-policy/policy-ui";
+import { QueryState } from "@helivanta/ui";
 import { RevisionHistory } from "../payroll-setup/payroll-workspace";
 import { PROPOSAL_STATUSES, period, personLabel } from "./benefits-ui";
 import { CoverageProposal } from "./coverage-proposal";
@@ -142,56 +141,50 @@ export function EnrollmentsSection({
           onClose={close}
         />
       )}
-      {enrollments.isPending ? (
-        <p role="status" className="px-5 pb-5">
-          Loading coverage…
-        </p>
-      ) : enrollments.isError ? (
-        <div className="px-5 pb-5">
-          <Failure message="Could not load coverage." retry={enrollments.retry} />
-        </div>
-      ) : enrollments.items.length === 0 ? (
-        <EmptyState
-          icon={ShieldCheck}
-          title="No coverage recorded"
-          hint={
-            adding
-              ? "Propose coverage under a plan for the employee or a covered dependent. It applies once a second person approves it."
-              : "Coverage your HR team approves appears here."
-          }
-        />
-      ) : (
-        <ul className="divide-y border-t">
-          {enrollments.items.map((e) => {
-            const pending = e.pending;
-            const mine = !!pending && pending.proposed_by_subject === subject;
-            return (
-              <li key={e.id} className="flex flex-wrap items-start justify-between gap-4 p-5">
-                <div className="min-w-0">
-                  <p className="font-medium">{title(e)}</p>
-                  <p className="mt-1 text-sm">
-                    {e.coverage
-                      ? `${PROPOSAL_STATUSES.approved} · v${e.coverage.version} · coverage ${period(e.coverage.coverage_from, e.coverage.coverage_until)}`
-                      : "No approved coverage yet"}
-                  </p>
-                  {pending && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {`${PROPOSAL_STATUSES.pending} · coverage ${period(pending.coverage_from, pending.coverage_until)} · proposed by ${mine ? "you" : pending.proposed_by_subject}`}
+      <QueryState
+        query={enrollments}
+        label="coverage"
+        empty={{
+          icon: ShieldCheck,
+          title: "No coverage recorded",
+          hint: adding
+            ? "Propose coverage under a plan for the employee or a covered dependent. It applies once a second person approves it."
+            : "Coverage your HR team approves appears here.",
+        }}
+      >
+        {(items) => (
+          <ul className="divide-y border-t">
+            {items.map((e) => {
+              const pending = e.pending;
+              const mine = !!pending && pending.proposed_by_subject === subject;
+              return (
+                <li key={e.id} className="flex flex-wrap items-start justify-between gap-4 p-5">
+                  <div className="min-w-0">
+                    <p className="font-medium">{title(e)}</p>
+                    <p className="mt-1 text-sm">
+                      {e.coverage
+                        ? `${PROPOSAL_STATUSES.approved} · v${e.coverage.version} · coverage ${period(e.coverage.coverage_from, e.coverage.coverage_until)}`
+                        : "No approved coverage yet"}
                     </p>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {action(e, "history", "History", "of")}
-                  {(e.coverage || pending) && action(e, "evidence", "Evidence")}
-                  {pending && approver && !mine && action(e, "review", "Review proposal")}
-                  {pending && writable && mine && action(e, "withdraw", "Withdraw proposal")}
-                  {writable && e.coverage && !pending && action(e, "change", "Change coverage")}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                    {pending && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {`${PROPOSAL_STATUSES.pending} · coverage ${period(pending.coverage_from, pending.coverage_until)} · proposed by ${mine ? "you" : pending.proposed_by_subject}`}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {action(e, "history", "History", "of")}
+                    {(e.coverage || pending) && action(e, "evidence", "Evidence")}
+                    {pending && approver && !mine && action(e, "review", "Review proposal")}
+                    {pending && writable && mine && action(e, "withdraw", "Withdraw proposal")}
+                    {writable && e.coverage && !pending && action(e, "change", "Change coverage")}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </QueryState>
       {enrollments.hasMore && (
         <div className="border-t p-5">
           <Button

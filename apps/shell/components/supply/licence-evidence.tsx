@@ -21,8 +21,14 @@ import {
   type SupplyEvidenceScope,
   type SupplyEvidenceUpload,
 } from "@helivanta/api";
-import { Field, useZodForm, LoadMore, ConfirmDialog, formatDateTime } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import {
+  Field,
+  useZodForm,
+  LoadMore,
+  ConfirmDialog,
+  formatDateTime,
+  RequestFailure,
+} from "@helivanta/ui";
 
 const fileSchema = z.object({
   file: z.custom<File | null>().superRefine((file, ctx) => {

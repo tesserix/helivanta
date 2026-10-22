@@ -50,6 +50,7 @@ export * from "./pharmacy-stock-export";
 export * from "./customer-time";
 
 export * from "./country-profiles";
+export * from "./tax-registration";
 export * from "./trading-policy";
 
 export * from "./supply";

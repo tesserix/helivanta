@@ -95,7 +95,10 @@ test("every shell page renders without a policy violation", async ({ page }) => 
   await page.goto("/dashboard");
   for (const zone of ["MediCore", "PharmaConnect", "Lab"]) {
     await page.getByRole("navigation", { name: "Zones" }).getByRole("link", { name: zone }).click();
-    await expect(page.getByRole("navigation", { name: zone })).toBeVisible();
+    // The rail marks the zone current whether or not it has a page panel.
+    await expect(
+      page.getByRole("navigation", { name: "Zones" }).getByRole("link", { name: zone }),
+    ).toHaveAttribute("aria-current", "page");
     await clean(`moving to ${zone}`);
   }
 

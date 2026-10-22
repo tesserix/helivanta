@@ -21,7 +21,7 @@ import {
   type EmergencyReceivingLinkCommandInput,
   type EmergencyReceivingReceipt,
 } from "@helivanta/api";
-import { LoadMore, formatTime } from "@helivanta/ui";
+import { LoadMore, formatTime, SelectControl } from "@helivanta/ui";
 import { EmergencyCommandFailure, useEmergencyRequest } from "./emergency-command";
 const root = "/emergency/receiving/facilities";
 const invalidates = [
@@ -29,7 +29,6 @@ const invalidates = [
   ["emergency", "crew"],
   ["emergency", "dispatches"],
 ];
-const inputClass = "min-h-11 w-full rounded-md border bg-background px-3 py-2";
 const expiryDefault = () => new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
 function timestamp(value: string) {
   const time = Date.parse(`${value}Z`);
@@ -289,16 +288,18 @@ function ReceivingGrant({ facility }: { facility: EmergencyReceivingFacility }) 
           )}
           <label htmlFor={`${prefix}-level`} className="space-y-2">
             Campus authority
-            <select
+            <SelectControl
               id={`${prefix}-level`}
-              className={inputClass}
+              aria-label="Campus authority"
+              className="min-h-11 w-full"
               value={level}
               disabled={save.frozen}
-              onChange={(event) => setLevel(event.target.value as typeof level)}
-            >
-              <option value="receiver">Receiving clinician</option>
-              <option value="manager">Receiving manager</option>
-            </select>
+              onValueChange={(next) => setLevel(next === "manager" ? "manager" : "receiver")}
+              options={[
+                { value: "receiver", label: "Receiving clinician" },
+                { value: "manager", label: "Receiving manager" },
+              ]}
+            />
           </label>
           <label htmlFor={`${prefix}-policy`} className="space-y-2">
             Verification reference

@@ -2,16 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  Activity,
-  ArrowUpRight,
-  BedDouble,
-  CalendarDays,
-  FlaskConical,
-  Pill,
-  Stethoscope,
-} from "lucide-react";
-import { Button, Input } from "@tesserix/web";
+import { ArrowUpRight, CalendarDays, Info, Stethoscope } from "lucide-react";
+import { Button, Input, Tabs, TabsList, TabsTrigger } from "@tesserix/web";
 import {
   dashboardFiltersSchema,
   dashboardPeriod,
@@ -21,7 +13,16 @@ import {
   usePermissions,
   type DashboardFilters,
 } from "@helivanta/api";
-import { Field, FormSelectField, SelectControl, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  PageHeading,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  SelectControl,
+  useZodForm,
+} from "@helivanta/ui";
 import { TrendChart, type ChartCategory } from "./trend-chart";
 import { CohortBreakdown } from "./cohort-breakdown";
 import { WorkforceInsights } from "./workforce-insights";
@@ -53,6 +54,13 @@ export function OperationalDashboard({ now }: { now?: Date }) {
   const [department, setDepartment] = useState("all");
   const [mode, setMode] = useState<"line" | "bar">("line");
   const [view, setView] = useState<"overview" | "clinical" | "services" | "team">("overview");
+  const [rangeOpen, setRangeOpen] = useState(false);
+  const applyPeriod = (key: (typeof periods)[number]["key"]) => {
+    const next = dashboardPeriod(now ?? new Date(), key, filters.timezone);
+    form.reset(next);
+    setFilters(next);
+  };
+
   const hasAnalytics =
     can("medicore.visit.read") || can("pharmacy.dispense.read") || can("lab.order.read");
   const views = [
@@ -71,141 +79,137 @@ export function OperationalDashboard({ now }: { now?: Date }) {
   const showTeam = activeView === "overview" || activeView === "team";
   return (
     <div className="mb-10 space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-(--hms-accent)">
-            Hospital intelligence
-          </p>
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Your care, in perspective.
-          </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Understand patient activity, follow operational queues and see the team behind your
-            care.
-          </p>
-        </div>
-        <span className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-2 text-xs text-muted-foreground">
-          <Activity className="h-3.5 w-3.5 text-(--hms-accent)" aria-hidden="true" />
-          Current tenant · authorised data
-        </span>
-      </header>
-      <div
-        role="group"
-        aria-label="Dashboard views"
-        className="flex flex-wrap gap-2 rounded-2xl border bg-card p-2"
-      >
-        {views
-          .filter((item) => item.allowed)
-          .map((item) => (
-            <Button
-              key={item.key}
-              aria-pressed={activeView === item.key}
-              variant={activeView === item.key ? "secondary" : "ghost"}
-              className="min-h-11 flex-1 sm:flex-none"
-              onClick={() => setView(item.key)}
-            >
-              {item.label}
-            </Button>
-          ))}
-      </div>
-      {hasAnalytics && activeView !== "team" && (
-        <section className="rounded-2xl border bg-card p-4 sm:p-5" aria-label="Reporting period">
-          <div className="mb-5 flex flex-wrap items-center gap-2">
-            <CalendarDays className="mr-1 h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            {periods.map((period) => (
-              <Button
-                key={period.key}
-                size="sm"
-                className="min-h-11"
-                variant="outline"
-                onClick={() => {
-                  const next = dashboardPeriod(now ?? new Date(), period.key, filters.timezone);
-                  form.reset(next);
-                  setFilters(next);
-                }}
-              >
-                {period.label}
-              </Button>
-            ))}
-          </div>
-          <form
-            noValidate
-            aria-label="Dashboard filters"
-            onSubmit={form.handleSubmit(setFilters)}
-            className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.5fr_auto]"
-          >
-            <Field id="insights-from" label="From" error={form.formState.errors.from?.message}>
-              <Input
-                id="insights-from"
-                className="min-h-11"
-                type="date"
-                {...form.register("from")}
-              />
-            </Field>
-            <Field id="insights-to" label="To" error={form.formState.errors.to?.message}>
-              <Input id="insights-to" className="min-h-11" type="date" {...form.register("to")} />
-            </Field>
-            <FormSelectField
-              control={form.control}
-              name="interval"
-              id="insights-interval"
-              label="Group by"
-              options={[
-                { value: "day", label: "Day" },
-                { value: "week", label: "Week" },
-                { value: "month", label: "Month" },
-                { value: "year", label: "Year" },
-              ]}
-            />
-            <Field
-              id="insights-timezone"
-              label="Timezone"
-              error={form.formState.errors.timezone?.message}
-            >
-              <Input
-                id="insights-timezone"
-                list="insights-timezones"
-                {...form.register("timezone")}
-              />
-              <datalist id="insights-timezones">
-                {[
-                  "UTC",
-                  "Asia/Kolkata",
-                  "Australia/Melbourne",
-                  "Europe/London",
-                  "America/New_York",
-                ].map((zone) => (
-                  <option key={zone} value={zone} />
-                ))}
-              </datalist>
-            </Field>
-            <Button type="submit" className="mt-6 min-h-11">
-              Apply filters
-            </Button>
-          </form>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4 text-xs text-muted-foreground">
-            <p>Inclusive dates · weeks start Monday · first and last buckets may be partial.</p>
+      <PageHeading
+        title="Hospital overview"
+        actions={
+          hasAnalytics &&
+          activeView !== "team" && (
             <div
-              className="flex gap-1 rounded-lg bg-muted p-1"
               role="group"
-              aria-label="Chart presentation"
+              aria-label="Reporting period"
+              className="flex flex-wrap items-center gap-2"
             >
-              {(["line", "bar"] as const).map((choice) => (
-                <Button
-                  key={choice}
-                  size="sm"
-                  className="min-h-11"
-                  variant={mode === choice ? "secondary" : "ghost"}
-                  aria-pressed={mode === choice}
-                  onClick={() => setMode(choice)}
-                >
-                  {choice === "line" ? "Lines" : "Bars"}
-                </Button>
-              ))}
+              {/* Five range buttons do not fit a phone; below sm they are one menu. */}
+              <div className="w-36 sm:hidden">
+                <SelectControl
+                  aria-label="Quick range"
+                  value=""
+                  placeholder="Quick range"
+                  onValueChange={(key) => applyPeriod(key as (typeof periods)[number]["key"])}
+                  options={periods.map((period) => ({ value: period.key, label: period.label }))}
+                />
+              </div>
+              <div className="hidden rounded-md border bg-card p-0.5 sm:flex">
+                {periods.map((period) => (
+                  <Button
+                    key={period.key}
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 px-3 text-muted-foreground hover:text-foreground"
+                    onClick={() => applyPeriod(period.key)}
+                  >
+                    {period.label}
+                  </Button>
+                ))}
+              </div>
+              <div>
+                <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
+                  <PopoverTrigger
+                    aria-label={`Custom range, ${filters.from} to ${filters.to}`}
+                    className="inline-flex h-9 items-center gap-2 rounded-md border bg-card px-3 text-sm tabular-nums transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <CalendarDays className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    {filters.from} – {filters.to}
+                  </PopoverTrigger>
+                  <PopoverContent align="end" aria-label="Custom range" className="w-[32rem]">
+                    <form
+                      noValidate
+                      aria-label="Dashboard filters"
+                      onSubmit={form.handleSubmit((next) => {
+                        setFilters(next);
+                        setRangeOpen(false);
+                      })}
+                      className="grid gap-4 sm:grid-cols-2"
+                    >
+                      <Field
+                        id="insights-from"
+                        label="From"
+                        error={form.formState.errors.from?.message}
+                      >
+                        <Input id="insights-from" type="date" {...form.register("from")} />
+                      </Field>
+                      <Field id="insights-to" label="To" error={form.formState.errors.to?.message}>
+                        <Input id="insights-to" type="date" {...form.register("to")} />
+                      </Field>
+                      <FormSelectField
+                        control={form.control}
+                        name="interval"
+                        id="insights-interval"
+                        label="Group by"
+                        options={[
+                          { value: "day", label: "Day" },
+                          { value: "week", label: "Week" },
+                          { value: "month", label: "Month" },
+                          { value: "year", label: "Year" },
+                        ]}
+                      />
+                      <Field
+                        id="insights-timezone"
+                        label="Timezone"
+                        error={form.formState.errors.timezone?.message}
+                      >
+                        <Input
+                          id="insights-timezone"
+                          list="insights-timezones"
+                          {...form.register("timezone")}
+                        />
+                        <datalist id="insights-timezones">
+                          {[
+                            "UTC",
+                            "Asia/Kolkata",
+                            "Australia/Melbourne",
+                            "Europe/London",
+                            "America/New_York",
+                          ].map((zone) => (
+                            <option key={zone} value={zone} />
+                          ))}
+                        </datalist>
+                      </Field>
+                      <p className="text-xs text-muted-foreground sm:col-span-2">
+                        Inclusive dates · weeks start Monday · first and last buckets may be
+                        partial.
+                      </p>
+                      <div className="flex justify-end gap-2 sm:col-span-2">
+                        <Button type="button" variant="ghost" onClick={() => setRangeOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit">Apply</Button>
+                      </div>
+                    </form>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
-          </div>
-        </section>
-      )}
+          )
+        }
+      />
+      <Tabs value={activeView} onValueChange={(next) => setView(next as typeof view)}>
+        {/* Four tabs do not fit a phone: the bar scrolls inside itself rather
+            than widening the page. */}
+        <TabsList
+          aria-label="Dashboard views"
+          data-scroll-x=""
+          className="max-w-full justify-start overflow-x-auto"
+        >
+          {views
+            .filter((item) => item.allowed)
+            .map((item) => (
+              <TabsTrigger key={item.key} value={item.key}>
+                {item.label}
+              </TabsTrigger>
+            ))}
+        </TabsList>
+      </Tabs>
       {showClinical && can("medicore.visit.read") && (
         <AnalyticsPanel
           title="Patient activity"
@@ -217,9 +221,9 @@ export function OperationalDashboard({ now }: { now?: Date }) {
               : clinicalCategories.filter((c) => c.key === department)
           }
           mode={mode}
+          onModeChange={setMode}
           description="Visit registrations by creation date. IPD registrations count admission visits, not unique patients, occupied beds or length of stay."
           href="/medicore/ipd"
-          icon={BedDouble}
         >
           <div className="w-full sm:w-56">
             <Field id="insights-department" label="Visit type">
@@ -246,9 +250,9 @@ export function OperationalDashboard({ now }: { now?: Date }) {
               filters={filters}
               categories={laboratoryCategories}
               mode={mode}
+              onModeChange={setMode}
               description="Current status of orders created in this period. Completed does not mean resulted during this period."
               href="/lab"
-              icon={FlaskConical}
             />
           )}
           {can("pharmacy.dispense.read") && (
@@ -258,17 +262,20 @@ export function OperationalDashboard({ now }: { now?: Date }) {
               filters={filters}
               categories={pharmacyCategories}
               mode={mode}
+              onModeChange={setMode}
               description="Current status of dispense tasks created in this period. Dispensed does not mean dispensed during this period."
               href="/pharmacy"
-              icon={Pill}
             />
           )}
         </div>
       )}
       {showTeam && <WorkforceInsights />}
       {showClinical && can("medicore.visit.read") && (
-        <aside className="flex gap-4 rounded-2xl border bg-(--hms-violet-tint) p-5 text-sm">
-          <Stethoscope className="mt-0.5 h-5 w-5 shrink-0 text-(--hms-violet)" aria-hidden="true" />
+        <aside className="flex gap-3 rounded-lg border bg-card p-4 text-sm">
+          <Stethoscope
+            className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
           <div>
             <h3 className="font-semibold">Appointments & doctor workload</h3>
             <p className="mt-1 leading-6 text-muted-foreground">
@@ -289,9 +296,9 @@ function AnalyticsPanel({
   filters,
   categories,
   mode,
+  onModeChange,
   description,
   href,
-  icon: Icon,
   children,
 }: {
   title: string;
@@ -299,9 +306,9 @@ function AnalyticsPanel({
   filters: DashboardFilters;
   categories: ChartCategory[];
   mode: "line" | "bar";
+  onModeChange: (mode: "line" | "bar") => void;
   description: string;
   href: string;
-  icon: typeof Activity;
   children?: React.ReactNode;
 }) {
   const query = useApiQuery<unknown>(
@@ -315,24 +322,54 @@ function AnalyticsPanel({
     ? (Date.parse(`${data.to}T00:00:00Z`) - Date.parse(`${data.from}T00:00:00Z`)) / 86_400_000 + 1
     : 1;
   return (
-    <section aria-label={title} className="min-w-0 rounded-2xl border bg-card shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b p-5 sm:p-6">
-        <div className="flex items-start gap-3">
-          <span className="rounded-xl bg-(--hms-accent-dim) p-2.5 text-(--hms-accent)">
-            <Icon className="h-5 w-5" aria-hidden="true" />
-          </span>
+    <section aria-label={title} className="min-w-0 rounded-lg border bg-card shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-base font-semibold">{title}</h3>
+          {/* The definition is #1234's measurement contract: hidden from the
+              layout, never removed. A click (not hover) opens it, so it works
+              on touch and by keyboard. */}
           <div>
-            <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
-            <p className="mt-1 max-w-lg text-xs leading-5 text-muted-foreground">{description}</p>
+            <Popover>
+              <PopoverTrigger
+                aria-label={`About ${title}`}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Info className="h-4 w-4" aria-hidden="true" />
+              </PopoverTrigger>
+              <PopoverContent aria-label={`About ${title}`} className="w-72 text-sm leading-6">
+                {description}
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
-        <Link
-          href={href}
-          className="inline-flex items-center gap-1 text-xs font-medium text-(--hms-accent)"
-        >
-          Open workspace
-          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </Link>
+        <div className="flex items-center gap-3">
+          <div
+            role="group"
+            aria-label={`${title} chart style`}
+            className="flex rounded-md border p-0.5"
+          >
+            {(["line", "bar"] as const).map((choice) => (
+              <Button
+                key={choice}
+                size="sm"
+                variant={mode === choice ? "secondary" : "ghost"}
+                aria-pressed={mode === choice}
+                className="h-7 px-2.5 text-xs"
+                onClick={() => onModeChange(choice)}
+              >
+                {choice === "line" ? "Lines" : "Bars"}
+              </Button>
+            ))}
+          </div>
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1 text-sm font-medium text-(--hms-accent) hover:underline"
+          >
+            Open workspace
+            <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+        </div>
       </div>
       <div className="p-5 sm:p-6">
         {query.isPending ? (
@@ -354,7 +391,7 @@ function AnalyticsPanel({
         ) : (
           <>
             <div className="mb-6 flex flex-wrap items-end justify-between gap-5">
-              <div className="grid w-full gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid w-full divide-y rounded-md border sm:grid-cols-2 sm:divide-y-0 sm:divide-x xl:grid-cols-4">
                 <Metric
                   label={module === "medicore" ? "Total registrations" : "Tasks in period"}
                   value={total}
@@ -379,7 +416,7 @@ function AnalyticsPanel({
             {total === 0 ? (
               <p
                 role="status"
-                className="mb-6 rounded-xl bg-muted p-5 text-sm text-muted-foreground"
+                className="mb-6 rounded-md bg-muted p-4 text-sm text-muted-foreground"
               >
                 No {title.toLowerCase()} records in this period. Choose another date range to
                 explore your activity.
@@ -443,9 +480,9 @@ function Metric({
   fractionDigits?: number;
 }) {
   return (
-    <div className="min-w-0 rounded-xl border bg-muted/40 p-4">
+    <div className="min-w-0 px-4 py-3">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">
+      <p className="mt-1 text-2xl font-semibold tabular-nums">
         {value.toLocaleString(undefined, {
           minimumFractionDigits: fractionDigits,
           maximumFractionDigits: fractionDigits,

@@ -154,7 +154,7 @@ test("an idle signed-in clinician is STILL authenticated after a renewal interva
     page.url(),
     "the idle session was evicted to /login — renewal did not happen",
   ).not.toContain("/login");
-  await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible();
 
   // --- 4. The cookie in the browser is a DIFFERENT one -----------------
   // A renewal re-mints the session cookie. If this still held the login's

@@ -1,5 +1,7 @@
 # Helivanta Light/Dark Theme — "Frost / Night" Implementation Plan
 
+> **Superseded by #1255** (`docs/superpowers/specs/2026-10-22-one-look-design.md` D1): the app is light only, and the dark theme this plan built has been removed.
+
 **Date:** 2026-08-11
 **Status:** Approved direction — locked by Mahesh
 **Approved mockup:** https://claude.ai/code/artifact/77cce949-2769-40c4-a9d1-ea71b1a0bad9 (merged two-rail, light+dark)

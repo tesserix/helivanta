@@ -33,9 +33,7 @@ export default function Shifts() {
     <>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-5">
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-(--hms-accent)">
-            People & operations
-          </p>
+          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">People & operations</p>
           <h2 className="text-3xl font-semibold tracking-tight">Shift definitions</h2>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             Clear timings for your team. Every change preserves earlier shift rules.

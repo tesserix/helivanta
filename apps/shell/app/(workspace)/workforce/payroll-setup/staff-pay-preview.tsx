@@ -112,7 +112,7 @@ export function StaffPayPreview({ path, onClose }: { path: string; onClose: () =
             {result.tax_regime ? (
               TAX_REGIMES[result.tax_regime]
             ) : (
-              <span className="font-medium text-amber-900">
+              <span className="font-medium text-(--hms-amber)">
                 no regime recorded. Record the employee&apos;s intimation before payroll deducts
                 tax.
               </span>

@@ -28,9 +28,7 @@ export function OvertimeWorkspace() {
     <>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-(--hms-accent)">
-            People & operations
-          </p>
+          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">People & operations</p>
           <h2 className="text-3xl font-semibold tracking-tight">Overtime</h2>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             Record overtime outside rostered duty within the hospital&apos;s reviewed limits, then

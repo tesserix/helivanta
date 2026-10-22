@@ -20,7 +20,7 @@ import { Failure, inputClass, today } from "../roster-policy/policy-ui";
 import { PunchForm } from "./punch-panel";
 
 const cell = "px-4 py-3 align-top";
-const head = "px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide";
+const head = "px-4 py-3 text-left text-xs font-semibold uppercase";
 const validDate = (d: string) => /^(2[01]\d\d)-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(d);
 const LEAVE: Record<AttendanceDay["leave"], string> = {
   none: "",

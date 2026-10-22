@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
+import { chooseOption } from "../../test/select";
 import { EmergencyReceivingWorkspace } from "./emergency-receiving";
 const facility = "019a1234-5678-7000-8000-000000000001";
 const request = "019a1234-5678-7000-8000-000000000002";
@@ -91,4 +92,25 @@ it("keeps a receiver acceptance path, lease and reference unchanged across an un
   expect(
     screen.queryByRole("button", { name: "Confirm physical receipt" }),
   ).not.toBeInTheDocument();
+});
+// #1255 spec D6: the authority level is the design-system Select.
+it("records the authority level chosen from the campus authority menu", async () => {
+  const fetcher = fixture(["emergency.receiving.read", "emergency.receiving.manage"]);
+  const { user } = renderWithProviders(<EmergencyReceivingWorkspace />);
+  await user.click(await screen.findByRole("button", { name: "Open Synthetic Campus" }));
+  await user.click(await screen.findByText("Delegate receiving authority"));
+  await user.type(screen.getByLabelText("Verified member subject ID"), "user-member");
+  await user.click(screen.getByRole("button", { name: "Load current delegation" }));
+  await chooseOption(
+    user,
+    await screen.findByRole("combobox", { name: "Campus authority" }),
+    "Receiving manager",
+  );
+  await user.type(screen.getByLabelText("Verification reference"), "TEST-VERIFY-1");
+  await user.click(screen.getByRole("button", { name: "Record delegation revision" }));
+  await waitFor(() =>
+    expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(1),
+  );
+  const [, init] = fetcher.mock.calls.find(([, call]) => call?.method === "PUT")!;
+  expect(JSON.parse(String(init!.body))).toMatchObject({ level: "manager" });
 });

@@ -101,7 +101,7 @@ it("carries the tenant theme into a menu rendered outside the workspace", async 
       <Picker />
     </HmsShell>,
   );
-  await screen.findByRole("heading", { name: "Blue Care" });
+  await screen.findByText("Blue Care");
   await user.click(screen.getByRole("combobox", { name: "Blood group" }));
   expect(screen.getByRole("listbox")).toHaveAttribute("data-brand-theme", "blue");
   vi.unstubAllGlobals();

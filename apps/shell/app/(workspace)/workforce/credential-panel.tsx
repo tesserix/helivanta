@@ -87,9 +87,7 @@ export function StaffCredentialPanel({
     >
       <header className="flex items-start justify-between gap-4 border-b px-6 py-5">
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-(--hms-accent)">
-            Reviewed staff records
-          </p>
+          <p className="mb-1 text-xs font-semibold text-(--hms-accent)">Reviewed staff records</p>
           <h3
             id="staff-credentials-heading"
             ref={heading}

@@ -85,7 +85,7 @@ function TenantPharmacy({
     <>
       <header className="mb-7 space-y-5">
         <div>
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-(--hms-accent)">
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-(--hms-accent)">
             <Pill className="size-4" />
             PharmaConnect
           </p>

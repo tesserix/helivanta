@@ -35,9 +35,7 @@ export default function Workforce() {
     <>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-5">
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-(--hms-accent)">
-            People & operations
-          </p>
+          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">People & operations</p>
           <h2 className="text-3xl font-semibold tracking-tight">Staff directory</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             The people behind your care. Manage your hospital team in one place.

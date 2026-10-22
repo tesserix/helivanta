@@ -122,7 +122,7 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
   // A timeout here is not a refused session — it throws past the retry
   // loop below and fails the spec with a missing heading, which reads
   // like a broken application rather than a slow one.
-  await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible({
+  await expect(page.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible({
     timeout: 30_000,
   });
   // Drain the body: API responses are no-store, so an unread one stays in flight and blocks networkidle.

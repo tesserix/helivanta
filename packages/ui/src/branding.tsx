@@ -52,7 +52,7 @@ export function BrandLogo({
       />
     );
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white">
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
       <HeartPulse className="h-5 w-5" aria-hidden="true" />
     </span>
   );

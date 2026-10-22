@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { AppProviders } from "@helivanta/api";
-import { CHROME_INIT_SCRIPT, THEME_INIT_SCRIPT } from "@helivanta/ui";
+import { CHROME_INIT_SCRIPT } from "@helivanta/ui";
 import { SessionRenewal } from "@/components/session-renewal";
 import { StyleNonce } from "@/components/style-nonce";
 import "./globals.css";
@@ -17,23 +17,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" data-theme="default" suppressHydrationWarning>
       <body>
-        {/* Must run before hydration/paint — sets data-theme from
-            localStorage/system preference synchronously so dark-mode users
-            never see a flash of the light theme. THEME_INIT_SCRIPT is a
-            static, package-authored constant (no user input), so
-            sanitizeHtml doesn't apply here — DOMPurify strips <script>
-            tags outright, which would defeat the purpose. Because this
-            script intentionally stamps data-theme before hydration, the
-            server-rendered "default" and the pre-hydration value diverge —
-            suppressHydrationWarning on <html> above scopes React's
-            hydration check away from just that attribute; children still
-            get full hydration checking. */}
-        {/* eslint-disable-next-line no-restricted-syntax */}
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-        {/* Same reasoning as the theme script above, for the chrome's stored
-            panel and navigation state (#1091 D7): stamped on <html> before
-            paint so a collapsed panel is never drawn open first. Static and
-            package-authored, so sanitizeHtml does not apply. */}
+        {/* Must run before paint: stamps the chrome's stored panel and
+            navigation state on <html> (#1091 D7) so a collapsed panel is never
+            drawn open first. CHROME_INIT_SCRIPT is a static, package-authored
+            constant (no user input), so sanitizeHtml does not apply —
+            DOMPurify strips <script> outright. The stamped attributes differ
+            from the server render, which suppressHydrationWarning on <html>
+            scopes away from just that element. The app is light only (#1255),
+            so no theme script runs. */}
         {/* eslint-disable-next-line no-restricted-syntax */}
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: CHROME_INIT_SCRIPT }} />
         <AppProviders>

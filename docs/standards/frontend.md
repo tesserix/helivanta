@@ -221,6 +221,11 @@ menus remain separate from value selection.
 />
 ```
 
+Dropdowns are `SelectControl` (plain state) or `FormSelectField` (inside
+`useZodForm`) from `@helivanta/ui`, both the `@tesserix/web` Select. A native
+`<select>` is a lint error: its popup is drawn by the OS, outside the tokens
+(#1255).
+
 ## 5. UX vocabulary
 
 Action feedback goes through sonner toasts, mounted once per app via
@@ -362,6 +367,35 @@ an unlayered class with `!important` — rather than reaching for a
 `!important` inline style or a one-off Tailwind arbitrary value, which
 won't win against the unlayered base rule either.
 
+### One look: light, sage, modern enterprise (#1255)
+
+Design spec: `docs/superpowers/specs/2026-10-22-one-look-design.md`.
+
+- **Light only.** There is no dark theme, theme toggle or `dark:` utility.
+  `packages/ui/src/light-only.test.ts` fails on any `data-theme="dark"` rule.
+- **One palette.** The public pages and the app read the same sage tokens in
+  `packages/ui/styles.css`. `packages/ui/src/contrast.test.ts` holds the
+  pairs it lists to WCAG 2.2 AA: text on each surface, status and destructive
+  text on cards and tinted tiles, each category tint, each brand theme, and
+  the blended chrome pairs (`/70` sidebar text, muted text on a hover fill).
+  It covers only what it lists: add a pair when you add a token or render
+  one on a new surface.
+- **Shapes** come from the `@theme` block in `apps/shell/app/globals.css`
+  (radius 6/8/12/16px, faint ink-tinted shadows). `@tesserix/web` follows it,
+  so never set a radius or shadow per component.
+- **Restraint.** A page opens with `PageHeading` from `@helivanta/ui`: a plain
+  title, an optional one-line description and an actions slot. Cards are a
+  border plus `shadow-xs`; only floating surfaces cast a real shadow; never
+  nest a bordered card in another.
+- **Lint-enforced** (`hmsEslint(dir, { design: true })`):
+  - raw Tailwind palette colours and hex arbitrary values;
+  - marketing type (serif, italic, gradients, wide-tracked or uppercase eyebrows);
+  - native `<select>`.
+
+  Only the public pages (`app/page.tsx`, `app/signup/`, `app/ambulance/`,
+  `app/login/`) and the login surface opt out of the marketing-type rule, through
+  `hmsPublicPages`.
+
 ## 8. App Router files
 
 The app ships all three App Router boundary files at `app/` root:
@@ -391,7 +425,7 @@ export default async function RootLayout({
       <body>
         <script
           nonce={nonce}
-          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+          dangerouslySetInnerHTML={{ __html: CHROME_INIT_SCRIPT }}
         />
         <AppProviders>
           <StyleNonce nonce={nonce} />

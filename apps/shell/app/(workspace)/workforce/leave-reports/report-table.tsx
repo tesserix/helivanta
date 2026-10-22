@@ -14,7 +14,7 @@ import {
 import { Failure } from "../roster-policy/policy-ui";
 
 const cell = "px-4 py-3 align-top";
-const head = "px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide";
+const head = "px-4 py-3 text-left text-xs font-semibold uppercase";
 
 export const describeTaken = (halfDays: number, minutes: number) =>
   [halfDays ? formatHalfDays(halfDays) : "", minutes ? `${minutes} min` : ""]

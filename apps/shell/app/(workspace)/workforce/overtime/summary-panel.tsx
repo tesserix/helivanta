@@ -12,7 +12,7 @@ import { Field } from "@helivanta/ui";
 import { Failure, inputClass, today } from "../roster-policy/policy-ui";
 
 const cell = "px-4 py-3 align-top";
-const head = "px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide";
+const head = "px-4 py-3 text-left text-xs font-semibold uppercase";
 const validMonth = (m: string) => /^(2[01]\d\d)-(0[1-9]|1[0-2])$/.test(m);
 
 export function OvertimeSummary({ hospital }: { hospital: Hospital }) {

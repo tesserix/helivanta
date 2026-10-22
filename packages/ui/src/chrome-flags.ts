@@ -15,9 +15,9 @@ export function flagAttributeValue(open: boolean) {
   return open ? "open" : "closed";
 }
 
-// Inlined as a raw <script> in the root layout, like THEME_INIT_SCRIPT and for
-// the same reason: an effect would run after the browser has already painted
-// the defaults. Static, package-authored, no user input. A missing key is
-// left unset, so the server-rendered default stands; storage that throws
-// (private browsing, disabled storage) does the same.
+// Inlined as a raw <script> in the root layout, because an effect would run
+// after the browser has already painted the defaults. Static, package-authored,
+// no user input. A missing key is left unset, so the server-rendered default
+// stands; storage that throws (private browsing, disabled storage) does the
+// same.
 export const CHROME_INIT_SCRIPT = `(function(){try{var d=document.documentElement.dataset;var f=${JSON.stringify(CHROME_FLAG_ATTRIBUTES)};for(var k in f){var s=localStorage.getItem(k);if(s!==null)d[f[k]]=s==="1"?"open":"closed";}}catch(e){}})();`;

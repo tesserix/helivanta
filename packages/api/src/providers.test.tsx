@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { act } from "react";
 import { toast } from "sonner";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { AppProviders } from "./providers";
 
 // sonner's Toaster only renders its [data-sonner-toaster] element once at
@@ -16,47 +16,18 @@ async function fireToastAndFlush() {
   });
 }
 
-describe("AppProviders theme-aware toaster", () => {
-  beforeEach(() => {
-    document.documentElement.dataset.theme = "default";
-  });
-
+describe("AppProviders toaster", () => {
   afterEach(() => {
     document.documentElement.dataset.theme = "";
   });
 
-  it("renders the Toaster in light mode when data-theme is default", async () => {
+  // The app is light only (#1255, spec D1): a stale dark attribute must not
+  // turn the toasts dark.
+  it("renders the Toaster light even under a dark data-theme", async () => {
+    document.documentElement.dataset.theme = "dark";
     render(<AppProviders>{null}</AppProviders>);
     await fireToastAndFlush();
     const toaster = document.querySelector("[data-sonner-toaster]");
     expect(toaster).toHaveAttribute("data-sonner-theme", "light");
-  });
-
-  it("renders the Toaster in dark mode when data-theme is dark", async () => {
-    document.documentElement.dataset.theme = "dark";
-    await act(async () => {
-      render(<AppProviders>{null}</AppProviders>);
-    });
-    await fireToastAndFlush();
-    const toaster = document.querySelector("[data-sonner-toaster]");
-    expect(toaster).toHaveAttribute("data-sonner-theme", "dark");
-  });
-
-  it("flips the Toaster theme when document.documentElement.dataset.theme mutates", async () => {
-    await act(async () => {
-      render(<AppProviders>{null}</AppProviders>);
-    });
-    await fireToastAndFlush();
-    let toaster = document.querySelector("[data-sonner-toaster]");
-    expect(toaster).toHaveAttribute("data-sonner-theme", "light");
-
-    await act(async () => {
-      document.documentElement.dataset.theme = "dark";
-      // Let the MutationObserver callback flush.
-      await Promise.resolve();
-    });
-
-    toaster = document.querySelector("[data-sonner-toaster]");
-    expect(toaster).toHaveAttribute("data-sonner-theme", "dark");
   });
 });

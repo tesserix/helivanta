@@ -1,4 +1,5 @@
-/* Helivanta color tokens — Frost/Night system (light theme, cool teal accent).
+/* Helivanta color tokens — sage, light only (#1255): one palette for the public
+   site and the app.
    Layer AFTER @tesserix/web/styles so these win.
    @tesserix/web's own light theme rule includes a `:not(.dark):not(.light)`
    fallback branch, whose two :not() pseudo-classes each add a class-level
@@ -12,118 +13,66 @@
 :root[data-theme="default"],
 [data-theme="default"] {
   /* Content surface */
-  --background: #f4f6f9 !important;
-  --foreground: #0f1728 !important;
+  --background: #fbfcfa !important;
+  --foreground: #173d3a !important;
   --card: #ffffff !important;
-  --card-foreground: #0f1728 !important;
+  --card-foreground: #173d3a !important;
   --popover: #ffffff !important;
-  --popover-foreground: #0f1728 !important;
+  --popover-foreground: #173d3a !important;
 
-  --primary: #0e7569 !important;
+  --primary: #23685d !important;
   --primary-foreground: #ffffff !important;
 
-  --secondary: #f0f3f7 !important;
-  --secondary-foreground: #3a4557 !important;
+  --secondary: #f1f5ef !important;
+  --secondary-foreground: #244e40 !important;
 
-  --muted: #f6f8fb !important;
-  --muted-foreground: #647082 !important;
+  --muted: #f1f5ef !important;
+  --muted-foreground: #57716a !important;
 
-  --accent: #e3f2ef !important;
-  --accent-foreground: #0a5a50 !important;
+  --accent: #eaf1e9 !important;
+  --accent-foreground: #194e46 !important;
 
   --destructive: #c93b3b !important;
   --destructive-foreground: #ffffff !important;
 
-  --border: #e5eaf1 !important;
-  --input: #e5eaf1 !important;
-  --ring: #0e7569 !important;
+  --border: #dce5df !important;
+  --input: #dce5df !important;
+  --ring: #23685d !important;
 
   /* Sidebar — light rails */
-  --sidebar: #fafbfd !important;
-  --sidebar-foreground: #0f1728 !important;
-  --sidebar-primary: #0e7569 !important;
+  --sidebar: #f4f7f2 !important;
+  --sidebar-foreground: #173d3a !important;
+  --sidebar-primary: #23685d !important;
   --sidebar-primary-foreground: #ffffff !important;
-  --sidebar-accent: #f0f3f7 !important;
-  --sidebar-accent-foreground: #0f1728 !important;
-  --sidebar-border: #ebeff5 !important;
-  --sidebar-ring: #0e7569 !important;
+  --sidebar-accent: #eaf1e9 !important;
+  --sidebar-accent-foreground: #173d3a !important;
+  --sidebar-border: #dce5df !important;
+  --sidebar-ring: #23685d !important;
   --sidebar-rail: #ffffff !important;
 
   /* Helivanta semantic tokens */
-  --hms-accent: #0e7569 !important;
-  --hms-accent-strong: #0a5a50 !important;
-  --hms-accent-dim: #e3f2ef !important;
-  --hms-good: #12915e !important;
-  --hms-warn: #b95e04 !important;
+  --hms-accent: #23685d !important;
+  --hms-accent-strong: #194e46 !important;
+  --hms-accent-dim: #eaf1e9 !important;
+  --hms-good: #0f7a4f !important;
+  --hms-warn: #a85503 !important;
   --hms-crit: #c93b3b !important;
   --hms-rose: #c13b5e !important;
   --hms-rose-tint: #fbedf1 !important;
-  --hms-amber: #a16207 !important;
+  --hms-amber: #a85503 !important;
   --hms-amber-tint: #fbf3e4 !important;
   --hms-violet: #5b5bd6 !important;
   --hms-violet-tint: #eeeefb !important;
+  --hms-sky: #1d5da8 !important;
+  --hms-sky-tint: #e7effa !important;
   --hms-track: #e7ebf1 !important;
-}
 
-:root[data-theme="dark"],
-[data-theme="dark"] {
-  /* Content surface */
-  --background: #0f1317 !important;
-  --foreground: #e8edf2 !important;
-  --card: #161c22 !important;
-  --card-foreground: #e8edf2 !important;
-  --popover: #161c22 !important;
-  --popover-foreground: #e8edf2 !important;
-
-  --primary: #45c4b4 !important;
-  --primary-foreground: #06211d !important;
-
-  --secondary: #1b222a !important;
-  --secondary-foreground: #e8edf2 !important;
-
-  --muted: #1b222a !important;
-  --muted-foreground: #8b96a3 !important;
-
-  --accent: #182b2d !important;
-  --accent-foreground: #45c4b4 !important;
-
-  --destructive: #f87171 !important;
-  --destructive-foreground: #0f1317 !important;
-
-  --border: #232b34 !important;
-  --input: #232b34 !important;
-  --ring: #45c4b4 !important;
-
-  /* Sidebar — dark rails */
-  --sidebar: #12161b !important;
-  --sidebar-foreground: #e8edf2 !important;
-  --sidebar-primary: #45c4b4 !important;
-  --sidebar-primary-foreground: #06211d !important;
-  --sidebar-accent: #1b222a !important;
-  --sidebar-accent-foreground: #e8edf2 !important;
-  --sidebar-border: #1c232b !important;
-  --sidebar-ring: #45c4b4 !important;
-  --sidebar-rail: #0b0e11 !important;
-
-  /* Helivanta semantic tokens */
-  --hms-accent: #45c4b4 !important;
-  --hms-accent-strong: #5fd8c8 !important;
-  --hms-accent-dim: #182b2d !important;
-  --hms-good: #4ade80 !important;
-  --hms-warn: #fbbf24 !important;
-  --hms-crit: #f87171 !important;
-  --hms-rose: #f17e9c !important;
-  --hms-rose-tint: #302831 !important;
-  --hms-amber: #f2c464 !important;
-  --hms-amber-tint: #30302a !important;
-  --hms-violet: #9d9df0 !important;
-  --hms-violet-tint: #26273b !important;
-  --hms-track: #232b34 !important;
-
-  /* --radius is only defined under [data-theme="default"] by @tesserix/web;
-     guard it here so it's never undefined in dark mode if a future
-     @tesserix/web release starts consuming it. */
-  --radius: 0.625rem !important;
+  /* The home page's dark Trust band (#1255). */
+  --hms-band: #183e35 !important;
+  --hms-band-ink: #f1f5eb !important;
+  --hms-band-muted: #b9d0c1 !important;
+  --hms-band-line: #466354 !important;
+  --hms-shadow: #426859 !important;
 }
 
 /* @tesserix/web ships an UNLAYERED base rule that forces
@@ -203,10 +152,10 @@ select:autofill {
 }
 
 [data-brand-theme="teal"] {
-  --hms-accent: #0e7569;
-  --hms-accent-strong: #0a5a50;
-  --hms-accent-dim: #e3f2ef;
-  --primary: #0e7569;
+  --hms-accent: #23685d;
+  --hms-accent-strong: #194e46;
+  --hms-accent-dim: #eaf1e9;
+  --primary: #23685d;
   --primary-foreground: #ffffff;
 }
 [data-brand-theme="blue"] {
@@ -222,21 +171,6 @@ select:autofill {
   --hms-accent-dim: #eeedf9;
   --primary: #5352a6;
   --primary-foreground: #ffffff;
-}
-[data-theme="dark"] [data-brand-theme="teal"] {
-  --hms-accent: #45c4b4;
-  --hms-accent-strong: #5fd8c8;
-  --hms-accent-dim: #182b2d;
-}
-[data-theme="dark"] [data-brand-theme="blue"] {
-  --hms-accent: #80baff;
-  --hms-accent-strong: #a1ccff;
-  --hms-accent-dim: #18283d;
-}
-[data-theme="dark"] [data-brand-theme="indigo"] {
-  --hms-accent: #b2abff;
-  --hms-accent-strong: #ccc6ff;
-  --hms-accent-dim: #29243e;
 }
 
 /* Public authentication stays light independently of the clinical workspace theme. */
@@ -317,9 +251,9 @@ select:autofill {
   background: var(--card);
 }
 .login-page [data-brand-theme="teal"] {
-  --hms-accent: #0e7569;
-  --hms-accent-strong: #0a5a50;
-  --hms-accent-dim: #e3f2ef;
+  --hms-accent: #23685d;
+  --hms-accent-strong: #194e46;
+  --hms-accent-dim: #eaf1e9;
 }
 .login-page [data-brand-theme="blue"] {
   --hms-accent: #1d5da8;

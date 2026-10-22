@@ -169,7 +169,7 @@ export function TaxDeclarations({
           )}
           {pending && (
             <p className="mt-3 text-xs">
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-900">
+              <span className="rounded-full bg-(--hms-amber-tint) px-2 py-0.5 font-medium text-(--hms-amber)">
                 {STATUTORY_STATUSES.pending}
               </span>{" "}
               Change proposed by {mine ? "you" : pending.proposed_by_subject} · {pending.reason}

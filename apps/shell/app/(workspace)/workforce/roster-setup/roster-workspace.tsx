@@ -8,7 +8,7 @@ import {
   type Hospital,
   type RosterConfig,
 } from "@helivanta/api";
-import { Field, SelectControl } from "@helivanta/ui";
+import { Field, PageHeading, SelectControl } from "@helivanta/ui";
 import { RosterEditor } from "./roster-editor";
 import { ConfigurationSummary, effectiveDate } from "./roster-summary";
 
@@ -24,38 +24,36 @@ export function RosterWorkspace() {
   const [kind, setKind] = useState<RosterConfig["kind"]>("area");
   return (
     <>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">People & operations</p>
-          <h2 className="text-3xl font-semibold tracking-tight">Roster setup</h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Organize areas, shift groups and weekly patterns. Earlier scheduling rules stay intact.
-          </p>
-        </div>
-        <div className="grid w-full gap-4 sm:w-auto sm:grid-cols-2">
-          {hospital && (
-            <Field id="planning-hospital" label="Hospital">
-              <SelectControl
-                id="planning-hospital"
-                value={hospital.id}
-                onValueChange={setSelected}
-                options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
-              />
-            </Field>
-          )}
-          <Field id="planning-kind" label="Configuration">
-            <SelectControl
-              id="planning-kind"
-              value={kind}
-              onValueChange={(v) => setKind(v as RosterConfig["kind"])}
-              options={Object.entries(ROSTER_CONFIG_KINDS).map(([value, label]) => ({
-                value,
-                label,
-              }))}
-            />
-          </Field>
-        </div>
-      </div>
+      <PageHeading
+        description="Organize areas, shift groups and weekly patterns. Earlier scheduling rules stay intact."
+        actions={
+          <>
+            <div className="grid w-full gap-4 sm:w-auto sm:grid-cols-2">
+              {hospital && (
+                <Field id="planning-hospital" label="Hospital">
+                  <SelectControl
+                    id="planning-hospital"
+                    value={hospital.id}
+                    onValueChange={setSelected}
+                    options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
+                  />
+                </Field>
+              )}
+              <Field id="planning-kind" label="Configuration">
+                <SelectControl
+                  id="planning-kind"
+                  value={kind}
+                  onValueChange={(v) => setKind(v as RosterConfig["kind"])}
+                  options={Object.entries(ROSTER_CONFIG_KINDS).map(([value, label]) => ({
+                    value,
+                    label,
+                  }))}
+                />
+              </Field>
+            </div>
+          </>
+        }
+      />
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (

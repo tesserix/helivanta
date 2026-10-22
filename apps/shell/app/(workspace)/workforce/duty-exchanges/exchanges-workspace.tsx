@@ -11,7 +11,7 @@ import {
   type DutyExchange,
   type Hospital,
 } from "@helivanta/api";
-import { Field, SelectControl } from "@helivanta/ui";
+import { Field, PageHeading, SelectControl } from "@helivanta/ui";
 import { Failure } from "../roster-policy/policy-ui";
 import { DutyExchangeForm } from "./exchange-form";
 import { DutyExchangeReview } from "./exchange-review";
@@ -25,28 +25,23 @@ export function DutyExchangesWorkspace() {
   const hospital = hospitals.items.find((h) => h.id === selected) ?? hospitals.items[0];
   return (
     <>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">People & operations</p>
-          <h2 className="text-3xl font-semibold tracking-tight">Duty exchanges</h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Record agreed swaps and covers on published rosters, then have a second person approve
-            them. Approval moves the duty without reopening the roster.
-          </p>
-        </div>
-        {hospital && (
-          <div className="w-full sm:w-72">
-            <Field id="exchanges-hospital" label="Hospital">
-              <SelectControl
-                id="exchanges-hospital"
-                value={hospital.id}
-                onValueChange={setSelected}
-                options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
-              />
-            </Field>
-          </div>
-        )}
-      </div>
+      <PageHeading
+        description="Record agreed swaps and covers on published rosters, then have a second person approve them. Approval moves the duty without reopening the roster."
+        actions={
+          hospital && (
+            <div className="w-full sm:w-72">
+              <Field id="exchanges-hospital" label="Hospital">
+                <SelectControl
+                  id="exchanges-hospital"
+                  value={hospital.id}
+                  onValueChange={setSelected}
+                  options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
+                />
+              </Field>
+            </div>
+          )
+        }
+      />
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (

@@ -1,6 +1,6 @@
 import { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
-import { hmsEslint, hmsPublicPages } from "./eslint.config.mjs";
+import { hmsEslint, hmsPublicPages, hmsWorkspacePages } from "./eslint.config.mjs";
 
 // The design rules (#1255, spec D2/D6): colours come from tokens and every
 // dropdown is the design-system Select. Asserted on the messages ESLint
@@ -156,5 +156,82 @@ describe("design rules", () => {
     expect(
       await lint(`export const A = () => <div dangerouslySetInnerHTML={{ __html: x }} />;`),
     ).toEqual([expect.stringMatching(/sanitizeHtml/)]);
+  });
+});
+
+// One page heading (#1274): workspace pages open with PageHeading under the
+// shell's own h1, so a second h1, a display-size heading or an accent eyebrow
+// is an error there, and nowhere else.
+describe("workspace heading rules", () => {
+  const eslint = new ESLint({
+    cwd: import.meta.dirname,
+    overrideConfigFile: true,
+    overrideConfig: [
+      ...hmsEslint(import.meta.dirname, { design: true }),
+      hmsWorkspacePages(["workspace/**"]),
+    ],
+  });
+  const lint = async (code, filePath = "workspace/page.tsx") =>
+    (await eslint.lintText(code, { filePath }))[0].messages.map((m) => m.message);
+
+  it("rejects an h1 in a workspace file", async () => {
+    expect(await lint(`export const A = () => <h1 className="text-xl">x</h1>;`)).toEqual([
+      expect.stringMatching(/shell header owns the h1/),
+    ]);
+  });
+
+  it.each(["text-2xl", "text-3xl font-semibold tracking-tight", "mt-2 md:text-4xl"])(
+    "rejects a display-size heading: %s",
+    async (classes) => {
+      expect(await lint(`export const A = () => <h2 className="${classes}">x</h2>;`)).toEqual([
+        expect.stringMatching(/PageHeading/),
+      ]);
+    },
+  );
+
+  it("rejects a display-size heading in a template class", async () => {
+    const code =
+      "export const A = ({ c }: { c: string }) => <h3 className={`${c} text-3xl`}>x</h3>;";
+    expect(await lint(code)).toEqual([expect.stringMatching(/PageHeading/)]);
+  });
+
+  it.each([
+    "text-xs font-semibold text-(--hms-accent)",
+    "mb-2 flex items-center gap-2 text-xs font-semibold text-(--hms-accent)",
+    "text-(--hms-accent) font-semibold text-xs",
+  ])("rejects an accent eyebrow: %s", async (classes) => {
+    expect(await lint(`export const A = () => <p className="${classes}">x</p>;`)).toEqual([
+      expect.stringMatching(/eyebrow/),
+    ]);
+  });
+
+  it("keeps the shared design rules", async () => {
+    expect(await lint(`export const A = () => <p className="bg-teal-600" />;`)).toEqual([
+      expect.stringMatching(/design-token utility/),
+    ]);
+  });
+
+  it.each([
+    ["a KPI number", `<p className="text-3xl font-semibold tabular-nums">12</p>`],
+    ["a section heading", `<h2 className="text-xl font-semibold">x</h2>`],
+    [
+      "an accent pill",
+      `<span className="rounded-full text-xs font-medium text-(--hms-accent)">x</span>`,
+    ],
+    ["an accent link", `<a href="/x" className="text-sm font-medium text-(--hms-accent)">x</a>`],
+  ])("accepts %s", async (_name, jsx) => {
+    expect(await lint(`export const A = () => ${jsx};`)).toEqual([]);
+  });
+
+  it("leaves files outside the workspace alone", async () => {
+    expect(
+      await lint(`export const A = () => <h1 className="text-3xl">x</h1>;`, "login/page.tsx"),
+    ).toEqual([]);
+  });
+
+  it("leaves workspace tests alone", async () => {
+    expect(
+      await lint(`export const A = () => <h1 className="text-3xl">x</h1>;`, "workspace/a.test.tsx"),
+    ).toEqual([]);
   });
 });

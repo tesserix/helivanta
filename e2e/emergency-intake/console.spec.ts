@@ -63,7 +63,7 @@ test("staff configure a base, receive and close a report, then revoke case acces
   await expect(page.getByText("Closure review:", { exact: false })).toBeVisible();
   await expect(page.getByRole("button", { name: "Close report", exact: true })).toHaveCount(0);
   await expect(page.getByText("Report closed", { exact: true })).toBeHidden({ timeout: 10000 });
-  await page.getByRole("heading", { name: /^EC-/, level: 1 }).scrollIntoViewIfNeeded();
+  await page.getByRole("heading", { name: /^EC-/, level: 2 }).scrollIntoViewIfNeeded();
   await page.screenshot({
     path: "../docs/architecture/evidence/ambulanceconnect-2026-10-18/staff-mobile.png",
     fullPage: true,

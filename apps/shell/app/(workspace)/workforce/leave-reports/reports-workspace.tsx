@@ -12,7 +12,7 @@ import {
   type LeaveConfig,
   type LeaveReportFilter,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
+import { Field, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
 import { Failure, inputClass, today } from "../roster-policy/policy-ui";
 import { LeaveReportTable } from "./report-table";
 
@@ -25,28 +25,23 @@ export function LeaveReportsWorkspace() {
   const hospital = hospitals.items.find((h) => h.id === selected) ?? hospitals.items[0];
   return (
     <>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">People & operations</p>
-          <h2 className="text-3xl font-semibold tracking-tight">Leave reports</h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Approved leave by month and type, and every request with its status, for a period of up
-            to 366 days. Department and joining date appear only for enrollment managers.
-          </p>
-        </div>
-        {hospital && (
-          <div className="w-full sm:w-72">
-            <Field id="reports-hospital" label="Hospital">
-              <SelectControl
-                id="reports-hospital"
-                value={hospital.id}
-                onValueChange={setSelected}
-                options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
-              />
-            </Field>
-          </div>
-        )}
-      </div>
+      <PageHeading
+        description="Approved leave by month and type, and every request with its status, for a period of up to 366 days. Department and joining date appear only for enrollment managers."
+        actions={
+          hospital && (
+            <div className="w-full sm:w-72">
+              <Field id="reports-hospital" label="Hospital">
+                <SelectControl
+                  id="reports-hospital"
+                  value={hospital.id}
+                  onValueChange={setSelected}
+                  options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
+                />
+              </Field>
+            </div>
+          )
+        }
+      />
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (

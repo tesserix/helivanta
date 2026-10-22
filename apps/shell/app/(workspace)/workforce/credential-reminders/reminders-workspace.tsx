@@ -20,7 +20,7 @@ import {
   type CredentialReminderStatus,
   type Hospital,
 } from "@helivanta/api";
-import { Field, LoadMore, SelectControl, useZodForm } from "@helivanta/ui";
+import { Field, LoadMore, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
 import { Failure, inputClass } from "../roster-policy/policy-ui";
 
 const statuses: { value: CredentialReminderStatus; label: string }[] = [
@@ -49,28 +49,23 @@ export function CredentialRemindersWorkspace() {
   const hospital = managed.find((h) => h.id === selected) ?? managed[0];
   return (
     <>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">People & operations</p>
-          <h2 className="text-3xl font-semibold tracking-tight">Credential reminders</h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Renewal reminders for approved licences and registrations, raised on the hospital
-            calendar at the days before expiry you choose.
-          </p>
-        </div>
-        {hospital && (
-          <div className="w-full sm:w-72">
-            <Field id="reminder-hospital" label="Hospital">
-              <SelectControl
-                id="reminder-hospital"
-                value={hospital.id}
-                onValueChange={setSelected}
-                options={managed.map((h) => ({ value: h.id, label: h.name }))}
-              />
-            </Field>
-          </div>
-        )}
-      </div>
+      <PageHeading
+        description="Renewal reminders for approved licences and registrations, raised on the hospital calendar at the days before expiry you choose."
+        actions={
+          hospital && (
+            <div className="w-full sm:w-72">
+              <Field id="reminder-hospital" label="Hospital">
+                <SelectControl
+                  id="reminder-hospital"
+                  value={hospital.id}
+                  onValueChange={setSelected}
+                  options={managed.map((h) => ({ value: h.id, label: h.name }))}
+                />
+              </Field>
+            </div>
+          )
+        }
+      />
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (

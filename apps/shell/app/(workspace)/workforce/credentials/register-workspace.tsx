@@ -11,7 +11,7 @@ import {
   type CredentialRegisterEntry,
   type Hospital,
 } from "@helivanta/api";
-import { Field, LoadMore, SelectControl, useZodForm } from "@helivanta/ui";
+import { Field, LoadMore, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
 import { Failure, inputClass } from "../roster-policy/policy-ui";
 import { standingText } from "../credential-panel";
 
@@ -25,28 +25,23 @@ export function CredentialRegisterWorkspace() {
   const hospital = managed.find((h) => h.id === selected) ?? managed[0];
   return (
     <>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">People & operations</p>
-          <h2 className="text-3xl font-semibold tracking-tight">Credential register</h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Every reviewed licence and registration, soonest expiry first, in the hospital calendar.
-            Only approved reviews appear here.
-          </p>
-        </div>
-        {hospital && (
-          <div className="w-full sm:w-72">
-            <Field id="register-hospital" label="Hospital">
-              <SelectControl
-                id="register-hospital"
-                value={hospital.id}
-                onValueChange={setSelected}
-                options={managed.map((h) => ({ value: h.id, label: h.name }))}
-              />
-            </Field>
-          </div>
-        )}
-      </div>
+      <PageHeading
+        description="Every reviewed licence and registration, soonest expiry first, in the hospital calendar. Only approved reviews appear here."
+        actions={
+          hospital && (
+            <div className="w-full sm:w-72">
+              <Field id="register-hospital" label="Hospital">
+                <SelectControl
+                  id="register-hospital"
+                  value={hospital.id}
+                  onValueChange={setSelected}
+                  options={managed.map((h) => ({ value: h.id, label: h.name }))}
+                />
+              </Field>
+            </div>
+          )
+        }
+      />
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (

@@ -30,7 +30,9 @@ Common errors are `invalid_request` (400), `unauthenticated` (401), `forbidden` 
 { "data": [], "page": { "next_cursor": null, "has_more": false } }
 ```
 
-Query `limit` defaults to 50, supports 1–200 and rejects invalid/out-of-range values with 400. Pass `next_cursor` back as opaque `cursor`; do not construct or reuse it across tenants/scopes. Collection ordering is generally descending `(created_at,id)`; history/journal sequences and custom report endpoints can differ. A cursor is not a snapshot or an authorization credential. Preserve filters and scope while paging; deduplicate by resource ID if a workflow tolerates changing data.
+A **counted** list (`CountedListRoute`, #1295) adds the size of its filtered set: `"page": { "next_cursor": null, "has_more": false, "total": 41 }`. The total and the rows are read in one read-only snapshot, so they agree; the total is exact at that snapshot and moves as the data does. The [runtime reference](reference/README.md) marks counted routes in its "Page total" column.
+
+Query `limit` defaults to 50, supports 1–200 and rejects invalid/out-of-range values with 400. Pass `next_cursor` back as opaque `cursor`; do not construct or reuse it across tenants/scopes. Collection ordering is generally descending `(created_at,id)`; history/journal sequences and custom report endpoints can differ. A counted route may order oldest first or by another timestamp; its ordering is fixed by the route, never chosen by the client, and a cursor issued for the other direction is refused with 400. A cursor is not a snapshot or an authorization credential. Preserve filters and scope while paging; deduplicate by resource ID if a workflow tolerates changing data.
 
 429 includes integer-second `Retry-After` and `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`. Obey the retry delay and apply bounded jittered backoff. A timeout on a mutation means the result may be unknown, not that nothing happened.
 

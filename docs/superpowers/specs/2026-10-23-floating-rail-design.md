@@ -21,17 +21,22 @@ window. Icon-only rail items also make a zone's name a hover away.
   `zones.test` caps it at 9 characters so it fits under the icon. The link's accessible
   name stays the full `label`, which every e2e selector and `aria-current` already use. The
   expanded rail is unchanged: icon and full label on one row.
-- **D3 Phones unchanged.** Below `md` the expanded rail and the page panel stay full-height
-  overlays (#1270 D4, D5). A drawer is the right shape there, and the collapsed rail's
-  spacer widens to the new rail width.
-- **D4 A closed page panel takes no space.** When closed, the panel drops its border and
-  inset as well as its width, both in React and in the pre-paint `data-hms-panel="closed"`
-  rule, so no 1px seam is left behind.
-
-- **D5 No page panel header.** The panel's header row (the hospital name and the collapse
-  button) is removed, so the panel is only its page list. The collapse control moves to
-  the panel's foot, as on the rail. The top bar now names the hospital on every page, not
-  only on pages without a panel, so the tenant is never off screen.
+- **D3 Phones unchanged.** Below `md` the collapsed rail stays the flush 64px icon column with
+  no labels, and the expanded rail and the page panel stay full-height overlays (#1270 D4,
+  D5). There is no room for a floating, labelled rail on a 390px phone; `dashboard-phone.spec`
+  holds the page to the screen width.
+- **D4 The page panel does not collapse.** From `md` it is always shown. The stored
+  `hms.panel.open` flag is no longer read, by React or by the pre-paint script, so a collapse
+  saved earlier cannot hide the pages with no way to reopen them. On a phone the header button
+  still opens the panel as an overlay.
+- **D5 No page panel header.** The panel's header row, which held the hospital name and the
+  collapse button, is removed, so the panel is only its page list.
+- **D6 The header is a card across the panel and the page.** Right of the rail, the header is
+  a card in the same style as the rail and panel: `--sidebar-rail` background, border, 2xl
+  radius, an 8px gap. Its top is level with the rail's top, and it runs from the panel's left
+  edge to the window's right edge. The panel and the page sit below it, and the page's first
+  card starts level with the panel. The header is outside the scroll container, so it stays
+  put without a sticky backdrop. It names the hospital on every page.
 
 ## Not covered
 
@@ -44,4 +49,6 @@ window. Icon-only rail items also make a zone's name a hover away.
   the full label.
 - `zones.test`: every zone has a `railLabel` of 1–9 characters.
 - e2e `navigation.spec.ts`: on a 1280×800 window, the rail and the page panel are each
-  shorter than the window, and neither touches the top edge.
+  shorter than the window, and neither touches the top edge. The header's top meets the
+  rail's, its left edge meets the panel's, it reaches the right edge, and the panel sits
+  below it. A stored panel collapse paints the panel open from the first frame.

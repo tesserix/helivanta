@@ -85,7 +85,7 @@
 }
 
 /* Stored chrome layout from the first paint (#1091 D7). The server renders the
-   defaults (panel open, navigation collapsed); CHROME_INIT_SCRIPT stamps the
+   default (navigation collapsed); CHROME_INIT_SCRIPT stamps the
    stored values on <html> before paint and HmsShell keeps them in step, so
    these rules only differ from the utilities while React has not yet applied
    the stored state. Unlayered, so they beat the layered width utilities.
@@ -93,14 +93,6 @@
    md up only: below md it is an overlay React opens after hydration, and
    widening it in flow there would push the page. */
 @media (min-width: 48rem) {
-  /* From md only: below md the panel is an overlay (#1270 D4) that the stored
-     desktop preference must not size. */
-  /* A closed panel leaves no card seam either (#1286 D4). */
-  html[data-hms-panel="closed"] .hms-page-panel {
-    width: 0;
-    margin: 0;
-    border-width: 0;
-  }
   html[data-hms-navigation="open"] .hms-rail {
     width: 13rem;
   }

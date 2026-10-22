@@ -30,12 +30,14 @@ One task: the change is a single component, its zone data and its tests.
    | Settings         | Settings    |
 
 3. `ZoneLink` collapsed: a 64px-wide column with the icon, then the `railLabel` at `text-[11px]`,
-   truncated. The rail becomes `w-20`, and the phone spacer becomes `w-24`.
+   truncated. The rail becomes `md:w-20`; on a phone it stays `w-16`.
 4. Rail and open panel from `md`:
    - `md:m-2 md:self-start md:max-h-[calc(100dvh-1rem)] md:rounded-2xl md:border md:shadow-sm`,
      on the `--sidebar-rail` background.
-   - The panel uses `md:ml-0` so the two cards sit 0.5rem apart.
-   - A closed panel has `md:m-0 md:border-0`, and `styles.css` gains the same in its closed rule.
+   - The panel does not collapse (spec D4): remove the `hms.panel.open` flag from React, the
+     pre-paint script and `styles.css`.
+   - Phones keep the flush `w-16` rail without labels (spec D3).
+   - Header card above the panel and page (spec D6).
 5. e2e: the rail and panel bounding boxes are below the window height, with `y > 0`.
 6. Gates: `pnpm turbo lint type-check test build format:check`, then Playwright
    `navigation.spec.ts`, `smoke.spec.ts` and `csp.spec.ts` on a production build.

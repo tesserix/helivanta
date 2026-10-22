@@ -10,6 +10,12 @@ Helivanta — a hospital management system platform, in one monorepo.
 
 ## Target architecture
 
+[API contracts, schemas and integration specifications](docs/api/README.md)
+document the current backend surface, domain ownership, event payloads and
+review proposals for beds, clinical handoffs, CRM and the wider portfolio.
+The generated registry reference distinguishes implemented operations from
+planned product capabilities.
+
 [Full HMS design and editable diagrams](docs/architecture/README.md) cover one
 shared UI, separate product APIs, multi-hospital tenants with optional data
 sharing, CRM, Zitadel, Istio, PostgreSQL, Valkey, future Qdrant and HIPAA/SOC 2
@@ -18,7 +24,7 @@ current implementation.
 
 ## Quick start
 
-Requires Docker, Go 1.27.2, Node 24, the version in `.nvmrc` (`corepack enable`). No registry
+Requires Docker, Go 1.27.3, Node 24, the version in `.nvmrc` (`corepack enable`). No registry
 credentials: `@tesserix/web` is published to the public npm registry, so
 `pnpm install` on a fresh clone needs nothing but network access.
 
@@ -210,13 +216,13 @@ install chromium` once if seeding fails with a "browser not found" error.
 
 Deployment lives in `tesserix-k8s` (charts/apps/hms-*), not here.
 
-The backend toolchain is pinned to Go 1.27.2 in `backend/go.mod`. Make targets
+The backend toolchain is pinned to Go 1.27.3 in `backend/go.mod`. Make targets
 and preflight select that exact toolchain; CI reads the module version, and the
-shared Docker builder explicitly selects `go1.27.2`. Install the linter with
+shared Docker builder explicitly selects `go1.27.3`. Install the linter with
 the matching toolchain if an older binary refuses the module:
 
 ```sh
-GOTOOLCHAIN=go1.27.2 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+GOTOOLCHAIN=go1.27.3 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 ```
 
 ## AmbulanceConnect / EmergencyConnect

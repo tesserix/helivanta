@@ -32,6 +32,11 @@ Helivanta is a hospital platform with one workspace for clinical, pharmacy, labo
 
 ## API implementation
 
+[API contracts and integration specifications](../api/README.md) provide the
+current runtime inventory, generated event schemas, clinical OpenAPI pilot,
+domain coverage and review plan. Use that reference to distinguish existing
+`/v1` behavior from the proposed product API paths in this architecture.
+
 [Hospital onboarding and multitenancy](../delivery/hospital-onboarding.md) gives
 the current step-by-step identity provisioning/adoption procedure and the checks
 required before product setup or the console cutover is accepted.

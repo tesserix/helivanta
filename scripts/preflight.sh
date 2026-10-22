@@ -28,7 +28,7 @@ NODE_MIN=22
 
 # Keep the patch-level requirement aligned with CI and local Make targets.
 GO_MOD_VERSION=$(sed -n 's/^go \([0-9][0-9.]*\).*/\1/p' "$REPO_ROOT/backend/go.mod" 2>/dev/null)
-GO_MOD_VERSION=${GO_MOD_VERSION:-1.27.2}
+GO_MOD_VERSION=${GO_MOD_VERSION:-1.27.3}
 GO_MIN=$GO_MOD_VERSION
 
 # Zitadel does not fail fast on a wrong-length masterkey — it crash-loops

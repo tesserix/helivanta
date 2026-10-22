@@ -17,8 +17,14 @@ import {
   type PharmacyOutlet,
   type PharmacyScope,
 } from "@helivanta/api";
-import { Field, LoadMore, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import {
+  Field,
+  LoadMore,
+  PageHeading,
+  RequestFailure,
+  SelectControl,
+  useZodForm,
+} from "@helivanta/ui";
 import { CataloguePanel } from "./catalogue-panel";
 import { AccountsPanel } from "./accounts-panel";
 import { StockPanel } from "./stock-panel";

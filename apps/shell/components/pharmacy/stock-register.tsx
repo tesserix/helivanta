@@ -18,8 +18,7 @@ import {
   type PharmacyStockReconciliation,
   type PharmacyMovement,
 } from "@helivanta/api";
-import { Field, LoadMore, SelectControl } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import { Field, LoadMore, SelectControl, RequestFailure } from "@helivanta/ui";
 import { StockExport } from "./stock-export";
 
 type Props = { scope: PharmacyScope; timeZone?: string };

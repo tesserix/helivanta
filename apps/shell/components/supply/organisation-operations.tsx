@@ -21,8 +21,7 @@ import {
   type SupplyDeliveryActionInput,
   type SupplyRegistryRevision,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, useZodForm } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import { Field, FormSelectField, LoadMore, useZodForm, RequestFailure } from "@helivanta/ui";
 import { WarehouseBins } from "./warehouse-bins";
 import { dateTimeInputISO, dateTimeInputValue, formatAbsoluteTime } from "./time-input";
 

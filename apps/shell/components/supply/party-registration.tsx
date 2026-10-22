@@ -35,12 +35,12 @@ import {
   type FieldValues,
   type FieldPath,
   type UseFormReturn,
+  RequestFailure,
 } from "@helivanta/ui";
 import { WarehouseBins } from "./warehouse-bins";
 import { LicenceReview } from "./licence-review";
 import { LicenceEvidence } from "./licence-evidence";
 import { LicenceRenewalNotice } from "./licence-renewal-notice";
-import { RequestFailure } from "../request-failure";
 
 const readers = ["administrator", "purchasing", "finance", "compliance", "auditor"];
 const label = (value: string) =>

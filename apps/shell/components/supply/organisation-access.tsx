@@ -22,8 +22,7 @@ import {
   type SupplyLegacyGrant as LegacyGrant,
   type SupplyRegistryScope,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, useZodForm } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import { Field, FormSelectField, LoadMore, useZodForm, RequestFailure } from "@helivanta/ui";
 import { OrganisationAccessLimits } from "./organisation-access-limits";
 import {
   AccessWindowPolicyStatus,

@@ -24,8 +24,7 @@ import {
   type PharmacySafetyIncidentInput,
   type PharmacyScope,
 } from "@helivanta/api";
-import { Field, LoadMore, SelectControl, useZodForm } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import { Field, LoadMore, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
 
 type Props = { scope: PharmacyScope; timeZone?: string };
 type ZonedProps = { scope: PharmacyScope; timeZone: string };

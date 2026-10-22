@@ -24,7 +24,7 @@
   },
   "peerDependencies": {
     "react": "^19.3.0",
-    "next": "^16.3.8",
+    "next": "^16.4.2",
     "@tesserix/web": "^2.4.2"
   },
   "devDependencies": {

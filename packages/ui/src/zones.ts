@@ -19,6 +19,9 @@ export type ZonePage = { label: string; href: string; icon: LucideIcon; permissi
 
 export type ZoneHue = "rose" | "amber" | "violet";
 
+// The rail groups zones by use (#1270 D1); `admin` sits at the foot of the rail.
+export type ZoneGroup = "overview" | "care" | "operations" | "admin";
+
 export type Zone = {
   key: string;
   label: string;
@@ -26,6 +29,7 @@ export type Zone = {
   href: string;
   permission: string;
   hue: ZoneHue;
+  group: ZoneGroup;
   pages: ZonePage[];
 };
 
@@ -35,12 +39,94 @@ export type Zone = {
 // navigation (#933).
 export const ZONES: Zone[] = [
   {
+    key: "dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    href: "/dashboard",
+    permission: "public",
+    hue: "rose",
+    group: "overview",
+    pages: [{ label: "Overview", href: "/dashboard", icon: LayoutDashboard, permission: "public" }],
+  },
+  {
+    key: "patients",
+    label: "Patients",
+    icon: Users,
+    href: "/patients",
+    permission: "patient.read",
+    hue: "rose",
+    group: "care",
+    pages: [
+      { label: "Patient registry", href: "/patients", icon: Users, permission: "patient.read" },
+    ],
+  },
+  {
+    key: "medicore",
+    label: "MediCore",
+    icon: HeartPulse,
+    href: "/medicore/opd",
+    permission: "medicore.visit.read",
+    hue: "rose",
+    group: "care",
+    pages: [
+      { label: "OPD", href: "/medicore/opd", icon: Stethoscope, permission: "medicore.visit.read" },
+      { label: "IPD", href: "/medicore/ipd", icon: BedDouble, permission: "medicore.visit.read" },
+    ],
+  },
+  {
+    key: "lab",
+    label: "Lab",
+    icon: FlaskConical,
+    href: "/lab",
+    permission: "lab.order.read",
+    hue: "violet",
+    group: "care",
+    pages: [{ label: "Orders", href: "/lab", icon: FlaskConical, permission: "lab.order.read" }],
+  },
+  {
+    key: "pharmacy",
+    label: "PharmaConnect",
+    icon: Pill,
+    href: "/pharmacy",
+    permission: "public",
+    hue: "amber",
+    group: "care",
+    pages: [
+      { label: "Dispenses", href: "/pharmacy", icon: Pill, permission: "pharmacy.dispense.read" },
+      {
+        label: "Product catalogue",
+        href: "/pharmacy/catalogue",
+        icon: ClipboardList,
+        permission: "pharmacy.catalogue.read",
+      },
+      {
+        label: "Stock receiving",
+        href: "/pharmacy/stock",
+        icon: Pill,
+        permission: "pharmacy.stock.read",
+      },
+      {
+        label: "Expenses & audit",
+        href: "/pharmacy/accounts",
+        icon: ClipboardList,
+        permission: "pharmacy.accounts.read",
+      },
+      {
+        label: "Medications",
+        href: "/pharmacy/medications",
+        icon: ClipboardList,
+        permission: "pharmacy.medication.read",
+      },
+    ],
+  },
+  {
     key: "emergency",
     label: "EmergencyConnect",
     icon: Ambulance,
     href: "/emergency",
     permission: "public",
     hue: "rose",
+    group: "care",
     pages: [
       {
         label: "Operating bases & reports",
@@ -63,23 +149,20 @@ export const ZONES: Zone[] = [
     ],
   },
   {
-    key: "dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    href: "/dashboard",
-    permission: "public",
-    hue: "rose",
-    pages: [{ label: "Overview", href: "/dashboard", icon: LayoutDashboard, permission: "public" }],
-  },
-  {
-    key: "patients",
-    label: "Patients",
-    icon: Users,
-    href: "/patients",
-    permission: "patient.read",
-    hue: "rose",
+    key: "supply",
+    label: "Supply Connect",
+    icon: Building2,
+    href: "/supply/parties",
+    permission: "supply.directory.read",
+    hue: "amber",
+    group: "operations",
     pages: [
-      { label: "Patient registry", href: "/patients", icon: Users, permission: "patient.read" },
+      {
+        label: "Organisations & suppliers",
+        href: "/supply/parties",
+        icon: Building2,
+        permission: "supply.directory.read",
+      },
     ],
   },
   {
@@ -89,6 +172,7 @@ export const ZONES: Zone[] = [
     href: "/workforce",
     permission: "public",
     hue: "rose",
+    group: "operations",
     pages: [
       { label: "Staff directory", href: "/workforce", icon: Users, permission: "public" },
       { label: "HR setup", href: "/workforce/setup", icon: Settings, permission: "public" },
@@ -181,6 +265,7 @@ export const ZONES: Zone[] = [
     href: "/settings/branding",
     permission: "public",
     hue: "violet",
+    group: "admin",
     pages: [
       {
         label: "Country policies",
@@ -195,78 +280,6 @@ export const ZONES: Zone[] = [
         permission: "workspace.branding.manage",
       },
     ],
-  },
-  {
-    key: "medicore",
-    label: "MediCore",
-    icon: HeartPulse,
-    href: "/medicore/opd",
-    permission: "medicore.visit.read",
-    hue: "rose",
-    pages: [
-      { label: "OPD", href: "/medicore/opd", icon: Stethoscope, permission: "medicore.visit.read" },
-      { label: "IPD", href: "/medicore/ipd", icon: BedDouble, permission: "medicore.visit.read" },
-    ],
-  },
-  {
-    key: "pharmacy",
-    label: "PharmaConnect",
-    icon: Pill,
-    href: "/pharmacy",
-    permission: "public",
-    hue: "amber",
-    pages: [
-      { label: "Dispenses", href: "/pharmacy", icon: Pill, permission: "pharmacy.dispense.read" },
-      {
-        label: "Product catalogue",
-        href: "/pharmacy/catalogue",
-        icon: ClipboardList,
-        permission: "pharmacy.catalogue.read",
-      },
-      {
-        label: "Stock receiving",
-        href: "/pharmacy/stock",
-        icon: Pill,
-        permission: "pharmacy.stock.read",
-      },
-      {
-        label: "Expenses & audit",
-        href: "/pharmacy/accounts",
-        icon: ClipboardList,
-        permission: "pharmacy.accounts.read",
-      },
-      {
-        label: "Medications",
-        href: "/pharmacy/medications",
-        icon: ClipboardList,
-        permission: "pharmacy.medication.read",
-      },
-    ],
-  },
-  {
-    key: "supply",
-    label: "Supply Connect",
-    icon: Building2,
-    href: "/supply/parties",
-    permission: "supply.directory.read",
-    hue: "amber",
-    pages: [
-      {
-        label: "Organisations & suppliers",
-        href: "/supply/parties",
-        icon: Building2,
-        permission: "supply.directory.read",
-      },
-    ],
-  },
-  {
-    key: "lab",
-    label: "Lab",
-    icon: FlaskConical,
-    href: "/lab",
-    permission: "lab.order.read",
-    hue: "violet",
-    pages: [{ label: "Orders", href: "/lab", icon: FlaskConical, permission: "lab.order.read" }],
   },
 ];
 

@@ -984,3 +984,95 @@ describe("expandable navigation", () => {
     expect(screen.queryByRole("button", { name: /theme/i })).toBeNull();
   });
 });
+
+// #1270: the rail reads in one grouped order, shows nothing partial while
+// permissions load, and keeps its collapse control out of the zone list.
+describe("zone rail", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const everyZone = [
+    "patient.read",
+    "medicore.visit.read",
+    "lab.order.read",
+    "pharmacy.dispense.read",
+    "supply.directory.read",
+    "emergency.base.read",
+    "workspace.branding.manage",
+  ];
+
+  function grant(permissions: string[]) {
+    seedCache(permissions);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: permissions, subject: "doc", tenant_id: "tenant-a" }),
+      }),
+    );
+  }
+
+  it("lists zones in one grouped order with Settings at the foot", () => {
+    grant(everyZone);
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+
+    const zones = screen.getByRole("navigation", { name: "Zones" });
+    const labels = Array.from(zones.querySelectorAll("a")).map((a) => a.getAttribute("aria-label"));
+    expect(labels).toEqual([
+      "Dashboard",
+      "Patients",
+      "MediCore",
+      "Lab",
+      "PharmaConnect",
+      "EmergencyConnect",
+      "Supply Connect",
+      "Staff",
+    ]);
+    const settings = screen.getByRole("link", { name: "Settings" });
+    expect(zones).not.toContainElement(settings);
+    expect(zones.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("shows placeholders, not a partial list, while permissions load", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation((url: string) =>
+          String(url).includes("/iam/me/permissions")
+            ? new Promise(() => {})
+            : Promise.resolve({ ok: true, status: 200, json: async () => ({}) }),
+        ),
+    );
+    pathname.current = "/patients";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+
+    const zones = screen.getByRole("navigation", { name: "Zones", hidden: true });
+    expect(zones).toHaveAttribute("aria-busy", "true");
+    expect(zones.querySelectorAll("a")).toHaveLength(0);
+    expect(screen.queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("nav-placeholder").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Patients");
+  });
+
+  it("keeps the collapse control icon-only, outside the zone list", () => {
+    grant(everyZone);
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+
+    // Either state: an earlier test's unwritable-storage flag is module state.
+    const toggle = screen.getByRole("button", { name: /^(Expand|Collapse) navigation$/ });
+    expect(screen.getByRole("navigation", { name: "Zones" })).not.toContainElement(toggle);
+    expect(toggle).toHaveTextContent("");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveTextContent("");
+    const settings = screen.getByRole("link", { name: "Settings" });
+    expect(
+      settings.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+});

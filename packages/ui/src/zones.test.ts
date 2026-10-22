@@ -164,3 +164,28 @@ describe("activePage", () => {
     expect(activePage(zone("pharmacy"), "/lab")).toBeUndefined();
   });
 });
+
+// #1270 D1: the rail reads in one order, grouped by use, whatever order
+// zones were added in.
+describe("zone order", () => {
+  it("lists zones grouped by use, settings last", () => {
+    expect(ZONES.map((zone) => zone.key)).toEqual([
+      "dashboard",
+      "patients",
+      "medicore",
+      "lab",
+      "pharmacy",
+      "emergency",
+      "supply",
+      "workforce",
+      "settings",
+    ]);
+  });
+
+  it("keeps each group contiguous", () => {
+    const runs = ZONES.map((zone) => zone.group).filter(
+      (group, index, groups) => group !== groups[index - 1],
+    );
+    expect(runs).toEqual(["overview", "care", "operations", "admin"]);
+  });
+});

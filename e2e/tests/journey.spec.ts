@@ -122,6 +122,9 @@ test("pharmacist can dispense a visit created by admin", async ({ page }) => {
   await expect(page.getByText(patient).first()).toBeVisible({
     timeout: 30_000,
   });
-  await page.locator("li", { hasText: patient }).getByRole("button", { name: "Dispense" }).click();
-  await expect(page.locator("li", { hasText: patient }).getByText(/Dispensed/)).toBeVisible();
+  const row = page.locator("li", { hasText: patient });
+  await row.getByLabel("Medication").fill("Amoxicillin 250mg");
+  await row.getByRole("button", { name: "Dispense" }).click();
+  await expect(row.getByText(/Dispensed/)).toBeVisible();
+  await expect(row.getByText("Amoxicillin 250mg")).toBeVisible();
 });

@@ -95,8 +95,11 @@
 @media (min-width: 48rem) {
   /* From md only: below md the panel is an overlay (#1270 D4) that the stored
      desktop preference must not size. */
+  /* A closed panel leaves no card seam either (#1286 D4). */
   html[data-hms-panel="closed"] .hms-page-panel {
     width: 0;
+    margin: 0;
+    border-width: 0;
   }
   html[data-hms-navigation="open"] .hms-rail {
     width: 13rem;

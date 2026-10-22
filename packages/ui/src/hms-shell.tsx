@@ -113,7 +113,7 @@ function ZoneLink({
       title={zone.label}
       aria-label={zone.label}
       aria-current={active ? "page" : undefined}
-      className={`relative flex h-11 items-center rounded-lg transition-colors ${expanded ? "w-full gap-3 px-3" : "w-11 justify-center"} ${
+      className={`relative flex items-center rounded-lg transition-colors ${expanded ? "h-11 w-full gap-3 px-3" : "w-16 flex-col justify-center gap-1 py-2"} ${
         active
           ? "bg-(--hms-accent-dim) text-(--hms-accent)"
           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
@@ -126,7 +126,13 @@ function ZoneLink({
         />
       )}
       <zone.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-      {expanded && <span className="truncate text-sm font-medium">{zone.label}</span>}
+      {expanded ? (
+        <span className="truncate text-sm font-medium">{zone.label}</span>
+      ) : (
+        <span className="max-w-full truncate text-[11px] leading-none font-medium">
+          {zone.railLabel}
+        </span>
+      )}
     </Link>
   );
 }
@@ -143,7 +149,7 @@ function NavPlaceholder({ wide }: { wide: boolean }) {
     <div
       data-testid="nav-placeholder"
       aria-hidden="true"
-      className={`h-11 shrink-0 animate-pulse rounded-lg bg-sidebar-accent/40 motion-reduce:animate-none ${wide ? "w-full" : "w-11"}`}
+      className={`shrink-0 animate-pulse rounded-lg bg-sidebar-accent/40 motion-reduce:animate-none ${wide ? "h-11 w-full" : "h-[3.25rem] w-16"}`}
     />
   );
 }
@@ -497,7 +503,7 @@ export function HmsShell({
     <BrandThemeContext value={branding.theme}>
       {warningDeadline && <IdleCountdown deadline={warningDeadline} onStay={handleStayLoggedIn} />}
       <div data-brand-theme={branding.theme} className="flex h-screen overflow-hidden">
-        {navigationOpen && <div aria-hidden="true" className="w-16 shrink-0 md:hidden" />}
+        {navigationOpen && <div aria-hidden="true" className="w-24 shrink-0 md:hidden" />}
         {(navigationOpen || pagesOverlayOpen) && (
           <button
             type="button"
@@ -508,7 +514,9 @@ export function HmsShell({
           />
         )}
         <aside
-          className={`hms-rail hms-sidebar-border flex shrink-0 flex-col border-r bg-(--sidebar-rail) ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 shadow-xl md:relative md:inset-auto md:shadow-none" : "w-16"}`}
+          // Floating and content-height (#1286 D1); below md the open rail stays
+          // a full-height drawer (D3), so the card classes are md-scoped there.
+          className={`hms-rail hms-sidebar-border flex shrink-0 flex-col bg-(--sidebar-rail) ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 border-r shadow-xl md:relative md:inset-auto md:m-2 md:max-h-[calc(100dvh-1rem)] md:self-start md:rounded-2xl md:border md:shadow-sm" : "m-2 max-h-[calc(100dvh-1rem)] w-20 self-start rounded-2xl border shadow-sm"}`}
         >
           <div className={`flex h-16 items-center ${navigationOpen ? "px-4" : "justify-center"}`}>
             <Link
@@ -591,9 +599,9 @@ export function HmsShell({
             repeat the rail's one link (#1255 spec D4). */}
         {hasPagePanel && (
           <aside
-            className={`hms-page-panel flex shrink-0 flex-col overflow-hidden bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none ${
-              pagesOverlayOpen ? "fixed inset-y-0 left-16 z-40 w-56 shadow-xl" : "hidden"
-            } md:static md:z-auto md:flex md:shadow-none ${panelOpen ? "md:w-56" : "md:w-0"}`}
+            className={`hms-page-panel hms-sidebar-border flex shrink-0 flex-col overflow-hidden bg-(--sidebar-rail) transition-[width] duration-200 ease-out motion-reduce:transition-none ${
+              pagesOverlayOpen ? "fixed inset-y-0 left-24 z-40 w-56 shadow-xl" : "hidden"
+            } md:static md:z-auto md:flex md:max-h-[calc(100dvh-1rem)] md:self-start ${panelOpen ? "md:my-2 md:mr-2 md:w-56 md:rounded-2xl md:border md:shadow-sm" : "md:w-0 md:shadow-none"}`}
             aria-hidden={!(panelOpen || pagesOverlayOpen)}
           >
             <div className="flex h-16 w-56 items-center justify-between pl-5 pr-3">

@@ -58,6 +58,8 @@ export type ZoneGroup = "overview" | "care" | "operations" | "admin";
 export type Zone = {
   key: string;
   label: string;
+  /** Shown under the icon on a collapsed rail; at most 9 characters (#1286 D2). */
+  railLabel: string;
   icon: LucideIcon;
   href: string;
   permission: string;
@@ -74,6 +76,7 @@ export const ZONES: Zone[] = [
   {
     key: "dashboard",
     label: "Dashboard",
+    railLabel: "Dashboard",
     icon: LayoutDashboard,
     href: "/dashboard",
     permission: "public",
@@ -84,6 +87,7 @@ export const ZONES: Zone[] = [
   {
     key: "patients",
     label: "Patients",
+    railLabel: "Patients",
     icon: Users,
     href: "/patients",
     permission: "patient.read",
@@ -96,6 +100,7 @@ export const ZONES: Zone[] = [
   {
     key: "medicore",
     label: "MediCore",
+    railLabel: "MediCore",
     icon: HeartPulse,
     href: "/medicore/opd",
     permission: "medicore.visit.read",
@@ -109,6 +114,7 @@ export const ZONES: Zone[] = [
   {
     key: "lab",
     label: "Lab",
+    railLabel: "Lab",
     icon: FlaskConical,
     href: "/lab",
     permission: "lab.order.read",
@@ -119,6 +125,7 @@ export const ZONES: Zone[] = [
   {
     key: "pharmacy",
     label: "PharmaConnect",
+    railLabel: "Pharmacy",
     icon: Pill,
     href: "/pharmacy",
     permission: "public",
@@ -186,6 +193,7 @@ export const ZONES: Zone[] = [
   {
     key: "emergency",
     label: "EmergencyConnect",
+    railLabel: "Emergency",
     icon: Ambulance,
     href: "/emergency",
     permission: "public",
@@ -215,6 +223,7 @@ export const ZONES: Zone[] = [
   {
     key: "supply",
     label: "Supply Connect",
+    railLabel: "Supply",
     icon: Building2,
     href: "/supply/parties",
     permission: "supply.directory.read",
@@ -232,6 +241,7 @@ export const ZONES: Zone[] = [
   {
     key: "workforce",
     label: "Staff",
+    railLabel: "Staff",
     icon: IdCard,
     href: "/workforce",
     permission: "public",
@@ -330,6 +340,7 @@ export const ZONES: Zone[] = [
   {
     key: "settings",
     label: "Settings",
+    railLabel: "Settings",
     icon: Settings,
     href: "/settings/branding",
     permission: "public",

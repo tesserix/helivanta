@@ -215,3 +215,22 @@ test("a collapsed panel is never painted open on a hard load", async ({ page }) 
     "rail=208px panel=0px",
   ]);
 });
+
+// #1286 D1: the rail and the page panel float, sized to their items, not to
+// the window. Measured from the rendered boxes, not inferred from classes.
+test("the rail and the page panel are only as tall as their items", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await login(page);
+  await page
+    .getByRole("navigation", { name: "Zones" })
+    .getByRole("link", { name: "PharmaConnect" })
+    .click();
+  await expect(page.getByRole("navigation", { name: "PharmaConnect" })).toBeVisible();
+
+  for (const selector of ["aside.hms-rail", "aside.hms-page-panel"]) {
+    const box = await page.locator(selector).boundingBox();
+    expect(box, selector).not.toBeNull();
+    expect(box!.y, `${selector} touches the top edge`).toBeGreaterThan(0);
+    expect(box!.y + box!.height, `${selector} spans the window`).toBeLessThan(800);
+  }
+});

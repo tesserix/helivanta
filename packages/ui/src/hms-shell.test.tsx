@@ -851,6 +851,8 @@ describe("expandable navigation", () => {
       "aria-expanded",
       "true",
     );
+    // The fallback lives in module state; leave it collapsed for later tests.
+    await user.click(screen.getByRole("button", { name: "Collapse navigation" }));
     vi.restoreAllMocks();
   });
 
@@ -1055,6 +1057,17 @@ describe("zone rail", () => {
     const settings = screen.getByRole("link", { name: "Settings" });
     expect(zones).not.toContainElement(settings);
     expect(zones.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // #1286 D2: the short label is visible text; the link keeps the full name.
+  it("labels each collapsed rail icon with its short name", () => {
+    grant(everyZone);
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+
+    const pharmacy = screen.getByRole("link", { name: "PharmaConnect" });
+    expect(pharmacy).toHaveTextContent("Pharmacy");
+    expect(screen.getByRole("link", { name: "EmergencyConnect" })).toHaveTextContent("Emergency");
   });
 
   it("shows placeholders, not a partial list, while permissions load", () => {

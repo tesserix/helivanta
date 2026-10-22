@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { z } from "zod";
 import { Button } from "@tesserix/web";
-import { ShieldCheck } from "lucide-react";
 import {
   apiFetch,
   countryProfile,
@@ -21,6 +20,7 @@ import {
   Field,
   LoadMore,
   PageHeading,
+  Panel,
   RequestFailure,
   SelectControl,
   useZodForm,
@@ -29,10 +29,21 @@ import { CataloguePanel } from "./catalogue-panel";
 import { AccountsPanel } from "./accounts-panel";
 import { StockPanel } from "./stock-panel";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
-import { WorkspaceConnections } from "../workspace-connections";
+import { StockRegister } from "./stock-register";
+import { BatchSafety } from "./batch-safety";
 
 type PharmacyIdentity = { subject: string; tenant_id: string };
-export function PharmacyWorkspace({ view }: { view: "catalogue" | "stock" | "accounts" }) {
+// The outlet-scoped pages (#1258 D2). Dispensing is tenant-wide and has its own pages.
+type PharmacyView = "stock" | "receiving" | "safety" | "catalogue" | "accounts" | "setup";
+const DESCRIPTIONS: Record<PharmacyView, string> = {
+  stock: "What each outlet holds, by product and batch, with reconciliation and export.",
+  receiving: "Register manufacturer lots, receive them into quarantine and record movements.",
+  safety: "Batches nearing expiry or under a safety concern, and their release decisions.",
+  catalogue: "Product identities and their history for this pharmacy.",
+  accounts: "Supplier bills, payments, adjustments and outstanding balances.",
+  setup: "Pharmacies, outlets, hospital links and who can work at each outlet.",
+};
+export function PharmacyWorkspace({ view }: { view: PharmacyView }) {
   const identity = useApiQuery<PharmacyIdentity>(
     ["iam", "me", "permissions"],
     "/iam/me/permissions",
@@ -48,13 +59,7 @@ const selectionSchema = z.object({
   pharmacyId: z.string().uuid().or(z.literal("")),
   outletId: z.string().uuid().or(z.literal("")),
 });
-function TenantPharmacy({
-  identity,
-  view,
-}: {
-  identity: PharmacyIdentity;
-  view: "catalogue" | "stock" | "accounts";
-}) {
+function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: PharmacyView }) {
   const { can } = usePermissions();
   const storageKey = `helivanta:pharmacy:scope:${identity.tenant_id}`;
   const [selection, setSelection] = useState(() => {
@@ -90,13 +95,7 @@ function TenantPharmacy({
   return (
     <>
       <PageHeading
-        description={
-          view === "catalogue"
-            ? "Product identities and their history for independent, chain or hospital-owned pharmacies."
-            : view === "accounts"
-              ? "Purchase costs, expenses and outstanding payments across your pharmacy inventory."
-              : "Receive and reconcile quarantined stock in the selected pharmacy and outlet."
-        }
+        description={DESCRIPTIONS[view]}
         actions={
           <div className="grid w-full gap-4 sm:w-xl sm:grid-cols-2">
             {pharmacies.items.length > 0 && (
@@ -122,15 +121,12 @@ function TenantPharmacy({
           </div>
         }
       />
-      <div className="mb-6">
-        <WorkspaceConnections current="pharmacy" />
-      </div>
       {pharmacies.isError ? (
         <RequestFailure message="Could not load your pharmacies." retry={pharmacies.retry} />
       ) : pharmacies.isPending ? (
         <p role="status">Loading pharmacies…</p>
       ) : !pharmacy ? (
-        <DirectoryEmpty selected={!!selection.pharmacyId} />
+        <DirectoryEmpty selected={!!selection.pharmacyId} setup={view === "setup"} />
       ) : outlets.isError ? (
         <RequestFailure message="Could not load this pharmacy's outlets." retry={outlets.retry} />
       ) : outlets.isPending ? (
@@ -138,14 +134,13 @@ function TenantPharmacy({
       ) : outlet ? (
         <OutletPharmacy
           key={`${identity.tenant_id}:${pharmacy.id}:${outlet.id}:${outlet.timezone}`}
-          pharmacy={pharmacy}
           outlet={outlet}
           scope={{ tenantId: identity.tenant_id, pharmacyId: pharmacy.id, outletId: outlet.id }}
           subject={identity.subject}
           view={view}
         />
       ) : (
-        <section className="rounded-2xl border bg-card p-8">
+        <Panel>
           <h3 className="font-semibold">
             {selection.outletId ? "Choose an outlet" : "No outlets available"}
           </h3>
@@ -153,7 +148,7 @@ function TenantPharmacy({
             Choose an outlet from this pharmacy, load more below, or ask your administrator to
             register one.
           </p>
-        </section>
+        </Panel>
       )}
       <LoadMore
         hasMore={pharmacies.hasMore}
@@ -165,38 +160,44 @@ function TenantPharmacy({
         isLoading={outlets.isFetchingMore}
         onClick={outlets.loadMore}
       />
-      {can("pharmacy.access.manage") && (
+      {view === "setup" && can("pharmacy.access.manage") && (
         <PharmacyRegistrySetup tenantId={identity.tenant_id} pharmacy={pharmacy} />
       )}
     </>
   );
 }
-function DirectoryEmpty({ selected }: { selected: boolean }) {
+function DirectoryEmpty({ selected, setup }: { selected: boolean; setup: boolean }) {
+  const [title, hint] = selected
+    ? [
+        "Choose a pharmacy",
+        "Your saved pharmacy is not in the loaded directory. Choose one above or load more below.",
+      ]
+    : setup
+      ? [
+          "No pharmacy registered yet",
+          "Register the first pharmacy below. A hospital is not required.",
+        ]
+      : [
+          "No pharmacies available",
+          "Ask your administrator to register a pharmacy and grant outlet access. A hospital is not required.",
+        ];
   return (
-    <section className="rounded-2xl border bg-card p-8">
-      <h3 className="font-semibold">
-        {selected ? "Choose a pharmacy" : "No pharmacies available"}
-      </h3>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {selected
-          ? "Your saved pharmacy is not in the loaded directory. Choose one above or load more below."
-          : "Ask your administrator to register a pharmacy and grant outlet access. A hospital is not required."}
-      </p>
-    </section>
+    <Panel>
+      <h3 className="font-semibold">{title}</h3>
+      <p className="mt-2 text-sm text-muted-foreground">{hint}</p>
+    </Panel>
   );
 }
 function OutletPharmacy({
-  pharmacy,
   outlet,
   scope,
   subject,
   view,
 }: {
-  pharmacy: PharmacyOrganization;
   outlet: PharmacyOutlet;
   scope: PharmacyScope;
   subject: string;
-  view: "catalogue" | "stock" | "accounts";
+  view: PharmacyView;
 }) {
   const { can } = usePermissions();
   const access = useApiQuery<{ level: "reader" | "editor" }>(
@@ -206,20 +207,7 @@ function OutletPharmacy({
   );
   return (
     <>
-      <div className="mb-6 flex items-start gap-3 rounded-xl border bg-card px-5 py-4">
-        <ShieldCheck className="mt-0.5 size-5 shrink-0 text-(--hms-accent)" />
-        <p className="text-sm leading-6">
-          <strong>
-            {pharmacy.name} · {outlet.name}
-          </strong>
-          <span className="block text-muted-foreground">Time zone: {outlet.timezone}</span>
-          <span className="text-muted-foreground">
-            Outlet access is explicit. Common ownership or a hospital affiliation does not share
-            patient records or stock. Products and quarantine stock awaiting review are unavailable
-            for dispensing.
-          </span>
-        </p>
-      </div>
+      <p className="mb-4 text-xs text-muted-foreground">Times are in {outlet.timezone}.</p>
       {access.isPending ? (
         <p role="status">Checking pharmacy access…</p>
       ) : access.isError ? (
@@ -227,7 +215,7 @@ function OutletPharmacy({
           message="Pharmacy access is unavailable. Ask your administrator for access to this outlet, or retry if it was just updated."
           retry={access.refetch}
         />
-      ) : view === "accounts" ? (
+      ) : view === "setup" ? null : view === "accounts" ? (
         <AccountsPanel
           scope={scope}
           timeZone={outlet.timezone}
@@ -241,6 +229,10 @@ function OutletPharmacy({
           defaultCurrency={countryProfile(outlet.country_code)?.currency ?? ""}
           writable={access.data?.level === "editor" && can("pharmacy.catalogue.write")}
         />
+      ) : view === "stock" ? (
+        <StockRegister scope={scope} timeZone={outlet.timezone} />
+      ) : view === "safety" ? (
+        <BatchSafety scope={scope} timeZone={outlet.timezone} />
       ) : (
         <StockPanel
           scope={scope}
@@ -249,7 +241,7 @@ function OutletPharmacy({
           correctable={access.data?.level === "editor" && can("pharmacy.stock.correct")}
         />
       )}
-      {can("pharmacy.access.manage") && (
+      {view === "setup" && can("pharmacy.access.manage") && (
         <AccessSetup scope={scope} subject={subject} outletName={outlet.name} />
       )}
     </>
@@ -281,35 +273,39 @@ function AccessSetup({
     },
   );
   return (
-    <details className="mt-7 rounded-xl border bg-card p-5">
-      <summary className="cursor-pointer text-sm font-medium">Outlet access administration</summary>
-      <form
-        noValidate
-        className="mt-4 space-y-4"
-        onSubmit={form.handleSubmit(() => grant.mutate())}
-      >
-        <p className="text-sm text-muted-foreground">
-          Grant your signed-in account catalogue and receiving access at {outletName}. This does not
-          approve medicines or confer hospital clinical access.
-        </p>
-        <label className="flex items-start gap-3 text-sm">
-          <input type="checkbox" className="mt-1" {...form.register("confirmed")} />
-          Grant my account pharmacy access to this outlet
-        </label>
-        {form.formState.errors.confirmed && (
-          <p role="alert" className="text-sm text-destructive">
-            {form.formState.errors.confirmed.message}
+    <Panel className="mt-7">
+      <details>
+        <summary className="cursor-pointer text-sm font-medium">
+          Outlet access administration
+        </summary>
+        <form
+          noValidate
+          className="mt-4 space-y-4"
+          onSubmit={form.handleSubmit(() => grant.mutate())}
+        >
+          <p className="text-sm text-muted-foreground">
+            Grant your signed-in account catalogue and receiving access at {outletName}. This does
+            not approve medicines or confer hospital clinical access.
           </p>
-        )}
-        {grant.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {grant.error.message}
-          </p>
-        )}
-        <Button type="submit" disabled={grant.isPending || !subject}>
-          Grant pharmacy access
-        </Button>
-      </form>
-    </details>
+          <label className="flex items-start gap-3 text-sm">
+            <input type="checkbox" className="mt-1" {...form.register("confirmed")} />
+            Grant my account pharmacy access to this outlet
+          </label>
+          {form.formState.errors.confirmed && (
+            <p role="alert" className="text-sm text-destructive">
+              {form.formState.errors.confirmed.message}
+            </p>
+          )}
+          {grant.isError && (
+            <p role="alert" className="text-sm text-destructive">
+              {grant.error.message}
+            </p>
+          )}
+          <Button type="submit" disabled={grant.isPending || !subject}>
+            Grant pharmacy access
+          </Button>
+        </form>
+      </details>
+    </Panel>
   );
 }

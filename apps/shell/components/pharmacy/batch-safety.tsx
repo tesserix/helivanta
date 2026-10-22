@@ -24,7 +24,7 @@ import {
   type PharmacySafetyIncidentInput,
   type PharmacyScope,
 } from "@helivanta/api";
-import { Field, LoadMore, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { Field, LoadMore, Panel, RequestFailure, SelectControl, useZodForm } from "@helivanta/ui";
 
 type Props = { scope: PharmacyScope; timeZone?: string };
 type ZonedProps = { scope: PharmacyScope; timeZone: string };
@@ -53,12 +53,12 @@ const millicelsius = (value: unknown) => {
 export function BatchSafety({ scope, timeZone = "UTC" }: Props) {
   if (!isCustomerTimeZone(timeZone))
     return (
-      <section aria-label="Batch safety concerns" className="rounded-lg border p-4">
+      <Panel aria-label="Batch safety concerns">
         <p role="alert">
           Batch safety is unavailable because the configured outlet timezone is invalid. Ask an
           administrator to update the outlet timezone before continuing.
         </p>
-      </section>
+      </Panel>
     );
   return (
     <ScopedSafety
@@ -77,7 +77,7 @@ function ScopedSafety({ scope, timeZone }: ZonedProps) {
   );
 
   return (
-    <section aria-label="Batch safety concerns" className="min-w-0 space-y-5 bg-card p-3 sm:p-6">
+    <Panel aria-label="Batch safety concerns" className="min-w-0 space-y-5">
       <header>
         <h3 className="font-semibold">Batch safety concerns</h3>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -106,7 +106,7 @@ function ScopedSafety({ scope, timeZone }: ZonedProps) {
           canReadProducts={permissions.data.data.includes("pharmacy.catalogue.read")}
         />
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -306,7 +306,7 @@ function SelectedBatchSafety({
             {incidents.items.map((incident) => {
               const location = locations.find((item) => item.id === incident.location_id);
               return (
-                <li key={incident.id} className="space-y-3 rounded-lg border p-4">
+                <Panel key={incident.id} as="li" className="space-y-3">
                   <h5 className="font-medium">
                     {concernTypes.find((item) => item.value === incident.kind)?.label ??
                       incident.kind}
@@ -357,7 +357,7 @@ function SelectedBatchSafety({
                       <dd className="break-words">{incident.actor_subject}</dd>
                     </div>
                   </dl>
-                </li>
+                </Panel>
               );
             })}
           </ul>
@@ -433,162 +433,171 @@ function ConcernForm({
     });
   const kind = form.watch("kind");
   return (
-    <form
-      noValidate
-      className="space-y-4 rounded-lg border p-4"
-      aria-label="Record batch safety concern"
-      onSubmit={(event) => {
-        if (!occurredInstant) {
-          event.preventDefault();
-          form.setError("occurred_at", { type: "validate", message: invalidLocalTime });
-          occurredInput.current?.focus();
-          return;
-        }
-        void form.handleSubmit((input) => {
-          setConfirmed(false);
-          setSubmitted(input);
-          sendConcern(input);
-        })(event);
-      }}
-    >
-      <h4 className="font-medium">Record a safety concern</h4>
-      <p className="text-sm text-muted-foreground">
-        Use observed evidence. Do not enter patient information. Reports cannot be edited or cleared
-        here.
-      </p>
-      {confirmed && (
-        <p role="status" tabIndex={-1} ref={focusConfirmation}>
-          Safety concern recorded. Stock remains quarantined.
-        </p>
-      )}
-      <fieldset
-        disabled={mutation.isPending || submitted !== null}
-        className="grid min-w-0 gap-4 sm:grid-cols-2"
+    <Panel>
+      <form
+        noValidate
+        className="space-y-4"
+        aria-label="Record batch safety concern"
+        onSubmit={(event) => {
+          if (!occurredInstant) {
+            event.preventDefault();
+            form.setError("occurred_at", { type: "validate", message: invalidLocalTime });
+            occurredInput.current?.focus();
+            return;
+          }
+          void form.handleSubmit((input) => {
+            setConfirmed(false);
+            setSubmitted(input);
+            sendConcern(input);
+          })(event);
+        }}
       >
-        <legend className="sr-only">Safety concern details</legend>
-        <Field id="safety-kind" label="Concern type" error={form.formState.errors.kind?.message}>
-          <SelectControl
-            id="safety-kind"
-            value={kind}
-            onValueChange={(value) => {
-              form.setValue("kind", value as PharmacySafetyIncidentInput["kind"], {
-                shouldValidate: true,
-              });
-              if (value !== "temperature_excursion")
-                form.setValue("measured_temperature_millicelsius", undefined, {
+        <h4 className="font-medium">Record a safety concern</h4>
+        <p className="text-sm text-muted-foreground">
+          Use observed evidence. Do not enter patient information. Reports cannot be edited or
+          cleared here.
+        </p>
+        {confirmed && (
+          <p role="status" tabIndex={-1} ref={focusConfirmation}>
+            Safety concern recorded. Stock remains quarantined.
+          </p>
+        )}
+        <fieldset
+          disabled={mutation.isPending || submitted !== null}
+          className="grid min-w-0 gap-4 sm:grid-cols-2"
+        >
+          <legend className="sr-only">Safety concern details</legend>
+          <Field id="safety-kind" label="Concern type" error={form.formState.errors.kind?.message}>
+            <SelectControl
+              id="safety-kind"
+              value={kind}
+              onValueChange={(value) => {
+                form.setValue("kind", value as PharmacySafetyIncidentInput["kind"], {
                   shouldValidate: true,
                 });
-            }}
-            options={[...concernTypes]}
-            disabled={submitted !== null}
-          />
-        </Field>
-        <Field
-          id="safety-location"
-          label="Concern location"
-          error={form.formState.errors.location_id?.message}
-        >
-          <SelectControl
-            id="safety-location"
-            value={form.watch("location_id") ?? "all"}
-            onValueChange={(value) =>
-              form.setValue("location_id", value === "all" ? undefined : value, {
-                shouldValidate: true,
-              })
-            }
-            options={[
-              { value: "all", label: "Batch across this outlet" },
-              ...locations.map((location) => ({
-                value: location.id,
-                label: `${location.code} · ${location.name} · ${formatPharmacyStorageAddress(location.storage_address)}`,
-              })),
-            ]}
-            disabled={submitted !== null}
-          />
-        </Field>
-        <Field
-          id="safety-occurred"
-          label={`Occurred at (${timeZone})`}
-          error={form.formState.errors.occurred_at?.message}
-        >
-          <Input
-            id="safety-occurred"
-            ref={occurredInput}
-            type="datetime-local"
-            value={occurred}
-            onChange={(event) => {
-              setOccurred(event.target.value);
-              const instant = zonedDateTimeISO(event.target.value, timeZone);
-              form.setValue("occurred_at", instant ?? "", { shouldValidate: instant !== null });
-              if (!instant)
-                form.setError("occurred_at", { type: "validate", message: invalidLocalTime });
-            }}
-            aria-invalid={!!form.formState.errors.occurred_at}
-            aria-describedby={
-              form.formState.errors.occurred_at ? "safety-occurred-error" : undefined
-            }
-          />
-        </Field>
-        {kind === "temperature_excursion" && (
+                if (value !== "temperature_excursion")
+                  form.setValue("measured_temperature_millicelsius", undefined, {
+                    shouldValidate: true,
+                  });
+              }}
+              options={[...concernTypes]}
+              disabled={submitted !== null}
+            />
+          </Field>
           <Field
-            id="safety-temperature"
-            label="Measured temperature (°C)"
-            error={form.formState.errors.measured_temperature_millicelsius?.message}
+            id="safety-location"
+            label="Concern location"
+            error={form.formState.errors.location_id?.message}
+          >
+            <SelectControl
+              id="safety-location"
+              value={form.watch("location_id") ?? "all"}
+              onValueChange={(value) =>
+                form.setValue("location_id", value === "all" ? undefined : value, {
+                  shouldValidate: true,
+                })
+              }
+              options={[
+                { value: "all", label: "Batch across this outlet" },
+                ...locations.map((location) => ({
+                  value: location.id,
+                  label: `${location.code} · ${location.name} · ${formatPharmacyStorageAddress(location.storage_address)}`,
+                })),
+              ]}
+              disabled={submitted !== null}
+            />
+          </Field>
+          <Field
+            id="safety-occurred"
+            label={`Occurred at (${timeZone})`}
+            error={form.formState.errors.occurred_at?.message}
           >
             <Input
+              id="safety-occurred"
+              ref={occurredInput}
+              type="datetime-local"
+              value={occurred}
+              onChange={(event) => {
+                setOccurred(event.target.value);
+                const instant = zonedDateTimeISO(event.target.value, timeZone);
+                form.setValue("occurred_at", instant ?? "", { shouldValidate: instant !== null });
+                if (!instant)
+                  form.setError("occurred_at", { type: "validate", message: invalidLocalTime });
+              }}
+              aria-invalid={!!form.formState.errors.occurred_at}
+              aria-describedby={
+                form.formState.errors.occurred_at ? "safety-occurred-error" : undefined
+              }
+            />
+          </Field>
+          {kind === "temperature_excursion" && (
+            <Field
               id="safety-temperature"
-              type="number"
-              step="0.001"
-              {...form.register("measured_temperature_millicelsius", { setValueAs: millicelsius })}
-              aria-invalid={!!form.formState.errors.measured_temperature_millicelsius}
-              aria-describedby={
-                form.formState.errors.measured_temperature_millicelsius
-                  ? "safety-temperature-error"
-                  : undefined
-              }
-            />
-          </Field>
-        )}
-        <div className="min-w-0 sm:col-span-2">
-          <Field
-            id="safety-reason"
-            label="Reason and observed evidence"
-            error={form.formState.errors.reason?.message}
-          >
-            <textarea
+              label="Measured temperature (°C)"
+              error={form.formState.errors.measured_temperature_millicelsius?.message}
+            >
+              <Input
+                id="safety-temperature"
+                type="number"
+                step="0.001"
+                {...form.register("measured_temperature_millicelsius", {
+                  setValueAs: millicelsius,
+                })}
+                aria-invalid={!!form.formState.errors.measured_temperature_millicelsius}
+                aria-describedby={
+                  form.formState.errors.measured_temperature_millicelsius
+                    ? "safety-temperature-error"
+                    : undefined
+                }
+              />
+            </Field>
+          )}
+          <div className="min-w-0 sm:col-span-2">
+            <Field
               id="safety-reason"
-              rows={3}
-              maxLength={500}
-              {...form.register("reason")}
-              aria-invalid={!!form.formState.errors.reason}
-              aria-describedby={
-                form.formState.errors.reason ? "safety-reason-error" : "safety-reason-help"
-              }
-              className="w-full rounded-md border bg-background p-3 text-sm focus-visible:outline-2 focus-visible:outline-(--hms-accent)"
-            />
-            <p id="safety-reason-help" className="text-xs font-normal text-muted-foreground">
-              10–500 characters. The record includes your authenticated identity and recording time.
+              label="Reason and observed evidence"
+              error={form.formState.errors.reason?.message}
+            >
+              <textarea
+                id="safety-reason"
+                rows={3}
+                maxLength={500}
+                {...form.register("reason")}
+                aria-invalid={!!form.formState.errors.reason}
+                aria-describedby={
+                  form.formState.errors.reason ? "safety-reason-error" : "safety-reason-help"
+                }
+                className="w-full rounded-md border bg-background p-3 text-sm focus-visible:outline-2 focus-visible:outline-(--hms-accent)"
+              />
+              <p id="safety-reason-help" className="text-xs font-normal text-muted-foreground">
+                10–500 characters. The record includes your authenticated identity and recording
+                time.
+              </p>
+            </Field>
+          </div>
+        </fieldset>
+        {mutation.isError && (
+          <div role="alert" className="space-y-2 text-sm text-destructive">
+            <p>{mutation.error.message}</p>
+            <p>
+              {submitted
+                ? "The submitted details are locked. Retry sends the same concern and cannot create a second record."
+                : "Correct the rejected details and submit again."}
             </p>
-          </Field>
-        </div>
-      </fieldset>
-      {mutation.isError && (
-        <div role="alert" className="space-y-2 text-sm text-destructive">
-          <p>{mutation.error.message}</p>
-          <p>
-            {submitted
-              ? "The submitted details are locked. Retry sends the same concern and cannot create a second record."
-              : "Correct the rejected details and submit again."}
-          </p>
-        </div>
-      )}
-      {submitted ? (
-        <Button type="button" disabled={mutation.isPending} onClick={() => sendConcern(submitted)}>
-          {mutation.isPending ? "Recording concern…" : "Retry same concern"}
-        </Button>
-      ) : (
-        <Button type="submit">Record safety concern</Button>
-      )}
-    </form>
+          </div>
+        )}
+        {submitted ? (
+          <Button
+            type="button"
+            disabled={mutation.isPending}
+            onClick={() => sendConcern(submitted)}
+          >
+            {mutation.isPending ? "Recording concern…" : "Retry same concern"}
+          </Button>
+        ) : (
+          <Button type="submit">Record safety concern</Button>
+        )}
+      </form>
+    </Panel>
   );
 }

@@ -25,19 +25,18 @@ import {
   type PharmacyMovement,
 } from "@helivanta/api";
 import {
+  ConfirmDialog,
   Field,
-  SelectControl,
   FormSelectField,
   LoadMore,
-  useZodForm,
-  ConfirmDialog,
+  Panel,
   RequestFailure,
+  SelectControl,
+  useZodForm,
 } from "@helivanta/ui";
-import { StockRegister } from "./stock-register";
-import { BatchSafety } from "./batch-safety";
 
 const inputClass =
-  "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
+  "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 
 export function StockPanel({
   scope,
@@ -68,9 +67,7 @@ export function StockPanel({
   );
   return (
     <div className="space-y-6">
-      <StockRegister scope={scope} timeZone={timeZone} />
-      <BatchSafety scope={scope} timeZone={timeZone} />
-      <section className="rounded-2xl border bg-card p-6">
+      <Panel>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h3 className="flex items-center gap-2 font-semibold">
@@ -164,7 +161,7 @@ export function StockPanel({
             )}
           </>
         )}
-      </section>
+      </Panel>
       {locationId && batchId && (
         <StockBucket
           key={`${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}:${locationId}:${batchId}:${timeZone}`}
@@ -182,14 +179,14 @@ export function StockPanel({
           {productId ? (
             <BatchForm key={productId} scope={scope} productId={productId} />
           ) : (
-            <section className="rounded-2xl border bg-card p-6">
+            <Panel>
               <Layers3 className="mb-3 size-5 text-muted-foreground" />
               <h3 className="font-semibold">Register a manufacturer lot</h3>
               <p className="mt-2 text-sm text-muted-foreground">
                 Choose a product above to record its lot and expiry. Lot identity cannot be edited
                 after registration.
               </p>
-            </section>
+            </Panel>
           )}
         </div>
       )}
@@ -221,7 +218,7 @@ function LocationForm({ scope }: { scope: PharmacyScope }) {
     },
   );
   return (
-    <section className="rounded-2xl border bg-card p-6">
+    <Panel>
       <h3 className="mb-2 font-semibold">Add quarantine location</h3>
       <p className="mb-5 text-sm text-muted-foreground">
         Use a unique code. Stock in this location is unavailable for dispensing.
@@ -276,7 +273,7 @@ function LocationForm({ scope }: { scope: PharmacyScope }) {
           {save.isPending ? "Adding…" : "Add quarantine location"}
         </Button>
       </form>
-    </section>
+    </Panel>
   );
 }
 const batchSchema = pharmacyBatchInputSchema.superRefine((value, ctx) => {
@@ -312,7 +309,7 @@ function BatchForm({ scope, productId }: { scope: PharmacyScope; productId: stri
     },
   );
   return (
-    <section className="rounded-2xl border bg-card p-6">
+    <Panel>
       <h3 className="mb-2 font-semibold">Register manufacturer lot</h3>
       <p className="mb-5 text-sm text-muted-foreground">
         Use the exact label and a confirmed full expiry date. Month-only labels need review before
@@ -365,7 +362,7 @@ function BatchForm({ scope, productId }: { scope: PharmacyScope; productId: stri
           {save.isPending ? "Registering…" : "Register manufacturer lot"}
         </Button>
       </form>
-    </section>
+    </Panel>
   );
 }
 
@@ -398,7 +395,7 @@ function StockBucket({
     `${pharmacyRoot(scope)}/stock/movements?location_id=${locationId}&batch_id=${batchId}`,
   );
   return (
-    <section className="overflow-hidden rounded-2xl border bg-card">
+    <Panel flush>
       <div className="border-b p-6">
         <h3 className="mb-5 flex items-center gap-2 font-semibold">
           <PackageCheck className="size-5 text-(--hms-accent)" />
@@ -476,7 +473,7 @@ function StockBucket({
           onClick={movements.loadMore}
         />
       </div>
-    </section>
+    </Panel>
   );
 }
 const movementSchema = pharmacyMovementInputSchema.superRefine((value, ctx) => {

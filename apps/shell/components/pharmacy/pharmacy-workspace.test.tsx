@@ -161,11 +161,11 @@ it("uses each configured outlet timezone for revision history and clears the pre
   );
   const { user } = renderWithProviders(<PharmacyWorkspace view="catalogue" />);
   await user.click(await screen.findByRole("button", { name: "Open TEST-500" }));
-  expect(screen.getByText("Time zone: Asia/Kolkata")).toBeInTheDocument();
+  expect(screen.getByText("Times are in Asia/Kolkata.")).toBeInTheDocument();
   const firstTime = await screen.findByText("2026-10-17 05:30:00 GMT+05:30");
   expect(firstTime).toHaveAttribute("datetime", "2026-10-17T00:00:00Z");
   await chooseOption(user, screen.getByLabelText("Outlet"), "TEST Sister Outlet");
-  expect(await screen.findByText("Time zone: Asia/Karachi")).toBeInTheDocument();
+  expect(await screen.findByText("Times are in Asia/Karachi.")).toBeInTheDocument();
   expect(screen.queryByText("Revision history")).not.toBeInTheDocument();
   expect(screen.queryByText("2026-10-17 05:30:00 GMT+05:30")).not.toBeInTheDocument();
   await user.click(await screen.findByRole("button", { name: "Open TEST-500" }));
@@ -340,7 +340,7 @@ it("shows quarantine on-hand separately and records a receipt against selected r
     return base(url, init);
   });
   vi.stubGlobal("fetch", fetcher);
-  const { user } = renderWithProviders(<PharmacyWorkspace view="stock" />);
+  const { user } = renderWithProviders(<PharmacyWorkspace view="receiving" />);
   await chooseOption(
     user,
     await screen.findByLabelText("Quarantine location"),
@@ -444,9 +444,8 @@ it("registers an independent pharmacy without asking for a hospital", async () =
     return base(url, init);
   });
   vi.stubGlobal("fetch", fetcher);
-  const { user } = renderWithProviders(<PharmacyWorkspace view="catalogue" />);
-  await user.click(await screen.findByText("Pharmacy and outlet administration"));
-  await user.type(screen.getByLabelText("Pharmacy code"), "TEST-NEW-INDEPENDENT");
+  const { user } = renderWithProviders(<PharmacyWorkspace view="setup" />);
+  await user.type(await screen.findByLabelText("Pharmacy code"), "TEST-NEW-INDEPENDENT");
   await user.type(screen.getByLabelText("Pharmacy name"), "TEST Independent Community Pharmacy");
   await user.click(screen.getByRole("button", { name: "Register pharmacy" }));
   await waitFor(() =>
@@ -482,7 +481,7 @@ it("captures optional physical location labels and retries the same immutable id
     return fallback(url, init);
   });
   vi.stubGlobal("fetch", fetcher);
-  const { user } = renderWithProviders(<PharmacyWorkspace view="stock" />);
+  const { user } = renderWithProviders(<PharmacyWorkspace view="receiving" />);
   await user.type(await screen.findByLabelText("Location code"), "TEST-BIN");
   await user.type(screen.getByLabelText("Location name"), "TEST quarantine");
   await user.type(screen.getByLabelText("Zone code (optional)"), " test-z1 ");
@@ -506,11 +505,34 @@ it("captures optional physical location labels and retries the same immutable id
 
 it("shows malformed storage labels inline before sending a location", async () => {
   const fetcher = mockPharmacy();
-  const { user } = renderWithProviders(<PharmacyWorkspace view="stock" />);
+  const { user } = renderWithProviders(<PharmacyWorkspace view="receiving" />);
   await user.type(await screen.findByLabelText("Location code"), "TEST-BIN");
   await user.type(screen.getByLabelText("Location name"), "TEST quarantine");
   await user.type(screen.getByLabelText("Rack code (optional)"), "TEST/R1");
   await user.click(screen.getByRole("button", { name: "Add quarantine location" }));
   expect(await screen.findByText("Use the required format.")).toBeVisible();
   expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+});
+
+// Setup is the page for registering, so the empty state points to the form
+// below rather than to "your administrator" (#1258 D3).
+it("points an empty setup page at the registration form", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      url.endsWith("permissions")
+        ? new Response(
+            JSON.stringify({
+              tenant_id: "11111111-1111-1111-1111-111111111111",
+              subject: "TEST-admin",
+              data: ["pharmacy.catalogue.read", "pharmacy.access.manage"],
+            }),
+          )
+        : new Response(JSON.stringify({ data: [], page: { has_more: false, next_cursor: null } })),
+    ),
+  );
+  renderWithProviders(<PharmacyWorkspace view="setup" />);
+  expect(await screen.findByText("No pharmacy registered yet")).toBeInTheDocument();
+  expect(screen.queryByText(/Ask your administrator/)).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Pharmacy code")).toBeVisible();
 });

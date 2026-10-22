@@ -18,7 +18,7 @@ import {
   type PharmacyStockReconciliation,
   type PharmacyMovement,
 } from "@helivanta/api";
-import { Field, LoadMore, SelectControl, RequestFailure } from "@helivanta/ui";
+import { Field, LoadMore, Panel, RequestFailure, SelectControl } from "@helivanta/ui";
 import { StockExport } from "./stock-export";
 
 type Props = { scope: PharmacyScope; timeZone?: string };
@@ -77,10 +77,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
     { request: requestFor(scope) },
   );
   return (
-    <section
-      aria-label="Stock register"
-      className="min-w-0 space-y-5 rounded-2xl border bg-card p-3 sm:p-6"
-    >
+    <Panel aria-label="Stock register" className="min-w-0 space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold">Stock register</h3>
@@ -233,7 +230,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
             aria-label="Scrollable stock register"
             // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users need focus here for arrow-key horizontal scrolling.
             tabIndex={0}
-            className="max-w-full overflow-x-auto rounded-lg border focus-within:outline-2 focus-within:outline-(--hms-accent)"
+            className="max-w-full overflow-x-auto rounded-md border focus-within:outline-2 focus-within:outline-(--hms-accent)"
           >
             <table className="w-full min-w-200 text-left text-sm">
               <caption className="sr-only">Stock by location and manufacturer lot</caption>
@@ -346,7 +343,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
           }}
         />
       )}
-    </section>
+    </Panel>
   );
 }
 

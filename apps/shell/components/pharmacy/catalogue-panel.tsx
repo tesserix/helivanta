@@ -20,13 +20,14 @@ import {
   type PharmacyScope,
 } from "@helivanta/api";
 import {
+  ConfirmDialog,
   Field,
   FormSelectField,
   LoadMore,
-  useZodForm,
-  useFieldArray,
-  ConfirmDialog,
+  Panel,
   RequestFailure,
+  useFieldArray,
+  useZodForm,
 } from "@helivanta/ui";
 import { CurrencyAmountField } from "./currency-amount-field";
 
@@ -76,7 +77,7 @@ export function CataloguePanel({
   }
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-2xl border bg-card">
+      <Panel flush>
         <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
           <div>
             <h3 className="font-semibold">Product catalogue</h3>
@@ -160,9 +161,9 @@ export function CataloguePanel({
           isLoading={products.isFetchingMore}
           onClick={products.loadMore}
         />
-      </section>
+      </Panel>
       {selected !== undefined && (
-        <section ref={editor} className="scroll-mt-6 rounded-2xl border bg-card p-6">
+        <Panel ref={editor} className="scroll-mt-6">
           <div className="mb-6 flex items-center justify-between gap-4">
             <h3 className="text-lg font-semibold">
               {selected ? selected.brand_name : "New product identity"}
@@ -184,7 +185,7 @@ export function CataloguePanel({
             selected && <ProductSummary product={selected} />
           )}{" "}
           {selected && <ProductHistory scope={scope} product={selected} timeZone={timeZone} />}
-        </section>
+        </Panel>
       )}
     </div>
   );
@@ -273,9 +274,10 @@ function ProductForm({
           <legend className="mb-4 font-medium">Active ingredients</legend>
           <div className="space-y-4">
             {ingredients.fields.map((ingredient, index) => (
-              <div
+              <Panel
                 key={ingredient.id}
-                className="grid items-end gap-3 rounded-xl border p-4 sm:grid-cols-[2fr_1fr_1fr_auto]"
+                as="div"
+                className="grid items-end gap-3 sm:grid-cols-[2fr_1fr_1fr_auto]"
               >
                 <Field
                   id={`ingredient-${index}-name`}
@@ -317,7 +319,7 @@ function ProductForm({
                 >
                   Remove
                 </Button>
-              </div>
+              </Panel>
             ))}
           </div>
           <Button
@@ -457,7 +459,7 @@ function ProductHistory({
       ) : (
         <ol className="space-y-3">
           {history.items.map((row) => (
-            <li key={row.id} className="rounded-xl bg-muted p-4 text-sm">
+            <Panel key={row.id} as="li" className="text-sm">
               <p className="font-medium">
                 Revision {row.version} · {row.snapshot.brand_name}
               </p>
@@ -473,7 +475,7 @@ function ProductHistory({
                   <ProductSummary product={row.snapshot} />
                 </div>
               </details>
-            </li>
+            </Panel>
           ))}
         </ol>
       )}

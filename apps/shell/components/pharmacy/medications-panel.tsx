@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import { ClipboardList } from "lucide-react";
 import { apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
-import { Field, LoadMore, QueryState, useZodForm } from "@helivanta/ui";
+import { Field, LoadMore, Panel, QueryState, useZodForm } from "@helivanta/ui";
 
 type Medication = { id: string; name: string; strength: string; created_at: string };
 
@@ -31,7 +31,7 @@ export function MedicationsPanel() {
   );
 
   return (
-    <section className="max-w-2xl rounded-lg border bg-card">
+    <Panel flush className="max-w-2xl">
       <div className="border-b px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">Formulary</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
@@ -82,6 +82,6 @@ export function MedicationsPanel() {
         isLoading={medications.isFetchingMore}
         onClick={medications.loadMore}
       />
-    </section>
+    </Panel>
   );
 }

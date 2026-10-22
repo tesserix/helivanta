@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { DispenseList } from "./dispense-list";
@@ -23,42 +23,77 @@ const pendingRow = {
   dispensed_at: null,
   created_at: "2026-08-04T04:00:00Z",
 };
+const dispensedRow = {
+  ...pendingRow,
+  id: "d-9",
+  patient_name: "Meera Nair",
+  medication: "Paracetamol 500mg",
+  status: "dispensed",
+  dispensed_at: "2026-08-04T03:00:00Z",
+};
+
+type Lists = { pending?: unknown[]; dispensed?: unknown[] };
+
+// The queue is split on the server (#1258 D4): each list asks for its own
+// status, so the mock answers by the status query parameter.
+function serve(lists: () => Lists, granted: string[] = ["pharmacy.dispense.fulfil"]) {
+  return vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+    if (url.includes("/iam/me/permissions"))
+      return Promise.resolve(jsonResponse(200, { data: granted }));
+    if (init?.method === "POST")
+      return Promise.resolve(jsonResponse(200, { id: "d-1", status: "dispensed" }));
+    const status = new URL(url, "http://x").searchParams.get("status") as keyof Lists;
+    return Promise.resolve(jsonResponse(200, page(lists()[status] ?? [])));
+  });
+}
+
+const waiting = () => screen.getByRole("region", { name: "Waiting" });
+const done = () => screen.getByRole("region", { name: "Dispensed" });
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("DispenseList", () => {
-  it("dispenses a pending row with the medication typed in that row", async () => {
+  it("asks the server for each status rather than splitting one page", async () => {
+    const fetchMock = serve(() => ({ pending: [pendingRow], dispensed: [dispensedRow] }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<DispenseList />);
+    expect(await within(waiting()).findByText("Asha Rao")).toBeInTheDocument();
+    expect(await within(done()).findByText("Meera Nair")).toBeInTheDocument();
+    const lists = fetchMock.mock.calls
+      .map(([url]) => String(url))
+      .filter((url) => url.includes("/pharmacy/dispenses"));
+    expect(lists.some((url) => url.includes("status=pending"))).toBe(true);
+    expect(lists.some((url) => url.includes("status=dispensed"))).toBe(true);
+    expect(lists.every((url) => url.includes("status="))).toBe(true);
+  });
+
+  it("moves a row from Waiting to Dispensed with the medication typed in that row", async () => {
     let posted: unknown = null;
-    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
-      if (url.includes("/iam/me/permissions")) {
-        return Promise.resolve(jsonResponse(200, { data: ["pharmacy.dispense.fulfil"] }));
-      }
-      if (init?.method === "POST") {
-        posted = JSON.parse(String(init.body));
-        return Promise.resolve(jsonResponse(200, { id: "d-1", status: "dispensed" }));
-      }
-      return Promise.resolve(
-        jsonResponse(
-          200,
-          page([
-            posted
-              ? {
-                  ...pendingRow,
-                  status: "dispensed",
-                  medication: "Amoxicillin 250mg",
-                  dispensed_at: "2026-08-04T04:01:00Z",
-                }
-              : pendingRow,
-          ]),
-        ),
-      );
+    const base = serve(() =>
+      posted
+        ? {
+            dispensed: [
+              {
+                ...pendingRow,
+                status: "dispensed",
+                medication: "Amoxicillin 250mg",
+                dispensed_at: "2026-08-04T04:01:00Z",
+              },
+            ],
+          }
+        : { pending: [pendingRow] },
+    );
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (init?.method === "POST") posted = JSON.parse(String(init.body));
+      return base(url, init);
     });
     vi.stubGlobal("fetch", fetchMock);
 
     const { user } = renderWithProviders(<DispenseList />);
     await user.type(await screen.findByLabelText("Medication"), "Amoxicillin 250mg");
     await user.click(screen.getByRole("button", { name: "Dispense" }));
-    await waitFor(() => expect(screen.getByText("Amoxicillin 250mg")).toBeInTheDocument());
+    await waitFor(() => expect(within(done()).getByText("Amoxicillin 250mg")).toBeInTheDocument());
+    expect(within(waiting()).queryByText("Asha Rao")).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/pharmacy/dispenses/d-1/dispense",
       expect.objectContaining({ method: "POST" }),
@@ -67,12 +102,7 @@ describe("DispenseList", () => {
   });
 
   it("refuses a blank medication without posting", async () => {
-    const fetchMock = vi.fn().mockImplementation((url: string) => {
-      if (url.includes("/iam/me/permissions")) {
-        return Promise.resolve(jsonResponse(200, { data: ["pharmacy.dispense.fulfil"] }));
-      }
-      return Promise.resolve(jsonResponse(200, page([pendingRow])));
-    });
+    const fetchMock = serve(() => ({ pending: [pendingRow] }));
     vi.stubGlobal("fetch", fetchMock);
 
     const { user } = renderWithProviders(<DispenseList />);
@@ -86,12 +116,7 @@ describe("DispenseList", () => {
     const secondRow = { ...pendingRow, id: "d-2", visit_id: "v-2", patient_name: "Rohan Iyer" };
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockImplementation((url: string) => {
-        if (url.includes("/iam/me/permissions")) {
-          return Promise.resolve(jsonResponse(200, { data: ["pharmacy.dispense.fulfil"] }));
-        }
-        return Promise.resolve(jsonResponse(200, page([pendingRow, secondRow])));
-      }),
+      serve(() => ({ pending: [pendingRow, secondRow] })),
     );
 
     const { user } = renderWithProviders(<DispenseList />);
@@ -101,21 +126,20 @@ describe("DispenseList", () => {
     expect(second).toHaveValue("");
   });
 
-  it("shows the empty state", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, page([]))));
+  it("says when nothing is waiting", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serve(() => ({})),
+    );
     renderWithProviders(<DispenseList />);
-    expect(await screen.findByText(/No dispense tasks yet/)).toBeInTheDocument();
+    expect(await within(waiting()).findByText("Nothing waiting")).toBeInTheDocument();
+    expect(await within(done()).findByText("Nothing dispensed yet")).toBeInTheDocument();
   });
 
   it("hides the dispense button without permission", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockImplementation((url: string) => {
-        if (url.includes("/iam/me/permissions")) {
-          return Promise.resolve(jsonResponse(200, { data: [] }));
-        }
-        return Promise.resolve(jsonResponse(200, page([pendingRow])));
-      }),
+      serve(() => ({ pending: [pendingRow] }), []),
     );
     renderWithProviders(<DispenseList />);
     await screen.findByText("Asha Rao");
@@ -125,12 +149,10 @@ describe("DispenseList", () => {
   it("loads the next page on click, then hides Load more once the list is complete", async () => {
     const secondRow = { ...pendingRow, id: "d-2", patient_name: "Rohan Iyer" };
     const fetchMock = vi.fn().mockImplementation((url: string) => {
-      if (url.includes("/iam/me/permissions")) {
+      if (url.includes("/iam/me/permissions"))
         return Promise.resolve(jsonResponse(200, { data: [] }));
-      }
-      if (url.includes("cursor=")) {
-        return Promise.resolve(jsonResponse(200, page([secondRow])));
-      }
+      if (url.includes("status=dispensed")) return Promise.resolve(jsonResponse(200, page([])));
+      if (url.includes("cursor=")) return Promise.resolve(jsonResponse(200, page([secondRow])));
       return Promise.resolve(
         jsonResponse(200, page([pendingRow], { hasMore: true, nextCursor: "c1" })),
       );
@@ -141,8 +163,7 @@ describe("DispenseList", () => {
     await screen.findByText("Asha Rao");
     expect(screen.queryByText("Rohan Iyer")).not.toBeInTheDocument();
 
-    const loadMore = screen.getByRole("button", { name: "Load more" });
-    await user.click(loadMore);
+    await user.click(within(waiting()).getByRole("button", { name: "Load more" }));
 
     await waitFor(() => expect(screen.getByText("Rohan Iyer")).toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
@@ -163,7 +184,9 @@ describe("DispenseList", () => {
         ),
     );
     renderWithProviders(<DispenseList />);
-    expect(await screen.findByText("Could not load dispense tasks.")).toBeInTheDocument();
-    expect(screen.queryByText("No dispense tasks yet")).not.toBeInTheDocument();
+    expect(
+      await within(waiting()).findByText("Could not load waiting dispenses."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Nothing waiting")).not.toBeInTheDocument();
   });
 });

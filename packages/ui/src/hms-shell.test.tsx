@@ -957,6 +957,26 @@ describe("expandable navigation", () => {
     expect(screen.getByRole("navigation", { name: "PharmaConnect" })).toBeInTheDocument();
   });
 
+  // #1258 D1: a heading per section, once, before its first permitted page.
+  it("groups the page panel under section headings", () => {
+    seedCache(["pharmacy.dispense.read", "pharmacy.stock.read", "pharmacy.catalogue.read"]);
+    pathname.current = "/pharmacy";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    const panel = screen.getByRole("navigation", { name: "PharmaConnect" });
+    const text = Array.from(panel.querySelectorAll("[data-section], a")).map(
+      (node) => node.textContent,
+    );
+    expect(text).toEqual([
+      "Dispensing",
+      "Dispense queue",
+      "Inventory",
+      "Stock on hand",
+      "Receiving",
+      "Expiry & safety",
+      "Product catalogue",
+    ]);
+  });
+
   // Without the panel, the hospital name moves into the header so it is never
   // lost.
   it("names the tenant in the header when there is no page panel", async () => {

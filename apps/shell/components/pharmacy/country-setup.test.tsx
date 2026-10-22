@@ -35,7 +35,6 @@ it("registers Pakistan with Karachi timezone and separate unapproved regulatory 
   const { user } = renderWithProviders(
     <PharmacyRegistrySetup tenantId="TEST-tenant" pharmacy={pharmacy} />,
   );
-  await user.click(screen.getByText("Pharmacy and outlet administration"));
   await chooseOption(user, screen.getByLabelText("Country"), "Pakistan");
   expect(screen.getByLabelText("IANA time zone")).toHaveValue("Asia/Karachi");
   expect(screen.getByText(/PKR.*regulatory review/i)).toBeInTheDocument();

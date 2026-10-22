@@ -15,16 +15,6 @@ export const SURFACE_LEGACY = [
   "components/emergency/emergency-review.tsx",
   "components/emergency/emergency-workspace.tsx",
   // Pharmacy #1258
-  "components/pharmacy/accounts-panel.tsx",
-  "components/pharmacy/batch-safety.tsx",
-  "components/pharmacy/catalogue-panel.tsx",
-  "components/pharmacy/dispense-list.tsx",
-  "components/pharmacy/medications-panel.tsx",
-  "components/pharmacy/payable-forms.tsx",
-  "components/pharmacy/pharmacy-registry-setup.tsx",
-  "components/pharmacy/pharmacy-workspace.tsx",
-  "components/pharmacy/stock-panel.tsx",
-  "components/pharmacy/stock-register.tsx",
   // Supply #1260
   "components/supply/licence-evidence.tsx",
   "components/supply/licence-renewal-notice.tsx",

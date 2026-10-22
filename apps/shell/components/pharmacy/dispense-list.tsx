@@ -1,10 +1,10 @@
 "use client";
 
 import { z } from "zod";
-import { Badge, Button, Input } from "@tesserix/web";
-import { Pill } from "lucide-react";
+import { Button, Input } from "@tesserix/web";
+import { CheckCheck, Pill, type LucideIcon } from "lucide-react";
 import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
-import { Field, formatTime, LoadMore, QueryState, useZodForm } from "@helivanta/ui";
+import { Field, formatTime, LoadMore, Panel, QueryState, useZodForm } from "@helivanta/ui";
 
 type Dispense = {
   id: string;
@@ -21,48 +21,67 @@ const dispenseSchema = z.object({
   medication: z.string().trim().min(1, "Medication is required").max(200),
 });
 
+// The queue splits on the server (#1258 D4): a pending row on a later page
+// must never hide behind dispensed ones, so each status is its own list.
 export function DispenseList() {
-  const dispenses = useApiPagedQuery<Dispense>(["dispenses"], "/pharmacy/dispenses", {
-    poll: true,
-  });
-
-  const pending = dispenses.items.filter((d) => d.status === "pending").length;
-
   return (
-    <section className="max-w-3xl rounded-lg border bg-card">
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b px-5 py-4">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">Dispense queue</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {pending === 0
-              ? "Nothing waiting right now."
-              : `${pending} pending dispense${pending === 1 ? "" : "s"}.`}
-          </p>
-        </div>
-      </div>
-      <QueryState
-        query={dispenses}
-        label="dispense tasks"
+    <div className="max-w-3xl space-y-6">
+      <StatusList
+        status="pending"
+        title="Waiting"
+        label="waiting dispenses"
         empty={{
           icon: Pill,
-          title: "No dispense tasks yet",
-          hint: "They appear here when a visit is created in MediCore.",
+          title: "Nothing waiting",
+          hint: "Prescriptions from MediCore visits appear here.",
         }}
-      >
+      />
+      <StatusList
+        status="dispensed"
+        title="Dispensed"
+        label="dispensed medicines"
+        empty={{ icon: CheckCheck, title: "Nothing dispensed yet" }}
+      />
+    </div>
+  );
+}
+
+function StatusList({
+  status,
+  title,
+  label,
+  empty,
+}: {
+  status: Dispense["status"];
+  title: string;
+  label: string;
+  empty: { icon: LucideIcon; title: string; hint?: string };
+}) {
+  const dispenses = useApiPagedQuery<Dispense>(
+    ["dispenses", status],
+    `/pharmacy/dispenses?status=${status}`,
+    { poll: true },
+  );
+  const headingId = `dispenses-${status}`;
+  return (
+    <Panel flush aria-labelledby={headingId}>
+      <h2 id={headingId} className="border-b px-5 py-4 text-sm font-semibold text-foreground">
+        {title}
+      </h2>
+      <QueryState query={dispenses} label={label} empty={empty}>
         {(items) => (
           <ul className="divide-y text-sm">
             {items.map((d) => (
               <li key={d.id} className="flex items-center justify-between gap-4 px-5 py-3">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-3">
-                    <span className="truncate font-medium text-foreground">{d.patient_name}</span>
-                    <Badge variant={d.status === "pending" ? "secondary" : "outline"}>
-                      {d.status === "pending" ? "Pending" : "Dispensed"}
-                    </Badge>
-                  </div>
-                  <div className="mt-0.5 text-muted-foreground">
-                    {d.status === "dispensed" ? d.medication : "Awaiting dispense"}
-                  </div>
+                  <span className="block truncate font-medium text-foreground">
+                    {d.patient_name}
+                  </span>
+                  <span className="mt-0.5 block text-muted-foreground">
+                    {d.status === "dispensed"
+                      ? d.medication
+                      : `Waiting since ${formatTime(d.created_at)}`}
+                  </span>
                 </div>
                 {d.status === "pending" ? (
                   <Can permission="pharmacy.dispense.fulfil">
@@ -83,7 +102,7 @@ export function DispenseList() {
         isLoading={dispenses.isFetchingMore}
         onClick={dispenses.loadMore}
       />
-    </section>
+    </Panel>
   );
 }
 

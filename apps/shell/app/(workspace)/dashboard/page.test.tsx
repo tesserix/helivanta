@@ -41,7 +41,7 @@ describe("Dashboard", () => {
     ]);
     renderWithProviders(<Dashboard />);
 
-    for (const title of ["OPD", "IPD", "Dispenses", "Medications", "Lab"]) {
+    for (const title of ["OPD", "IPD", "Dispensing", "Lab"]) {
       expect(await screen.findByText(title)).toBeInTheDocument();
     }
   });
@@ -50,13 +50,13 @@ describe("Dashboard", () => {
     mockPermissions(["pharmacy.dispense.read", "pharmacy.medication.read"]);
     renderWithProviders(<Dashboard />);
 
-    expect(await screen.findByText("Dispenses")).toBeInTheDocument();
+    expect(await screen.findByText("Dispensing")).toBeInTheDocument();
     const shortcuts = screen.getByRole("navigation", { name: "Department shortcuts" });
-    expect(within(shortcuts).getByRole("link", { name: /^Dispenses/ })).toHaveAttribute(
+    expect(within(shortcuts).getByRole("link", { name: /^Dispensing/ })).toHaveAttribute(
       "href",
       "/pharmacy",
     );
-    expect(screen.getByText("Medications")).toBeInTheDocument();
+    expect(screen.queryByText("Inventory")).not.toBeInTheDocument();
     expect(screen.queryByText("OPD")).not.toBeInTheDocument();
     expect(screen.queryByText("IPD")).not.toBeInTheDocument();
     expect(screen.queryByText("Lab")).not.toBeInTheDocument();
@@ -92,7 +92,7 @@ describe("Dashboard", () => {
     renderWithProviders(<Dashboard />);
 
     expect(screen.queryByText("OPD")).not.toBeInTheDocument();
-    expect(screen.queryByText("Dispenses")).not.toBeInTheDocument();
+    expect(screen.queryByText("Dispensing")).not.toBeInTheDocument();
     expect(screen.queryByText("Lab")).not.toBeInTheDocument();
   });
 });

@@ -125,6 +125,12 @@ test("pharmacist can dispense a visit created by admin", async ({ page }) => {
   const row = page.locator("li", { hasText: patient });
   await row.getByLabel("Medication").fill("Amoxicillin 250mg");
   await row.getByRole("button", { name: "Dispense" }).click();
-  await expect(row.getByText(/Dispensed/)).toBeVisible();
-  await expect(row.getByText("Amoxicillin 250mg")).toBeVisible();
+  // The queue is split on the server (#1258): the row moves lists.
+  const dispensed = page
+    .getByRole("region", { name: "Dispensed" })
+    .locator("li", { hasText: patient });
+  await expect(dispensed.getByText("Amoxicillin 250mg")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Waiting" }).locator("li", { hasText: patient }),
+  ).toHaveCount(0);
 });

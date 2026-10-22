@@ -236,3 +236,34 @@ export const pharmacyStockExpiryFieldsSchema = z
     expiry_band: z.enum(["expired", "today", "days_30", "days_90", "days_180", "later"]),
   })
   .strict();
+
+export const pharmacyTaxRegistrationInputSchema = z
+  .object({
+    jurisdiction_code: z
+      .string()
+      .min(2)
+      .max(2)
+      .regex(new RegExp("^[0-9]{2}$"), "Use the required format."),
+    identifier: z.string().trim().toUpperCase().min(1).max(40),
+    effective_from: z.string().date("Use a full valid date."),
+    reason: z.string().trim().min(1).max(500).nullable().optional(),
+  })
+  .strict();
+
+export const pharmacyTaxClassificationInputSchema = z
+  .object({
+    classification_code: z.string().trim().min(1).max(20),
+    supply_nature: z.enum(["taxable", "nil_rated", "exempt"]),
+    rate_percent: z
+      .string()
+      .min(1)
+      .max(6)
+      .regex(
+        new RegExp("^(100(\\.0{1,2})?|[0-9]{1,2}(\\.[0-9]{1,2})?)$"),
+        "Use the required format.",
+      ),
+    exemption_basis: z.string().trim().min(1).max(500).nullable().optional(),
+    effective_from: z.string().date("Use a full valid date."),
+    reason: z.string().trim().min(1).max(500).nullable().optional(),
+  })
+  .strict();

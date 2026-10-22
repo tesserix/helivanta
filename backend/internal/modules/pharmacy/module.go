@@ -23,6 +23,9 @@ var payablesSchema string
 //go:embed batch_safety.sql
 var batchSafetySchema string
 
+//go:embed tax.sql
+var taxSchema string
+
 //go:embed storage_address.sql
 var storageAddressSchema string
 
@@ -38,6 +41,9 @@ const (
 	PermCatalogueRead   authz.Permission = "pharmacy.catalogue.read"
 	PermCatalogueWrite  authz.Permission = "pharmacy.catalogue.write"
 	PermAccessManage    authz.Permission = "pharmacy.access.manage"
+	// PermTaxManage sets outlet registrations and product rates. It is apart
+	// from catalogue.write: a wrong rate taxes every sale of the product.
+	PermTaxManage       authz.Permission = "pharmacy.tax.manage"
 	PermDispenseRead    authz.Permission = "pharmacy.dispense.read"
 	PermDispenseFulfil  authz.Permission = "pharmacy.dispense.fulfil"
 	PermMedicationRead  authz.Permission = "pharmacy.medication.read"
@@ -63,6 +69,7 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermCatalogueRead, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing, authz.RolePharmacyInventory}},
 		{Permission: PermCatalogueWrite, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing}},
 		{Permission: PermAccessManage, Roles: []authz.Role{authz.RolePharmacyOwner}},
+		{Permission: PermTaxManage, Roles: []authz.Role{authz.RolePharmacyOwner}},
 		{Permission: PermDispenseRead, Roles: []authz.Role{authz.RolePharmacist, authz.RoleDoctor}},
 		{Permission: PermDispenseFulfil, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermMedicationRead, Roles: []authz.Role{authz.RolePharmacist}},
@@ -125,7 +132,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 			CREATE TRIGGER pharmacy_dispenses_audit AFTER INSERT OR UPDATE OR DELETE ON pharmacy_dispenses
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
-	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}}
+	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {

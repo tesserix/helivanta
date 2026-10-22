@@ -124,3 +124,19 @@ type StockExpiryFields struct {
 	DaysToExpiry    int    `json:"days_to_expiry" binding:"min=-3652058,max=3652058"`
 	ExpiryBand      string `json:"expiry_band" binding:"required,oneof=expired today days_30 days_90 days_180 later"`
 }
+
+type taxRegistrationInput struct {
+	JurisdictionCode string  `json:"jurisdiction_code" binding:"required,min=2,max=2"`
+	Identifier       string  `json:"identifier" binding:"required,min=1,max=40"`
+	EffectiveFrom    string  `json:"effective_from"`
+	Reason           *string `json:"reason" binding:"omitempty,min=1,max=500"`
+}
+
+type taxClassificationInput struct {
+	ClassificationCode string  `json:"classification_code" binding:"required,min=1,max=20"`
+	SupplyNature       string  `json:"supply_nature" binding:"required,oneof=taxable nil_rated exempt"`
+	RatePercent        string  `json:"rate_percent" binding:"required,min=1,max=6"`
+	ExemptionBasis     *string `json:"exemption_basis" binding:"omitempty,min=1,max=500"`
+	EffectiveFrom      string  `json:"effective_from"`
+	Reason             *string `json:"reason" binding:"omitempty,min=1,max=500"`
+}

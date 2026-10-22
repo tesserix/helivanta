@@ -2,6 +2,7 @@ package tenantdb
 
 import (
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/tesserix/helivanta/pkg/pagination"
 )
@@ -29,9 +30,33 @@ import (
 // tx must already be scoped by WithTenant — this helper adds no tenant
 // predicate of its own and relies entirely on forced RLS for isolation.
 func ApplyKeyset(tx *gorm.DB, p pagination.Params) *gorm.DB {
-	q := tx.Order("created_at DESC, id DESC").Limit(p.Limit + 1)
+	return ApplyOrderedKeyset(tx, p, Keyset{Column: "created_at", Direction: pagination.NewestFirst})
+}
+
+// Keyset is a list's ordering: a timestamp column, then id as the
+// tiebreaker, in one direction (#1295 D3). The column is a code constant
+// at the registering route, never client input.
+type Keyset struct {
+	Column    string
+	Direction pagination.Direction
+}
+
+// ApplyOrderedKeyset is ApplyKeyset for any timestamp column and either
+// direction. Oldest first is the same row-value comparison mirrored:
+// (col, id) > (?, ?) under ORDER BY col ASC, id ASC.
+func ApplyOrderedKeyset(tx *gorm.DB, p pagination.Params, k Keyset) *gorm.DB {
+	col := clause.Column{Name: k.Column}
+	id := clause.Column{Name: "id"}
+	desc := k.Direction == pagination.NewestFirst
+	q := tx.Order(clause.OrderBy{Columns: []clause.OrderByColumn{
+		{Column: col, Desc: desc}, {Column: id, Desc: desc},
+	}}).Limit(p.Limit + 1)
 	if p.After != nil {
-		q = q.Where("(created_at, id) < (?, ?)", p.After.CreatedAt, p.After.ID)
+		op := "<"
+		if !desc {
+			op = ">"
+		}
+		q = q.Where("(?, ?) "+op+" (?, ?)", col, id, p.After.CreatedAt, p.After.ID)
 	}
 	return q
 }

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Helivanta current event envelope",
+  "description": "Mirrors backend/pkg/events/types.go and current outbox serialization. Structural reference only; broker runtime does not universally validate this schema. Select payload semantics by declared subject, not a guessed type label.",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "description": "Producer-defined label; may be PascalCase or the full subject. No uniform convention is enforced."
+    },
+    "version": {
+      "type": "integer"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "tenant_id": {
+      "type": "string",
+      "description": "Origin scope. Empty string is valid for subject-wide credential revocation broadcasts."
+    },
+    "destination_tenant_id": {
+      "type": "string",
+      "description": "Optional directed destination, subject to explicit allowlist and provenance validation. Not an authorization grant."
+    },
+    "data": {}
+  },
+  "required": ["event_id", "type", "version", "occurred_at", "tenant_id", "data"],
+  "x-source": "backend/pkg/events/types.go",
+  "x-contract-status": "descriptive-current"
+}

@@ -1,0 +1,1067 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Helivanta current clinical API reference",
+    "version": "0.1.0",
+    "description": "Descriptive baseline at 2295017, reviewed 2026-10-22. Covers 11 operations only: legacy visits, laboratory orders/results, legacy pharmacy tasks/medications and insights. Not an approved comprehensive external API, FHIR service or claim of universal hospital isolation. Existing handlers remain authoritative pending conformance adoption."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Backend origin; paths already include /v1. Configure the actual same-origin proxy explicitly."
+    }
+  ],
+  "security": [
+    {
+      "helivantaSession": []
+    },
+    {
+      "helivantaBearer": []
+    }
+  ],
+  "paths": {
+    "/v1/medicore/visits": {
+      "post": {
+        "operationId": "createVisit",
+        "summary": "Create a legacy OPD/IPD visit",
+        "tags": ["medicore"],
+        "description": "Commits visit and outbox atomically. No durable request deduplication key. A timeout requires reconciliation, not blind retry. Patient ID is optional and is not a validated hospital care relationship. Lab and pharmacy consumers currently create pending work for every visit.",
+        "x-contract-status": "descriptive-current",
+        "x-source": "backend/internal/modules/medicore/visits.go",
+        "x-permission": "medicore.visit.create",
+        "responses": {
+          "202": {
+            "description": "Successful operation.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identifier"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisitInput"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listVisits",
+        "summary": "List tenant visits",
+        "tags": ["medicore"],
+        "description": "Newest first by creation time and UUID. This legacy table is tenant-scoped, not a bed/admission ledger.",
+        "x-contract-status": "descriptive-current",
+        "x-source": "backend/internal/modules/medicore/visits.go",
+        "x-permission": "medicore.visit.read",
+        "responses": {
+          "200": {
+            "description": "Successful operation.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ]
+      }
+    },
+    "/v1/lab/orders": {
+      "get": {
+        "operationId": "listLabOrders",
+        "summary": "List tenant laboratory orders",
+        "tags": ["lab"],
+        "description": "Pending default CBC orders currently originate from visit intake. Not a full specimen/report lifecycle.",
+        "x-contract-status": "descriptive-current",
+        "x-source": "backend/internal/modules/lab/orders.go",
+        "x-permission": "lab.order.read",
+        "responses": {
+          "200": {
+            "description": "Successful operation.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabOrderPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ]
+      }
+    },
+    "/v1/lab/orders/{id}/result": {
+      "post": {
+        "operationId": "recordLabResult",
+        "summary": "Complete a pending laboratory order",
+        "tags": ["lab"],
+        "description": "Guarded pending-to-completed update and result_ready event in one transaction. A repeated/concurrent completion returns 409, not replayed success. Missing/invisible order returns 404. No signed report/amendment semantics are implied.",
+        "x-contract-status": "descriptive-current",
+        "x-source": "backend/internal/modules/lab/orders.go",
+        "x-permission": "lab.order.fulfil",
+        "responses": {
+          "200": {
+            "description": "Successful operation.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletedResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResultInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pharmacy/dispenses": {
+      "get": {
+        "operationId": "listDispenses",
+        "summary": "List legacy tenant dispense tasks",
+        "tags": ["pharmacy"],
+        "description": "Tenant-level legacy queue, separate from outlet catalogue/stock APIs.",
+        "x-contract-status": "descriptive-current",
+        "x-source": "backend/internal/modules/pharmacy/dispenses.go",
+        "x-permission": "pharmacy.dispense.read",
+        "responses": {
+          "200": {
+            "description": "Successful operation.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DispensePage"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedTenant"
+          }
+        ]
+      }
+    },
+    "/v1/pharmacy/dispenses/{id}/dispense": {
+      "post": {
+        "operationId": "completeDispense",
+        "summary": "Complete a pending legacy dispense task",
+        "tags": ["pharmacy"],
+        "description": "Guarded pending-to-dispensed update and event. Repeated/concurrent completion returns 409. This handler does not validate a signed prescription, deduct outlet stock or post a hospital charge.",
+        "x-contract-status": "descriptive-current",
+        "x-source": "backend/internal/modules/pharmacy/dispenses.go",
+        "x-permission": "pharmacy.dispense.fulfil",
+        "responses": {
+          "200": {
+            "description": "Successful operation.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletedDispense"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedTenant"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DispenseInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pharmacy/medications": {
+      "get": {
+        "operationId": "listMedications",
+        "summary": "List legacy tenant medication records",
+        "tags": ["pharmacy"],
+        "description": "Separate from the outlet product catalogue with ingredients/packs/batches.",
+        "x-contract-status": "descriptive-current",
+        "x-source": "backend/internal/modules/pharmacy/medications.go",
+        "x-permission": "pharmacy.medication.read",
+        "responses": {
+          "200": {
+            "description": "Successful operation.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicationPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/ExpectedTenant"
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createMedication",
+        "summary": "Create a legacy medication record",
+        "tags": ["pharmacy"],
+        "description": "No documented request deduplication key. Does not create an outlet stock product or movement.",
+        "x-contract-status": "descriptive-current",
+        "x-source": "backend/internal/modules/pharmacy/medications.go",
+        "x-permission": "pharmacy.medication.write",
+        "responses": {
+          "201": {
+            "description": "Successful operation.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identifier"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ExpectedTenant"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MedicationInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/medicore/insights": {
+      "get": {
+        "operationId": "medicoreInsights",
+        "summary": "Read bounded calendar counts",
+        "tags": ["medicore"],
+        "description": "Counts records created in the selected window grouped by department: OPD, IPD. These are current category counts by creation bucket, not historical state-transition rates, occupancy or completed-work TAT. Range is inclusive from/to, at most five years and 366 output buckets. Unknown or duplicate query parameters return 400.",
+        "x-contract-status": "descriptive-current",
+        "x-source": "backend/internal/platform/insights/counts.go",
+        "x-permission": "medicore.visit.read",
+        "responses": {
+          "200": {
+            "description": "Successful operation.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Insights"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Calendar date from 2000 through 2199."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Inclusive date, at or after from; maximum five-year window."
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "description": "IANA timezone; Local is refused."
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["day", "week", "month", "year"]
+            }
+          }
+        ]
+      }
+    },
+    "/v1/lab/insights": {
+      "get": {
+        "operationId": "labInsights",
+        "summary": "Read bounded calendar counts",
+        "tags": ["lab"],
+        "description": "Counts records created in the selected window grouped by status: pending, completed. These are current category counts by creation bucket, not historical state-transition rates, occupancy or completed-work TAT. Range is inclusive from/to, at most five years and 366 output buckets. Unknown or duplicate query parameters return 400.",
+        "x-contract-status": "descriptive-current",
+        "x-source": "backend/internal/platform/insights/counts.go",
+        "x-permission": "lab.order.read",
+        "responses": {
+          "200": {
+            "description": "Successful operation.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Insights"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Calendar date from 2000 through 2199."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Inclusive date, at or after from; maximum five-year window."
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "description": "IANA timezone; Local is refused."
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["day", "week", "month", "year"]
+            }
+          }
+        ]
+      }
+    },
+    "/v1/pharmacy/insights": {
+      "get": {
+        "operationId": "pharmacyInsights",
+        "summary": "Read bounded calendar counts",
+        "tags": ["pharmacy"],
+        "description": "Counts records created in the selected window grouped by status: pending, dispensed. These are current category counts by creation bucket, not historical state-transition rates, occupancy or completed-work TAT. Range is inclusive from/to, at most five years and 366 output buckets. Unknown or duplicate query parameters return 400.",
+        "x-contract-status": "descriptive-current",
+        "x-source": "backend/internal/platform/insights/counts.go",
+        "x-permission": "pharmacy.dispense.read",
+        "responses": {
+          "200": {
+            "description": "Successful operation.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Insights"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ExpectedTenant"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Calendar date from 2000 through 2199."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Inclusive date, at or after from; maximum five-year window."
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "description": "IANA timezone; Local is refused."
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["day", "week", "month", "year"]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "helivantaSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "helivanta_session"
+      },
+      "helivantaBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Verified Helivanta session token, not a raw Zitadel ID token or assumed OAuth client-credentials token."
+      }
+    },
+    "parameters": {
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 50
+        },
+        "description": "Out-of-range or malformed values return 400; no silent clamp."
+      },
+      "Cursor": {
+        "name": "cursor",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Opaque cursor from prior page. Preserve tenant and filter scope."
+      },
+      "ExpectedTenant": {
+        "name": "X-Helivanta-Expected-Tenant",
+        "in": "header",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Optional precondition, never tenant selection. A supplied header must be exactly one nonzero UUID matching the verified session; otherwise 409 session_changed."
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "Current error envelope. Known codes include invalid_request, unauthenticated, forbidden, not_found, conflict, rate_limited, internal and authz_unavailable. Domain codes and details can be added. X-Request-ID carries correlation.",
+        "headers": {
+          "X-Request-ID": {
+            "schema": {
+              "type": "string"
+            }
+          },
+          "Retry-After": {
+            "description": "Present on 429, integer seconds.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["error", "message"]
+      },
+      "Identifier": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": ["id"]
+      },
+      "Page": {
+        "type": "object",
+        "properties": {
+          "next_cursor": {
+            "type": ["string", "null"]
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        },
+        "required": ["next_cursor", "has_more"]
+      },
+      "VisitInput": {
+        "type": "object",
+        "properties": {
+          "patient_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "department": {
+            "type": "string",
+            "enum": ["OPD", "IPD"]
+          },
+          "patient_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "const": ""
+              }
+            ],
+            "description": "Optional legacy linkage. Handler parses the UUID but does not validate hospital access or patient existence."
+          }
+        },
+        "required": ["patient_name", "department"]
+      },
+      "Visit": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "patient_name": {
+            "type": "string"
+          },
+          "patient_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "department": {
+            "type": "string",
+            "enum": ["OPD", "IPD"]
+          },
+          "status": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["id", "patient_name", "department", "status", "created_at"]
+      },
+      "LabOrder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "visit_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "patient_name": {
+            "type": "string"
+          },
+          "test_name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "completed"]
+          },
+          "result_value": {
+            "type": ["string", "null"]
+          },
+          "resulted_at": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "visit_id",
+          "patient_name",
+          "test_name",
+          "status",
+          "result_value",
+          "resulted_at",
+          "created_at"
+        ]
+      },
+      "ResultInput": {
+        "type": "object",
+        "properties": {
+          "result_value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": ["result_value"]
+      },
+      "CompletedResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "const": "completed"
+          }
+        },
+        "required": ["id", "status"]
+      },
+      "Dispense": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "visit_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "patient_name": {
+            "type": "string"
+          },
+          "medication": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "dispensed"]
+          },
+          "dispensed_at": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "visit_id",
+          "patient_name",
+          "medication",
+          "status",
+          "dispensed_at",
+          "created_at"
+        ]
+      },
+      "DispenseInput": {
+        "type": "object",
+        "properties": {
+          "medication": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": ["medication"]
+      },
+      "CompletedDispense": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "const": "dispensed"
+          }
+        },
+        "required": ["id", "status"]
+      },
+      "MedicationInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "strength": {
+            "type": "string",
+            "maxLength": 100
+          }
+        },
+        "required": ["name"]
+      },
+      "Medication": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "strength": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["id", "name", "strength", "created_at"]
+      },
+      "InsightPoint": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": ["date", "counts"]
+      },
+      "Insights": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "interval": {
+            "type": "string",
+            "enum": ["day", "week", "month", "year"]
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "as_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totals": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InsightPoint"
+            }
+          }
+        },
+        "required": ["from", "to", "interval", "timezone", "as_at", "totals", "series"]
+      },
+      "VisitPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Visit"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/Page"
+          }
+        },
+        "required": ["data", "page"]
+      },
+      "LabOrderPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabOrder"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/Page"
+          }
+        },
+        "required": ["data", "page"]
+      },
+      "DispensePage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Dispense"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/Page"
+          }
+        },
+        "required": ["data", "page"]
+      },
+      "MedicationPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Medication"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/Page"
+          }
+        },
+        "required": ["data", "page"]
+      }
+    }
+  }
+}

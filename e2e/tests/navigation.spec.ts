@@ -53,8 +53,8 @@ test("every department URL still lands on its own page", async ({ page }) => {
     { path: "/medicore", lands: /\/medicore\/opd$/, current: "OPD" },
     { path: "/medicore/opd", lands: /\/medicore\/opd$/, current: "OPD" },
     { path: "/medicore/ipd", lands: /\/medicore\/ipd$/, current: "IPD" },
-    { path: "/pharmacy", lands: /\/pharmacy$/, current: "Dispenses" },
-    { path: "/pharmacy/medications", lands: /\/pharmacy\/medications$/, current: "Medications" },
+    { path: "/pharmacy", lands: /\/pharmacy$/, current: "Dispense queue" },
+    { path: "/pharmacy/medications", lands: /\/pharmacy\/medications$/, current: "Medication list" },
     { path: "/lab", lands: /\/lab$/, title: "Lab" },
   ] as { path: string; lands: RegExp; current?: string; title?: string }[]) {
     await page.goto(path);

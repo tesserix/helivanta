@@ -56,7 +56,7 @@ describe("visibleZones", () => {
       (z) => z.key === "pharmacy",
     );
 
-    expect(pharmacy?.pages.map((p) => p.label)).toEqual(["Dispenses"]);
+    expect(pharmacy?.pages.map((p) => p.label)).toEqual(["Dispense queue"]);
   });
 
   it("declares a permission on every zone and page", () => {
@@ -187,5 +187,46 @@ describe("zone order", () => {
       (group, index, groups) => group !== groups[index - 1],
     );
     expect(runs).toEqual(["overview", "care", "operations", "admin"]);
+  });
+});
+
+// #1258 D1/D5: an icon tells pages apart only if it is not shared, and a
+// section heading appears once only if its pages sit together.
+describe("zone icons and sections", () => {
+  it("gives every rail zone its own icon", () => {
+    const icons = ZONES.map((zone) => zone.icon);
+    expect(new Set(icons).size).toBe(icons.length);
+  });
+
+  it.each(ZONES.map((zone) => [zone.key, zone] as const))(
+    "gives every %s page its own icon",
+    (_key, zone) => {
+      const icons = zone.pages.map((page) => page.icon);
+      expect(new Set(icons).size).toBe(icons.length);
+    },
+  );
+
+  it.each(ZONES.map((zone) => [zone.key, zone] as const))(
+    "keeps each %s section contiguous",
+    (_key, zone) => {
+      const runs = zone.pages
+        .map((page) => page.section)
+        .filter((section, index, sections) => section !== sections[index - 1]);
+      expect(new Set(runs).size).toBe(runs.length);
+    },
+  );
+
+  it("structures PharmaConnect as pharmacy management", () => {
+    const pharmacy = ZONES.find((zone) => zone.key === "pharmacy")!;
+    expect(pharmacy.pages.map((page) => [page.section, page.label, page.href])).toEqual([
+      ["Dispensing", "Dispense queue", "/pharmacy"],
+      ["Dispensing", "Medication list", "/pharmacy/medications"],
+      ["Inventory", "Stock on hand", "/pharmacy/stock"],
+      ["Inventory", "Receiving", "/pharmacy/receiving"],
+      ["Inventory", "Expiry & safety", "/pharmacy/safety"],
+      ["Inventory", "Product catalogue", "/pharmacy/catalogue"],
+      ["Purchasing", "Supplier bills", "/pharmacy/accounts"],
+      ["Setup", "Outlets & access", "/pharmacy/setup"],
+    ]);
   });
 });

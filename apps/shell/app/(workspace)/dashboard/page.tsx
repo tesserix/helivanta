@@ -12,11 +12,10 @@ const DESCRIPTIONS: Record<string, string> = {
   "/settings/branding": "Your logo, medical theme and sign-in experience",
   "/medicore/opd": "Outpatient visit registrations",
   "/medicore/ipd": "Inpatient visit registrations",
-  "/pharmacy": "Dispensing & drug inventory",
-  "/pharmacy/catalogue": "Medicine identities, pack details and catalogue history",
-  "/pharmacy/stock": "Batch receiving, expiry dates and stock movement history",
-  "/pharmacy/accounts": "Supplier invoices, expenses, payments and outstanding balances",
-  "/pharmacy/medications": "Formulary & stock reference",
+  "pharmacy:Dispensing": "Dispense queue and medication list",
+  "pharmacy:Inventory": "Stock on hand, receiving, expiry and the product catalogue",
+  "pharmacy:Purchasing": "Supplier bills, payments and outstanding balances",
+  "pharmacy:Setup": "Pharmacy outlets and who can access them",
   "/supply/parties": "Organisations, suppliers, premises and independent licence review",
   "/lab": "Orders, samples & results",
 };
@@ -38,7 +37,19 @@ function cardsFor(zones: Zone[]) {
   return zones
     .filter((zone) => zone.key !== "dashboard")
     .flatMap((zone) =>
-      zone.pages.length > 1
+      zone.pages.some((page) => page.section)
+        ? // A sectioned zone gets one card per section (#1258), opening its
+          // first permitted page, so eight pharmacy pages are four doors.
+          zone.pages
+            .filter((page, index, pages) => page.section !== pages[index - 1]?.section)
+            .map((page) => ({
+              href: page.href,
+              title: page.section ?? page.label,
+              desc: DESCRIPTIONS[`${zone.key}:${page.section}`] ?? "",
+              icon: zone.icon,
+              hue: zone.hue,
+            }))
+        : zone.pages.length > 1
         ? zone.pages.map((page) => ({
             href: page.href,
             title: page.label,

@@ -621,24 +621,39 @@ export function HmsShell({
               {isLoading &&
                 zone.pages.map((pageLink) => <NavPlaceholder key={pageLink.href} wide />)}
               {!isLoading &&
-                zone.pages.map((pageLink) => {
+                zone.pages.map((pageLink, index) => {
                   const isActive = currentPage?.href === pageLink.href;
+                  // A section heading once, before the first permitted page of
+                  // its run (#1258 D1); zones.test keeps each run contiguous.
+                  const heading =
+                    pageLink.section && pageLink.section !== zone.pages[index - 1]?.section
+                      ? pageLink.section
+                      : null;
                   return (
-                    <Link
-                      key={pageLink.href}
-                      href={pageLink.href}
-                      aria-current={isActive ? "page" : undefined}
-                      onClick={closeOverlays}
-                      tabIndex={panelOpen || pagesOverlayOpen ? 0 : -1}
-                      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                        isActive
-                          ? "bg-sidebar-accent text-sidebar-foreground"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                      }`}
-                    >
-                      <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      {pageLink.label}
-                    </Link>
+                    <Fragment key={pageLink.href}>
+                      {heading && (
+                        <p
+                          data-section
+                          className={`px-3 pb-1 text-xs font-medium text-sidebar-foreground/60 ${index > 0 ? "pt-4" : ""}`}
+                        >
+                          {heading}
+                        </p>
+                      )}
+                      <Link
+                        href={pageLink.href}
+                        aria-current={isActive ? "page" : undefined}
+                        onClick={closeOverlays}
+                        tabIndex={panelOpen || pagesOverlayOpen ? 0 : -1}
+                        className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                          isActive
+                            ? "bg-sidebar-accent text-sidebar-foreground"
+                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                        }`}
+                      >
+                        <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        {pageLink.label}
+                      </Link>
+                    </Fragment>
                   );
                 })}
             </nav>

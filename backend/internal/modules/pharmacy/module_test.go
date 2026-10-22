@@ -129,6 +129,23 @@ func TestDispenseFlow(t *testing.T) {
 	require.Contains(t, listed, `"dispensed"`)
 	require.Contains(t, listed, `"medication":"Paracetamol 500mg"`)
 
+	// The queue filters by status on the server (#1258 D4), so a pending
+	// row beyond the first page is never hidden behind dispensed ones.
+	statusIDs := func(query string) (int, string) {
+		w := do(r, "GET", "/v1/pharmacy/dispenses"+query, "tokA", "")
+		return w.Code, w.Body.String()
+	}
+	code, body := statusIDs("?status=dispensed")
+	require.Equal(t, http.StatusOK, code)
+	require.Contains(t, body, dispenseID)
+	require.NotContains(t, body, `"pending"`)
+	code, body = statusIDs("?status=pending")
+	require.Equal(t, http.StatusOK, code)
+	require.NotContains(t, body, dispenseID)
+	require.NotContains(t, body, `"dispensed"`)
+	code, _ = statusIDs("?status=cancelled")
+	require.Equal(t, http.StatusBadRequest, code)
+
 	// …and 409s on repeat.
 	require.Equal(t, http.StatusConflict,
 		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokA", `{"medication":"Paracetamol 500mg"}`).Code)

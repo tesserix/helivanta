@@ -35,13 +35,22 @@ const row = (over: Partial<PharmacyTaxRegistration>): PharmacyTaxRegistration =>
   ...over,
 });
 
-function serve(rows: () => PharmacyTaxRegistration[], status = 200) {
+function serve(
+  rows: () => PharmacyTaxRegistration[],
+  status = 200,
+  inForce?: () => PharmacyTaxRegistration | null,
+) {
   const posted: unknown[] = [];
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (init?.method === "POST") {
       posted.push(JSON.parse(String(init.body)));
       return new Response(JSON.stringify(row({})), { status: 201 });
     }
+    if (url.includes("/tax-registrations/in-force"))
+      return new Response(
+        JSON.stringify({ registration: inForce?.() ?? rows().find((r) => r.in_force) ?? null }),
+        { status, headers: { "Content-Type": "application/json" } },
+      );
     if (url.includes("/tax-registrations"))
       return new Response(
         status === 200
@@ -68,6 +77,26 @@ describe("TaxRegistrationPanel", () => {
     expect(screen.getAllByText("27PQRST5678K2Z1")).toHaveLength(2);
     expect(screen.getByText("Replaced")).toBeVisible();
     expect(screen.getByText(/Format checked, not verified with GSTN/)).toBeVisible();
+  });
+
+  it("shows the registration in force even when it is not on the history page", async () => {
+    serve(
+      () => [
+        row({
+          id: "u",
+          identifier: "04LMNOP4321Q1ZC",
+          jurisdiction_code: "04",
+          effective_from: "2027-01-01",
+          in_force: false,
+        }),
+      ],
+      200,
+      () => row({}),
+    );
+    renderWithProviders(<TaxRegistrationPanel scope={scope} outlet={outlet} today="2026-11-01" />);
+    expect(await screen.findByText("In force today")).toBeVisible();
+    expect(screen.getByText("07ABCDE1234F1Z2")).toBeVisible();
+    expect(screen.getByText("Upcoming")).toBeVisible();
   });
 
   it("refuses a GSTIN with a wrong check character without posting", async () => {

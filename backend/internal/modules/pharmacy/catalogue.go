@@ -290,7 +290,7 @@ func (h *catalogueHandlers) putProduct(c *gin.Context) {
 			return err
 		}
 		if exists && reflect.DeepEqual(result.ProductFields, in.ProductFields) {
-			return nil
+			return attachProductTax(tx, p.TenantID, outlet, &result)
 		}
 		if (!exists && *in.ExpectedVersion != 0) || (exists && *in.ExpectedVersion != result.Version) {
 			return errCatalogueVersion
@@ -315,7 +315,12 @@ func (h *catalogueHandlers) putProduct(c *gin.Context) {
 		if err := tx.Select(productColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&result).Error; err != nil {
 			return err
 		}
-		snapshot, err := json.Marshal(result)
+		// A revision records identity only; tax has its own effective-dated
+		// history. The outer nil Tax shadows the embedded one and is omitted.
+		snapshot, err := json.Marshal(struct {
+			catalogueProduct
+			Tax *productTax `json:"tax,omitempty"`
+		}{catalogueProduct: result})
 		if err != nil {
 			return err
 		}
@@ -330,7 +335,10 @@ func (h *catalogueHandlers) putProduct(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		return h.bus.Publish(tx, pharmacycontract.SubjectCatalogueUpdated, events.Event{Type: "MedicineCatalogueUpdated", Version: 1, TenantID: p.TenantID, Data: data})
+		if err := h.bus.Publish(tx, pharmacycontract.SubjectCatalogueUpdated, events.Event{Type: "MedicineCatalogueUpdated", Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
+			return err
+		}
+		return attachProductTax(tx, p.TenantID, outlet, &result)
 	})
 	if err != nil {
 		catalogueError(c, err)
@@ -353,12 +361,7 @@ func (h *catalogueHandlers) getProduct(c *gin.Context) {
 		if err := tx.Select(productColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&row).Error; err != nil {
 			return err
 		}
-		rows := []catalogueProduct{row}
-		if err := attachTax(tx, p.TenantID, outlet, rows); err != nil {
-			return err
-		}
-		row = rows[0]
-		return nil
+		return attachProductTax(tx, p.TenantID, outlet, &row)
 	})
 	if err != nil {
 		catalogueError(c, err)

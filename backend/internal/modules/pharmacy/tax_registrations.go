@@ -131,6 +131,43 @@ func taxRegistrationRoutes(g *platform.Router, h *catalogueHandlers) {
 	// owner's (pharmacy.tax.manage), scoped like the outlet registry.
 	platform.ListRoute(g, "/pharmacies/:pharmacy/outlets/:outlet/tax-registrations", PermTaxManage, h.listTaxRegistrations)
 	g.POST("/pharmacies/:pharmacy/outlets/:outlet/tax-registrations", PermTaxManage, h.postTaxRegistration)
+	g.GET("/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force", PermTaxManage, h.getTaxRegistrationInForce)
+}
+
+// getTaxRegistrationInForce answers {"registration": row} or
+// {"registration": null} when nothing is in force today.
+func (h *catalogueHandlers) getTaxRegistrationInForce(c *gin.Context) {
+	tenant, pharmacy, outlet, ok := h.registrationScope(c)
+	if !ok {
+		return
+	}
+	p, _, _ := pharmacyPrincipal(c)
+	var rows []taxRegistration
+	err := h.db.WithTenant(c.Request.Context(), tenant, func(tx *gorm.DB) error {
+		if err := pharmacyVisible(tx, p, pharmacy, registryManager(c)); err != nil {
+			return err
+		}
+		// outletTaxContext also proves the outlet belongs to this pharmacy.
+		_, today, err := outletTaxContext(tx, tenant, pharmacy, outlet)
+		if errors.Is(err, errTaxSchemeUnavailable) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		return tx.Table("pharmacy_outlet_tax_registrations AS r").Select(registrationColumns, today).
+			Where("r.tenant_id=? AND r.outlet_id=? AND r.effective_from <= ?::date", tenant, outlet, today).
+			Order("r.effective_from DESC, r.seq DESC").Limit(1).Find(&rows).Error
+	})
+	if err != nil {
+		taxError(c, err)
+		return
+	}
+	var row *taxRegistration
+	if len(rows) == 1 {
+		row = &rows[0]
+	}
+	respond.OK(c, gin.H{"registration": row})
 }
 
 func (h *catalogueHandlers) registrationScope(c *gin.Context) (string, uuid.UUID, uuid.UUID, bool) {

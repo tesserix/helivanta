@@ -55,7 +55,8 @@ CREATE TRIGGER pharmacy_tax_classification_immutable BEFORE UPDATE OR DELETE OR 
 
 -- A row sharing its effective_from with an earlier one replaces it, so it
 -- must carry a reason. The advisory lock serialises writers per scope, so
--- two unexplained rows for one date cannot both pass the check.
+-- two unexplained rows for one date cannot both pass the check, and seq is
+-- drawn under it so it follows the order rows are recorded.
 CREATE FUNCTION pharmacy_tax_correction_reason() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE replaces boolean;
 BEGIN
@@ -69,6 +70,10 @@ BEGIN
   SELECT EXISTS (SELECT 1 FROM pharmacy_outlet_tax_registrations r WHERE r.tenant_id=NEW.tenant_id
    AND r.outlet_id=NEW.outlet_id AND r.effective_from=NEW.effective_from) INTO replaces;
  END IF;
+ -- seq is the order of recording. The identity value was drawn before the
+ -- lock, so a writer that waited could hold a lower seq than the row it
+ -- waited behind; draw it again now that writers are serialised.
+ NEW.seq := nextval(pg_get_serial_sequence(TG_TABLE_NAME,'seq'));
  IF replaces AND NEW.reason IS NULL THEN
   RAISE EXCEPTION 'a tax correction for the same date needs a reason' USING ERRCODE='23514', CONSTRAINT='pharmacy_tax_correction_reason';
  END IF;

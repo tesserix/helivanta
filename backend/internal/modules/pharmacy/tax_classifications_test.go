@@ -179,3 +179,20 @@ func TestUnclassifiedFilterUsesTheOutletsDate(t *testing.T) {
 
 	require.Equal(t, 400, do(r, "GET", strings.TrimSuffix(productPath(""), "/")+"?tax=classified", "pharmacist", "").Code)
 }
+
+// Saving a product reports its tax as it is, never a false "Not classified".
+func TestProductSaveReportsTheTaxInForce(t *testing.T) {
+	r := taxHarness(t)
+	id := putTaxProduct(t, r, "TEST-AMOX", "active")
+	require.Equal(t, 201, do(r, "POST", classificationsPath(id), "owner", classificationBody("3004", "taxable", "5", "", "2026-11-01", "")).Code)
+	body := strings.Replace(strings.Replace(productBody(1, "TEST Renamed"), "TEST-AMOX-500", "TEST-AMOX", 1), `"status":"active"`, `"status":"active"`, 1)
+	w := do(r, "PUT", productPath(id), "owner", body)
+	require.Equal(t, 200, w.Code, w.Body.String())
+	var saved productWithTax
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &saved))
+	require.Equal(t, &productTax{"3004", "taxable", 50000, "2026-11-01"}, saved.Tax)
+	// Revisions record product identity; tax has its own history.
+	w = do(r, "GET", productPath(id)+"/revisions", "owner", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.NotContains(t, w.Body.String(), `"tax"`)
+}

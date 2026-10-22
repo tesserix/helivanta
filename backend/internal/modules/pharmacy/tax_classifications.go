@@ -98,6 +98,16 @@ func outletLocalDate(tx *gorm.DB, tenant string, outlet uuid.UUID) (string, erro
 	return outletToday(o.Timezone)
 }
 
+// attachProductTax fills one product's classification in force today.
+func attachProductTax(tx *gorm.DB, tenant string, outlet uuid.UUID, row *catalogueProduct) error {
+	rows := []catalogueProduct{*row}
+	if err := attachTax(tx, tenant, outlet, rows); err != nil {
+		return err
+	}
+	*row = rows[0]
+	return nil
+}
+
 // attachTax fills each product's classification in force today.
 func attachTax(tx *gorm.DB, tenant string, outlet uuid.UUID, rows []catalogueProduct) error {
 	if len(rows) == 0 {

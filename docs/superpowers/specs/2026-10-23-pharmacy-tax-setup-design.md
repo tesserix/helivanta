@@ -41,13 +41,13 @@ New table `pharmacy_outlet_tax_registrations`. Registration is outlet administra
 
 - RLS is tenant isolation only.
 - The handler checks scope with `pharmacyVisible`, the same check the outlet registry uses. That way an owner can register an outlet before granting themselves an outlet access row.
-- Reads also need `pharmacy.tax.manage` or `pharmacy.access.manage`. The sale (slice 3) reads the registration inside its own transaction.
+- Reads also need `pharmacy.tax.manage` (_builder's call_: a route declares one permission, and the owner role holds both `tax.manage` and `access.manage`). The sale (slice 3) reads the registration inside its own transaction.
 
 The table and its rows:
 
 - Columns: `outlet_id`, `jurisdiction_code`, `identifier_kind`, `identifier`, `effective_from` (a date), `reason` (text), `recorded_by`, `created_at`, and `seq` (a `bigint` identity).
 - **Append-only** (immutable trigger). A change or a correction is a new row.
-- **The registration in force on a date** is the row with the latest `effective_from` on or before that date. When two rows share an `effective_from`, the later-recorded one (highest `seq`) wins.
+- **The registration in force on a date** is the row with the latest `effective_from` on or before that date. When two rows share an `effective_from`, the later-recorded one (highest `seq`) wins. `seq` is drawn inside the insert trigger after the per-scope lock, so it follows the order rows are recorded even when writers contend.
   - So a mistake entered for today is fixed the same day by recording the right value with the same date.
   - The wrong row stays in the history, shown as "Replaced".
   - A row that shares its `effective_from` with an earlier row must give a non-blank `reason` (CHECK through a trigger). A correction is always explained.
@@ -78,7 +78,7 @@ New table `pharmacy_product_tax_classifications`, outlet-scoped, keyed to the pr
 
 ### D4. Calculation package `backend/pkg/tax`
 
-A pure Go package with no database, usable later by MediCore (#208). All amounts are `int64` minor units, and no float may appear (a `forbidigo` lint rule on `float32`/`float64` for the package).
+A pure Go package with no database, usable later by MediCore (#208). All amounts are `int64` minor units, and no float may appear: a package test (`floats_test.go`) parses every source file and fails on any `float32`/`float64` or float literal.
 
 - **Input per line:** an amount, its basis (`inclusive`, where the amount includes tax as MRP does, or `exclusive`), `rate_ppm` and `supply_nature`. **Per invoice:** the scheme, the supplier's jurisdiction and the place-of-supply jurisdiction.
 - **Output per line:** the taxable value plus a list of components (`{name, rate_ppm, amount}`). Intra-jurisdiction gives two components at half the rate each; inter-jurisdiction gives one at the full rate.
@@ -101,11 +101,11 @@ A pure Go package with no database, usable later by MediCore (#208). All amounts
 - New permission **`pharmacy.tax.manage`**, granted to `RolePharmacyOwner` only. It is deliberately separate from `pharmacy.catalogue.write` (pharmacist, purchasing): a wrong rate taxes every sale of that product wrongly, so the people who edit product names are not the ones who set tax.
 - Reads:
   - classification reads ride on `pharmacy.catalogue.read`, through the catalogue's outlet scope;
-  - registration reads need `pharmacy.tax.manage` or `pharmacy.access.manage`, under the D2 registry scope.
+  - registration reads need `pharmacy.tax.manage`, under the D2 registry scope. `GET …/tax-registrations/in-force` returns the row in force today (or `null`), so a screen never infers it from a history page.
 - Routes, under the existing outlet scope:
   - `GET` and `POST` `…/tax-registrations`: list the outlet's registrations, newest first, or record a new one.
   - `GET` and `POST` `…/catalogue/products/{id}/tax-classifications`: list a product's history, or record a new classification.
-  - `POST` returns `201`. A bad field is a `400` with field errors. An unknown or out-of-scope product or outlet is a `404`. A null scheme is a `409 tax_scheme_unavailable`. A withdrawn product is a `409`. A same-date correction without a `reason` is a `400`.
+  - `POST` returns `201`. A bad field is a `400` whose message names the field (the module has no field-error envelope). An unknown or out-of-scope product or outlet is a `404`. A null scheme is a `409 tax_scheme_unavailable`. A withdrawn product is a `409`. A same-date correction without a `reason` is a `400`.
 - **Contract.** The request bodies are canonical in `contracts/pharmacy.json` and generated to Go and Zod by `scripts/generate-pharmacy-contract.mjs`, like every other pharmacy input (`docs/api/schemas.md`). No handwritten second model and no new OpenAPI file: pharmacy has none, and `clinical.openapi.json` is a limited pilot. The routes and the permission show up in the generated contract docs (`go run ./cmd/contractdocs`, then `-check`), and `docs/api/domains/pharmacy.md` gains a "Tax setup" section.
 - No events: nothing consumes them yet, and slice 3 reads the tables in its own transaction.
 
@@ -117,7 +117,7 @@ A pure Go package with no database, usable later by MediCore (#208). All amounts
   - the product detail has a "Tax" section with the classification form (shown only with `pharmacy.tax.manage`) and the history;
   - a "Not classified" filter (`?tax=unclassified` on the list route) lets an owner work through the gap.
 - Rates are entered and shown as percentages with up to two decimals (`5`, `0.25`) and stored as parts per million.
-- A history row that a later same-date row replaced shows "Replaced", with the correction's reason.
+- A history row that a later same-date row replaced shows "Replaced"; the correction's reason shows on the row that replaced it.
 - Forms use `useZodForm` + `Field`, `noValidate`, sonner toasts ("Registration recorded", "Classification recorded") and `QueryState` lists, plus Vitest tests per panel.
 
 ## Not covered

@@ -3,16 +3,20 @@ package pharmacy_test
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 const pkOutlet = "0199e000-0000-7000-8000-000000000003"
@@ -24,8 +28,14 @@ var ownerPerms = []authz.Permission{"pharmacy.catalogue.read", "pharmacy.catalog
 // 2026-11-01 12:00 IST.
 func taxHarness(t *testing.T) *gin.Engine {
 	t.Helper()
+	r, _ := taxHarnessDB(t)
+	return r
+}
+
+func taxHarnessDB(t *testing.T) (*gin.Engine, *tenantdb.DB) {
+	t.Helper()
 	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC) })
-	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"editor": testutil.TenantA, "owner": testutil.TenantA, "pharmacist": testutil.TenantA, "ungranted": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
 			"editor":     ownerPerms,
@@ -41,7 +51,7 @@ func taxHarness(t *testing.T) *gin.Engine {
 	for _, subject := range []string{"user-editor", "user-owner", "user-pharmacist"} {
 		grantCatalogue(t, r, subject, "editor")
 	}
-	return r
+	return r, db
 }
 
 func registrationsPath(outlet string) string {
@@ -161,4 +171,132 @@ func TestTaxRegistrationUsesTheOutletsLocalDate(t *testing.T) {
 	rows := listRegistrations(t, r, "owner")
 	require.Len(t, rows, 1)
 	require.True(t, rows[0].InForce)
+}
+
+// Two rows for one date recorded in one transaction share created_at, so
+// only seq (the order of recording) can say which one is in force.
+func TestTaxSameTransactionCorrectionIsDecidedBySeq(t *testing.T) {
+	r, db := taxHarnessDB(t)
+	product := putTaxProduct(t, r, "TEST-SEQ", "active")
+	// IDs are handed out newest first, so neither created_at nor id can
+	// stand in for the order of recording.
+	ids := make([]uuid.UUID, 6)
+	for i := range ids {
+		ids[len(ids)-1-i] = uuid.Must(uuid.NewV7())
+	}
+	require.NoError(t, catalogueTx(t, db, func(tx *gorm.DB) error {
+		for i := range 6 {
+			reason := ""
+			if i > 0 {
+				reason = fmt.Sprintf("Correction %d", i)
+			}
+			if err := tx.Exec(`INSERT INTO pharmacy_outlet_tax_registrations
+ (id,tenant_id,outlet_id,jurisdiction_code,identifier_kind,identifier,effective_from,reason,recorded_by)
+ VALUES (?,?,?,'07','gstin','07ABCDE1234F1Z2','2026-11-01',NULLIF(?,''),'user-owner')`,
+				ids[i], testutil.TenantA, pharmaOutlet, reason).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec(`INSERT INTO pharmacy_product_tax_classifications
+ (id,tenant_id,outlet_id,product_id,classification_code,supply_nature,rate_ppm,effective_from,reason,recorded_by)
+ VALUES (?,?,?,?,'3004','taxable',?,'2026-11-01',NULLIF(?,''),'user-editor')`,
+				ids[i], testutil.TenantA, pharmaOutlet, product, int64(10000*(i+1)), reason).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	}))
+	for _, row := range listRegistrations(t, r, "owner") {
+		require.Equal(t, row.Reason == "Correction 5", row.InForce, row.Reason)
+		require.Equal(t, row.Reason != "Correction 5", row.Replaced, row.Reason)
+	}
+	require.Equal(t, int64(60000), getProductTax(t, r, product).RatePPM)
+	w := do(r, "GET", classificationsPath(product), "owner", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	var page struct {
+		Data []struct {
+			RatePPM int64 `json:"rate_ppm"`
+			InForce bool  `json:"in_force"`
+		}
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &page))
+	require.Len(t, page.Data, 6)
+	for _, row := range page.Data {
+		require.Equal(t, row.RatePPM == 60000, row.InForce, row.RatePPM)
+	}
+}
+
+// The row recorded last must win even when its insert started first: seq
+// is assigned after the per-scope lock, not when the row is formed.
+func TestTaxCorrectionRecordedLastWinsUnderContention(t *testing.T) {
+	r, db := taxHarnessDB(t)
+	insert := func(tx *gorm.DB, identifier, reason string) error {
+		return tx.Exec(`INSERT INTO pharmacy_outlet_tax_registrations
+ (id,tenant_id,outlet_id,jurisdiction_code,identifier_kind,identifier,effective_from,reason,recorded_by)
+ VALUES (?,?,?,'07','gstin',?,'2026-11-01',NULLIF(?,''),'user-owner')`,
+			uuid.Must(uuid.NewV7()), testutil.TenantA, pharmaOutlet, identifier, reason).Error
+	}
+	held := make(chan struct{})
+	release := make(chan struct{})
+	first := make(chan error, 1)
+	go func() {
+		first <- catalogueTx(t, db, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended('pharmacy_outlet_tax_registrations'||?::text||?::text,0))`, testutil.TenantA, pharmaOutlet).Error; err != nil {
+				return err
+			}
+			close(held)
+			<-release
+			return insert(tx, "07ABCDE1234F1Z2", "")
+		})
+	}()
+	<-held
+	second := make(chan error, 1)
+	go func() {
+		second <- catalogueTx(t, db, func(tx *gorm.DB) error { return insert(tx, "07PQRST5678K1Z5", "Recorded last") })
+	}()
+	// Wait until the second insert is queued behind the lock.
+	require.Eventually(t, func() bool {
+		var waiting int64
+		_ = db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT count(*) FROM pg_locks WHERE locktype='advisory' AND NOT granted`).Scan(&waiting).Error
+		})
+		return waiting > 0
+	}, 10*time.Second, 20*time.Millisecond)
+	close(release)
+	require.NoError(t, <-first)
+	require.NoError(t, <-second)
+	for _, row := range listRegistrations(t, r, "owner") {
+		require.Equal(t, row.Reason == "Recorded last", row.InForce, row.Identifier)
+	}
+}
+
+// The registration in force comes from the server, not from scanning a
+// history page that may not hold it.
+func TestTaxRegistrationInForceRoute(t *testing.T) {
+	r := taxHarness(t)
+	inForce := func() map[string]any {
+		w := do(r, "GET", registrationsPath(pharmaOutlet)+"/in-force", "owner", "")
+		require.Equal(t, 200, w.Code, w.Body.String())
+		var body struct {
+			Registration map[string]any `json:"registration"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		return body.Registration
+	}
+	require.Nil(t, inForce())
+	require.Equal(t, 201, do(r, "POST", registrationsPath(pharmaOutlet), "owner", registrationBody("07", "07ABCDE1234F1Z2", "2026-11-01", "")).Code)
+	for i := range 3 {
+		require.Equal(t, 201, do(r, "POST", registrationsPath(pharmaOutlet), "owner", registrationBody("04", "04LMNOP4321Q1ZC", fmt.Sprintf("2027-0%d-01", i+1), "")).Code)
+	}
+	got := inForce()
+	require.Equal(t, "07ABCDE1234F1Z2", got["identifier"])
+	require.Equal(t, true, got["in_force"])
+	require.Equal(t, 403, do(r, "GET", registrationsPath(pharmaOutlet)+"/in-force", "pharmacist", "").Code)
+	require.Equal(t, 404, do(r, "GET", registrationsPath(pharmaOutlet)+"/in-force", "foreign", "").Code)
+	// The outlet must belong to the pharmacy in the path.
+	other := "0199e000-0000-7000-8000-000000000020"
+	w := do(r, "PUT", "/v1/pharmacy/pharmacies/"+other, "editor", `{"code":"TEST-OTHER","name":"TEST Other Pharmacy","ownership_type":"independent"}`)
+	require.Equal(t, 200, w.Code, w.Body.String())
+	crossed := strings.Replace(registrationsPath(pharmaOutlet), pharmaOrganization, other, 1)
+	require.Equal(t, 404, do(r, "GET", crossed+"/in-force", "owner", "").Code)
+	require.Equal(t, 404, do(r, "GET", crossed, "owner", "").Code)
 }

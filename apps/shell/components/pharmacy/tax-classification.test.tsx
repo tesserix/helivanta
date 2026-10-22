@@ -76,6 +76,11 @@ function serve(
         return new Response(JSON.stringify(classification({})), { status: 201 });
       }
       if (url.includes("/tax-classifications")) return page(history());
+      const detail = products.find((p) => url.endsWith(`/catalogue/products/${p.id}`));
+      if (detail)
+        return new Response(JSON.stringify(detail), {
+          headers: { "Content-Type": "application/json" },
+        });
       if (url.includes("/catalogue/products")) return page(products);
       if (url.includes("/revisions")) return page([]);
       throw new Error(`Unexpected test API request: ${url}`);
@@ -169,6 +174,42 @@ describe("ProductTaxSection", () => {
     expect(await screen.findByText("Replaced")).toBeVisible();
     expect(screen.getAllByText("HSN 3004 · 12%").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Record classification" })).toBeNull();
+  });
+});
+
+describe("ProductTaxSection in force", () => {
+  it("reads the classification in force from the product, not the history page", async () => {
+    const classified = {
+      ...product,
+      tax: {
+        classification_code: "3004",
+        supply_nature: "taxable" as const,
+        rate_ppm: 50000,
+        effective_from: "2026-11-01",
+      },
+    };
+    serve(
+      () => [
+        classification({
+          id: "u",
+          rate_ppm: 120000,
+          effective_from: "2027-01-01",
+          in_force: false,
+        }),
+      ],
+      [classified],
+    );
+    renderWithProviders(
+      <ProductTaxSection
+        scope={scope}
+        product={{ ...product, tax: null }}
+        scheme={india}
+        canManage={false}
+        today="2026-11-01"
+      />,
+    );
+    expect(await screen.findByText("HSN 3004 · 5%")).toBeVisible();
+    expect(screen.getByText("Upcoming")).toBeVisible();
   });
 });
 

@@ -11,6 +11,7 @@ import {
   pharmacyTaxClassificationInputSchema,
   useApiMutation,
   useApiPagedQuery,
+  useApiQuery,
   type PharmacyProduct,
   type PharmacyProductTax,
   type PharmacyScope,
@@ -109,10 +110,13 @@ export function ProductTaxSection({
     `${pharmacyRoot(scope)}/catalogue/products/${product.id}/tax-classifications`,
   );
   const name = scheme?.classification.name;
-  // The history refreshes after a recording; the selected product may not.
-  const inForce = history.isPending
-    ? product.tax
-    : (history.items.find((row) => row.in_force) ?? null);
+  // The product record carries the classification in force; the history's
+  // first page need not hold it, and the selected copy goes stale.
+  const current = useApiQuery<PharmacyProduct>(
+    pharmacyKey(scope, "product", product.id),
+    `${pharmacyRoot(scope)}/catalogue/products/${product.id}`,
+  );
+  const inForce = current.data ? current.data.tax : product.tax;
   return (
     <section aria-labelledby="product-tax-heading" className="mt-8 border-t pt-6">
       <h4 id="product-tax-heading" className="mb-1 flex items-center gap-2 font-medium">
@@ -140,7 +144,11 @@ export function ProductTaxSection({
                 { method: "POST", body: JSON.stringify(values) },
               )
             }
-            invalidate={[key, pharmacyKey(scope, "catalogue")]}
+            invalidate={[
+              key,
+              pharmacyKey(scope, "catalogue"),
+              pharmacyKey(scope, "product", product.id),
+            ]}
           />
         )
       )}

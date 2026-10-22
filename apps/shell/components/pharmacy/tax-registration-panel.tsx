@@ -12,6 +12,7 @@ import {
   taxScheme,
   useApiMutation,
   useApiPagedQuery,
+  useApiQuery,
   validateTaxRegistration,
   type PharmacyOutlet,
   type PharmacyScope,
@@ -63,6 +64,12 @@ export function TaxRegistrationPanel({
     key,
     `${pharmacyRoot(scope)}/tax-registrations`,
   );
+  // Asked of the server: the row in force need not be on the first history page.
+  const current = useApiQuery<{ registration: PharmacyTaxRegistration | null }>(
+    [...key, "in-force"],
+    `${pharmacyRoot(scope)}/tax-registrations/in-force`,
+    { enabled: !!scheme },
+  );
   if (!scheme)
     return (
       <Panel aria-labelledby="tax-registration-heading" className="mt-6">
@@ -76,7 +83,7 @@ export function TaxRegistrationPanel({
       </Panel>
     );
   const jurisdictions = new Map<string, string>(scheme.jurisdictions.map((j) => [j.code, j.name]));
-  const inForce = history.items.find((row) => row.in_force);
+  const inForce = current.data?.registration;
   return (
     <Panel aria-labelledby="tax-registration-heading" className="mt-6">
       <h3 id="tax-registration-heading" className="font-semibold">

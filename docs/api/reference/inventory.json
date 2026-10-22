@@ -1262,6 +1262,14 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force",
+          "permission": "pharmacy.tax.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations",
           "permission": "pharmacy.tax.manage",
           "authentication_required": true,
@@ -1504,7 +1512,7 @@
         },
         {
           "id": "0009_pharmacy",
-          "sql_sha256": "9d56a363c20d112d44b8ff8a0c0dd5fcc21eb51b7362d22989b91c85870a3737",
+          "sql_sha256": "d48e16fa3ce485814584515bf9f681c326bed699184e1d58382e267cf2f41652",
           "creates_tables": [
             "pharmacy_outlet_tax_registrations",
             "pharmacy_product_tax_classifications"

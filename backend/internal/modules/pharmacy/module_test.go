@@ -117,10 +117,17 @@ func TestDispenseFlow(t *testing.T) {
 	require.Equal(t, http.StatusNotFound,
 		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokB", `{"medication":"Paracetamol 500mg"}`).Code)
 
-	// Dispense succeeds once…
+	// A blank medication is refused and leaves the task pending (#1272 D3).
+	require.Equal(t, http.StatusBadRequest,
+		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokA", `{"medication":"   "}`).Code)
+	require.NotContains(t, do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String(), `"dispensed"`)
+
+	// Dispense succeeds once, storing the trimmed medication…
 	require.Equal(t, http.StatusOK,
-		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokA", `{"medication":"Paracetamol 500mg"}`).Code)
-	require.Contains(t, do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String(), `"dispensed"`)
+		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokA", `{"medication":"  Paracetamol 500mg "}`).Code)
+	listed := do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String()
+	require.Contains(t, listed, `"dispensed"`)
+	require.Contains(t, listed, `"medication":"Paracetamol 500mg"`)
 
 	// …and 409s on repeat.
 	require.Equal(t, http.StatusConflict,

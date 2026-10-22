@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -76,6 +77,13 @@ func (h *dispenseHandlers) fulfil(c *gin.Context) {
 	var req dispenseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respond.BadRequest(c, err)
+		return
+	}
+	// Fail closed: a dispense records what was handed over, so a blank
+	// medication is refused rather than stored (#1272).
+	req.Medication = strings.TrimSpace(req.Medication)
+	if req.Medication == "" {
+		respond.BadRequest(c, errors.New("medication is required"))
 		return
 	}
 	var status int

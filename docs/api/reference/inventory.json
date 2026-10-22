@@ -1055,6 +1055,24 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/dispenses/dispensed",
+          "permission": "pharmacy.dispense.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": true
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/dispenses/waiting",
+          "permission": "pharmacy.dispense.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": true
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/dispenses",
           "permission": "pharmacy.dispense.read",
           "authentication_required": true,
@@ -1632,6 +1650,11 @@
             "pharmacy_outlet_tax_registrations",
             "pharmacy_product_tax_classifications"
           ]
+        },
+        {
+          "id": "0010_pharmacy",
+          "sql_sha256": "c8499bcfe4ac648e1c0a2863e769bccd79cf98bb707b6c82c99bdd1e6e8d52c6",
+          "creates_tables": []
         }
       ]
     },

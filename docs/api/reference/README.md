@@ -187,6 +187,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | --- | --- | --- | --- | --- |
 | GET | `/v1/pharmacy/configuration` | `pharmacy.catalogue.read` | false | false |
 | POST | `/v1/pharmacy/dispenses/:id/dispense` | `pharmacy.dispense.fulfil` | false | false |
+| GET | `/v1/pharmacy/dispenses/dispensed` | `pharmacy.dispense.read` | true | true |
+| GET | `/v1/pharmacy/dispenses/waiting` | `pharmacy.dispense.read` | true | true |
 | GET | `/v1/pharmacy/dispenses` | `pharmacy.dispense.read` | true | false |
 | GET | `/v1/pharmacy/insights` | `pharmacy.dispense.read` | false | false |
 | GET | `/v1/pharmacy/medications` | `pharmacy.medication.read` | true | false |

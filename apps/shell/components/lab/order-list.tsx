@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Badge, Button, Input } from "@tesserix/web";
 import { FlaskConical } from "lucide-react";
 import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
-import { formatTime, LoadMore, QueryState } from "@helivanta/ui";
+import { formatTime, LoadMore, Panel, QueryState } from "@helivanta/ui";
 
 type Order = {
   id: string;
@@ -36,7 +36,7 @@ export function OrderList() {
   const pending = orders.items.filter((o) => o.status === "pending").length;
 
   return (
-    <section className="max-w-3xl rounded-lg border bg-card">
+    <Panel flush className="max-w-3xl">
       <div className="border-b px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">Order queue</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
@@ -113,6 +113,6 @@ export function OrderList() {
         isLoading={orders.isFetchingMore}
         onClick={orders.loadMore}
       />
-    </section>
+    </Panel>
   );
 }

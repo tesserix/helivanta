@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { usePermissions } from "@helivanta/api";
-import { visibleZones, type Zone, type ZoneHue } from "@helivanta/ui";
+import { PanelLink, visibleZones, type Zone, type ZoneHue } from "@helivanta/ui";
 import { OperationalDashboard } from "@/components/dashboard/operational-dashboard";
 
 // Per-page descriptions, keyed by href — the registry (packages/ui/src/zones.ts)
@@ -72,11 +71,7 @@ export default function Dashboard() {
       </div>
       <nav aria-label="Department shortcuts" className="grid gap-4 sm:grid-cols-2">
         {cards.map((z) => (
-          <Link
-            key={z.href}
-            href={z.href}
-            className="group flex items-start gap-4 rounded-xl border bg-card p-4 shadow-sm transition-colors hover:bg-(--muted) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--hms-accent)"
-          >
+          <PanelLink key={z.href} href={z.href} className="group flex items-start gap-4">
             <span
               className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${TINT_CLASSES[z.hue]}`}
             >
@@ -92,7 +87,7 @@ export default function Dashboard() {
             >
               →
             </span>
-          </Link>
+          </PanelLink>
         ))}
       </nav>
     </>

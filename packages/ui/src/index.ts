@@ -23,6 +23,7 @@ export {
 export { QueryState } from "./query-state";
 export { RequestFailure } from "./request-failure";
 export { PageHeading } from "./page-heading";
+export { Panel, PanelLink } from "./panel";
 export { LoadMore } from "./load-more";
 export { formatDateTime, formatTime } from "./format";
 export { sanitizeHtml } from "./sanitize";

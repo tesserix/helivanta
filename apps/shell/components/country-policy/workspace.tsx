@@ -14,7 +14,7 @@ import {
   type CountryPolicyIdentity,
   type CountryPolicyScope,
 } from "@helivanta/api";
-import { LoadMore, PageHeading, RequestFailure } from "@helivanta/ui";
+import { LoadMore, PageHeading, Panel, RequestFailure } from "@helivanta/ui";
 import { CountryPolicyEditor, policyLabel } from "./editor";
 import { CountryPolicyDetail } from "./detail";
 
@@ -46,27 +46,24 @@ function TenantCountryPolicies({ identity }: { identity: CountryPolicyIdentity }
   );
   if (!can("workspace.country_policy.read"))
     return (
-      <section className="rounded-2xl border bg-card p-7">
+      <Panel>
         <h2 className="text-xl font-semibold">Country policy access required</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Ask your administrator for country-policy permission and access to the appropriate scope.
         </p>
-      </section>
+      </Panel>
     );
   return (
     <div className="space-y-6">
       <PageHeading description="The rules applied in each country, with their sources, who may change them and their review history." />
-      <div className="flex items-start gap-3 rounded-xl border bg-card p-5">
+      <Panel as="div" className="flex items-start gap-3">
         <ShieldCheck className="mt-0.5 size-5 shrink-0 text-(--hms-accent)" />
         <p className="text-sm leading-6 text-muted-foreground">
           Approval applies only to the named country, jurisdiction, product category and operation.
           It does not verify an organisation's licence or authorise another country's transactions.
         </p>
-      </div>
-      <section
-        aria-label="Country policy directory"
-        className="overflow-hidden rounded-2xl border bg-card"
-      >
+      </Panel>
+      <Panel aria-label="Country policy directory" flush>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b p-5">
           <div>
             <h3 className="font-semibold">Your policy scopes</h3>
@@ -131,7 +128,7 @@ function TenantCountryPolicies({ identity }: { identity: CountryPolicyIdentity }
             onClick={policies.loadMore}
           />
         </div>
-      </section>
+      </Panel>
       {selected === "new" ? (
         <CountryPolicyEditor
           identity={identity}

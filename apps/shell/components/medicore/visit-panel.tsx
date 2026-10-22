@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Badge, Button, Input } from "@tesserix/web";
 import { CalendarPlus } from "lucide-react";
 import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
-import { Field, formatTime, LoadMore, QueryState, useZodForm } from "@helivanta/ui";
+import { Field, formatTime, LoadMore, Panel, QueryState, useZodForm } from "@helivanta/ui";
 
 type Visit = {
   id: string;
@@ -36,7 +36,7 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
   );
 
   return (
-    <section className="max-w-2xl rounded-lg border bg-card">
+    <Panel flush className="max-w-2xl">
       <div className="border-b px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">Visits</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
@@ -93,6 +93,6 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
         isLoading={visits.isFetchingMore}
         onClick={visits.loadMore}
       />
-    </section>
+    </Panel>
   );
 }

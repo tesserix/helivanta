@@ -26,11 +26,12 @@ import {
 } from "@helivanta/api";
 import {
   Field,
+  formatDateTime,
   FormSelectField,
   LoadMore,
-  formatDateTime,
-  useZodForm,
+  Panel,
   RequestFailure,
+  useZodForm,
 } from "@helivanta/ui";
 import { useCountryPolicyCommand } from "./command";
 import { CountryPolicyEditor, policyLabel } from "./editor";
@@ -119,10 +120,7 @@ function PolicyRecord({
     setEditing(null);
   };
   return (
-    <section
-      aria-label="Country policy detail"
-      className="space-y-6 rounded-2xl border bg-card p-5 sm:p-7"
-    >
+    <Panel aria-label="Country policy detail" className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h3 ref={heading} tabIndex={-1} className="scroll-mt-24 text-xl font-semibold">
@@ -142,7 +140,7 @@ function PolicyRecord({
         </Button>
       </header>
       {scope.policy_decision && (
-        <div className="rounded-xl bg-muted p-4">
+        <Panel as="div">
           <p className="text-sm font-medium">
             {scope.policy_decision.allowed
               ? "Country policy is current"
@@ -153,7 +151,7 @@ function PolicyRecord({
               ? "Organisation licences, trading relationships, stock and credit still require their own checks."
               : policyLabel(scope.policy_decision.reason)}
           </p>
-        </div>
+        </Panel>
       )}
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={() => void onRefresh()}>
@@ -249,10 +247,12 @@ function PolicyRecord({
             {version.data.state === "submitted" &&
               reviewer &&
               (ownVersion ? (
-                <p className="rounded-xl border p-4 text-sm text-muted-foreground">
-                  An independent reviewer must decide this version. Authors and submitters cannot
-                  approve or reject their own work.
-                </p>
+                <Panel>
+                  <p className="text-sm text-muted-foreground">
+                    An independent reviewer must decide this version. Authors and submitters cannot
+                    approve or reject their own work.
+                  </p>
+                </Panel>
               ) : (
                 <div className="flex flex-wrap gap-3">
                   <Button onClick={() => setMode("approved")}>Approve version</Button>
@@ -272,7 +272,7 @@ function PolicyRecord({
         ) : (
           <ol className="space-y-3">
             {history.items.map((row) => (
-              <li key={row.id} className="rounded-xl border p-4">
+              <Panel key={row.id} as="li">
                 <p className="text-sm font-medium">
                   {policyLabel(row.action)} · revision {row.result_revision}
                 </p>
@@ -280,7 +280,7 @@ function PolicyRecord({
                   {row.actor_subject} · {formatDateTime(row.created_at)}
                 </p>
                 {row.reason && <p className="mt-2 whitespace-pre-wrap text-sm">{row.reason}</p>}
-              </li>
+              </Panel>
             ))}
           </ol>
         )}
@@ -290,7 +290,7 @@ function PolicyRecord({
           onClick={history.loadMore}
         />
       </section>
-    </section>
+    </Panel>
   );
 }
 
@@ -304,7 +304,7 @@ function VersionRecord({ version, current }: { version: CountryPolicyVersion; cu
       <p className="text-xs text-muted-foreground">
         Times shown in {Intl.DateTimeFormat().resolvedOptions().timeZone}
       </p>
-      <div className="grid gap-4 rounded-xl bg-muted p-4 sm:grid-cols-2">
+      <Panel as="div" className="grid gap-4 sm:grid-cols-2">
         <div>
           <p className="text-xs font-semibold text-muted-foreground">Selected version</p>
           <p className="mt-1 text-sm">
@@ -331,11 +331,11 @@ function VersionRecord({ version, current }: { version: CountryPolicyVersion; cu
             <p className="mt-1 break-all text-sm">{version.approved_by}</p>
           </div>
         )}
-      </div>
+      </Panel>
       <div className="space-y-3">
         <h4 className="font-semibold">Source citations</h4>
         {version.sources.map((source) => (
-          <div key={source.key} className="rounded-xl border p-4">
+          <Panel key={source.key} as="div">
             <p className="text-sm font-medium">{source.title}</p>
             <a
               className="mt-1 block break-all text-sm text-(--hms-accent) underline"
@@ -348,12 +348,12 @@ function VersionRecord({ version, current }: { version: CountryPolicyVersion; cu
             <p className="mt-2 text-xs text-muted-foreground">
               Reviewed {formatDateTime(source.reviewed_at)}
             </p>
-          </div>
+          </Panel>
         ))}
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         {version.requirements.map((requirement) => (
-          <div key={requirement.domain} className="rounded-xl border p-4">
+          <Panel key={requirement.domain} as="div">
             <p className="text-sm font-semibold">{policyLabel(requirement.domain)}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {policyLabel(requirement.applicability)}
@@ -365,7 +365,7 @@ function VersionRecord({ version, current }: { version: CountryPolicyVersion; cu
                 .map((key) => version.sources.find((source) => source.key === key)?.title ?? key)
                 .join("; ")}
             </p>
-          </div>
+          </Panel>
         ))}
       </div>
     </section>
@@ -405,39 +405,41 @@ function PolicyReviewForm({
     onSaved,
   );
   return (
-    <form
-      noValidate
-      onSubmit={form.handleSubmit((value) => save.mutate(value))}
-      className="space-y-4 rounded-xl border p-5"
-    >
-      <h4 ref={heading} tabIndex={-1} className="scroll-mt-24 font-semibold">
-        {verb} policy
-      </h4>
-      <Field
-        id="policy-review-reason"
-        label="Review reason"
-        error={form.formState.errors.reason?.message}
+    <Panel>
+      <form
+        noValidate
+        onSubmit={form.handleSubmit((value) => save.mutate(value))}
+        className="space-y-4"
       >
-        <textarea
+        <h4 ref={heading} tabIndex={-1} className="scroll-mt-24 font-semibold">
+          {verb} policy
+        </h4>
+        <Field
           id="policy-review-reason"
-          {...form.register("reason")}
-          className="min-h-28 w-full rounded-lg border bg-background px-3 py-2 text-sm"
-        />
-      </Field>
-      {save.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {save.error.message}
-        </p>
-      )}
-      <div className="flex gap-3">
-        <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? "Saving…" : `${verb} policy`}
-        </Button>
-        <Button type="button" variant="outline" disabled={save.isPending} onClick={onSaved}>
-          Cancel
-        </Button>
-      </div>
-    </form>
+          label="Review reason"
+          error={form.formState.errors.reason?.message}
+        >
+          <textarea
+            id="policy-review-reason"
+            {...form.register("reason")}
+            className="min-h-28 w-full rounded-md border bg-background px-3 py-2 text-sm"
+          />
+        </Field>
+        {save.error && (
+          <p role="alert" className="text-sm text-destructive">
+            {save.error.message}
+          </p>
+        )}
+        <div className="flex gap-3">
+          <Button type="submit" disabled={save.isPending}>
+            {save.isPending ? "Saving…" : `${verb} policy`}
+          </Button>
+          <Button type="button" variant="outline" disabled={save.isPending} onClick={onSaved}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </Panel>
   );
 }
 
@@ -471,62 +473,64 @@ function PolicyAccessForm({
   );
   const revoke = form.watch("revoke");
   return (
-    <form
-      noValidate
-      onSubmit={form.handleSubmit((input) => save.mutate(input))}
-      className="space-y-4 rounded-xl border p-5"
-    >
-      <h4 ref={heading} tabIndex={-1} className="scroll-mt-24 font-semibold">
-        Policy scope access
-      </h4>
-      <p className="text-sm text-muted-foreground">
-        Use the tenant member's sign-in subject. A scope grant does not grant platform permissions;
-        the member needs both.
-      </p>
-      <Field
-        id="policy-access-subject"
-        label="Team member subject"
-        error={form.formState.errors.subject?.message}
+    <Panel>
+      <form
+        noValidate
+        onSubmit={form.handleSubmit((input) => save.mutate(input))}
+        className="space-y-4"
       >
-        <Input id="policy-access-subject" {...form.register("subject")} />
-      </Field>
-      <FormSelectField
-        control={form.control}
-        name="role"
-        id="policy-access-role"
-        label="Scope role"
-        disabled={revoke}
-        options={[
-          { value: "reader", label: "Read policy and history" },
-          { value: "editor", label: "Submit policy versions" },
-          { value: "reviewer", label: "Review versions and suspend policy" },
-          { value: "", label: "No scope role" },
-        ]}
-      />
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          {...form.register("revoke")}
-          onChange={(event) => {
-            form.setValue("revoke", event.target.checked);
-            form.setValue("role", event.target.checked ? "" : "reader");
-          }}
-        />
-        Revoke this member's scope access
-      </label>
-      {save.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {save.error.message}
+        <h4 ref={heading} tabIndex={-1} className="scroll-mt-24 font-semibold">
+          Policy scope access
+        </h4>
+        <p className="text-sm text-muted-foreground">
+          Use the tenant member's sign-in subject. A scope grant does not grant platform
+          permissions; the member needs both.
         </p>
-      )}
-      <div className="flex gap-3">
-        <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? "Saving…" : "Update policy access"}
-        </Button>
-        <Button type="button" variant="outline" disabled={save.isPending} onClick={onSaved}>
-          Cancel
-        </Button>
-      </div>
-    </form>
+        <Field
+          id="policy-access-subject"
+          label="Team member subject"
+          error={form.formState.errors.subject?.message}
+        >
+          <Input id="policy-access-subject" {...form.register("subject")} />
+        </Field>
+        <FormSelectField
+          control={form.control}
+          name="role"
+          id="policy-access-role"
+          label="Scope role"
+          disabled={revoke}
+          options={[
+            { value: "reader", label: "Read policy and history" },
+            { value: "editor", label: "Submit policy versions" },
+            { value: "reviewer", label: "Review versions and suspend policy" },
+            { value: "", label: "No scope role" },
+          ]}
+        />
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            {...form.register("revoke")}
+            onChange={(event) => {
+              form.setValue("revoke", event.target.checked);
+              form.setValue("role", event.target.checked ? "" : "reader");
+            }}
+          />
+          Revoke this member's scope access
+        </label>
+        {save.error && (
+          <p role="alert" className="text-sm text-destructive">
+            {save.error.message}
+          </p>
+        )}
+        <div className="flex gap-3">
+          <Button type="submit" disabled={save.isPending}>
+            {save.isPending ? "Saving…" : "Update policy access"}
+          </Button>
+          <Button type="button" variant="outline" disabled={save.isPending} onClick={onSaved}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </Panel>
   );
 }

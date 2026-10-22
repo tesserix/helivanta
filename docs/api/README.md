@@ -7,6 +7,12 @@ Helivanta is a healthcare SaaS platform with a shared staff workspace, hospital-
 
 Start with [platform coverage and ownership](portfolio.md), then [HTTP conventions](http-contract.md), [events and integration journeys](integration-contracts.md) and [schema ownership](schemas.md). The [review and delivery plan](review-plan.md) records gaps, priorities and acceptance gates.
 
+For Indian hospital business rules and source applicability, read the
+[India HMS domain knowledge](../domain/india/README.md): identity/consent, clinical
+operations, pharmacy/supply, diagnostics, revenue/insurance and facility quality.
+Its reusable agent skills route to the relevant `IN-*` acceptance criteria and
+primary-source register; they do not turn proposals into deployed APIs.
+
 ## Reference material
 
 | Artifact                                                                 | Purpose                                                                                           | Authority                                                                               |

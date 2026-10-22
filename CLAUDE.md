@@ -1,5 +1,13 @@
 # Helivanta — agent rules
 
+@AGENTS.md
+
+The imported root `AGENTS.md` contains the shared enterprise guardrails and
+mandatory contract-documentation reading before development. Apply it alongside
+the rules below and applicable nested instructions; keep shared policy there.
+India HMS skills in `.claude/skills/hms-india*` link to the canonical shared
+`.agents/skills/` definitions; use the domain router required by `AGENTS.md`.
+
 ## Quality bar (read first, applies to everything)
 
 Full document: docs/standards/engineering-principles.md — read it before
@@ -7,7 +15,7 @@ proposing any design or writing any code.
 
 - **No minimal, MVP, quick or temporary solutions.** "For now", "we can harden
   it later" and "good enough to unblock" are not acceptable justifications.
-  When work is too big, decompose it into *correct* slices; never build an
+  When work is too big, decompose it into _correct_ slices; never build an
   incorrect small one.
 - **Scope down, never quality down.** Cut the set of cases handled, never
   correctness, isolation, error handling, tests or observability. State what a

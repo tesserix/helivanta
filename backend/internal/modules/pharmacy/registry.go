@@ -60,6 +60,7 @@ const affiliationColumns = "id,tenant_id,pharmacy_id,hospital_id,relationship,ve
 
 func registryRoutes(g *platform.Router, deps platform.Deps) {
 	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus}
+	taxRegistrationRoutes(g, h)
 	g.GET("/configuration", PermCatalogueRead, requirePharmacyTenant, func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
 		respond.OK(c, countryprofile.Configuration())

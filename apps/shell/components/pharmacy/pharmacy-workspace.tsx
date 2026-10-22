@@ -8,6 +8,7 @@ import {
   ApiError,
   apiFetch,
   countryProfile,
+  zonedDateTimeInput,
   useApiQuery,
   useApiPagedQuery,
   useApiMutation,
@@ -31,6 +32,7 @@ import { CataloguePanel } from "./catalogue-panel";
 import { AccountsPanel } from "./accounts-panel";
 import { StockPanel } from "./stock-panel";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
+import { TaxRegistrationPanel } from "./tax-registration-panel";
 import { StockRegister } from "./stock-register";
 import { BatchSafety } from "./batch-safety";
 
@@ -255,6 +257,8 @@ function OutletPharmacy({
           timeZone={outlet.timezone}
           defaultCurrency={countryProfile(outlet.country_code)?.currency ?? ""}
           writable={access.data?.level === "editor" && can("pharmacy.catalogue.write")}
+          countryCode={outlet.country_code}
+          canManageTax={access.data?.level === "editor" && can("pharmacy.tax.manage")}
         />
       ) : view === "stock" ? (
         <StockRegister scope={scope} timeZone={outlet.timezone} />
@@ -270,6 +274,13 @@ function OutletPharmacy({
       )}
       {view === "setup" && can("pharmacy.access.manage") && (
         <AccessSetup scope={scope} subject={subject} outletName={outlet.name} />
+      )}
+      {view === "setup" && can("pharmacy.tax.manage") && (
+        <TaxRegistrationPanel
+          scope={scope}
+          outlet={outlet}
+          today={zonedDateTimeInput(new Date().toISOString(), outlet.timezone).slice(0, 10)}
+        />
       )}
     </>
   );

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/pkg/countryprofile"
+	"regexp"
 	"testing"
 )
 
@@ -52,4 +53,50 @@ func TestTaxIdentifierKindsDoNotCrossCountryBoundaries(t *testing.T) {
 	} {
 		require.Equal(t, tc.valid, countryprofile.ValidTaxIdentifierKind(tc.country, tc.kind), tc.country+":"+tc.kind)
 	}
+}
+
+func TestIndiaTaxSchemeSplitsStatesFromUnionTerritories(t *testing.T) {
+	s, ok := countryprofile.Tax("IN")
+	require.True(t, ok)
+	require.Equal(t, "gst", s.Scheme)
+	require.Equal(t, "gstin", s.RegistrationKind)
+	require.Equal(t, "HSN", s.ClassificationName)
+	require.True(t, countryprofile.ValidTaxIdentifierKind("IN", s.RegistrationKind))
+	// Delhi, Puducherry and Jammu & Kashmir have legislatures and levy SGST;
+	// the six in UTGST Act s.2(8) levy UTGST.
+	for code, kind := range map[string]string{
+		"01": "state", "07": "state", "27": "state", "34": "state", "37": "state",
+		"04": "union_territory", "26": "union_territory", "31": "union_territory",
+		"35": "union_territory", "38": "union_territory", "97": "union_territory",
+	} {
+		j, ok := s.Jurisdiction(code)
+		require.True(t, ok, code)
+		require.Equal(t, kind, j.Kind, code)
+	}
+	// Retired (25 merged into 26, 28 replaced by 37) or not an outlet location.
+	for _, code := range []string{"25", "28", "96", "99", "00", "7"} {
+		_, ok := s.Jurisdiction(code)
+		require.False(t, ok, code)
+	}
+	seen := map[string]bool{}
+	for _, j := range s.Jurisdictions {
+		require.False(t, seen[j.Code], j.Code)
+		seen[j.Code] = true
+	}
+	require.Len(t, s.Jurisdictions, 37)
+	hsn := regexp.MustCompile(s.ClassificationPattern)
+	for _, v := range []string{"3004", "300490", "30049099"} {
+		require.True(t, hsn.MatchString(v), v)
+	}
+	for _, v := range []string{"300", "30049", "3004909", "300490991", "30a4", ""} {
+		require.False(t, hsn.MatchString(v), v)
+	}
+	require.NotEmpty(t, s.Sources)
+}
+
+func TestCountryWithoutTaxSchemeRefusesTaxSetup(t *testing.T) {
+	_, ok := countryprofile.Tax("PK")
+	require.False(t, ok)
+	_, ok = countryprofile.Tax("ZZ")
+	require.False(t, ok)
 }

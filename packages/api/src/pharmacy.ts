@@ -7,6 +7,8 @@ import {
   pharmacyMovementInputSchema,
   pharmacyBatchInputSchema,
   pharmacyStockExpiryFieldsSchema,
+  pharmacyTaxRegistrationInputSchema,
+  pharmacyTaxClassificationInputSchema,
 } from "./pharmacy-contract";
 export { v7 as newPharmacyId } from "uuid";
 export {
@@ -14,6 +16,8 @@ export {
   pharmacyMovementInputSchema,
   pharmacyProductFieldsSchema,
   pharmacyLocationInputSchema,
+  pharmacyTaxRegistrationInputSchema,
+  pharmacyTaxClassificationInputSchema,
 } from "./pharmacy-contract";
 
 export const pharmacyProductFormSchema = pharmacyProductInputSchema.superRefine((value, ctx) => {
@@ -36,6 +40,14 @@ export const pharmacyProductFormSchema = pharmacyProductInputSchema.superRefine(
   });
 });
 export type PharmacyProductInput = z.infer<typeof pharmacyProductInputSchema>;
+export type PharmacySupplyNature = "taxable" | "nil_rated" | "exempt";
+/** The classification in force on the outlet's date; null means "Not classified". */
+export type PharmacyProductTax = {
+  classification_code: string;
+  supply_nature: PharmacySupplyNature;
+  rate_ppm: number;
+  effective_from: string;
+};
 export type PharmacyProduct = z.infer<typeof pharmacyProductFieldsSchema> & {
   id: string;
   outlet_id: string;
@@ -43,7 +55,42 @@ export type PharmacyProduct = z.infer<typeof pharmacyProductFieldsSchema> & {
   regulatory_status: "pending_review";
   created_at: string;
   updated_at: string;
+  tax?: PharmacyProductTax | null;
 };
+/** Effective-dated, append-only tax rows report whether they apply today. */
+type TaxHistoryRow = {
+  id: string;
+  outlet_id: string;
+  effective_from: string;
+  reason: string | null;
+  recorded_by: string;
+  created_at: string;
+  in_force: boolean;
+  replaced: boolean;
+};
+export type PharmacyTaxRegistration = TaxHistoryRow & {
+  jurisdiction_code: string;
+  identifier_kind: string;
+  identifier: string;
+};
+export type PharmacyTaxClassification = TaxHistoryRow & {
+  product_id: string;
+  classification_code: string;
+  supply_nature: PharmacySupplyNature;
+  rate_ppm: number;
+  exemption_basis: string | null;
+};
+export type PharmacyTaxRegistrationInput = z.infer<typeof pharmacyTaxRegistrationInputSchema>;
+export type PharmacyTaxClassificationInput = z.infer<typeof pharmacyTaxClassificationInputSchema>;
+/** "5" for 50000 ppm, "0.25" for 2500; rates are stored in ppm, shown as percent. */
+export function formatRatePercent(ratePPM: number): string {
+  const hundredths = Math.round(ratePPM / 100);
+  const whole = Math.trunc(hundredths / 100);
+  const frac = String(hundredths % 100)
+    .padStart(2, "0")
+    .replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : String(whole);
+}
 export type PharmacyLocation = z.infer<typeof pharmacyLocationInputSchema> & {
   id: string;
   outlet_id: string;

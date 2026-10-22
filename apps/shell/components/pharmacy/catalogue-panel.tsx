@@ -18,6 +18,8 @@ import {
   type PharmacyProductInput,
   type PharmacyRevision,
   type PharmacyScope,
+  taxScheme,
+  zonedDateTimeInput,
 } from "@helivanta/api";
 import {
   ConfirmDialog,
@@ -30,6 +32,7 @@ import {
   useZodForm,
 } from "@helivanta/ui";
 import { CurrencyAmountField } from "./currency-amount-field";
+import { ProductTaxSection, TaxBadge } from "./tax-classification";
 
 const searchSchema = z.object({ query: z.string().trim().max(200) });
 const newProduct: PharmacyProductInput = {
@@ -54,18 +57,26 @@ export function CataloguePanel({
   writable,
   defaultCurrency,
   timeZone = "UTC",
+  countryCode = "",
+  canManageTax = false,
 }: {
   scope: PharmacyScope;
   writable: boolean;
   defaultCurrency: string;
   timeZone?: string;
+  countryCode?: string;
+  /** pharmacy.tax.manage with editor access: rates are the owner's, not the catalogue editor's. */
+  canManageTax?: boolean;
 }) {
   const [query, setQuery] = useState("");
+  const [unclassified, setUnclassified] = useState(false);
+  const scheme = taxScheme(countryCode);
+  const today = zonedDateTimeInput(new Date().toISOString(), timeZone).slice(0, 10);
   const [selected, setSelected] = useState<PharmacyProduct | null | undefined>();
   const search = useZodForm(searchSchema, { query: "" });
   const products = useApiPagedQuery<PharmacyProduct>(
-    pharmacyKey(scope, "catalogue", query),
-    `${pharmacyRoot(scope)}/catalogue/products?q=${encodeURIComponent(query)}`,
+    pharmacyKey(scope, "catalogue", query, unclassified),
+    `${pharmacyRoot(scope)}/catalogue/products?q=${encodeURIComponent(query)}${unclassified ? "&tax=unclassified" : ""}`,
   );
   const editor = useRef<HTMLElement>(null);
   function reveal(product: PharmacyProduct | null) {
@@ -110,6 +121,16 @@ export function CataloguePanel({
             <Search className="mr-2 size-4" />
             Search catalogue
           </Button>
+          {scheme && (
+            <Button
+              type="button"
+              variant={unclassified ? "default" : "outline"}
+              aria-pressed={unclassified}
+              onClick={() => setUnclassified((on) => !on)}
+            >
+              Not classified
+            </Button>
+          )}
         </form>
         {products.isError ? (
           <RequestFailure message="Could not load the catalogue." retry={products.retry} />
@@ -120,7 +141,13 @@ export function CataloguePanel({
         ) : products.items.length === 0 ? (
           <div className="p-10 text-center">
             <Package className="mx-auto mb-3 size-8 text-muted-foreground" />
-            <h4 className="font-semibold">{query ? "No matching products" : "No products yet"}</h4>
+            <h4 className="font-semibold">
+              {unclassified
+                ? "Every product is classified"
+                : query
+                  ? "No matching products"
+                  : "No products yet"}
+            </h4>
             <p className="mt-2 text-sm text-muted-foreground">
               {query
                 ? "Try a brand, generic name or SKU prefix."
@@ -145,6 +172,7 @@ export function CataloguePanel({
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
+                  {scheme && <TaxBadge tax={product.tax} name={scheme.classification.name} />}
                   <span className="rounded-full bg-(--hms-amber-tint) px-3 py-1 text-xs font-medium text-(--hms-amber)">
                     Pending regulatory review
                   </span>
@@ -184,6 +212,16 @@ export function CataloguePanel({
           ) : (
             selected && <ProductSummary product={selected} />
           )}{" "}
+          {selected && (
+            <ProductTaxSection
+              key={selected.id}
+              scope={scope}
+              product={selected}
+              scheme={scheme}
+              canManage={canManageTax}
+              today={today}
+            />
+          )}
           {selected && <ProductHistory scope={scope} product={selected} timeZone={timeZone} />}
         </Panel>
       )}

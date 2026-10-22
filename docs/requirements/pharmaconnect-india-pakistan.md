@@ -95,7 +95,7 @@ Every automated decision records country/org/location/category/role/rule version
 
 Country configuration includes allowed organisation/licence/document/product categories, registration and controlled classification, state/province/local premises, tax identifiers/calculation/invoice/credit rules, currency/number/date/timezone/language/direction, prescription/dispensing, privacy/retention/legal hold/residency, evidence/verification/renewal, storage/temperature/traceability/recall and approved national reporting adapters. India rules and approval never apply to Pakistan by fallback. Approved local specialists provide current authoritative sources and terminology; do not hard-code legal assertions from a legacy UI or a country name. Cross-border trading stays disabled until separately approved.
 
-Country metadata is implemented first as a generated shared contract. It is explicitly `review_required`, with no tax rates, licence validation claims or transaction activation. Follow-on approved effective-dated rules are separately versioned; original transactions retain their rule/price/tax snapshots.
+Country metadata is implemented first as a generated shared contract. It is explicitly `review_required`, with no tax rates, licence validation claims or transaction activation. Since #1283 it also carries each country's tax scheme structure (India: GST jurisdictions, GSTIN and HSN, with sources), still without rates: the hospital records each product's rate, and a country with no scheme refuses tax setup. Follow-on approved effective-dated rules are separately versioned; original transactions retain their rule/price/tax snapshots.
 
 ## Legacy procurement coverage
 

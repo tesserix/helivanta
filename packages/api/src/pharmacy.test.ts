@@ -1,5 +1,6 @@
-import { expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
+  formatRatePercent,
   pharmacyLocationInputSchema,
   formatPharmacyStorageAddress,
   pharmacyProductFormSchema,
@@ -137,4 +138,14 @@ it("normalizes independent storage codes and identifies unknown addresses", () =
       shelf_code: "TEST-S1",
     }),
   ).toBe("Aisle TEST-A1 · Shelf TEST-S1");
+});
+
+describe("formatRatePercent", () => {
+  it("shows ppm as a percentage without trailing zeros", () => {
+    expect(formatRatePercent(50000)).toBe("5");
+    expect(formatRatePercent(2500)).toBe("0.25");
+    expect(formatRatePercent(125000)).toBe("12.5");
+    expect(formatRatePercent(1000000)).toBe("100");
+    expect(formatRatePercent(0)).toBe("0");
+  });
 });

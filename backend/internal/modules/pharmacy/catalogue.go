@@ -40,6 +40,8 @@ type catalogueProduct struct {
 	Version          int64     `json:"version"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
+	// Tax is the classification in force on the outlet's date (#1283).
+	Tax *productTax `json:"tax" gorm:"-"`
 }
 
 func (catalogueProduct) TableName() string                 { return "pharmacy_catalogue_products" }
@@ -78,6 +80,7 @@ func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 	s.GET("/catalogue/products/:id", PermCatalogueRead, h.getProduct)
 	platform.ListRoute(s, "/catalogue/products", PermCatalogueRead, h.listProducts)
 	platform.ListRoute(s, "/catalogue/products/:id/revisions", PermCatalogueRead, h.listRevisions)
+	taxClassificationRoutes(s, h)
 }
 
 func decodeCatalogue(c *gin.Context, in any) bool {
@@ -287,7 +290,7 @@ func (h *catalogueHandlers) putProduct(c *gin.Context) {
 			return err
 		}
 		if exists && reflect.DeepEqual(result.ProductFields, in.ProductFields) {
-			return nil
+			return attachProductTax(tx, p.TenantID, outlet, &result)
 		}
 		if (!exists && *in.ExpectedVersion != 0) || (exists && *in.ExpectedVersion != result.Version) {
 			return errCatalogueVersion
@@ -312,7 +315,12 @@ func (h *catalogueHandlers) putProduct(c *gin.Context) {
 		if err := tx.Select(productColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&result).Error; err != nil {
 			return err
 		}
-		snapshot, err := json.Marshal(result)
+		// A revision records identity only; tax has its own effective-dated
+		// history. The outer nil Tax shadows the embedded one and is omitted.
+		snapshot, err := json.Marshal(struct {
+			catalogueProduct
+			Tax *productTax `json:"tax,omitempty"`
+		}{catalogueProduct: result})
 		if err != nil {
 			return err
 		}
@@ -327,7 +335,10 @@ func (h *catalogueHandlers) putProduct(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		return h.bus.Publish(tx, pharmacycontract.SubjectCatalogueUpdated, events.Event{Type: "MedicineCatalogueUpdated", Version: 1, TenantID: p.TenantID, Data: data})
+		if err := h.bus.Publish(tx, pharmacycontract.SubjectCatalogueUpdated, events.Event{Type: "MedicineCatalogueUpdated", Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
+			return err
+		}
+		return attachProductTax(tx, p.TenantID, outlet, &result)
 	})
 	if err != nil {
 		catalogueError(c, err)
@@ -347,7 +358,10 @@ func (h *catalogueHandlers) getProduct(c *gin.Context) {
 	}
 	var row catalogueProduct
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		return tx.Select(productColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&row).Error
+		if err := tx.Select(productColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&row).Error; err != nil {
+			return err
+		}
+		return attachProductTax(tx, p.TenantID, outlet, &row)
 	})
 	if err != nil {
 		catalogueError(c, err)
@@ -363,7 +377,8 @@ func (h *catalogueHandlers) listProducts(c *gin.Context, params pagination.Param
 	}
 	q := strings.ToLower(strings.TrimSpace(c.Query("q")))
 	status := c.Query("status")
-	if len(q) > 200 || (status != "" && status != "active" && status != "discontinued" && status != "withdrawn") {
+	taxFilter := c.Query("tax")
+	if len(q) > 200 || (status != "" && status != "active" && status != "discontinued" && status != "withdrawn") || (taxFilter != "" && taxFilter != "unclassified") {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid catalogue filters")
 		return nil, nil
 	}
@@ -377,7 +392,20 @@ func (h *catalogueHandlers) listProducts(c *gin.Context, params pagination.Param
 			prefix := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(q) + "%"
 			query = query.Where("(lower(brand_name) LIKE ? OR lower(generic_name) LIKE ? OR lower(sku) LIKE ?)", prefix, prefix, prefix)
 		}
-		return query.Find(&rows).Error
+		today, err := outletLocalDate(tx, p.TenantID, outlet)
+		if err != nil {
+			return err
+		}
+		if taxFilter == "unclassified" {
+			// Withdrawn products are never sold, so they are never a gap.
+			query = query.Where(`status IN ('active','discontinued') AND NOT EXISTS (SELECT 1 FROM pharmacy_product_tax_classifications t
+ WHERE t.tenant_id=pharmacy_catalogue_products.tenant_id AND t.outlet_id=pharmacy_catalogue_products.outlet_id
+ AND t.product_id=pharmacy_catalogue_products.id AND t.effective_from <= ?::date)`, today)
+		}
+		if err := query.Find(&rows).Error; err != nil {
+			return err
+		}
+		return attachTax(tx, p.TenantID, outlet, rows)
 	})
 	if err != nil {
 		catalogueError(c, err)

@@ -1118,6 +1118,22 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true
+        },
+        {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications",
+          "permission": "pharmacy.tax.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id",
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
@@ -1245,6 +1261,30 @@
           "paginated": true
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force",
+          "permission": "pharmacy.tax.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations",
+          "permission": "pharmacy.tax.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true
+        },
+        {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations",
+          "permission": "pharmacy.tax.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet",
           "permission": "pharmacy.access.manage",
@@ -1360,6 +1400,12 @@
           ]
         },
         {
+          "permission": "pharmacy.tax.manage",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
           "permission": "pharmacy.dispense.read",
           "roles": [
             "pharmacist",
@@ -1463,6 +1509,14 @@
           "id": "0008_pharmacy",
           "sql_sha256": "f37ff290134ec0280f2bd6facb1c8b77e80b818f2aba6c2fb053dc9c446f7070",
           "creates_tables": []
+        },
+        {
+          "id": "0009_pharmacy",
+          "sql_sha256": "d48e16fa3ce485814584515bf9f681c326bed699184e1d58382e267cf2f41652",
+          "creates_tables": [
+            "pharmacy_outlet_tax_registrations",
+            "pharmacy_product_tax_classifications"
+          ]
         }
       ]
     },

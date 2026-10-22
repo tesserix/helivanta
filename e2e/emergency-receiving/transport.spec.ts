@@ -32,9 +32,8 @@ test("independent hospital acceptance and physical receipt gate transport and cl
     const hospital = await hospitalContext.newPage(),
       crew = await crewContext.newPage();
     await page.goto(`/emergency/bases/${seed.base_id}/cases/${seed.case_id}`);
-    await page
-      .getByLabel("Approved receiving partner")
-      .selectOption({ label: "Synthetic Receiving Campus" });
+    await page.getByRole("combobox", { name: "Approved receiving partner" }).click();
+    await page.getByRole("option", { name: "Synthetic Receiving Campus", exact: true }).click();
     await page.getByLabel("Pre-alert communication reference").fill("SYN-BROWSER-PREALERT");
     await page.getByRole("button", { name: "Send hospital pre-alert", exact: true }).click();
     await hospital.goto(`${baseURL}/emergency/receiving`);

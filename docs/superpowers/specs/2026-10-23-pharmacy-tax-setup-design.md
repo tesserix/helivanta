@@ -30,7 +30,7 @@ The platform holds no approved tax rates (IN-RC-10 in `docs/domain/india/billing
 - The jurisdiction list and the UTGST set are copied from the GST portal's state-code list and the UTGST Act at implementation time, then recorded in `sources`. They are not taken from memory. A jurisdiction's `kind` decides SGST vs UTGST, so a code-review mistake there is a wrong invoice.
 - _(Builder's call.)_ The list holds only places an outlet can be: states, union territories and 97 (Other Territory). It excludes:
   - 96 (foreign) and 99 (Centre jurisdiction), which are not outlet locations;
-  - retired code 25. Dadra & Nagar Haveli and Daman & Diu registrations moved to 26 in the 2020 merger, so a new registration starting `25` is refused.
+  - retired codes 25 and 28. Dadra & Nagar Haveli and Daman & Diu registrations moved to 26 in the 2020 merger, and Andhra Pradesh moved from 28 to 37; neither appears in the GST portal's current state list (checked 2026-10-23), so a new registration starting `25` or `28` is refused.
   - If the sources show otherwise when the list is copied, the sources win and this paragraph is corrected in the same change.
 - Pakistan gets `"tax": null`. A null scheme **refuses** tax setup for that country's outlets (`409 tax_scheme_unavailable`), failing closed rather than guessing a scheme. Adding a country means adding its scheme, plus a new calculation kind if it is not `gst`. No `if country == "IN"` branch anywhere.
 - The generator validates the shape: unique jurisdiction codes, `registration_kind` among `tax_identifier_kinds`, a compilable `pattern`, and https `sources`. The generator's existing check fails CI when a generated file is stale.

@@ -12,7 +12,7 @@ type Country struct {
 
 // Configuration returns a fresh snapshot of bounded public metadata.
 func Configuration() json.RawMessage {
-	return json.RawMessage("{\"schema_version\":1,\"countries\":[{\"code\":\"IN\",\"name\":\"India\",\"currency\":\"INR\",\"currency_minor_digits\":2,\"timezone\":\"Asia/Kolkata\",\"timezones\":[\"Asia/Kolkata\",\"Asia/Calcutta\"],\"locales\":[{\"code\":\"en-IN\",\"direction\":\"ltr\"},{\"code\":\"hi-IN\",\"direction\":\"ltr\"}],\"regulatory_policy_status\":\"review_required\",\"tax_identifier_kinds\":[\"gstin\",\"pan\",\"other\"]},{\"code\":\"PK\",\"name\":\"Pakistan\",\"currency\":\"PKR\",\"currency_minor_digits\":2,\"timezone\":\"Asia/Karachi\",\"timezones\":[\"Asia/Karachi\"],\"locales\":[{\"code\":\"en-PK\",\"direction\":\"ltr\"},{\"code\":\"ur-PK\",\"direction\":\"rtl\"}],\"regulatory_policy_status\":\"review_required\",\"tax_identifier_kinds\":[\"ntn\",\"stn\",\"other\"]}]}")
+	return json.RawMessage("{\"schema_version\":1,\"countries\":[{\"code\":\"IN\",\"name\":\"India\",\"currency\":\"INR\",\"currency_minor_digits\":2,\"timezone\":\"Asia/Kolkata\",\"timezones\":[\"Asia/Kolkata\",\"Asia/Calcutta\"],\"locales\":[{\"code\":\"en-IN\",\"direction\":\"ltr\"},{\"code\":\"hi-IN\",\"direction\":\"ltr\"}],\"regulatory_policy_status\":\"review_required\",\"tax_identifier_kinds\":[\"gstin\",\"pan\",\"other\"],\"tax\":{\"scheme\":\"gst\",\"registration_kind\":\"gstin\",\"classification\":{\"name\":\"HSN\",\"pattern\":\"^([0-9]{4}|[0-9]{6}|[0-9]{8})$\"},\"jurisdictions\":[{\"code\":\"10\",\"name\":\"Bihar\",\"kind\":\"state\"},{\"code\":\"11\",\"name\":\"Sikkim\",\"kind\":\"state\"},{\"code\":\"12\",\"name\":\"Arunachal Pradesh\",\"kind\":\"state\"},{\"code\":\"13\",\"name\":\"Nagaland\",\"kind\":\"state\"},{\"code\":\"14\",\"name\":\"Manipur\",\"kind\":\"state\"},{\"code\":\"15\",\"name\":\"Mizoram\",\"kind\":\"state\"},{\"code\":\"16\",\"name\":\"Tripura\",\"kind\":\"state\"},{\"code\":\"17\",\"name\":\"Meghalaya\",\"kind\":\"state\"},{\"code\":\"18\",\"name\":\"Assam\",\"kind\":\"state\"},{\"code\":\"19\",\"name\":\"West Bengal\",\"kind\":\"state\"},{\"code\":\"20\",\"name\":\"Jharkhand\",\"kind\":\"state\"},{\"code\":\"21\",\"name\":\"Odisha\",\"kind\":\"state\"},{\"code\":\"22\",\"name\":\"Chhattisgarh\",\"kind\":\"state\"},{\"code\":\"23\",\"name\":\"Madhya Pradesh\",\"kind\":\"state\"},{\"code\":\"24\",\"name\":\"Gujarat\",\"kind\":\"state\"},{\"code\":\"26\",\"name\":\"Dadra and Nagar Haveli and Daman and Diu\",\"kind\":\"union_territory\"},{\"code\":\"27\",\"name\":\"Maharashtra\",\"kind\":\"state\"},{\"code\":\"29\",\"name\":\"Karnataka\",\"kind\":\"state\"},{\"code\":\"30\",\"name\":\"Goa\",\"kind\":\"state\"},{\"code\":\"31\",\"name\":\"Lakshadweep\",\"kind\":\"union_territory\"},{\"code\":\"32\",\"name\":\"Kerala\",\"kind\":\"state\"},{\"code\":\"33\",\"name\":\"Tamil Nadu\",\"kind\":\"state\"},{\"code\":\"34\",\"name\":\"Puducherry\",\"kind\":\"state\"},{\"code\":\"35\",\"name\":\"Andaman and Nicobar Islands\",\"kind\":\"union_territory\"},{\"code\":\"36\",\"name\":\"Telangana\",\"kind\":\"state\"},{\"code\":\"37\",\"name\":\"Andhra Pradesh\",\"kind\":\"state\"},{\"code\":\"38\",\"name\":\"Ladakh\",\"kind\":\"union_territory\"},{\"code\":\"97\",\"name\":\"Other Territory\",\"kind\":\"union_territory\"},{\"code\":\"01\",\"name\":\"Jammu and Kashmir\",\"kind\":\"state\"},{\"code\":\"02\",\"name\":\"Himachal Pradesh\",\"kind\":\"state\"},{\"code\":\"03\",\"name\":\"Punjab\",\"kind\":\"state\"},{\"code\":\"04\",\"name\":\"Chandigarh\",\"kind\":\"union_territory\"},{\"code\":\"05\",\"name\":\"Uttarakhand\",\"kind\":\"state\"},{\"code\":\"06\",\"name\":\"Haryana\",\"kind\":\"state\"},{\"code\":\"07\",\"name\":\"Delhi\",\"kind\":\"state\"},{\"code\":\"08\",\"name\":\"Rajasthan\",\"kind\":\"state\"},{\"code\":\"09\",\"name\":\"Uttar Pradesh\",\"kind\":\"state\"}],\"sources\":[{\"topic\":\"GST state codes\",\"url\":\"https://tutorial.gst.gov.in/downloads/news/final_approved_monthly_gst_data_for_website_feb_2026_01032026.pdf\",\"reviewed_at\":\"2026-10-23\"},{\"topic\":\"Union territories that levy UTGST\",\"url\":\"https://www.indiacode.nic.in/bitstream/123456789/2252/1/A2017-14.pdf\",\"reviewed_at\":\"2026-10-23\"}]}},{\"code\":\"PK\",\"name\":\"Pakistan\",\"currency\":\"PKR\",\"currency_minor_digits\":2,\"timezone\":\"Asia/Karachi\",\"timezones\":[\"Asia/Karachi\"],\"locales\":[{\"code\":\"en-PK\",\"direction\":\"ltr\"},{\"code\":\"ur-PK\",\"direction\":\"rtl\"}],\"regulatory_policy_status\":\"review_required\",\"tax_identifier_kinds\":[\"ntn\",\"stn\",\"other\"],\"tax\":null}]}")
 }
 
 // Lookup resolves supported metadata without falling back to another country.
@@ -48,5 +48,49 @@ func ValidTaxIdentifierKind(code, kind string) bool {
 		return kind == "ntn" || kind == "stn" || kind == "other"
 	default:
 		return false
+	}
+}
+
+// Jurisdiction is a place an outlet can be registered; Kind decides the intra-jurisdiction component.
+type Jurisdiction struct {
+	Code string
+	Name string
+	Kind string
+}
+
+// Source records where scheme structure was copied from.
+type Source struct {
+	Topic      string
+	URL        string
+	ReviewedAt string
+}
+
+// TaxScheme is a country's tax structure. It never carries a rate.
+type TaxScheme struct {
+	Scheme                string
+	RegistrationKind      string
+	ClassificationName    string
+	ClassificationPattern string
+	Jurisdictions         []Jurisdiction
+	Sources               []Source
+}
+
+// Jurisdiction finds a jurisdiction by code.
+func (s TaxScheme) Jurisdiction(code string) (Jurisdiction, bool) {
+	for _, j := range s.Jurisdictions {
+		if j.Code == code {
+			return j, true
+		}
+	}
+	return Jurisdiction{}, false
+}
+
+// Tax returns a fresh copy of the country's scheme; false means tax setup is refused there.
+func Tax(code string) (TaxScheme, bool) {
+	switch code {
+	case "IN":
+		return TaxScheme{Scheme: "gst", RegistrationKind: "gstin", ClassificationName: "HSN", ClassificationPattern: "^([0-9]{4}|[0-9]{6}|[0-9]{8})$", Jurisdictions: []Jurisdiction{{"10", "Bihar", "state"}, {"11", "Sikkim", "state"}, {"12", "Arunachal Pradesh", "state"}, {"13", "Nagaland", "state"}, {"14", "Manipur", "state"}, {"15", "Mizoram", "state"}, {"16", "Tripura", "state"}, {"17", "Meghalaya", "state"}, {"18", "Assam", "state"}, {"19", "West Bengal", "state"}, {"20", "Jharkhand", "state"}, {"21", "Odisha", "state"}, {"22", "Chhattisgarh", "state"}, {"23", "Madhya Pradesh", "state"}, {"24", "Gujarat", "state"}, {"26", "Dadra and Nagar Haveli and Daman and Diu", "union_territory"}, {"27", "Maharashtra", "state"}, {"29", "Karnataka", "state"}, {"30", "Goa", "state"}, {"31", "Lakshadweep", "union_territory"}, {"32", "Kerala", "state"}, {"33", "Tamil Nadu", "state"}, {"34", "Puducherry", "state"}, {"35", "Andaman and Nicobar Islands", "union_territory"}, {"36", "Telangana", "state"}, {"37", "Andhra Pradesh", "state"}, {"38", "Ladakh", "union_territory"}, {"97", "Other Territory", "union_territory"}, {"01", "Jammu and Kashmir", "state"}, {"02", "Himachal Pradesh", "state"}, {"03", "Punjab", "state"}, {"04", "Chandigarh", "union_territory"}, {"05", "Uttarakhand", "state"}, {"06", "Haryana", "state"}, {"07", "Delhi", "state"}, {"08", "Rajasthan", "state"}, {"09", "Uttar Pradesh", "state"}}, Sources: []Source{{"GST state codes", "https://tutorial.gst.gov.in/downloads/news/final_approved_monthly_gst_data_for_website_feb_2026_01032026.pdf", "2026-10-23"}, {"Union territories that levy UTGST", "https://www.indiacode.nic.in/bitstream/123456789/2252/1/A2017-14.pdf", "2026-10-23"}}}, true
+	default:
+		return TaxScheme{}, false
 	}
 }

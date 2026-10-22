@@ -3,7 +3,7 @@
 import {
   createContext,
   useContext,
-  type ComponentProps,
+  type AnchorHTMLAttributes,
   type HTMLAttributes,
   type Ref,
 } from "react";
@@ -51,10 +51,18 @@ export function Panel({
   );
 }
 
-export function PanelLink({ className, children, ...rest }: ComponentProps<typeof Link>) {
+// Props are declared, not taken from ComponentProps<typeof Link>: this
+// package and the shell can resolve different next versions, whose Link
+// types do not unify.
+export function PanelLink({
+  href,
+  className,
+  children,
+  ...rest
+}: Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & { href: string }) {
   const nested = useContext(InPanel);
   return (
-    <Link {...rest} className={cn(surface(nested, false), LINK_STATES, className)}>
+    <Link {...rest} href={href} className={cn(surface(nested, false), LINK_STATES, className)}>
       {children}
     </Link>
   );

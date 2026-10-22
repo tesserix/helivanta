@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { z } from "zod";
 import { Badge, Button, Input } from "@tesserix/web";
 import { Pill } from "lucide-react";
 import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
-import { EmptyState, LoadMore, formatTime } from "@helivanta/ui";
+import { EmptyState, Field, LoadMore, formatTime, useZodForm } from "@helivanta/ui";
 
 type Dispense = {
   id: string;
@@ -16,23 +16,15 @@ type Dispense = {
   created_at: string;
 };
 
+// No default: each dispense records what the pharmacist typed for that row (#1272).
+const dispenseSchema = z.object({
+  medication: z.string().trim().min(1, "Medication is required").max(200),
+});
+
 export function DispenseList() {
-  const [medication, setMedication] = useState("Paracetamol 500mg");
   const dispenses = useApiPagedQuery<Dispense>(["dispenses"], "/pharmacy/dispenses", {
     poll: true,
   });
-
-  const dispenseRow = useApiMutation(
-    (id: string) =>
-      apiFetch("/pharmacy/dispenses/" + id + "/dispense", {
-        method: "POST",
-        body: JSON.stringify({ medication }),
-      }),
-    {
-      successToast: "Dispensed",
-      invalidate: [["dispenses"]],
-    },
-  );
 
   const pending = dispenses.items.filter((d) => d.status === "pending").length;
 
@@ -47,18 +39,6 @@ export function DispenseList() {
               : `${pending} pending dispense${pending === 1 ? "" : "s"}.`}
           </p>
         </div>
-        <label
-          htmlFor="dispense-medication-filter"
-          className="flex flex-col gap-1.5 text-sm font-medium"
-        >
-          Medication
-          <Input
-            id="dispense-medication-filter"
-            value={medication}
-            onChange={(e) => setMedication(e.target.value)}
-            className="w-56"
-          />
-        </label>
       </div>
       <ul className="divide-y text-sm">
         {dispenses.items.length === 0 && (
@@ -85,14 +65,7 @@ export function DispenseList() {
             </div>
             {d.status === "pending" ? (
               <Can permission="pharmacy.dispense.fulfil">
-                <Button
-                  onClick={() => dispenseRow.mutate(d.id)}
-                  disabled={dispenseRow.isPending && dispenseRow.variables === d.id}
-                >
-                  {dispenseRow.isPending && dispenseRow.variables === d.id
-                    ? "Dispensing…"
-                    : "Dispense"}
-                </Button>
+                <DispenseForm id={d.id} />
               </Can>
             ) : (
               <time className="shrink-0 tabular-nums text-muted-foreground">
@@ -108,5 +81,38 @@ export function DispenseList() {
         onClick={dispenses.loadMore}
       />
     </section>
+  );
+}
+
+function DispenseForm({ id }: { id: string }) {
+  const form = useZodForm(dispenseSchema, { medication: "" });
+  const dispense = useApiMutation(
+    (values: z.infer<typeof dispenseSchema>) =>
+      apiFetch("/pharmacy/dispenses/" + id + "/dispense", {
+        method: "POST",
+        body: JSON.stringify(values),
+      }),
+    {
+      successToast: "Dispensed",
+      invalidate: [["dispenses"]],
+    },
+  );
+  const fieldId = `dispense-medication-${id}`;
+
+  return (
+    <form
+      noValidate
+      onSubmit={form.handleSubmit((values) => dispense.mutate(values))}
+      className="flex shrink-0 items-start gap-2"
+    >
+      <div className="w-56">
+        <Field id={fieldId} label="Medication" error={form.formState.errors.medication?.message}>
+          <Input id={fieldId} {...form.register("medication")} />
+        </Field>
+      </div>
+      <Button type="submit" className="mt-6" disabled={dispense.isPending}>
+        {dispense.isPending ? "Dispensing…" : "Dispense"}
+      </Button>
+    </form>
   );
 }

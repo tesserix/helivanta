@@ -40,6 +40,8 @@ type catalogueProduct struct {
 	Version          int64     `json:"version"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
+	// Tax is the classification in force on the outlet's date (#1283).
+	Tax *productTax `json:"tax" gorm:"-"`
 }
 
 func (catalogueProduct) TableName() string                 { return "pharmacy_catalogue_products" }
@@ -78,6 +80,7 @@ func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 	s.GET("/catalogue/products/:id", PermCatalogueRead, h.getProduct)
 	platform.ListRoute(s, "/catalogue/products", PermCatalogueRead, h.listProducts)
 	platform.ListRoute(s, "/catalogue/products/:id/revisions", PermCatalogueRead, h.listRevisions)
+	taxClassificationRoutes(s, h)
 }
 
 func decodeCatalogue(c *gin.Context, in any) bool {
@@ -347,7 +350,15 @@ func (h *catalogueHandlers) getProduct(c *gin.Context) {
 	}
 	var row catalogueProduct
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		return tx.Select(productColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&row).Error
+		if err := tx.Select(productColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&row).Error; err != nil {
+			return err
+		}
+		rows := []catalogueProduct{row}
+		if err := attachTax(tx, p.TenantID, outlet, rows); err != nil {
+			return err
+		}
+		row = rows[0]
+		return nil
 	})
 	if err != nil {
 		catalogueError(c, err)
@@ -363,7 +374,8 @@ func (h *catalogueHandlers) listProducts(c *gin.Context, params pagination.Param
 	}
 	q := strings.ToLower(strings.TrimSpace(c.Query("q")))
 	status := c.Query("status")
-	if len(q) > 200 || (status != "" && status != "active" && status != "discontinued" && status != "withdrawn") {
+	taxFilter := c.Query("tax")
+	if len(q) > 200 || (status != "" && status != "active" && status != "discontinued" && status != "withdrawn") || (taxFilter != "" && taxFilter != "unclassified") {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid catalogue filters")
 		return nil, nil
 	}
@@ -377,7 +389,20 @@ func (h *catalogueHandlers) listProducts(c *gin.Context, params pagination.Param
 			prefix := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(q) + "%"
 			query = query.Where("(lower(brand_name) LIKE ? OR lower(generic_name) LIKE ? OR lower(sku) LIKE ?)", prefix, prefix, prefix)
 		}
-		return query.Find(&rows).Error
+		today, err := outletLocalDate(tx, p.TenantID, outlet)
+		if err != nil {
+			return err
+		}
+		if taxFilter == "unclassified" {
+			// Withdrawn products are never sold, so they are never a gap.
+			query = query.Where(`status IN ('active','discontinued') AND NOT EXISTS (SELECT 1 FROM pharmacy_product_tax_classifications t
+ WHERE t.tenant_id=pharmacy_catalogue_products.tenant_id AND t.outlet_id=pharmacy_catalogue_products.outlet_id
+ AND t.product_id=pharmacy_catalogue_products.id AND t.effective_from <= ?::date)`, today)
+		}
+		if err := query.Find(&rows).Error; err != nil {
+			return err
+		}
+		return attachTax(tx, p.TenantID, outlet, rows)
 	})
 	if err != nil {
 		catalogueError(c, err)

@@ -10,6 +10,12 @@ Helivanta — a hospital management system platform, in one monorepo.
 
 ## Target architecture
 
+[API contracts, schemas and integration specifications](docs/api/README.md)
+document the current backend surface, domain ownership, event payloads and
+review proposals for beds, clinical handoffs, CRM and the wider portfolio.
+The generated registry reference distinguishes implemented operations from
+planned product capabilities.
+
 [Full HMS design and editable diagrams](docs/architecture/README.md) cover one
 shared UI, separate product APIs, multi-hospital tenants with optional data
 sharing, CRM, Zitadel, Istio, PostgreSQL, Valkey, future Qdrant and HIPAA/SOC 2

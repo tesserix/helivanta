@@ -12,6 +12,7 @@ export { defineEnv } from "./env";
 export { AppProviders } from "./providers";
 export { useApiMutation, useApiQuery } from "./hooks";
 export { useApiPagedQuery, type Page, type UseApiPagedQueryResult } from "./paged";
+export { useApiPageQuery, PAGE_SIZE, type UseApiPageQueryResult } from "./page-query";
 export { Can, usePermissions } from "./permissions";
 export { PERMISSIONS_CACHE_KEY, clearPermissionsCache } from "./permissions-cache";
 export {

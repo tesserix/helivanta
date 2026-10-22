@@ -7,7 +7,8 @@ import { POLL_INTERVAL_MS, apiFetch, type ApiQueryRequest } from "./client";
 /** The paginated envelope every collection endpoint returns (#816). */
 export type Page<T> = {
   data: T[];
-  page: { next_cursor: string | null; has_more: boolean };
+  /** `total` is present only on counted lists (#1295 D1). */
+  page: { next_cursor: string | null; has_more: boolean; total?: number };
 };
 
 export type UseApiPagedQueryResult<T> = {

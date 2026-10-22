@@ -2,6 +2,7 @@ package tenantdb
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -232,6 +233,18 @@ func (d *DB) Migrate(ctx context.Context, migs []Migration) error {
 // with set_config(..., true) so it is transaction-local; an unset GUC
 // makes every RLS policy evaluate NULL → zero rows (issue #2).
 func (d *DB) WithTenant(ctx context.Context, tenantID string, fn func(tx *gorm.DB) error) error {
+	return d.withTenant(ctx, tenantID, fn)
+}
+
+// WithTenantSnapshot is WithTenant in a read-only REPEATABLE READ
+// transaction: every statement in fn sees the same snapshot (#1295 D2). A
+// counted list reads its total and its rows here, so a row committed
+// between the two statements cannot make them disagree.
+func (d *DB) WithTenantSnapshot(ctx context.Context, tenantID string, fn func(tx *gorm.DB) error) error {
+	return d.withTenant(ctx, tenantID, fn, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+}
+
+func (d *DB) withTenant(ctx context.Context, tenantID string, fn func(tx *gorm.DB) error, opts ...*sql.TxOptions) error {
 	if _, err := uuid.Parse(tenantID); err != nil {
 		return ErrInvalidTenant
 	}
@@ -246,7 +259,7 @@ func (d *DB) WithTenant(ctx context.Context, tenantID string, fn func(tx *gorm.D
 			}
 		}
 		return fn(tx)
-	})
+	}, opts...)
 }
 
 // WithSystem runs fn in a transaction on the app pool WITHOUT a tenant

@@ -34,6 +34,28 @@ const MARKETING_SYNTAX = [
   { selector: `TemplateElement[value.raw=${MARKETING_TYPE}]`, message: MARKETING_MESSAGE },
 ];
 
+// Workspace pages open with PageHeading under the shell's h1 (#1274). A
+// second h1, a display-size heading or an accent eyebrow is the landing-page
+// header coming back one page at a time. Display numbers (KPIs) are not
+// headings, so only heading elements are size-checked.
+const DISPLAY_SIZE = String.raw`/(^|[\s:])text-([2-9]xl)(\s|$)/`;
+const HEADING_MESSAGE =
+  "Open a workspace page with PageHeading from @helivanta/ui; section headings stay at text-xl or smaller (#1274).";
+const EYEBROW = String.raw`/^(?=.*(^|\s)text-xs(\s|$))(?=.*(^|\s)font-semibold(\s|$))(?=.*text-\(--hms-accent\))/`;
+const EYEBROW_MESSAGE =
+  "No accent eyebrow labels in the workspace: the heading says what the page is (#1274).";
+const HEADING = "JSXOpeningElement[name.name=/^h[1-6]$/] > JSXAttribute[name.name='className']";
+const WORKSPACE_SYNTAX = [
+  {
+    selector: "JSXOpeningElement[name.name='h1']",
+    message: "The shell header owns the h1; a workspace page starts at h2 (#1274).",
+  },
+  { selector: `${HEADING} Literal[value=${DISPLAY_SIZE}]`, message: HEADING_MESSAGE },
+  { selector: `${HEADING} TemplateElement[value.raw=${DISPLAY_SIZE}]`, message: HEADING_MESSAGE },
+  { selector: `Literal[value=${EYEBROW}]`, message: EYEBROW_MESSAGE },
+  { selector: `TemplateElement[value.raw=${EYEBROW}]`, message: EYEBROW_MESSAGE },
+];
+
 const SANITIZE_SYNTAX = {
   selector:
     "JSXAttribute[name.name='dangerouslySetInnerHTML']:not([value.expression.callee.name='sanitizeHtml'])",
@@ -48,6 +70,27 @@ export function hmsPublicPages(files) {
   return {
     files,
     rules: { "no-restricted-syntax": ["error", SANITIZE_SYNTAX, ...DESIGN_SYNTAX] },
+  };
+}
+
+/**
+ * Workspace pages and their components get the heading rules on top of every
+ * design rule. Spread after hmsEslint(dir, { design: true }) with the globs.
+ * Tests stay exempt, as they are from the design rules.
+ */
+export function hmsWorkspacePages(files, ignores = []) {
+  return {
+    files,
+    ignores: ["**/*.test.{ts,tsx,mjs}", ...ignores],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        SANITIZE_SYNTAX,
+        ...DESIGN_SYNTAX,
+        ...MARKETING_SYNTAX,
+        ...WORKSPACE_SYNTAX,
+      ],
+    },
   };
 }
 

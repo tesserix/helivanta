@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@tesserix/web";
 import { useApiPagedQuery, usePermissions, type Hospital } from "@helivanta/api";
-import { Field, SelectControl } from "@helivanta/ui";
+import { Field, PageHeading, SelectControl } from "@helivanta/ui";
 import { Failure } from "../roster-policy/policy-ui";
 import { CoverageExport } from "./coverage-export";
 import { PlansPanel } from "./plans-panel";
@@ -20,29 +20,24 @@ export function BenefitsWorkspace() {
   const hospital = hospitals.items.find((h) => h.id === selected) ?? hospitals.items[0];
   return (
     <>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">People & operations</p>
-          <h2 className="text-3xl font-semibold tracking-tight">Benefits</h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Record the benefit plans this hospital offers, each employee&apos;s dependents and who
-            each plan covers. Nothing is pre-loaded or decided automatically: every coverage change
-            needs a second person&apos;s approval, and every change keeps its history.
-          </p>
-        </div>
-        {allowed && hospital && (
-          <div className="w-full sm:w-72">
-            <Field id="benefits-hospital" label="Hospital">
-              <SelectControl
-                id="benefits-hospital"
-                value={hospital.id}
-                onValueChange={setSelected}
-                options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
-              />
-            </Field>
-          </div>
-        )}
-      </div>
+      <PageHeading
+        description="Record the benefit plans this hospital offers, each employee's dependents and who each plan covers. Nothing is pre-loaded or decided automatically: every coverage change needs a second person's approval, and every change keeps its history."
+        actions={
+          allowed &&
+          hospital && (
+            <div className="w-full sm:w-72">
+              <Field id="benefits-hospital" label="Hospital">
+                <SelectControl
+                  id="benefits-hospital"
+                  value={hospital.id}
+                  onValueChange={setSelected}
+                  options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
+                />
+              </Field>
+            </div>
+          )
+        }
+      />
       {isLoading ? (
         <p role="status">Loading…</p>
       ) : !allowed ? (

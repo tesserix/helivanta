@@ -14,7 +14,7 @@ import {
   type StaffInput,
   type Page,
 } from "@helivanta/api";
-import { Field, useZodForm, SelectControl, FormSelectField } from "@helivanta/ui";
+import { Field, FormSelectField, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
 import { EnrollmentEditor } from "./enrollment-editor";
 import { StaffDocumentPanel } from "./document-panel";
 import { StaffCredentialPanel } from "./credential-panel";
@@ -33,30 +33,26 @@ export default function Workforce() {
   const hospital = hospitals.data?.data.find((h) => h.id === hospitalId) ?? hospitals.data?.data[0];
   return (
     <>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">People & operations</p>
-          <h2 className="text-3xl font-semibold tracking-tight">Staff directory</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            The people behind your care. Manage your hospital team in one place.
-          </p>
-        </div>
-        {hospital && (
-          <div className="w-full max-w-sm sm:w-72">
-            <Field id="workforce-hospital" label="Hospital">
-              <SelectControl
-                id="workforce-hospital"
-                value={hospital.id}
-                onValueChange={setHospitalId}
-                options={(hospitals.data?.data ?? []).map((item) => ({
-                  value: item.id,
-                  label: item.name,
-                }))}
-              />
-            </Field>
-          </div>
-        )}
-      </div>
+      <PageHeading
+        description="Enrol, edit and find the staff of each hospital."
+        actions={
+          hospital && (
+            <div className="w-full max-w-sm sm:w-72">
+              <Field id="workforce-hospital" label="Hospital">
+                <SelectControl
+                  id="workforce-hospital"
+                  value={hospital.id}
+                  onValueChange={setHospitalId}
+                  options={(hospitals.data?.data ?? []).map((item) => ({
+                    value: item.id,
+                    label: item.name,
+                  }))}
+                />
+              </Field>
+            </div>
+          )
+        }
+      />
       {can("workforce.hospital.manage") && <HospitalSetup />}
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>

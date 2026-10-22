@@ -295,8 +295,7 @@ function EnrollmentForm({
     <section ref={sectionRef} aria-labelledby="staff-editor-heading" className="mt-8 scroll-mt-24">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold text-(--hms-accent)">Hospital workforce</p>
-          <h3 id="staff-editor-heading" className="mt-2 text-2xl font-semibold tracking-tight">
+          <h3 id="staff-editor-heading" className="text-xl font-semibold">
             {editing ? "Edit staff enrollment" : "Enroll a staff member"}
           </h3>
           <p className="mt-2 text-sm text-muted-foreground">

@@ -55,7 +55,7 @@ export function EmergencyCaseDetailPanel({ baseID, caseID }: { baseID: string; c
         Back to operating bases
       </Link>
       <header className="space-y-2">
-        <h1 className="break-all text-2xl font-semibold">{row.case_number}</h1>
+        <h2 className="break-all text-xl font-semibold">{row.case_number}</h2>
         <div className="flex gap-2">
           <Badge variant="secondary">{row.status}</Badge>
           <Badge variant="outline">Untriaged</Badge>

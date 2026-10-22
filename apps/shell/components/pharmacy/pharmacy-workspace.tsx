@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { z } from "zod";
 import { Button } from "@tesserix/web";
-import { Pill, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import {
   apiFetch,
   countryProfile,
@@ -17,7 +17,7 @@ import {
   type PharmacyOutlet,
   type PharmacyScope,
 } from "@helivanta/api";
-import { Field, SelectControl, LoadMore, useZodForm, RequestFailure } from "@helivanta/ui";
+import { Field, LoadMore, PageHeading, RequestFailure, SelectControl, useZodForm } from "@helivanta/ui";
 import { CataloguePanel } from "./catalogue-panel";
 import { AccountsPanel } from "./accounts-panel";
 import { StockPanel } from "./stock-panel";
@@ -82,50 +82,39 @@ function TenantPharmacy({
     : outlets.items[0];
   return (
     <>
-      <header className="mb-7 space-y-5">
-        <div>
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-(--hms-accent)">
-            <Pill className="size-4" />
-            PharmaConnect
-          </p>
-          <h2 className="text-3xl font-semibold tracking-tight">
-            {view === "catalogue"
-              ? "A precise foundation for every medicine."
-              : view === "accounts"
-                ? "A clear account of every cost."
-                : "Every batch. Every movement accounted for."}
-          </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            {view === "catalogue"
-              ? "Manage product identities and their history for independent, chain or hospital-owned pharmacies."
-              : view === "accounts"
-                ? "Follow purchase costs, expenses and outstanding payments across your pharmacy inventory."
-                : "Receive and reconcile quarantined stock in the right pharmacy and outlet."}
-          </p>
-        </div>
-        <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
-          {pharmacies.items.length > 0 && (
-            <Field id="pharmacy-organization" label="Pharmacy">
-              <SelectControl
-                id="pharmacy-organization"
-                value={pharmacy?.id ?? ""}
-                onValueChange={(pharmacyId) => select({ pharmacyId, outletId: "" })}
-                options={pharmacies.items.map((row) => ({ value: row.id, label: row.name }))}
-              />
-            </Field>
-          )}
-          {outlets.items.length > 0 && (
-            <Field id="pharmacy-outlet" label="Outlet">
-              <SelectControl
-                id="pharmacy-outlet"
-                value={outlet?.id ?? ""}
-                onValueChange={(outletId) => select({ pharmacyId: pharmacy?.id ?? "", outletId })}
-                options={outlets.items.map((row) => ({ value: row.id, label: row.name }))}
-              />
-            </Field>
-          )}
-        </div>
-      </header>
+      <PageHeading
+        description={
+          view === "catalogue"
+            ? "Product identities and their history for independent, chain or hospital-owned pharmacies."
+            : view === "accounts"
+              ? "Purchase costs, expenses and outstanding payments across your pharmacy inventory."
+              : "Receive and reconcile quarantined stock in the selected pharmacy and outlet."
+        }
+        actions={
+          <div className="grid w-full gap-4 sm:w-xl sm:grid-cols-2">
+            {pharmacies.items.length > 0 && (
+              <Field id="pharmacy-organization" label="Pharmacy">
+                <SelectControl
+                  id="pharmacy-organization"
+                  value={pharmacy?.id ?? ""}
+                  onValueChange={(pharmacyId) => select({ pharmacyId, outletId: "" })}
+                  options={pharmacies.items.map((row) => ({ value: row.id, label: row.name }))}
+                />
+              </Field>
+            )}
+            {outlets.items.length > 0 && (
+              <Field id="pharmacy-outlet" label="Outlet">
+                <SelectControl
+                  id="pharmacy-outlet"
+                  value={outlet?.id ?? ""}
+                  onValueChange={(outletId) => select({ pharmacyId: pharmacy?.id ?? "", outletId })}
+                  options={outlets.items.map((row) => ({ value: row.id, label: row.name }))}
+                />
+              </Field>
+            )}
+          </div>
+        }
+      />
       <div className="mb-6">
         <WorkspaceConnections current="pharmacy" />
       </div>

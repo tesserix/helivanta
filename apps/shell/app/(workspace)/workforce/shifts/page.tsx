@@ -15,7 +15,7 @@ import {
   type ShiftInput,
   type ShiftRevision,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
+import { Field, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -31,27 +31,23 @@ export default function Shifts() {
   const hospital = hospitals.items.find((h) => h.id === selected) ?? hospitals.items[0];
   return (
     <>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">People & operations</p>
-          <h2 className="text-3xl font-semibold tracking-tight">Shift definitions</h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Clear timings for your team. Every change preserves earlier shift rules.
-          </p>
-        </div>
-        {hospital && (
-          <div className="w-full sm:w-72">
-            <Field id="shift-hospital" label="Hospital">
-              <SelectControl
-                id="shift-hospital"
-                value={hospital.id}
-                onValueChange={setSelected}
-                options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
-              />
-            </Field>
-          </div>
-        )}
-      </div>
+      <PageHeading
+        description="The shifts each hospital rosters, with their start and end times. Every change keeps the earlier version."
+        actions={
+          hospital && (
+            <div className="w-full sm:w-72">
+              <Field id="shift-hospital" label="Hospital">
+                <SelectControl
+                  id="shift-hospital"
+                  value={hospital.id}
+                  onValueChange={setSelected}
+                  options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
+                />
+              </Field>
+            </div>
+          )
+        }
+      />
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (

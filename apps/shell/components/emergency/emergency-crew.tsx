@@ -19,7 +19,7 @@ import {
   type EmergencyDispatchCommandReceipt,
   type EmergencyReceivingRequest,
 } from "@helivanta/api";
-import { LoadMore, formatTime } from "@helivanta/ui";
+import { formatTime, LoadMore, PageHeading } from "@helivanta/ui";
 import { EmergencyCommandFailure } from "./emergency-command";
 import { useEmergencyReceivingTrip, ReceivingTripStatus } from "./emergency-receiving-dispatch";
 
@@ -39,12 +39,7 @@ export function EmergencyCrewWorkspace() {
   if (!allowed) return <p>Assigned crew access is required.</p>;
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <header>
-        <h1 className="text-2xl font-semibold">My crew assignments</h1>
-        <p className="mt-2 text-muted-foreground">
-          Confirm each action when it happens. Both crew members must acknowledge before departure.
-        </p>
-      </header>
+      <PageHeading description="Confirm each action when it happens. Both crew members must acknowledge before departure." />
       <Button variant="outline" onClick={rows.retry}>
         Refresh assignments
       </Button>

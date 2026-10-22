@@ -10,7 +10,7 @@ import {
   type Hospital,
   type OvertimeRequest,
 } from "@helivanta/api";
-import { Field, SelectControl } from "@helivanta/ui";
+import { Field, PageHeading, SelectControl } from "@helivanta/ui";
 import { Failure } from "../roster-policy/policy-ui";
 import { OvertimePolicyPanel } from "./policy-panel";
 import { OvertimeForm } from "./overtime-form";
@@ -26,28 +26,23 @@ export function OvertimeWorkspace() {
   const hospital = hospitals.items.find((h) => h.id === selected) ?? hospitals.items[0];
   return (
     <>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <p className="mb-2 text-xs font-semibold text-(--hms-accent)">People & operations</p>
-          <h2 className="text-3xl font-semibold tracking-tight">Overtime</h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Record overtime outside rostered duty within the hospital&apos;s reviewed limits, then
-            have a second person approve it. Only approved minutes are payable.
-          </p>
-        </div>
-        {hospital && (
-          <div className="w-full sm:w-72">
-            <Field id="overtime-hospital" label="Hospital">
-              <SelectControl
-                id="overtime-hospital"
-                value={hospital.id}
-                onValueChange={setSelected}
-                options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
-              />
-            </Field>
-          </div>
-        )}
-      </div>
+      <PageHeading
+        description="Record overtime outside rostered duty within the hospital's reviewed limits, then have a second person approve it. Only approved minutes are payable."
+        actions={
+          hospital && (
+            <div className="w-full sm:w-72">
+              <Field id="overtime-hospital" label="Hospital">
+                <SelectControl
+                  id="overtime-hospital"
+                  value={hospital.id}
+                  onValueChange={setSelected}
+                  options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
+                />
+              </Field>
+            </div>
+          )
+        }
+      />
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (

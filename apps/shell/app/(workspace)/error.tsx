@@ -9,7 +9,7 @@ import { Button } from "@tesserix/web";
 export default function WorkspaceError({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <section className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-      <h1 className="text-xl font-semibold text-foreground">Something went wrong</h1>
+      <h2 className="text-xl font-semibold text-foreground">Something went wrong</h2>
       <p className="max-w-md text-sm text-muted-foreground">
         {error.message || "An unexpected error occurred."}
       </p>

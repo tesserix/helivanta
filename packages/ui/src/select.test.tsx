@@ -5,7 +5,10 @@ import { expect, it, vi } from "vitest";
 import { SelectControl } from "./select";
 
 // HmsShell reads the current path itself (#1091).
-vi.mock("next/navigation", () => ({ usePathname: () => "/dashboard" }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/dashboard",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
 
 function Picker() {
   const [value, setValue] = useState("A");

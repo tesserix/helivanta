@@ -32,7 +32,10 @@ const noteDeadlineSpy = vi.hoisted(() => vi.fn());
 // BroadcastChannel delivery itself (already covered in idle-timer.test.ts).
 // HmsShell reads the path itself (#1091); each test sets it before rendering.
 const pathname = vi.hoisted(() => ({ current: "/" }));
-vi.mock("next/navigation", () => ({ usePathname: () => pathname.current }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => pathname.current,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
 
 const createdTrackers = vi.hoisted(() => [] as IdleTracker[]);
 vi.mock("./idle-timer", async (importOriginal) => {

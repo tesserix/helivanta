@@ -9,6 +9,8 @@ export type UseApiPageQueryResult<T> = {
   items: T[];
   /** The server's total for a counted list; null for an uncounted one. */
   total: number | null;
+  /** Rows before this page, from the server's snapshot; null when uncounted. */
+  offset: number | null;
   nextCursor: string | null;
   isPending: boolean;
   isError: boolean;
@@ -37,6 +39,7 @@ export function useApiPageQuery<T>(
   return {
     items: query.data?.data ?? [],
     total: query.data?.page.total ?? null,
+    offset: query.data?.page.offset ?? null,
     nextCursor: query.data?.page.has_more ? query.data.page.next_cursor : null,
     isPending: query.isPending,
     isError: query.isError,

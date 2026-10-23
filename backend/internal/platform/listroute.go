@@ -122,7 +122,8 @@ type CountedListHandler func(c *gin.Context) (Scope, bool)
 // count and once with the keyset to fetch the page, so a total that counts
 // something the rows do not is not expressible. Both statements run in one
 // read-only REPEATABLE READ snapshot (D2), so a row committed between them
-// cannot make them disagree. The ordering, k, is fixed here by the
+// cannot make them disagree. The page also reports offset, the rows before
+// it in that snapshot, so a client shows a true range. The ordering, k, is fixed here by the
 // registering code; a cursor issued for the other direction is a 400 (D3).
 func CountedListRoute[T Keyed](r *Router, db *tenantdb.DB, path string, perm authz.Permission, k tenantdb.Keyset, h CountedListHandler) {
 	d := DeclaredRoute{Method: "GET", Path: r.group.BasePath() + path, Permission: perm, Paginated: true, Counted: true}
@@ -142,10 +143,17 @@ func CountedListRoute[T Keyed](r *Router, db *tenantdb.DB, path string, perm aut
 			return
 		}
 		var rows []T
-		var total int64
+		var total, offset int64
 		err = db.WithTenantSnapshot(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
 			if err := scope(tx.Model(new(T))).Count(&total).Error; err != nil {
 				return err
+			}
+			// The rows before this page, from the same snapshot, so the
+			// range is right even after earlier rows were removed.
+			if params.After != nil {
+				if err := tenantdb.KeysetBefore(scope(tx.Model(new(T))), params, k).Count(&offset).Error; err != nil {
+					return err
+				}
 			}
 			return tenantdb.ApplyOrderedKeyset(scope(tx.Model(new(T))), params, k).Find(&rows).Error
 		})
@@ -168,7 +176,7 @@ func CountedListRoute[T Keyed](r *Router, db *tenantdb.DB, path string, perm aut
 		}
 		respond.OK(c, gin.H{
 			"data": rows,
-			"page": gin.H{"next_cursor": next, "has_more": hasMore, "total": total},
+			"page": gin.H{"next_cursor": next, "has_more": hasMore, "total": total, "offset": offset},
 		})
 	}})
 }

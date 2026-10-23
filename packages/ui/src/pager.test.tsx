@@ -85,4 +85,22 @@ describe("Pager", () => {
     );
     expect(container).toBeEmptyDOMElement();
   });
+
+  // Review Important 1: page 2 of a queue whose first page was partly
+  // dispensed starts at row 16, not 26.
+  it("takes the range from the server's offset, not the page number", () => {
+    render(
+      <Pager
+        page={2}
+        pageSize={25}
+        offset={15}
+        shown={25}
+        total={40}
+        previousHref="/p"
+        nextHref={null}
+        firstHref="/q"
+      />,
+    );
+    expect(screen.getByText("16–40 of 40")).toBeVisible();
+  });
 });

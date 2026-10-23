@@ -14,6 +14,7 @@ import { Button } from "@tesserix/web";
 export function Pager({
   page,
   pageSize,
+  offset = null,
   shown,
   total,
   previousHref,
@@ -22,6 +23,9 @@ export function Pager({
 }: {
   page: number;
   pageSize: number;
+  /** Rows before this page, from the server. Preferred over the page number,
+   * which goes stale when earlier rows are removed (#1295 review). */
+  offset?: number | null;
   shown: number;
   total: number | null;
   previousHref: string | null;
@@ -29,7 +33,7 @@ export function Pager({
   firstHref: string;
 }) {
   if (shown === 0 && page === 1) return null;
-  const from = (page - 1) * pageSize + 1;
+  const from = (offset ?? (page - 1) * pageSize) + 1;
   const to = from + shown - 1;
   return (
     <nav

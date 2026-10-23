@@ -78,6 +78,17 @@ test("the dispense queue pages forward and back and survives a reload", async ({
   await page.getByRole("link", { name: "First page" }).click();
   await expect(range).toHaveText(`1–25 of ${total}`);
 
+  // Dispensing the only row on the last page falls back a page (spec
+  // Verification), with the range and total following the queue.
+  await page.getByRole("link", { name: "Next" }).click();
+  await page.getByRole("link", { name: "Next" }).click();
+  await expect(range).toHaveText(`51–51 of ${total}`);
+  const last = page.getByRole("listitem").first();
+  await last.getByLabel("Medication").fill("TEST paracetamol");
+  await last.getByRole("button", { name: "Dispense" }).click();
+  await expect(page).toHaveURL(/page=2/);
+  await expect(range).toHaveText(`26–50 of ${total - 1}`);
+
   await page.getByRole("link", { name: "Dispensed" }).click();
   await expect(page).toHaveURL(/tab=dispensed/);
   const active = page.getByRole("link", { name: "Dispensed" });

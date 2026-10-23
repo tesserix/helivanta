@@ -60,3 +60,18 @@ func ApplyOrderedKeyset(tx *gorm.DB, p pagination.Params, k Keyset) *gorm.DB {
 	}
 	return q
 }
+
+// KeysetBefore keeps the rows at or before the cursor's position in k's
+// ordering: the rows a reader has already been shown on earlier pages
+// (#1295 review). Counting them gives the page's true starting position
+// even after earlier rows were removed. With no cursor it keeps nothing.
+func KeysetBefore(tx *gorm.DB, p pagination.Params, k Keyset) *gorm.DB {
+	if p.After == nil {
+		return tx.Where("false")
+	}
+	op := ">="
+	if k.Direction == pagination.OldestFirst {
+		op = "<="
+	}
+	return tx.Where("(?, ?) "+op+" (?, ?)", clause.Column{Name: k.Column}, clause.Column{Name: "id"}, p.After.CreatedAt, p.After.ID)
+}

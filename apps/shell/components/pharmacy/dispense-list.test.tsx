@@ -1,4 +1,5 @@
 import { screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { DispenseList } from "./dispense-list";
@@ -122,6 +123,33 @@ describe("DispenseList", () => {
     );
   });
 
+  // Review Important 2: a page position recorded under one search must
+  // never become another list's Previous.
+  it("keeps each search's page positions apart", async () => {
+    nav.search = "tab=waiting&q=asha&page=2&cursor=cA";
+    const fetchMock = serve(() => ({ waiting: [pendingRow] }));
+    vi.stubGlobal("fetch", fetchMock);
+    // The URL is mocked, so a parent re-render stands in for navigation.
+    function Navigate() {
+      const [, bump] = useState(0);
+      return (
+        <>
+          <button onClick={() => bump((n) => n + 1)}>navigate</button>
+          <DispenseList />
+        </>
+      );
+    }
+    const { user } = renderWithProviders(<Navigate />);
+    await screen.findByText("Asha Rao");
+
+    // Browser history jumps to page 3 of the unsearched queue.
+    nav.search = "tab=waiting&page=3&cursor=c3";
+    await user.click(screen.getByRole("button", { name: "navigate" }));
+    await screen.findByText("Asha Rao");
+    expect(screen.queryByRole("link", { name: "Previous" })).toBeNull();
+    expect(screen.getByRole("link", { name: "First page" })).toBeVisible();
+  });
+
   // Dispensing the last row on a later page empties it; fall back, never
   // show an empty page under "of N".
   it("falls back to the first page when a later page is empty", async () => {
@@ -166,6 +194,28 @@ describe("DispenseList", () => {
       "http://x",
     );
     expect(next.searchParams.get("q")).toBe("asha");
+    expect(
+      new URL(
+        screen.getByRole("link", { name: "Dispensed" }).getAttribute("href")!,
+        "http://x",
+      ).searchParams.get("q"),
+    ).toBe("asha");
+  });
+
+  // Spec D7: changing tab keeps the filters. The search belongs to Waiting,
+  // so the Waiting tab link carries it back.
+  it("keeps the Waiting search across a trip to Dispensed", async () => {
+    nav.search = "tab=dispensed&q=asha";
+    vi.stubGlobal(
+      "fetch",
+      serve(() => ({ dispensed: [dispensedRow] })),
+    );
+    renderWithProviders(<DispenseList />);
+    await screen.findByText("Meera Nair");
+    expect(screen.getByRole("link", { name: "Waiting" })).toHaveAttribute(
+      "href",
+      "/pharmacy?tab=waiting&q=asha",
+    );
   });
 
   it("offers no search on Dispensed", async () => {
@@ -177,6 +227,61 @@ describe("DispenseList", () => {
     renderWithProviders(<DispenseList />);
     await screen.findByText("Meera Nair");
     expect(screen.queryByRole("searchbox")).toBeNull();
+  });
+
+  // Review Important 3: an emptied page N>=3 steps back to N-1 with the
+  // cursor recorded on the way there, not to the first page.
+  it("steps back one page, with its recorded cursor, when page 3 empties", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("/iam/me/permissions"))
+          return Promise.resolve(jsonResponse(200, { data: [] }));
+        if (url.includes("cursor=c2")) return Promise.resolve(jsonResponse(200, page([])));
+        const next = url.includes("cursor=c1") ? "c2" : "c1";
+        return Promise.resolve(
+          jsonResponse(200, page([pendingRow], { nextCursor: next, total: 60 })),
+        );
+      }),
+    );
+    function Navigate() {
+      const [, bump] = useState(0);
+      return (
+        <>
+          <button onClick={() => bump((n) => n + 1)}>navigate</button>
+          <DispenseList />
+        </>
+      );
+    }
+    const { user } = renderWithProviders(<Navigate />);
+    await screen.findByText("Asha Rao");
+    for (const search of ["tab=waiting&page=2&cursor=c1", "tab=waiting&page=3&cursor=c2"]) {
+      nav.search = search;
+      await user.click(screen.getByRole("button", { name: "navigate" }));
+      if (search.includes("page=2")) await screen.findByText("Asha Rao");
+    }
+    await waitFor(() =>
+      expect(nav.replace).toHaveBeenCalledWith("/pharmacy?tab=waiting&page=2&cursor=c1"),
+    );
+  });
+
+  // The real way a page empties: its last row is dispensed.
+  it("falls back when the last row on a later page is dispensed", async () => {
+    nav.search = "tab=waiting&page=2&cursor=c1";
+    let dispensed = false;
+    const base = serve(() => ({ waiting: dispensed ? [] : [pendingRow] }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        if (init?.method === "POST") dispensed = true;
+        return base(url, init);
+      }),
+    );
+    const { user } = renderWithProviders(<DispenseList />);
+    await user.type(await screen.findByLabelText("Medication"), "Amoxicillin 250mg");
+    expect(nav.replace).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Dispense" }));
+    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/pharmacy?tab=waiting"));
   });
 
   it("removes a dispensed row from Waiting with the medication typed in that row", async () => {

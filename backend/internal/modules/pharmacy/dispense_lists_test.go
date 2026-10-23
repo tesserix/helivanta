@@ -159,3 +159,15 @@ func TestWaitingSearchesPatientName(t *testing.T) {
 	code, _ = getDispenses(t, "/v1/pharmacy/dispenses/dispensed?q=asha", "tokA")
 	require.Equal(t, http.StatusBadRequest, code)
 }
+
+// Review: the Dispensed keyset reads dispensed_at, so a dispensed row
+// without it would crash its page or drop out of paging. The table
+// refuses one rather than relying on every writer.
+func TestDispensedRowRequiresDispensedAt(t *testing.T) {
+	useHarness(t)
+	err := lastHarness.db.WithTenant(tenantdb.WithActor(lastHarness.ctx, "test-seed"), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO pharmacy_dispenses (tenant_id, visit_id, patient_name, status, medication)
+			VALUES (?, ?, 'no time', 'dispensed', 'TEST med')`, testutil.TenantA, uuid.NewString()).Error
+	})
+	require.ErrorContains(t, err, "pharmacy_dispenses_dispensed_at")
+}

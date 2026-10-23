@@ -17,7 +17,7 @@ describe("useApiPageQuery", () => {
       new Response(
         JSON.stringify({
           data: [{ id: "a" }],
-          page: { has_more: true, next_cursor: "next", total: 41 },
+          page: { has_more: true, next_cursor: "next", total: 41, offset: 25 },
         }),
         { headers: { "Content-Type": "application/json" } },
       ),
@@ -29,6 +29,7 @@ describe("useApiPageQuery", () => {
     );
     await waitFor(() => expect(result.current.items).toEqual([{ id: "a" }]));
     expect(result.current.total).toBe(41);
+    expect(result.current.offset).toBe(25);
     expect(result.current.nextCursor).toBe("next");
     expect(String(fetcher.mock.calls[0]![0])).toContain("/rows?x=1&limit=25&cursor=abc");
   });

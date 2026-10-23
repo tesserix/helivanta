@@ -105,6 +105,7 @@ type countedPage struct {
 		NextCursor *string `json:"next_cursor"`
 		HasMore    bool    `json:"has_more"`
 		Total      *int    `json:"total"`
+		Offset     *int    `json:"offset"`
 	} `json:"page"`
 }
 
@@ -187,4 +188,26 @@ func TestCountedListRefusesCrossTenantCursor(t *testing.T) {
 	other := pagination.Cursor{TenantID: uuid.NewString(), CreatedAt: time.Now().UTC(), ID: uuid.New()}.Encode()
 	code, _ := getCounted(t, e, "?cursor="+other)
 	require.Equal(t, http.StatusBadRequest, code)
+}
+
+// Review Important 1: rows before a page can be removed while someone reads
+// it (a queue being worked). The page reports how many rows precede it, from
+// the same snapshot, so its range is right rather than computed from a page
+// number that has gone stale.
+func TestCountedListReportsRowsBeforeThePage(t *testing.T) {
+	db := countedHarness(t)
+	e, _ := countedServer(t, db, tenantdb.Keyset{Column: "created_at", Direction: pagination.OldestFirst}, keepOnly)
+	_, first := getCounted(t, e, "?limit=2")
+	require.Equal(t, 0, *first.Page.Offset)
+	_, second := getCounted(t, e, "?limit=2&cursor="+*first.Page.NextCursor)
+	require.Equal(t, 2, *second.Page.Offset)
+
+	// Remove the first page's rows: the second page now starts at the top.
+	require.NoError(t, db.WithTenant(context.Background(), testTenant, func(tx *gorm.DB) error {
+		return tx.Where("id IN ?", []uuid.UUID{first.Data[0].ID, first.Data[1].ID}).Delete(&countedRow{}).Error
+	}))
+	_, again := getCounted(t, e, "?limit=2&cursor="+*first.Page.NextCursor)
+	require.Equal(t, 0, *again.Page.Offset)
+	require.Equal(t, 3, *again.Page.Total)
+	require.Equal(t, second.Data[0].ID, again.Data[0].ID)
 }

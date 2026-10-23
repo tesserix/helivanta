@@ -57,20 +57,23 @@ export function DispenseList() {
   const page = Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1);
   const cursor = page > 1 ? params.get("cursor") : null;
   // Waiting only (D9): Dispensed history is unbounded and the server refuses it.
-  const q = tab === "waiting" ? (params.get("q") ?? "").trim() : "";
+  // The search stays in the URL on both tabs, so changing tab keeps it (D7),
+  // but only Waiting is searched.
+  const search = (params.get("q") ?? "").trim();
+  const q = tab === "waiting" ? search : "";
 
-  // The cursor that opened each page this visit, per tab. Not persisted:
+  // The cursor that opened each page this visit, per list: tab and search,
+  // since a cursor from one search means nothing in another. Not persisted:
   // after a reload the way back is unknown, and the pager says so (D5).
   // Recorded with React's set-state-during-render pattern, so the record is
   // in step with the page being rendered.
-  const [visited, setVisited] = useState<Record<Tab, (string | null)[]>>({
-    waiting: [null],
-    dispensed: [null],
-  });
-  if (visited[tab][page - 1] !== cursor) {
-    const pages = [...visited[tab]];
-    pages[page - 1] = cursor;
-    setVisited({ ...visited, [tab]: pages });
+  const list = `${tab}\u0000${q}`;
+  const [visited, setVisited] = useState<Record<string, (string | null)[]>>({});
+  const pages = visited[list] ?? [null];
+  if (pages[page - 1] !== cursor) {
+    const next = [...pages];
+    next[page - 1] = cursor;
+    setVisited({ ...visited, [list]: next });
   }
 
   const href = (p: number, c: string | null) => {
@@ -89,7 +92,7 @@ export function DispenseList() {
     if (value.trim()) search.set("q", value.trim());
     return `${pathname}?${search}`;
   };
-  const back = page > 1 ? visited[tab][page - 2] : undefined;
+  const back = page > 1 ? pages[page - 2] : undefined;
   const previousHref = back === undefined ? null : back === null ? first : href(page - 1, back);
 
   const dispenses = useApiPageQuery<Dispense>(
@@ -117,7 +120,7 @@ export function DispenseList() {
         tabs={(Object.keys(TABS) as Tab[]).map((key) => ({
           key,
           label: TABS[key].label,
-          href: `${pathname}?tab=${key}`,
+          href: `${pathname}?${new URLSearchParams(search ? { tab: key, q: search } : { tab: key })}`,
         }))}
       />
       {tab === "waiting" && (
@@ -168,6 +171,7 @@ export function DispenseList() {
         <Pager
           page={page}
           pageSize={PAGE_SIZE}
+          offset={dispenses.offset}
           shown={dispenses.items.length}
           total={dispenses.total}
           previousHref={previousHref}

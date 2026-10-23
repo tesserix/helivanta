@@ -9,7 +9,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type ComponentProps,
+  type AnchorHTMLAttributes,
   type MouseEvent,
   type ReactNode,
 } from "react";
@@ -176,16 +176,31 @@ export function useGuardedLinkClick() {
   );
 }
 
-/** A shell link that asks first while a detail is unsaved (#1303 D5). */
-export function GuardedLink({ onClick, ...props }: ComponentProps<typeof Link>) {
+/**
+ * A shell link that asks first while a detail is unsaved (#1303 D5). Its
+ * props are stated rather than taken from next/link's: those differ between
+ * the type copies the shell and this package resolve.
+ */
+export function GuardedLink({
+  href,
+  onClick,
+  children,
+  ...anchor
+}: Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href" | "onClick"> & {
+  href: string;
+  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
+}) {
   const guard = useGuardedLinkClick();
   return (
     <Link
-      {...props}
+      {...anchor}
+      href={href}
       onClick={(event) => {
-        guard(event, String(props.href));
+        guard(event, href);
         if (!event.defaultPrevented) onClick?.(event);
       }}
-    />
+    >
+      {children}
+    </Link>
   );
 }

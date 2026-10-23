@@ -9,9 +9,9 @@ steps:
       - -f
       - Dockerfile.api
       - --build-arg
-      - GO_BUILDER_IMAGE=asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/base-go-builder@sha256:f9214aed0fe09af409811bd4581bbd4af586d1a72bb667a67d03a446857dd47c
+      - GO_BUILDER_IMAGE=asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/base-go-builder@sha256:cc95be04c12bea23dd7a595889b5a56df46ddad7422beb7127b37daf3181dc51
       - --build-arg
-      - GO_RUNTIME_IMAGE=asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/base-distroless-static@sha256:7c885c37cb2f61400256bef39b9221b48a4860f8080101765da1c262b994cdf1
+      - GO_RUNTIME_IMAGE=asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/base-distroless-static@sha256:7b2a0a6ceb9fa83b6d81089bac426a40325502d326c8d85c820d2b1195b11385
       - --build-arg
       - COMMIT=${_COMMIT}
       - --build-arg

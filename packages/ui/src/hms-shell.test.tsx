@@ -1135,6 +1135,8 @@ describe("phone menu", () => {
 
   it("lists the zones and the current zone's pages, marking the current ones", async () => {
     grantPharmacyPages();
+    // The queue's address since #576 moved the overview to /pharmacy.
+    pathname.current = "/pharmacy/dispense";
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
     const open = screen.getByRole("button", { name: "Open menu" });
     expect(open).toHaveAttribute("aria-expanded", "false");

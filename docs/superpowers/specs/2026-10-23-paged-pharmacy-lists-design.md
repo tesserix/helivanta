@@ -94,6 +94,8 @@ Success:
       list and survive paging and tab changes.
     - A new search or filter starts at page 1.
     - "Not classified" is hidden, and ignored in the URL, where the outlet has no tax scheme.
+      The counted route refuses `tax=unclassified` there with a 400, failing closed: without
+      a scheme every product would match. _(My call.)_
 - **D4 The URL is the state.** Tab, filters, `?page=` and `?cursor=` are read from and
   written to the address. This replaces slice 2's "read once on arrival" props
   (`initialDue`, `showRecent`, `initialUnclassified`), which are removed.

@@ -275,7 +275,6 @@ function OutletPharmacy({
       ) : view === "catalogue" ? (
         <CataloguePanel
           scope={scope}
-          initialUnclassified={filter("tax") === "unclassified"}
           timeZone={outlet.timezone}
           defaultCurrency={countryProfile(outlet.country_code)?.currency ?? ""}
           writable={access.data?.level === "editor" && can("pharmacy.catalogue.write")}

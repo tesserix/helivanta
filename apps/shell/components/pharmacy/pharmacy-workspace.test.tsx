@@ -605,7 +605,9 @@ describe("lists open filtered from the overview", () => {
     renderWithProviders(<PharmacyWorkspace view="catalogue" />);
     await waitFor(() =>
       expect(
-        requested(fetcher, "/catalogue/products?").some((u) => u.includes("tax=unclassified")),
+        requested(fetcher, "/catalogue/products/counted?").some((u) =>
+          u.includes("tax=unclassified"),
+        ),
       ).toBe(true),
     );
     expect(await screen.findByRole("button", { name: "Not classified" })).toHaveAttribute(

@@ -1,12 +1,15 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import { Plus, Search, History, Package, ArrowLeft } from "lucide-react";
 import {
+  PAGE_SIZE,
   apiFetch,
   formatZonedDateTime,
+  useApiPageQuery,
   useApiPagedQuery,
   useApiMutation,
   pharmacyKey,
@@ -26,15 +29,62 @@ import {
   Field,
   FormSelectField,
   LoadMore,
+  PageTabs,
+  Pager,
   Panel,
   RequestFailure,
   useFieldArray,
   useZodForm,
 } from "@helivanta/ui";
+import { useStepBackWhenEmpty, useUrlPage } from "@/lib/use-url-page";
 import { CurrencyAmountField } from "./currency-amount-field";
 import { ProductTaxSection, TaxBadge } from "./tax-classification";
 
 const searchSchema = z.object({ query: z.string().trim().max(200) });
+
+const TABS = {
+  all: "All",
+  active: "Active",
+  discontinued: "Discontinued",
+  withdrawn: "Withdrawn",
+} as const;
+type CatalogueTab = keyof typeof TABS;
+
+// Keyed by the search in the URL, so it shows what the list was searched for.
+function CatalogueSearch({
+  initial,
+  onSearch,
+  children,
+}: {
+  initial: string;
+  onSearch: (query: string) => void;
+  children?: React.ReactNode;
+}) {
+  const search = useZodForm(searchSchema, { query: initial });
+  return (
+    <form
+      noValidate
+      role="search"
+      className="flex flex-wrap items-end gap-3 border-b p-5"
+      onSubmit={search.handleSubmit((values) => onSearch(values.query))}
+    >
+      <div className="min-w-48 flex-1">
+        <Field
+          id="catalogue-search"
+          label="Search by brand, generic or SKU"
+          error={search.formState.errors.query?.message}
+        >
+          <Input id="catalogue-search" {...search.register("query")} />
+        </Field>
+      </div>
+      <Button type="submit" variant="outline">
+        <Search className="mr-2 size-4" />
+        Search catalogue
+      </Button>
+      {children}
+    </form>
+  );
+}
 const newProduct: PharmacyProductInput = {
   expected_version: 0,
   sku: "",
@@ -59,7 +109,6 @@ export function CataloguePanel({
   timeZone = "UTC",
   countryCode = "",
   canManageTax = false,
-  initialUnclassified = false,
 }: {
   scope: PharmacyScope;
   writable: boolean;
@@ -68,21 +117,30 @@ export function CataloguePanel({
   countryCode?: string;
   /** pharmacy.tax.manage with editor access: rates are the owner's, not the catalogue editor's. */
   canManageTax?: boolean;
-  /** Open at "Not classified", from a link such as the overview's (#576 D4). */
-  initialUnclassified?: boolean;
 }) {
-  const [query, setQuery] = useState("");
   const scheme = taxScheme(countryCode);
-  // Without a tax scheme nothing can be classified, so the filter would be
-  // hidden and could not be cleared: ignore it.
-  const [unclassified, setUnclassified] = useState(initialUnclassified && !!scheme);
+  // The tab, search and filter are the URL (#576 slice 3 D3/D4). Without a
+  // tax scheme nothing can be classified, so the filter would be hidden and
+  // could not be cleared: ignore it.
+  const router = useRouter();
+  const params = useSearchParams();
+  const rawTab = params.get("tab") ?? "";
+  const tab: CatalogueTab = Object.hasOwn(TABS, rawTab) ? (rawTab as CatalogueTab) : "all";
+  const query = (params.get("q") ?? "").trim().slice(0, 200);
+  const unclassified = !!scheme && params.get("tax") === "unclassified";
+  const tax = unclassified ? "unclassified" : "";
+  const url = useUrlPage({ tab, q: query, tax });
   const today = zonedDateTimeInput(new Date().toISOString(), timeZone).slice(0, 10);
   const [selected, setSelected] = useState<PharmacyProduct | null | undefined>();
-  const search = useZodForm(searchSchema, { query: "" });
-  const products = useApiPagedQuery<PharmacyProduct>(
-    pharmacyKey(scope, "catalogue", query, unclassified),
-    `${pharmacyRoot(scope)}/catalogue/products?q=${encodeURIComponent(query)}${unclassified ? "&tax=unclassified" : ""}`,
+  const filters = new URLSearchParams(
+    Object.entries({ status: tab === "all" ? "" : tab, q: query, tax }).filter(([, v]) => v),
+  ).toString();
+  const products = useApiPageQuery<PharmacyProduct>(
+    pharmacyKey(scope, "catalogue", "counted", tab, query, unclassified),
+    `${pharmacyRoot(scope)}/catalogue/products/counted${filters ? `?${filters}` : ""}`,
+    url.cursor,
   );
+  const emptied = useStepBackWhenEmpty(products, url);
   const editor = useRef<HTMLElement>(null);
   function reveal(product: PharmacyProduct | null) {
     setSelected(product);
@@ -108,35 +166,35 @@ export function CataloguePanel({
             </Button>
           )}
         </div>
-        <form
-          noValidate
-          className="flex flex-wrap items-end gap-3 border-b p-5"
-          onSubmit={search.handleSubmit((values) => setQuery(values.query))}
+        <PageTabs
+          label="Product status"
+          current={tab}
+          tabs={(Object.keys(TABS) as CatalogueTab[]).map((key) => ({
+            key,
+            label: TABS[key],
+            href: url.hrefFor({ tab: key, q: query, tax }),
+          }))}
+        />
+        <CatalogueSearch
+          key={query}
+          initial={query}
+          onSearch={(q) => router.replace(url.hrefFor({ tab, q, tax }))}
         >
-          <div className="min-w-48 flex-1">
-            <Field
-              id="catalogue-search"
-              label="Search by brand, generic or SKU"
-              error={search.formState.errors.query?.message}
-            >
-              <Input id="catalogue-search" {...search.register("query")} />
-            </Field>
-          </div>
-          <Button type="submit" variant="outline">
-            <Search className="mr-2 size-4" />
-            Search catalogue
-          </Button>
           {scheme && (
             <Button
               type="button"
               variant={unclassified ? "default" : "outline"}
               aria-pressed={unclassified}
-              onClick={() => setUnclassified((on) => !on)}
+              onClick={() =>
+                router.replace(
+                  url.hrefFor({ tab, q: query, tax: unclassified ? "" : "unclassified" }),
+                )
+              }
             >
               Not classified
             </Button>
           )}
-        </form>
+        </CatalogueSearch>
         {products.isError ? (
           <RequestFailure message="Could not load the catalogue." retry={products.retry} />
         ) : products.isPending ? (
@@ -189,11 +247,18 @@ export function CataloguePanel({
             ))}
           </ul>
         )}
-        <LoadMore
-          hasMore={products.hasMore}
-          isLoading={products.isFetchingMore}
-          onClick={products.loadMore}
-        />
+        {!products.isPending && !emptied && (
+          <Pager
+            page={url.page}
+            pageSize={PAGE_SIZE}
+            offset={products.offset}
+            shown={products.items.length}
+            total={products.total}
+            previousHref={url.previousHref}
+            nextHref={url.nextHref(products.nextCursor)}
+            firstHref={url.first}
+          />
+        )}
       </Panel>
       {selected !== undefined && (
         <Panel ref={editor} className="scroll-mt-6">

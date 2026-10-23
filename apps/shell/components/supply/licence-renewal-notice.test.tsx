@@ -7,7 +7,7 @@ const base = {
   date_status: "current",
   days_remaining: 181,
   local_date: "2026-10-18",
-  time_zone: "Asia/Karachi",
+  time_zone: "Asia/Tashkent",
   observed_at: "2026-10-18T18:45:00Z",
   premise_status: "active",
 } as const;
@@ -21,7 +21,7 @@ it.each<[NonNullable<SupplyLicense["renewal"]>["date_status"], number, string]>(
 ])("renders %s without using the browser timezone", (date_status, days_remaining, label) => {
   render(<LicenceRenewalNotice renewal={{ ...base, date_status, days_remaining }} />);
   expect(screen.getByText(label)).toBeInTheDocument();
-  expect(screen.getByText("As of 2026-10-18 · Asia/Karachi")).toBeInTheDocument();
+  expect(screen.getByText("As of 2026-10-18 · Asia/Tashkent")).toBeInTheDocument();
   expect(
     screen.getByText(/Licence verification and trading approval are separate/),
   ).toBeInTheDocument();

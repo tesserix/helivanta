@@ -12,7 +12,7 @@ const pharmacy = {
   created_at: "2026-10-16T00:00:00Z",
 };
 afterEach(() => vi.unstubAllGlobals());
-it("registers Pakistan with Karachi timezone and separate unapproved regulatory status", async () => {
+it("registers an Indian outlet, the only country offered, with unapproved regulatory status", async () => {
   let submitted: Record<string, unknown> | undefined;
   vi.stubGlobal(
     "fetch",
@@ -35,17 +35,21 @@ it("registers Pakistan with Karachi timezone and separate unapproved regulatory 
   const { user } = renderWithProviders(
     <PharmacyRegistrySetup tenantId="TEST-tenant" pharmacy={pharmacy} />,
   );
-  await chooseOption(user, screen.getByLabelText("Country"), "Pakistan");
-  expect(screen.getByLabelText("IANA time zone")).toHaveValue("Asia/Karachi");
-  expect(screen.getByText(/PKR.*regulatory review/i)).toBeInTheDocument();
-  await user.type(screen.getByLabelText("Outlet code"), "TEST-PK");
-  await user.type(screen.getByLabelText("Outlet name"), "TEST Karachi");
+  // #1287: India is the only country offered.
+  await user.click(screen.getByLabelText("Country"));
+  expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual(["India"]);
+  await user.keyboard("{Escape}");
+  await chooseOption(user, screen.getByLabelText("Country"), "India");
+  expect(screen.getByLabelText("IANA time zone")).toHaveValue("Asia/Kolkata");
+  expect(screen.getByText(/INR.*regulatory review/i)).toBeInTheDocument();
+  await user.type(screen.getByLabelText("Outlet code"), "TEST-IN");
+  await user.type(screen.getByLabelText("Outlet name"), "TEST Pune");
   await user.click(screen.getByRole("button", { name: "Register outlet" }));
   await waitFor(() =>
     expect(submitted).toMatchObject({
-      country_code: "PK",
-      timezone: "Asia/Karachi",
-      code: "TEST-PK",
+      country_code: "IN",
+      timezone: "Asia/Kolkata",
+      code: "TEST-IN",
     }),
   );
   expect(submitted).not.toHaveProperty("licence_approved");

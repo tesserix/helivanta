@@ -52,7 +52,7 @@ function mockAccounts(financial = true, country = "IN") {
               id: outlet,
               name: "TEST Main Outlet",
               country_code: country,
-              timezone: "Asia/Karachi",
+              timezone: "Asia/Tashkent",
             },
           ]),
         ),
@@ -226,12 +226,12 @@ it("focuses the expense form and records exact minor amounts with a stable retry
   expect(writes[0].url).toMatch(/\/payables\/[0-9a-f-]{14}7[0-9a-f-]+$/);
 });
 
-it("defaults Pakistan expenses to PKR instead of an India fallback", async () => {
-  mockAccounts(true, "PK");
+it("defaults expenses to the outlet country's currency", async () => {
+  mockAccounts(true, "IN");
   const { user } = renderWithProviders(<PharmacyWorkspace view="accounts" />);
   await user.click(await screen.findByRole("button", { name: "Record bill or expense" }));
-  expect(screen.getByLabelText("Currency")).toHaveTextContent("PKR");
-  expect(screen.getByLabelText("Net amount 1 (PKR)")).toBeInTheDocument();
+  expect(screen.getByLabelText("Currency")).toHaveTextContent("INR");
+  expect(screen.getByLabelText("Net amount 1 (INR)")).toBeInTheDocument();
 });
 
 it("uses the configured timezone for payable and settlement recording times without changing document dates", async () => {

@@ -96,7 +96,7 @@ function mockPharmacy(
             {
               id: sibling,
               name: "TEST Sister Outlet",
-              timezone: "Asia/Karachi",
+              timezone: "Asia/Tashkent",
               country_code: country,
               access_level: "manager",
             },
@@ -154,8 +154,8 @@ it("uses each configured outlet timezone for revision history and clears the pre
               {
                 id: sibling,
                 name: "TEST Sister Outlet",
-                country_code: "PK",
-                timezone: "Asia/Karachi",
+                country_code: "IN",
+                timezone: "Asia/Tashkent",
               },
             ]),
           ),
@@ -185,7 +185,7 @@ it("uses each configured outlet timezone for revision history and clears the pre
   const firstTime = await screen.findByText("2026-10-17 05:30:00 GMT+05:30");
   expect(firstTime).toHaveAttribute("datetime", "2026-10-17T00:00:00Z");
   await chooseOption(user, screen.getByLabelText("Outlet"), "TEST Sister Outlet");
-  expect(await screen.findByText("Times are in Asia/Karachi.")).toBeInTheDocument();
+  expect(await screen.findByText("Times are in Asia/Tashkent.")).toBeInTheDocument();
   expect(screen.queryByText("Revision history")).not.toBeInTheDocument();
   expect(screen.queryByText("2026-10-17 05:30:00 GMT+05:30")).not.toBeInTheDocument();
   await user.click(await screen.findByRole("button", { name: "Open TEST-500" }));
@@ -202,7 +202,7 @@ it("propagates the configured timezone through receiving to the stock register o
   expect(within(register).getByText(/\(Asia\/Kolkata\)/)).toBeInTheDocument();
   await chooseOption(user, screen.getByLabelText("Outlet"), "TEST Sister Outlet");
   const nextRegister = await screen.findByRole("region", { name: "Stock register" });
-  expect(within(nextRegister).getByText(/\(Asia\/Karachi\)/)).toBeInTheDocument();
+  expect(within(nextRegister).getByText(/\(Asia\/Tashkent\)/)).toBeInTheDocument();
   expect(within(nextRegister).queryByText(/\(Asia\/Kolkata\)/)).not.toBeInTheDocument();
 });
 
@@ -507,12 +507,12 @@ it("registers an independent pharmacy without asking for a hospital", async () =
   expect(screen.getByText(/Each declaration remains pending identity/)).toBeInTheDocument();
 });
 
-it("defaults a new Pakistan product to PKR without changing an existing INR product", async () => {
-  mockPharmacy("editor", 0, "PK");
+it("defaults a new product to the outlet country's currency", async () => {
+  mockPharmacy("editor", 0, "IN");
   const { user } = renderWithProviders(<PharmacyWorkspace view="catalogue" />);
   expect(await screen.findByText("TEST Counter capsule")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Add product" }));
-  expect(screen.getByLabelText("Currency code")).toHaveValue("PKR");
+  expect(screen.getByLabelText("Currency code")).toHaveValue("INR");
 });
 
 it("captures optional physical location labels and retries the same immutable identity", async () => {

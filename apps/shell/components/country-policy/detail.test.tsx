@@ -17,11 +17,11 @@ function fixture(
   const posts: Record<string, unknown>[] = [];
   const scope = () => ({
     id: scopeId,
-    country: "PK",
-    jurisdiction: "TEST-PROVINCE",
+    country: "IN",
+    jurisdiction: "TEST-STATE",
     category: "otc",
     operation: "order",
-    currency: "PKR",
+    currency: "INR",
     owner_subject: "TEST-author",
     access_role: accessRole,
     status: approved ? "active" : "unapproved",
@@ -122,7 +122,7 @@ function fixture(
 it("shows source evidence and blocks the author from self review", async () => {
   fixture("TEST-author");
   const { user } = renderWithProviders(<CountryPolicyWorkspace />);
-  await user.click(await screen.findByRole("button", { name: /Pakistan · TEST-PROVINCE/ }));
+  await user.click(await screen.findByRole("button", { name: /India · TEST-STATE/ }));
   expect(
     await screen.findByText(/An independent reviewer must decide this version/),
   ).toBeInTheDocument();
@@ -138,7 +138,7 @@ it("shows source evidence and blocks the author from self review", async () => {
 it("lets an explicitly delegated independent reviewer decide the policy", async () => {
   const posts = fixture("TEST-reviewer");
   const { user } = renderWithProviders(<CountryPolicyWorkspace />);
-  await user.click(await screen.findByRole("button", { name: /Pakistan · TEST-PROVINCE/ }));
+  await user.click(await screen.findByRole("button", { name: /India · TEST-STATE/ }));
   await user.click(await screen.findByRole("button", { name: "Approve version" }));
   await user.type(screen.getByLabelText("Review reason"), "TEST ONLY independent review");
   await user.click(screen.getByRole("button", { name: "Approve policy" }));
@@ -155,7 +155,7 @@ it("lets an explicitly delegated independent reviewer decide the policy", async 
 it("does not offer review actions when the scope grants only read access", async () => {
   fixture("TEST-reviewer", "reader");
   const { user } = renderWithProviders(<CountryPolicyWorkspace />);
-  await user.click(await screen.findByRole("button", { name: /Pakistan · TEST-PROVINCE/ }));
+  await user.click(await screen.findByRole("button", { name: /India · TEST-STATE/ }));
   expect(
     await screen.findByRole("region", { name: "Reviewed policy version" }),
   ).toBeInTheDocument();

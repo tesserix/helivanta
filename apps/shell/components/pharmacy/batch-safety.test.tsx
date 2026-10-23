@@ -468,7 +468,7 @@ it.each(["tenantId", "pharmacyId", "outletId"] as const)(
 
 it.each([
   ["Asia/Kolkata", "2026-10-17T10:00", "2026-10-17T04:30:00.000Z", "10:00:00.123456"],
-  ["Asia/Karachi", "2026-10-17T09:30", "2026-10-17T04:30:00.000Z", "09:30:00.123456"],
+  ["Asia/Tashkent", "2026-10-17T09:30", "2026-10-17T04:30:00.000Z", "09:30:00.123456"],
 ])(
   "uses persisted %s for entry, display and UTC submission independently of browser timezone",
   async (timeZone, local, instant, historyTime) => {
@@ -520,7 +520,7 @@ it("clears batch selection and draft when the configured outlet timezone changes
     const [timeZone, setTimeZone] = useState("Asia/Kolkata");
     return (
       <>
-        <button onClick={() => setTimeZone("Asia/Karachi")}>Change outlet timezone</button>
+        <button onClick={() => setTimeZone("Asia/Tashkent")}>Change outlet timezone</button>
         <BatchSafety scope={scope} timeZone={timeZone} />
       </>
     );
@@ -538,7 +538,7 @@ it("clears batch selection and draft when the configured outlet timezone changes
   expect(screen.queryByText(incident.reason)).not.toBeInTheDocument();
   expect(screen.queryByLabelText("Reason and observed evidence")).not.toBeInTheDocument();
   await selectBatch(user);
-  expect(await screen.findByLabelText("Occurred at (Asia/Karachi)")).toBeVisible();
+  expect(await screen.findByLabelText("Occurred at (Asia/Tashkent)")).toBeVisible();
   expect(screen.getByLabelText("Reason and observed evidence")).toHaveValue("");
 });
 

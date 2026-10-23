@@ -89,7 +89,7 @@ export type SupplyOperatingLocation = {
   code: string;
   name: string;
   kind: string;
-  country_code: "IN" | "PK";
+  country_code: "IN";
   time_zone: string;
   status: "active" | "inactive";
   created_at: string;

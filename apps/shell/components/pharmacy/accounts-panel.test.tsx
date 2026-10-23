@@ -232,6 +232,9 @@ it("defaults expenses to the outlet country's currency", async () => {
   await user.click(await screen.findByRole("button", { name: "Record bill or expense" }));
   expect(screen.getByLabelText("Currency")).toHaveTextContent("INR");
   expect(screen.getByLabelText("Net amount 1 (INR)")).toBeInTheDocument();
+  // #1287: the bill currency offers supported currencies only.
+  await user.click(screen.getByLabelText("Currency"));
+  expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual(["INR"]);
 });
 
 it("uses the configured timezone for payable and settlement recording times without changing document dates", async () => {

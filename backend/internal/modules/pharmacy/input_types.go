@@ -20,7 +20,7 @@ type ProductFields struct {
 	Ingredients      []ingredient `json:"ingredients" binding:"required,min=1,max=20,dive" gorm:"serializer:json;type:jsonb"`
 	PackSize         int          `json:"pack_size" binding:"min=1,max=1000000"`
 	UnitOfIssue      string       `json:"unit_of_issue" binding:"required,min=1,max=40"`
-	Currency         string       `json:"currency" binding:"required,min=3,max=3"`
+	Currency         string       `json:"currency" binding:"required,oneof=INR"`
 	MRPMinor         int64        `json:"mrp_minor" binding:"min=0,max=1000000000000"`
 	Status           string       `json:"status" binding:"required,oneof=active discontinued withdrawn"`
 }
@@ -93,14 +93,14 @@ type payableInput struct {
 	DocumentReference string             `json:"document_reference" binding:"required,min=1,max=100"`
 	IssuedOn          string             `json:"issued_on"`
 	DueOn             string             `json:"due_on"`
-	Currency          string             `json:"currency" binding:"required,min=3,max=3"`
+	Currency          string             `json:"currency" binding:"required,oneof=INR"`
 	Lines             []payableLineInput `json:"lines" binding:"required,min=1,max=100,dive" gorm:"-"`
 }
 
 type settlementInput struct {
 	Kind            string     `json:"kind" binding:"required,oneof=payment credit payment_reversal"`
 	AmountMinor     int64      `json:"amount_minor" binding:"min=1,max=1000000000000"`
-	Currency        string     `json:"currency" binding:"required,min=3,max=3"`
+	Currency        string     `json:"currency" binding:"required,oneof=INR"`
 	PaidBy          string     `json:"paid_by" binding:"required,min=1,max=200"`
 	Method          string     `json:"method" binding:"required,oneof=cash bank card upi other"`
 	SourceReference string     `json:"source_reference" binding:"required,min=1,max=100"`

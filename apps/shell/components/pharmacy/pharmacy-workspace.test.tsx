@@ -512,7 +512,11 @@ it("defaults a new product to the outlet country's currency", async () => {
   const { user } = renderWithProviders(<PharmacyWorkspace view="catalogue" />);
   expect(await screen.findByText("TEST Counter capsule")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Add product" }));
-  expect(screen.getByLabelText("Currency code")).toHaveValue("INR");
+  // #1287: only a supported country's currency is offered; the server
+  // refuses any other.
+  expect(screen.getByLabelText("Currency code")).toHaveTextContent("INR");
+  await user.click(screen.getByLabelText("Currency code"));
+  expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual(["INR"]);
 });
 
 it("captures optional physical location labels and retries the same immutable identity", async () => {

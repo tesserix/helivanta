@@ -38,7 +38,7 @@ export const pharmacyProductFieldsSchema = z
     ingredients: z.array(pharmacyIngredientSchema).min(1).max(20),
     pack_size: z.number().int().min(1).max(1000000),
     unit_of_issue: z.string().trim().min(1).max(40),
-    currency: z.string().min(3).max(3).regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
+    currency: z.enum(["INR"]),
     mrp_minor: z.number().int().min(0).max(1000000000000),
     status: z.enum(["active", "discontinued", "withdrawn"]),
   })
@@ -184,7 +184,7 @@ export const pharmacyPayableInputSchema = z
     document_reference: z.string().trim().toUpperCase().min(1).max(100),
     issued_on: z.string().date("Use a full valid date."),
     due_on: z.string().date("Use a full valid date."),
-    currency: z.string().min(3).max(3).regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
+    currency: z.enum(["INR"]),
     lines: z.array(pharmacyPayableLineInputSchema).min(1).max(100),
   })
   .strict();
@@ -193,7 +193,7 @@ export const pharmacySettlementInputSchema = z
   .object({
     kind: z.enum(["payment", "credit", "payment_reversal"]),
     amount_minor: z.number().int().min(1).max(1000000000000),
-    currency: z.string().min(3).max(3).regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
+    currency: z.enum(["INR"]),
     paid_by: z.string().trim().min(1).max(200),
     method: z.enum(["cash", "bank", "card", "upi", "other"]),
     source_reference: z.string().trim().toUpperCase().min(1).max(100),

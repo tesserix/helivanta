@@ -37,12 +37,19 @@ export async function generateContract(moduleName) {
     for (const originalField of model.fields) {
       const field = originalField.country_profile
         ? { ...originalField, enum: countryMetadata.countries.map((p) => p.code) }
-        : originalField.country_tax_identifier
+        : originalField.country_currency
           ? {
               ...originalField,
-              enum: [...new Set(countryMetadata.countries.flatMap((p) => p.tax_identifier_kinds))],
+              enum: [...new Set(countryMetadata.countries.map((p) => p.currency))],
             }
-          : originalField;
+          : originalField.country_tax_identifier
+            ? {
+                ...originalField,
+                enum: [
+                  ...new Set(countryMetadata.countries.flatMap((p) => p.tax_identifier_kinds)),
+                ],
+              }
+            : originalField;
       const array = field.type.startsWith("[]");
       const base = array ? field.type.slice(2) : field.type;
       let goType = base === "uuid" ? "uuid.UUID" : base;

@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { Button } from "@tesserix/web";
 import {
@@ -82,7 +82,18 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
       return { pharmacyId: "", outletId: "" };
     }
   });
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
   function select(value: z.infer<typeof selectionSchema>) {
+    // A page and its cursor belong to one outlet's list: another outlet's
+    // list opens at its first page, keeping the tab and filters (#576).
+    if (params.has("page") || params.has("cursor")) {
+      const kept = new URLSearchParams(params);
+      kept.delete("page");
+      kept.delete("cursor");
+      router.replace(kept.size ? `${pathname}?${kept}` : pathname);
+    }
     setSelection(value);
     try {
       sessionStorage.setItem(storageKey, JSON.stringify(value));

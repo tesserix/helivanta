@@ -28,14 +28,13 @@ Success:
 ## Decisions
 
 - **D1 Two layouts, chosen by the content area's width, not the screen's.**
-  - **Split** applies when the content area is at least 960px wide, which covers a 1366–1440px
-    laptop with the rail collapsed and anything larger.
-    - The pane is 440px wide, or 600px once the content area reaches 1400px.
+  - **Split** applies when the content area is at least 860px wide, which covers a 1366–1440px laptop with the rail expanded or collapsed, and anything larger (agreed, option A).
+    - The pane is 400px wide, or 600px once the content area reaches 1400px. At 860px that leaves about 460px for the compact list.
     - The pane is sticky, scrolls on its own, and is as tall as the viewport below the header.
     - While the pane is open the list shows compact rows:
       - bills: document, payee, due date, outstanding;
       - catalogue: brand, SKU, tax badge.
-  - **Full page** applies below 960px. The detail replaces the list, with a "Back to bills"
+  - **Full page** applies below 860px. The detail replaces the list, with a "Back to bills"
     link to the same tab, page and row.
   - The breakpoint is a container query on the shell's `main` (Tailwind v4 `@container`). The
     rail can expand without the viewport changing, and the layout must follow the space
@@ -149,11 +148,10 @@ The Dispense queue and the Overview stay as they are: the counter flow is a diff
   - Changing tab clears `open`.
   - A page without `width` keeps `max-w-6xl`, and a `width: "full"` page drops it.
 - **e2e at 1366 (rail collapsed and expanded), 1440, 1920 and 390 wide:**
-  - The split appears only when the content area is at least 960px, otherwise the full page.
+  - The split appears only when the content area is at least 860px, otherwise the full page.
   - The list does not scroll when a row opens.
   - Phone Back closes the detail onto the same row.
   - A reload keeps the open bill.
 - **Accessibility:** the pane is a labelled region, the open row has `aria-current`, and
   `csp.spec.ts` and the existing axe checks pass.
-- **To confirm before planning:** the 960px threshold. It comes from the code's widths, and is
-  checked on a 1366px screen with the rail expanded and collapsed.
+- **Confirmed while building:** the 860px threshold on a 1366px screen with the rail expanded, the narrowest laptop case.

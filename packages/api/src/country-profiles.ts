@@ -72,21 +72,6 @@ export const countryConfiguration = {
         ],
       },
     },
-    {
-      code: "PK",
-      name: "Pakistan",
-      currency: "PKR",
-      currency_minor_digits: 2,
-      timezone: "Asia/Karachi",
-      timezones: ["Asia/Karachi"],
-      locales: [
-        { code: "en-PK", direction: "ltr" },
-        { code: "ur-PK", direction: "rtl" },
-      ],
-      regulatory_policy_status: "review_required",
-      tax_identifier_kinds: ["ntn", "stn", "other"],
-      tax: null,
-    },
   ],
 } as const;
 export type CountryProfile = (typeof countryConfiguration.countries)[number];

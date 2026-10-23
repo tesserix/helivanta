@@ -19,7 +19,7 @@ import (
 
 func TestAuthorityKeepsReviewedVersionsHistoryAndRevocationAtomic(t *testing.T) {
 	_, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{workspace.New()}})
-	p := approvedPolicy("PK")
+	p := approvedPolicy("IN")
 	scopeID := uuid.Must(uuid.NewV7()).String()
 	in := tradingpolicy.Submission{ID: p.ID, ScopeID: scopeID, Country: p.Scope.Country, Jurisdiction: p.Scope.Jurisdiction, Category: p.Scope.Category, Operation: p.Scope.Operation, Currency: p.Scope.Currency, EffectiveFrom: p.EffectiveFrom, EffectiveUntil: p.EffectiveUntil, Sources: p.Sources, Requirements: p.Requirements}
 	apply := func(actor string, fn func(*gorm.DB) error) error {

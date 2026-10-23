@@ -19,11 +19,11 @@ function policy() {
     id: "01a14400-0000-7000-8000-000000000001",
     scope_id: "01a14400-0000-7000-8000-000000000002",
     expected_revision: 0,
-    country: "PK",
-    jurisdiction: "TEST-PROVINCE",
+    country: "IN",
+    jurisdiction: "TEST-STATE",
     category: "otc",
     operation: "order",
-    currency: "PKR",
+    currency: "INR",
     effective_from: "2026-10-16T00:00:00Z",
     effective_until: "2027-10-16T00:00:00Z",
     sources: [
@@ -45,7 +45,7 @@ function policy() {
 describe("reviewed country policy contract", () => {
   it("validates native UTC date inputs before API timestamp conversion", () => {
     const { currency, ...input } = policy();
-    expect(currency).toBe("PKR");
+    expect(currency).toBe("INR");
     input.effective_from = "2026-10-16T00:00";
     input.effective_until = "2027-10-16T00:00";
     input.sources[0].reviewed_at = "2026-10-15T00:00";
@@ -53,15 +53,22 @@ describe("reviewed country policy contract", () => {
     input.effective_from = "2026-02-30T00:00";
     expect(countryPolicyEditorSchema.safeParse(input).success).toBe(false);
   });
-  it("accepts the complete Pakistan snapshot without Indian assumptions", () => {
+  it("accepts the complete India snapshot", () => {
     expect(countryPolicySubmissionSchema.parse(policy())).toMatchObject({
-      country: "PK",
-      currency: "PKR",
+      country: "IN",
+      currency: "INR",
       requirements: expect.any(Array),
     });
   });
+  // #1287: Pakistan is not a supported country.
+  it("refuses a Pakistan policy", () => {
+    expect(
+      countryPolicySubmissionSchema.safeParse({ ...policy(), country: "PK", currency: "PKR" })
+        .success,
+    ).toBe(false);
+  });
   it("rejects another country's currency and incomplete or duplicate requirements", () => {
-    expect(countryPolicySubmissionSchema.safeParse({ ...policy(), currency: "INR" }).success).toBe(
+    expect(countryPolicySubmissionSchema.safeParse({ ...policy(), currency: "USD" }).success).toBe(
       false,
     );
     const incomplete = policy();

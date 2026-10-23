@@ -68,7 +68,7 @@ type OrganizationFields struct {
 type OutletFields struct {
 	Code        string `json:"code" binding:"required,min=1,max=40"`
 	Name        string `json:"name" binding:"required,min=1,max=200"`
-	CountryCode string `json:"country_code" binding:"required,oneof=IN PK"`
+	CountryCode string `json:"country_code" binding:"required,oneof=IN"`
 	Timezone    string `json:"timezone" binding:"required,min=1,max=64"`
 }
 

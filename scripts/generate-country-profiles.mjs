@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const data = JSON.parse(await readFile(path.join(root, "contracts/country-profiles.json"), "utf8"));
 if (
   data.schema_version !== 1 ||
-  data.countries.length !== 2 ||
+  data.countries.length < 1 ||
   new Set(data.countries.map((p) => p.code)).size !== data.countries.length
 )
   throw new Error("Invalid country configuration");

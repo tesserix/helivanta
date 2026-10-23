@@ -138,7 +138,7 @@ export const pharmacyOutletInputSchema = z
       .max(40)
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
     name: z.string().trim().min(1).max(200),
-    country_code: z.enum(["IN", "PK"]),
+    country_code: z.enum(["IN"]),
     timezone: z.string().min(1).max(64),
   })
   .strict();

@@ -1074,6 +1074,16 @@ describe("zone rail", () => {
     expect(screen.getByRole("link", { name: "EmergencyConnect" })).toHaveTextContent("Emergency");
   });
 
+  // #1296: one active marker, the pill, as on the page panel.
+  it("marks the active zone with its pill alone", () => {
+    grant(everyZone);
+    pathname.current = "/pharmacy";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    const active = screen.getByRole("link", { name: "PharmaConnect" });
+    expect(active).toHaveAttribute("aria-current", "page");
+    expect(active.querySelector("span[aria-hidden='true']")).toBeNull();
+  });
+
   it("shows placeholders, not a partial list, while permissions load", () => {
     vi.stubGlobal(
       "fetch",

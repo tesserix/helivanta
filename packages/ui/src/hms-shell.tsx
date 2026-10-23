@@ -108,18 +108,12 @@ function ZoneLink({
       title={zone.label}
       aria-label={zone.label}
       aria-current={active ? "page" : undefined}
-      className={`relative flex items-center rounded-lg transition-colors ${expanded ? "h-11 w-full gap-3 px-3" : "h-11 w-11 justify-center md:h-auto md:w-16 md:flex-col md:gap-1 md:py-2"} ${
+      className={`flex items-center rounded-lg transition-colors ${expanded ? "h-11 w-full gap-3 px-3" : "h-11 w-11 justify-center md:h-auto md:w-16 md:flex-col md:gap-1 md:py-2"} ${
         active
           ? "bg-(--hms-accent-dim) text-(--hms-accent)"
           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
       }`}
     >
-      {active && (
-        <span
-          aria-hidden="true"
-          className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-(--hms-accent)"
-        />
-      )}
       <zone.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
       {expanded ? (
         <span className="truncate text-sm font-medium">{zone.label}</span>
@@ -692,7 +686,9 @@ export function HmsShell({
             )}
             <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
               <main className="flex-1 px-6 pt-6 pb-6 md:pt-0">
-                <div className="mx-auto w-full max-w-6xl">{children}</div>
+                {/* Left-aligned with the header card, not centred: centring left an
+                    empty band beside the rail on a page with no panel (#1296). */}
+                <div className="w-full max-w-6xl">{children}</div>
               </main>
               <TesserixFooter />
             </div>

@@ -256,3 +256,16 @@ test("the header card runs from the rail across the panel, above it", async ({ p
   expect(header.x + header.width, "header reaches the window edge").toBeGreaterThan(1260);
   expect(panel.y, "panel sits below the header").toBeGreaterThan(header.y + header.height);
 });
+
+// #1296: without a page panel the content starts at the header card's left
+// edge rather than floating in the middle of the window. Measured on a wide
+// screen, where centring opens the gap.
+test("content lines up with the header on a page without a panel", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  await login(page);
+  await page.goto("/dashboard");
+  const header = (await page.getByRole("banner").boundingBox())!;
+  const content = (await page.locator("main > div").boundingBox())!;
+  // The header's own text is inset 24px; content lines up with it.
+  expect(content.x - header.x, "content offset from the header").toBeLessThanOrEqual(24);
+});

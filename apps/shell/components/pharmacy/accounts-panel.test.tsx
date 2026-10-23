@@ -1,14 +1,24 @@
 import { screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { PharmacyWorkspace } from "./pharmacy-workspace";
 const pharmacy = "0199e000-0000-7000-8000-000000000010",
   outlet = "0199e000-0000-7000-8000-000000000001";
 const id = "0199e000-0000-7000-8000-000000000020";
-const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
+const page = (data: unknown[]) => ({
+  data,
+  page: { has_more: false, next_cursor: null, total: data.length, offset: 0 },
+});
+const nav = vi.hoisted(() => ({ search: "", replace: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/pharmacy/accounts",
+  useSearchParams: () => new URLSearchParams(nav.search),
+  useRouter: () => ({ replace: nav.replace, push: vi.fn() }),
+}));
 afterEach(() => {
   vi.unstubAllGlobals();
   sessionStorage.clear();
+  nav.search = "";
 });
 function mockAccounts(financial = true, country = "IN") {
   const fetcher = vi.fn(async (url: string) => {
@@ -48,7 +58,7 @@ function mockAccounts(financial = true, country = "IN") {
         ),
       );
     if (url.endsWith("/access")) return new Response(JSON.stringify({ level: "editor" }));
-    if (url.endsWith("/accounts/payables"))
+    if (url.includes("/accounts/payables/counted"))
       return new Response(
         JSON.stringify(
           page([
@@ -70,7 +80,7 @@ function mockAccounts(financial = true, country = "IN") {
           ]),
         ),
       );
-    if (url.endsWith("/inventory-audit"))
+    if (url.includes("/accounts/inventory-audit/counted"))
       return new Response(
         JSON.stringify(
           page([
@@ -97,16 +107,75 @@ function mockAccounts(financial = true, country = "IN") {
   vi.stubGlobal("fetch", fetcher);
   return fetcher;
 }
-it("shows paid, credited and remaining amounts without valuing uncosted drugs", async () => {
+it("shows paid, credited and remaining amounts", async () => {
   mockAccounts();
   renderWithProviders(<PharmacyWorkspace view="accounts" />);
   expect(await screen.findByText("TEST-EXPENSE-001")).toBeInTheDocument();
   expect(screen.getByText("TEST Supplier")).toBeInTheDocument();
   expect(screen.getByRole("columnheader", { name: "Outstanding" })).toBeInTheDocument();
-  expect(screen.getByText("Purchase cost missing")).toBeInTheDocument();
-  expect(screen.getByText("25 uncosted units")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Record bill or expense" })).toBeInTheDocument();
 });
+
+it("shows the inventory cost audit on its own tab, without valuing uncosted drugs", async () => {
+  nav.search = "tab=audit";
+  const fetcher = mockAccounts();
+  renderWithProviders(<PharmacyWorkspace view="accounts" />);
+  expect(await screen.findByText("Purchase cost missing")).toBeInTheDocument();
+  expect(screen.getByText("25 uncosted units")).toBeInTheDocument();
+  expect(screen.queryByText("TEST-EXPENSE-001")).not.toBeInTheDocument();
+  expect(requested(fetcher, "/accounts/inventory-audit/counted")).toEqual([
+    expect.stringMatching(/\/accounts\/inventory-audit\/counted\?limit=25$/),
+  ]);
+  expect(requested(fetcher, "/accounts/payables")).toEqual([]);
+});
+
+// #576 slice 3: each tab is the URL, 25 a page with the total.
+describe("bill tabs", () => {
+  it("opens Overdue from the URL, filtered and counted", async () => {
+    nav.search = "tab=overdue";
+    const fetcher = mockAccounts();
+    renderWithProviders(<PharmacyWorkspace view="accounts" />);
+    expect(await screen.findByText("TEST-EXPENSE-001")).toBeInTheDocument();
+    expect(requested(fetcher, "/accounts/payables/counted")).toEqual([
+      expect.stringMatching(/\/accounts\/payables\/counted\?due=overdue&limit=25$/),
+    ]);
+    expect(screen.getByRole("link", { name: "Overdue" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText(/1–1 of 1/)).toBeInTheDocument();
+  });
+
+  it("links every tab at its first page and drops the old filter button", async () => {
+    nav.search = "tab=week&page=2&cursor=c2";
+    mockAccounts();
+    renderWithProviders(<PharmacyWorkspace view="accounts" />);
+    await screen.findByText("TEST-EXPENSE-001");
+    expect(screen.getByRole("link", { name: "All bills" })).toHaveAttribute(
+      "href",
+      "/pharmacy/accounts?tab=all",
+    );
+    expect(screen.getByRole("link", { name: "Inventory cost audit" })).toHaveAttribute(
+      "href",
+      "/pharmacy/accounts?tab=audit",
+    );
+    expect(screen.queryByRole("button", { name: "Show all bills" })).not.toBeInTheDocument();
+  });
+
+  // Links from before the tabs (?due=) and unknown tabs open All bills.
+  it("reads an unknown tab or an old due link as All bills", async () => {
+    for (const search of ["due=overdue", "tab=toString"]) {
+      nav.search = search;
+      const fetcher = mockAccounts();
+      const { unmount } = renderWithProviders(<PharmacyWorkspace view="accounts" />);
+      await screen.findByText("TEST-EXPENSE-001");
+      expect(requested(fetcher, "/accounts/payables/counted")).toEqual([
+        expect.stringMatching(/\/accounts\/payables\/counted\?limit=25$/),
+      ]);
+      unmount();
+    }
+  });
+});
+
+const requested = (fetcher: ReturnType<typeof vi.fn>, path: string) =>
+  fetcher.mock.calls.map(([url]) => String(url)).filter((url) => url.includes(path));
 it("does not fetch confidential costs without financial read permission", async () => {
   const fetcher = mockAccounts(false);
   renderWithProviders(<PharmacyWorkspace view="accounts" />);
@@ -171,7 +240,7 @@ it("uses the configured timezone for payable and settlement recording times with
     "fetch",
     vi.fn(async (url: string) => {
       if (url.endsWith(`/accounts/payables/${id}`)) {
-        const list = await (await base(url.slice(0, -(id.length + 1)))).json();
+        const list = await (await base(`${url.slice(0, -(id.length + 1))}/counted`)).json();
         return new Response(
           JSON.stringify({ ...list.data[0], lines: [], actor_subject: "TEST-finance" }),
         );

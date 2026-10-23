@@ -34,6 +34,8 @@ const nav = vi.hoisted(() => ({ search: "" }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useSearchParams: () => new URLSearchParams(nav.search),
+  usePathname: () => "/pharmacy",
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
 }));
 
 afterEach(() => {
@@ -612,19 +614,18 @@ describe("lists open filtered from the overview", () => {
     );
   });
 
-  it("opens Supplier bills at overdue, with a way back to every bill", async () => {
-    nav.search = "due=overdue";
+  it("opens Supplier bills on the Overdue tab the overview links to", async () => {
+    nav.search = "tab=overdue";
     const fetcher = mockPharmacy("editor", 0, "IN", ["pharmacy.accounts.read"]);
-    const { user } = renderWithProviders(<PharmacyWorkspace view="accounts" />);
+    renderWithProviders(<PharmacyWorkspace view="accounts" />);
     await waitFor(() =>
-      expect(requested(fetcher, "/accounts/payables").some((u) => u.includes("due=overdue"))).toBe(
-        true,
+      expect(requested(fetcher, "/accounts/payables/counted?due=overdue").length).toBeGreaterThan(
+        0,
       ),
     );
-    expect(await screen.findByText("Showing overdue bills")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Show all bills" }));
-    await waitFor(() =>
-      expect(requested(fetcher, "/accounts/payables").some((u) => !u.includes("due="))).toBe(true),
+    expect(await screen.findByRole("link", { name: "Overdue" })).toHaveAttribute(
+      "aria-current",
+      "page",
     );
   });
 

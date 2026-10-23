@@ -108,8 +108,8 @@ describe("OverviewTiles", () => {
       "/pharmacy/stock?balance=on_hand&expiry=due_90",
     );
     expect(href("Safety concerns", /last 30 days/)).toBe("/pharmacy/safety?recorded=30d");
-    expect(href("Supplier bills", /Overdue/)).toBe("/pharmacy/accounts?due=overdue");
-    expect(href("Supplier bills", /Due within 7 days/)).toBe("/pharmacy/accounts?due=week");
+    expect(href("Supplier bills", /Overdue/)).toBe("/pharmacy/accounts?tab=overdue");
+    expect(href("Supplier bills", /Due within 7 days/)).toBe("/pharmacy/accounts?tab=week");
     expect(href("Setup gaps", /Not classified/)).toBe("/pharmacy/catalogue?tax=unclassified");
     expect(href("Setup gaps", /GSTIN/)).toBe("/pharmacy/setup");
   });

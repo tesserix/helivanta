@@ -268,7 +268,6 @@ function OutletPharmacy({
       ) : view === "accounts" ? (
         <AccountsPanel
           scope={scope}
-          initialDue={filter("due")}
           timeZone={outlet.timezone}
           defaultCurrency={countryProfile(outlet.country_code)?.currency ?? ""}
           writable={access.data?.level === "editor"}

@@ -3,9 +3,9 @@
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import { CheckCheck, Pill, Search, type LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Can, PAGE_SIZE, apiFetch, useApiMutation, useApiPageQuery } from "@helivanta/api";
+import { useUrlPage, useStepBackWhenEmpty } from "@/lib/use-url-page";
 import { Field, formatTime, PageTabs, Pager, Panel, QueryState, useZodForm } from "@helivanta/ui";
 
 type Dispense = {
@@ -50,67 +50,25 @@ const TABS: Record<
 // Dispensed newest first by hand-over time. The tab, page and cursor live
 // in the URL (D5), so back, forward and a shared link land on the same page.
 export function DispenseList() {
-  const pathname = usePathname();
   const router = useRouter();
   const params = useSearchParams();
   const tab: Tab = params.get("tab") === "dispensed" ? "dispensed" : "waiting";
-  const page = Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1);
-  const cursor = page > 1 ? params.get("cursor") : null;
   // Waiting only (D9): Dispensed history is unbounded and the server refuses it.
   // The search stays in the URL on both tabs, so changing tab keeps it (D7),
   // but only Waiting is searched.
   const search = (params.get("q") ?? "").trim();
   const q = tab === "waiting" ? search : "";
-
-  // The cursor that opened each page this visit, per list: tab and search,
-  // since a cursor from one search means nothing in another. Not persisted:
-  // after a reload the way back is unknown, and the pager says so (D5).
-  // Recorded with React's set-state-during-render pattern, so the record is
-  // in step with the page being rendered.
-  const list = `${tab}\u0000${q}`;
-  const [visited, setVisited] = useState<Record<string, (string | null)[]>>({});
-  const pages = visited[list] ?? [null];
-  if (pages[page - 1] !== cursor) {
-    const next = [...pages];
-    next[page - 1] = cursor;
-    setVisited({ ...visited, [list]: next });
-  }
-
-  const href = (p: number, c: string | null) => {
-    const search = new URLSearchParams({ tab });
-    if (q) search.set("q", q);
-    if (p > 1 && c) {
-      search.set("page", String(p));
-      search.set("cursor", c);
-    }
-    return `${pathname}?${search}`;
-  };
-  const first = href(1, null);
-  // A new search starts at page 1 of the Waiting tab.
-  const hrefFor = (value: string) => {
-    const search = new URLSearchParams({ tab: "waiting" });
-    if (value.trim()) search.set("q", value.trim());
-    return `${pathname}?${search}`;
-  };
-  const back = page > 1 ? pages[page - 2] : undefined;
-  const previousHref = back === undefined ? null : back === null ? first : href(page - 1, back);
+  const url = useUrlPage({ tab, q });
 
   const dispenses = useApiPageQuery<Dispense>(
     ["dispenses", tab],
     `/pharmacy/dispenses/${tab}${q ? `?q=${encodeURIComponent(q)}` : ""}`,
-    cursor,
+    url.cursor,
     {
       poll: true,
     },
   );
-
-  // A later page can empty while open (its last row dispensed). Step back
-  // rather than show "of N" over nothing.
-  const emptied =
-    !dispenses.isPending && !dispenses.isError && dispenses.items.length === 0 && page > 1;
-  useEffect(() => {
-    if (emptied) router.replace(previousHref ?? first);
-  }, [emptied, previousHref, first, router]);
+  const emptied = useStepBackWhenEmpty(dispenses, url);
 
   return (
     <Panel flush>
@@ -120,11 +78,15 @@ export function DispenseList() {
         tabs={(Object.keys(TABS) as Tab[]).map((key) => ({
           key,
           label: TABS[key].label,
-          href: `${pathname}?${new URLSearchParams(search ? { tab: key, q: search } : { tab: key })}`,
+          href: url.hrefFor({ tab: key, q: search }),
         }))}
       />
       {tab === "waiting" && (
-        <WaitingSearch key={q} initial={q} onSearch={(value) => router.replace(hrefFor(value))} />
+        <WaitingSearch
+          key={q}
+          initial={q}
+          onSearch={(value) => router.replace(url.hrefFor({ tab: "waiting", q: value.trim() }))}
+        />
       )}
       <QueryState
         query={dispenses}
@@ -169,14 +131,14 @@ export function DispenseList() {
       </QueryState>
       {!dispenses.isPending && !emptied && (
         <Pager
-          page={page}
+          page={url.page}
           pageSize={PAGE_SIZE}
           offset={dispenses.offset}
           shown={dispenses.items.length}
           total={dispenses.total}
-          previousHref={previousHref}
-          nextHref={dispenses.nextCursor ? href(page + 1, dispenses.nextCursor) : null}
-          firstHref={first}
+          previousHref={url.previousHref}
+          nextHref={url.nextHref(dispenses.nextCursor)}
+          firstHref={url.first}
         />
       )}
     </Panel>

@@ -1,10 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@tesserix/web";
 import { ReceiptText, PackageSearch, Plus } from "lucide-react";
 import {
-  useApiPagedQuery,
+  PAGE_SIZE,
+  useApiPageQuery,
   usePermissions,
   pharmacyKey,
   pharmacyRoot,
@@ -12,7 +14,8 @@ import {
   type PharmacyPayable,
   type PharmacyInventoryAudit,
 } from "@helivanta/api";
-import { LoadMore, Panel, RequestFailure } from "@helivanta/ui";
+import { PageTabs, Pager, Panel, RequestFailure } from "@helivanta/ui";
+import { useStepBackWhenEmpty, useUrlPage } from "@/lib/use-url-page";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { PayableForm, PayableHistory } from "./payable-forms";
 
@@ -21,14 +24,11 @@ export function AccountsPanel({
   writable,
   defaultCurrency,
   timeZone = "UTC",
-  initialDue,
 }: {
   scope: PharmacyScope;
   writable: boolean;
   defaultCurrency: string;
   timeZone?: string;
-  /** Starting due filter, from the overview (#576 D4); anything else is ignored. */
-  initialDue?: string;
 }) {
   const { can } = usePermissions();
   if (!can("pharmacy.accounts.read"))
@@ -47,7 +47,6 @@ export function AccountsPanel({
       writable={writable}
       defaultCurrency={defaultCurrency}
       timeZone={timeZone}
-      initialDue={initialDue === "overdue" || initialDue === "week" ? initialDue : null}
     />
   );
 }
@@ -56,13 +55,11 @@ function OutletAccounts({
   writable,
   defaultCurrency,
   timeZone,
-  initialDue,
 }: {
   scope: PharmacyScope;
   writable: boolean;
   defaultCurrency: string;
   timeZone: string;
-  initialDue: "overdue" | "week" | null;
 }) {
   const { can } = usePermissions();
   const [selected, setSelected] = useState<string | null>(null);
@@ -76,20 +73,105 @@ function OutletAccounts({
       editor.current?.querySelector<HTMLElement>("input,button")?.focus({ preventScroll: true });
     });
   }
-  // Bills with an amount outstanding, overdue or due within 7 days on the
-  // outlet's date: the overview's counts, filtered the same way (#576 D4).
-  const [due, setDue] = useState(initialDue);
-  const bills = useApiPagedQuery<PharmacyPayable>(
-    pharmacyKey(scope, "accounts", "payables", due),
-    `${pharmacyRoot(scope)}/accounts/payables${due ? `?due=${due}` : ""}`,
-  );
-  const audit = useApiPagedQuery<PharmacyInventoryAudit>(
-    pharmacyKey(scope, "accounts", "inventory-audit"),
-    `${pharmacyRoot(scope)}/accounts/inventory-audit`,
+  // The tab is the URL (#576 slice 3 D4): Overdue and Due within 7 days are
+  // the overview's counts, filtered on the outlet's date the same way.
+  // Anything else, an old ?due= link included, is All bills.
+  const raw = useSearchParams().get("tab") ?? "";
+  const tab: BillsTab = Object.hasOwn(TABS, raw) ? (raw as BillsTab) : "all";
+  const url = useUrlPage({ tab });
+  const tabs = (
+    <PageTabs
+      label="Supplier bills"
+      current={tab}
+      tabs={(Object.keys(TABS) as BillsTab[]).map((key) => ({
+        key,
+        label: TABS[key],
+        href: url.hrefFor({ tab: key }),
+      }))}
+    />
   );
   return (
     <div className="space-y-6">
-      <Panel aria-labelledby="payables-heading">
+      {tab === "audit" ? (
+        <InventoryAudit scope={scope} url={url} tabs={tabs} />
+      ) : (
+        <Bills
+          scope={scope}
+          tab={tab}
+          url={url}
+          tabs={tabs}
+          canRecord={writable && can("pharmacy.accounts.write")}
+          onRecord={() => reveal(null)}
+          onOpen={reveal}
+        />
+      )}
+      {creating && (
+        <Panel ref={editor} className="scroll-mt-24">
+          <PayableForm
+            scope={scope}
+            defaultCurrency={defaultCurrency}
+            onSaved={(id) => {
+              setCreating(false);
+              setSelected(id);
+            }}
+            onCancel={() => setCreating(false)}
+          />
+        </Panel>
+      )}
+      {selected && (
+        <Panel ref={editor} className="scroll-mt-24">
+          <PayableHistory
+            key={selected}
+            scope={scope}
+            id={selected}
+            timeZone={timeZone}
+            writable={writable}
+            onClose={() => setSelected(null)}
+          />
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+const TABS = {
+  overdue: "Overdue",
+  week: "Due within 7 days",
+  all: "All bills",
+  audit: "Inventory cost audit",
+} as const;
+type BillsTab = keyof typeof TABS;
+type UrlPage = ReturnType<typeof useUrlPage>;
+
+// One tab of bills, 25 a page with the total (#576 slice 3).
+function Bills({
+  scope,
+  tab,
+  url,
+  tabs,
+  canRecord,
+  onRecord,
+  onOpen,
+}: {
+  scope: PharmacyScope;
+  tab: Exclude<BillsTab, "audit">;
+  url: UrlPage;
+  tabs: React.ReactNode;
+  canRecord: boolean;
+  onRecord: () => void;
+  onOpen: (id: string) => void;
+}) {
+  const due = tab === "all" ? null : tab;
+  const bills = useApiPageQuery<PharmacyPayable>(
+    pharmacyKey(scope, "accounts", "payables", "counted", due),
+    `${pharmacyRoot(scope)}/accounts/payables/counted${due ? `?due=${due}` : ""}`,
+    url.cursor,
+  );
+  const emptied = useStepBackWhenEmpty(bills, url);
+  return (
+    <Panel flush aria-labelledby="payables-heading">
+      {tabs}
+      <div className="p-5">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h3 id="payables-heading" className="flex items-center gap-2 font-semibold">
@@ -100,19 +182,9 @@ function OutletAccounts({
               Track original bills, recorded payments and remaining amounts. Each document keeps its
               own currency and history.
             </p>
-            {due && (
-              <p className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-                <span className="font-medium">
-                  {due === "overdue" ? "Showing overdue bills" : "Showing bills due within 7 days"}
-                </span>
-                <Button variant="outline" size="sm" onClick={() => setDue(null)}>
-                  Show all bills
-                </Button>
-              </p>
-            )}
           </div>
-          {writable && can("pharmacy.accounts.write") && (
-            <Button onClick={() => reveal(null)}>
+          {canRecord && (
+            <Button onClick={onRecord}>
               <Plus className="size-4" />
               Record bill or expense
             </Button>
@@ -124,7 +196,13 @@ function OutletAccounts({
           <p role="status">Loading bills and expenses…</p>
         ) : !bills.items.length ? (
           <p className="py-8 text-sm text-muted-foreground">
-            No bills or expenses recorded for this outlet.
+            {
+              {
+                overdue: "No overdue bills.",
+                week: "No bills due within 7 days.",
+                all: "No bills or expenses recorded for this outlet.",
+              }[tab]
+            }
           </p>
         ) : (
           <div className="overflow-x-auto rounded-md border">
@@ -181,9 +259,7 @@ function OutletAccounts({
                     <td className="col-span-2 px-4 py-4">
                       <Button
                         variant="ghost"
-                        onClick={() => {
-                          reveal(b.id);
-                        }}
+                        onClick={() => onOpen(b.id)}
                         aria-label={`Open ${b.document_reference}`}
                       >
                         View
@@ -195,38 +271,43 @@ function OutletAccounts({
             </table>
           </div>
         )}
-        <LoadMore
-          hasMore={bills.hasMore}
-          isLoading={bills.isFetchingMore}
-          onClick={bills.loadMore}
+      </div>
+      {!bills.isPending && !emptied && (
+        <Pager
+          page={url.page}
+          pageSize={PAGE_SIZE}
+          offset={bills.offset}
+          shown={bills.items.length}
+          total={bills.total}
+          previousHref={url.previousHref}
+          nextHref={url.nextHref(bills.nextCursor)}
+          firstHref={url.first}
         />
-      </Panel>
-      {creating && (
-        <Panel ref={editor} className="scroll-mt-24">
-          <PayableForm
-            scope={scope}
-            defaultCurrency={defaultCurrency}
-            onSaved={(id) => {
-              setCreating(false);
-              setSelected(id);
-            }}
-            onCancel={() => setCreating(false)}
-          />
-        </Panel>
       )}
-      {selected && (
-        <Panel ref={editor} className="scroll-mt-24">
-          <PayableHistory
-            key={selected}
-            scope={scope}
-            id={selected}
-            timeZone={timeZone}
-            writable={writable}
-            onClose={() => setSelected(null)}
-          />
-        </Panel>
-      )}
-      <Panel aria-labelledby="inventory-audit-heading">
+    </Panel>
+  );
+}
+
+// Every manufacturer lot once, 25 a page with the total.
+function InventoryAudit({
+  scope,
+  url,
+  tabs,
+}: {
+  scope: PharmacyScope;
+  url: UrlPage;
+  tabs: React.ReactNode;
+}) {
+  const audit = useApiPageQuery<PharmacyInventoryAudit>(
+    pharmacyKey(scope, "accounts", "inventory-audit", "counted"),
+    `${pharmacyRoot(scope)}/accounts/inventory-audit/counted`,
+    url.cursor,
+  );
+  const emptied = useStepBackWhenEmpty(audit, url);
+  return (
+    <Panel flush aria-labelledby="inventory-audit-heading">
+      {tabs}
+      <div className="p-5">
         <h3 id="inventory-audit-heading" className="flex items-center gap-2 font-semibold">
           <PackageSearch className="size-5 text-(--hms-accent)" />
           Inventory cost audit
@@ -344,12 +425,19 @@ function OutletAccounts({
             </table>
           </div>
         )}
-        <LoadMore
-          hasMore={audit.hasMore}
-          isLoading={audit.isFetchingMore}
-          onClick={audit.loadMore}
+      </div>
+      {!audit.isPending && !emptied && (
+        <Pager
+          page={url.page}
+          pageSize={PAGE_SIZE}
+          offset={audit.offset}
+          shown={audit.items.length}
+          total={audit.total}
+          previousHref={url.previousHref}
+          nextHref={url.nextHref(audit.nextCursor)}
+          firstHref={url.first}
         />
-      </Panel>
-    </div>
+      )}
+    </Panel>
   );
 }

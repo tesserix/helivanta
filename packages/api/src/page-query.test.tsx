@@ -34,6 +34,26 @@ describe("useApiPageQuery", () => {
     expect(String(fetcher.mock.calls[0]![0])).toContain("/rows?x=1&limit=25&cursor=abc");
   });
 
+  // The safety page checks the expected tenant on every read.
+  it("sends the request options it is given", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: [], page: { has_more: false, next_cursor: null } }), {
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    renderHook(
+      () =>
+        useApiPageQuery(["rows"], "/rows", null, {
+          request: { headers: new Headers({ "X-Helivanta-Expected-Tenant": "t-1" }) },
+        }),
+      { wrapper },
+    );
+    await waitFor(() => expect(fetcher).toHaveBeenCalled());
+    const init = fetcher.mock.calls[0]![1] as RequestInit;
+    expect(new Headers(init.headers).get("X-Helivanta-Expected-Tenant")).toBe("t-1");
+  });
+
   it("has no next cursor on the last page and no total when the list is uncounted", async () => {
     vi.stubGlobal(
       "fetch",

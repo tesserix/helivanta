@@ -211,3 +211,111 @@ func TestCountedListReportsRowsBeforeThePage(t *testing.T) {
 	require.Equal(t, 3, *again.Page.Total)
 	require.Equal(t, second.Data[0].ID, again.Data[0].ID)
 }
+
+func guardedServer(t *testing.T, db *tenantdb.DB, h platform.GuardedListHandler[countedRow]) *gin.Engine {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	e := gin.New()
+	e.Use(func(c *gin.Context) {
+		c.Set("authn.principal", authn.Principal{Subject: "alice", TenantID: testTenant})
+		c.Set("authz.permissions", authz.NewPermissionSet(listRoutePerm))
+		c.Next()
+	})
+	r := platform.NewRouter(e.Group("/v1"), alwaysMemberListRoute{})
+	platform.GuardedCountedListRoute[countedRow](r, db, "/counted", listRoutePerm, tenantdb.Keyset{Column: "created_at"}, h)
+	return e
+}
+
+func notFound(c *gin.Context, _ error) { respond.NotFound(c, "thing") }
+
+// #576 D1: a guard that refuses (no outlet grant) is answered by the
+// handler's own responder, and nothing is counted.
+func TestGuardedListGuardErrorUsesResponder(t *testing.T) {
+	db := countedHarness(t)
+	scoped := false
+	e := guardedServer(t, db, func(*gin.Context) (platform.CountedQuery[countedRow], bool) {
+		return platform.CountedQuery[countedRow]{
+			Guard: func(*gorm.DB) (platform.Scope, error) {
+				return func(tx *gorm.DB) *gorm.DB { scoped = true; return tx }, gorm.ErrRecordNotFound
+			},
+			Fail: notFound,
+		}, true
+	})
+	code, _ := getCounted(t, e, "")
+	require.Equal(t, http.StatusNotFound, code)
+	require.False(t, scoped, "the scope ran after the guard refused")
+}
+
+// The guard runs inside the snapshot: a row committed after it, before the
+// count, is not counted.
+func TestGuardedListGuardSeesTheSnapshot(t *testing.T) {
+	db := countedHarness(t)
+	tid := uuid.MustParse(testTenant)
+	e := guardedServer(t, db, func(c *gin.Context) (platform.CountedQuery[countedRow], bool) {
+		return platform.CountedQuery[countedRow]{
+			Guard: func(tx *gorm.DB) (platform.Scope, error) {
+				var one int
+				if err := tx.Raw("SELECT count(*) FROM counted_rows").Scan(&one).Error; err != nil {
+					return nil, err
+				}
+				err := db.WithTenant(c.Request.Context(), testTenant, func(other *gorm.DB) error {
+					return other.Create(&countedRow{TenantID: tid, Kind: "keep", CreatedAt: time.Now().UTC()}).Error
+				})
+				return func(tx *gorm.DB) *gorm.DB { return tx.Where("kind = ?", "keep") }, err
+			},
+			Fail: notFound,
+		}, true
+	})
+	code, p := getCounted(t, e, "")
+	require.Equal(t, http.StatusOK, code)
+	require.Equal(t, 5, *p.Page.Total)
+	require.Len(t, p.Data, 5)
+}
+
+// A projection applies to the rows only: in the shared scope it would break
+// the count.
+func TestGuardedListRowsProjectionOnlyOnFetch(t *testing.T) {
+	db := countedHarness(t)
+	e := guardedServer(t, db, func(*gin.Context) (platform.CountedQuery[countedRow], bool) {
+		return platform.CountedQuery[countedRow]{
+			Guard: func(*gorm.DB) (platform.Scope, error) { return keepScope, nil },
+			Rows:  func(tx *gorm.DB) *gorm.DB { return tx.Select("id, tenant_id, 'projected' AS kind, created_at") },
+			Fail:  notFound,
+		}, true
+	})
+	code, p := getCounted(t, e, "")
+	require.Equal(t, http.StatusOK, code)
+	require.Equal(t, 5, *p.Page.Total)
+	require.Len(t, p.Data, 5)
+	for _, row := range p.Data {
+		require.Equal(t, "projected", row.Kind)
+	}
+}
+
+func TestGuardedListAfterSeesThePage(t *testing.T) {
+	db := countedHarness(t)
+	var got int
+	fail := false
+	e := guardedServer(t, db, func(c *gin.Context) (platform.CountedQuery[countedRow], bool) {
+		return platform.CountedQuery[countedRow]{
+			Guard: func(*gorm.DB) (platform.Scope, error) { return keepScope, nil },
+			After: func(_ *gorm.DB, rows []countedRow) error {
+				got = len(rows)
+				if fail {
+					return gorm.ErrRecordNotFound
+				}
+				return nil
+			},
+			Fail: notFound,
+		}, true
+	})
+	code, p := getCounted(t, e, "?limit=2")
+	require.Equal(t, http.StatusOK, code)
+	require.Equal(t, 2, got)
+	require.Len(t, p.Data, 2)
+	fail = true
+	code, _ = getCounted(t, e, "?limit=2")
+	require.Equal(t, http.StatusNotFound, code)
+}
+
+func keepScope(tx *gorm.DB) *gorm.DB { return tx.Where("kind = ?", "keep") }

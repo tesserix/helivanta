@@ -28,6 +28,7 @@ import {
   ConfirmDialog,
   Field,
   FormSelectField,
+  SelectControl,
   LoadMore,
   PageTabs,
   Pager,
@@ -37,7 +38,7 @@ import {
   useZodForm,
 } from "@helivanta/ui";
 import { useStepBackWhenEmpty, useUrlPage } from "@/lib/use-url-page";
-import { CurrencyAmountField } from "./currency-amount-field";
+import { CurrencyAmountField, supportedCurrencies } from "./currency-amount-field";
 import { ProductTaxSection, TaxBadge } from "./tax-classification";
 
 const searchSchema = z.object({ query: z.string().trim().max(200) });
@@ -97,7 +98,7 @@ const newProduct: PharmacyProductInput = {
   ingredients: [{ name: "", strength: "", unit: "mg" }],
   pack_size: 10,
   unit_of_issue: "capsule",
-  currency: "",
+  currency: "INR",
   mrp_minor: 0,
   status: "active",
 };
@@ -316,7 +317,7 @@ function ProductForm({
     pharmacyProductFormSchema,
     product
       ? { ...pharmacyProductFieldsSchema.strip().parse(product), expected_version: product.version }
-      : { ...newProduct, currency: defaultCurrency },
+      : { ...newProduct, currency: defaultCurrency as PharmacyProductInput["currency"] },
   );
   const ingredients = useFieldArray({ control: form.control, name: "ingredients" });
   const save = useApiMutation(
@@ -466,12 +467,14 @@ function ProductForm({
               label="Currency code"
               error={fieldErrors.currency?.message}
             >
-              <Input
+              <SelectControl
                 id="product-currency"
-                {...form.register("currency", {
-                  setValueAs: (value) => String(value).toUpperCase(),
-                  onChange: () => form.setValue("mrp_minor", 0),
-                })}
+                value={form.watch("currency")}
+                onValueChange={(value) => {
+                  form.setValue("currency", value as PharmacyProductInput["currency"]);
+                  form.setValue("mrp_minor", 0);
+                }}
+                options={supportedCurrencies.map((value) => ({ value, label: value }))}
               />
             </Field>
             <CurrencyAmountField

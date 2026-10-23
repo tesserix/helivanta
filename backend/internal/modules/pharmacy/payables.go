@@ -9,6 +9,7 @@ import (
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/countryprofile"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -93,7 +94,7 @@ func validPayable(in *payableInput) (int64, bool) {
 	in.DocumentReference = strings.ToUpper(strings.TrimSpace(in.DocumentReference))
 	issued, e1 := time.Parse(time.DateOnly, in.IssuedOn)
 	due, e2 := time.Parse(time.DateOnly, in.DueOn)
-	if e1 != nil || e2 != nil || due.Before(issued) || !currencyPattern.MatchString(in.Currency) || in.PayeeReference == "" || in.PayeeName == "" || in.DocumentReference == "" {
+	if e1 != nil || e2 != nil || due.Before(issued) || !countryprofile.SupportedCurrency(in.Currency) || in.PayeeReference == "" || in.PayeeName == "" || in.DocumentReference == "" {
 		return 0, false
 	}
 	var total int64

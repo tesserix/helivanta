@@ -201,7 +201,7 @@ it("keeps a new territory identity stable and validates mandatory fields before 
   );
   const user = (await import("@testing-library/user-event")).default.setup();
   renderWithProviders(
-    <OrganisationStructure scope={scope} roles={["administrator"]} country="PK" />,
+    <OrganisationStructure scope={scope} roles={["administrator"]} country="IN" />,
   );
   await user.click(await screen.findByRole("button", { name: "Add sales territory" }));
   await user.click(screen.getByRole("button", { name: "Save sales territory" }));
@@ -217,7 +217,7 @@ it("keeps a new territory identity stable and validates mandatory fields before 
   expect(writes[0]).toEqual(writes[1]);
   expect(JSON.parse(writes[0].body)).toMatchObject({
     expected_version: 0,
-    country_code: "PK",
+    country_code: "IN",
     branch_premise_id: null,
     assigned_sales_subjects: [],
   });

@@ -138,15 +138,12 @@ func TestBranchAssignmentsDenyForeignOwnersAndDoNotInheritRoles(t *testing.T) {
 }
 
 func TestBranchKindsRetirementCountryAndDatabaseConstraints(t *testing.T) {
-	for _, country := range []string{"IN", "PK"} {
+	for _, country := range []string{"IN"} {
 		t.Run(country, func(t *testing.T) {
 			r, db := partyHarness(t)
 			party := uuid.Must(uuid.NewV7()).String()
 			root := "/v1/supply/parties/" + party
 			body := strings.Replace(partyBody(0, "TEST Branch Owner"), "counterparty", "owned_organisation", 1)
-			if country == "PK" {
-				body = strings.Replace(body, `"country_code":"IN"`, `"country_code":"PK"`, 1)
-			}
 			require.Equal(t, 200, testutil.Do(r, "PUT", root, "owner", body).Code)
 			branch := uuid.Must(uuid.NewV7()).String()
 			branchPath := root + "/premises/" + branch

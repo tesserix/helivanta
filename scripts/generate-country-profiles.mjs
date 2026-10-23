@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const data = JSON.parse(await readFile(path.join(root, "contracts/country-profiles.json"), "utf8"));
 if (
   data.schema_version !== 1 ||
-  data.countries.length !== 2 ||
+  data.countries.length < 1 ||
   new Set(data.countries.map((p) => p.code)).size !== data.countries.length
 )
   throw new Error("Invalid country configuration");
@@ -44,6 +44,11 @@ go +=
   "default:return Country{},false\n}}\n\n// ValidTimezone checks the declared country’s supported IANA zones.\nfunc ValidTimezone(code,zone string) bool {switch code {\n";
 for (const p of data.countries)
   go += `case ${quoted(p.code)}: return ${p.timezones.map((z) => "zone==" + quoted(z)).join("||")}\n`;
+go += "default:return false\n}}\n";
+go +=
+  "\n// SupportedCurrency reports whether code is a supported country's currency.\nfunc SupportedCurrency(code string) bool {switch code {\n";
+for (const currency of new Set(data.countries.map((p) => p.currency)))
+  go += `case ${quoted(currency)}: return true\n`;
 go += "default:return false\n}}\n";
 go +=
   "\n// ValidTaxIdentifierKind checks declared metadata, not licence validity.\nfunc ValidTaxIdentifierKind(code,kind string) bool {switch code {\n";

@@ -1,5 +1,7 @@
 # ADR 0026: India/Pakistan country and trading boundaries
 
+> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+
 Date: 2026-10-16. Status: accepted design direction; staged implementation. Epic #1133.
 
 ## Context and scale

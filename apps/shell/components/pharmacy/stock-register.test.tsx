@@ -414,7 +414,7 @@ it("uses the persisted outlet zone for snapshots, period input and reloads", asy
     const [timeZone, setZone] = useState("Asia/Kolkata");
     return (
       <>
-        <button onClick={() => setZone("Asia/Karachi")}>Change outlet time zone</button>
+        <button onClick={() => setZone("Asia/Tashkent")}>Change outlet time zone</button>
         <StockRegister scope={scope} timeZone={timeZone} />
       </>
     );
@@ -445,7 +445,7 @@ it("uses the persisted outlet zone for snapshots, period input and reloads", asy
   await user.click(
     await screen.findByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }),
   );
-  expect(screen.getByLabelText("Period starts at (Asia/Karachi, optional)")).toHaveValue("");
+  expect(screen.getByLabelText("Period starts at (Asia/Tashkent, optional)")).toHaveValue("");
 });
 
 it("refuses invalid outlet time zones before querying stock", () => {

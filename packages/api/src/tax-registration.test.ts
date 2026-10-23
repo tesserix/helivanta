@@ -29,6 +29,6 @@ describe("validateTaxRegistration", () => {
   });
 
   it("has no scheme for a country that refuses tax setup", () => {
-    expect(taxScheme("PK")).toBeNull();
+    expect(taxScheme("XX")).toBeNull();
   });
 });

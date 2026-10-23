@@ -62,7 +62,7 @@ it("rejects cross-country operating time zones, reversed validity and duplicate 
     code: "TEST",
     name: "TEST Depot",
     kind: "warehouse",
-    time_zone: "Asia/Karachi",
+    time_zone: "Asia/Tashkent",
     status: "active",
   };
   expect(supplyPremiseFormSchema.safeParse(premise).success).toBe(false);

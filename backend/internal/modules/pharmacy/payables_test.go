@@ -166,13 +166,17 @@ func TestInventoryAuditLinksAcquisitionCostAndFlagsUnvaluedStock(t *testing.T) {
 	audit(true, 20, "valuation_review")
 }
 
+// A stocked product's currency cannot relabel its acquisition costs. With
+// India the only supported country (#1287) there is no other currency to
+// relabel to: any other is refused as unsupported before the stocked-product
+// guard, which stays for when a second country returns.
 func TestStockedProductCurrencyCannotRelabelAcquisitionCosts(t *testing.T) {
 	r, _ := catalogueHarness(t)
 	grantCatalogue(t, r, "user-editor", "editor")
 	product, _, _ := stockFixture(t, r)
 	body := strings.Replace(productBody(1, "TEST Amoxicillin 500"), `"INR"`, `"USD"`, 1)
 	w := do(r, "PUT", productPath(product), "editor", body)
-	require.Equal(t, 409, w.Code, w.Body.String())
+	require.Equal(t, 400, w.Code, w.Body.String())
 }
 
 func TestPayableScopeValidationAndImmutableDatabaseControls(t *testing.T) {

@@ -41,7 +41,7 @@ export const supplyPostalAddressSchema = z
     city: z.string().trim().min(1).max(100),
     region: z.string().trim().min(1).max(100),
     postal_code: z.string().trim().min(1).max(20),
-    country_code: z.enum(["IN", "PK"]),
+    country_code: z.enum(["IN"]),
   })
   .strict();
 
@@ -55,7 +55,7 @@ export const supplyAddressSchema = supplyPostalAddressSchema
 export const supplyTaxRegistrationSchema = z
   .object({
     id: identifier,
-    kind: z.enum(["gstin", "pan", "other", "ntn", "stn"]),
+    kind: z.enum(["gstin", "pan", "other"]),
     number: z.string().trim().toUpperCase().min(1).max(100),
     jurisdiction: z.string().trim().min(1).max(100),
   })
@@ -81,7 +81,7 @@ export const supplyPartyFieldsSchema = z
       "importer",
       "other",
     ]),
-    country_code: z.enum(["IN", "PK"]),
+    country_code: z.enum(["IN"]),
     jurisdiction: z.string().trim().min(1).max(100),
     registration_number: z.string().trim().toUpperCase().min(1).max(100),
     corporate_group: z.string().trim().max(200),
@@ -252,7 +252,7 @@ export const supplyTerritoryFieldsSchema = z
       .max(40)
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
     name: z.string().trim().min(1).max(200),
-    country_code: z.enum(["IN", "PK"]),
+    country_code: z.enum(["IN"]),
     region: z.string().trim().min(1).max(100),
     city: z.string().trim().max(100),
     description: z.string().trim().max(1000),
@@ -378,7 +378,7 @@ export const supplyDeliveryTaskFieldsSchema = z
     destination_city: z.string().trim().min(1).max(100),
     destination_region: z.string().trim().min(1).max(100),
     destination_postal_code: z.string().trim().min(1).max(20),
-    country_code: z.enum(["IN", "PK"]),
+    country_code: z.enum(["IN"]),
     business_contact_name: z.string().trim().min(0).max(200),
     business_contact_phone: z
       .string()

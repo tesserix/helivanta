@@ -9,18 +9,21 @@ import (
 )
 
 func TestSupportedCountriesNeverFallBackToAnotherCountry(t *testing.T) {
-	for _, tc := range []struct{ code, currency, zone string }{{"IN", "INR", "Asia/Kolkata"}, {"PK", "PKR", "Asia/Karachi"}} {
+	for _, tc := range []struct{ code, currency, zone string }{{"IN", "INR", "Asia/Kolkata"}} {
 		p, ok := countryprofile.Lookup(tc.code)
 		require.True(t, ok)
 		require.Equal(t, tc.currency, p.Currency)
 		require.Equal(t, tc.zone, p.Timezone)
 		require.True(t, countryprofile.ValidTimezone(tc.code, tc.zone))
 	}
-	p, ok := countryprofile.Lookup("ZZ")
-	require.False(t, ok)
-	require.Empty(t, p.Code)
+	// #1287: Pakistan is not supported, so it is an unknown code like any other.
+	for _, code := range []string{"ZZ", "PK"} {
+		p, ok := countryprofile.Lookup(code)
+		require.False(t, ok, code)
+		require.Empty(t, p.Code)
+	}
 	require.False(t, countryprofile.ValidTimezone("ZZ", "UTC"))
-	require.False(t, countryprofile.ValidTimezone("PK", "Asia/Kolkata"))
+	require.False(t, countryprofile.ValidTimezone("PK", "Asia/Karachi"))
 	require.False(t, countryprofile.ValidTimezone("IN", "Asia/Karachi"))
 	require.True(t, countryprofile.ValidTimezone("IN", "Asia/Calcutta"))
 }
@@ -38,7 +41,7 @@ func TestCountryMetadataCannotBeMutatedByCallerAndDoesNotAuthorizeTrading(t *tes
 	}
 	require.NoError(t, json.Unmarshal(second, &doc))
 	require.Equal(t, 1, doc.SchemaVersion)
-	require.Len(t, doc.Countries, 2)
+	require.Len(t, doc.Countries, 1)
 	for _, p := range doc.Countries {
 		require.Equal(t, "review_required", p.Status)
 	}
@@ -49,7 +52,7 @@ func TestTaxIdentifierKindsDoNotCrossCountryBoundaries(t *testing.T) {
 		country, kind string
 		valid         bool
 	}{
-		{"IN", "gstin", true}, {"IN", "pan", true}, {"IN", "ntn", false}, {"PK", "ntn", true}, {"PK", "stn", true}, {"PK", "gstin", false}, {"IN", "other", true}, {"PK", "other", true}, {"ZZ", "other", false}, {"IN", "unknown", false},
+		{"IN", "gstin", true}, {"IN", "pan", true}, {"IN", "ntn", false}, {"IN", "stn", false}, {"PK", "ntn", false}, {"PK", "other", false}, {"IN", "other", true}, {"ZZ", "other", false}, {"IN", "unknown", false},
 	} {
 		require.Equal(t, tc.valid, countryprofile.ValidTaxIdentifierKind(tc.country, tc.kind), tc.country+":"+tc.kind)
 	}
@@ -99,4 +102,12 @@ func TestCountryWithoutTaxSchemeRefusesTaxSetup(t *testing.T) {
 	require.False(t, ok)
 	_, ok = countryprofile.Tax("ZZ")
 	require.False(t, ok)
+}
+
+// #1287: an amount is in a supported country's currency; Pakistan's is not.
+func TestSupportedCurrencyIsAProfileCurrency(t *testing.T) {
+	require.True(t, countryprofile.SupportedCurrency("INR"))
+	for _, code := range []string{"PKR", "USD", "inr", ""} {
+		require.False(t, countryprofile.SupportedCurrency(code), code)
+	}
 }

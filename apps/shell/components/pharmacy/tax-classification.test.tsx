@@ -279,7 +279,7 @@ describe("CataloguePanel tax", () => {
   it("offers no tax filter for a country without a scheme", async () => {
     serve(() => []);
     renderWithProviders(
-      <CataloguePanel scope={scope} writable defaultCurrency="PKR" countryCode="PK" />,
+      <CataloguePanel scope={scope} writable defaultCurrency="INR" countryCode="XX" />,
     );
     await screen.findAllByRole("listitem");
     expect(screen.queryByRole("button", { name: "Not classified" })).toBeNull();
@@ -291,7 +291,7 @@ describe("CataloguePanel tax", () => {
     nav.search = "tax=unclassified";
     const { urls } = serve(() => []);
     renderWithProviders(
-      <CataloguePanel scope={scope} writable defaultCurrency="PKR" countryCode="PK" />,
+      <CataloguePanel scope={scope} writable defaultCurrency="INR" countryCode="XX" />,
     );
     await screen.findAllByRole("listitem");
     expect(urls.some((url) => url.includes("tax=unclassified"))).toBe(false);

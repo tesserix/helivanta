@@ -176,11 +176,11 @@ describe("TaxRegistrationPanel", () => {
     renderWithProviders(
       <TaxRegistrationPanel
         scope={scope}
-        outlet={{ ...outlet, country_code: "PK", timezone: "Asia/Karachi" }}
+        outlet={{ ...outlet, country_code: "XX", timezone: "UTC" }}
         today="2026-11-01"
       />,
     );
-    expect(screen.getByText("Tax setup is not available for Pakistan yet.")).toBeVisible();
+    expect(screen.getByText("Tax setup is not available for XX yet.")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Record registration" })).toBeNull();
   });
 

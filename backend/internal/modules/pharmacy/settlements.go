@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/countryprofile"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -62,7 +63,7 @@ func (h *catalogueHandlers) putSettlement(c *gin.Context, adjustment bool) {
 	in.PaidBy = strings.TrimSpace(in.PaidBy)
 	in.Reason = strings.TrimSpace(in.Reason)
 	_, err = time.Parse(time.DateOnly, in.OccurredOn)
-	if err != nil || !currencyPattern.MatchString(in.Currency) || in.PaidBy == "" || in.Reason == "" || in.SourceReference == "" || adjustment == (in.Kind == "payment") || (in.Kind == "payment_reversal") != (in.ReversalOf != nil) {
+	if err != nil || !countryprofile.SupportedCurrency(in.Currency) || in.PaidBy == "" || in.Reason == "" || in.SourceReference == "" || adjustment == (in.Kind == "payment") || (in.Kind == "payment_reversal") != (in.ReversalOf != nil) {
 		respond.Error(c, 400, "invalid_request", "check settlement kind, date, reference and attribution")
 		return
 	}

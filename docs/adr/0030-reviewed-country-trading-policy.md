@@ -1,5 +1,7 @@
 # ADR 0030: Reviewed country policy before B2B commitments
 
+> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+
 Date: 2026-10-16. Status: implemented locally; production approval pending. Child #1182, parent #1134, related #1136 and epic #1133.
 
 ## Problem and decision

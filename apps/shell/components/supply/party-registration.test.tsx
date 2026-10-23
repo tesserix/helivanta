@@ -20,7 +20,7 @@ it("shows a server-calculated expiry notice in the saved premise timezone and fo
     kind: "WHOLESALE",
     number: "TEST-RENEWAL",
     issuing_authority: "TEST Authority",
-    jurisdiction: "TEST-Sindh",
+    jurisdiction: "TEST-MH",
     premise_id: "0199e000-0000-7000-8000-000000000002",
     issued_on: "2026-01-01",
     expires_on: "2026-10-18",
@@ -29,7 +29,7 @@ it("shows a server-calculated expiry notice in the saved premise timezone and fo
       date_status: "expires_today",
       days_remaining: 0,
       local_date: "2026-10-18",
-      time_zone: "Asia/Karachi",
+      time_zone: "Asia/Kolkata",
       observed_at: "2026-10-18T18:45:00Z",
       premise_status: "active",
     },
@@ -42,9 +42,9 @@ it("shows a server-calculated expiry notice in the saved premise timezone and fo
     }),
   );
   HTMLElement.prototype.scrollIntoView = vi.fn();
-  renderWithProviders(<PartyRegistration scope={scope} country="PK" roles={["administrator"]} />);
+  renderWithProviders(<PartyRegistration scope={scope} country="IN" roles={["administrator"]} />);
   expect(await screen.findByText("Expires today · renew now")).toBeInTheDocument();
-  expect(screen.getByText(/2026-10-18 · Asia\/Karachi/)).toBeInTheDocument();
+  expect(screen.getByText(/2026-10-18 · Asia\/Kolkata/)).toBeInTheDocument();
   expect(screen.getByText(/Date notice only/)).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Edit licence TEST-RENEWAL" }));
   await waitFor(() => expect(screen.getByLabelText("Licence type code")).toHaveFocus());
@@ -145,14 +145,14 @@ it("focuses a new independent premise and preserves the ID after a failed save",
   const fetcher = fixture();
   const user = userEvent.setup();
   HTMLElement.prototype.scrollIntoView = vi.fn();
-  renderWithProviders(<PartyRegistration scope={scope} country="PK" roles={["administrator"]} />);
+  renderWithProviders(<PartyRegistration scope={scope} country="IN" roles={["administrator"]} />);
   await user.click(await screen.findByRole("button", { name: "Add premise" }));
   await waitFor(() => expect(screen.getByLabelText("Premise code")).toHaveFocus());
   await user.type(screen.getByLabelText("Premise code"), "TEST-DEPOT");
   await user.type(screen.getByLabelText("Premise name"), "TEST Depot");
   await user.type(screen.getByLabelText("Address line 1"), "TEST Office");
-  await user.type(screen.getByLabelText("City"), "TEST Karachi");
-  await user.type(screen.getByLabelText("State or province"), "TEST Sindh");
+  await user.type(screen.getByLabelText("City"), "TEST Pune");
+  await user.type(screen.getByLabelText("State or province"), "TEST Maharashtra");
   await user.type(screen.getByLabelText("Postal code"), "TEST-001");
   await user.click(screen.getByRole("button", { name: "Save premise" }));
   expect(await screen.findByText("TEST registry unavailable")).toBeInTheDocument();
@@ -163,8 +163,8 @@ it("focuses a new independent premise and preserves the ID after a failed save",
   const writes = fetcher.mock.calls.filter(([, init]) => init?.method === "PUT");
   expect(writes[0][0]).toBe(writes[1][0]);
   expect(JSON.parse(writes[0][1]?.body as string)).toMatchObject({
-    country_code: "PK",
-    time_zone: "Asia/Karachi",
+    country_code: "IN",
+    time_zone: "Asia/Kolkata",
     expected_version: 0,
   });
   expect(JSON.parse(writes[0][1]?.body as string)).not.toHaveProperty("hospital_id");
@@ -182,7 +182,7 @@ it("resolves an edited licence's premise even when it is outside the loaded page
     kind: "WHOLESALE",
     number: "TEST-001",
     issuing_authority: "TEST Authority",
-    jurisdiction: "TEST-Sindh",
+    jurisdiction: "TEST-MH",
     premise_id: premise.id,
     issued_on: "2026-01-01",
     expires_on: "2030-12-31",
@@ -198,7 +198,7 @@ it("resolves an edited licence's premise even when it is outside the loaded page
     }),
   );
   const user = userEvent.setup();
-  renderWithProviders(<PartyRegistration scope={scope} country="PK" roles={["administrator"]} />);
+  renderWithProviders(<PartyRegistration scope={scope} country="IN" roles={["administrator"]} />);
   await user.click(await screen.findByRole("button", { name: "Edit licence TEST-001" }));
   await waitFor(() =>
     expect(screen.getByRole("combobox", { name: "Licensed premise" })).toHaveTextContent(
@@ -245,7 +245,7 @@ it("shows the actual licence validity in each retained revision", async () => {
     }),
   );
   const user = userEvent.setup();
-  renderWithProviders(<PartyRegistration scope={scope} country="PK" roles={["auditor"]} />);
+  renderWithProviders(<PartyRegistration scope={scope} country="IN" roles={["auditor"]} />);
   await user.click(await screen.findByRole("button", { name: "History for licence TEST-LIC" }));
   const history = await screen.findByRole("region", { name: "Registration revision history" });
   expect(history).toHaveTextContent("Expires 2031-12-31");
@@ -266,7 +266,7 @@ it("marks existing evidence historical immediately after its licence is revised"
     kind: "TEST",
     number: "TEST-LIC",
     issuing_authority: "TEST Authority",
-    jurisdiction: "TEST Sindh",
+    jurisdiction: "TEST Maharashtra",
     premise_id: premise.id,
     issued_on: "2026-01-01",
     expires_on: "2030-12-31",
@@ -320,7 +320,7 @@ it("marks existing evidence historical immediately after its licence is revised"
   );
   HTMLElement.prototype.scrollIntoView = vi.fn();
   const user = userEvent.setup();
-  renderWithProviders(<PartyRegistration scope={scope} country="PK" roles={["administrator"]} />);
+  renderWithProviders(<PartyRegistration scope={scope} country="IN" roles={["administrator"]} />);
   await user.click(await screen.findByRole("button", { name: "Evidence for licence TEST-LIC" }));
   expect(await screen.findByText("TEST old.png")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Edit licence TEST-LIC" }));
@@ -346,7 +346,7 @@ it("keeps declaration labels separate from the independently loaded review statu
                   kind: "WHOLESALE",
                   number: "TEST-REVIEW-LABEL",
                   issuing_authority: "TEST Authority",
-                  jurisdiction: "TEST-Sindh",
+                  jurisdiction: "TEST-MH",
                   issued_on: "2026-01-01",
                   expires_on: "2030-12-31",
                 },
@@ -356,7 +356,7 @@ it("keeps declaration labels separate from the independently loaded review statu
         : initial(url, init),
     ),
   );
-  renderWithProviders(<PartyRegistration scope={scope} country="PK" roles={["administrator"]} />);
+  renderWithProviders(<PartyRegistration scope={scope} country="IN" roles={["administrator"]} />);
   expect(
     await screen.findByRole("button", { name: "Review for licence TEST-REVIEW-LABEL" }),
   ).toBeInTheDocument();

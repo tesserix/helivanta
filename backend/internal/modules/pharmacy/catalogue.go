@@ -65,7 +65,6 @@ func (r catalogueRevision) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt
 const productColumns = "id,tenant_id,outlet_id,sku,brand_name,generic_name,dosage_form,route,manufacturer,marketing_company,ingredients,pack_size,unit_of_issue,currency,mrp_minor,status,regulatory_status,version,created_at,updated_at"
 
 var skuPattern = regexp.MustCompile(`^[A-Z0-9][A-Z0-9._-]{0,39}$`)
-var currencyPattern = regexp.MustCompile(`^[A-Z]{3}$`)
 var strengthPattern = regexp.MustCompile(`^(0|[1-9][0-9]{0,11})(\.[0-9]{1,6})?$`)
 var errPharmacyAccessUnavailable = errors.New("pharmacy access unavailable")
 var errCatalogueVersion = errors.New("catalogue version conflict")
@@ -284,7 +283,7 @@ func (f *ProductFields) normalize() bool {
 		}
 	}
 	f.MarketingCompany = strings.TrimSpace(f.MarketingCompany)
-	if !skuPattern.MatchString(f.SKU) || !currencyPattern.MatchString(f.Currency) {
+	if !skuPattern.MatchString(f.SKU) || !countryprofile.SupportedCurrency(f.Currency) {
 		return false
 	}
 	seen := map[string]bool{}

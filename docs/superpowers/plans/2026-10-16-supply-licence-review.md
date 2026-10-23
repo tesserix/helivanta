@@ -1,5 +1,7 @@
 # Licence review implementation plan
 
+> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+
 Issue #1135; spec: ../specs/2026-10-16-supply-licence-review.md.
 
 1. Add failing public API tests for clean-evidence submission and independent

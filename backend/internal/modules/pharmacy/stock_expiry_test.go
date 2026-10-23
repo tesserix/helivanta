@@ -14,12 +14,12 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 )
 
+// India is the only supported country (#1287); its cases still tell the
+// outlet's calendar from UTC's, since 18:45Z is already the 29th in Kolkata.
 func TestStockExpiryBandsUseOutletCalendar(t *testing.T) {
 	for _, country := range []struct{ code, zone, cutoff, date string }{
 		{"IN-before", "Asia/Kolkata", "2024-02-28T18:29:59Z", "2024-02-28"},
 		{"IN-after", "Asia/Kolkata", "2024-02-28T18:45:00Z", "2024-02-29"},
-		{"PK-before", "Asia/Karachi", "2024-02-28T18:45:00Z", "2024-02-28"},
-		{"PK-after", "Asia/Karachi", "2024-02-28T19:00:00Z", "2024-02-29"},
 	} {
 		t.Run(country.code, func(t *testing.T) {
 			r, db, _, _ := catalogueSetup(t)

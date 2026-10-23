@@ -1,5 +1,7 @@
 # PharmaConnect delivery audit — 18 October 2026
 
+> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+
 All open GitHub issues were fetched with API pagination, rather than the first 500 results. The title/label selection identified 67 PharmaConnect or related supply-chain candidates; this is a triage inventory, not a claim that every issue is a first-release requirement or implemented. AI, mobile and cross-product stories remain visible as related work. Issue bodies and dependency links must be checked before choosing or closing each story. All 67 candidates were assigned to Sam123ben when audited. New child #1213 is also assigned to Sam123ben and linked under #166.
 
 Verified preceding deliveries include #1137 (PR#1202) and #1205 (PR#1207, production completion comment). Those closed stories are not repeated in the open inventory. The repository was discovered private during this audit and restored to PUBLIC as instructed.

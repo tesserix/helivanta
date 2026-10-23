@@ -1,5 +1,7 @@
 # Supplier licence review — local acceptance
 
+> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+
 Issue #1135; epic #1133; parent #979. This is the independent licence-review
 slice. Organisation lifecycle, reviewed country/category policy and bilateral
 trading remain distinct acceptance. No production migration has been applied.

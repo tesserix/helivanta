@@ -56,6 +56,7 @@ it("rejects duplicate contact identities and country-incompatible declarations",
       ],
     }).success,
   ).toBe(false);
+  // #1287: Pakistan, and its identifier kinds, are not supported.
   expect(
     supplyPartyFormSchema.safeParse({
       ...input,
@@ -64,7 +65,7 @@ it("rejects duplicate contact identities and country-incompatible declarations",
         { id: newSupplyId(), kind: "ntn", number: "TEST-TAX", jurisdiction: "TEST" },
       ],
     }).success,
-  ).toBe(true);
+  ).toBe(false);
   expect(
     supplyPartyFormSchema.safeParse({
       ...input,

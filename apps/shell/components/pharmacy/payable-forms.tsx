@@ -5,7 +5,6 @@ import { Button, Input } from "@tesserix/web";
 import {
   apiFetch,
   formatZonedDateTime,
-  countryConfiguration,
   useApiMutation,
   useApiQuery,
   useApiPagedQuery,
@@ -32,7 +31,11 @@ import {
   useFieldArray,
   useZodForm,
 } from "@helivanta/ui";
-import { CurrencyAmountField, formatPharmacyMoney } from "./currency-amount-field";
+import {
+  CurrencyAmountField,
+  formatPharmacyMoney,
+  supportedCurrencies,
+} from "./currency-amount-field";
 
 const categories = [
   { value: "inventory", label: "Inventory purchase" },
@@ -71,7 +74,9 @@ export function PayableForm({
     document_reference: "",
     issued_on: "",
     due_on: "",
-    currency: defaultCurrency,
+    // An unsupported default fails the form's own check rather than being
+    // swapped for another currency.
+    currency: defaultCurrency as PharmacyPayableInput["currency"],
     lines: [{ ...blankLine }],
   });
   const lines = useFieldArray({ control: form.control, name: "lines" });
@@ -148,7 +153,7 @@ export function PayableForm({
               id="payable-currency"
               value={currency}
               onValueChange={(value) => {
-                form.setValue("currency", value);
+                form.setValue("currency", value as PharmacyPayableInput["currency"]);
                 form.getValues("lines").forEach((_, i) => {
                   for (const field of [
                     "net_minor",
@@ -159,18 +164,9 @@ export function PayableForm({
                     form.setValue(`lines.${i}.${field}`, 0);
                 });
               }}
-              options={[
-                ...countryConfiguration.countries.map((p) => p.currency),
-                "USD",
-                "AUD",
-                "GBP",
-                "EUR",
-                "JPY",
-                "KWD",
-              ].map((value) => ({
-                value,
-                label: value,
-              }))}
+              // Only a supported country's currency: the server refuses any
+              // other (#1287), so offering one would fail after typing a bill.
+              options={supportedCurrencies.map((value) => ({ value, label: value }))}
             />
           </Field>
         </div>

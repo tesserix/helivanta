@@ -104,9 +104,7 @@
         {
           "name": "currency",
           "type": "string",
-          "min": 3,
-          "max": 3,
-          "pattern": "^[A-Z]{3}$"
+          "country_currency": true
         },
         {
           "name": "mrp_minor",
@@ -438,9 +436,7 @@
         {
           "name": "currency",
           "type": "string",
-          "min": 3,
-          "max": 3,
-          "pattern": "^[A-Z]{3}$"
+          "country_currency": true
         },
         {
           "name": "lines",
@@ -469,9 +465,7 @@
         {
           "name": "currency",
           "type": "string",
-          "min": 3,
-          "max": 3,
-          "pattern": "^[A-Z]{3}$"
+          "country_currency": true
         },
         {
           "name": "paid_by",

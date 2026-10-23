@@ -12,9 +12,6 @@ var testNow = time.Date(2026, 10, 16, 0, 0, 0, 0, time.UTC)
 
 func approvedPolicy(country string) tradingpolicy.Version {
 	currency := "INR"
-	if country == "PK" {
-		currency = "PKR"
-	}
 	p := tradingpolicy.Version{
 		ID:    "01a14400-0000-7000-8000-000000000001",
 		Scope: tradingpolicy.Scope{Tenant: "11111111-1111-1111-1111-111111111111", Country: country, Jurisdiction: "TEST-JURISDICTION", Category: "otc", Operation: "order", Currency: currency},
@@ -29,14 +26,18 @@ func approvedPolicy(country string) tradingpolicy.Version {
 }
 
 func TestApprovedExactScopeIncludesPolicyProvenance(t *testing.T) {
-	for _, country := range []string{"IN", "PK"} {
-		t.Run(country, func(t *testing.T) {
-			p := approvedPolicy(country)
-			result := tradingpolicy.Evaluate(p.Scope, &p, testNow)
-			require.True(t, result.Allowed)
-			require.Equal(t, p.ID, result.PolicyVersion)
-		})
-	}
+	p := approvedPolicy("IN")
+	result := tradingpolicy.Evaluate(p.Scope, &p, testNow)
+	require.True(t, result.Allowed)
+	require.Equal(t, p.ID, result.PolicyVersion)
+}
+
+// #1287: Pakistan is not a supported country, so even an approved policy
+// for it authorises nothing.
+func TestPakistanPolicyAuthorisesNothing(t *testing.T) {
+	p := approvedPolicy("IN")
+	p.Scope.Country, p.Scope.Currency = "PK", "PKR"
+	require.False(t, tradingpolicy.Evaluate(p.Scope, &p, testNow).Allowed)
 }
 
 func TestOneApprovalCannotAuthorizeAnotherScope(t *testing.T) {
@@ -92,22 +93,22 @@ func TestMissingIncompleteStaleOrUnreviewedPolicyDenies(t *testing.T) {
 		{"credential_in_citation", func(p *tradingpolicy.Version) { p.Sources[0].Url = "https://user:secret@example.invalid/policy" }},
 		{"unknown_country", func(p *tradingpolicy.Version) { p.Scope.Country = "ZZ" }},
 		{"unknown_tenant", func(p *tradingpolicy.Version) { p.Scope.Tenant = "" }},
-		{"wrong_country_currency", func(p *tradingpolicy.Version) { p.Scope.Currency = "INR" }},
+		{"wrong_country_currency", func(p *tradingpolicy.Version) { p.Scope.Currency = "USD" }},
 		{"unknown_operation", func(p *tradingpolicy.Version) { p.Scope.Operation = "unknown" }},
 	} {
 		t.Run(change.name, func(t *testing.T) {
-			p := approvedPolicy("PK")
+			p := approvedPolicy("IN")
 			change.edit(&p)
 			require.False(t, tradingpolicy.Evaluate(p.Scope, &p, testNow).Allowed)
 		})
 	}
-	p := approvedPolicy("PK")
+	p := approvedPolicy("IN")
 	require.False(t, tradingpolicy.Evaluate(p.Scope, nil, testNow).Allowed)
 	require.False(t, tradingpolicy.Evaluate(p.Scope, &p, time.Time{}).Allowed)
 }
 
 func TestReviewedNonApplicabilityAndInclusiveStart(t *testing.T) {
-	p := approvedPolicy("PK")
+	p := approvedPolicy("IN")
 	p.EffectiveFrom = testNow
 	p.Requirements[0].Applicability = "not_applicable"
 	p.Requirements[0].Reason = "TEST ONLY independent reviewer documented fictional non-applicability"
@@ -117,7 +118,7 @@ func TestReviewedNonApplicabilityAndInclusiveStart(t *testing.T) {
 }
 
 func TestActionableReasonsDoNotDiscloseOtherPolicy(t *testing.T) {
-	p := approvedPolicy("PK")
+	p := approvedPolicy("IN")
 	missing := tradingpolicy.Evaluate(p.Scope, nil, testNow)
 	require.Equal(t, "country_policy_required", missing.Reason)
 	requested := p.Scope

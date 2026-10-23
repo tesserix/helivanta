@@ -1,5 +1,7 @@
 # Pharma Connect local verification — 15–16 October 2026
 
+> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+
 This records local verification of the pharmacy/outlet, catalogue, quarantine receiving and operational expense/payable slices. It is not completion evidence for the entire Pharma Connect backlog, production identity verification, clinical dispensing approval, or SOC 2/HIPAA certification. No production migration or deployment was performed.
 
 ## Automated checks actually run

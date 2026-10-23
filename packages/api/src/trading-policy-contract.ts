@@ -62,7 +62,7 @@ export const SubmissionContract = z
       .max(36)
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expected_revision: z.number().int().min(0).max(9007199254740990),
-    country: z.enum(["IN", "PK"]),
+    country: z.enum(["IN"]),
     jurisdiction: z
       .string()
       .min(1)
@@ -70,7 +70,7 @@ export const SubmissionContract = z
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     category: z.enum(["otc", "prescription", "controlled", "cold_chain"]),
     operation: z.enum(["listing", "order", "dispatch", "dispense"]),
-    currency: z.enum(["INR", "PKR"]),
+    currency: z.enum(["INR"]),
     effective_from: z.string().datetime({ offset: true }),
     effective_until: z.string().datetime({ offset: true }),
     sources: z.array(SourceContract).max(30),

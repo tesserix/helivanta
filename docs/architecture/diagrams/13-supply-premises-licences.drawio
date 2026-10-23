@@ -8,7 +8,7 @@
         <mxCell id="title" value="Private supplier registration" style="text;html=1;fontSize=28;fontStyle=1;align=left;fontColor=#172c40;" vertex="1" parent="1">
           <mxGeometry x="60" y="30" width="1000" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="subtitle" value="PharmaConnect / India &amp;amp; Pakistan / Current implementation boundary" style="text;html=1;fontSize=16;align=left;fontColor=#516579;" vertex="1" parent="1">
+        <mxCell id="subtitle" value="PharmaConnect / India / Current implementation boundary" style="text;html=1;fontSize=16;align=left;fontColor=#516579;" vertex="1" parent="1">
           <mxGeometry x="60" y="72" width="1100" height="30" as="geometry" />
         </mxCell>
         <mxCell id="transaction" value="ONE POSTGRESQL TRANSACTION · FORCED TENANT / PARTY / SUBJECT RLS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e4f1ed;strokeColor=#83b7a9;verticalAlign=top;align=left;spacing=24;fontSize=15;fontStyle=1;fontColor=#116252;" vertex="1" parent="1">

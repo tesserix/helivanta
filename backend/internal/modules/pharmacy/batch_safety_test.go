@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -298,4 +299,34 @@ func TestBatchSafetyDatabaseTimestampAndAuditAttribution(t *testing.T) {
 		require.True(t, valid)
 		return nil
 	}))
+}
+
+// #576 D4: the overview's safety count opens the outlet's concerns recorded
+// in the last 30 outlet-local days, today included. created_at comes from
+// the database clock, so the module clock moves forward instead: 29 days on,
+// a concern recorded today is still in the window; 30 days on, it is not.
+func TestRecentSafetyConcernsOutletWide(t *testing.T) {
+	r, _, location, batch := safetyFixture(t)
+	for range 2 {
+		w := do(r, "PUT", stockPath("safety-incidents/"+uuid.Must(uuid.NewV7()).String()), "editor", safetyBody(batch, location))
+		require.Equal(t, 200, w.Code, w.Body.String())
+	}
+	kolkata, err := time.LoadLocation("Asia/Kolkata")
+	require.NoError(t, err)
+	recorded := time.Now().In(kolkata)
+	count := func(daysLater int) int {
+		later := time.Date(recorded.Year(), recorded.Month(), recorded.Day()+daysLater, 12, 0, 0, 0, kolkata)
+		pharmacy.SetClock(t, func() time.Time { return later })
+		w := do(r, "GET", stockPath("safety-incidents?recorded=30d"), "editor", "")
+		require.Equal(t, 200, w.Code, w.Body.String())
+		var page struct{ Data []json.RawMessage }
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &page))
+		return len(page.Data)
+	}
+	require.Equal(t, 2, count(0))
+	require.Equal(t, 2, count(29))
+	require.Equal(t, 0, count(30))
+
+	require.Equal(t, 400, do(r, "GET", stockPath("safety-incidents"), "editor", "").Code)
+	require.Equal(t, 400, do(r, "GET", stockPath("safety-incidents?recorded=7d"), "editor", "").Code)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/tesserix/helivanta/pkg/countryprofile"
 	"io"
 	"net/http"
 	"reflect"
@@ -80,6 +81,7 @@ func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 	s.PUT("/catalogue/products/:id", PermCatalogueWrite, h.putProduct)
 	s.GET("/catalogue/products/:id", PermCatalogueRead, h.getProduct)
 	platform.ListRoute(s, "/catalogue/products", PermCatalogueRead, h.listProducts)
+	platform.GuardedCountedListRoute[catalogueProduct](s, h.db, "/catalogue/products/counted", PermCatalogueRead, tenantdb.Keyset{Column: "created_at"}, countedProducts)
 	platform.ListRoute(s, "/catalogue/products/:id/revisions", PermCatalogueRead, h.listRevisions)
 	taxClassificationRoutes(s, h)
 }
@@ -422,13 +424,7 @@ func (h *catalogueHandlers) listProducts(c *gin.Context, params pagination.Param
 	var rows []catalogueProduct
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
 		query := tenantdb.ApplyKeyset(tx, params).Select(productColumns).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet)
-		if status != "" {
-			query = query.Where("status=?", status)
-		}
-		if q != "" {
-			prefix := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(q) + "%"
-			query = query.Where("(lower(brand_name) LIKE ? OR lower(generic_name) LIKE ? OR lower(sku) LIKE ?)", prefix, prefix, prefix)
-		}
+		query = productFilters(status, q)(query)
 		today, err := outletLocalDate(tx, p.TenantID, outlet)
 		if err != nil {
 			return err
@@ -445,6 +441,77 @@ func (h *catalogueHandlers) listProducts(c *gin.Context, params pagination.Param
 		catalogueError(c, err)
 	}
 	return rows, nil
+}
+
+// productFilters is the catalogue's status and search filter, shared by the
+// list and its counted form. The search is a prefix of the brand, generic
+// name or SKU, with LIKE wildcards in q taken literally.
+func productFilters(status, q string) func(*gorm.DB) *gorm.DB {
+	return func(query *gorm.DB) *gorm.DB {
+		if status != "" {
+			query = query.Where("status=?", status)
+		}
+		if q != "" {
+			prefix := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(q) + "%"
+			query = query.Where("(lower(brand_name) LIKE ? OR lower(generic_name) LIKE ? OR lower(sku) LIKE ?)", prefix, prefix, prefix)
+		}
+		return query
+	}
+}
+
+// errNoTaxScheme refuses the unclassified filter where the outlet's country
+// has no tax scheme: every product would match, a gap nobody can close.
+var errNoTaxScheme = errors.New("outlet has no tax scheme")
+
+// countedProducts is the catalogue with a total (#576 slice 3): the same
+// filters and validation as listProducts.
+func countedProducts(c *gin.Context) (platform.CountedQuery[catalogueProduct], bool) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return platform.CountedQuery[catalogueProduct]{}, false
+	}
+	q := strings.ToLower(strings.TrimSpace(c.Query("q")))
+	status := c.Query("status")
+	taxFilter := c.Query("tax")
+	if len(q) > 200 || (status != "" && status != "active" && status != "discontinued" && status != "withdrawn") || (taxFilter != "" && taxFilter != "unclassified") {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid catalogue filters")
+		return platform.CountedQuery[catalogueProduct]{}, false
+	}
+	return platform.CountedQuery[catalogueProduct]{
+		Guard: outletReadGuard(c, p, outlet, func(tx *gorm.DB) (platform.Scope, error) {
+			var today string
+			if taxFilter == "unclassified" {
+				var o pharmacyOutlet
+				if err := tx.Select(outletColumns).Where("tenant_id=? AND id=?", p.TenantID, outlet).First(&o).Error; err != nil {
+					return nil, err
+				}
+				if _, ok := countryprofile.Tax(o.CountryCode); !ok {
+					return nil, errNoTaxScheme
+				}
+				var err error
+				if today, err = outletToday(o.Timezone); err != nil {
+					return nil, err
+				}
+			}
+			return func(query *gorm.DB) *gorm.DB {
+				query = query.Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet)
+				query = productFilters(status, q)(query)
+				if taxFilter == "unclassified" {
+					query = unclassifiedScope(today)(query)
+				}
+				return query
+			}, nil
+		}),
+		Rows:  func(query *gorm.DB) *gorm.DB { return query.Select(productColumns) },
+		After: func(tx *gorm.DB, rows []catalogueProduct) error { return attachTax(tx, p.TenantID, outlet, rows) },
+		Fail: func(c *gin.Context, err error) {
+			if errors.Is(err, errNoTaxScheme) {
+				respond.Error(c, http.StatusBadRequest, "invalid_request", "this outlet has no tax scheme to classify against")
+				return
+			}
+			catalogueError(c, err)
+		},
+	}, true
 }
 
 func (h *catalogueHandlers) listRevisions(c *gin.Context, params pagination.Params) ([]catalogueRevision, error) {

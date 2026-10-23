@@ -3,6 +3,7 @@ package pharmacy
 import (
 	"encoding/json"
 	"errors"
+	"github.com/tesserix/helivanta/internal/platform"
 	"net/http"
 	"regexp"
 	"strings"
@@ -175,4 +176,55 @@ func recentSafetyScope(today, timezone string) func(*gorm.DB) *gorm.DB {
 	return func(tx *gorm.DB) *gorm.DB {
 		return tx.Where("(created_at AT TIME ZONE ?)::date >= ?::date - 29", timezone, today)
 	}
+}
+
+// countedRecentSafety is the outlet's concerns of the last 30 days with a
+// total (#576 slice 3): the overview's safety count, the outlet's date and
+// time zone read once inside the snapshot.
+func countedRecentSafety(c *gin.Context) (platform.CountedQuery[batchSafetyIncident], bool) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return platform.CountedQuery[batchSafetyIncident]{}, false
+	}
+	return platform.CountedQuery[batchSafetyIncident]{
+		Guard: outletReadGuard(c, p, outlet, func(tx *gorm.DB) (platform.Scope, error) {
+			var o pharmacyOutlet
+			if err := tx.Select(outletColumns).Where("tenant_id=? AND id=?", p.TenantID, outlet).First(&o).Error; err != nil {
+				return nil, err
+			}
+			today, err := outletToday(o.Timezone)
+			if err != nil {
+				return nil, err
+			}
+			return func(q *gorm.DB) *gorm.DB {
+				return recentSafetyScope(today, o.Timezone)(q.Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet))
+			}, nil
+		}),
+		Fail: stockError,
+	}, true
+}
+
+// countedBatchSafety is one batch's concerns with a total. A batch that is
+// not this outlet's is the same 404 as a missing one.
+func countedBatchSafety(c *gin.Context) (platform.CountedQuery[batchSafetyIncident], bool) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return platform.CountedQuery[batchSafetyIncident]{}, false
+	}
+	batch, err := uuid.Parse(c.Param("id"))
+	if err != nil || batch == uuid.Nil {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid batch")
+		return platform.CountedQuery[batchSafetyIncident]{}, false
+	}
+	return platform.CountedQuery[batchSafetyIncident]{
+		Guard: outletReadGuard(c, p, outlet, func(tx *gorm.DB) (platform.Scope, error) {
+			if err := stockReference(tx, "pharmacy_stock_batches", p.TenantID, outlet, batch); err != nil {
+				return nil, err
+			}
+			return func(q *gorm.DB) *gorm.DB {
+				return q.Where("tenant_id=? AND outlet_id=? AND batch_id=?", p.TenantID, outlet, batch)
+			}, nil
+		}),
+		Fail: stockError,
+	}, true
 }

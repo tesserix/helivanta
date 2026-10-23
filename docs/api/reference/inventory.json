@@ -1154,6 +1154,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/inventory-audit/counted",
+          "permission": "pharmacy.accounts.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": true
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/inventory-audit",
           "permission": "pharmacy.accounts.read",
           "authentication_required": true,
@@ -1205,6 +1214,15 @@
           "membership_required": true,
           "paginated": false,
           "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/counted",
+          "permission": "pharmacy.accounts.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": true
         },
         {
           "method": "GET",
@@ -1262,6 +1280,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/counted",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": true
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products",
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
@@ -1286,6 +1313,15 @@
           "membership_required": true,
           "paginated": false,
           "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id/safety-incidents",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": true
         },
         {
           "method": "PUT",
@@ -1385,6 +1421,15 @@
           "membership_required": true,
           "paginated": false,
           "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/recent",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": true
         },
         {
           "method": "GET",

@@ -87,6 +87,8 @@ func TestCountedInventoryAuditTotal(t *testing.T) {
 var countedRoutes = []string{
 	"/accounts/payables/counted",
 	"/accounts/inventory-audit/counted",
+	"/stock/safety-incidents/recent",
+	"/catalogue/products/counted",
 }
 
 func TestCountedPharmacyListsRefuseWithoutAccess(t *testing.T) {
@@ -109,4 +111,79 @@ func TestCountedPharmacyListsUnavailableIs503(t *testing.T) {
 		require.Equal(t, http.StatusServiceUnavailable, w.Code, route+": "+w.Body.String())
 		require.NotContains(t, w.Body.String(), "test_unavailable")
 	}
+}
+
+func TestCountedRecentSafetyTotal(t *testing.T) {
+	r, _ := overviewHarness(t)
+	_, location, batch := stockFixture(t, r)
+	for range 3 {
+		w := do(r, "PUT", stockPath("safety-incidents/"+uuid.Must(uuid.NewV7()).String()), "editor", safetyBody(batch, location))
+		require.Equal(t, 200, w.Code, w.Body.String())
+	}
+	got := countedTotal(t, r, outletPath("/stock/safety-incidents/recent"))
+	require.Equal(t, 3, got)
+	_, overview, raw := getOverview(t, r, "editor")
+	require.NotNil(t, overview.Safety, raw)
+	require.Equal(t, overview.Safety.Recent, got)
+}
+
+func TestCountedBatchSafety(t *testing.T) {
+	r, _ := overviewHarness(t)
+	_, location, batch := stockFixture(t, r)
+	for range 3 {
+		w := do(r, "PUT", stockPath("safety-incidents/"+uuid.Must(uuid.NewV7()).String()), "editor", safetyBody(batch, location))
+		require.Equal(t, 200, w.Code, w.Body.String())
+	}
+	require.Equal(t, 3, countedTotal(t, r, outletPath("/stock/batches/"+batch+"/safety-incidents")))
+	// A batch that is not this outlet's is the same 404 as a missing one.
+	other := outletPath("/stock/batches/" + uuid.Must(uuid.NewV7()).String() + "/safety-incidents")
+	require.Equal(t, http.StatusNotFound, do(r, "GET", other, "editor", "").Code)
+	require.Equal(t, http.StatusBadRequest, do(r, "GET", outletPath("/stock/batches/not-a-uuid/safety-incidents"), "editor", "").Code)
+	for _, token := range []string{"ungranted", "foreign"} {
+		require.Equal(t, http.StatusNotFound, do(r, "GET", outletPath("/stock/batches/"+batch+"/safety-incidents"), token, "").Code)
+	}
+}
+
+func seedProduct(t *testing.T, r *gin.Engine, sku, brand, status string) {
+	t.Helper()
+	body := strings.NewReplacer(`"sku":"TEST-AMOX-500"`, `"sku":"`+sku+`"`, `"status":"active"`, `"status":"`+status+`"`).Replace(productBody(0, brand))
+	w := do(r, "PUT", productPath(uuid.Must(uuid.NewV7()).String()), "editor", body)
+	require.Equal(t, 200, w.Code, w.Body.String())
+}
+
+func TestCountedCatalogueFilters(t *testing.T) {
+	r, _ := overviewHarness(t)
+	seedProduct(t, r, "TEST-PARA-1", "TEST Paracip", "active")
+	seedProduct(t, r, "TEST-PARA-2", "TEST Paramol", "active")
+	seedProduct(t, r, "TEST-IBU-1", "TEST Ibugesic", "active")
+	seedProduct(t, r, "TEST-OLD-1", "TEST Oldcin", "discontinued")
+	require.Equal(t, 4, countedTotal(t, r, outletPath("/catalogue/products/counted")))
+	require.Equal(t, 3, countedTotal(t, r, outletPath("/catalogue/products/counted?status=active")))
+	require.Equal(t, 2, countedTotal(t, r, outletPath("/catalogue/products/counted?q=test%20para")))
+	unclassified := countedTotal(t, r, outletPath("/catalogue/products/counted?tax=unclassified"))
+	_, overview, raw := getOverview(t, r, "editor")
+	require.NotNil(t, overview.Setup, raw)
+	require.Equal(t, overview.Setup.Unclassified, unclassified)
+	// Every row carries its tax state, which the badge reads.
+	w := do(r, "GET", outletPath("/catalogue/products/counted"), "editor", "")
+	var page struct{ Data []map[string]json.RawMessage }
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &page))
+	require.Len(t, page.Data, 4)
+	for _, row := range page.Data {
+		require.Contains(t, row, "tax")
+	}
+	for _, q := range []string{"?status=gone", "?tax=all", "?q=" + strings.Repeat("a", 201)} {
+		require.Equal(t, http.StatusBadRequest, do(r, "GET", outletPath("/catalogue/products/counted"+q), "editor", "").Code, q)
+	}
+}
+
+// Fail closed: without a tax scheme every product would be "unclassified".
+func TestCountedCatalogueRefusesUnclassifiedWithoutAScheme(t *testing.T) {
+	r, _ := overviewHarness(t)
+	base := "/v1/pharmacy/pharmacies/" + pharmaOrganization + "/outlets/" + pkOutlet
+	w := do(r, "PUT", base, "editor", `{"code":"TEST-LAHORE","name":"TEST Lahore Outlet","country_code":"PK","timezone":"Asia/Karachi"}`)
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.Equal(t, 200, do(r, "PUT", base+"/access/user-editor", "editor", `{"level":"editor"}`).Code)
+	require.Equal(t, http.StatusBadRequest, do(r, "GET", base+"/catalogue/products/counted?tax=unclassified", "editor", "").Code)
+	require.Equal(t, http.StatusOK, do(r, "GET", base+"/catalogue/products/counted", "editor", "").Code)
 }

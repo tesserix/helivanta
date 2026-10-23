@@ -1,5 +1,7 @@
 # Supply registry local acceptance — 16 October 2026
 
+> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+
 Related #1133, #1135, #1137 and #1005. This is a completed private declaration slice, not completion of the seller verification or procurement epic. No production migration or deployment was performed for this branch.
 
 ## Delivered and exercised

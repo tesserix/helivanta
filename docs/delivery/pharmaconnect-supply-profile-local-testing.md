@@ -1,5 +1,7 @@
 # SupplyConnect draft-profile local validation
 
+> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+
 Validated 16 October 2026 for the profile slice of #1135, #1137 and #1005 under epic #1133. This does not complete those stories or authorise a production migration.
 
 ## Commands and results

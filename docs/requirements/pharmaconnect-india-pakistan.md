@@ -1,12 +1,16 @@
-# PharmaConnect — India and Pakistan requirements and workflow map
+# PharmaConnect — India requirements and workflow map
+
+> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country. The file keeps its name because issues link to it.
 
 Epic: #1133. Owner: Sam123ben. Related exploration: #979 (at GitHub's 100-child limit). Country/tenancy decision: [ADR 0026](../adr/0026-pharmaconnect-country-and-trading-boundaries.md). Machine-readable issue inventory: [manifest](../delivery/pharmaconnect-inpk-issues.json).
 
 ## Confirmed commercial scope
 
-Release 1 is a procurement network. The seller is contracting party and invoice owner. Initially record external invoices/payments and reconcile their evidence. Optional marketplace and payment-provider processing are separately delivered and activated; they do not silently change an accepted order's parties or create a transfer from a record-payment action. Both India and Pakistan are modeled from the start; each country's transaction activation requires independent policy and operational acceptance. Countries, currencies and group membership do not confer cross-border or cross-organisation permission.
+Release 1 is a procurement network. The seller is contracting party and invoice owner. Initially record external invoices/payments and reconcile their evidence. Optional marketplace and payment-provider processing are separately delivered and activated; they do not silently change an accepted order's parties or create a transfer from a record-payment action. India is the only supported country (#1287). The country model stays: a country's transaction activation requires independent policy and operational acceptance. Countries, currencies and group membership do not confer cross-border or cross-organisation permission.
 
 ![Country and organisation boundaries](../architecture/diagrams/12-pharmaconnect-india-pakistan-network.svg)
+
+_The diagram predates #1287 and still shows Pakistan, which is no longer supported._
 
 [Editable draw.io source](../architecture/diagrams/12-pharmaconnect-india-pakistan-network.drawio).
 
@@ -93,7 +97,7 @@ Every automated decision records country/org/location/category/role/rule version
 
 ## Country configuration and regulatory approval
 
-Country configuration includes allowed organisation/licence/document/product categories, registration and controlled classification, state/province/local premises, tax identifiers/calculation/invoice/credit rules, currency/number/date/timezone/language/direction, prescription/dispensing, privacy/retention/legal hold/residency, evidence/verification/renewal, storage/temperature/traceability/recall and approved national reporting adapters. India rules and approval never apply to Pakistan by fallback. Approved local specialists provide current authoritative sources and terminology; do not hard-code legal assertions from a legacy UI or a country name. Cross-border trading stays disabled until separately approved.
+Country configuration includes allowed organisation/licence/document/product categories, registration and controlled classification, state/province/local premises, tax identifiers/calculation/invoice/credit rules, currency/number/date/timezone/language/direction, prescription/dispensing, privacy/retention/legal hold/residency, evidence/verification/renewal, storage/temperature/traceability/recall and approved national reporting adapters. One country's rules and approval never apply to another by fallback. Approved local specialists provide current authoritative sources and terminology; do not hard-code legal assertions from a legacy UI or a country name. Cross-border trading stays disabled until separately approved.
 
 Country metadata is implemented first as a generated shared contract. It is explicitly `review_required`, with no tax rates, licence validation claims or transaction activation. Since #1283 it also carries each country's tax scheme structure (India: GST jurisdictions, GSTIN and HSN, with sources), still without rates: the hospital records each product's rate, and a country with no scheme refuses tax setup. Follow-on approved effective-dated rules are separately versioned; original transactions retain their rule/price/tax snapshots.
 

@@ -1,5 +1,7 @@
 # Scoped stock CSV exports
 
+> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+
 Story [#1232](https://github.com/tesserix/helivanta/issues/1232), reporting parent #1060, inventory parent #162. Assigned to Sam123ben. Local implementation and verification are recorded below; reviewed release and production verification remain pending. This does not complete either parent.
 
 ## Contract and meaning

@@ -1700,6 +1700,11 @@
           "id": "0010_pharmacy",
           "sql_sha256": "b1b96fb061a9576c96b933c753f9b506adab9b3181f2dd21c201666331137719",
           "creates_tables": []
+        },
+        {
+          "id": "0011_pharmacy",
+          "sql_sha256": "ccc5f1a2dbeba7cf8691ffcd84ff407b3aafd5415c90ae5d6e05146aefecc3fa",
+          "creates_tables": []
         }
       ]
     },
@@ -2634,6 +2639,11 @@
             "supply_operational_access_limits",
             "supply_operational_access_limit_revisions"
           ]
+        },
+        {
+          "id": "0009_supply",
+          "sql_sha256": "defd945f957bb2236e52854e4c9fbdb485e37ac35440cd331bf2adb6ca6214ad",
+          "creates_tables": []
         }
       ]
     },
@@ -5110,6 +5120,11 @@
             "workspace_country_policy_access",
             "workspace_country_policy_actions"
           ]
+        },
+        {
+          "id": "0003_workspace_india_only",
+          "sql_sha256": "f4268eb381088cc7a778a8f7309a72f72ac1278b64df6ed52531dedf79a85eed",
+          "creates_tables": []
         }
       ]
     }

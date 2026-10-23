@@ -1,5 +1,7 @@
 # ADR 0027: SupplyConnect party records and explicit access
 
+> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+
 Date: 2026-10-16. Status: implementation in progress. Stories #1135, #1137 and #1005; network contracts follow #1136.
 
 Use ADR 0026's planning targets (100 organisations, 300 operating locations, 100 peak API requests/s, 32 KiB bounded synchronous bodies, 99.9% availability and p99 500 ms reads). At 500 supplier records per tenant, 100 tenants hold 50,000 profiles; at 2x annual tenant growth, year three holds 200,000 profiles. Contact/address/registration arrays are bounded to 20 entries and stored in relational child tables. Pagination is by `(created_at,id)`, maximum 100. These are sizing assumptions, not measured capacity. The shared PostgreSQL/outbox/worker budget remains ADR 0026's unpriced USD 300–1,000/month allowance; this module adds no deployable or datastore.

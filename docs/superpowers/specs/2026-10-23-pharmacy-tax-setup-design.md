@@ -1,5 +1,7 @@
 # Pharmacy tax setup
 
+> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+
 Resolves #1283. First slice of pharmacy Sales (#172): a sale cannot be taxed until outlets are registered and products are classified. Hospital-wide billing tax stays with #208 and #539.
 
 ## Problem

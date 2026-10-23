@@ -1,5 +1,7 @@
 # Reviewed country policy configuration — #1182
 
+> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+
 Parent [#1134](https://github.com/tesserix/helivanta/issues/1134), epic [#1133](https://github.com/tesserix/helivanta/issues/1133). Owner: Sam123ben. Verified locally on 2026-10-17; production migration and rollout pending specific approval.
 
 ## Delivered scope

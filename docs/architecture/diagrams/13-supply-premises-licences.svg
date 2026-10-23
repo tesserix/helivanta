@@ -4,7 +4,7 @@
   <desc id="desc">Current party authorization gates premises and licences. A PostgreSQL transaction commits guarded heads, immutable revisions, audit and outbox before the NATS relay. Declarations do not approve trading.</desc>
   <rect width="1280" height="810" fill="#f6f8fb" />
   <text x="60" y="54" font-family="Inter, Arial, sans-serif" font-size="29" fill="#172c40" font-weight="700">Private supplier registration</text>
-  <text x="60" y="84" font-family="Inter, Arial, sans-serif" font-size="16" fill="#516579" font-weight="400">PharmaConnect  /  India &amp; Pakistan  /  Current implementation boundary</text>
+  <text x="60" y="84" font-family="Inter, Arial, sans-serif" font-size="16" fill="#516579" font-weight="400">PharmaConnect  /  India  /  Current implementation boundary</text>
   <rect x="50" y="280" width="1180" height="220" rx="20" fill="#e4f1ed" stroke="#83b7a9" />
   <text x="80" y="318" font-family="Inter, Arial, sans-serif" font-size="15" fill="#116252" font-weight="700">ONE POSTGRESQL TRANSACTION · FORCED TENANT / PARTY / SUBJECT RLS</text>
   <defs>

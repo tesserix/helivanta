@@ -1,5 +1,7 @@
 # Supply Connect and PharmaConnect navigation repair
 
+> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+
 Status: implemented and validated locally; user approved commit, merge after required checks, and production rollout. Hosted checks and release evidence follow below. Source branch `fix/pharmaconnect-workspace-navigation`, based on main `db7376f`.
 
 ## Reported problem and findings

@@ -1,5 +1,7 @@
 # Pharmacy Tax Setup Implementation Plan
 
+> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Outlets record a GST registration and products record an HSN classification, both effective-dated and append-only, and a pure package computes per-line GST from them.

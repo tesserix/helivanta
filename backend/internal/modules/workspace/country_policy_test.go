@@ -30,7 +30,7 @@ func TestCountryPolicySubmissionIsTenantScopedAndReplaySafe(t *testing.T) {
 	scopeID := uuid.Must(uuid.NewV7()).String()
 	body, err := json.Marshal(map[string]any{
 		"id": id, "scope_id": scopeID, "expected_revision": 0,
-		"country": "PK", "jurisdiction": "TEST-PROVINCE", "category": "otc", "operation": "order", "currency": "PKR",
+		"country": "IN", "jurisdiction": "TEST-PROVINCE", "category": "otc", "operation": "order", "currency": "INR",
 		"effective_from": time.Now().UTC().Add(-time.Hour), "effective_until": time.Now().UTC().Add(24 * time.Hour),
 		"sources":      []map[string]any{{"key": "TEST-source", "title": "TEST ONLY fictional source", "url": "https://regulator.example.invalid/test", "reviewed_at": time.Now().UTC().Add(-2 * time.Hour)}},
 		"requirements": syntheticCountryRequirements(),
@@ -135,12 +135,11 @@ func TestCountryPolicyRequiresExplicitIndependentReviewer(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, allowed.Allowed, allowed.Reason)
 		require.Equal(t, version, allowed.PolicyVersion)
-		pakistan := request
-		pakistan.Country = "PK"
-		pakistan.Currency = "PKR"
-		denied, err := tradingpolicy.Check(tx, pakistan, now)
+		otherState := request
+		otherState.Jurisdiction = "TEST-OTHER-STATE"
+		denied, err := tradingpolicy.Check(tx, otherState, now)
 		require.NoError(t, err)
-		require.False(t, denied.Allowed, "India approval must never activate Pakistan")
+		require.False(t, denied.Allowed, "one state's approval must never activate another")
 		expired, err := tradingpolicy.Check(tx, request, now.Add(2*time.Hour))
 		require.NoError(t, err)
 		require.False(t, expired.Allowed)

@@ -60,9 +60,16 @@ Success:
 - **D4 A record that leaves the list stays open.**
   - Recording a payment can take a bill out of Overdue, and classifying a product takes it
     out of Not classified. The pane keeps showing that record.
-  - Next goes to the row that was below it, as it was when the record was opened.
-  - The list's step-back-when-empty (`useStepBackWhenEmpty`) must not close the pane or move
-    it.
+  - Previous / Next follow the page's rows as they were when the record was opened. That
+    snapshot is held in memory for the visit, so a payment that drops the bill out of Overdue
+    still leaves Next on the bill below it. _(My call.)_
+  - When there is no snapshot, Previous / Next are disabled. That happens after a reload, from
+    a shared link, or when the record is not on the page's rows. Nothing is re-fetched to
+    place the record. _(My call: guessing its neighbours would be wrong as often as right.)_
+  - The list's step-back-when-empty (`useStepBackWhenEmpty`) keeps `open` and `new` in the
+    address it moves to. Moving back does not close the pane, and Next keeps following the
+    snapshot. _(My call. This is the one page change that does not clear `open`, because the
+    person did not ask for it.)_
 - **D5 Unsaved edits are never lost silently.**
   - A detail is dirty when any form in it is dirty. The catalogue detail has two: the product
     form and the tax section.
@@ -70,6 +77,12 @@ Success:
     asks with `ConfirmDialog`: "Discard changes to {name}?", with **Discard** and **Keep
     editing**.
   - A reload or leaving the app while dirty triggers the browser's `beforeunload` prompt.
+  - **Leaving the page in the app while dirty asks too.** _(My call: these are client-side
+    moves, so `beforeunload` never fires, and the edits would go silently.)_
+    - In-app moves cover the rail, the page menu and the phone menu. The shell gains a
+      navigation guard that a dirty detail registers, and `HmsShell`'s links consult it.
+    - Phone or browser Back, which cannot be cancelled, puts the detail's entry back and then
+      asks.
   - While a save is in flight, switching is disabled.
   - There is no autosave and no local draft. These are financial and regulated records.
 - **D6 Focus and keyboard.**

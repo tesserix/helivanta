@@ -31,6 +31,8 @@ const (
 var (
 	ErrInvalidCursor = errors.New("pagination: invalid cursor")
 	ErrInvalidLimit  = errors.New("pagination: invalid limit")
+	// ErrDirectionMismatch: the cursor was issued for the other ordering.
+	ErrDirectionMismatch = errors.New("pagination: cursor is for the other ordering")
 )
 
 // Cursor is a position in a keyset-ordered collection.
@@ -45,7 +47,18 @@ type Cursor struct {
 	TenantID  string
 	CreatedAt time.Time
 	ID        uuid.UUID
+	// Direction is the ordering the cursor was issued for (#1295 D3).
+	Direction Direction
 }
+
+// Direction is a list's ordering. The zero value is newest first, so every
+// cursor issued before directions existed keeps its meaning.
+type Direction int
+
+const (
+	NewestFirst Direction = iota
+	OldestFirst
+)
 
 // wireCursor is the JSON shape. Field names are single letters because
 // the encoded cursor appears in every next-page URL.
@@ -60,6 +73,9 @@ type wireCursor struct {
 	T string `json:"t"`
 	C string `json:"c"`
 	I string `json:"i"`
+	// D is "asc" for oldest first and absent for newest first, so a
+	// newest-first cursor encodes exactly as it did before #1295.
+	D string `json:"d,omitempty"`
 }
 
 const cursorTimeFormat = "2006-01-02T15:04:05.000000000Z07:00"
@@ -69,6 +85,7 @@ func (c Cursor) Encode() string {
 		T: c.TenantID,
 		C: c.CreatedAt.UTC().Format(cursorTimeFormat),
 		I: c.ID.String(),
+		D: map[Direction]string{OldestFirst: "asc"}[c.Direction],
 	})
 	if err != nil {
 		// wireCursor is three strings; marshalling cannot fail. Returning
@@ -111,7 +128,15 @@ func Decode(raw, tenantID string) (Cursor, error) {
 	if err != nil {
 		return Cursor{}, fmt.Errorf("%w: bad id", ErrInvalidCursor)
 	}
-	return Cursor{TenantID: w.T, CreatedAt: at, ID: id}, nil
+	dir := NewestFirst
+	switch w.D {
+	case "":
+	case "asc":
+		dir = OldestFirst
+	default:
+		return Cursor{}, fmt.Errorf("%w: bad direction", ErrInvalidCursor)
+	}
+	return Cursor{TenantID: w.T, CreatedAt: at, ID: id, Direction: dir}, nil
 }
 
 // Params is one page request: how many rows, and where to start.
@@ -119,6 +144,8 @@ type Params struct {
 	Limit int
 	// After is nil on the first page.
 	After *Cursor
+	// Direction is the route's ordering; After, when set, matches it.
+	Direction Direction
 }
 
 // Parse reads ?limit and ?cursor.
@@ -126,7 +153,14 @@ type Params struct {
 // An out-of-range or unparseable limit is an error rather than a clamp,
 // for the reason on MaxLimit.
 func Parse(c *gin.Context, tenantID string) (Params, error) {
-	p := Params{Limit: DefaultLimit}
+	return ParseFor(c, tenantID, NewestFirst)
+}
+
+// ParseFor reads ?limit and ?cursor for a route ordered d, and refuses a
+// cursor issued for the other ordering rather than repositioning the
+// reader somewhere they did not ask for.
+func ParseFor(c *gin.Context, tenantID string, d Direction) (Params, error) {
+	p := Params{Limit: DefaultLimit, Direction: d}
 
 	if raw := c.Query("limit"); raw != "" {
 		n, err := strconv.Atoi(raw)
@@ -143,6 +177,9 @@ func Parse(c *gin.Context, tenantID string) (Params, error) {
 		cur, err := Decode(raw, tenantID)
 		if err != nil {
 			return Params{}, err
+		}
+		if cur.Direction != d {
+			return Params{}, ErrDirectionMismatch
 		}
 		p.After = &cur
 	}

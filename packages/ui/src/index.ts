@@ -25,6 +25,8 @@ export { RequestFailure } from "./request-failure";
 export { PageHeading } from "./page-heading";
 export { Panel, PanelLink } from "./panel";
 export { LoadMore } from "./load-more";
+export { Pager } from "./pager";
+export { PageTabs, type PageTab } from "./page-tabs";
 export { formatDateTime, formatTime } from "./format";
 export { sanitizeHtml } from "./sanitize";
 export { CHROME_INIT_SCRIPT } from "./chrome-flags";

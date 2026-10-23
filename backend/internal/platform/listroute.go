@@ -10,6 +10,8 @@ import (
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"gorm.io/gorm"
 )
 
 // Keyed is what a row must provide to be pageable: the two values the
@@ -102,6 +104,79 @@ func listRoute[T Keyed](r *Router, method, path string, perm authz.Permission, h
 		respond.OK(c, gin.H{
 			"data": rows,
 			"page": gin.H{"next_cursor": next, "has_more": hasMore},
+		})
+	}})
+}
+
+// Scope applies a counted list's filter to a query.
+type Scope func(*gorm.DB) *gorm.DB
+
+// CountedListHandler validates the request and returns the list's filter.
+// On a bad request it responds itself and returns false; the platform then
+// opens no transaction.
+type CountedListHandler func(c *gin.Context) (Scope, bool)
+
+// CountedListRoute registers a list whose page carries a total (#1295 D1).
+//
+// The handler returns one Scope and the platform applies it twice, once to
+// count and once with the keyset to fetch the page, so a total that counts
+// something the rows do not is not expressible. Both statements run in one
+// read-only REPEATABLE READ snapshot (D2), so a row committed between them
+// cannot make them disagree. The page also reports offset, the rows before
+// it in that snapshot, so a client shows a true range. The ordering, k, is fixed here by the
+// registering code; a cursor issued for the other direction is a 400 (D3).
+func CountedListRoute[T Keyed](r *Router, db *tenantdb.DB, path string, perm authz.Permission, k tenantdb.Keyset, h CountedListHandler) {
+	d := DeclaredRoute{Method: "GET", Path: r.group.BasePath() + path, Permission: perm, Paginated: true, Counted: true}
+	r.declare(path, d, []gin.HandlerFunc{func(c *gin.Context) {
+		p, ok := authn.PrincipalFrom(c)
+		if !ok {
+			respond.Unauthenticated(c, "missing principal")
+			return
+		}
+		params, err := pagination.ParseFor(c, p.TenantID, k.Direction)
+		if err != nil {
+			respond.BadRequest(c, err)
+			return
+		}
+		scope, ok := h(c)
+		if !ok || c.IsAborted() {
+			return
+		}
+		var rows []T
+		var total, offset int64
+		err = db.WithTenantSnapshot(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+			if err := scope(tx.Model(new(T))).Count(&total).Error; err != nil {
+				return err
+			}
+			// The rows before this page, from the same snapshot, so the
+			// range is right even after earlier rows were removed.
+			if params.After != nil {
+				if err := tenantdb.KeysetBefore(scope(tx.Model(new(T))), params, k).Count(&offset).Error; err != nil {
+					return err
+				}
+			}
+			return tenantdb.ApplyOrderedKeyset(scope(tx.Model(new(T))), params, k).Find(&rows).Error
+		})
+		if err != nil {
+			respond.InternalErr(c, err, "could not list "+path)
+			return
+		}
+		hasMore := len(rows) > params.Limit
+		if hasMore {
+			rows = rows[:params.Limit]
+		}
+		var next *string
+		if hasMore && len(rows) > 0 {
+			at, id := rows[len(rows)-1].PageKey()
+			encoded := pagination.Cursor{TenantID: p.TenantID, CreatedAt: at, ID: id, Direction: k.Direction}.Encode()
+			next = &encoded
+		}
+		if rows == nil {
+			rows = []T{}
+		}
+		respond.OK(c, gin.H{
+			"data": rows,
+			"page": gin.H{"next_cursor": next, "has_more": hasMore, "total": total, "offset": offset},
 		})
 	}})
 }

@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
+	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
@@ -72,6 +73,50 @@ func (h *dispenseHandlers) list(c *gin.Context, p pagination.Params) ([]dispense
 	})
 	return rows, err
 }
+
+// dispensedRow pages by when the medicine was handed over (#1295 D8). Its
+// list is scoped to status 'dispensed', and fulfil sets dispensed_at in the
+// same UPDATE as the status, so DispensedAt is never nil here.
+// A defined type rather than an embedding: GORM does not scan through an
+// embedded unexported struct.
+type dispensedRow dispense
+
+func (dispensedRow) TableName() string                 { return "pharmacy_dispenses" }
+func (d dispensedRow) PageKey() (time.Time, uuid.UUID) { return *d.DispensedAt, d.ID }
+
+// dispenseStatus is the counted Waiting / Dispensed filter. The pharmacy
+// tenant check runs first, as requirePharmacyTenant does on the other
+// dispense routes; a refusal has already been answered.
+//
+// Waiting takes ?q=, a case-insensitive patient-name search (#1295 D9), so
+// the patient at the counter can be found in a long queue. LIKE wildcards
+// in q are taken literally. Dispensed history is unbounded, so a search
+// there is refused rather than silently ignored.
+func dispenseStatus(status string) platform.CountedListHandler {
+	return func(c *gin.Context) (platform.Scope, bool) {
+		if _, _, ok := pharmacyPrincipal(c); !ok {
+			return nil, false
+		}
+		q := strings.TrimSpace(c.Query("q"))
+		if q != "" && status != "pending" {
+			respond.Error(c, http.StatusBadRequest, "invalid_request", "search is available on waiting dispenses only")
+			return nil, false
+		}
+		if len([]rune(q)) > 100 {
+			respond.Error(c, http.StatusBadRequest, "invalid_request", "search must be at most 100 characters")
+			return nil, false
+		}
+		return func(tx *gorm.DB) *gorm.DB {
+			tx = tx.Where("status = ?", status)
+			if q != "" {
+				tx = tx.Where(`patient_name ILIKE ? ESCAPE '\'`, "%"+likeLiteral.Replace(q)+"%")
+			}
+			return tx
+		}, true
+	}
+}
+
+var likeLiteral = strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
 
 // fulfil marks a pending dispense dispensed. The guarded UPDATE is what
 // makes concurrent fulfilment safe: the loser matches zero rows and gets

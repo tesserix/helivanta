@@ -8,6 +8,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/insights"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
@@ -25,6 +26,9 @@ var batchSafetySchema string
 
 //go:embed tax.sql
 var taxSchema string
+
+//go:embed dispense_lists.sql
+var dispenseListsSchema string
 
 //go:embed storage_address.sql
 var storageAddressSchema string
@@ -132,7 +136,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 			CREATE TRIGGER pharmacy_dispenses_audit AFTER INSERT OR UPDATE OR DELETE ON pharmacy_dispenses
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
-	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}}
+	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}, {ID: "0010_pharmacy", SQL: dispenseListsSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -148,6 +152,10 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.POST("/medications", PermMedicationWrite, meds.create)
 	platform.ListRoute(g, "/medications", PermMedicationRead, meds.list)
 	platform.ListRoute(g, "/dispenses", PermDispenseRead, disp.list)
+	platform.CountedListRoute[dispense](g, deps.DB, "/dispenses/waiting", PermDispenseRead,
+		tenantdb.Keyset{Column: "created_at", Direction: pagination.OldestFirst}, dispenseStatus("pending"))
+	platform.CountedListRoute[dispensedRow](g, deps.DB, "/dispenses/dispensed", PermDispenseRead,
+		tenantdb.Keyset{Column: "dispensed_at", Direction: pagination.NewestFirst}, dispenseStatus("dispensed"))
 	g.POST("/dispenses/:id/dispense", PermDispenseFulfil, disp.fulfil)
 }
 

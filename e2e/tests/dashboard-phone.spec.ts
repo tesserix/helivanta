@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { login } from "./support/login";
+import { waitingFor } from "./support/queue";
 
 // #1255: the dashboard and its floating panels fit a 390px phone. Measured on
 // the rendered page: no element inside <main> reaches past the viewport, and
@@ -48,7 +49,7 @@ test("the dispense queue fits a phone", async ({ page }) => {
   await page.getByRole("button", { name: "Create visit" }).click();
   await expect(page.getByText(patient).first()).toBeVisible();
 
-  await page.goto("/pharmacy");
+  await page.goto(waitingFor(patient));
   const name = page.getByText(patient).first();
   await expect(name).toBeAttached({ timeout: 30_000 });
   expect(await overflowing(page)).toEqual([]);

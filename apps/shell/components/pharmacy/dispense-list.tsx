@@ -2,9 +2,11 @@
 
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { CheckCheck, Pill, type LucideIcon } from "lucide-react";
-import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
-import { Field, formatTime, LoadMore, Panel, QueryState, useZodForm } from "@helivanta/ui";
+import { CheckCheck, Pill, Search, type LucideIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Can, PAGE_SIZE, apiFetch, useApiMutation, useApiPageQuery } from "@helivanta/api";
+import { Field, formatTime, PageTabs, Pager, Panel, QueryState, useZodForm } from "@helivanta/ui";
 
 type Dispense = {
   id: string;
@@ -21,54 +23,118 @@ const dispenseSchema = z.object({
   medication: z.string().trim().min(1, "Medication is required").max(200),
 });
 
-// The queue splits on the server (#1258 D4): a pending row on a later page
-// must never hide behind dispensed ones, so each status is its own list.
-export function DispenseList() {
-  return (
-    <div className="max-w-3xl space-y-6">
-      <StatusList
-        status="pending"
-        title="Waiting"
-        label="waiting dispenses"
-        empty={{
-          icon: Pill,
-          title: "Nothing waiting",
-          hint: "Prescriptions from MediCore visits appear here.",
-        }}
-      />
-      <StatusList
-        status="dispensed"
-        title="Dispensed"
-        label="dispensed medicines"
-        empty={{ icon: CheckCheck, title: "Nothing dispensed yet" }}
-      />
-    </div>
-  );
-}
+type Tab = "waiting" | "dispensed";
 
-function StatusList({
-  status,
-  title,
-  label,
-  empty,
-}: {
-  status: Dispense["status"];
-  title: string;
-  label: string;
-  empty: { icon: LucideIcon; title: string; hint?: string };
-}) {
-  const dispenses = useApiPagedQuery<Dispense>(
-    ["dispenses", status],
-    `/pharmacy/dispenses?status=${status}`,
-    { poll: true },
+const TABS: Record<
+  Tab,
+  { label: string; noun: string; empty: { icon: LucideIcon; title: string; hint?: string } }
+> = {
+  waiting: {
+    label: "Waiting",
+    noun: "waiting dispenses",
+    empty: {
+      icon: Pill,
+      title: "Nothing waiting",
+      hint: "Prescriptions from MediCore visits appear here.",
+    },
+  },
+  dispensed: {
+    label: "Dispensed",
+    noun: "dispensed medicines",
+    empty: { icon: CheckCheck, title: "Nothing dispensed yet" },
+  },
+};
+
+// Waiting and Dispensed are tabs, each its own counted route (#1295 D8):
+// Waiting oldest first, so the longest wait is at the top of page 1, and
+// Dispensed newest first by hand-over time. The tab, page and cursor live
+// in the URL (D5), so back, forward and a shared link land on the same page.
+export function DispenseList() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const params = useSearchParams();
+  const tab: Tab = params.get("tab") === "dispensed" ? "dispensed" : "waiting";
+  const page = Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1);
+  const cursor = page > 1 ? params.get("cursor") : null;
+  // Waiting only (D9): Dispensed history is unbounded and the server refuses it.
+  // The search stays in the URL on both tabs, so changing tab keeps it (D7),
+  // but only Waiting is searched.
+  const search = (params.get("q") ?? "").trim();
+  const q = tab === "waiting" ? search : "";
+
+  // The cursor that opened each page this visit, per list: tab and search,
+  // since a cursor from one search means nothing in another. Not persisted:
+  // after a reload the way back is unknown, and the pager says so (D5).
+  // Recorded with React's set-state-during-render pattern, so the record is
+  // in step with the page being rendered.
+  const list = `${tab}\u0000${q}`;
+  const [visited, setVisited] = useState<Record<string, (string | null)[]>>({});
+  const pages = visited[list] ?? [null];
+  if (pages[page - 1] !== cursor) {
+    const next = [...pages];
+    next[page - 1] = cursor;
+    setVisited({ ...visited, [list]: next });
+  }
+
+  const href = (p: number, c: string | null) => {
+    const search = new URLSearchParams({ tab });
+    if (q) search.set("q", q);
+    if (p > 1 && c) {
+      search.set("page", String(p));
+      search.set("cursor", c);
+    }
+    return `${pathname}?${search}`;
+  };
+  const first = href(1, null);
+  // A new search starts at page 1 of the Waiting tab.
+  const hrefFor = (value: string) => {
+    const search = new URLSearchParams({ tab: "waiting" });
+    if (value.trim()) search.set("q", value.trim());
+    return `${pathname}?${search}`;
+  };
+  const back = page > 1 ? pages[page - 2] : undefined;
+  const previousHref = back === undefined ? null : back === null ? first : href(page - 1, back);
+
+  const dispenses = useApiPageQuery<Dispense>(
+    ["dispenses", tab],
+    `/pharmacy/dispenses/${tab}${q ? `?q=${encodeURIComponent(q)}` : ""}`,
+    cursor,
+    {
+      poll: true,
+    },
   );
-  const headingId = `dispenses-${status}`;
+
+  // A later page can empty while open (its last row dispensed). Step back
+  // rather than show "of N" over nothing.
+  const emptied =
+    !dispenses.isPending && !dispenses.isError && dispenses.items.length === 0 && page > 1;
+  useEffect(() => {
+    if (emptied) router.replace(previousHref ?? first);
+  }, [emptied, previousHref, first, router]);
+
   return (
-    <Panel flush aria-labelledby={headingId}>
-      <h2 id={headingId} className="border-b px-5 py-4 text-sm font-semibold text-foreground">
-        {title}
-      </h2>
-      <QueryState query={dispenses} label={label} empty={empty}>
+    <Panel flush>
+      <PageTabs
+        label="Dispense queue"
+        current={tab}
+        tabs={(Object.keys(TABS) as Tab[]).map((key) => ({
+          key,
+          label: TABS[key].label,
+          href: `${pathname}?${new URLSearchParams(search ? { tab: key, q: search } : { tab: key })}`,
+        }))}
+      />
+      {tab === "waiting" && (
+        <WaitingSearch key={q} initial={q} onSearch={(value) => router.replace(hrefFor(value))} />
+      )}
+      <QueryState
+        query={dispenses}
+        label={TABS[tab].noun}
+        empty={
+          q
+            ? { icon: Search, title: "No waiting patient matches", hint: `Nothing for “${q}”.` }
+            : TABS[tab].empty
+        }
+      >
         {(items) => (
           <ul className="divide-y text-sm">
             {items.map((d) => (
@@ -101,12 +167,52 @@ function StatusList({
           </ul>
         )}
       </QueryState>
-      <LoadMore
-        hasMore={dispenses.hasMore}
-        isLoading={dispenses.isFetchingMore}
-        onClick={dispenses.loadMore}
-      />
+      {!dispenses.isPending && !emptied && (
+        <Pager
+          page={page}
+          pageSize={PAGE_SIZE}
+          offset={dispenses.offset}
+          shown={dispenses.items.length}
+          total={dispenses.total}
+          previousHref={previousHref}
+          nextHref={dispenses.nextCursor ? href(page + 1, dispenses.nextCursor) : null}
+          firstHref={first}
+        />
+      )}
     </Panel>
+  );
+}
+
+const searchSchema = z.object({
+  q: z.string().trim().max(100, "Search is at most 100 characters"),
+});
+
+function WaitingSearch({ initial, onSearch }: { initial: string; onSearch: (q: string) => void }) {
+  const form = useZodForm(searchSchema, { q: initial });
+  const error = form.formState.errors.q?.message;
+  return (
+    <form
+      noValidate
+      role="search"
+      onSubmit={form.handleSubmit((values) => onSearch(values.q))}
+      className="flex items-end gap-2 border-b px-5 py-3"
+    >
+      <div className="min-w-0 flex-1">
+        <Field id="dispense-search" label="Search waiting patients" error={error}>
+          <Input
+            id="dispense-search"
+            type="search"
+            placeholder="Patient name"
+            aria-invalid={!!error}
+            aria-describedby={error ? "dispense-search-error" : undefined}
+            {...form.register("q")}
+          />
+        </Field>
+      </div>
+      <Button type="submit" variant="outline">
+        Search
+      </Button>
+    </form>
   );
 }
 

@@ -202,3 +202,56 @@ func TestKeysetSurvivesItsAnchorBeingDeleted(t *testing.T) {
 	require.Equal(t, []string{"r02", "r01", "r00"}, names,
 		"paging must continue from the deleted anchor's position, not fail or restart")
 }
+
+// #1295 D3: both directions reach every row exactly once, in order, across
+// a run of rows sharing one timestamp that straddles a page break.
+func TestOrderedKeysetPagesEveryRowOnceBothDirections(t *testing.T) {
+	db, ctx, tenantID := keysetHarness(t)
+	s := seedRows(t, db, ctx, tenantID, 2) // r00, r01
+	tie := s.next()
+	for i := range 3 {
+		insertRowAt(t, db, ctx, tenantID, fmt.Sprintf("tie-%d", i), tie)
+	}
+	insertRowAt(t, db, ctx, tenantID, "r05", s.next())
+	insertRowAt(t, db, ctx, tenantID, "r06", s.next())
+
+	var all []keysetRow
+	require.NoError(t, db.WithTenant(ctx, tenantID, func(tx *gorm.DB) error {
+		return tx.Order("created_at, id").Find(&all).Error
+	}))
+	var ascending []string
+	for _, r := range all {
+		ascending = append(ascending, r.Name)
+	}
+	descending := make([]string, len(ascending))
+	for i, n := range ascending {
+		descending[len(ascending)-1-i] = n
+	}
+
+	for _, tc := range []struct {
+		dir  pagination.Direction
+		want []string
+	}{{pagination.OldestFirst, ascending}, {pagination.NewestFirst, descending}} {
+		k := tenantdb.Keyset{Column: "created_at", Direction: tc.dir}
+		var got []string
+		var after *pagination.Cursor
+		for range 10 {
+			var rows []keysetRow
+			require.NoError(t, db.WithTenant(ctx, tenantID, func(tx *gorm.DB) error {
+				return tenantdb.ApplyOrderedKeyset(tx, pagination.Params{Limit: 2, After: after, Direction: tc.dir}, k).Find(&rows).Error
+			}))
+			if len(rows) > 2 {
+				rows = rows[:2]
+			}
+			if len(rows) == 0 {
+				break
+			}
+			for _, r := range rows {
+				got = append(got, r.Name)
+			}
+			last := rows[len(rows)-1]
+			after = &pagination.Cursor{TenantID: tenantID, CreatedAt: last.CreatedAt, ID: last.ID, Direction: tc.dir}
+		}
+		require.Equal(t, tc.want, got, "direction %v", tc.dir)
+	}
+}

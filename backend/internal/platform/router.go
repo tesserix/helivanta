@@ -36,6 +36,9 @@ type DeclaredRoute struct {
 	// arch test uses it to fail any collection GET registered the old
 	// way — the one hole ListRoute's type signature cannot close.
 	Paginated bool
+	// Counted is true for routes registered through CountedListRoute,
+	// whose page carries a total (#1295 D1).
+	Counted bool
 }
 
 // NewRouter builds the root router. membership is required, not
@@ -78,9 +81,14 @@ func (r *Router) DELETE(path string, perm authz.Permission, h ...gin.HandlerFunc
 }
 
 func (r *Router) handle(method, path string, perm authz.Permission, paginated bool, h []gin.HandlerFunc) {
-	*r.declared = append(*r.declared, DeclaredRoute{
-		Method: method, Path: r.group.BasePath() + path, Permission: perm, Paginated: paginated,
-	})
+	r.declare(path, DeclaredRoute{Method: method, Path: r.group.BasePath() + path, Permission: perm, Paginated: paginated}, h)
+}
+
+// declare records d and mounts h at path (relative to this group) behind
+// the membership and permission gates.
+func (r *Router) declare(path string, d DeclaredRoute, h []gin.HandlerFunc) {
+	method, perm := d.Method, d.Permission
+	*r.declared = append(*r.declared, d)
 	chain := make([]gin.HandlerFunc, 0, len(h)+2)
 	// Membership first: a non-member gets the same answer on every route
 	// regardless of what permission it declares, and a route marked

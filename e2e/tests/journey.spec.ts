@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { login, specAdmin, specPharmacist } from "./support/login";
+import { DISPENSED, waitingFor } from "./support/queue";
 
 // The cross-zone journey with authorization actually enforced: an admin
 // creates a visit that fans out to pharmacy and lab, and a
@@ -20,7 +21,7 @@ test("admin creates a visit and it lands in pharmacy and lab", async ({ page }) 
   await expect(page.getByText(patient).first()).toBeVisible();
 
   // visit_created flows through JetStream into both consumers.
-  await page.goto("/pharmacy");
+  await page.goto(waitingFor(patient));
   await expect(page.getByText(patient).first()).toBeVisible({
     timeout: 30_000,
   });
@@ -118,19 +119,17 @@ test("pharmacist can dispense a visit created by admin", async ({ page }) => {
   });
   await login(page, specPharmacist());
 
-  await page.goto("/pharmacy");
+  await page.goto(waitingFor(patient));
   await expect(page.getByText(patient).first()).toBeVisible({
     timeout: 30_000,
   });
   const row = page.locator("li", { hasText: patient });
   await row.getByLabel("Medication").fill("Amoxicillin 250mg");
   await row.getByRole("button", { name: "Dispense" }).click();
-  // The queue is split on the server (#1258): the row moves lists.
-  const dispensed = page
-    .getByRole("region", { name: "Dispensed" })
-    .locator("li", { hasText: patient });
-  await expect(dispensed.getByText("Amoxicillin 250mg")).toBeVisible();
+  // Dispensing moves the row from Waiting to the Dispensed tab (#1295).
+  await expect(page.locator("li", { hasText: patient })).toHaveCount(0);
+  await page.goto(DISPENSED);
   await expect(
-    page.getByRole("region", { name: "Waiting" }).locator("li", { hasText: patient }),
-  ).toHaveCount(0);
+    page.locator("li", { hasText: patient }).getByText("Amoxicillin 250mg"),
+  ).toBeVisible();
 });

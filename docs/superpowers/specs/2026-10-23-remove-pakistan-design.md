@@ -46,10 +46,21 @@ Success:
         territories and delivery tasks;
       - identifier kinds `ntn` and `stn`.
     - Workspace country policy: `country = 'PK'` or `currency = 'PKR'`.
-  - The count must see every tenant. Tables use forced row-level security, so the
-    migration must run under a role that bypasses it. The builder confirms this for the
-    role that `tenantdb.Migrate` uses, and a test proves the count is not empty when a
-    tenant's PK row exists.
+  - **The count must see every tenant.** Migrations run as the schema owner, and under
+    `FORCE ROW LEVEL SECURITY` the owner sees no tenant's rows (#894).
+    - This was checked on a scratch database with a non-superuser owner. Forced, the owner
+      counted 0 of 1 Pakistan rows, so a plain count would wave every database through.
+    - So each migration does the following inside its own transaction, for each table it
+      counts:
+      1. `ALTER TABLE … NO FORCE ROW LEVEL SECURITY`;
+      2. count;
+      3. `ALTER TABLE … FORCE ROW LEVEL SECURITY` again, before anything else.
+    - `ALTER TABLE` holds an `ACCESS EXCLUSIVE` lock until the transaction ends, so no other
+      session ever sees the table unforced. If the migration raises, the rollback restores
+      the setting.
+    - Tests run the migrations as the harness's real owner role, which is not a superuser.
+      A test with one tenant's PK row must see the refusal. The test is proven able to fail
+      by a plain count, which passes wrongly.
   - **Constraints after the count:**
     - Supply's `IN ('IN','PK')` checks become `= 'IN'`, and the identifier-kind check drops
       `ntn` / `stn`.

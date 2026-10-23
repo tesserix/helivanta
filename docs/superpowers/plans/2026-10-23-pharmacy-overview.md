@@ -55,7 +55,7 @@ Playwright.
 
 **Interfaces:**
 
-- Produces: `payableDueScope(due string, today time.Time) (func(*gorm.DB) *gorm.DB, error)`
+- Produces: `payableDueScope(due, today string) (func(*gorm.DB) *gorm.DB, error)`
   - `""` → no filter.
   - `overdue` → `outstanding_minor > 0 AND due_on < today`.
   - `week` → `outstanding_minor > 0 AND due_on BETWEEN today AND today+7`.

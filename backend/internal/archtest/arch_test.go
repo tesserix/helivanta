@@ -385,6 +385,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /supply/parties/:party/access":                                             "Current actor's bounded scoped role vocabulary for one profile; ADR 0027.",
 	"GET /pharmacy/configuration":                                                   "one bounded shared country metadata configuration, with no legal approval or tenant records",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/access":                     "the current subject's single outlet pharmacy grant",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview":                   "a fixed handful of outlet counts; each count's rows are the paginated list its tile links to",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force": "the one registration in force today, or null; the history is the paginated collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/balance":              "one explicitly scoped location/batch quarantine balance; not a collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/reconciliation":       "one explicitly scoped location/batch period aggregate; positions and movement history are cursor-paginated",

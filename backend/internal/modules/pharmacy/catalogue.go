@@ -74,6 +74,7 @@ func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus}
 	s := g.Group("/pharmacies/:pharmacy/outlets/:outlet")
 	s.GET("/access", PermCatalogueRead, h.getAccess)
+	s.GET("/overview", PermCatalogueRead, h.getOverview)
 	s.PUT("/access/:subject", PermAccessManage, h.putAccess)
 	s.DELETE("/access/:subject", PermAccessManage, h.deleteAccess)
 	s.PUT("/catalogue/products/:id", PermCatalogueWrite, h.putProduct)
@@ -397,10 +398,7 @@ func (h *catalogueHandlers) listProducts(c *gin.Context, params pagination.Param
 			return err
 		}
 		if taxFilter == "unclassified" {
-			// Withdrawn products are never sold, so they are never a gap.
-			query = query.Where(`status IN ('active','discontinued') AND NOT EXISTS (SELECT 1 FROM pharmacy_product_tax_classifications t
- WHERE t.tenant_id=pharmacy_catalogue_products.tenant_id AND t.outlet_id=pharmacy_catalogue_products.outlet_id
- AND t.product_id=pharmacy_catalogue_products.id AND t.effective_from <= ?::date)`, today)
+			query = unclassifiedScope(today)(query)
 		}
 		if err := query.Find(&rows).Error; err != nil {
 			return err
@@ -459,4 +457,15 @@ type pharmacyScopeKey struct{}
 func currentPharmacy(ctx context.Context) uuid.UUID {
 	id, _ := ctx.Value(pharmacyScopeKey{}).(uuid.UUID)
 	return id
+}
+
+// unclassifiedScope keeps sellable products with no tax classification in
+// force on the outlet's date. Withdrawn products are never sold, so they are
+// never a gap. Shared by the catalogue filter and the overview (#576).
+func unclassifiedScope(today string) func(*gorm.DB) *gorm.DB {
+	return func(q *gorm.DB) *gorm.DB {
+		return q.Where(`status IN ('active','discontinued') AND NOT EXISTS (SELECT 1 FROM pharmacy_product_tax_classifications t
+ WHERE t.tenant_id=pharmacy_catalogue_products.tenant_id AND t.outlet_id=pharmacy_catalogue_products.outlet_id
+ AND t.product_id=pharmacy_catalogue_products.id AND t.effective_from <= ?::date)`, today)
+	}
 }

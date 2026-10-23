@@ -23,8 +23,9 @@ describe("visibleZones", () => {
     );
 
     expect(pharmacy?.label).toBe("PharmaConnect");
-    expect(pharmacy?.href).toBe("/pharmacy/catalogue");
-    expect(pharmacy?.pages.map((page) => page.href)).toEqual(["/pharmacy/catalogue"]);
+    // #576: the overview is the landing page for anyone with an outlet role.
+    expect(pharmacy?.href).toBe("/pharmacy");
+    expect(pharmacy?.pages.map((page) => page.href)).toEqual(["/pharmacy", "/pharmacy/catalogue"]);
   });
 
   it("lists benefits only for a benefits reader, never for directory access", () => {
@@ -57,6 +58,8 @@ describe("visibleZones", () => {
     );
 
     expect(pharmacy?.pages.map((p) => p.label)).toEqual(["Dispense queue"]);
+    // A doctor, who only reads the queue, still opens at the queue.
+    expect(pharmacy?.href).toBe("/pharmacy/dispense");
   });
 
   it("declares a permission on every zone and page", () => {
@@ -224,7 +227,8 @@ describe("zone icons and sections", () => {
   it("structures PharmaConnect as pharmacy management", () => {
     const pharmacy = ZONES.find((zone) => zone.key === "pharmacy")!;
     expect(pharmacy.pages.map((page) => [page.section, page.label, page.href])).toEqual([
-      ["Dispensing", "Dispense queue", "/pharmacy"],
+      [undefined, "Overview", "/pharmacy"],
+      ["Dispensing", "Dispense queue", "/pharmacy/dispense"],
       ["Dispensing", "Medication list", "/pharmacy/medications"],
       ["Inventory", "Stock on hand", "/pharmacy/stock"],
       ["Inventory", "Receiving", "/pharmacy/receiving"],

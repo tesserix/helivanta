@@ -255,4 +255,21 @@ describe("CataloguePanel tax", () => {
     await screen.findAllByRole("listitem");
     expect(screen.queryByRole("button", { name: "Not classified" })).toBeNull();
   });
+
+  // Review: "not classified" means nothing where the country has no tax
+  // scheme; a link carrying it must not leave a hidden filter on the list.
+  it("ignores a starting Not classified filter without a scheme", async () => {
+    const { urls } = serve(() => []);
+    renderWithProviders(
+      <CataloguePanel
+        scope={scope}
+        writable
+        defaultCurrency="PKR"
+        countryCode="PK"
+        initialUnclassified
+      />,
+    );
+    await screen.findAllByRole("listitem");
+    expect(urls.some((url) => url.includes("tax=unclassified"))).toBe(false);
+  });
 });

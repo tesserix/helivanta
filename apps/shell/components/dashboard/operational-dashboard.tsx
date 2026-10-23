@@ -265,7 +265,7 @@ export function OperationalDashboard({ now }: { now?: Date }) {
               mode={mode}
               onModeChange={setMode}
               description="Current status of dispense tasks created in this period. Dispensed does not mean dispensed during this period."
-              href="/pharmacy"
+              href="/pharmacy/dispense"
             />
           )}
         </div>

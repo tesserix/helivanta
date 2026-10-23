@@ -12,6 +12,7 @@ const DESCRIPTIONS: Record<string, string> = {
   "/settings/branding": "Your logo, medical theme and sign-in experience",
   "/medicore/opd": "Outpatient visit registrations",
   "/medicore/ipd": "Inpatient visit registrations",
+  "pharmacy:Overview": "What needs attention at your outlet today",
   "pharmacy:Dispensing": "Dispense queue and medication list",
   "pharmacy:Inventory": "Stock on hand, receiving, expiry and the product catalogue",
   "pharmacy:Purchasing": "Supplier bills, payments and outstanding balances",
@@ -41,11 +42,16 @@ function cardsFor(zones: Zone[]) {
         ? // A sectioned zone gets one card per section (#1258), opening its
           // first permitted page, so eight pharmacy pages are four doors.
           zone.pages
-            .filter((page, index, pages) => page.section !== pages[index - 1]?.section)
+            // The first page always opens a card: a page with no section
+            // (the pharmacy overview, #576) would otherwise equal the
+            // undefined "previous" section and vanish.
+            .filter(
+              (page, index, pages) => index === 0 || page.section !== pages[index - 1]?.section,
+            )
             .map((page) => ({
               href: page.href,
               title: page.section ?? page.label,
-              desc: DESCRIPTIONS[`${zone.key}:${page.section}`] ?? "",
+              desc: DESCRIPTIONS[`${zone.key}:${page.section ?? page.label}`] ?? "",
               icon: zone.icon,
               hue: zone.hue,
             }))

@@ -116,17 +116,8 @@ func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination
 		return nil, nil
 	}
 	expiry := c.DefaultQuery("expiry", "all")
-	dueDays := -1
 	switch expiry {
-	case "all", "expired", "unexpired":
-	case "today":
-		dueDays = 0
-	case "due_30":
-		dueDays = 30
-	case "due_90":
-		dueDays = 90
-	case "due_180":
-		dueDays = 180
+	case "all", "expired", "unexpired", "today", "due_30", "due_90", "due_180":
 	default:
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid expiry filter")
 		return nil, nil
@@ -147,32 +138,7 @@ func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination
 		if err := stockReference(tx, "pharmacy_catalogue_products", p.TenantID, outlet, product); err != nil {
 			return err
 		}
-		// The hash identifies a read-model bucket only; it never authorises an object or creates a stock master.
-		source := tx.Table("pharmacy_stock_movements m").Select(`md5(m.location_id::text||':'||m.batch_id::text)::uuid AS id,
-   b.created_at,m.location_id,m.batch_id,b.product_id,l.code AS location_code,l.name AS location_name,l.zone_code,l.aisle_code,l.rack_code,l.shelf_code,
-   p.sku,p.brand_name,p.unit_of_issue,b.lot_number,to_char(b.expires_on,'YYYY-MM-DD') AS expires_on,l.stock_status,
-   CASE WHEN b.expires_on < snapshot.local_date THEN 'expired' ELSE 'unexpired' END AS expiry_status,
-   o.timezone AS expiry_time_zone,to_char(snapshot.local_date,'YYYY-MM-DD') AS expiry_local_date,
-   b.expires_on-snapshot.local_date AS days_to_expiry,
-   CASE WHEN b.expires_on < snapshot.local_date THEN 'expired'
-        WHEN b.expires_on = snapshot.local_date THEN 'today'
-        WHEN b.expires_on-snapshot.local_date <= 30 THEN 'days_30'
-        WHEN b.expires_on-snapshot.local_date <= 90 THEN 'days_90'
-        WHEN b.expires_on-snapshot.local_date <= 180 THEN 'days_180'
-        ELSE 'later' END AS expiry_band,
-   p.status AS product_status,p.regulatory_status,
-   sum(m.quantity_units)::bigint AS on_hand_units,
-   COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='receipt'),0)::text AS receipt_units,
-   COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='correction'),0)::text AS correction_units,
-   0::bigint AS dispensable_units`).
-			// Unique-key lookup bounds prevent repeated outlet-wide scans under fresh-table RLS estimates.
-			Joins("JOIN LATERAL (SELECT created_at,product_id,lot_number,expires_on FROM pharmacy_stock_batches WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=m.batch_id LIMIT 1) b ON true").
-			Joins("JOIN LATERAL (SELECT code,name,zone_code,aisle_code,rack_code,shelf_code,stock_status FROM pharmacy_stock_locations WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=m.location_id LIMIT 1) l ON true").
-			Joins("JOIN LATERAL (SELECT sku,brand_name,unit_of_issue,status,regulatory_status FROM pharmacy_catalogue_products WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=b.product_id LIMIT 1) p ON true").
-			Joins("JOIN pharmacy_outlets o ON o.tenant_id=m.tenant_id AND o.id=m.outlet_id").
-			Joins("CROSS JOIN LATERAL (SELECT timezone(o.timezone,?::timestamptz)::date AS local_date) snapshot", window.AsOf).
-			Where("m.tenant_id=? AND m.outlet_id=? AND m.created_at<=?", p.TenantID, outlet, window.AsOf).
-			Group("b.created_at,m.location_id,m.batch_id,b.product_id,l.code,l.name,l.zone_code,l.aisle_code,l.rack_code,l.shelf_code,p.sku,p.brand_name,p.unit_of_issue,b.lot_number,b.expires_on,l.stock_status,o.timezone,snapshot.local_date,p.status,p.regulatory_status")
+		source := stockPositionsSource(tx, p.TenantID, outlet, window.AsOf)
 		if location != uuid.Nil {
 			source = source.Where("m.location_id=?", location)
 		}
@@ -180,15 +146,7 @@ func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination
 			source = source.Where("b.product_id=?", product)
 		}
 		q := tenantdb.ApplyKeyset(tx, params).Table("(?) AS positions", source)
-		if dueDays >= 0 {
-			q = q.Where("days_to_expiry BETWEEN 0 AND ?", dueDays)
-		} else if expiry != "all" {
-			q = q.Where("expiry_status=?", expiry)
-		}
-		if balance == "on_hand" {
-			q = q.Where("on_hand_units>0")
-		}
-		return q.Find(&rows).Error
+		return stockExpiryScope(expiry, balance)(q).Find(&rows).Error
 	})
 	if err != nil {
 		stockError(c, err)
@@ -253,4 +211,54 @@ func (h *catalogueHandlers) getStockReconciliation(c *gin.Context) {
 		return
 	}
 	respond.OK(c, result)
+}
+
+// stockPositionsSource is the stock register's rows: one per batch at a
+// location, as of asOf, with its expiry on the outlet's own date. Shared by
+// the register and the overview's counts (#576).
+func stockPositionsSource(tx *gorm.DB, tenant string, outlet uuid.UUID, asOf time.Time) *gorm.DB {
+	// The hash identifies a read-model bucket only; it never authorises an object or creates a stock master.
+	return tx.Table("pharmacy_stock_movements m").Select(`md5(m.location_id::text||':'||m.batch_id::text)::uuid AS id,
+   b.created_at,m.location_id,m.batch_id,b.product_id,l.code AS location_code,l.name AS location_name,l.zone_code,l.aisle_code,l.rack_code,l.shelf_code,
+   p.sku,p.brand_name,p.unit_of_issue,b.lot_number,to_char(b.expires_on,'YYYY-MM-DD') AS expires_on,l.stock_status,
+   CASE WHEN b.expires_on < snapshot.local_date THEN 'expired' ELSE 'unexpired' END AS expiry_status,
+   o.timezone AS expiry_time_zone,to_char(snapshot.local_date,'YYYY-MM-DD') AS expiry_local_date,
+   b.expires_on-snapshot.local_date AS days_to_expiry,
+   CASE WHEN b.expires_on < snapshot.local_date THEN 'expired'
+        WHEN b.expires_on = snapshot.local_date THEN 'today'
+        WHEN b.expires_on-snapshot.local_date <= 30 THEN 'days_30'
+        WHEN b.expires_on-snapshot.local_date <= 90 THEN 'days_90'
+        WHEN b.expires_on-snapshot.local_date <= 180 THEN 'days_180'
+        ELSE 'later' END AS expiry_band,
+   p.status AS product_status,p.regulatory_status,
+   sum(m.quantity_units)::bigint AS on_hand_units,
+   COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='receipt'),0)::text AS receipt_units,
+   COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='correction'),0)::text AS correction_units,
+   0::bigint AS dispensable_units`).
+		// Unique-key lookup bounds prevent repeated outlet-wide scans under fresh-table RLS estimates.
+		Joins("JOIN LATERAL (SELECT created_at,product_id,lot_number,expires_on FROM pharmacy_stock_batches WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=m.batch_id LIMIT 1) b ON true").
+		Joins("JOIN LATERAL (SELECT code,name,zone_code,aisle_code,rack_code,shelf_code,stock_status FROM pharmacy_stock_locations WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=m.location_id LIMIT 1) l ON true").
+		Joins("JOIN LATERAL (SELECT sku,brand_name,unit_of_issue,status,regulatory_status FROM pharmacy_catalogue_products WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=b.product_id LIMIT 1) p ON true").
+		Joins("JOIN pharmacy_outlets o ON o.tenant_id=m.tenant_id AND o.id=m.outlet_id").
+		Joins("CROSS JOIN LATERAL (SELECT timezone(o.timezone,?::timestamptz)::date AS local_date) snapshot", asOf).
+		Where("m.tenant_id=? AND m.outlet_id=? AND m.created_at<=?", tenant, outlet, asOf).
+		Group("b.created_at,m.location_id,m.batch_id,b.product_id,l.code,l.name,l.zone_code,l.aisle_code,l.rack_code,l.shelf_code,p.sku,p.brand_name,p.unit_of_issue,b.lot_number,b.expires_on,l.stock_status,o.timezone,snapshot.local_date,p.status,p.regulatory_status")
+}
+
+// stockExpiryScope is the register's expiry and balance filter, applied to
+// stockPositionsSource rows; values are validated by the caller. due_N is
+// cumulative: not yet expired and expiring within N days.
+func stockExpiryScope(expiry, balance string) func(*gorm.DB) *gorm.DB {
+	due := map[string]int{"today": 0, "due_30": 30, "due_90": 90, "due_180": 180}
+	return func(q *gorm.DB) *gorm.DB {
+		if days, ok := due[expiry]; ok {
+			q = q.Where("days_to_expiry BETWEEN 0 AND ?", days)
+		} else if expiry != "all" {
+			q = q.Where("expiry_status=?", expiry)
+		}
+		if balance == "on_hand" {
+			q = q.Where("on_hand_units>0")
+		}
+		return q
+	}
 }

@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "../../test/select";
 import { PharmacyWorkspace } from "./pharmacy-workspace";
@@ -29,9 +29,17 @@ const product = {
   updated_at: "2026-10-15T00:00:00Z",
 };
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
+// The page's starting filter comes from the URL (#576 D4); tests set it here.
+const nav = vi.hoisted(() => ({ search: "" }));
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useSearchParams: () => new URLSearchParams(nav.search),
+}));
+
 afterEach(() => {
   vi.unstubAllGlobals();
   sessionStorage.clear();
+  nav.search = "";
 });
 // denied: the status the access check answers with, or 0 for a grant.
 function mockPharmacy(
@@ -572,4 +580,93 @@ it("points an empty setup page at the registration form", async () => {
   expect(await screen.findByText("No pharmacy registered yet")).toBeInTheDocument();
   expect(screen.queryByText(/Ask your administrator/)).not.toBeInTheDocument();
   expect(screen.getByLabelText("Pharmacy code")).toBeVisible();
+});
+
+// #576 D4: a count on the overview opens its list already filtered.
+describe("lists open filtered from the overview", () => {
+  const requested = (fetcher: ReturnType<typeof vi.fn>, part: string) =>
+    fetcher.mock.calls.map(([url]) => String(url)).filter((url) => url.includes(part));
+
+  it("opens Stock on hand at the expiry filter in the URL", async () => {
+    nav.search = "balance=on_hand&expiry=due_30";
+    const fetcher = mockPharmacy("editor", 0, "IN", ["pharmacy.stock.read"]);
+    renderWithProviders(<PharmacyWorkspace view="stock" />);
+    await waitFor(() => expect(requested(fetcher, "/stock/positions").length).toBeGreaterThan(0));
+    const url = new URL(requested(fetcher, "/stock/positions")[0]!, "http://x");
+    expect(url.searchParams.get("expiry")).toBe("due_30");
+    expect(url.searchParams.get("balance")).toBe("on_hand");
+  });
+
+  it("opens the catalogue at Not classified", async () => {
+    nav.search = "tax=unclassified";
+    const fetcher = mockPharmacy();
+    renderWithProviders(<PharmacyWorkspace view="catalogue" />);
+    await waitFor(() =>
+      expect(
+        requested(fetcher, "/catalogue/products?").some((u) => u.includes("tax=unclassified")),
+      ).toBe(true),
+    );
+    expect(await screen.findByRole("button", { name: "Not classified" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("opens Supplier bills at overdue, with a way back to every bill", async () => {
+    nav.search = "due=overdue";
+    const fetcher = mockPharmacy("editor", 0, "IN", ["pharmacy.accounts.read"]);
+    const { user } = renderWithProviders(<PharmacyWorkspace view="accounts" />);
+    await waitFor(() =>
+      expect(requested(fetcher, "/accounts/payables").some((u) => u.includes("due=overdue"))).toBe(
+        true,
+      ),
+    );
+    expect(await screen.findByText("Showing overdue bills")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Show all bills" }));
+    await waitFor(() =>
+      expect(requested(fetcher, "/accounts/payables").some((u) => !u.includes("due="))).toBe(true),
+    );
+  });
+
+  it("opens Expiry & safety at the outlet's recent concerns", async () => {
+    nav.search = "recorded=30d";
+    const fetcher = mockPharmacy("editor", 0, "IN", ["pharmacy.stock.read"]);
+    renderWithProviders(<PharmacyWorkspace view="safety" />);
+    await waitFor(() =>
+      expect(requested(fetcher, "/stock/safety-incidents?recorded=30d").length).toBeGreaterThan(0),
+    );
+    expect(
+      await screen.findByRole("region", { name: "Concerns recorded in the last 30 days" }),
+    ).toBeVisible();
+  });
+});
+
+// Review: Patients waiting is hospital-wide, so it shows even when there is
+// no outlet to show (none registered, no grant) — exactly when the overview
+// has nothing else to say.
+it("shows the hospital-wide waiting count with no pharmacy registered", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.endsWith("permissions"))
+        return new Response(
+          JSON.stringify({
+            tenant_id: "11111111-1111-1111-1111-111111111111",
+            subject: "TEST-pharmacist",
+            data: ["pharmacy.catalogue.read", "pharmacy.dispense.read"],
+          }),
+        );
+      if (url.includes("/dispenses/waiting"))
+        return new Response(
+          JSON.stringify({
+            data: [{ id: "d-1", created_at: new Date().toISOString() }],
+            page: { has_more: false, next_cursor: null, total: 4, offset: 0 },
+          }),
+        );
+      return new Response(JSON.stringify(page([])));
+    }),
+  );
+  renderWithProviders(<PharmacyWorkspace view="overview" />);
+  const waiting = await screen.findByRole("region", { name: "Patients waiting" });
+  expect(await within(waiting).findByText("4")).toBeVisible();
 });

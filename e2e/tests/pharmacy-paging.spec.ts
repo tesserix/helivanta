@@ -36,7 +36,7 @@ test("the dispense queue pages forward and back and survives a reload", async ({
   const stamp = Date.now();
   await page.goto("/pharmacy");
   await createVisits(page, 51, stamp);
-  const mine = `/pharmacy?tab=waiting&q=${encodeURIComponent(`Paging Patient ${stamp}-`)}`;
+  const mine = `/pharmacy/dispense?tab=waiting&q=${encodeURIComponent(`Paging Patient ${stamp}-`)}`;
 
   // visit_created reaches pharmacy through JetStream; wait for all 51.
   const range = page.getByRole("navigation", { name: "Pages" }).locator("p");

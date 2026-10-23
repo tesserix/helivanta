@@ -23,6 +23,7 @@ import {
   IdCard,
   Layers,
   LayoutDashboard,
+  Gauge,
   ListChecks,
   PackagePlus,
   Palette,
@@ -132,10 +133,18 @@ export const ZONES: Zone[] = [
     hue: "amber",
     group: "care",
     pages: [
+      // What needs attention, for every outlet role (#576). A doctor, who
+      // only reads the queue, lands on the queue instead.
+      {
+        label: "Overview",
+        href: "/pharmacy",
+        icon: Gauge,
+        permission: "pharmacy.catalogue.read",
+      },
       {
         section: "Dispensing",
         label: "Dispense queue",
-        href: "/pharmacy",
+        href: "/pharmacy/dispense",
         icon: ListChecks,
         permission: "pharmacy.dispense.read",
       },

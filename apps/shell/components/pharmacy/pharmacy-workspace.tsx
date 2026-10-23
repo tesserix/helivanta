@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { Button } from "@tesserix/web";
 import {
@@ -29,6 +30,7 @@ import {
   useZodForm,
 } from "@helivanta/ui";
 import { CataloguePanel } from "./catalogue-panel";
+import { OverviewTiles, WaitingTile } from "./overview-tiles";
 import { AccountsPanel } from "./accounts-panel";
 import { StockPanel } from "./stock-panel";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
@@ -38,8 +40,10 @@ import { BatchSafety } from "./batch-safety";
 
 type PharmacyIdentity = { subject: string; tenant_id: string };
 // The outlet-scoped pages (#1258 D2). Dispensing is tenant-wide and has its own pages.
-type PharmacyView = "stock" | "receiving" | "safety" | "catalogue" | "accounts" | "setup";
+type PharmacyView =
+  "overview" | "stock" | "receiving" | "safety" | "catalogue" | "accounts" | "setup";
 const DESCRIPTIONS: Record<PharmacyView, string> = {
+  overview: "What needs attention at this outlet, most urgent first.",
   stock: "What each outlet holds, by product and batch, with reconciliation and export.",
   receiving: "Register manufacturer lots, receive them into quarantine and record movements.",
   safety: "Batches nearing expiry or under a safety concern, and their release decisions.",
@@ -57,7 +61,12 @@ export function PharmacyWorkspace({ view }: { view: PharmacyView }) {
       <RequestFailure message="Could not verify your active tenant." retry={identity.refetch} />
     );
   if (!identity.data) return <p role="status">Loading pharmacy workspace…</p>;
-  return <TenantPharmacy key={identity.data.tenant_id} identity={identity.data} view={view} />;
+  // Suspense: an outlet page reads its starting filter from the URL (#576 D4).
+  return (
+    <Suspense fallback={<p role="status">Loading pharmacy workspace…</p>}>
+      <TenantPharmacy key={identity.data.tenant_id} identity={identity.data} view={view} />
+    </Suspense>
+  );
 }
 const selectionSchema = z.object({
   pharmacyId: z.string().uuid().or(z.literal("")),
@@ -125,6 +134,12 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
           </div>
         }
       />
+      {/* Hospital-wide, so it shows whatever the outlet state is (#576 D2). */}
+      {view === "overview" && can("pharmacy.dispense.read") && (
+        <div className="mb-4">
+          <WaitingTile />
+        </div>
+      )}
       {pharmacies.isError ? (
         <RequestFailure message="Could not load your pharmacies." retry={pharmacies.retry} />
       ) : pharmacies.isPending ? (
@@ -226,6 +241,10 @@ function OutletPharmacy({
   view: PharmacyView;
 }) {
   const { can } = usePermissions();
+  // A link from the overview opens a list already filtered (#576 D4). Read
+  // once as each list's starting filter; the list's own controls take over.
+  const params = useSearchParams();
+  const filter = (key: string) => params?.get(key) ?? undefined;
   const access = useApiQuery<{ level: "reader" | "editor" }>(
     pharmacyKey(scope, "access"),
     `${pharmacyRoot(scope)}/access`,
@@ -244,9 +263,12 @@ function OutletPharmacy({
           message="Could not check your access to this outlet. Try again in a moment."
           retry={access.refetch}
         />
-      ) : view === "setup" ? null : view === "accounts" ? (
+      ) : view === "setup" ? null : view === "overview" ? (
+        <OverviewTiles scope={scope} outlet={outlet} />
+      ) : view === "accounts" ? (
         <AccountsPanel
           scope={scope}
+          initialDue={filter("due")}
           timeZone={outlet.timezone}
           defaultCurrency={countryProfile(outlet.country_code)?.currency ?? ""}
           writable={access.data?.level === "editor"}
@@ -254,6 +276,7 @@ function OutletPharmacy({
       ) : view === "catalogue" ? (
         <CataloguePanel
           scope={scope}
+          initialUnclassified={filter("tax") === "unclassified"}
           timeZone={outlet.timezone}
           defaultCurrency={countryProfile(outlet.country_code)?.currency ?? ""}
           writable={access.data?.level === "editor" && can("pharmacy.catalogue.write")}
@@ -261,9 +284,18 @@ function OutletPharmacy({
           canManageTax={access.data?.level === "editor" && can("pharmacy.tax.manage")}
         />
       ) : view === "stock" ? (
-        <StockRegister scope={scope} timeZone={outlet.timezone} />
+        <StockRegister
+          scope={scope}
+          timeZone={outlet.timezone}
+          initialExpiry={filter("expiry")}
+          initialBalance={filter("balance")}
+        />
       ) : view === "safety" ? (
-        <BatchSafety scope={scope} timeZone={outlet.timezone} />
+        <BatchSafety
+          scope={scope}
+          timeZone={outlet.timezone}
+          showRecent={filter("recorded") === "30d"}
+        />
       ) : (
         <StockPanel
           scope={scope}

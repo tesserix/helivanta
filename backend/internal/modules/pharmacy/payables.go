@@ -214,12 +214,42 @@ func (h *catalogueHandlers) listPayables(c *gin.Context, params pagination.Param
 	if !ok {
 		return nil, nil
 	}
+	due := c.QueryArray("due")
+	if len(due) > 1 || (len(due) == 1 && !validPayableDue(due[0])) {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "due must be overdue or week")
+		return nil, nil
+	}
 	var rows []payable
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		return tenantdb.ApplyKeyset(tx, params).Table("pharmacy_payable_balances").Select(payableColumns).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet).Find(&rows).Error
+		q := tenantdb.ApplyKeyset(tx, params).Table("pharmacy_payable_balances").Select(payableColumns).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet)
+		if len(due) == 1 {
+			today, err := outletLocalDate(tx, p.TenantID, outlet)
+			if err != nil {
+				return err
+			}
+			q = payableDueScope(due[0], today)(q)
+		}
+		return q.Find(&rows).Error
 	})
 	if err != nil {
 		payableError(c, err)
 	}
 	return rows, nil
+}
+
+func validPayableDue(due string) bool { return due == "overdue" || due == "week" }
+
+// payableDueScope is the supplier-bill due filter (#576 D4), shared by the
+// bill list and the overview's counts so the two cannot disagree. Only a bill
+// with an amount still outstanding is due; an over-credited bill is settled.
+// today is the outlet's own date: overdue is strictly before it, week is
+// today to today + 7 inclusive.
+func payableDueScope(due, today string) func(*gorm.DB) *gorm.DB {
+	return func(tx *gorm.DB) *gorm.DB {
+		tx = tx.Where("outstanding_minor > 0")
+		if due == "overdue" {
+			return tx.Where("due_on < ?::date", today)
+		}
+		return tx.Where("due_on BETWEEN ?::date AND ?::date + 7", today, today)
+	}
 }

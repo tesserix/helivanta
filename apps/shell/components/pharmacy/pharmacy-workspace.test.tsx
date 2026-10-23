@@ -632,11 +632,11 @@ describe("lists open filtered from the overview", () => {
   });
 
   it("opens Expiry & safety at the outlet's recent concerns", async () => {
-    nav.search = "recorded=30d";
+    nav.search = "tab=recent";
     const fetcher = mockPharmacy("editor", 0, "IN", ["pharmacy.stock.read"]);
     renderWithProviders(<PharmacyWorkspace view="safety" />);
     await waitFor(() =>
-      expect(requested(fetcher, "/stock/safety-incidents?recorded=30d").length).toBeGreaterThan(0),
+      expect(requested(fetcher, "/stock/safety-incidents/recent").length).toBeGreaterThan(0),
     );
     expect(
       await screen.findByRole("region", { name: "Concerns recorded in the last 30 days" }),

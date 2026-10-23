@@ -56,19 +56,18 @@ Success:
     - A step after the fetch. The catalogue attaches each product's tax state there, which
       drives the badge.
   - Dispense routes, which have no guard, keep their exact behaviour.
+
 - **D2 Each counted list is a new route; the uncounted v1 route stays.** As slice 1 did with
   `/dispenses`, existing callers keep their contract. Slice 1 registered one counted route
   per tab. These pages are filtered rather than split into fixed states, so here a
   counted route takes the same filters as its uncounted original:
 
-  | Page | Counted route (newest first by `created_at`) | Filters |
-  |---|---|---|
-  | Expiry & safety | `GET …/stock/safety-incidents/recent` | none; always the last 30 days on the outlet's calendar |
-  | Expiry & safety | `GET …/stock/batches/:id/safety-incidents` | the batch is the path, 404 when not the outlet's |
-  | Supplier bills | `GET …/accounts/payables/counted` | `due=overdue\|week` |
-  | Supplier bills | `GET …/accounts/inventory-audit/counted` | none |
-  | Catalogue | `GET …/catalogue/products/counted` | `q`, `status`, `tax=unclassified` |
-
+  | Page            | Counted route (newest first by `created_at`) | Filters                                                |
+  | --------------- | -------------------------------------------- | ------------------------------------------------------ |
+  | Expiry & safety | `GET …/stock/safety-incidents/recent`        | none; always the last 30 days on the outlet's calendar |
+  | Supplier bills  | `GET …/accounts/payables/counted`            | `due=overdue\|week`                                    |
+  | Supplier bills  | `GET …/accounts/inventory-audit/counted`     | none                                                   |
+  | Catalogue       | `GET …/catalogue/products/counted`           | `q`, `status`, `tax=unclassified`                      |
   - Each counted route reuses the scope helper its uncounted route uses. Examples are
     `payableDueScope`, `recentSafetyScope` and `unclassifiedScope`. The overview's counts,
     the totals and the rows therefore cannot disagree.
@@ -76,6 +75,7 @@ Success:
     the `pharmacy_payable_balances` view, which the rows already read.
   - The names are the builder's to settle against `docs/api/http-contract.md`. The rule
     is: a new path, never a changed response on an existing one.
+
 - **D3 Tabs and filters per page.** _(My call.)_ Each tab is a link (`?tab=`). Changing tab
   resets the page and keeps the filters (slice 1 D7).
   - **Supplier bills:** tabs Overdue, Due within 7 days, All bills and Inventory cost audit.
@@ -84,8 +84,13 @@ Success:
       pager and one `?page=`.
   - **Expiry & safety:**
     - Tab "Last 30 days" holds the outlet's recent concerns.
-    - Tab "By batch" holds the batch picker and that batch's concerns, with the batch in
-      the URL (`?batch=`) and paged.
+    - Tab "By batch" holds the batch picker and that batch's concerns, unchanged. _(Ruled
+      while building.)_
+      - A batch's concerns are a detail history, which stays on "Load more" like a
+        product's revisions.
+      - The picker clears the chosen batch and any unsaved concern when its options fail
+        to load or the outlet changes. A batch kept in the URL would come back after either.
+      - Cost: a reload forgets the chosen batch.
     - The default is "Last 30 days". Before, the recent list showed only when you arrived
       from the overview; now it is always available.
   - **Catalogue:**
@@ -149,6 +154,5 @@ Success:
   - On a catalogue with more than 25 products, Next then Previous returns to the same
     first row, and a reload on page 2 keeps page 2.
   - A search survives paging.
-  - Expiry & safety's "By batch" keeps the batch across a reload.
 - **Contract docs:** `docs/api/domains/pharmacy.md` lists the new routes. Regenerate with
   `go run ./cmd/contractdocs`, then check with `-check`.

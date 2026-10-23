@@ -127,23 +127,6 @@ func TestCountedRecentSafetyTotal(t *testing.T) {
 	require.Equal(t, overview.Safety.Recent, got)
 }
 
-func TestCountedBatchSafety(t *testing.T) {
-	r, _ := overviewHarness(t)
-	_, location, batch := stockFixture(t, r)
-	for range 3 {
-		w := do(r, "PUT", stockPath("safety-incidents/"+uuid.Must(uuid.NewV7()).String()), "editor", safetyBody(batch, location))
-		require.Equal(t, 200, w.Code, w.Body.String())
-	}
-	require.Equal(t, 3, countedTotal(t, r, outletPath("/stock/batches/"+batch+"/safety-incidents")))
-	// A batch that is not this outlet's is the same 404 as a missing one.
-	other := outletPath("/stock/batches/" + uuid.Must(uuid.NewV7()).String() + "/safety-incidents")
-	require.Equal(t, http.StatusNotFound, do(r, "GET", other, "editor", "").Code)
-	require.Equal(t, http.StatusBadRequest, do(r, "GET", outletPath("/stock/batches/not-a-uuid/safety-incidents"), "editor", "").Code)
-	for _, token := range []string{"ungranted", "foreign"} {
-		require.Equal(t, http.StatusNotFound, do(r, "GET", outletPath("/stock/batches/"+batch+"/safety-incidents"), token, "").Code)
-	}
-}
-
 func seedProduct(t *testing.T, r *gin.Engine, sku, brand, status string) {
 	t.Helper()
 	body := strings.NewReplacer(`"sku":"TEST-AMOX-500"`, `"sku":"`+sku+`"`, `"status":"active"`, `"status":"`+status+`"`).Replace(productBody(0, brand))

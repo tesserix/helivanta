@@ -1315,15 +1315,6 @@
           "counted": false
         },
         {
-          "method": "GET",
-          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id/safety-incidents",
-          "permission": "pharmacy.stock.read",
-          "authentication_required": true,
-          "membership_required": true,
-          "paginated": true,
-          "counted": true
-        },
-        {
           "method": "PUT",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id",
           "permission": "pharmacy.stock.receive",

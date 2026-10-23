@@ -289,11 +289,7 @@ function OutletPharmacy({
           initialBalance={filter("balance")}
         />
       ) : view === "safety" ? (
-        <BatchSafety
-          scope={scope}
-          timeZone={outlet.timezone}
-          showRecent={filter("recorded") === "30d"}
-        />
+        <BatchSafety scope={scope} timeZone={outlet.timezone} />
       ) : (
         <StockPanel
           scope={scope}

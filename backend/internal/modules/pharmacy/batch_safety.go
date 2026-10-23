@@ -203,28 +203,3 @@ func countedRecentSafety(c *gin.Context) (platform.CountedQuery[batchSafetyIncid
 		Fail: stockError,
 	}, true
 }
-
-// countedBatchSafety is one batch's concerns with a total. A batch that is
-// not this outlet's is the same 404 as a missing one.
-func countedBatchSafety(c *gin.Context) (platform.CountedQuery[batchSafetyIncident], bool) {
-	p, outlet, ok := catalogueScope(c)
-	if !ok {
-		return platform.CountedQuery[batchSafetyIncident]{}, false
-	}
-	batch, err := uuid.Parse(c.Param("id"))
-	if err != nil || batch == uuid.Nil {
-		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid batch")
-		return platform.CountedQuery[batchSafetyIncident]{}, false
-	}
-	return platform.CountedQuery[batchSafetyIncident]{
-		Guard: outletReadGuard(c, p, outlet, func(tx *gorm.DB) (platform.Scope, error) {
-			if err := stockReference(tx, "pharmacy_stock_batches", p.TenantID, outlet, batch); err != nil {
-				return nil, err
-			}
-			return func(q *gorm.DB) *gorm.DB {
-				return q.Where("tenant_id=? AND outlet_id=? AND batch_id=?", p.TenantID, outlet, batch)
-			}, nil
-		}),
-		Fail: stockError,
-	}, true
-}

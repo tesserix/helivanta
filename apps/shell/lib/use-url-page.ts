@@ -62,8 +62,17 @@ export function useStepBackWhenEmpty(
   url: ReturnType<typeof useUrlPage>,
 ) {
   const router = useRouter();
+  const params = useSearchParams();
   const emptied = !page.isPending && !page.isError && page.items.length === 0 && url.page > 1;
-  const target = url.previousHref ?? url.first;
+  // The list moving back by itself is not the person leaving an open record
+  // (#1303 D4): carry it to the page stepped back to.
+  const keep = new URLSearchParams();
+  for (const key of ["open", "new"]) {
+    const value = params.get(key);
+    if (value) keep.set(key, value);
+  }
+  const back = url.previousHref ?? url.first;
+  const target = keep.size ? `${back}${back.includes("?") ? "&" : "?"}${keep}` : back;
   useEffect(() => {
     if (emptied) router.replace(target);
   }, [emptied, target, router]);

@@ -172,7 +172,7 @@ jobs:
 
       - name: Upload Trivy results to GitHub Security tab
         if: always() && github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: trivy-results.sarif
         continue-on-error: true
@@ -382,7 +382,7 @@ jobs:
 
       - name: Upload Trivy results to GitHub Security tab
         if: always() && github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: trivy-results.sarif
           # Explicit, because two jobs now upload SARIF for the same commit.

@@ -477,21 +477,21 @@ func countedProducts(c *gin.Context) (platform.CountedQuery[catalogueProduct], b
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid catalogue filters")
 		return platform.CountedQuery[catalogueProduct]{}, false
 	}
+	// The outlet's date, read once in the guard: the filter and each row's
+	// tax badge use the same day, even across midnight.
+	var today string
 	return platform.CountedQuery[catalogueProduct]{
 		Guard: outletReadGuard(c, p, outlet, func(tx *gorm.DB) (platform.Scope, error) {
-			var today string
-			if taxFilter == "unclassified" {
-				var o pharmacyOutlet
-				if err := tx.Select(outletColumns).Where("tenant_id=? AND id=?", p.TenantID, outlet).First(&o).Error; err != nil {
-					return nil, err
-				}
-				if _, ok := countryprofile.Tax(o.CountryCode); !ok {
-					return nil, errNoTaxScheme
-				}
-				var err error
-				if today, err = outletToday(o.Timezone); err != nil {
-					return nil, err
-				}
+			var o pharmacyOutlet
+			if err := tx.Select(outletColumns).Where("tenant_id=? AND id=?", p.TenantID, outlet).First(&o).Error; err != nil {
+				return nil, err
+			}
+			if _, ok := countryprofile.Tax(o.CountryCode); !ok && taxFilter == "unclassified" {
+				return nil, errNoTaxScheme
+			}
+			var err error
+			if today, err = outletToday(o.Timezone); err != nil {
+				return nil, err
 			}
 			return func(query *gorm.DB) *gorm.DB {
 				query = query.Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet)
@@ -502,8 +502,10 @@ func countedProducts(c *gin.Context) (platform.CountedQuery[catalogueProduct], b
 				return query
 			}, nil
 		}),
-		Rows:  func(query *gorm.DB) *gorm.DB { return query.Select(productColumns) },
-		After: func(tx *gorm.DB, rows []catalogueProduct) error { return attachTax(tx, p.TenantID, outlet, rows) },
+		Rows: func(query *gorm.DB) *gorm.DB { return query.Select(productColumns) },
+		After: func(tx *gorm.DB, rows []catalogueProduct) error {
+			return attachTaxOn(tx, p.TenantID, outlet, today, rows)
+		},
 		Fail: func(c *gin.Context, err error) {
 			if errors.Is(err, errNoTaxScheme) {
 				respond.Error(c, http.StatusBadRequest, "invalid_request", "this outlet has no tax scheme to classify against")

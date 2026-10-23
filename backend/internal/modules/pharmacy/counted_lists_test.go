@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
@@ -169,4 +172,30 @@ func TestCountedCatalogueRefusesUnclassifiedWithoutAScheme(t *testing.T) {
 	require.Equal(t, 200, do(r, "PUT", base+"/access/user-editor", "editor", `{"level":"editor"}`).Code)
 	require.Equal(t, http.StatusBadRequest, do(r, "GET", base+"/catalogue/products/counted?tax=unclassified", "editor", "").Code)
 	require.Equal(t, http.StatusOK, do(r, "GET", base+"/catalogue/products/counted", "editor", "").Code)
+}
+
+// Review: "Not classified" and each row's tax badge must read one outlet
+// date. Across midnight, a product unclassified at the guard's date must not
+// show the classification that comes into force the next day.
+func TestCountedCatalogueReadsTheOutletDateOnce(t *testing.T) {
+	r, _ := overviewHarness(t)
+	id := uuid.Must(uuid.NewV7()).String()
+	require.Equal(t, 200, do(r, "PUT", productPath(id), "editor", productBody(0, "TEST Midnight")).Code)
+	w := do(r, "POST", classificationsPath(id), "editor", classificationBody("3004", "taxable", "5", "", "2026-11-02", ""))
+	require.Equal(t, 201, w.Code, w.Body.String())
+
+	// 23:59 on 1 November in Kolkata for the first read, 00:01 on the 2nd after.
+	var calls atomic.Int32
+	pharmacy.SetClock(t, func() time.Time {
+		if calls.Add(1) == 1 {
+			return time.Date(2026, 11, 1, 18, 29, 0, 0, time.UTC)
+		}
+		return time.Date(2026, 11, 1, 18, 31, 0, 0, time.UTC)
+	})
+	w = do(r, "GET", outletPath("/catalogue/products/counted?tax=unclassified"), "editor", "")
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	var page struct{ Data []map[string]json.RawMessage }
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &page))
+	require.Len(t, page.Data, 1)
+	require.Equal(t, "null", string(page.Data[0]["tax"]), "badge read a later date than the filter")
 }

@@ -117,6 +117,16 @@ func attachTax(tx *gorm.DB, tenant string, outlet uuid.UUID, rows []cataloguePro
 	if err != nil {
 		return err
 	}
+	return attachTaxOn(tx, tenant, outlet, today, rows)
+}
+
+// attachTaxOn fills each product's classification in force on today, the
+// outlet's date already read by the caller: a list filtered on that date
+// must badge its rows on the same one (#576).
+func attachTaxOn(tx *gorm.DB, tenant string, outlet uuid.UUID, today string, rows []catalogueProduct) error {
+	if len(rows) == 0 {
+		return nil
+	}
 	ids := make([]uuid.UUID, len(rows))
 	for i := range rows {
 		ids[i] = rows[i].ID

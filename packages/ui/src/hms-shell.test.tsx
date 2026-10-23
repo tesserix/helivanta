@@ -1123,3 +1123,67 @@ describe("zone rail", () => {
     ).toBeTruthy();
   });
 });
+
+// #1299: on a phone the rail and page panel live behind one header button.
+describe("phone menu", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    pathname.current = "/pharmacy";
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("lists the zones and the current zone's pages, marking the current ones", async () => {
+    grantPharmacyPages();
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    const open = screen.getByRole("button", { name: "Open menu" });
+    expect(open).toHaveAttribute("aria-expanded", "false");
+    await user.click(open);
+    expect(open).toHaveAttribute("aria-expanded", "true");
+    const menu = screen.getByRole("dialog", { name: "Menu" });
+    expect(within(menu).getByRole("link", { name: "Dashboard" })).toBeVisible();
+    expect(within(menu).getByRole("link", { name: "PharmaConnect" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(menu).getByRole("link", { name: "Dispense queue" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(menu).getByText("Inventory")).toBeVisible();
+    expect(within(menu).getByRole("link", { name: "Stock on hand" })).toBeVisible();
+    expect(within(menu).getByRole("button", { name: "Close menu" })).toHaveFocus();
+  });
+
+  it("closes on Escape and returns focus to the menu button", async () => {
+    grantPharmacyPages();
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    await user.click(screen.getByRole("button", { name: "Open menu" }));
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Menu" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Open menu" })).toHaveFocus();
+  });
+
+  it("closes once a page is chosen", async () => {
+    grantPharmacyPages();
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    await user.click(screen.getByRole("button", { name: "Open menu" }));
+    await user.click(
+      within(screen.getByRole("dialog", { name: "Menu" })).getByRole("link", {
+        name: "Stock on hand",
+      }),
+    );
+    expect(screen.queryByRole("dialog", { name: "Menu" })).toBeNull();
+  });
+
+  it("shows placeholders, not a partial list, while permissions load", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    await user.click(screen.getByRole("button", { name: "Open menu" }));
+    const menu = screen.getByRole("dialog", { name: "Menu" });
+    expect(within(menu).queryAllByRole("link")).toHaveLength(0);
+    expect(within(menu).getAllByTestId("nav-placeholder").length).toBeGreaterThan(0);
+  });
+});

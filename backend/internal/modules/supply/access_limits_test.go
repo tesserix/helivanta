@@ -90,20 +90,20 @@ func TestOperationalAccessLimitsAreExactOwnedPartyAndAdministratorOnly(t *testin
 	}))
 }
 
-func TestOperationalAccessLimitsAreSeparateForIndiaAndPakistanOrganisations(t *testing.T) {
+func TestOperationalAccessLimitsAreSeparateForEachOrganisation(t *testing.T) {
 	r, _ := scopedAccessHarness(t)
 	india := ownedAccessParty(t, r)
-	pakistan := "/v1/supply/parties/" + uuid.Must(uuid.NewV7()).String()
-	body := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(partyBody(0, "TEST Pakistan Distributor"), "counterparty", "owned_organisation"), `"country_code":"IN"`, `"country_code":"PK"`), "TEST-REG-001", "TEST-PK-LIMIT-001"), "TEST-DISTRIBUTOR", "TEST-PK-DISTRIBUTOR")
-	w := testutil.Do(r, "PUT", pakistan, "manager", body)
+	other := "/v1/supply/parties/" + uuid.Must(uuid.NewV7()).String()
+	body := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(partyBody(0, "TEST Second Distributor"), "counterparty", "owned_organisation"), "TEST-REG-001", "TEST-SECOND-LIMIT-001"), "TEST-DISTRIBUTOR", "TEST-SECOND-DISTRIBUTOR")
+	w := testutil.Do(r, "PUT", other, "manager", body)
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.Equal(t, 200, testutil.Do(r, "PUT", india+"/access-limits", "owner", accessLimitsBody(0, 48, 2)).Code)
-	require.Equal(t, 404, testutil.Do(r, "GET", pakistan+"/access-limits", "owner", "").Code)
-	require.Equal(t, 404, testutil.Do(r, "PUT", pakistan+"/access-limits", "owner", accessLimitsBody(0, 48, 2)).Code)
-	w = testutil.Do(r, "GET", pakistan+"/access-limits", "manager", "")
+	require.Equal(t, 404, testutil.Do(r, "GET", other+"/access-limits", "owner", "").Code)
+	require.Equal(t, 404, testutil.Do(r, "PUT", other+"/access-limits", "owner", accessLimitsBody(0, 48, 2)).Code)
+	w = testutil.Do(r, "GET", other+"/access-limits", "manager", "")
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), `"max_grant_hours":8784`)
-	require.Equal(t, 200, testutil.Do(r, "PUT", pakistan+"/access-limits", "manager", accessLimitsBody(0, 72, 3)).Code)
+	require.Equal(t, 200, testutil.Do(r, "PUT", other+"/access-limits", "manager", accessLimitsBody(0, 72, 3)).Code)
 	require.Contains(t, testutil.Do(r, "GET", india+"/access-limits", "owner", "").Body.String(), `"max_grant_hours":48`)
 }
 

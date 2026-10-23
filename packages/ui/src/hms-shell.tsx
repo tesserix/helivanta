@@ -813,10 +813,18 @@ export function HmsShell({
               </aside>
             )}
             <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-              <main className="flex-1 px-6 pt-6 pb-6 md:pt-0">
+              {/* A size container, so a list lays out by the space it has: the
+                  rail expanding changes that without the viewport changing (#1303). */}
+              <main className="@container/main flex-1 px-6 pt-6 pb-6 md:pt-0">
                 {/* Left-aligned with the header card, not centred: centring left an
-                    empty band beside the rail on a page with no panel (#1296). */}
-                <div className="w-full max-w-6xl">{children}</div>
+                    empty band beside the rail on a page with no panel (#1296). A page
+                    declares full width in zones.ts; it still stops at 1760px. */}
+                <div
+                  data-width={currentPage?.width === "full" ? "full" : "capped"}
+                  className={`w-full ${currentPage?.width === "full" ? "max-w-[1760px]" : "max-w-6xl"}`}
+                >
+                  {children}
+                </div>
               </main>
               <TesserixFooter />
             </div>

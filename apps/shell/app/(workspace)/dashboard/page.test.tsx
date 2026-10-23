@@ -46,6 +46,18 @@ describe("Dashboard", () => {
     }
   });
 
+  // #576: the overview has no section; it is still its own card, first.
+  it("opens the pharmacy overview from its own card", async () => {
+    mockPermissions(["pharmacy.dispense.read", "pharmacy.catalogue.read"]);
+    renderWithProviders(<Dashboard />);
+    expect(await screen.findByText("Dispensing")).toBeInTheDocument();
+    const shortcuts = screen.getByRole("navigation", { name: "Department shortcuts" });
+    expect(within(shortcuts).getByRole("link", { name: /^Overview/ })).toHaveAttribute(
+      "href",
+      "/pharmacy",
+    );
+  });
+
   it("hides cards for zones the user lacks permission for (pharmacist)", async () => {
     mockPermissions(["pharmacy.dispense.read", "pharmacy.medication.read"]);
     renderWithProviders(<Dashboard />);
@@ -54,7 +66,7 @@ describe("Dashboard", () => {
     const shortcuts = screen.getByRole("navigation", { name: "Department shortcuts" });
     expect(within(shortcuts).getByRole("link", { name: /^Dispensing/ })).toHaveAttribute(
       "href",
-      "/pharmacy",
+      "/pharmacy/dispense",
     );
     expect(screen.queryByText("Inventory")).not.toBeInTheDocument();
     expect(screen.queryByText("OPD")).not.toBeInTheDocument();

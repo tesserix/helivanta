@@ -961,6 +961,7 @@ describe("expandable navigation", () => {
       (node) => node.textContent,
     );
     expect(text).toEqual([
+      "Overview",
       "Dispensing",
       "Dispense queue",
       "Inventory",

@@ -29,6 +29,7 @@ import {
   useZodForm,
 } from "@helivanta/ui";
 import { CataloguePanel } from "./catalogue-panel";
+import { OverviewTiles } from "./overview-tiles";
 import { AccountsPanel } from "./accounts-panel";
 import { StockPanel } from "./stock-panel";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
@@ -38,8 +39,10 @@ import { BatchSafety } from "./batch-safety";
 
 type PharmacyIdentity = { subject: string; tenant_id: string };
 // The outlet-scoped pages (#1258 D2). Dispensing is tenant-wide and has its own pages.
-type PharmacyView = "stock" | "receiving" | "safety" | "catalogue" | "accounts" | "setup";
+type PharmacyView =
+  "overview" | "stock" | "receiving" | "safety" | "catalogue" | "accounts" | "setup";
 const DESCRIPTIONS: Record<PharmacyView, string> = {
+  overview: "What needs attention at this outlet, most urgent first.",
   stock: "What each outlet holds, by product and batch, with reconciliation and export.",
   receiving: "Register manufacturer lots, receive them into quarantine and record movements.",
   safety: "Batches nearing expiry or under a safety concern, and their release decisions.",
@@ -244,7 +247,9 @@ function OutletPharmacy({
           message="Could not check your access to this outlet. Try again in a moment."
           retry={access.refetch}
         />
-      ) : view === "setup" ? null : view === "accounts" ? (
+      ) : view === "setup" ? null : view === "overview" ? (
+        <OverviewTiles scope={scope} outlet={outlet} />
+      ) : view === "accounts" ? (
         <AccountsPanel
           scope={scope}
           timeZone={outlet.timezone}

@@ -304,6 +304,24 @@ theme script) stamps them on `<html>` before paint, and `packages/ui/styles.css`
 sizes the chrome from those attributes, so a collapsed panel is never painted
 open on a hard load.
 
+### List pages: width, the detail pane and unsaved edits (#1303)
+
+- **Width is a page's declared choice.** A `ZonePage` in `packages/ui/src/zones.ts` may set
+  `width: "full"`. The shell then drops the `max-w-6xl` cap for that page and stops at
+  1760px. Every other page keeps the cap. `main` is a size container (`@container/main`),
+  so a page lays out by the space it actually has: expanding the rail changes that without
+  changing the viewport.
+- **An open record sits beside its list.** Use `ListDetail` from `@helivanta/ui`. It splits
+  when main is at least 840px wide, and shows the record alone, with a back link, below
+  that. It is one grid at every width, so a half-typed form survives the rail expanding.
+  Keep the record's address in the URL with `useDetail` (`?open=` and `?new=1`, in
+  `apps/shell/lib`): opening is a Back step, and switching records replaces it.
+- **Unsaved edits are never lost silently.** A detail with forms calls `useLeaveGuard(dirty,
+name)`. Shell links (`GuardedLink`), Back and reload then ask "Discard changes to
+  {name}?". `useLeaveGuard` throws without the shell's `NavigationGuardProvider`, so a page
+  rendered outside the shell fails rather than dropping edits. Component tests wrap it in
+  that provider. In-page links (tabs, pager, back link) are guarded by the page.
+
 ### Idle session tracking
 
 Interaction tracking for the idle-timeout feature (#848, design spec D2/

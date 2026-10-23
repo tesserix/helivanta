@@ -421,7 +421,7 @@ export function PayableHistory({
         </div>
       </div>
       <Panel>
-        <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-4 @[560px]/pane:grid-cols-4">
           {(
             [
               ["Billed", doc.total_minor],

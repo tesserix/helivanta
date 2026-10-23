@@ -220,27 +220,26 @@ function OutletAccounts({
 
   return (
     <div className="space-y-6" onClickCapture={holdLinks}>
-      <ListDetail
-        label={
-          detail.creating ? "New supplier bill" : reference ? `Bill ${reference}` : "Supplier bill"
-        }
-        backHref={detail.closeHref}
-        backLabel="Back to bills"
-        list={
-          <Bills
-            scope={scope}
-            tab={tab}
-            url={url}
-            tabs={tabs}
-            compact={isOpen}
-            openId={detail.openId}
-            onRows={setPageRows}
-            canRecord={writable && can("pharmacy.accounts.write")}
-            onRecord={() => guard.confirm(() => detail.create())}
-            onOpen={openRow}
-          />
-        }
-        detail={record && <div ref={pane}>{record}</div>}
+      <Bills
+        scope={scope}
+        tab={tab}
+        url={url}
+        tabs={tabs}
+        compact={isOpen}
+        openId={detail.openId}
+        onRows={setPageRows}
+        canRecord={writable && can("pharmacy.accounts.write")}
+        onRecord={() => guard.confirm(() => detail.create())}
+        onOpen={openRow}
+        pane={{
+          detail: record && <div ref={pane}>{record}</div>,
+          label: detail.creating
+            ? "New supplier bill"
+            : reference
+              ? `Bill ${reference}`
+              : "Supplier bill",
+          backHref: detail.closeHref,
+        }}
       />
     </div>
   );
@@ -269,6 +268,7 @@ function Bills({
   compact,
   openId,
   onRows,
+  pane,
 }: {
   scope: PharmacyScope;
   tab: Exclude<BillsTab, "audit">;
@@ -281,6 +281,8 @@ function Bills({
   compact: boolean;
   openId: string | null;
   onRows: (rows: Row[]) => void;
+  /** The open bill, shown beside the table or alone. */
+  pane: { detail: React.ReactNode | null; label: string; backHref: string };
 }) {
   const due = tab === "all" ? null : tab;
   const bills = useApiPageQuery<PharmacyPayable>(
@@ -295,9 +297,13 @@ function Bills({
     // rowKey stands for the rows: a new array with the same rows is no change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowKey, onRows]);
+  // Beside an open bill the column is about 440px at the narrowest laptop:
+  // short headings on one line, and tighter cells, so nothing wraps the rows
+  // down or overflows under the pane (#1303).
   const columns = compact
-    ? ["Document / payee", "Due date", "Outstanding", "History"]
+    ? ["Bill / payee", "Outstanding", "History"]
     : ["Document / payee", "Due date", "Billed", "Paid", "Credits", "Outstanding", "History"];
+  const cell = compact ? "px-3" : "px-4";
   const amounts = (b: PharmacyPayable) =>
     compact
       ? ([["Outstanding", b.outstanding_minor]] as const)
@@ -307,122 +313,151 @@ function Bills({
           ["Credits", b.credit_minor],
           ["Outstanding", b.outstanding_minor],
         ] as const);
+  // The tabs and heading span the page above the split, so opening a bill
+  // narrows only the table: nothing above the rows reflows (#1303).
   return (
-    <Panel flush aria-labelledby="payables-heading">
-      {tabs}
-      <div className="p-5">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h3
-              id="payables-heading"
-              tabIndex={-1}
-              className="flex items-center gap-2 font-semibold outline-none"
-            >
-              <ReceiptText className="size-5 text-(--hms-accent)" />
-              Bills & expenses
-            </h3>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Track original bills, recorded payments and remaining amounts. Each document keeps its
-              own currency and history.
-            </p>
+    <div className="space-y-4">
+      <Panel flush aria-labelledby="payables-heading">
+        {tabs}
+        <div className="p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h3
+                id="payables-heading"
+                tabIndex={-1}
+                className="flex items-center gap-2 font-semibold outline-none"
+              >
+                <ReceiptText className="size-5 text-(--hms-accent)" />
+                Bills & expenses
+              </h3>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Track original bills, recorded payments and remaining amounts. Each document keeps
+                its own currency and history.
+              </p>
+            </div>
+            {canRecord && (
+              <Button onClick={onRecord}>
+                <Plus className="size-4" />
+                Record bill or expense
+              </Button>
+            )}
           </div>
-          {canRecord && (
-            <Button onClick={onRecord}>
-              <Plus className="size-4" />
-              Record bill or expense
-            </Button>
-          )}
         </div>
-        {bills.isError ? (
-          <RequestFailure message="Could not load bills and expenses." retry={bills.retry} />
-        ) : bills.isPending ? (
-          <p role="status">Loading bills and expenses…</p>
-        ) : !bills.items.length ? (
-          <p className="py-8 text-sm text-muted-foreground">
-            {
-              {
-                overdue: "No overdue bills.",
-                week: "No bills due within 7 days.",
-                all: "No bills or expenses recorded for this outlet.",
-              }[tab]
-            }
-          </p>
-        ) : (
-          <div className="overflow-x-auto rounded-md border">
-            <table
-              aria-label="Bills and expenses"
-              className={`block w-full text-left text-sm md:table ${compact ? "" : "md:min-w-[780px]"}`}
-            >
-              <thead className="sr-only bg-muted/40 text-xs text-muted-foreground md:not-sr-only">
-                <tr>
-                  {columns.map((h) => (
-                    <th key={h} scope="col" className="px-4 py-3 font-medium">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="block divide-y md:table-row-group">
-                {bills.items.map((b) => (
-                  <tr
-                    key={b.id}
-                    aria-current={b.id === openId ? "true" : undefined}
-                    className={`grid grid-cols-2 md:table-row ${b.id === openId ? "bg-(--hms-accent-dim)" : ""}`}
+      </Panel>
+      <ListDetail
+        label={pane.label}
+        backHref={pane.backHref}
+        backLabel="Back to bills"
+        detail={pane.detail}
+        list={
+          <Panel flush>
+            <div className="p-5">
+              {bills.isError ? (
+                <RequestFailure message="Could not load bills and expenses." retry={bills.retry} />
+              ) : bills.isPending ? (
+                <p role="status">Loading bills and expenses…</p>
+              ) : !bills.items.length ? (
+                <p className="py-8 text-sm text-muted-foreground">
+                  {
+                    {
+                      overdue: "No overdue bills.",
+                      week: "No bills due within 7 days.",
+                      all: "No bills or expenses recorded for this outlet.",
+                    }[tab]
+                  }
+                </p>
+              ) : (
+                <div className="overflow-x-auto rounded-md border">
+                  <table
+                    aria-label="Bills and expenses"
+                    className={`block w-full text-left text-sm md:table ${compact ? "" : "md:min-w-[780px]"}`}
                   >
-                    <td className="col-span-2 min-w-0 px-4 pt-4 pb-2 md:py-4">
-                      <p className="wrap-anywhere font-medium">{b.document_reference}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{b.payee_name}</p>
-                    </td>
-                    <td className="col-span-2 px-4 py-2 text-muted-foreground md:py-4 md:whitespace-nowrap">
-                      <span aria-hidden="true" className="mr-2 text-xs md:hidden">
-                        Due
-                      </span>
-                      {b.due_on}
-                    </td>
-                    {amounts(b).map(([label, v]) => (
-                      <td
-                        key={label}
-                        className={`min-w-0 wrap-anywhere px-4 py-2 tabular-nums md:py-4 md:whitespace-nowrap ${label === "Outstanding" ? "font-semibold" : ""}`}
-                      >
-                        <span
-                          aria-hidden="true"
-                          className="mb-1 block text-xs font-normal text-muted-foreground md:hidden"
+                    <thead className="sr-only bg-muted/40 text-xs text-muted-foreground md:not-sr-only">
+                      <tr>
+                        {columns.map((h) => (
+                          <th
+                            key={h}
+                            scope="col"
+                            className={`${cell} py-3 font-medium whitespace-nowrap`}
+                          >
+                            {compact && h === "History" ? <span className="sr-only">{h}</span> : h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="block divide-y md:table-row-group">
+                      {bills.items.map((b) => (
+                        <tr
+                          key={b.id}
+                          aria-current={b.id === openId ? "true" : undefined}
+                          className={`grid grid-cols-2 md:table-row ${b.id === openId ? "bg-(--hms-accent-dim)" : ""}`}
                         >
-                          {label}
-                        </span>
-                        {formatPharmacyMoney(v, b.currency)}
-                      </td>
-                    ))}
-                    <td className="col-span-2 px-4 py-4">
-                      <Button
-                        variant="ghost"
-                        onClick={() => onOpen(b.id)}
-                        data-open-bill={b.id}
-                        aria-label={`Open ${b.document_reference}`}
-                      >
-                        View
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-      {!bills.isPending && !emptied && (
-        <Pager
-          page={url.page}
-          pageSize={PAGE_SIZE}
-          offset={bills.offset}
-          shown={bills.items.length}
-          total={bills.total}
-          previousHref={url.previousHref}
-          nextHref={url.nextHref(bills.nextCursor)}
-          firstHref={url.first}
-        />
-      )}
-    </Panel>
+                          <td className={`col-span-2 min-w-0 ${cell} pt-4 pb-2 md:py-4`}>
+                            <p className="wrap-anywhere font-medium">{b.document_reference}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{b.payee_name}</p>
+                            {/* Beside an open bill the due date joins the bill, so the
+                                reference keeps the width it needs. */}
+                            {compact && (
+                              <p className="mt-1 text-xs text-muted-foreground">Due {b.due_on}</p>
+                            )}
+                          </td>
+                          {!compact && (
+                            <td
+                              className={`col-span-2 ${cell} py-2 text-muted-foreground md:py-4 md:whitespace-nowrap`}
+                            >
+                              <span aria-hidden="true" className="mr-2 text-xs md:hidden">
+                                Due
+                              </span>
+                              {b.due_on}
+                            </td>
+                          )}
+                          {amounts(b).map(([label, v]) => (
+                            <td
+                              key={label}
+                              className={`min-w-0 wrap-anywhere ${cell} py-2 tabular-nums md:py-4 md:whitespace-nowrap ${label === "Outstanding" ? "font-semibold" : ""}`}
+                            >
+                              <span
+                                aria-hidden="true"
+                                className="mb-1 block text-xs font-normal text-muted-foreground md:hidden"
+                              >
+                                {label}
+                              </span>
+                              {formatPharmacyMoney(v, b.currency)}
+                            </td>
+                          ))}
+                          <td className={`col-span-2 ${cell} py-4`}>
+                            <Button
+                              variant="ghost"
+                              onClick={() => onOpen(b.id)}
+                              data-open-bill={b.id}
+                              aria-label={`Open ${b.document_reference}`}
+                            >
+                              View
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            {!bills.isPending && !emptied && (
+              <Pager
+                page={url.page}
+                pageSize={PAGE_SIZE}
+                offset={bills.offset}
+                shown={bills.items.length}
+                total={bills.total}
+                previousHref={url.previousHref}
+                nextHref={url.nextHref(bills.nextCursor)}
+                firstHref={url.first}
+              />
+            )}
+          </Panel>
+        }
+      />
+    </div>
   );
 }
 

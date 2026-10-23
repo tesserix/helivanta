@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Supplier bills opens a bill beside the list where the content area is at least 860px,
+**Goal:** Supplier bills opens a bill beside the list where the content area is at least 840px,
 and as a full page below that. The open bill is in the URL, unsaved edits are never lost
 silently, and the page uses the full width.
 
@@ -25,7 +25,7 @@ via `useZodForm`, Vitest with `renderWithProviders`, Playwright.
 ## Global Constraints
 
 - **Layout:**
-  - Split applies when the `main` content box is at least 860px. Below that, full page.
+  - Split applies when the `main` content box is at least 840px. Below that, full page.
   - The pane is 400px wide, or 600px when the content box is at least 1400px.
   - The breakpoint is a container query, never a viewport breakpoint.
   - A full page fills the content area up to 1760px, left-aligned.
@@ -208,7 +208,7 @@ via `useZodForm`, Vitest with `renderWithProviders`, Playwright.
 - Produces:
 
   ```ts
-  // The list and an open record: side by side when main is at least 860px,
+  // The list and an open record: side by side when main is at least 840px,
   // the record alone below that. `detail` null means nothing is open.
   export function ListDetail(props: {
     list: ReactNode;
@@ -219,9 +219,9 @@ via `useZodForm`, Vitest with `renderWithProviders`, Playwright.
   }): JSX.Element;
   ```
   - One grid at all widths, so that the detail is the same element in both layouts:
-    - `@[860px]/main:grid-cols-[minmax(0,1fr)_400px]`;
+    - `@[840px]/main:grid-cols-[minmax(0,1fr)_400px]`;
     - `@[1400px]/main:grid-cols-[minmax(0,1fr)_600px]`.
-  - Below 860px with a detail open, the list is `hidden` and the back link shows.
+  - Below 840px with a detail open, the list is `hidden` and the back link shows.
   - The pane is `sticky top-0` with `max-h-[calc(100dvh-var(--hms-header))]` (or the shell's
     existing header measure) and `overflow-y-auto`.
   - It is a `section` with `aria-label={label}` (role `region`).
@@ -309,7 +309,7 @@ via `useZodForm`, Vitest with `renderWithProviders`, Playwright.
     - the list's first row keeps its on-screen position;
     - Next opens the second bill.
   - Record the measured `main` content width at each viewport in the test output, and assert
-    at least 860 for every laptop case.
+    at least 840 for every laptop case.
   - At 390×844: opening a bill hides the list, and phone Back returns to the list with the row
     visible.
   - A reload keeps the open bill.

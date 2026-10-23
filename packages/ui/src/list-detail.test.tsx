@@ -36,12 +36,12 @@ describe("ListDetail", () => {
       <ListDetail {...props} list={<p>TEST list</p>} detail={<p>TEST detail</p>} />,
     );
     const grid = screen.getByTestId("list-detail");
-    expect(grid.className).toContain("@[860px]/main:grid-cols-[minmax(0,1fr)_400px]");
+    expect(grid.className).toContain("@[840px]/main:grid-cols-[minmax(0,1fr)_400px]");
     expect(grid.className).toContain("@[1400px]/main:grid-cols-[minmax(0,1fr)_600px]");
     expect(grid.className).not.toMatch(/(^|\s)(md|lg|xl):grid-cols/);
     // Below the split the list gives way to the record.
     expect(screen.getByTestId("list-detail-list").className.split(" ")).toEqual(
-      expect.arrayContaining(["hidden", "@[860px]/main:block"]),
+      expect.arrayContaining(["hidden", "@[840px]/main:block"]),
     );
   });
 

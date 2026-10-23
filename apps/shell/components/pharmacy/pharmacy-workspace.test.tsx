@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
+import { NavigationGuardProvider } from "@helivanta/ui";
 import { chooseOption } from "../../test/select";
 import { PharmacyWorkspace } from "./pharmacy-workspace";
 
@@ -624,7 +625,11 @@ describe("lists open filtered from the overview", () => {
   it("opens Supplier bills on the Overdue tab the overview links to", async () => {
     nav.search = "tab=overdue";
     const fetcher = mockPharmacy("editor", 0, "IN", ["pharmacy.accounts.read"]);
-    renderWithProviders(<PharmacyWorkspace view="accounts" />);
+    renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="accounts" />
+      </NavigationGuardProvider>,
+    );
     await waitFor(() =>
       expect(requested(fetcher, "/accounts/payables/counted?due=overdue").length).toBeGreaterThan(
         0,

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Input } from "@tesserix/web";
 import {
+  ApiError,
   apiFetch,
   formatZonedDateTime,
   useApiMutation,
@@ -61,11 +62,13 @@ export function PayableForm({
   defaultCurrency,
   onSaved,
   onCancel,
+  onStateChange,
 }: {
   scope: PharmacyScope;
   defaultCurrency: string;
   onSaved: (id: string) => void;
   onCancel: () => void;
+  onStateChange?: FormState;
 }) {
   const [id] = useState(() => newPharmacyId());
   const form = useZodForm(pharmacyPayableFormSchema, {
@@ -94,6 +97,7 @@ export function PayableForm({
       onSuccess: (row) => onSaved(row.id),
     },
   );
+  useReportState(onStateChange, form.formState.isDirty, save.isPending);
   return (
     <form
       noValidate
@@ -335,34 +339,59 @@ function ReceiptPicker({
     </div>
   );
 }
+/** What a detail reports so its page can guard unsaved edits (#1303 D5). */
+export type FormState = (dirty: boolean, pending: boolean) => void;
+
+function useReportState(report: FormState | undefined, dirty: boolean, pending: boolean) {
+  useEffect(() => {
+    report?.(dirty, pending);
+  }, [report, dirty, pending]);
+  // A form that goes away holds nothing unsaved.
+  useEffect(() => () => report?.(false, false), [report]);
+}
+
 export function PayableHistory({
   scope,
   id,
   writable,
   onClose,
   timeZone = "UTC",
+  nav,
+  onStateChange,
 }: {
   scope: PharmacyScope;
   id: string;
   writable: boolean;
   onClose: () => void;
   timeZone?: string;
+  /** Previous / Next for the page's rows (#1303 D2). */
+  nav?: ReactNode;
+  onStateChange?: FormState;
 }) {
   const detail = useApiQuery<PharmacyPayableDetail>(
     pharmacyKey(scope, "accounts", "detail", id),
     `${pharmacyRoot(scope)}/accounts/payables/${id}`,
   );
+  // Only once the bill itself loads: a bill that is not found, or not
+  // ours, gets no further requests (#1303 D3).
   const history = useApiPagedQuery<PharmacySettlement>(
     pharmacyKey(scope, "accounts", "settlements", id),
     `${pharmacyRoot(scope)}/accounts/payables/${id}/settlements`,
+    { enabled: !!detail.data },
   );
   const heading = useRef<HTMLHeadingElement>(null);
+  // Viewing a bill puts focus on its heading, not into an edit field (#1303
+  // D6). The pane scrolls by itself, so the list keeps its place.
   useEffect(() => {
-    if (detail.data?.id) {
-      heading.current?.scrollIntoView({ block: "start", behavior: "instant" });
-      heading.current?.focus({ preventScroll: true });
-    }
+    if (detail.data?.id) heading.current?.focus({ preventScroll: true });
   }, [detail.data?.id]);
+  // Another outlet's or tenant's bill is the same 404 as a missing one.
+  if (detail.error instanceof ApiError && detail.error.status === 404)
+    return (
+      <p role="alert" className="text-sm">
+        This record was not found, or you do not have access.
+      </p>
+    );
   if (detail.isError)
     return (
       <RequestFailure message="Could not load this financial document." retry={detail.refetch} />
@@ -384,9 +413,12 @@ export function PayableHistory({
             {doc.payee_name} · {doc.payee_reference}
           </p>
         </div>
-        <Button variant="outline" onClick={onClose}>
-          Close document
-        </Button>
+        <div className="flex items-center gap-2">
+          {nav}
+          <Button variant="outline" onClick={onClose}>
+            Close document
+          </Button>
+        </div>
       </div>
       <Panel>
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -486,6 +518,7 @@ export function PayableHistory({
           key={`${id}:${history.items.length}`}
           scope={scope}
           doc={doc}
+          onStateChange={onStateChange}
           payments={history.items.filter(
             (row) =>
               row.kind === "payment" &&
@@ -500,10 +533,12 @@ function SettlementForm({
   scope,
   doc,
   payments,
+  onStateChange,
 }: {
   scope: PharmacyScope;
   doc: PharmacyPayableDetail;
   payments: PharmacySettlement[];
+  onStateChange?: FormState;
 }) {
   const { can } = usePermissions();
   const [id] = useState(() => newPharmacyId());
@@ -540,6 +575,7 @@ function SettlementForm({
       suppressErrorToast: true,
     },
   );
+  useReportState(onStateChange, form.formState.isDirty, save.isPending);
   if (!choices.length) return null;
   return (
     <Panel>

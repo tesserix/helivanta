@@ -58,6 +58,9 @@ describe("useDetail", () => {
     renderHook(() => useDetail()).result.current.create();
     expect(nav.push).toHaveBeenCalledWith("/pharmacy/accounts?tab=all&page=2&cursor=c2&new=1");
     nav.search = `tab=all&page=2&cursor=c2&open=${id}`;
+    expect(renderHook(() => useDetail()).result.current.closeHref).toBe(
+      "/pharmacy/accounts?tab=all&page=2&cursor=c2",
+    );
     renderHook(() => useDetail()).result.current.close();
     expect(nav.replace).toHaveBeenCalledWith("/pharmacy/accounts?tab=all&page=2&cursor=c2");
   });

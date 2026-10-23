@@ -30,15 +30,18 @@ export function useDetail() {
   const isOpen = openId !== null || creating;
   const openHref = (id: string) => with_((search) => search.set("open", id));
 
+  const closeHref = with_(() => {});
   return {
     openId,
     creating,
     openHref,
+    /** The list with nothing open, at its tab, filters and page. */
+    closeHref,
     open: (id: string) => (isOpen ? router.replace(openHref(id)) : router.push(openHref(id))),
     create: () => {
       const href = with_((search) => search.set("new", "1"));
       return isOpen ? router.replace(href) : router.push(href);
     },
-    close: () => router.replace(with_(() => {})),
+    close: () => router.replace(closeHref),
   };
 }

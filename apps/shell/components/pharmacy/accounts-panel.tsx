@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@tesserix/web";
-import { ReceiptText, PackageSearch, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, ReceiptText, PackageSearch, Plus } from "lucide-react";
 import {
   PAGE_SIZE,
   useApiPageQuery,
@@ -14,7 +14,8 @@ import {
   type PharmacyPayable,
   type PharmacyInventoryAudit,
 } from "@helivanta/api";
-import { PageTabs, Pager, Panel, RequestFailure } from "@helivanta/ui";
+import { ListDetail, PageTabs, Pager, Panel, RequestFailure, useLeaveGuard } from "@helivanta/ui";
+import { useDetail } from "@/lib/use-detail";
 import { useStepBackWhenEmpty, useUrlPage } from "@/lib/use-url-page";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { PayableForm, PayableHistory } from "./payable-forms";
@@ -62,23 +63,95 @@ function OutletAccounts({
   timeZone: string;
 }) {
   const { can } = usePermissions();
-  const [selected, setSelected] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const editor = useRef<HTMLElement>(null);
-  function reveal(id: string | null) {
-    setCreating(id === null);
-    setSelected(id);
-    requestAnimationFrame(() => {
-      editor.current?.scrollIntoView({ block: "start", behavior: "instant" });
-      editor.current?.querySelector<HTMLElement>("input,button")?.focus({ preventScroll: true });
-    });
-  }
+  const router = useRouter();
   // The tab is the URL (#576 slice 3 D4): Overdue and Due within 7 days are
   // the overview's counts, filtered on the outlet's date the same way.
   // Anything else, an old ?due= link included, is All bills.
   const raw = useSearchParams().get("tab") ?? "";
   const tab: BillsTab = Object.hasOwn(TABS, raw) ? (raw as BillsTab) : "all";
   const url = useUrlPage({ tab });
+  const detail = useDetail();
+
+  // The page's rows as they were when a bill was opened (#1303 D2/D4), so a
+  // payment that drops it out of Overdue leaves Next on the bill below it.
+  // In memory only: opened from a link or a reload, there is no snapshot and
+  // Previous / Next are off rather than guessed.
+  const [snapshot, setSnapshot] = useState<Row[] | null>(null);
+  const [pageRows, setPageRows] = useState<Row[]>([]);
+  const at = snapshot?.findIndex((row) => row.id === detail.openId) ?? -1;
+  const reference =
+    (snapshot ?? []).concat(pageRows).find((row) => row.id === detail.openId)?.reference ?? null;
+
+  // Unsaved edits are never lost silently (#1303 D5).
+  const [form, setForm] = useState({ dirty: false, pending: false });
+  const onStateChange = useCallback((dirty: boolean, pending: boolean) => {
+    setForm((was) => (was.dirty === dirty && was.pending === pending ? was : { dirty, pending }));
+  }, []);
+  const guard = useLeaveGuard(
+    form.dirty || form.pending,
+    detail.creating ? "the new bill" : (reference ?? "this bill"),
+  );
+
+  const lastOpened = useRef<string | null>(null);
+  function openRow(id: string) {
+    guard.confirm(() => {
+      setSnapshot(pageRows);
+      lastOpened.current = id;
+      detail.open(id);
+    });
+  }
+  function step(by: number) {
+    const next = snapshot?.[at + by];
+    if (!next) return;
+    guard.confirm(() => {
+      lastOpened.current = next.id;
+      detail.open(next.id);
+    });
+  }
+  function close() {
+    guard.confirm(() => {
+      const returnTo = lastOpened.current ?? detail.openId;
+      setSnapshot(null);
+      detail.close();
+      // Back to the row it opened from, or the list when that row has gone.
+      requestAnimationFrame(() =>
+        (
+          document.querySelector<HTMLElement>(`[data-open-bill="${returnTo}"]`) ??
+          document.getElementById("payables-heading")
+        )?.focus(),
+      );
+    });
+  }
+
+  // Tabs, the pager and the back link are links: hold them while unsaved.
+  function holdLinks(event: React.MouseEvent) {
+    const link = (event.target as Element).closest("a");
+    if (!link || !(form.dirty || form.pending)) return;
+    event.preventDefault();
+    const href = link.getAttribute("href");
+    if (href) guard.confirm(() => router.push(href));
+  }
+
+  // Creating focuses the first field; viewing focuses the heading (in the record).
+  const pane = useRef<HTMLDivElement>(null);
+  // Escape closes, unless it is closing a menu inside the record first.
+  const onEscape = useEffectEvent((event: KeyboardEvent) => {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    if ((event.target as Element).closest('[role="listbox"],[aria-expanded="true"]')) return;
+    close();
+  });
+  const isOpenNow = detail.openId !== null || detail.creating;
+  useEffect(() => {
+    const node = pane.current;
+    if (!isOpenNow || !node) return;
+    node.addEventListener("keydown", onEscape);
+    return () => node.removeEventListener("keydown", onEscape);
+  }, [isOpenNow]);
+  useEffect(() => {
+    if (detail.creating)
+      requestAnimationFrame(() => pane.current?.querySelector<HTMLElement>("input")?.focus());
+  }, [detail.creating]);
+
   const tabs = (
     <PageTabs
       label="Supplier bills"
@@ -90,49 +163,90 @@ function OutletAccounts({
       }))}
     />
   );
-  return (
-    <div className="space-y-6">
-      {tab === "audit" ? (
+  if (tab === "audit")
+    return (
+      <div className="space-y-6">
         <InventoryAudit scope={scope} url={url} tabs={tabs} />
-      ) : (
-        <Bills
-          scope={scope}
-          tab={tab}
-          url={url}
-          tabs={tabs}
-          canRecord={writable && can("pharmacy.accounts.write")}
-          onRecord={() => reveal(null)}
-          onOpen={reveal}
-        />
-      )}
-      {creating && (
-        <Panel ref={editor} className="scroll-mt-24">
-          <PayableForm
+      </div>
+    );
+
+  const isOpen = detail.openId !== null || detail.creating;
+  const busy = form.pending;
+  const record = detail.creating ? (
+    <Panel>
+      <PayableForm
+        scope={scope}
+        defaultCurrency={defaultCurrency}
+        onSaved={(id) => detail.open(id)}
+        onCancel={close}
+        onStateChange={onStateChange}
+      />
+    </Panel>
+  ) : detail.openId ? (
+    <Panel>
+      <PayableHistory
+        key={detail.openId}
+        scope={scope}
+        id={detail.openId}
+        timeZone={timeZone}
+        writable={writable}
+        onClose={close}
+        onStateChange={onStateChange}
+        nav={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Previous bill"
+              disabled={busy || at <= 0}
+              onClick={() => step(-1)}
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Next bill"
+              disabled={busy || at < 0 || at >= (snapshot?.length ?? 0) - 1}
+              onClick={() => step(1)}
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </>
+        }
+      />
+    </Panel>
+  ) : null;
+
+  return (
+    <div className="space-y-6" onClickCapture={holdLinks}>
+      <ListDetail
+        label={
+          detail.creating ? "New supplier bill" : reference ? `Bill ${reference}` : "Supplier bill"
+        }
+        backHref={detail.closeHref}
+        backLabel="Back to bills"
+        list={
+          <Bills
             scope={scope}
-            defaultCurrency={defaultCurrency}
-            onSaved={(id) => {
-              setCreating(false);
-              setSelected(id);
-            }}
-            onCancel={() => setCreating(false)}
+            tab={tab}
+            url={url}
+            tabs={tabs}
+            compact={isOpen}
+            openId={detail.openId}
+            onRows={setPageRows}
+            canRecord={writable && can("pharmacy.accounts.write")}
+            onRecord={() => guard.confirm(() => detail.create())}
+            onOpen={openRow}
           />
-        </Panel>
-      )}
-      {selected && (
-        <Panel ref={editor} className="scroll-mt-24">
-          <PayableHistory
-            key={selected}
-            scope={scope}
-            id={selected}
-            timeZone={timeZone}
-            writable={writable}
-            onClose={() => setSelected(null)}
-          />
-        </Panel>
-      )}
+        }
+        detail={record && <div ref={pane}>{record}</div>}
+      />
     </div>
   );
 }
+
+type Row = { id: string; reference: string };
 
 const TABS = {
   overdue: "Overdue",
@@ -152,6 +266,9 @@ function Bills({
   canRecord,
   onRecord,
   onOpen,
+  compact,
+  openId,
+  onRows,
 }: {
   scope: PharmacyScope;
   tab: Exclude<BillsTab, "audit">;
@@ -160,6 +277,10 @@ function Bills({
   canRecord: boolean;
   onRecord: () => void;
   onOpen: (id: string) => void;
+  /** Fewer columns while a bill is open beside the list (#1303 D1). */
+  compact: boolean;
+  openId: string | null;
+  onRows: (rows: Row[]) => void;
 }) {
   const due = tab === "all" ? null : tab;
   const bills = useApiPageQuery<PharmacyPayable>(
@@ -168,13 +289,35 @@ function Bills({
     url.cursor,
   );
   const emptied = useStepBackWhenEmpty(bills, url);
+  const rowKey = bills.items.map((b) => `${b.id}:${b.document_reference}`).join();
+  useEffect(() => {
+    onRows(bills.items.map((b) => ({ id: b.id, reference: b.document_reference })));
+    // rowKey stands for the rows: a new array with the same rows is no change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowKey, onRows]);
+  const columns = compact
+    ? ["Document / payee", "Due date", "Outstanding", "History"]
+    : ["Document / payee", "Due date", "Billed", "Paid", "Credits", "Outstanding", "History"];
+  const amounts = (b: PharmacyPayable) =>
+    compact
+      ? ([["Outstanding", b.outstanding_minor]] as const)
+      : ([
+          ["Billed", b.total_minor],
+          ["Paid", b.paid_minor],
+          ["Credits", b.credit_minor],
+          ["Outstanding", b.outstanding_minor],
+        ] as const);
   return (
     <Panel flush aria-labelledby="payables-heading">
       {tabs}
       <div className="p-5">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h3 id="payables-heading" className="flex items-center gap-2 font-semibold">
+            <h3
+              id="payables-heading"
+              tabIndex={-1}
+              className="flex items-center gap-2 font-semibold outline-none"
+            >
               <ReceiptText className="size-5 text-(--hms-accent)" />
               Bills & expenses
             </h3>
@@ -208,19 +351,11 @@ function Bills({
           <div className="overflow-x-auto rounded-md border">
             <table
               aria-label="Bills and expenses"
-              className="block w-full text-left text-sm md:table md:min-w-[780px]"
+              className={`block w-full text-left text-sm md:table ${compact ? "" : "md:min-w-[780px]"}`}
             >
               <thead className="sr-only bg-muted/40 text-xs text-muted-foreground md:not-sr-only">
                 <tr>
-                  {[
-                    "Document / payee",
-                    "Due date",
-                    "Billed",
-                    "Paid",
-                    "Credits",
-                    "Outstanding",
-                    "History",
-                  ].map((h) => (
+                  {columns.map((h) => (
                     <th key={h} scope="col" className="px-4 py-3 font-medium">
                       {h}
                     </th>
@@ -229,7 +364,11 @@ function Bills({
               </thead>
               <tbody className="block divide-y md:table-row-group">
                 {bills.items.map((b) => (
-                  <tr key={b.id} className="grid grid-cols-2 md:table-row">
+                  <tr
+                    key={b.id}
+                    aria-current={b.id === openId ? "true" : undefined}
+                    className={`grid grid-cols-2 md:table-row ${b.id === openId ? "bg-(--hms-accent-dim)" : ""}`}
+                  >
                     <td className="col-span-2 min-w-0 px-4 pt-4 pb-2 md:py-4">
                       <p className="wrap-anywhere font-medium">{b.document_reference}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{b.payee_name}</p>
@@ -240,26 +379,25 @@ function Bills({
                       </span>
                       {b.due_on}
                     </td>
-                    {[b.total_minor, b.paid_minor, b.credit_minor, b.outstanding_minor].map(
-                      (v, i) => (
-                        <td
-                          key={i}
-                          className={`min-w-0 wrap-anywhere px-4 py-2 tabular-nums md:py-4 md:whitespace-nowrap ${i === 3 ? "font-semibold" : ""}`}
+                    {amounts(b).map(([label, v]) => (
+                      <td
+                        key={label}
+                        className={`min-w-0 wrap-anywhere px-4 py-2 tabular-nums md:py-4 md:whitespace-nowrap ${label === "Outstanding" ? "font-semibold" : ""}`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="mb-1 block text-xs font-normal text-muted-foreground md:hidden"
                         >
-                          <span
-                            aria-hidden="true"
-                            className="mb-1 block text-xs font-normal text-muted-foreground md:hidden"
-                          >
-                            {["Billed", "Paid", "Credits", "Outstanding"][i]}
-                          </span>
-                          {formatPharmacyMoney(v, b.currency)}
-                        </td>
-                      ),
-                    )}
+                          {label}
+                        </span>
+                        {formatPharmacyMoney(v, b.currency)}
+                      </td>
+                    ))}
                     <td className="col-span-2 px-4 py-4">
                       <Button
                         variant="ghost"
                         onClick={() => onOpen(b.id)}
+                        data-open-bill={b.id}
                         aria-label={`Open ${b.document_reference}`}
                       >
                         View

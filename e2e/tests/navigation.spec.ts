@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { login, specAdmin } from "./support/login";
+import { freshOutlet } from "./support/pharmacy";
 
 // #933, design spec docs/superpowers/specs/2026-10-13-one-next-app-design.md
 // D2: moving between departments is client-side navigation inside one
@@ -269,4 +270,18 @@ test("content lines up with the header on a page without a panel", async ({ page
   const content = (await page.locator("main > div").boundingBox())!;
   // The header's own text is inset 24px; content lines up with it.
   expect(content.x - header.x, "content offset from the header").toBeLessThanOrEqual(24);
+});
+
+// #1313: only the content area scrolls. A form's hidden native selects must
+// stay inside it, or the whole document scrolls too: two scrollbars.
+test("the page itself never scrolls, only the content area", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 924 });
+  await freshOutlet(page);
+  await page.goto("/pharmacy/setup");
+  await expect(page.getByRole("button", { name: "Register outlet" })).toBeVisible();
+  const overflow = await page.evaluate(() => {
+    const doc = document.scrollingElement!;
+    return doc.scrollHeight - doc.clientHeight;
+  });
+  expect(overflow).toBe(0);
 });

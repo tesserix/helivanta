@@ -817,7 +817,10 @@ export function HmsShell({
                   </nav>
                 </aside>
               )}
-              <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+              {/* relative: the content's absolutely positioned pieces (a select's
+                hidden native <select>) are placed and clipped in here, not
+                against the page, which would scroll the document too (#1313). */}
+              <div className="relative flex min-w-0 flex-1 flex-col overflow-y-auto">
                 {/* A size container, so a list lays out by the space it has: the
                   rail expanding changes that without the viewport changing (#1303). */}
                 <main className="@container/main flex-1 px-6 pt-6 pb-6 md:pt-0">

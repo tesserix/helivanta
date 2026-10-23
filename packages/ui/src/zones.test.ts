@@ -239,3 +239,14 @@ describe("zone icons and sections", () => {
     ]);
   });
 });
+
+// #1303 D8: full width is a page's declared choice; Supplier bills is the
+// first page to take it.
+describe("page width", () => {
+  it("declares full width only where a page has chosen it", () => {
+    const full = ZONES.flatMap((zone) => zone.pages)
+      .filter((page) => page.width === "full")
+      .map((page) => page.href);
+    expect(full).toEqual(["/pharmacy/accounts"]);
+  });
+});

@@ -49,6 +49,8 @@ export type ZonePage = {
   permission: string;
   /** Heading the page panel shows before the first page of a run (#1258 D1). */
   section?: string;
+  /** "full" drops the content cap for a page that needs the width (#1303 D8). */
+  width?: "full";
 };
 
 export type ZoneHue = "rose" | "amber" | "violet";
@@ -189,6 +191,7 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/accounts",
         icon: ReceiptText,
         permission: "pharmacy.accounts.read",
+        width: "full",
       },
       {
         section: "Setup",

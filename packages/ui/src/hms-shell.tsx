@@ -11,7 +11,6 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronsLeft, ChevronsRight, Menu, X } from "lucide-react";
 import {
@@ -25,6 +24,7 @@ import {
   clearPermissionsCache,
   clearRenewAt,
 } from "@helivanta/api";
+import { GuardedLink, NavigationGuardProvider } from "./navigation-guard";
 import { ZONES, visibleZones, activeZone, activePage, type Zone } from "./zones";
 import { BrandLogo, TesserixFooter } from "./branding";
 import { BrandThemeContext } from "./brand-theme";
@@ -102,7 +102,7 @@ function ZoneLink({
   onNavigate: () => void;
 }) {
   return (
-    <Link
+    <GuardedLink
       href={zone.href}
       onClick={onNavigate}
       title={zone.label}
@@ -122,7 +122,7 @@ function ZoneLink({
           {zone.railLabel}
         </span>
       )}
-    </Link>
+    </GuardedLink>
   );
 }
 
@@ -170,7 +170,7 @@ function PhoneMenu({
     const active = z.key === zone.key;
     return (
       <Fragment key={z.key}>
-        <Link
+        <GuardedLink
           href={z.href}
           onClick={onClose}
           aria-current={active ? "page" : undefined}
@@ -182,7 +182,7 @@ function PhoneMenu({
         >
           <z.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
           {z.label}
-        </Link>
+        </GuardedLink>
         {active && z.pages.length > 1 && (
           <div className="hms-sidebar-border mb-2 ml-5 border-l pl-3">
             {z.pages.map((pageLink, index) => {
@@ -197,7 +197,7 @@ function PhoneMenu({
                       {heading}
                     </p>
                   )}
-                  <Link
+                  <GuardedLink
                     href={pageLink.href}
                     onClick={onClose}
                     aria-current={pageLink.href === currentHref ? "page" : undefined}
@@ -209,7 +209,7 @@ function PhoneMenu({
                   >
                     <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                     {pageLink.label}
-                  </Link>
+                  </GuardedLink>
                 </Fragment>
               );
             })}
@@ -620,209 +620,226 @@ export function HmsShell({
   const hasPagePanel = zone.pages.length > 1;
 
   return (
-    <BrandThemeContext value={branding.theme}>
-      {warningDeadline && <IdleCountdown deadline={warningDeadline} onStay={handleStayLoggedIn} />}
-      <div data-brand-theme={branding.theme} className="flex h-screen overflow-hidden">
-        <PhoneMenu
-          open={menuOpen}
-          onClose={() => setMenuOpen(false)}
-          zones={zones}
-          zone={zone}
-          currentHref={currentPage?.href}
-          isLoading={isLoading}
-          returnFocusTo={menuButtonRef}
-        />
-        <aside
-          // Floating and content-height from md (#1286 D1); below md the rail
-          // stays the flush 64px icon column and the open rail a full-height
-          // drawer (D3), so every card class is md-scoped.
-          className={`hms-rail hms-sidebar-border hidden shrink-0 flex-col bg-(--sidebar-rail) md:flex ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 border-r shadow-xl md:relative md:inset-auto md:m-2 md:max-h-[calc(100dvh-1rem)] md:self-start md:rounded-2xl md:border md:shadow-sm" : "w-16 border-r md:m-2 md:max-h-[calc(100dvh-1rem)] md:w-20 md:self-start md:rounded-2xl md:border md:shadow-sm"}`}
-        >
-          <div className={`flex h-16 items-center ${navigationOpen ? "px-4" : "justify-center"}`}>
-            <Link
-              href="/dashboard"
-              aria-label="Helivanta home"
-              className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-primary"
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <BrandLogo key={branding.logo_url} branding={branding} compact />
-              </span>
-              {navigationOpen && <span className="text-sm text-sidebar-foreground">Helivanta</span>}
-            </Link>
-          </div>
-          <div className="hms-sidebar-border mx-2 border-t" />
-          <nav
-            id="hms-zone-navigation"
-            aria-label="Zones"
-            aria-busy={isLoading || undefined}
-            className={`flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto py-4 ${navigationOpen ? "px-3" : "items-center"}`}
+    <NavigationGuardProvider>
+      <BrandThemeContext value={branding.theme}>
+        {warningDeadline && (
+          <IdleCountdown deadline={warningDeadline} onStay={handleStayLoggedIn} />
+        )}
+        <div data-brand-theme={branding.theme} className="flex h-screen overflow-hidden">
+          <PhoneMenu
+            open={menuOpen}
+            onClose={() => setMenuOpen(false)}
+            zones={zones}
+            zone={zone}
+            currentHref={currentPage?.href}
+            isLoading={isLoading}
+            returnFocusTo={menuButtonRef}
+          />
+          <aside
+            // Floating and content-height from md (#1286 D1); below md the rail
+            // stays the flush 64px icon column and the open rail a full-height
+            // drawer (D3), so every card class is md-scoped.
+            className={`hms-rail hms-sidebar-border hidden shrink-0 flex-col bg-(--sidebar-rail) md:flex ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 border-r shadow-xl md:relative md:inset-auto md:m-2 md:max-h-[calc(100dvh-1rem)] md:self-start md:rounded-2xl md:border md:shadow-sm" : "w-16 border-r md:m-2 md:max-h-[calc(100dvh-1rem)] md:w-20 md:self-start md:rounded-2xl md:border md:shadow-sm"}`}
           >
-            {isLoading
-              ? ZONES.filter((z) => z.group !== "admin").map((z) => (
-                  <NavPlaceholder key={z.key} wide={navigationOpen} />
-                ))
-              : zones
-                  .filter((z) => z.group !== "admin")
-                  .map((z, index, list) => (
-                    <Fragment key={z.key}>
-                      {index > 0 && list[index - 1].group !== z.group && (
-                        <div
-                          aria-hidden="true"
-                          className="hms-sidebar-border my-2 w-8 self-center border-t"
+            <div className={`flex h-16 items-center ${navigationOpen ? "px-4" : "justify-center"}`}>
+              <GuardedLink
+                href="/dashboard"
+                aria-label="Helivanta home"
+                className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-primary"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <BrandLogo key={branding.logo_url} branding={branding} compact />
+                </span>
+                {navigationOpen && (
+                  <span className="text-sm text-sidebar-foreground">Helivanta</span>
+                )}
+              </GuardedLink>
+            </div>
+            <div className="hms-sidebar-border mx-2 border-t" />
+            <nav
+              id="hms-zone-navigation"
+              aria-label="Zones"
+              aria-busy={isLoading || undefined}
+              className={`flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto py-4 ${navigationOpen ? "px-3" : "items-center"}`}
+            >
+              {isLoading
+                ? ZONES.filter((z) => z.group !== "admin").map((z) => (
+                    <NavPlaceholder key={z.key} wide={navigationOpen} />
+                  ))
+                : zones
+                    .filter((z) => z.group !== "admin")
+                    .map((z, index, list) => (
+                      <Fragment key={z.key}>
+                        {index > 0 && list[index - 1].group !== z.group && (
+                          <div
+                            aria-hidden="true"
+                            className="hms-sidebar-border my-2 w-8 self-center border-t"
+                          />
+                        )}
+                        <ZoneLink
+                          zone={z}
+                          active={z.key === zone.key}
+                          expanded={navigationOpen}
+                          onNavigate={closeOverlays}
                         />
-                      )}
-                      <ZoneLink
-                        zone={z}
-                        active={z.key === zone.key}
-                        expanded={navigationOpen}
-                        onNavigate={closeOverlays}
-                      />
-                    </Fragment>
-                  ))}
-          </nav>
-          {/* The foot of the rail: admin zones, then the collapse control, which
+                      </Fragment>
+                    ))}
+            </nav>
+            {/* The foot of the rail: admin zones, then the collapse control, which
               is chrome rather than a destination (#1270 D1, D3). */}
-          <div
-            className={`hms-sidebar-border mx-2 flex flex-col gap-1 border-t py-3 ${navigationOpen ? "px-1" : "items-center"}`}
-          >
-            {!isLoading &&
-              zones
-                .filter((z) => z.group === "admin")
-                .map((z) => (
-                  <ZoneLink
-                    key={z.key}
-                    zone={z}
-                    active={z.key === zone.key}
-                    expanded={navigationOpen}
-                    onNavigate={closeOverlays}
-                  />
-                ))}
-            <button
-              type="button"
-              aria-controls="hms-zone-navigation"
-              aria-expanded={navigationOpen}
-              aria-label={navigationOpen ? "Collapse navigation" : "Expand navigation"}
-              title={navigationOpen ? "Collapse navigation" : "Expand navigation"}
-              onClick={() => setNavigationOpen(!navigationOpen)}
-              className={`flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent) ${navigationOpen ? "ml-2" : ""}`}
+            <div
+              className={`hms-sidebar-border mx-2 flex flex-col gap-1 border-t py-3 ${navigationOpen ? "px-1" : "items-center"}`}
             >
-              {navigationOpen ? (
-                <ChevronsLeft className="size-4" aria-hidden="true" />
-              ) : (
-                <ChevronsRight className="size-4" aria-hidden="true" />
-              )}
-            </button>
-          </div>
-        </aside>
+              {!isLoading &&
+                zones
+                  .filter((z) => z.group === "admin")
+                  .map((z) => (
+                    <ZoneLink
+                      key={z.key}
+                      zone={z}
+                      active={z.key === zone.key}
+                      expanded={navigationOpen}
+                      onNavigate={closeOverlays}
+                    />
+                  ))}
+              <button
+                type="button"
+                aria-controls="hms-zone-navigation"
+                aria-expanded={navigationOpen}
+                aria-label={navigationOpen ? "Collapse navigation" : "Expand navigation"}
+                title={navigationOpen ? "Collapse navigation" : "Expand navigation"}
+                onClick={() => setNavigationOpen(!navigationOpen)}
+                className={`flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent) ${navigationOpen ? "ml-2" : ""}`}
+              >
+                {navigationOpen ? (
+                  <ChevronsLeft className="size-4" aria-hidden="true" />
+                ) : (
+                  <ChevronsRight className="size-4" aria-hidden="true" />
+                )}
+              </button>
+            </div>
+          </aside>
 
-        {/* Right of the rail: the header card spans the panel and the page, and
+          {/* Right of the rail: the header card spans the panel and the page, and
             the panel and page sit below it, top-aligned (#1286 D6). The header
             is outside the scroll container, so it needs no sticky backdrop. */}
-        <div className="flex min-w-0 flex-1 flex-col md:gap-2 md:py-2 md:pr-2">
-          <header className="hms-sidebar-border z-30 shrink-0 border-b bg-background md:rounded-2xl md:border md:bg-(--sidebar-rail) md:shadow-sm">
-            <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-              <div className="flex items-center gap-2">
-                <button
-                  ref={menuButtonRef}
-                  type="button"
-                  onClick={() => setMenuOpen(true)}
-                  aria-label="Open menu"
-                  aria-expanded={menuOpen}
-                  aria-controls="hms-phone-menu"
-                  className="mr-1 flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
-                >
-                  <Menu className="h-5 w-5" aria-hidden="true" />
-                </button>
-                {/* The header names the hospital on every page, so the tenant is
-                      never off screen. */}
-                <span
-                  data-testid="tenant-name"
-                  className="truncate text-sm font-medium text-muted-foreground"
-                >
-                  {branding.display_name}
-                </span>
-                <span aria-hidden="true" className="text-sm text-border">
-                  /
-                </span>
-                <h1 className="text-xl font-semibold text-foreground">
-                  {hasPagePanel ? (currentPage?.label ?? zone.label) : zone.label}
-                </h1>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                {tenantPicker}
-                <form onSubmit={handleSignOut}>
+          <div className="flex min-w-0 flex-1 flex-col md:gap-2 md:py-2 md:pr-2">
+            <header className="hms-sidebar-border z-30 shrink-0 border-b bg-background md:rounded-2xl md:border md:bg-(--sidebar-rail) md:shadow-sm">
+              <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+                <div className="flex items-center gap-2">
                   <button
-                    type="submit"
-                    className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                    ref={menuButtonRef}
+                    type="button"
+                    onClick={() => setMenuOpen(true)}
+                    aria-label="Open menu"
+                    aria-expanded={menuOpen}
+                    aria-controls="hms-phone-menu"
+                    className="mr-1 flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
                   >
-                    Sign out
+                    <Menu className="h-5 w-5" aria-hidden="true" />
                   </button>
-                </form>
+                  {/* The header names the hospital on every page, so the tenant is
+                      never off screen. */}
+                  <span
+                    data-testid="tenant-name"
+                    className="truncate text-sm font-medium text-muted-foreground"
+                  >
+                    {branding.display_name}
+                  </span>
+                  <span aria-hidden="true" className="text-sm text-border">
+                    /
+                  </span>
+                  <h1 className="text-xl font-semibold text-foreground">
+                    {hasPagePanel ? (currentPage?.label ?? zone.label) : zone.label}
+                  </h1>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  {tenantPicker}
+                  <form onSubmit={handleSignOut}>
+                    <button
+                      type="submit"
+                      className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                    >
+                      Sign out
+                    </button>
+                  </form>
+                </div>
               </div>
-            </div>
-          </header>
-          <div className="flex min-h-0 flex-1">
-            {/* Page panel: always shown from md (#1286 D4); on a phone its pages
+            </header>
+            <div className="flex min-h-0 flex-1">
+              {/* Page panel: always shown from md (#1286 D4); on a phone its pages
                 are in the menu (#1299).
                 A single-page zone has none: it would repeat the rail's one link
                 (#1255 spec D4). */}
-            {hasPagePanel && (
-              <aside className="hms-page-panel hms-sidebar-border hidden shrink-0 flex-col overflow-hidden bg-(--sidebar-rail) md:static md:mr-2 md:flex md:max-h-full md:w-56 md:self-start md:rounded-2xl md:border md:shadow-sm">
-                <nav
-                  aria-label={zone.label}
-                  className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"
-                >
-                  {isLoading &&
-                    zone.pages.map((pageLink) => <NavPlaceholder key={pageLink.href} wide />)}
-                  {!isLoading &&
-                    zone.pages.map((pageLink, index) => {
-                      const isActive = currentPage?.href === pageLink.href;
-                      // A section heading once, before the first permitted page of
-                      // its run (#1258 D1); zones.test keeps each run contiguous.
-                      const heading =
-                        pageLink.section && pageLink.section !== zone.pages[index - 1]?.section
-                          ? pageLink.section
-                          : null;
-                      return (
-                        <Fragment key={pageLink.href}>
-                          {heading && (
-                            <p
-                              data-section
-                              className={`px-3 pb-1 text-xs font-medium text-sidebar-foreground/60 ${index > 0 ? "pt-4" : ""}`}
+              {hasPagePanel && (
+                <aside className="hms-page-panel hms-sidebar-border hidden shrink-0 flex-col overflow-hidden bg-(--sidebar-rail) md:static md:mr-2 md:flex md:max-h-full md:w-56 md:self-start md:rounded-2xl md:border md:shadow-sm">
+                  <nav
+                    aria-label={zone.label}
+                    className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"
+                  >
+                    {isLoading &&
+                      zone.pages.map((pageLink) => <NavPlaceholder key={pageLink.href} wide />)}
+                    {!isLoading &&
+                      zone.pages.map((pageLink, index) => {
+                        const isActive = currentPage?.href === pageLink.href;
+                        // A section heading once, before the first permitted page of
+                        // its run (#1258 D1); zones.test keeps each run contiguous.
+                        const heading =
+                          pageLink.section && pageLink.section !== zone.pages[index - 1]?.section
+                            ? pageLink.section
+                            : null;
+                        return (
+                          <Fragment key={pageLink.href}>
+                            {heading && (
+                              <p
+                                data-section
+                                className={`px-3 pb-1 text-xs font-medium text-sidebar-foreground/60 ${index > 0 ? "pt-4" : ""}`}
+                              >
+                                {heading}
+                              </p>
+                            )}
+                            <GuardedLink
+                              href={pageLink.href}
+                              aria-current={isActive ? "page" : undefined}
+                              onClick={closeOverlays}
+                              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                                isActive
+                                  ? "bg-sidebar-accent text-sidebar-foreground"
+                                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                              }`}
                             >
-                              {heading}
-                            </p>
-                          )}
-                          <Link
-                            href={pageLink.href}
-                            aria-current={isActive ? "page" : undefined}
-                            onClick={closeOverlays}
-                            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                              isActive
-                                ? "bg-sidebar-accent text-sidebar-foreground"
-                                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                            }`}
-                          >
-                            <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                            {pageLink.label}
-                          </Link>
-                        </Fragment>
-                      );
-                    })}
-                </nav>
-              </aside>
-            )}
-            <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-              <main className="flex-1 px-6 pt-6 pb-6 md:pt-0">
-                {/* Left-aligned with the header card, not centred: centring left an
-                    empty band beside the rail on a page with no panel (#1296). */}
-                <div className="w-full max-w-6xl">{children}</div>
-              </main>
-              <TesserixFooter />
+                              <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                              {pageLink.label}
+                            </GuardedLink>
+                          </Fragment>
+                        );
+                      })}
+                  </nav>
+                </aside>
+              )}
+              {/* relative: the content's absolutely positioned pieces (a select's
+                hidden native <select>) are placed and clipped in here, not
+                against the page, which would scroll the document too (#1313). */}
+              <div className="relative flex min-w-0 flex-1 flex-col overflow-y-auto">
+                {/* A size container, so a list lays out by the space it has: the
+                  rail expanding changes that without the viewport changing (#1303). */}
+                <main className="@container/main flex-1 px-6 pt-6 pb-6 md:pt-0">
+                  {/* Left-aligned with the header card, not centred: centring left an
+                    empty band beside the rail on a page with no panel (#1296). A page
+                    declares full width in zones.ts; it still stops at 1760px. */}
+                  <div
+                    data-width={currentPage?.width === "full" ? "full" : "capped"}
+                    className={`w-full ${currentPage?.width === "full" ? "max-w-[1760px]" : "max-w-6xl"}`}
+                  >
+                    {children}
+                  </div>
+                </main>
+                <TesserixFooter />
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </BrandThemeContext>
+      </BrandThemeContext>
+    </NavigationGuardProvider>
   );
 }

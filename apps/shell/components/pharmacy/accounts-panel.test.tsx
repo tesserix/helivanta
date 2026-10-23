@@ -1,6 +1,7 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
+import { NavigationGuardProvider } from "@helivanta/ui";
 import { PharmacyWorkspace } from "./pharmacy-workspace";
 const pharmacy = "0199e000-0000-7000-8000-000000000010",
   outlet = "0199e000-0000-7000-8000-000000000001";
@@ -9,16 +10,35 @@ const page = (data: unknown[]) => ({
   data,
   page: { has_more: false, next_cursor: null, total: data.length, offset: 0 },
 });
-const nav = vi.hoisted(() => ({ search: "", replace: vi.fn() }));
-vi.mock("next/navigation", () => ({
-  usePathname: () => "/pharmacy/accounts",
-  useSearchParams: () => new URLSearchParams(nav.search),
-  useRouter: () => ({ replace: nav.replace, push: vi.fn() }),
+// A live address: push and replace change what useSearchParams returns and
+// re-render, as the app router does. Each call is recorded.
+const nav = vi.hoisted(() => ({
+  search: "",
+  listeners: new Set<() => void>(),
+  calls: [] as { method: "push" | "replace"; href: string }[],
 }));
+vi.mock("next/navigation", async () => {
+  const { useSyncExternalStore } = await import("react");
+  const subscribe = (fn: () => void) => {
+    nav.listeners.add(fn);
+    return () => nav.listeners.delete(fn);
+  };
+  const go = (method: "push" | "replace") => (href: string) => {
+    nav.calls.push({ method, href });
+    nav.search = href.split("?")[1] ?? "";
+    nav.listeners.forEach((fn) => fn());
+  };
+  return {
+    usePathname: () => "/pharmacy/accounts",
+    useSearchParams: () => new URLSearchParams(useSyncExternalStore(subscribe, () => nav.search)),
+    useRouter: () => ({ push: go("push"), replace: go("replace") }),
+  };
+});
 afterEach(() => {
   vi.unstubAllGlobals();
   sessionStorage.clear();
   nav.search = "";
+  nav.calls.length = 0;
 });
 function mockAccounts(financial = true, country = "IN") {
   const fetcher = vi.fn(async (url: string) => {
@@ -109,7 +129,11 @@ function mockAccounts(financial = true, country = "IN") {
 }
 it("shows paid, credited and remaining amounts", async () => {
   mockAccounts();
-  renderWithProviders(<PharmacyWorkspace view="accounts" />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyWorkspace view="accounts" />
+    </NavigationGuardProvider>,
+  );
   expect(await screen.findByText("TEST-EXPENSE-001")).toBeInTheDocument();
   expect(screen.getByText("TEST Supplier")).toBeInTheDocument();
   expect(screen.getByRole("columnheader", { name: "Outstanding" })).toBeInTheDocument();
@@ -119,7 +143,11 @@ it("shows paid, credited and remaining amounts", async () => {
 it("shows the inventory cost audit on its own tab, without valuing uncosted drugs", async () => {
   nav.search = "tab=audit";
   const fetcher = mockAccounts();
-  renderWithProviders(<PharmacyWorkspace view="accounts" />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyWorkspace view="accounts" />
+    </NavigationGuardProvider>,
+  );
   expect(await screen.findByText("Purchase cost missing")).toBeInTheDocument();
   expect(screen.getByText("25 uncosted units")).toBeInTheDocument();
   expect(screen.queryByText("TEST-EXPENSE-001")).not.toBeInTheDocument();
@@ -134,7 +162,11 @@ describe("bill tabs", () => {
   it("opens Overdue from the URL, filtered and counted", async () => {
     nav.search = "tab=overdue";
     const fetcher = mockAccounts();
-    renderWithProviders(<PharmacyWorkspace view="accounts" />);
+    renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="accounts" />
+      </NavigationGuardProvider>,
+    );
     expect(await screen.findByText("TEST-EXPENSE-001")).toBeInTheDocument();
     expect(requested(fetcher, "/accounts/payables/counted")).toEqual([
       expect.stringMatching(/\/accounts\/payables\/counted\?due=overdue&limit=25$/),
@@ -146,7 +178,11 @@ describe("bill tabs", () => {
   it("links every tab at its first page and drops the old filter button", async () => {
     nav.search = "tab=week&page=2&cursor=c2";
     mockAccounts();
-    renderWithProviders(<PharmacyWorkspace view="accounts" />);
+    renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="accounts" />
+      </NavigationGuardProvider>,
+    );
     await screen.findByText("TEST-EXPENSE-001");
     expect(screen.getByRole("link", { name: "All bills" })).toHaveAttribute(
       "href",
@@ -164,7 +200,11 @@ describe("bill tabs", () => {
     for (const search of ["due=overdue", "tab=toString"]) {
       nav.search = search;
       const fetcher = mockAccounts();
-      const { unmount } = renderWithProviders(<PharmacyWorkspace view="accounts" />);
+      const { unmount } = renderWithProviders(
+        <NavigationGuardProvider>
+          <PharmacyWorkspace view="accounts" />
+        </NavigationGuardProvider>,
+      );
       await screen.findByText("TEST-EXPENSE-001");
       expect(requested(fetcher, "/accounts/payables/counted")).toEqual([
         expect.stringMatching(/\/accounts\/payables\/counted\?limit=25$/),
@@ -178,7 +218,11 @@ const requested = (fetcher: ReturnType<typeof vi.fn>, path: string) =>
   fetcher.mock.calls.map(([url]) => String(url)).filter((url) => url.includes(path));
 it("does not fetch confidential costs without financial read permission", async () => {
   const fetcher = mockAccounts(false);
-  renderWithProviders(<PharmacyWorkspace view="accounts" />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyWorkspace view="accounts" />
+    </NavigationGuardProvider>,
+  );
   expect(await screen.findByText("Financial access required")).toBeInTheDocument();
   await waitFor(() =>
     expect(fetcher.mock.calls.some(([url]) => url.includes("/accounts/"))).toBe(false),
@@ -203,7 +247,11 @@ it("focuses the expense form and records exact minor amounts with a stable retry
       return base(url);
     }),
   );
-  const { user } = renderWithProviders(<PharmacyWorkspace view="accounts" />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyWorkspace view="accounts" />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Record bill or expense" }));
   const payee = await screen.findByLabelText("Payee name");
   expect(payee).toHaveFocus();
@@ -228,7 +276,11 @@ it("focuses the expense form and records exact minor amounts with a stable retry
 
 it("defaults expenses to the outlet country's currency", async () => {
   mockAccounts(true, "IN");
-  const { user } = renderWithProviders(<PharmacyWorkspace view="accounts" />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyWorkspace view="accounts" />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Record bill or expense" }));
   expect(screen.getByLabelText("Currency")).toHaveTextContent("INR");
   expect(screen.getByLabelText("Net amount 1 (INR)")).toBeInTheDocument();
@@ -271,7 +323,11 @@ it("uses the configured timezone for payable and settlement recording times with
       return base(url);
     }),
   );
-  const { user } = renderWithProviders(<PharmacyWorkspace view="accounts" />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyWorkspace view="accounts" />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Open TEST-EXPENSE-001" }));
   expect(await screen.findByText("2026-10-15 05:00:00 GMT+05:00")).toHaveAttribute(
     "datetime",
@@ -283,4 +339,266 @@ it("uses the configured timezone for payable and settlement recording times with
   );
   expect(screen.getByText(/Document date 2026-10-01 · Due 2026-10-31/)).toBeInTheDocument();
   expect(screen.getByText("2026-10-14")).toBeInTheDocument();
+});
+
+// #1303: a bill opens beside the list, kept in the URL, and unsaved edits
+// are never lost silently.
+const second = "0199e000-0000-7000-8000-000000000021";
+const third = "0199e000-0000-7000-8000-000000000022";
+const bill = (bid: string, ref: string) => ({
+  id: bid,
+  payee_reference: "TEST-SUPPLIER",
+  payee_name: "TEST Supplier",
+  document_reference: ref,
+  currency: "INR",
+  issued_on: "2026-10-01",
+  due_on: "2026-10-31",
+  total_minor: 11800,
+  paid_minor: 3000,
+  credit_minor: 800,
+  outstanding_minor: 8000,
+  line_count: 1,
+  created_at: "2026-10-15T00:00:00Z",
+  actor_subject: "TEST-finance",
+});
+const bills = [
+  bill(id, "TEST-EXPENSE-001"),
+  bill(second, "TEST-EXPENSE-002"),
+  bill(third, "TEST-EXPENSE-003"),
+];
+
+function mockDetail(opts: { list?: () => unknown[]; missing?: string } = {}) {
+  const base = mockAccounts();
+  const fetcher = vi.fn(async (url: string) => {
+    if (url.includes("/accounts/payables/counted"))
+      return new Response(JSON.stringify(page(opts.list?.() ?? bills)));
+    if (url.endsWith("/settlements")) return new Response(JSON.stringify(page([])));
+    const match = bills.find((b) => url.endsWith(`/accounts/payables/${b.id}`));
+    if (match) return new Response(JSON.stringify({ ...match, lines: [] }));
+    if (opts.missing && url.endsWith(`/accounts/payables/${opts.missing}`))
+      return new Response(JSON.stringify({ error: "not_found", message: "TEST not found" }), {
+        status: 404,
+      });
+    return base(url);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  return fetcher;
+}
+
+describe("bill detail pane", () => {
+  it("opens the bill named in the URL, with its heading focused", async () => {
+    nav.search = `tab=all&open=${id}`;
+    mockDetail();
+    renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="accounts" />
+      </NavigationGuardProvider>,
+    );
+    const pane = await screen.findByRole("region", { name: "Bill TEST-EXPENSE-001" });
+    const heading = await within(pane).findByRole("heading", { name: "TEST-EXPENSE-001" });
+    await waitFor(() => expect(heading).toHaveFocus());
+  });
+
+  // Another outlet's or tenant's bill is a 404: say so, and fetch nothing else.
+  it("says a bill it cannot open was not found", async () => {
+    const missing = "0199e000-0000-7000-8000-000000000099";
+    nav.search = `tab=all&open=${missing}`;
+    const fetcher = mockDetail({ missing });
+    renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="accounts" />
+      </NavigationGuardProvider>,
+    );
+    expect(
+      await screen.findByText("This record was not found, or you do not have access."),
+    ).toBeVisible();
+    const calls = fetcher.mock.calls.map(([u]) => String(u)).filter((u) => u.includes(missing));
+    expect(calls).toEqual([expect.stringMatching(new RegExp(`/accounts/payables/${missing}$`))]);
+  });
+
+  it("pushes when opening a bill and replaces when switching", async () => {
+    nav.search = "tab=all";
+    mockDetail();
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="accounts" />
+      </NavigationGuardProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Open TEST-EXPENSE-001" }));
+    await screen.findByRole("region", { name: "Bill TEST-EXPENSE-001" });
+    await user.click(screen.getByRole("button", { name: "Open TEST-EXPENSE-002" }));
+    await screen.findByRole("region", { name: "Bill TEST-EXPENSE-002" });
+    expect(nav.calls.map((c) => c.method)).toEqual(["push", "replace"]);
+    expect(nav.calls.at(-1)?.href).toBe(`/pharmacy/accounts?tab=all&open=${second}`);
+    expect(
+      screen.getByRole("button", { name: "Open TEST-EXPENSE-002" }).closest("tr"),
+    ).toHaveAttribute("aria-current", "true");
+  });
+
+  it("steps through the page with Previous and Next, disabled at the ends", async () => {
+    nav.search = "tab=all";
+    mockDetail();
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="accounts" />
+      </NavigationGuardProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Open TEST-EXPENSE-001" }));
+    await screen.findByRole("region", { name: "Bill TEST-EXPENSE-001" });
+    expect(screen.getByRole("button", { name: "Previous bill" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Next bill" }));
+    await screen.findByRole("region", { name: "Bill TEST-EXPENSE-002" });
+    await user.click(screen.getByRole("button", { name: "Next bill" }));
+    await screen.findByRole("region", { name: "Bill TEST-EXPENSE-003" });
+    expect(screen.getByRole("button", { name: "Next bill" })).toBeDisabled();
+  });
+
+  // Opened from a link or a reload, the neighbours are unknown: no guessing.
+  it("has no Previous or Next when opened from the URL", async () => {
+    nav.search = `tab=all&open=${second}`;
+    mockDetail();
+    renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="accounts" />
+      </NavigationGuardProvider>,
+    );
+    await screen.findByRole("region", { name: "Bill TEST-EXPENSE-002" });
+    expect(screen.getByRole("button", { name: "Previous bill" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Next bill" })).toBeDisabled();
+  });
+
+  // Review focus 1: a payment drops the bill out of Overdue; it stays open
+  // and Next goes to the bill that was below it.
+  it("keeps a bill open after it leaves the list, and Next goes to the one below", async () => {
+    nav.search = "tab=overdue";
+    let rows = bills;
+    mockDetail({ list: () => rows });
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="accounts" />
+      </NavigationGuardProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Open TEST-EXPENSE-001" }));
+    await screen.findByRole("region", { name: "Bill TEST-EXPENSE-001" });
+    rows = bills.slice(1);
+    // The list refetches, as it does when the pharmacist returns to the window.
+    act(() => {
+      window.dispatchEvent(new Event("visibilitychange"));
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Open TEST-EXPENSE-001" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("region", { name: "Bill TEST-EXPENSE-001" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Next bill" }));
+    await screen.findByRole("region", { name: "Bill TEST-EXPENSE-002" });
+  });
+
+  it("asks before discarding a half-typed settlement, and Keep editing keeps it", async () => {
+    nav.search = "tab=all";
+    mockDetail();
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="accounts" />
+      </NavigationGuardProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Open TEST-EXPENSE-001" }));
+    const paidBy = await screen.findByLabelText("Paid by");
+    await user.type(paidBy, "TEST payer");
+    await user.click(screen.getByRole("button", { name: "Open TEST-EXPENSE-002" }));
+    expect(await screen.findByRole("dialog")).toHaveTextContent(
+      "Discard changes to TEST-EXPENSE-001?",
+    );
+    await user.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.getByLabelText("Paid by")).toHaveValue("TEST payer");
+    expect(nav.search).toBe(`tab=all&open=${id}`);
+  });
+
+  it("opens a new bill in the pane with its first field focused", async () => {
+    nav.search = "tab=all";
+    mockDetail();
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="accounts" />
+      </NavigationGuardProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Record bill or expense" }));
+    const pane = await screen.findByRole("region", { name: "New supplier bill" });
+    expect(nav.search).toBe("tab=all&new=1");
+    await waitFor(() => expect(within(pane).getByLabelText("Payee name")).toHaveFocus());
+  });
+
+  it("closes on Escape and returns to the row it opened from", async () => {
+    nav.search = "tab=all";
+    mockDetail();
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="accounts" />
+      </NavigationGuardProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Open TEST-EXPENSE-002" }));
+    await screen.findByRole("heading", { name: "TEST-EXPENSE-002" });
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("region", { name: /^Bill / })).toBeNull());
+    expect(nav.search).toBe("tab=all");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Open TEST-EXPENSE-002" })).toHaveFocus(),
+    );
+  });
+
+  it("closes the bill when the tab changes", async () => {
+    nav.search = `tab=all&open=${id}`;
+    mockDetail();
+    renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="accounts" />
+      </NavigationGuardProvider>,
+    );
+    await screen.findByRole("region", { name: "Bill TEST-EXPENSE-001" });
+    expect(screen.getByRole("link", { name: "Overdue" })).toHaveAttribute(
+      "href",
+      "/pharmacy/accounts?tab=overdue",
+    );
+  });
+});
+
+// Review Important 2: a save that finishes after the person has left the
+// page records the bill, but must not pull them back to it.
+it("does not pull the person back when a save finishes after they left", async () => {
+  nav.search = "tab=all&new=1";
+  const base = mockDetail();
+  let finish: (r: Response) => void = () => {};
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string, init?: RequestInit) =>
+      init?.method === "PUT"
+        ? new Promise<Response>((resolve) => {
+            finish = resolve;
+          })
+        : base(url),
+    ),
+  );
+  const { user, unmount } = renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyWorkspace view="accounts" />
+    </NavigationGuardProvider>,
+  );
+  await user.type(await screen.findByLabelText("Payee name"), "TEST Supplier");
+  await user.type(screen.getByLabelText("Payee reference"), "TEST-SUPPLIER");
+  await user.type(screen.getByLabelText("Document reference"), "TEST-LATE-BILL");
+  await user.type(screen.getByLabelText("Document date"), "2026-10-01");
+  await user.type(screen.getByLabelText("Due date"), "2026-10-31");
+  await user.type(screen.getByLabelText("Description 1"), "TEST Electricity");
+  await user.clear(screen.getByLabelText("Net amount 1 (INR)"));
+  await user.type(screen.getByLabelText("Net amount 1 (INR)"), "125.25");
+  await user.click(screen.getByRole("button", { name: "Save bill or expense" }));
+  await waitFor(() => expect(finish).not.toBe(undefined));
+  const before = nav.calls.length;
+  unmount();
+  await act(async () => {
+    finish(new Response(JSON.stringify({ ...bills[0], lines: [] })));
+  });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(nav.calls.slice(before)).toEqual([]);
 });

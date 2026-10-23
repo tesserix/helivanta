@@ -10,7 +10,7 @@ import {
   type PharmacyOutlet,
   type PharmacyScope,
 } from "@helivanta/api";
-import { Panel, RequestFailure, formatTime } from "@helivanta/ui";
+import { Panel, RequestFailure, formatDateTime, formatTime } from "@helivanta/ui";
 
 type OutletOverview = {
   as_of: string;
@@ -22,6 +22,13 @@ type OutletOverview = {
 };
 
 type Waiting = { id: string; created_at: string };
+
+// A wait that began today reads as a time; an older one needs its date.
+function sinceLabel(iso: string) {
+  return new Date(iso).toDateString() === new Date().toDateString()
+    ? formatTime(iso)
+    : formatDateTime(iso);
+}
 
 // One count and the list it opens. The link carries the same filter the
 // server counted with (#576 D3/D4), so the number and the rows agree.
@@ -201,7 +208,7 @@ function WaitingTile() {
           />
           <p className="px-2 text-xs text-muted-foreground">
             {oldest
-              ? `Oldest waiting since ${formatTime(oldest.created_at)}`
+              ? `Oldest waiting since ${sinceLabel(oldest.created_at)}`
               : "No patients waiting"}
           </p>
         </>

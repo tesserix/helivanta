@@ -141,4 +141,14 @@ describe("OverviewTiles", () => {
     renderWithProviders(<OverviewTiles scope={scope} outlet={outlet} />);
     expect(await screen.findByText(/As of 12:00/)).toBeVisible();
   });
+
+  // A wait that began on an earlier day must say which day, not just a time.
+  it("dates the oldest wait when it began before today", async () => {
+    serve();
+    renderWithProviders(<OverviewTiles scope={scope} outlet={outlet} />);
+    const note = await within(
+      await screen.findByRole("region", { name: "Patients waiting" }),
+    ).findByText(/Oldest waiting since/);
+    expect(note.textContent).toMatch(/2026/);
+  });
 });

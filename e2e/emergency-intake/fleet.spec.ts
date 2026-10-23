@@ -107,12 +107,14 @@ test("supervisor verifies fleet and duty, records failure and clears it against 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
-  expect(
-    await page.locator("main").evaluate((main) => {
-      const pane = main.parentElement!;
-      return { width: pane.clientWidth, content: pane.scrollWidth };
-    }),
-  ).toEqual({ width: 326, content: 326 });
+  // The content pane spans the phone (#1299: no rail column below md) and
+  // nothing inside it scrolls sideways.
+  const pane = await page.locator("main").evaluate((main) => {
+    const el = main.parentElement!;
+    return { width: el.clientWidth, content: el.scrollWidth, viewport: window.innerWidth };
+  });
+  expect(pane.content).toBe(pane.width);
+  expect(pane.width).toBe(pane.viewport);
   await page.screenshot({
     path: "../docs/architecture/evidence/ambulanceconnect-2026-10-18/fleet-mobile.png",
     fullPage: false,

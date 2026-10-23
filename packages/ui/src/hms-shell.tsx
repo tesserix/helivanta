@@ -13,7 +13,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PanelLeftOpen, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Menu, X } from "lucide-react";
 import {
   ApiError,
   useApiQuery,
@@ -126,10 +126,146 @@ function ZoneLink({
   );
 }
 
-// Matches the `md` breakpoint the chrome's overlay classes use. Without
-// matchMedia (tests, old engines) the persisted desktop behaviour applies.
-function isDesktop() {
-  return window.matchMedia?.("(min-width: 48rem)").matches ?? true;
+// The phone menu (#1299): every zone, grouped as on the rail, with the
+// current zone's pages under their section headings. A modal drawer: focus
+// moves in on open and back to the menu button on Escape or close; choosing a
+// link closes it and lets the navigation carry focus.
+function PhoneMenu({
+  open,
+  onClose,
+  zones,
+  zone,
+  currentHref,
+  isLoading,
+  returnFocusTo,
+}: {
+  open: boolean;
+  onClose: () => void;
+  zones: Zone[];
+  zone: Zone;
+  currentHref?: string;
+  isLoading: boolean;
+  returnFocusTo: React.RefObject<HTMLButtonElement | null>;
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      onClose();
+      returnFocusTo.current?.focus();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose, returnFocusTo]);
+  if (!open) return null;
+  const dismiss = () => {
+    onClose();
+    returnFocusTo.current?.focus();
+  };
+  const main = zones.filter((z) => z.group !== "admin");
+  const admin = zones.filter((z) => z.group === "admin");
+  const zoneLink = (z: Zone) => {
+    const active = z.key === zone.key;
+    return (
+      <Fragment key={z.key}>
+        <Link
+          href={z.href}
+          onClick={onClose}
+          aria-current={active ? "page" : undefined}
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            active
+              ? "bg-(--hms-accent-dim) text-(--hms-accent)"
+              : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+          }`}
+        >
+          <z.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+          {z.label}
+        </Link>
+        {active && z.pages.length > 1 && (
+          <div className="hms-sidebar-border mb-2 ml-5 border-l pl-3">
+            {z.pages.map((pageLink, index) => {
+              const heading =
+                pageLink.section && pageLink.section !== z.pages[index - 1]?.section
+                  ? pageLink.section
+                  : null;
+              return (
+                <Fragment key={pageLink.href}>
+                  {heading && (
+                    <p className="px-3 pt-3 pb-1 text-xs font-medium text-sidebar-foreground/60">
+                      {heading}
+                    </p>
+                  )}
+                  <Link
+                    href={pageLink.href}
+                    onClick={onClose}
+                    aria-current={pageLink.href === currentHref ? "page" : undefined}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      pageLink.href === currentHref
+                        ? "bg-sidebar-accent text-sidebar-foreground"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                    }`}
+                  >
+                    <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {pageLink.label}
+                  </Link>
+                </Fragment>
+              );
+            })}
+          </div>
+        )}
+      </Fragment>
+    );
+  };
+  return (
+    <div className="md:hidden">
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden="true"
+        onClick={dismiss}
+        className="fixed inset-0 z-40 bg-foreground/20"
+      />
+      <div
+        id="hms-phone-menu"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu"
+        className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-(--sidebar-rail) shadow-xl"
+      >
+        <div className="hms-sidebar-border flex h-16 shrink-0 items-center justify-end border-b px-3">
+          <button
+            ref={closeRef}
+            type="button"
+            onClick={dismiss}
+            aria-label="Close menu"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+        <nav aria-label="Menu" className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
+          {isLoading
+            ? ZONES.map((z) => <NavPlaceholder key={z.key} wide />)
+            : main.map((z, index) => (
+                <Fragment key={z.key}>
+                  {index > 0 && main[index - 1].group !== z.group && (
+                    <div aria-hidden="true" className="hms-sidebar-border my-1 border-t" />
+                  )}
+                  {zoneLink(z)}
+                </Fragment>
+              ))}
+          {!isLoading && admin.length > 0 && (
+            <>
+              <div aria-hidden="true" className="hms-sidebar-border my-1 border-t" />
+              {admin.map(zoneLink)}
+            </>
+          )}
+        </nav>
+      </div>
+    </div>
+  );
 }
 
 // A neutral slot holding a link's place while permissions load (#1270 D2).
@@ -204,15 +340,11 @@ export function HmsShell({
     ? activeZone(pathname)
     : (zones.find((z) => z.key === activeZone(pathname).key) ?? zones[0]);
   const [navigationOpen, setNavigationOpen] = usePersistedFlag(NAVIGATION_KEY, false);
-  // Below md the rail and the page panel are overlays (#1270 D4, D5); both
-  // close once a destination is chosen. From md the panel is always shown
-  // (#1286 D4), so the page overlay is the only panel state.
-  const [pagesOverlayOpen, setPagesOverlayOpen] = useState(false);
-  const closeOverlays = () => {
-    if (isDesktop()) return;
-    setPagesOverlayOpen(false);
-    if (navigationOpen) setNavigationOpen(false);
-  };
+  // Below md the rail and page panel are not shown; one header menu holds
+  // both (#1299). From md the panel is always shown (#1286 D4).
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const closeOverlays = () => setMenuOpen(false);
 
   // Idle-session tracking (design spec D2/D4/D7). Mounted here, not in
   // apps/shell, for the exact reason endZitadelSession's doc comment
@@ -491,21 +623,20 @@ export function HmsShell({
     <BrandThemeContext value={branding.theme}>
       {warningDeadline && <IdleCountdown deadline={warningDeadline} onStay={handleStayLoggedIn} />}
       <div data-brand-theme={branding.theme} className="flex h-screen overflow-hidden">
-        {navigationOpen && <div aria-hidden="true" className="w-16 shrink-0 md:hidden" />}
-        {(navigationOpen || pagesOverlayOpen) && (
-          <button
-            type="button"
-            tabIndex={-1}
-            aria-label="Close navigation"
-            onClick={closeOverlays}
-            className="fixed inset-0 z-30 bg-foreground/20 md:hidden"
-          />
-        )}
+        <PhoneMenu
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          zones={zones}
+          zone={zone}
+          currentHref={currentPage?.href}
+          isLoading={isLoading}
+          returnFocusTo={menuButtonRef}
+        />
         <aside
           // Floating and content-height from md (#1286 D1); below md the rail
           // stays the flush 64px icon column and the open rail a full-height
           // drawer (D3), so every card class is md-scoped.
-          className={`hms-rail hms-sidebar-border flex shrink-0 flex-col bg-(--sidebar-rail) ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 border-r shadow-xl md:relative md:inset-auto md:m-2 md:max-h-[calc(100dvh-1rem)] md:self-start md:rounded-2xl md:border md:shadow-sm" : "w-16 border-r md:m-2 md:max-h-[calc(100dvh-1rem)] md:w-20 md:self-start md:rounded-2xl md:border md:shadow-sm"}`}
+          className={`hms-rail hms-sidebar-border hidden shrink-0 flex-col bg-(--sidebar-rail) md:flex ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 border-r shadow-xl md:relative md:inset-auto md:m-2 md:max-h-[calc(100dvh-1rem)] md:self-start md:rounded-2xl md:border md:shadow-sm" : "w-16 border-r md:m-2 md:max-h-[calc(100dvh-1rem)] md:w-20 md:self-start md:rounded-2xl md:border md:shadow-sm"}`}
         >
           <div className={`flex h-16 items-center ${navigationOpen ? "px-4" : "justify-center"}`}>
             <Link
@@ -591,17 +722,17 @@ export function HmsShell({
           <header className="hms-sidebar-border z-30 shrink-0 border-b bg-background md:rounded-2xl md:border md:bg-(--sidebar-rail) md:shadow-sm">
             <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
               <div className="flex items-center gap-2">
-                {hasPagePanel && (
-                  <button
-                    type="button"
-                    onClick={() => setPagesOverlayOpen(true)}
-                    aria-label="Expand page panel"
-                    title="Expand panel"
-                    className="mr-1 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
-                  >
-                    <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                )}
+                <button
+                  ref={menuButtonRef}
+                  type="button"
+                  onClick={() => setMenuOpen(true)}
+                  aria-label="Open menu"
+                  aria-expanded={menuOpen}
+                  aria-controls="hms-phone-menu"
+                  className="mr-1 flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
+                >
+                  <Menu className="h-5 w-5" aria-hidden="true" />
+                </button>
                 {/* The header names the hospital on every page, so the tenant is
                       never off screen. */}
                 <span
@@ -631,15 +762,12 @@ export function HmsShell({
             </div>
           </header>
           <div className="flex min-h-0 flex-1">
-            {/* Page panel: always shown from md, an overlay below it (#1286 D4).
+            {/* Page panel: always shown from md (#1286 D4); on a phone its pages
+                are in the menu (#1299).
                 A single-page zone has none: it would repeat the rail's one link
                 (#1255 spec D4). */}
             {hasPagePanel && (
-              <aside
-                className={`hms-page-panel hms-sidebar-border flex shrink-0 flex-col overflow-hidden bg-(--sidebar-rail) ${
-                  pagesOverlayOpen ? "fixed inset-y-0 left-16 z-40 w-56 shadow-xl" : "hidden"
-                } md:static md:z-auto md:mr-2 md:flex md:max-h-full md:w-56 md:self-start md:rounded-2xl md:border md:shadow-sm`}
-              >
+              <aside className="hms-page-panel hms-sidebar-border hidden shrink-0 flex-col overflow-hidden bg-(--sidebar-rail) md:static md:mr-2 md:flex md:max-h-full md:w-56 md:self-start md:rounded-2xl md:border md:shadow-sm">
                 <nav
                   aria-label={zone.label}
                   className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"

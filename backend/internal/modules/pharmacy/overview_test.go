@@ -17,6 +17,8 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"gorm.io/gorm"
 )
 
 var allPharmacyPerms = []authz.Permission{
@@ -29,10 +31,10 @@ var allPharmacyPerms = []authz.Permission{
 // stock and catalogue, "cataloguer" catalogue read only. The module clock is
 // pinned for the date-based counts; stock expiry uses the database clock, as
 // the stock register does.
-func overviewHarness(t *testing.T) *gin.Engine {
+func overviewHarness(t *testing.T) (*gin.Engine, *tenantdb.DB) {
 	t.Helper()
 	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC) })
-	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"editor": testutil.TenantA, "pharmacist": testutil.TenantA, "cataloguer": testutil.TenantA, "ungranted": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
 			"editor":     allPharmacyPerms,
@@ -46,7 +48,7 @@ func overviewHarness(t *testing.T) *gin.Engine {
 	for _, subject := range []string{"user-editor", "user-pharmacist", "user-cataloguer"} {
 		grantCatalogue(t, r, subject, "editor")
 	}
-	return r
+	return r, db
 }
 
 func outletPath(suffix string) string {
@@ -116,7 +118,7 @@ func listCount(t *testing.T, r *gin.Engine, path string) int {
 // #576: every overview count equals the list its link opens, filtered the
 // same way and paged to the end.
 func TestOverviewCountsEqualTheirLists(t *testing.T) {
-	r := overviewHarness(t)
+	r, db := overviewHarness(t)
 
 	// Stock lines on the outlet's own (database-clock) date: expired, within
 	// 30, within 90, later, and one received then fully corrected out.
@@ -166,7 +168,13 @@ func TestOverviewCountsEqualTheirLists(t *testing.T) {
 	require.Equal(t, 2, got.Stock.Due30)
 	require.Equal(t, 4, got.Stock.Due90)
 	// The register is always read as of a moment; the stock page sends now.
-	asOf := url.QueryEscape(time.Now().UTC().Format(time.RFC3339Nano))
+	// Read on the database's clock: the register refuses an as_of later
+	// than it, and the test process's clock can run ahead of the container's.
+	var dbNow time.Time
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw("SELECT clock_timestamp()").Scan(&dbNow).Error
+	}))
+	asOf := url.QueryEscape(dbNow.UTC().Format(time.RFC3339Nano))
 	require.Equal(t, listCount(t, r, outletPath("/stock/positions?balance=on_hand&expiry=expired&as_of="+asOf)), got.Stock.Expired)
 	require.Equal(t, listCount(t, r, outletPath("/stock/positions?balance=on_hand&expiry=due_30&as_of="+asOf)), got.Stock.Due30)
 	require.Equal(t, listCount(t, r, outletPath("/stock/positions?balance=on_hand&expiry=due_90&as_of="+asOf)), got.Stock.Due90)
@@ -193,7 +201,7 @@ func TestOverviewCountsEqualTheirLists(t *testing.T) {
 // A section the person may not see is absent, never zero; lacking one
 // permission does not refuse the whole overview.
 func TestOverviewSectionsFollowPermissions(t *testing.T) {
-	r := overviewHarness(t)
+	r, _ := overviewHarness(t)
 
 	code, got, raw := getOverview(t, r, "pharmacist")
 	require.Equal(t, http.StatusOK, code, raw)
@@ -214,7 +222,7 @@ func TestOverviewSectionsFollowPermissions(t *testing.T) {
 }
 
 func TestOverviewOtherTenantAndNoGrant(t *testing.T) {
-	r := overviewHarness(t)
+	r, _ := overviewHarness(t)
 	code, _, _ := getOverview(t, r, "ungranted")
 	require.Equal(t, http.StatusNotFound, code)
 	code, _, _ = getOverview(t, r, "foreign")

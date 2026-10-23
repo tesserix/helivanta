@@ -84,6 +84,27 @@ test.describe("on a phone", () => {
     await expect(page).toHaveURL(/\/pharmacy\/accounts\?tab=all$/);
     await expect(page.getByRole("button", { name: `Open TEST-PANE-${stamp}-1` })).toBeVisible();
   });
+
+  // Review Critical 1: Back cannot be cancelled, and the router moves first.
+  // An unsaved payment must survive it until the person chooses.
+  test("Back with an unsaved payment asks first and keeps it", async ({ page }) => {
+    const stamp = await seeded(page);
+    await page.goto("/pharmacy/accounts?tab=all");
+    await page.getByRole("button", { name: `Open TEST-PANE-${stamp}-1` }).click();
+    await page.getByLabel("Paid by").fill("TEST payer");
+    await page.goBack();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText(`Discard changes to TEST-PANE-${stamp}-1?`);
+    await expect(page).toHaveURL(/open=/);
+    await dialog.getByRole("button", { name: "Keep editing" }).click();
+    await expect(page.getByLabel("Paid by")).toHaveValue("TEST payer");
+    await expect(page).toHaveURL(/open=/);
+
+    await page.goBack();
+    await page.getByRole("dialog").getByRole("button", { name: "Discard" }).click();
+    await expect(page).toHaveURL(/\/pharmacy\/accounts\?tab=all$/);
+    await expect(page.getByRole("region", { name: /^Bill / })).toHaveCount(0);
+  });
 });
 
 test("an unsaved payment asks before a rail link leaves the page", async ({ page }) => {

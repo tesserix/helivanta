@@ -562,3 +562,43 @@ describe("bill detail pane", () => {
     );
   });
 });
+
+// Review Important 2: a save that finishes after the person has left the
+// page records the bill, but must not pull them back to it.
+it("does not pull the person back when a save finishes after they left", async () => {
+  nav.search = "tab=all&new=1";
+  const base = mockDetail();
+  let finish: (r: Response) => void = () => {};
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string, init?: RequestInit) =>
+      init?.method === "PUT"
+        ? new Promise<Response>((resolve) => {
+            finish = resolve;
+          })
+        : base(url),
+    ),
+  );
+  const { user, unmount } = renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyWorkspace view="accounts" />
+    </NavigationGuardProvider>,
+  );
+  await user.type(await screen.findByLabelText("Payee name"), "TEST Supplier");
+  await user.type(screen.getByLabelText("Payee reference"), "TEST-SUPPLIER");
+  await user.type(screen.getByLabelText("Document reference"), "TEST-LATE-BILL");
+  await user.type(screen.getByLabelText("Document date"), "2026-10-01");
+  await user.type(screen.getByLabelText("Due date"), "2026-10-31");
+  await user.type(screen.getByLabelText("Description 1"), "TEST Electricity");
+  await user.clear(screen.getByLabelText("Net amount 1 (INR)"));
+  await user.type(screen.getByLabelText("Net amount 1 (INR)"), "125.25");
+  await user.click(screen.getByRole("button", { name: "Save bill or expense" }));
+  await waitFor(() => expect(finish).not.toBe(undefined));
+  const before = nav.calls.length;
+  unmount();
+  await act(async () => {
+    finish(new Response(JSON.stringify({ ...bills[0], lines: [] })));
+  });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(nav.calls.slice(before)).toEqual([]);
+});

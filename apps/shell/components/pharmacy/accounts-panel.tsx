@@ -87,10 +87,20 @@ function OutletAccounts({
   const onStateChange = useCallback((dirty: boolean, pending: boolean) => {
     setForm((was) => (was.dirty === dirty && was.pending === pending ? was : { dirty, pending }));
   }, []);
+  // A save in flight is held, not offered as discardable: it commits anyway.
   const guard = useLeaveGuard(
-    form.dirty || form.pending,
+    form.dirty,
     detail.creating ? "the new bill" : (reference ?? "this bill"),
+    form.pending,
   );
+  // A save that finishes after the person has left must not pull them back.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const lastOpened = useRef<string | null>(null);
   function openRow(id: string) {
@@ -177,7 +187,9 @@ function OutletAccounts({
       <PayableForm
         scope={scope}
         defaultCurrency={defaultCurrency}
-        onSaved={(id) => detail.open(id)}
+        onSaved={(id) => {
+          if (mounted.current) detail.open(id);
+        }}
         onCancel={close}
         onStateChange={onStateChange}
       />

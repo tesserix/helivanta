@@ -14,7 +14,9 @@ Success:
 
 - No country list offers Pakistan.
 - No API accepts `PK` or `PKR`.
-- No database table can hold a new Pakistan row.
+- No table can hold a new Pakistan country row. The supply and workspace checks are India
+  only. Pharmacy's outlet country and currency columns stay format-checked, because pharmacy
+  takes its rules from the profile and its API refuses anything without one (D2).
 - A database that already holds one stops at the migration with a clear message, rather
   than having it changed silently.
 
@@ -51,6 +53,10 @@ Success:
         territories and delivery tasks;
       - identifier kinds `ntn` and `stn`.
     - Workspace country policy: `country = 'PK'` or `currency = 'PKR'`.
+  - **Releasing:** [the release note](../../deployment/remove-pakistan-release.md) gives
+    the pre-deploy check, run as the BYPASSRLS role. It also gives the reviewed
+    schema-owner procedure for any records found: they are append-only business records,
+    so they cannot simply be deleted. _(Added after review.)_
   - **The count must see every tenant.** Migrations run as the schema owner, and under
     `FORCE ROW LEVEL SECURITY` the owner sees no tenant's rows (#894).
     - This was checked on a scratch database with a non-superuser owner. Forced, the owner

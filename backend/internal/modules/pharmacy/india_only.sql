@@ -1,7 +1,7 @@
 -- #1287: Pakistan is no longer a supported country. Existing Pakistan
 -- outlets and rupee amounts are refused, not migrated: moving them to India
 -- would change their currency, time zone and tax rules, a decision no
--- migration can make. An operator deletes or corrects them, then re-runs.
+-- migration can make. An operator follows docs/deployment/remove-pakistan-release.md.
 -- The outlet check stays a two-letter pattern: pharmacy takes its rules from
 -- the country profile, and the API refuses a code without one.
 SET LOCAL lock_timeout='5s';
@@ -29,6 +29,6 @@ BEGIN
     END IF;
   END LOOP;
   IF found <> '' THEN
-    RAISE EXCEPTION '#1287: Pakistan rows:%; delete or correct them, then re-run', found;
+    RAISE EXCEPTION '#1287: Pakistan rows:%; see docs/deployment/remove-pakistan-release.md', found;
   END IF;
 END $$;

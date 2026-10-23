@@ -1,8 +1,8 @@
 -- #1287: Pakistan is no longer a supported country. Existing Pakistan
 -- supply records are refused, not migrated: moving a party, premises or
 -- licence to India would change its registrations, identifiers and
--- regulatory scope, a decision no migration can make. An operator deletes or
--- corrects them, then re-runs.
+-- regulatory scope, a decision no migration can make. An operator follows
+-- docs/deployment/remove-pakistan-release.md.
 SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='60s';
 
@@ -33,7 +33,7 @@ BEGIN
     END IF;
   END LOOP;
   IF found <> '' THEN
-    RAISE EXCEPTION '#1287: Pakistan rows:%; delete or correct them, then re-run', found;
+    RAISE EXCEPTION '#1287: Pakistan rows:%; see docs/deployment/remove-pakistan-release.md', found;
   END IF;
 
   -- The checks that allowed Pakistan become India only.

@@ -1703,7 +1703,7 @@
         },
         {
           "id": "0011_pharmacy",
-          "sql_sha256": "ccc5f1a2dbeba7cf8691ffcd84ff407b3aafd5415c90ae5d6e05146aefecc3fa",
+          "sql_sha256": "fe1a3a2f4c1c24600ecaad5ad4e104d5ae30b9bc7865963fdc56076dc0fb0f34",
           "creates_tables": []
         }
       ]
@@ -2642,7 +2642,7 @@
         },
         {
           "id": "0009_supply",
-          "sql_sha256": "defd945f957bb2236e52854e4c9fbdb485e37ac35440cd331bf2adb6ca6214ad",
+          "sql_sha256": "6d2be243ae5f3f7c6c66d68b2a955e6156a75a533f62810b989615c9dd2b1e54",
           "creates_tables": []
         }
       ]
@@ -5123,7 +5123,7 @@
         },
         {
           "id": "0003_workspace_india_only",
-          "sql_sha256": "f4268eb381088cc7a778a8f7309a72f72ac1278b64df6ed52531dedf79a85eed",
+          "sql_sha256": "0dbe15f31f4d0c8025ffef8e251f5c09acd5dedde3296b178af22c2514dbedc2",
           "creates_tables": []
         }
       ]

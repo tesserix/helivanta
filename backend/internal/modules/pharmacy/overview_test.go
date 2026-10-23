@@ -234,15 +234,14 @@ func TestOverviewOtherTenantAndNoGrant(t *testing.T) {
 // products, so "not classified" there is not a gap anyone can close. The
 // count is absent rather than a permanent false figure.
 func TestOverviewOmitsTaxGapsWithoutAScheme(t *testing.T) {
-	r, _ := overviewHarness(t)
-	w := do(r, "PUT", "/v1/pharmacy/pharmacies/"+pharmaOrganization+"/outlets/"+pkOutlet, "editor", `{"code":"TEST-LAHORE","name":"TEST Lahore Outlet","country_code":"PK","timezone":"Asia/Karachi"}`)
-	require.Equal(t, 200, w.Code, w.Body.String())
-	grantPath := "/v1/pharmacy/pharmacies/" + pharmaOrganization + "/outlets/" + pkOutlet + "/access/user-editor"
-	require.Equal(t, 200, do(r, "PUT", grantPath, "editor", `{"level":"editor"}`).Code)
-	w = do(r, "PUT", "/v1/pharmacy/pharmacies/"+pharmaOrganization+"/outlets/"+pkOutlet+"/catalogue/products/"+uuid.Must(uuid.NewV7()).String(), "editor", strings.Replace(productBody(0, "TEST Lahore product"), `"currency":"INR"`, `"currency":"PKR"`, 1))
+	r, db := overviewHarness(t)
+	legacyTx(t, db, func(tx *gorm.DB) error { return seedLegacyOutlet(tx, schemelessOutlet, "XX", "UTC") })
+	base := "/v1/pharmacy/pharmacies/" + pharmaOrganization + "/outlets/" + schemelessOutlet
+	require.Equal(t, 200, do(r, "PUT", base+"/access/user-editor", "editor", `{"level":"editor"}`).Code)
+	w := do(r, "PUT", base+"/catalogue/products/"+uuid.Must(uuid.NewV7()).String(), "editor", productBody(0, "TEST Legacy product"))
 	require.Equal(t, 200, w.Code, w.Body.String())
 
-	w = do(r, "GET", "/v1/pharmacy/pharmacies/"+pharmaOrganization+"/outlets/"+pkOutlet+"/overview", "editor", "")
+	w = do(r, "GET", base+"/overview", "editor", "")
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 	require.NotContains(t, w.Body.String(), "unclassified")
 	require.NotContains(t, w.Body.String(), "registration_in_force")

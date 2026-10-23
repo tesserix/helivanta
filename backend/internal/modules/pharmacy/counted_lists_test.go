@@ -14,6 +14,7 @@ import (
 
 	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module
 	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"gorm.io/gorm"
 )
 
 // countedTotal pages a counted list at 2 rows a page to the end. Every page
@@ -165,10 +166,9 @@ func TestCountedCatalogueFilters(t *testing.T) {
 
 // Fail closed: without a tax scheme every product would be "unclassified".
 func TestCountedCatalogueRefusesUnclassifiedWithoutAScheme(t *testing.T) {
-	r, _ := overviewHarness(t)
-	base := "/v1/pharmacy/pharmacies/" + pharmaOrganization + "/outlets/" + pkOutlet
-	w := do(r, "PUT", base, "editor", `{"code":"TEST-LAHORE","name":"TEST Lahore Outlet","country_code":"PK","timezone":"Asia/Karachi"}`)
-	require.Equal(t, 200, w.Code, w.Body.String())
+	r, db := overviewHarness(t)
+	legacyTx(t, db, func(tx *gorm.DB) error { return seedLegacyOutlet(tx, schemelessOutlet, "XX", "UTC") })
+	base := "/v1/pharmacy/pharmacies/" + pharmaOrganization + "/outlets/" + schemelessOutlet
 	require.Equal(t, 200, do(r, "PUT", base+"/access/user-editor", "editor", `{"level":"editor"}`).Code)
 	require.Equal(t, http.StatusBadRequest, do(r, "GET", base+"/catalogue/products/counted?tax=unclassified", "editor", "").Code)
 	require.Equal(t, http.StatusOK, do(r, "GET", base+"/catalogue/products/counted", "editor", "").Code)

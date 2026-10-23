@@ -35,6 +35,16 @@ func ValidTimezone(code, zone string) bool {
 	}
 }
 
+// SupportedCurrency reports whether code is a supported country's currency.
+func SupportedCurrency(code string) bool {
+	switch code {
+	case "INR":
+		return true
+	default:
+		return false
+	}
+}
+
 // ValidTaxIdentifierKind checks declared metadata, not licence validity.
 func ValidTaxIdentifierKind(code, kind string) bool {
 	switch code {

@@ -139,13 +139,13 @@ func TestTaxClassificationRejects(t *testing.T) {
 
 func TestTaxClassificationRefusesCountryWithoutScheme(t *testing.T) {
 	r := taxHarness(t)
-	w := do(r, "PUT", "/v1/pharmacy/pharmacies/"+pharmaOrganization+"/outlets/"+pkOutlet+"/access/user-owner", "editor", `{"level":"editor"}`)
+	w := do(r, "PUT", "/v1/pharmacy/pharmacies/"+pharmaOrganization+"/outlets/"+schemelessOutlet+"/access/user-owner", "editor", `{"level":"editor"}`)
 	require.Equal(t, 200, w.Code, w.Body.String())
 	id := uuid.Must(uuid.NewV7()).String()
-	pkProduct := strings.Replace(productPath(id), pharmaOutlet, pkOutlet, 1)
-	w = do(r, "PUT", pkProduct, "owner", strings.Replace(productBody(0, "TEST Amoxil"), `"INR"`, `"PKR"`, 1))
+	legacyProduct := strings.Replace(productPath(id), pharmaOutlet, schemelessOutlet, 1)
+	w = do(r, "PUT", legacyProduct, "owner", productBody(0, "TEST Amoxil"))
 	require.Equal(t, 200, w.Code, w.Body.String())
-	w = do(r, "POST", pkProduct+"/tax-classifications", "owner", classificationBody("3004", "taxable", "5", "", "2026-11-01", ""))
+	w = do(r, "POST", legacyProduct+"/tax-classifications", "owner", classificationBody("3004", "taxable", "5", "", "2026-11-01", ""))
 	require.Equal(t, 409, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), "tax_scheme_unavailable")
 }

@@ -103,3 +103,11 @@ func TestCountryWithoutTaxSchemeRefusesTaxSetup(t *testing.T) {
 	_, ok = countryprofile.Tax("ZZ")
 	require.False(t, ok)
 }
+
+// #1287: an amount is in a supported country's currency; Pakistan's is not.
+func TestSupportedCurrencyIsAProfileCurrency(t *testing.T) {
+	require.True(t, countryprofile.SupportedCurrency("INR"))
+	for _, code := range []string{"PKR", "USD", "inr", ""} {
+		require.False(t, countryprofile.SupportedCurrency(code), code)
+	}
+}

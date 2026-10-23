@@ -29,6 +29,11 @@ Success:
   - The supply and pharmacy contracts drop any PK value.
   - Every API that validates a country or currency against the profile then refuses `PK`
     and `PKR` with its existing 400.
+  - Pharmacy's product, bill and payment currencies were checked only as three letters, so
+    they would still accept `PKR`. They now accept only a supported country's currency,
+    using a generated `countryprofile.SupportedCurrency`. _(Ruled while building.)_
+    - The rule that a stocked product's currency cannot change is now unreachable, because
+      there is no second currency to change to. It stays for when another country returns.
 - **D2 Existing Pakistan rows are refused, not migrated (agreed).** Each owning module gets
   one new, append-only migration. It first counts that module's Pakistan rows across every
   tenant. If there are any, it raises an error naming each table and its row count, and it

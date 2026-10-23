@@ -19,11 +19,14 @@ import (
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-const pkOutlet = "0199e000-0000-7000-8000-000000000003"
+// schemelessOutlet is a legacy outlet whose country has no profile, and so
+// no tax scheme (#1287): only data that predates a country's removal can be
+// one, so it is written straight to the database.
+const schemelessOutlet = "0199e000-0000-7000-8000-000000000003"
 
 var ownerPerms = []authz.Permission{"pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.access.manage", "pharmacy.tax.manage", "pharmacy.stock.read"}
 
-// taxHarness seeds an Indian and a Pakistani outlet of one pharmacy, grants
+// taxHarness seeds an Indian and a schemeless outlet of one pharmacy, grants
 // the owner editor access to the Indian one, and pins the clock to
 // 2026-11-01 12:00 IST.
 func taxHarness(t *testing.T) *gin.Engine {
@@ -46,8 +49,7 @@ func taxHarnessDB(t *testing.T) (*gin.Engine, *tenantdb.DB) {
 		}, Modules: []platform.Module{pharmacy.New()},
 	})
 	seedPharmacyOutlet(t, r)
-	w := do(r, "PUT", "/v1/pharmacy/pharmacies/"+pharmaOrganization+"/outlets/"+pkOutlet, "editor", `{"code":"TEST-LAHORE","name":"TEST Lahore Outlet","country_code":"PK","timezone":"Asia/Karachi"}`)
-	require.Equal(t, 200, w.Code, w.Body.String())
+	seedSchemelessOutlet(t, db)
 	for _, subject := range []string{"user-editor", "user-owner", "user-pharmacist"} {
 		grantCatalogue(t, r, subject, "editor")
 	}
@@ -147,7 +149,7 @@ func TestTaxRegistrationRejects(t *testing.T) {
 	}
 	require.Empty(t, listRegistrations(t, r, "owner"))
 
-	w := do(r, "POST", registrationsPath(pkOutlet), "owner", registrationBody("07", "07ABCDE1234F1Z2", "2026-11-01", ""))
+	w := do(r, "POST", registrationsPath(schemelessOutlet), "owner", registrationBody("07", "07ABCDE1234F1Z2", "2026-11-01", ""))
 	require.Equal(t, 409, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), "tax_scheme_unavailable")
 
@@ -299,4 +301,9 @@ func TestTaxRegistrationInForceRoute(t *testing.T) {
 	crossed := strings.Replace(registrationsPath(pharmaOutlet), pharmaOrganization, other, 1)
 	require.Equal(t, 404, do(r, "GET", crossed+"/in-force", "owner", "").Code)
 	require.Equal(t, 404, do(r, "GET", crossed, "owner", "").Code)
+}
+
+func seedSchemelessOutlet(t *testing.T, db *tenantdb.DB) {
+	t.Helper()
+	legacyTx(t, db, func(tx *gorm.DB) error { return seedLegacyOutlet(tx, schemelessOutlet, "XX", "UTC") })
 }

@@ -59,6 +59,7 @@ export function CataloguePanel({
   timeZone = "UTC",
   countryCode = "",
   canManageTax = false,
+  initialUnclassified = false,
 }: {
   scope: PharmacyScope;
   writable: boolean;
@@ -67,9 +68,11 @@ export function CataloguePanel({
   countryCode?: string;
   /** pharmacy.tax.manage with editor access: rates are the owner's, not the catalogue editor's. */
   canManageTax?: boolean;
+  /** Open at "Not classified", from a link such as the overview's (#576 D4). */
+  initialUnclassified?: boolean;
 }) {
   const [query, setQuery] = useState("");
-  const [unclassified, setUnclassified] = useState(false);
+  const [unclassified, setUnclassified] = useState(initialUnclassified);
   const scheme = taxScheme(countryCode);
   const today = zonedDateTimeInput(new Date().toISOString(), timeZone).slice(0, 10);
   const [selected, setSelected] = useState<PharmacyProduct | null | undefined>();

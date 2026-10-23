@@ -21,7 +21,17 @@ import {
 import { Field, LoadMore, Panel, RequestFailure, SelectControl } from "@helivanta/ui";
 import { StockExport } from "./stock-export";
 
-type Props = { scope: PharmacyScope; timeZone?: string };
+type Props = {
+  scope: PharmacyScope;
+  timeZone?: string;
+  /** Starting filters, from a link such as the overview's (#576 D4); unknown values are ignored. */
+  initialExpiry?: string;
+  initialBalance?: string;
+};
+const EXPIRY_FILTERS = ["all", "expired", "today", "due_30", "due_90", "due_180", "unexpired"];
+const BALANCE_FILTERS = ["all", "on_hand"];
+const known = (value: string | undefined, allowed: string[]) =>
+  value && allowed.includes(value) ? value : "all";
 const quantity = (value: number | string) =>
   typeof value === "string" ? BigInt(value).toLocaleString() : value.toLocaleString();
 const expiryDescription = (days: number) => {
@@ -50,12 +60,12 @@ export function StockRegister(props: Props) {
   );
 }
 
-function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
+function OutletStockRegister({ scope, timeZone = "UTC", initialExpiry, initialBalance }: Props) {
   const [asOf, setAsOf] = useState(() => new Date(Date.now()).toISOString());
   const [locationId, setLocation] = useState("all");
   const [productId, setProduct] = useState("all");
-  const [expiry, setExpiry] = useState("all");
-  const [balance, setBalance] = useState("all");
+  const [expiry, setExpiry] = useState(() => known(initialExpiry, EXPIRY_FILTERS));
+  const [balance, setBalance] = useState(() => known(initialBalance, BALANCE_FILTERS));
   const [selected, setSelected] = useState<PharmacyStockPosition | null>(null);
   const selectedTrigger = useRef<HTMLButtonElement | null>(null);
   const locations = useApiPagedQuery<PharmacyLocation>(

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { Button } from "@tesserix/web";
 import {
@@ -60,7 +61,12 @@ export function PharmacyWorkspace({ view }: { view: PharmacyView }) {
       <RequestFailure message="Could not verify your active tenant." retry={identity.refetch} />
     );
   if (!identity.data) return <p role="status">Loading pharmacy workspace…</p>;
-  return <TenantPharmacy key={identity.data.tenant_id} identity={identity.data} view={view} />;
+  // Suspense: an outlet page reads its starting filter from the URL (#576 D4).
+  return (
+    <Suspense fallback={<p role="status">Loading pharmacy workspace…</p>}>
+      <TenantPharmacy key={identity.data.tenant_id} identity={identity.data} view={view} />
+    </Suspense>
+  );
 }
 const selectionSchema = z.object({
   pharmacyId: z.string().uuid().or(z.literal("")),
@@ -229,6 +235,10 @@ function OutletPharmacy({
   view: PharmacyView;
 }) {
   const { can } = usePermissions();
+  // A link from the overview opens a list already filtered (#576 D4). Read
+  // once as each list's starting filter; the list's own controls take over.
+  const params = useSearchParams();
+  const filter = (key: string) => params?.get(key) ?? undefined;
   const access = useApiQuery<{ level: "reader" | "editor" }>(
     pharmacyKey(scope, "access"),
     `${pharmacyRoot(scope)}/access`,
@@ -252,6 +262,7 @@ function OutletPharmacy({
       ) : view === "accounts" ? (
         <AccountsPanel
           scope={scope}
+          initialDue={filter("due")}
           timeZone={outlet.timezone}
           defaultCurrency={countryProfile(outlet.country_code)?.currency ?? ""}
           writable={access.data?.level === "editor"}
@@ -259,6 +270,7 @@ function OutletPharmacy({
       ) : view === "catalogue" ? (
         <CataloguePanel
           scope={scope}
+          initialUnclassified={filter("tax") === "unclassified"}
           timeZone={outlet.timezone}
           defaultCurrency={countryProfile(outlet.country_code)?.currency ?? ""}
           writable={access.data?.level === "editor" && can("pharmacy.catalogue.write")}
@@ -266,9 +278,18 @@ function OutletPharmacy({
           canManageTax={access.data?.level === "editor" && can("pharmacy.tax.manage")}
         />
       ) : view === "stock" ? (
-        <StockRegister scope={scope} timeZone={outlet.timezone} />
+        <StockRegister
+          scope={scope}
+          timeZone={outlet.timezone}
+          initialExpiry={filter("expiry")}
+          initialBalance={filter("balance")}
+        />
       ) : view === "safety" ? (
-        <BatchSafety scope={scope} timeZone={outlet.timezone} />
+        <BatchSafety
+          scope={scope}
+          timeZone={outlet.timezone}
+          showRecent={filter("recorded") === "30d"}
+        />
       ) : (
         <StockPanel
           scope={scope}

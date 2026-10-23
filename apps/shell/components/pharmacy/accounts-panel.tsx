@@ -21,11 +21,14 @@ export function AccountsPanel({
   writable,
   defaultCurrency,
   timeZone = "UTC",
+  initialDue,
 }: {
   scope: PharmacyScope;
   writable: boolean;
   defaultCurrency: string;
   timeZone?: string;
+  /** Starting due filter, from the overview (#576 D4); anything else is ignored. */
+  initialDue?: string;
 }) {
   const { can } = usePermissions();
   if (!can("pharmacy.accounts.read"))
@@ -44,6 +47,7 @@ export function AccountsPanel({
       writable={writable}
       defaultCurrency={defaultCurrency}
       timeZone={timeZone}
+      initialDue={initialDue === "overdue" || initialDue === "week" ? initialDue : null}
     />
   );
 }
@@ -52,11 +56,13 @@ function OutletAccounts({
   writable,
   defaultCurrency,
   timeZone,
+  initialDue,
 }: {
   scope: PharmacyScope;
   writable: boolean;
   defaultCurrency: string;
   timeZone: string;
+  initialDue: "overdue" | "week" | null;
 }) {
   const { can } = usePermissions();
   const [selected, setSelected] = useState<string | null>(null);
@@ -70,9 +76,12 @@ function OutletAccounts({
       editor.current?.querySelector<HTMLElement>("input,button")?.focus({ preventScroll: true });
     });
   }
+  // Bills with an amount outstanding, overdue or due within 7 days on the
+  // outlet's date: the overview's counts, filtered the same way (#576 D4).
+  const [due, setDue] = useState(initialDue);
   const bills = useApiPagedQuery<PharmacyPayable>(
-    pharmacyKey(scope, "accounts", "payables"),
-    `${pharmacyRoot(scope)}/accounts/payables`,
+    pharmacyKey(scope, "accounts", "payables", due),
+    `${pharmacyRoot(scope)}/accounts/payables${due ? `?due=${due}` : ""}`,
   );
   const audit = useApiPagedQuery<PharmacyInventoryAudit>(
     pharmacyKey(scope, "accounts", "inventory-audit"),
@@ -91,6 +100,16 @@ function OutletAccounts({
               Track original bills, recorded payments and remaining amounts. Each document keeps its
               own currency and history.
             </p>
+            {due && (
+              <p className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                <span className="font-medium">
+                  {due === "overdue" ? "Showing overdue bills" : "Showing bills due within 7 days"}
+                </span>
+                <Button variant="outline" size="sm" onClick={() => setDue(null)}>
+                  Show all bills
+                </Button>
+              </p>
+            )}
           </div>
           {writable && can("pharmacy.accounts.write") && (
             <Button onClick={() => reveal(null)}>

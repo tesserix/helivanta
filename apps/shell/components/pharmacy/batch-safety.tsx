@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Button, Input } from "@tesserix/web";
+import { ShieldCheck } from "lucide-react";
 import {
   ApiError,
   apiFetch,
@@ -24,9 +25,22 @@ import {
   type PharmacySafetyIncidentInput,
   type PharmacyScope,
 } from "@helivanta/api";
-import { Field, LoadMore, Panel, RequestFailure, SelectControl, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  LoadMore,
+  Panel,
+  QueryState,
+  RequestFailure,
+  SelectControl,
+  useZodForm,
+} from "@helivanta/ui";
 
-type Props = { scope: PharmacyScope; timeZone?: string };
+type Props = {
+  scope: PharmacyScope;
+  timeZone?: string;
+  /** Open with the outlet's concerns from the last 30 days, from the overview (#576 D4). */
+  showRecent?: boolean;
+};
 type ZonedProps = { scope: PharmacyScope; timeZone: string };
 type Collection<T> = ReturnType<typeof useApiPagedQuery<T>>;
 const concernTypes = [
@@ -50,7 +64,7 @@ const millicelsius = (value: unknown) => {
   return match[1] === "-" ? -amount : amount;
 };
 
-export function BatchSafety({ scope, timeZone = "UTC" }: Props) {
+export function BatchSafety({ scope, timeZone = "UTC", showRecent = false }: Props) {
   if (!isCustomerTimeZone(timeZone))
     return (
       <Panel aria-label="Batch safety concerns">
@@ -61,11 +75,65 @@ export function BatchSafety({ scope, timeZone = "UTC" }: Props) {
       </Panel>
     );
   return (
-    <ScopedSafety
-      key={`${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}:${timeZone}`}
-      scope={scope}
-      timeZone={timeZone}
-    />
+    <>
+      {showRecent && <RecentConcerns scope={scope} timeZone={timeZone} />}
+      <ScopedSafety
+        key={`${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}:${timeZone}`}
+        scope={scope}
+        timeZone={timeZone}
+      />
+    </>
+  );
+}
+
+// The outlet's concerns recorded in the last 30 days, newest first: what the
+// overview's safety count counts (#576). A journal, not a set of open holds.
+function RecentConcerns({ scope, timeZone }: ZonedProps) {
+  const recent = useApiPagedQuery<PharmacySafetyIncident>(
+    pharmacyKey(scope, "safety-incidents", "recent"),
+    `${pharmacyRoot(scope)}/stock/safety-incidents?recorded=30d&limit=25`,
+    { request: requestFor(scope) },
+  );
+  return (
+    <Panel aria-label="Concerns recorded in the last 30 days" className="mb-6">
+      <h3 className="font-semibold">Concerns recorded in the last 30 days</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Every batch at this outlet, newest first. Choose a batch below to record a concern.
+      </p>
+      <div className="mt-4">
+        <QueryState
+          query={recent}
+          label="recent concerns"
+          empty={{ icon: ShieldCheck, title: "No concerns in the last 30 days" }}
+        >
+          {(rows) => (
+            <ul className="divide-y text-sm">
+              {rows.map((incident) => (
+                <li key={incident.id} className="py-3">
+                  <p className="font-medium">
+                    {concernTypes.find((item) => item.value === incident.kind)?.label ??
+                      incident.kind}
+                  </p>
+                  <p className="mt-0.5 whitespace-pre-wrap break-words">{incident.reason}</p>
+                  <p className="mt-0.5 text-muted-foreground">
+                    Recorded{" "}
+                    <time dateTime={incident.recorded_at}>
+                      {formatZonedDateTime(incident.recorded_at, timeZone)}
+                    </time>{" "}
+                    by {incident.actor_subject}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </QueryState>
+        <LoadMore
+          hasMore={recent.hasMore}
+          isLoading={recent.isFetchingMore}
+          onClick={recent.loadMore}
+        />
+      </div>
+    </Panel>
   );
 }
 

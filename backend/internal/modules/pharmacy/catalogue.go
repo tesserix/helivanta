@@ -138,19 +138,55 @@ func (h *catalogueHandlers) transaction(ctx context.Context, p authn.Principal, 
 		return gorm.ErrRecordNotFound
 	}
 	return h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
-		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject',?,true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, p.Subject, outlet.String(), pharmacy.String()).Error; err != nil {
-			return errPharmacyAccessUnavailable
+		level, err := outletAccess(tx, p, outlet, pharmacy, true)
+		if err != nil {
+			return err
 		}
-		var grant struct{ Level string }
-		if err := tx.Raw(`SELECT a.level FROM pharmacy_outlet_access a JOIN pharmacy_outlets o ON o.tenant_id=a.tenant_id AND o.id=a.outlet_id WHERE a.tenant_id=? AND a.outlet_id=? AND a.subject=? AND o.pharmacy_id=? FOR SHARE OF a,o`, p.TenantID, outlet, p.Subject, pharmacy).Scan(&grant).Error; err != nil {
-			return errPharmacyAccessUnavailable
-		}
-		// Missing or revoked scope denies access, including for tenant administrators.
-		if grant.Level == "" || (writing && grant.Level != "editor") {
+		if writing && level != "editor" {
 			return gorm.ErrRecordNotFound
 		}
 		return fn(tx)
 	})
+}
+
+// outletAccess sets the pharmacy session settings and checks the caller's
+// outlet grant: the one check every outlet read and write runs. lock takes
+// FOR SHARE so a write cannot race a revoke; a read-only snapshot (#576)
+// refuses the lock and needs none, since the snapshot fixes what it sees.
+func outletAccess(tx *gorm.DB, p authn.Principal, outlet, pharmacy uuid.UUID, lock bool) (string, error) {
+	if err := tx.Exec(`SELECT set_config('app.pharmacy_subject',?,true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, p.Subject, outlet.String(), pharmacy.String()).Error; err != nil {
+		return "", errPharmacyAccessUnavailable
+	}
+	query := `SELECT a.level FROM pharmacy_outlet_access a JOIN pharmacy_outlets o ON o.tenant_id=a.tenant_id AND o.id=a.outlet_id WHERE a.tenant_id=? AND a.outlet_id=? AND a.subject=? AND o.pharmacy_id=?`
+	if lock {
+		query += ` FOR SHARE OF a,o`
+	}
+	var grant struct{ Level string }
+	if err := tx.Raw(query, p.TenantID, outlet, p.Subject, pharmacy).Scan(&grant).Error; err != nil {
+		return "", errPharmacyAccessUnavailable
+	}
+	// Missing or revoked scope denies access, including for tenant
+	// administrators: fail closed to the cross-tenant 404.
+	if grant.Level == "" {
+		return "", gorm.ErrRecordNotFound
+	}
+	return grant.Level, nil
+}
+
+// outletReadGuard is a counted outlet list's guard (#576 D1): the access
+// check, then scope builds the filter inside the same snapshot, so any
+// outlet date it reads is the one the count and the rows use.
+func outletReadGuard(c *gin.Context, p authn.Principal, outlet uuid.UUID, scope func(tx *gorm.DB) (platform.Scope, error)) func(tx *gorm.DB) (platform.Scope, error) {
+	pharmacy := currentPharmacy(c.Request.Context())
+	return func(tx *gorm.DB) (platform.Scope, error) {
+		if pharmacy == uuid.Nil {
+			return nil, gorm.ErrRecordNotFound
+		}
+		if _, err := outletAccess(tx, p, outlet, pharmacy, false); err != nil {
+			return nil, err
+		}
+		return scope(tx)
+	}
 }
 
 func catalogueError(c *gin.Context, err error) {

@@ -9,6 +9,7 @@ export {
   type ZonePage,
 } from "./zones";
 export { ConfirmDialog } from "./confirm-dialog";
+export { ListDetail } from "./list-detail";
 export { GuardedLink, NavigationGuardProvider, useLeaveGuard } from "./navigation-guard";
 export { IdleWarning, type IdleWarningProps } from "./idle-warning";
 export { Field, useZodForm } from "./form";

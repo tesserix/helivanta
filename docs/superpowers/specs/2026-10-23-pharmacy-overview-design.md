@@ -91,6 +91,10 @@ the list it counts, already filtered to those rows.
   - The catalogue reads `tax=unclassified`.
   - The filter shown on the page reflects the URL. Slice 3 moves these lists fully onto
     Previous / Next and URL state; this slice only makes the one filter arrive.
+  - _Superseded by slice 3 ([paged pharmacy lists](2026-10-23-paged-pharmacy-lists-design.md)):_
+    the tiles now link to tabs. Bills are `?tab=overdue` and `?tab=week`, safety is `?tab=recent`,
+    and the catalogue keeps `?tax=unclassified`. Each list reads its counted route, and the old
+    links still open sensibly.
 - **D5 Freshness.**
   - The overview refreshes on the queue's poll interval.
   - It shows the time it was read ("as of 09:42"), in the outlet's time zone.

@@ -87,6 +87,7 @@ func inventoryRoutes(g *platform.Router, deps platform.Deps) {
 	s.PUT("/corrections/:id", PermStockCorrect, h.putCorrection)
 	s.PUT("/safety-incidents/:id", PermStockQuarantine, h.putBatchSafetyIncident)
 	platform.ListRoute(s, "/safety-incidents", PermStockRead, h.listBatchSafetyIncidents)
+	platform.GuardedCountedListRoute[batchSafetyIncident](s, h.db, "/safety-incidents/recent", PermStockRead, tenantdb.Keyset{Column: "created_at"}, countedRecentSafety)
 	s.GET("/balance", PermStockRead, h.getBalance)
 	s.GET("/reconciliation", PermStockRead, h.getStockReconciliation)
 	s.GET("/positions.csv", PermStockRead, h.exportStockPositions)

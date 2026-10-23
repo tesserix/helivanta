@@ -68,6 +68,8 @@ func payableRoutes(g *platform.Router, deps platform.Deps) {
 	platform.ListRoute(s, "/payables/:id/settlements", PermAccountsRead, h.listSettlements)
 	platform.ListRoute(s, "/payables", PermAccountsRead, h.listPayables)
 	platform.ListRoute(s, "/inventory-audit", PermAccountsRead, h.listInventoryAudit)
+	platform.GuardedCountedListRoute[payable](s, h.db, "/payables/counted", PermAccountsRead, tenantdb.Keyset{Column: "created_at"}, countedPayables)
+	platform.GuardedCountedListRoute[inventoryAudit](s, h.db, "/inventory-audit/counted", PermAccountsRead, tenantdb.Keyset{Column: "created_at"}, countedInventoryAudit)
 }
 func payableError(c *gin.Context, err error) {
 	var pg *pgconn.PgError
@@ -235,6 +237,40 @@ func (h *catalogueHandlers) listPayables(c *gin.Context, params pagination.Param
 		payableError(c, err)
 	}
 	return rows, nil
+}
+
+// countedPayables is the bill list with a total (#576 slice 3): the same
+// due filter as listPayables, the outlet date read once inside the snapshot.
+func countedPayables(c *gin.Context) (platform.CountedQuery[payable], bool) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return platform.CountedQuery[payable]{}, false
+	}
+	due := c.QueryArray("due")
+	if len(due) > 1 || (len(due) == 1 && !validPayableDue(due[0])) {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "due must be overdue or week")
+		return platform.CountedQuery[payable]{}, false
+	}
+	return platform.CountedQuery[payable]{
+		Guard: outletReadGuard(c, p, outlet, func(tx *gorm.DB) (platform.Scope, error) {
+			today := ""
+			if len(due) == 1 {
+				var err error
+				if today, err = outletLocalDate(tx, p.TenantID, outlet); err != nil {
+					return nil, err
+				}
+			}
+			return func(q *gorm.DB) *gorm.DB {
+				q = q.Table("pharmacy_payable_balances").Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet)
+				if len(due) == 1 {
+					q = payableDueScope(due[0], today)(q)
+				}
+				return q
+			}, nil
+		}),
+		Rows: func(q *gorm.DB) *gorm.DB { return q.Select(payableColumns) },
+		Fail: payableError,
+	}, true
 }
 
 func validPayableDue(due string) bool { return due == "overdue" || due == "week" }

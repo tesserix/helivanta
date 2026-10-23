@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/tesserix/helivanta/pkg/countryprofile"
 	"io"
 	"net/http"
 	"reflect"
@@ -80,6 +81,7 @@ func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 	s.PUT("/catalogue/products/:id", PermCatalogueWrite, h.putProduct)
 	s.GET("/catalogue/products/:id", PermCatalogueRead, h.getProduct)
 	platform.ListRoute(s, "/catalogue/products", PermCatalogueRead, h.listProducts)
+	platform.GuardedCountedListRoute[catalogueProduct](s, h.db, "/catalogue/products/counted", PermCatalogueRead, tenantdb.Keyset{Column: "created_at"}, countedProducts)
 	platform.ListRoute(s, "/catalogue/products/:id/revisions", PermCatalogueRead, h.listRevisions)
 	taxClassificationRoutes(s, h)
 }
@@ -138,19 +140,55 @@ func (h *catalogueHandlers) transaction(ctx context.Context, p authn.Principal, 
 		return gorm.ErrRecordNotFound
 	}
 	return h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
-		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject',?,true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, p.Subject, outlet.String(), pharmacy.String()).Error; err != nil {
-			return errPharmacyAccessUnavailable
+		level, err := outletAccess(tx, p, outlet, pharmacy, true)
+		if err != nil {
+			return err
 		}
-		var grant struct{ Level string }
-		if err := tx.Raw(`SELECT a.level FROM pharmacy_outlet_access a JOIN pharmacy_outlets o ON o.tenant_id=a.tenant_id AND o.id=a.outlet_id WHERE a.tenant_id=? AND a.outlet_id=? AND a.subject=? AND o.pharmacy_id=? FOR SHARE OF a,o`, p.TenantID, outlet, p.Subject, pharmacy).Scan(&grant).Error; err != nil {
-			return errPharmacyAccessUnavailable
-		}
-		// Missing or revoked scope denies access, including for tenant administrators.
-		if grant.Level == "" || (writing && grant.Level != "editor") {
+		if writing && level != "editor" {
 			return gorm.ErrRecordNotFound
 		}
 		return fn(tx)
 	})
+}
+
+// outletAccess sets the pharmacy session settings and checks the caller's
+// outlet grant: the one check every outlet read and write runs. lock takes
+// FOR SHARE so a write cannot race a revoke; a read-only snapshot (#576)
+// refuses the lock and needs none, since the snapshot fixes what it sees.
+func outletAccess(tx *gorm.DB, p authn.Principal, outlet, pharmacy uuid.UUID, lock bool) (string, error) {
+	if err := tx.Exec(`SELECT set_config('app.pharmacy_subject',?,true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, p.Subject, outlet.String(), pharmacy.String()).Error; err != nil {
+		return "", errPharmacyAccessUnavailable
+	}
+	query := `SELECT a.level FROM pharmacy_outlet_access a JOIN pharmacy_outlets o ON o.tenant_id=a.tenant_id AND o.id=a.outlet_id WHERE a.tenant_id=? AND a.outlet_id=? AND a.subject=? AND o.pharmacy_id=?`
+	if lock {
+		query += ` FOR SHARE OF a,o`
+	}
+	var grant struct{ Level string }
+	if err := tx.Raw(query, p.TenantID, outlet, p.Subject, pharmacy).Scan(&grant).Error; err != nil {
+		return "", errPharmacyAccessUnavailable
+	}
+	// Missing or revoked scope denies access, including for tenant
+	// administrators: fail closed to the cross-tenant 404.
+	if grant.Level == "" {
+		return "", gorm.ErrRecordNotFound
+	}
+	return grant.Level, nil
+}
+
+// outletReadGuard is a counted outlet list's guard (#576 D1): the access
+// check, then scope builds the filter inside the same snapshot, so any
+// outlet date it reads is the one the count and the rows use.
+func outletReadGuard(c *gin.Context, p authn.Principal, outlet uuid.UUID, scope func(tx *gorm.DB) (platform.Scope, error)) func(tx *gorm.DB) (platform.Scope, error) {
+	pharmacy := currentPharmacy(c.Request.Context())
+	return func(tx *gorm.DB) (platform.Scope, error) {
+		if pharmacy == uuid.Nil {
+			return nil, gorm.ErrRecordNotFound
+		}
+		if _, err := outletAccess(tx, p, outlet, pharmacy, false); err != nil {
+			return nil, err
+		}
+		return scope(tx)
+	}
 }
 
 func catalogueError(c *gin.Context, err error) {
@@ -386,13 +424,7 @@ func (h *catalogueHandlers) listProducts(c *gin.Context, params pagination.Param
 	var rows []catalogueProduct
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
 		query := tenantdb.ApplyKeyset(tx, params).Select(productColumns).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet)
-		if status != "" {
-			query = query.Where("status=?", status)
-		}
-		if q != "" {
-			prefix := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(q) + "%"
-			query = query.Where("(lower(brand_name) LIKE ? OR lower(generic_name) LIKE ? OR lower(sku) LIKE ?)", prefix, prefix, prefix)
-		}
+		query = productFilters(status, q)(query)
 		today, err := outletLocalDate(tx, p.TenantID, outlet)
 		if err != nil {
 			return err
@@ -409,6 +441,79 @@ func (h *catalogueHandlers) listProducts(c *gin.Context, params pagination.Param
 		catalogueError(c, err)
 	}
 	return rows, nil
+}
+
+// productFilters is the catalogue's status and search filter, shared by the
+// list and its counted form. The search is a prefix of the brand, generic
+// name or SKU, with LIKE wildcards in q taken literally.
+func productFilters(status, q string) func(*gorm.DB) *gorm.DB {
+	return func(query *gorm.DB) *gorm.DB {
+		if status != "" {
+			query = query.Where("status=?", status)
+		}
+		if q != "" {
+			prefix := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(q) + "%"
+			query = query.Where("(lower(brand_name) LIKE ? OR lower(generic_name) LIKE ? OR lower(sku) LIKE ?)", prefix, prefix, prefix)
+		}
+		return query
+	}
+}
+
+// errNoTaxScheme refuses the unclassified filter where the outlet's country
+// has no tax scheme: every product would match, a gap nobody can close.
+var errNoTaxScheme = errors.New("outlet has no tax scheme")
+
+// countedProducts is the catalogue with a total (#576 slice 3): the same
+// filters and validation as listProducts.
+func countedProducts(c *gin.Context) (platform.CountedQuery[catalogueProduct], bool) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return platform.CountedQuery[catalogueProduct]{}, false
+	}
+	q := strings.ToLower(strings.TrimSpace(c.Query("q")))
+	status := c.Query("status")
+	taxFilter := c.Query("tax")
+	if len(q) > 200 || (status != "" && status != "active" && status != "discontinued" && status != "withdrawn") || (taxFilter != "" && taxFilter != "unclassified") {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid catalogue filters")
+		return platform.CountedQuery[catalogueProduct]{}, false
+	}
+	// The outlet's date, read once in the guard: the filter and each row's
+	// tax badge use the same day, even across midnight.
+	var today string
+	return platform.CountedQuery[catalogueProduct]{
+		Guard: outletReadGuard(c, p, outlet, func(tx *gorm.DB) (platform.Scope, error) {
+			var o pharmacyOutlet
+			if err := tx.Select(outletColumns).Where("tenant_id=? AND id=?", p.TenantID, outlet).First(&o).Error; err != nil {
+				return nil, err
+			}
+			if _, ok := countryprofile.Tax(o.CountryCode); !ok && taxFilter == "unclassified" {
+				return nil, errNoTaxScheme
+			}
+			var err error
+			if today, err = outletToday(o.Timezone); err != nil {
+				return nil, err
+			}
+			return func(query *gorm.DB) *gorm.DB {
+				query = query.Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet)
+				query = productFilters(status, q)(query)
+				if taxFilter == "unclassified" {
+					query = unclassifiedScope(today)(query)
+				}
+				return query
+			}, nil
+		}),
+		Rows: func(query *gorm.DB) *gorm.DB { return query.Select(productColumns) },
+		After: func(tx *gorm.DB, rows []catalogueProduct) error {
+			return attachTaxOn(tx, p.TenantID, outlet, today, rows)
+		},
+		Fail: func(c *gin.Context, err error) {
+			if errors.Is(err, errNoTaxScheme) {
+				respond.Error(c, http.StatusBadRequest, "invalid_request", "this outlet has no tax scheme to classify against")
+				return
+			}
+			catalogueError(c, err)
+		},
+	}, true
 }
 
 func (h *catalogueHandlers) listRevisions(c *gin.Context, params pagination.Params) ([]catalogueRevision, error) {

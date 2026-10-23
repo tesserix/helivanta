@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "../../test/select";
@@ -25,9 +25,20 @@ const incident = {
   recorded_at: "2026-10-17T11:00:00.123456+05:30",
   actor_subject: "TEST-quality-reviewer",
 };
+// The batch picker lives on its tab; most tests here are about it.
+const nav = vi.hoisted(() => ({ search: "tab=batch" }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/pharmacy/safety",
+  useSearchParams: () => new URLSearchParams(nav.search),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+}));
+afterEach(() => {
+  nav.search = "tab=batch";
+});
+
 const page = (data: unknown[], cursor: string | null = null) => ({
   data,
-  page: { has_more: cursor !== null, next_cursor: cursor },
+  page: { has_more: cursor !== null, next_cursor: cursor, total: data.length, offset: 0 },
 });
 
 afterEach(() => {
@@ -44,6 +55,7 @@ function fixture(
     batches?: (url: string) => Response;
     products?: (url: string) => Response;
     incidents?: (url: string) => Response;
+    recent?: (url: string) => Response;
     save?: (url: string, init: RequestInit) => Response;
   } = {},
 ) {
@@ -106,6 +118,8 @@ function fixture(
       );
     if (url.includes("/stock/safety-incidents/") && init.method === "PUT")
       return options.save?.(url, init) ?? new Response(JSON.stringify(incident));
+    if (url.includes("/stock/safety-incidents/recent"))
+      return options.recent?.(url) ?? new Response(JSON.stringify(page([incident])));
     if (url.includes("/stock/safety-incidents?"))
       return options.incidents?.(url) ?? new Response(JSON.stringify(page([incident])));
     throw new Error(`Unexpected test API request: ${url}`);
@@ -540,3 +554,48 @@ it.each(["", "Not/A_Timezone"])(
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   },
 );
+
+// #576 slice 3: the outlet's last 30 days is a tab, paged with its total.
+describe("safety tabs", () => {
+  it("opens on the last 30 days, counted and 25 a page", async () => {
+    nav.search = "";
+    const fetcher = fixture();
+    renderWithProviders(<BatchSafety scope={scope} />);
+    expect(await screen.findByText(incident.reason)).toBeVisible();
+    const recent = fetcher.mock.calls
+      .map(([url]) => String(url))
+      .filter((u) => u.includes("/recent"));
+    expect(recent).toEqual([expect.stringMatching(/\/stock\/safety-incidents\/recent\?limit=25$/)]);
+    expect(screen.getByRole("link", { name: "Last 30 days" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByText(/1–1 of 1/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "Safety concern batch" }),
+    ).not.toBeInTheDocument();
+    for (const [, init] of fetcher.mock.calls)
+      expect(new Headers(init?.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+  });
+
+  // The overview's link from before the tabs lands on the same list.
+  it("reads the old recorded=30d link as the last 30 days", async () => {
+    nav.search = "recorded=30d";
+    fixture();
+    renderWithProviders(<BatchSafety scope={scope} />);
+    expect(await screen.findByRole("link", { name: "Last 30 days" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("links the batch tab, which holds the picker", async () => {
+    nav.search = "page=2&cursor=c2";
+    fixture();
+    renderWithProviders(<BatchSafety scope={scope} />);
+    expect(await screen.findByRole("link", { name: "By batch" })).toHaveAttribute(
+      "href",
+      "/pharmacy/safety?tab=batch",
+    );
+  });
+});

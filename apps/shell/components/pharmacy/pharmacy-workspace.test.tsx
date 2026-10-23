@@ -30,13 +30,16 @@ const product = {
 };
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 // The page's starting filter comes from the URL (#576 D4); tests set it here.
-const nav = vi.hoisted(() => ({ search: "" }));
+const nav = vi.hoisted(() => ({ search: "", replace: vi.fn() }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useSearchParams: () => new URLSearchParams(nav.search),
+  usePathname: () => "/pharmacy",
+  useRouter: () => ({ replace: nav.replace, push: vi.fn() }),
 }));
 
 afterEach(() => {
+  nav.replace.mockReset();
   vi.unstubAllGlobals();
   sessionStorage.clear();
   nav.search = "";
@@ -603,7 +606,9 @@ describe("lists open filtered from the overview", () => {
     renderWithProviders(<PharmacyWorkspace view="catalogue" />);
     await waitFor(() =>
       expect(
-        requested(fetcher, "/catalogue/products?").some((u) => u.includes("tax=unclassified")),
+        requested(fetcher, "/catalogue/products/counted?").some((u) =>
+          u.includes("tax=unclassified"),
+        ),
       ).toBe(true),
     );
     expect(await screen.findByRole("button", { name: "Not classified" })).toHaveAttribute(
@@ -612,28 +617,27 @@ describe("lists open filtered from the overview", () => {
     );
   });
 
-  it("opens Supplier bills at overdue, with a way back to every bill", async () => {
-    nav.search = "due=overdue";
+  it("opens Supplier bills on the Overdue tab the overview links to", async () => {
+    nav.search = "tab=overdue";
     const fetcher = mockPharmacy("editor", 0, "IN", ["pharmacy.accounts.read"]);
-    const { user } = renderWithProviders(<PharmacyWorkspace view="accounts" />);
+    renderWithProviders(<PharmacyWorkspace view="accounts" />);
     await waitFor(() =>
-      expect(requested(fetcher, "/accounts/payables").some((u) => u.includes("due=overdue"))).toBe(
-        true,
+      expect(requested(fetcher, "/accounts/payables/counted?due=overdue").length).toBeGreaterThan(
+        0,
       ),
     );
-    expect(await screen.findByText("Showing overdue bills")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Show all bills" }));
-    await waitFor(() =>
-      expect(requested(fetcher, "/accounts/payables").some((u) => !u.includes("due="))).toBe(true),
+    expect(await screen.findByRole("link", { name: "Overdue" })).toHaveAttribute(
+      "aria-current",
+      "page",
     );
   });
 
   it("opens Expiry & safety at the outlet's recent concerns", async () => {
-    nav.search = "recorded=30d";
+    nav.search = "tab=recent";
     const fetcher = mockPharmacy("editor", 0, "IN", ["pharmacy.stock.read"]);
     renderWithProviders(<PharmacyWorkspace view="safety" />);
     await waitFor(() =>
-      expect(requested(fetcher, "/stock/safety-incidents?recorded=30d").length).toBeGreaterThan(0),
+      expect(requested(fetcher, "/stock/safety-incidents/recent").length).toBeGreaterThan(0),
     );
     expect(
       await screen.findByRole("region", { name: "Concerns recorded in the last 30 days" }),
@@ -669,4 +673,28 @@ it("shows the hospital-wide waiting count with no pharmacy registered", async ()
   renderWithProviders(<PharmacyWorkspace view="overview" />);
   const waiting = await screen.findByRole("region", { name: "Patients waiting" });
   expect(await within(waiting).findByText("4")).toBeVisible();
+});
+
+// Review: a page and cursor belong to one outlet's list. Changing outlet
+// opens the new outlet's list at its first page, keeping the tab and filters.
+it("opens the first page of the other outlet's list when the outlet changes", async () => {
+  nav.search = "tab=active&q=amox&page=3&cursor=c3";
+  const base = mockPharmacy();
+  // The other outlet has rows, so an empty page cannot be what resets it.
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      url.includes(sibling) && url.includes("/catalogue/products")
+        ? new Response(
+            JSON.stringify(page([{ ...product, outlet_id: sibling, brand_name: "TEST Sister" }])),
+          )
+        : base(url, init),
+    ),
+  );
+  const { user } = renderWithProviders(<PharmacyWorkspace view="catalogue" />);
+  await screen.findByText("TEST Counter capsule");
+  expect(nav.replace).not.toHaveBeenCalled();
+  await chooseOption(user, screen.getByLabelText("Outlet"), "TEST Sister Outlet");
+  expect(await screen.findByText("TEST Sister")).toBeInTheDocument();
+  await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/pharmacy?tab=active&q=amox"));
 });

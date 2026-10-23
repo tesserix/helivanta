@@ -39,8 +39,9 @@ async function api(page: Page, method: string, path: string, body?: unknown) {
   return JSON.parse(result.body || "null") as Record<string, unknown>;
 }
 
-// #576: on a fresh outlet, each overview count equals the rows its link opens.
-test("each overview count opens exactly the rows it counted", async ({ page }) => {
+// A fresh pharmacy and outlet the signed-in user edits, opened as the
+// workspace's selected outlet, so counts and pages start from nothing.
+async function freshOutlet(page: Page) {
   await login(page);
   await page.goto("/pharmacy");
   const me = await api(page, "GET", "/iam/me/permissions");
@@ -63,24 +64,37 @@ test("each overview count opens exactly the rows it counted", async ({ page }) =
   await api(page, "PUT", `${outlet}/access/${encodeURIComponent(String(me.subject))}`, {
     level: "editor",
   });
-  for (const n of [1, 2]) {
-    await api(page, "PUT", `${outlet}/catalogue/products/${uuidv7()}`, {
-      expected_version: 0,
-      sku: `TEST-OVW-${stamp}-${n}`,
-      brand_name: `TEST Unclassified ${n}`,
-      generic_name: "TEST paracetamol",
-      dosage_form: "tablet",
-      route: "oral",
-      manufacturer: "TEST Manufacturer",
-      marketing_company: "",
-      ingredients: [{ name: "TEST paracetamol", strength: "500", unit: "mg" }],
-      pack_size: 10,
-      unit_of_issue: "tablet",
-      currency: "INR",
-      mrp_minor: 10500,
-      status: "active",
-    });
-  }
+  await page.evaluate(({ key, value }) => sessionStorage.setItem(key, value), {
+    key: `helivanta:pharmacy:scope:${String(me.tenant_id)}`,
+    value: JSON.stringify({ pharmacyId, outletId }),
+  });
+  return { outlet, stamp };
+}
+
+async function addProduct(page: Page, outlet: string, sku: string, brand: string) {
+  await api(page, "PUT", `${outlet}/catalogue/products/${uuidv7()}`, {
+    expected_version: 0,
+    sku,
+    brand_name: brand,
+    generic_name: "TEST paracetamol",
+    dosage_form: "tablet",
+    route: "oral",
+    manufacturer: "TEST Manufacturer",
+    marketing_company: "",
+    ingredients: [{ name: "TEST paracetamol", strength: "500", unit: "mg" }],
+    pack_size: 10,
+    unit_of_issue: "tablet",
+    currency: "INR",
+    mrp_minor: 10500,
+    status: "active",
+  });
+}
+
+// #576: on a fresh outlet, each overview count equals the rows its link opens.
+test("each overview count opens exactly the rows it counted", async ({ page }) => {
+  const { outlet, stamp } = await freshOutlet(page);
+  for (const n of [1, 2])
+    await addProduct(page, outlet, `TEST-OVW-${stamp}-${n}`, `TEST Unclassified ${n}`);
   await api(page, "PUT", `${outlet}/accounts/payables/${uuidv7()}`, {
     payee_reference: "TEST-SUPPLIER",
     payee_name: "TEST Supplier",
@@ -99,10 +113,6 @@ test("each overview count opens exactly the rows it counted", async ({ page }) =
       },
     ],
   });
-  await page.evaluate(({ key, value }) => sessionStorage.setItem(key, value), {
-    key: `helivanta:pharmacy:scope:${String(me.tenant_id)}`,
-    value: JSON.stringify({ pharmacyId, outletId }),
-  });
 
   await page.goto("/pharmacy");
   const bills = page.getByRole("region", { name: "Supplier bills" });
@@ -112,8 +122,10 @@ test("each overview count opens exactly the rows it counted", async ({ page }) =
   await expect(setup.getByRole("link", { name: /Not classified/ })).toContainText("2");
 
   await overdue.click();
-  await expect(page).toHaveURL(/\/pharmacy\/accounts\?due=overdue$/);
-  await expect(page.getByText("Showing overdue bills")).toBeVisible();
+  // The tile's count is the tab's total (#576 slice 3).
+  await expect(page).toHaveURL(/\/pharmacy\/accounts\?tab=overdue$/);
+  await expect(page.getByRole("link", { name: "Overdue" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByText("1–1 of 1")).toBeVisible();
   await expect(page.getByText(`TEST-OVERDUE-${stamp}`)).toBeVisible();
 
   await page.goto("/pharmacy");
@@ -129,4 +141,42 @@ test("each overview count opens exactly the rows it counted", async ({ page }) =
   await expect(
     page.getByRole("listitem").filter({ hasText: new RegExp(`TEST-OVW-${stamp}-`) }),
   ).toHaveCount(2);
+});
+
+// #576 slice 3: the catalogue pages 25 at a time with its total; the page
+// and the search live in the URL.
+test("the catalogue pages forward and back, keeping its search", async ({ page }) => {
+  const { outlet, stamp } = await freshOutlet(page);
+  for (let n = 1; n <= 27; n++)
+    await addProduct(
+      page,
+      outlet,
+      `TEST-PG-${stamp}-${String(n).padStart(2, "0")}`,
+      `TEST Paged ${n}`,
+    );
+  const rows = page.getByRole("listitem").filter({ hasText: new RegExp(`TEST-PG-${stamp}-`) });
+
+  await page.goto("/pharmacy/catalogue");
+  await expect(page.getByText("1–25 of 27")).toBeVisible();
+  await expect(rows).toHaveCount(25);
+  const first = await rows.first().textContent();
+
+  await page.getByRole("link", { name: "Next" }).click();
+  await expect(page.getByText("26–27 of 27")).toBeVisible();
+  await expect(rows).toHaveCount(2);
+  await page.getByRole("link", { name: "Previous" }).click();
+  await expect(page.getByText("1–25 of 27")).toBeVisible();
+  await expect(rows.first()).toHaveText(first ?? "");
+
+  await page.getByLabel("Search by brand, generic or SKU").fill(`TEST-PG-${stamp}`);
+  await page.getByRole("button", { name: "Search catalogue" }).click();
+  await expect(page).toHaveURL(/q=test-pg-|q=TEST-PG-/i);
+  await page.getByRole("link", { name: "Next" }).click();
+  await expect(page).toHaveURL(/page=2/);
+  await expect(page).toHaveURL(new RegExp(`q=TEST-PG-${stamp}`, "i"));
+  await expect(page.getByText("26–27 of 27")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText("26–27 of 27")).toBeVisible();
+  await expect(rows).toHaveCount(2);
 });

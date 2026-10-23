@@ -126,7 +126,7 @@ export function OverviewTiles({ scope, outlet }: { scope: PharmacyScope; outlet:
                   <Count
                     value={data.safety.recent}
                     label="Recorded in the last 30 days"
-                    href="/pharmacy/safety?recorded=30d"
+                    href="/pharmacy/safety?tab=recent"
                   />
                 </Tile>
               )}
@@ -135,12 +135,12 @@ export function OverviewTiles({ scope, outlet }: { scope: PharmacyScope; outlet:
                   <Count
                     value={data.bills.overdue}
                     label="Overdue"
-                    href="/pharmacy/accounts?due=overdue"
+                    href="/pharmacy/accounts?tab=overdue"
                   />
                   <Count
                     value={data.bills.week}
                     label="Due within 7 days"
-                    href="/pharmacy/accounts?due=week"
+                    href="/pharmacy/accounts?tab=week"
                   />
                 </Tile>
               )}

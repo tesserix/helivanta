@@ -57,9 +57,15 @@ const classification = (over: Partial<PharmacyTaxClassification>): PharmacyTaxCl
 });
 
 const page = (data: unknown[]) =>
-  new Response(JSON.stringify({ data, page: { next_cursor: null, has_more: false } }), {
-    headers: { "Content-Type": "application/json" },
-  });
+  new Response(
+    JSON.stringify({
+      data,
+      page: { next_cursor: null, has_more: false, total: data.length, offset: 0 },
+    }),
+    {
+      headers: { "Content-Type": "application/json" },
+    },
+  );
 
 function serve(
   history: () => PharmacyTaxClassification[],
@@ -89,7 +95,30 @@ function serve(
   return { posted, urls };
 }
 
-afterEach(() => vi.unstubAllGlobals());
+// A live address: router.replace changes what useSearchParams returns and
+// re-renders, as the app router does.
+const nav = vi.hoisted(() => ({ search: "", listeners: new Set<() => void>() }));
+vi.mock("next/navigation", async () => {
+  const { useSyncExternalStore } = await import("react");
+  const subscribe = (fn: () => void) => {
+    nav.listeners.add(fn);
+    return () => nav.listeners.delete(fn);
+  };
+  const go = (href: string) => {
+    nav.search = href.split("?")[1] ?? "";
+    nav.listeners.forEach((fn) => fn());
+  };
+  return {
+    usePathname: () => "/pharmacy/catalogue",
+    useSearchParams: () => new URLSearchParams(useSyncExternalStore(subscribe, () => nav.search)),
+    useRouter: () => ({ replace: go, push: go }),
+  };
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  nav.search = "";
+});
 
 describe("taxLabel", () => {
   it("names each supply nature", () => {
@@ -259,17 +288,75 @@ describe("CataloguePanel tax", () => {
   // Review: "not classified" means nothing where the country has no tax
   // scheme; a link carrying it must not leave a hidden filter on the list.
   it("ignores a starting Not classified filter without a scheme", async () => {
+    nav.search = "tax=unclassified";
     const { urls } = serve(() => []);
     renderWithProviders(
-      <CataloguePanel
-        scope={scope}
-        writable
-        defaultCurrency="PKR"
-        countryCode="PK"
-        initialUnclassified
-      />,
+      <CataloguePanel scope={scope} writable defaultCurrency="PKR" countryCode="PK" />,
     );
     await screen.findAllByRole("listitem");
     expect(urls.some((url) => url.includes("tax=unclassified"))).toBe(false);
+  });
+});
+
+// #576 slice 3: the catalogue's tab, search and filter are the URL, 25 a page.
+describe("CataloguePanel pages", () => {
+  const panel = () => (
+    <CataloguePanel
+      scope={scope}
+      writable
+      defaultCurrency="INR"
+      timeZone="Asia/Kolkata"
+      countryCode="IN"
+    />
+  );
+  const lists = (urls: string[]) => urls.filter((u) => u.includes("/catalogue/products/counted"));
+
+  it("requests the tab and search in the URL, counted", async () => {
+    nav.search = "tab=active&q=par";
+    const { urls } = serve(() => []);
+    renderWithProviders(panel());
+    await screen.findAllByRole("listitem");
+    expect(lists(urls)).toEqual([
+      expect.stringMatching(/\/catalogue\/products\/counted\?status=active&q=par&limit=25$/),
+    ]);
+    expect(screen.getByRole("link", { name: "Active" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText(/1–1 of 1/)).toBeInTheDocument();
+  });
+
+  it("starts a new search at page 1, keeping the tab", async () => {
+    nav.search = "tab=active&page=2&cursor=c2";
+    serve(() => []);
+    const { user } = renderWithProviders(panel());
+    await screen.findAllByRole("listitem");
+    await user.type(screen.getByLabelText("Search by brand, generic or SKU"), "amox");
+    await user.click(screen.getByRole("button", { name: "Search catalogue" }));
+    await waitFor(() => expect(nav.search).toBe("tab=active&q=amox"));
+  });
+
+  it("keeps the search when Not classified is pressed, and shows it pressed", async () => {
+    nav.search = "q=amox";
+    const { urls } = serve(() => []);
+    const { user } = renderWithProviders(panel());
+    await screen.findAllByRole("listitem");
+    await user.click(screen.getByRole("button", { name: "Not classified" }));
+    await waitFor(() => expect(nav.search).toBe("tab=all&q=amox&tax=unclassified"));
+    await waitFor(() =>
+      expect(lists(urls).some((u) => u.includes("q=amox&tax=unclassified"))).toBe(true),
+    );
+    expect(screen.getByRole("button", { name: "Not classified" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("links each tab at page 1 with the filters", async () => {
+    nav.search = "q=amox&tax=unclassified&page=2&cursor=c2";
+    serve(() => []);
+    renderWithProviders(panel());
+    await screen.findAllByRole("listitem");
+    expect(screen.getByRole("link", { name: "Withdrawn" })).toHaveAttribute(
+      "href",
+      "/pharmacy/catalogue?tab=withdrawn&q=amox&tax=unclassified",
+    );
   });
 });

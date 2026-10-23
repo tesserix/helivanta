@@ -102,6 +102,8 @@ and a link to page 2 of Dispensed opens page 2 of Dispensed.
 - Numbered page links: jumping to a page is not offered (agreed: filters narrow instead).
 - Moving any list other than the Dispense queue. The other 90 `useApiPagedQuery` lists keep
   "Load more" until their slice.
+  Supplier bills, the Product catalogue and Expiry & safety's last 30 days moved in #576
+  slice 3 ([paged pharmacy lists](2026-10-23-paged-pharmacy-lists-design.md)).
 - Filters beyond the status tabs and the Waiting name search.
 - "Dispensed today", which needs an outlet-scoped dispense.
 

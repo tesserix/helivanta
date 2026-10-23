@@ -2,6 +2,7 @@
 
 import { useApiQuery } from "./hooks";
 import type { Page } from "./paged";
+import type { ApiQueryRequest } from "./client";
 
 export const PAGE_SIZE = 25;
 
@@ -27,7 +28,7 @@ export function useApiPageQuery<T>(
   key: unknown[],
   path: string,
   cursor: string | null,
-  opts: { poll?: boolean; limit?: number } = {},
+  opts: { poll?: boolean; limit?: number; request?: ApiQueryRequest } = {},
 ): UseApiPageQueryResult<T> {
   const limit = opts.limit ?? PAGE_SIZE;
   const url =
@@ -35,7 +36,10 @@ export function useApiPageQuery<T>(
     (cursor ? `&cursor=${encodeURIComponent(cursor)}` : "");
   // No placeholder from the previous page: the range is computed from the
   // page number, so carried-over rows would sit under the wrong range.
-  const query = useApiQuery<Page<T>>([...key, path, limit, cursor], url, { poll: opts.poll });
+  const query = useApiQuery<Page<T>>([...key, path, limit, cursor], url, {
+    poll: opts.poll,
+    request: opts.request,
+  });
   return {
     items: query.data?.data ?? [],
     total: query.data?.page.total ?? null,

@@ -3,6 +3,8 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Button, Input } from "@tesserix/web";
 import { ShieldCheck } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useStepBackWhenEmpty, useUrlPage } from "@/lib/use-url-page";
 import {
   ApiError,
   apiFetch,
@@ -12,7 +14,9 @@ import {
   pharmacyKey,
   pharmacyRoot,
   pharmacySafetyIncidentInputSchema,
+  PAGE_SIZE,
   useApiMutation,
+  useApiPageQuery,
   useApiPagedQuery,
   useApiQuery,
   zonedDateTimeInput,
@@ -28,6 +32,8 @@ import {
 import {
   Field,
   LoadMore,
+  PageTabs,
+  Pager,
   Panel,
   QueryState,
   RequestFailure,
@@ -38,8 +44,6 @@ import {
 type Props = {
   scope: PharmacyScope;
   timeZone?: string;
-  /** Open with the outlet's concerns from the last 30 days, from the overview (#576 D4). */
-  showRecent?: boolean;
 };
 type ZonedProps = { scope: PharmacyScope; timeZone: string };
 type Collection<T> = ReturnType<typeof useApiPagedQuery<T>>;
@@ -64,7 +68,14 @@ const millicelsius = (value: unknown) => {
   return match[1] === "-" ? -amount : amount;
 };
 
-export function BatchSafety({ scope, timeZone = "UTC", showRecent = false }: Props) {
+const TABS = { recent: "Last 30 days", batch: "By batch" } as const;
+type SafetyTab = keyof typeof TABS;
+
+export function BatchSafety({ scope, timeZone = "UTC" }: Props) {
+  // The tab is the URL (#576 slice 3 D3); anything else, the overview's
+  // older ?recorded=30d link included, is the last 30 days.
+  const tab: SafetyTab = useSearchParams().get("tab") === "batch" ? "batch" : "recent";
+  const url = useUrlPage({ tab });
   if (!isCustomerTimeZone(timeZone))
     return (
       <Panel aria-label="Batch safety concerns">
@@ -74,70 +85,95 @@ export function BatchSafety({ scope, timeZone = "UTC", showRecent = false }: Pro
         </p>
       </Panel>
     );
-  return (
-    <>
-      {showRecent && <RecentConcerns scope={scope} timeZone={timeZone} />}
-      <ScopedSafety
-        key={`${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}:${timeZone}`}
-        scope={scope}
-        timeZone={timeZone}
-      />
-    </>
+  const tabs = (
+    <PageTabs
+      label="Safety concerns"
+      current={tab}
+      tabs={(Object.keys(TABS) as SafetyTab[]).map((key) => ({
+        key,
+        label: TABS[key],
+        href: url.hrefFor({ tab: key }),
+      }))}
+    />
+  );
+  const key = `${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}:${timeZone}`;
+  return tab === "recent" ? (
+    <RecentConcerns key={key} scope={scope} timeZone={timeZone} url={url} tabs={tabs} />
+  ) : (
+    <ScopedSafety key={key} scope={scope} timeZone={timeZone} tabs={tabs} />
   );
 }
 
-// The outlet's concerns recorded in the last 30 days, newest first: what the
-// overview's safety count counts (#576). A journal, not a set of open holds.
-function RecentConcerns({ scope, timeZone }: ZonedProps) {
-  const recent = useApiPagedQuery<PharmacySafetyIncident>(
-    pharmacyKey(scope, "safety-incidents", "recent"),
-    `${pharmacyRoot(scope)}/stock/safety-incidents?recorded=30d&limit=25`,
+// The outlet's concerns recorded in the last 30 days, newest first and 25 a
+// page: what the overview's safety count counts (#576). A journal, not a set
+// of open holds.
+function RecentConcerns({
+  scope,
+  timeZone,
+  url,
+  tabs,
+}: ZonedProps & { url: ReturnType<typeof useUrlPage>; tabs: React.ReactNode }) {
+  const recent = useApiPageQuery<PharmacySafetyIncident>(
+    pharmacyKey(scope, "safety-incidents", "recent", "counted"),
+    `${pharmacyRoot(scope)}/stock/safety-incidents/recent`,
+    url.cursor,
     { request: requestFor(scope) },
   );
+  const emptied = useStepBackWhenEmpty(recent, url);
   return (
-    <Panel aria-label="Concerns recorded in the last 30 days" className="mb-6">
-      <h3 className="font-semibold">Concerns recorded in the last 30 days</h3>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Every batch at this outlet, newest first. Choose a batch below to record a concern.
-      </p>
-      <div className="mt-4">
-        <QueryState
-          query={recent}
-          label="recent concerns"
-          empty={{ icon: ShieldCheck, title: "No concerns in the last 30 days" }}
-        >
-          {(rows) => (
-            <ul className="divide-y text-sm">
-              {rows.map((incident) => (
-                <li key={incident.id} className="py-3">
-                  <p className="font-medium">
-                    {concernTypes.find((item) => item.value === incident.kind)?.label ??
-                      incident.kind}
-                  </p>
-                  <p className="mt-0.5 whitespace-pre-wrap break-words">{incident.reason}</p>
-                  <p className="mt-0.5 text-muted-foreground">
-                    Recorded{" "}
-                    <time dateTime={incident.recorded_at}>
-                      {formatZonedDateTime(incident.recorded_at, timeZone)}
-                    </time>{" "}
-                    by {incident.actor_subject}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </QueryState>
-        <LoadMore
-          hasMore={recent.hasMore}
-          isLoading={recent.isFetchingMore}
-          onClick={recent.loadMore}
-        />
+    <Panel flush aria-label="Concerns recorded in the last 30 days">
+      {tabs}
+      <div className="p-5">
+        <h3 className="font-semibold">Concerns recorded in the last 30 days</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Every batch at this outlet, newest first. Open By batch to record a concern.
+        </p>
+        <div className="mt-4">
+          <QueryState
+            query={recent}
+            label="recent concerns"
+            empty={{ icon: ShieldCheck, title: "No concerns in the last 30 days" }}
+          >
+            {(rows) => (
+              <ul className="divide-y text-sm">
+                {rows.map((incident) => (
+                  <li key={incident.id} className="py-3">
+                    <p className="font-medium">
+                      {concernTypes.find((item) => item.value === incident.kind)?.label ??
+                        incident.kind}
+                    </p>
+                    <p className="mt-0.5 whitespace-pre-wrap break-words">{incident.reason}</p>
+                    <p className="mt-0.5 text-muted-foreground">
+                      Recorded{" "}
+                      <time dateTime={incident.recorded_at}>
+                        {formatZonedDateTime(incident.recorded_at, timeZone)}
+                      </time>{" "}
+                      by {incident.actor_subject}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </QueryState>
+        </div>
       </div>
+      {!recent.isPending && !emptied && (
+        <Pager
+          page={url.page}
+          pageSize={PAGE_SIZE}
+          offset={recent.offset}
+          shown={recent.items.length}
+          total={recent.total}
+          previousHref={url.previousHref}
+          nextHref={url.nextHref(recent.nextCursor)}
+          firstHref={url.first}
+        />
+      )}
     </Panel>
   );
 }
 
-function ScopedSafety({ scope, timeZone }: ZonedProps) {
+function ScopedSafety({ scope, timeZone, tabs }: ZonedProps & { tabs: React.ReactNode }) {
   const permissions = useApiQuery<{ tenant_id: string; data: string[] }>(
     pharmacyKey(scope, "batch-safety", "permissions"),
     "/iam/me/permissions",
@@ -145,35 +181,38 @@ function ScopedSafety({ scope, timeZone }: ZonedProps) {
   );
 
   return (
-    <Panel aria-label="Batch safety concerns" className="min-w-0 space-y-5">
-      <header>
-        <h3 className="font-semibold">Batch safety concerns</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Record observed quality, packaging or temperature concerns for review. A suspected recall
-          report does not verify a recall or release stock. All stock remains quarantined.
-        </p>
-      </header>
-      {permissions.isError ? (
-        <RequestFailure
-          message="Could not verify safety access. Previously loaded records are hidden."
-          retry={permissions.refetch}
-        />
-      ) : permissions.isPending ? (
-        <p role="status">Checking safety access…</p>
-      ) : permissions.data?.tenant_id !== scope.tenantId ? (
-        <p role="alert">
-          Safety access does not match the active tenant. Reload the current workspace.
-        </p>
-      ) : !permissions.data.data.includes("pharmacy.stock.read") ? (
-        <p role="alert">You do not have permission to view batch safety concerns.</p>
-      ) : (
-        <SafetyCollections
-          scope={scope}
-          timeZone={timeZone}
-          canRecord={permissions.data.data.includes("pharmacy.stock.quarantine")}
-          canReadProducts={permissions.data.data.includes("pharmacy.catalogue.read")}
-        />
-      )}
+    <Panel flush aria-label="Batch safety concerns" className="min-w-0">
+      {tabs}
+      <div className="space-y-5 p-5">
+        <header>
+          <h3 className="font-semibold">Batch safety concerns</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Record observed quality, packaging or temperature concerns for review. A suspected
+            recall report does not verify a recall or release stock. All stock remains quarantined.
+          </p>
+        </header>
+        {permissions.isError ? (
+          <RequestFailure
+            message="Could not verify safety access. Previously loaded records are hidden."
+            retry={permissions.refetch}
+          />
+        ) : permissions.isPending ? (
+          <p role="status">Checking safety access…</p>
+        ) : permissions.data?.tenant_id !== scope.tenantId ? (
+          <p role="alert">
+            Safety access does not match the active tenant. Reload the current workspace.
+          </p>
+        ) : !permissions.data.data.includes("pharmacy.stock.read") ? (
+          <p role="alert">You do not have permission to view batch safety concerns.</p>
+        ) : (
+          <SafetyCollections
+            scope={scope}
+            timeZone={timeZone}
+            canRecord={permissions.data.data.includes("pharmacy.stock.quarantine")}
+            canReadProducts={permissions.data.data.includes("pharmacy.catalogue.read")}
+          />
+        )}
+      </div>
     </Panel>
   );
 }
@@ -476,7 +515,7 @@ function ConcernForm({
       ),
     {
       suppressErrorToast: true,
-      invalidate: [pharmacyKey(scope, "safety-incidents", batchId)],
+      invalidate: [pharmacyKey(scope, "safety-incidents")],
       onSuccess: () => {
         const nextOccurred = zonedDateTimeInput(new Date().toISOString(), timeZone);
         setSubmitted(null);

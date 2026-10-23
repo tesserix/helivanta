@@ -640,3 +640,33 @@ describe("lists open filtered from the overview", () => {
     ).toBeVisible();
   });
 });
+
+// Review: Patients waiting is hospital-wide, so it shows even when there is
+// no outlet to show (none registered, no grant) — exactly when the overview
+// has nothing else to say.
+it("shows the hospital-wide waiting count with no pharmacy registered", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.endsWith("permissions"))
+        return new Response(
+          JSON.stringify({
+            tenant_id: "11111111-1111-1111-1111-111111111111",
+            subject: "TEST-pharmacist",
+            data: ["pharmacy.catalogue.read", "pharmacy.dispense.read"],
+          }),
+        );
+      if (url.includes("/dispenses/waiting"))
+        return new Response(
+          JSON.stringify({
+            data: [{ id: "d-1", created_at: new Date().toISOString() }],
+            page: { has_more: false, next_cursor: null, total: 4, offset: 0 },
+          }),
+        );
+      return new Response(JSON.stringify(page([])));
+    }),
+  );
+  renderWithProviders(<PharmacyWorkspace view="overview" />);
+  const waiting = await screen.findByRole("region", { name: "Patients waiting" });
+  expect(await within(waiting).findByText("4")).toBeVisible();
+});

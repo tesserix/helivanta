@@ -2,7 +2,7 @@ import { screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import type { PharmacyOutlet } from "@helivanta/api";
-import { OverviewTiles } from "./overview-tiles";
+import { OverviewTiles, WaitingTile } from "./overview-tiles";
 
 const scope = {
   tenantId: "0199e000-0000-7000-8000-0000000000aa",
@@ -73,29 +73,31 @@ describe("OverviewTiles", () => {
   it("shows the counts in order of urgency", async () => {
     serve();
     renderWithProviders(<OverviewTiles scope={scope} outlet={outlet} />);
-    expect(await screen.findByText("12")).toBeVisible();
+    expect(await screen.findByRole("region", { name: "Setup gaps" })).toBeVisible();
     const order = within(screen.getByTestId("overview-tiles"))
       .getAllByRole("region")
       .map((r) => r.getAttribute("aria-label"));
-    expect(order).toEqual([
-      "Patients waiting",
-      "Stock expiring",
-      "Safety concerns",
-      "Supplier bills",
-      "Setup gaps",
-    ]);
+    expect(order).toEqual(["Stock expiring", "Safety concerns", "Supplier bills", "Setup gaps"]);
+  });
+
+  it("counts patients waiting hospital-wide, linking to the queue", async () => {
+    serve();
+    renderWithProviders(<WaitingTile />);
+    expect(await screen.findByText("12")).toBeVisible();
     expect(within(tile("Patients waiting")).getByText(/hospital-wide/i)).toBeVisible();
     expect(within(tile("Patients waiting")).getByText(/Oldest waiting since/)).toBeVisible();
+    expect(
+      within(tile("Patients waiting")).getByRole("link", { name: /waiting/i }),
+    ).toHaveAttribute("href", "/pharmacy/dispense?tab=waiting");
   });
 
   // Every number opens the list it counts, already filtered.
   it("links each count to its filtered list", async () => {
     serve();
     renderWithProviders(<OverviewTiles scope={scope} outlet={outlet} />);
-    await screen.findByText("12");
+    await screen.findByRole("region", { name: "Setup gaps" });
     const href = (region: string, name: RegExp) =>
       within(tile(region)).getByRole("link", { name }).getAttribute("href");
-    expect(href("Patients waiting", /waiting/i)).toBe("/pharmacy/dispense?tab=waiting");
     expect(href("Stock expiring", /Expired/)).toBe(
       "/pharmacy/stock?balance=on_hand&expiry=expired",
     );
@@ -121,7 +123,6 @@ describe("OverviewTiles", () => {
     renderWithProviders(<OverviewTiles scope={scope} outlet={outlet} />);
     expect(await screen.findByRole("region", { name: "Stock expiring" })).toBeVisible();
     expect(screen.queryByRole("region", { name: "Supplier bills" })).toBeNull();
-    expect(screen.queryByRole("region", { name: "Patients waiting" })).toBeNull();
     expect(within(tile("Setup gaps")).queryByText(/GSTIN/)).toBeNull();
     expect(within(tile("Setup gaps")).getByText(/Every product has a tax rate/)).toBeVisible();
   });
@@ -133,7 +134,6 @@ describe("OverviewTiles", () => {
     expect(await screen.findByText("Could not load this outlet's counts.")).toBeVisible();
     expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
     expect(screen.queryByText("0")).toBeNull();
-    expect(await screen.findByText("12")).toBeVisible();
   });
 
   it("shows when the outlet counts were read, in the outlet's time zone", async () => {
@@ -145,10 +145,18 @@ describe("OverviewTiles", () => {
   // A wait that began on an earlier day must say which day, not just a time.
   it("dates the oldest wait when it began before today", async () => {
     serve();
-    renderWithProviders(<OverviewTiles scope={scope} outlet={outlet} />);
+    renderWithProviders(<WaitingTile />);
     const note = await within(
       await screen.findByRole("region", { name: "Patients waiting" }),
     ).findByText(/Oldest waiting since/);
     expect(note.textContent).toMatch(/2026/);
+  });
+
+  // A country with no tax scheme has no tax gaps: no Setup tile at all.
+  it("shows no Setup tile where the outlet has no tax scheme", async () => {
+    serve({ overview: { ...full, setup: undefined } });
+    renderWithProviders(<OverviewTiles scope={scope} outlet={outlet} />);
+    expect(await screen.findByRole("region", { name: "Stock expiring" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Setup gaps" })).toBeNull();
   });
 });

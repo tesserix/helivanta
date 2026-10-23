@@ -6,7 +6,6 @@ import {
   pharmacyRoot,
   useApiPageQuery,
   useApiQuery,
-  usePermissions,
   type PharmacyOutlet,
   type PharmacyScope,
 } from "@helivanta/api";
@@ -18,7 +17,8 @@ type OutletOverview = {
   stock?: { expired: number; due_30: number; due_90: number };
   safety?: { recent: number };
   bills?: { overdue: number; week: number };
-  setup: { unclassified: number; registration_in_force?: boolean };
+  /** Absent where the outlet's country has no tax scheme: no gap is real there. */
+  setup?: { unclassified: number; registration_in_force?: boolean };
 };
 
 type Waiting = { id: string; created_at: string };
@@ -74,8 +74,6 @@ function Tile({
  * failure says so rather than showing zeros (D5).
  */
 export function OverviewTiles({ scope, outlet }: { scope: PharmacyScope; outlet: PharmacyOutlet }) {
-  const { can } = usePermissions();
-  const canDispense = can("pharmacy.dispense.read");
   const overview = useApiQuery<OutletOverview>(
     pharmacyKey(scope, "overview"),
     `${pharmacyRoot(scope)}/overview`,
@@ -88,9 +86,8 @@ export function OverviewTiles({ scope, outlet }: { scope: PharmacyScope; outlet:
 
   return (
     <div className="space-y-3">
-      {asOf && <p className="text-xs text-muted-foreground">{asOf}. Patients waiting is live.</p>}
+      {asOf && <p className="text-xs text-muted-foreground">{asOf}.</p>}
       <div data-testid="overview-tiles" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {canDispense && <WaitingTile />}
         {overview.isError ? (
           <div className="sm:col-span-2 xl:col-span-2">
             <RequestFailure
@@ -147,29 +144,31 @@ export function OverviewTiles({ scope, outlet }: { scope: PharmacyScope; outlet:
                   />
                 </Tile>
               )}
-              <Tile title="Setup gaps">
-                {data.setup.unclassified > 0 ? (
-                  <Count
-                    value={data.setup.unclassified}
-                    label="Not classified for tax"
-                    href="/pharmacy/catalogue?tax=unclassified"
-                  />
-                ) : (
-                  <p className="px-2 py-1.5 text-sm text-muted-foreground">
-                    Every product has a tax rate in force.
-                  </p>
-                )}
-                {data.setup.registration_in_force !== undefined && (
-                  <Link
-                    href="/pharmacy/setup"
-                    className="rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent"
-                  >
-                    {data.setup.registration_in_force
-                      ? "GSTIN in force"
-                      : "No GSTIN in force: record the outlet's registration"}
-                  </Link>
-                )}
-              </Tile>
+              {data.setup && (
+                <Tile title="Setup gaps">
+                  {data.setup!.unclassified > 0 ? (
+                    <Count
+                      value={data.setup!.unclassified}
+                      label="Not classified for tax"
+                      href="/pharmacy/catalogue?tax=unclassified"
+                    />
+                  ) : (
+                    <p className="px-2 py-1.5 text-sm text-muted-foreground">
+                      Every product has a tax rate in force.
+                    </p>
+                  )}
+                  {data.setup!.registration_in_force !== undefined && (
+                    <Link
+                      href="/pharmacy/setup"
+                      className="rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent"
+                    >
+                      {data.setup!.registration_in_force
+                        ? "GSTIN in force"
+                        : "No GSTIN in force: record the outlet's registration"}
+                    </Link>
+                  )}
+                </Tile>
+              )}
             </>
           )
         )}
@@ -180,7 +179,7 @@ export function OverviewTiles({ scope, outlet }: { scope: PharmacyScope; outlet:
 
 // Hospital-wide: dispenses are not outlet-scoped. The counted queue's total
 // is the number; its first row, oldest first, is the longest wait.
-function WaitingTile() {
+export function WaitingTile() {
   const waiting = useApiPageQuery<Waiting>(
     ["dispenses", "waiting"],
     "/pharmacy/dispenses/waiting",

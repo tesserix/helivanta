@@ -72,8 +72,10 @@ export function CataloguePanel({
   initialUnclassified?: boolean;
 }) {
   const [query, setQuery] = useState("");
-  const [unclassified, setUnclassified] = useState(initialUnclassified);
   const scheme = taxScheme(countryCode);
+  // Without a tax scheme nothing can be classified, so the filter would be
+  // hidden and could not be cleared: ignore it.
+  const [unclassified, setUnclassified] = useState(initialUnclassified && !!scheme);
   const today = zonedDateTimeInput(new Date().toISOString(), timeZone).slice(0, 10);
   const [selected, setSelected] = useState<PharmacyProduct | null | undefined>();
   const search = useZodForm(searchSchema, { query: "" });

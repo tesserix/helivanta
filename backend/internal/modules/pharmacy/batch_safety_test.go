@@ -329,4 +329,7 @@ func TestRecentSafetyConcernsOutletWide(t *testing.T) {
 
 	require.Equal(t, 400, do(r, "GET", stockPath("safety-incidents"), "editor", "").Code)
 	require.Equal(t, 400, do(r, "GET", stockPath("safety-incidents?recorded=7d"), "editor", "").Code)
+	// No outlet grant, or another tenant: the same 404 as every outlet list (#1285).
+	require.Equal(t, 404, do(r, "GET", stockPath("safety-incidents?recorded=30d"), "sibling", "").Code)
+	require.Equal(t, 404, do(r, "GET", stockPath("safety-incidents?recorded=30d"), "foreign", "").Code)
 }

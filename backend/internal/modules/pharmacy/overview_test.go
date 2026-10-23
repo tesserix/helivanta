@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -227,4 +228,50 @@ func TestOverviewOtherTenantAndNoGrant(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, code)
 	code, _, _ = getOverview(t, r, "foreign")
 	require.Equal(t, http.StatusNotFound, code)
+}
+
+// Review: an outlet in a country with no tax scheme cannot classify
+// products, so "not classified" there is not a gap anyone can close. The
+// count is absent rather than a permanent false figure.
+func TestOverviewOmitsTaxGapsWithoutAScheme(t *testing.T) {
+	r, _ := overviewHarness(t)
+	w := do(r, "PUT", "/v1/pharmacy/pharmacies/"+pharmaOrganization+"/outlets/"+pkOutlet, "editor", `{"code":"TEST-LAHORE","name":"TEST Lahore Outlet","country_code":"PK","timezone":"Asia/Karachi"}`)
+	require.Equal(t, 200, w.Code, w.Body.String())
+	grantPath := "/v1/pharmacy/pharmacies/" + pharmaOrganization + "/outlets/" + pkOutlet + "/access/user-editor"
+	require.Equal(t, 200, do(r, "PUT", grantPath, "editor", `{"level":"editor"}`).Code)
+	w = do(r, "PUT", "/v1/pharmacy/pharmacies/"+pharmaOrganization+"/outlets/"+pkOutlet+"/catalogue/products/"+uuid.Must(uuid.NewV7()).String(), "editor", strings.Replace(productBody(0, "TEST Lahore product"), `"currency":"INR"`, `"currency":"PKR"`, 1))
+	require.Equal(t, 200, w.Code, w.Body.String())
+
+	w = do(r, "GET", "/v1/pharmacy/pharmacies/"+pharmaOrganization+"/outlets/"+pkOutlet+"/overview", "editor", "")
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	require.NotContains(t, w.Body.String(), "unclassified")
+	require.NotContains(t, w.Body.String(), "registration_in_force")
+}
+
+// Review: the overview refreshes on the queue's interval, so its stock
+// counts must aggregate the outlet's movement history once per request, not
+// once per expiry band.
+func TestOverviewReadsStockHistoryOnce(t *testing.T) {
+	r, db := overviewHarness(t)
+	var reads atomic.Int32
+	count := func(tx *gorm.DB) {
+		// A dry run only builds SQL (GORM does this to embed a subquery).
+		if !tx.DryRun && strings.Contains(tx.Statement.SQL.String(), "pharmacy_stock_movements") {
+			reads.Add(1)
+		}
+	}
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		cb := tx.Callback()
+		if err := cb.Query().After("gorm:query").Register("overview_test:stock_reads_q", count); err != nil {
+			return err
+		}
+		if err := cb.Row().After("gorm:row").Register("overview_test:stock_reads_row", count); err != nil {
+			return err
+		}
+		return cb.Raw().After("gorm:raw").Register("overview_test:stock_reads_raw", count)
+	}))
+	code, got, raw := getOverview(t, r, "editor")
+	require.Equal(t, http.StatusOK, code, raw)
+	require.NotNil(t, got.Stock)
+	require.EqualValues(t, 1, reads.Load(), "stock movement history aggregated more than once")
 }

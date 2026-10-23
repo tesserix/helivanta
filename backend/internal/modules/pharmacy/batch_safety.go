@@ -144,7 +144,12 @@ func (h *catalogueHandlers) listBatchSafetyIncidents(c *gin.Context, params pagi
 			q := tenantdb.ApplyKeyset(tx, params).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet)
 			return recentSafetyScope(today, o.Timezone)(q).Find(&rows).Error
 		})
-		return rows, err
+		// The same answers as the per-batch list: 404 without an outlet
+		// grant, 503 when access cannot be checked.
+		if err != nil {
+			stockError(c, err)
+		}
+		return rows, nil
 	}
 	batch, ok := stockFilter(c, "batch_id", true)
 	if !ok {

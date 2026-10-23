@@ -26,6 +26,8 @@ type overviewBills struct {
 	Week    int64 `json:"week"`
 }
 
+// overviewSetup is present only where the outlet's country has a tax scheme:
+// elsewhere nothing can be classified or registered, so no gap is real.
 type overviewSetup struct {
 	Unclassified        int64 `json:"unclassified"`
 	RegistrationInForce *bool `json:"registration_in_force,omitempty"`
@@ -37,7 +39,7 @@ type outletOverview struct {
 	Stock    *overviewStock  `json:"stock,omitempty"`
 	Safety   *overviewSafety `json:"safety,omitempty"`
 	Bills    *overviewBills  `json:"bills,omitempty"`
-	Setup    *overviewSetup  `json:"setup"`
+	Setup    *overviewSetup  `json:"setup,omitempty"`
 }
 
 // getOverview answers the PharmaConnect overview's outlet counts (#576).
@@ -75,10 +77,17 @@ func (h *catalogueHandlers) getOverview(c *gin.Context) {
 		}
 
 		if perms.Has(PermStockRead) {
-			// As the stock register does, stock is read at the database's now.
+			// The outlet's stock lines are aggregated once per request into a
+			// transaction-local table; the three bands then apply the register's
+			// own scope to it, so they still match the list and the history is
+			// not re-aggregated per band on every refresh. Read at the current
+			// time, as the stock page's own as_of is.
 			source := stockPositionsSource(tx, p.TenantID, outlet, time.Now().UTC())
+			if err := tx.Exec("CREATE TEMP TABLE overview_positions ON COMMIT DROP AS ?", source).Error; err != nil {
+				return err
+			}
 			positions := func(expiry string) (int64, error) {
-				return count(stockExpiryScope(expiry, "on_hand")(tx.Table("(?) AS positions", source)))
+				return count(stockExpiryScope(expiry, "on_hand")(tx.Table("overview_positions")))
 			}
 			var stock overviewStock
 			if stock.Expired, err = positions("expired"); err != nil {
@@ -112,14 +121,16 @@ func (h *catalogueHandlers) getOverview(c *gin.Context) {
 			result.Bills = &b
 		}
 
+		if _, ok := countryprofile.Tax(o.CountryCode); !ok {
+			return nil
+		}
 		unclassified, err := count(unclassifiedScope(today)(tx.Model(&catalogueProduct{}).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet)))
 		if err != nil {
 			return err
 		}
 		result.Setup = &overviewSetup{Unclassified: unclassified}
-		// Only an owner sees registration, and only where the country has a
-		// tax scheme to register under.
-		if _, ok := countryprofile.Tax(o.CountryCode); ok && perms.Has(PermTaxManage) {
+		// Only an owner sees registration.
+		if perms.Has(PermTaxManage) {
 			var inForce bool
 			if err := tx.Raw(`SELECT EXISTS (SELECT 1 FROM pharmacy_outlet_tax_registrations
  WHERE tenant_id=? AND outlet_id=? AND effective_from <= ?::date)`, p.TenantID, outlet, today).Scan(&inForce).Error; err != nil {

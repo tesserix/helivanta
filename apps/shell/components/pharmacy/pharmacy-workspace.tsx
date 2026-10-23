@@ -30,7 +30,7 @@ import {
   useZodForm,
 } from "@helivanta/ui";
 import { CataloguePanel } from "./catalogue-panel";
-import { OverviewTiles } from "./overview-tiles";
+import { OverviewTiles, WaitingTile } from "./overview-tiles";
 import { AccountsPanel } from "./accounts-panel";
 import { StockPanel } from "./stock-panel";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
@@ -134,6 +134,12 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
           </div>
         }
       />
+      {/* Hospital-wide, so it shows whatever the outlet state is (#576 D2). */}
+      {view === "overview" && can("pharmacy.dispense.read") && (
+        <div className="mb-4">
+          <WaitingTile />
+        </div>
+      )}
       {pharmacies.isError ? (
         <RequestFailure message="Could not load your pharmacies." retry={pharmacies.retry} />
       ) : pharmacies.isPending ? (

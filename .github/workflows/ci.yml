@@ -207,6 +207,7 @@ jobs:
       - run: pnpm audit --prod --audit-level=high
       - run: pnpm turbo lint format:check type-check && pnpm turbo test && pnpm turbo build
         env:
+          API_URL: http://127.0.0.1:8081
           # Zitadel's client id and issuer are client-visible by design, so a
           # placeholder is fine here. Replaces NEXT_PUBLIC_GIP_* which #838
           # deleted along with Firebase.

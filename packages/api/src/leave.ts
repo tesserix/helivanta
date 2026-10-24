@@ -130,7 +130,7 @@ export const leaveCorrectionSchema = leaveCorrectionInputContract.superRefine((v
 export const leaveYearOpenSchema = z
   .object({
     leave_year: z
-      .number({ invalid_type_error: "Enter a year." })
+      .number({ error: "Enter a year." })
       .int("Enter a whole year.")
       .min(2000, "Choose a year from 2000 to 2199.")
       .max(2199, "Choose a year from 2000 to 2199."),
@@ -149,7 +149,7 @@ export const leaveRequestFormSchema = (rules: ReadonlyMap<string, LeaveTypeRules
       start_on: z.string().date("Choose a start date."),
       end_on: z.string(),
       session: z.enum(["first_half", "second_half"]),
-      minutes: z.number({ invalid_type_error: "Enter the minutes." }),
+      minutes: z.number({ error: "Enter the minutes." }),
       reason: leaveRequestInputContract.shape.reason,
     })
     .strict()

@@ -442,7 +442,7 @@ function StaffEditor({
 
 const hospitalSchema = z.object({
   name: z.string().trim().min(1, "Enter a hospital name.").max(150),
-  grant: z.literal(true, { errorMap: () => ({ message: "Confirm your hospital access grant." }) }),
+  grant: z.literal(true, { error: "Confirm your hospital access grant." }),
 });
 function HospitalSetup() {
   const [id, setId] = useState(() => crypto.randomUUID());

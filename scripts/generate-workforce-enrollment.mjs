@@ -48,7 +48,7 @@ ts += `const dateOnly = z.string().refine(value => value === "" || (/^\\d{4}-\\d
 export const internationalPhone = z.string().regex(/^(\\+[1-9][0-9]{6,14})?$/, "Use an international number, for example +61400000001.");
 const country = z.string().regex(/^([A-Z]{2})?$/, "Use a two-letter country code, such as AU or IN.");
 const email = z.union([z.literal(""), z.string().max(254).email("Enter a valid email address.")]);
-const identifier = z.string().uuid().refine(value => value !== "00000000-0000-0000-0000-000000000000", "Choose a valid record.");\n`;
+const identifier = z.string().guid().refine(value => value !== "00000000-0000-0000-0000-000000000000", "Choose a valid record.");\n`;
 for (const [group, fields] of Object.entries(groups)) {
   go += `type enrollment${names[group]} struct {\n`;
   ts += `export const enrollment${names[group]}Schema = z.object({\n`;

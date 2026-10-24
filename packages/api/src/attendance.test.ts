@@ -69,7 +69,7 @@ const punch = {
 const issues = (
   schema: {
     safeParse: (v: unknown) => {
-      error?: { issues: { path: (string | number)[]; message: string }[] };
+      error?: { issues: { path: PropertyKey[]; message: string }[] };
     };
   },
   value: object,

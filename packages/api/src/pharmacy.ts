@@ -153,7 +153,7 @@ export type PharmacyStockReconciliation = {
 };
 export type PharmacyScope = { tenantId: string; pharmacyId: string; outletId: string };
 export function pharmacyRoot(scope: PharmacyScope) {
-  return `/pharmacy/pharmacies/${z.string().uuid().parse(scope.pharmacyId)}/outlets/${z.string().uuid().parse(scope.outletId)}`;
+  return `/pharmacy/pharmacies/${z.string().guid().parse(scope.pharmacyId)}/outlets/${z.string().guid().parse(scope.outletId)}`;
 }
 export function pharmacyKey(scope: PharmacyScope, ...parts: unknown[]) {
   return ["pharmacy", scope.tenantId, scope.pharmacyId, scope.outletId, ...parts];

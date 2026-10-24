@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const identifier = z
   .string()
-  .uuid()
+  .guid()
   .regex(
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
@@ -147,7 +147,7 @@ export const pharmacyAffiliationInputSchema = z
   .object({
     hospital_id: z
       .string()
-      .uuid()
+      .guid()
       .refine(
         (value) => value !== "00000000-0000-0000-0000-000000000000",
         "Choose a valid hospital reference.",
@@ -213,7 +213,7 @@ export const pharmacySafetyIncidentFieldsSchema = z
       "packaging_damage",
       "suspected_recall",
     ]),
-    reason: z.string().trim().min(10).max(500),
+    reason: z.string().trim().min(10, "Enter at least 10 characters.").max(500),
     occurred_at: z
       .string()
       .min(1)

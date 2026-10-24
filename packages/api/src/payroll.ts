@@ -161,7 +161,7 @@ export const salaryHeadFormSchema = z
     wage_class: z.enum(["wages", "excluded", "outside"]),
     payslip_label: text("a payslip label", 40),
     payslip_order: z
-      .number({ invalid_type_error: "Enter the payslip position." })
+      .number({ error: "Enter the payslip position." })
       .int("Enter a whole number.")
       .min(0, "Use a position from 0 to 999.")
       .max(999, "Use a position from 0 to 999."),
@@ -1557,7 +1557,7 @@ export type StatutoryDecisionForm = z.infer<typeof statutoryDecisionFormSchema>;
 
 export const statutoryPreviewFormSchema = z
   .object({
-    structure_id: z.string().uuid("Choose a structure."),
+    structure_id: z.string().guid("Choose a structure."),
     on: date,
     payable_days: z.string(),
     disability: z.boolean(),
@@ -1716,7 +1716,7 @@ export type SalaryAssignmentAmountForm = z.infer<typeof assignmentAmountFormSche
 // A blank amount keeps the structure's own figure for that head.
 export const salaryAssignmentFormSchema = z
   .object({
-    structure_id: z.string().uuid("Choose a structure."),
+    structure_id: z.string().guid("Choose a structure."),
     effective_on: date,
     reason: text("a reason", 500),
     amounts: z.array(assignmentAmountFormSchema).max(60),

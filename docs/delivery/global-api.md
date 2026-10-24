@@ -122,12 +122,24 @@ activation and public/direct-access verification. The
 records staged rollout, recovery order, capacity and repeatable acceptance probes.
 Do not treat private connector readiness as public cutover evidence.
 
-The frontend audit still fails on Zod advisory `GHSA-mrhx-c7xc-m3w5`; upgrading
-from Zod 3 to the patched major requires shared-contract compatibility testing.
-This check is not suppressed. The existing product API Argo rollout also has a
-failed migration hook from unrelated pending releases. Its running image stays
-unchanged; do not merge this source branch into automatic product promotion until
-that migration and the dependency gate are resolved.
+The Zod advisory `GHSA-mrhx-c7xc-m3w5` is addressed with Zod 4.6.6 and a
+compatible form resolver. Collection-bound regression tests cover the actual
+pharmacy schema and resolved Expo CLI dependency. Existing UUID wire shapes and
+explicit UUIDv7 restrictions are preserved; the advisory is not suppressed.
+
+Routing PR #1520 and owner-boundary PR #1521 are merged and live. The shell's
+direct product API request returns 403; the same protected request through Global
+API returns 401 with the connector Via header. Public login returns 200.
+
+The unrelated India-only migration preflight found 15 incompatible rows across
+eight tables. No data was changed. The restricted preflight role lacks a required
+SELECT grant; administrator read-only counts are recorded in the
+[release hold](https://github.com/tesserix/kargo-manifests/pull/60).
+That PR is merged and live `autoPromotionEnabled: false` was verified on
+2026-10-24 before the source merge. Product API, connector and shell promotion now uses the same
+source tag in order. Keep production promotion held until data owners approve a
+remediation plan and a complete fresh preflight passes. Never bypass migration
+guards or delete business records to make a rollout succeed.
 
 Local Docker was unavailable, so database/browser/container validation ran in CI.
 These results establish the implemented routing slice, not all clinical workflows,

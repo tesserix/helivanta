@@ -534,7 +534,8 @@
           "type": "string",
           "trim": true,
           "min": 10,
-          "max": 500
+          "max": 500,
+          "min_message": "Enter at least 10 characters."
         },
         {
           "name": "occurred_at",

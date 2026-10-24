@@ -28,7 +28,7 @@ export const policyLabel = (value: string) =>
 type PolicyForm = ReturnType<typeof useZodForm<typeof countryPolicyEditorSchema>>;
 const textareaClass =
   "min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm font-normal";
-const policyFields = countryPolicyEditorSchema.innerType().shape;
+const policyFields = countryPolicyEditorSchema.shape;
 
 function initialPolicy(
   scope?: CountryPolicyScope,

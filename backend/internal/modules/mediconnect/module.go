@@ -16,13 +16,16 @@ var accountSchema string
 //go:embed link_requests.sql
 var linkRequestSchema string
 
+//go:embed accessibility.sql
+var accessibilitySchema string
+
 type Module struct{}
 
 func New() *Module                         { return &Module{} }
 func (*Module) Name() string               { return "mediconnect" }
 func (*Module) Permissions() []authz.Grant { return nil }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_mediconnect", SQL: accountSchema}, {ID: "0002_mediconnect", SQL: linkRequestSchema}}
+	return []tenantdb.Migration{{ID: "0001_mediconnect", SQL: accountSchema}, {ID: "0002_mediconnect", SQL: linkRequestSchema}, {ID: "0003_mediconnect", SQL: accessibilitySchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &accountHandlers{db: deps.DB, bus: deps.Bus}

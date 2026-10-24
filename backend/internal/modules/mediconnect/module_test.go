@@ -187,6 +187,14 @@ func TestGlobalAPIToMediConnectToPostgres(t *testing.T) {
 	require.Equal(t, "no-store", response.Header().Get("Cache-Control"))
 	own := testutil.Do(r, "GET", "/v1/mediconnect/account", "a", "")
 	require.JSONEq(t, response.Body.String(), own.Body.String())
+	request = httptest.NewRequest("PATCH", "/v1/mediconnect/account/preferences", strings.NewReader(`{"expected_version":1,"locale":"hi-IN","preferred_channel":"email","low_data_mode":true,"accessibility":{"text_size":"large","contrast":"high","motion":"reduced"}}`))
+	request.Header.Set("Authorization", "Bearer a")
+	request.Header.Set("X-Tenant-ID", testutil.TenantB)
+	response = httptest.NewRecorder()
+	gateway.ServeHTTP(response, request)
+	require.Equal(t, 200, response.Code, response.Body.String())
+	require.Equal(t, map[string]any{"text_size": "large", "contrast": "high", "motion": "reduced"}, accountBody(t, response)["accessibility"])
+	require.JSONEq(t, response.Body.String(), testutil.Do(r, "GET", "/v1/mediconnect/account", "a", "").Body.String())
 	request = httptest.NewRequest("GET", "/v1/mediconnect/account", nil)
 	request.Header.Set("Authorization", "Bearer peer")
 	request.Header.Set("X-User-ID", "user-a")
@@ -262,6 +270,7 @@ func TestAuditFailurePreventsAccountReadDisclosure(t *testing.T) {
 		response := testutil.Do(r, method, "/v1/mediconnect/account", "a", "{}")
 		require.Equal(t, 500, response.Code, response.Body.String())
 		require.NotContains(t, response.Body.String(), "locale")
+		require.NotContains(t, response.Body.String(), "accessibility")
 		require.NotContains(t, response.Body.String(), "synthetic")
 	}
 }

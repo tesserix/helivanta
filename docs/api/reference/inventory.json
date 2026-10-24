@@ -1121,6 +1121,11 @@
           "creates_tables": [
             "mediconnect_link_requests"
           ]
+        },
+        {
+          "id": "0003_mediconnect",
+          "sql_sha256": "c3a1a566de7abcd0c95cc790e4a9f0e28cee748d5e1cf2c73ddbd9bddccb7768",
+          "creates_tables": []
         }
       ]
     },

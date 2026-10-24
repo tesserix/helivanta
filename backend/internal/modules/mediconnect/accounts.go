@@ -19,17 +19,29 @@ import (
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-type account struct {
-	ID               uuid.UUID `json:"id"`
-	Locale           string    `json:"locale"`
-	PreferredChannel string    `json:"preferred_channel"`
-	LowDataMode      bool      `json:"low_data_mode"`
-	Version          int64     `json:"version"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+type accessibilityPreferences struct {
+	TextSize string `json:"text_size"`
+	Contrast string `json:"contrast"`
+	Motion   string `json:"motion"`
 }
 
-const accountColumns = "id, locale, preferred_channel, low_data_mode, version, created_at, updated_at"
+func (p *accessibilityPreferences) valid() bool {
+	return p == nil || ((p.TextSize == "system" || p.TextSize == "large" || p.TextSize == "extra_large") &&
+		(p.Contrast == "system" || p.Contrast == "high") && (p.Motion == "system" || p.Motion == "reduced"))
+}
+
+type account struct {
+	ID               uuid.UUID                `json:"id"`
+	Accessibility    accessibilityPreferences `json:"accessibility" gorm:"embedded;embeddedPrefix:accessibility_"`
+	Locale           string                   `json:"locale"`
+	PreferredChannel string                   `json:"preferred_channel"`
+	LowDataMode      bool                     `json:"low_data_mode"`
+	Version          int64                    `json:"version"`
+	CreatedAt        time.Time                `json:"created_at"`
+	UpdatedAt        time.Time                `json:"updated_at"`
+}
+
+const accountColumns = "id, locale, preferred_channel, low_data_mode, accessibility_text_size, accessibility_contrast, accessibility_motion, version, created_at, updated_at"
 
 type accountHandlers struct {
 	db  *tenantdb.DB
@@ -154,10 +166,11 @@ func (h *accountHandlers) get(c *gin.Context) {
 }
 
 type preferencesInput struct {
-	ExpectedVersion  int64  `json:"expected_version"`
-	Locale           string `json:"locale"`
-	PreferredChannel string `json:"preferred_channel"`
-	LowDataMode      *bool  `json:"low_data_mode"`
+	Accessibility    *accessibilityPreferences `json:"accessibility"`
+	ExpectedVersion  int64                     `json:"expected_version"`
+	Locale           string                    `json:"locale"`
+	PreferredChannel string                    `json:"preferred_channel"`
+	LowDataMode      *bool                     `json:"low_data_mode"`
 }
 
 func (h *accountHandlers) preferences(c *gin.Context) {
@@ -171,11 +184,15 @@ func (h *accountHandlers) preferences(c *gin.Context) {
 		return
 	}
 	_, localeErr := language.Parse(input.Locale)
-	if input.ExpectedVersion < 1 || input.ExpectedVersion > 9007199254740991 || input.LowDataMode == nil ||
+	if !input.Accessibility.valid() || input.ExpectedVersion < 1 || input.ExpectedVersion > 9007199254740991 || input.LowDataMode == nil ||
 		len(input.Locale) < 2 || len(input.Locale) > 35 || localeErr != nil ||
 		(input.PreferredChannel != "none" && input.PreferredChannel != "email" && input.PreferredChannel != "whatsapp") {
 		respond.Error(c, 400, "invalid_request", "Invalid account preferences")
 		return
+	}
+	var textSize, contrast, motion *string
+	if input.Accessibility != nil {
+		textSize, contrast, motion = &input.Accessibility.TextSize, &input.Accessibility.Contrast, &input.Accessibility.Motion
 	}
 	var row account
 	conflict := false
@@ -187,9 +204,11 @@ func (h *accountHandlers) preferences(c *gin.Context) {
 			return err
 		}
 		result := tx.Exec(`UPDATE mediconnect_accounts SET locale = ?, preferred_channel = ?,
-   low_data_mode = ?, version = version + 1, updated_at = clock_timestamp()
+   low_data_mode = ?, accessibility_text_size = COALESCE(?, accessibility_text_size),
+   accessibility_contrast = COALESCE(?, accessibility_contrast), accessibility_motion = COALESCE(?, accessibility_motion),
+   version = version + 1, updated_at = clock_timestamp()
    WHERE tenant_id = ? AND subject = ? AND version = ?`,
-			input.Locale, input.PreferredChannel, *input.LowDataMode, p.TenantID, p.Subject, input.ExpectedVersion)
+			input.Locale, input.PreferredChannel, *input.LowDataMode, textSize, contrast, motion, p.TenantID, p.Subject, input.ExpectedVersion)
 		if result.Error != nil {
 			return result.Error
 		}

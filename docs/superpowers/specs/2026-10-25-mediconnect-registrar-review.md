@@ -71,7 +71,7 @@ MediConnect withdrawal locks the original request, marks any submission withdraw
 and queues its cancellation in the same transaction. Existing original-request
 replay/version behavior stays compatible. Hospital delivery may lag, but its late
 approval cannot reactivate the account-owned submission: consumer application
-checks the authoritative local withdrawal state. Receipts remain attributable.
+locks and checks the original local request before its projection. Receipts remain attributable.
 Cancellation arriving before submission creates a tombstone; later submission
 must match immutable identity and cannot reopen it. Duplicate business events are
 idempotent even under new event IDs; changed identity/decision payloads are errors
@@ -111,3 +111,11 @@ self-review denial, nonexistent/stale patient rejection, partial JSON denial,
 idempotency/conflict, cancellation-first tombstones, audit/outbox rollback and
 no clinical grant/consent creation. Contract generation, consumer/schema parity,
 full race/lint/build/CI and migration rehearsal precede a reviewed manual rollout.
+
+Rollout review reproduced a mixed-version gap: older writers could withdraw only
+the original request. Migration 0005_mediconnect adds narrowly scoped consumer
+source-read authority, never source-write authority. Result application, review
+GET and withdrawal retries atomically reconcile a missing cancellation before
+returning state. Original-request → projection lock order is shared by every
+path. Tests cover late/replayed approvals, read recovery, withdrawal retry,
+exactly-one recovered cancellation, outbox failure and denied consumer writes.

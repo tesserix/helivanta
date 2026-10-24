@@ -44,3 +44,13 @@ Before implementing appointments/queues, prescribe/sign/amend, OT, oncology, ICU
 6. Synthetic positive, cross-tenant/hospital, stale-state, duplicate and dependency-failure acceptance cases.
 
 Beds have a [separate detailed draft](beds-and-admissions.md). Use [#81](https://github.com/tesserix/helivanta/issues/81), [#983](https://github.com/tesserix/helivanta/issues/983), [#991](https://github.com/tesserix/helivanta/issues/991), [#993](https://github.com/tesserix/helivanta/issues/993), [#995](https://github.com/tesserix/helivanta/issues/995), [#996](https://github.com/tesserix/helivanta/issues/996) and the exploration ledger to retain detailed workflow coverage. Issue [#472](https://github.com/tesserix/helivanta/issues/472) requests FHIR R4 canonical resources; current visit/patient endpoints are not a FHIR implementation. FHIR profiles, terminology, validation and clinical mapping need their own approved contracts.
+
+## MediConnect registrar identity review
+
+Patientmaster owns the hospital-scoped link-review worklist and immutable evidence
+attestation. `patient.register` and an explicit current hospital registrar grant
+are both required; the requester cannot be the reviewer. See the complete
+[MediConnect review contract](../mediconnect.md#explicit-hospital-registrar-review).
+Approval validates the claimed registration and its captured version; it does not
+establish proxy authority, clinical disclosure rights or patient/proxy consent.
+Review input and outcome cross owners only through typed transactional events.

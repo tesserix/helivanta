@@ -19,13 +19,16 @@ var linkRequestSchema string
 //go:embed accessibility.sql
 var accessibilitySchema string
 
+//go:embed reviews.sql
+var reviewSchema string
+
 type Module struct{}
 
 func New() *Module                         { return &Module{} }
 func (*Module) Name() string               { return "mediconnect" }
 func (*Module) Permissions() []authz.Grant { return nil }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_mediconnect", SQL: accountSchema}, {ID: "0002_mediconnect", SQL: linkRequestSchema}, {ID: "0003_mediconnect", SQL: accessibilitySchema}}
+	return []tenantdb.Migration{{ID: "0001_mediconnect", SQL: accountSchema}, {ID: "0002_mediconnect", SQL: linkRequestSchema}, {ID: "0003_mediconnect", SQL: accessibilitySchema}, {ID: "0004_mediconnect", SQL: reviewSchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &accountHandlers{db: deps.DB, bus: deps.Bus}
@@ -37,10 +40,16 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.PUT("/account/link-requests/:request", authz.Public, h.submitLinkRequest)
 	g.GET("/account/link-requests/:request", authz.Public, h.getLinkRequest)
 	platform.ListRoute(g, "/account/link-requests", authz.Public, h.listLinkRequests)
+	g.POST("/account/link-requests/:request/review", authz.Public, h.submitReview)
+	g.GET("/account/link-requests/:request/review", authz.Public, h.getReview)
 	g.POST("/account/link-requests/:request/withdraw", authz.Public, h.withdrawLinkRequest)
 }
-func (*Module) Publishes() []string                         { return []string{mediconnectcontract.SubjectAccountCreated} }
-func (*Module) DirectedSubjects() []string                  { return nil }
-func (*Module) DirectedWriteTables() []string               { return nil }
-func (*Module) Consumers(platform.Deps) []events.Consumer   { return nil }
+func (*Module) Publishes() []string {
+	return []string{mediconnectcontract.SubjectAccountCreated, mediconnectcontract.SubjectReviewRequested, mediconnectcontract.SubjectReviewWithdrawn}
+}
+func (*Module) DirectedSubjects() []string    { return nil }
+func (*Module) DirectedWriteTables() []string { return nil }
+func (*Module) Consumers(platform.Deps) []events.Consumer {
+	return []events.Consumer{reviewResultConsumer()}
+}
 func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }

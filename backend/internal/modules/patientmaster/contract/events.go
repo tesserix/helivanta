@@ -17,3 +17,17 @@ type PatientRegisteredData struct {
 	PatientID  string `json:"patient_id"`
 	HospitalID string `json:"hospital_id"`
 }
+
+// SubjectRegistrationReviewed publishes an identity decision, never clinical authority.
+const SubjectRegistrationReviewed = "helivanta.in.patientmaster.registration_reviewed.v1"
+
+// RegistrationReviewedData omits evidence, demographics and reviewer identity.
+type RegistrationReviewedData struct {
+	RequestID  string `json:"request_id"`
+	AccountID  string `json:"account_id"`
+	HospitalID string `json:"hospital_id"`
+	PatientID  string `json:"patient_id"`
+	DecisionID string `json:"decision_id"`
+	Outcome    string `json:"outcome"`
+	ReviewedAt string `json:"reviewed_at"`
+}

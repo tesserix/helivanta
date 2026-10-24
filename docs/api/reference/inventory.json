@@ -1036,6 +1036,24 @@
       "source": "backend/internal/modules/mediconnect/module.go",
       "routes": [
         {
+          "method": "GET",
+          "path": "/v1/mediconnect/account/link-requests/:request/review",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/mediconnect/account/link-requests/:request/review",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/mediconnect/account/link-requests/:request/withdraw",
           "permission": "public",
@@ -1101,11 +1119,19 @@
       ],
       "grants": [],
       "publishes": [
-        "helivanta.in.mediconnect.account_created.v1"
+        "helivanta.in.mediconnect.account_created.v1",
+        "helivanta.in.mediconnect.registration_review_requested.v1",
+        "helivanta.in.mediconnect.registration_review_withdrawn.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
-      "consumers": [],
+      "consumers": [
+        {
+          "name": "mediconnect-registration-reviewed",
+          "subject": "helivanta.in.patientmaster.registration_reviewed.v1",
+          "after_commit": false
+        }
+      ],
       "broadcasts": [],
       "migrations": [
         {
@@ -1126,6 +1152,13 @@
           "id": "0003_mediconnect",
           "sql_sha256": "c3a1a566de7abcd0c95cc790e4a9f0e28cee748d5e1cf2c73ddbd9bddccb7768",
           "creates_tables": []
+        },
+        {
+          "id": "0004_mediconnect",
+          "sql_sha256": "80c1492d8ee0af6b7afff94fd424508bb65d6f5ad3640d407512da9ebd6e87e3",
+          "creates_tables": [
+            "mediconnect_review_submissions"
+          ]
         }
       ]
     },
@@ -2866,6 +2899,33 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/patients/link-reviews/:request/decision/:decision",
+          "permission": "patient.register",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/link-reviews/:request",
+          "permission": "patient.register",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/link-reviews",
+          "permission": "patient.register",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/patients/search",
           "permission": "patient.read",
@@ -2916,11 +2976,23 @@
         }
       ],
       "publishes": [
-        "helivanta.in.patientmaster.registered.v1"
+        "helivanta.in.patientmaster.registered.v1",
+        "helivanta.in.patientmaster.registration_reviewed.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
-      "consumers": [],
+      "consumers": [
+        {
+          "name": "patient-registration-review",
+          "subject": "helivanta.in.mediconnect.registration_review_requested.v1",
+          "after_commit": false
+        },
+        {
+          "name": "patient-registration-review-withdrawal",
+          "subject": "helivanta.in.mediconnect.registration_review_withdrawn.v1",
+          "after_commit": false
+        }
+      ],
       "broadcasts": [],
       "migrations": [
         {
@@ -2952,6 +3024,13 @@
           "sql_sha256": "637081381dc76806674f9a5f4c3fffef78be58cb5a762098827c0309f8a5a0c1",
           "creates_tables": [
             "patient_reported_blood_groups"
+          ]
+        },
+        {
+          "id": "0005_patientmaster",
+          "sql_sha256": "b6c9386fa2e6b3c6de32b8600cc8152ac7eebc95919f9027d0e33fbf711b1c83",
+          "creates_tables": [
+            "patient_link_reviews"
           ]
         }
       ]

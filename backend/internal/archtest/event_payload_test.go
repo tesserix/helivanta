@@ -24,6 +24,9 @@ import (
 // an entry is therefore a diff a reviewer sees and must justify, not a
 // pattern match that can silently start admitting a new field.
 var eventPayloadPHIAllowlist = map[string]string{
+	"mediconnect.RegistrationReviewData.RequesterSubject": "opaque authenticated requester identity is required solely to reject registrar self-review across owners; no contact or identity evidence; restricted same-tenant consumer",
+	"mediconnect.RegistrationReviewData.Relationship":     "unverified allowlisted relationship claim is necessary for hospital evidence review and immutable request lineage; never proxy authority or consent; no free text",
+
 	"medicore.VisitCreatedData.PatientName": "pharmacy and lab display it on their work queues; modules may not import modules, so there is no cross-module read path to fetch it instead",
 }
 
@@ -35,6 +38,18 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"mediconnect.RegistrationReviewData.RequestID":      "opaque internal reference for tenant/hospital-scoped identity review lineage; no demographic or external identifier; resolution requires owner authorization",
+	"mediconnect.RegistrationReviewData.AccountID":      "opaque internal reference for tenant/hospital-scoped identity review lineage; no demographic or external identifier; resolution requires owner authorization",
+	"mediconnect.RegistrationReviewData.HospitalID":     "opaque internal reference for tenant/hospital-scoped identity review lineage; no demographic or external identifier; resolution requires owner authorization",
+	"mediconnect.RegistrationReviewData.PatientID":      "opaque internal reference for tenant/hospital-scoped identity review lineage; no demographic or external identifier; resolution requires owner authorization",
+	"patientmaster.RegistrationReviewedData.RequestID":  "opaque internal reference for tenant/hospital-scoped identity review lineage; no demographic or external identifier; resolution requires owner authorization",
+	"patientmaster.RegistrationReviewedData.AccountID":  "opaque internal reference for tenant/hospital-scoped identity review lineage; no demographic or external identifier; resolution requires owner authorization",
+	"patientmaster.RegistrationReviewedData.HospitalID": "opaque internal reference for tenant/hospital-scoped identity review lineage; no demographic or external identifier; resolution requires owner authorization",
+	"patientmaster.RegistrationReviewedData.PatientID":  "opaque internal reference for tenant/hospital-scoped identity review lineage; no demographic or external identifier; resolution requires owner authorization",
+	"patientmaster.RegistrationReviewedData.DecisionID": "immutable identity-review receipt metadata for replay and withdrawal ordering; no evidence content, clinical decision or consent",
+	"patientmaster.RegistrationReviewedData.Outcome":    "immutable identity-review receipt metadata for replay and withdrawal ordering; no evidence content, clinical decision or consent",
+	"patientmaster.RegistrationReviewedData.ReviewedAt": "immutable identity-review receipt metadata for replay and withdrawal ordering; no evidence content, clinical decision or consent",
+
 	"mediconnect.AccountCreatedData.AccountID":          "internally minted opaque account UUID; no subject, contact, patient linkage or clinical content; resolution requires owner authorization",
 	"emergency.DispatchChangedData.BaseID":              "opaque provider operating-base UUID; no address or name",
 	"emergency.DispatchChangedData.DispatchID":          "opaque trip UUID requiring protected lookup; no patient, vehicle, crew or destination details",
@@ -478,6 +493,8 @@ func TestEventPayloadPHIFieldsAreAllowlisted(t *testing.T) {
 // thing a reviewer's eye lands on.
 func TestEventPayloadPHIAllowlistIsPinnedExactly(t *testing.T) {
 	require.Equal(t, map[string]string{
-		"medicore.VisitCreatedData.PatientName": "pharmacy and lab display it on their work queues; modules may not import modules, so there is no cross-module read path to fetch it instead",
+		"mediconnect.RegistrationReviewData.RequesterSubject": "opaque authenticated requester identity is required solely to reject registrar self-review across owners; no contact or identity evidence; restricted same-tenant consumer",
+		"mediconnect.RegistrationReviewData.Relationship":     "unverified allowlisted relationship claim is necessary for hospital evidence review and immutable request lineage; never proxy authority or consent; no free text",
+		"medicore.VisitCreatedData.PatientName":               "pharmacy and lab display it on their work queues; modules may not import modules, so there is no cross-module read path to fetch it instead",
 	}, eventPayloadPHIAllowlist)
 }

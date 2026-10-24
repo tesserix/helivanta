@@ -185,6 +185,8 @@ Source: [backend/internal/modules/mediconnect/module.go](../../../backend/intern
 
 | Method | Path | Permission | Cursor pagination | Page total |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/mediconnect/account/link-requests/:request/review` | `public` | false | false |
+| POST | `/v1/mediconnect/account/link-requests/:request/review` | `public` | false | false |
 | POST | `/v1/mediconnect/account/link-requests/:request/withdraw` | `public` | false | false |
 | GET | `/v1/mediconnect/account/link-requests/:request` | `public` | false | false |
 | PUT | `/v1/mediconnect/account/link-requests/:request` | `public` | false | false |
@@ -196,15 +198,18 @@ Source: [backend/internal/modules/mediconnect/module.go](../../../backend/intern
 Published subjects:
 
 - `helivanta.in.mediconnect.account_created.v1`
+- `helivanta.in.mediconnect.registration_review_requested.v1`
+- `helivanta.in.mediconnect.registration_review_withdrawn.v1`
 
 Subscriptions:
 
-None.
+- `mediconnect-registration-reviewed` ← `helivanta.in.patientmaster.registration_reviewed.v1`; after-commit hook: false.
 
 Migration table declarations:
 
 - `0001_mediconnect`: `mediconnect_accounts`.
 - `0002_mediconnect`: `mediconnect_link_requests`.
+- `0004_mediconnect`: `mediconnect_review_submissions`.
 
 ## pharmacy
 
@@ -419,6 +424,9 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 | DELETE | `/v1/patients/hospitals/:hospital/access/:subject` | `patient.access.manage` | false | false |
 | PUT | `/v1/patients/hospitals/:hospital/access/:subject` | `patient.access.manage` | false | false |
 | GET | `/v1/patients/hospitals/:hospital/access` | `patient.read` | false | false |
+| PUT | `/v1/patients/link-reviews/:request/decision/:decision` | `patient.register` | false | false |
+| GET | `/v1/patients/link-reviews/:request` | `patient.register` | false | false |
+| GET | `/v1/patients/link-reviews` | `patient.register` | true | false |
 | POST | `/v1/patients/search` | `patient.read` | true | false |
 | GET | `/v1/patients` | `patient.read` | true | false |
 | POST | `/v1/patients` | `patient.register` | false | false |
@@ -426,16 +434,19 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 Published subjects:
 
 - `helivanta.in.patientmaster.registered.v1`
+- `helivanta.in.patientmaster.registration_reviewed.v1`
 
 Subscriptions:
 
-None.
+- `patient-registration-review` ← `helivanta.in.mediconnect.registration_review_requested.v1`; after-commit hook: false.
+- `patient-registration-review-withdrawal` ← `helivanta.in.mediconnect.registration_review_withdrawn.v1`; after-commit hook: false.
 
 Migration table declarations:
 
 - `0001_patientmaster`: `patients`, `patient_identifiers`, `patient_consents`, `patient_duplicate_overrides`.
 - `0003_patientmaster`: `patient_hospital_access`, `patient_access_audit`, `patient_registration_requests`.
 - `0004_patientmaster`: `patient_reported_blood_groups`.
+- `0005_patientmaster`: `patient_link_reviews`.
 
 ## workforce
 

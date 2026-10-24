@@ -1032,6 +1032,99 @@
       ]
     },
     {
+      "name": "mediconnect",
+      "source": "backend/internal/modules/mediconnect/module.go",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/v1/mediconnect/account/link-requests/:request/withdraw",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/account/link-requests/:request",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/mediconnect/account/link-requests/:request",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/account/link-requests",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PATCH",
+          "path": "/v1/mediconnect/account/preferences",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/account",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/mediconnect/account",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        }
+      ],
+      "grants": [],
+      "publishes": [
+        "helivanta.in.mediconnect.account_created.v1"
+      ],
+      "directed_subjects": [],
+      "directed_write_tables": [],
+      "consumers": [],
+      "broadcasts": [],
+      "migrations": [
+        {
+          "id": "0001_mediconnect",
+          "sql_sha256": "08db27b6b7f51bafbd3a9e8adb543b514c59cf75e0a735cf8c123a44c151cfdd",
+          "creates_tables": [
+            "mediconnect_accounts"
+          ]
+        },
+        {
+          "id": "0002_mediconnect",
+          "sql_sha256": "f64b12dc508e1e0852cf1cdd0bbe037b630e9a52afee8bb05996e8c5d4afd2da",
+          "creates_tables": [
+            "mediconnect_link_requests"
+          ]
+        }
+      ]
+    },
+    {
       "name": "pharmacy",
       "source": "backend/internal/modules/pharmacy/module.go",
       "routes": [

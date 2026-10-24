@@ -29,6 +29,9 @@ onboarding and end-to-end acceptance rules before exposure.
 | [Contract source index](../../contracts/README.md)                       | Existing Go/TypeScript contract generators and canonical model sources                            | Keep editing the existing source, not a copied model                                    |
 | [Architecture](../architecture/README.md)                                | Proposed independent product APIs, deployment and sizing                                          | Target architecture; not current runtime evidence                                       |
 
+MediConnect now has a scoped [account and unverified link-request API](mediconnect.md); other patient-facing
+contracts remain proposals and do not authorize clinical disclosure.
+
 ## Domain specifications
 
 | Domain                                                 | Specification                                                                                                          |

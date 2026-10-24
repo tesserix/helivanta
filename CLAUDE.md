@@ -8,6 +8,21 @@ the rules below and applicable nested instructions; keep shared policy there.
 India HMS skills in `.claude/skills/hms-india*` link to the canonical shared
 `.agents/skills/` definitions; use the domain router required by `AGENTS.md`.
 
+## Hospital workflow reference
+
+For MediConnect and hospital API stories, consult
+[ICTHospital](https://github.com/ictinnovations/ICTHospital) to understand its
+implemented workflows, controllers, models and tests before choosing relevant
+patterns. Read the affected source, not only its README, and record the reviewed
+commit. The initial review used `e506dfb553f7d146a6d0cddc136ffd5b6c9bdb09`.
+It is a staff-facing Laravel application, not Helivanta's patient API contract.
+Helivanta stories, canonical contracts, data ownership and security rules remain
+authoritative. Do not inherit its patient-disclosing conflict messages, assume
+tenant/proxy isolation, or treat SQLite tests as proof of concurrent database
+locking. Its GPLv3 implementation is reference material; do not copy source
+without an explicit licensing decision. Preserve historical clinical values,
+separate owning services, and independently test every adopted behavior locally.
+
 ## Quality bar (read first, applies to everything)
 
 Full document: docs/standards/engineering-principles.md — read it before

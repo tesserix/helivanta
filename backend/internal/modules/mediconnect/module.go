@@ -1,0 +1,43 @@
+// Package mediconnect owns patient-facing accounts and preferences.
+package mediconnect
+
+import (
+	_ "embed"
+	mediconnectcontract "github.com/tesserix/helivanta/internal/modules/mediconnect/contract"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
+)
+
+//go:embed accounts.sql
+var accountSchema string
+
+//go:embed link_requests.sql
+var linkRequestSchema string
+
+type Module struct{}
+
+func New() *Module                         { return &Module{} }
+func (*Module) Name() string               { return "mediconnect" }
+func (*Module) Permissions() []authz.Grant { return nil }
+func (*Module) Migrations() []tenantdb.Migration {
+	return []tenantdb.Migration{{ID: "0001_mediconnect", SQL: accountSchema}, {ID: "0002_mediconnect", SQL: linkRequestSchema}}
+}
+func (*Module) Routes(r *platform.Router, deps platform.Deps) {
+	h := &accountHandlers{db: deps.DB, bus: deps.Bus}
+	g := r.Group("/mediconnect")
+	// Membership is required; handlers scope ownership to the verified subject.
+	g.POST("/account", authz.Public, h.create)
+	g.GET("/account", authz.Public, h.get)
+	g.PATCH("/account/preferences", authz.Public, h.preferences)
+	g.PUT("/account/link-requests/:request", authz.Public, h.submitLinkRequest)
+	g.GET("/account/link-requests/:request", authz.Public, h.getLinkRequest)
+	platform.ListRoute(g, "/account/link-requests", authz.Public, h.listLinkRequests)
+	g.POST("/account/link-requests/:request/withdraw", authz.Public, h.withdrawLinkRequest)
+}
+func (*Module) Publishes() []string                         { return []string{mediconnectcontract.SubjectAccountCreated} }
+func (*Module) DirectedSubjects() []string                  { return nil }
+func (*Module) DirectedWriteTables() []string               { return nil }
+func (*Module) Consumers(platform.Deps) []events.Consumer   { return nil }
+func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }

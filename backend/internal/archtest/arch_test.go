@@ -30,6 +30,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/modules/lab"
+	"github.com/tesserix/helivanta/internal/modules/mediconnect"
 	"github.com/tesserix/helivanta/internal/modules/medicore"
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
@@ -51,7 +52,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil), reference.New(), emergency.New(), medicore.New(), pharmacy.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
+	return []platform.Module{iam.New(nil), reference.New(), emergency.New(), medicore.New(), mediconnect.New(), pharmacy.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under
@@ -395,6 +396,8 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/staff/:id/documents/:file/content":          "one authorized generation-pinned binary object, not a collection",
 	"GET /workforce/hospitals/:hospital/staff/:id/credentials":                      "one staff member's credential validity, bounded by enrollment's 20 credentials",
 	"GET /workforce/hospitals/:hospital/staff/:id/enrollment":                       "single protected staff profile, with bounded child records",
+	"GET /mediconnect/account/link-requests/:request":                               "one current-subject unverified request; the collection uses ListRoute",
+	"GET /mediconnect/account":                                                      "one current-subject account, with tenant membership and subject RLS",
 	"GET /workspace/branding":                                                       "single current-tenant branding document",
 	"GET /workforce/hospitals/:hospital/staff/:id":                                  "single hospital-local staff entry",
 	"GET /reference/pings/:id":                                                      "single item, not a collection",

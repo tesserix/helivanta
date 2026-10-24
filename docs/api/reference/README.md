@@ -179,6 +179,33 @@ Migration table declarations:
 
 - `0001_medicore`: `medicore_visits`.
 
+## mediconnect
+
+Source: [backend/internal/modules/mediconnect/module.go](../../../backend/internal/modules/mediconnect/module.go). Payloads: `backend/internal/modules/mediconnect/contract/`, owning handlers, and [schema index](../schemas.md).
+
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| POST | `/v1/mediconnect/account/link-requests/:request/withdraw` | `public` | false | false |
+| GET | `/v1/mediconnect/account/link-requests/:request` | `public` | false | false |
+| PUT | `/v1/mediconnect/account/link-requests/:request` | `public` | false | false |
+| GET | `/v1/mediconnect/account/link-requests` | `public` | true | false |
+| PATCH | `/v1/mediconnect/account/preferences` | `public` | false | false |
+| GET | `/v1/mediconnect/account` | `public` | false | false |
+| POST | `/v1/mediconnect/account` | `public` | false | false |
+
+Published subjects:
+
+- `helivanta.in.mediconnect.account_created.v1`
+
+Subscriptions:
+
+None.
+
+Migration table declarations:
+
+- `0001_mediconnect`: `mediconnect_accounts`.
+- `0002_mediconnect`: `mediconnect_link_requests`.
+
 ## pharmacy
 
 Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/modules/pharmacy/module.go). Payloads: `backend/internal/modules/pharmacy/contract/`, owning handlers, and [schema index](../schemas.md).

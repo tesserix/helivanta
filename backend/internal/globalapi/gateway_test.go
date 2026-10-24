@@ -128,3 +128,16 @@ func TestCrossSiteMutationIsNotForwarded(t *testing.T) {
 	require.Equal(t, 403, res.Code)
 	require.Zero(t, calls)
 }
+
+func TestMediConnectHasAnExplicitOwner(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/v1/mediconnect/account", r.URL.Path)
+		w.WriteHeader(http.StatusCreated)
+	}))
+	t.Cleanup(upstream.Close)
+	handler, err := New(Config{Upstreams: map[string]string{"mediconnect": upstream.URL}, Development: true, Timeout: time.Second})
+	require.NoError(t, err)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest("POST", "/v1/mediconnect/account", strings.NewReader("{}")))
+	require.Equal(t, http.StatusCreated, response.Code)
+}

@@ -496,12 +496,12 @@ echo "PREFLIGHT_PORTS (host-port overrides):"
 # this machine's own ports 5432/6379/8080/etc. happen to be doing) and
 # confirm each shows up as a checked port.
 p_pg=$(free_port); p_nats=$(free_port); p_natsmon=$(free_port)
-p_redis=$(free_port); p_fga=$(free_port); p_zitadel=$(free_port); p_zitadelpg=$(free_port); p_api=$(free_port)
+p_redis=$(free_port); p_fga=$(free_port); p_zitadel=$(free_port); p_zitadelpg=$(free_port); p_api=$(free_port); p_global=$(free_port)
 out=$(env PATH="$good:$PATH" \
   HELIVANTA_PG_PORT="$p_pg" HELIVANTA_NATS_PORT="$p_nats" HELIVANTA_NATS_MONITOR_PORT="$p_natsmon" \
   HELIVANTA_REDIS_PORT="$p_redis" HELIVANTA_OPENFGA_PORT="$p_fga" HELIVANTA_ZITADEL_PORT="$p_zitadel" \
   HELIVANTA_ZITADEL_PG_PORT="$p_zitadelpg" \
-  HELIVANTA_API_PORT="$p_api" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
+  HELIVANTA_API_PORT="$p_api" HELIVANTA_GLOBAL_API_PORT="$p_global" bash "$REPO_ROOT/scripts/preflight.sh" 2>&1); status=$?
 assert_status "all HELIVANTA_* ports overridden to free ports exits 0" 0 "$status"
 assert_contains "PREFLIGHT_PORTS reflects HELIVANTA_PG_PORT override"      "$out" "port $p_pg"
 assert_contains "PREFLIGHT_PORTS reflects HELIVANTA_OPENFGA_PORT override" "$out" "port $p_fga"
@@ -509,6 +509,8 @@ assert_contains "PREFLIGHT_PORTS reflects HELIVANTA_ZITADEL_PORT override" "$out
 assert_contains "PREFLIGHT_PORTS reflects HELIVANTA_API_PORT override"     "$out" "port $p_api"
 
 echo
+assert_contains "PREFLIGHT_PORTS reflects Global API override" "$out" "port $p_global"
+
 echo "HELIVANTA_DEV_ZITADEL_MASTERKEY length check:"
 
 # Proves the check can actually fail (engineering-principles.md §5) rather

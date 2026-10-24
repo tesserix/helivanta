@@ -272,7 +272,7 @@ jobs:
       #      is compiled into a public artifact seconds later.
       SHELL_ZITADEL_ISSUER_URL: https://auth.tesserix.app
       SHELL_ZITADEL_CLIENT_ID: '386782591925092979'
-      SHELL_API_URL: http://helivanta-api.helivanta.svc.cluster.local:8080
+      SHELL_API_URL: http://helivanta-global-api.helivanta.svc.cluster.local:8081
 
     steps:
       - name: Checkout code

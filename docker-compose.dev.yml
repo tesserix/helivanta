@@ -319,6 +319,10 @@ services:
   # the ports each e2e stack's Zitadel redirect URI uses. See
   # dev/e2e/Caddyfile for the routing and its keepalive rule.
   e2e-ingress:
+    environment:
+      HELIVANTA_GLOBAL_API_PORT: ${HELIVANTA_GLOBAL_API_PORT:-8081}
+      HELIVANTA_IDLE_GLOBAL_API_PORT: ${HELIVANTA_IDLE_GLOBAL_API_PORT:-8199}
+      HELIVANTA_RENEWAL_GLOBAL_API_PORT: ${HELIVANTA_RENEWAL_GLOBAL_API_PORT:-8198}
     image: caddy:2-alpine
     profiles: ["e2e"]
     ports:

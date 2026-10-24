@@ -232,7 +232,7 @@ jobs:
           NEXT_PUBLIC_ZITADEL_ISSUER_URL: http://auth.tesserix.localhost:20080
           HOSTNAME: 127.0.0.1
           PORT: "4344"
-          API_URL: http://127.0.0.1:1
+          API_URL: http://127.0.0.1:8081
           HELIVANTA_BROWSER_ORIGIN: http://127.0.0.1:4344
         run: |
           set -euo pipefail

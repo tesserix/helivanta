@@ -27,8 +27,9 @@ entitlement decides what a tenant sees at runtime, not which apps exist.
 deploys as one self-contained server, `Dockerfile.shell`) and
 `transpilePackages: ["@helivanta/ui", "@helivanta/api"]` (these are
 TypeScript source packages, not pre-built libraries, so Next compiles them).
-Its one rewrite sends `/api/:path*` to the Go backend for `next dev`;
-production routes `/api/v1/*` at the ingress instead.
+Its rewrite sends `/api/:path*` to the Global API for `next dev`;
+production ingress must route `/api/v1/*` to the same Global API boundary.
+See [Global API rules](../api/global-connector.md) for onboarding and release gates.
 
 Adding a zone is a route segment under
 `apps/shell/app/(workspace)/<name>/`, its

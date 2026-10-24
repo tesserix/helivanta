@@ -8,7 +8,7 @@ export const DOCUMENT_CATEGORIES = {
 } as const;
 const identifier = z
   .string()
-  .uuid()
+  .guid()
   .refine((value) => value !== "00000000-0000-0000-0000-000000000000", "Choose a valid record.");
 const filename = z
   .string()

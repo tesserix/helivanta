@@ -22,7 +22,7 @@ const country = z
 const email = z.union([z.literal(""), z.string().max(254).email("Enter a valid email address.")]);
 const identifier = z
   .string()
-  .uuid()
+  .guid()
   .refine((value) => value !== "00000000-0000-0000-0000-000000000000", "Choose a valid record.");
 export const enrollmentProfileSchema = z
   .object({

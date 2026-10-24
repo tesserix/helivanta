@@ -16,6 +16,7 @@ Before proposing a design or changing application code:
    applicable backend/frontend standards. For API, event, schema or integration
    work, also read [HTTP contracts](docs/api/http-contract.md),
    [integration contracts](docs/api/integration-contracts.md),
+   [Global API rules](docs/api/global-connector.md),
    [schema ownership](docs/api/schemas.md) and the relevant findings and review
    gates in the [delivery plan](docs/api/review-plan.md).
 3. Identify the data owner, consumers, verified tenant and narrower resource
@@ -39,6 +40,10 @@ before consumers rely on them.
 
 ## Enterprise acceptance criteria
 
+- Route UI/app business API traffic through the Global API, with explicit product
+  destinations and no direct client-to-product bypass. Product APIs retain data
+  ownership and authorization. Apply the [onboarding and end-to-end gates](docs/api/global-connector.md)
+  before exposing a new API or service; routing alone does not prove completion.
 - Enforce verified tenant and hospital/outlet/premise/base/facility scope on the
   server, including object-level authorization. UI gating, shared ownership,
   affiliations, supplied IDs and client headers are not authority. Identity,

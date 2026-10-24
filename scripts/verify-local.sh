@@ -13,6 +13,7 @@ ZITADEL_PORT=${HELIVANTA_ZITADEL_PORT:-20080}
 # HELIVANTA_ZITADEL_HOST comment and the README's "Hosts" section (#916 Task 4).
 ZITADEL_HOST=${HELIVANTA_ZITADEL_HOST:-auth.tesserix.localhost}
 API_PORT=${HELIVANTA_API_PORT:-8080}
+GLOBAL_API_PORT=${HELIVANTA_GLOBAL_API_PORT:-8081}
 # The host the apps are served on. Read from the environment for the SAME
 # reason ZITADEL_HOST above is (#916 Task 4): these two must be different
 # registrable domains, and a developer who overrides one has to be able to
@@ -86,6 +87,7 @@ echo "Backend:"
 # — not /health and /ready.
 check "api health"       "http://localhost:$API_PORT/healthz"
 check "api ready"        "http://localhost:$API_PORT/readyz"
+check "global API"       "http://localhost:$GLOBAL_API_PORT/readyz"
 
 echo "Frontend:"
 # One web app (apps/shell) since #933; MediCore, Pharmacy and Lab are its

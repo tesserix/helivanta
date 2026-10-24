@@ -2,6 +2,12 @@
 
 [Contract index](README.md) · current guarantees and proposed journeys
 
+## Client integration boundary
+
+UI/apps connect through the [Global API](global-connector.md); product APIs retain
+their contracts and state. Its routing service does not replace event delivery,
+Temporal workflows or downstream completion evidence described here.
+
 ## Current event authority
 
 The canonical subject constants and payload types live in each module's data-only `/contract` package. Other modules may import that package, but not the producer's repository/service implementation. The registry exposes `Publishes`, `DirectedSubjects`, `DirectedWriteTables`, durable `Consumers` and per-replica `Broadcasts`. The [generated inventory](reference/README.md) is their complete union, including conditional workflow consumers with registration gates enabled. It does not assert that any environment enables those workers.

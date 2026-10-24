@@ -20,7 +20,7 @@ export const ROSTER_MODES = {
 } as const;
 const identifier = z
   .string()
-  .uuid("Choose a valid record.")
+  .guid("Choose a valid record.")
   .refine((value) => value !== "00000000-0000-0000-0000-000000000000", "Choose a valid record.");
 export const rosterShiftContract = z
   .object({

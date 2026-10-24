@@ -16,7 +16,7 @@ export function emitModels(models, kindSchema) {
   let ts = Object.values(models).some((fields) =>
     fields.some((field) => ["uuid", "[]uuid"].includes(field.type)),
   )
-    ? 'const identifier=z.string().uuid("Choose a valid record.").refine(value=>value!=="00000000-0000-0000-0000-000000000000","Choose a valid record.");\n'
+    ? 'const identifier=z.string().guid("Choose a valid record.").refine(value=>value!=="00000000-0000-0000-0000-000000000000","Choose a valid record.");\n'
     : "";
   for (const [name, fields] of Object.entries(models)) {
     go += `type ${name} struct{\n`;

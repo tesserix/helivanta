@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { globalApiURL } from "../../lib/global-api-url";
+
 const SESSION_COOKIE = "helivanta_session";
-const API_URL = process.env.API_URL ?? "http://localhost:8080";
+const API_URL = globalApiURL(process.env.API_URL, process.env.NODE_ENV === "production");
 
 /**
  * POST, not GET, and same-origin checked — the same `sec-fetch-site` check

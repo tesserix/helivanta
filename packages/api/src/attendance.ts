@@ -13,7 +13,7 @@ export * from "./attendance-contract";
 
 const allowance = (label: string, min: number, max: number) =>
   z
-    .number({ invalid_type_error: `Enter the ${label}.` })
+    .number({ error: `Enter the ${label}.` })
     .int(`Enter the ${label} as a whole number.`)
     .min(min, `Use at least ${min} for the ${label}.`)
     .max(max, `Keep the ${label} within ${max}.`);
@@ -48,7 +48,7 @@ const reason = (missing: string) =>
 export const attendancePunchFormSchema = z
   .object({
     staff_id: z.string().min(1, "Choose a staff member."),
-    direction: z.enum(["in", "out"], { errorMap: () => ({ message: "Choose in or out." }) }),
+    direction: z.enum(["in", "out"], { error: "Choose in or out." }),
     date: z.string().date("Choose the punch date."),
     time: z.string().regex(clock, "Use a 24-hour time such as 08:05."),
     reason: reason("Say why this punch is entered by hand."),
@@ -138,7 +138,7 @@ export const attendanceCorrectionFormSchema = z
   .object({
     staff_id: z.string().min(1, "Choose a staff member."),
     kind: z.enum(["add", "void", "replace"], {
-      errorMap: () => ({ message: "Choose the kind of correction." }),
+      error: "Choose the kind of correction.",
     }),
     target_punch_id: z.string(),
     direction: z.enum(["in", "out", ""]),

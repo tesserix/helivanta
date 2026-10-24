@@ -13,6 +13,10 @@ operations, pharmacy/supply, diagnostics, revenue/insurance and facility quality
 Its reusable agent skills route to the relevant `IN-*` acceptance criteria and
 primary-source register; they do not turn proposals into deployed APIs.
 
+All UI/app business APIs must enter the [Global API](global-connector.md). Product
+APIs retain data ownership and authorization. New services must satisfy its
+onboarding and end-to-end acceptance rules before exposure.
+
 ## Reference material
 
 | Artifact                                                                 | Purpose                                                                                           | Authority                                                                               |

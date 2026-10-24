@@ -19,7 +19,7 @@ export type {
 
 const versionId = z
   .string()
-  .uuid()
+  .guid()
   .regex(
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     "Choose a valid version identity.",
@@ -33,10 +33,11 @@ const scopeFields = SubmissionContract.pick({
   currency: true,
 });
 
-export const countryPolicySubmissionSchema = SubmissionContract.extend({
+const submissionFields = SubmissionContract.extend({
   id: versionId,
   scope_id: versionId,
-}).superRefine((value, ctx) => {
+});
+export const countryPolicySubmissionSchema = submissionFields.superRefine((value, ctx) => {
   const issue = (path: (string | number)[], message: string) =>
     ctx.addIssue({ code: "custom", path, message });
   if (countryProfile(value.country)?.currency !== value.currency)
@@ -100,17 +101,14 @@ const editorTime = z
       utcTimestamp(value).slice(0, 16) === value.slice(0, 16),
     "Choose a complete UTC date and time.",
   );
-const editorFields = countryPolicySubmissionSchema
-  .innerType()
-  .omit({ currency: true })
-  .extend({
-    effective_from: editorTime,
-    effective_until: editorTime,
-    sources: z
-      .array(SourceContract.extend({ reviewed_at: editorTime }))
-      .min(1)
-      .max(30),
-  });
+const editorFields = submissionFields.omit({ currency: true }).extend({
+  effective_from: editorTime,
+  effective_until: editorTime,
+  sources: z
+    .array(SourceContract.extend({ reviewed_at: editorTime }))
+    .min(1)
+    .max(30),
+});
 function editorSubmission(value: z.infer<typeof editorFields>) {
   return {
     ...value,
@@ -125,7 +123,7 @@ function editorSubmission(value: z.infer<typeof editorFields>) {
 }
 export const countryPolicyEditorSchema = editorFields.superRefine((value, ctx) => {
   const checked = countryPolicySubmissionSchema.safeParse(editorSubmission(value));
-  if (!checked.success) checked.error.issues.forEach((issue) => ctx.addIssue(issue));
+  if (!checked.success) checked.error.issues.forEach((issue) => ctx.addIssue({ ...issue }));
 });
 export type CountryPolicyEditorValues = z.infer<typeof countryPolicyEditorSchema>;
 export function countryPolicySubmissionFromEditor(value: CountryPolicyEditorValues) {
@@ -219,7 +217,7 @@ export const countryPolicyKey = (identity: CountryPolicyIdentity, ...parts: unkn
 export function countryPolicyRequest(identity: CountryPolicyIdentity) {
   return {
     cache: "no-store" as const,
-    headers: { "X-Helivanta-Expected-Tenant": z.string().uuid().parse(identity.tenantId) },
+    headers: { "X-Helivanta-Expected-Tenant": z.string().guid().parse(identity.tenantId) },
   };
 }
 export function countryPolicyPath(id: string) {

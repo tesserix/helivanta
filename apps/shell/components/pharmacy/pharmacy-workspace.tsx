@@ -69,8 +69,8 @@ export function PharmacyWorkspace({ view }: { view: PharmacyView }) {
   );
 }
 const selectionSchema = z.object({
-  pharmacyId: z.string().uuid().or(z.literal("")),
-  outletId: z.string().uuid().or(z.literal("")),
+  pharmacyId: z.string().guid().or(z.literal("")),
+  outletId: z.string().guid().or(z.literal("")),
 });
 function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: PharmacyView }) {
   const { can } = usePermissions();

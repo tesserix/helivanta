@@ -54,7 +54,7 @@ export const dashboardFiltersSchema = z
   });
 
 export type DashboardFilters = z.infer<typeof dashboardFiltersSchema>;
-const counts = z.record(z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER));
+const counts = z.record(z.string(), z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER));
 export const insightsSchema = z.object({
   from: date,
   to: date,
@@ -67,7 +67,7 @@ export const insightsSchema = z.object({
 export type Insights = z.infer<typeof insightsSchema>;
 
 export const staffInsightsSchema = z.object({
-  hospital_id: z.string().uuid(),
+  hospital_id: z.string().guid(),
   as_at: z.string().datetime({ offset: true }),
   counts: z
     .array(

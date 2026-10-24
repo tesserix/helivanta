@@ -1090,7 +1090,8 @@
           "name": "max_support_hours",
           "type": "int64",
           "min": 1,
-          "max": 24
+          "max": 24,
+          "max_message": "Must be less than or equal to 24."
         },
         {
           "name": "reason",

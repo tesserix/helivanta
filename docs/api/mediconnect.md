@@ -1,8 +1,9 @@
 # MediConnect account and link-request API
 
 Issue [#37](https://github.com/tesserix/helivanta/issues/37); implementation is
-`backend/internal/modules/mediconnect`. This implements accounts and unverified link-request intake, not the
-complete patient portal. No patient record is linked or disclosed by these APIs.
+`backend/internal/modules/mediconnect`. This implements accounts, unverified link-request intake and explicit registrar
+identity review, not the complete patient portal. Identity verification never
+grants clinical access or establishes patient/proxy consent.
 
 ## Transport and authority
 
@@ -12,7 +13,7 @@ operation its origin is the existing API. Development defaults include it.
 An omitted owner returns 503; no fallback to another product. The account/link baseline was deployed from `30efb51` through the Global API;
 release evidence is in [PR #1318](https://github.com/tesserix/helivanta/pull/1318).
 
-All seven endpoints require a verified Helivanta session and current tenant
+All nine MediConnect endpoints require a verified Helivanta session and current tenant
 membership. Subject and tenant come only from that session. Account ownership is
 also enforced by PostgreSQL forced RLS. Tenant admins cannot read another
 subject's account through these endpoints. `authz.Public` here means no extra
@@ -97,8 +98,8 @@ were applied in the reviewed release; automatic promotion remains disabled.
 
 These endpoints record claims only. They do not look up patient demographics,
 confirm a registration exists, approve a relationship or grant clinical access.
-No verification processor is implemented; pending requests stay pending until a
-separately reviewed hospital-owned verification workflow exists. Nonexistent but
+Intake does not automatically initiate verification. The separate explicit review
+submission below invokes the hospital-owned workflow. Nonexistent but
 syntactically valid identifiers receive the same intake response.
 
 All routes below start with `/v1/mediconnect/account/link-requests` and require
@@ -142,7 +143,8 @@ The same request UUID in another tenant is independent. Listing uses descending
 `(created_at,id)` keyset pagination scoped to the verified account. Writes are
 audited without claim values; reads and replay disclose only after their audit
 transaction commits. List auditing is batched. Responses use `no-store`, and no
-claim events or cached patient projections are created.
+claim events are created by intake alone. Explicit review submission publishes the
+minimal claim to patientmaster; no patient demographics are cached.
 
 ## Accessibility migration
 
@@ -156,7 +158,7 @@ removing the columns. The application does not supply a destructive down migrati
 
 ## Remaining product scope
 
-#37 is not closed: reviewed registration binding, profile links, scoped proxy
+#37 is not closed: profile links, scoped proxy
 grants, immediate expiry/revocation/majority enforcement, approved notices and
 rights-request routing remain. Existing patientmaster staff APIs are not a
 patient-facing disclosure API. #77/#101 require practitioner verification and
@@ -165,3 +167,70 @@ versions. The account API does not expose legacy lab completion as report releas
 Patient onboarding without existing tenant membership also remains separate.
 OTP, UI/mobile rendering and clinical/legal policy activation remain separate.
 Deployment evidence is tracked with each reviewed source revision. See the [delivery ledger](../delivery/mediconnect.md).
+
+## Explicit hospital registrar review
+
+The user selected independent hospital registrar evidence review; consent remains
+separate. `POST /v1/mediconnect/account/link-requests/:request/review` accepts
+`{"expected_version":1}` for an owned pending request: 202 on first submission,
+200 with current projection on replay, 409 when withdrawn/stale, 404 when
+invisible. `GET` at the same path returns that submission or 404. Both require
+verified membership and an existing account, with no-store and read/write audits.
+
+The original request's v1 statuses and versions do not change. The separate
+projection contains `request_id`, `account_id`, hospital/patient/relationship
+claim, `status`, nullable `decision_id`, `decision_outcome`, `reviewed_at`,
+`withdrawn_at` and creation/update timestamps. Status is `submitted`,
+`identity_verified`, `rejected` or terminal `withdrawn`. Submission means durably
+queued; asynchronous delivery or hospital review can still be pending. Identity
+verification is scoped to the claimed hospital registration. Relationship remains
+a claim, never a proxy grant. No clinical data, evidence or reviewer identity is
+returned to the account owner.
+
+Patientmaster provides staff routes through the Global API:
+
+- GET `/v1/patients/link-reviews?hospital_id=...`: standard keyset list, limit 1–200.
+- GET `/v1/patients/link-reviews/:request?hospital_id=...`: scoped review and current
+  `registration_updated_at` when a matching registration exists in that hospital.
+- PUT `/v1/patients/link-reviews/:request/decision/:decision?hospital_id=...`:
+  immutable decision keyed by UUIDv7. All require `patient.register` plus a
+  current explicit hospital **registrar** grant locked through commit. A reader,
+  tenant admin without that grant, other hospital or other tenant cannot read or
+  decide the review. The requester cannot review their own claim.
+
+Decision body requires captured `account_id`, `outcome`, `reason` and UUIDv7
+`evidence_reference`. Approval requires outcome `approved`, reason
+`identity_confirmed`, and `expected_registration_updated_at` from the detail GET.
+The owner locks and compares the actual hospital-scoped registration. Rejection
+requires outcome `rejected`, no registration timestamp, and reason
+`identity_mismatch`, `registration_missing` or `insufficient_evidence`. The opaque
+evidence reference attests to a hospital-retained review record; this API does not
+fetch, upload or automatically validate it. No raw identity document is accepted.
+Patientmaster's strict body cap is 8192 bytes. Malformed input returns 400;
+invisible resources return 404; stale, self-reviewed, withdrawn or conflicting
+decisions return 409. Successful decisions and identical replays return 200.
+After a timeout, reuse the same decision ID/body or read the detail. Do not invent
+a second decision ID. Evidence and reviewer identity remain with patientmaster.
+
+Migrations `0004_mediconnect` and `0005_patientmaster` add separate owned review
+tables, immutable lineage/decision guards and scoped RLS. Requested/withdrawn
+MediConnect events carry request/account/hospital/patient IDs, requester subject
+(only for independent-review enforcement) and the allowlisted relationship claim.
+The patientmaster result carries those IDs except subject/relationship, plus
+`decision_id`, `outcome`, `reviewed_at`. No evidence, demographic or consent data
+enters these events. Contracts are in each owner's `contract/events.go` and the
+[generated payload reference](reference/event-payloads.json).
+
+The ordinary app-role event transaction uses exact tenant/hospital/request and
+reserved consumer-actor context, with explicit tenant/object predicates. There is
+no global RLS bypass. Decision, audit and outbox commit together; delivery errors
+retry or dead-letter. Duplicate business events must match immutable lineage.
+Cancellation before submission creates a tombstone. Local account withdrawal
+wins over late approval; decisions remain retained for audit. No clinical grants
+or consent receipts are created by this flow. No cross-owner SQL is used.
+
+Migration is additive and forward-only; do not drop review/audit records on
+rollback. Pre-review writers do not publish withdrawal events, so rolling back to
+a pre-review binary while submissions exist requires a coordinated write hold
+and reviewed reconciliation. Deployment is tracked separately in the delivery
+ledger; passing local tests alone does not mean this workflow is deployed.

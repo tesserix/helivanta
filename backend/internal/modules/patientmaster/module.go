@@ -8,6 +8,7 @@ package patientmaster
 import (
 	_ "embed"
 
+	mediconnectcontract "github.com/tesserix/helivanta/internal/modules/mediconnect/contract"
 	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -26,6 +27,9 @@ var hospitalSchema string
 
 //go:embed blood_group.sql
 var bloodGroupSchema string
+
+//go:embed link_reviews.sql
+var linkReviewSchema string
 
 type Module struct{}
 
@@ -200,7 +204,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  AFTER INSERT ON patients
 			  DEFERRABLE INITIALLY DEFERRED
 			  FOR EACH ROW EXECUTE FUNCTION patients_require_consent();`,
-	}, {ID: "0003_patientmaster", SQL: hospitalSchema}, {ID: "0004_patientmaster", SQL: bloodGroupSchema}}
+	}, {ID: "0003_patientmaster", SQL: hospitalSchema}, {ID: "0004_patientmaster", SQL: bloodGroupSchema}, {ID: "0005_patientmaster", SQL: linkReviewSchema}}
 }
 
 // Routes mounts registration (spec D4/D5), single lookup, and the
@@ -213,6 +217,9 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.PUT("/hospitals/:hospital/access/:subject", PermPatientAccessManage, patients.putAccess)
 	g.DELETE("/hospitals/:hospital/access/:subject", PermPatientAccessManage, patients.deleteAccess)
 	g.GET("/hospitals/:hospital/access", PermPatientRead, patients.getAccess)
+	platform.ListRoute(g, "/link-reviews", PermPatientRegister, patients.listLinkReviews)
+	g.PUT("/link-reviews/:request/decision/:decision", PermPatientRegister, patients.decideLinkReview)
+	g.GET("/link-reviews/:request", PermPatientRegister, patients.getLinkReview)
 	g.GET("/:id", PermPatientRead, patients.get)
 	platform.ListRoute(g, "", PermPatientRead, patients.list)
 }
@@ -220,7 +227,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 // Publishes declares patient.registered, published inside the same
 // transaction as the patient and consent inserts (Task 6, spec D6).
 func (m *Module) Publishes() []string {
-	return []string{patientmastercontract.SubjectPatientRegistered}
+	return []string{patientmastercontract.SubjectPatientRegistered, patientmastercontract.SubjectRegistrationReviewed}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that
@@ -231,9 +238,10 @@ func (m *Module) DirectedSubjects() []string { return nil }
 // behalf of another tenant.
 func (m *Module) DirectedWriteTables() []string { return nil }
 
-// Consumers declares none: patientmaster does not react to other
-// modules' events.
-func (m *Module) Consumers(deps platform.Deps) []events.Consumer { return nil }
+// Consumers ingests account review submissions and terminal withdrawals.
+func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
+	return []events.Consumer{reviewConsumer(mediconnectcontract.SubjectReviewRequested, "patient-registration-review"), reviewConsumer(mediconnectcontract.SubjectReviewWithdrawn, "patient-registration-review-withdrawal")}
+}
 
 // Broadcasts declares none: patientmaster has no per-replica cache to
 // invalidate. See platform.Module.Broadcasts's doc comment (iam's

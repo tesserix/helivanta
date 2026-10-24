@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
@@ -226,7 +227,7 @@ func (h *accountHandlers) withdrawLinkRequest(c *gin.Context) {
 	}
 	var row linkRequest
 	err := h.linkTransaction(c, p, func(tx *gorm.DB, _ account) error {
-		if err := readLink(tx, p, id, &row); err != nil {
+		if err := readLink(tx.Clauses(clause.Locking{Strength: "UPDATE"}), p, id, &row); err != nil {
 			return err
 		}
 		if row.Status == "withdrawn" {
@@ -254,7 +255,7 @@ func (h *accountHandlers) withdrawLinkRequest(c *gin.Context) {
 		if result.RowsAffected == 0 {
 			return auditLinkRead(tx, p, id)
 		}
-		return nil
+		return h.withdrawReview(tx, p, row)
 	})
 	if err != nil {
 		linkError(c, err)

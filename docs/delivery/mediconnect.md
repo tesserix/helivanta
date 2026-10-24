@@ -191,8 +191,9 @@ patient-record linkage authority.
 
 Next clinical-access dependency: a reviewed process and accountable reviewer for
 binding a verified subject to a hospital-scoped patient registration. A shared
-phone/email/demographic match cannot grant access. That decision was requested
-from the user; no implicit binding or clinical access was implemented.
+phone/email/demographic match cannot grant access. The user selected independent hospital registrar evidence review on 2026-10-25;
+consent remains separate. The implementation evidence below supersedes that
+workflow-choice blocker. No implicit clinical access is introduced.
 
 ## Unverified link-request API evidence — local implementation
 
@@ -246,3 +247,54 @@ shell-to-owner mesh boundary. These probes do not certify authenticated patient
 workflows. The user-approved confirmed Pakistan test cleanup cleared all 12
 country preflight checks; [PR #1319](https://github.com/tesserix/helivanta/pull/1319)
 records protected recovery and audit evidence. Automatic promotion stays disabled.
+
+## Accessibility release verification — 2026-10-25
+
+PR #1320 merged as `1223142b6204281b3b4c7d9a8314b0ff3dda4ca9`.
+All PR checks, image build and post-merge CI passed. Manual Kargo promotion
+`prod.01m5q5hxn8ec2pd1cnjjppfyb2.8d7125b` succeeded for Freight
+`8d7125bcf335557c5cc5b88c8f4bf8e9819d7518`. API, Global API and shell are
+Synced/Healthy, 2/2 ready. API/connector image digest is
+`sha256:3cf6b050a6900b45957cc7547b6c1cbe4b4e01bb57a7aba5ff2810f657817004`;
+shell digest is
+`sha256:6345e95f20100501952d7af99036be1853ec62dba3de485964e7eabe00b0b030`.
+Read-only database verification found `0003_mediconnect` and all three new
+columns. Public probes returned 401 for all seven unauthenticated MediConnect
+routes and authenticated IAM path, with Global API Via headers; unknown product
+returned 404 and login returned 200. The source repository remains public.
+
+## Registrar review — local validation
+
+The agreed workflow is recorded in the
+[review design](../superpowers/specs/2026-10-25-mediconnect-registrar-review.md).
+Submission/worklist and approval/projection/withdrawal tests use real PostgreSQL
+and NATS. Local tests cover independent registrar authority, reader/admin without
+a grant, cross-tenant denial, revoked grants, malformed input, missing patient,
+rejection, duplicate payload conflicts, cancellation-before-request and late
+approval after local withdrawal. Original request v1 semantics remain unchanged.
+
+The first real consumer test exposed a mistaken design assumption: `WithSystem`
+uses the app pool, not BYPASSRLS. The implementation uses narrowly scoped delivery
+RLS alongside registrar/account policies. The first worklist and decision tests
+failed for absent routes before passing after implementation. Contract generation
+also caught missing shared-payload aliases and architecture gates caught the new
+singleton routes and event fields; all require explicit contract updates.
+
+Validation completed locally: affected module and multi-owner race tests passed
+(MediConnect 87.2%, patientmaster 76.7% statement coverage), Global API/architecture/
+contract checks passed, full `go build ./...`, `go vet ./...` and golangci-lint
+passed. The Global API test uses real owner HTTP forwarding with forged identity
+headers, PostgreSQL and NATS. Outbox failure rolls back the decision and read-audit
+failure prevents disclosure. Full backend coverage regression is recorded on the
+implementing PR rather than inferred from these targeted runs.
+
+A fresh production schema-only snapshot and 97 migration identifiers were restored
+into a network-isolated local PostgreSQL container; no patient/account data was
+copied. Both review migrations applied, repeated safely and preserved a synthetic
+pre-existing account. Previous migrator compatibility passed. Protected evidence:
+`~/.local/state/helivanta/mediconnect-registrar-review-20261025`.
+The pre-review **writer** rollback restriction remains: hold affected writes and
+reconcile withdrawals before reverting a binary that cannot emit cancellations.
+
+Registrar changes are not yet merged or deployed. #37/#552 remain open because
+portal scope, consent/proxy authority and clinical disclosure remain incomplete.

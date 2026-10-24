@@ -76,7 +76,7 @@ alert and approved capacity evidence. Expose no product API directly to clients.
 
 Update the public `/api/v1/*` route and shell `API_URL` together. The image workflow and image build default now target the Global API. Deploy
 the connector before promoting a shell built with this destination. This source change does not silently repoint the deployed UI at a missing
-service. No live rollout, external repository edit or database migration occurred.
+service. The staged connector is deployed through the GitOps repository; the routing and owner-boundary rollout stages are tracked separately below. No product API image or database change is part of this connector rollout.
 
 Verify login/MFA, cookie security, renewal, tenant switching, logout revocation,
 permissions, wrong-tenant/facility denial, exports and request correlation through
@@ -88,46 +88,50 @@ For rollback, restore the previous compatible route and shell build/runtime
 origin together. No data ownership moves in this change. Future extraction after
 accepted writes requires its own reconciliation and approved recovery procedure.
 
-## Validation recorded for this change
+## Validation and rollout evidence
 
-Executed locally on 2026-10-24; test credentials and smoke requests were synthetic.
+Release source: `ede362a567dce01f6eaf31d8598cfe4eb95c4903`, based on current main
+with Next.js 16.4.2. Recorded on 2026-10-24:
 
-- `go test -race ./internal/globalapi ./cmd/global-api`: passed. Includes actual
-  registry coverage, real session signature/revocation middleware through the
-  proxy, cookie preservation, timeout cancellation, unsafe paths/configuration,
-  forged headers and body bounds. These are transport/auth tests, not full domain
-  persistence or OpenFGA availability tests.
-- `go vet ./internal/globalapi ./cmd/global-api`,
-  `go build -o /tmp/helivanta-global-api ./cmd/global-api`, and
-  `golangci-lint run ./internal/globalapi/... ./cmd/global-api/...`: passed.
-- `go run ./cmd/contractdocs` and `go run ./cmd/contractdocs -check`: passed;
-  existing generated domain inventory did not change.
-- On Node 24, `pnpm --filter @helivanta/shell test`: 634 tests passed across 93
-  files. Additional focused Global API configuration, rewrite and logout checks
-  passed. The initial Node 26 run was stopped and replaced by the supported run.
-- `pnpm --filter @helivanta/shell type-check` and
-  `pnpm --filter @helivanta/shell lint`: passed.
-- `bash scripts/preflight.test.sh`: 103 checks passed. Changed shell scripts also
-  passed `bash -n` and `shellcheck`; authored Markdown links and `git diff --check`
-  passed. New behavior tests were first run before implementation and failed for
-  the missing Go/TypeScript entry points, then passed after implementation.
-- An actual local Next development server and the compiled Global API process
-  were started on isolated ports and stopped after the check. Both login and
-  pharmacy UI URLs reached Global API and returned its expected 502 when their
-  configured downstream was absent. This proves the connection and honest failure
-  path, not successful clinical persistence.
+- `go test -race ./internal/globalapi ./cmd/global-api`, `go vet`, Go build and
+  `golangci-lint` for the connector passed. Tests include real registered routes,
+  session signature/revocation, cookies, forged identity headers, unsafe paths,
+  body bounds, missing products, deadline cancellation and upstream failure.
+- Source CI's full Go/coverage job passed, including database-backed tests.
+- `make e2e` in CI passed all three production-build browser phases through
+  Global API: 54 main journeys, 1 idle-session journey and 1 renewal journey.
+- On supported Node 24, `pnpm --filter @helivanta/shell test` passed 827 tests
+  across 100 files. Shell production build, typecheck and lint passed.
+- `go run ./cmd/contractdocs` and its `-check` passed. The domain inventory is
+  unchanged; the connector route-registry tests cover every registered route.
+- API and shell image build, vulnerability scan, signing and publication passed.
+  The new shell image is not promoted in this rollout.
+- GitOps [staging PR #1519](https://github.com/tesserix/tesserix-k8s/pull/1519)
+  passed all 14 checks and deployed two ready connector replicas with their
+  dedicated service account and native Istio sidecars. Runtime image digest:
+  `sha256:5dea64c9593f6f0b601ff8d0f4c1e69401cb291738d312b041a13f0bc84f0269`.
+- From the live shell, connector readiness returned 200; protected routes for all
+  seven owners rejected missing credentials and forged identity headers with
+  401; an unknown product returned 404; exact internal enrolment without workload
+  credentials returned 401. Responses included `Via: 1.1 helivanta-global-api`.
 
-`pnpm --filter @helivanta/shell build` compiled, typechecked and generated pages,
-then exited nonzero with Next.js `SecurityFatalError` reporting a known
-vulnerability in the installed Next.js version. Upgrade to a reviewed fixed
-version and rerun the build before release; the warning was not bypassed.
+Follow [routing PR #1520](https://github.com/tesserix/tesserix-k8s/pull/1520) and
+[owner-boundary PR #1521](https://github.com/tesserix/tesserix-k8s/pull/1521) for
+activation and public/direct-access verification. The
+[GitOps runbook](https://github.com/tesserix/tesserix-k8s/blob/main/docs/helivanta-global-api-rollout.md)
+records staged rollout, recovery order, capacity and repeatable acceptance probes.
+Do not treat private connector readiness as public cutover evidence.
 
-The default local Docker socket is unavailable. Full database-backed API tests,
-three-stack Playwright journeys, container build and live rollout were not run.
-No production or independent product-service readiness is claimed. The native
-AmbulanceConnect app currently uses bundled emergency-call data without an API;
-future authenticated mobile capabilities must use this same Global API boundary.
+The frontend audit still fails on Zod advisory `GHSA-mrhx-c7xc-m3w5`; upgrading
+from Zod 3 to the patched major requires shared-contract compatibility testing.
+This check is not suppressed. The existing product API Argo rollout also has a
+failed migration hook from unrelated pending releases. Its running image stays
+unchanged; do not merge this source branch into automatic product promotion until
+that migration and the dependency gate are resolved.
 
-The release checkout is based on current main with Next.js 16.4.2. Its production
-build passes, resolving the earlier checkout's Next.js security blocker. Earlier
-validation records above describe the original snapshot, not the release result.
+Local Docker was unavailable, so database/browser/container validation ran in CI.
+These results establish the implemented routing slice, not all clinical workflows,
+production load/availability targets, independent service extraction or regulatory
+readiness. MediConnect still has no registered backend API. The native
+AmbulanceConnect app currently uses bundled emergency-call data; future
+authenticated mobile capabilities must use this same Global API boundary.

@@ -14,7 +14,7 @@
   "devDependencies": {
     "@helivanta/config": "workspace:*",
     "@types/node": "24.19.1",
-    "eslint": "^9.18.0",
+    "eslint": "^10.13.0",
     "typescript": "~6.0.3",
     "vitest": "^4.1.11"
   },

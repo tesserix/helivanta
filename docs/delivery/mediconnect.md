@@ -298,3 +298,20 @@ reconcile withdrawals before reverting a binary that cannot emit cancellations.
 
 Registrar changes are not yet merged or deployed. #37/#552 remain open because
 portal scope, consent/proxy authority and clinical disclosure remain incomplete.
+
+### Pre-promotion withdrawal correction
+
+PR #1321 merged as `edb23be4d1cd32741af27d3254ee84ca27e9f377` after all PR
+checks passed. Its full local backend race/coverage gate also passed, including
+IAM; patientmaster coverage was 77.6%. Production promotion was held when rollout
+review found that older writers can withdraw an original request without updating
+the new review projection. The regression reproduced stale `submitted` state.
+
+The follow-up adds original-request locking and transactional cancellation repair
+on review reads, withdrawal retries and result delivery. A second regression
+caught missing repair on withdrawal retry before that path was fixed. Migration
+0005_mediconnect grants the delivery context source reads while retaining the
+existing subject-owned write policy. Rehearsal against the isolated production
+schema plus both review tables passed, including repeat application and previous
+migrator compatibility. The initial registrar Freight has not been promoted;
+only the corrected source is eligible for the planned manual rollout.

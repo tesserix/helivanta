@@ -234,6 +234,9 @@ func (h *accountHandlers) withdrawLinkRequest(c *gin.Context) {
 			if input.ExpectedVersion != row.Version && input.ExpectedVersion != row.Version-1 {
 				return errLinkConflict
 			}
+			if err := h.withdrawReview(tx, p, row); err != nil {
+				return err
+			}
 			return auditLinkRead(tx, p, id)
 		}
 		if row.Version != input.ExpectedVersion {

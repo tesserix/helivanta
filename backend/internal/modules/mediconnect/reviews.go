@@ -114,8 +114,20 @@ func (h *accountHandlers) getReview(c *gin.Context) {
 	}
 	var row reviewSubmission
 	err := h.linkTransaction(c, p, func(tx *gorm.DB, _ account) error {
-		if err := readReview(tx, p, id, &row); err != nil {
+		var request linkRequest
+		if err := readLink(tx.Clauses(clause.Locking{Strength: "SHARE"}), p, id, &request); err != nil {
 			return err
+		}
+		if err := readReview(tx.Clauses(clause.Locking{Strength: "UPDATE"}), p, id, &row); err != nil {
+			return err
+		}
+		if request.Status == "withdrawn" && row.Status != "withdrawn" {
+			if err := h.withdrawReview(tx, p, request); err != nil {
+				return err
+			}
+			if err := readReview(tx, p, id, &row); err != nil {
+				return err
+			}
 		}
 		return auditReviewRead(tx, p, id)
 	})
@@ -132,6 +144,9 @@ func (h *accountHandlers) withdrawReview(tx *gorm.DB, p authn.Principal, request
 			return nil
 		}
 		return err
+	}
+	if row.Status == "withdrawn" {
+		return nil
 	}
 	if err := tx.Exec(`UPDATE mediconnect_review_submissions SET status='withdrawn',withdrawn_at=?,updated_at=clock_timestamp() WHERE tenant_id=? AND subject=? AND request_id=?`, request.WithdrawnAt, p.TenantID, p.Subject, request.ID).Error; err != nil {
 		return err

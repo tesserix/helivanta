@@ -22,13 +22,16 @@ var accessibilitySchema string
 //go:embed reviews.sql
 var reviewSchema string
 
+//go:embed review_source.sql
+var reviewSourceSchema string
+
 type Module struct{}
 
 func New() *Module                         { return &Module{} }
 func (*Module) Name() string               { return "mediconnect" }
 func (*Module) Permissions() []authz.Grant { return nil }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_mediconnect", SQL: accountSchema}, {ID: "0002_mediconnect", SQL: linkRequestSchema}, {ID: "0003_mediconnect", SQL: accessibilitySchema}, {ID: "0004_mediconnect", SQL: reviewSchema}}
+	return []tenantdb.Migration{{ID: "0001_mediconnect", SQL: accountSchema}, {ID: "0002_mediconnect", SQL: linkRequestSchema}, {ID: "0003_mediconnect", SQL: accessibilitySchema}, {ID: "0004_mediconnect", SQL: reviewSchema}, {ID: "0005_mediconnect", SQL: reviewSourceSchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &accountHandlers{db: deps.DB, bus: deps.Bus}
@@ -49,7 +52,7 @@ func (*Module) Publishes() []string {
 }
 func (*Module) DirectedSubjects() []string    { return nil }
 func (*Module) DirectedWriteTables() []string { return nil }
-func (*Module) Consumers(platform.Deps) []events.Consumer {
-	return []events.Consumer{reviewResultConsumer()}
+func (*Module) Consumers(deps platform.Deps) []events.Consumer {
+	return []events.Consumer{reviewResultConsumer(deps.Bus)}
 }
 func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }

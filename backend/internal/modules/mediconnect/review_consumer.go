@@ -8,12 +8,13 @@ import (
 
 	"github.com/google/uuid"
 	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
+	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/events"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-func reviewResultConsumer() events.Consumer {
+func reviewResultConsumer(bus *events.Bus) events.Consumer {
 	return events.Consumer{Name: "mediconnect-registration-reviewed", Subject: patientmastercontract.SubjectRegistrationReviewed, Handle: func(_ context.Context, tx *gorm.DB, evt events.Event) error {
 		var data patientmastercontract.RegistrationReviewedData
 		if evt.Type != patientmastercontract.SubjectRegistrationReviewed || evt.Version != 1 || evt.DestinationTenantID != "" || json.Unmarshal(evt.Data, &data) != nil {
@@ -38,9 +39,22 @@ func reviewResultConsumer() events.Consumer {
 		if err := tx.Exec(`SELECT set_config('app.mediconnect_review_request',?,true)`, data.RequestID).Error; err != nil {
 			return errors.New("review result scope unavailable")
 		}
+		// Match withdrawal's lock order: original request, then review projection.
+		var request linkRequest
+		if err := tx.Clauses(clause.Locking{Strength: "SHARE"}).Select(linkColumns).Where("tenant_id=? AND id=? AND account_id=? AND hospital_id=? AND patient_id=?", evt.TenantID, data.RequestID, data.AccountID, data.HospitalID, data.PatientID).Take(&request).Error; err != nil {
+			return errors.New("review source request unavailable")
+		}
 		var row reviewSubmission
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select(reviewColumns).Where("tenant_id=? AND request_id=? AND account_id=? AND hospital_id=? AND patient_id=?", evt.TenantID, data.RequestID, data.AccountID, data.HospitalID, data.PatientID).Take(&row).Error; err != nil {
 			return errors.New("review result receipt unavailable")
+		}
+		if request.Status == "withdrawn" && row.Status != "withdrawn" {
+			h := accountHandlers{bus: bus}
+			p := authn.Principal{TenantID: evt.TenantID, Subject: row.Subject}
+			if err := h.withdrawReview(tx, p, request); err != nil {
+				return errors.New("review withdrawal reconciliation unavailable")
+			}
+			row.Status = "withdrawn"
 		}
 		if row.DecisionID != nil {
 			if row.DecisionID.String() != data.DecisionID || *row.DecisionOutcome != data.Outcome || !row.ReviewedAt.Equal(at) {

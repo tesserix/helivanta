@@ -234,3 +234,20 @@ rollback. Pre-review writers do not publish withdrawal events, so rolling back t
 a pre-review binary while submissions exist requires a coordinated write hold
 and reviewed reconciliation. Deployment is tracked separately in the delivery
 ledger; passing local tests alone does not mean this workflow is deployed.
+
+### Withdrawal reconciliation during rolling upgrades
+
+`0005_mediconnect` allows the exact review-result consumer to read its original
+request through tenant/request-scoped RLS; the original request's write policy
+remains subject-owned. Result delivery locks the original request before its
+projection. GET review and withdrawal retries also consult that source. If an
+older writer recorded withdrawal without a cancellation event, these paths
+repair the projection and publish the missing cancellation in one transaction.
+The GET repairs only an already-committed withdrawal; it never initiates one.
+Outbox/audit failure returns an error instead of exposing a stale verified link.
+Repeated reads/results do not publish another cancellation. Late and duplicate
+approvals preserve withdrawal, including when the decision predated the older
+writer's withdrawal. This is bounded read-time/delivery recovery, not a background
+reconciliation worker: rollback to older readers/writers still requires a write
+hold and reconciliation. The initial registrar image must not be promoted without
+this follow-up fix.

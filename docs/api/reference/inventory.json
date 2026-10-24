@@ -1159,6 +1159,11 @@
           "creates_tables": [
             "mediconnect_review_submissions"
           ]
+        },
+        {
+          "id": "0005_mediconnect",
+          "sql_sha256": "4d6692f9e63d482c01ded1b044e02132ab5ed7c4be6e4949831550df04e24abc",
+          "creates_tables": []
         }
       ]
     },

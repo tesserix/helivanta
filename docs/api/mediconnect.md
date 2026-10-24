@@ -9,8 +9,8 @@ complete patient portal. No patient record is linked or disclosed by these APIs.
 Clients use the Global API `/v1/mediconnect` prefix. Configure owner key
 `mediconnect` explicitly in `GLOBAL_API_UPSTREAMS`; during modular-monolith
 operation its origin is the existing API. Development defaults include it.
-An omitted owner returns 503; no fallback to another product. This source change
-is not a production rollout.
+An omitted owner returns 503; no fallback to another product. The account/link baseline was deployed from `30efb51` through the Global API;
+release evidence is in [PR #1318](https://github.com/tesserix/helivanta/pull/1318).
 
 All seven endpoints require a verified Helivanta session and current tenant
 membership. Subject and tenant come only from that session. Account ownership is
@@ -36,18 +36,37 @@ Replaying an already-applied PATCH with its old version returns 409.
   "expected_version": 1,
   "locale": "hi-IN",
   "preferred_channel": "email",
-  "low_data_mode": true
+  "low_data_mode": true,
+  "accessibility": {
+    "text_size": "large",
+    "contrast": "high",
+    "motion": "reduced"
+  }
 }
 ```
 
 Locale is a valid BCP47 tag, 2–35 bytes, expressing a preference rather than a
 promise that translated content exists. `preferred_channel` is `none`, `email` or
 `whatsapp`; SMS is rejected. It grants no messaging consent and sends nothing.
-All fields are required on PATCH; version is an integer from 1 through 9007199254740991. Bodies are bounded to 4096 bytes, unknown fields and trailing
+The original four fields are required on PATCH; version is an integer from 1 through 9007199254740991. Bodies are bounded to 4096 bytes, unknown fields and trailing
 JSON values are rejected. Errors use existing `{error,message}` v1 conventions.
 
+`accessibility` is an optional complete object. Its fields are `text_size`
+(`system`, `large`, `extra_large`), `contrast` (`system`, `high`) and `motion`
+(`system`, `reduced`). All default to `system`: no override of the device setting.
+Omitting the object or sending null preserves all three saved values atomically;
+sending all three as `system` resets them. An incomplete object, extra field,
+invalid enum or wrong type returns 400 and changes nothing. Older callers retain
+their existing contract and cannot erase settings they did not submit.
+
+Settings share the account's expected-version guard and audit transaction with
+locale/channel/low-data preferences. Concurrent writers using one version cannot
+mix or overwrite each other's settings: one succeeds and the others return 409.
+These values express presentation preferences only. This API does not implement
+client rendering, infer a disability, or store a medical condition.
+
 The account response contains UUIDv7 `id`, `locale`, `preferred_channel`, boolean
-`low_data_mode`, integer `version`, and RFC3339 `created_at`/`updated_at`. Defaults
+`low_data_mode`, the `accessibility` object, integer `version`, and RFC3339 `created_at`/`updated_at`. Defaults
 are `en-IN`, `none`, false and version 1. No subject, tenant, contact destination
 or demographics are returned. Responses carry `Cache-Control: no-store`.
 The Go input/response types are the canonical wire definitions for this slice;
@@ -71,7 +90,8 @@ account cache. Valkey remains the platform cache, not account authority.
 
 Migration `0001_mediconnect` is additive and forward-only. Reverting application
 code leaves accounts and audit evidence intact; no automated data-dropping down
-migration is supplied. Production migration/promotion remains held.
+migration is supplied. Migrations `0001_mediconnect` and `0002_mediconnect`
+were applied in the reviewed release; automatic promotion remains disabled.
 
 ## Unverified patient-link request intake
 
@@ -122,8 +142,17 @@ The same request UUID in another tenant is independent. Listing uses descending
 `(created_at,id)` keyset pagination scoped to the verified account. Writes are
 audited without claim values; reads and replay disclose only after their audit
 transaction commits. List auditing is batched. Responses use `no-store`, and no
-claim events or cached patient projections are created. Production migration is
-not performed by this change.
+claim events or cached patient projections are created.
+
+## Accessibility migration
+
+`0003_mediconnect` adds three constrained, non-null text columns to the owned
+account table with constant `system` defaults. It uses a 5-second lock timeout and
+60-second statement timeout. Existing accounts keep their IDs, version, timestamps
+and original preferences; forced RLS and audit triggers remain in place. No index
+or cache changes are needed. Previous binaries continue named-column operations
+and leave the new values intact, so application rollback is compatible without
+removing the columns. The application does not supply a destructive down migration.
 
 ## Remaining product scope
 
@@ -134,5 +163,5 @@ patient-facing disclosure API. #77/#101 require practitioner verification and
 scheduling ownership; #73 requires source-authorized released/amended report
 versions. The account API does not expose legacy lab completion as report release.
 Patient onboarding without existing tenant membership also remains separate.
-OTP, UI/mobile work, production deployment and clinical/legal policy activation
-are outside this change. See the [delivery ledger](../delivery/mediconnect.md).
+OTP, UI/mobile rendering and clinical/legal policy activation remain separate.
+Deployment evidence is tracked with each reviewed source revision. See the [delivery ledger](../delivery/mediconnect.md).

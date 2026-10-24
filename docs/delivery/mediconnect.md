@@ -1,8 +1,10 @@
 # MediConnect delivery and issue evidence
 
 Research date: 2026-10-24. Source baseline: `cc63b6f80103fb53782dcd02c45de7440bfd384b`.
-Status: account API implementation in progress; no production migration or patient
-login deployed by this work. All issues below remain open. OTP work was set aside
+Status: account and unverified link-request APIs deployed from `30efb51` via
+[PR #1318](https://github.com/tesserix/helivanta/pull/1318) and
+[connector PR #1525](https://github.com/tesserix/tesserix-k8s/pull/1525).
+This does not establish verified patient access or patient-only onboarding. All issues below remain open. OTP work was set aside
 by the user; account APIs reuse the existing verified session boundary.
 
 ## Confirmed direction
@@ -219,3 +221,28 @@ patient disclosure or hospital verification processor is implemented. #37 and
   remains registered through `platform.ListRoute` and has a tested cursor.
 - The prior full-backend aggregate IAM timeout remains recorded above; these
   targeted passing checks do not turn that earlier aggregate run green.
+
+## Accessibility preference API — #37 partial
+
+The API now supports optional account-owned text size, contrast and motion
+preferences in the existing version-guarded PATCH. Omitted/null settings preserve
+saved values; an explicit all-system object resets them. Existing callers remain
+compatible. These are stored presentation preferences; UI rendering and clinical
+profile-specific preferences require their corresponding client/authority work.
+
+Migration `0003_mediconnect` is additive, constrained and compatible with prior
+binaries. Existing accounts retain identity, version and prior preferences. The
+first round-trip test failed with 400 before implementation, then passed with a
+persisted response. Regression tests cover invalid nested values, legacy/null
+preservation, resets, tenant/subject isolation, concurrent writers, update/read
+audit failure, migration upgrade and real Global API forwarding. Exact validation
+and rollout evidence are recorded on the implementing PR.
+
+The earlier local aggregate IAM timeout is historical: both full source PR CI
+and post-merge CI passed for `30efb51`, including Go coverage and browser E2E.
+Production API/connector/shell reached two ready replicas each; public probes
+verified authentication rejection, Via forwarding, unknown-route 404 and the
+shell-to-owner mesh boundary. These probes do not certify authenticated patient
+workflows. The user-approved confirmed Pakistan test cleanup cleared all 12
+country preflight checks; [PR #1319](https://github.com/tesserix/helivanta/pull/1319)
+records protected recovery and audit evidence. Automatic promotion stays disabled.

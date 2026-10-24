@@ -116,3 +116,20 @@ restore evidence, reviewed image selection and compatible Global API upstream
 configuration are recorded. The new MediConnect owner key must be added alongside
 compatible connector/API images. Do not claim verified patient access: the
 current MediConnect release implements accounts and unverified link intake only.
+
+## Applied result — 2026-10-25
+
+Applied the approved confirmed-test cleanup from commit `54ec0da` after the
+production rollback rehearsal passed. Artifact SHA256:
+`3aab10a523fb73a66a6928905a9f6b6acb46e1d8e97b12d99b252542cfe5b841`.
+`python3 /tmp/apply-helivanta-cleanup.py rehearse` and `apply` both passed.
+Exactly 97 captured rows were removed and 97 explicit cleanup audit events were
+verified. Foreign-key definitions, user-trigger states and RLS flags match the
+pre-operation snapshot. The pharmacy organization and India corporate parent
+rows match their original captured values. The repeated global India-release
+preflight reports zero blockers in all 12 checked tables. No stored objects or
+historical audit events were deleted. Recovery artifacts and verification logs
+remain in the protected directory above.
+
+This clears the recorded country-data blocker; it does not itself lift the Kargo
+hold, apply schema migrations or prove the pending application deployment.

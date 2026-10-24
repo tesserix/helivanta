@@ -18,13 +18,13 @@
     "@tesserix/web": "^2.4.2",
     "framer-motion": "^12.0.0",
     "get-nonce": "1.0.1",
-    "lucide-react": "^1.56.0",
+    "lucide-react": "^1.61.0",
     "next": "^16.4.2",
     "oidc-client-ts": "^3.5.0",
     "qrcode.react": "^4.2.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "zod": "^4.6.6"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@helivanta/config": "workspace:*",
@@ -40,7 +40,7 @@
     "eslint": "^9.18.0",
     "tailwindcss": "^4.1.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vite": "^8.3.4",
+    "vite": "^8.3.5",
     "vitest": "^4.1.11"
   },
   "prettier": "@helivanta/config/prettier"

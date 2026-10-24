@@ -16,7 +16,7 @@
     "@types/node": "24.19.1",
     "eslint": "^9.18.0",
     "typescript": "~6.0.3",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.5"
   },
   "prettier": "@helivanta/config/prettier"
 }

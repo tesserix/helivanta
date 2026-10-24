@@ -259,6 +259,22 @@
       "type": "object"
     }
   },
+  "helivanta.in.mediconnect.account_created.v1": {
+    "source": "backend/internal/modules/mediconnect/contract/events.go:8",
+    "go_type": "AccountCreatedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "account_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "account_id"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.medicore.visit_created.v1": {
     "source": "backend/internal/modules/medicore/contract/events.go:29",
     "go_type": "VisitCreatedData",

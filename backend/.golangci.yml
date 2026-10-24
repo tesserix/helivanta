@@ -47,6 +47,7 @@ linters:
             # exception instead of widening it into an allowlist.
             - "github.com/tesserix/helivanta/internal/modules/emergency/contract"
             - "github.com/tesserix/helivanta/internal/modules/medicore/contract"
+            - "github.com/tesserix/helivanta/internal/modules/mediconnect/contract"
             - "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
             - "github.com/tesserix/helivanta/internal/modules/lab/contract"
             - "github.com/tesserix/helivanta/internal/modules/iam/contract"

@@ -35,6 +35,7 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"mediconnect.AccountCreatedData.AccountID":          "internally minted opaque account UUID; no subject, contact, patient linkage or clinical content; resolution requires owner authorization",
 	"emergency.DispatchChangedData.BaseID":              "opaque provider operating-base UUID; no address or name",
 	"emergency.DispatchChangedData.DispatchID":          "opaque trip UUID requiring protected lookup; no patient, vehicle, crew or destination details",
 	"emergency.DispatchChangedData.Version":             "monotonic operational revision, not clinical content",

@@ -34,9 +34,11 @@ it never supplies authority. No private evidence belongs in events or logs.
 ## Capacity and consistency
 
 Planning envelope, not measured production demand: 500 practitioners per tenant
-(#102's materialisation workload), 200 discovery readers/second (#102 search load
-basis), 10 administrative writes/second, <=8 KiB intake, and initially 20:1 reads
-to writes. At 1,000 tenants this is 500,000 base records; assuming 10% annual growth,
+(#102's materialisation workload). Assume 200 discovery reads/second and 10
+administrative writes/second across one deployment, <=8 KiB intake, and a 20:1
+read/write ratio. These request rates are planning assumptions, not measured or
+issue-mandated traffic; #102 specifies a 200-practitioner search dataset, not 200
+requests/second. At 1,000 tenants this is 500,000 base records; assuming 10% annual growth,
 550,000 at 12 months and 665,500 at 36 months. Registration/role histories need a
 separate measured storage budget before their release. Practitioner privilege
 resolution targets the #474 p95 30ms criterion. Initial design targets are p99
@@ -129,7 +131,7 @@ the administrative manage permission. Body contains `council_system`,
 `registration_number`, optional nullable ISO-calendar `issued_on` and `expires_on`.
 An unknown expiry is unknown, not unlimited validity. Invalid calendar dates and
 expiry before issue are rejected. Initial command/revision share the caller's
-UUIDv7; first creation is201, exact replay200/current head, changed initial intent409.
+UUIDv7; first creation is 201, exact replay 200/current head, changed initial intent 409.
 Detail GET requires the administrative read permission and commits its read audit.
 No demographics, creator or private evidence is returned.
 
@@ -150,18 +152,18 @@ returned. Every owner transaction has a five-second caller-cancellable budget an
 a two-second database lock budget. Cancellation/deadline or lock timeout returns
 503 `practitioner_unavailable`; clients reconcile the same command ID after an
 ambiguous result rather than generating another intent. Other storage/audit errors
-remain sanitized500. Failed writes leave no revision or advanced head. No provider, clinical
+remain sanitized 500. Failed writes leave no revision or advanced head. No provider, clinical
 privilege, FHIR compliance or HPR check is implied. Registrations without expiry or
-verification remain unavailable as authority for clinical actions. Migration0002
+verification remain unavailable as authority for clinical actions. Migration 0002
 is additive, bounded and undeployed; no retained claims may be removed on rollback.
 
 Registration and revision collections use administrative-read permission and the
 standard keyset envelope at `/registrations` and `/registrations/:registration/revisions`
-under the practitioner path. Limit1–200, default50; immutable `(created_at,id)`
+under the practitioner path. Limit 1–200, default 50; immutable `(created_at,id)`
 descending pagination. Each receipt carries its source version; timestamps are not
 clinical validity or revision authority. Lists audit the scoped parent and fetched
 resources atomically, including empty collections. Read-audit failure returns an
-error with no partial page. Nonexistent/wrong-tenant parents return404.
+error with no partial page. Nonexistent/wrong-tenant parents return 404.
 
 Local verification so far covers first intake, exact replay, changed identities,
 12-way conflicting renewals and same-command replay, renewal/unknown dates,

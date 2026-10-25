@@ -28,6 +28,8 @@ type Config struct {
 	TemporalNamespace                  string
 	DocumentWorkerDatabaseURL          string
 	EmergencyWorkerDatabaseURL         string
+	PrivacyWorkerDatabaseURL           string
+	PrivacyDeadlinesEnabled            bool
 	EmergencyDispatchEnabled           bool
 	EmergencyWorkflowsEnabled          bool
 	ClamAVAddress                      string
@@ -241,6 +243,8 @@ func Load() Config {
 		TemporalNamespace:                  os.Getenv("TEMPORAL_NAMESPACE"),
 		DocumentWorkerDatabaseURL:          os.Getenv("DOCUMENT_WORKER_DATABASE_URL"),
 		EmergencyWorkerDatabaseURL:         os.Getenv("EMERGENCY_WORKER_DATABASE_URL"),
+		PrivacyWorkerDatabaseURL:           os.Getenv("PRIVACY_WORKER_DATABASE_URL"),
+		PrivacyDeadlinesEnabled:            os.Getenv("PRIVACY_DEADLINES_ENABLED") == "true",
 		EmergencyDispatchEnabled:           os.Getenv("EMERGENCY_DISPATCH_ENABLED") == "true",
 		EmergencyWorkflowsEnabled:          os.Getenv("EMERGENCY_WORKFLOWS_ENABLED") == "true" || os.Getenv("EMERGENCY_DISPATCH_ENABLED") == "true",
 		ClamAVAddress:                      os.Getenv("CLAMAV_ADDRESS"),

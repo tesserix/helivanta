@@ -172,7 +172,7 @@ func (h *handlers) requests(c *gin.Context, params pagination.Params, queue bool
 		}
 		if queue {
 			var o officer
-			if e := activeOfficer(tx, p, &o); e != nil {
+			if e := actorOfficer(tx, p, &o); e != nil {
 				if errors.Is(e, gorm.ErrRecordNotFound) {
 					return errForbidden
 				}

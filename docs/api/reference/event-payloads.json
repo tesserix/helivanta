@@ -655,6 +655,26 @@
       "type": "object"
     }
   },
+  "helivanta.in.privacy.deadline_changed.v1": {
+    "source": "backend/internal/modules/privacy/contract/events.go:13",
+    "go_type": "DeadlineChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "request_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "request_id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.reference.ping_forwarded.v1": {
     "source": "backend/internal/modules/reference/contract/events.go:25",
     "go_type": "PingForwardedData",

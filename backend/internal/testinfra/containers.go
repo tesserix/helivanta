@@ -146,7 +146,8 @@ func sharedPostgres(t *testing.T) (host, port string) {
 			CREATE ROLE hms_owner LOGIN PASSWORD 'hms_owner' NOSUPERUSER NOBYPASSRLS;
  CREATE ROLE helivanta LOGIN NOSUPERUSER NOBYPASSRLS;
 			CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;
-			CREATE ROLE helivanta_emergency_worker LOGIN PASSWORD 'helivanta_emergency_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
+			CREATE ROLE helivanta_privacy_worker LOGIN PASSWORD 'helivanta_privacy_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
+ CREATE ROLE helivanta_emergency_worker LOGIN PASSWORD 'helivanta_emergency_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
  CREATE ROLE helivanta_document_worker LOGIN PASSWORD 'helivanta_document_worker' NOSUPERUSER NOBYPASSRLS;
  CREATE ROLE helivanta_supply_evidence_worker LOGIN PASSWORD 'helivanta_supply_evidence_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
 			CREATE ROLE helivanta_system LOGIN PASSWORD 'helivanta_system' NOSUPERUSER BYPASSRLS;

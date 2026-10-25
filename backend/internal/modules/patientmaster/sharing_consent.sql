@@ -36,6 +36,7 @@ CREATE TABLE patient_sharing_recipients (
  OR (revoked_at IS NOT NULL AND revoker_subject IS NOT NULL AND length(btrim(revoker_subject)) BETWEEN 1 AND 512 AND revocation_reference IS NOT NULL))
 );
 CREATE UNIQUE INDEX patient_sharing_recipient_current_binding ON patient_sharing_recipients(tenant_id,hospital_id,organization_reference,grantee_subject) WHERE status IN ('draft','approved');
+CREATE INDEX patient_sharing_recipient_exact_scope ON patient_sharing_recipients(tenant_id,hospital_id,id);
 CREATE INDEX patient_sharing_recipient_page ON patient_sharing_recipients(tenant_id,hospital_id,created_at DESC,id DESC);
 CREATE INDEX patient_sharing_recipient_approved_page ON patient_sharing_recipients(tenant_id,hospital_id,created_at DESC,id DESC) WHERE status='approved';
 ALTER TABLE patient_sharing_recipients ENABLE ROW LEVEL SECURITY;
@@ -137,6 +138,7 @@ CREATE TABLE patient_clinical_consents (
  OR (status='quarantined' AND quarantined_at IS NOT NULL AND version=CASE WHEN withdrawn_at IS NULL THEN 2 ELSE 3 END))
 );
 CREATE UNIQUE INDEX patient_clinical_consent_current_scope ON patient_clinical_consents(tenant_id,hospital_id,patient_id,subject,recipient_id,purpose) WHERE status='granted';
+CREATE INDEX patient_clinical_consent_exact_scope ON patient_clinical_consents(tenant_id,hospital_id,id);
 CREATE INDEX patient_clinical_consent_subject_page ON patient_clinical_consents(tenant_id,hospital_id,subject,created_at DESC,id DESC);
 CREATE INDEX patient_clinical_consent_recipient_page ON patient_clinical_consents(tenant_id,hospital_id,recipient_id,created_at DESC,id DESC);
 ALTER TABLE patient_clinical_consents ENABLE ROW LEVEL SECURITY;

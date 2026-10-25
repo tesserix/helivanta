@@ -3526,7 +3526,7 @@
         },
         {
           "id": "0008_patientmaster",
-          "sql_sha256": "6180d32f1851a272fc8f62fa0fe90798f17451fbac2e5ec0936582c164c81850",
+          "sql_sha256": "39bb1751fc59913ea446eb96c9067ad1c7f94966f0162ab2f3c2827727e92ac8",
           "creates_tables": [
             "patient_sharing_recipients",
             "patient_clinical_consents",

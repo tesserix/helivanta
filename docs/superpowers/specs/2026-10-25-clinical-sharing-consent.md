@@ -129,11 +129,63 @@ application role and measures the real patient-scope RLS catalog query. Before
 indexing it discarded 100,000 rows (126.619 ms sample). The approved-only partial
 index selected one row and discarded none (2.965 ms sample). This is a single
 local plan sample, not a load/SLO result. The new index belongs to the new table;
-no production populated-table index is built by this change. Larger consent-ledger
-and audit-retention capacity remain activation review items.
+no production populated-table index is built by this change. Audit-retention capacity remains an activation review item; ledger lookup and
+owner pagination now have the larger plan checks described below.
 
 Reproduce the plan with `go test -race -p=2 -tags=performance
 ./internal/modules/patientmaster -run '^TestClinicalRecipientCatalogPlan' -count=1
 -v` from backend with the disposable test Docker socket configured. Production
 policy content, proxy authority, actual record-owner disclosure and booking
 integrations are outside this declaration slice and remain open stories.
+
+## Infrastructure activation review (not yet implemented)
+
+Repository inspection at `tesserix/tesserix-k8s@beb23aa0` confirms an integration
+boundary that must be changed explicitly: `helivanta-api-ingress` denies traffic
+on 8080 from every principal except Global API. A new ALLOW policy cannot
+override that DENY. The internal claim path must be carved out exactly and receive
+its own DENY for every principal except the API owner workload, including Global
+API. Permit only POST of `/internal/v1/mediconnect/current-claim`; preserve the
+Global API boundary for other public paths and verify actual enforcement before
+activation. Do not merely enable the environment variables.
+
+The owning GitOps change must also provide a 600-second audience-bound claim
+projection, explicit Kubernetes API credential/CA for TokenReview with automount
+disabled, a create-only TokenReview ClusterRole bound to the exact API service
+account, and bounded control-plane egress using a discovered approved CIDR.
+Dedicated strict mTLS and actual mesh readiness are mandatory for cluster HTTP.
+The existing Transit role must retain staff/emergency functionality while gaining
+only the tested nonexportable 32-byte HMAC-key create/update and HMAC operations
+for `helivanta-consent-*`; no key read, rotation, export or deletion capability.
+
+These are source review facts and planned controls, not evidence of live
+configuration or successful deployment. The isolated infrastructure worktree is
+`tesserix-k8s-consent-workload` on `feat/helivanta-consent-workload`; it has no
+committed activation change yet. Keep production activation gated until rendered
+and negative policy tests, the final application image, policy/credential delivery
+and an authenticated isolated-tenant production journey are verified.
+
+
+## Consent-ledger scale finding and correction
+
+The tagged ledger plan test populates 100,000 consent rows and 100,000 recipient
+bindings through the application role with forced RLS, audit and history guards
+retained. Bulk filler declarations deliberately have invalid MACs and are used
+only for structural plan measurements; all actual eligibility assertions use the
+separate real API-created signed declaration. No filler is production data or
+proof of a valid clinical consent.
+
+Returned-row counts alone missed a non-leading-ID index scan inside the recipient
+binding check. The stricter test bounds root shared-buffer visits as well as rows:
+the failing sample touched 4,510 shared blocks (157.864 ms). Exact-scope indexes
+on both new tables, `(tenant_id,hospital_id,id)`, reduced the final recipient query
+to 17 shared blocks (7.117 ms sample); owner pagination touched five blocks
+(0.114 ms). The completed race test then exercised the actual signed declaration
+through Global API and obtained consent-gate allow, with record authorization
+still explicitly false. These are local plan samples, not latency or load SLOs.
+
+Run `go test -race -p=2 -timeout=20m -tags=performance
+./internal/modules/patientmaster -run '^TestClinicalConsentLedgerPlans' -count=1 -v`
+with the test Docker socket configured. Both new indexes are part of the still
+unpublished `0008_patientmaster` creating their tables; no populated live table
+index is built by this change.

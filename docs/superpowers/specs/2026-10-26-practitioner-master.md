@@ -228,3 +228,24 @@ normalizing to UTC; precision beyond six fractional digits and invalid offsets
 are rejected before parsing, preventing silent truncation. These appointments
 still grant no council verification or clinical privileges; evidence and qualified
 review workflows remain incomplete.
+
+## Private evidence storage boundary
+
+The shared attachment store now recognizes tenant-owned `practitioner` objects
+without a hospital ID. Keys bind the tenant, practitioner, registration revision,
+immutable file ID/version and server-assigned UTC upload date. Their
+`o/practitioner` namespace cannot alias organisation or hospital/staff objects;
+existing object keys remain unchanged. Supplying a hospital is rejected rather
+than silently discarded. The owner must derive these identifiers from authorized
+records before invoking storage; an object key itself grants no authorization.
+
+Local storage protocol tests cover exact-generation scanning, immutable promotion,
+lost-copy receipt reconciliation and rejection of conflicting source generations
+for staff, organisation and practitioner scopes. Infected content, incomplete scan
+verdicts, missing scanners and unsupported types cannot mint promotion authority.
+Supported inspection remains passive PNG/JPEG only; PDF is not supported.
+
+This is storage support inside the undeployed draft. Practitioner upload commands,
+durable processing, authorized evidence reads and independent professional
+verification are still required. A clean malware scan never establishes a
+qualification, council registration, HPR status or clinical privilege.

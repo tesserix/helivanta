@@ -79,6 +79,10 @@ func consentAuthorityError(c *gin.Context, err error) {
 		respond.Error(c, 409, "consent_authority_conflict", "Consent authority state or input changed")
 		return
 	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		respond.Error(c, 503, "consent_authority_unavailable", "Consent authority unavailable; reconcile a submitted command before retrying")
+		return
+	}
 	patientError(c, err)
 }
 func (h *patientHandlers) proposeConsentAuthority(c *gin.Context) {

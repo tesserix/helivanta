@@ -449,3 +449,28 @@ host; its separate fix in #1329 reads the stock cutoff from PostgreSQL. Release-
 CI also exposed emergency retry contention, now reproduced against the separate
 case-number unique constraint and corrected in #1328. These failures must be
 resolved and the complete gate rerun before this authority change is released.
+
+### Gateway-budget and ambiguous-response check
+
+The forwarding fixture initially overrode the gateway timeout to five seconds,
+while the actual `globalapi.FromEnv` configuration fixes it at thirty seconds.
+The fixture now uses that configuration directly. This corrects a test setup
+mismatch; production timeouts were not changed and the original 500 is not
+retrospectively attributed to it without stronger evidence. A controlled real
+HTTP test loses the first acceptance response after its successful commit,
+verifies the accepted receipt through the owner, then replays the identical
+command and checks that only one acceptance event exists. The targeted race
+checks passed. The draft remains gated on the final combined local/CI regression.
+
+### Combined regression and cancellation handling
+
+The combined backend `GOFLAGS=-p=2 ./scripts/coverage-gate.sh` passed at `317bff7`,
+including the emergency retry and pharmacy database-clock fixes (patientmaster
+78.0%, pharmacy 88.1%, emergency 75.2% statement coverage). This supersedes the
+first failed aggregate run as current combined-code evidence; the earlier failure
+and its unproven authority cause remain recorded above. The follow-up cancellation
+test observed 500 before implementing a retryable 503
+`consent_authority_unavailable` response. The affected patientmaster race package
+then passed with production-budget forwarding and committed-but-lost-response
+reconciliation. Final CI for that follow-up is still required. The full
+MediConnect goal and clinical/proxy/disclosure stories remain open.

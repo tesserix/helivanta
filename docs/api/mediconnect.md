@@ -424,7 +424,10 @@ times. Expiry is computed against database time, even when no timer has run.
 Subject/reviewer identifiers, policy/evidence references, fingerprints and
 patient demographics are omitted. Responses are no-store. Hidden tenant,
 subject, hospital or resource scope returns 404; route permission failure 403;
-malformed input 400; unavailable database/audit fails closed.
+malformed input 400; dependency cancellation/deadline 503
+`consent_authority_unavailable`; other database/audit failures fail closed. An
+unavailable response can leave the outcome unknown: read the same receipt or
+replay the same immutable command rather than creating a new authority.
 
 Migration `0006_patientmaster` adds forced-RLS `patient_consent_authorities`,
 immutable lineage/transition guards and subject-page indexes. It allows only

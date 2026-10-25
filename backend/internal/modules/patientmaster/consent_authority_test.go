@@ -1,14 +1,19 @@
 package patientmaster_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgconn"
+	"io"
 	"maps"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -277,16 +282,7 @@ func TestConsentAuthorityExpiryDoesNotDependOnATimer(t *testing.T) {
 
 func TestConsentAuthorityGlobalAPIForwardingAndConcurrentReplay(t *testing.T) {
 	r, db, body := consentAuthorityFixture(t)
-	upstream := httptest.NewServer(r)
-	t.Cleanup(upstream.Close)
-	gateway, err := globalapi.New(globalapi.Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"platform": upstream.URL}})
-	require.NoError(t, err)
-	forwarded := gin.New()
-	forwarded.NoRoute(func(c *gin.Context) {
-		c.Request.Header.Set("X-Tenant-ID", testutil.TenantB)
-		c.Request.Header.Set("X-User-ID", "user-owner")
-		gateway.ServeHTTP(c.Writer, c.Request)
-	})
+	forwarded := consentAuthorityGateway(t, r)
 	id := uuid.Must(uuid.NewV7()).String()
 	staff := "/v1/patients/consent-authorities/" + id
 	mine := "/v1/patients/my/consent-authorities/" + id
@@ -415,4 +411,109 @@ func TestConsentAuthorityOutboxFailureLeavesNoProposal(t *testing.T) {
 		require.Zero(t, count)
 		return nil
 	}))
+}
+
+func consentAuthorityGateway(t *testing.T, owner http.Handler) *gin.Engine {
+	t.Helper()
+	upstream := httptest.NewServer(owner)
+	t.Cleanup(upstream.Close)
+	cfg, err := globalapi.FromEnv(func(key string) string {
+		switch key {
+		case "HELIVANTA_ENV":
+			return "dev"
+		case "GLOBAL_API_UPSTREAMS":
+			return fmt.Sprintf(`{"platform":%q}`, upstream.URL)
+		default:
+			return ""
+		}
+	})
+	require.NoError(t, err)
+	gateway, err := globalapi.New(cfg)
+	require.NoError(t, err)
+	forwarded := gin.New()
+	forwarded.NoRoute(func(c *gin.Context) {
+		c.Request.Header.Set("X-Tenant-ID", testutil.TenantB)
+		c.Request.Header.Set("X-User-ID", "user-owner")
+		gateway.ServeHTTP(c.Writer, c.Request)
+	})
+	return forwarded
+}
+
+func TestConsentAuthorityLostResponseReconcilesSameAcceptance(t *testing.T) {
+	r, db, body := consentAuthorityFixture(t)
+	var dropped atomic.Bool
+	owner := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if !strings.HasSuffix(req.URL.Path, "/accept") {
+			r.ServeHTTP(w, req)
+			return
+		}
+		response := httptest.NewRecorder()
+		r.ServeHTTP(response, req)
+		if response.Code == 200 && dropped.CompareAndSwap(false, true) {
+			conn, _, err := w.(http.Hijacker).Hijack()
+			if err != nil {
+				t.Errorf("simulate lost response: %v", err)
+				return
+			}
+			if err := conn.Close(); err != nil {
+				t.Errorf("close lost-response connection: %v", err)
+			}
+			return
+		}
+		for key, values := range response.Header() {
+			for _, value := range values {
+				w.Header().Add(key, value)
+			}
+		}
+		w.WriteHeader(response.Code)
+		if _, err := io.Copy(w, response.Body); err != nil {
+			t.Errorf("forward owner response: %v", err)
+		}
+	})
+	forwarded := consentAuthorityGateway(t, owner)
+	id := uuid.Must(uuid.NewV7()).String()
+	require.Equal(t, 201, scopedDo(forwarded, "PUT", "/v1/patients/consent-authorities/"+id, "reviewer", body).Code)
+	mine := "/v1/patients/my/consent-authorities/" + id
+	acceptance := `{"expected_version":1,"accepted":true}`
+	lost := scopedDo(forwarded, "POST", mine+"/accept", "owner", acceptance)
+	require.Equal(t, 502, lost.Code, lost.Body.String())
+	require.True(t, dropped.Load())
+	committed := scopedDo(forwarded, "GET", mine, "owner", "")
+	require.Equal(t, 200, committed.Code, committed.Body.String())
+	require.Contains(t, committed.Body.String(), `"status":"accepted"`)
+	require.Contains(t, committed.Body.String(), `"version":2`)
+	recovered := scopedDo(forwarded, "POST", mine+"/accept", "owner", acceptance)
+	require.Equal(t, 200, recovered.Code, recovered.Body.String())
+	require.Contains(t, recovered.Body.String(), `"version":2`)
+	require.Contains(t, recovered.Body.String(), `"status":"accepted"`)
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Raw(`SELECT count(*) FROM outbox_events WHERE tenant_id=? AND subject='helivanta.in.patientmaster.consent_authority_changed.v1'`, testutil.TenantA).Scan(&count).Error; err != nil {
+			return err
+		}
+		require.EqualValues(t, 2, count)
+		return nil
+	}))
+}
+
+func TestConsentAuthorityCancelledDependencyReturnsRetryableUnavailable(t *testing.T) {
+	r, _, body := consentAuthorityFixture(t)
+	id := uuid.Must(uuid.NewV7()).String()
+	require.Equal(t, 201, scopedDo(r, "PUT", "/v1/patients/consent-authorities/"+id, "reviewer", body).Code)
+	mine := "/v1/patients/my/consent-authorities/" + id
+	for _, request := range []struct{ method, path, body string }{{"GET", mine, ""}, {"POST", mine + "/accept", `{"expected_version":1,"accepted":true}`}} {
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		req := httptest.NewRequest(request.method, request.path+"?hospital_id="+testHospital, strings.NewReader(request.body)).WithContext(ctx)
+		req.Header.Set("Authorization", "Bearer owner")
+		req.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		r.ServeHTTP(response, req)
+		require.Equal(t, 503, response.Code, response.Body.String())
+		require.Contains(t, response.Body.String(), `"error":"consent_authority_unavailable"`)
+		require.NotContains(t, response.Body.String(), "patient_id")
+	}
+	current := scopedDo(r, "GET", mine, "owner", "")
+	require.Equal(t, 200, current.Code, current.Body.String())
+	require.Contains(t, current.Body.String(), `"status":"proposed"`)
 }

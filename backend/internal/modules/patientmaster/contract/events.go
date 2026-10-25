@@ -31,3 +31,12 @@ type RegistrationReviewedData struct {
 	Outcome    string `json:"outcome"`
 	ReviewedAt string `json:"reviewed_at"`
 }
+
+// SubjectConsentAuthorityChanged records a reviewed authority revision, not disclosure.
+const SubjectConsentAuthorityChanged = "helivanta.in.patientmaster.consent_authority_changed.v1"
+
+// ConsentAuthorityChangedData carries only the opaque receipt and monotonic revision.
+type ConsentAuthorityChangedData struct {
+	AuthorityID string `json:"authority_id"`
+	Version     int64  `json:"version"`
+}

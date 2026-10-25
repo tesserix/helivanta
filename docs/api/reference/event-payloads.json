@@ -431,6 +431,26 @@
       "type": "object"
     }
   },
+  "helivanta.in.patientmaster.consent_authority_changed.v1": {
+    "source": "backend/internal/modules/patientmaster/contract/events.go:39",
+    "go_type": "ConsentAuthorityChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "authority_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "authority_id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.patientmaster.registered.v1": {
     "source": "backend/internal/modules/patientmaster/contract/events.go:16",
     "go_type": "PatientRegisteredData",

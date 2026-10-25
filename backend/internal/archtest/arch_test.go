@@ -399,6 +399,8 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/staff/:id/enrollment":                       "single protected staff profile, with bounded child records",
 	"GET /mediconnect/account/link-requests/:request":                               "one current-subject unverified request; the collection uses ListRoute",
 	"GET /mediconnect/account/link-requests/:request/review":                        "one account-owned review projection; collection is the existing request list",
+	"GET /patients/consent-authorities/:authority":                                  "one reviewed hospital-scoped authority receipt",
+	"GET /patients/my/consent-authorities/:authority":                               "one subject-owned authority receipt; collection uses ListRoute",
 	"GET /patients/link-reviews/:request":                                           "one hospital-scoped review; collection uses ListRoute",
 	"GET /mediconnect/notices/:notice":                                              "one retained notice; collection uses ListRoute",
 	"GET /mediconnect/account/consents/:consent":                                    "one account-owned receipt; collection uses ListRoute",

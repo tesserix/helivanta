@@ -1,8 +1,5 @@
-// Package patientmaster owns the platform's single patient registry:
-// one row per human being, shared by every clinical module that needs
-// to know who a visit, order or dispense is for. Registration logic and
-// routes land in Task 5 (#70); this file is the module skeleton, its
-// four tables, and their tenant isolation.
+// Package patientmaster owns hospital-scoped registration, identity reviews
+// and separately reviewed authority to declare clinical consent.
 package patientmaster
 
 import (
@@ -17,9 +14,10 @@ import (
 )
 
 const (
-	PermPatientAccessManage authz.Permission = "patient.access.manage"
-	PermPatientRead         authz.Permission = "patient.read"
-	PermPatientRegister     authz.Permission = "patient.register"
+	PermConsentAuthorityReview authz.Permission = "patient.consent-authority.review"
+	PermPatientAccessManage    authz.Permission = "patient.access.manage"
+	PermPatientRead            authz.Permission = "patient.read"
+	PermPatientRegister        authz.Permission = "patient.register"
 )
 
 //go:embed hospital.sql
@@ -30,6 +28,9 @@ var bloodGroupSchema string
 
 //go:embed link_reviews.sql
 var linkReviewSchema string
+
+//go:embed consent_authority.sql
+var consentAuthoritySchema string
 
 type Module struct{}
 
@@ -42,6 +43,7 @@ func (m *Module) Name() string { return "patientmaster" }
 func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
 		{Permission: PermPatientAccessManage},
+		{Permission: PermConsentAuthorityReview},
 		{Permission: PermPatientRead, Roles: []authz.Role{
 			authz.RoleReceptionist, authz.RoleDoctor, authz.RoleNurse,
 			authz.RolePharmacist, authz.RoleLabTech}},
@@ -204,7 +206,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  AFTER INSERT ON patients
 			  DEFERRABLE INITIALLY DEFERRED
 			  FOR EACH ROW EXECUTE FUNCTION patients_require_consent();`,
-	}, {ID: "0003_patientmaster", SQL: hospitalSchema}, {ID: "0004_patientmaster", SQL: bloodGroupSchema}, {ID: "0005_patientmaster", SQL: linkReviewSchema}}
+	}, {ID: "0003_patientmaster", SQL: hospitalSchema}, {ID: "0004_patientmaster", SQL: bloodGroupSchema}, {ID: "0005_patientmaster", SQL: linkReviewSchema}, {ID: "0006_patientmaster", SQL: consentAuthoritySchema}}
 }
 
 // Routes mounts registration (spec D4/D5), single lookup, and the
@@ -213,6 +215,13 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/patients")
 	patients := &patientHandlers{db: deps.DB, bus: deps.Bus}
 	g.POST("", PermPatientRegister, patients.register)
+	g.PUT("/consent-authorities/:authority", PermConsentAuthorityReview, patients.proposeConsentAuthority)
+	g.GET("/consent-authorities/:authority", PermConsentAuthorityReview, patients.getReviewedConsentAuthority)
+	g.POST("/consent-authorities/:authority/revoke", PermConsentAuthorityReview, patients.revokeReviewedConsentAuthority)
+	platform.ListRoute(g, "/my/consent-authorities", authz.Public, patients.listMyConsentAuthorities)
+	g.GET("/my/consent-authorities/:authority", authz.Public, patients.getMyConsentAuthority)
+	g.POST("/my/consent-authorities/:authority/accept", authz.Public, patients.acceptConsentAuthority)
+	g.POST("/my/consent-authorities/:authority/revoke", authz.Public, patients.revokeMyConsentAuthority)
 	platform.SearchRoute(g, "/search", PermPatientRead, patients.search)
 	g.PUT("/hospitals/:hospital/access/:subject", PermPatientAccessManage, patients.putAccess)
 	g.DELETE("/hospitals/:hospital/access/:subject", PermPatientAccessManage, patients.deleteAccess)
@@ -227,7 +236,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 // Publishes declares patient.registered, published inside the same
 // transaction as the patient and consent inserts (Task 6, spec D6).
 func (m *Module) Publishes() []string {
-	return []string{patientmastercontract.SubjectPatientRegistered, patientmastercontract.SubjectRegistrationReviewed}
+	return []string{patientmastercontract.SubjectPatientRegistered, patientmastercontract.SubjectRegistrationReviewed, patientmastercontract.SubjectConsentAuthorityChanged}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that

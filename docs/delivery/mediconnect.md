@@ -407,3 +407,45 @@ owner-authorized disclosure, booking/reminder integrations, provider-confirmed
 notifications and approved notice content remain open. #66 and #556 must not be
 closed on the strength of this release. SMS remains disabled; OTP is outside the
 current API development scope.
+
+## Reviewed self consent authority — implementation checkpoint
+
+The separate self-authority lifecycle is implemented under patientmaster in
+`feat/mediconnect-patient-authority`, following the
+[authority specification](../superpowers/specs/2026-10-25-mediconnect-consent-authority.md).
+It includes an independently reviewed capacity proposal, patient-owned receipt/list,
+explicit patient acceptance, direct patient/reviewer revocation and computed expiry.
+It does not yet implement guardian/adult delegation, clinical purpose consent or
+record release. No parent issue is complete and no production deployment is claimed.
+
+Real HTTP/PostgreSQL tests first failed for the absent proposal and lifecycle
+routes. The RLS linter then rejected multiple permissive policies; the final design
+retains one policy per table, with exact subject read scope and unchanged registrar/
+delivery checks on source-review writes. Permission, pagination and event-classifier
+gates failed before their independently documented entries were added.
+
+Targeted race tests cover subject/tenant/hospital isolation, current reviewer grants,
+missing/false capacity confirmation, stale registration, source decision identity,
+expiry without a timer, immutable SQL history, audit rollback, bounded cursor pages,
+actual Global API forwarding with forged headers, and concurrent idempotent replay.
+The initial affected module/Global API/architecture/contract race gate passed. Build,
+vet and repository Go lint passed. An isolated restore of the captured 102-migration
+schema passed current migration, repeat execution and previous-migrator compatibility,
+preserving a synthetic existing account and forced RLS. The 100k-row synthetic
+read-plan benchmark used the subject-page index under the non-bypass app role
+(3.503 ms in that sample); this is not an end-to-end load/SLO claim. Bulk benchmark
+seeding bypassed USER triggers only in the isolated database; HTTP tests separately
+exercise normal write and audit guards. Evidence is retained under
+`~/.local/state/helivanta/consent-authority-20261025/`.
+
+The first complete backend regression gate failed: one concurrent authority
+acceptance returned 500, and an unrelated pharmacy overview count disagreed with
+its list. Fifty isolated authority concurrency race repeats and three complete patientmaster
+package race repeats passed afterwards. A separate repeated-package diagnostic
+run also reproduced a gateway timeout; the original authority failure remains
+unresolved, and query/error metadata is retained for the next regression run. The pharmacy failure reproduced
+with a just-committed movement omitted while the database clock was ahead of the
+host; its separate fix in #1329 reads the stock cutoff from PostgreSQL. Release-documentation
+CI also exposed emergency retry contention, now reproduced against the separate
+case-number unique constraint and corrected in #1328. These failures must be
+resolved and the complete gate rerun before this authority change is released.

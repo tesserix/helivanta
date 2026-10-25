@@ -465,12 +465,19 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 | Method | Path | Permission | Cursor pagination | Page total |
 | --- | --- | --- | --- | --- |
 | GET | `/v1/patients/:id` | `patient.read` | false | false |
+| POST | `/v1/patients/consent-authorities/:authority/revoke` | `patient.consent-authority.review` | false | false |
+| GET | `/v1/patients/consent-authorities/:authority` | `patient.consent-authority.review` | false | false |
+| PUT | `/v1/patients/consent-authorities/:authority` | `patient.consent-authority.review` | false | false |
 | DELETE | `/v1/patients/hospitals/:hospital/access/:subject` | `patient.access.manage` | false | false |
 | PUT | `/v1/patients/hospitals/:hospital/access/:subject` | `patient.access.manage` | false | false |
 | GET | `/v1/patients/hospitals/:hospital/access` | `patient.read` | false | false |
 | PUT | `/v1/patients/link-reviews/:request/decision/:decision` | `patient.register` | false | false |
 | GET | `/v1/patients/link-reviews/:request` | `patient.register` | false | false |
 | GET | `/v1/patients/link-reviews` | `patient.register` | true | false |
+| POST | `/v1/patients/my/consent-authorities/:authority/accept` | `public` | false | false |
+| POST | `/v1/patients/my/consent-authorities/:authority/revoke` | `public` | false | false |
+| GET | `/v1/patients/my/consent-authorities/:authority` | `public` | false | false |
+| GET | `/v1/patients/my/consent-authorities` | `public` | true | false |
 | POST | `/v1/patients/search` | `patient.read` | true | false |
 | GET | `/v1/patients` | `patient.read` | true | false |
 | POST | `/v1/patients` | `patient.register` | false | false |
@@ -479,6 +486,7 @@ Published subjects:
 
 - `helivanta.in.patientmaster.registered.v1`
 - `helivanta.in.patientmaster.registration_reviewed.v1`
+- `helivanta.in.patientmaster.consent_authority_changed.v1`
 
 Subscriptions:
 
@@ -491,6 +499,7 @@ Migration table declarations:
 - `0003_patientmaster`: `patient_hospital_access`, `patient_access_audit`, `patient_registration_requests`.
 - `0004_patientmaster`: `patient_reported_blood_groups`.
 - `0005_patientmaster`: `patient_link_reviews`.
+- `0006_patientmaster`: `patient_consent_authorities`.
 
 ## workforce
 

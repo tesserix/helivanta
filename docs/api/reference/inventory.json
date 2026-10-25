@@ -3130,6 +3130,33 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/patients/consent-authorities/:authority/revoke",
+          "permission": "patient.consent-authority.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/consent-authorities/:authority",
+          "permission": "patient.consent-authority.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/patients/consent-authorities/:authority",
+          "permission": "patient.consent-authority.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "DELETE",
           "path": "/v1/patients/hospitals/:hospital/access/:subject",
           "permission": "patient.access.manage",
@@ -3185,6 +3212,42 @@
         },
         {
           "method": "POST",
+          "path": "/v1/patients/my/consent-authorities/:authority/accept",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/my/consent-authorities/:authority/revoke",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/consent-authorities/:authority",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/consent-authorities",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
           "path": "/v1/patients/search",
           "permission": "patient.read",
           "authentication_required": true,
@@ -3217,6 +3280,10 @@
           "roles": []
         },
         {
+          "permission": "patient.consent-authority.review",
+          "roles": []
+        },
+        {
           "permission": "patient.read",
           "roles": [
             "receptionist",
@@ -3235,7 +3302,8 @@
       ],
       "publishes": [
         "helivanta.in.patientmaster.registered.v1",
-        "helivanta.in.patientmaster.registration_reviewed.v1"
+        "helivanta.in.patientmaster.registration_reviewed.v1",
+        "helivanta.in.patientmaster.consent_authority_changed.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -3289,6 +3357,13 @@
           "sql_sha256": "b6c9386fa2e6b3c6de32b8600cc8152ac7eebc95919f9027d0e33fbf711b1c83",
           "creates_tables": [
             "patient_link_reviews"
+          ]
+        },
+        {
+          "id": "0006_patientmaster",
+          "sql_sha256": "c5913b414e37fc4e43d9e8ab8479287098f0ee7560549738d31383f1e9264661",
+          "creates_tables": [
+            "patient_consent_authorities"
           ]
         }
       ]

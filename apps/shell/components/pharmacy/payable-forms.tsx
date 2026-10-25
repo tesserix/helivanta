@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
@@ -343,11 +343,12 @@ function ReceiptPicker({
 export type FormState = (dirty: boolean, pending: boolean) => void;
 
 function useReportState(report: FormState | undefined, dirty: boolean, pending: boolean) {
-  useEffect(() => {
+  // Browser Back must see the dirty state before the next event can navigate.
+  useLayoutEffect(() => {
     report?.(dirty, pending);
   }, [report, dirty, pending]);
   // A form that goes away holds nothing unsaved.
-  useEffect(() => () => report?.(false, false), [report]);
+  useLayoutEffect(() => () => report?.(false, false), [report]);
 }
 
 export function PayableHistory({

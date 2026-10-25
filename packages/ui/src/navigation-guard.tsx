@@ -4,7 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useId,
   useMemo,
   useRef,
@@ -52,23 +52,27 @@ function backGuard(): BackGuard {
 export function NavigationGuardProvider({ children }: { children: ReactNode }) {
   const guards = useRef(new Map<string, Guard>());
   const [pending, setPending] = useState<{ name: string; go: () => void } | null>(null);
-  const [anyDirty, setAnyDirty] = useState(false);
 
-  const held = () => [...guards.current.values()].find((guard) => guard.dirty || guard.saving);
+  const held = useCallback(
+    () => [...guards.current.values()].find((guard) => guard.dirty || guard.saving),
+    [],
+  );
 
   const register = useCallback((id: string, guard: Guard | null) => {
     if (guard) guards.current.set(id, guard);
     else guards.current.delete(id);
-    setAnyDirty([...guards.current.values()].some((g) => g.dirty || g.saving));
   }, []);
 
   // A save in flight is not discardable: the request carries on and commits.
   // Hold the move until it finishes, rather than offer a Discard that lies.
-  const confirm = useCallback((go: () => void) => {
-    const guard = held();
-    if (!guard) go();
-    else if (!guard.saving) setPending({ name: guard.name, go });
-  }, []);
+  const confirm = useCallback(
+    (go: () => void) => {
+      const guard = held();
+      if (!guard) go();
+      else if (!guard.saving) setPending({ name: guard.name, go });
+    },
+    [held],
+  );
 
   // Back cannot be cancelled, and the App Router moves on popstate too. The
   // module's listener runs before the router's and stops it: the page never
@@ -76,20 +80,20 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
   // entry. Discard then goes back for real.
   const leaving = useRef(false);
   const restoring = useRef(false);
-  useEffect(() => {
-    if (!anyDirty) return;
+  useLayoutEffect(() => {
     const onPopState = (event: PopStateEvent) => {
       if (leaving.current) {
         leaving.current = false;
         return;
       }
-      event.stopImmediatePropagation();
       if (restoring.current) {
+        event.stopImmediatePropagation();
         restoring.current = false;
         return;
       }
       const guard = held();
       if (!guard) return;
+      event.stopImmediatePropagation();
       restoring.current = true;
       window.history.go(1);
       if (guard.saving) return;
@@ -102,6 +106,7 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
       });
     };
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!held()) return;
       event.preventDefault();
       // Older Safari shows the prompt only when returnValue is set.
       event.returnValue = "";
@@ -116,9 +121,12 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
       leaving.current = false;
       restoring.current = false;
     };
-  }, [anyDirty]);
+  }, [held]);
 
-  const value = useMemo(() => ({ register, confirm, dirty: () => !!held() }), [register, confirm]);
+  const value = useMemo(
+    () => ({ register, confirm, dirty: () => !!held() }),
+    [register, confirm, held],
+  );
 
   return (
     <Context value={value}>
@@ -154,10 +162,10 @@ function useGuardContext() {
 export function useLeaveGuard(dirty: boolean, name: string, saving = false) {
   const context = useGuardContext();
   const id = useId();
-  useEffect(() => {
+  useLayoutEffect(() => {
     context.register(id, { dirty, saving, name });
   }, [context, id, dirty, saving, name]);
-  useEffect(() => () => context.register(id, null), [context, id]);
+  useLayoutEffect(() => () => context.register(id, null), [context, id]);
   return { confirm: context.confirm };
 }
 

@@ -155,3 +155,25 @@ The Dispense queue and the Overview stay as they are: the counter flow is a diff
 - **Accessibility:** the pane is a labelled region, the open row has `aria-current`, and
   `csp.spec.ts` and the existing axe checks pass.
 - **Measured while building:** the content area is 854px at 1366 with the rail expanded, the narrowest laptop case, so the threshold is 840px rather than the 860px first planned. It is 990px at 1366 collapsed and 1008px or more at 1440. The e2e test records each width.
+
+## Back-navigation readiness regression (#1347)
+
+Main CI exposed a phone Back request that left an unsaved payment without showing
+the discard dialog. A deterministic component test reproduces a related readiness
+gap: dispatching Back in the commit that first marks an editor dirty reaches the
+router before passive guard-registration effects run. The existing Playwright
+scenario remains unchanged and must pass before this regression is closed.
+
+The provider now keeps its history and before-unload subscriptions for its mounted
+lifetime and reads the current guard map when events arrive. Clean forms pass
+through. Guard registration and payment-form state reporting run during layout,
+so protection is committed before the browser can dispatch the next event. There
+is no dirty-dependent listener installation window or extra provider render just
+to install the listener. Restore and confirmed-discard flags remain owned by the
+same listener until it unmounts; a save in flight remains non-discardable.
+
+The new test changes editor state inside the existing provider, rather than
+remounting the test harness. It was observed failing against the original guard
+and passing with this implementation on Node 24. Local UI tests, supplier-account
+tests, lint, type checks and a production build are verification evidence only;
+complete browser E2E, deployment and signed-in live checks remain release gates.

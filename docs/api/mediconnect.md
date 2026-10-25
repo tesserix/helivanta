@@ -554,12 +554,14 @@ permission; the consumer needs a dedicated audience-bound projected token and
 explicit owner origin/transport. No source change implies those production
 permissions, volume, route enablement or clinical consumer integration are deployed.
 
-## Purpose-scoped clinical sharing declarations (activation pending)
+## Purpose-scoped clinical sharing declarations
 
 Patientmaster owns additive migration `0008_patientmaster`, named recipient
-bindings and retained clinical sharing declarations. These routes are separate
-from account consent and hospital identity linking. They do not authorize record
-release or implement proxy/guardian, procedure, marketing or ABDM consent.
+bindings and retained clinical sharing declarations, with the guardian expansion
+in migrations 0010/0011. These routes are separate from account consent and
+hospital identity linking. Self and reviewed guardian declarations are deployed;
+see [release evidence](../delivery/mediconnect.md). They do not authorize clinical
+record release or implement procedure, marketing or ABDM consent.
 
 All paths below use the Global API `/v1/patients` prefix and a hospital selector.
 Verified tenant membership and exact patient/recipient object scope are checked
@@ -655,10 +657,13 @@ authorization. This registry has no notification or disclosure consumer.
 
 See [design and remaining acceptance](../superpowers/specs/2026-10-26-mediconnect-proxy-authorities.md).
 
-## Proxy clinical-sharing declaration work in progress
+## Deployed proxy clinical-sharing declarations
 
-The proxy-consent worktree extends the existing patientmaster clinical ledger;
-it is not deployed or a completed proxy/clinical-release story. New capture is
+Release `81655619078522ea4e60d80679993a5b0c7d9c07` extends the existing
+patientmaster clinical ledger. Reader-first rollout, activation and synthetic
+parental/appointed-guardian journeys are verified in the
+[delivery evidence](../delivery/mediconnect.md). Broader proxy/family and clinical
+record-release stories remain open. New capture is
 `PUT /v1/patients/my/proxy-clinical-consents/:consent` with the existing clinical
 grant input and explicit hospital scope. Existing canonical history, receipt,
 withdrawal and exact-recipient `/clinical-consents/:consent/decide` routes serve

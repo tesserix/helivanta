@@ -1,6 +1,97 @@
 # MediConnect delivery and issue evidence
 
-## Current verified guardian registry release — 2026-10-26 Melbourne
+## Verified guardian clinical-consent release — 2026-10-26 Melbourne
+
+[Application #1341](https://github.com/tesserix/helivanta/pull/1341) is merged and
+deployed as `81655619078522ea4e60d80679993a5b0c7d9c07`, including the upstream
+failure diagnostics from [#1340](https://github.com/tesserix/helivanta/pull/1340).
+All PR and main CI passed. Kargo promotion
+`prod.01m5t5qv0jmefsrp6cheh92gsf.64b999f` used Warehouse `services` freight
+`64b999f364a8c60fadfd6807992ae99666795796`. Infrastructure
+[#1589](https://github.com/tesserix/tesserix-k8s/pull/1589) supplied an explicit
+default-off writer switch; [#1593](https://github.com/tesserix/tesserix-k8s/pull/1593)
+activated it only after the compatible-reader baseline was verified. Both
+infrastructure PRs passed their checks, including the repository tests.
+
+Runtime checks verified the exact release tags and linux/amd64 manifest digests,
+two updated/ready replicas and current generations for API, Global API and shell.
+All three Argo applications were Healthy/Synced. Each API pod had the activated
+writer setting. The API-chart background workers also had two ready replicas.
+Production metadata confirmed migrations 0009/0010/0011, valid/ready concurrent
+indexes, validated proxy/one-authority constraints and forced RLS on all five
+affected identity/consent tables. The admin migration connection targets the direct
+CNPG primary service. The old signed self-v1 receipt remained readable; its exact
+capture replay retained the withdrawn state. The disabled baseline probe returned
+503 and created no consent before activation.
+
+The signed proxy journeys used three existing synthetic QA identities and the
+isolated test tenant through `https://helivanta.app/api/v1`. This reuses the staff
+session boundary and does not prove patient-only onboarding. Approved wording and
+recipient bindings were explicitly labelled synthetic. The reviewer briefly held
+recorded admin/registrar privileges to independently approve these fixtures;
+those privileges were removed before the patient/proxy journey. An independent
+existing registrar reviewed the identity claim and proposed guardian authority.
+No real policy or clinical content was approved or published.
+
+Both **parental** and **appointed_guardian** journeys passed:
+
+- Separate synthetic registration, explicit account initialization/reuse, child or
+  ward claim, asynchronous identity review, independent approval, reviewed
+  authority proposal and proxy acceptance.
+- Capacity-specific approved notice and recipient catalogs; OpenBao-signed capture,
+  identical replay and canonical retained receipt. Another actor's private receipt
+  was hidden; incorrect tenant preconditions returned 409. Registry hospital/actor
+  denials and raw patient-read denials also passed.
+- The exact recipient's diagnostic-report check returned `allow` and
+  `record_access_authorized:false`. An ungranted resource returned `deny`; a
+  different recipient received 404. No clinical record was disclosed.
+- Withdrawal, identical withdrawal replay and capture replay retained withdrawn
+  version 2. The next recipient check denied. Authority revocation retained
+  version 3, reacceptance returned 409 and proposal replay did not reactivate it.
+- Claim withdrawal reached the review owner. Synthetic notices were retired and
+  recipient bindings revoked. Registrations, account and immutable history remain.
+
+Metadata-only verification established exactly two clinical lifecycle outbox
+revisions and three authority revisions per case, one consent insert and update,
+three exact-recipient decisions (one allow and two denials), and zero integrity
+incidents. Two controlled retained-receipt reads appended exactly two attributable
+read audits in each case. Final checks found zero temporary admin memberships and
+hospital grants, preserved the original supply-compliance membership and confirmed
+that review permission was absent. Both retained privacy initializer Job UIDs were
+unchanged; no initializer deletion or bypass was performed.
+
+Fresh Zitadel password/PKCE and Global API session exchanges passed during the
+reader rollout and afterwards. Anonymous transport runs observed 174, 260 and 174
+expected 401 responses with no other status in those samples. These are bounded
+observations, not an availability SLO measurement. The original rollout-time 503
+cause in [#1338](https://github.com/tesserix/helivanta/issues/1338) remains unverified;
+the issue stays open with the new diagnostic code deployed.
+
+Two QA-client corrections are retained in the evidence: ungranted hospital access
+correctly returned 404 instead of an empty record, and a metadata probe using
+default HTTP headers was rejected before Global API. The helper restored its
+temporary role before resuming the first case; the normal QA headers returned 200
+and confirmed removal of review permission. Persisted lifecycle and audit checks
+passed after these corrections. Protected evidence is retained outside the public
+repository. The API is configured against the global Valkey cache; the cache
+StatefulSet uses Valkey 9.1.1 and had three ready replicas.
+
+Local full backend race/coverage, 100k catalog/ledger plans and all 22 workspace
+lint/type-check/test/build tasks passed before release. The exact merged tree also
+passed critical Global API, MediConnect, patientmaster and tenantdb race suites.
+Dependency-failure, tamper, concurrency and capacity-skew tests remain local
+infrastructure evidence; production dependencies were not disrupted to repeat them.
+
+**Recovery:** after schema-v2 proxy receipts exist, disable capture while retaining
+a compatible reader and additive history. Do not roll back to a self-v1-only
+binary or erase evidence to permit rollback.
+
+#552/#60/#556 remain open. Adult delegation/family profiles, owner-authorized
+clinical record release, scheduling/reminders, approved real notice publication,
+deadline-worker activation and remaining parent-story criteria are unfinished.
+No broader product, clinical or regulatory readiness is claimed.
+
+## Earlier guardian registry release — 2026-10-26 Melbourne
 
 [PR #1337](https://github.com/tesserix/helivanta/pull/1337) is merged and deployed as
 `c30fdb612cfa0a02d15fe0265685c0aa880b36f8` through Kargo promotion
@@ -60,8 +151,9 @@ current-pod/targeted Cloud Logging inspection did not establish a cause.
 tracks diagnosis and verified correction. Healthy pods and the later retry do not
 prove release-window authentication availability.
 
-#552/#60/#556 remain open. Signed proxy declarations are under local development;
-adult delegation, family profiles, authorized record release, booking/reminders,
+#552/#60/#556 remain open. At this earlier checkpoint signed proxy declarations
+were under local development. Adult delegation, family profiles, authorized record
+release, booking/reminders,
 approved real notice content and the remaining parent-story criteria are unfinished.
 No clinical or legal readiness is claimed.
 

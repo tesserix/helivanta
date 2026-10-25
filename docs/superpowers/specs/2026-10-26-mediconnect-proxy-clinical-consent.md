@@ -53,7 +53,7 @@ majority/registration changes, wrong notice capacity, cross-tenant/hospital/acto
 signer/claim/audit/outbox failures, integrity quarantine, concurrency and complete
 self-consent regression. Apply IN-ID-02/04/06/07; metadata is not legal approval.
 
-## Release gates still to resolve
+## Release and recovery requirements
 
 The writer control `PATIENTMASTER_PROXY_CLINICAL_CAPTURE_ENABLED` now defaults to
 false; it blocks new proxy capture while leaving canonical retained reads,
@@ -61,11 +61,11 @@ withdrawal and exact replay available. Empty relationship remains omitted from
 self owner requests so rolling upgrades preserve the old private request shape.
 Enable proxy writes only after all owner/reader replicas support the new contract.
 
-The deployed runner is transactional. The local implementation now adds typed
-concurrent index migration `0011_patientmaster`, including restart/invalid-artifact
-recovery and conflict checks. Its 100k capacity-skew plan test passes with guards
-enabled. Full regression/CI and deployment of this runner remain required; do not
-substitute a blocking index build. See ADR-0042.
+The deployed runner supports transactional SQL and typed concurrent index
+migration `0011_patientmaster`, including restart/invalid-artifact recovery and
+conflict checks. Its 100k capacity-skew plan test passes with guards enabled.
+Full regression/CI and runtime index verification passed for release `81655619`;
+do not substitute a blocking index build. See ADR-0042.
 
 Older binaries cannot interpret schema-v2 proxy receipts and could quarantine
 otherwise valid history. Before activating proxy writes, ship a reader-compatible
@@ -73,7 +73,10 @@ baseline and a disabled-by-default writer control, with tenant activation requir
 an explicitly approved capacity-specific notice. Rollback must disable writes and
 retain a reader-compatible binary. Rolling back to the self-v1-only binary after
 proxy capture is unsafe; retained rows must not be erased to enable rollback.
-These are release blockers for this worktree, not completed capabilities.
+The reader-first rollout, activation and synthetic journeys were verified for
+release `81655619`; see [delivery evidence](../../delivery/mediconnect.md). These
+constraints remain mandatory for later releases and recovery. Approved real
+wording and the remaining parent-story capabilities are separate work.
 
 ## Concurrent-index migration decision
 

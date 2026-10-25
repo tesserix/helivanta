@@ -30,7 +30,7 @@
   initially rejected the added relationship PHI field; its private-only purpose
   and the explicit pin were reviewed together, and architecture/contractdocs then
   passed. Build, vet and lint passed (zero issues). Generators/check passed.
-- Typed concurrent index migrations are implemented locally. Real PostgreSQL
+- Typed concurrent index migrations are implemented and deployed. Real PostgreSQL
   tests cover cancellation/recovery, conflicting definitions, independent pools,
   partial progress, timeout restoration and transactional rollback. Tenantdb race
   tests passed (16.472s); the targeted 100k capacity-skew plan passed (31.569s).
@@ -39,9 +39,9 @@
   whole-backend race/coverage gate passed: patientmaster 79.9%, MediConnect 85.9%,
   tenantdb 82.2%. The later exporter-only change passed contractdocs race tests,
   tenantdb race (16.898s), targeted lint/vet/build and regenerated drift checks.
-- Existing synthetic reviewer login passed Zitadel authorization, PKCE and Global
-  API tenant session exchange; this verifies deployed authentication, not the
-  undeployed proxy feature. Credentials remain in protected local QA files.
+- The initial synthetic reviewer login verified existing authentication before
+  deployment. The subsequent deployed proxy journeys and cleanup are recorded
+  below. Credentials remain in protected local QA files.
 - Full patientmaster performance suite passed (103.666s), including the existing
   self/recipient catalogs and ledger plans plus the proxy capacity-skew case.
   All 22 workspace lint/type-check/test/build tasks passed under Node 24.
@@ -49,5 +49,9 @@
   A new real inventory assertion failed, then passed after exporting exact
   table/key/direction metadata and rendering the indexes in the reference.
   Contractdocs race tests and generation/check passed.
-- Deployment is not complete. CI, reader-before-writer release proof and synthetic
-  deployed proxy QA remain. Real notice publication requires accountable review.
+- Release `81655619` passed PR/main CI, deployed with capture disabled, then
+  activated after runtime digest/schema/legacy-receipt verification. Real signed
+  parental/appointed-guardian journeys, exact-recipient checks, terminal replay,
+  audit/outbox verification and temporary privilege cleanup passed. See
+  [delivery evidence](../../delivery/mediconnect.md). Real notice publication
+  still requires accountable review; broader stories remain open.

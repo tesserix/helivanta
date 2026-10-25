@@ -24,6 +24,8 @@ import (
 	"github.com/tesserix/helivanta/internal/httpserver"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
+	"github.com/tesserix/helivanta/internal/modules/mediconnect"
+	mediconnectcontract "github.com/tesserix/helivanta/internal/modules/mediconnect/contract"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
@@ -403,6 +405,22 @@ func run() error {
 		// map, the same mechanism (and the same limiter instance built
 		// below) every other authenticated route already uses.
 		IdleTimeout: idleTimeout,
+	}
+
+	if os.Getenv("MEDICONNECT_CLAIM_VERIFICATION_ENABLED") == "true" {
+		account := os.Getenv("MEDICONNECT_CLAIM_CALLER")
+		if account == "" {
+			return errors.New("current claim verification requires an explicit owner workload")
+		}
+		kubeConfig, err := rest.InClusterConfig()
+		if err != nil {
+			return errors.New("current claim verification requires Kubernetes identity")
+		}
+		caller, err := workloadidentity.New(kubeConfig, mediconnectcontract.ClaimWorkloadAudience, account)
+		if err != nil {
+			return err
+		}
+		srv.Engine.POST(mediconnectcontract.CurrentClaimPath, mediconnect.NewClaimCheckHandler(deps, caller))
 	}
 
 	if os.Getenv("HOSPITAL_PROVISIONING_ENABLED") == "true" {

@@ -501,3 +501,47 @@ the same transaction. Its payload contains only `notice_id` and `version`.
 Consumers cannot infer patient access from this event. Patient notice publication,
 clinical-purpose ledger/evaluation, proxy delegation and disclosure remain
 unfinished; drafts are only available to authorized reviewers.
+
+## Internal live claim observation
+
+Canonical Go request/response types are in
+`backend/internal/modules/mediconnect/contract/claim_check.go`. This owner-only
+HTTP contract is not published on NATS and is not routed through Global API.
+Patient-facing operations still use Global API. A future clinical consumer must
+also verify reviewed identity/capacity, actual purpose consent, recipient scope
+and source-record release; this predicate grants none of those authorities.
+
+`POST /internal/v1/mediconnect/current-claim` accepts a projected Kubernetes owner
+credential only in `X-MediConnect-Workload-Token: Bearer <token>`. Audience must be
+`helivanta-mediconnect-claim`; the exact allowed caller service-account identity
+is operator-configured. Ordinary/ambiguous Authorization credentials, missing or
+rejected workload identity receive 401. Kubernetes verification failure receives
+503. Credentials, request subject and lookup results are never logged or emitted
+on the event bus.
+
+Body: `tenant_id`, `request_id`, `hospital_id`, `patient_id`, `subject`. UUID strings
+must be canonical/nonzero; request ID must be UUIDv7. Subject is nonblank, bounded
+to 512 bytes, without NUL or surrounding whitespace. Raw JSON is capped at 4096
+bytes and must be UTF-8; unknown fields/trailing values are rejected with 400.
+The trusted patientmaster caller must derive the tuple from an authorized
+canonical receipt, never use unverified facility/client selectors as authority.
+
+Response is exactly `{"current":true}` or `{"current":false}`, with `no-store`.
+True means only the exact self intake claim is still `pending_verification` and
+not withdrawn. Missing and wrong tuples, proxy claims and withdrawn claims all
+return false, without disclosing account/demographic state. There is no result
+cache or asynchronous projection: a check starting after committed withdrawal
+observes false. Lookup and audit commit together; audit/database failures return
+503 `claim_check_unavailable` without a successful predicate.
+
+Migration `0007_mediconnect` adds a transaction-local exact-tuple RLS read branch;
+subject-owned writes, review delivery and forced RLS remain enforced. Audit names
+the actual verified service account; the fixed internal operation marker does
+not impersonate the patient. No remote operation occurs within the SQL transaction.
+
+Startup is opt-in via `MEDICONNECT_CLAIM_VERIFICATION_ENABLED=true`, requiring
+`MEDICONNECT_CLAIM_CALLER=system:serviceaccount:<namespace>:<patientmaster-account>`
+and in-cluster Kubernetes configuration. The API identity needs TokenReview
+permission; the consumer needs a dedicated audience-bound projected token and
+explicit owner origin/transport. No source change implies those production
+permissions, volume, route enablement or clinical consumer integration are deployed.

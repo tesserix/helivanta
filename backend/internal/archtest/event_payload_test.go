@@ -24,6 +24,8 @@ import (
 // an entry is therefore a diff a reviewer sees and must justify, not a
 // pattern match that can silently start admitting a new field.
 var eventPayloadPHIAllowlist = map[string]string{
+	"mediconnect.ClaimCheckRequest.Subject":               "exact owner-subject selection in workload-authenticated internal HTTP only; never published as an event",
+	"mediconnect.ClaimCheckRequest.PatientID":             "exact patient selection in workload-authenticated internal HTTP only; never published as an event",
 	"mediconnect.RegistrationReviewData.RequesterSubject": "opaque authenticated requester identity is required solely to reject registrar self-review across owners; no contact or identity evidence; restricted same-tenant consumer",
 	"mediconnect.RegistrationReviewData.Relationship":     "unverified allowlisted relationship claim is necessary for hospital evidence review and immutable request lineage; never proxy authority or consent; no free text",
 
@@ -38,6 +40,10 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"mediconnect.ClaimCheckRequest.TenantID":                "opaque tenant selector for private owner lookup; requires audience-bound owner identity and exact tuple RLS",
+	"mediconnect.ClaimCheckRequest.RequestID":               "opaque known claim identifier for a private exact lookup, not an account search or event",
+	"mediconnect.ClaimCheckRequest.HospitalID":              "opaque scope identifier in private owner lookup; does not confer hospital authority",
+	"mediconnect.ClaimCheckResponse.Current":                "predicate on a known intake claim, not identity verification, clinical consent or disclosure authority",
 	"patientmaster.SharingNoticeChangedData.NoticeID":       "opaque hospital notice identifier; no content, evidence, actor or patient; owner access remains scoped",
 	"patientmaster.SharingNoticeChangedData.Version":        "monotonic notice revision for replay ordering; no clinical or identifying content",
 	"patientmaster.ConsentAuthorityChangedData.AuthorityID": "opaque tenant-local reviewed-capacity receipt; no patient, subject, policy, evidence or clinical content; resolving it requires owner authorization",
@@ -506,6 +512,8 @@ func TestEventPayloadPHIFieldsAreAllowlisted(t *testing.T) {
 // thing a reviewer's eye lands on.
 func TestEventPayloadPHIAllowlistIsPinnedExactly(t *testing.T) {
 	require.Equal(t, map[string]string{
+		"mediconnect.ClaimCheckRequest.Subject":               "exact owner-subject selection in workload-authenticated internal HTTP only; never published as an event",
+		"mediconnect.ClaimCheckRequest.PatientID":             "exact patient selection in workload-authenticated internal HTTP only; never published as an event",
 		"mediconnect.RegistrationReviewData.RequesterSubject": "opaque authenticated requester identity is required solely to reject registrar self-review across owners; no contact or identity evidence; restricted same-tenant consumer",
 		"mediconnect.RegistrationReviewData.Relationship":     "unverified allowlisted relationship claim is necessary for hospital evidence review and immutable request lineage; never proxy authority or consent; no free text",
 		"medicore.VisitCreatedData.PatientName":               "pharmacy and lab display it on their work queues; modules may not import modules, so there is no cross-module read path to fetch it instead",

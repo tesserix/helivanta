@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@tesserix/web";
-import { ChevronLeft, ChevronRight, ReceiptText, PackageSearch, Plus } from "lucide-react";
+import { ReceiptText, PackageSearch, Plus } from "lucide-react";
 import {
   PAGE_SIZE,
   useApiPageQuery,
@@ -14,8 +14,8 @@ import {
   type PharmacyPayable,
   type PharmacyInventoryAudit,
 } from "@helivanta/api";
-import { ListDetail, PageTabs, Pager, Panel, RequestFailure, useLeaveGuard } from "@helivanta/ui";
-import { useDetail } from "@/lib/use-detail";
+import { ListDetail, PageTabs, Pager, Panel, RequestFailure } from "@helivanta/ui";
+import { useListDetail } from "@/lib/use-list-detail";
 import { useStepBackWhenEmpty, useUrlPage } from "@/lib/use-url-page";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { PayableForm, PayableHistory } from "./payable-forms";
@@ -63,104 +63,23 @@ function OutletAccounts({
   timeZone: string;
 }) {
   const { can } = usePermissions();
-  const router = useRouter();
   // The tab is the URL (#576 slice 3 D4): Overdue and Due within 7 days are
   // the overview's counts, filtered on the outlet's date the same way.
   // Anything else, an old ?due= link included, is All bills.
   const raw = useSearchParams().get("tab") ?? "";
   const tab: BillsTab = Object.hasOwn(TABS, raw) ? (raw as BillsTab) : "all";
   const url = useUrlPage({ tab });
-  const detail = useDetail();
-
-  // The page's rows as they were when a bill was opened (#1303 D2/D4), so a
-  // payment that drops it out of Overdue leaves Next on the bill below it.
-  // In memory only: opened from a link or a reload, there is no snapshot and
-  // Previous / Next are off rather than guessed.
-  const [snapshot, setSnapshot] = useState<Row[] | null>(null);
   const [pageRows, setPageRows] = useState<Row[]>([]);
-  const at = snapshot?.findIndex((row) => row.id === detail.openId) ?? -1;
-  const reference =
-    (snapshot ?? []).concat(pageRows).find((row) => row.id === detail.openId)?.reference ?? null;
-
-  // Unsaved edits are never lost silently (#1303 D5).
-  const [form, setForm] = useState({ dirty: false, pending: false });
-  const onStateChange = useCallback((dirty: boolean, pending: boolean) => {
-    setForm((was) => (was.dirty === dirty && was.pending === pending ? was : { dirty, pending }));
-  }, []);
-  // A save in flight is held, not offered as discardable: it commits anyway.
-  const guard = useLeaveGuard(
-    form.dirty,
-    detail.creating ? "the new bill" : (reference ?? "this bill"),
-    form.pending,
-  );
-  // A save that finishes after the person has left must not pull them back.
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-
-  const lastOpened = useRef<string | null>(null);
-  function openRow(id: string) {
-    guard.confirm(() => {
-      setSnapshot(pageRows);
-      lastOpened.current = id;
-      detail.open(id);
-    });
-  }
-  function step(by: number) {
-    const next = snapshot?.[at + by];
-    if (!next) return;
-    guard.confirm(() => {
-      lastOpened.current = next.id;
-      detail.open(next.id);
-    });
-  }
-  function close() {
-    guard.confirm(() => {
-      const returnTo = lastOpened.current ?? detail.openId;
-      setSnapshot(null);
-      detail.close();
-      // Back to the row it opened from, or the list when that row has gone.
-      requestAnimationFrame(() =>
-        (
-          document.querySelector<HTMLElement>(`[data-open-bill="${returnTo}"]`) ??
-          document.getElementById("payables-heading")
-        )?.focus(),
-      );
-    });
-  }
-
-  // Tabs, the pager and the back link are links: hold them while unsaved.
-  function holdLinks(event: React.MouseEvent) {
-    const link = (event.target as Element).closest("a");
-    if (!link || !(form.dirty || form.pending)) return;
-    event.preventDefault();
-    const href = link.getAttribute("href");
-    if (href) guard.confirm(() => router.push(href));
-  }
-
-  // Creating focuses the first field; viewing focuses the heading (in the record).
-  const pane = useRef<HTMLDivElement>(null);
-  // Escape closes, unless it is closing a menu inside the record first.
-  const onEscape = useEffectEvent((event: KeyboardEvent) => {
-    if (event.key !== "Escape" || event.defaultPrevented) return;
-    if ((event.target as Element).closest('[role="listbox"],[aria-expanded="true"]')) return;
-    close();
+  const pane = useListDetail({
+    rows: pageRows,
+    name: (row) => row.reference,
+    fallbackName: "this bill",
+    newName: "the new bill",
+    headingId: "payables-heading",
   });
-  const isOpenNow = detail.openId !== null || detail.creating;
-  useEffect(() => {
-    const node = pane.current;
-    if (!isOpenNow || !node) return;
-    node.addEventListener("keydown", onEscape);
-    return () => node.removeEventListener("keydown", onEscape);
-  }, [isOpenNow]);
-  useEffect(() => {
-    if (detail.creating)
-      requestAnimationFrame(() => pane.current?.querySelector<HTMLElement>("input")?.focus());
-  }, [detail.creating]);
+  const { detail, paneRef } = pane;
+  const reference = pane.openName;
+  const onStateChange = pane.formState("bill");
 
   const tabs = (
     <PageTabs
@@ -180,17 +99,13 @@ function OutletAccounts({
       </div>
     );
 
-  const isOpen = detail.openId !== null || detail.creating;
-  const busy = form.pending;
   const record = detail.creating ? (
     <Panel>
       <PayableForm
         scope={scope}
         defaultCurrency={defaultCurrency}
-        onSaved={(id) => {
-          if (mounted.current) detail.open(id);
-        }}
-        onCancel={close}
+        onSaved={pane.saved}
+        onCancel={pane.close}
         onStateChange={onStateChange}
       />
     </Panel>
@@ -202,49 +117,29 @@ function OutletAccounts({
         id={detail.openId}
         timeZone={timeZone}
         writable={writable}
-        onClose={close}
+        onClose={pane.close}
         onStateChange={onStateChange}
-        nav={
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label="Previous bill"
-              disabled={busy || at <= 0}
-              onClick={() => step(-1)}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label="Next bill"
-              disabled={busy || at < 0 || at >= (snapshot?.length ?? 0) - 1}
-              onClick={() => step(1)}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </>
-        }
+        previous={{ disabled: !pane.canStep(-1), onClick: () => pane.step(-1) }}
+        next={{ disabled: !pane.canStep(1), onClick: () => pane.step(1) }}
       />
     </Panel>
   ) : null;
 
   return (
-    <div className="space-y-6" onClickCapture={holdLinks}>
+    <div className="space-y-6" onClickCapture={pane.holdLinks}>
       <Bills
         scope={scope}
         tab={tab}
         url={url}
         tabs={tabs}
-        compact={isOpen}
+        compact={pane.isOpen}
         openId={detail.openId}
         onRows={setPageRows}
         canRecord={writable && can("pharmacy.accounts.write")}
-        onRecord={() => guard.confirm(() => detail.create())}
-        onOpen={openRow}
+        onRecord={pane.create}
+        onOpen={pane.openRow}
         pane={{
-          detail: record && <div ref={pane}>{record}</div>,
+          detail: record && <div ref={paneRef}>{record}</div>,
           label: detail.creating
             ? "New supplier bill"
             : reference
@@ -441,7 +336,7 @@ function Bills({
                             <Button
                               variant="ghost"
                               onClick={() => onOpen(b.id)}
-                              data-open-bill={b.id}
+                              data-open-row={b.id}
                               aria-label={`Open ${b.document_reference}`}
                             >
                               View

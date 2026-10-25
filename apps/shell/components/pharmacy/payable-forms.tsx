@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
@@ -23,6 +23,7 @@ import {
   type PharmacyMovement,
 } from "@helivanta/api";
 import {
+  DetailHeader,
   Field,
   FormSelectField,
   LoadMore,
@@ -348,7 +349,8 @@ export function PayableHistory({
   writable,
   onClose,
   timeZone = "UTC",
-  nav,
+  previous,
+  next,
   onStateChange,
 }: {
   scope: PharmacyScope;
@@ -356,8 +358,9 @@ export function PayableHistory({
   writable: boolean;
   onClose: () => void;
   timeZone?: string;
-  /** Previous / Next for the page's rows (#1303 D2). */
-  nav?: ReactNode;
+  /** Previous / Next through the page's rows (#1303 D2). */
+  previous: { disabled: boolean; onClick: () => void };
+  next: { disabled: boolean; onClick: () => void };
   onStateChange?: FormState;
 }) {
   const detail = useApiQuery<PharmacyPayableDetail>(
@@ -392,26 +395,16 @@ export function PayableHistory({
   const doc = detail.data;
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h3
-            ref={heading}
-            tabIndex={-1}
-            className="scroll-mt-24 text-lg font-semibold outline-none"
-          >
-            {doc.document_reference}
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {doc.payee_name} · {doc.payee_reference}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {nav}
-          <Button variant="outline" onClick={onClose}>
-            Close document
-          </Button>
-        </div>
-      </div>
+      <DetailHeader
+        title={doc.document_reference}
+        subtitle={`${doc.payee_name} · ${doc.payee_reference}`}
+        headingRef={heading}
+        noun="bill"
+        previous={previous}
+        next={next}
+        closeLabel="Close document"
+        onClose={onClose}
+      />
       <Panel>
         <dl className="grid grid-cols-2 gap-4 @[560px]/pane:grid-cols-4">
           {(

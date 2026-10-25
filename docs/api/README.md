@@ -29,8 +29,11 @@ onboarding and end-to-end acceptance rules before exposure.
 | [Contract source index](../../contracts/README.md)                       | Existing Go/TypeScript contract generators and canonical model sources                            | Keep editing the existing source, not a copied model                                    |
 | [Architecture](../architecture/README.md)                                | Proposed independent product APIs, deployment and sizing                                          | Target architecture; not current runtime evidence                                       |
 
-MediConnect now has a scoped [account and unverified link-request API](mediconnect.md); other patient-facing
-contracts remain proposals and do not authorize clinical disclosure.
+MediConnect owns the scoped [account and link-request API](mediconnect.md).
+Patientmaster owns implemented identity review, self/guardian authority and the
+canonical clinical-sharing ledger; see [verified release evidence](../delivery/mediconnect.md).
+Owner-authorized clinical record release, adult/family projections and booking/reminder
+integrations remain unfinished. A consent gate does not authorize clinical disclosure.
 
 The [privacy casework API](privacy.md) owns authenticated tenant-local rights/grievance review; a case response does not execute disclosure or erasure.
 

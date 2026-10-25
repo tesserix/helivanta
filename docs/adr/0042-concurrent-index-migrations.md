@@ -1,6 +1,7 @@
 # ADR-0042: Concurrent index migrations on the schema-owner connection
 
-Status: implemented locally; release validation pending. Related: #552, #60, #556.
+Status: implemented and deployed in release `81655619`; see
+[verified release evidence](../delivery/mediconnect.md). Related: #552, #60, #556.
 
 ## Context
 

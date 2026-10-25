@@ -222,6 +222,35 @@ Migration table declarations:
 - `0004_mediconnect`: `mediconnect_review_submissions`.
 - `0006_mediconnect`: `mediconnect_notices`, `mediconnect_account_consents`.
 
+## privacy
+
+Source: [backend/internal/modules/privacy/module.go](../../../backend/internal/modules/privacy/module.go). Payloads: `backend/internal/modules/privacy/contract/`, owning handlers, and [schema index](../schemas.md).
+
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/privacy/officer` | `public` | false | false |
+| POST | `/v1/privacy/officers/:officer/accept` | `public` | false | false |
+| POST | `/v1/privacy/officers/:officer/revoke` | `privacy.officer.manage` | false | false |
+| PUT | `/v1/privacy/officers/:officer` | `privacy.officer.manage` | false | false |
+| GET | `/v1/privacy/queue` | `public` | true | false |
+| PUT | `/v1/privacy/requests/:request/commands/:command` | `public` | false | false |
+| GET | `/v1/privacy/requests/:request/commands` | `public` | true | false |
+| GET | `/v1/privacy/requests/:request` | `public` | false | false |
+| PUT | `/v1/privacy/requests/:request` | `public` | false | false |
+| GET | `/v1/privacy/requests` | `public` | true | false |
+
+Published subjects:
+
+None.
+
+Subscriptions:
+
+None.
+
+Migration table declarations:
+
+- `0001_privacy`: `privacy_officers`, `privacy_requests`, `privacy_commands`.
+
 ## pharmacy
 
 Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/modules/pharmacy/module.go). Payloads: `backend/internal/modules/pharmacy/contract/`, owning handlers, and [schema index](../schemas.md).

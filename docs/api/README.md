@@ -32,6 +32,8 @@ onboarding and end-to-end acceptance rules before exposure.
 MediConnect now has a scoped [account and unverified link-request API](mediconnect.md); other patient-facing
 contracts remain proposals and do not authorize clinical disclosure.
 
+The [privacy casework API](privacy.md) owns authenticated tenant-local rights/grievance review; a case response does not execute disclosure or erasure.
+
 ## Domain specifications
 
 | Domain                                                 | Specification                                                                                                          |

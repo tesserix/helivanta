@@ -36,8 +36,9 @@ func consentAuthorityFixture(t *testing.T) (*gin.Engine, *tenantdb.DB, string) {
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"reviewer": testutil.TenantA, "owner": testutil.TenantA, "peer": testutil.TenantA, "foreign": testutil.TenantB, "ungranted": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"reviewer":  {patientmaster.PermPatientRead, patientmaster.PermPatientRegister, authz.Permission("patient.consent-authority.review")},
-			"ungranted": {authz.Permission("patient.consent-authority.review")},
+			"reviewer":  {patientmaster.PermPatientRead, patientmaster.PermPatientRegister, authz.Permission("patient.sharing-notice.review"), authz.Permission("patient.consent-authority.review")},
+			"foreign":   {authz.Permission("patient.sharing-notice.review")},
+			"ungranted": {authz.Permission("patient.consent-authority.review"), authz.Permission("patient.sharing-notice.review")},
 		},
 		Modules: []platform.Module{patientmaster.New()},
 	})
@@ -352,7 +353,7 @@ type previousPatientmaster struct{ *patientmaster.Module }
 
 func (m previousPatientmaster) Migrations() []tenantdb.Migration {
 	migrations := m.Module.Migrations()
-	return migrations[:len(migrations)-1]
+	return migrations[:5]
 }
 func TestConsentAuthorityMigrationPreservesPriorRegistrationAndRepeats(t *testing.T) {
 	module := patientmaster.New()

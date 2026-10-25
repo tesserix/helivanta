@@ -479,6 +479,10 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 | GET | `/v1/patients/my/consent-authorities/:authority` | `public` | false | false |
 | GET | `/v1/patients/my/consent-authorities` | `public` | true | false |
 | POST | `/v1/patients/search` | `patient.read` | true | false |
+| POST | `/v1/patients/sharing-notices/:notice/approve` | `patient.sharing-notice.review` | false | false |
+| POST | `/v1/patients/sharing-notices/:notice/retire` | `patient.sharing-notice.review` | false | false |
+| GET | `/v1/patients/sharing-notices/:notice` | `patient.sharing-notice.review` | false | false |
+| PUT | `/v1/patients/sharing-notices/:notice` | `patient.sharing-notice.review` | false | false |
 | GET | `/v1/patients` | `patient.read` | true | false |
 | POST | `/v1/patients` | `patient.register` | false | false |
 
@@ -487,6 +491,7 @@ Published subjects:
 - `helivanta.in.patientmaster.registered.v1`
 - `helivanta.in.patientmaster.registration_reviewed.v1`
 - `helivanta.in.patientmaster.consent_authority_changed.v1`
+- `helivanta.in.patientmaster.sharing_notice_changed.v1`
 
 Subscriptions:
 
@@ -500,6 +505,7 @@ Migration table declarations:
 - `0004_patientmaster`: `patient_reported_blood_groups`.
 - `0005_patientmaster`: `patient_link_reviews`.
 - `0006_patientmaster`: `patient_consent_authorities`.
+- `0007_patientmaster`: `patient_sharing_notices`.
 
 ## workforce
 

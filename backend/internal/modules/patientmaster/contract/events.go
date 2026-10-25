@@ -40,3 +40,12 @@ type ConsentAuthorityChangedData struct {
 	AuthorityID string `json:"authority_id"`
 	Version     int64  `json:"version"`
 }
+
+// SubjectSharingNoticeChanged records a hospital notice revision without its content.
+const SubjectSharingNoticeChanged = "helivanta.in.patientmaster.sharing_notice_changed.v1"
+
+// SharingNoticeChangedData contains only the opaque notice and monotonic revision.
+type SharingNoticeChangedData struct {
+	NoticeID string `json:"notice_id"`
+	Version  int64  `json:"version"`
+}

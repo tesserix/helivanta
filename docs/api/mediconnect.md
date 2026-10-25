@@ -450,3 +450,54 @@ The migration is additive and forward-only. Retain evidence and compatible
 checks once later consents reference an authority; deleting records or removing
 current revocation checks is not a valid rollback. Deployment remains a separate
 release gate and this section is not production-readiness evidence.
+
+## Hospital clinical sharing notice review
+
+Implementation slice for #60/#556, separate from account-processing notices and
+self-authority receipts. Not a clinical grant, treatment/procedure consent,
+ABDM artefact or permission to release records. No production notice text is
+seeded. Actual wording/policy needs hospital privacy/legal review.
+
+All four routes enter Global API and are owned by patientmaster. Each requires
+`patient.sharing-notice.review` plus a current registrar-level hospital grant in
+the verified tenant; `hospital_id` is a query selector, never authority.
+
+| Method | `/v1/patients` path | Behavior |
+| --- | --- | --- |
+| PUT | `/sharing-notices/:notice` | Create immutable draft; identical creator/input retries return current receipt |
+| GET | `/sharing-notices/:notice` | Scoped, audited exact wording and status |
+| POST | `/sharing-notices/:notice/approve` | Independent reviewer approves a draft |
+| POST | `/sharing-notices/:notice/retire` | Terminal retirement retaining wording and review evidence |
+
+Draft body: `purpose` exactly `care_coordination`, canonical BCP-47 `locale`,
+`version_label` (64 bytes), `title` (200), `text` (4096),
+`withdrawal_consequence` (1024), `policy_reference` (canonical UUIDv7). All fields
+are mandatory; strings must be nonblank valid UTF-8 without NUL. Request limit
+is 8192 bytes; unknown fields and trailing JSON are rejected. IDs are UUIDv7.
+The content hash is SHA-256 of the canonical Go JSON content including policy.
+The tuple hospital/purpose/locale/version_label is unique within the tenant;
+new wording needs a new ID and version label.
+
+Approval body is `{"expected_version":1,"review_reference":"<UUIDv7>"}`.
+The approver must differ from the creator. Retirement body is
+`{"expected_version":2}` for approved v2 or version 1 for a draft. Status goes
+from draft v1 to approved v2 to retired v3, or draft v1 directly to retired v2.
+Exact approval replay returns its current receipt even after retirement; changed
+review evidence/actor conflicts. Retirement accepts its original preceding or
+current terminal version on retry. No retry reactivates a retired notice.
+
+Receipts include immutable wording, policy reference, content hash, hospital ID,
+status/version and timestamps. Creator/reviewer identity and review evidence stay
+private. Wrong tenant/hospital resources return 404. Missing route permission
+returns 403. Invalid body returns 400; changed command or stale state returns
+409 `sharing_notice_conflict`. Dependency cancellation/deadline returns 503
+`sharing_notice_unavailable`; other internal database failures return generic
+500 without SQL/content. Responses carry `Cache-Control: no-store`.
+
+Migration `0007_patientmaster` is additive/forward-only, forced RLS with current
+hospital grant checks, immutable history guards and bounded DDL timeouts. Audit
+and `helivanta.in.patientmaster.sharing_notice_changed.v1` outbox intent commit in
+the same transaction. Its payload contains only `notice_id` and `version`.
+Consumers cannot infer patient access from this event. Patient notice publication,
+clinical-purpose ledger/evaluation, proxy delegation and disclosure remain
+unfinished; drafts are only available to authorized reviewers.

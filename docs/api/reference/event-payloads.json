@@ -511,6 +511,26 @@
       "type": "object"
     }
   },
+  "helivanta.in.patientmaster.sharing_notice_changed.v1": {
+    "source": "backend/internal/modules/patientmaster/contract/events.go:48",
+    "go_type": "SharingNoticeChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "notice_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "notice_id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.pharmacy.batch_safety_recorded.v1": {
     "source": "backend/internal/modules/pharmacy/contract/events.go:9",
     "go_type": "BatchSafetyRecordedData",

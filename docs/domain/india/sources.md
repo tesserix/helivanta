@@ -12,6 +12,40 @@ These sources support domain discovery and explicit review questions. Access sta
 | S02 | [MeitY DPDP Rules 2025, G.S.R. 846(E)](https://www.meity.gov.in/static/uploads/2025/11/53450e6e5dc0bfa85ebd78686cadad39.pdf), notification dated 13 November 2025; Gazette identifier dated 14 November; primary PDF opened                                       | Rule 1 sets phased commencement. Notification is not simultaneous commencement of every substantive obligation. Verify the separate Act commencement instrument, later amendments and relevant exceptions  |
 | S03 | [MeitY rules, corrigendum and Board document index](https://www.meity.gov.in/documents/act-and-policies/digital-personal-data-protection-rules-2025-gDOxUjMtQWa?pageTitle=Digit); indexed results inspected, direct page did not expose readable document content | Discovery point for current instruments, not evidence that every corrigendum was reviewed. Privacy/legal owner must retrieve and assess the applicable texts                                               |
 
+### Consent-source recheck — 2026-10-25
+
+The following primary PDFs were opened through the research browser. This updates
+source availability and review inputs only; it activates no tenant policy.
+
+- **S18:** [Act commencement, G.S.R. 843(E)](https://www.meity.gov.in/static/uploads/2025/11/c56ceae6c383460ca69577428d36828b.pdf),
+  notification 13 November 2025, Gazette identifier CG-DL-E-14112025-267647;
+  English page 2, clauses (a)–(c). The Act has separate immediate, one-year and
+  eighteen-month groups. Sections 7–10 and 11–17 are in the eighteen-month group.
+  Do not infer their commencement from publication of the Rules or Board setup.
+- **S19:** [Rules corrigenda, G.S.R. 892(E)](https://www.meity.gov.in/static/uploads/2025/12/3c7ebbae0e5456f493f486e6845df86b.pdf),
+  dated 10 December 2025; Gazette identifier CG-DL-E-12122025-268455. Read its
+  corrections alongside S02, including commencement-reference wording and Fourth
+  Schedule definition lettering. This is not a standalone consolidated Rules text.
+- **S20:** [Removal of Difficulties Order, S.O. 5458(E)](https://www.meity.gov.in/static/uploads/2026/10/daf495a7b5798a3dfa72a944b51fc176.pdf),
+  dated 5 October 2026; Gazette issue 6 October, identifier
+  CG-DL-E-07102026-276885. English pages 2–3, paragraphs 1–2 correct section 9(1)
+  wording and section 10(2)(c)(ii)'s audit terminology. Its own publication-based
+  commencement must not be treated as acceleration of S18's substantive phases.
+
+S02 was accessible on this recheck. Rule 10 distinguishes parental identity/age
+verification from rule 11's verification of a lawful guardian's appointment.
+Rule 12 and Fourth Schedule Part A include conditional healthcare cases; neither
+is a blanket portal, marketing or proxy-disclosure exemption. S01 still returned
+403, and S03's page yielded no readable text. The February 2026 Hindi corrigendum
+was located in search results but its primary text was not reviewed. This is not
+an exhaustive assurance that no other amendment or applicable law exists.
+
+Required before activation: the hospital's privacy/legal reviewer records the
+actual fiduciary, patient/service context, state, operative provisions/effective
+dates, applicable verification method and exception decision. Clinical governance
+separately reviews treatment/procedure consent. Software must retain policy
+versions and evidence, not infer capacity from a relationship label or diagnosis.
+
 ## Exchange and revenue
 
 | ID  | Primary source and observed status                                                                                                                                                                           | Use and limits                                                                                                                                                                                                                                                      |

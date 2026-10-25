@@ -402,6 +402,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /patients/link-reviews/:request":                                           "one hospital-scoped review; collection uses ListRoute",
 	"GET /mediconnect/notices/:notice":                                              "one retained notice; collection uses ListRoute",
 	"GET /mediconnect/account/consents/:consent":                                    "one account-owned receipt; collection uses ListRoute",
+	"GET /privacy/requests/:request/deadline":                                       "one case clock with at most two schema-unique escalation receipts; not a collection",
 	"GET /privacy/officer":                                                          "one current accepted tenant officer",
 	"GET /privacy/requests/:request":                                                "one principal-owned or current-officer case; collections use ListRoute",
 	"GET /mediconnect/account":                                                      "one current-subject account, with tenant membership and subject RLS",

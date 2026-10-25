@@ -81,7 +81,7 @@ func linkError(c *gin.Context, err error) {
 
 func (h *accountHandlers) submitLinkRequest(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -150,7 +150,7 @@ func (h *accountHandlers) linkTransaction(c *gin.Context, p authn.Principal, fn 
 
 func (h *accountHandlers) getLinkRequest(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -174,7 +174,7 @@ func (h *accountHandlers) getLinkRequest(c *gin.Context) {
 
 func (h *accountHandlers) listLinkRequests(c *gin.Context, params pagination.Params) ([]linkRequest, error) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -207,7 +207,7 @@ func (h *accountHandlers) listLinkRequests(c *gin.Context, params pagination.Par
 
 func (h *accountHandlers) withdrawLinkRequest(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

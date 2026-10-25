@@ -87,7 +87,7 @@ func accountError(c *gin.Context, err error) {
 
 func (h *accountHandlers) create(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -143,7 +143,7 @@ func (h *accountHandlers) create(c *gin.Context) {
 
 func (h *accountHandlers) get(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -175,7 +175,7 @@ type preferencesInput struct {
 
 func (h *accountHandlers) preferences(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

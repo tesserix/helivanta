@@ -51,7 +51,7 @@ func (h *accountHandlers) publishReview(tx *gorm.DB, tenant, subject string, row
 }
 func (h *accountHandlers) submitReview(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -104,7 +104,7 @@ func (h *accountHandlers) submitReview(c *gin.Context) {
 }
 func (h *accountHandlers) getReview(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

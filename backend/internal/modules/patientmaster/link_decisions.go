@@ -43,7 +43,7 @@ func (h *patientHandlers) decideLinkReview(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

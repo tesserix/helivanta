@@ -228,7 +228,7 @@ func (h *patientHandlers) putClinicalConsent(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -379,7 +379,7 @@ func (h *patientHandlers) getClinicalConsent(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -415,7 +415,7 @@ func (h *patientHandlers) withdrawClinicalConsent(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -501,7 +501,7 @@ func (h *patientHandlers) decideClinicalConsent(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

@@ -10,6 +10,7 @@ export {
 } from "./zones";
 export { ConfirmDialog } from "./confirm-dialog";
 export { ListDetail } from "./list-detail";
+export { DetailHeader } from "./detail-header";
 export {
   GuardedLink,
   isModifiedClick,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
@@ -37,6 +37,7 @@ import {
   formatPharmacyMoney,
   supportedCurrencies,
 } from "./currency-amount-field";
+import { useReportState, type FormState } from "@/lib/use-list-detail";
 
 const categories = [
   { value: "inventory", label: "Inventory purchase" },
@@ -339,17 +340,6 @@ function ReceiptPicker({
       />
     </div>
   );
-}
-/** What a detail reports so its page can guard unsaved edits (#1303 D5). */
-export type FormState = (dirty: boolean, pending: boolean) => void;
-
-function useReportState(report: FormState | undefined, dirty: boolean, pending: boolean) {
-  // Browser Back must see the dirty state before the next event can navigate.
-  useLayoutEffect(() => {
-    report?.(dirty, pending);
-  }, [report, dirty, pending]);
-  // A form that goes away holds nothing unsaved.
-  useLayoutEffect(() => () => report?.(false, false), [report]);
 }
 
 export function PayableHistory({

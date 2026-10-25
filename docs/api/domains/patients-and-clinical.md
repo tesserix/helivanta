@@ -71,3 +71,9 @@ the [documented routes](../mediconnect.md#reviewed-guardian-authority-registry).
 MediConnect claim approval alone cannot establish proxy consent or record access;
 future consuming owners must check the live claim and approved purpose as well as
 current authority and their own resource authorization.
+
+The in-development proxy declaration uses a separate capture command and signed
+schema v2 in the existing clinical-consent ledger. It requires a current reviewed
+guardian authority and a capacity-specific approved notice; it does not reinterpret
+self v1, grant ordinary patient reads or authorize record release. See the
+[proxy declaration release gates](../mediconnect.md#proxy-clinical-sharing-declaration-work-in-progress).

@@ -53,6 +53,12 @@ func clinicalCatalogAudit(tx *gorm.DB, p authn.Principal, kind string, ids []uui
 	return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) SELECT ?,?,'read',?,value::uuid FROM jsonb_array_elements_text(?::jsonb)`, p.TenantID, p.Subject, kind, string(encoded)).Error
 }
 func (h *patientHandlers) listClinicalNotices(c *gin.Context, params pagination.Params) ([]sharingNotice, error) {
+	return h.listClinicalNoticesFor(c, params, false)
+}
+func (h *patientHandlers) listProxyClinicalNotices(c *gin.Context, params pagination.Params) ([]sharingNotice, error) {
+	return h.listClinicalNoticesFor(c, params, true)
+}
+func (h *patientHandlers) listClinicalNoticesFor(c *gin.Context, params pagination.Params, proxy bool) ([]sharingNotice, error) {
 	c.Header("Cache-Control", "no-store")
 	hospital, ok := hospitalScope(c)
 	if !ok {
@@ -64,10 +70,11 @@ func (h *patientHandlers) listClinicalNotices(c *gin.Context, params pagination.
 	}
 	var rows []sharingNotice
 	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if err := clinicalCatalogScope(tx, p, hospital, c.Param("authority")); err != nil {
+		capacity, err := clinicalCatalogCapacity(tx, p, hospital, c.Param("authority"), proxy)
+		if err != nil {
 			return err
 		}
-		if err := tenantdb.ApplyKeyset(tx, params).Select(sharingNoticeColumns).Where("tenant_id=? AND hospital_id=? AND status='approved' AND purpose='care_coordination'", p.TenantID, hospital).Find(&rows).Error; err != nil {
+		if err := tenantdb.ApplyKeyset(tx, params).Select(sharingNoticeColumns).Where("tenant_id=? AND hospital_id=? AND status='approved' AND purpose='care_coordination' AND authority_kind=?", p.TenantID, hospital, capacity).Find(&rows).Error; err != nil {
 			return err
 		}
 		ids := make([]uuid.UUID, len(rows))
@@ -83,6 +90,12 @@ func (h *patientHandlers) listClinicalNotices(c *gin.Context, params pagination.
 	return rows, nil
 }
 func (h *patientHandlers) listClinicalRecipients(c *gin.Context, params pagination.Params) ([]clinicalRecipientChoice, error) {
+	return h.listClinicalRecipientsFor(c, params, false)
+}
+func (h *patientHandlers) listProxyClinicalRecipients(c *gin.Context, params pagination.Params) ([]clinicalRecipientChoice, error) {
+	return h.listClinicalRecipientsFor(c, params, true)
+}
+func (h *patientHandlers) listClinicalRecipientsFor(c *gin.Context, params pagination.Params, proxy bool) ([]clinicalRecipientChoice, error) {
 	c.Header("Cache-Control", "no-store")
 	hospital, ok := hospitalScope(c)
 	if !ok {
@@ -94,7 +107,7 @@ func (h *patientHandlers) listClinicalRecipients(c *gin.Context, params paginati
 	}
 	var rows []clinicalRecipientChoice
 	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if err := clinicalCatalogScope(tx, p, hospital, c.Param("authority")); err != nil {
+		if _, err := clinicalCatalogCapacity(tx, p, hospital, c.Param("authority"), proxy); err != nil {
 			return err
 		}
 		if err := tenantdb.ApplyKeyset(tx.Table("patient_sharing_recipients"), params).Select("id,hospital_id,organization_reference,display_name,version,valid_until,created_at").Where("tenant_id=? AND hospital_id=? AND status='approved' AND valid_until>clock_timestamp()", p.TenantID, hospital).Find(&rows).Error; err != nil {
@@ -155,4 +168,18 @@ func (h *patientHandlers) listMyClinicalConsents(c *gin.Context, params paginati
 		return nil, nil
 	}
 	return rows, nil
+}
+
+func clinicalCatalogCapacity(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, id string, proxy bool) (string, error) {
+	if !proxy {
+		return "", clinicalCatalogScope(tx, p, hospital, id)
+	}
+	if !validReviewUUID(id, true) {
+		return "", gorm.ErrRecordNotFound
+	}
+	if err := clinicalScope(tx, p, hospital, id); err != nil {
+		return "", err
+	}
+	authority, err := clinicalSourceAuthority(tx, p, hospital, id, true)
+	return authority.Kind, err
 }

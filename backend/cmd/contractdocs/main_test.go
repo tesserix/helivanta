@@ -154,3 +154,21 @@ func TestReferenceIncludesSharedAuditAndPlatformMigrations(t *testing.T) {
 		t.Fatal("shared append-only audit schema omitted")
 	}
 }
+
+func TestReferenceIncludesConcurrentIndexDefinitionsAndOrdering(t *testing.T) {
+	encoded, err := json.Marshal(inventory())
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := `"concurrent_indexes":[{"name":"patient_clinical_consent_proxy_authority","table":"patient_clinical_consents","columns":[{"name":"tenant_id","descending":false},{"name":"proxy_authority_id","descending":false}]},{"name":"patient_sharing_notice_capacity_page"`
+	if !strings.Contains(string(encoded), expected) {
+		t.Fatal("reference omits concurrent index names, tables or ordered key definitions")
+	}
+	if !strings.Contains(string(encoded), `{"name":"created_at","descending":true}`) {
+		t.Fatal("reference omits descending index key order")
+	}
+	rendered := string(markdown(inventory()))
+	if !strings.Contains(rendered, "patient_sharing_notice_capacity_page") {
+		t.Fatal("rendered migration reference omits concurrent indexes")
+	}
+}

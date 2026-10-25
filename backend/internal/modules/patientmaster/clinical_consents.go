@@ -57,6 +57,7 @@ func (in clinicalGrantInput) valid() bool {
 }
 
 type clinicalConsentBody struct {
+	AuthorityKind         string                  `json:"authority_kind,omitempty"`
 	SchemaVersion         int                     `json:"schema_version"`
 	ID                    string                  `json:"id"`
 	TenantID              string                  `json:"tenant_id"`
@@ -82,6 +83,7 @@ type clinicalConsentBody struct {
 	Fingerprint           string                  `json:"fingerprint"`
 }
 type clinicalConsent struct {
+	IsProxy         bool `gorm:"->"`
 	ID              uuid.UUID
 	HospitalID      uuid.UUID
 	PatientID       uuid.UUID
@@ -108,7 +110,7 @@ type clinicalConsent struct {
 
 func (clinicalConsent) TableName() string { return "patient_clinical_consents" }
 
-const clinicalConsentColumns = "id,hospital_id,patient_id,subject,authority_id,review_request_id,notice_id,recipient_id,purpose,fingerprint,body,hmac,status,version,valid_until,captured_at,withdrawn_at,withdrawn_by,quarantined_at,quarantined_by,created_at,updated_at"
+const clinicalConsentColumns = "id,hospital_id,patient_id,subject,COALESCE(authority_id,proxy_authority_id) AS authority_id,proxy_authority_id IS NOT NULL AS is_proxy,review_request_id,notice_id,recipient_id,purpose,fingerprint,body,hmac,status,version,valid_until,captured_at,withdrawn_at,withdrawn_by,quarantined_at,quarantined_by,created_at,updated_at"
 
 func clinicalKey(tenant string) string { return "helivanta-consent-" + tenant }
 func clinicalScope(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, authority string) error {
@@ -122,6 +124,8 @@ func clinicalReadAudit(tx *gorm.DB, p authn.Principal, row clinicalConsent) erro
 }
 func clinicalConsentError(c *gin.Context, err error) {
 	switch {
+	case errors.Is(err, errProxyClinicalCaptureDisabled):
+		respond.Error(c, 503, "proxy_clinical_capture_disabled", "Proxy clinical capture is not enabled; retained declarations remain available")
 	case errors.Is(err, errClinicalConflict):
 		respond.Error(c, 409, "clinical_consent_conflict", "Clinical declaration scope or state changed")
 	case errors.Is(err, errClinicalIntegrity):
@@ -132,13 +136,13 @@ func clinicalConsentError(c *gin.Context, err error) {
 		respond.Error(c, 503, "clinical_consent_unavailable", "Clinical consent unavailable; reconcile submitted commands before retrying")
 	}
 }
-func (h *patientHandlers) clinicalSnapshot(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, id string, in clinicalGrantInput, fingerprint string) (clinicalConsentBody, error) {
+func (h *patientHandlers) clinicalSnapshot(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, id string, in clinicalGrantInput, fingerprint string, proxy bool) (clinicalConsentBody, error) {
 	var body clinicalConsentBody
 	if err := clinicalScope(tx, p, hospital, in.AuthorityID); err != nil {
 		return body, err
 	}
-	var authority consentAuthority
-	if err := tx.Select(consentAuthorityColumns+",registration_updated_at").Where("tenant_id=? AND hospital_id=? AND id=? AND subject=?", p.TenantID, hospital, in.AuthorityID, p.Subject).Take(&authority).Error; err != nil {
+	authority, err := clinicalSourceAuthority(tx, p, hospital, in.AuthorityID, proxy)
+	if err != nil {
 		return body, err
 	}
 	var now time.Time
@@ -155,11 +159,16 @@ func (h *patientHandlers) clinicalSnapshot(tx *gorm.DB, p authn.Principal, hospi
 	if matches != 1 {
 		return body, errClinicalConflict
 	}
+	// Clone locked reads below so GORM cannot carry one model into the next query.
+	sourceTx := tx
+	if proxy {
+		sourceTx = tx.Clauses(clause.Locking{Strength: "SHARE"})
+	}
 	var notice sharingNotice
-	if err := readSharingNotice(tx, p, hospital, in.NoticeID, &notice); err != nil {
+	if err := readSharingNotice(sourceTx.Session(&gorm.Session{}), p, hospital, in.NoticeID, &notice); err != nil {
 		return body, err
 	}
-	if notice.Status != "approved" || notice.Version != in.ExpectedNoticeVersion || notice.ContentHash != in.NoticeHash || notice.Purpose != in.Purpose {
+	if notice.Status != "approved" || notice.Version != in.ExpectedNoticeVersion || notice.ContentHash != in.NoticeHash || notice.Purpose != in.Purpose || notice.AuthorityKind != authority.Kind {
 		return body, errClinicalConflict
 	}
 	encodedNotice, err := json.Marshal(notice.SharingNoticeContent)
@@ -170,7 +179,7 @@ func (h *patientHandlers) clinicalSnapshot(tx *gorm.DB, p authn.Principal, hospi
 		return body, errClinicalIntegrity
 	}
 	var recipient sharingRecipient
-	if err := readSharingRecipient(tx, p, hospital, in.RecipientID, &recipient); err != nil {
+	if err := readSharingRecipient(sourceTx.Session(&gorm.Session{}), p, hospital, in.RecipientID, &recipient); err != nil {
 		return body, err
 	}
 	if recipient.Status != "approved" || recipient.Version != in.ExpectedRecipientVersion || !recipient.ValidUntil.After(now) || in.ValidUntil.After(recipient.ValidUntil) {
@@ -184,13 +193,16 @@ func (h *patientHandlers) clinicalSnapshot(tx *gorm.DB, p authn.Principal, hospi
 		return body, errClinicalIntegrity
 	}
 	body = clinicalConsentBody{SchemaVersion: 1, ID: id, TenantID: p.TenantID, HospitalID: hospital.String(), PatientID: authority.PatientID.String(), Subject: p.Subject, AuthorityID: in.AuthorityID, AuthorityVersion: authority.Version, ReviewRequestID: authority.ReviewRequestID.String(), DecisionID: authority.DecisionID.String(), RegistrationUpdatedAt: authority.RegistrationUpdatedAt.UTC(), NoticeID: in.NoticeID, NoticeVersion: notice.Version, NoticeHash: notice.ContentHash, Notice: notice.SharingNoticeContent, RecipientID: in.RecipientID, RecipientVersion: recipient.Version, Recipient: recipient.SharingRecipientContent, Purpose: in.Purpose, ResourceTypes: in.ResourceTypes, ValidUntil: in.ValidUntil, CapturedAt: now.UTC(), Fingerprint: fingerprint}
+	if proxy {
+		body.SchemaVersion, body.AuthorityKind = 2, authority.Kind
+	}
 	return body, nil
 }
 func decodeClinicalConsent(row clinicalConsent, p authn.Principal) (clinicalConsentBody, error) {
 	var body clinicalConsentBody
 	decoder := json.NewDecoder(bytes.NewBufferString(row.Body))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&body) != nil || decoder.Decode(new(any)) != io.EOF || body.SchemaVersion != 1 || body.ID != row.ID.String() || body.TenantID != p.TenantID || body.HospitalID != row.HospitalID.String() || body.PatientID != row.PatientID.String() || body.Subject != row.Subject || body.AuthorityID != row.AuthorityID.String() || body.ReviewRequestID != row.ReviewRequestID.String() || body.NoticeID != row.NoticeID.String() || body.RecipientID != row.RecipientID.String() || body.Purpose != row.Purpose || body.Fingerprint != row.Fingerprint || !body.ValidUntil.Equal(row.ValidUntil) || !body.CapturedAt.Equal(row.CapturedAt) {
+	if decoder.Decode(&body) != nil || decoder.Decode(new(any)) != io.EOF || ((!row.IsProxy && (body.SchemaVersion != 1 || body.AuthorityKind != "")) || (row.IsProxy && (body.SchemaVersion != 2 || (body.AuthorityKind != "parental" && body.AuthorityKind != "appointed_guardian")))) || body.ID != row.ID.String() || body.TenantID != p.TenantID || body.HospitalID != row.HospitalID.String() || body.PatientID != row.PatientID.String() || body.Subject != row.Subject || body.AuthorityID != row.AuthorityID.String() || body.ReviewRequestID != row.ReviewRequestID.String() || body.NoticeID != row.NoticeID.String() || body.RecipientID != row.RecipientID.String() || body.Purpose != row.Purpose || body.Notice.AuthorityKind != body.AuthorityKind || body.Fingerprint != row.Fingerprint || !body.ValidUntil.Equal(row.ValidUntil) || !body.CapturedAt.Equal(row.CapturedAt) {
 		return body, errClinicalIntegrity
 	}
 	return body, nil
@@ -213,7 +225,11 @@ func (h *patientHandlers) verifyClinicalConsent(ctx context.Context, p authn.Pri
 	return body, nil
 }
 func clinicalReceipt(row clinicalConsent, body clinicalConsentBody) gin.H {
-	return gin.H{"id": row.ID, "hospital_id": row.HospitalID, "patient_id": row.PatientID, "authority_id": row.AuthorityID, "notice_id": row.NoticeID, "notice_hash": body.NoticeHash, "notice": body.Notice, "recipient": gin.H{"id": row.RecipientID, "organization_reference": body.Recipient.OrganizationReference, "display_name": body.Recipient.DisplayName}, "purpose": row.Purpose, "resource_types": body.ResourceTypes, "valid_until": row.ValidUntil, "captured_at": row.CapturedAt, "created_at": row.CreatedAt, "updated_at": row.UpdatedAt, "status": row.Status, "version": row.Version, "withdrawn_at": row.WithdrawnAt, "quarantined_at": row.QuarantinedAt, "hmac": row.HMAC, "integrity_algorithm": "HMAC-SHA-256", "key_version": 1, "hmac_scope": "immutable_declaration", "eligibility": "requires_fresh_consent_and_record_owner_checks"}
+	out := gin.H{"id": row.ID, "hospital_id": row.HospitalID, "patient_id": row.PatientID, "authority_id": row.AuthorityID, "notice_id": row.NoticeID, "notice_hash": body.NoticeHash, "notice": body.Notice, "recipient": gin.H{"id": row.RecipientID, "organization_reference": body.Recipient.OrganizationReference, "display_name": body.Recipient.DisplayName}, "purpose": row.Purpose, "resource_types": body.ResourceTypes, "valid_until": row.ValidUntil, "captured_at": row.CapturedAt, "created_at": row.CreatedAt, "updated_at": row.UpdatedAt, "status": row.Status, "version": row.Version, "withdrawn_at": row.WithdrawnAt, "quarantined_at": row.QuarantinedAt, "hmac": row.HMAC, "integrity_algorithm": "HMAC-SHA-256", "key_version": 1, "hmac_scope": "immutable_declaration", "eligibility": "requires_fresh_consent_and_record_owner_checks"}
+	if body.AuthorityKind != "" {
+		out["authority_kind"] = body.AuthorityKind
+	}
+	return out
 }
 func (h *patientHandlers) publishClinicalConsent(tx *gorm.DB, p authn.Principal, row clinicalConsent) error {
 	data, err := json.Marshal(patientmastercontract.ClinicalConsentChangedData{ConsentID: row.ID.String(), Version: row.Version})
@@ -222,7 +238,9 @@ func (h *patientHandlers) publishClinicalConsent(tx *gorm.DB, p authn.Principal,
 	}
 	return h.bus.Publish(tx, patientmastercontract.SubjectClinicalConsentChanged, events.Event{Type: patientmastercontract.SubjectClinicalConsentChanged, Version: 1, TenantID: p.TenantID, Data: data})
 }
-func (h *patientHandlers) putClinicalConsent(c *gin.Context) {
+func (h *patientHandlers) putClinicalConsent(c *gin.Context)      { h.putClinicalConsentFor(c, false) }
+func (h *patientHandlers) putProxyClinicalConsent(c *gin.Context) { h.putClinicalConsentFor(c, true) }
+func (h *patientHandlers) putClinicalConsentFor(c *gin.Context, proxy bool) {
 	c.Header("Cache-Control", "no-store")
 	hospital, ok := hospitalScope(c)
 	if !ok {
@@ -266,7 +284,7 @@ func (h *patientHandlers) putClinicalConsent(c *gin.Context) {
 		}
 		err := readOwnClinicalConsent(tx, p, hospital, id, &row)
 		if err == nil {
-			if row.Fingerprint != fingerprint {
+			if row.Fingerprint != fingerprint || row.IsProxy != proxy {
 				return errClinicalConflict
 			}
 			existing = true
@@ -275,12 +293,19 @@ func (h *patientHandlers) putClinicalConsent(c *gin.Context) {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
+		if proxy && !h.proxyClinicalCaptureEnabled {
+			return errProxyClinicalCaptureDisabled
+		}
 		var snapshotErr error
-		body, snapshotErr = h.clinicalSnapshot(tx, p, hospital, id, in, fingerprint)
+		body, snapshotErr = h.clinicalSnapshot(tx, p, hospital, id, in, fingerprint, proxy)
 		if snapshotErr != nil {
 			return snapshotErr
 		}
-		return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES (?,?,'clinical_declaration_prepared','patient_consent_authorities',?)`, p.TenantID, p.Subject, in.AuthorityID).Error
+		resource := "patient_consent_authorities"
+		if proxy {
+			resource = "patient_proxy_authorities"
+		}
+		return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES (?,?,'clinical_declaration_prepared',?,?)`, p.TenantID, p.Subject, resource, in.AuthorityID).Error
 	})
 	if err != nil {
 		clinicalConsentError(c, err)
@@ -313,7 +338,7 @@ func (h *patientHandlers) putClinicalConsent(c *gin.Context) {
 		clinicalConsentError(c, errClinicalUnavailable)
 		return
 	}
-	current, err := h.claims.Current(ctx, mediconnectcontract.ClaimCheckRequest{TenantID: p.TenantID, RequestID: body.ReviewRequestID, HospitalID: body.HospitalID, PatientID: body.PatientID, Subject: p.Subject})
+	current, err := h.claims.Current(ctx, mediconnectcontract.ClaimCheckRequest{TenantID: p.TenantID, RequestID: body.ReviewRequestID, HospitalID: body.HospitalID, PatientID: body.PatientID, Subject: p.Subject, Relationship: clinicalClaimRelationship(body.AuthorityKind)})
 	if err != nil {
 		clinicalConsentError(c, errClinicalUnavailable)
 		return
@@ -324,7 +349,7 @@ func (h *patientHandlers) putClinicalConsent(c *gin.Context) {
 	}
 	created := false
 	err = h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
-		checked, err := h.clinicalSnapshot(tx, p, hospital, id, in, fingerprint)
+		checked, err := h.clinicalSnapshot(tx, p, hospital, id, in, fingerprint, proxy)
 		if err != nil {
 			return err
 		}
@@ -336,7 +361,13 @@ func (h *patientHandlers) putClinicalConsent(c *gin.Context) {
 		if !bytes.Equal(comparable, payload) {
 			return errClinicalConflict
 		}
-		result := tx.Exec(`INSERT INTO patient_clinical_consents(tenant_id,hospital_id,id,patient_id,subject,authority_id,review_request_id,notice_id,recipient_id,purpose,fingerprint,body,hmac,valid_until,captured_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`, p.TenantID, hospital, id, body.PatientID, p.Subject, in.AuthorityID, body.ReviewRequestID, in.NoticeID, in.RecipientID, in.Purpose, fingerprint, string(payload), signature, in.ValidUntil, body.CapturedAt)
+		var selfAuthority, proxyAuthority any
+		if proxy {
+			proxyAuthority = in.AuthorityID
+		} else {
+			selfAuthority = in.AuthorityID
+		}
+		result := tx.Exec(`INSERT INTO patient_clinical_consents(tenant_id,hospital_id,id,patient_id,subject,authority_id,proxy_authority_id,review_request_id,notice_id,recipient_id,purpose,fingerprint,body,hmac,valid_until,captured_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`, p.TenantID, hospital, id, body.PatientID, p.Subject, selfAuthority, proxyAuthority, body.ReviewRequestID, in.NoticeID, in.RecipientID, in.Purpose, fingerprint, string(payload), signature, in.ValidUntil, body.CapturedAt)
 		if result.Error != nil {
 			return result.Error
 		}
@@ -347,7 +378,7 @@ func (h *patientHandlers) putClinicalConsent(c *gin.Context) {
 			}
 			return err
 		}
-		if row.Fingerprint != fingerprint {
+		if row.Fingerprint != fingerprint || row.IsProxy != proxy {
 			return errClinicalConflict
 		}
 		if created {
@@ -480,6 +511,9 @@ func readRecipientClinicalConsent(tx *gorm.DB, p authn.Principal, hospital uuid.
 	return tx.Select(clinicalConsentColumns).Where(`tenant_id=? AND hospital_id=? AND id=? AND EXISTS(SELECT 1 FROM patient_sharing_recipients r WHERE r.tenant_id=patient_clinical_consents.tenant_id AND r.hospital_id=patient_clinical_consents.hospital_id AND r.id=patient_clinical_consents.recipient_id AND r.grantee_subject=?)`, p.TenantID, hospital, id, p.Subject).Take(row).Error
 }
 func clinicalRecipientState(tx *gorm.DB, p authn.Principal, row clinicalConsent, body clinicalConsentBody) (bool, error) {
+	if row.IsProxy {
+		return clinicalProxyRecipientState(tx, p, row, body)
+	}
 	var count int64
 	err := tx.Raw(`SELECT count(*) FROM patient_consent_authorities a
  JOIN patient_link_reviews r ON r.tenant_id=a.tenant_id AND r.request_id=a.review_request_id
@@ -491,7 +525,7 @@ func clinicalRecipientState(tx *gorm.DB, p authn.Principal, row clinicalConsent,
  AND a.decision_id=? AND a.registration_updated_at=? AND p.updated_at=a.registration_updated_at
  AND r.status='approved' AND r.decision_id=a.decision_id AND r.relationship='self'
  AND r.confirmed_patient_id=a.patient_id AND r.requester_subject=a.subject AND r.registration_updated_at=a.registration_updated_at
- AND n.status='approved' AND n.version=? AND n.content_hash=?
+ AND n.status='approved' AND n.authority_kind='' AND n.version=? AND n.content_hash=?
  AND g.status='approved' AND g.version=? AND g.grantee_subject=? AND g.valid_until>clock_timestamp()`, row.NoticeID, row.RecipientID, p.TenantID, row.HospitalID, row.AuthorityID, row.Subject, row.PatientID, body.AuthorityVersion, body.DecisionID, body.RegistrationUpdatedAt, body.NoticeVersion, body.NoticeHash, body.RecipientVersion, p.Subject).Scan(&count).Error
 	return count == 1, err
 }
@@ -556,7 +590,7 @@ func (h *patientHandlers) decideClinicalConsent(c *gin.Context) {
 				clinicalConsentError(c, errClinicalUnavailable)
 				return
 			}
-			current, err := h.claims.Current(ctx, mediconnectcontract.ClaimCheckRequest{TenantID: p.TenantID, RequestID: body.ReviewRequestID, HospitalID: body.HospitalID, PatientID: body.PatientID, Subject: body.Subject})
+			current, err := h.claims.Current(ctx, mediconnectcontract.ClaimCheckRequest{TenantID: p.TenantID, RequestID: body.ReviewRequestID, HospitalID: body.HospitalID, PatientID: body.PatientID, Subject: body.Subject, Relationship: clinicalClaimRelationship(body.AuthorityKind)})
 			if err != nil {
 				clinicalConsentError(c, errClinicalUnavailable)
 				return

@@ -2,11 +2,12 @@ package contract
 
 // ClaimCheckRequest is a private owner-to-owner lookup, never an event payload.
 type ClaimCheckRequest struct {
-	TenantID   string `json:"tenant_id"`
-	RequestID  string `json:"request_id"`
-	HospitalID string `json:"hospital_id"`
-	PatientID  string `json:"patient_id"`
-	Subject    string `json:"subject"`
+	Relationship string `json:"relationship,omitempty"`
+	TenantID     string `json:"tenant_id"`
+	RequestID    string `json:"request_id"`
+	HospitalID   string `json:"hospital_id"`
+	PatientID    string `json:"patient_id"`
+	Subject      string `json:"subject"`
 }
 
 // ClaimCheckResponse observes current intake state and confers no clinical authority.

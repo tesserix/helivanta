@@ -29,6 +29,7 @@ type Config struct {
 	DocumentWorkerDatabaseURL          string
 	EmergencyWorkerDatabaseURL         string
 	PrivacyWorkerDatabaseURL           string
+	ProxyClinicalCaptureEnabled        bool
 	PrivacyDeadlinesEnabled            bool
 	EmergencyDispatchEnabled           bool
 	EmergencyWorkflowsEnabled          bool
@@ -244,6 +245,7 @@ func Load() Config {
 		DocumentWorkerDatabaseURL:          os.Getenv("DOCUMENT_WORKER_DATABASE_URL"),
 		EmergencyWorkerDatabaseURL:         os.Getenv("EMERGENCY_WORKER_DATABASE_URL"),
 		PrivacyWorkerDatabaseURL:           os.Getenv("PRIVACY_WORKER_DATABASE_URL"),
+		ProxyClinicalCaptureEnabled:        os.Getenv("PATIENTMASTER_PROXY_CLINICAL_CAPTURE_ENABLED") == "true",
 		PrivacyDeadlinesEnabled:            os.Getenv("PRIVACY_DEADLINES_ENABLED") == "true",
 		EmergencyDispatchEnabled:           os.Getenv("EMERGENCY_DISPATCH_ENABLED") == "true",
 		EmergencyWorkflowsEnabled:          os.Getenv("EMERGENCY_WORKFLOWS_ENABLED") == "true" || os.Getenv("EMERGENCY_DISPATCH_ENABLED") == "true",

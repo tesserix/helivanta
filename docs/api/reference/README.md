@@ -487,8 +487,11 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 | GET | `/v1/patients/my/consent-authorities` | `public` | true | false |
 | POST | `/v1/patients/my/proxy-authorities/:authority/accept` | `public` | false | false |
 | POST | `/v1/patients/my/proxy-authorities/:authority/revoke` | `public` | false | false |
+| GET | `/v1/patients/my/proxy-authorities/:authority/sharing-notices` | `public` | true | false |
+| GET | `/v1/patients/my/proxy-authorities/:authority/sharing-recipients` | `public` | true | false |
 | GET | `/v1/patients/my/proxy-authorities/:authority` | `public` | false | false |
 | GET | `/v1/patients/my/proxy-authorities` | `public` | true | false |
+| PUT | `/v1/patients/my/proxy-clinical-consents/:consent` | `public` | false | false |
 | POST | `/v1/patients/proxy-authorities/:authority/revoke` | `patient.proxy-authority.review` | false | false |
 | GET | `/v1/patients/proxy-authorities/:authority` | `patient.proxy-authority.review` | false | false |
 | PUT | `/v1/patients/proxy-authorities/:authority` | `patient.proxy-authority.review` | false | false |
@@ -529,6 +532,8 @@ Migration table declarations:
 - `0007_patientmaster`: `patient_sharing_notices`.
 - `0008_patientmaster`: `patient_sharing_recipients`, `patient_clinical_consents`, `patient_clinical_consent_decisions`, `patient_clinical_integrity_incidents`.
 - `0009_patientmaster`: `patient_proxy_authorities`.
+- `0011_patientmaster`: concurrent index `patient_clinical_consent_proxy_authority` on `patient_clinical_consents (tenant_id, proxy_authority_id)`.
+- `0011_patientmaster`: concurrent index `patient_sharing_notice_capacity_page` on `patient_sharing_notices (tenant_id, hospital_id, authority_kind, status, purpose, created_at DESC, id DESC)`.
 
 ## workforce
 

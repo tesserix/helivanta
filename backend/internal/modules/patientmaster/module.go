@@ -44,6 +44,9 @@ var consentAuthoritySchema string
 //go:embed proxy_authority.sql
 var proxyAuthoritySchema string
 
+//go:embed proxy_clinical_consent.sql
+var proxyClinicalConsentSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -221,15 +224,21 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  AFTER INSERT ON patients
 			  DEFERRABLE INITIALLY DEFERRED
 			  FOR EACH ROW EXECUTE FUNCTION patients_require_consent();`,
-	}, {ID: "0003_patientmaster", SQL: hospitalSchema}, {ID: "0004_patientmaster", SQL: bloodGroupSchema}, {ID: "0005_patientmaster", SQL: linkReviewSchema}, {ID: "0006_patientmaster", SQL: consentAuthoritySchema}, {ID: "0007_patientmaster", SQL: sharingNoticeSchema}, {ID: "0008_patientmaster", SQL: sharingConsentSchema}, {ID: "0009_patientmaster", SQL: proxyAuthoritySchema}}
+	}, {ID: "0003_patientmaster", SQL: hospitalSchema}, {ID: "0004_patientmaster", SQL: bloodGroupSchema}, {ID: "0005_patientmaster", SQL: linkReviewSchema}, {ID: "0006_patientmaster", SQL: consentAuthoritySchema}, {ID: "0007_patientmaster", SQL: sharingNoticeSchema}, {ID: "0008_patientmaster", SQL: sharingConsentSchema}, {ID: "0009_patientmaster", SQL: proxyAuthoritySchema},
+		{ID: "0010_patientmaster", SQL: proxyClinicalConsentSchema},
+		{ID: "0011_patientmaster", ConcurrentIndexes: []tenantdb.ConcurrentIndex{
+			{Name: "patient_clinical_consent_proxy_authority", Table: "patient_clinical_consents", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "proxy_authority_id"}}},
+			{Name: "patient_sharing_notice_capacity_page", Table: "patient_sharing_notices", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "hospital_id"}, {Name: "authority_kind"}, {Name: "status"}, {Name: "purpose"}, {Name: "created_at", Descending: true}, {Name: "id", Descending: true}}},
+		}}}
 }
 
 // Routes mounts registration (spec D4/D5), single lookup, and the
 // tenant's paginated patient list.
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/patients")
-	patients := &patientHandlers{db: deps.DB, bus: deps.Bus, transit: deps.Transit, claims: deps.CurrentClaims}
+	patients := &patientHandlers{proxyClinicalCaptureEnabled: deps.ProxyClinicalCaptureEnabled, db: deps.DB, bus: deps.Bus, transit: deps.Transit, claims: deps.CurrentClaims}
 	g.POST("", PermPatientRegister, patients.register)
+	g.PUT("/my/proxy-clinical-consents/:consent", authz.Public, patients.putProxyClinicalConsent)
 	g.PUT("/proxy-authorities/:authority", PermProxyAuthorityReview, patients.proposeProxyAuthority)
 	g.GET("/proxy-authorities/:authority", PermProxyAuthorityReview, patients.getReviewedProxyAuthority)
 	g.POST("/proxy-authorities/:authority/revoke", PermProxyAuthorityReview, patients.revokeReviewedProxyAuthority)
@@ -239,6 +248,8 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.POST("/my/proxy-authorities/:authority/revoke", authz.Public, patients.revokeMyProxyAuthority)
 	platform.ListRoute(g, "/my/consent-authorities/:authority/sharing-notices", authz.Public, patients.listClinicalNotices)
 	platform.ListRoute(g, "/my/consent-authorities/:authority/sharing-recipients", authz.Public, patients.listClinicalRecipients)
+	platform.ListRoute(g, "/my/proxy-authorities/:authority/sharing-notices", authz.Public, patients.listProxyClinicalNotices)
+	platform.ListRoute(g, "/my/proxy-authorities/:authority/sharing-recipients", authz.Public, patients.listProxyClinicalRecipients)
 	platform.ListRoute(g, "/my/clinical-consents", authz.Public, patients.listMyClinicalConsents)
 	g.PUT("/my/clinical-consents/:consent", authz.Public, patients.putClinicalConsent)
 	g.GET("/my/clinical-consents/:consent", authz.Public, patients.getClinicalConsent)

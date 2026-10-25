@@ -24,6 +24,8 @@
 - Protected synthetic QA JSON credentials completed fresh Zitadel PKCE and Global
   API session exchange for the expected tenant. Sixteen live tenant-precondition
   checks passed without rejected-command domain audit side effects.
-- The broader backend race/coverage gate is still pending. The new registry is
-  undeployed; these checks do not establish complete proxy consent,
+- Full backend `GOFLAGS='-p=2 -timeout=20m' ./scripts/coverage-gate.sh` passed
+  (race-enabled, no failures): patientmaster 79.3%, MediConnect 85.9%, pharmacy
+  88.1%, workforce 83.8%, IAM 80.6%. The new registry is undeployed; these checks
+  do not establish complete proxy consent,
   record disclosure, booking/reminders or approved real notice publication.

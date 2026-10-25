@@ -1,5 +1,29 @@
 # MediConnect delivery and issue evidence
 
+## Guardian registry under review — 2026-10-26
+
+[PR #1337](https://github.com/tesserix/helivanta/pull/1337) adds a separate reviewed
+parental/appointed-guardian authority registry through Global API, without changing
+self-authority semantics or granting clinical access. All responses explicitly
+retain `record_access_authorized:false`. The code includes additive migration
+`0009_patientmaster`, exact tenant/hospital/subject isolation, attributable review,
+acceptance/revocation, bounded history and audit/outbox atomicity.
+
+The complete local backend race/coverage gate passed: patientmaster 79.3%,
+MediConnect 85.9%, pharmacy 88.1%, workforce 83.8%, IAM 80.6%. Build, vet, lint
+(zero issues), contract generation/check, formatting and redacted secret scan
+passed. An existing clinical-consent allow assertion caught a draft policy
+omission; preserving its recipient predicate fixed the regression. Full
+patientmaster and an independent race run subsequently passed. Fresh synthetic
+Zitadel PKCE/Global API login and sixteen live tenant-precondition checks passed
+on the existing deployed release; those checks do not prove deployed guardian
+behavior. PR CI, production migration/release and synthetic registry verification
+remain pending.
+
+#552/#60/#556 remain open. Signed proxy clinical consent, adult delegation, family
+profiles, actual authorized clinical release, booking/reminders and approved real
+notice content remain unfinished. No clinical or legal readiness is claimed.
+
 ## Current verified release — 2026-10-26 Melbourne
 
 Application [#1333](https://github.com/tesserix/helivanta/pull/1333) deployed

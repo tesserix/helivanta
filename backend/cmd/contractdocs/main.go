@@ -40,9 +40,10 @@ type subscription struct {
 }
 
 type migration struct {
-	ID     string   `json:"id"`
-	SHA256 string   `json:"sql_sha256"`
-	Tables []string `json:"creates_tables"`
+	ID                string                     `json:"id"`
+	SHA256            string                     `json:"sql_sha256"`
+	Tables            []string                   `json:"creates_tables"`
+	ConcurrentIndexes []tenantdb.ConcurrentIndex `json:"concurrent_indexes,omitempty"`
 }
 
 type grant struct {
@@ -88,7 +89,7 @@ func migrations(items []tenantdb.Migration) []migration {
 		for _, match := range createTable.FindAllStringSubmatch(item.SQL, -1) {
 			tables = append(tables, match[1])
 		}
-		out = append(out, migration{ID: item.ID, SHA256: fmt.Sprintf("%x", sha256.Sum256([]byte(item.SQL))), Tables: tables})
+		out = append(out, migration{ID: item.ID, SHA256: fmt.Sprintf("%x", sha256.Sum256([]byte(item.SQL))), Tables: tables, ConcurrentIndexes: item.ConcurrentIndexes})
 	}
 	return out
 }
@@ -181,6 +182,17 @@ func writeTables(b *strings.Builder, items []migration) {
 	for _, m := range items {
 		if len(m.Tables) > 0 {
 			fmt.Fprintf(b, "- `%s`: `%s`.\n", m.ID, strings.Join(m.Tables, "`, `"))
+		}
+		for _, index := range m.ConcurrentIndexes {
+			keys := make([]string, 0, len(index.Columns))
+			for _, column := range index.Columns {
+				key := column.Name
+				if column.Descending {
+					key += " DESC"
+				}
+				keys = append(keys, key)
+			}
+			fmt.Fprintf(b, "- `%s`: concurrent index `%s` on `%s (%s)`.\n", m.ID, index.Name, index.Table, strings.Join(keys, ", "))
 		}
 	}
 }

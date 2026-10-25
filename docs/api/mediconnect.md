@@ -654,3 +654,42 @@ recheck the live claim, current registry, approved purpose/notice and its own
 authorization. This registry has no notification or disclosure consumer.
 
 See [design and remaining acceptance](../superpowers/specs/2026-10-26-mediconnect-proxy-authorities.md).
+
+## Proxy clinical-sharing declaration work in progress
+
+The proxy-consent worktree extends the existing patientmaster clinical ledger;
+it is not deployed or a completed proxy/clinical-release story. New capture is
+`PUT /v1/patients/my/proxy-clinical-consents/:consent` with the existing clinical
+grant input and explicit hospital scope. Existing canonical history, receipt,
+withdrawal and exact-recipient `/clinical-consents/:consent/decide` routes serve
+both classes. Proxy responses include `authority_kind` (`parental` or
+`appointed_guardian`); signed proxy bodies use schema v2. Retained self v1 bytes
+and the omitted relationship field in self owner requests remain unchanged.
+
+Approved notice content gains optional immutable `authority_kind`; omission means
+self. A proxy declaration must use approved wording matching its reviewed capacity.
+The owner catalogs are bounded lists at
+`/v1/patients/my/proxy-authorities/:authority/sharing-notices` and
+`/v1/patients/my/proxy-authorities/:authority/sharing-recipients`. The first only
+returns approved notices matching the authority kind. Reviewer and approver remain
+independent; country metadata and draft wording do not activate legal policy.
+
+`PATIENTMASTER_PROXY_CLINICAL_CAPTURE_ENABLED` defaults to false. Disabled capture
+returns 503 `proxy_clinical_capture_disabled` for new commands; retained canonical
+reads, withdrawal and exact replay remain available. Capacity-specific notice
+approval is still required per tenant/hospital. Enable writes only after owner and
+reader replicas support schema v2; rollback keeps a compatible reader with writes
+disabled. A self-v1-only binary can misclassify retained proxy receipts and is an
+unsafe rollback target after activation.
+
+The authenticated owner check accepts an optional exact relationship: omitted
+means self, explicit child/ward binds guardian checks. This private no-cache lookup
+is not a consent grant. Capture and recipient decisions freshly recheck owner
+claim, current registration, accepted authority, notice and recipient. Parental DOB
+and estimated-status changes invalidate the gate even if a bad integration failed
+to update the registration version. Source revocation denies new use; independent
+withdrawal and immutable incident history remain available during dependency outage.
+No decision releases records: `record_access_authorized` remains false.
+
+Migration/index rollout, complete regression/CI and deployed synthetic verification
+remain release gates. See the [design](../superpowers/specs/2026-10-26-mediconnect-proxy-clinical-consent.md).

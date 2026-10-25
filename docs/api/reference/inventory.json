@@ -3334,6 +3334,24 @@
         },
         {
           "method": "GET",
+          "path": "/v1/patients/my/proxy-authorities/:authority/sharing-notices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/proxy-authorities/:authority/sharing-recipients",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/patients/my/proxy-authorities/:authority",
           "permission": "public",
           "authentication_required": true,
@@ -3348,6 +3366,15 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/patients/my/proxy-clinical-consents/:consent",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {
@@ -3607,6 +3634,66 @@
           "sql_sha256": "a1bec562e0a093f8831cb4aea82198bc68ff614d94f239c838a1be34fb6ccc1f",
           "creates_tables": [
             "patient_proxy_authorities"
+          ]
+        },
+        {
+          "id": "0010_patientmaster",
+          "sql_sha256": "62488e5bae60674d4ab89c79f79e9d35d474de071ae515e29a10d8525f6501ab",
+          "creates_tables": []
+        },
+        {
+          "id": "0011_patientmaster",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "patient_clinical_consent_proxy_authority",
+              "table": "patient_clinical_consents",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "proxy_authority_id",
+                  "descending": false
+                }
+              ]
+            },
+            {
+              "name": "patient_sharing_notice_capacity_page",
+              "table": "patient_sharing_notices",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "authority_kind",
+                  "descending": false
+                },
+                {
+                  "name": "status",
+                  "descending": false
+                },
+                {
+                  "name": "purpose",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
           ]
         }
       ]

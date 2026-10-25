@@ -24,6 +24,7 @@ import (
 
 // SharingNoticeContent pins wording and its reviewed policy reference.
 type SharingNoticeContent struct {
+	AuthorityKind         string `json:"authority_kind,omitempty"`
 	Purpose               string `json:"purpose"`
 	Locale                string `json:"locale"`
 	VersionLabel          string `json:"version_label"`
@@ -38,7 +39,7 @@ func (in SharingNoticeContent) valid() bool {
 	text := func(s string, max int) bool {
 		return utf8.ValidString(s) && strings.TrimSpace(s) != "" && len(s) <= max && !strings.ContainsRune(s, 0)
 	}
-	return in.Purpose == "care_coordination" && err == nil && locale.String() == in.Locale && len(in.Locale) >= 2 && len(in.Locale) <= 35 && text(in.VersionLabel, 64) && text(in.Title, 200) && text(in.Text, 4096) && text(in.WithdrawalConsequence, 1024) && validReviewUUID(in.PolicyReference, true)
+	return (in.AuthorityKind == "" || in.AuthorityKind == "parental" || in.AuthorityKind == "appointed_guardian") && in.Purpose == "care_coordination" && err == nil && locale.String() == in.Locale && len(in.Locale) >= 2 && len(in.Locale) <= 35 && text(in.VersionLabel, 64) && text(in.Title, 200) && text(in.Text, 4096) && text(in.WithdrawalConsequence, 1024) && validReviewUUID(in.PolicyReference, true)
 }
 
 type sharingNotice struct {
@@ -59,7 +60,7 @@ type sharingNotice struct {
 
 func (sharingNotice) TableName() string { return "patient_sharing_notices" }
 
-const sharingNoticeColumns = "id,hospital_id,purpose,locale,version_label,title,text,withdrawal_consequence,policy_reference,content_hash,creator_subject,reviewer_subject,review_reference,status,version,approved_at,retired_at,created_at,updated_at"
+const sharingNoticeColumns = "id,hospital_id,authority_kind,purpose,locale,version_label,title,text,withdrawal_consequence,policy_reference,content_hash,creator_subject,reviewer_subject,review_reference,status,version,approved_at,retired_at,created_at,updated_at"
 
 func readSharingNotice(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, id string, row *sharingNotice) error {
 	return tx.Select(sharingNoticeColumns).Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, id).Take(row).Error
@@ -108,7 +109,7 @@ func (h *patientHandlers) putSharingNotice(c *gin.Context) {
 		if err := tx.Exec(`SELECT set_config('app.actor_subject',?,true)`, p.Subject).Error; err != nil {
 			return err
 		}
-		result := tx.Exec(`INSERT INTO patient_sharing_notices(tenant_id,hospital_id,id,purpose,locale,version_label,title,text,withdrawal_consequence,policy_reference,content_hash,creator_subject) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`, p.TenantID, hospital, c.Param("notice"), in.Purpose, in.Locale, in.VersionLabel, in.Title, in.Text, in.WithdrawalConsequence, in.PolicyReference, hash, p.Subject)
+		result := tx.Exec(`INSERT INTO patient_sharing_notices(tenant_id,hospital_id,id,authority_kind,purpose,locale,version_label,title,text,withdrawal_consequence,policy_reference,content_hash,creator_subject) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`, p.TenantID, hospital, c.Param("notice"), in.AuthorityKind, in.Purpose, in.Locale, in.VersionLabel, in.Title, in.Text, in.WithdrawalConsequence, in.PolicyReference, hash, p.Subject)
 		if result.Error != nil {
 			return result.Error
 		}

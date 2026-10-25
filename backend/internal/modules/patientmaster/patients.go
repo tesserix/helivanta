@@ -177,10 +177,11 @@ type registerRequest struct {
 }
 
 type patientHandlers struct {
-	db      *tenantdb.DB
-	bus     *events.Bus
-	transit *transit.Client
-	claims  *mediconnectclaims.Client
+	proxyClinicalCaptureEnabled bool
+	db                          *tenantdb.DB
+	bus                         *events.Bus
+	transit                     *transit.Client
+	claims                      *mediconnectclaims.Client
 }
 
 // possibleMatch is the wire shape of one Possible-band candidate offered

@@ -201,34 +201,6 @@ func (d *DB) PingContext(ctx context.Context) error {
 	return sqlDB.PingContext(ctx)
 }
 
-// Migrate applies migrations in order, once each, on the admin pool.
-func (d *DB) Migrate(ctx context.Context, migs []Migration) error {
-	if d.admin == nil {
-		return errNoSchemaPool
-	}
-	if err := d.admin.WithContext(ctx).Exec(
-		`CREATE TABLE IF NOT EXISTS schema_migrations (id text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`,
-	).Error; err != nil {
-		return err
-	}
-	for _, m := range migs {
-		err := d.admin.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			res := tx.Exec(`INSERT INTO schema_migrations (id) VALUES (?) ON CONFLICT DO NOTHING`, m.ID)
-			if res.Error != nil {
-				return res.Error
-			}
-			if res.RowsAffected == 0 {
-				return nil // already applied
-			}
-			return tx.Exec(m.SQL).Error
-		})
-		if err != nil {
-			return fmt.Errorf("migration %s: %w", m.ID, err)
-		}
-	}
-	return nil
-}
-
 // WithTenant is the single runtime data path. The tenant GUC is set
 // with set_config(..., true) so it is transaction-local; an unset GUC
 // makes every RLS policy evaluate NULL → zero rows (issue #2).

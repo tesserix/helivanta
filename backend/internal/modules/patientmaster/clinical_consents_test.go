@@ -46,6 +46,13 @@ type clinicalFixture struct {
 }
 
 func newClinicalFixture(t *testing.T) clinicalFixture {
+	return newClinicalFixtureForCapacity(t, "")
+}
+
+func newClinicalFixtureForCapacity(t *testing.T, capacity string) clinicalFixture {
+	return newClinicalFixtureWithCapture(t, capacity, capacity != "")
+}
+func newClinicalFixtureWithCapture(t *testing.T, capacity string, enabled bool) clinicalFixture {
 	t.Helper()
 	addr, root := testinfra.StartOpenBao(t)
 	policy, err := json.Marshal(map[string]string{"policy": testinfra.ClinicalConsentTransitPolicy})
@@ -108,7 +115,7 @@ func newClinicalFixture(t *testing.T) clinicalFixture {
 	require.NoError(t, os.WriteFile(token, []byte("projected-clinical-owner"), 0600))
 	claims, err := mediconnectclaims.New(source.URL, token, "", source.Client())
 	require.NoError(t, err)
-	reviewer := []authz.Permission{patientmaster.PermPatientRead, patientmaster.PermPatientRegister, patientmaster.PermConsentAuthorityReview, patientmaster.PermSharingNoticeReview, patientmaster.PermSharingRecipientReview}
+	reviewer := []authz.Permission{patientmaster.PermProxyAuthorityReview, patientmaster.PermPatientRead, patientmaster.PermPatientRegister, patientmaster.PermConsentAuthorityReview, patientmaster.PermSharingNoticeReview, patientmaster.PermSharingRecipientReview}
 	var claimModule platform.Module
 	for _, candidate := range bootstrap.Modules(nil, nil) {
 		if candidate.Name() == "mediconnect" {
@@ -116,21 +123,37 @@ func newClinicalFixture(t *testing.T) clinicalFixture {
 		}
 	}
 	require.NotNil(t, claimModule)
-	r, db, bus, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"owner": testutil.TenantA, "reviewer": testutil.TenantA, "approver": testutil.TenantA, "recipient": testutil.TenantA, "peer": testutil.TenantA, "foreign": testutil.TenantB}, Perms: map[string][]authz.Permission{"reviewer": reviewer, "approver": {patientmaster.PermSharingNoticeReview, patientmaster.PermSharingRecipientReview}}, Modules: []platform.Module{patientmaster.New(), claimModule}, Transit: crypto, CurrentClaims: claims})
+	r, db, bus, ctx := testutil.NewHarness(t, testutil.HarnessOptions{ProxyClinicalCaptureEnabled: enabled, Tokens: map[string]string{"owner": testutil.TenantA, "reviewer": testutil.TenantA, "approver": testutil.TenantA, "recipient": testutil.TenantA, "peer": testutil.TenantA, "foreign": testutil.TenantB}, Perms: map[string][]authz.Permission{"owner": {patientmaster.PermPatientRead}, "recipient": {patientmaster.PermPatientRead}, "reviewer": reviewer, "approver": {patientmaster.PermSharingNoticeReview, patientmaster.PermSharingRecipientReview}}, Modules: []platform.Module{patientmaster.New(), claimModule}, Transit: crypto, CurrentClaims: claims})
 	internal := gin.New()
 	internal.POST(mediconnectcontract.CurrentClaimPath, testutil.MediConnectClaimHandler(db, workload))
 	owner.Store(internal)
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO patient_hospital_access(tenant_id,hospital_id,subject,level) VALUES (?,?,'user-reviewer','registrar'),(?,?,'user-approver','registrar')`, testutil.TenantA, testHospital, testutil.TenantA, testHospital).Error
 	}))
-	patient := scopedDo(r, "POST", "/v1/patients", "reviewer", registerBody("SyntheticClinical", "Subject", "1990-01-01", "", false, ""))
+	dob, relationship := "1990-01-01", "self"
+	if capacity == "parental" {
+		dob, relationship = "2018-01-01", "child"
+	}
+	if capacity == "appointed_guardian" {
+		relationship = "ward"
+	}
+	registration := registerBody("SyntheticClinical", "Subject", dob, "", false, "")
+	if capacity != "" {
+		var fields map[string]any
+		require.NoError(t, json.Unmarshal([]byte(registration), &fields))
+		fields["consented_by"], fields["guardian_name"], fields["guardian_relationship"] = "guardian", "Synthetic Guardian", "parent"
+		encoded, err := json.Marshal(fields)
+		require.NoError(t, err)
+		registration = string(encoded)
+	}
+	patient := scopedDo(r, "POST", "/v1/patients", "reviewer", registration)
 	require.Equal(t, 201, patient.Code, patient.Body.String())
 	patientID := registeredID(t, patient)
 	account := testutil.Do(r, "POST", "/v1/mediconnect/account", "owner", "{}")
 	require.Equal(t, 201, account.Code, account.Body.String())
 	requestID := uuid.Must(uuid.NewV7()).String()
 	path := "/v1/mediconnect/account/link-requests/" + requestID
-	require.Equal(t, 202, testutil.Do(r, "PUT", path, "owner", fmt.Sprintf(`{"hospital_id":%q,"patient_id":%q,"relationship":"self"}`, testHospital, patientID)).Code)
+	require.Equal(t, 202, testutil.Do(r, "PUT", path, "owner", fmt.Sprintf(`{"hospital_id":%q,"patient_id":%q,"relationship":%q}`, testHospital, patientID, relationship)).Code)
 	require.Equal(t, 202, testutil.Do(r, "POST", path+"/review", "owner", `{"expected_version":1}`).Code)
 	consumers := append(patientmaster.New().Consumers(platform.Deps{}), claimModule.Consumers(platform.Deps{})...)
 	background, cancel := context.WithCancel(ctx)
@@ -147,13 +170,28 @@ func newClinicalFixture(t *testing.T) clinicalFixture {
 	authorityID := uuid.Must(uuid.NewV7()).String()
 	until := time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond)
 	authority := fmt.Sprintf(`{"review_request_id":%q,"expected_decision_id":%q,"capacity_confirmed":true,"policy_reference":%q,"evidence_reference":%q,"valid_until":%q}`, requestID, decisionID, uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String(), until.Format(time.RFC3339Nano))
-	proposedAuthority := scopedDo(r, "PUT", "/v1/patients/consent-authorities/"+authorityID, "reviewer", authority)
+	authorityRoute := "consent-authorities"
+	if capacity != "" {
+		authorityRoute = "proxy-authorities"
+		input := map[string]any{"kind": capacity, "country_code": "IN", "review_request_id": requestID, "expected_decision_id": decisionID, "policy_reference": uuid.Must(uuid.NewV7()).String(), "identity_age_reference": uuid.Must(uuid.NewV7()).String(), "authority_evidence_reference": uuid.Must(uuid.NewV7()).String(), "identity_age_confirmed": true, "authority_confirmed": true, "valid_until": until.Format(time.RFC3339Nano)}
+		if capacity == "appointed_guardian" {
+			input["appointment_reference"] = uuid.Must(uuid.NewV7()).String()
+		}
+		authority = proxyJSON(t, input)
+	}
+	proposedAuthority := scopedDo(r, "PUT", "/v1/patients/"+authorityRoute+"/"+authorityID, "reviewer", authority)
 	require.Equal(t, 201, proposedAuthority.Code, proposedAuthority.Body.String())
-	accepted := scopedDo(r, "POST", "/v1/patients/my/consent-authorities/"+authorityID+"/accept", "owner", `{"expected_version":1,"accepted":true}`)
+	accepted := scopedDo(r, "POST", "/v1/patients/my/"+authorityRoute+"/"+authorityID+"/accept", "owner", `{"expected_version":1,"accepted":true}`)
 	require.Equal(t, 200, accepted.Code, accepted.Body.String())
 	noticeID := uuid.Must(uuid.NewV7()).String()
 	noticePath := "/v1/patients/sharing-notices/" + noticeID
 	notice := fmt.Sprintf(`{"purpose":"care_coordination","locale":"en-IN","version_label":"synthetic-1","title":"Synthetic sharing notice","text":"Synthetic test wording; not approved real policy.","withdrawal_consequence":"Synthetic test consequence.","policy_reference":%q}`, uuid.Must(uuid.NewV7()).String())
+	if capacity != "" {
+		var fields map[string]any
+		require.NoError(t, json.Unmarshal([]byte(notice), &fields))
+		fields["authority_kind"] = capacity
+		notice = proxyJSON(t, fields)
+	}
 	require.Equal(t, 201, scopedDo(r, "PUT", noticePath, "reviewer", notice).Code)
 	approved := scopedDo(r, "POST", noticePath+"/approve", "approver", fmt.Sprintf(`{"expected_version":1,"review_reference":%q}`, uuid.Must(uuid.NewV7()).String()))
 	require.Equal(t, 200, approved.Code, approved.Body.String())

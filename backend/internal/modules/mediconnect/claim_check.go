@@ -35,10 +35,10 @@ func validClaimCheck(in mediconnectcontract.ClaimCheckRequest) bool {
 		}
 	}
 	id, _ := uuid.Parse(in.RequestID)
-	return id.Version() == 7 && id.Variant() == uuid.RFC4122 && len(in.Subject) > 0 && len(in.Subject) <= 512 && strings.TrimSpace(in.Subject) == in.Subject && !strings.ContainsRune(in.Subject, 0)
+	return (in.Relationship == "" || in.Relationship == "self" || in.Relationship == "child" || in.Relationship == "ward") && id.Version() == 7 && id.Variant() == uuid.RFC4122 && len(in.Subject) > 0 && len(in.Subject) <= 512 && strings.TrimSpace(in.Subject) == in.Subject && !strings.ContainsRune(in.Subject, 0)
 }
 
-// NewClaimCheckHandler observes exact self-claim state for a separately authenticated owner.
+// NewClaimCheckHandler observes exact relationship-bound claim state for a separately authenticated owner.
 func NewClaimCheckHandler(deps platform.Deps, caller ClaimWorkloadVerifier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
@@ -78,12 +78,15 @@ func NewClaimCheckHandler(deps platform.Deps, caller ClaimWorkloadVerifier) gin.
 			respond.Error(c, 503, "claim_check_unavailable", "Current claim verification unavailable")
 			return
 		}
+		if in.Relationship == "" {
+			in.Relationship = "self"
+		}
 		var result mediconnectcontract.ClaimCheckResponse
 		err = deps.DB.WithTenant(ctx, in.TenantID, func(tx *gorm.DB) error {
 			if err := tx.Exec(`SELECT set_config('app.actor_subject','system:mediconnect-current-claim',true),set_config('app.mediconnect_claim_id',?,true),set_config('app.mediconnect_claim_subject',?,true),set_config('app.mediconnect_claim_hospital',?,true),set_config('app.mediconnect_claim_patient',?,true)`, in.RequestID, in.Subject, in.HospitalID, in.PatientID).Error; err != nil {
 				return err
 			}
-			if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM mediconnect_link_requests WHERE tenant_id=? AND id=? AND subject=? AND hospital_id=? AND patient_id=? AND relationship='self' AND status='pending_verification' AND withdrawn_at IS NULL)`, in.TenantID, in.RequestID, in.Subject, in.HospitalID, in.PatientID).Scan(&result.Current).Error; err != nil {
+			if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM mediconnect_link_requests WHERE tenant_id=? AND id=? AND subject=? AND hospital_id=? AND patient_id=? AND relationship=? AND status='pending_verification' AND withdrawn_at IS NULL)`, in.TenantID, in.RequestID, in.Subject, in.HospitalID, in.PatientID, in.Relationship).Scan(&result.Current).Error; err != nil {
 				return err
 			}
 			return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES (?,?,'current_claim_checked','mediconnect_link_requests',?)`, in.TenantID, caller.Subject(), in.RequestID).Error

@@ -24,6 +24,7 @@ import (
 // an entry is therefore a diff a reviewer sees and must justify, not a
 // pattern match that can silently start admitting a new field.
 var eventPayloadPHIAllowlist = map[string]string{
+	"mediconnect.ClaimCheckRequest.Relationship":          "exact relationship bound to patient/subject in workload-authenticated private owner HTTP only; never broadcast or logged",
 	"mediconnect.ClaimCheckRequest.Subject":               "exact owner-subject selection in workload-authenticated internal HTTP only; never published as an event",
 	"mediconnect.ClaimCheckRequest.PatientID":             "exact patient selection in workload-authenticated internal HTTP only; never published as an event",
 	"mediconnect.RegistrationReviewData.RequesterSubject": "opaque authenticated requester identity is required solely to reject registrar self-review across owners; no contact or identity evidence; restricted same-tenant consumer",
@@ -518,6 +519,7 @@ func TestEventPayloadPHIFieldsAreAllowlisted(t *testing.T) {
 // thing a reviewer's eye lands on.
 func TestEventPayloadPHIAllowlistIsPinnedExactly(t *testing.T) {
 	require.Equal(t, map[string]string{
+		"mediconnect.ClaimCheckRequest.Relationship":          "exact relationship bound to patient/subject in workload-authenticated private owner HTTP only; never broadcast or logged",
 		"mediconnect.ClaimCheckRequest.Subject":               "exact owner-subject selection in workload-authenticated internal HTTP only; never published as an event",
 		"mediconnect.ClaimCheckRequest.PatientID":             "exact patient selection in workload-authenticated internal HTTP only; never published as an event",
 		"mediconnect.RegistrationReviewData.RequesterSubject": "opaque authenticated requester identity is required solely to reject registrar self-review across owners; no contact or identity evidence; restricted same-tenant consumer",

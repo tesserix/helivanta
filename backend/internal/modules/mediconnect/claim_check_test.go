@@ -108,6 +108,14 @@ func TestCurrentClaimUsesLiveOwnerStateAfterWithdrawal(t *testing.T) {
 	proxy := send(strings.Replace(body, requestID, proxyID, 1), credential)
 	require.Equal(t, 200, proxy.Code, proxy.Body.String())
 	require.JSONEq(t, `{"current":false}`, proxy.Body.String())
+	explicitProxy := strings.TrimSuffix(strings.Replace(body, requestID, proxyID, 1), "}") + `,"relationship":"child"}`
+	require.JSONEq(t, `{"current":true}`, send(explicitProxy, credential).Body.String())
+	wrongKind := strings.Replace(explicitProxy, `"child"`, `"ward"`, 1)
+	require.JSONEq(t, `{"current":false}`, send(wrongKind, credential).Body.String())
+	require.JSONEq(t, `{"current":false}`, send(strings.TrimSuffix(body, "}")+`,"relationship":"child"}`, credential).Body.String())
+	for _, kind := range []string{"adult", "delegated", "SELF", " child "} {
+		require.Equal(t, 400, send(strings.TrimSuffix(body, "}")+`,"relationship":"`+kind+`"}`, credential).Code)
+	}
 	for _, invalid := range []string{
 		"null", "{}", body + " {}",
 		strings.TrimSuffix(body, "}") + `,"untrusted":true}`,

@@ -179,7 +179,7 @@ test("a page that is still loading keeps the chrome", async ({ page }) => {
     .getByRole("navigation", { name: "Zones" })
     .getByRole("link", { name: "PharmaConnect", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/pharmacy$/);
+  await expect(page).toHaveURL(/\/pharmacy(\?|$)/);
   expect(await chromeMarker(page), "a loading page remounted the chrome").toBe("same-node");
 
   release();

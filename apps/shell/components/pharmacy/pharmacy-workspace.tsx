@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
@@ -27,6 +27,7 @@ import {
   Panel,
   RequestFailure,
   SelectControl,
+  useConfirmLeave,
   useZodForm,
 } from "@helivanta/ui";
 import { CataloguePanel } from "./catalogue-panel";
@@ -75,7 +76,7 @@ const selectionSchema = z.object({
 function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: PharmacyView }) {
   const { can } = usePermissions();
   const storageKey = `helivanta:pharmacy:scope:${identity.tenant_id}`;
-  const [selection, setSelection] = useState(() => {
+  const [saved] = useState(() => {
     try {
       return selectionSchema.parse(JSON.parse(sessionStorage.getItem(storageKey) ?? "null"));
     } catch {
@@ -85,21 +86,37 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  function select(value: z.infer<typeof selectionSchema>) {
-    // A page and its cursor belong to one outlet's list: another outlet's
-    // list opens at its first page, keeping the tab and filters (#576).
-    if (params.has("page") || params.has("cursor")) {
-      const kept = new URLSearchParams(params);
-      kept.delete("page");
-      kept.delete("cursor");
-      router.replace(kept.size ? `${pathname}?${kept}` : pathname);
-    }
-    setSelection(value);
+  const leave = useConfirmLeave();
+  // The address first, so a shared link opens the outlet it was copied from
+  // (#1303 E8); then this tab's saved choice; then the first loaded.
+  const inAddress = (key: string) => {
+    const value = params.get(key) ?? "";
+    return z.string().guid().safeParse(value).success ? value : "";
+  };
+  const addressed = !!(inAddress("pharmacy") || inAddress("outlet"));
+  const selection = addressed
+    ? { pharmacyId: inAddress("pharmacy"), outletId: inAddress("outlet") }
+    : saved;
+  function remember(value: z.infer<typeof selectionSchema>) {
     try {
       sessionStorage.setItem(storageKey, JSON.stringify(value));
     } catch {
       /* Selection persistence is optional; every API request is authorised independently. */
     }
+  }
+  function select(value: z.infer<typeof selectionSchema>) {
+    // A page, its cursor and an open record belong to one outlet's list:
+    // another outlet's list opens at its first page with nothing open,
+    // keeping the tab and filters (#576, #1303 E8).
+    leave(() => {
+      const kept = new URLSearchParams(params);
+      for (const key of ["page", "cursor", "open", "new"]) kept.delete(key);
+      kept.set("pharmacy", value.pharmacyId);
+      if (value.outletId) kept.set("outlet", value.outletId);
+      else kept.delete("outlet");
+      router.replace(`${pathname}?${kept}`);
+      remember(value);
+    });
   }
   const pharmacies = useApiPagedQuery<PharmacyOrganization>(
     ["pharmacy", identity.tenant_id, "organizations"],
@@ -113,9 +130,26 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
     `/pharmacy/pharmacies/${pharmacy?.id ?? ""}/outlets`,
     { enabled: !!pharmacy },
   );
+  // An outlet asked for and not loaded stays unresolved: "Choose an outlet",
+  // never another outlet in its place. Fail closed, so an open record from
+  // one outlet is never looked up under another (#1303 E8).
   const outlet = selection.outletId
     ? outlets.items.find((row) => row.id === selection.outletId)
     : outlets.items[0];
+  // What resolved is written into the address, so a copied address always
+  // carries it, and saved as this tab's working outlet.
+  const resolved = pharmacy && outlet ? `${pharmacy.id}:${outlet.id}` : "";
+  useEffect(() => {
+    if (!pharmacy || !outlet) return;
+    remember({ pharmacyId: pharmacy.id, outletId: outlet.id });
+    if (params.get("pharmacy") === pharmacy.id && params.get("outlet") === outlet.id) return;
+    const kept = new URLSearchParams(params);
+    kept.set("pharmacy", pharmacy.id);
+    kept.set("outlet", outlet.id);
+    router.replace(`${pathname}?${kept}`);
+    // resolved stands for the pair; params and pathname are read as they are now.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolved]);
   return (
     <>
       <PageHeading

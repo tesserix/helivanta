@@ -105,3 +105,31 @@ export async function addBill(page: Page, outlet: string, reference: string, due
     ],
   });
 }
+
+/**
+ * The address is a list at `path` with `params`, wherever its scope is: outlet
+ * pages also carry `pharmacy` and `outlet` (#1303 E8). `open` and `new` are
+ * absent unless `open` is asked for.
+ */
+export async function expectList(
+  page: Page,
+  path: string,
+  params: Record<string, string>,
+  { open = false }: { open?: boolean } = {},
+) {
+  await expect
+    .poll(
+      () => {
+        const url = new URL(page.url());
+        const search = url.searchParams;
+        return (
+          url.pathname === path &&
+          Object.entries(params).every(([key, value]) => search.get(key) === value) &&
+          search.has("open") === open &&
+          !search.has("new")
+        );
+      },
+      { message: `${path} with ${JSON.stringify(params)}${open ? " and a record open" : ""}` },
+    )
+    .toBe(true);
+}

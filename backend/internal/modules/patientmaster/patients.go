@@ -245,7 +245,7 @@ func (h *patientHandlers) register(c *gin.Context) {
 	if !scoped {
 		return
 	}
-	principal, tenantUUID, ok := authn.TenantPrincipal(c)
+	principal, tenantUUID, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -597,7 +597,7 @@ func (h *patientHandlers) get(c *gin.Context) {
 	if !scoped {
 		return
 	}
-	principal, _, ok := authn.TenantPrincipal(c)
+	principal, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -651,7 +651,7 @@ func (h *patientHandlers) list(c *gin.Context, p pagination.Params) ([]patient, 
 	if !scoped {
 		return nil, nil
 	}
-	principal, _, ok := authn.TenantPrincipal(c)
+	principal, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return nil, nil
 	}

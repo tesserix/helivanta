@@ -80,7 +80,7 @@ func (h *patientHandlers) putSharingNotice(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -150,7 +150,7 @@ func (h *patientHandlers) getSharingNotice(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -180,7 +180,7 @@ func (h *patientHandlers) changeSharingNotice(c *gin.Context, approve bool) {
 	if !ok {
 		return
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

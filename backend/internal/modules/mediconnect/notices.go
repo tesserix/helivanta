@@ -102,7 +102,7 @@ func readNotice(tx *gorm.DB, p authn.Principal, id uuid.UUID, row *accountNotice
 }
 func (h *accountHandlers) publishNotice(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -161,7 +161,7 @@ func (h *accountHandlers) publishNotice(c *gin.Context) {
 }
 func (h *accountHandlers) getNotice(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -187,7 +187,7 @@ func (h *accountHandlers) getNotice(c *gin.Context) {
 }
 func (h *accountHandlers) listNotices(c *gin.Context, params pagination.Params) ([]accountNotice, error) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -227,7 +227,7 @@ func (h *accountHandlers) listNotices(c *gin.Context, params pagination.Params) 
 }
 func (h *accountHandlers) retireNotice(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

@@ -103,7 +103,7 @@ func (h *patientHandlers) listLinkReviews(c *gin.Context, params pagination.Para
 	if !ok {
 		return nil, nil
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -126,7 +126,7 @@ func (h *patientHandlers) getLinkReview(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

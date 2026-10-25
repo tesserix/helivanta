@@ -50,7 +50,7 @@ func (h *patientHandlers) search(c *gin.Context, params pagination.Params) ([]pa
 	if !ok {
 		return nil, nil
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return nil, nil
 	}

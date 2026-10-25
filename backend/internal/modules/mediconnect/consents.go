@@ -79,7 +79,7 @@ func (h *accountHandlers) publishConsent(tx *gorm.DB, p authn.Principal, subject
 }
 func (h *accountHandlers) putConsent(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -161,7 +161,7 @@ func consentProjection(tx *gorm.DB, p authn.Principal, row *accountConsent) erro
 }
 func (h *accountHandlers) getConsent(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -183,7 +183,7 @@ func (h *accountHandlers) getConsent(c *gin.Context) {
 }
 func (h *accountHandlers) listConsents(c *gin.Context, params pagination.Params) ([]accountConsent, error) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -222,7 +222,7 @@ func (h *accountHandlers) listConsents(c *gin.Context, params pagination.Params)
 }
 func (h *accountHandlers) withdrawConsent(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

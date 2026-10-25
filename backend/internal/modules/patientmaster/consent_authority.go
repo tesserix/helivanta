@@ -92,7 +92,7 @@ func (h *patientHandlers) proposeConsentAuthority(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -202,7 +202,7 @@ func (h *patientHandlers) getConsentAuthority(c *gin.Context, staff bool) {
 	if !ok {
 		return
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -235,7 +235,7 @@ func (h *patientHandlers) listMyConsentAuthorities(c *gin.Context, params pagina
 	if !ok {
 		return nil, nil
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -275,7 +275,7 @@ func (h *patientHandlers) changeConsentAuthority(c *gin.Context, accept, staff b
 	if !ok {
 		return
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

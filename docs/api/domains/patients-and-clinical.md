@@ -6,6 +6,12 @@
 
 `patientmaster` owns hospital registrations, MRNs, demographics, consent receipts, duplicate override evidence, reported blood group and patient-access audit. Read/write access requires the verified tenant, route permission and a current hospital grant. `hospital_id` is a query selector checked by the backend, not tenant authority. Registrar writes lock the grant through commit; a role or membership alone does not confer patient access.
 
+Authenticated public patientmaster routes support the optional
+`X-Helivanta-Expected-Tenant` precondition described in the
+[HTTP contract](../http-contract.md). A mismatch or invalid supplied header returns
+409 `session_changed` before domain data access; it does not select a tenant or
+grant patient/hospital authority. Existing callers without the header are unchanged.
+
 Current routes are `POST /v1/patients`, read-only `POST /v1/patients/search`, `GET /v1/patients/{id}`, and hospital-access management. The [inventory](../reference/README.md#patientmaster) lists exact paths and permissions. Search terms stay in JSON bodies to reduce disclosure through URLs. Invalid/invisible hospital or patient references return 404. Patient data responses use the custom JSON projection in `patients.go`, not the database row struct.
 
 Registration requires a body `request_id`, given name, calendar DOB, notice version and patient/guardian consent attribution. Family name, sex, mobile and address have separate optional rules. Guardian and duplicate-override conditions are validated in the handler. A reported blood group is an attributed patient/guardian/document report, not a laboratory-verified transfusion result.

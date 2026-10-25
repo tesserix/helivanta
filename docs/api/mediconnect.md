@@ -19,6 +19,15 @@ also enforced by PostgreSQL forced RLS. Tenant admins cannot read another
 subject's account through these endpoints. `authz.Public` here means no extra
 staff-role permission; it does not skip session or membership checks.
 
+All authenticated MediConnect and patientmaster public routes accept the optional
+`X-Helivanta-Expected-Tenant` workspace precondition. A supplied value must be one
+nonzero UUID equal to the verified session tenant. Empty, malformed, repeated,
+comma-joined and mismatched values return 409 `session_changed` with `no-store`
+before domain reads or writes. Matching UUIDs are compared by value; omission
+preserves existing callers. The Global API forwards the assertion to the owner.
+The header cannot select a tenant, grant membership/hospital/object access or
+replace current consent checks. Internal workload-only claim checks are unchanged.
+
 | Method/path                                 | Input                            | Success                                                 | Failure                                                                          |
 | ------------------------------------------- | -------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | POST `/v1/mediconnect/account`              | `{}`                             | 201 for first creation; 200 replay with current account | 400 invalid body; 401 invalid session; 403 nonmember; 503 membership unavailable |
@@ -462,12 +471,12 @@ All four routes enter Global API and are owned by patientmaster. Each requires
 `patient.sharing-notice.review` plus a current registrar-level hospital grant in
 the verified tenant; `hospital_id` is a query selector, never authority.
 
-| Method | `/v1/patients` path | Behavior |
-| --- | --- | --- |
-| PUT | `/sharing-notices/:notice` | Create immutable draft; identical creator/input retries return current receipt |
-| GET | `/sharing-notices/:notice` | Scoped, audited exact wording and status |
-| POST | `/sharing-notices/:notice/approve` | Independent reviewer approves a draft |
-| POST | `/sharing-notices/:notice/retire` | Terminal retirement retaining wording and review evidence |
+| Method | `/v1/patients` path                | Behavior                                                                       |
+| ------ | ---------------------------------- | ------------------------------------------------------------------------------ |
+| PUT    | `/sharing-notices/:notice`         | Create immutable draft; identical creator/input retries return current receipt |
+| GET    | `/sharing-notices/:notice`         | Scoped, audited exact wording and status                                       |
+| POST   | `/sharing-notices/:notice/approve` | Independent reviewer approves a draft                                          |
+| POST   | `/sharing-notices/:notice/retire`  | Terminal retirement retaining wording and review evidence                      |
 
 Draft body: `purpose` exactly `care_coordination`, canonical BCP-47 `locale`,
 `version_label` (64 bytes), `title` (200), `text` (4096),
@@ -515,8 +524,7 @@ and source-record release; this predicate grants none of those authorities.
 credential only in `X-MediConnect-Workload-Token: Bearer <token>`. Audience must be
 `helivanta-mediconnect-claim`; the exact allowed caller service-account identity
 is operator-configured. Ordinary/ambiguous Authorization credentials, missing or
-rejected workload identity receive 401. Kubernetes verification failure receives
-503. Credentials, request subject and lookup results are never logged or emitted
+rejected workload identity receive 401. Kubernetes verification failure receives 503. Credentials, request subject and lookup results are never logged or emitted
 on the event bus.
 
 Body: `tenant_id`, `request_id`, `hospital_id`, `patient_id`, `subject`. UUID strings
@@ -558,18 +566,18 @@ Verified tenant membership and exact patient/recipient object scope are checked
 server-side. Recipient administration additionally requires
 `patient.sharing-recipient.review` and a current registrar hospital grant.
 
-| Path | Behavior |
-| --- | --- |
-| PUT/GET `/sharing-recipients/:recipient` | Immutable draft/retained reviewed binding to an exact representative subject, external organization reference, explicit expiry and policy/evidence references |
-| POST `/sharing-recipients/:recipient/approve` | Independent reviewer confirms identity evidence; proposer and grantee cannot approve |
-| POST `/sharing-recipients/:recipient/revoke` | Terminal attributable revocation with `expected_version` and `reason_reference` |
-| GET `/my/consent-authorities/:authority/sharing-notices` | Cursor page of approved notices for an accepted current self authority |
-| GET `/my/consent-authorities/:authority/sharing-recipients` | Cursor page of current approved recipient choices; excludes representative subject and evidence |
-| GET `/my/clinical-consents` | Cursor page of own retained state summaries; no patient details, signatures or eligibility assertion; fetch a receipt for integrity verification |
-| PUT `/my/clinical-consents/:consent` | Explicit immutable grant; same ID/input reconciles without reactivation |
-| GET `/my/clinical-consents/:consent` | Audited owner receipt, verified against dedicated tenant HMAC key |
-| POST `/my/clinical-consents/:consent/withdraw` | Attributable terminal withdrawal; independent of signer or claim service availability |
-| POST `/clinical-consents/:consent/decide` | Exact authenticated recipient, fresh live claim and local owner-state check; audited consent gate only |
+| Path                                                        | Behavior                                                                                                                                                      |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PUT/GET `/sharing-recipients/:recipient`                    | Immutable draft/retained reviewed binding to an exact representative subject, external organization reference, explicit expiry and policy/evidence references |
+| POST `/sharing-recipients/:recipient/approve`               | Independent reviewer confirms identity evidence; proposer and grantee cannot approve                                                                          |
+| POST `/sharing-recipients/:recipient/revoke`                | Terminal attributable revocation with `expected_version` and `reason_reference`                                                                               |
+| GET `/my/consent-authorities/:authority/sharing-notices`    | Cursor page of approved notices for an accepted current self authority                                                                                        |
+| GET `/my/consent-authorities/:authority/sharing-recipients` | Cursor page of current approved recipient choices; excludes representative subject and evidence                                                               |
+| GET `/my/clinical-consents`                                 | Cursor page of own retained state summaries; no patient details, signatures or eligibility assertion; fetch a receipt for integrity verification              |
+| PUT `/my/clinical-consents/:consent`                        | Explicit immutable grant; same ID/input reconciles without reactivation                                                                                       |
+| GET `/my/clinical-consents/:consent`                        | Audited owner receipt, verified against dedicated tenant HMAC key                                                                                             |
+| POST `/my/clinical-consents/:consent/withdraw`              | Attributable terminal withdrawal; independent of signer or claim service availability                                                                         |
+| POST `/clinical-consents/:consent/decide`                   | Exact authenticated recipient, fresh live claim and local owner-state check; audited consent gate only                                                        |
 
 Grant input pins `authority_id`, `notice_id`, `recipient_id`, their expected
 versions (2), `notice_hash`, purpose `care_coordination`, sorted unique

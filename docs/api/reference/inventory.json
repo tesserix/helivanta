@@ -1255,6 +1255,124 @@
       ]
     },
     {
+      "name": "privacy",
+      "source": "backend/internal/modules/privacy/module.go",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/v1/privacy/officer",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/privacy/officers/:officer/accept",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/privacy/officers/:officer/revoke",
+          "permission": "privacy.officer.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/privacy/officers/:officer",
+          "permission": "privacy.officer.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/privacy/queue",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/privacy/requests/:request/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/privacy/requests/:request/commands",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/privacy/requests/:request",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/privacy/requests/:request",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/privacy/requests",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        }
+      ],
+      "grants": [
+        {
+          "permission": "privacy.officer.manage",
+          "roles": []
+        }
+      ],
+      "publishes": [],
+      "directed_subjects": [],
+      "directed_write_tables": [],
+      "consumers": [],
+      "broadcasts": [],
+      "migrations": [
+        {
+          "id": "0001_privacy",
+          "sql_sha256": "06eaa7c7d7bd5a74325ec5005afc49a841fb3cedfec712042e42b9a979cef472",
+          "creates_tables": [
+            "privacy_officers",
+            "privacy_requests",
+            "privacy_commands"
+          ]
+        }
+      ]
+    },
+    {
       "name": "pharmacy",
       "source": "backend/internal/modules/pharmacy/module.go",
       "routes": [

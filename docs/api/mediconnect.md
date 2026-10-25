@@ -349,3 +349,12 @@ text, review evidence, identity subject, demographics or clinical information.
 NATS outage leaves durable outbox delivery pending. No consumer, notification,
 clinical processing, guardian grant or legal certification is implied. Consent
 records and notice history are retained on rollback; no data-dropping down path.
+
+## Privacy casework integration
+
+MediConnect clients use the [privacy owner API](privacy.md) through Global API
+for authenticated tenant-local request intake, officer review, replies and
+withdrawal. The privacy module retains its own cases and appointments, with no
+cross-module patient/account SQL. Account creation and consent declarations are
+not prerequisites for submitting a request. A case response is not clinical
+disclosure, consent authority or confirmed rights fulfilment.

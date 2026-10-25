@@ -158,3 +158,7 @@ to it, restrict product ingress and verify proxy trust/TLS. This repository does
 not own that cluster configuration. No production rollout is authorized by these
 rules. A routing rollback is safe only if it preserves API versions and single
 writers; data ownership changes need separately approved reconciliation.
+
+The `privacy` route prefix uses the existing explicit `platform` upstream. The
+privacy owner verifies current officer or subject authority and records sensitive
+reads. Gateway routing grants no access and introduces no clinical disclosure.

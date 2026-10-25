@@ -34,6 +34,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/medicore"
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/privacy"
 	"github.com/tesserix/helivanta/internal/modules/reference"
 	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
@@ -52,7 +53,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil), reference.New(), emergency.New(), medicore.New(), mediconnect.New(), pharmacy.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
+	return []platform.Module{iam.New(nil), reference.New(), emergency.New(), medicore.New(), mediconnect.New(), privacy.New(), pharmacy.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under
@@ -401,6 +402,8 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /patients/link-reviews/:request":                                           "one hospital-scoped review; collection uses ListRoute",
 	"GET /mediconnect/notices/:notice":                                              "one retained notice; collection uses ListRoute",
 	"GET /mediconnect/account/consents/:consent":                                    "one account-owned receipt; collection uses ListRoute",
+	"GET /privacy/officer":                                                          "one current accepted tenant officer",
+	"GET /privacy/requests/:request":                                                "one principal-owned or current-officer case; collections use ListRoute",
 	"GET /mediconnect/account":                                                      "one current-subject account, with tenant membership and subject RLS",
 	"GET /workspace/branding":                                                       "single current-tenant branding document",
 	"GET /workforce/hospitals/:hospital/staff/:id":                                  "single hospital-local staff entry",

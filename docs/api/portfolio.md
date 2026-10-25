@@ -41,3 +41,8 @@ Current route coverage is exhaustive for the registry, not a claim of complete p
 Reuse the explicit planning assumptions in [system design](../architecture/01-system-design.md): 50/150 tenants at months 12/36, 1,000/3,000 peak RPS, 80:20 reads:writes, typical 2–20 KB JSON and a 30% hot-tenant test. At 500 encounters/tenant/day and 40 KB each, structured encounter data alone is about 365 GB in year one for 50 tenants, before indexes, replicas and attachments; a constant 150-tenant population over three years would be about 3.3 TB. These are sizing exercises, not measured usage forecasts.
 
 The existing target defines service objectives and recovery/cost assumptions. Product owners must approve route-specific budgets, retention and supported payload volumes before implementation or extraction. Contract documentation adds no deployment cost; independent runtime cost requires the existing architecture's sizing and operations review.
+
+Privacy casework is now owned by the `privacy` module: authenticated tenant-local
+intake, officer appointment/acceptance/revocation and versioned case responses.
+See [contract](privacy.md). Owner-executed rights fulfilment, policy-approved SLA
+escalation and public/proxy/cross-tenant intake remain separate gaps.

@@ -31,7 +31,7 @@ type Config struct {
 }
 
 var owners = map[string]string{
-	"auth": "platform", "iam": "platform", "workspace": "platform", "patients": "platform", "reference": "platform",
+	"privacy": "platform", "auth": "platform", "iam": "platform", "workspace": "platform", "patients": "platform", "reference": "platform",
 	"mediconnect": "mediconnect", "medicore": "medicore", "workforce": "workforce", "pharmacy": "pharmacy", "supply": "supply", "lab": "lab", "emergency": "emergency",
 }
 

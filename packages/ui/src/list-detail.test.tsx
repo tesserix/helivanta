@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { describe, expect, it } from "vitest";
-import { screen } from "@testing-library/react";
+import { useState, type ReactNode } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { ListDetail } from "./list-detail";
 
@@ -70,5 +70,55 @@ describe("ListDetail", () => {
     expect(screen.getByText("TEST rows 2")).toBeInTheDocument();
     expect(screen.getByLabelText("TEST amount")).toBe(before);
     expect(screen.getByLabelText("TEST amount")).toHaveValue("125");
+  });
+
+  // #1303 E7: opening a record must not remount the list: its focus, its
+  // scroll and its loaded pages survive.
+  it("keeps the same list node when a record opens and closes", () => {
+    const list = <p>TEST list</p>;
+    // Plain render: renderWithProviders' rerender drops its providers, which
+    // would remount everything and hide what this asserts.
+    const view = render(<ListDetail {...props} list={list} detail={null} />);
+    const before = screen.getByText("TEST list");
+    view.rerender(<ListDetail {...props} list={list} detail={<p>TEST detail</p>} />);
+    expect(screen.getByText("TEST list")).toBe(before);
+    view.rerender(<ListDetail {...props} list={list} detail={null} />);
+    expect(screen.getByText("TEST list")).toBe(before);
+  });
+
+  describe("where the record replaces the list", () => {
+    const scrollTo = vi.fn();
+    afterEach(() => {
+      scrollTo.mockReset();
+      vi.restoreAllMocks();
+    });
+    // jsdom has no container queries: say what the list's layout came to.
+    const listDisplay = (display: string) => {
+      const style = window.getComputedStyle.bind(window);
+      vi.spyOn(window, "getComputedStyle").mockImplementation((element, pseudo) =>
+        (element as HTMLElement).dataset.testid === "list-detail-list"
+          ? ({ display } as CSSStyleDeclaration)
+          : style(element, pseudo),
+      );
+    };
+    const shell = (detail: ReactNode) => (
+      <div data-hms-scroll ref={(node) => void (node && (node.scrollTo = scrollTo))}>
+        <ListDetail {...props} list={<p>TEST list</p>} detail={detail} />
+      </div>
+    );
+
+    it("opens the record at the top of the content area", () => {
+      listDisplay("none");
+      const view = render(shell(null));
+      view.rerender(shell(<p>TEST detail</p>));
+      expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
+    });
+
+    it("leaves the scroll alone beside the list", () => {
+      listDisplay("block");
+      const view = render(shell(null));
+      view.rerender(shell(<p>TEST detail</p>));
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
   });
 });

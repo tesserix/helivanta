@@ -16,6 +16,7 @@ import (
 const (
 	PermSharingRecipientReview authz.Permission = "patient.sharing-recipient.review"
 	PermSharingNoticeReview    authz.Permission = "patient.sharing-notice.review"
+	PermProxyAuthorityReview   authz.Permission = "patient.proxy-authority.review"
 	PermConsentAuthorityReview authz.Permission = "patient.consent-authority.review"
 	PermPatientAccessManage    authz.Permission = "patient.access.manage"
 	PermPatientRead            authz.Permission = "patient.read"
@@ -40,6 +41,9 @@ var sharingNoticeSchema string
 //go:embed consent_authority.sql
 var consentAuthoritySchema string
 
+//go:embed proxy_authority.sql
+var proxyAuthoritySchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -52,6 +56,7 @@ func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
 		{Permission: PermPatientAccessManage},
 		{Permission: PermConsentAuthorityReview},
+		{Permission: PermProxyAuthorityReview},
 		{Permission: PermSharingNoticeReview},
 		{Permission: PermSharingRecipientReview},
 		{Permission: PermPatientRead, Roles: []authz.Role{
@@ -216,7 +221,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  AFTER INSERT ON patients
 			  DEFERRABLE INITIALLY DEFERRED
 			  FOR EACH ROW EXECUTE FUNCTION patients_require_consent();`,
-	}, {ID: "0003_patientmaster", SQL: hospitalSchema}, {ID: "0004_patientmaster", SQL: bloodGroupSchema}, {ID: "0005_patientmaster", SQL: linkReviewSchema}, {ID: "0006_patientmaster", SQL: consentAuthoritySchema}, {ID: "0007_patientmaster", SQL: sharingNoticeSchema}, {ID: "0008_patientmaster", SQL: sharingConsentSchema}}
+	}, {ID: "0003_patientmaster", SQL: hospitalSchema}, {ID: "0004_patientmaster", SQL: bloodGroupSchema}, {ID: "0005_patientmaster", SQL: linkReviewSchema}, {ID: "0006_patientmaster", SQL: consentAuthoritySchema}, {ID: "0007_patientmaster", SQL: sharingNoticeSchema}, {ID: "0008_patientmaster", SQL: sharingConsentSchema}, {ID: "0009_patientmaster", SQL: proxyAuthoritySchema}}
 }
 
 // Routes mounts registration (spec D4/D5), single lookup, and the
@@ -225,6 +230,13 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/patients")
 	patients := &patientHandlers{db: deps.DB, bus: deps.Bus, transit: deps.Transit, claims: deps.CurrentClaims}
 	g.POST("", PermPatientRegister, patients.register)
+	g.PUT("/proxy-authorities/:authority", PermProxyAuthorityReview, patients.proposeProxyAuthority)
+	g.GET("/proxy-authorities/:authority", PermProxyAuthorityReview, patients.getReviewedProxyAuthority)
+	g.POST("/proxy-authorities/:authority/revoke", PermProxyAuthorityReview, patients.revokeReviewedProxyAuthority)
+	platform.ListRoute(g, "/my/proxy-authorities", authz.Public, patients.listMyProxyAuthorities)
+	g.GET("/my/proxy-authorities/:authority", authz.Public, patients.getMyProxyAuthority)
+	g.POST("/my/proxy-authorities/:authority/accept", authz.Public, patients.acceptProxyAuthority)
+	g.POST("/my/proxy-authorities/:authority/revoke", authz.Public, patients.revokeMyProxyAuthority)
 	platform.ListRoute(g, "/my/consent-authorities/:authority/sharing-notices", authz.Public, patients.listClinicalNotices)
 	platform.ListRoute(g, "/my/consent-authorities/:authority/sharing-recipients", authz.Public, patients.listClinicalRecipients)
 	platform.ListRoute(g, "/my/clinical-consents", authz.Public, patients.listMyClinicalConsents)
@@ -261,7 +273,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 // Publishes declares patient.registered, published inside the same
 // transaction as the patient and consent inserts (Task 6, spec D6).
 func (m *Module) Publishes() []string {
-	return []string{patientmastercontract.SubjectPatientRegistered, patientmastercontract.SubjectRegistrationReviewed, patientmastercontract.SubjectConsentAuthorityChanged, patientmastercontract.SubjectSharingNoticeChanged, patientmastercontract.SubjectSharingRecipientChanged, patientmastercontract.SubjectClinicalConsentChanged}
+	return []string{patientmastercontract.SubjectProxyAuthorityChanged, patientmastercontract.SubjectPatientRegistered, patientmastercontract.SubjectRegistrationReviewed, patientmastercontract.SubjectConsentAuthorityChanged, patientmastercontract.SubjectSharingNoticeChanged, patientmastercontract.SubjectSharingRecipientChanged, patientmastercontract.SubjectClinicalConsentChanged}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that

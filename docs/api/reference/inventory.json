@@ -3316,6 +3316,69 @@
         },
         {
           "method": "POST",
+          "path": "/v1/patients/my/proxy-authorities/:authority/accept",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/my/proxy-authorities/:authority/revoke",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/proxy-authorities/:authority",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/proxy-authorities",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/proxy-authorities/:authority/revoke",
+          "permission": "patient.proxy-authority.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/proxy-authorities/:authority",
+          "permission": "patient.proxy-authority.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/patients/proxy-authorities/:authority",
+          "permission": "patient.proxy-authority.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
           "path": "/v1/patients/search",
           "permission": "patient.read",
           "authentication_required": true,
@@ -3424,6 +3487,10 @@
           "roles": []
         },
         {
+          "permission": "patient.proxy-authority.review",
+          "roles": []
+        },
+        {
           "permission": "patient.sharing-notice.review",
           "roles": []
         },
@@ -3449,6 +3516,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.patientmaster.proxy_authority_changed.v1",
         "helivanta.in.patientmaster.registered.v1",
         "helivanta.in.patientmaster.registration_reviewed.v1",
         "helivanta.in.patientmaster.consent_authority_changed.v1",
@@ -3532,6 +3600,13 @@
             "patient_clinical_consents",
             "patient_clinical_consent_decisions",
             "patient_clinical_integrity_incidents"
+          ]
+        },
+        {
+          "id": "0009_patientmaster",
+          "sql_sha256": "a1bec562e0a093f8831cb4aea82198bc68ff614d94f239c838a1be34fb6ccc1f",
+          "creates_tables": [
+            "patient_proxy_authorities"
           ]
         }
       ]

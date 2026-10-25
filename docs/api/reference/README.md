@@ -485,6 +485,13 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 | GET | `/v1/patients/my/consent-authorities/:authority/sharing-recipients` | `public` | true | false |
 | GET | `/v1/patients/my/consent-authorities/:authority` | `public` | false | false |
 | GET | `/v1/patients/my/consent-authorities` | `public` | true | false |
+| POST | `/v1/patients/my/proxy-authorities/:authority/accept` | `public` | false | false |
+| POST | `/v1/patients/my/proxy-authorities/:authority/revoke` | `public` | false | false |
+| GET | `/v1/patients/my/proxy-authorities/:authority` | `public` | false | false |
+| GET | `/v1/patients/my/proxy-authorities` | `public` | true | false |
+| POST | `/v1/patients/proxy-authorities/:authority/revoke` | `patient.proxy-authority.review` | false | false |
+| GET | `/v1/patients/proxy-authorities/:authority` | `patient.proxy-authority.review` | false | false |
+| PUT | `/v1/patients/proxy-authorities/:authority` | `patient.proxy-authority.review` | false | false |
 | POST | `/v1/patients/search` | `patient.read` | true | false |
 | POST | `/v1/patients/sharing-notices/:notice/approve` | `patient.sharing-notice.review` | false | false |
 | POST | `/v1/patients/sharing-notices/:notice/retire` | `patient.sharing-notice.review` | false | false |
@@ -499,6 +506,7 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 
 Published subjects:
 
+- `helivanta.in.patientmaster.proxy_authority_changed.v1`
 - `helivanta.in.patientmaster.registered.v1`
 - `helivanta.in.patientmaster.registration_reviewed.v1`
 - `helivanta.in.patientmaster.consent_authority_changed.v1`
@@ -520,6 +528,7 @@ Migration table declarations:
 - `0006_patientmaster`: `patient_consent_authorities`.
 - `0007_patientmaster`: `patient_sharing_notices`.
 - `0008_patientmaster`: `patient_sharing_recipients`, `patient_clinical_consents`, `patient_clinical_consent_decisions`, `patient_clinical_integrity_incidents`.
+- `0009_patientmaster`: `patient_proxy_authorities`.
 
 ## workforce
 

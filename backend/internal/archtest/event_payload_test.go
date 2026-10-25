@@ -40,6 +40,8 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"patientmaster.ProxyAuthorityChangedData.AuthorityID":   "opaque tenant-local guardian-review receipt; no patient, subject, relationship or evidence; resolution requires owner authorization",
+	"patientmaster.ProxyAuthorityChangedData.Version":       "monotonic registry revision for duplicate/replay ordering; no identity or clinical content",
 	"patientmaster.SharingRecipientChangedData.RecipientID": "opaque reviewed recipient binding; no identity or evidence; scoped owner lookup required",
 	"patientmaster.SharingRecipientChangedData.Version":     "monotonic binding revision for invalidation only",
 	"patientmaster.ClinicalConsentChangedData.ConsentID":    "opaque declaration identifier; no patient, recipient, purpose or content; scoped owner lookup required",

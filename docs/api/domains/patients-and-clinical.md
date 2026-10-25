@@ -60,3 +60,14 @@ are both required; the requester cannot be the reviewer. See the complete
 Approval validates the claimed registration and its captured version; it does not
 establish proxy authority, clinical disclosure rights or patient/proxy consent.
 Review input and outcome cross owners only through typed transactional events.
+
+## Guardian authority ownership
+
+Patientmaster additionally owns the reviewed guardian authority registry, its
+hospital/subject RLS, immutable evidence references and terminal revocation.
+Parental and appointed-guardian receipts remain separate from self-authority,
+signed clinical declarations and authorized clinical release. Global API forwards
+the [documented routes](../mediconnect.md#reviewed-guardian-authority-registry).
+MediConnect claim approval alone cannot establish proxy consent or record access;
+future consuming owners must check the live claim and approved purpose as well as
+current authority and their own resource authorization.

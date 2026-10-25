@@ -2,7 +2,7 @@
 
 import { Button } from "@tesserix/web";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { ReactNode, Ref } from "react";
+import type { ReactNode } from "react";
 
 type Step = { disabled: boolean; onClick: () => void };
 
@@ -24,7 +24,9 @@ export function DetailHeader({
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
-  headingRef?: Ref<HTMLHeadingElement>;
+  // A plain ref object, not React's Ref: the shell and this package can
+  // resolve different copies of React's types, whose Ref types disagree.
+  headingRef?: { current: HTMLHeadingElement | null };
   /** "bill" names the buttons "Previous bill" and "Next bill". */
   noun: string;
   previous: Step;

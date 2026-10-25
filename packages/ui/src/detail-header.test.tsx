@@ -45,21 +45,19 @@ describe("DetailHeader", () => {
   });
 
   it("gives the heading to the record, for focus on view", () => {
-    let node: HTMLHeadingElement | null = null;
+    const heading: { current: HTMLHeadingElement | null } = { current: null };
     renderWithProviders(
       <DetailHeader
         {...base}
         subtitle="TEST payee"
-        headingRef={(element) => {
-          node = element;
-        }}
+        headingRef={heading}
         previous={{ disabled: true, onClick: vi.fn() }}
         next={{ disabled: true, onClick: vi.fn() }}
         onClose={vi.fn()}
       />,
     );
-    expect(node).toBe(screen.getByRole("heading", { name: "TEST-001" }));
-    expect(node!.tabIndex).toBe(-1);
+    expect(heading.current).toBe(screen.getByRole("heading", { name: "TEST-001" }));
+    expect(heading.current!.tabIndex).toBe(-1);
     expect(screen.getByText("TEST payee")).toBeInTheDocument();
   });
 });

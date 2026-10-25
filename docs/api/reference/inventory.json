@@ -1259,6 +1259,24 @@
       "source": "backend/internal/modules/privacy/module.go",
       "routes": [
         {
+          "method": "POST",
+          "path": "/v1/privacy/deadline-policies/:policy/approve",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/privacy/deadline-policies/:policy",
+          "permission": "privacy.deadline.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/privacy/officer",
           "permission": "public",
@@ -1323,6 +1341,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/privacy/requests/:request/deadline",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/privacy/requests/:request",
           "permission": "public",
           "authentication_required": true,
@@ -1353,12 +1380,24 @@
         {
           "permission": "privacy.officer.manage",
           "roles": []
+        },
+        {
+          "permission": "privacy.deadline.manage",
+          "roles": []
         }
       ],
-      "publishes": [],
+      "publishes": [
+        "helivanta.in.privacy.deadline_changed.v1"
+      ],
       "directed_subjects": [],
       "directed_write_tables": [],
-      "consumers": [],
+      "consumers": [
+        {
+          "name": "privacy-deadline",
+          "subject": "helivanta.in.privacy.deadline_changed.v1",
+          "after_commit": true
+        }
+      ],
       "broadcasts": [],
       "migrations": [
         {
@@ -1368,6 +1407,15 @@
             "privacy_officers",
             "privacy_requests",
             "privacy_commands"
+          ]
+        },
+        {
+          "id": "0002_privacy",
+          "sql_sha256": "f49be07e544bf95b21c3ba28fbaee63d585834a187eb7ee5099575dbc700c888",
+          "creates_tables": [
+            "privacy_deadline_policies",
+            "privacy_case_deadlines",
+            "privacy_deadline_escalations"
           ]
         }
       ]

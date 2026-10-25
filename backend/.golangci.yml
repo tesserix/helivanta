@@ -53,6 +53,7 @@ linters:
             - "github.com/tesserix/helivanta/internal/modules/iam/contract"
             - "github.com/tesserix/helivanta/internal/modules/reference/contract"
             - "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
+            - "github.com/tesserix/helivanta/internal/modules/privacy/contract"
             - "github.com/tesserix/helivanta/internal/modules/workforce/contract"
             - "github.com/tesserix/helivanta/internal/modules/workspace/contract"
             # loginclient is NOT another module's internals — it lives

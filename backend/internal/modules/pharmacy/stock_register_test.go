@@ -106,7 +106,8 @@ func TestStockRegisterRejectsInvalidForeignAndRevokedScopes(t *testing.T) {
 	for _, query := range []string{"as_of=bad", "as_of=2020-01-01T00%3A00%3A00.000000001Z", "as_of=2099-01-01T00%3A00%3A00Z", "", "as_of=" + cutoff + "&from=2099-01-01T00%3A00%3A00Z", "as_of=" + cutoff + "&expiry=unknown", "as_of=" + cutoff + "&location_id=no"} {
 		require.Equal(t, 400, do(r, "GET", root+"/positions?"+query, "editor", "").Code, query)
 	}
-	require.Equal(t, 404, do(r, "GET", root+"/positions?as_of="+cutoff+"&location_id="+uuid.Must(uuid.NewV7()).String(), "editor", "").Code)
+	missingLocation := do(r, "GET", root+"/positions?as_of="+cutoff+"&location_id="+uuid.Must(uuid.NewV7()).String(), "editor", "")
+	require.Equal(t, 404, missingLocation.Code, missingLocation.Body.String())
 	require.Equal(t, 404, do(r, "GET", root+"/reconciliation?as_of="+cutoff+"&location_id="+location+"&batch_id="+uuid.Must(uuid.NewV7()).String(), "editor", "").Code)
 	grantCatalogue(t, r, "user-editor", "reader")
 	require.Equal(t, 200, do(r, "GET", root+"/positions?as_of="+cutoff, "editor", "").Code)

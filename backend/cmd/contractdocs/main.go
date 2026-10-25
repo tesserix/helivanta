@@ -97,7 +97,7 @@ func inventory() reference {
 	gin.SetMode(gin.ReleaseMode)
 	doc := reference{FormatVersion: 1, Unauthenticated: bootstrap.UnauthenticatedRoutes,
 		PlatformMigrations: migrations(bootstrap.PlatformMigrations())}
-	deps := platform.Deps{Workflows: registrationClient{}, EmergencyWorkflowsEnabled: true, EmergencyDispatchEnabled: true}
+	deps := platform.Deps{Workflows: registrationClient{}, EmergencyWorkflowsEnabled: true, EmergencyDispatchEnabled: true, PrivacyDeadlinesEnabled: true}
 	for _, m := range bootstrap.Modules(nil, nil) {
 		r := platform.NewRouter(gin.New().Group("/v1"), noRequests{})
 		m.Routes(r, deps)

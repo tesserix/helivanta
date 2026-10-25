@@ -228,6 +228,8 @@ Source: [backend/internal/modules/privacy/module.go](../../../backend/internal/m
 
 | Method | Path | Permission | Cursor pagination | Page total |
 | --- | --- | --- | --- | --- |
+| POST | `/v1/privacy/deadline-policies/:policy/approve` | `public` | false | false |
+| PUT | `/v1/privacy/deadline-policies/:policy` | `privacy.deadline.manage` | false | false |
 | GET | `/v1/privacy/officer` | `public` | false | false |
 | POST | `/v1/privacy/officers/:officer/accept` | `public` | false | false |
 | POST | `/v1/privacy/officers/:officer/revoke` | `privacy.officer.manage` | false | false |
@@ -235,21 +237,23 @@ Source: [backend/internal/modules/privacy/module.go](../../../backend/internal/m
 | GET | `/v1/privacy/queue` | `public` | true | false |
 | PUT | `/v1/privacy/requests/:request/commands/:command` | `public` | false | false |
 | GET | `/v1/privacy/requests/:request/commands` | `public` | true | false |
+| GET | `/v1/privacy/requests/:request/deadline` | `public` | false | false |
 | GET | `/v1/privacy/requests/:request` | `public` | false | false |
 | PUT | `/v1/privacy/requests/:request` | `public` | false | false |
 | GET | `/v1/privacy/requests` | `public` | true | false |
 
 Published subjects:
 
-None.
+- `helivanta.in.privacy.deadline_changed.v1`
 
 Subscriptions:
 
-None.
+- `privacy-deadline` ← `helivanta.in.privacy.deadline_changed.v1`; after-commit hook: true.
 
 Migration table declarations:
 
 - `0001_privacy`: `privacy_officers`, `privacy_requests`, `privacy_commands`.
+- `0002_privacy`: `privacy_deadline_policies`, `privacy_case_deadlines`, `privacy_deadline_escalations`.
 
 ## pharmacy
 

@@ -89,7 +89,7 @@ func TestReferenceIncludesConsumersBehindWorkflowConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"emergency-dispatch", "emergency-receiving", "supply-evidence-scan", "workforce-document-scan", "workforce-credential-reminders"} {
+	for _, name := range []string{"privacy-deadline", "emergency-dispatch", "emergency-receiving", "supply-evidence-scan", "workforce-document-scan", "workforce-credential-reminders"} {
 		if !strings.Contains(string(data), `"name":"`+name+`"`) {
 			t.Errorf("conditional consumer %s omitted", name)
 		}

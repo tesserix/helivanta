@@ -215,7 +215,12 @@ func run() error {
 			return err
 		}
 	}
-	if documentsEnabled || cfg.EmergencyWorkflowsEnabled {
+	if cfg.PrivacyDeadlinesEnabled {
+		if err := cfg.RequirePrivacyDeadlines(); err != nil {
+			return err
+		}
+	}
+	if documentsEnabled || cfg.EmergencyWorkflowsEnabled || cfg.PrivacyDeadlinesEnabled {
 		startup, cancel := context.WithTimeout(ctx, 15*time.Second)
 		workflows, err = client.DialContext(startup, client.Options{HostPort: cfg.TemporalAddress, Namespace: cfg.TemporalNamespace, Logger: slog.Default()})
 		cancel()
@@ -375,6 +380,7 @@ func run() error {
 	deps := platform.Deps{
 		EmergencyDispatchEnabled:  cfg.EmergencyDispatchEnabled,
 		EmergencyWorkflowsEnabled: cfg.EmergencyWorkflowsEnabled,
+		PrivacyDeadlinesEnabled:   cfg.PrivacyDeadlinesEnabled,
 		OrganizationIdentity:      identityClient,
 		Documents:                 documents,
 		Transit:                   vault,

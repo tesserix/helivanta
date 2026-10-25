@@ -50,6 +50,7 @@ type Deps struct {
 	// Transit is nil when OpenBao is unconfigured; routes that need it answer 503.
 	Transit                   *transit.Client
 	Workflows                 client.Client
+	PrivacyDeadlinesEnabled   bool
 	EmergencyDispatchEnabled  bool
 	EmergencyWorkflowsEnabled bool
 	Authz                     TupleWriter

@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"crypto/ed25519"
+	"go.temporal.io/sdk/client"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -163,6 +164,8 @@ func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
 // SessionSigner/SessionTTL explicitly, typically from
 // NewSessionSignerForTest.
 type HarnessOptions struct {
+	PrivacyDeadlinesEnabled  bool
+	Workflows                client.Client
 	ProductionOwner          bool
 	EmergencyDispatchEnabled bool
 	OrganizationIdentity     *organizationidentity.Client
@@ -291,6 +294,8 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	t.Cleanup(bus.Close)
 
 	deps := platform.Deps{
+		PrivacyDeadlinesEnabled:  opts.PrivacyDeadlinesEnabled,
+		Workflows:                opts.Workflows,
 		EmergencyDispatchEnabled: opts.EmergencyDispatchEnabled,
 		OrganizationIdentity:     opts.OrganizationIdentity,
 		Documents:                opts.Documents,

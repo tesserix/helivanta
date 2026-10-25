@@ -89,11 +89,75 @@ cross-service lease or a cache authorization source.
 Lists use bounded `(created_at,id)` keyset pagination and batched read-audit
 inserts. All responses have `Cache-Control: no-store`; SQL/internal errors are
 sanitized. No private case payload is published to an event bus and no unconsumed
-event is reported as a completed workflow. Underlying owner fulfilment, reviewed
-SLA policy/Temporal escalation, provider-confirmed notifications, proxy authority,
+event is reported as a completed workflow. Underlying owner fulfilment, provider-confirmed notifications, proxy authority,
 public intake and cross-tenant oversight are explicitly still outstanding.
 
 Migration is additive and forward-only. Rollback disables the new routes without
 deleting cases or audit. The app continues without configured casework. Clinical
 or statutory readiness must not be inferred from route availability or passing
 schema checks.
+
+## Reviewed deadline extension (implemented; release verification pending)
+
+ADR-0039 and migration `0002_privacy` introduce independent `primary` and
+`escalation` officer appointments. Omitted nomination role remains `primary` for
+existing clients. Each role has one current accepted appointment; replacement and
+pending-nomination supersession affect only that role. Accepted escalation
+officers can review the tenant queue, but cannot adjudicate their own cases.
+Revoking an escalation appointment does not revoke the primary officer.
+
+Deadline routes:
+
+| Method/path | Contract |
+| --- | --- |
+| PUT `/deadline-policies/:policy` | Requires `privacy.deadline.manage`; immutable proposal, 201 first / 200 identical replay |
+| POST `/deadline-policies/:policy/approve` | Accepted escalation officer reviews; requires a distinct accepted primary officer and configured workflow support; 200 |
+| GET `/requests/:request/deadline` | Reporter/current officer; audited case-scoped clock and escalation receipts; 200 |
+
+Policy input contains `version_label` (1–64 bytes), `acknowledgement_seconds`
+(60–31,536,000), `resolution_seconds` (at least acknowledgement, at most
+31,536,000), explicit boolean `pause_while_waiting`, UUIDv7 `review_reference`
+and future `valid_until` with at most microsecond precision. Missing or null pause
+choice is rejected with 400. These bounds are technical capacity limits, not
+statutory deadlines. Policy versions are unique within the verified tenant.
+Changed replay conflicts. Review references are retained privately.
+
+Activation retires the previous active policy without erasing its attribution.
+Admin permission alone cannot approve. Missing workflow configuration returns
+503; no default policy or officer is seeded. `PRIVACY_DEADLINES_ENABLED` enables
+API orchestration independently of document/emergency features, using the named
+Temporal address and namespace. Disabling this switch blocks policy approval;
+existing approved policies still require their consumer and worker to remain
+running until all associated clocks finish.
+
+Migration `0002_privacy` pins a current reviewed policy at intake and stores the
+clock, pause duration, acknowledgement and terminal status. An unconfigured
+case returns `monitoring: unmonitored`; policies do not backfill existing cases.
+Case transitions and metadata-only outbox events commit in one transaction.
+`helivanta.in.privacy.deadline_changed.v1` carries only request ID and version,
+under the verified event tenant. The consumer validates the envelope and starts
+or signals the matching durable Temporal workflow; duplicate delivery cannot
+reopen a completed workflow. Dependency failure remains retryable, not success.
+
+The separate `/app/privacy-worker` uses `PRIVACY_WORKER_DATABASE_URL` and the
+restricted `helivanta_privacy_worker` role. Startup rejects application, owner,
+inherited or bypass identities; production requires verified database TLS.
+The role cannot read case descriptions, contact details or response messages.
+Activities bind both tenant and case, recheck database time and committed state,
+and preserve one immutable receipt per acknowledgement/resolution breach.
+Missing or expired escalation officers produce `routing: unconfigured` evidence.
+A deadline breach never discloses, erases or resolves the underlying case.
+
+Clock reads return `pending`, `observed`, `escalated` or `stopped`, the last
+worker observation timestamp and up to two escalation receipts. `observed`
+means a historical committed observation, not a claim that the worker is currently
+healthy. Audit failure prevents disclosure. Pauses extend only resolution time;
+terminal transitions stop monitoring. Worker restart, stale delivery and replay
+retain the original clock identity. Notifications remain unimplemented.
+
+Rollout order is dedicated database role/credential and network access, additive
+migration, compatible API image, then worker and orchestration activation. Keep
+compatible workers and consumers running for accepted policies during rollback;
+never remove the role or drop clock/audit tables. Verify ready replicas, exact
+image source, restricted-role access and a synthetic restart/replay journey before
+activating any tenant policy.

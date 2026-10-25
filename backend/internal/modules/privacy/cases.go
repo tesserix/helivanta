@@ -18,8 +18,12 @@ import (
 	"unicode/utf8"
 )
 
-type handlers struct{ db *tenantdb.DB }
+type handlers struct {
+	db               *tenantdb.DB
+	deadlinesEnabled bool
+}
 type officer struct {
+	Role            string     `json:"role"`
 	EndedReason     *string    `json:"-"`
 	EndedReference  *uuid.UUID `json:"-"`
 	ID              uuid.UUID  `json:"id"`
@@ -36,7 +40,7 @@ type officer struct {
 
 func (officer) TableName() string { return "privacy_officers" }
 
-const officerColumns = "id,subject,display_name,contact_email,review_reference,valid_until,status,version,created_at,updated_at,ended_reason,ended_reference"
+const officerColumns = "id,role,subject,display_name,contact_email,review_reference,valid_until,status,version,created_at,updated_at,ended_reason,ended_reference"
 
 type request struct {
 	ID          uuid.UUID `json:"id"`
@@ -66,6 +70,8 @@ func failure(c *gin.Context, err error) {
 		respond.Error(c, 403, "privacy_forbidden", "Current officer or principal authority required")
 	case errors.Is(err, errConflict) || errors.As(err, &pg) && pg.Code == "23505":
 		respond.Error(c, 409, "privacy_conflict", "State or command conflicts; reload before retrying")
+	case errors.Is(err, errWorkflowUnavailable):
+		respond.Error(c, 503, "privacy_workflow_unavailable", "Privacy deadline workflow support is not configured")
 	case errors.Is(err, errUnavailable):
 		respond.Error(c, 503, "privacy_unavailable", "No current accepted privacy officer")
 	default:
@@ -113,11 +119,11 @@ func audit(tx *gorm.DB, p authn.Principal, table string, id uuid.UUID) error {
 	return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES (?,?,'read',?,?)`, p.TenantID, p.Subject, table, id).Error
 }
 func activeOfficer(tx *gorm.DB, p authn.Principal, out *officer) error {
-	return tx.Select(officerColumns).Where("tenant_id=? AND status='active' AND valid_until>clock_timestamp()", p.TenantID).Take(out).Error
+	return tx.Select(officerColumns).Where("tenant_id=? AND role='primary' AND status='active' AND valid_until>clock_timestamp()", p.TenantID).Take(out).Error
 }
 func allowOfficer(tx *gorm.DB, p authn.Principal) error {
 	var o officer
-	err := activeOfficer(tx, p, &o)
+	err := actorOfficer(tx, p, &o)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil
 	}
@@ -140,6 +146,7 @@ func (h *handlers) nominate(c *gin.Context) {
 		return
 	}
 	var in struct {
+		Role            string    `json:"role"`
 		Subject         string    `json:"subject"`
 		DisplayName     string    `json:"display_name"`
 		ContactEmail    string    `json:"contact_email"`
@@ -149,8 +156,11 @@ func (h *handlers) nominate(c *gin.Context) {
 	if !decode(c, &in) {
 		return
 	}
+	if in.Role == "" {
+		in.Role = "primary"
+	}
 	address, e := mail.ParseAddress(in.ContactEmail)
-	if !validText(in.Subject, 512) || !validText(in.DisplayName, 200) || len(in.ContactEmail) > 254 || e != nil || address.Address != in.ContactEmail || !validID(in.ReviewReference) || in.ValidUntil.IsZero() || in.ValidUntil.Nanosecond()%1000 != 0 {
+	if (in.Role != "primary" && in.Role != "escalation") || !validText(in.Subject, 512) || !validText(in.DisplayName, 200) || len(in.ContactEmail) > 254 || e != nil || address.Address != in.ContactEmail || !validID(in.ReviewReference) || in.ValidUntil.IsZero() || in.ValidUntil.Nanosecond()%1000 != 0 {
 		invalid(c)
 		return
 	}
@@ -165,7 +175,7 @@ func (h *handlers) nominate(c *gin.Context) {
 		}
 		found := tx.Select(officerColumns).Where("tenant_id=? AND id=?", p.TenantID, id).Take(&row).Error
 		if found == nil {
-			if row.Subject != in.Subject || row.DisplayName != in.DisplayName || row.ContactEmail != in.ContactEmail || row.ReviewReference.String() != in.ReviewReference || !row.ValidUntil.Equal(in.ValidUntil) {
+			if row.Role != in.Role || row.Subject != in.Subject || row.DisplayName != in.DisplayName || row.ContactEmail != in.ContactEmail || row.ReviewReference.String() != in.ReviewReference || !row.ValidUntil.Equal(in.ValidUntil) {
 				return errConflict
 			}
 			return audit(tx, p, "privacy_officers", id)
@@ -180,10 +190,10 @@ func (h *handlers) nominate(c *gin.Context) {
 		if !valid {
 			return errConflict
 		}
-		if e := tx.Exec("UPDATE privacy_officers SET status='revoked',ended_reason='superseded',ended_reference=?,version=version+1,updated_at=clock_timestamp() WHERE tenant_id=? AND status='nominated'", id, p.TenantID).Error; e != nil {
+		if e := tx.Exec("UPDATE privacy_officers SET status='revoked',ended_reason='superseded',ended_reference=?,version=version+1,updated_at=clock_timestamp() WHERE tenant_id=? AND role=? AND status='nominated'", id, p.TenantID, in.Role).Error; e != nil {
 			return e
 		}
-		if e := tx.Exec(`INSERT INTO privacy_officers(tenant_id,id,subject,display_name,contact_email,review_reference,valid_until) VALUES (?,?,?,?,?,?,?)`, p.TenantID, id, in.Subject, in.DisplayName, in.ContactEmail, in.ReviewReference, in.ValidUntil).Error; e != nil {
+		if e := tx.Exec(`INSERT INTO privacy_officers(tenant_id,id,role,subject,display_name,contact_email,review_reference,valid_until) VALUES (?,?,?,?,?,?,?,?)`, p.TenantID, id, in.Role, in.Subject, in.DisplayName, in.ContactEmail, in.ReviewReference, in.ValidUntil).Error; e != nil {
 			return e
 		}
 		created = true
@@ -242,10 +252,14 @@ func (h *handlers) accept(c *gin.Context) {
 			if e := tx.Exec("SELECT set_config('app.privacy_accept',?,true)", id.String()).Error; e != nil {
 				return e
 			}
-			if e := tx.Exec("UPDATE privacy_officers SET status='revoked',ended_reason='superseded',ended_reference=?,version=version+1,updated_at=clock_timestamp() WHERE tenant_id=? AND status='active'", id, p.TenantID).Error; e != nil {
+			if e := tx.Exec("UPDATE privacy_officers SET status='revoked',ended_reason='superseded',ended_reference=?,version=version+1,updated_at=clock_timestamp() WHERE tenant_id=? AND role=? AND status IN ('active','escalation_active')", id, p.TenantID, row.Role).Error; e != nil {
 				return e
 			}
-			r := tx.Exec("UPDATE privacy_officers SET status='active',version=version+1,updated_at=clock_timestamp() WHERE tenant_id=? AND id=? AND status='nominated'", p.TenantID, id)
+			active := "active"
+			if row.Role == "escalation" {
+				active = "escalation_active"
+			}
+			r := tx.Exec("UPDATE privacy_officers SET status=?,version=version+1,updated_at=clock_timestamp() WHERE tenant_id=? AND id=? AND status='nominated'", active, p.TenantID, id)
 			if r.Error != nil {
 				return r.Error
 			}
@@ -379,4 +393,8 @@ func (r *request) AfterFind(*gorm.DB) error {
 	r.CreatedAt = r.CreatedAt.UTC()
 	r.UpdatedAt = r.UpdatedAt.UTC()
 	return nil
+}
+
+func actorOfficer(tx *gorm.DB, p authn.Principal, out *officer) error {
+	return tx.Select(officerColumns).Where("tenant_id=? AND subject=? AND status IN ('active','escalation_active') AND valid_until>clock_timestamp()", p.TenantID, p.Subject).Take(out).Error
 }

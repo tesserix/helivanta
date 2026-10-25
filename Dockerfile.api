@@ -105,6 +105,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w" -o /out/global-api ./cmd/global-api
 
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" -o /out/privacy-worker ./cmd/privacy-worker
+
 # The company-owned distroless image is a Trivy-gated passthrough of
 # distroless/static:nonroot. It has no shell, package manager, or libc and
 # runs the static binaries as UID/GID 65532. `latest` tracks only the last
@@ -116,6 +118,7 @@ ENV GIN_MODE=release
 WORKDIR /app
 COPY --from=builder /out/api /app/api
 COPY --from=builder /out/global-api /app/global-api
+COPY --from=builder /out/privacy-worker /app/privacy-worker
 
 # The migration runner. The API pod never executes this; the chart's
 # pre-upgrade hook Job runs it with command: ["/app/migrate"].

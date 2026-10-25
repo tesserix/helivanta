@@ -189,6 +189,7 @@ export function ProductTaxSection({
         )}
       </QueryState>
       <LoadMore
+        label="Load more classifications"
         hasMore={history.hasMore}
         isLoading={history.isFetchingMore}
         onClick={history.loadMore}

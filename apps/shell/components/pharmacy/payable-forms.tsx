@@ -332,6 +332,7 @@ function ReceiptPicker({
         <RequestFailure message="Could not load receiving lines." retry={receipts.retry} />
       )}
       <LoadMore
+        label="Load more receiving lines"
         hasMore={receipts.hasMore}
         isLoading={receipts.isFetchingMore}
         onClick={receipts.loadMore}
@@ -509,6 +510,7 @@ export function PayableHistory({
           </Panel>
         )}
         <LoadMore
+          label="Load more history"
           hasMore={history.hasMore}
           isLoading={history.isFetchingMore}
           onClick={history.loadMore}

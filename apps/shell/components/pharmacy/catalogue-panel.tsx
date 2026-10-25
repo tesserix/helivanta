@@ -591,6 +591,7 @@ function ProductHistory({
         </ol>
       )}
       <LoadMore
+        label="Load more revisions"
         hasMore={history.hasMore}
         isLoading={history.isFetchingMore}
         onClick={history.loadMore}

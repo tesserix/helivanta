@@ -123,24 +123,42 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
         actions={
           <div className="grid w-full gap-4 sm:w-xl sm:grid-cols-2">
             {pharmacies.items.length > 0 && (
-              <Field id="pharmacy-organization" label="Pharmacy">
-                <SelectControl
-                  id="pharmacy-organization"
-                  value={pharmacy?.id ?? ""}
-                  onValueChange={(pharmacyId) => select({ pharmacyId, outletId: "" })}
-                  options={pharmacies.items.map((row) => ({ value: row.id, label: row.name }))}
+              <div data-picker>
+                <Field id="pharmacy-organization" label="Pharmacy">
+                  <SelectControl
+                    id="pharmacy-organization"
+                    value={pharmacy?.id ?? ""}
+                    onValueChange={(pharmacyId) => select({ pharmacyId, outletId: "" })}
+                    options={pharmacies.items.map((row) => ({ value: row.id, label: row.name }))}
+                  />
+                </Field>
+                <LoadMore
+                  label="Load more pharmacies"
+                  hasMore={pharmacies.hasMore}
+                  isLoading={pharmacies.isFetchingMore}
+                  onClick={pharmacies.loadMore}
                 />
-              </Field>
+              </div>
             )}
             {outlets.items.length > 0 && (
-              <Field id="pharmacy-outlet" label="Outlet">
-                <SelectControl
-                  id="pharmacy-outlet"
-                  value={outlet?.id ?? ""}
-                  onValueChange={(outletId) => select({ pharmacyId: pharmacy?.id ?? "", outletId })}
-                  options={outlets.items.map((row) => ({ value: row.id, label: row.name }))}
+              <div data-picker>
+                <Field id="pharmacy-outlet" label="Outlet">
+                  <SelectControl
+                    id="pharmacy-outlet"
+                    value={outlet?.id ?? ""}
+                    onValueChange={(outletId) =>
+                      select({ pharmacyId: pharmacy?.id ?? "", outletId })
+                    }
+                    options={outlets.items.map((row) => ({ value: row.id, label: row.name }))}
+                  />
+                </Field>
+                <LoadMore
+                  label="Load more outlets"
+                  hasMore={outlets.hasMore}
+                  isLoading={outlets.isFetchingMore}
+                  onClick={outlets.loadMore}
                 />
-              </Field>
+              </div>
             )}
           </div>
         }
@@ -175,21 +193,11 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
             {selection.outletId ? "Choose an outlet" : "No outlets available"}
           </h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            Choose an outlet from this pharmacy, load more below, or ask your administrator to
+            Choose an outlet from this pharmacy, load more above, or ask your administrator to
             register one.
           </p>
         </Panel>
       )}
-      <LoadMore
-        hasMore={pharmacies.hasMore}
-        isLoading={pharmacies.isFetchingMore}
-        onClick={pharmacies.loadMore}
-      />
-      <LoadMore
-        hasMore={outlets.hasMore}
-        isLoading={outlets.isFetchingMore}
-        onClick={outlets.loadMore}
-      />
       {view === "setup" && can("pharmacy.access.manage") && (
         <PharmacyRegistrySetup tenantId={identity.tenant_id} pharmacy={pharmacy} />
       )}
@@ -200,7 +208,7 @@ function DirectoryEmpty({ selected, setup }: { selected: boolean; setup: boolean
   const [title, hint] = selected
     ? [
         "Choose a pharmacy",
-        "Your saved pharmacy is not in the loaded directory. Choose one above or load more below.",
+        "Your saved pharmacy is not in the loaded directory. Choose one or load more above.",
       ]
     : setup
       ? [

@@ -707,3 +707,27 @@ it("opens the first page of the other outlet's list when the outlet changes", as
   expect(await screen.findByText("TEST Sister")).toBeInTheDocument();
   await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/pharmacy?tab=active&q=amox"));
 });
+
+// #1303 E7: the pickers' Load more sat below every page's content, unnamed.
+it("keeps the outlet picker's Load more under the picker, named", async () => {
+  const base = mockPharmacy();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith(`/pharmacies/${pharmacy}/outlets`)) {
+        const body = (await (await base(url, init)).json()) as { data: unknown[] };
+        return new Response(
+          JSON.stringify({ data: body.data, page: { has_more: true, next_cursor: "c2" } }),
+        );
+      }
+      return base(url, init);
+    }),
+  );
+  renderWithProviders(<PharmacyWorkspace view="catalogue" />);
+  const more = await screen.findByRole("button", { name: "Load more outlets" });
+  const picker = screen.getByLabelText("Outlet");
+  // Both sit in the heading's actions, above the page's own content.
+  expect(more.closest("[data-picker]")).toBe(picker.closest("[data-picker]"));
+  expect(more.closest("[data-picker]")).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Load more", exact: true })).toBeNull();
+});

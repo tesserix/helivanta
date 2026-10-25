@@ -78,6 +78,7 @@ export function MedicationsPanel() {
         )}
       </QueryState>
       <LoadMore
+        label="Load more medications"
         hasMore={medications.hasMore}
         isLoading={medications.isFetchingMore}
         onClick={medications.loadMore}

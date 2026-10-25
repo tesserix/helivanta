@@ -86,11 +86,11 @@ describe("MedicationsPanel", () => {
     await screen.findByText("Paracetamol");
     expect(screen.queryByText("Ibuprofen")).not.toBeInTheDocument();
 
-    const loadMore = screen.getByRole("button", { name: "Load more" });
+    const loadMore = screen.getByRole("button", { name: "Load more medications" });
     await user.click(loadMore);
 
     await waitFor(() => expect(screen.getByText("Ibuprofen")).toBeInTheDocument());
-    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Load more medications" })).not.toBeInTheDocument();
   });
 
   // #1276: a failed load is an outage, never an empty list.

@@ -23,3 +23,16 @@ type RegistrationReviewData struct {
 	PatientID        string `json:"patient_id"`
 	Relationship     string `json:"relationship"`
 }
+
+const (
+	SubjectAccountConsentRecorded  = "helivanta.in.mediconnect.account_consent_recorded.v1"
+	SubjectAccountConsentWithdrawn = "helivanta.in.mediconnect.account_consent_withdrawn.v1"
+)
+
+// AccountConsentData identifies an account declaration, never clinical authority.
+type AccountConsentData struct {
+	ConsentID string `json:"consent_id"`
+	AccountID string `json:"account_id"`
+	NoticeID  string `json:"notice_id"`
+	Purpose   string `json:"purpose"`
+}

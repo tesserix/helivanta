@@ -315,3 +315,32 @@ existing subject-owned write policy. Rehearsal against the isolated production
 schema plus both review tables passed, including repeat application and previous
 migrator compatibility. The initial registrar Freight has not been promoted;
 only the corrected source is eligible for the planned manual rollout.
+
+## Remaining acceptance and account-consent implementation — 2026-10-25
+
+Registrar review and rolling-upgrade reconciliation are deployed at cccd5ff;
+verified release evidence is in tesserix/kargo-manifests#62. Remaining #37/#552
+work includes approved notices/eligibility, profile/proxy authority, expiry and
+majority transitions, rights-request intake/officer routing, released-record
+access, and UI/mobile acceptance (excluded from the current API-only scope).
+Other MediConnect product journeys retain their separate stories and owners.
+
+The next API slice implements tenant-reviewed immutable notices and account
+consent declarations/withdrawal under ADR-0037. No legal text or eligibility rule
+is seeded, and the API does not activate processing or confer clinical authority.
+Initial tests failed for missing routes; exact-language testing also caught an
+ORM projection issue. A response-audit outage test reproduced receipt/event commit
+before failed read audit; the implementation now uses one transaction throughout.
+Targeted tests cover Global API forwarding, tenant/subject isolation, immutable
+content, retirement, explicit acceptance, terminal withdrawal, stale hashes,
+duplicate/concurrent commands, and rollback on audit failure. This slice is not
+yet deployed and does not close either parent story.
+
+Account-consent validation: affected module, bootstrap, Global API, architecture
+and contract race tests passed; MediConnect statement coverage is 83.2%. Build,
+vet and golangci-lint passed. Schema-only production restore contained 100 prior
+migration IDs; migration 0006, repeat execution and previous migrator compatibility
+passed with a synthetic existing account. A 100k synthetic receipt query-plan
+exercise uses the account-scoped page index with forced app-role RLS; this is
+query-plan evidence, not an end-to-end load/SLO certification. Evidence is retained
+under `~/.local/state/helivanta/mediconnect-consent-20261025`.

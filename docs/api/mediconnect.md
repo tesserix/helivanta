@@ -13,7 +13,7 @@ operation its origin is the existing API. Development defaults include it.
 An omitted owner returns 503; no fallback to another product. The account/link baseline was deployed from `30efb51` through the Global API;
 release evidence is in [PR #1318](https://github.com/tesserix/helivanta/pull/1318).
 
-All nine MediConnect endpoints require a verified Helivanta session and current tenant
+All MediConnect endpoints require a verified Helivanta session and current tenant
 membership. Subject and tenant come only from that session. Account ownership is
 also enforced by PostgreSQL forced RLS. Tenant admins cannot read another
 subject's account through these endpoints. `authz.Public` here means no extra
@@ -84,7 +84,7 @@ record the read prevents disclosure.
 
 `helivanta.in.mediconnect.account_created.v1` carries only `account_id`; envelope
 type equals the subject and version is 1. It is committed in the account's
-transaction, using the existing outbox retry/DLQ lifecycle. No consumer is added
+transaction, using the existing outbox retry/DLQ lifecycle. No consumer subscribes to this account-created event,
 and no downstream completion is implied. If outbox/audit insertion fails, account
 creation rolls back. PostgreSQL outage fails the operation; there is no stale
 account cache. Valkey remains the platform cache, not account authority.
@@ -251,3 +251,101 @@ writer's withdrawal. This is bounded read-time/delivery recovery, not a backgrou
 reconciliation worker: rollback to older readers/writers still requires a write
 hold and reconciliation. The initial registrar image must not be promoted without
 this follow-up fix.
+
+## Tenant notices and account consent declarations
+
+See [ADR-0037](../adr/0037-mediconnect-account-consent.md). This is an optional
+account-level workflow. It does not change account creation, publish legal text,
+activate processing, send messages, establish legal capacity or parental consent,
+or grant clinical/proxy access. Approved content and applicable eligibility rules
+remain the tenant privacy reviewer's responsibility; no production notice is seeded.
+
+All paths start `/v1/mediconnect` and use verified tenant membership. Publication
+and retirement require `mediconnect.notice.manage` (tenant-admin only by default).
+Members can read notices before creating an account. Receipt operations require
+an existing account and are scoped to its verified subject, even for tenant admins.
+
+| Method/path                                | Behavior                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------- |
+| PUT `/notices/:notice`                     | Publish immutable reviewed text, 201 first / 200 identical replay   |
+| GET `/notices/:notice`                     | Read a retained notice, including a retired version                 |
+| GET `/notices`                             | Keyset list; status defaults to published; filters purpose/locale   |
+| POST `/notices/:notice/retire`             | Terminal retirement with `expected_version` 1; retry accepts 1 or 2 |
+| PUT `/account/consents/:consent`           | Explicit acceptance receipt, 201 first / 200 identical replay       |
+| GET `/account/consents/:consent`           | Read own receipt and current notice status                          |
+| GET `/account/consents`                    | Keyset list; optional status active/withdrawn and purpose           |
+| POST `/account/consents/:consent/withdraw` | Terminal withdrawal with expected version; idempotent retry         |
+
+`:notice` and `:consent` are canonical RFC4122 UUIDv7 values. Publication body:
+
+```json
+{
+  "purpose": "communications",
+  "locale": "hi-IN",
+  "version_label": "reviewed-version-label",
+  "title": "Tenant-provided reviewed title",
+  "text": "Tenant-provided reviewed plain text, in the exact selected language.",
+  "review_reference": "019a1b52-0000-7000-8000-000000000001"
+}
+```
+
+This example is not a privacy notice. Publication is an attributable tenant
+attestation to a retained review record; the service does not fetch or certify
+that record. Purpose is account_processing, communications or analytics only.
+Text is at most 8192 UTF-8 bytes, title 200, version label 64; all are nonblank and
+contain no NUL. Locale is a canonical BCP47 tag of 2–35 bytes. Text is retained
+exactly and must be rendered as text, never HTML. Request body cap is 16384 bytes;
+unknown fields/trailing JSON are rejected. Other commands retain the 4096-byte cap.
+
+The server returns `content_hash` (64 lowercase hex characters), computed from
+its serialized immutable notice content. Treat it as an opaque version proof:
+clients echo the supplied value after displaying that exact notice, rather than
+recomputing it with another JSON serializer. The response retains notice ID,
+content, status, version and timestamps; it excludes reviewer evidence and subject.
+The same purpose/locale/version label cannot be republished at another ID. Changed
+content or review reference under an existing ID conflicts. Retirement preserves
+text and hash, sets version 2 and an immutable timestamp, and never reactivates on
+publication replay. Multiple published versions may coexist until the tenant
+explicitly retires them; no locale fallback or silent notice replacement occurs.
+
+Acceptance body:
+
+```json
+{
+  "notice_id": "019a1b52-0000-7000-8000-000000000001",
+  "content_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "accepted": true
+}
+```
+
+The illustrative hash above is not valid for a real notice. A receipt pins account,
+notice, purpose, locale, version label and exact content hash. Only one active
+receipt per account/purpose is allowed; changing the notice requires explicit
+withdrawal and a new receipt ID. Replays return the original current receipt,
+including after withdrawal or notice retirement, and never create a new grant.
+Retired notices reject new receipts. A retired notice may still have an active
+historical declaration: responses expose `notice_status` so it cannot be mistaken
+for a current processing permission. Responses are snapshots, not authorization
+leases; future processing owners must recheck current authority atomically before use.
+
+Invalid input returns 400; missing permission 403; invisible resources 404; stale
+hash/version, retired notice on a new acceptance, reused keys with different input
+and duplicate active purpose return 409 `consent_conflict`. Dependency/audit failure
+returns 500 without content or evidence. All responses are no-store. Lists use the
+standard 1–200 limit and opaque cursor; a maximum-sized notice list can reach
+approximately 1.6MB of text, so clients should filter by locale and purpose.
+
+`mediconnect_notices` and `mediconnect_account_consents` are owned by MediConnect.
+Migration 0006_mediconnect adds forced RLS, immutable history, composite scoped
+foreign keys, bounded DDL and indexes. Account lock precedes notice/receipt locks;
+new acceptance holds a notice share lock through commit so retirement cannot race
+it. Withdrawal, audit and outbox commit together. Sensitive reads audit before
+response; audit failure prevents disclosure and rolls back a mutation's receipt.
+
+Events `helivanta.in.mediconnect.account_consent_recorded.v1` and
+`helivanta.in.mediconnect.account_consent_withdrawn.v1` carry only consent_id,
+account_id, notice_id and the allowlisted account purpose. They contain no notice
+text, review evidence, identity subject, demographics or clinical information.
+NATS outage leaves durable outbox delivery pending. No consumer, notification,
+clinical processing, guardian grant or legal certification is implied. Consent
+records and notice history are retained on rollback; no data-dropping down path.

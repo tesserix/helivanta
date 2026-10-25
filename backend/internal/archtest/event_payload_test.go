@@ -38,6 +38,11 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"mediconnect.AccountConsentData.ConsentID": "opaque account declaration receipt reference; no clinical or legal eligibility inference",
+	"mediconnect.AccountConsentData.AccountID": "opaque account identifier for owner-scoped receipt delivery; no contact or demographics",
+	"mediconnect.AccountConsentData.NoticeID":  "opaque tenant notice version reference; excludes notice content and retained review evidence",
+	"mediconnect.AccountConsentData.Purpose":   "allowlisted account-processing, communications or analytics label only; no clinical, diagnostic, treatment or proxy purpose",
+
 	"mediconnect.RegistrationReviewData.RequestID":      "opaque internal reference for tenant/hospital-scoped identity review lineage; no demographic or external identifier; resolution requires owner authorization",
 	"mediconnect.RegistrationReviewData.AccountID":      "opaque internal reference for tenant/hospital-scoped identity review lineage; no demographic or external identifier; resolution requires owner authorization",
 	"mediconnect.RegistrationReviewData.HospitalID":     "opaque internal reference for tenant/hospital-scoped identity review lineage; no demographic or external identifier; resolution requires owner authorization",

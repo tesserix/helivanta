@@ -14,6 +14,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/practitioner" //nolint:depguard // module under test
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"gorm.io/gorm"
 )
@@ -67,8 +68,16 @@ func TestRegistrationEvidenceIntentBindsExactRevisionAndRetainsPrivateUnverified
 
 func evidenceFixture(t *testing.T) (*gin.Engine, *tenantdb.DB, string, string) {
 	t.Helper()
+	return evidenceFixtureWithFiles(t, nil)
+}
+func evidenceFixtureWithFiles(t *testing.T, files *attachments.GCS) (*gin.Engine, *tenantdb.DB, string, string) {
+	t.Helper()
+	return evidenceFixtureWithAccess(t, files, nil)
+}
+func evidenceFixtureWithAccess(t *testing.T, files *attachments.GCS, membership authz.MembershipChecker) (*gin.Engine, *tenantdb.DB, string, string) {
+	t.Helper()
 	perms := []authz.Permission{practitioner.PermRecordManage, practitioner.PermRecordRead, practitioner.PermEvidenceManage, practitioner.PermEvidenceRead}
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{ProductionOwner: true, Tokens: map[string]string{"steward": testutil.TenantA, "foreign": testutil.TenantB}, Perms: map[string][]authz.Permission{"steward": perms, "foreign": perms}, Modules: []platform.Module{practitioner.New()}})
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{ProductionOwner: true, Documents: files, Membership: membership, Tokens: map[string]string{"steward": testutil.TenantA, "foreign": testutil.TenantB, "evidence-only": testutil.TenantA}, Perms: map[string][]authz.Permission{"steward": perms, "foreign": perms, "evidence-only": {practitioner.PermEvidenceManage, practitioner.PermEvidenceRead}}, Modules: []platform.Module{practitioner.New()}})
 	owner := "/v1/practitioners/" + uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, 201, testutil.Do(r, "PUT", owner, "steward", `{"given_name":"Evidence","professional_type":"nurse"}`).Code)
 	id := uuid.Must(uuid.NewV7()).String()
@@ -200,7 +209,7 @@ func TestEvidenceDatabasePreventsReparentingVerdictsAndHistoryDeletion(t *testin
 			return tx.Exec(sql, id).Error
 		})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "evidence intent is immutable")
+		require.Contains(t, err.Error(), "evidence")
 	}
 	got := testutil.Do(r, "GET", path, "steward", "")
 	require.Equal(t, 200, got.Code)

@@ -338,7 +338,7 @@ func TestEveryPractitionerRouteRejectsStaleWorkspaceBeforeDomainWork(t *testing.
 		require.Equal(t, "no-store", w.Header().Get("Cache-Control"))
 		checked++
 	}
-	require.Equal(t, 22, checked)
+	require.Equal(t, 23, checked)
 	require.Equal(t, before, countAudit())
 }
 

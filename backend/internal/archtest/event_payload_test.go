@@ -41,6 +41,10 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"practitioner.EvidenceScanRequestedData.PractitionerID": "internal professional registry reference for scoped credential scanning; no patient or professional attributes or national identifier",
+	"practitioner.EvidenceScanRequestedData.RegistrationID": "internal reported-claim row reference; council, registration number and dates remain private",
+	"practitioner.EvidenceScanRequestedData.RevisionID":     "immutable internal claim revision reference; no claim content or verification outcome",
+	"practitioner.EvidenceScanRequestedData.FileID":         "immutable upload intent reference; no filename, storage key, checksum or bytes",
 	"patientmaster.ProxyAuthorityChangedData.AuthorityID":   "opaque tenant-local guardian-review receipt; no patient, subject, relationship or evidence; resolution requires owner authorization",
 	"patientmaster.ProxyAuthorityChangedData.Version":       "monotonic registry revision for duplicate/replay ordering; no identity or clinical content",
 	"patientmaster.SharingRecipientChangedData.RecipientID": "opaque reviewed recipient binding; no identity or evidence; scoped owner lookup required",

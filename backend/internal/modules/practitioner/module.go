@@ -29,6 +29,9 @@ var stewardsSchema string
 //go:embed evidence.sql
 var evidenceSchema string
 
+//go:embed evidence_upload.sql
+var evidenceUploadSchema string
+
 type Module struct{}
 
 func New() *Module           { return &Module{} }
@@ -37,10 +40,10 @@ func (*Module) Permissions() []authz.Grant {
 	return []authz.Grant{{Permission: PermRecordManage}, {Permission: PermRecordRead}, {Permission: PermStewardManage}, {Permission: PermEvidenceManage}, {Permission: PermEvidenceRead}}
 }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_practitioner", SQL: recordsSchema}, {ID: "0002_practitioner", SQL: registrationsSchema}, {ID: "0003_practitioner", SQL: stewardsSchema}, {ID: "0004_practitioner", SQL: evidenceSchema}}
+	return []tenantdb.Migration{{ID: "0001_practitioner", SQL: recordsSchema}, {ID: "0002_practitioner", SQL: registrationsSchema}, {ID: "0003_practitioner", SQL: stewardsSchema}, {ID: "0004_practitioner", SQL: evidenceSchema}, {ID: "0005_practitioner", SQL: evidenceUploadSchema}}
 }
 func (*Module) Routes(r *platform.Router, d platform.Deps) {
-	h := &handlers{db: d.DB}
+	h := &handlers{db: d.DB, files: d.Documents, reauthorize: r.Reauthorize}
 	g := r.Group("/practitioners")
 	g.PUT("/steward-appointments/:appointment", PermStewardManage, h.nominateSteward)
 	g.GET("/steward-appointments/:appointment", PermStewardManage, h.getManagedSteward)
@@ -54,6 +57,7 @@ func (*Module) Routes(r *platform.Router, d platform.Deps) {
 	platform.ListRoute(g, "/my/steward-appointments/:appointment/history", authz.Public, h.ownStewardHistory)
 	g.GET("/my/steward-appointment", authz.Public, h.currentSteward)
 	g.PUT("/:practitioner/registrations/:registration/revisions/:revision/evidence/:file", PermEvidenceManage, h.putEvidence)
+	g.PUT("/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/content", PermEvidenceManage, h.uploadEvidence)
 	g.GET("/:practitioner/registrations/:registration/revisions/:revision/evidence/:file", PermEvidenceRead, h.getEvidence)
 	platform.ListRoute(g, "/:practitioner/registrations/:registration/revisions/:revision/evidence", PermEvidenceRead, h.listEvidence)
 	g.PUT("/:practitioner", PermRecordManage, h.put)
@@ -65,7 +69,7 @@ func (*Module) Routes(r *platform.Router, d platform.Deps) {
 	platform.ListRoute(g, "/:practitioner/registrations", PermRecordRead, h.listRegistrations)
 	platform.ListRoute(g, "/:practitioner/registrations/:registration/revisions", PermRecordRead, h.listRegistrationRevisions)
 }
-func (*Module) Publishes() []string                         { return nil }
+func (*Module) Publishes() []string                         { return []string{EvidenceScanRequested} }
 func (*Module) DirectedSubjects() []string                  { return nil }
 func (*Module) DirectedWriteTables() []string               { return nil }
 func (*Module) Consumers(platform.Deps) []events.Consumer   { return nil }

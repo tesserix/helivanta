@@ -242,7 +242,7 @@ func (c *Client) Resolve(ctx context.Context, subject, tenantID string) (Permiss
 		User:     userObject(subject),
 		Relation: "can_do",
 		Type:     "perm",
-	}).Execute()
+	}).Options(fgaclient.ClientListObjectsOptions{Consistency: consistencyPreference(ctx)}).Execute()
 	if err != nil {
 		return nil, fmt.Errorf("list objects: %w", err)
 	}

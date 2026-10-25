@@ -245,9 +245,9 @@ for staff, organisation and practitioner scopes. Infected content, incomplete sc
 verdicts, missing scanners and unsupported types cannot mint promotion authority.
 Supported inspection remains passive PNG/JPEG only; PDF is not supported.
 
-This is storage support inside the undeployed draft. Practitioner upload commands,
-durable processing, authorized evidence reads and independent professional
-verification are still required. A clean malware scan never establishes a
+This is storage support inside the undeployed draft. Durable processing,
+authorized evidence content reads and independent professional verification are
+still required. A clean malware scan never establishes a
 qualification, council registration, HPR status or clinical privilege.
 
 Registration evidence intake binds the complete tenant/practitioner/registration/
@@ -280,7 +280,45 @@ Local intake verification covers separate evidence permissions, forced RLS, stri
 metadata, retained server expiry, 12-way same-intent replay, 20-way competing intake
 at the ten-file limit, complete keyset traversal, exact revision binding after
 renewal, attempted storage-verdict/history mutations and read/write audit outages.
-All 22 harness routes reject stale workspaces before domain work. Migration 0004
+All 23 harness routes reject stale workspaces before domain work. Migration 0004
 is forward-only and retains intake history; no destructive down migration is
 provided. It has been applied only to disposable test databases. Runtime contract
 inventory remains unchanged because this owner is still deliberately unregistered.
+
+## Quarantine upload and authorization refresh
+
+PUT at the evidence path plus `/content` requires the current evidence-manage
+permission and verified tenant membership. Raw bytes must match the retained
+content type, exact bounded size and SHA-256; inspection rejects incomplete or
+unsupported content before storage. The owner reserves one server upload timestamp
+and never renews it on retry. The upload window uses the database's real registry
+clock, with no client/environment clock override.
+
+Storage runs outside database locks with a 90-second overall request context.
+After bytes are received and again after storage returns, the platform refreshes
+tenant membership and the concrete permission using the original middleware
+resolver. Revocation denies with 403; an authorization dependency outage denies
+with 503. The module receives a platform authorization callback, not the resolver
+or direct access to authorization internals. Evidence transactions enable only
+evidence management, never professional-master management. The refresh requests
+OpenFGA `HIGHER_CONSISTENCY` for both decisions; ordinary routes retain their
+existing default preference. Protocol tests assert the actual request bodies.
+
+The immutable quarantine generation and `scan_pending` transition commit in the
+same transaction as one outbox event. Its canonical `practitioner/contract` Go
+payload contains only practitioner/registration/revision/file IDs; the envelope
+supplies the tenant. No filename, content type, checksum, bytes or professional
+claim enters the event. First committed upload returns 202; identical replay
+returns 200 with retained metadata. An outbox failure rolls back the receipt and
+state. Lost receipts or revocation after storage leave private quarantine bytes;
+a later authorized retry reconciles those exact bytes/generation instead of
+replacing them. Expired intents return 409 and cannot advance; history remains
+retained. Storage uncertainty is 503 and never marks content available.
+
+Migration 0005 preserves original intent, dates and provenance, permits only
+upload reservation and the quarantine transition, and audits both. It is additive,
+forward-only and undeployed. No content-read route or successful scan state is
+exposed until the scoped processor, durable workflow and reauthorized release
+commit are implemented. Local tests cover exact upload/replay, mismatched bytes,
+foreign tenant, evidence-only permissions, revocation/outage during the actual GCS
+protocol exchange, outbox rollback/recovery and upload expiry without sleeps.

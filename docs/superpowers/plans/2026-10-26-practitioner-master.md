@@ -15,8 +15,9 @@ This plan does not close #39/#474/#77/#102 for a partial implementation.
 - [ ] Complete registration/qualification/evidence and independent verification
       workflows; test lapsed/suspended sources and explicit HPR unavailability.
       Storage naming and immutable, audited revision-bound evidence metadata intake
-      are implemented locally. Actual byte upload, durable scanning, private reads
-      and professional verification remain required before runtime activation.
+      and byte upload/quarantine with an atomic scan outbox are implemented locally.
+      Durable scanning, private content reads and professional verification remain
+      required before runtime activation.
 - [ ] Complete reviewed facility/role/privilege ownership, current and historical
       checks, expiry workflows and reconciliation; preserve prior signed attribution.
 - [ ] Register the complete owner, publish reviewed contracts, regenerate inventory

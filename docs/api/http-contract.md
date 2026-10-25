@@ -12,10 +12,10 @@ Authorization resolves tenant permissions and then checks current tenant members
 
 `X-Request-ID` is returned for correlation. Accepted incoming values match `[A-Za-z0-9_-]{1,128}`; otherwise a new ID is generated. The error body does not currently include this ID. Sensitive responses default to `Cache-Control: no-store`.
 
-Pharmacy, supply, MediConnect and patientmaster support the optional
+Pharmacy, supply, MediConnect, patientmaster and privacy support the optional
 `X-Helivanta-Expected-Tenant` precondition. If supplied, it must be a single
 nonzero UUID matching the verified session tenant; otherwise the request returns
-`409 session_changed`. MediConnect and patientmaster also reject empty, repeated
+`409 session_changed`. MediConnect, patientmaster and privacy also reject empty, repeated
 and comma-joined values before domain reads/writes. Omitting the header preserves
 existing behavior. It detects an unintended workspace switch; it never selects
 or authorizes a tenant, replaces membership checks or grants hospital access.

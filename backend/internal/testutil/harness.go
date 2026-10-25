@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/mediconnectclaims"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/testinfra"
@@ -171,6 +172,7 @@ type HarnessOptions struct {
 	OrganizationIdentity     *organizationidentity.Client
 	Documents                *attachments.GCS
 	Transit                  *transit.Client
+	CurrentClaims            *mediconnectclaims.Client
 	Tokens                   map[string]string
 	Perms                    map[string][]authz.Permission
 	Writer                   platform.TupleWriter
@@ -300,6 +302,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		OrganizationIdentity:     opts.OrganizationIdentity,
 		Documents:                opts.Documents,
 		Transit:                  opts.Transit,
+		CurrentClaims:            opts.CurrentClaims,
 		DB:                       db, Bus: bus, Authz: writer, Roles: roles,
 		SessionSigner:       opts.SessionSigner,
 		SessionTTL:          opts.SessionTTL,

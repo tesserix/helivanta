@@ -465,6 +465,7 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 | Method | Path | Permission | Cursor pagination | Page total |
 | --- | --- | --- | --- | --- |
 | GET | `/v1/patients/:id` | `patient.read` | false | false |
+| POST | `/v1/patients/clinical-consents/:consent/decide` | `public` | false | false |
 | POST | `/v1/patients/consent-authorities/:authority/revoke` | `patient.consent-authority.review` | false | false |
 | GET | `/v1/patients/consent-authorities/:authority` | `patient.consent-authority.review` | false | false |
 | PUT | `/v1/patients/consent-authorities/:authority` | `patient.consent-authority.review` | false | false |
@@ -474,8 +475,14 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 | PUT | `/v1/patients/link-reviews/:request/decision/:decision` | `patient.register` | false | false |
 | GET | `/v1/patients/link-reviews/:request` | `patient.register` | false | false |
 | GET | `/v1/patients/link-reviews` | `patient.register` | true | false |
+| POST | `/v1/patients/my/clinical-consents/:consent/withdraw` | `public` | false | false |
+| GET | `/v1/patients/my/clinical-consents/:consent` | `public` | false | false |
+| PUT | `/v1/patients/my/clinical-consents/:consent` | `public` | false | false |
+| GET | `/v1/patients/my/clinical-consents` | `public` | true | false |
 | POST | `/v1/patients/my/consent-authorities/:authority/accept` | `public` | false | false |
 | POST | `/v1/patients/my/consent-authorities/:authority/revoke` | `public` | false | false |
+| GET | `/v1/patients/my/consent-authorities/:authority/sharing-notices` | `public` | true | false |
+| GET | `/v1/patients/my/consent-authorities/:authority/sharing-recipients` | `public` | true | false |
 | GET | `/v1/patients/my/consent-authorities/:authority` | `public` | false | false |
 | GET | `/v1/patients/my/consent-authorities` | `public` | true | false |
 | POST | `/v1/patients/search` | `patient.read` | true | false |
@@ -483,6 +490,10 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 | POST | `/v1/patients/sharing-notices/:notice/retire` | `patient.sharing-notice.review` | false | false |
 | GET | `/v1/patients/sharing-notices/:notice` | `patient.sharing-notice.review` | false | false |
 | PUT | `/v1/patients/sharing-notices/:notice` | `patient.sharing-notice.review` | false | false |
+| POST | `/v1/patients/sharing-recipients/:recipient/approve` | `patient.sharing-recipient.review` | false | false |
+| POST | `/v1/patients/sharing-recipients/:recipient/revoke` | `patient.sharing-recipient.review` | false | false |
+| GET | `/v1/patients/sharing-recipients/:recipient` | `patient.sharing-recipient.review` | false | false |
+| PUT | `/v1/patients/sharing-recipients/:recipient` | `patient.sharing-recipient.review` | false | false |
 | GET | `/v1/patients` | `patient.read` | true | false |
 | POST | `/v1/patients` | `patient.register` | false | false |
 
@@ -492,6 +503,8 @@ Published subjects:
 - `helivanta.in.patientmaster.registration_reviewed.v1`
 - `helivanta.in.patientmaster.consent_authority_changed.v1`
 - `helivanta.in.patientmaster.sharing_notice_changed.v1`
+- `helivanta.in.patientmaster.sharing_recipient_changed.v1`
+- `helivanta.in.patientmaster.clinical_consent_changed.v1`
 
 Subscriptions:
 
@@ -506,6 +519,7 @@ Migration table declarations:
 - `0005_patientmaster`: `patient_link_reviews`.
 - `0006_patientmaster`: `patient_consent_authorities`.
 - `0007_patientmaster`: `patient_sharing_notices`.
+- `0008_patientmaster`: `patient_sharing_recipients`, `patient_clinical_consents`, `patient_clinical_consent_decisions`, `patient_clinical_integrity_incidents`.
 
 ## workforce
 

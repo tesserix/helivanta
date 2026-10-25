@@ -5,6 +5,7 @@ import (
 	"go.temporal.io/sdk/client"
 	"time"
 
+	"github.com/tesserix/helivanta/internal/mediconnectclaims"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -41,7 +42,7 @@ type RoleLister interface {
 }
 
 // Deps is everything a module may depend on. Modules must not reach
-// around it — cross-module data access goes through events (spec D6).
+// around it. Projections use events; authoritative decisions use published owner APIs (ADR-0041).
 type Deps struct {
 	OrganizationIdentity *organizationidentity.Client
 	DB                   *tenantdb.DB
@@ -49,6 +50,7 @@ type Deps struct {
 	Documents            *attachments.GCS
 	// Transit is nil when OpenBao is unconfigured; routes that need it answer 503.
 	Transit                   *transit.Client
+	CurrentClaims             *mediconnectclaims.Client
 	Workflows                 client.Client
 	PrivacyDeadlinesEnabled   bool
 	EmergencyDispatchEnabled  bool

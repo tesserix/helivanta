@@ -3136,6 +3136,15 @@
         },
         {
           "method": "POST",
+          "path": "/v1/patients/clinical-consents/:consent/decide",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
           "path": "/v1/patients/consent-authorities/:authority/revoke",
           "permission": "patient.consent-authority.review",
           "authentication_required": true,
@@ -3217,6 +3226,42 @@
         },
         {
           "method": "POST",
+          "path": "/v1/patients/my/clinical-consents/:consent/withdraw",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/clinical-consents/:consent",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/patients/my/clinical-consents/:consent",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/clinical-consents",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
           "path": "/v1/patients/my/consent-authorities/:authority/accept",
           "permission": "public",
           "authentication_required": true,
@@ -3231,6 +3276,24 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/consent-authorities/:authority/sharing-notices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/consent-authorities/:authority/sharing-recipients",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
           "counted": false
         },
         {
@@ -3297,6 +3360,42 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/patients/sharing-recipients/:recipient/approve",
+          "permission": "patient.sharing-recipient.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/sharing-recipients/:recipient/revoke",
+          "permission": "patient.sharing-recipient.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/sharing-recipients/:recipient",
+          "permission": "patient.sharing-recipient.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/patients/sharing-recipients/:recipient",
+          "permission": "patient.sharing-recipient.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/patients",
           "permission": "patient.read",
@@ -3329,6 +3428,10 @@
           "roles": []
         },
         {
+          "permission": "patient.sharing-recipient.review",
+          "roles": []
+        },
+        {
           "permission": "patient.read",
           "roles": [
             "receptionist",
@@ -3349,7 +3452,9 @@
         "helivanta.in.patientmaster.registered.v1",
         "helivanta.in.patientmaster.registration_reviewed.v1",
         "helivanta.in.patientmaster.consent_authority_changed.v1",
-        "helivanta.in.patientmaster.sharing_notice_changed.v1"
+        "helivanta.in.patientmaster.sharing_notice_changed.v1",
+        "helivanta.in.patientmaster.sharing_recipient_changed.v1",
+        "helivanta.in.patientmaster.clinical_consent_changed.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -3417,6 +3522,16 @@
           "sql_sha256": "270a88fc0d9a509fccaf8d05cea86567c1aa7de0d79427a669873fbc8eb61e2f",
           "creates_tables": [
             "patient_sharing_notices"
+          ]
+        },
+        {
+          "id": "0008_patientmaster",
+          "sql_sha256": "6180d32f1851a272fc8f62fa0fe90798f17451fbac2e5ec0936582c164c81850",
+          "creates_tables": [
+            "patient_sharing_recipients",
+            "patient_clinical_consents",
+            "patient_clinical_consent_decisions",
+            "patient_clinical_integrity_incidents"
           ]
         }
       ]

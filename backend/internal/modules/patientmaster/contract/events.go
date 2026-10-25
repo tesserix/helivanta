@@ -49,3 +49,21 @@ type SharingNoticeChangedData struct {
 	NoticeID string `json:"notice_id"`
 	Version  int64  `json:"version"`
 }
+
+// SubjectSharingRecipientChanged signals an immutable reviewed recipient revision without identity evidence.
+const SubjectSharingRecipientChanged = "helivanta.in.patientmaster.sharing_recipient_changed.v1"
+
+// SharingRecipientChangedData carries only the opaque binding identifier and revision.
+type SharingRecipientChangedData struct {
+	RecipientID string `json:"recipient_id"`
+	Version     int64  `json:"version"`
+}
+
+// SubjectClinicalConsentChanged invalidates projections without carrying clinical scope or actor data.
+const SubjectClinicalConsentChanged = "helivanta.in.patientmaster.clinical_consent_changed.v1"
+
+// ClinicalConsentChangedData carries only declaration identity and monotonic revision.
+type ClinicalConsentChangedData struct {
+	ConsentID string `json:"consent_id"`
+	Version   int64  `json:"version"`
+}

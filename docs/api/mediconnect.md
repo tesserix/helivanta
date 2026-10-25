@@ -545,3 +545,61 @@ and in-cluster Kubernetes configuration. The API identity needs TokenReview
 permission; the consumer needs a dedicated audience-bound projected token and
 explicit owner origin/transport. No source change implies those production
 permissions, volume, route enablement or clinical consumer integration are deployed.
+
+## Purpose-scoped clinical sharing declarations (activation pending)
+
+Patientmaster owns additive migration `0008_patientmaster`, named recipient
+bindings and retained clinical sharing declarations. These routes are separate
+from account consent and hospital identity linking. They do not authorize record
+release or implement proxy/guardian, procedure, marketing or ABDM consent.
+
+All paths below use the Global API `/v1/patients` prefix and a hospital selector.
+Verified tenant membership and exact patient/recipient object scope are checked
+server-side. Recipient administration additionally requires
+`patient.sharing-recipient.review` and a current registrar hospital grant.
+
+| Path | Behavior |
+| --- | --- |
+| PUT/GET `/sharing-recipients/:recipient` | Immutable draft/retained reviewed binding to an exact representative subject, external organization reference, explicit expiry and policy/evidence references |
+| POST `/sharing-recipients/:recipient/approve` | Independent reviewer confirms identity evidence; proposer and grantee cannot approve |
+| POST `/sharing-recipients/:recipient/revoke` | Terminal attributable revocation with `expected_version` and `reason_reference` |
+| GET `/my/consent-authorities/:authority/sharing-notices` | Cursor page of approved notices for an accepted current self authority |
+| GET `/my/consent-authorities/:authority/sharing-recipients` | Cursor page of current approved recipient choices; excludes representative subject and evidence |
+| GET `/my/clinical-consents` | Cursor page of own retained state summaries; no patient details, signatures or eligibility assertion; fetch a receipt for integrity verification |
+| PUT `/my/clinical-consents/:consent` | Explicit immutable grant; same ID/input reconciles without reactivation |
+| GET `/my/clinical-consents/:consent` | Audited owner receipt, verified against dedicated tenant HMAC key |
+| POST `/my/clinical-consents/:consent/withdraw` | Attributable terminal withdrawal; independent of signer or claim service availability |
+| POST `/clinical-consents/:consent/decide` | Exact authenticated recipient, fresh live claim and local owner-state check; audited consent gate only |
+
+Grant input pins `authority_id`, `notice_id`, `recipient_id`, their expected
+versions (2), `notice_hash`, purpose `care_coordination`, sorted unique
+`resource_types` (`diagnostic_report`, `discharge_summary`, `prescription`),
+explicit `valid_until` and `affirmed:true`. Patient, original claim and recipient
+identity are derived by the server. Expiry cannot exceed authority or recipient
+validity. A still-granted expired declaration must be withdrawn before a new
+scope declaration. No duration or notice text is seeded as legal policy.
+
+Decision input is `{purpose,resource_type}`. Successful responses contain only
+`decision_id`, `consent_gate:allow|deny`, and `record_access_authorized:false`.
+No positive authorization cache or patient details are returned. The record owner
+must independently authorize requester clinical authority and the exact released
+object/patient/hospital/version at access time. Withdrawal, expiry, retired notice,
+revoked recipient/authority, corrected registration and withdrawn source claim
+block subsequent eligible decisions. Dependency failures return 503, never allow.
+
+Receipt HMAC covers immutable declaration bytes, not current state or a qualified
+patient signature. Integrity failures atomically quarantine the grant, retain a
+security incident and publish metadata-only state invalidation. Withdrawal retains
+quarantine history. All mutations, audit and outbox intent commit together;
+remote signing/claim calls occur outside SQL transactions.
+
+Application composition reads `MEDICONNECT_CLAIM_ORIGIN`,
+`MEDICONNECT_CLAIM_TOKEN_FILE` and `MEDICONNECT_CLAIM_TRANSPORT`. Missing complete
+configuration leaves claim-dependent operations unavailable. Cluster HTTP requires
+explicit `istio-mtls` and actual strict mesh enforcement; HTTPS requires trusted
+TLS. Credentials are reloaded for every request. Deployment still requires the
+projected audience-bound credential, exact caller TokenReview/RBAC, transport and
+scoped OpenBao HMAC policy. Constructor validation alone does not prove those
+infrastructure controls. No production activation or authenticated record-release
+journey is established by these handlers. See the [design and acceptance
+boundaries](../superpowers/specs/2026-10-25-clinical-sharing-consent.md).

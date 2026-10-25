@@ -36,9 +36,9 @@ func consentAuthorityFixture(t *testing.T) (*gin.Engine, *tenantdb.DB, string) {
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"reviewer": testutil.TenantA, "owner": testutil.TenantA, "peer": testutil.TenantA, "foreign": testutil.TenantB, "ungranted": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"reviewer":  {patientmaster.PermPatientRead, patientmaster.PermPatientRegister, authz.Permission("patient.sharing-notice.review"), authz.Permission("patient.consent-authority.review")},
-			"foreign":   {authz.Permission("patient.sharing-notice.review")},
-			"ungranted": {authz.Permission("patient.consent-authority.review"), authz.Permission("patient.sharing-notice.review")},
+			"reviewer":  {patientmaster.PermPatientRead, patientmaster.PermPatientRegister, authz.Permission("patient.sharing-recipient.review"), authz.Permission("patient.sharing-notice.review"), authz.Permission("patient.consent-authority.review")},
+			"foreign":   {authz.Permission("patient.sharing-recipient.review"), authz.Permission("patient.sharing-notice.review")},
+			"ungranted": {authz.Permission("patient.consent-authority.review"), authz.Permission("patient.sharing-recipient.review"), authz.Permission("patient.sharing-notice.review")},
 		},
 		Modules: []platform.Module{patientmaster.New()},
 	})
@@ -423,7 +423,7 @@ func consentAuthorityGateway(t *testing.T, owner http.Handler) *gin.Engine {
 		case "HELIVANTA_ENV":
 			return "dev"
 		case "GLOBAL_API_UPSTREAMS":
-			return fmt.Sprintf(`{"platform":%q}`, upstream.URL)
+			return fmt.Sprintf(`{"platform":%q,"mediconnect":%q}`, upstream.URL, upstream.URL)
 		default:
 			return ""
 		}

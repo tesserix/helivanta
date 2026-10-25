@@ -431,6 +431,26 @@
       "type": "object"
     }
   },
+  "helivanta.in.patientmaster.clinical_consent_changed.v1": {
+    "source": "backend/internal/modules/patientmaster/contract/events.go:66",
+    "go_type": "ClinicalConsentChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "consent_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "consent_id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.patientmaster.consent_authority_changed.v1": {
     "source": "backend/internal/modules/patientmaster/contract/events.go:39",
     "go_type": "ConsentAuthorityChangedData",
@@ -526,6 +546,26 @@
       },
       "required": [
         "notice_id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.patientmaster.sharing_recipient_changed.v1": {
+    "source": "backend/internal/modules/patientmaster/contract/events.go:57",
+    "go_type": "SharingRecipientChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "recipient_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "recipient_id",
         "version"
       ],
       "type": "object"

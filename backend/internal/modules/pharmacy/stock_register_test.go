@@ -95,7 +95,8 @@ func TestStockRegisterRejectsInvalidForeignAndRevokedScopes(t *testing.T) {
 	grantCatalogue(t, r, "user-editor", "editor")
 	_, location, batch := stockFixture(t, r)
 	root := strings.TrimSuffix(strings.Split(productPath(""), "/catalogue")[0], "/") + "/stock"
-	cutoff := url.QueryEscape(time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano))
+	// Scope checks must not depend on host/container clock synchronization.
+	cutoff := url.QueryEscape("2020-01-01T00:00:00Z")
 	for _, suffix := range []string{"/positions?as_of=" + cutoff, "/reconciliation?location_id=" + location + "&batch_id=" + batch + "&as_of=" + cutoff} {
 		require.Equal(t, 403, do(r, "GET", root+suffix, "denied", "").Code)
 		for _, token := range []string{"sibling", "foreign"} {

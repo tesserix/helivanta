@@ -221,7 +221,7 @@ remains undeployed with the rest of this draft.
 The appointment implementation is verified locally with independent nomination,
 explicit acceptance, 12-way replay, expiry and replacement, conflicting live
 appointments, current membership denial/outage, empty-list auditing, read-audit
-rollback, immutable database history, 19-route stale-workspace rejection and direct
+rollback, immutable database history, all-route stale-workspace rejection and direct
 proof that steward self-service cannot see professional-master rows. Timestamp
 input accepts JavaScript ISO millisecond output and equivalent explicit offsets,
 normalizing to UTC; precision beyond six fractional digits and invalid offsets
@@ -249,3 +249,38 @@ This is storage support inside the undeployed draft. Practitioner upload command
 durable processing, authorized evidence reads and independent professional
 verification are still required. A clean malware scan never establishes a
 qualification, council registration, HPR status or clinical privilege.
+
+Registration evidence intake binds the complete tenant/practitioner/registration/
+revision tuple; renewal never transfers evidence to another revision. Dedicated
+`practitioner.evidence.manage` and `.read` permissions have no operational defaults.
+PUT/GET at `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file`
+operate on an immutable UUIDv7 file intent. Inputs contain only `content_type`
+(PNG/JPEG), `size` (1–10 MiB) and lowercase SHA-256; no original filename, remote
+URL, verification assertion, tenant or storage identifier is accepted. New intents
+return 201; exact replay returns 200 with retained metadata; changed intent is 409.
+Reads/replays are audited before disclosure. Wrong parent/revision/tenant is 404;
+missing evidence permission is denied even with professional-master permissions.
+Intake remains `upload_pending`, not available, verified or published. A one-hour
+server-assigned upload window bounds orphan intake; this is a platform capacity
+policy, not a registration-validity or legal retention period. Ten files per
+revision bounds intake, enforced under the revision lock in PostgreSQL. Intent
+history is retained after expiration; uploads must never renew the window on replay.
+
+Processing is a separate required command/worker boundary: authorize and reserve
+server upload time, write immutable quarantine bytes outside database locks,
+recheck authority and commit the exact receipt with an outbox request, then have
+the scoped processing identity run real inspection/scanning and immutable promotion.
+Only a matching release receipt may enable a private read; reads reauthorize and
+audit the exact generation before bytes leave the owner. Storage/scan outages stay
+unavailable; retries reconcile retained bytes instead of replacing them. Opaque
+IDs alone belong in event/Temporal history. No production activation occurs until
+these processing and independent professional-verification gates are implemented.
+
+Local intake verification covers separate evidence permissions, forced RLS, strict
+metadata, retained server expiry, 12-way same-intent replay, 20-way competing intake
+at the ten-file limit, complete keyset traversal, exact revision binding after
+renewal, attempted storage-verdict/history mutations and read/write audit outages.
+All 22 harness routes reject stale workspaces before domain work. Migration 0004
+is forward-only and retains intake history; no destructive down migration is
+provided. It has been applied only to disposable test databases. Runtime contract
+inventory remains unchanged because this owner is still deliberately unregistered.

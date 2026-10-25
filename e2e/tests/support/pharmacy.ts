@@ -37,6 +37,11 @@ export async function api(page: Page, method: string, path: string, body?: unkno
 // workspace's selected outlet, so counts and pages start from nothing.
 export async function freshOutlet(page: Page) {
   await login(page);
+  return newOutlet(page);
+}
+
+/** A new pharmacy and outlet, made this tab's working outlet; already signed in. */
+export async function newOutlet(page: Page) {
   await page.goto("/pharmacy");
   const me = await api(page, "GET", "/iam/me/permissions");
   const stamp = Date.now().toString(36).toUpperCase();

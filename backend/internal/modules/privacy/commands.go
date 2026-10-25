@@ -73,7 +73,7 @@ func transition(row request, actor, action string) (string, error) {
 }
 func (h *handlers) command(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -161,7 +161,7 @@ func (h *handlers) queue(c *gin.Context, params pagination.Params) ([]request, e
 }
 func (h *handlers) requests(c *gin.Context, params pagination.Params, queue bool) ([]request, error) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -206,7 +206,7 @@ func (h *handlers) requests(c *gin.Context, params pagination.Params, queue bool
 }
 func (h *handlers) history(c *gin.Context, params pagination.Params) ([]command, error) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return nil, nil
 	}

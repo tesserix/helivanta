@@ -137,7 +137,7 @@ func allowOfficer(tx *gorm.DB, p authn.Principal) error {
 }
 func (h *handlers) nominate(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -214,7 +214,7 @@ func (h *handlers) nominate(c *gin.Context) {
 }
 func (h *handlers) accept(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -280,7 +280,7 @@ func (h *handlers) accept(c *gin.Context) {
 }
 func (h *handlers) submit(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -347,7 +347,7 @@ func (h *handlers) submit(c *gin.Context) {
 }
 func (h *handlers) get(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

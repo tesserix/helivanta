@@ -44,7 +44,7 @@ const deadlinePolicyColumns = "id,version_label,acknowledgement_seconds,resoluti
 
 func (h *handlers) proposeDeadlinePolicy(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -111,7 +111,7 @@ func (h *handlers) proposeDeadlinePolicy(c *gin.Context) {
 }
 func (h *handlers) approveDeadlinePolicy(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

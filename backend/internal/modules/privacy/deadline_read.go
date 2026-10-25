@@ -31,7 +31,7 @@ const deadlineColumns = "policy_id,version,started_at,acknowledge_by,resolve_by,
 
 func (h *handlers) deadline(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

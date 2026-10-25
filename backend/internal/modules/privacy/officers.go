@@ -10,7 +10,7 @@ import (
 
 func (h *handlers) officer(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -35,7 +35,7 @@ func (h *handlers) officer(c *gin.Context) {
 }
 func (h *handlers) revoke(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

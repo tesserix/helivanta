@@ -8,8 +8,13 @@ wider acceptance criteria. No production appointment or policy is seeded.
 
 ## Authority and scope
 
-Every route requires a verified session and tenant membership. Tenant IDs, actor
-IDs and representative authority are never accepted from clients. The
+Every route requires a verified session and tenant membership. The optional
+`X-Helivanta-Expected-Tenant` header must contain exactly one nonzero UUID equal
+to the verified session tenant. A stale, empty, malformed, repeated or comma-joined
+value returns 409 `session_changed` with `Cache-Control: no-store` before domain
+reads or writes. Omission preserves existing callers. This precondition detects
+an unintended workspace switch; it grants no membership, officer or case access.
+Tenant IDs, actor IDs and representative authority are never accepted from clients. The
 `privacy.officer.manage` permission is tenant-admin-only by default and permits
 nomination/revocation, not case access. The nominee must accept from their own
 verified tenant session. Exactly one accepted active appointment is current;

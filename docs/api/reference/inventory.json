@@ -1251,6 +1251,11 @@
             "mediconnect_notices",
             "mediconnect_account_consents"
           ]
+        },
+        {
+          "id": "0007_mediconnect",
+          "sql_sha256": "dc0885ac36a0328e76fc94d4960c0bd2c9b325680ea78f1f58ee34b606f426c6",
+          "creates_tables": []
         }
       ]
     },

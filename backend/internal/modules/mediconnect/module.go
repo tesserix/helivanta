@@ -25,6 +25,9 @@ var reviewSchema string
 //go:embed review_source.sql
 var reviewSourceSchema string
 
+//go:embed claim_check.sql
+var claimCheckSchema string
+
 //go:embed consent.sql
 var consentSchema string
 
@@ -34,7 +37,7 @@ func New() *Module                         { return &Module{} }
 func (*Module) Name() string               { return "mediconnect" }
 func (*Module) Permissions() []authz.Grant { return []authz.Grant{{Permission: PermNoticeManage}} }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_mediconnect", SQL: accountSchema}, {ID: "0002_mediconnect", SQL: linkRequestSchema}, {ID: "0003_mediconnect", SQL: accessibilitySchema}, {ID: "0004_mediconnect", SQL: reviewSchema}, {ID: "0005_mediconnect", SQL: reviewSourceSchema}, {ID: "0006_mediconnect", SQL: consentSchema}}
+	return []tenantdb.Migration{{ID: "0001_mediconnect", SQL: accountSchema}, {ID: "0002_mediconnect", SQL: linkRequestSchema}, {ID: "0003_mediconnect", SQL: accessibilitySchema}, {ID: "0004_mediconnect", SQL: reviewSchema}, {ID: "0005_mediconnect", SQL: reviewSourceSchema}, {ID: "0006_mediconnect", SQL: consentSchema}, {ID: "0007_mediconnect", SQL: claimCheckSchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &accountHandlers{db: deps.DB, bus: deps.Bus}

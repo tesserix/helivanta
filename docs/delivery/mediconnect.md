@@ -501,3 +501,47 @@ instead of rejection (400). The shared, already-bounded patient input decoder no
 checks raw UTF-8 before JSON decoding; all patientmaster consumers were traced
 against current source. The regression then passed in the full patientmaster race
 package (50.213s sample). This is a strict input correction, not a policy change.
+
+### 2026-10-25 authority production and notice validation
+
+Authority release `2c944ae63f7e407ab2866774668d7f57ede81184` deployed through Kargo
+promotion `prod.01m5rvax7wjz4rhnc20yshvj7b.b13783a`. The active Kubernetes identity
+explicitly allowed Promotions; this reused the previous Kargo submission path
+after the CLI session rejected authentication. Kargo/Argo performed the rollout.
+API/global/shell rollout status succeeded and each had 2 ready/available replicas.
+The migration Job reported success; production metadata verified patientmaster
+0005/0006 and forced RLS on review/authority tables. Public Global API rejected
+missing credentials with 401. This is not an authenticated production patient
+journey. No notice, legal policy or clinical consent was seeded.
+
+Notice PR #1331 merged as `424e8ca18421a28c2dff572162078d91fcc7959f` after all
+current-head CI passed and final local full backend race/coverage passed using
+`GOFLAGS='-p=2 -timeout=20m' ./scripts/coverage-gate.sh` with the Colima test socket.
+Earlier runs retain unresolved intermittent emergency 500 and IAM fixture timeout
+failures; both passed three focused repeats. A bounded run passed those packages
+but exceeded the default ten-minute workforce binary budget. The twenty-minute
+binary budget changed neither request deadlines nor assertions. No original
+failure cause is claimed proven. Notices subsequently deployed via Kargo promotion
+`prod.01m5rye9mpdjzywcbjbdfaehgt.9c8aa3f`: API/global/shell each 2/2 updated/ready,
+migration 0007_patientmaster, forced RLS/one policy and both audit/history triggers
+verified. Public missing-credentials probe returned 401; no authenticated production
+patient journey or actual notice content was activated by this work.
+
+The next owner boundary adds a live workload-authenticated exact claim predicate
+for clinical consumers. Real Postgres tests verify committed withdrawal without
+broker wait, wrong tuple/credentials, strict input, read-only RLS and audit-failure
+denial. It does not implement grants, recipient authority, proxy consent or record
+release; those broad stories remain open. Startup is disabled until workload
+configuration and a real consumer are integrated; do not infer enablement from code.
+Deadline worker activation #1529 still awaits failed initializer cleanup approval.
+
+Current-claim evidence: the full MediConnect race package passed (24.224s sample),
+as did full architecture race checks, workload-verifier tests and the actual
+hospital provisioning/adoption compatibility cases. Missing API constructor,
+verification-outage 401 instead of 503 and missing exact service-account audit
+attribution were observed before their fixes. Input/scope, immediate withdrawal,
+read-only RLS and audit rollback checks pass. A 100k synthetic claim plan used the
+primary-key index under a non-bypass app role with forced RLS and all history/audit
+triggers retained (0.483 ms sample); the reused local benchmark role needed its
+normal audit INSERT grant restored before seeding. No live privilege was changed.
+This plan is not a TokenReview-inclusive load test or production capacity proof.

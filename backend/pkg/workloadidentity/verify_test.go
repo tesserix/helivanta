@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/pem"
+	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/pkg/workloadidentity"
 	"k8s.io/client-go/rest"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -52,4 +54,19 @@ func TestWorkloadAudienceAndExactAccountAreBothRequired(t *testing.T) {
 
 func pemCertificate(der []byte) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+}
+
+func TestWorkloadVerifierSeparatesDependencyFailureFromRejectedCredentials(t *testing.T) {
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(500) }))
+	t.Cleanup(api.Close)
+	v, err := workloadidentity.New(&rest.Config{Host: api.URL}, "helivanta-mediconnect-claim", "system:serviceaccount:helivanta:patientmaster-api")
+	require.NoError(t, err)
+	require.Equal(t, "system:serviceaccount:helivanta:patientmaster-api", v.Subject())
+	require.ErrorIs(t, v.Verify(t.Context(), "Bearer synthetic-projected-token"), workloadidentity.ErrUnavailable)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	require.ErrorIs(t, v.Verify(ctx, "Bearer synthetic-projected-token"), workloadidentity.ErrUnavailable)
+	for _, credential := range []string{"", "Bearer ", "Basic invalid", "Bearer whitespace token", "Bearer " + strings.Repeat("x", 8200)} {
+		require.ErrorIs(t, v.Verify(t.Context(), credential), workloadidentity.ErrRejected)
+	}
 }

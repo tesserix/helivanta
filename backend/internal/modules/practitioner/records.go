@@ -1,6 +1,7 @@
 package practitioner
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -63,19 +65,29 @@ func (in recordInput) valid() bool {
 		return false
 	}
 }
-func input(c *gin.Context) (*recordInput, bool) {
+func decode(c *gin.Context, target any) bool {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 8192)
 	d := json.NewDecoder(c.Request.Body)
 	d.DisallowUnknownFields()
+	if d.Decode(target) != nil || d.Decode(new(any)) != io.EOF {
+		respond.Error(c, 400, "invalid_request", "Expected a bounded practitioner request")
+		return false
+	}
+	return true
+}
+func input(c *gin.Context) (*recordInput, bool) {
 	var in *recordInput
-	if d.Decode(&in) != nil || in == nil || d.Decode(new(any)) != io.EOF || !in.valid() {
-		respond.Error(c, 400, "invalid_request", "Expected a bounded unverified practitioner identity")
+	if !decode(c, &in) {
+		return nil, false
+	}
+	if in == nil || !in.valid() {
+		respond.Error(c, 400, "invalid_request", "Expected an unverified practitioner identity")
 		return nil, false
 	}
 	return in, true
 }
-func pathID(c *gin.Context) (uuid.UUID, bool) {
-	raw := c.Param("practitioner")
+func resourceID(c *gin.Context, key string) (uuid.UUID, bool) {
+	raw := c.Param(key)
 	id, err := uuid.Parse(raw)
 	if err != nil || id.Version() != 7 || id.Variant() != uuid.RFC4122 || id.String() != raw {
 		respond.NotFound(c, "practitioner")
@@ -84,11 +96,14 @@ func pathID(c *gin.Context) (uuid.UUID, bool) {
 	return id, true
 }
 func failure(c *gin.Context, err error) {
+	var pg *pgconn.PgError
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		respond.NotFound(c, "practitioner")
-	case errors.Is(err, errIntentConflict):
-		respond.Error(c, 409, "practitioner_conflict", "This identifier records a different practitioner intent")
+	case errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.As(err, &pg) && (pg.Code == "55P03" || pg.Code == "57014"):
+		respond.Error(c, 503, "practitioner_unavailable", "Practitioner operation timed out; reconcile the retained command before retrying")
+	case errors.Is(err, errIntentConflict) || errors.As(err, &pg) && pg.Code == "23505":
+		respond.Error(c, 409, "practitioner_conflict", "This identifier or professional identity conflicts with a retained intent")
 	default:
 		respond.InternalErr(c, errors.New("practitioner storage operation unavailable"), "Practitioner operation unavailable")
 	}
@@ -98,7 +113,7 @@ func setScope(tx *gorm.DB, p authn.Principal, manage bool) error {
 	if manage {
 		manageValue = "true"
 	}
-	return tx.Exec("SELECT set_config('app.actor_subject',?,true),set_config('app.practitioner_access','true',true),set_config('app.practitioner_manage',?,true)", p.Subject, manageValue).Error
+	return tx.Exec("SELECT set_config('app.actor_subject',?,true),set_config('app.practitioner_access','true',true),set_config('app.practitioner_manage',?,true),set_config('lock_timeout','2s',true),set_config('statement_timeout','5s',true)", p.Subject, manageValue).Error
 }
 func read(tx *gorm.DB, p authn.Principal, id uuid.UUID, row *record) error {
 	return tx.Select(recordColumns).Where("tenant_id=? AND id=?", p.TenantID, id).Take(row).Error
@@ -106,14 +121,16 @@ func read(tx *gorm.DB, p authn.Principal, id uuid.UUID, row *record) error {
 func auditRead(tx *gorm.DB, p authn.Principal, id uuid.UUID) error {
 	return tx.Exec("INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES(?,?,'read','practitioner_records',?)", p.TenantID, p.Subject, id).Error
 }
-func sameFamily(a, b *string) bool { return a == nil && b == nil || a != nil && b != nil && *a == *b }
+func sameOptionalString(a, b *string) bool {
+	return a == nil && b == nil || a != nil && b != nil && *a == *b
+}
 func (h *handlers) put(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
 	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
-	id, ok := pathID(c)
+	id, ok := resourceID(c, "practitioner")
 	if !ok {
 		return
 	}
@@ -123,10 +140,7 @@ func (h *handlers) put(c *gin.Context) {
 	}
 	created := false
 	var row record
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if e := setScope(tx, p, true); e != nil {
-			return e
-		}
+	err := h.transaction(c.Request.Context(), p, true, func(tx *gorm.DB) error {
 		result := tx.Exec("INSERT INTO practitioner_records(tenant_id,id,given_name,family_name,professional_type,created_by) VALUES(?,?,?,?,?,?) ON CONFLICT(tenant_id,id) DO NOTHING", p.TenantID, id, in.GivenName, in.FamilyName, in.ProfessionalType, p.Subject)
 		if result.Error != nil {
 			return result.Error
@@ -135,7 +149,7 @@ func (h *handlers) put(c *gin.Context) {
 		if e := read(tx, p, id, &row); e != nil {
 			return e
 		}
-		if row.GivenName != in.GivenName || !sameFamily(row.FamilyName, in.FamilyName) || row.ProfessionalType != in.ProfessionalType {
+		if row.GivenName != in.GivenName || !sameOptionalString(row.FamilyName, in.FamilyName) || row.ProfessionalType != in.ProfessionalType {
 			return errIntentConflict
 		}
 		if !created {
@@ -159,15 +173,12 @@ func (h *handlers) get(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := pathID(c)
+	id, ok := resourceID(c, "practitioner")
 	if !ok {
 		return
 	}
 	var row record
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if e := setScope(tx, p, false); e != nil {
-			return e
-		}
+	err := h.transaction(c.Request.Context(), p, false, func(tx *gorm.DB) error {
 		if e := read(tx, p, id, &row); e != nil {
 			return e
 		}
@@ -178,4 +189,15 @@ func (h *handlers) get(c *gin.Context) {
 		return
 	}
 	respond.OK(c, row)
+}
+
+func (h *handlers) transaction(ctx context.Context, p authn.Principal, manage bool, fn func(*gorm.DB) error) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
+		if err := setScope(tx, p, manage); err != nil {
+			return err
+		}
+		return fn(tx)
+	})
 }

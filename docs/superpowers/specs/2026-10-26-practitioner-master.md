@@ -108,3 +108,65 @@ complete owner integration is a release gate, not evidence of current deployment
 Verification and amendments must be implemented as separately attributable commands
 before runtime registration. The immutable intake intent is retained, not overwritten
 when a professional's subsequently verified identity differs from an initial claim.
+
+## Registration ownership and renewal
+
+Council registrations belong to the same practitioner owner. The initial command
+records an unverified issuer/number claim, not council verification. `council_system`
+is a stable, lowercase opaque issuer namespace, not a validated official council
+or a URL to fetch. Exact `(tenant, practitioner, council_system, registration_number)` claims are
+unique within a practitioner; another command ID for the same claim conflicts.
+Unverified claims by different practitioners remain separate: an unverified entry
+cannot reserve somebody else's professional identity. The future verification
+workflow must reconcile conflicting claims and enforce canonical verified ownership
+before any professional/clinical authority; intake never claims that reconciliation
+has occurred. Numbers retain exact case/punctuation. Issuer-specific
+normalization and council verification must be approved before identity matching
+or clinical use; no universal normalization is guessed.
+
+Initial PUT `/v1/practitioners/:practitioner/registrations/:registration` requires
+the administrative manage permission. Body contains `council_system`,
+`registration_number`, optional nullable ISO-calendar `issued_on` and `expires_on`.
+An unknown expiry is unknown, not unlimited validity. Invalid calendar dates and
+expiry before issue are rejected. Initial command/revision share the caller's
+UUIDv7; first creation is201, exact replay200/current head, changed initial intent409.
+Detail GET requires the administrative read permission and commits its read audit.
+No demographics, creator or private evidence is returned.
+
+Renewal is a new immutable command at
+`PUT /v1/practitioners/:practitioner/registrations/:registration/revisions/:command`:
+`expected_version` plus a complete replacement of nullable issue/expiry dates
+(omitted or null means unknown, not preservation of a prior value). It serializes on
+the registration, appends the new revision and advances the head atomically. Exact
+command replay returns its original receipt even after later renewals; changed
+intent or stale version conflicts. It cannot rewrite the council or number. Prior
+claims and attribution remain retrievable. Each new revision is unverified; future
+verification must bind the exact revision and cannot carry over from earlier dates.
+
+Both records and revisions use composite tenant/practitioner foreign keys, forced
+RLS and database transition/commit guards. Reads, history and replay require current
+permission, scope and audit. On audit/storage failure no dates or numbers are
+returned. Every owner transaction has a five-second caller-cancellable budget and
+a two-second database lock budget. Cancellation/deadline or lock timeout returns
+503 `practitioner_unavailable`; clients reconcile the same command ID after an
+ambiguous result rather than generating another intent. Other storage/audit errors
+remain sanitized500. Failed writes leave no revision or advanced head. No provider, clinical
+privilege, FHIR compliance or HPR check is implied. Registrations without expiry or
+verification remain unavailable as authority for clinical actions. Migration0002
+is additive, bounded and undeployed; no retained claims may be removed on rollback.
+
+Registration and revision collections use administrative-read permission and the
+standard keyset envelope at `/registrations` and `/registrations/:registration/revisions`
+under the practitioner path. Limit1–200, default50; immutable `(created_at,id)`
+descending pagination. Each receipt carries its source version; timestamps are not
+clinical validity or revision authority. Lists audit the scoped parent and fetched
+resources atomically, including empty collections. Read-audit failure returns an
+error with no partial page. Nonexistent/wrong-tenant parents return404.
+
+Local verification so far covers first intake, exact replay, changed identities,
+12-way conflicting renewals and same-command replay, renewal/unknown dates,
+retained receipts after later revisions, bounded pagination, rejected verification
+claims and invalid calendar dates, independent forced RLS, audit-failure rollback,
+empty-list audit failure, deferred commit guards and request cancellation while the
+registration row is locked. This is not independent manual/council verification,
+clinical privilege evaluation or runtime deployment; those remain release gates.

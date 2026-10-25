@@ -3,9 +3,12 @@
 Specification: [owner and sequencing](../specs/2026-10-26-practitioner-master.md).
 This plan does not close #39/#474/#77/#102 for a partial implementation.
 
-- [ ] Observe strict base-record intake/read integration tests failing, implement
+- [x] Observe strict base-record intake/read integration tests failing, implement
       immutable tenant-scoped records and attributable read/write audit, then verify
       concurrent replay, changed intent, permission denial and dependency failures.
+- [x] Implement local unverified council-claim intake, immutable renewal receipts,
+      bounded history, replay/concurrency, isolation, audit-failure and cancellation
+      verification. This is not council verification or runtime integration.
 - [ ] Complete registration/qualification/evidence and independent verification
       workflows; test lapsed/suspended sources and explicit HPR unavailability.
 - [ ] Complete reviewed facility/role/privilege ownership, current and historical

@@ -1,0 +1,181 @@
+package practitioner
+
+import (
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+	"unicode"
+	"unicode/utf8"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"gorm.io/gorm"
+)
+
+type handlers struct{ db *tenantdb.DB }
+type record struct {
+	ID                uuid.UUID `json:"id"`
+	GivenName         string    `json:"given_name"`
+	FamilyName        *string   `json:"family_name"`
+	ProfessionalType  string    `json:"professional_type"`
+	VerificationState string    `json:"verification_state"`
+	CreatedAt         time.Time `json:"created_at"`
+}
+
+func (record) TableName() string           { return "practitioner_records" }
+func (r *record) AfterFind(*gorm.DB) error { r.CreatedAt = r.CreatedAt.UTC(); return nil }
+
+const recordColumns = "id,given_name,family_name,professional_type,verification_state,created_at"
+
+var errIntentConflict = errors.New("practitioner intent conflicts")
+
+type recordInput struct {
+	GivenName        string  `json:"given_name"`
+	FamilyName       *string `json:"family_name"`
+	ProfessionalType string  `json:"professional_type"`
+}
+
+func validName(s string) bool {
+	if !utf8.ValidString(s) || len(s) == 0 || len(s) > 150 || strings.TrimSpace(s) != s {
+		return false
+	}
+	for _, r := range s {
+		if unicode.IsControl(r) {
+			return false
+		}
+	}
+	return true
+}
+func (in recordInput) valid() bool {
+	if !validName(in.GivenName) || (in.FamilyName != nil && !validName(*in.FamilyName)) {
+		return false
+	}
+	switch in.ProfessionalType {
+	case "physician", "surgeon", "dentist", "nurse", "pharmacist", "pathologist", "radiologist", "lab_technician", "physiotherapist", "paramedic", "biomedical_technician":
+		return true
+	default:
+		return false
+	}
+}
+func input(c *gin.Context) (*recordInput, bool) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 8192)
+	d := json.NewDecoder(c.Request.Body)
+	d.DisallowUnknownFields()
+	var in *recordInput
+	if d.Decode(&in) != nil || in == nil || d.Decode(new(any)) != io.EOF || !in.valid() {
+		respond.Error(c, 400, "invalid_request", "Expected a bounded unverified practitioner identity")
+		return nil, false
+	}
+	return in, true
+}
+func pathID(c *gin.Context) (uuid.UUID, bool) {
+	raw := c.Param("practitioner")
+	id, err := uuid.Parse(raw)
+	if err != nil || id.Version() != 7 || id.Variant() != uuid.RFC4122 || id.String() != raw {
+		respond.NotFound(c, "practitioner")
+		return uuid.Nil, false
+	}
+	return id, true
+}
+func failure(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		respond.NotFound(c, "practitioner")
+	case errors.Is(err, errIntentConflict):
+		respond.Error(c, 409, "practitioner_conflict", "This identifier records a different practitioner intent")
+	default:
+		respond.InternalErr(c, errors.New("practitioner storage operation unavailable"), "Practitioner operation unavailable")
+	}
+}
+func setScope(tx *gorm.DB, p authn.Principal, manage bool) error {
+	manageValue := "false"
+	if manage {
+		manageValue = "true"
+	}
+	return tx.Exec("SELECT set_config('app.actor_subject',?,true),set_config('app.practitioner_access','true',true),set_config('app.practitioner_manage',?,true)", p.Subject, manageValue).Error
+}
+func read(tx *gorm.DB, p authn.Principal, id uuid.UUID, row *record) error {
+	return tx.Select(recordColumns).Where("tenant_id=? AND id=?", p.TenantID, id).Take(row).Error
+}
+func auditRead(tx *gorm.DB, p authn.Principal, id uuid.UUID) error {
+	return tx.Exec("INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES(?,?,'read','practitioner_records',?)", p.TenantID, p.Subject, id).Error
+}
+func sameFamily(a, b *string) bool { return a == nil && b == nil || a != nil && b != nil && *a == *b }
+func (h *handlers) put(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
+	if !ok {
+		return
+	}
+	id, ok := pathID(c)
+	if !ok {
+		return
+	}
+	in, ok := input(c)
+	if !ok {
+		return
+	}
+	created := false
+	var row record
+	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+		if e := setScope(tx, p, true); e != nil {
+			return e
+		}
+		result := tx.Exec("INSERT INTO practitioner_records(tenant_id,id,given_name,family_name,professional_type,created_by) VALUES(?,?,?,?,?,?) ON CONFLICT(tenant_id,id) DO NOTHING", p.TenantID, id, in.GivenName, in.FamilyName, in.ProfessionalType, p.Subject)
+		if result.Error != nil {
+			return result.Error
+		}
+		created = result.RowsAffected == 1
+		if e := read(tx, p, id, &row); e != nil {
+			return e
+		}
+		if row.GivenName != in.GivenName || !sameFamily(row.FamilyName, in.FamilyName) || row.ProfessionalType != in.ProfessionalType {
+			return errIntentConflict
+		}
+		if !created {
+			return auditRead(tx, p, id)
+		}
+		return nil
+	})
+	if err != nil {
+		failure(c, err)
+		return
+	}
+	if created {
+		respond.Created(c, row)
+	} else {
+		respond.OK(c, row)
+	}
+}
+func (h *handlers) get(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
+	if !ok {
+		return
+	}
+	id, ok := pathID(c)
+	if !ok {
+		return
+	}
+	var row record
+	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+		if e := setScope(tx, p, false); e != nil {
+			return e
+		}
+		if e := read(tx, p, id, &row); e != nil {
+			return e
+		}
+		return auditRead(tx, p, id)
+	})
+	if err != nil {
+		failure(c, err)
+		return
+	}
+	respond.OK(c, row)
+}

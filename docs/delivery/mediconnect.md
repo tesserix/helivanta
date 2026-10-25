@@ -344,3 +344,10 @@ passed with a synthetic existing account. A 100k synthetic receipt query-plan
 exercise uses the account-scoped page index with forced app-role RLS; this is
 query-plan evidence, not an end-to-end load/SLO certification. Evidence is retained
 under `~/.local/state/helivanta/mediconnect-consent-20261025`.
+The initial query-plan attempt correctly failed because the schema-only restore
+omits ACLs. Read-only production inspection confirmed owner `helivanta` grants
+DML to `hms_app` by default, including the deployed account/review tables. The
+isolated benchmark was rerun with equivalent app-role grants and forced RLS:
+100k synthetic receipts used `mediconnect_consent_page` (4 buffer hits, 0.139ms
+execution for that sample). The HTTP acceptance/withdrawal integration test also
+passes using the production owner's actual role/default-grant setup.

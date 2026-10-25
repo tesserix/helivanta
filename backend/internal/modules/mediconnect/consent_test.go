@@ -42,7 +42,7 @@ func TestTenantReviewedNoticeIsImmutableAndScoped(t *testing.T) {
 }
 
 func TestAccountConsentPinsNoticeAndWithdrawalIsTerminal(t *testing.T) {
-	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"publisher": testutil.TenantA, "patient": testutil.TenantA, "peer": testutil.TenantA, "other": testutil.TenantB}, Perms: map[string][]authz.Permission{"publisher": {"mediconnect.notice.manage"}}, Modules: []platform.Module{mediconnect.New()}})
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{ProductionOwner: true, Tokens: map[string]string{"publisher": testutil.TenantA, "patient": testutil.TenantA, "peer": testutil.TenantA, "other": testutil.TenantB}, Perms: map[string][]authz.Permission{"publisher": {"mediconnect.notice.manage"}}, Modules: []platform.Module{mediconnect.New()}})
 	upstream := httptest.NewServer(r)
 	t.Cleanup(upstream.Close)
 	gateway, err := globalapi.New(globalapi.Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"mediconnect": upstream.URL}})

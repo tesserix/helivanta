@@ -497,3 +497,48 @@ func TestClinicalConsentRejectsStaleOrUnacknowledgedScopeWithoutCreatingGrant(t 
 	changed := scopedDo(f.router, "PUT", path, "owner", strings.Replace(f.body, `"resource_types":["diagnostic_report"]`, `"resource_types":["prescription"]`, 1))
 	require.Equal(t, 409, changed.Code, changed.Body.String())
 }
+
+func TestClinicalConsentHistoryCursorRetainsWithdrawnDeclarations(t *testing.T) {
+	f := newClinicalFixture(t)
+	first := uuid.Must(uuid.NewV7()).String()
+	path := "/v1/patients/my/clinical-consents/" + first
+	created := scopedDo(f.router, "PUT", path, "owner", f.body)
+	require.Equal(t, 201, created.Code, created.Body.String())
+	withdrawn := scopedDo(f.router, "POST", path+"/withdraw", "owner", `{"expected_version":1}`)
+	require.Equal(t, 200, withdrawn.Code, withdrawn.Body.String())
+	second := uuid.Must(uuid.NewV7()).String()
+	created = scopedDo(f.router, "PUT", "/v1/patients/my/clinical-consents/"+second, "owner", f.body)
+	require.Equal(t, 201, created.Code, created.Body.String())
+	type historyPage struct {
+		Data []struct{ ID, Status string }
+		Page struct {
+			HasMore    bool    `json:"has_more"`
+			NextCursor *string `json:"next_cursor"`
+		}
+	}
+	response := scopedDo(f.router, "GET", "/v1/patients/my/clinical-consents?limit=1", "owner", "")
+	require.Equal(t, 200, response.Code, response.Body.String())
+	var page historyPage
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &page))
+	require.Len(t, page.Data, 1)
+	require.Equal(t, second, page.Data[0].ID)
+	require.True(t, page.Page.HasMore)
+	require.NotNil(t, page.Page.NextCursor)
+	next := scopedDo(f.router, "GET", "/v1/patients/my/clinical-consents?limit=1&cursor="+*page.Page.NextCursor, "owner", "")
+	require.Equal(t, 200, next.Code, next.Body.String())
+	var older historyPage
+	require.NoError(t, json.Unmarshal(next.Body.Bytes(), &older))
+	require.Len(t, older.Data, 1)
+	require.Equal(t, first, older.Data[0].ID)
+	require.Equal(t, "withdrawn", older.Data[0].Status)
+	require.False(t, older.Page.HasMore)
+	require.Nil(t, older.Page.NextCursor)
+	for _, query := range []string{"?limit=201", "?cursor=invalid"} {
+		invalid := scopedDo(f.router, "GET", "/v1/patients/my/clinical-consents"+query, "owner", "")
+		require.Equal(t, 400, invalid.Code, invalid.Body.String())
+	}
+	foreign := scopedDo(f.router, "GET", "/v1/patients/my/clinical-consents?cursor="+*page.Page.NextCursor, "foreign", "")
+	require.Equal(t, 400, foreign.Code, foreign.Body.String())
+	require.NotContains(t, foreign.Body.String(), first)
+	require.NotContains(t, foreign.Body.String(), second)
+}

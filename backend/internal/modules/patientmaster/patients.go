@@ -22,6 +22,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"github.com/tesserix/helivanta/internal/mediconnectclaims"
 	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
 	"github.com/tesserix/helivanta/internal/modules/patientmaster/matching"
 	"github.com/tesserix/helivanta/internal/platform/respond"
@@ -29,6 +30,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/transit"
 )
 
 // dateLayout is the ISO calendar-date form every DOB on the wire and in
@@ -173,8 +175,10 @@ type registerRequest struct {
 }
 
 type patientHandlers struct {
-	db  *tenantdb.DB
-	bus *events.Bus
+	db      *tenantdb.DB
+	bus     *events.Bus
+	transit *transit.Client
+	claims  *mediconnectclaims.Client
 }
 
 // possibleMatch is the wire shape of one Possible-band candidate offered

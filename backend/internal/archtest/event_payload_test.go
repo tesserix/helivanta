@@ -40,6 +40,10 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"patientmaster.SharingRecipientChangedData.RecipientID": "opaque reviewed recipient binding; no identity or evidence; scoped owner lookup required",
+	"patientmaster.SharingRecipientChangedData.Version":     "monotonic binding revision for invalidation only",
+	"patientmaster.ClinicalConsentChangedData.ConsentID":    "opaque declaration identifier; no patient, recipient, purpose or content; scoped owner lookup required",
+	"patientmaster.ClinicalConsentChangedData.Version":      "monotonic retained declaration state revision for invalidation only",
 	"mediconnect.ClaimCheckRequest.TenantID":                "opaque tenant selector for private owner lookup; requires audience-bound owner identity and exact tuple RLS",
 	"mediconnect.ClaimCheckRequest.RequestID":               "opaque known claim identifier for a private exact lookup, not an account search or event",
 	"mediconnect.ClaimCheckRequest.HospitalID":              "opaque scope identifier in private owner lookup; does not confer hospital authority",

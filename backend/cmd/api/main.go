@@ -22,6 +22,7 @@ import (
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/config"
 	"github.com/tesserix/helivanta/internal/httpserver"
+	"github.com/tesserix/helivanta/internal/mediconnectclaims"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/modules/mediconnect"
@@ -379,7 +380,12 @@ func run() error {
 	// could get out of sync rather than two call sites independently
 	// negating cfg.IsDev().
 	sessionSecureCookie := !cfg.IsDev()
+	currentClaims, err := mediconnectclaims.FromEnv(os.Getenv)
+	if err != nil {
+		return errors.New("invalid MediConnect current claim owner configuration")
+	}
 	deps := platform.Deps{
+		CurrentClaims:             currentClaims,
 		EmergencyDispatchEnabled:  cfg.EmergencyDispatchEnabled,
 		EmergencyWorkflowsEnabled: cfg.EmergencyWorkflowsEnabled,
 		PrivacyDeadlinesEnabled:   cfg.PrivacyDeadlinesEnabled,

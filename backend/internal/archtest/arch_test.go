@@ -344,6 +344,8 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /patients/my/clinical-consents/:consent":                               "one subject-owned retained declaration receipt",
+	"GET /patients/sharing-recipients/:recipient":                               "one reviewed hospital recipient binding; no collection",
 	"GET /emergency/receiving/facilities/:facility":                             "one current campus revision; campus history/inbox collections are separately paginated",
 	"GET /emergency/receiving/facilities/:facility/requests/:provider/:request": "one explicitly addressed pre-alert and current decision, not a request collection",
 	"GET /emergency/receiving/facilities/:facility/links/:provider/:link":       "one explicitly addressed bilateral service link and current decision",

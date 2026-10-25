@@ -24,21 +24,22 @@ import (
 var errConsentAuthorityConflict = errors.New("consent authority state conflicts")
 
 type consentAuthority struct {
-	ID              uuid.UUID  `json:"id"`
-	HospitalID      uuid.UUID  `json:"hospital_id"`
-	PatientID       uuid.UUID  `json:"patient_id"`
-	ReviewRequestID uuid.UUID  `json:"review_request_id"`
-	DecisionID      uuid.UUID  `json:"decision_id"`
-	Subject         string     `json:"-"`
-	Fingerprint     string     `json:"-"`
-	Status          string     `json:"status"`
-	EffectiveStatus string     `json:"effective_status" gorm:"->"`
-	Version         int64      `json:"version"`
-	ValidUntil      time.Time  `json:"valid_until"`
-	AcceptedAt      *time.Time `json:"accepted_at"`
-	RevokedAt       *time.Time `json:"revoked_at"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID                    uuid.UUID  `json:"id"`
+	HospitalID            uuid.UUID  `json:"hospital_id"`
+	PatientID             uuid.UUID  `json:"patient_id"`
+	ReviewRequestID       uuid.UUID  `json:"review_request_id"`
+	DecisionID            uuid.UUID  `json:"decision_id"`
+	Subject               string     `json:"-"`
+	Fingerprint           string     `json:"-"`
+	RegistrationUpdatedAt time.Time  `json:"-"`
+	Status                string     `json:"status"`
+	EffectiveStatus       string     `json:"effective_status" gorm:"->"`
+	Version               int64      `json:"version"`
+	ValidUntil            time.Time  `json:"valid_until"`
+	AcceptedAt            *time.Time `json:"accepted_at"`
+	RevokedAt             *time.Time `json:"revoked_at"`
+	CreatedAt             time.Time  `json:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at"`
 }
 
 func (consentAuthority) TableName() string { return "patient_consent_authorities" }

@@ -81,8 +81,12 @@ func (h *catalogueHandlers) getOverview(c *gin.Context) {
 			// transaction-local table; the three bands then apply the register's
 			// own scope to it, so they still match the list and the history is
 			// not re-aggregated per band on every refresh. Read at the current
-			// time, as the stock page's own as_of is.
-			source := stockPositionsSource(tx, p.TenantID, outlet, time.Now().UTC())
+			// database time so committed movements cannot fall beyond a slower host clock.
+			var stockAsOf time.Time
+			if err := tx.Raw("SELECT clock_timestamp()").Scan(&stockAsOf).Error; err != nil {
+				return err
+			}
+			source := stockPositionsSource(tx, p.TenantID, outlet, stockAsOf)
 			if err := tx.Exec("CREATE TEMP TABLE overview_positions ON COMMIT DROP AS ?", source).Error; err != nil {
 				return err
 			}

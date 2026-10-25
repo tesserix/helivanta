@@ -37,6 +37,9 @@ test does not prove browser profile selection or a patient-only login journey.
   and a different subject returned 404. No clinical record was disclosed.
 - Withdrawal, identical withdrawal replay and capture replay all retained the
   terminal withdrawn state. The next exact-recipient check returned `deny`.
+  Exact-row database metadata confirmed version 2/withdrawn, one eligible allow,
+  one scope-mismatch deny and one inactive deny, plus one insert, one update and
+  seven read-audit entries. No receipt body or clinical payload was queried.
 - Cleanup revoked the test authority, both recipient bindings and original
   claim, and retired the synthetic notice through owner APIs. Temporary QA
   reviewer hospital access and tenant-admin membership were removed; fresh

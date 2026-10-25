@@ -524,11 +524,15 @@ func (h *patientHandlers) decideClinicalConsent(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 12*time.Second)
 	defer cancel()
 	var row clinicalConsent
+	var observedAt time.Time
 	err := h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
 		if err := recipientClinicalScope(tx, p, hospital, id); err != nil {
 			return err
 		}
 		if err := readRecipientClinicalConsent(tx, p, hospital, id, &row); err != nil {
+			return err
+		}
+		if err := tx.Raw(`SELECT clock_timestamp()`).Scan(&observedAt).Error; err != nil {
 			return err
 		}
 		return clinicalReadAudit(tx, p, row)
@@ -539,7 +543,7 @@ func (h *patientHandlers) decideClinicalConsent(c *gin.Context) {
 	}
 	reason := "inactive"
 	var body clinicalConsentBody
-	if row.Status == "granted" {
+	if row.Status == "granted" && row.ValidUntil.After(observedAt) {
 		body, err = h.verifiedClinicalConsent(ctx, p, row)
 		if err != nil {
 			clinicalConsentError(c, err)

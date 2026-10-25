@@ -38,6 +38,7 @@ import (
 
 type clinicalFixture struct {
 	router                              *gin.Engine
+	crypto                              *transit.Client
 	db                                  *tenantdb.DB
 	body, requestID                     string
 	corruptSigner                       *atomic.Bool
@@ -165,7 +166,7 @@ func newClinicalFixture(t *testing.T) clinicalFixture {
 	approvedRecipient := scopedDo(r, "POST", recipientPath+"/approve", "approver", fmt.Sprintf(`{"expected_version":1,"identity_confirmed":true,"review_reference":%q}`, uuid.Must(uuid.NewV7()).String()))
 	require.Equal(t, 200, approvedRecipient.Code, approvedRecipient.Body.String())
 	grant := fmt.Sprintf(`{"authority_id":%q,"expected_authority_version":2,"notice_id":%q,"expected_notice_version":2,"notice_hash":%q,"recipient_id":%q,"expected_recipient_version":2,"purpose":"care_coordination","resource_types":["diagnostic_report"],"valid_until":%q,"affirmed":true}`, authorityID, noticeID, approvedNotice["content_hash"], recipientID, time.Now().UTC().Add(10*time.Minute).Truncate(time.Microsecond).Format(time.RFC3339Nano))
-	return clinicalFixture{router: consentAuthorityGateway(t, r), db: db, body: grant, requestID: requestID, corruptSigner: &corruptSigner, signerUnavailable: &signerUnavailable, claimUnavailable: &claimUnavailable}
+	return clinicalFixture{router: consentAuthorityGateway(t, r), crypto: crypto, db: db, body: grant, requestID: requestID, corruptSigner: &corruptSigner, signerUnavailable: &signerUnavailable, claimUnavailable: &claimUnavailable}
 }
 
 func TestClinicalConsentGrantIsExplicitSignedAndReconcilesWithoutReactivation(t *testing.T) {
@@ -418,4 +419,81 @@ func TestClinicalConsentConcurrentRetriesCommitOneGrantAndWithdrawal(t *testing.
 		require.EqualValues(t, 2, count, "one grant and one withdrawal event despite duplicate submissions")
 		return nil
 	}))
+}
+
+func TestClinicalConsentExpiredDeclarationDeniesDuringDependencyOutage(t *testing.T) {
+	f := newClinicalFixture(t)
+	original := uuid.Must(uuid.NewV7()).String()
+	path := "/v1/patients/my/clinical-consents/" + original
+	created := scopedDo(f.router, "PUT", path, "owner", f.body)
+	require.Equal(t, 201, created.Code, created.Body.String())
+	withdrawn := scopedDo(f.router, "POST", path+"/withdraw", "owner", `{"expected_version":1}`)
+	require.Equal(t, 200, withdrawn.Code, withdrawn.Body.String())
+	var stored struct{ Body string }
+	scope := func(tx *gorm.DB) error {
+		return tx.Exec(`SELECT set_config('app.actor_subject','user-owner',true),set_config('app.patient_consent_subject','user-owner',true),set_config('app.patient_hospital',?,true)`, testHospital).Error
+	}
+	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := scope(tx); err != nil {
+			return err
+		}
+		return tx.Table("patient_clinical_consents").Select("body").Where("tenant_id=? AND id=?", testutil.TenantA, original).Take(&stored).Error
+	}))
+	var body map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stored.Body), &body))
+	id := uuid.Must(uuid.NewV7()).String()
+	captured := time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond)
+	expired := captured.Add(time.Minute)
+	body["id"] = id
+	body["captured_at"] = captured
+	body["valid_until"] = expired
+	payload, err := json.Marshal(body)
+	require.NoError(t, err)
+	signature, err := f.crypto.HMAC(t.Context(), "helivanta-consent-"+testutil.TenantA, payload)
+	require.NoError(t, err)
+	// Insert a synthetic historical declaration through the owning application role;
+	// forced RLS, immutable-history guards and audit triggers remain enabled.
+	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := scope(tx); err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO patient_clinical_consents(tenant_id,hospital_id,id,patient_id,subject,authority_id,review_request_id,notice_id,recipient_id,purpose,fingerprint,body,hmac,valid_until,captured_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, testutil.TenantA, testHospital, id, body["patient_id"], body["subject"], body["authority_id"], body["review_request_id"], body["notice_id"], body["recipient_id"], body["purpose"], body["fingerprint"], string(payload), signature, expired, captured, captured, captured).Error
+	}))
+	f.signerUnavailable.Store(true)
+	f.claimUnavailable.Store(true)
+	decision := scopedDo(f.router, "POST", "/v1/patients/clinical-consents/"+id+"/decide", "recipient", `{"purpose":"care_coordination","resource_type":"diagnostic_report"}`)
+	require.Equal(t, 200, decision.Code, decision.Body.String())
+	require.Contains(t, decision.Body.String(), `"consent_gate":"deny"`)
+}
+
+func TestClinicalConsentRejectsStaleOrUnacknowledgedScopeWithoutCreatingGrant(t *testing.T) {
+	f := newClinicalFixture(t)
+	id := uuid.Must(uuid.NewV7()).String()
+	path := "/v1/patients/my/clinical-consents/" + id
+	for _, invalid := range []string{
+		strings.Replace(f.body, `"affirmed":true`, `"affirmed":false`, 1),
+		strings.Replace(f.body, `"expected_authority_version":2`, `"expected_authority_version":1`, 1),
+		strings.Replace(f.body, `"resource_types":["diagnostic_report"]`, `"resource_types":["diagnostic_report","diagnostic_report"]`, 1),
+		strings.Replace(f.body, `"resource_types":["diagnostic_report"]`, `"resource_types":["prescription","diagnostic_report"]`, 1),
+		strings.TrimSuffix(f.body, "}") + `,"patient_id":"untrusted"}`,
+	} {
+		denied := scopedDo(f.router, "PUT", path, "owner", invalid)
+		require.Equal(t, 400, denied.Code, denied.Body.String())
+	}
+	var input map[string]any
+	require.NoError(t, json.Unmarshal([]byte(f.body), &input))
+	input["notice_hash"] = strings.Repeat("0", 64)
+	wrongNotice, err := json.Marshal(input)
+	require.NoError(t, err)
+	mismatch := scopedDo(f.router, "PUT", path, "owner", string(wrongNotice))
+	require.Equal(t, 409, mismatch.Code, mismatch.Body.String())
+	require.Equal(t, 404, scopedDo(f.router, "GET", path, "owner", "").Code)
+	require.Equal(t, 404, scopedDo(f.router, "PUT", path, "foreign", f.body).Code)
+	wrongHospital := do(f.router, "PUT", path+"?hospital_id=22222222-2222-4222-8222-222222222222", "owner", f.body)
+	require.Equal(t, 404, wrongHospital.Code, wrongHospital.Body.String())
+	accepted := scopedDo(f.router, "PUT", path, "owner", f.body)
+	require.Equal(t, 201, accepted.Code, accepted.Body.String())
+	// A recorded command may not be repurposed, even while the grant remains active.
+	changed := scopedDo(f.router, "PUT", path, "owner", strings.Replace(f.body, `"resource_types":["diagnostic_report"]`, `"resource_types":["prescription"]`, 1))
+	require.Equal(t, 409, changed.Code, changed.Body.String())
 }

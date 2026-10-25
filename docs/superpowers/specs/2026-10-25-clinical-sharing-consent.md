@@ -116,7 +116,10 @@ Actual Global API → owner routes, PostgreSQL forced RLS, JetStream delivery,
 OpenBao and HTTPS claim-owner checks cover grant/replay, unrelated/foreign
 principals, withdrawal, source-claim withdrawal, authority revocation, notice
 retirement, recipient revocation, malformed signer receipts/quarantine, dependency
-outage and outbox/audit rollback. Only external Kubernetes TokenReview and faulted
+outage, expired historical declarations during outages, stale/invalid capture
+input, conflicting replay and outbox/audit rollback. Expiry uses the database
+clock before remote calls; already-expired declarations deny without a signer or
+claim-service dependency. Only external Kubernetes TokenReview and faulted
 OpenBao/owner HTTP responses are simulated; business repositories remain real.
 Owner summaries are cursor pages without clinical identifiers or signatures;
 they are not integrity-verified receipts or current eligibility assertions.

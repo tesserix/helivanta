@@ -1,5 +1,66 @@
 # MediConnect delivery and issue evidence
 
+## Current verified release — 2026-10-26 Melbourne
+
+Application [#1333](https://github.com/tesserix/helivanta/pull/1333) deployed
+`dff023ce383f3f478214e13a34fdec8e60b68d18`. Infrastructure prerequisites
+[#1532](https://github.com/tesserix/tesserix-k8s/pull/1532) and activation
+[#1535](https://github.com/tesserix/tesserix-k8s/pull/1535) are merged. After
+activation, API, Global API and shell were Healthy/Synced at infrastructure
+`0f8d11302b6abe8ba1d77b3711c39c3e7d5cc2eb`, each with two updated/ready
+replicas; all three rollout-status commands succeeded. Both repositories remain
+public. API automatic service-account token mounting is disabled; the dedicated
+claim and Kubernetes API projections and Istio proxy are present.
+
+Live verification used three existing synthetic QA identities in the isolated
+test tenant through `https://helivanta.app/api/v1`, with fresh Zitadel
+authorization-code/PKCE login and Global API session exchange. The expected
+tenant was explicitly selected and checked: the test owner has multiple tenant
+memberships, and the normal default selected a different membership. This API
+test does not prove browser profile selection or a patient-only login journey.
+
+- Account creation returned 201, identical replay and owner read returned 200,
+  and all returned the same account ID. Consent listing returned 200; anonymous
+  account access returned 401.
+- A synthetic registration, explicit link-review submission, independent
+  registrar decision, consent-authority proposal and patient acceptance passed.
+- Clearly labelled synthetic sharing wording was drafted and independently
+  approved only for this QA run. Recipient self-approval returned 409; a third
+  existing QA identity was then used as recipient, with separate creator and
+  reviewer. No real patient notice or clinical/legal policy was approved.
+- Signed clinical capture returned 201 and a `vault:v1:` HMAC. Identical replay
+  and owner GET returned the same receipt. Another subject's GET returned 404.
+  This exercised the deployed workload-authenticated current-claim client and
+  OpenBao signing path, rather than a fake provider or local harness.
+- The exact recipient's diagnostic-report consent check returned `allow` with
+  `record_access_authorized:false`; an ungranted resource type returned `deny`
+  and a different subject returned 404. No clinical record was disclosed.
+- Withdrawal, identical withdrawal replay and capture replay all retained the
+  terminal withdrawn state. The next exact-recipient check returned `deny`.
+  Exact-row database metadata confirmed version 2/withdrawn, one eligible allow,
+  one scope-mismatch deny and one inactive deny, plus one insert, one update and
+  seven read-audit entries. No receipt body or clinical payload was queried.
+- Cleanup revoked the test authority, both recipient bindings and original
+  claim, and retired the synthetic notice through owner APIs. Temporary QA
+  reviewer hospital access and tenant-admin membership were removed; fresh
+  permissions confirmed review access was gone. Original supply-compliance
+  membership and immutable registration, receipt and audit history remain.
+
+The live checks used bounded Python standard-library HTTP clients reading local
+QA files; no browser cookies were extracted. Protected run state is retained at
+`~/.helivanta/clinical-sharing-live-qa-20261026.json`. Credentials and session
+values are excluded from this repository and report. Local selected infrastructure
+checks passed: 19 consent/Transit/Global API tests, Ruff, and `git diff --check`;
+all activation PR CI checks passed before merge. Fault injection, 100k-row plan
+checks and the backend race regression remain separate local evidence from #1333;
+no production dependency was disrupted to repeat those tests.
+
+This supersedes historical statements below that clinical sharing is not
+activated or has no authenticated production test. It proves the self-consent
+gate only. Proxy/guardian access, source-authorized released/amended records and
+file disclosure, booking/reminder integration, real approved notice content and
+deadline-worker activation remain incomplete. The broader stories remain open.
+
 Research date: 2026-10-24. Source baseline: `cc63b6f80103fb53782dcd02c45de7440bfd384b`.
 Status: account and unverified link-request APIs deployed from `30efb51` via
 [PR #1318](https://github.com/tesserix/helivanta/pull/1318) and

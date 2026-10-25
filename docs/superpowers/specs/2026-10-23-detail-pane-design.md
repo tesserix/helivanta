@@ -121,12 +121,13 @@ Success:
    - Supplier bills becomes full width, with split / full page, the URL, the dirty guard,
      Previous / Next and focus. Its Inventory cost audit tab becomes full width only; it has
      no detail.
-2. **Product catalogue.** Split, two forms in the dirty guard, and the tax section. "Save and
-   next" for the Not-classified run follows if the user wants it.
-3. **Expiry & safety.** First check how concerns are reviewed. The specialist's assumption is
-   batch by batch.
+2. **The remaining pharmacy pages** (Product catalogue, Stock on hand, Receiving, Expiry &
+   safety, Outlets & access) follow in
+   [the all-pages spec](2026-10-24-detail-pane-all-pages-design.md), which replaces the
+   catalogue and safety slices first listed here.
 
-The Dispense queue and the Overview stay as they are: the counter flow is a different task.
+The Dispense queue, the Medication list and the Overview stay as they are: the counter flow is
+a different task.
 
 ## Not covered
 

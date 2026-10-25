@@ -372,28 +372,39 @@ function OpenProduct({
   useEffect(() => {
     if (loaded) heading.current?.focus({ preventScroll: true });
   }, [loaded]);
-  if (product.error instanceof ApiError && product.error.status === 404)
-    return (
-      <p role="alert" className="text-sm">
-        This record was not found, or you do not have access.
-      </p>
-    );
-  if (product.isError)
-    return <RequestFailure message="Could not load this product." retry={product.refetch} />;
-  if (!product.data) return <p role="status">Loading product…</p>;
   const row = product.data;
+  // The header shows whatever the pane could load: beside the list there is
+  // no back link, so Close must be here even for a record not found.
+  const header = (
+    <DetailHeader
+      title={row?.brand_name ?? "Product"}
+      subtitle={row?.sku}
+      headingRef={heading}
+      noun="product"
+      previous={{ disabled: !pane.canStep(-1), onClick: () => pane.step(-1) }}
+      next={{ disabled: !pane.canStep(1), onClick: () => pane.step(1) }}
+      closeLabel="Close product"
+      onClose={pane.close}
+    />
+  );
+  if (!row)
+    return (
+      <div className="space-y-6">
+        {header}
+        {product.error instanceof ApiError && product.error.status === 404 ? (
+          <p role="alert" className="text-sm">
+            This record was not found, or you do not have access.
+          </p>
+        ) : product.isError ? (
+          <RequestFailure message="Could not load this product." retry={product.refetch} />
+        ) : (
+          <p role="status">Loading product…</p>
+        )}
+      </div>
+    );
   return (
     <div className="space-y-6">
-      <DetailHeader
-        title={row.brand_name}
-        subtitle={row.sku}
-        headingRef={heading}
-        noun="product"
-        previous={{ disabled: !pane.canStep(-1), onClick: () => pane.step(-1) }}
-        next={{ disabled: !pane.canStep(1), onClick: () => pane.step(1) }}
-        closeLabel="Close product"
-        onClose={pane.close}
-      />
+      {header}
       {writable && row.status !== "withdrawn" ? (
         <ProductForm
           key={`${row.id}:${row.version}`}

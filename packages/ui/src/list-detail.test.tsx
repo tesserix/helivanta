@@ -114,6 +114,25 @@ describe("ListDetail", () => {
       expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
     });
 
+    // Review: Next on a phone landed where the last record was scrolled to.
+    it("opens the next record at the top too", () => {
+      listDisplay("none");
+      const view = render(shell(null));
+      view.rerender(shell(<p>TEST detail</p>));
+      scrollTo.mockReset();
+      view.rerender(
+        <div data-hms-scroll ref={(node) => void (node && (node.scrollTo = scrollTo))}>
+          <ListDetail
+            {...props}
+            label="Bill TEST-002"
+            list={<p>TEST list</p>}
+            detail={<p>TEST next</p>}
+          />
+        </div>,
+      );
+      expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
+    });
+
     it("leaves the scroll alone beside the list", () => {
       listDisplay("block");
       const view = render(shell(null));

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider, useLeaveGuard } from "@helivanta/ui";
@@ -56,6 +56,12 @@ vi.mock("next/navigation", async (original) => {
   };
 });
 const address = () => new URLSearchParams(nav.search);
+// A rail link: the same page, its address without any scope.
+const followRail = () =>
+  act(() => {
+    nav.search = "";
+    nav.listeners.forEach((fn) => fn());
+  });
 // Choosing an outlet asks first while a record is unsaved: the shell's guard.
 const renderWorkspace = (view: Parameters<typeof PharmacyWorkspace>[0]["view"]) =>
   renderWithProviders(
@@ -840,5 +846,28 @@ describe("the outlet is in the address", () => {
     await user.click(within(dialog).getByRole("button", { name: "Keep editing" }));
     expect(address().get("outlet")).toBe(outlet);
     expect(screen.getByLabelText("Outlet")).toHaveTextContent("TEST Main Outlet");
+  });
+
+  // Review Important 1: the saved choice was read once, at mount.
+  it("a rail link to the same page keeps the outlet chosen since it opened", async () => {
+    nav.search = `pharmacy=${pharmacy}&outlet=${outlet}`;
+    mockPharmacy();
+    const { user } = renderWorkspace("catalogue");
+    await chooseOption(user, await screen.findByLabelText("Outlet"), "TEST Sister Outlet");
+    await waitFor(() => expect(address().get("outlet")).toBe(sibling));
+    followRail();
+    await waitFor(() => expect(address().get("outlet")).toBe(sibling));
+    expect(screen.getByLabelText("Outlet")).toHaveTextContent("TEST Sister Outlet");
+  });
+
+  // Review Important 2: the same outlet resolving again wrote nothing back.
+  it("a rail link to the same outlet still puts the scope back in the address", async () => {
+    nav.search = `pharmacy=${pharmacy}&outlet=${outlet}`;
+    mockPharmacy();
+    renderWorkspace("catalogue");
+    await screen.findByText("TEST Counter capsule");
+    followRail();
+    await waitFor(() => expect(address().get("outlet")).toBe(outlet));
+    expect(address().get("pharmacy")).toBe(pharmacy);
   });
 });

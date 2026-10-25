@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
@@ -76,13 +76,15 @@ const selectionSchema = z.object({
 function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: PharmacyView }) {
   const { can } = usePermissions();
   const storageKey = `helivanta:pharmacy:scope:${identity.tenant_id}`;
-  const [saved] = useState(() => {
+  // Read as it is now, not once at mount: a rail link back to this same
+  // page drops the address's scope and must land on the latest choice.
+  const readSaved = () => {
     try {
       return selectionSchema.parse(JSON.parse(sessionStorage.getItem(storageKey) ?? "null"));
     } catch {
       return { pharmacyId: "", outletId: "" };
     }
-  });
+  };
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -96,7 +98,7 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
   const addressed = !!(inAddress("pharmacy") || inAddress("outlet"));
   const selection = addressed
     ? { pharmacyId: inAddress("pharmacy"), outletId: inAddress("outlet") }
-    : saved;
+    : readSaved();
   function remember(value: z.infer<typeof selectionSchema>) {
     try {
       sessionStorage.setItem(storageKey, JSON.stringify(value));
@@ -147,9 +149,10 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
     kept.set("pharmacy", pharmacy.id);
     kept.set("outlet", outlet.id);
     router.replace(`${pathname}?${kept}`);
-    // resolved stands for the pair; params and pathname are read as they are now.
+    // The address's own scope too: a rail link to the same outlet drops it,
+    // and it must be put back. The comparison above ends the loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolved]);
+  }, [resolved, params.get("pharmacy"), params.get("outlet")]);
   return (
     <>
       <PageHeading

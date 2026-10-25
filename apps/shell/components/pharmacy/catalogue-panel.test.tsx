@@ -120,6 +120,18 @@ describe("a product opens beside the catalogue (#1303 E2)", () => {
     ).toBeInTheDocument();
   });
 
+  // Review Important 3: beside the list there is no back link, so the pane
+  // itself must offer Close whatever it could load.
+  it("can close a product that was not found", async () => {
+    const missing = "0199e000-0000-7000-8000-0000000000ff";
+    nav.search = `open=${missing}`;
+    mockCatalogue({ missing });
+    const { user } = renderCatalogue();
+    await screen.findByText("This record was not found, or you do not have access.");
+    await user.click(screen.getByRole("button", { name: "Close product" }));
+    expect(new URLSearchParams(nav.search).has("open")).toBe(false);
+  });
+
   it("steps through the page's products in list order", async () => {
     mockCatalogue();
     const { user } = renderCatalogue();

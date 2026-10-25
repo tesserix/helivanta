@@ -30,12 +30,13 @@ export function ListDetail({
   const open = detail !== null;
   const listRef = useRef<HTMLDivElement>(null);
   const pane = useRef<HTMLElement>(null);
-  // Where the record replaces the list (a phone), it opens at its own top,
-  // not wherever the list was scrolled to (#1303 E7).
+  // Where the record replaces the list (a phone), each record opens at its
+  // own top, not wherever the list or the last record was scrolled to
+  // (#1303 E7). The label names the record, so Next counts as opening.
   useLayoutEffect(() => {
     if (!open || !listRef.current || getComputedStyle(listRef.current).display !== "none") return;
     pane.current?.closest<HTMLElement>("[data-hms-scroll]")?.scrollTo({ top: 0 });
-  }, [open]);
+  }, [open, label]);
   return (
     <div
       data-testid="list-detail"

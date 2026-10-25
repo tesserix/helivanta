@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	PermSharingNoticeReview    authz.Permission = "patient.sharing-notice.review"
 	PermConsentAuthorityReview authz.Permission = "patient.consent-authority.review"
 	PermPatientAccessManage    authz.Permission = "patient.access.manage"
 	PermPatientRead            authz.Permission = "patient.read"
@@ -28,6 +29,9 @@ var bloodGroupSchema string
 
 //go:embed link_reviews.sql
 var linkReviewSchema string
+
+//go:embed sharing_notices.sql
+var sharingNoticeSchema string
 
 //go:embed consent_authority.sql
 var consentAuthoritySchema string
@@ -44,6 +48,7 @@ func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
 		{Permission: PermPatientAccessManage},
 		{Permission: PermConsentAuthorityReview},
+		{Permission: PermSharingNoticeReview},
 		{Permission: PermPatientRead, Roles: []authz.Role{
 			authz.RoleReceptionist, authz.RoleDoctor, authz.RoleNurse,
 			authz.RolePharmacist, authz.RoleLabTech}},
@@ -206,7 +211,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  AFTER INSERT ON patients
 			  DEFERRABLE INITIALLY DEFERRED
 			  FOR EACH ROW EXECUTE FUNCTION patients_require_consent();`,
-	}, {ID: "0003_patientmaster", SQL: hospitalSchema}, {ID: "0004_patientmaster", SQL: bloodGroupSchema}, {ID: "0005_patientmaster", SQL: linkReviewSchema}, {ID: "0006_patientmaster", SQL: consentAuthoritySchema}}
+	}, {ID: "0003_patientmaster", SQL: hospitalSchema}, {ID: "0004_patientmaster", SQL: bloodGroupSchema}, {ID: "0005_patientmaster", SQL: linkReviewSchema}, {ID: "0006_patientmaster", SQL: consentAuthoritySchema}, {ID: "0007_patientmaster", SQL: sharingNoticeSchema}}
 }
 
 // Routes mounts registration (spec D4/D5), single lookup, and the
@@ -215,6 +220,10 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/patients")
 	patients := &patientHandlers{db: deps.DB, bus: deps.Bus}
 	g.POST("", PermPatientRegister, patients.register)
+	g.PUT("/sharing-notices/:notice", PermSharingNoticeReview, patients.putSharingNotice)
+	g.GET("/sharing-notices/:notice", PermSharingNoticeReview, patients.getSharingNotice)
+	g.POST("/sharing-notices/:notice/approve", PermSharingNoticeReview, patients.approveSharingNotice)
+	g.POST("/sharing-notices/:notice/retire", PermSharingNoticeReview, patients.retireSharingNotice)
 	g.PUT("/consent-authorities/:authority", PermConsentAuthorityReview, patients.proposeConsentAuthority)
 	g.GET("/consent-authorities/:authority", PermConsentAuthorityReview, patients.getReviewedConsentAuthority)
 	g.POST("/consent-authorities/:authority/revoke", PermConsentAuthorityReview, patients.revokeReviewedConsentAuthority)
@@ -236,7 +245,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 // Publishes declares patient.registered, published inside the same
 // transaction as the patient and consent inserts (Task 6, spec D6).
 func (m *Module) Publishes() []string {
-	return []string{patientmastercontract.SubjectPatientRegistered, patientmastercontract.SubjectRegistrationReviewed, patientmastercontract.SubjectConsentAuthorityChanged}
+	return []string{patientmastercontract.SubjectPatientRegistered, patientmastercontract.SubjectRegistrationReviewed, patientmastercontract.SubjectConsentAuthorityChanged, patientmastercontract.SubjectSharingNoticeChanged}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that

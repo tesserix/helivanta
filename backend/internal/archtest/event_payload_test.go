@@ -38,6 +38,8 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"patientmaster.SharingNoticeChangedData.NoticeID":       "opaque hospital notice identifier; no content, evidence, actor or patient; owner access remains scoped",
+	"patientmaster.SharingNoticeChangedData.Version":        "monotonic notice revision for replay ordering; no clinical or identifying content",
 	"patientmaster.ConsentAuthorityChangedData.AuthorityID": "opaque tenant-local reviewed-capacity receipt; no patient, subject, policy, evidence or clinical content; resolving it requires owner authorization",
 	"patientmaster.ConsentAuthorityChangedData.Version":     "monotonic receipt revision for duplicate/replay ordering; no clinical or identity content",
 	"mediconnect.AccountConsentData.ConsentID":              "opaque account declaration receipt reference; no clinical or legal eligibility inference",

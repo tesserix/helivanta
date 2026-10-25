@@ -3256,6 +3256,42 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/patients/sharing-notices/:notice/approve",
+          "permission": "patient.sharing-notice.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/sharing-notices/:notice/retire",
+          "permission": "patient.sharing-notice.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/sharing-notices/:notice",
+          "permission": "patient.sharing-notice.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/patients/sharing-notices/:notice",
+          "permission": "patient.sharing-notice.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/patients",
           "permission": "patient.read",
@@ -3284,6 +3320,10 @@
           "roles": []
         },
         {
+          "permission": "patient.sharing-notice.review",
+          "roles": []
+        },
+        {
           "permission": "patient.read",
           "roles": [
             "receptionist",
@@ -3303,7 +3343,8 @@
       "publishes": [
         "helivanta.in.patientmaster.registered.v1",
         "helivanta.in.patientmaster.registration_reviewed.v1",
-        "helivanta.in.patientmaster.consent_authority_changed.v1"
+        "helivanta.in.patientmaster.consent_authority_changed.v1",
+        "helivanta.in.patientmaster.sharing_notice_changed.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -3364,6 +3405,13 @@
           "sql_sha256": "c5913b414e37fc4e43d9e8ab8479287098f0ee7560549738d31383f1e9264661",
           "creates_tables": [
             "patient_consent_authorities"
+          ]
+        },
+        {
+          "id": "0007_patientmaster",
+          "sql_sha256": "270a88fc0d9a509fccaf8d05cea86567c1aa7de0d79427a669873fbc8eb61e2f",
+          "creates_tables": [
+            "patient_sharing_notices"
           ]
         }
       ]

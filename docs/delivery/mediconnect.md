@@ -474,3 +474,30 @@ test observed 500 before implementing a retryable 503
 then passed with production-budget forwarding and committed-but-lost-response
 reconciliation. Final CI for that follow-up is still required. The full
 MediConnect goal and clinical/proxy/disclosure stories remain open.
+
+### 2026-10-25 authority merge and clinical notice work
+
+Self-authority PR #1330 merged as `2c944ae63f7e407ab2866774668d7f57ede81184`
+after all current-head CI checks passed (Go, web, E2E, scripts, builds and security).
+Read-only production discovery still showed API `19b8a5f...`, with API/global/shell
+2/2 ready; merge is not deployment. Failed privacy initializer Job remains present;
+the named cleanup approval remains pending and worker activation #1529 remains open.
+
+Next slice implements patientmaster-owned immutable hospital sharing-notice drafts,
+independent approval and terminal retirement. It does not publish patient notices or
+authorize clinical access. Real synthetic PostgreSQL/NATS tests observed missing
+routes and missing exact receipt wording before fixes; lifecycle, wrong scope,
+revoked grant, invalid bodies, immutable SQL history, concurrent Global API retries
+and outbox rollback checks are included. Final aggregate regression/CI and rollout
+remain outstanding until recorded below. #60/#552/#556 must remain open.
+
+No real wording, policy applicability, proxy authority, record release, scheduling,
+reminder delivery or clinical consent is activated by this change.
+
+Notice follow-up: successful GET now verifies every content field, `no-store` and
+two actual read-audit entries across replay/read. An invalid raw UTF-8 byte was
+silently replaced by the standard JSON decoder and reached command conflict (409)
+instead of rejection (400). The shared, already-bounded patient input decoder now
+checks raw UTF-8 before JSON decoding; all patientmaster consumers were traced
+against current source. The regression then passed in the full patientmaster race
+package (50.213s sample). This is a strict input correction, not a policy change.

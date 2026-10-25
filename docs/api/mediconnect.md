@@ -358,3 +358,95 @@ withdrawal. The privacy module retains its own cases and appointments, with no
 cross-module patient/account SQL. Account creation and consent declarations are
 not prerequisites for submitting a request. A case response is not clinical
 disclosure, consent authority or confirmed rights fulfilment.
+
+## Separately reviewed self authority to declare clinical consent
+
+Implementation work for #60/#552/#556 lives in `patientmaster`, through the Global
+API's platform destination. This establishes a reviewed self-authority receipt,
+not clinical consent or a released-record API. Guardian/adult-delegate authority,
+clinical purpose/recipient/resource consent and clinical disclosure remain separate
+work. Identity approval and account consent do not authorize these operations.
+No notice, legal capacity rule, age or policy content is seeded.
+
+All routes below have prefix `/v1/patients` and require verified authentication,
+tenant membership and explicit `hospital_id` selection:
+
+| Method/path                                      | Authorization and result                                                                                   |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| PUT `/consent-authorities/:authority`            | `patient.consent-authority.review` plus current hospital registrar grant; 201 first / 200 identical replay |
+| GET `/consent-authorities/:authority`            | Same reviewer scope; 200 current receipt                                                                   |
+| POST `/consent-authorities/:authority/revoke`    | Same reviewer scope and expected version; 200                                                              |
+| GET `/my/consent-authorities`                    | Exact verified subject ownership; standard bounded cursor page                                             |
+| GET `/my/consent-authorities/:authority`         | Exact verified subject ownership; 200                                                                      |
+| POST `/my/consent-authorities/:authority/accept` | Exact subject, explicit acceptance and expected version; 200                                               |
+| POST `/my/consent-authorities/:authority/revoke` | Exact subject and expected version; 200; no reason required                                                |
+
+The reviewer permission has no default staff-role grants; tenant-admin permission
+alone still lacks the necessary hospital grant. The reviewer cannot review their
+own authority. Reviewer routes lock the hospital grant through commit. Subject
+routes have no patient-chart or evidence-read permission and cannot address a
+peer's record, even when the caller also has staff permissions.
+
+Proposal input is strict JSON, at most 8192 bytes:
+
+```json
+{
+  "review_request_id": "019a1b52-0000-7000-8000-000000000001",
+  "expected_decision_id": "019a1b52-0000-7000-8000-000000000002",
+  "capacity_confirmed": true,
+  "policy_reference": "019a1b52-0000-7000-8000-000000000003",
+  "evidence_reference": "019a1b52-0000-7000-8000-000000000004",
+  "valid_until": "2026-12-31T00:00:00Z"
+}
+```
+
+References and the path ID must be canonical UUIDv7. Capacity confirmation must
+be explicitly true; expiry must be future database time at microsecond precision.
+The owner derives patient and subject from an approved **self** identity review,
+checks the pinned decision and current registration version, and records separate
+capacity-policy/evidence attestations. These opaque references attest to retained
+hospital review records; syntax validation does not inspect or approve their
+content. Hospital privacy/legal governance remains accountable for applicability.
+The exact normalized input is immutable; changed reuse returns 409. Replaying an
+old proposal returns its current receipt without restoring its initial state.
+
+Acceptance body is `{"expected_version":1,"accepted":true}`. Missing/null/false
+acceptance is rejected. The current source review must still be approved and the
+authority unexpired. Staff cannot accept for the subject. Revocation body is
+`{"expected_version":2}` after acceptance, or version 1 for an unaccepted proposal.
+State is proposed v1, accepted v2, then terminal revoked v3; proposal revocation
+is terminal v2. Identical command retries return current results, while stale or
+conflicting versions return 409. Acceptance cannot revive revocation.
+
+Receipts expose ID, hospital/patient/review/decision IDs, recorded status, computed
+`effective_status`, version, expiry, acceptance/revocation and creation/update
+times. Expiry is computed against database time, even when no timer has run.
+Subject/reviewer identifiers, policy/evidence references, fingerprints and
+patient demographics are omitted. Responses are no-store. Hidden tenant,
+subject, hospital or resource scope returns 404; route permission failure 403;
+malformed input 400; dependency cancellation/deadline 503
+`consent_authority_unavailable`; other database/audit failures fail closed. An
+unavailable response can leave the outcome unknown: read the same receipt or
+replay the same immutable command rather than creating a new authority.
+
+Migration `0006_patientmaster` adds forced-RLS `patient_consent_authorities`,
+immutable lineage/transition guards and subject-page indexes. It allows only
+exact subject/hospital review-source reads needed for acceptance, retaining the
+existing registrar/delivery write checks on identity reviews. All authority reads,
+source-review/registration reads and accepted writes are audited. Business state,
+audit and the ID/version-only `consent_authority_changed.v1` outbox event commit
+together. The event is change evidence, with no clinical consumer or processing
+completion claim. No cache can grant authority.
+
+Identity-claim withdrawal and this separately accepted authority have distinct
+lifecycles. The original claim's cancellation can arrive asynchronously; an
+accepted authority receipt alone is never proof that the original MediConnect
+claim is still current. Before any future clinical consent or release, its owner
+must check current claim, reviewed authority, expiry/revocation, purpose-specific
+consent, object scope and source release/version. No clinical access may be built
+from this receipt or the asynchronous identity projection alone.
+
+The migration is additive and forward-only. Retain evidence and compatible
+checks once later consents reference an authority; deleting records or removing
+current revocation checks is not a valid rollback. Deployment remains a separate
+release gate and this section is not production-readiness evidence.

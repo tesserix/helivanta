@@ -20,7 +20,10 @@ IN-ID-06: Model processing authority by purpose and applicable policy, with noti
 
 IN-ID-07: Record sensitive reads, searches, disclosures, proxy grants, merges and exports. A consent receipt is not by itself an object-access grant. Withdrawal prevents future use where applicable, but does not silently erase a signed clinical record, statutory retention obligation or legal hold. Hospital privacy/legal reviewers must define those interactions, children/guardian handling and grievance procedures.
 
-The DPDP Rules 2025 have phased commencement: rule 1 brings rules 1, 2 and 17–21 into force on publication, rule 4 after one year, and rules 3, 5–16, 22 and 23 after eighteen months. Verify the Act's separate commencement notification and any corrigenda/amendments for the deployment date. Do not describe all obligations as already commenced merely because a summary announces notification. See [MeitY primary text and review limits](sources.md#identity-and-privacy).
+The DPDP Rules 2025 have phased commencement: rule 1 brings rules 1, 2 and 17–21 into force on publication, rule 4 after one year, and rules 3, 5–16, 22 and 23 after eighteen months. Verify the Act's separate commencement notification and any corrigenda/amendments for the deployment date. Do not describe all obligations as already commenced merely because a summary announces notification. See [MeitY primary text and review limits](sources.md#identity-and-privacy) and the
+[2026-10-25 source recheck](sources.md#consent-source-recheck--2026-10-25), including
+the separate Act commencement instrument, December corrigenda and October 2026
+Removal of Difficulties Order. Their publication does not activate a tenant policy.
 
 This specification does not decide Aadhaar authentication authority, a universal retention period, DPDP exemptions or data-export/residency permissions. Store reviewed policy applicability, and have privacy/legal owners approve it before activation. Security and isolation are Helivanta requirements irrespective of a future statutory phase.
 

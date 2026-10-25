@@ -162,3 +162,10 @@ writers; data ownership changes need separately approved reconciliation.
 The `privacy` route prefix uses the existing explicit `platform` upstream. The
 privacy owner verifies current officer or subject authority and records sensitive
 reads. Gateway routing grants no access and introduces no clinical disclosure.
+
+Upstream HTTP 5xx responses emit a warning with configured product, validated
+request ID and status only. Transport failures retain their separate failure
+code warning. These diagnostics preserve owner status, headers and body and
+never retry a submitted command. Request paths, queries, bodies, cookies, tokens,
+upstream addresses and response content are excluded from these warnings.
+This supports correlation; it does not identify the cause of incident #1338.

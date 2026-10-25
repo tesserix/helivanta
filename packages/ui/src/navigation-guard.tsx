@@ -169,13 +169,31 @@ export function useLeaveGuard(dirty: boolean, name: string, saving = false) {
   return { confirm: context.confirm };
 }
 
+/**
+ * A click that opens another tab or window (#1303 E7): nothing in this tab
+ * is left, so there is nothing to ask about.
+ */
+export function isModifiedClick(
+  event: Pick<MouseEvent, "metaKey" | "ctrlKey" | "shiftKey" | "altKey" | "button">,
+) {
+  return event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0;
+}
+
+/**
+ * Asks before a move of the page's own (an outlet picker, say) while any
+ * detail is unsaved, without registering one itself.
+ */
+export function useConfirmLeave() {
+  return useGuardContext().confirm;
+}
+
 /** For shell links: holds a client-side move while a detail is unsaved. */
 export function useGuardedLinkClick() {
   const context = useContext(Context);
   const router = useRouter();
   return useCallback(
     (event: MouseEvent<HTMLAnchorElement>, href: string) => {
-      if (!context?.dirty()) return;
+      if (!context?.dirty() || isModifiedClick(event)) return;
       event.preventDefault();
       // Client-side, as the link itself would have gone: zones never reload.
       context.confirm(() => router.push(href));

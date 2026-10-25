@@ -41,6 +41,16 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"practitioner.EvidenceScanInput.TenantID":               "internal tenant boundary for private professional-evidence processing; no tenant attributes",
+	"practitioner.EvidenceScanInput.PractitionerID":         "internal professional registry reference; no patient, professional attributes or national identifier",
+	"practitioner.EvidenceScanInput.RegistrationID":         "internal reported-claim reference; council, number and dates remain private",
+	"practitioner.EvidenceScanInput.RevisionID":             "immutable internal claim revision reference; no claim content",
+	"practitioner.EvidenceScanInput.FileID":                 "internal upload intent reference; no filename, object path or bytes",
+	"practitioner.EvidenceChangedData.PractitionerID":       "internal professional registry reference for scoped metadata refresh; no patient or professional attributes",
+	"practitioner.EvidenceChangedData.RegistrationID":       "internal reported-claim reference; no council, number or dates",
+	"practitioner.EvidenceChangedData.RevisionID":           "immutable internal claim revision reference; no claim content or verification outcome",
+	"practitioner.EvidenceChangedData.FileID":               "internal upload intent reference; no filename, object path, checksum or bytes",
+	"practitioner.EvidenceChangedData.Status":               "closed file transport/scanning lifecycle enum; confers no professional verification or clinical privilege",
 	"practitioner.EvidenceScanRequestedData.PractitionerID": "internal professional registry reference for scoped credential scanning; no patient or professional attributes or national identifier",
 	"practitioner.EvidenceScanRequestedData.RegistrationID": "internal reported-claim row reference; council, registration number and dates remain private",
 	"practitioner.EvidenceScanRequestedData.RevisionID":     "immutable internal claim revision reference; no claim content or verification outcome",

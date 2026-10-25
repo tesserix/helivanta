@@ -322,3 +322,64 @@ exposed until the scoped processor, durable workflow and reauthorized release
 commit are implemented. Local tests cover exact upload/replay, mismatched bytes,
 foreign tenant, evidence-only permissions, revocation/outage during the actual GCS
 protocol exchange, outbox rollback/recovery and upload expiry without sleeps.
+
+## Scoped evidence processing
+
+The professional-evidence worker uses its own non-inheriting, non-bypass database
+identity with no role memberships. It can read/update only the exact evidence
+tuple supplied by the owner's scan request; it has no professional-master,
+registration, appointment or HR-table grants. Restricted insert policies bind its
+audit actor/resource and lifecycle outbox to that same file and current state.
+Request-role credentials cannot commit scanner verdicts or provenance.
+
+Processing reads and audits the scoped intent, inspects/scans its exact quarantine
+generation outside database locks, verifies the retained size/hash, then promotes
+only the attachment package's sealed clean-scan receipt. A matching immutable
+destination generation, scanner engine/definition provenance and `available` state
+commit with an opaque lifecycle event. These facts indicate safe file transport,
+not council verification, HPR linkage or a clinical privilege. PNG/JPEG remain the
+only inspected formats. Completed file provenance and intent remain immutable.
+
+Malware, unsupported content and integrity mismatch are terminal `rejected`
+outcomes. Storage/scanner outages remain `scan_error` and retryable; subsequent
+processing may recover the same immutable object. Available/rejected/revoked files
+are terminal for processing replay. If copying succeeds but the database/audit/
+outbox commit fails, a retry validates the retained destination instead of
+overwriting it. No read route infers availability from a copied blob alone.
+Every database transaction retains the five-second/two-second statement/lock
+budgets; the full processing activity has a five-minute caller-cancellable budget.
+
+The first execution uses the existing immutable file identity; it can be retried
+within its durable workflow. Explicit manual retry after a terminal workflow
+failure will require a separately retained attempt command before runtime
+activation. Production worker-role provisioning and storage IAM belong to the
+owning infrastructure repository and are not performed by an application
+migration or local fixture. No production role or scanner is claimed here.
+
+Local verification covers request-role constructor rejection, forced-RLS denial
+for every mismatched scope component, lack of professional-master/private-actor
+column access, restricted audit/outbox writes, real protocol scanning/promotion,
+12-way concurrent replay with one retained release/event, terminal malware/format/
+integrity rejection, temporary scanner/storage recovery, and reconciliation when
+copying succeeds but audit/outbox commit fails. Successful scanning leaves the
+professional's registration `unverified`. Migration 0006 is additive and
+forward-only, applied only to disposable test databases; local fixture identities
+are not production provisioning. All metadata and content release gates still
+require their own runtime and deployed acceptance evidence.
+
+The local Temporal workflow invokes only the owning activity. Activity retries
+are bounded to five with exponential backoff, a six-minute start-to-close bound,
+40-minute schedule-to-close bound and 30-second heartbeat timeout. The activity
+heartbeats while storage/scanning runs and removes its ticker on completion or
+cancellation. Invalid or missing objects and integrity/authority constraint
+failures are nonretryable; dependency outages retry the same immutable intent.
+Only opaque input and a bounded status or sanitized error enter workflow history.
+Repeated identical scan errors do not duplicate lifecycle events.
+
+SDK time-skipping tests run the real scoped processor against vendor protocol
+fixtures, prove successful release, five-attempt exhaustion, and immediate failure
+for invalid/missing objects. Reducing the retry cap to one made the five-attempt
+assertion fail; the original implementation was restored and verified. This is
+not a live Temporal, consumer-dispatch, worker-deployment or private-content-read
+claim. Those gates, explicit manual retry and independent professional review
+remain unfinished before runtime activation.

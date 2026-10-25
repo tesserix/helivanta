@@ -28,24 +28,34 @@ func (in evidenceInput) valid() bool {
 }
 
 type registrationEvidence struct {
-	ID               uuid.UUID  `json:"id"`
-	PractitionerID   uuid.UUID  `json:"practitioner_id"`
-	RegistrationID   uuid.UUID  `json:"registration_id"`
-	RevisionID       uuid.UUID  `json:"revision_id"`
-	ContentType      string     `json:"content_type"`
-	Size             int64      `json:"size"`
-	SHA256           string     `json:"sha256"`
-	UploadedAt       *time.Time `json:"uploaded_at"`
-	SourceGeneration *int64     `json:"-"`
-	Status           string     `json:"status"`
-	CreatedAt        time.Time  `json:"created_at"`
-	ExpiresAt        time.Time  `json:"expires_at"`
+	ID                   uuid.UUID  `json:"id"`
+	PractitionerID       uuid.UUID  `json:"practitioner_id"`
+	RegistrationID       uuid.UUID  `json:"registration_id"`
+	RevisionID           uuid.UUID  `json:"revision_id"`
+	ContentType          string     `json:"content_type"`
+	Size                 int64      `json:"size"`
+	SHA256               string     `json:"sha256"`
+	UploadedAt           *time.Time `json:"uploaded_at"`
+	SourceGeneration     *int64     `json:"-"`
+	ReleasedGeneration   *int64     `json:"-"`
+	EngineVersion        *string    `json:"-"`
+	DefinitionVersion    *int64     `json:"-"`
+	DefinitionsUpdatedAt *time.Time `json:"-"`
+	ScannedAt            *time.Time `json:"scanned_at"`
+	FailureCode          *string    `json:"failure_code"`
+	Status               string     `json:"status"`
+	CreatedAt            time.Time  `json:"created_at"`
+	ExpiresAt            time.Time  `json:"expires_at"`
 }
 
 func (registrationEvidence) TableName() string { return "practitioner_registration_evidence" }
 func (e *registrationEvidence) AfterFind(*gorm.DB) error {
 	e.CreatedAt = e.CreatedAt.UTC()
 	e.ExpiresAt = e.ExpiresAt.UTC()
+	if e.ScannedAt != nil {
+		v := e.ScannedAt.UTC()
+		e.ScannedAt = &v
+	}
 	if e.UploadedAt != nil {
 		v := e.UploadedAt.UTC()
 		e.UploadedAt = &v
@@ -54,7 +64,7 @@ func (e *registrationEvidence) AfterFind(*gorm.DB) error {
 }
 func (e registrationEvidence) PageKey() (time.Time, uuid.UUID) { return e.CreatedAt, e.ID }
 
-const evidenceColumns = "id,practitioner_id,registration_id,revision_id,content_type,size,sha256,status,created_at,expires_at,uploaded_at,source_generation"
+const evidenceColumns = "id,practitioner_id,registration_id,revision_id,content_type,size,sha256,status,created_at,expires_at,uploaded_at,source_generation,released_generation,engine_version,definition_version,definitions_updated_at,scanned_at,failure_code"
 
 type evidenceParent struct{ practitioner, registration, revision uuid.UUID }
 

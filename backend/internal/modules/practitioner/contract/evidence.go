@@ -10,3 +10,23 @@ type EvidenceScanRequestedData struct {
 	RevisionID     string `json:"revision_id"`
 	FileID         string `json:"file_id"`
 }
+
+const EvidenceChanged = "helivanta.in.practitioner.evidence_changed.v1"
+
+// EvidenceScanInput pins a processing execution to one private evidence object.
+type EvidenceScanInput struct {
+	TenantID       string `json:"tenant_id"`
+	PractitionerID string `json:"practitioner_id"`
+	RegistrationID string `json:"registration_id"`
+	RevisionID     string `json:"revision_id"`
+	FileID         string `json:"file_id"`
+}
+
+// EvidenceChangedData carries lifecycle metadata without credential content.
+type EvidenceChangedData struct {
+	PractitionerID string `json:"practitioner_id"`
+	RegistrationID string `json:"registration_id"`
+	RevisionID     string `json:"revision_id"`
+	FileID         string `json:"file_id"`
+	Status         string `json:"status"`
+}

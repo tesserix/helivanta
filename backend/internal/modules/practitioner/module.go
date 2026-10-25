@@ -3,6 +3,7 @@ package practitioner
 
 import (
 	_ "embed"
+	practitionercontract "github.com/tesserix/helivanta/internal/modules/practitioner/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -32,6 +33,9 @@ var evidenceSchema string
 //go:embed evidence_upload.sql
 var evidenceUploadSchema string
 
+//go:embed evidence_processing.sql
+var evidenceProcessingSchema string
+
 type Module struct{}
 
 func New() *Module           { return &Module{} }
@@ -40,7 +44,7 @@ func (*Module) Permissions() []authz.Grant {
 	return []authz.Grant{{Permission: PermRecordManage}, {Permission: PermRecordRead}, {Permission: PermStewardManage}, {Permission: PermEvidenceManage}, {Permission: PermEvidenceRead}}
 }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_practitioner", SQL: recordsSchema}, {ID: "0002_practitioner", SQL: registrationsSchema}, {ID: "0003_practitioner", SQL: stewardsSchema}, {ID: "0004_practitioner", SQL: evidenceSchema}, {ID: "0005_practitioner", SQL: evidenceUploadSchema}}
+	return []tenantdb.Migration{{ID: "0001_practitioner", SQL: recordsSchema}, {ID: "0002_practitioner", SQL: registrationsSchema}, {ID: "0003_practitioner", SQL: stewardsSchema}, {ID: "0004_practitioner", SQL: evidenceSchema}, {ID: "0005_practitioner", SQL: evidenceUploadSchema}, {ID: "0006_practitioner", SQL: evidenceProcessingSchema}}
 }
 func (*Module) Routes(r *platform.Router, d platform.Deps) {
 	h := &handlers{db: d.DB, files: d.Documents, reauthorize: r.Reauthorize}
@@ -69,7 +73,9 @@ func (*Module) Routes(r *platform.Router, d platform.Deps) {
 	platform.ListRoute(g, "/:practitioner/registrations", PermRecordRead, h.listRegistrations)
 	platform.ListRoute(g, "/:practitioner/registrations/:registration/revisions", PermRecordRead, h.listRegistrationRevisions)
 }
-func (*Module) Publishes() []string                         { return []string{EvidenceScanRequested} }
+func (*Module) Publishes() []string {
+	return []string{EvidenceScanRequested, practitionercontract.EvidenceChanged}
+}
 func (*Module) DirectedSubjects() []string                  { return nil }
 func (*Module) DirectedWriteTables() []string               { return nil }
 func (*Module) Consumers(platform.Deps) []events.Consumer   { return nil }

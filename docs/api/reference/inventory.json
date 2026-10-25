@@ -1036,6 +1036,42 @@
       "source": "backend/internal/modules/mediconnect/module.go",
       "routes": [
         {
+          "method": "POST",
+          "path": "/v1/mediconnect/account/consents/:consent/withdraw",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/account/consents/:consent",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/mediconnect/account/consents/:consent",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/account/consents",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/mediconnect/account/link-requests/:request/review",
           "permission": "public",
@@ -1115,13 +1151,56 @@
           "membership_required": true,
           "paginated": false,
           "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/mediconnect/notices/:notice/retire",
+          "permission": "mediconnect.notice.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/notices/:notice",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/mediconnect/notices/:notice",
+          "permission": "mediconnect.notice.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/notices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
         }
       ],
-      "grants": [],
+      "grants": [
+        {
+          "permission": "mediconnect.notice.manage",
+          "roles": []
+        }
+      ],
       "publishes": [
         "helivanta.in.mediconnect.account_created.v1",
         "helivanta.in.mediconnect.registration_review_requested.v1",
-        "helivanta.in.mediconnect.registration_review_withdrawn.v1"
+        "helivanta.in.mediconnect.registration_review_withdrawn.v1",
+        "helivanta.in.mediconnect.account_consent_recorded.v1",
+        "helivanta.in.mediconnect.account_consent_withdrawn.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -1164,6 +1243,14 @@
           "id": "0005_mediconnect",
           "sql_sha256": "4d6692f9e63d482c01ded1b044e02132ab5ed7c4be6e4949831550df04e24abc",
           "creates_tables": []
+        },
+        {
+          "id": "0006_mediconnect",
+          "sql_sha256": "4f016ff72a3d5d047cf4322a8e6ec27d1eccb7e944b1857519cfc270b81e2bda",
+          "creates_tables": [
+            "mediconnect_notices",
+            "mediconnect_account_consents"
+          ]
         }
       ]
     },

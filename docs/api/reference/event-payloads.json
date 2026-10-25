@@ -259,6 +259,62 @@
       "type": "object"
     }
   },
+  "helivanta.in.mediconnect.account_consent_recorded.v1": {
+    "source": "backend/internal/modules/mediconnect/contract/events.go:33",
+    "go_type": "AccountConsentData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "account_id": {
+          "type": "string"
+        },
+        "consent_id": {
+          "type": "string"
+        },
+        "notice_id": {
+          "type": "string"
+        },
+        "purpose": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "consent_id",
+        "account_id",
+        "notice_id",
+        "purpose"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.mediconnect.account_consent_withdrawn.v1": {
+    "source": "backend/internal/modules/mediconnect/contract/events.go:33",
+    "go_type": "AccountConsentData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "account_id": {
+          "type": "string"
+        },
+        "consent_id": {
+          "type": "string"
+        },
+        "notice_id": {
+          "type": "string"
+        },
+        "purpose": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "consent_id",
+        "account_id",
+        "notice_id",
+        "purpose"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.mediconnect.account_created.v1": {
     "source": "backend/internal/modules/mediconnect/contract/events.go:8",
     "go_type": "AccountCreatedData",

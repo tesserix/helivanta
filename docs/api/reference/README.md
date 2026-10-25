@@ -185,6 +185,10 @@ Source: [backend/internal/modules/mediconnect/module.go](../../../backend/intern
 
 | Method | Path | Permission | Cursor pagination | Page total |
 | --- | --- | --- | --- | --- |
+| POST | `/v1/mediconnect/account/consents/:consent/withdraw` | `public` | false | false |
+| GET | `/v1/mediconnect/account/consents/:consent` | `public` | false | false |
+| PUT | `/v1/mediconnect/account/consents/:consent` | `public` | false | false |
+| GET | `/v1/mediconnect/account/consents` | `public` | true | false |
 | GET | `/v1/mediconnect/account/link-requests/:request/review` | `public` | false | false |
 | POST | `/v1/mediconnect/account/link-requests/:request/review` | `public` | false | false |
 | POST | `/v1/mediconnect/account/link-requests/:request/withdraw` | `public` | false | false |
@@ -194,12 +198,18 @@ Source: [backend/internal/modules/mediconnect/module.go](../../../backend/intern
 | PATCH | `/v1/mediconnect/account/preferences` | `public` | false | false |
 | GET | `/v1/mediconnect/account` | `public` | false | false |
 | POST | `/v1/mediconnect/account` | `public` | false | false |
+| POST | `/v1/mediconnect/notices/:notice/retire` | `mediconnect.notice.manage` | false | false |
+| GET | `/v1/mediconnect/notices/:notice` | `public` | false | false |
+| PUT | `/v1/mediconnect/notices/:notice` | `mediconnect.notice.manage` | false | false |
+| GET | `/v1/mediconnect/notices` | `public` | true | false |
 
 Published subjects:
 
 - `helivanta.in.mediconnect.account_created.v1`
 - `helivanta.in.mediconnect.registration_review_requested.v1`
 - `helivanta.in.mediconnect.registration_review_withdrawn.v1`
+- `helivanta.in.mediconnect.account_consent_recorded.v1`
+- `helivanta.in.mediconnect.account_consent_withdrawn.v1`
 
 Subscriptions:
 
@@ -210,6 +220,7 @@ Migration table declarations:
 - `0001_mediconnect`: `mediconnect_accounts`.
 - `0002_mediconnect`: `mediconnect_link_requests`.
 - `0004_mediconnect`: `mediconnect_review_submissions`.
+- `0006_mediconnect`: `mediconnect_notices`, `mediconnect_account_consents`.
 
 ## pharmacy
 

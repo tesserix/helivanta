@@ -20,9 +20,11 @@ type payloadContract struct {
 func eventSchemas(doc reference, root string) (map[string]payloadContract, error) {
 	out := map[string]payloadContract{}
 	aliases := map[string]string{
-		"mediconnect.SubjectReviewRequested": "RegistrationReviewData",
-		"mediconnect.SubjectReviewWithdrawn": "RegistrationReviewData",
-		"iam.SubjectMemberGranted":           "MemberChangedData", "iam.SubjectMemberRevoked": "MemberChangedData",
+		"mediconnect.SubjectAccountConsentRecorded":  "AccountConsentData",
+		"mediconnect.SubjectAccountConsentWithdrawn": "AccountConsentData",
+		"mediconnect.SubjectReviewRequested":         "RegistrationReviewData",
+		"mediconnect.SubjectReviewWithdrawn":         "RegistrationReviewData",
+		"iam.SubjectMemberGranted":                   "MemberChangedData", "iam.SubjectMemberRevoked": "MemberChangedData",
 		"emergency.SubjectCaseReceived": "CaseChangedData", "emergency.SubjectCaseClosed": "CaseChangedData",
 	}
 	for _, mod := range doc.Modules {

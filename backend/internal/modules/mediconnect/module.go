@@ -25,13 +25,16 @@ var reviewSchema string
 //go:embed review_source.sql
 var reviewSourceSchema string
 
+//go:embed consent.sql
+var consentSchema string
+
 type Module struct{}
 
 func New() *Module                         { return &Module{} }
 func (*Module) Name() string               { return "mediconnect" }
-func (*Module) Permissions() []authz.Grant { return nil }
+func (*Module) Permissions() []authz.Grant { return []authz.Grant{{Permission: PermNoticeManage}} }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_mediconnect", SQL: accountSchema}, {ID: "0002_mediconnect", SQL: linkRequestSchema}, {ID: "0003_mediconnect", SQL: accessibilitySchema}, {ID: "0004_mediconnect", SQL: reviewSchema}, {ID: "0005_mediconnect", SQL: reviewSourceSchema}}
+	return []tenantdb.Migration{{ID: "0001_mediconnect", SQL: accountSchema}, {ID: "0002_mediconnect", SQL: linkRequestSchema}, {ID: "0003_mediconnect", SQL: accessibilitySchema}, {ID: "0004_mediconnect", SQL: reviewSchema}, {ID: "0005_mediconnect", SQL: reviewSourceSchema}, {ID: "0006_mediconnect", SQL: consentSchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &accountHandlers{db: deps.DB, bus: deps.Bus}
@@ -46,9 +49,17 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.POST("/account/link-requests/:request/review", authz.Public, h.submitReview)
 	g.GET("/account/link-requests/:request/review", authz.Public, h.getReview)
 	g.POST("/account/link-requests/:request/withdraw", authz.Public, h.withdrawLinkRequest)
+	g.PUT("/notices/:notice", PermNoticeManage, h.publishNotice)
+	g.GET("/notices/:notice", authz.Public, h.getNotice)
+	platform.ListRoute(g, "/notices", authz.Public, h.listNotices)
+	g.POST("/notices/:notice/retire", PermNoticeManage, h.retireNotice)
+	g.PUT("/account/consents/:consent", authz.Public, h.putConsent)
+	g.GET("/account/consents/:consent", authz.Public, h.getConsent)
+	platform.ListRoute(g, "/account/consents", authz.Public, h.listConsents)
+	g.POST("/account/consents/:consent/withdraw", authz.Public, h.withdrawConsent)
 }
 func (*Module) Publishes() []string {
-	return []string{mediconnectcontract.SubjectAccountCreated, mediconnectcontract.SubjectReviewRequested, mediconnectcontract.SubjectReviewWithdrawn}
+	return []string{mediconnectcontract.SubjectAccountCreated, mediconnectcontract.SubjectReviewRequested, mediconnectcontract.SubjectReviewWithdrawn, mediconnectcontract.SubjectAccountConsentRecorded, mediconnectcontract.SubjectAccountConsentWithdrawn}
 }
 func (*Module) DirectedSubjects() []string    { return nil }
 func (*Module) DirectedWriteTables() []string { return nil }

@@ -16,7 +16,7 @@ func TestAccountRoutesAreRegistered(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := platform.NewRouter(gin.New().Group("/v1"), member{})
 	New().Routes(router, platform.Deps{})
-	require.Len(t, router.Declared(), 9)
+	require.Len(t, router.Declared(), 17)
 	require.Equal(t, "/v1/mediconnect/account", router.Declared()[0].Path)
 }
 

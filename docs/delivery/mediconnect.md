@@ -351,3 +351,59 @@ isolated benchmark was rerun with equivalent app-role grants and forced RLS:
 100k synthetic receipts used `mediconnect_consent_page` (4 buffer hits, 0.139ms
 execution for that sample). The HTTP acceptance/withdrawal integration test also
 passes using the production owner's actual role/default-grant setup.
+
+## Deadline release verification — 2026-10-25
+
+This checkpoint supersedes the earlier not-deployed account-consent and registrar
+checkpoints above. It does not complete clinical/proxy authority or the parent
+patient-facing stories.
+
+Application [PR #1325](https://github.com/tesserix/helivanta/pull/1325) merged as
+`19b8a5f436288a56709f386e87c24c20c6b518f0`. Full local backend race/coverage,
+build/lint, affected vet and contract generation/check passed. PR and post-merge
+CI passed, including web and browser E2E. Actual local PostgreSQL, JetStream and
+Temporal acceptance passed worker restart, terminal transition and duplicate replay.
+Isolated production-schema rehearsal passed upgrade, repeat application and old
+migrator compatibility while preserving synthetic account data.
+
+Kargo promotion `prod.01m5rjpxnx018d5k825byyzsbe.730a8b2` succeeded for Freight
+`730a8b2e94f228354d44a00a3df70e3cb52f3abd`. API and Global API are two ready
+replicas each at
+`sha256:b9c874a891290b86cedfd0ab0c5035591faa0a5a3971e3a6432d28329cbee3f3`;
+shell is two ready replicas at
+`sha256:80f98773e9cce774bcadb54d17cbd576e59dc7e63f9f917d3c19740fa8582675`.
+Read-only checks verified `0002_privacy`, forced RLS on all three new tables and
+the non-superuser, non-bypass, non-inheriting worker role. The 36 public HTTP
+probes verified unauthenticated rejection, forged-header rejection, unknown-product
+404 and login 200. These probes do not prove an authenticated production clinical
+journey. Both source and infrastructure repositories remain public.
+
+Infrastructure PRs tesserix/tesserix-k8s#1528 and #1530 are merged. The original
+initializer failed admission because zero CPU annotations conflict with the
+namespace minimum. The correction inherits admitted defaults and versions the
+immutable Job template; an actual namespace Pod dry-run passed. Replacement Job
+`helivanta-privacy-secret-seed-27b84c29` completed, and the worker ExternalSecret is
+Ready=True/SecretSynced. The original Job
+`helivanta-privacy-secret-seed-afc1dca9` never created a Pod; it is extraneous and
+keeps the postgres Argo Application Degraded. Its manifest is captured outside
+the repository. The specifically requested deletion approval remains pending.
+
+Worker activation PR tesserix/tesserix-k8s#1529 has passed CI and 78 scoped local
+infrastructure tests, but remains unmerged until that health gate is resolved.
+No worker readiness, live Temporal processing or tenant policy activation is
+claimed. No policy, legal duration, officer or notice is seeded. Preserve
+compatible workers/consumers and all clock evidence after any policy is accepted;
+disabling orchestration alone is not a safe rollback.
+
+The earlier pharmacy 400-versus-404 failure did not recur in 30 focused race
+repeats. A separate test-only change replaces the scope test's near-current host
+timestamp with a fixed historical cutoff, removing its dependency on host and
+PostgreSQL clock agreement. Invalid/future-period assertions remain. Root cause
+of the original failure is not established; no production pharmacy behavior changed.
+
+Protected release evidence is retained under
+`~/.local/state/helivanta/privacy-deadlines-20261025/`. Clinical/proxy consent,
+owner-authorized disclosure, booking/reminder integrations, provider-confirmed
+notifications and approved notice content remain open. #66 and #556 must not be
+closed on the strength of this release. SMS remains disabled; OTP is outside the
+current API development scope.

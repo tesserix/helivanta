@@ -1,6 +1,7 @@
 # ADR-0039: Reviewed privacy case deadlines
 
-Status: implemented locally; follows ADR-0038. Production release unverified.
+Status: API/schema deployed on 2026-10-25; follows ADR-0038. Worker activation
+remains pending; no tenant deadline policy was activated.
 
 Casework needs durable accountability without treating an elapsed deadline as
 permission to disclose or erase records. Tenant-reviewed service deadlines have
@@ -54,8 +55,10 @@ Targeted privacy and pharmacy race suites, worker/configuration tests, full back
 lint/build and generated-contract drift checks pass. An isolated rehearsal of
 the previously captured production schema also passed upgrade, idempotent
 reapplication and previous-migrator compatibility while preserving synthetic
-account data and forced RLS. The full backend race and
-coverage gate remains running; this is not yet a production verification record.
+account data and forced RLS. The full backend race/coverage gate, PR CI and
+post-merge CI passed. Production API/schema verification is recorded in the
+[MediConnect delivery ledger](../delivery/mediconnect.md#deadline-release-verification--2026-10-25);
+the separate worker activation is still pending.
 
 The earlier pharmacy 400-versus-404 failure has not recurred in isolated repeats
 or the latest complete pharmacy package run. Its assertion now includes the

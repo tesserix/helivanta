@@ -31,18 +31,18 @@ existing reads, receipts, replies and withdrawal remain available.
 
 All paths below have `/v1/privacy` prefix (`/api/v1/privacy` through the shell proxy).
 
-| Method/path | Contract |
-| --- | --- |
-| PUT `/officers/:officer` | Nominate immutable appointment; manage permission; 201 first, 200 identical replay |
-| POST `/officers/:officer/accept` | Nominee accepts `{}`; replaces old active officer atomically; 200 |
-| POST `/officers/:officer/revoke` | Manage permission; `{expected_version,review_reference}`; attributable terminal revocation, identical replay 200 |
-| GET `/officer` | Current accepted officer's published contact and validity |
-| PUT `/requests/:request` | Own immutable request intent; 201 first, 200 identical replay with current state |
-| GET `/requests/:request` | Own/current-officer read with audit |
-| GET `/requests` | Own keyset collection |
-| GET `/queue` | Current officer's tenant keyset collection |
-| PUT `/requests/:request/commands/:command` | Versioned attributable command; 201 first, 200 identical replay |
-| GET `/requests/:request/commands` | Immutable principal-visible conversation and command receipts; keyset collection |
+| Method/path                                | Contract                                                                                                         |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| PUT `/officers/:officer`                   | Nominate immutable appointment; manage permission; 201 first, 200 identical replay                               |
+| POST `/officers/:officer/accept`           | Nominee accepts `{}`; replaces old active officer atomically; 200                                                |
+| POST `/officers/:officer/revoke`           | Manage permission; `{expected_version,review_reference}`; attributable terminal revocation, identical replay 200 |
+| GET `/officer`                             | Current accepted officer's published contact and validity                                                        |
+| PUT `/requests/:request`                   | Own immutable request intent; 201 first, 200 identical replay with current state                                 |
+| GET `/requests/:request`                   | Own/current-officer read with audit                                                                              |
+| GET `/requests`                            | Own keyset collection                                                                                            |
+| GET `/queue`                               | Current officer's tenant keyset collection                                                                       |
+| PUT `/requests/:request/commands/:command` | Versioned attributable command; 201 first, 200 identical replay                                                  |
+| GET `/requests/:request/commands`          | Immutable principal-visible conversation and command receipts; keyset collection                                 |
 
 All path IDs and review references are canonical UUIDv7. The request body cap is
 16 KiB; unknown fields, multiple JSON objects and invalid IDs are rejected.
@@ -61,13 +61,13 @@ expected/resulting versions and creation time; no actor subject is disclosed.
 Replay returns the recorded command, not a new transition. Reusing an ID with
 changed data, another case or another actor returns 409 `privacy_conflict`.
 
-| Action | Actor | Transition |
-| --- | --- | --- |
-| start_review | Current officer, not reporter | received → under_review |
+| Action              | Actor                         | Transition                        |
+| ------------------- | ----------------------------- | --------------------------------- |
+| start_review        | Current officer, not reporter | received → under_review           |
 | request_information | Current officer, not reporter | under_review → awaiting_principal |
-| reply | Reporter | awaiting_principal → under_review |
-| respond | Current officer, not reporter | under_review → responded |
-| withdraw | Reporter | Any nonterminal state → withdrawn |
+| reply               | Reporter                      | awaiting_principal → under_review |
+| respond             | Current officer, not reporter | under_review → responded          |
+| withdraw            | Reporter                      | Any nonterminal state → withdrawn |
 
 `responded` means a reasoned case response was recorded. It does **not** mean data
 was supplied, corrected or erased; no such effects are implemented by this owner.
@@ -97,7 +97,11 @@ deleting cases or audit. The app continues without configured casework. Clinical
 or statutory readiness must not be inferred from route availability or passing
 schema checks.
 
-## Reviewed deadline extension (implemented; release verification pending)
+## Reviewed deadline extension (API/schema deployed; worker activation pending)
+
+The API/schema release at `19b8a5f` is verified; orchestration remains disabled
+until the separate worker rollout is healthy. See the
+[release evidence](../delivery/mediconnect.md#deadline-release-verification--2026-10-25).
 
 ADR-0039 and migration `0002_privacy` introduce independent `primary` and
 `escalation` officer appointments. Omitted nomination role remains `primary` for
@@ -108,11 +112,11 @@ Revoking an escalation appointment does not revoke the primary officer.
 
 Deadline routes:
 
-| Method/path | Contract |
-| --- | --- |
-| PUT `/deadline-policies/:policy` | Requires `privacy.deadline.manage`; immutable proposal, 201 first / 200 identical replay |
+| Method/path                               | Contract                                                                                                               |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| PUT `/deadline-policies/:policy`          | Requires `privacy.deadline.manage`; immutable proposal, 201 first / 200 identical replay                               |
 | POST `/deadline-policies/:policy/approve` | Accepted escalation officer reviews; requires a distinct accepted primary officer and configured workflow support; 200 |
-| GET `/requests/:request/deadline` | Reporter/current officer; audited case-scoped clock and escalation receipts; 200 |
+| GET `/requests/:request/deadline`         | Reporter/current officer; audited case-scoped clock and escalation receipts; 200                                       |
 
 Policy input contains `version_label` (1–64 bytes), `acknowledgement_seconds`
 (60–31,536,000), `resolution_seconds` (at least acknowledgement, at most

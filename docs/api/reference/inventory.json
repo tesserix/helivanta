@@ -1363,7 +1363,7 @@
       "migrations": [
         {
           "id": "0001_privacy",
-          "sql_sha256": "94308aec35856e1d3b8293030640d76f387c1e7fa41f5451228e267fb2dc6707",
+          "sql_sha256": "06eaa7c7d7bd5a74325ec5005afc49a841fb3cedfec712042e42b9a979cef472",
           "creates_tables": [
             "privacy_officers",
             "privacy_requests",

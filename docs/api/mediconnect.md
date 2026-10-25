@@ -611,3 +611,46 @@ scoped OpenBao HMAC policy. Constructor validation alone does not prove those
 infrastructure controls. No production activation or authenticated record-release
 journey is established by these handlers. See the [design and acceptance
 boundaries](../superpowers/specs/2026-10-25-clinical-sharing-consent.md).
+
+## Reviewed guardian authority registry
+
+Patientmaster owns the guardian registry under `/v1/patients`, forwarded through
+the Global API platform destination. Every request selects `hospital_id`; the
+server verifies tenant, hospital and actor scope. Existing self-authority contracts
+are unchanged. Responses always carry `record_access_authorized:false`.
+
+| Route                                          | Authorization                                                                                                 |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| PUT `/proxy-authorities/:authority`            | `patient.proxy-authority.review` (tenant admin) and current hospital registrar; 201 create / 200 exact replay |
+| GET `/proxy-authorities/:authority`            | Same reviewer scope; one retained receipt                                                                     |
+| POST `/proxy-authorities/:authority/revoke`    | Same reviewer scope and expected version                                                                      |
+| GET `/my/proxy-authorities`                    | Exact proxy subject; bounded keyset history                                                                   |
+| GET `/my/proxy-authorities/:authority`         | Exact proxy subject; one receipt                                                                              |
+| POST `/my/proxy-authorities/:authority/accept` | Exact proxy subject, explicit acceptance and expected version                                                 |
+| POST `/my/proxy-authorities/:authority/revoke` | Exact proxy subject and expected version                                                                      |
+
+Proposal fields are `kind`, `country_code`, `review_request_id`,
+`expected_decision_id`, `policy_reference`, `identity_age_reference`,
+`authority_evidence_reference`, explicit true `identity_age_confirmed` and
+`authority_confirmed`, and future `valid_until` (microsecond precision). All
+references must be UUIDv7. `parental` requires an approved child claim and
+non-estimated DOB; expiry cannot exceed the registration age boundary in
+Asia/Kolkata. `appointed_guardian` requires an approved ward claim and an additional
+`appointment_reference`. Only IN is supported. Evidence attestations and country
+metadata are not legal certification; adult delegation is a separate workflow.
+
+Strict 8 KiB JSON decoding rejects unknown fields and trailing content. Acceptance
+uses `{"expected_version":1,"accepted":true}`; revocation uses
+`{"expected_version":2}` after acceptance (1 before). States are proposed v1,
+accepted v2 and terminal revoked v2/v3. Changed intent, stale registration/review,
+expiry or invalid transitions return 409. Inaccessible objects return 404.
+Cancellation/deadlines return 503 `proxy_authority_unavailable`; reconcile/replay
+the same command after uncertain delivery. Invalid request shapes return 400.
+
+Evidence references, private subjects and fingerprints are omitted. Reads are
+no-store; audit, state changes and ID/version-only outbox publication are atomic.
+Ordinary patient reads gain no proxy access. A subsequent consent/data owner must
+recheck the live claim, current registry, approved purpose/notice and its own
+authorization. This registry has no notification or disclosure consumer.
+
+See [design and remaining acceptance](../superpowers/specs/2026-10-26-mediconnect-proxy-authorities.md).

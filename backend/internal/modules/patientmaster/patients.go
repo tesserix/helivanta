@@ -38,6 +38,8 @@ import (
 // birth has no time component to lose or fabricate.
 const dateLayout = "2006-01-02"
 
+const registrationAdultAgeYears = 18
+
 var errRegistrationKeyReused = errors.New("registration request ID reused with different input")
 
 var patientPhone = regexp.MustCompile(`^(\+[1-9][0-9]{6,14}|[0-9]{10})$`)
@@ -284,7 +286,7 @@ func (h *patientHandlers) register(c *gin.Context) {
 		return
 	}
 	dateNow, _ := time.Parse(dateLayout, today)
-	if dob.AddDate(18, 0, 0).After(dateNow) && req.ConsentedBy != "guardian" {
+	if dob.AddDate(registrationAdultAgeYears, 0, 0).After(dateNow) && req.ConsentedBy != "guardian" {
 		respond.BadRequest(c, errors.New("a guardian consent receipt is required for a minor"))
 		return
 	}

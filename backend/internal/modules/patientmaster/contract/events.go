@@ -67,3 +67,12 @@ type ClinicalConsentChangedData struct {
 	ConsentID string `json:"consent_id"`
 	Version   int64  `json:"version"`
 }
+
+// SubjectProxyAuthorityChanged records a guardian review revision, not consent or disclosure.
+const SubjectProxyAuthorityChanged = "helivanta.in.patientmaster.proxy_authority_changed.v1"
+
+// ProxyAuthorityChangedData carries only an opaque authority identifier and revision.
+type ProxyAuthorityChangedData struct {
+	AuthorityID string `json:"authority_id"`
+	Version     int64  `json:"version"`
+}

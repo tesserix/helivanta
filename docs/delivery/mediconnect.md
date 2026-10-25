@@ -493,3 +493,11 @@ remain outstanding until recorded below. #60/#552/#556 must remain open.
 
 No real wording, policy applicability, proxy authority, record release, scheduling,
 reminder delivery or clinical consent is activated by this change.
+
+Notice follow-up: successful GET now verifies every content field, `no-store` and
+two actual read-audit entries across replay/read. An invalid raw UTF-8 byte was
+silently replaced by the standard JSON decoder and reached command conflict (409)
+instead of rejection (400). The shared, already-bounded patient input decoder now
+checks raw UTF-8 before JSON decoding; all patientmaster consumers were traced
+against current source. The regression then passed in the full patientmaster race
+package (50.213s sample). This is a strict input correction, not a policy change.

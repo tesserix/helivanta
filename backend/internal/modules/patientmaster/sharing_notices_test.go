@@ -1,6 +1,7 @@
 package patientmaster_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -14,7 +15,7 @@ import (
 )
 
 func TestSharingNoticeDraftRequiresReviewedHospitalScope(t *testing.T) {
-	r, _, _ := consentAuthorityFixture(t)
+	r, db, _ := consentAuthorityFixture(t)
 	path := "/v1/patients/sharing-notices/" + uuid.Must(uuid.NewV7()).String()
 	body := syntheticSharingNotice()
 	response := scopedDo(r, "PUT", path, "reviewer", body)
@@ -24,6 +25,24 @@ func TestSharingNoticeDraftRequiresReviewedHospitalScope(t *testing.T) {
 	replay := scopedDo(r, "PUT", path, "reviewer", body)
 	require.Equal(t, 200, replay.Code, replay.Body.String())
 	require.JSONEq(t, response.Body.String(), replay.Body.String())
+	read := scopedDo(r, "GET", path, "reviewer", "")
+	require.Equal(t, 200, read.Code, read.Body.String())
+	require.Equal(t, "no-store", read.Header().Get("Cache-Control"))
+	require.JSONEq(t, response.Body.String(), read.Body.String())
+	var expected, actual map[string]any
+	require.NoError(t, json.Unmarshal([]byte(body), &expected))
+	require.NoError(t, json.Unmarshal(read.Body.Bytes(), &actual))
+	for key, value := range expected {
+		require.Equal(t, value, actual[key], key)
+	}
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Table("audit_events").Where("tenant_id=? AND resource_type='patient_sharing_notices' AND resource_id=? AND action='read'", testutil.TenantA, actual["id"]).Count(&count).Error; err != nil {
+			return err
+		}
+		require.EqualValues(t, 2, count)
+		return nil
+	}))
 }
 
 func TestSharingNoticeApprovalIsIndependentAndRetirementIsTerminal(t *testing.T) {
@@ -77,6 +96,7 @@ func TestSharingNoticeEnforcesScopeValidationAndImmutableHistory(t *testing.T) {
 	require.Equal(t, 404, do(r, "GET", other, "reviewer", "").Code)
 	require.Equal(t, 404, do(r, "PUT", other, "reviewer", body).Code)
 	for _, invalid := range []string{
+		strings.Replace(body, "Synthetic notice", string([]byte{0xff}), 1),
 		strings.Replace(body, `"care_coordination"`, `"marketing"`, 1),
 		strings.Replace(body, `"en-IN"`, `"en-in"`, 1),
 		strings.Replace(body, `"Synthetic notice"`, `""`, 1),

@@ -172,3 +172,59 @@ claims and invalid calendar dates, independent forced RLS, audit-failure rollbac
 empty-list audit failure, deferred commit guards and request cancellation while the
 registration row is locked. This is not independent manual/council verification,
 clinical privilege evaluation or runtime deployment; those remain release gates.
+
+## Registry reviewer appointment boundary
+
+An accepted registry-reviewer appointment is administrative authority to review
+professional claims, not verification of those claims, a professional licence or
+hospital clinical privileges. Nomination requires `practitioner.steward.manage`
+(no default operational roles). Nominator and nominee must differ. A nominee must
+accept through their own verified, currently tenant-member session. No implicit
+administrator, job title or client header bypasses acceptance or current validity.
+This appointment boundary does not activate council/HPR or clinical decisions.
+
+Nomination PUT `/steward-appointments/:appointment` records `subject`, opaque UUIDv7
+`review_reference` and finite RFC3339 `valid_until` normalized to UTC without discarding submillisecond
+precision (up to PostgreSQL microseconds). Initial version 1 is
+`nominated`; immutable intent replays return retained current state, even after
+expiry/termination, without renewal. Changed intent conflicts. Reviewer consent
+is explicit: own POST `/my/steward-appointments/:appointment/accept` with
+`expected_version:1` advances to `active`/version 2 only before validity ends.
+Acceptance replay preserves any later terminal state and never reactivates it.
+
+Management revoke and own withdrawal are explicit version-checked POST commands
+with an opaque `review_reference`. They can end nominated or active appointments;
+replay returns the retained terminal state, changed commands conflict. Termination
+history is retained. At most one appointment is `active` per tenant/subject. On
+accepting a replacement, the owner can atomically mark an already elapsed active
+appointment `expired`; it cannot supersede an unexpired appointment implicitly.
+These are administrative dates chosen by the tenant, not statutory expiry rules.
+
+Management detail/list/history require the manage permission. Own detail/list/
+history/current routes declare `authz.Public` only to skip job-role permission;
+platform authentication and current tenant membership still apply, followed by
+subject-level RLS/handler checks. Other subjects and tenants receive 404. A current
+lookup returns only a live accepted appointment. All retained views expose an
+`effective` flag computed with the database clock; `status:active` alone is never
+authority. Future review commands must bind and lock the exact appointment/version
+and reject conflicts of interest, elapsed/revoked authority or stale evidence.
+
+Forced RLS separates own-appointment access from professional-master access. Own
+routes never enable the professional record/registration GUCs. Immutable nomination,
+strict database transition guards and append-only per-version history accompany
+attributable read/write audit. Empty lists require an audit as well. The existing
+five-second transaction/two-second lock bounds and sanitized errors apply. Local
+clock testing replaces the clock function through an isolated owner migration;
+there is no client/environment clock override in production. New migration 0003
+remains undeployed with the rest of this draft.
+
+The appointment implementation is verified locally with independent nomination,
+explicit acceptance, 12-way replay, expiry and replacement, conflicting live
+appointments, current membership denial/outage, empty-list auditing, read-audit
+rollback, immutable database history, 19-route stale-workspace rejection and direct
+proof that steward self-service cannot see professional-master rows. Timestamp
+input accepts JavaScript ISO millisecond output and equivalent explicit offsets,
+normalizing to UTC; precision beyond six fractional digits and invalid offsets
+are rejected before parsing, preventing silent truncation. These appointments
+still grant no council verification or clinical privileges; evidence and qualified
+review workflows remain incomplete.

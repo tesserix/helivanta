@@ -9,6 +9,9 @@ This plan does not close #39/#474/#77/#102 for a partial implementation.
 - [x] Implement local unverified council-claim intake, immutable renewal receipts,
       bounded history, replay/concurrency, isolation, audit-failure and cancellation
       verification. This is not council verification or runtime integration.
+- [x] Implement local accepted/time-bounded registry reviewer appointments, private
+      governance history, replay/expiry/concurrency, membership and audit failures.
+      These appointments are not council verification or clinical privileges.
 - [ ] Complete registration/qualification/evidence and independent verification
       workflows; test lapsed/suspended sources and explicit HPR unavailability.
 - [ ] Complete reviewed facility/role/privilege ownership, current and historical

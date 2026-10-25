@@ -184,6 +184,7 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/catalogue",
         icon: BookOpen,
         permission: "pharmacy.catalogue.read",
+        width: "full",
       },
       {
         section: "Purchasing",

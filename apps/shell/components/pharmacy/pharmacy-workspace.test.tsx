@@ -139,6 +139,11 @@ function mockPharmacy(
         { status: denied || 200 },
       );
     if (url.endsWith("/revisions")) return new Response(JSON.stringify(page([])));
+    // One product, read by its id: a link or a reload reopens it (#1303 E2).
+    if (/\/catalogue\/products\/[0-9a-f-]{36}$/.test(url))
+      return new Response(
+        JSON.stringify(url.includes(sibling) ? { ...product, outlet_id: sibling } : product),
+      );
     if (url.includes("/catalogue/products"))
       return new Response(JSON.stringify(page(url.includes(sibling) ? [] : [product])));
     return new Response(JSON.stringify(page([])));
@@ -200,7 +205,7 @@ it("uses each configured outlet timezone for revision history and clears the pre
             ]),
           ),
         );
-      if (url.includes(sibling) && url.includes("/catalogue/products"))
+      if (url.includes(sibling) && url.includes("/catalogue/products/counted"))
         return new Response(JSON.stringify(page([{ ...product, outlet_id: sibling }])));
       return base(url, init);
     }),

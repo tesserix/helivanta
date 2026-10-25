@@ -297,10 +297,6 @@ function OutletPharmacy({
   view: PharmacyView;
 }) {
   const { can } = usePermissions();
-  // A link from the overview opens a list already filtered (#576 D4). Read
-  // once as each list's starting filter; the list's own controls take over.
-  const params = useSearchParams();
-  const filter = (key: string) => params?.get(key) ?? undefined;
   const access = useApiQuery<{ level: "reader" | "editor" }>(
     pharmacyKey(scope, "access"),
     `${pharmacyRoot(scope)}/access`,
@@ -338,12 +334,7 @@ function OutletPharmacy({
           canManageTax={access.data?.level === "editor" && can("pharmacy.tax.manage")}
         />
       ) : view === "stock" ? (
-        <StockRegister
-          scope={scope}
-          timeZone={outlet.timezone}
-          initialExpiry={filter("expiry")}
-          initialBalance={filter("balance")}
-        />
+        <StockRegister scope={scope} timeZone={outlet.timezone} />
       ) : view === "safety" ? (
         <BatchSafety scope={scope} timeZone={outlet.timezone} />
       ) : (

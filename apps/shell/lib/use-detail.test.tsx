@@ -20,6 +20,20 @@ const id = "0199e000-0000-7000-8000-000000000020";
 const other = "0199e000-0000-7000-8000-000000000021";
 
 describe("useDetail", () => {
+  // #1303 E3: a stock position is a lot at a location; both name it.
+  it("names a record by two ids when asked, and clears both together", () => {
+    nav.search = `tab=all&open=${id}&at=${other}`;
+    const both = renderHook(() => useDetail({ also: "at" })).result.current;
+    expect(both.openId).toBe(`${id}:${other}`);
+    expect(both.closeHref).toBe("/pharmacy/accounts?tab=all");
+    expect(both.openHref(`${other}:${id}`)).toBe(
+      `/pharmacy/accounts?tab=all&open=${other}&at=${id}`,
+    );
+    // Half a name is no record: nothing is fetched for it.
+    nav.search = `open=${id}&at=nope`;
+    expect(renderHook(() => useDetail({ also: "at" })).result.current.openId).toBeNull();
+  });
+
   it("reads the open record and create from the URL", () => {
     nav.search = `tab=all&open=${id}`;
     expect(renderHook(() => useDetail()).result.current).toMatchObject({

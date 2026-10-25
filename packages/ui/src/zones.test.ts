@@ -247,6 +247,6 @@ describe("page width", () => {
     const full = ZONES.flatMap((zone) => zone.pages)
       .filter((page) => page.width === "full")
       .map((page) => page.href);
-    expect(full).toEqual(["/pharmacy/catalogue", "/pharmacy/accounts"]);
+    expect(full).toEqual(["/pharmacy/stock", "/pharmacy/catalogue", "/pharmacy/accounts"]);
   });
 });

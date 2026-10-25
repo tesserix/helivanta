@@ -261,4 +261,39 @@ describe("useListDetail", () => {
     expect(fireEvent.click(link)).toBe(false);
     expect(screen.getByRole("dialog")).toHaveTextContent("Discard changes to TEST-1?");
   });
+
+  // #1303 E3: Refresh snapshot reads the rows again; stepping follows the new reading.
+  it("retakes Previous / Next from the rows of a new reading", async () => {
+    function Reading() {
+      const [reading, setReading] = useState({ key: "t1", rows: three.slice(0, 2) });
+      const pane = useListDetail({
+        rows: reading.rows,
+        name: (row) => row.name,
+        fallbackName: "this record",
+        newName: "the new record",
+        headingId: "list-heading",
+        snapshotKey: reading.key,
+      });
+      return (
+        <>
+          <button type="button" onClick={() => pane.openRow(id(2))}>
+            Open TEST-2
+          </button>
+          <button type="button" onClick={() => setReading({ key: "t2", rows: three })}>
+            Refresh
+          </button>
+          <output>{pane.canStep(1) ? "next on" : "next off"}</output>
+        </>
+      );
+    }
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <Reading />
+      </NavigationGuardProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open TEST-2" }));
+    expect(screen.getByText("next off")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    expect(screen.getByText("next on")).toBeInTheDocument();
+  });
 });

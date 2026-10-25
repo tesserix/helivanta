@@ -1,3 +1,4 @@
+import { useLayoutEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -77,6 +78,34 @@ describe("useLeaveGuard", () => {
 
   // Back cannot be cancelled: stop the router's own listener, step forward
   // to the record's entry again, then ask.
+  it("guards Back in the commit that first makes an editor dirty", () => {
+    const go = vi.spyOn(window.history, "go").mockImplementation(() => {});
+    const router = vi.fn();
+    function EditAndBack() {
+      const [dirty, setDirty] = useState(false);
+      useLeaveGuard(dirty, "TEST bill");
+      useLayoutEffect(() => {
+        if (dirty) window.dispatchEvent(new PopStateEvent("popstate"));
+      }, [dirty]);
+      return <button onClick={() => setDirty(true)}>Edit</button>;
+    }
+    renderWithProviders(
+      <NavigationGuardProvider>
+        <EditAndBack />
+      </NavigationGuardProvider>,
+    );
+    window.addEventListener("popstate", router);
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+      expect(router).not.toHaveBeenCalled();
+      expect(go).toHaveBeenCalledWith(1);
+      expect(screen.getByRole("dialog")).toHaveTextContent("Discard changes to TEST bill?");
+    } finally {
+      window.removeEventListener("popstate", router);
+      go.mockRestore();
+    }
+  });
+
   it("holds Back while unsaved: the router never sees it, then it asks", () => {
     const go = vi.spyOn(window.history, "go").mockImplementation(() => {});
     renderGuard(true);

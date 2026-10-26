@@ -52,6 +52,8 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	"practitioner.EvidenceScanRequestedData.QualificationID": "opaque qualification scope reference; no private source or credential details",
 	"practitioner.EvidenceChangedData.QualificationID":       "opaque qualification scope reference; no private source or credential details",
 	"practitioner.ReviewRecordedData.QualificationID":        "opaque qualification scope reference; no private source or credential details",
+	"practitioner.RegistrationPolicyChangedData.PolicyID":    "opaque issuer policy scope; no source rules or personal credential fields",
+	"practitioner.RegistrationPolicyChangedData.Version":     "bounded internal edition counter; not a source finding or authority grant",
 	"practitioner.EvidenceScanInput.TenantID":                "internal tenant boundary for private professional-evidence processing; no tenant attributes",
 	"practitioner.EvidenceScanInput.PractitionerID":          "internal professional registry reference; no patient, professional attributes or national identifier",
 	"practitioner.EvidenceScanInput.RegistrationID":          "internal reported-claim reference; council, number and dates remain private",

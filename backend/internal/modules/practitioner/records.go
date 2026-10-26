@@ -118,6 +118,16 @@ func failure(c *gin.Context, err error) {
 		respond.NotFound(c, "practitioner")
 	case errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.As(err, &pg) && (pg.Code == "55P03" || pg.Code == "57014"):
 		respond.Error(c, 503, "practitioner_unavailable", "Practitioner operation timed out; reconcile the retained command before retrying")
+	case errors.Is(err, errPolicyIntent):
+		respond.Error(c, 409, "policy_intent_conflict", "Retained policy intent differs")
+	case errors.Is(err, errPolicyVersion) || errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "registration_policy_version":
+		respond.Error(c, 409, "policy_version_conflict", "Policy version changed")
+	case errors.As(err, &pg) && pg.Code == "23505" && pg.ConstraintName == "registration_policy_source_unique":
+		respond.Error(c, 409, "policy_source_conflict", "Issuer namespace is already configured")
+	case errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "registration_policy_authority":
+		respond.Error(c, 403, "policy_authority_required", "A current accepted policy appointment is required")
+	case errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "registration_policy_input":
+		respond.Error(c, 400, "invalid_verification_policy", "Issuer calendar or validity is invalid")
 	case errors.Is(err, errIntentConflict) || errors.As(err, &pg) && (pg.Code == "23505" || pg.Code == "23514" && (pg.ConstraintName == "practitioner_steward_acceptance" || pg.ConstraintName == "practitioner_evidence_limit" || pg.ConstraintName == "practitioner_evidence_upload" || pg.ConstraintName == "practitioner_evidence_revocation" || pg.ConstraintName == "practitioner_evidence_retry" || pg.ConstraintName == "practitioner_review_state" || pg.ConstraintName == "practitioner_specialty_retirement")):
 		respond.Error(c, 409, "practitioner_conflict", "This request conflicts with the retained practitioner state")
 	default:

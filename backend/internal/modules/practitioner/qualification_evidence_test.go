@@ -171,7 +171,7 @@ func TestCredentialMigrationPreservesLegacyEvidenceAndRegistrationWireScope(t *t
 		}
 		return tx.Table("practitioner_registration_evidence").Select("id,revision_id,size,sha256,created_at,expires_at").Where("tenant_id=? AND id=?", testutil.TenantA, id).Take(&before).Error
 	}))
-	require.NoError(t, db.Migrate(t.Context(), practitioner.New().Migrations()[11:]))
+	require.NoError(t, db.Migrate(t.Context(), practitioner.New().Migrations()[11:12]))
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		if err := tx.Exec("SELECT set_config('app.practitioner_evidence_access','true',true)").Error; err != nil {
 			return err

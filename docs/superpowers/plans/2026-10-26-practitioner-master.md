@@ -39,3 +39,11 @@ This plan does not close #39/#474/#77/#102 for a partial implementation.
       by consent-aware reminder cancellation and actual provider verification.
 - [ ] Review/merge through CI, deploy through GitOps with specific approved
       migrations, then verify synthetic end-to-end cases and broad story criteria.
+
+## Effective verification follow-up
+
+Issuer configuration (explicit normalization, calendar, freshness/date rules and
+versioned accepted authority) is implemented locally after foundation #1344. See
+[verification design](../specs/2026-10-26-practitioner-verification.md). It leaves
+professional facts unverified; effective decisions, canonical identifier conflict
+handling and runtime/clinical authority integration remain required.

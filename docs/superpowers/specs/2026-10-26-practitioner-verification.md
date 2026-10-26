@@ -86,7 +86,7 @@ test initially used an unregistered fixture token (401); registering its limited
 policy permissions preserved the intended unaccepted-appointment 403 assertion.
 
 Policy refresh events carry only policy ID/version; actual rules require an
-authorized owner read. No event is a permission grant. All 62 module harness routes
+authorized owner read. No event is a permission grant. All 65 module harness routes
 reject stale workspace. Registration decisions and canonical identifier ownership are now implemented
 in the local harness. Runtime bootstrap, qualifications/HPR/facility privilege
 consumers, policy activation and
@@ -133,7 +133,7 @@ build passed, acceptance-tagged practitioner golangci-lint reported zero issues,
 contractdocs generation/check passed, and the practitioner secret scan found no
 leaks. These are local tests, not proof of deployed service integration.
 
-This remains a draft, inactive runtime implementation. Conflict reconciliation,
+This remains a draft, inactive runtime implementation. Canonical identifier-conflict reconciliation,
 ORG-AC-08 shared IAM/workflow convergence, identity/qualification/HPR and facility
 privilege integration, global/runtime wiring and deployment acceptance remain
 open. Migration 0014 is forward-only: receipt and identifier ownership history
@@ -151,3 +151,60 @@ the exact end-of-day boundary, the preceding second, and future issue dates.
 Successful receipts assert the exact minimum of the issuer expiry and source-age
 ceiling, rather than merely asserting a future timestamp. These use synthetic
 policy configuration and do not establish a legal issuer expiry interpretation.
+
+## Source-observation reconciliation (local implementation)
+
+An adverse observation must remain immutable. A later positive observation alone
+must not erase it. The local implementation adds an explicit tenant-local administrative reconciliation
+receipt naming the current registration revision, one active replacement review,
+1–10 unique adverse review IDs, and an accountable reason reference. The active
+review must concern the same registration/current revision and have a strictly
+later source-check time than every named adverse observation. Reconciliation
+records data-review judgment; it never certifies legal standing, grants a clinical
+privilege, merges practitioners or transfers canonical identifiers.
+
+The caller needs current shared IAM `practitioner.registration.verify`, verified
+tenant scope and independence from identity, claim, revision and evidence
+submission. Do not add a module-private caller appointment/grant path. Source
+review appointment provenance remains existing evidence, subject to ORG-AC-08
+before activation. Missing permission is 403, foreign/missing objects are 404,
+and unavailable authorization is 503. Sensitive reads/replay require audit.
+
+Command: PUT `/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation`.
+Body: `revision_id`, `active_review_id`, `adverse_review_ids`, `reason_reference`.
+GET at the same path and bounded GET collection expose retained receipts under
+record-read permission. Canonical intent includes sorted unique adverse IDs and
+original actor; exact replay returns the original result, changed intent conflicts.
+The command locks the registration root, verifies the current revision and all
+same-tenant/object references, then appends receipt, audit and refresh outbox in
+one short transaction. Pre-read audit commits before rejected/failed commands.
+No network call or cache participates in the decision. Outbox failure rolls back
+receipt; database/audit/IAM outage fails closed.
+
+Attestation/current projection ignore an adverse observation only when an explicit
+receipt binds that exact observation to the exact active review used by the
+attestation. Unnamed/new adverse findings still block. Changed revisions, evidence
+withdrawal, source freshness and policy expiry keep their existing fail-closed
+checks. Reconciliation does not reactivate a withdrawn verification: a separate
+new versioned attestation is required. Identifier collisions remain a distinct
+unresolved path; no implicit ownership transfer is introduced.
+
+Capacity uses the existing registry release assumptions and five-second request/
+two-second lock budgets. Each command reads at most ten named adverse records and
+one replacement review; add indexed registration/review lookups and an indexed
+receipt linkage. History is keyset bounded at 1–200. No new deployment or service
+cost is introduced. A forward-only additive migration retains receipts on rollback;
+only compatible readers/guards may be activated together. Qualified review,
+shared IAM/workflow convergence, runtime wiring and production acceptance remain
+activation gates. This implementation is a draft, unregistered and undeployed. Identity ownership
+conflict recovery and qualified-review activation remain unfinished.
+
+Reconciliation tests first reproduced the absent command (404). The local
+implementation passes explicit-adverse-history/replay and newer-adverse-finding
+checks. A missing-review regression reproduced 500 instead of 404; SQL no-data
+errors now map to not-found. The focused suite passed (6.763s), including audit,
+read-audit and outbox outages, recovery, retained ownership/history and forced RLS.
+Full practitioner race/coverage passed (140.778s, 84.7% statements); architecture
+tests passed (49.069s). Acceptance-tagged practitioner lint/vet, API/migrate
+builds, contractdocs generation/check/tests and secret/diff checks passed.
+These results are local only; source reconciliation is not active in production.

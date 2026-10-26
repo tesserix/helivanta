@@ -17,3 +17,12 @@ type RegistrationVerificationChangedData struct {
 	VerificationID string `json:"verification_id"`
 	Version        int64  `json:"version"`
 }
+
+const RegistrationSourceReconciled = "helivanta.in.practitioner.registration_source_reconciled.v1"
+
+// RegistrationSourceReconciledData requests an owner refresh without exposing observations.
+type RegistrationSourceReconciledData struct {
+	PractitionerID   string `json:"practitioner_id"`
+	RegistrationID   string `json:"registration_id"`
+	ReconciliationID string `json:"reconciliation_id"`
+}

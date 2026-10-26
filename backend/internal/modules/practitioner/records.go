@@ -114,7 +114,7 @@ func failure(c *gin.Context, err error) {
 		respond.Error(c, 400, "invalid_request", "Invalid steward appointment")
 	case errors.Is(err, errStewardIndependence):
 		respond.Error(c, 403, "independent_nomination_required", "A different tenant administrator must nominate the reviewer")
-	case errors.Is(err, gorm.ErrRecordNotFound):
+	case errors.Is(err, gorm.ErrRecordNotFound) || errors.As(err, &pg) && pg.Code == "P0002":
 		respond.NotFound(c, "practitioner")
 	case errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.As(err, &pg) && (pg.Code == "55P03" || pg.Code == "57014"):
 		respond.Error(c, 503, "practitioner_unavailable", "Practitioner operation timed out; reconcile the retained command before retrying")
@@ -233,6 +233,8 @@ func (h *handlers) transaction(ctx context.Context, p authn.Principal, manage bo
 
 func verificationConstraintCode(name string) string {
 	switch name {
+	case "registration_reconciliation_source":
+		return "replacement_source_not_later"
 	case "registration_verification_version":
 		return "verification_version_conflict"
 	case "registration_verification_target":

@@ -407,3 +407,111 @@ func TestRegistrationAttestationUsesConfiguredIssuerCalendarBoundary(t *testing.
 		})
 	}
 }
+
+func TestRegistrationSourceReconciliationRetainsExplicitAdverseHistory(t *testing.T) {
+	s := newRegistrationAttestationScenario(t)
+	adverse := uuid.Must(uuid.NewV7()).String()
+	finding := fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"unavailable","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
+	require.Equal(t, 201, testutil.Do(s.router, "PUT", s.base+"/reviews/"+adverse, "reviewer", finding).Code)
+	active := uuid.Must(uuid.NewV7()).String()
+	finding = fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"active","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
+	require.Equal(t, 201, testutil.Do(s.router, "PUT", s.base+"/reviews/"+active, "reviewer", finding).Code)
+	attestation := strings.Replace(s.body, s.review, active, 1)
+	blocked := testutil.Do(s.router, "PUT", s.path, "reviewer", attestation)
+	require.Equal(t, 409, blocked.Code, blocked.Body.String())
+	require.Contains(t, blocked.Body.String(), "source_reviews_require_reconciliation")
+	root := strings.Split(s.base, "/revisions/")[0]
+	path := root + "/source-reconciliations/" + uuid.Must(uuid.NewV7()).String()
+	body := fmt.Sprintf(`{"revision_id":"%s","active_review_id":"%s","adverse_review_ids":["%s"],"reason_reference":"%s"}`, s.input.RevisionID, active, adverse, uuid.Must(uuid.NewV7()))
+	require.Equal(t, 403, testutil.Do(s.router, "PUT", path, "operator", body).Code)
+	require.Equal(t, 404, testutil.Do(s.router, "PUT", path, "foreign", body).Code)
+	missing := testutil.Do(s.router, "PUT", path, "reviewer", strings.Replace(body, active, uuid.Must(uuid.NewV7()).String(), 1))
+	require.Equal(t, 404, missing.Code, missing.Body.String())
+	reconciled := testutil.Do(s.router, "PUT", path, "reviewer", body)
+	require.Equal(t, 201, reconciled.Code, reconciled.Body.String())
+	replay := testutil.Do(s.router, "PUT", path, "reviewer", body)
+	require.Equal(t, 200, replay.Code, replay.Body.String())
+	require.JSONEq(t, reconciled.Body.String(), replay.Body.String())
+	retained := testutil.Do(s.router, "GET", s.base+"/reviews/"+adverse, "operator", "")
+	require.Equal(t, 200, retained.Code, retained.Body.String())
+	require.Contains(t, retained.Body.String(), `"finding":"unavailable"`)
+	verified := testutil.Do(s.router, "PUT", s.path, "reviewer", attestation)
+	require.Equal(t, 201, verified.Code, verified.Body.String())
+	require.Contains(t, verified.Body.String(), `"clinical_authority":"not_evaluated"`)
+
+	read := testutil.Do(s.router, "GET", path, "operator", "")
+	require.Equal(t, 200, read.Code, read.Body.String())
+	require.JSONEq(t, reconciled.Body.String(), read.Body.String())
+	require.Equal(t, 404, testutil.Do(s.router, "GET", path, "foreign", "").Code)
+	current := testutil.Do(s.router, "GET", root+"/verification", "operator", "")
+	require.Equal(t, 200, current.Code, current.Body.String())
+	require.Contains(t, current.Body.String(), `"state":"verified"`)
+	later := uuid.Must(uuid.NewV7()).String()
+	finding = fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"suspended","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
+	require.Equal(t, 201, testutil.Do(s.router, "PUT", s.base+"/reviews/"+later, "reviewer", finding).Code)
+	current = testutil.Do(s.router, "GET", root+"/verification", "operator", "")
+	require.Equal(t, 200, current.Code, current.Body.String())
+	require.Contains(t, current.Body.String(), `"state":"stale"`)
+	attempt := strings.Replace(attestation, `"expected_version":0`, `"expected_version":1`, 1)
+	blocked = testutil.Do(s.router, "PUT", s.base+"/verifications/"+uuid.Must(uuid.NewV7()).String(), "reviewer", attempt)
+	require.Equal(t, 409, blocked.Code, blocked.Body.String())
+	require.Contains(t, blocked.Body.String(), "source_reviews_require_reconciliation")
+}
+
+func TestRegistrationSourceReconciliationDependencyFailureRetainsNoPartialDecision(t *testing.T) {
+	for _, dependency := range []string{"audit", "outbox", "read_audit"} {
+		t.Run(dependency, func(t *testing.T) {
+			s := newRegistrationAttestationScenario(t)
+			adverse := uuid.Must(uuid.NewV7()).String()
+			finding := fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"unavailable","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
+			require.Equal(t, 201, testutil.Do(s.router, "PUT", s.base+"/reviews/"+adverse, "reviewer", finding).Code)
+			root := strings.Split(s.base, "/revisions/")[0]
+			path := root + "/source-reconciliations/" + uuid.Must(uuid.NewV7()).String()
+			body := fmt.Sprintf(`{"revision_id":"%s","active_review_id":"%s","adverse_review_ids":["%s"],"reason_reference":"%s"}`, s.input.RevisionID, s.review, adverse, uuid.Must(uuid.NewV7()))
+			table, condition := "audit_events", "NEW.action='insert' AND NEW.resource_type='practitioner_registration_reconciliations'"
+			if dependency == "outbox" {
+				table = "outbox_events"
+				condition = "NEW.subject='helivanta.in.practitioner.registration_source_reconciled.v1'"
+			}
+			if dependency == "read_audit" {
+				condition = "NEW.action='read' AND NEW.resource_type='practitioner_registrations'"
+			}
+			require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_reconciliation_dependency_outage", SQL: "CREATE FUNCTION reject_reconciliation_dependency() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF " + condition + " THEN RAISE EXCEPTION 'synthetic reconciliation dependency outage'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_reconciliation_dependency BEFORE INSERT ON " + table + " FOR EACH ROW EXECUTE FUNCTION reject_reconciliation_dependency();"}}))
+			failed := testutil.Do(s.router, "PUT", path, "reviewer", body)
+			require.Equal(t, 500, failed.Code, failed.Body.String())
+			require.NotContains(t, failed.Body.String(), "synthetic")
+			require.NoError(t, s.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec("SELECT set_config('app.practitioner_access','true',true)").Error; err != nil {
+					return err
+				}
+				var n int64
+				err := tx.Table("practitioner_registration_reconciliations").Count(&n).Error
+				require.Zero(t, n)
+				return err
+			}))
+			require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_reconciliation_dependency_recovered", SQL: "DROP TRIGGER reject_reconciliation_dependency ON " + table + ";"}}))
+			recovered := testutil.Do(s.router, "PUT", path, "reviewer", body)
+			require.Equal(t, 201, recovered.Code, recovered.Body.String())
+			for _, tenant := range []string{testutil.TenantA, testutil.TenantB} {
+				require.NoError(t, s.db.WithTenant(t.Context(), tenant, func(tx *gorm.DB) error {
+					if tenant == testutil.TenantB {
+						if err := tx.Exec("SELECT set_config('app.practitioner_access','true',true)").Error; err != nil {
+							return err
+						}
+					}
+					var n int64
+					err := tx.Table("practitioner_registration_reconciliations").Count(&n).Error
+					require.Zero(t, n)
+					return err
+				}))
+			}
+			err := s.db.WithTenant(tenantdb.WithActor(t.Context(), "user-reviewer"), testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec("SELECT set_config('app.practitioner_access','true',true),set_config('app.practitioner_reconcile','true',true)").Error; err != nil {
+					return err
+				}
+				return tx.Exec("DELETE FROM practitioner_registration_reconciliations WHERE tenant_id=?", testutil.TenantA).Error
+			})
+			require.Error(t, err)
+		})
+	}
+}

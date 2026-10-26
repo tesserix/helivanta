@@ -828,11 +828,11 @@ export function HmsShell({
                   rail expanding changes that without the viewport changing (#1303). */}
                 <main className="@container/main flex-1 px-6 pt-6 pb-6 md:pt-0">
                   {/* Left-aligned with the header card, not centred: centring left an
-                    empty band beside the rail on a page with no panel (#1296). A page
+                    empty band beside the rail on a page with no panel (#1296). A zone
                     declares full width in zones.ts; it still stops at 1760px. */}
                   <div
-                    data-width={currentPage?.width === "full" ? "full" : "capped"}
-                    className={`w-full ${currentPage?.width === "full" ? "max-w-[1760px]" : "max-w-6xl"}`}
+                    data-width={zone.width === "full" ? "full" : "capped"}
+                    className={`w-full ${zone.width === "full" ? "max-w-[1760px]" : "max-w-6xl"}`}
                   >
                     {children}
                   </div>

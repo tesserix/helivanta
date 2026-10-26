@@ -49,8 +49,6 @@ export type ZonePage = {
   permission: string;
   /** Heading the page panel shows before the first page of a run (#1258 D1). */
   section?: string;
-  /** "full" drops the content cap for a page that needs the width (#1303 D8). */
-  width?: "full";
 };
 
 export type ZoneHue = "rose" | "amber" | "violet";
@@ -68,6 +66,9 @@ export type Zone = {
   permission: string;
   hue: ZoneHue;
   group: ZoneGroup;
+  /** "full" drops the content cap on every page of the zone, so moving between
+   * its pages never changes the width (#1366). Pages cannot set their own. */
+  width?: "full";
   pages: ZonePage[];
 };
 
@@ -134,6 +135,7 @@ export const ZONES: Zone[] = [
     permission: "public",
     hue: "amber",
     group: "care",
+    width: "full",
     pages: [
       // What needs attention, for every outlet role (#576). A doctor, who
       // only reads the queue, lands on the queue instead.
@@ -163,7 +165,6 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/stock",
         icon: Boxes,
         permission: "pharmacy.stock.read",
-        width: "full",
       },
       {
         section: "Inventory",
@@ -171,7 +172,6 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/receiving",
         icon: PackagePlus,
         permission: "pharmacy.stock.read",
-        width: "full",
       },
       {
         section: "Inventory",
@@ -179,7 +179,6 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/safety",
         icon: ShieldAlert,
         permission: "pharmacy.stock.read",
-        width: "full",
       },
       {
         section: "Inventory",
@@ -187,7 +186,6 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/catalogue",
         icon: BookOpen,
         permission: "pharmacy.catalogue.read",
-        width: "full",
       },
       {
         section: "Purchasing",
@@ -195,7 +193,6 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/accounts",
         icon: ReceiptText,
         permission: "pharmacy.accounts.read",
-        width: "full",
       },
       {
         section: "Setup",
@@ -203,7 +200,6 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/setup",
         icon: Store,
         permission: "pharmacy.access.manage",
-        width: "full",
       },
     ],
   },

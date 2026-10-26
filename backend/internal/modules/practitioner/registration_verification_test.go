@@ -293,3 +293,52 @@ func TestRegistrationAttestationLeaseExpiresAtExactBoundary(t *testing.T) {
 	require.Equal(t, 200, current.Code, current.Body.String())
 	require.Contains(t, current.Body.String(), `"state":"stale"`)
 }
+
+func TestRegistrationAttestationReadAuditOutageBlocksReceiptsProjectionHistoryAndReplay(t *testing.T) {
+	s := newRegistrationAttestationScenario(t)
+	saved := testutil.Do(s.router, "PUT", s.path, "reviewer", s.body)
+	require.Equal(t, 201, saved.Code, saved.Body.String())
+	root := strings.Split(s.base, "/revisions/")[0]
+	require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_verification_read_audit_outage", SQL: `CREATE FUNCTION reject_verification_read() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='read' AND NEW.resource_type IN ('practitioner_registrations','practitioner_registration_verifications') THEN RAISE EXCEPTION 'synthetic sensitive audit outage'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_verification_read BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION reject_verification_read();`}}))
+	for _, path := range []string{s.path, root + "/verification", root + "/verifications"} {
+		denied := testutil.Do(s.router, "GET", path, "operator", "")
+		require.Equal(t, 500, denied.Code, denied.Body.String())
+		require.NotContains(t, denied.Body.String(), "canonical_value")
+		require.NotContains(t, denied.Body.String(), "synthetic")
+	}
+	replay := testutil.Do(s.router, "PUT", s.path, "reviewer", s.body)
+	require.Equal(t, 500, replay.Code, replay.Body.String())
+	require.NotContains(t, replay.Body.String(), "canonical_value")
+	require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_verification_read_audit_recovery", SQL: `DROP TRIGGER reject_verification_read ON audit_events;`}}))
+	recovered := testutil.Do(s.router, "PUT", s.path, "reviewer", s.body)
+	require.Equal(t, 200, recovered.Code, recovered.Body.String())
+	require.JSONEq(t, saved.Body.String(), recovered.Body.String())
+}
+
+func TestRegistrationAttestationReadScopeAndForcedRLS(t *testing.T) {
+	s := newRegistrationAttestationScenario(t)
+	require.Equal(t, 201, testutil.Do(s.router, "PUT", s.path, "reviewer", s.body).Code)
+	root := strings.Split(s.base, "/revisions/")[0]
+	for _, path := range []string{s.path, root + "/verification", root + "/verifications"} {
+		denied := testutil.Do(s.router, "GET", path, "foreign", "")
+		require.Equal(t, 404, denied.Code, denied.Body.String())
+		require.NotContains(t, denied.Body.String(), "canonical_value")
+	}
+	for _, tenant := range []string{testutil.TenantA, testutil.TenantB} {
+		require.NoError(t, s.db.WithTenant(t.Context(), tenant, func(tx *gorm.DB) error {
+			if tenant == testutil.TenantB {
+				if err := tx.Exec("SELECT set_config('app.practitioner_access','true',true)").Error; err != nil {
+					return err
+				}
+			}
+			for _, table := range []string{"practitioner_registration_verifications", "practitioner_registration_identifiers"} {
+				var n int64
+				if err := tx.Table(table).Count(&n).Error; err != nil {
+					return err
+				}
+				require.Zero(t, n)
+			}
+			return nil
+		}))
+	}
+}

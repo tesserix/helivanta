@@ -1,7 +1,7 @@
 # Practitioner effective verification
 
-Status: issuer-policy configuration implemented locally; effective verification
-remains unfinished. Not registered or deployed. Continues #474 and
+Status: issuer policies and registration attestation APIs implemented locally;
+overall practitioner verification remains unfinished. Not registered or deployed. Continues #474 and
 ADR-0043 without activating prescribing, clinical privileges or HPR fetches.
 
 ## Owner and trust boundary
@@ -9,7 +9,8 @@ ADR-0043 without activating prescribing, clinical privileges or HPR fetches.
 Practitioner owns registration identity/verification. Workforce remains the owner
 of HR enrollment; facility roles/clinical privileges and patient/proxy consent are
 separate. Current registration/source-review/evidence facts are implemented in the
-registry foundation. Positive source observations currently remain unverified.
+registry foundation. Positive source observations alone remain unverified. Separate administrative
+attestations can establish time-bounded registration data trust.
 
 Issuer interpretation must be explicit tenant configuration, not a model-invented
 legal rule. Registration policy configuration requires its own manage/read
@@ -52,7 +53,7 @@ that edition is created, and prior signed authority is not erased by later staff
 changes. New editions require current authority. Expired policy never supplies a
 current verification default; availability/error must be explicit.
 
-## Still required after configuration
+## Registration attestation requirements and remaining gates
 
 A verification command must bind exact current registration revision, a matching
 source review and its released generation-bound evidence, current policy edition,
@@ -85,9 +86,10 @@ test initially used an unregistered fixture token (401); registering its limited
 policy permissions preserved the intended unaccepted-appointment 403 assertion.
 
 Policy refresh events carry only policy ID/version; actual rules require an
-authorized owner read. No event is a permission grant. All 56 module harness routes
-reject stale workspace. Runtime bootstrap, effective decision/normalized identifier
-ownership, qualifications/HPR/facility privilege consumers, policy activation and
+authorized owner read. No event is a permission grant. All 62 module harness routes
+reject stale workspace. Registration decisions and canonical identifier ownership are now implemented
+in the local harness. Runtime bootstrap, qualifications/HPR/facility privilege
+consumers, policy activation and
 production migration remain separate incomplete gates.
 
 ## Organization-access boundary
@@ -136,3 +138,9 @@ ORG-AC-08 shared IAM/workflow convergence, identity/qualification/HPR and facili
 privilege integration, global/runtime wiring and deployment acceptance remain
 open. Migration 0014 is forward-only: receipt and identifier ownership history
 must be retained; rollback requires forward correction rather than deletion.
+
+Read-isolation follow-up: HTTP receipt/projection/history reads return not-found
+for a foreign tenant. Direct database reads with missing module access or a
+foreign tenant return zero verification/identifier rows. Injected read-audit
+failure blocks every read surface and exact replay; recovery returns the original
+receipt unchanged. Focused real-PostgreSQL tests passed.

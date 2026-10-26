@@ -40,7 +40,8 @@ async function api(page: Page, method: string, path: string, body?: unknown) {
 
 test("an owner registers the outlet's GSTIN and classifies a product", async ({ page }) => {
   await login(page);
-  await page.goto("/pharmacy");
+  // Not a pharmacy page, which would save its own outlet over the one set below.
+  await page.goto("/dashboard");
   const me = await api(page, "GET", "/iam/me/permissions");
   const stamp = Date.now().toString(36).toUpperCase();
   const pharmacyId = uuidv7();

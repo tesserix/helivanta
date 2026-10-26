@@ -42,7 +42,9 @@ export async function freshOutlet(page: Page) {
 
 /** A new pharmacy and outlet, made this tab's working outlet; already signed in. */
 export async function newOutlet(page: Page) {
-  await page.goto("/pharmacy");
+  // Not a pharmacy page: one that is open resolves its outlet and saves it
+  // as the tab's working outlet (#1303 E8), and could overwrite this one.
+  await page.goto("/dashboard");
   const me = await api(page, "GET", "/iam/me/permissions");
   const stamp = Date.now().toString(36).toUpperCase();
   const pharmacyId = uuidv7();

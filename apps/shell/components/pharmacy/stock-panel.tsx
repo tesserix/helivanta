@@ -141,16 +141,19 @@ export function StockPanel({
             </div>
             <div className="mt-4 grid gap-3 lg:grid-cols-3">
               <LoadMore
+                label="Load more locations"
                 hasMore={locations.hasMore}
                 isLoading={locations.isFetchingMore}
                 onClick={locations.loadMore}
               />
               <LoadMore
+                label="Load more products"
                 hasMore={products.hasMore}
                 isLoading={products.isFetchingMore}
                 onClick={products.loadMore}
               />
               <LoadMore
+                label="Load more lots"
                 hasMore={batches.hasMore}
                 isLoading={batches.isFetchingMore}
                 onClick={batches.loadMore}
@@ -468,6 +471,7 @@ function StockBucket({
           </ol>
         )}
         <LoadMore
+          label="Load more movements"
           hasMore={movements.hasMore}
           isLoading={movements.isFetchingMore}
           onClick={movements.loadMore}

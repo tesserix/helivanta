@@ -293,7 +293,12 @@ function AffiliationForm({
           ))}
         </ul>
       )}
-      <LoadMore hasMore={links.hasMore} isLoading={links.isFetchingMore} onClick={links.loadMore} />
+      <LoadMore
+        label="Load more hospital links"
+        hasMore={links.hasMore}
+        isLoading={links.isFetchingMore}
+        onClick={links.loadMore}
+      />
     </Panel>
   );
 }

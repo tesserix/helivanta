@@ -214,7 +214,7 @@ it("keeps filters and cursor pages on the same snapshot and replaces detail when
     "Due within 30 days (including today)",
   );
   await chooseOption(user, screen.getByLabelText("Filter stock balance"), "Positive stock on hand");
-  await user.click(await screen.findByRole("button", { name: "Load more" }));
+  await user.click(await screen.findByRole("button", { name: "Load more stock positions" }));
   expect(await screen.findByText("TEST-LOT-2")).toBeInTheDocument();
   const request = fetcher.mock.calls
     .map(([url]) => new URL(url, "http://localhost"))

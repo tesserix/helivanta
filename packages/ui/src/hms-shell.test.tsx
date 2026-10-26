@@ -884,7 +884,8 @@ describe("expandable navigation", () => {
     expect(wrapper.closest("main")?.className).toContain("@container/main");
     unmount();
 
-    pathname.current = "/pharmacy/catalogue";
+    // The Overview has no detail pane, so it keeps the cap.
+    pathname.current = "/pharmacy";
     renderWithProviders(<HmsShell>content</HmsShell>);
     expect(screen.getByText("content")).toHaveAttribute("data-width", "capped");
     expect(screen.getByText("content").className).toContain("max-w-6xl");

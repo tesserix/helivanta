@@ -213,11 +213,13 @@ function OutletStockRegister({ scope, timeZone = "UTC", initialExpiry, initialBa
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           <LoadMore
+            label="Load more locations"
             hasMore={locations.hasMore}
             isLoading={locations.isFetchingMore}
             onClick={locations.loadMore}
           />
           <LoadMore
+            label="Load more products"
             hasMore={products.hasMore}
             isLoading={products.isFetchingMore}
             onClick={products.loadMore}
@@ -334,6 +336,7 @@ function OutletStockRegister({ scope, timeZone = "UTC", initialExpiry, initialBa
             product’s base unit.
           </p>
           <LoadMore
+            label="Load more stock positions"
             hasMore={positions.hasMore}
             isLoading={positions.isFetchingMore}
             onClick={positions.loadMore}
@@ -493,6 +496,7 @@ function PositionDetail({
           )}
           {!movements.isError && (
             <LoadMore
+              label="Load more movements"
               hasMore={movements.hasMore}
               isLoading={movements.isFetchingMore}
               onClick={movements.loadMore}

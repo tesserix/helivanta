@@ -5,7 +5,12 @@ import { renderWithProviders } from "@helivanta/api/testing";
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
-import { NavigationGuardProvider, useGuardedLinkClick, useLeaveGuard } from "./navigation-guard";
+import {
+  NavigationGuardProvider,
+  useConfirmLeave,
+  useGuardedLinkClick,
+  useLeaveGuard,
+} from "./navigation-guard";
 
 function Editor({ dirty, go }: { dirty: boolean; go: () => void }) {
   const guard = useLeaveGuard(dirty, "TEST bill");
@@ -74,6 +79,45 @@ describe("useLeaveGuard", () => {
     const { user, navigate } = renderGuard(false);
     await user.click(screen.getByRole("link", { name: "Overview" }));
     expect(navigate).toHaveBeenCalledWith("/dashboard");
+  });
+
+  // #1303 E7: Cmd/Ctrl/Shift and middle clicks open another tab or window;
+  // nothing in this one is lost, so they are not held.
+  it.each([
+    ["Cmd", { metaKey: true }],
+    ["Ctrl", { ctrlKey: true }],
+    ["Shift", { shiftKey: true }],
+    ["middle", { button: 1 }],
+  ])("lets a %s click on a shell link through while unsaved", (_, modifier) => {
+    const { navigate } = renderGuard(true);
+    const link = screen.getByRole("link", { name: "Overview" });
+    const passed = fireEvent.click(link, modifier);
+    expect(passed).toBe(true);
+    expect(navigate).toHaveBeenCalledWith("/dashboard");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("useConfirmLeave asks while another component is unsaved", async () => {
+    const go = vi.fn();
+    function Picker() {
+      const confirm = useConfirmLeave();
+      return (
+        <button type="button" onClick={() => confirm(go)}>
+          Choose outlet
+        </button>
+      );
+    }
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <Editor dirty go={vi.fn()} />
+        <Picker />
+      </NavigationGuardProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Choose outlet" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("Discard changes to TEST bill?");
+    expect(go).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Discard" }));
+    expect(go).toHaveBeenCalledOnce();
   });
 
   // Back cannot be cancelled: stop the router's own listener, step forward

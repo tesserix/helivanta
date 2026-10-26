@@ -179,7 +179,7 @@ test("a page that is still loading keeps the chrome", async ({ page }) => {
     .getByRole("navigation", { name: "Zones" })
     .getByRole("link", { name: "PharmaConnect", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/pharmacy$/);
+  await expect(page).toHaveURL(/\/pharmacy(\?|$)/);
   expect(await chromeMarker(page), "a loading page remounted the chrome").toBe("same-node");
 
   release();
@@ -284,4 +284,15 @@ test("the page itself never scrolls, only the content area", async ({ page }) =>
     return doc.scrollHeight - doc.clientHeight;
   });
   expect(overflow).toBe(0);
+});
+
+// #1303 E7: every Load more on a pharmacy page says what it loads; the
+// pickers' sat below the content, unnamed.
+test("no pharmacy page shows an unnamed Load more", async ({ page }) => {
+  await freshOutlet(page);
+  for (const path of ["stock", "receiving", "safety", "catalogue", "accounts", "setup"]) {
+    await page.goto(`/pharmacy/${path}`);
+    await expect(page.getByText(/^Times are in /)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Load more", exact: true })).toHaveCount(0);
+  }
 });

@@ -314,14 +314,25 @@ open on a hard load.
   changing the viewport.
 - **An open record sits beside its list.** Use `ListDetail` from `@helivanta/ui`. It splits
   when main is at least 840px wide, and shows the record alone, with a back link, below
-  that. It is one grid at every width, so a half-typed form survives the rail expanding.
-  Keep the record's address in the URL with `useDetail` (`?open=` and `?new=1`, in
-  `apps/shell/lib`): opening is a Back step, and switching records replaces it.
-- **Unsaved edits are never lost silently.** A detail with forms calls `useLeaveGuard(dirty,
-name)`. Shell links (`GuardedLink`), Back and reload then ask "Discard changes to
-  {name}?". `useLeaveGuard` throws without the shell's `NavigationGuardProvider`, so a page
-  rendered outside the shell fails rather than dropping edits. Component tests wrap it in
-  that provider. In-page links (tabs, pager, back link) are guarded by the page.
+  that. It is one tree open or closed, so neither the list nor a half-typed form is
+  remounted. Below 840px, opening a record scrolls the content area (`[data-hms-scroll]`) to
+  its top.
+- **One mechanism per list page:** `useListDetail` (`apps/shell/lib`) for the open record's
+  address (`?open=` and `?new=1` through `useDetail`), Previous / Next over the rows as they
+  were when it was opened, the leave guard, Escape and focus; `DetailHeader` from
+  `@helivanta/ui` for its title, Previous / Next and Close. Each form in the record reports
+  through `formState(key)` and `useReportState`. Do not copy this behaviour into a page.
+- **Outlet pages carry their scope.** `pharmacy=` and `outlet=` are in the address of every
+  outlet-scoped pharmacy page (#1303 E8), and `useUrlPage` keeps them in every link it
+  builds, so a shared link opens the outlet it was copied from. An outlet asked for and not
+  loaded is never replaced by another.
+- **Unsaved edits are never lost silently.** A detail with forms registers through
+  `useListDetail`, or `useLeaveGuard(dirty, name)` directly. Shell links (`GuardedLink`),
+  Back and reload then ask "Discard changes to {name}?"; a Cmd, Ctrl, Shift or middle click
+  opens another tab and is not held. A page's own moves that are not links (a picker, a
+  search) ask through `useConfirmLeave`. Both throw without the shell's
+  `NavigationGuardProvider`, so a page rendered outside the shell fails rather than dropping
+  edits. Component tests wrap it in that provider.
 
 ### Idle session tracking
 

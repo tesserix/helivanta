@@ -1,9 +1,10 @@
 # Medical record ownership and release
 
-Status: design under development for #72 and the backend dependencies of #73.
+Status: design under development for #72 and the backend dependencies of #73;
+minimal patient-owner reference projection implemented locally.
 No medicalrecords module, storage workflow or patient report API is implemented by
-this document. Practitioner verification remains in draft #1353; this work uses a
-separate checkout so its CI can finish without another source push.
+this document. Practitioner verification foundation is merged in #1353 but remains inactive;
+overall practitioner clinical authority is unfinished.
 
 ## Verified starting point
 
@@ -150,3 +151,40 @@ Additive forward-only migrations retain private evidence/history. Use the owner
 rollback plan, including compatible retained readers/workers once new versions or
 release decisions exist. No production schema/rollout is authorized by this draft.
 Do not close #72/#73 or claim MediConnect complete from configuration or uploads.
+
+### Registration reference projection
+
+Add GET `/v1/patients/:id/registration-reference?hospital_id=:hospital` to the
+patient owner, routed through Global API. It requires existing `patient.read` and
+patientmaster's current hospital visibility, with the grant held through the
+scoped read/audit transaction. It returns only `patient_id`, `hospital_id` and
+`record_access_authorized:false`. It is a current reference read, not a signed or
+durable authorization receipt, and has `Cache-Control:no-store`; consumers must
+not cache it as permission for a later write, finalization or content download.
+It neither validates an encounter nor grants records access. Supplied IDs and
+client tenant/actor headers cannot select authority. Require exactly one hospital
+selector and canonical nonzero patient UUID (legacy v4 identifiers remain valid).
+
+Read permission denial is 403, missing/foreign registration or hospital is 404,
+expected-tenant mismatch is 409, and inability to read/authorize/audit the current
+reference is 503 without identifiers or database details. No new grant table,
+role assignment, migration or event is needed. Use the existing patient access
+read audit, preserving actor/hospital/registration attribution. The canonical
+response is a data-only patientmaster contract; no demographic wire model is copied.
+A five-second request budget bounds this indexed single-registration lookup and
+its audit. This closes reference projection only; record authorization still
+requires the medicalrecords/IAM and disclosure contracts above.
+
+Reference projection validation first reproduced the missing route (404), then
+passed through the actual Global API proxy and owner harness. Focused tests passed
+(6.028s): exact minimal payload/audit, foreign patient/hospital, ambiguous selector,
+revoked hospital grant, expected-tenant mismatch, absent read permission and real
+audit/hospital-authority database faults with recovery. Acceptance-tagged patient
+lint and contract generation/check passed. Full patientmaster race/coverage passed (117.139s, 80.0% statements), Global API
+race/coverage passed (5.016s, 86.7%) and matching passed (3.116s, 100%). The first
+architecture run identified missing singleton/privacy declarations; classification
+and its exact security pin now describe the authenticated HTTP-only patient ID.
+A subsequent run used an incorrect Docker environment; rerunning with the
+isolated test socket passed the full architecture race suite (32.012s). Vet,
+API/migrate builds, contractdocs tests, lint, secret and diff checks passed.
+There is no production deployment or medical record release.

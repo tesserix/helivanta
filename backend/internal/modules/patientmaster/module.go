@@ -277,6 +277,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "/link-reviews", PermPatientRegister, patients.listLinkReviews)
 	g.PUT("/link-reviews/:request/decision/:decision", PermPatientRegister, patients.decideLinkReview)
 	g.GET("/link-reviews/:request", PermPatientRegister, patients.getLinkReview)
+	g.GET("/:id/registration-reference", PermPatientRead, patients.registrationReference)
 	g.GET("/:id", PermPatientRead, patients.get)
 	platform.ListRoute(g, "", PermPatientRead, patients.list)
 }

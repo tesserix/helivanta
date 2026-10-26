@@ -2,8 +2,9 @@
 
 Implements the full scope of #72 and the owning backend dependencies of #73.
 See the [design](../specs/2026-10-26-medical-records.md); no implementation is
-claimed by this plan. Worktree starts from main `fa31004`, independently of the
-practitioner verification draft, whose CI must finish without further source churn.
+claimed by this plan. Baseline: main `fa31004`. Practitioner verification is tracked separately in
+#1353. The current reference projection does not close the action-admission,
+resource-access or clinical-disclosure authorization requirements.
 
 1. Verify actor permissions, patient reference and current hospital/encounter
    boundaries with patientmaster and shared IAM. Specify typed owner requests,

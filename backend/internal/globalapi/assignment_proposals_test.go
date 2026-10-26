@@ -18,7 +18,6 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
-	"github.com/tesserix/helivanta/pkg/staffaccess"
 	"gorm.io/gorm"
 )
 
@@ -84,7 +83,7 @@ func TestAssignmentProposalVerifiesScopeThroughOwnerEvents(t *testing.T) {
 	require.Contains(t, w.Body.String(), `"version":2`)
 	w = call("PUT", path, "admin", strings.Replace(body, "Synthetic independent leave review", "Changed reason", 1))
 	require.Equal(t, 409, w.Code, w.Body.String())
-	var proof staffaccess.ScopeResult
+	var proof iam.ScopeResult
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		if err := tx.Exec(`SELECT set_config('app.assignment_access','authorized',true)`).Error; err != nil {
 			return err
@@ -129,7 +128,7 @@ func TestAssignmentProposalVerifiesScopeThroughOwnerEvents(t *testing.T) {
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), `"status":"pending_scope"`)
 	require.Contains(t, w.Body.String(), `"status":"pending_review"`)
-	var history struct{ Data []staffaccess.ProposalHistory }
+	var history struct{ Data []iam.ProposalHistory }
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &history))
 	require.Len(t, history.Data, 2)
 	w = call("GET", "/v1/iam/assignment-proposals?limit=1", "admin", "")
@@ -214,7 +213,7 @@ func TestAssignmentDecisionsRequireIndependentScopedReview(t *testing.T) {
 		t.Helper()
 		require.EventuallyWithT(t, func(c *assert.CollectT) {
 			w := call("GET", path, "admin", "", 200)
-			var response staffaccess.ProposalOutput
+			var response iam.ProposalOutput
 			require.NoError(c, json.Unmarshal(w.Body.Bytes(), &response))
 			require.Equal(c, status, response.Status)
 			require.Equal(c, version, response.Version)
@@ -242,7 +241,7 @@ func TestAssignmentDecisionsRequireIndependentScopedReview(t *testing.T) {
 	require.Contains(t, w.Body.String(), "Synthetic proposal withdrawn before activation")
 	require.Contains(t, w.Body.String(), "user-outsider")
 	call("POST", path+"/decision", "reviewer", `{"expected_version":7,"decision":"approve","reason":"Cannot reopen"}`, 409)
-	var oldScope staffaccess.ScopeResult
+	var oldScope iam.ScopeResult
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		if err := tx.Exec(`SELECT set_config('app.assignment_access','authorized',true)`).Error; err != nil {
 			return err
@@ -291,7 +290,7 @@ func TestAssignmentDecisionsRequireIndependentScopedReview(t *testing.T) {
 	wait("approved_pending_activation", 4)
 	w = call("GET", path+"/decisions", "reviewer", "", 200)
 	var commands struct {
-		Data []staffaccess.ProposalDecisionRecord
+		Data []iam.ProposalDecisionRecord
 	}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &commands))
 	require.Len(t, commands.Data, 1)

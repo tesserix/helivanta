@@ -22,7 +22,6 @@ import (
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
-	"github.com/tesserix/helivanta/pkg/staffaccess"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -35,21 +34,21 @@ const PermAssignmentManage authz.Permission = "iam.assignment.manage"
 var assignmentProposalsSchema string
 
 type assignmentProposal struct {
-	staffaccess.ProposalInput `gorm:"embedded"`
-	ID                        uuid.UUID `json:"id"`
-	ProposedBy                string    `json:"proposed_by"`
-	RequestID                 uuid.UUID `json:"-"`
-	MembershipEpoch           int64     `json:"-"`
-	Status                    string    `json:"status"`
-	Version                   int64     `json:"version"`
-	CreatedAt                 time.Time `json:"created_at"`
-	UpdatedAt                 time.Time `json:"updated_at"`
+	ProposalInput   `gorm:"embedded"`
+	ID              uuid.UUID `json:"id"`
+	ProposedBy      string    `json:"proposed_by"`
+	RequestID       uuid.UUID `json:"-"`
+	MembershipEpoch int64     `json:"-"`
+	Status          string    `json:"status"`
+	Version         int64     `json:"version"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 func (assignmentProposal) TableName() string                 { return "iam_assignment_proposals" }
 func (p assignmentProposal) PageKey() (time.Time, uuid.UUID) { return p.CreatedAt, p.ID }
 
-type assignmentProposalHistory staffaccess.ProposalHistory
+type assignmentProposalHistory ProposalHistory
 
 func (p assignmentProposalHistory) PageKey() (time.Time, uuid.UUID) { return p.CreatedAt, p.ID }
 
@@ -116,7 +115,7 @@ func (h *assignmentProposalHandlers) put(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var in staffaccess.ProposalInput
+	var in ProposalInput
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 8192)
 	d := json.NewDecoder(c.Request.Body)
 	d.DisallowUnknownFields()
@@ -186,10 +185,10 @@ func (h *assignmentProposalHandlers) put(c *gin.Context) {
 	}
 	respond.OK(c, saved.output())
 }
-func (p assignmentProposal) output() staffaccess.ProposalOutput {
-	return staffaccess.ProposalOutput{ID: p.ID, Input: p.ProposalInput, ProposedBy: p.ProposedBy, Status: p.Status, Version: p.Version, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
+func (p assignmentProposal) output() ProposalOutput {
+	return ProposalOutput{ID: p.ID, Input: p.ProposalInput, ProposedBy: p.ProposedBy, Status: p.Status, Version: p.Version, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
 }
-func sameProposal(a, b staffaccess.ProposalInput) bool {
+func sameProposal(a, b ProposalInput) bool {
 	sameTimes := a.ValidFrom.Equal(b.ValidFrom) && a.ExpiresAt.Equal(b.ExpiresAt)
 	a.ValidFrom = b.ValidFrom
 	a.ExpiresAt = b.ExpiresAt

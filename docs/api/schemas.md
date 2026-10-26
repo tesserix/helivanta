@@ -37,7 +37,7 @@ The proposed OpenAPI-first direction in #4 needs a migration decision. Preserve 
 | `workforce-credentials.json`   | Credential reviews/reminders; `generate-workforce-credentials.mjs`                                      |
 | `workforce-benefits.json`      | Dependents/benefits proposals and decisions; `generate-workforce-benefits.mjs`                          |
 | `workforce-login-links.json`   | Reviewed staff/account binding commands and history; `generate-workforce-login-links.mjs`              |
-| `staff-access.json`            | IAM assignment proposals, decisions/history, owner verification and projection-request events; `generate-staff-access.mjs` generates shared Go/Zod and owning module event declarations |
+| `staff-access.json`            | IAM assignment proposals, decisions/history, owner verification and projection-request events; `generate-staff-access.mjs` generates IAM-owned Go HTTP models, shared Zod and public owner event declarations |
 
 Also inspect module-local catalogues such as `backend/internal/modules/emergency/contract/intake.json`; the top-level directory is not the complete schema universe. Existing generators often encode additional checks such as date ordering, normalization, safe integer bounds and scope constraints. Reusing field names while dropping those checks is a breaking validation change.
 

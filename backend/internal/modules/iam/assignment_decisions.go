@@ -18,7 +18,6 @@ import (
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
-	"github.com/tesserix/helivanta/pkg/staffaccess"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -32,8 +31,8 @@ var assignmentDecisionsSchema string
 var errAssignmentDenied = errors.New("assignment administration unavailable to caller")
 
 type assignmentDecision struct {
-	staffaccess.ProposalDecisionRecord `gorm:"embedded"`
-	RequestID                          uuid.UUID `json:"-"`
+	ProposalDecisionRecord `gorm:"embedded"`
+	RequestID              uuid.UUID `json:"-"`
 }
 
 func (assignmentDecision) TableName() string                 { return "iam_assignment_decisions" }
@@ -67,7 +66,7 @@ func (h *assignmentProposalHandlers) decide(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var in staffaccess.ProposalDecisionInput
+	var in ProposalDecisionInput
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 8192)
 	decoder := json.NewDecoder(c.Request.Body)
 	decoder.DisallowUnknownFields()

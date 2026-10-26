@@ -22,7 +22,6 @@ import (
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
-	"github.com/tesserix/helivanta/pkg/staffaccess"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
@@ -140,7 +139,7 @@ func TestAssignmentProjectionAcknowledgesOnlyCurrentScope(t *testing.T) {
 		path := "/v1/iam/assignment-proposals/" + id
 		call("PUT", path, "admin", body, 200)
 		require.EventuallyWithT(t, func(c *assert.CollectT) {
-			var p staffaccess.ProposalOutput
+			var p iam.ProposalOutput
 			w := call("GET", path, "admin", "", 200)
 			require.NoError(c, json.Unmarshal(w.Body.Bytes(), &p))
 			require.Equal(c, "pending_review", p.Status)
@@ -194,7 +193,7 @@ func TestAssignmentProjectionAcknowledgesOnlyCurrentScope(t *testing.T) {
 	close(firstGate.release)
 	require.EventuallyWithT(t, func(c *assert.CollectT) { epoch(c, 1, 1) }, 20*time.Second, 100*time.Millisecond)
 	wActive := call("GET", "/v1/iam/assignment-proposals/"+first, "admin", "", 200)
-	var activeProposal staffaccess.ProposalOutput
+	var activeProposal iam.ProposalOutput
 	require.NoError(t, json.Unmarshal(wActive.Body.Bytes(), &activeProposal))
 	require.Equal(t, "active", activeProposal.Status)
 	require.Equal(t, int64(5), activeProposal.Version)

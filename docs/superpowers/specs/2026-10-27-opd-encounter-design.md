@@ -51,9 +51,7 @@ MediCore's visit cannot carry any of that:
   `(tenant_id, patient_id, hospital_id)` to `medicore_patients`, idempotently. No name or
   contact data. Opening an encounter requires that pair to exist; otherwise 404 "patient not
   found at this hospital". Fails closed: a missed event means no encounter, not one with an
-  unverified patient. Patients registered before the consumer exists reach the projection
-  through a one-off, attributable backfill command run by an operator, recorded in the
-  delivery notes; until then they cannot open encounters.
+  unverified patient. Patients registered before the consumer exists are not in the projection and cannot open encounters until patientmaster replays their registration events (#1377: MediCore never reads patientmaster's tables). _Changed during the build: the spec first proposed an operator backfill command, which would have read another module's tables._
 - **E3 Hospital access is a MediCore grant.** `medicore_hospital_access (tenant_id,
 hospital_id, subject)`, administered with a new `medicore.access.manage` permission,
   checked in the same transaction as every hospital-scoped read and write, as
@@ -74,8 +72,7 @@ hospital_id, subject)`, administered with a new `medicore.access.manage` permiss
   `medicore_encounter_transitions` (from, to, actor subject, reason, at), append-only,
   audited. Closed encounters are immutable (guard trigger).
 - **E6 Events.** Opening an encounter publishes a new
-  `helivanta.in.medicore.encounter_opened.v1` (`encounter_id, hospital_id, patient_id,
-consult_mode, visit_type`; no PHI). It does **not** publish `visit_created.v1`: that
+  `helivanta.in.medicore.encounter_opened.v1` (`encounter_id, hospital_id, patient_id`). Consult mode and visit type are left out: they are clinical context and no consumer needs them on the wire (changed during the build, data minimisation). It does **not** publish `visit_created.v1`: that
   payload requires a patient name, and an encounter has no client-typed name to send, while
   an empty name is the #827 failure (a blank name written into a clinical record). So in
   slice 1 an encounter opens no pending dispense or lab order; pharmacy and lab move to

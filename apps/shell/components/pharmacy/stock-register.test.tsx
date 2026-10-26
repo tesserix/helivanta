@@ -637,4 +637,16 @@ describe("a position opens beside the register", () => {
       await screen.findByRole("heading", { name: "TEST-500 · TEST-LOT-B · TEST-Q" }),
     ).toBeInTheDocument();
   });
+
+  // Review Important 3: the compact rows drop expiry and state, so the pane
+  // must carry them.
+  it("shows the open position's expiry and state in the pane", async () => {
+    nav.search = `open=${batch}&at=${location}`;
+    two([{ ...row, expires_on: "2026-10-10", days_to_expiry: -7, expiry_band: "expired" }]);
+    renderWithProviders(<StockRegister scope={scope} />);
+    const pane = await screen.findByRole("region", { name: /^Stock reconciliation/ });
+    expect(await within(pane).findByText("Expired 7 days ago")).toBeInTheDocument();
+    expect(within(pane).getByText(/Expires 2026-10-10/)).toBeInTheDocument();
+    expect(within(pane).getByText(/quarantine · active · pending review/i)).toBeInTheDocument();
+  });
 });

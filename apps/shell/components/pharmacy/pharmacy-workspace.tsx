@@ -112,7 +112,10 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
     // keeping the tab and filters (#576, #1303 E8).
     leave(() => {
       const kept = new URLSearchParams(params);
-      for (const key of ["page", "cursor", "open", "new"]) kept.delete(key);
+      // A location, product or lot id belongs to one outlet too: another
+      // outlet would be asked for an id it does not have (#1303 E8).
+      for (const key of ["page", "cursor", "open", "new", "at", "location", "product"])
+        kept.delete(key);
       kept.set("pharmacy", value.pharmacyId);
       if (value.outletId) kept.set("outlet", value.outletId);
       else kept.delete("outlet");

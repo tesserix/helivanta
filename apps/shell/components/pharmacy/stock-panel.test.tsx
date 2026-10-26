@@ -144,4 +144,28 @@ describe("Receiving shows the chosen lot beside the chooser (#1303 E4)", () => {
     expect(await screen.findByRole("dialog")).toBeVisible();
     expect(leftTo).not.toHaveBeenCalled();
   });
+
+  // Review Important 1: a lot that is not the chosen product's must never get
+  // a live movement form; a movement names only the location and the lot.
+  it("refuses a lot in the address that is not one of the chosen product's lots", async () => {
+    const stranger = "0199e000-0000-7000-8000-00000000000c";
+    nav.search = `location=${location}&product=${product}&open=${stranger}`;
+    mockReceiving();
+    renderReceiving();
+    expect(
+      await screen.findByText("This record was not found, or you do not have access."),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Receipt / correction line reference")).toBeNull();
+    expect(screen.queryByText("Selected lot balance")).toBeNull();
+  });
+
+  it("refuses a lot in the address with no product chosen", async () => {
+    nav.search = `location=${location}&open=${batch}`;
+    mockReceiving();
+    renderReceiving();
+    expect(
+      await screen.findByText("This record was not found, or you do not have access."),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Receipt / correction line reference")).toBeNull();
+  });
 });

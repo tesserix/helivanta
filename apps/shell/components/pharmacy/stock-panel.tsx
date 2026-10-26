@@ -109,17 +109,36 @@ export function StockPanel({
   const title = batch
     ? `${batch.lot_number} at ${location?.code ?? "this location"}`
     : "Selected lot";
+  // Fail closed: a movement names only the location and the lot, so the form
+  // opens only for one of the chosen product's own lots. A link naming any
+  // other lot, or no product, records nothing (review, #1303 E4).
+  const lotOfProduct = !!batch && !!productId && batch.product_id === productId;
   const record =
     locationId && batchId ? (
-      <StockBucket
-        key={`${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}:${locationId}:${batchId}:${timeZone}`}
-        scope={scope}
-        locationId={locationId}
-        batchId={batchId}
-        timeZone={timeZone}
-        writable={writable}
-        correctable={correctable}
-        header={
+      lotOfProduct ? (
+        <StockBucket
+          key={`${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}:${locationId}:${batchId}:${timeZone}`}
+          scope={scope}
+          locationId={locationId}
+          batchId={batchId}
+          timeZone={timeZone}
+          writable={writable}
+          correctable={correctable}
+          header={
+            <DetailHeader
+              title={title}
+              noun="lot"
+              stepping={false}
+              previous={{ disabled: true, onClick: () => {} }}
+              next={{ disabled: true, onClick: () => {} }}
+              closeLabel="Close lot"
+              onClose={pane.close}
+            />
+          }
+          onStateChange={pane.formState("movement")}
+        />
+      ) : (
+        <Panel className="space-y-4">
           <DetailHeader
             title={title}
             noun="lot"
@@ -129,9 +148,19 @@ export function StockPanel({
             closeLabel="Close lot"
             onClose={pane.close}
           />
-        }
-        onStateChange={pane.formState("movement")}
-      />
+          {productId && (batches.isPending || batches.hasMore) ? (
+            <p role="status" className="text-sm">
+              {batches.isPending
+                ? "Loading manufacturer lots…"
+                : "This lot is not among the loaded lots. Load more lots to find it."}
+            </p>
+          ) : (
+            <p role="alert" className="text-sm">
+              This record was not found, or you do not have access.
+            </p>
+          )}
+        </Panel>
+      )
     ) : null;
   return (
     <div onClickCapture={pane.holdLinks}>

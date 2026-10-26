@@ -870,4 +870,16 @@ describe("the outlet is in the address", () => {
     await waitFor(() => expect(address().get("outlet")).toBe(outlet));
     expect(address().get("pharmacy")).toBe(pharmacy);
   });
+
+  // Review (slice 2) Important 2: a location, product or lot id belongs to
+  // one outlet; another outlet's list must not be asked for it.
+  it("drops the old outlet's location, product and lot when another outlet is chosen", async () => {
+    nav.search = `pharmacy=${pharmacy}&outlet=${outlet}&expiry=due_30&location=${product.id}&product=${product.id}&open=${product.id}&at=${product.id}`;
+    mockPharmacy();
+    const { user } = renderWorkspace("catalogue");
+    await chooseOption(user, await screen.findByLabelText("Outlet"), "TEST Sister Outlet");
+    await waitFor(() => expect(address().get("outlet")).toBe(sibling));
+    for (const key of ["location", "product", "open", "at"]) expect(address().has(key)).toBe(false);
+    expect(address().get("expiry")).toBe("due_30");
+  });
 });

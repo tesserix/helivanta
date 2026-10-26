@@ -162,7 +162,9 @@ Success:
     today. _(Fail closed: an `open` id from one outlet must never be looked up under
     another.)_ Access is still checked by the server for every request.
   - **Choosing another pharmacy or outlet** clears `page`, `cursor`, `open` and `new`, and
-    asks first while a record is unsaved (D5).
+    asks first while a record is unsaved (D5). It also clears `location`, `product` and `at`:
+    those ids belong to one outlet, and another outlet would be asked for an id it does not
+    have. The tab and the expiry and balance filters are kept.
   - Tabs, pagers and filter links keep `pharmacy` and `outlet` (`useUrlPage`).
   - Rail links stay scope-free: arriving from the rail uses the saved choice.
   - E1's "Supplier bills' tests pass unchanged" covers its behaviour. Its e2e address

@@ -485,6 +485,11 @@ function PositionDetail({
   const header = (
     <DetailHeader
       title={row ? positionName(row) : "Stock position"}
+      // Beside the register the rows drop expiry and state: the pane carries them.
+      subtitle={
+        row &&
+        `Expires ${row.expires_on} · ${row.stock_status} · ${row.product_status} · ${row.regulatory_status.replaceAll("_", " ")}`
+      }
       headingRef={heading}
       noun="position"
       previous={{ disabled: !pane.canStep(-1), onClick: () => pane.step(-1) }}
@@ -513,6 +518,11 @@ function PositionDetail({
   return (
     <section className="space-y-4">
       {header}
+      <p
+        className={`text-sm font-medium ${row.expiry_band === "expired" ? "text-destructive" : ""}`}
+      >
+        {expiryDescription(row.days_to_expiry)}
+      </p>
       <form
         noValidate
         className="flex flex-wrap items-end gap-3"

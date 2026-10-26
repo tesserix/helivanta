@@ -144,3 +144,10 @@ for a foreign tenant. Direct database reads with missing module access or a
 foreign tenant return zero verification/identifier rows. Injected read-audit
 failure blocks every read surface and exact replay; recovery returns the original
 receipt unchanged. Focused real-PostgreSQL tests passed.
+
+Configured-calendar validation: five real-handler/PostgreSQL scenarios passed
+(7.921s), covering Asia/Kolkata midnight under start-of-day and end-of-day rules,
+the exact end-of-day boundary, the preceding second, and future issue dates.
+Successful receipts assert the exact minimum of the issuer expiry and source-age
+ceiling, rather than merely asserting a future timestamp. These use synthetic
+policy configuration and do not establish a legal issuer expiry interpretation.

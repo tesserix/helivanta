@@ -342,3 +342,68 @@ func TestRegistrationAttestationReadScopeAndForcedRLS(t *testing.T) {
 		}))
 	}
 }
+
+func TestRegistrationAttestationUsesConfiguredIssuerCalendarBoundary(t *testing.T) {
+	cases := []struct {
+		name, boundary, issued, expires, at string
+		code                                int
+	}{
+		{"start_of_day_expired", "start_of_day", "2029-01-01", "2030-01-03", "2030-01-02T18:30:00Z", 409},
+		{"end_of_day_still_current", "end_of_day", "2029-01-01", "2030-01-03", "2030-01-02T18:30:00Z", 201},
+		{"end_of_day_exact_expiry", "end_of_day", "2029-01-01", "2030-01-02", "2030-01-02T18:30:00Z", 409},
+		{"end_of_day_before_expiry", "end_of_day", "2029-01-01", "2030-01-02", "2030-01-02T18:29:59Z", 201},
+		{"future_issue_date", "end_of_day", "2030-01-04", "2031-01-01", "2030-01-02T18:30:00Z", 409},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newRegistrationAttestationScenario(t)
+			root := strings.Split(s.base, "/revisions/")[0]
+			revision, file := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+			base := root + "/revisions/" + revision
+			revised := testutil.Do(s.router, "PUT", base, "steward", fmt.Sprintf(`{"expected_version":1,"issued_on":"%s","expires_on":"%s"}`, tc.issued, tc.expires))
+			require.Equal(t, 201, revised.Code, revised.Body.String())
+			evidence := base + "/evidence/" + file
+			require.Equal(t, 201, testutil.Do(s.router, "PUT", evidence, "steward", fmt.Sprintf(`{"content_type":"image/png","size":%d,"sha256":"%x"}`, len(s.content), sha256.Sum256(s.content))).Code)
+			request := httptest.NewRequest("PUT", evidence+"/content", bytes.NewReader(s.content))
+			request.Header.Set("Authorization", "Bearer steward")
+			request.Header.Set("Content-Type", "image/png")
+			uploaded := httptest.NewRecorder()
+			s.router.ServeHTTP(uploaded, request)
+			require.Equal(t, 202, uploaded.Code, uploaded.Body.String())
+			input := s.input
+			input.RevisionID = revision
+			input.FileID = file
+			status, err := cleanProfessionalEvidenceProcessor(t, s.professionalEvidenceScenario).Process(t.Context(), input)
+			require.NoError(t, err)
+			require.Equal(t, "available", status)
+			require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_issuer_calendar_clock", SQL: fmt.Sprintf(`CREATE OR REPLACE FUNCTION practitioner_registry_now() RETURNS timestamptz LANGUAGE sql STABLE AS $$ SELECT '%s'::timestamptz $$;`, tc.at)}}))
+			edition := fmt.Sprintf(`{"expected_version":1,"max_source_age_seconds":86400,"date_rule":"date_required","expiry_boundary":"%s","valid_until":"2097-01-01T00:00:00Z","review_reference":"%s","appointment_id":"%s","appointment_version":2}`, tc.boundary, uuid.Must(uuid.NewV7()), s.appointment)
+			policy := testutil.Do(s.router, "PUT", "/v1/practitioners/registration-policies/"+s.policy+"/revisions/"+uuid.Must(uuid.NewV7()).String(), "reviewer", edition)
+			require.Equal(t, 201, policy.Code, policy.Body.String())
+			review := uuid.Must(uuid.NewV7()).String()
+			source := fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"active","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), tc.at, file)
+			reviewed := testutil.Do(s.router, "PUT", base+"/reviews/"+review, "reviewer", source)
+			require.Equal(t, 201, reviewed.Code, reviewed.Body.String())
+			body := strings.Replace(strings.Replace(s.body, s.review, review, 1), `"policy_version":1`, `"policy_version":2`, 1)
+			result := testutil.Do(s.router, "PUT", base+"/verifications/"+uuid.Must(uuid.NewV7()).String(), "reviewer", body)
+			require.Equal(t, tc.code, result.Code, result.Body.String())
+			if tc.code == 201 {
+				var receipt struct {
+					ValidUntil time.Time `json:"valid_until"`
+				}
+				require.NoError(t, json.Unmarshal(result.Body.Bytes(), &receipt))
+				location, err := time.LoadLocation("Asia/Kolkata")
+				require.NoError(t, err)
+				expiry, err := time.ParseInLocation("2006-01-02", tc.expires, location)
+				require.NoError(t, err)
+				expected := expiry.AddDate(0, 0, 1).UTC()
+				checked, err := time.Parse(time.RFC3339, tc.at)
+				require.NoError(t, err)
+				if sourceCeiling := checked.Add(24 * time.Hour); sourceCeiling.Before(expected) {
+					expected = sourceCeiling
+				}
+				require.True(t, receipt.ValidUntil.Equal(expected), "got %s, expected %s", receipt.ValidUntil, expected)
+			}
+		})
+	}
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ZONES, activePage, visibleZones, type Zone } from "./zones";
+import { ZONES, activePage, railName, visibleZones, type Zone } from "./zones";
 
 // Mirrors the real can() semantics (packages/api/src/permissions.tsx):
 // "public" always resolves true, everything else must be explicitly
@@ -173,6 +173,18 @@ describe("activePage", () => {
 // #1286 D2: a collapsed rail shows this under the icon, so it must fit.
 it("gives every zone a short rail label", () => {
   for (const zone of ZONES) expect(zone.railLabel, zone.key).toMatch(/^.{1,9}$/);
+});
+
+// #1369 (WCAG 2.5.3): a rail link's name holds the words it shows, the short
+// label collapsed and the full one expanded.
+it("names every rail link with both of its labels", () => {
+  for (const zone of ZONES) {
+    const name = railName(zone).toLowerCase();
+    expect(name, zone.key).toContain(zone.railLabel.toLowerCase());
+    expect(name, zone.key).toContain(zone.label.toLowerCase());
+  }
+  expect(railName(ZONES.find((zone) => zone.key === "pharmacy")!)).toBe("Pharmacy (PharmaConnect)");
+  expect(railName(ZONES.find((zone) => zone.key === "lab")!)).toBe("Lab");
 });
 
 describe("zone order", () => {

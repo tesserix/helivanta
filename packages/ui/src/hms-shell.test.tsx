@@ -1078,7 +1078,7 @@ describe("zone rail", () => {
       "Patients",
       "MediCore",
       "Lab",
-      "PharmaConnect",
+      "Pharmacy (PharmaConnect)",
       "EmergencyConnect",
       "Supply Connect",
       "Staff",
@@ -1088,13 +1088,14 @@ describe("zone rail", () => {
     expect(zones.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  // #1286 D2: the short label is visible text; the link keeps the full name.
+  // #1286 D2: the short label is visible text; the link keeps the full name,
+  // after the words it shows (#1369).
   it("labels each collapsed rail icon with its short name", () => {
     grant(everyZone);
     pathname.current = "/dashboard";
     renderWithProviders(<HmsShell>content</HmsShell>);
 
-    const pharmacy = screen.getByRole("link", { name: "PharmaConnect" });
+    const pharmacy = screen.getByRole("link", { name: "Pharmacy (PharmaConnect)" });
     expect(pharmacy).toHaveTextContent("Pharmacy");
     expect(screen.getByRole("link", { name: "EmergencyConnect" })).toHaveTextContent("Emergency");
   });
@@ -1104,7 +1105,7 @@ describe("zone rail", () => {
     grant(everyZone);
     pathname.current = "/pharmacy";
     renderWithProviders(<HmsShell>content</HmsShell>);
-    const active = screen.getByRole("link", { name: "PharmaConnect" });
+    const active = screen.getByRole("link", { name: "Pharmacy (PharmaConnect)" });
     expect(active).toHaveAttribute("aria-current", "page");
     expect(active.querySelector("span[aria-hidden='true']")).toBeNull();
   });

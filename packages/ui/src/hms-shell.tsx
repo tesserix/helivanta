@@ -25,7 +25,7 @@ import {
   clearRenewAt,
 } from "@helivanta/api";
 import { GuardedLink, NavigationGuardProvider } from "./navigation-guard";
-import { ZONES, visibleZones, activeZone, activePage, type Zone } from "./zones";
+import { ZONES, visibleZones, activeZone, activePage, railName, type Zone } from "./zones";
 import { BrandLogo, TesserixFooter } from "./branding";
 import { BrandThemeContext } from "./brand-theme";
 import {
@@ -106,7 +106,7 @@ function ZoneLink({
       href={zone.href}
       onClick={onNavigate}
       title={zone.label}
-      aria-label={zone.label}
+      aria-label={railName(zone)}
       aria-current={active ? "page" : undefined}
       className={`flex items-center rounded-lg transition-colors ${expanded ? "h-11 w-full gap-3 px-3" : "h-11 w-11 justify-center md:h-auto md:w-16 md:flex-col md:gap-1 md:py-2"} ${
         active

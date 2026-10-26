@@ -30,6 +30,10 @@ Before proposing a design or changing application code:
    clinical, tax, drug-schedule and payer rules against current primary sources,
    actual state/service scope and qualified review; do not invent them from model
    memory or mistake a research note for an activated production policy.
+5. For roles, permissions, staff access, departments, approvals, tenant-configured
+   workflows or public/private sector differences, read the
+   [organization knowledge index](docs/domain/organization/README.md) and use the
+   [organization access skill](.agents/skills/hms-organization-access/SKILL.md).
 
 Proposed architecture and draft contracts are not implemented or approved APIs.
 Do not infer a deployed service, FHIR compliance, clinical authority or a working

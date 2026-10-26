@@ -523,3 +523,55 @@ Contradictory and unavailable source findings append rather than replace prior
 observations. Opaque review events omit finding/source references/checksums. All
 29 owner harness routes exercise stale-workspace rejection. These results do not
 establish canonical verified identity, qualified approval or deployed integration.
+
+## Qualifications and tenant specialty catalogue (local implementation; undeployed)
+
+Practitioner owns reported degree, awarding body, nullable completion year and
+nullable controlled-specialty reference. Workforce retains HR-reported enrollment
+records; no cross-owner joins/copies or implicit professional authority are added.
+Each qualification has immutable UUIDv7 intake plus versioned complete replacement
+correction receipts. Exact intake/correction replay returns the original receipt
+even after a later head advance; GET returns the current head. Unknown
+year/specialty stays null; corrections never erase earlier assertions. All versions
+remain unverified until an independent qualification-verification workflow exists.
+
+The tenant-local specialty catalogue has immutable UUIDv7 entries with a unique
+exact code and display name. Separate `practitioner.specialty.manage` controls
+curation, record-read controls authorized lookup. This is a controlled local
+vocabulary, not SNOMED/ABDM or a statutory specialty list. Choosing a catalogue
+entry asserts no recognized qualification or permitted practice. External terminology
+projection and catalogue retirement/replacement remain required before discovery
+activation. An arbitrary specialty string or another tenant's entry cannot be
+attached. Degree/awarding text is bounded to 150 UTF-8 bytes under the
+existing name validator, and year is nullable Gregorian 1–9999, no later than the
+server's current UTC year. Those are intake validation, not credential validity.
+
+Catalogue and qualification/revision GET/list reads require audit, including empty
+collections. Lists use existing 1–200 keyset bounds. Identity and qualification
+management use record-manage authority; catalogue curation has no default grant.
+RLS/composite ownership, immutable history/commit guards, five-second transaction
+and two-second lock budgets, current membership and stale-workspace checks apply.
+The existing peak/storage envelope applies; qualified-history sizing still needs
+measurement before release. PostgreSQL/audit failure blocks data, and failed
+correction never advances the head. No new service/cache is needed. Additive
+migration 0010 remains undeployed; rollback must retain catalogue and history.
+
+Catalogue PUT/GET/list paths are `/practitioners/specialties/:specialty` and
+`/practitioners/specialties`. Qualification PUT/GET/list are beneath
+`/practitioners/:practitioner/qualifications`; correction PUT, retained GET and
+revision list append `/:qualification/revisions/:revision` or `/revisions`.
+Initial body is degree/awarding_body with nullable completion_year/specialty_id;
+correction adds expected_version and completely replaces those facts. First
+creation is 201, exact replay 200, changed/stale intent 409, inaccessible owner or
+specialty 404, malformed/future-year facts 400. Administrative writes do not emit
+verified-practitioner events or publish discovery data.
+
+Head lists page on immutable qualification creation time/ID while returning the
+current revision ID/version, so a correction cannot move an existing item between
+pages. Revision history has its own immutable creation time/ID ordering.
+Local tests reproduce missing routes and the correction-guard defect, then cover
+retained replay after subsequent changes, 12 concurrent corrections, stale/changed
+commands, unknown year/specialty, foreign specialty/owner and forced RLS without
+handler filters, qualification/catalogue immutability, audit rollback and empty
+collection read failure. All 38 owner harness routes reject stale workspace.
+This is neither professional qualification verification nor a clinical release.

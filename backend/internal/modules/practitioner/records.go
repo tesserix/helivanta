@@ -108,6 +108,8 @@ func failure(c *gin.Context, err error) {
 		respond.Error(c, 409, "evidence_not_available", "Evidence content has not been released or is revoked")
 	case errors.Is(err, errEvidenceUnavailable):
 		respond.Error(c, 503, "evidence_unavailable", "Private evidence storage is unavailable; retry the same operation")
+	case errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "practitioner_qualification_year":
+		respond.Error(c, 400, "invalid_request", "Completion year cannot be in the future")
 	case errors.Is(err, errStewardInvalid) || errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "practitioner_steward_nomination":
 		respond.Error(c, 400, "invalid_request", "Invalid steward appointment")
 	case errors.Is(err, errStewardIndependence):

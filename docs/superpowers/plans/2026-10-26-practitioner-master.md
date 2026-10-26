@@ -22,6 +22,9 @@ This plan does not close #39/#474/#77/#102 for a partial implementation.
       Independent revision-bound source-review receipts, released evidence snapshots
       and current accepted reviewer checks are implemented locally; effective
       verified identity and conflicting-claim reconciliation remain unfinished.
+      Reported qualifications now retain immutable correction history with a
+      tenant-local controlled specialty catalogue and stable head pagination.
+      Independent qualification verification and catalogue retirement remain open.
       The module consumer dispatches committed scope
       to a receipt-checked Temporal execution in local acceptance tests. Production
       delivery/worker wiring and effective professional verification remain

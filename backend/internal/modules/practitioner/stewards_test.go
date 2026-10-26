@@ -312,7 +312,7 @@ func TestStewardDatabaseGuardsPreventAdminAcceptanceAndHistoryRewrites(t *testin
 }
 
 func TestEveryPractitionerRouteRejectsStaleWorkspaceBeforeDomainWork(t *testing.T) {
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"admin": testutil.TenantA}, Perms: map[string][]authz.Permission{"admin": {practitioner.PermStewardManage, practitioner.PermRecordManage, practitioner.PermRecordRead, practitioner.PermEvidenceManage, practitioner.PermEvidenceRead, practitioner.PermRegistrationReview, practitioner.PermQualificationReview, practitioner.PermSpecialtyManage}}, Modules: []platform.Module{practitioner.New()}})
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"admin": testutil.TenantA}, Perms: map[string][]authz.Permission{"admin": {practitioner.PermStewardManage, practitioner.PermRecordManage, practitioner.PermRecordRead, practitioner.PermEvidenceManage, practitioner.PermEvidenceRead, practitioner.PermRegistrationReview, practitioner.PermQualificationReview, practitioner.PermRegistrationPolicyManage, practitioner.PermRegistrationPolicyRead, practitioner.PermRegistrationVerify, practitioner.PermRegistrationVerificationRevoke, practitioner.PermSpecialtyManage}}, Modules: []platform.Module{practitioner.New()}})
 	countAudit := func() int64 {
 		var n int64
 		require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error { return tx.Table("audit_events").Count(&n).Error }))
@@ -325,7 +325,7 @@ func TestEveryPractitionerRouteRejectsStaleWorkspaceBeforeDomainWork(t *testing.
 			continue
 		}
 		path := route.Path
-		for _, param := range []string{":practitioner", ":registration", ":revision", ":appointment", ":file", ":revocation", ":retry", ":review", ":specialty", ":qualification", ":retirement"} {
+		for _, param := range []string{":practitioner", ":registration", ":revision", ":appointment", ":file", ":revocation", ":retry", ":review", ":specialty", ":qualification", ":retirement", ":policy", ":verification"} {
 			path = strings.ReplaceAll(path, param, uuid.Must(uuid.NewV7()).String())
 		}
 		req := httptest.NewRequest(route.Method, path, strings.NewReader(`{}`))
@@ -338,7 +338,7 @@ func TestEveryPractitionerRouteRejectsStaleWorkspaceBeforeDomainWork(t *testing.
 		require.Equal(t, "no-store", w.Header().Get("Cache-Control"))
 		checked++
 	}
-	require.Equal(t, 50, checked)
+	require.Equal(t, 68, checked)
 	require.Equal(t, before, countAudit())
 }
 

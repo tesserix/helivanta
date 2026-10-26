@@ -16,6 +16,7 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
 )
 
@@ -76,8 +77,13 @@ func evidenceFixtureWithFiles(t *testing.T, files *attachments.GCS) (*gin.Engine
 }
 func evidenceFixtureWithAccess(t *testing.T, files *attachments.GCS, membership authz.MembershipChecker) (*gin.Engine, *tenantdb.DB, string, string) {
 	t.Helper()
+	r, db, collection, parent := evidenceFixtureWithRuntime(t, files, membership, nil)
+	return r, db, collection, parent
+}
+func evidenceFixtureWithRuntime(t *testing.T, files *attachments.GCS, membership authz.MembershipChecker, workflows client.Client) (*gin.Engine, *tenantdb.DB, string, string) {
+	t.Helper()
 	perms := []authz.Permission{practitioner.PermRecordManage, practitioner.PermRecordRead, practitioner.PermEvidenceManage, practitioner.PermEvidenceRead}
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{ProductionOwner: true, Documents: files, Membership: membership, Tokens: map[string]string{"steward": testutil.TenantA, "foreign": testutil.TenantB, "evidence-only": testutil.TenantA, "reader": testutil.TenantA, "operator": testutil.TenantA}, Perms: map[string][]authz.Permission{"steward": perms, "foreign": perms, "evidence-only": {practitioner.PermEvidenceManage, practitioner.PermEvidenceRead}, "reader": {practitioner.PermEvidenceRead}, "operator": {practitioner.PermRecordRead, practitioner.PermRecordManage}}, Modules: []platform.Module{practitioner.New()}})
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Workflows: workflows, ProductionOwner: true, Documents: files, Membership: membership, Tokens: map[string]string{"steward": testutil.TenantA, "foreign": testutil.TenantB, "evidence-only": testutil.TenantA, "reader": testutil.TenantA, "operator": testutil.TenantA}, Perms: map[string][]authz.Permission{"steward": perms, "foreign": perms, "evidence-only": {practitioner.PermEvidenceManage, practitioner.PermEvidenceRead}, "reader": {practitioner.PermEvidenceRead}, "operator": {practitioner.PermRecordRead, practitioner.PermRecordManage}}, Modules: []platform.Module{practitioner.New()}})
 	owner := "/v1/practitioners/" + uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, 201, testutil.Do(r, "PUT", owner, "steward", `{"given_name":"Evidence","professional_type":"nurse"}`).Code)
 	id := uuid.Must(uuid.NewV7()).String()

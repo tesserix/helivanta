@@ -81,7 +81,9 @@ func (*Module) Routes(r *platform.Router, d platform.Deps) {
 func (*Module) Publishes() []string {
 	return []string{EvidenceScanRequested, practitionercontract.EvidenceChanged}
 }
-func (*Module) DirectedSubjects() []string                  { return nil }
-func (*Module) DirectedWriteTables() []string               { return nil }
-func (*Module) Consumers(platform.Deps) []events.Consumer   { return nil }
+func (*Module) DirectedSubjects() []string    { return nil }
+func (*Module) DirectedWriteTables() []string { return nil }
+func (*Module) Consumers(d platform.Deps) []events.Consumer {
+	return []events.Consumer{EvidenceScanConsumer(d.Workflows)}
+}
 func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }

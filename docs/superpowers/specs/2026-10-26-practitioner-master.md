@@ -379,10 +379,31 @@ Repeated identical scan errors do not duplicate lifecycle events.
 SDK time-skipping tests run the real scoped processor against vendor protocol
 fixtures, prove successful release, five-attempt exhaustion, and immediate failure
 for invalid/missing objects. Reducing the retry cap to one made the five-attempt
-assertion fail; the original implementation was restored and verified. This is
-not a live Temporal, consumer-dispatch, worker-deployment or private-content-read
-claim. Those gates, explicit manual retry and independent professional review
-remain unfinished before runtime activation.
+assertion fail; the original implementation was restored and verified. These SDK tests do not establish production deployment. The local module now
+registers an evidence consumer: both transaction validation and post-commit start
+strictly validate version, broadcast scope, bounded payload and opaque UUID scope.
+A 15-second caller-cancellable start/receipt budget bounds Temporal dependency
+failure. The workflow ID includes tenant, practitioner, registration, revision and
+file. Duplicate starts are acknowledged only after matching the retained workflow
+type, queue and exact input; conflicting or unavailable history remains an error.
+A 45-minute execution timeout and reject-duplicate reuse policy prevent unbounded
+executions or accidental restart after completion.
+
+Local acceptance tests use a real Temporal development server and the actual
+committed upload outbox through real JetStream delivery, process evidence with the scoped database role
+and vendor protocol fixtures, download exact bytes, and confirm repeat delivery
+retains one run and one object copy, including two distinct processed delivery
+claims. A conflicting revision receipt is rejected without a copy. Production
+delivery configuration, worker provisioning/deployment, explicit retained manual retry
+and independent professional review remain required before runtime activation.
+
+Run the real dispatch acceptance with an explicitly selected local Temporal server:
+
+```sh
+HELIVANTA_TEST_TEMPORAL_ADDR=127.0.0.1:17233 go test -race -tags acceptance ./internal/modules/practitioner -run 'TestProfessional(CommittedScan|DispatcherRejects)' -count=1
+```
+
+The ordinary package suite does not run acceptance-tagged server tests.
 
 ## Private content release and retained revocation
 

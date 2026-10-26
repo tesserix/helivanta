@@ -25,6 +25,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
 )
 
@@ -44,10 +45,14 @@ func newProfessionalEvidenceScenario(t *testing.T) professionalEvidenceScenario 
 }
 func newProfessionalEvidenceScenarioWithAccess(t *testing.T, membership authz.MembershipChecker) professionalEvidenceScenario {
 	t.Helper()
+	return newProfessionalEvidenceScenarioWithRuntime(t, membership, nil)
+}
+func newProfessionalEvidenceScenarioWithRuntime(t *testing.T, membership authz.MembershipChecker, workflows client.Client) professionalEvidenceScenario {
+	t.Helper()
 	cloud := testinfra.NewGCSProtocol(t)
 	files, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
 	require.NoError(t, err)
-	r, db, collection, _ := evidenceFixtureWithAccess(t, files, membership)
+	r, db, collection, _ := evidenceFixtureWithRuntime(t, files, membership, workflows)
 	var data bytes.Buffer
 	require.NoError(t, png.Encode(&data, image.NewRGBA(image.Rect(0, 0, 2, 2))))
 	file := uuid.Must(uuid.NewV7()).String()

@@ -111,6 +111,12 @@ func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination
 	if !ok {
 		return nil, nil
 	}
+	// One lot: with location_id it names one position, which a reload of
+	// the stock register reopens (#1303 E3).
+	batch, ok := stockFilter(c, "batch_id", false)
+	if !ok {
+		return nil, nil
+	}
 	window, ok := parseStockWindow(c, true)
 	if !ok {
 		return nil, nil
@@ -138,12 +144,18 @@ func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination
 		if err := stockReference(tx, "pharmacy_catalogue_products", p.TenantID, outlet, product); err != nil {
 			return err
 		}
+		if err := stockReference(tx, "pharmacy_stock_batches", p.TenantID, outlet, batch); err != nil {
+			return err
+		}
 		source := stockPositionsSource(tx, p.TenantID, outlet, window.AsOf)
 		if location != uuid.Nil {
 			source = source.Where("m.location_id=?", location)
 		}
 		if product != uuid.Nil {
 			source = source.Where("b.product_id=?", product)
+		}
+		if batch != uuid.Nil {
+			source = source.Where("m.batch_id=?", batch)
 		}
 		q := tenantdb.ApplyKeyset(tx, params).Table("(?) AS positions", source)
 		return stockExpiryScope(expiry, balance)(q).Find(&rows).Error

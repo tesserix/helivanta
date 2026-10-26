@@ -17,9 +17,26 @@ afterEach(() => {
 });
 
 const id = "0199e000-0000-7000-8000-000000000020";
+// Opening, switching and closing a record never scroll the list away: the App
+// Router scrolls to the top on a move unless told not to (#1303 D1).
+const keepScroll = { scroll: false };
 const other = "0199e000-0000-7000-8000-000000000021";
 
 describe("useDetail", () => {
+  // #1303 E3: a stock position is a lot at a location; both name it.
+  it("names a record by two ids when asked, and clears both together", () => {
+    nav.search = `tab=all&open=${id}&at=${other}`;
+    const both = renderHook(() => useDetail({ also: "at" })).result.current;
+    expect(both.openId).toBe(`${id}:${other}`);
+    expect(both.closeHref).toBe("/pharmacy/accounts?tab=all");
+    expect(both.openHref(`${other}:${id}`)).toBe(
+      `/pharmacy/accounts?tab=all&open=${other}&at=${id}`,
+    );
+    // Half a name is no record: nothing is fetched for it.
+    nav.search = `open=${id}&at=nope`;
+    expect(renderHook(() => useDetail({ also: "at" })).result.current.openId).toBeNull();
+  });
+
   it("reads the open record and create from the URL", () => {
     nav.search = `tab=all&open=${id}`;
     expect(renderHook(() => useDetail()).result.current).toMatchObject({
@@ -45,24 +62,32 @@ describe("useDetail", () => {
     renderHook(() => useDetail()).result.current.open(id);
     expect(nav.push).toHaveBeenCalledWith(
       `/pharmacy/accounts?tab=overdue&page=2&cursor=c2&open=${id}`,
+      keepScroll,
     );
     nav.search = `tab=overdue&page=2&cursor=c2&open=${id}`;
     renderHook(() => useDetail()).result.current.open(other);
     expect(nav.replace).toHaveBeenCalledWith(
       `/pharmacy/accounts?tab=overdue&page=2&cursor=c2&open=${other}`,
+      keepScroll,
     );
   });
 
   it("creates as a Back step and closes keeping the list's place", () => {
     nav.search = "tab=all&page=2&cursor=c2";
     renderHook(() => useDetail()).result.current.create();
-    expect(nav.push).toHaveBeenCalledWith("/pharmacy/accounts?tab=all&page=2&cursor=c2&new=1");
+    expect(nav.push).toHaveBeenCalledWith(
+      "/pharmacy/accounts?tab=all&page=2&cursor=c2&new=1",
+      keepScroll,
+    );
     nav.search = `tab=all&page=2&cursor=c2&open=${id}`;
     expect(renderHook(() => useDetail()).result.current.closeHref).toBe(
       "/pharmacy/accounts?tab=all&page=2&cursor=c2",
     );
     renderHook(() => useDetail()).result.current.close();
-    expect(nav.replace).toHaveBeenCalledWith("/pharmacy/accounts?tab=all&page=2&cursor=c2");
+    expect(nav.replace).toHaveBeenCalledWith(
+      "/pharmacy/accounts?tab=all&page=2&cursor=c2",
+      keepScroll,
+    );
   });
 });
 

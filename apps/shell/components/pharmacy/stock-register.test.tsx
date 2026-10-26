@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { renderWithProviders as render } from "@helivanta/api/testing";
+import { NavigationGuardProvider } from "@helivanta/ui";
 import { chooseOption } from "../../test/select";
 import { StockRegister } from "./stock-register";
 import { formatZonedDateTime } from "@helivanta/api";
@@ -50,9 +51,38 @@ const page = (data: unknown[], cursor: string | null = null) => ({
   data,
   page: { has_more: cursor !== null, next_cursor: cursor },
 });
+// A live address: the filters and the open position are the URL (#1303 E3).
+const nav = vi.hoisted(() => ({
+  search: "",
+  listeners: new Set<() => void>(),
+  calls: [] as { method: "push" | "replace"; href: string }[],
+}));
+vi.mock("next/navigation", async () => {
+  const { useSyncExternalStore } = await import("react");
+  const subscribe = (fn: () => void) => {
+    nav.listeners.add(fn);
+    return () => nav.listeners.delete(fn);
+  };
+  const go = (method: "push" | "replace") => (href: string) => {
+    nav.calls.push({ method, href });
+    nav.search = href.split("?")[1] ?? "";
+    nav.listeners.forEach((fn) => fn());
+  };
+  return {
+    usePathname: () => "/pharmacy/stock",
+    useSearchParams: () => new URLSearchParams(useSyncExternalStore(subscribe, () => nav.search)),
+    useRouter: () => ({ push: go("push"), replace: go("replace") }),
+  };
+});
+// The register guards unsaved edits through the shell's provider.
+const renderWithProviders = (ui: React.ReactElement) =>
+  render(<NavigationGuardProvider>{ui}</NavigationGuardProvider>);
+const reconciliationPane = () => screen.queryByRole("region", { name: /^Stock reconciliation/ });
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  nav.search = "";
+  nav.calls.length = 0;
 });
 
 function fixture() {
@@ -172,9 +202,12 @@ it("retains zero stock and opens a focused reconciliation using one frozen snaps
     screen.queryByRole("button", { name: /release|reserve|dispense/i }),
   ).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Close reconciliation" }));
-  expect(
-    screen.getByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }),
-  ).toHaveFocus();
+  // Focus returns on the next frame, once the list has its full columns back.
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }),
+    ).toHaveFocus(),
+  );
 });
 
 it("keeps filters and cursor pages on the same snapshot and replaces detail when filtering", async () => {
@@ -200,9 +233,7 @@ it("keeps filters and cursor pages on the same snapshot and replaces detail when
     screen.getByLabelText("Filter stock location"),
     "TEST-Q · TEST Receiving · Address not recorded",
   );
-  expect(
-    screen.queryByRole("region", { name: "Selected stock reconciliation" }),
-  ).not.toBeInTheDocument();
+  expect(reconciliationPane()).not.toBeInTheDocument();
   await chooseOption(
     user,
     screen.getByLabelText("Filter stock product"),
@@ -255,7 +286,7 @@ it("applies UTC periods to reconciliation and ledger, rejects future starts, and
       ),
     ).toBe(true),
   );
-  const detail = screen.getByRole("region", { name: "Selected stock reconciliation" });
+  const detail = reconciliationPane()!;
   expect(
     within(detail).getByText(/Opening \+ receipts \+ corrections = closing stock/),
   ).toBeInTheDocument();
@@ -293,9 +324,7 @@ it("refreshes the snapshot explicitly and hides prior rows and reconciliation af
   await user.click(screen.getByRole("button", { name: "Refresh snapshot" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Previously loaded rows are hidden");
   expect(screen.queryByRole("table")).not.toBeInTheDocument();
-  expect(
-    screen.queryByRole("region", { name: "Selected stock reconciliation" }),
-  ).not.toBeInTheDocument();
+  expect(reconciliationPane()).not.toBeInTheDocument();
   expect(
     new URL(
       fetcher.mock.calls.filter(([url]) => url.includes("/stock/positions")).at(-1)![0],
@@ -355,7 +384,9 @@ it("renders exact cumulative decimal totals without losing units beyond Number s
   const exact = BigInt("9007199254740993").toLocaleString();
   expect(await screen.findByText(exact)).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }));
-  await waitFor(() => expect(screen.getAllByText(exact)).toHaveLength(2));
+  // Beside an open position the rows drop the receipts column (#1303 D1); the
+  // pane carries the exact figure.
+  await waitFor(() => expect(within(reconciliationPane()!).getAllByText(exact)).toHaveLength(1));
   expect(screen.queryByText(BigInt("9007199254740992").toLocaleString())).not.toBeInTheDocument();
 });
 
@@ -476,8 +507,146 @@ it.each(["tenantId", "pharmacyId", "outletId"] as const)(
     await user.click(screen.getByRole("button", { name: "Switch scope" }));
     expect(await screen.findByText(/Could not load this stock snapshot/)).toBeInTheDocument();
     expect(screen.queryByText("TEST-LOT")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("region", { name: "Selected stock reconciliation" }),
-    ).not.toBeInTheDocument();
+    expect(reconciliationPane()).not.toBeInTheDocument();
   },
 );
+
+// #1303 E3: a stock position opens beside the register, named by its lot
+// and location in the URL.
+describe("a position opens beside the register", () => {
+  const second = {
+    ...row,
+    id: "0199e000-0000-7000-8000-000000000007",
+    batch_id: "0199e000-0000-7000-8000-000000000008",
+    lot_number: "TEST-LOT-B",
+  };
+  const two = (rows = [row, second]) => {
+    const base = fixture();
+    const fetcher = vi.fn(async (url: string) => {
+      const query = new URL(url, "http://localhost").searchParams;
+      if (url.includes("/stock/positions?")) {
+        const lot = query.get("batch_id");
+        if (lot) return new Response(JSON.stringify(page(rows.filter((r) => r.batch_id === lot))));
+        return new Response(JSON.stringify(page(rows)));
+      }
+      return base(url);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    return fetcher;
+  };
+
+  it("reopens the position in the URL, read by its lot and location only", async () => {
+    nav.search = `expiry=due_30&open=${batch}&at=${location}`;
+    const fetcher = two();
+    renderWithProviders(<StockRegister scope={scope} />);
+    const heading = await screen.findByRole("heading", { name: "TEST-500 · TEST-LOT · TEST-Q" });
+    await waitFor(() => expect(heading).toHaveFocus());
+    const read = fetcher.mock.calls
+      .map(([url]) => new URL(url, "http://localhost"))
+      .find((url) => url.searchParams.has("batch_id"))!;
+    expect(Object.fromEntries(read.searchParams)).toEqual({
+      as_of: read.searchParams.get("as_of"),
+      batch_id: batch,
+      location_id: location,
+    });
+  });
+
+  it("says a position that is not found is not found, and can be closed", async () => {
+    nav.search = `open=0199e000-0000-7000-8000-0000000000ff&at=${location}`;
+    two();
+    const { user } = renderWithProviders(<StockRegister scope={scope} />);
+    expect(
+      await screen.findByText("This record was not found, or you do not have access."),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close reconciliation" }));
+    expect(new URLSearchParams(nav.search).has("open")).toBe(false);
+  });
+
+  it("closes the position when a filter changes", async () => {
+    nav.search = `open=${batch}&at=${location}`;
+    two();
+    const { user } = renderWithProviders(<StockRegister scope={scope} />);
+    await screen.findByRole("heading", { name: "TEST-500 · TEST-LOT · TEST-Q" });
+    await chooseOption(
+      user,
+      screen.getByLabelText("Filter stock balance"),
+      "Positive stock on hand",
+    );
+    await waitFor(() => expect(new URLSearchParams(nav.search).get("balance")).toBe("on_hand"));
+    expect(new URLSearchParams(nav.search).has("open")).toBe(false);
+    expect(new URLSearchParams(nav.search).has("at")).toBe(false);
+  });
+
+  it("steps to the next position, and Refresh snapshot keeps it open", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-17T12:00:00Z"));
+    let rows = [row, second];
+    const base = fixture();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const lot = new URL(url, "http://localhost").searchParams.get("batch_id");
+        if (url.includes("/stock/positions?"))
+          return new Response(
+            JSON.stringify(page(lot ? rows.filter((r) => r.batch_id === lot) : rows)),
+          );
+        return base(url);
+      }),
+    );
+    const { user } = renderWithProviders(<StockRegister scope={scope} />);
+    await user.click(
+      await screen.findByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Next position" }));
+    expect(
+      await screen.findByRole("heading", { name: "TEST-500 · TEST-LOT-B · TEST-Q" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next position" })).toBeDisabled();
+    // A third lot arrives; the refreshed rows put it after the open one.
+    rows = [
+      row,
+      second,
+      {
+        ...second,
+        id: "0199e000-0000-7000-8000-000000000009",
+        batch_id: "0199e000-0000-7000-8000-00000000000a",
+        lot_number: "TEST-LOT-C",
+      },
+    ];
+    now.mockReturnValue(Date.parse("2026-10-17T12:05:00Z"));
+    await user.click(screen.getByRole("button", { name: "Refresh snapshot" }));
+    expect(
+      await screen.findByRole("heading", { name: "TEST-500 · TEST-LOT-B · TEST-Q" }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Next position" })).toBeEnabled(),
+    );
+  });
+
+  it("does not ask before leaving over a typed period start: it is a query, not an edit", async () => {
+    two();
+    const { user } = renderWithProviders(<StockRegister scope={scope} />);
+    await user.click(
+      await screen.findByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }),
+    );
+    fireEvent.change(await screen.findByLabelText("Period starts at (UTC, optional)"), {
+      target: { value: "2026-10-17T10:30" },
+    });
+    await user.click(screen.getByRole("button", { name: "Next position" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(
+      await screen.findByRole("heading", { name: "TEST-500 · TEST-LOT-B · TEST-Q" }),
+    ).toBeInTheDocument();
+  });
+
+  // Review Important 3: the compact rows drop expiry and state, so the pane
+  // must carry them.
+  it("shows the open position's expiry and state in the pane", async () => {
+    nav.search = `open=${batch}&at=${location}`;
+    two([{ ...row, expires_on: "2026-10-10", days_to_expiry: -7, expiry_band: "expired" }]);
+    renderWithProviders(<StockRegister scope={scope} />);
+    const pane = await screen.findByRole("region", { name: /^Stock reconciliation/ });
+    expect(await within(pane).findByText("Expired 7 days ago")).toBeInTheDocument();
+    expect(within(pane).getByText(/Expires 2026-10-10/)).toBeInTheDocument();
+    expect(within(pane).getByText(/quarantine · active · pending review/i)).toBeInTheDocument();
+  });
+});

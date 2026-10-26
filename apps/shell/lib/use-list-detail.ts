@@ -38,6 +38,8 @@ export function useListDetail<Row extends { id: string }>({
   fallbackName,
   newName,
   headingId,
+  also,
+  snapshotKey,
 }: {
   /** The list's rows now, in list order. */
   rows: Row[];
@@ -47,10 +49,24 @@ export function useListDetail<Row extends { id: string }>({
   newName: string;
   /** The list heading, for focus when the row has gone. */
   headingId: string;
+  /** A second id naming a record with `open` (see `useDetail`). */
+  also?: string;
+  /**
+   * What the rows are a reading of, such as a stock snapshot's cutoff. When
+   * it changes, Previous / Next are retaken from the new rows; pass
+   * undefined while they load.
+   */
+  snapshotKey?: string;
 }) {
   const router = useRouter();
-  const detail = useDetail();
+  const detail = useDetail({ also });
   const [snapshot, setSnapshot] = useState<Row[] | null>(null);
+  // Retaken during render, so stepping never runs on the old reading.
+  const [readingOf, setReadingOf] = useState(snapshotKey);
+  if (snapshotKey !== undefined && snapshotKey !== readingOf) {
+    setReadingOf(snapshotKey);
+    if (snapshot) setSnapshot(rows);
+  }
   const at = snapshot?.findIndex((row) => row.id === detail.openId) ?? -1;
   const open = (snapshot ?? []).concat(rows).find((row) => row.id === detail.openId);
   const openName = open ? name(open) : null;

@@ -112,7 +112,10 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
     // keeping the tab and filters (#576, #1303 E8).
     leave(() => {
       const kept = new URLSearchParams(params);
-      for (const key of ["page", "cursor", "open", "new"]) kept.delete(key);
+      // A location, product or lot id belongs to one outlet too: another
+      // outlet would be asked for an id it does not have (#1303 E8).
+      for (const key of ["page", "cursor", "open", "new", "at", "location", "product"])
+        kept.delete(key);
       kept.set("pharmacy", value.pharmacyId);
       if (value.outletId) kept.set("outlet", value.outletId);
       else kept.delete("outlet");
@@ -297,10 +300,6 @@ function OutletPharmacy({
   view: PharmacyView;
 }) {
   const { can } = usePermissions();
-  // A link from the overview opens a list already filtered (#576 D4). Read
-  // once as each list's starting filter; the list's own controls take over.
-  const params = useSearchParams();
-  const filter = (key: string) => params?.get(key) ?? undefined;
   const access = useApiQuery<{ level: "reader" | "editor" }>(
     pharmacyKey(scope, "access"),
     `${pharmacyRoot(scope)}/access`,
@@ -338,12 +337,7 @@ function OutletPharmacy({
           canManageTax={access.data?.level === "editor" && can("pharmacy.tax.manage")}
         />
       ) : view === "stock" ? (
-        <StockRegister
-          scope={scope}
-          timeZone={outlet.timezone}
-          initialExpiry={filter("expiry")}
-          initialBalance={filter("balance")}
-        />
+        <StockRegister scope={scope} timeZone={outlet.timezone} />
       ) : view === "safety" ? (
         <BatchSafety scope={scope} timeZone={outlet.timezone} />
       ) : (

@@ -201,3 +201,49 @@ func TestStockRegisterPaginatesZeroPositionsAndUsesOutletLocalExpiry(t *testing.
 		require.Equal(t, filter, result.Data[0].Expiry)
 	}
 }
+
+// #1303 E3: a stock position is a lot at a location, and a reload reopens
+// it by both, with no other filter.
+func TestStockRegisterFiltersOnePositionByLot(t *testing.T) {
+	r, _ := catalogueHarness(t)
+	grantCatalogue(t, r, "user-editor", "editor")
+	product, location, batch := stockFixture(t, r)
+	root := strings.TrimSuffix(strings.Split(productPath(""), "/catalogue")[0], "/") + "/stock"
+	other := uuid.Must(uuid.NewV7()).String()
+	w := do(r, "PUT", root+"/batches/"+other, "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT-OTHER","expires_on":"2031-01-31"}`, product))
+	require.Equal(t, 200, w.Code, w.Body.String())
+	var last struct {
+		CreatedAt time.Time `json:"created_at"`
+	}
+	for _, lot := range []string{batch, other} {
+		w = do(r, "PUT", root+"/movements/"+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(location, lot, "receipt", "TEST-LOT-FILTER-"+lot[len(lot)-4:], 3))
+		require.Equal(t, 200, w.Code, w.Body.String())
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &last))
+	}
+	window := "as_of=" + url.QueryEscape(last.CreatedAt.Format(time.RFC3339Nano))
+	var both, one struct {
+		Data []map[string]any `json:"data"`
+	}
+	w = do(r, "GET", root+"/positions?"+window, "editor", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &both))
+	require.Len(t, both.Data, 2)
+
+	w = do(r, "GET", root+"/positions?"+window+"&batch_id="+batch+"&location_id="+location, "editor", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &one))
+	require.Len(t, one.Data, 1)
+	require.Equal(t, batch, one.Data[0]["batch_id"])
+	require.Equal(t, location, one.Data[0]["location_id"])
+	require.Equal(t, "TEST-LOT", one.Data[0]["lot_number"])
+
+	// Unknown to this outlet is the same answer as an unknown location.
+	missing := do(r, "GET", root+"/positions?"+window+"&batch_id="+uuid.Must(uuid.NewV7()).String(), "editor", "")
+	require.Equal(t, 404, missing.Code, missing.Body.String())
+	require.Equal(t, 400, do(r, "GET", root+"/positions?"+window+"&batch_id=no", "editor", "").Code)
+	// The export answers for the same rows as the list.
+	w = do(r, "GET", root+"/positions.csv?"+window+"&batch_id="+batch, "editor", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), "TEST-LOT")
+	require.NotContains(t, w.Body.String(), "TEST-LOT-OTHER")
+}

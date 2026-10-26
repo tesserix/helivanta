@@ -26,3 +26,13 @@ type RegistrationSourceReconciledData struct {
 	RegistrationID   string `json:"registration_id"`
 	ReconciliationID string `json:"reconciliation_id"`
 }
+
+const RegistrationReconciliationWithdrawn = "helivanta.in.practitioner.registration_reconciliation_withdrawn.v1"
+
+// RegistrationReconciliationWithdrawnData requests a fresh owner read after trust withdrawal.
+type RegistrationReconciliationWithdrawnData struct {
+	PractitionerID   string `json:"practitioner_id"`
+	RegistrationID   string `json:"registration_id"`
+	ReconciliationID string `json:"reconciliation_id"`
+	WithdrawalID     string `json:"withdrawal_id"`
+}

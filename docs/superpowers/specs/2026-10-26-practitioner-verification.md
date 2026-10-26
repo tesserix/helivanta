@@ -86,7 +86,7 @@ test initially used an unregistered fixture token (401); registering its limited
 policy permissions preserved the intended unaccepted-appointment 403 assertion.
 
 Policy refresh events carry only policy ID/version; actual rules require an
-authorized owner read. No event is a permission grant. All 65 module harness routes
+authorized owner read. No event is a permission grant. All 68 module harness routes
 reject stale workspace. Registration decisions and canonical identifier ownership are now implemented
 in the local harness. Runtime bootstrap, qualifications/HPR/facility privilege
 consumers, policy activation and
@@ -217,3 +217,50 @@ adverse observation. Renewal blocks a new decision against the old revision but
 does not alter exact replay of an existing receipt. Focused tests passed (7.445s),
 the full practitioner race suite passed (129.497s), architecture tests passed
 (44.255s), and acceptance-tagged lint/contract consistency/diff checks passed.
+
+## Reconciliation withdrawal design
+
+Administrative trust decisions need correction without rewriting source history.
+Add an immutable withdrawal under the exact reconciliation/registration scope:
+PUT `/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals/:withdrawal`,
+with an opaque `reason_reference`. Read the retained withdrawal at the same path;
+bounded collection reads preserve full attribution. Current shared IAM
+`practitioner.registration.verification_revoke` authorizes withdrawal of data trust;
+it creates no role, clinical privilege or private caller-appointment eligibility.
+Record reads use `practitioner.record.read`. Out-of-scope objects are 404; missing
+permission is 403 and unavailable authorization is 503.
+
+Serialize on the registration root. Each reconciliation has at most one retained
+withdrawal. Canonical intent/actor-bound replay returns the original receipt;
+changed reason/actor or a different command for an already withdrawn target
+conflicts. Require committed pre-read audit, then atomically append withdrawal,
+write audit and a minimal owner-refresh outbox event. Database/audit/outbox outage
+fails closed; retry after recovery uses the same command. No external I/O or cache
+participates. Forced tenant/module RLS and exact parent checks repeat in database.
+Withdrawal works after source revision renewal because it reduces trust in an
+existing receipt; it must not require that the old registration revision is current.
+
+The unresolved-observation predicate excludes withdrawn reconciliation receipts.
+An existing verification using the withdrawn reconciliation becomes stale; new
+attestation is blocked until a new explicit valid reconciliation is recorded.
+Retained verification/reconciliation replay never reactivates current trust.
+Original observations and decisions stay readable, and withdrawal is immutable.
+A later explicit reconciliation is a separate accountable action, not undo/erase.
+Canonical identifier ownership remains retained.
+
+Use the existing release capacity/SLO assumptions, five-second transaction and
+two-second lock budgets; each withdrawal resolves one indexed parent, target and
+unique withdrawal. Collections remain 1–200 keyset bounded. Additive forward-only
+migration 0016 retains all decisions on rollback. First activation requires the
+complete matching migration/API set; inactive local implementation is not a
+clinical grant or proof of production readiness. No new service/deployment cost.
+
+Withdrawal implementation is local and inactive. The HTTP regression first
+reproduced the absent route (404), then passed with an immutable retained
+withdrawal and current-verification invalidation. Focused reconciliation/withdrawal
+tests passed (9.569s), including twelve concurrent identical commands, changed
+reason/second-command conflicts, foreign-tenant hiding, audit/outbox rollback and
+recovery, forced RLS, deletion rejection and withdrawal after revision renewal.
+Full practitioner race/coverage passed (127.273s, 84.6% statements), including
+retained-read audit outage/recovery; architecture tests passed (42.017s). Acceptance-tagged lint/vet, API/migrate builds, contract generation/
+check, secret and diff checks passed. No production migration or rollout occurred.

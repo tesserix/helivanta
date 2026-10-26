@@ -75,6 +75,9 @@ var registrationVerificationSchema string
 //go:embed registration_reconciliation.sql
 var registrationReconciliationSchema string
 
+//go:embed registration_reconciliation_withdrawal.sql
+var registrationReconciliationWithdrawalSchema string
+
 type Module struct{}
 
 func New() *Module           { return &Module{} }
@@ -83,11 +86,14 @@ func (*Module) Permissions() []authz.Grant {
 	return []authz.Grant{{Permission: PermRegistrationVerify}, {Permission: PermRegistrationVerificationRevoke}, {Permission: PermRegistrationPolicyManage}, {Permission: PermRegistrationPolicyRead}, {Permission: PermQualificationReview}, {Permission: PermSpecialtyManage}, {Permission: PermRegistrationReview}, {Permission: PermRecordManage}, {Permission: PermRecordRead}, {Permission: PermStewardManage}, {Permission: PermEvidenceManage}, {Permission: PermEvidenceRead}}
 }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_practitioner", SQL: recordsSchema}, {ID: "0002_practitioner", SQL: registrationsSchema}, {ID: "0003_practitioner", SQL: stewardsSchema}, {ID: "0004_practitioner", SQL: evidenceSchema}, {ID: "0005_practitioner", SQL: evidenceUploadSchema}, {ID: "0006_practitioner", SQL: evidenceProcessingSchema}, {ID: "0007_practitioner", SQL: evidenceReleaseSchema}, {ID: "0008_practitioner", SQL: evidenceRetrySchema}, {ID: "0009_practitioner", SQL: reviewsSchema}, {ID: "0010_practitioner", SQL: qualificationsSchema}, {ID: "0011_practitioner", SQL: specialtyRetirementSchema}, {ID: "0012_practitioner", SQL: credentialEvidenceSchema}, {ID: "0013_practitioner", SQL: registrationPolicySchema}, {ID: "0014_practitioner", SQL: registrationVerificationSchema}, {ID: "0015_practitioner", SQL: registrationReconciliationSchema}}
+	return []tenantdb.Migration{{ID: "0001_practitioner", SQL: recordsSchema}, {ID: "0002_practitioner", SQL: registrationsSchema}, {ID: "0003_practitioner", SQL: stewardsSchema}, {ID: "0004_practitioner", SQL: evidenceSchema}, {ID: "0005_practitioner", SQL: evidenceUploadSchema}, {ID: "0006_practitioner", SQL: evidenceProcessingSchema}, {ID: "0007_practitioner", SQL: evidenceReleaseSchema}, {ID: "0008_practitioner", SQL: evidenceRetrySchema}, {ID: "0009_practitioner", SQL: reviewsSchema}, {ID: "0010_practitioner", SQL: qualificationsSchema}, {ID: "0011_practitioner", SQL: specialtyRetirementSchema}, {ID: "0012_practitioner", SQL: credentialEvidenceSchema}, {ID: "0013_practitioner", SQL: registrationPolicySchema}, {ID: "0014_practitioner", SQL: registrationVerificationSchema}, {ID: "0015_practitioner", SQL: registrationReconciliationSchema}, {ID: "0016_practitioner", SQL: registrationReconciliationWithdrawalSchema}}
 }
 func (*Module) Routes(r *platform.Router, d platform.Deps) {
 	h := &handlers{db: d.DB, files: d.Documents, reauthorize: r.Reauthorize}
 	g := r.Group("/practitioners")
+	g.PUT("/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals/:withdrawal", PermRegistrationVerificationRevoke, h.withdrawRegistrationReconciliation)
+	g.GET("/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals/:withdrawal", PermRecordRead, h.getRegistrationReconciliationWithdrawal)
+	platform.ListRoute(g, "/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals", PermRecordRead, h.listRegistrationReconciliationWithdrawals)
 	g.PUT("/:practitioner/registrations/:registration/source-reconciliations/:reconciliation", PermRegistrationVerify, h.reconcileRegistrationSource)
 	g.GET("/:practitioner/registrations/:registration/source-reconciliations/:reconciliation", PermRecordRead, h.getRegistrationReconciliation)
 	platform.ListRoute(g, "/:practitioner/registrations/:registration/source-reconciliations", PermRecordRead, h.listRegistrationReconciliations)
@@ -159,7 +165,7 @@ func (*Module) Routes(r *platform.Router, d platform.Deps) {
 	platform.ListRoute(g, "/:practitioner/registrations/:registration/revisions", PermRecordRead, h.listRegistrationRevisions)
 }
 func (*Module) Publishes() []string {
-	return []string{EvidenceScanRequested, practitionercontract.EvidenceChanged, practitionercontract.ReviewRecorded, practitionercontract.QualificationReviewRecorded, practitionercontract.RegistrationPolicyChanged, practitionercontract.RegistrationVerificationChanged, practitionercontract.RegistrationSourceReconciled}
+	return []string{EvidenceScanRequested, practitionercontract.EvidenceChanged, practitionercontract.ReviewRecorded, practitionercontract.QualificationReviewRecorded, practitionercontract.RegistrationPolicyChanged, practitionercontract.RegistrationVerificationChanged, practitionercontract.RegistrationSourceReconciled, practitionercontract.RegistrationReconciliationWithdrawn}
 }
 func (*Module) DirectedSubjects() []string    { return nil }
 func (*Module) DirectedWriteTables() []string { return nil }

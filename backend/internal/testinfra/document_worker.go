@@ -42,3 +42,12 @@ func PrivacyWorkerDSN(t *testing.T, database string) string {
 	u.RawQuery = url.Values{"sslmode": {"disable"}}.Encode()
 	return u.String()
 }
+
+// PractitionerEvidenceWorkerDSN connects only the scoped professional-evidence fixture identity.
+func PractitionerEvidenceWorkerDSN(t *testing.T, database string) string {
+	t.Helper()
+	host, port := sharedPostgres(t)
+	u := url.URL{Scheme: "postgres", Host: net.JoinHostPort(host, port), Path: "/" + database, User: url.UserPassword("helivanta_practitioner_evidence_worker", "helivanta_practitioner_evidence_worker")}
+	u.RawQuery = url.Values{"sslmode": {"disable"}}.Encode()
+	return u.String()
+}

@@ -21,6 +21,7 @@ CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;
 CREATE ROLE helivanta_privacy_worker NOLOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT;
 CREATE ROLE helivanta_emergency_worker NOLOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT;
 CREATE ROLE helivanta_document_worker LOGIN PASSWORD 'helivanta_document_worker' NOSUPERUSER NOBYPASSRLS;
+CREATE ROLE helivanta_practitioner_evidence_worker NOLOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT;
 CREATE ROLE helivanta_supply_evidence_worker LOGIN PASSWORD 'helivanta_supply_evidence_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
 
 -- System role: BYPASSRLS and nothing else. Used by exactly three callers

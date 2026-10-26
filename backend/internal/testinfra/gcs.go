@@ -44,6 +44,7 @@ type GCSProtocol struct {
 	nextGeneration       int64
 	copies               int
 	afterCopy            func()
+	afterQuarantineWrite func()
 	afterReleasedRead    func()
 	denyReads            bool
 }
@@ -60,7 +61,12 @@ func NewGCSProtocol(t *testing.T) *GCSProtocol {
 	return p
 }
 
-func (p *GCSProtocol) CopyCount() int      { p.mu.Lock(); defer p.mu.Unlock(); return p.copies }
+func (p *GCSProtocol) CopyCount() int { p.mu.Lock(); defer p.mu.Unlock(); return p.copies }
+func (p *GCSProtocol) AfterQuarantineWrite(fn func()) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.afterQuarantineWrite = fn
+}
 func (p *GCSProtocol) AfterCopy(fn func()) { p.mu.Lock(); defer p.mu.Unlock(); p.afterCopy = fn }
 func (p *GCSProtocol) AfterReleasedRead(fn func()) {
 	p.mu.Lock()
@@ -68,6 +74,17 @@ func (p *GCSProtocol) AfterReleasedRead(fn func()) {
 	p.afterReleasedRead = fn
 }
 func (p *GCSProtocol) DenyReads(deny bool) { p.mu.Lock(); defer p.mu.Unlock(); p.denyReads = deny }
+func (p *GCSProtocol) CorruptReleased(data []byte) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for key, object := range p.objects {
+		if strings.HasPrefix(key, p.Released+"/") {
+			object.bytes = append([]byte(nil), data...)
+			p.objects[key] = object
+		}
+	}
+}
+
 func (p *GCSProtocol) CorruptQuarantine(data []byte) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -142,14 +159,19 @@ func (p *GCSProtocol) serve(t *testing.T, w http.ResponseWriter, r *http.Request
 		require.NoError(t, err)
 		key := p.Quarantine + "/" + attrs.Name
 		p.mu.Lock()
-		defer p.mu.Unlock()
 		if _, exists := p.objects[key]; exists {
+			p.mu.Unlock()
 			w.WriteHeader(http.StatusPreconditionFailed)
 			return
 		}
 		p.nextGeneration++
 		object := protocolObject{bytes: data, generation: p.nextGeneration}
 		p.objects[key] = object
+		hook := p.afterQuarantineWrite
+		p.mu.Unlock()
+		if hook != nil {
+			hook()
+		}
 		_ = json.NewEncoder(w).Encode(object.attrs(p.Quarantine, attrs.Name))
 		return
 	}

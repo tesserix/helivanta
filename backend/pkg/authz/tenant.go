@@ -51,7 +51,7 @@ func (c *Client) IsMember(ctx context.Context, subject, tenantID string) (bool, 
 		User:     userObject(subject),
 		Relation: "member",
 		Object:   TenantObject(tenantID),
-	}).Execute()
+	}).Options(fgaclient.ClientCheckOptions{Consistency: consistencyPreference(ctx)}).Execute()
 	if err != nil {
 		return false, fmt.Errorf("check membership of %s in %s: %w", subject, tenantID, err)
 	}

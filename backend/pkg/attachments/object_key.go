@@ -31,9 +31,9 @@ func ObjectKey(scope ObjectScope) (string, error) {
 		if scope.HospitalID == uuid.Nil {
 			return "", errors.New("clinical document scope requires a hospital")
 		}
-	case "organisation":
+	case "organisation", "practitioner":
 		if scope.HospitalID != uuid.Nil {
-			return "", errors.New("organisation document scope cannot include a hospital")
+			return "", errors.New("tenant document scope cannot include a hospital")
 		}
 	default:
 		return "", errors.New("document object owner kind is unsupported")
@@ -41,8 +41,8 @@ func ObjectKey(scope ObjectScope) (string, error) {
 	if scope.Version < 1 || scope.UploadedAt.IsZero() || scope.UploadedAt.UTC().Year() < 1970 || scope.UploadedAt.UTC().Year() > 9999 {
 		return "", errors.New("document object version and upload date are invalid")
 	}
-	if scope.OwnerKind == "organisation" {
-		return fmt.Sprintf("t/%s/o/organisation/%s/r/%s/d/%s/f/%s/v/%d", scope.TenantID, scope.OwnerID, scope.RecordID, scope.UploadedAt.UTC().Format("2006/01/02"), scope.FileID, scope.Version), nil
+	if scope.OwnerKind == "organisation" || scope.OwnerKind == "practitioner" {
+		return fmt.Sprintf("t/%s/o/%s/%s/r/%s/d/%s/f/%s/v/%d", scope.TenantID, scope.OwnerKind, scope.OwnerID, scope.RecordID, scope.UploadedAt.UTC().Format("2006/01/02"), scope.FileID, scope.Version), nil
 	}
 	return fmt.Sprintf("t/%s/h/%s/o/%s/%s/r/%s/d/%s/f/%s/v/%d", scope.TenantID, scope.HospitalID, scope.OwnerKind, scope.OwnerID, scope.RecordID, scope.UploadedAt.UTC().Format("2006/01/02"), scope.FileID, scope.Version), nil
 }

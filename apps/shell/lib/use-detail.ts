@@ -2,6 +2,11 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+// The App Router scrolls to the top on a move unless told not to. A record
+// opening, switching or closing beside its list must leave the list where it
+// was (#1303 D1): a row opened further down would otherwise jump away.
+const keep = { scroll: false };
+
 // A record id: anything else in ?open= is a hand edit, and nothing is fetched for it.
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -47,11 +52,12 @@ export function useDetail({ also }: { also?: string } = {}) {
     openHref,
     /** The list with nothing open, at its tab, filters and page. */
     closeHref,
-    open: (id: string) => (isOpen ? router.replace(openHref(id)) : router.push(openHref(id))),
+    open: (id: string) =>
+      isOpen ? router.replace(openHref(id), keep) : router.push(openHref(id), keep),
     create: () => {
       const href = with_((search) => search.set("new", "1"));
-      return isOpen ? router.replace(href) : router.push(href);
+      return isOpen ? router.replace(href, keep) : router.push(href, keep);
     },
-    close: () => router.replace(closeHref),
+    close: () => router.replace(closeHref, keep),
   };
 }

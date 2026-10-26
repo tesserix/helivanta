@@ -17,6 +17,9 @@ afterEach(() => {
 });
 
 const id = "0199e000-0000-7000-8000-000000000020";
+// Opening, switching and closing a record never scroll the list away: the App
+// Router scrolls to the top on a move unless told not to (#1303 D1).
+const keepScroll = { scroll: false };
 const other = "0199e000-0000-7000-8000-000000000021";
 
 describe("useDetail", () => {
@@ -59,24 +62,32 @@ describe("useDetail", () => {
     renderHook(() => useDetail()).result.current.open(id);
     expect(nav.push).toHaveBeenCalledWith(
       `/pharmacy/accounts?tab=overdue&page=2&cursor=c2&open=${id}`,
+      keepScroll,
     );
     nav.search = `tab=overdue&page=2&cursor=c2&open=${id}`;
     renderHook(() => useDetail()).result.current.open(other);
     expect(nav.replace).toHaveBeenCalledWith(
       `/pharmacy/accounts?tab=overdue&page=2&cursor=c2&open=${other}`,
+      keepScroll,
     );
   });
 
   it("creates as a Back step and closes keeping the list's place", () => {
     nav.search = "tab=all&page=2&cursor=c2";
     renderHook(() => useDetail()).result.current.create();
-    expect(nav.push).toHaveBeenCalledWith("/pharmacy/accounts?tab=all&page=2&cursor=c2&new=1");
+    expect(nav.push).toHaveBeenCalledWith(
+      "/pharmacy/accounts?tab=all&page=2&cursor=c2&new=1",
+      keepScroll,
+    );
     nav.search = `tab=all&page=2&cursor=c2&open=${id}`;
     expect(renderHook(() => useDetail()).result.current.closeHref).toBe(
       "/pharmacy/accounts?tab=all&page=2&cursor=c2",
     );
     renderHook(() => useDetail()).result.current.close();
-    expect(nav.replace).toHaveBeenCalledWith("/pharmacy/accounts?tab=all&page=2&cursor=c2");
+    expect(nav.replace).toHaveBeenCalledWith(
+      "/pharmacy/accounts?tab=all&page=2&cursor=c2",
+      keepScroll,
+    );
   });
 });
 

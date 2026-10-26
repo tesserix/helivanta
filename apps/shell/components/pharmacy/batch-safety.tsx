@@ -375,7 +375,6 @@ function SafetyBatchPicker({
     headingId: "batch-safety-heading",
   });
   const { detail, paneRef, rowProps, openProps } = pane;
-  const compact = pane.isOpen;
   const record = detail.openId ? (
     <BatchPane
       key={detail.openId}
@@ -420,7 +419,7 @@ function SafetyBatchPicker({
                       aria-label={`Open lot ${batch.lot_number}`}
                       onClick={() => pane.openRow(batch.id)}
                     >
-                      {compact ? "View" : "Open"}
+                      Open
                     </Button>
                   </li>
                 );

@@ -313,7 +313,7 @@ export function CataloguePanel({
                         aria-label={`Open ${product.sku}`}
                         onClick={() => pane.openRow(product.id)}
                       >
-                        {compact ? "View" : `Open ${product.sku}`}
+                        {compact ? "Open" : `Open ${product.sku}`}
                       </Button>
                     </div>
                   </li>

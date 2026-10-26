@@ -411,7 +411,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
                               aria-label={`Inspect ${row.sku} lot ${row.lot_number} at ${row.location_code}`}
                               onClick={() => pane.openRow(row.key)}
                             >
-                              {compact ? "View" : "Inspect lot"}
+                              Inspect
                             </Button>
                           </td>
                         </tr>

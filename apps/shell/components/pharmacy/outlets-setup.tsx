@@ -154,7 +154,7 @@ export function OutletsSetup({
                       aria-label={`Open ${row.code}`}
                       onClick={() => pane.openRow(row.id)}
                     >
-                      {pane.isOpen ? "View" : "Open"}
+                      Open
                     </Button>
                   </li>
                 ))}

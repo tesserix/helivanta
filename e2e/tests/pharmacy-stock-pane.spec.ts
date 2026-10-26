@@ -68,14 +68,23 @@ for (const [label, size, rail] of [
     const lotOf = (name: string) => name.match(/lot (\S+) at/)![1];
     const button = page.getByRole("button", { name: first, exact: true });
     const row = button.locator("xpath=ancestor::tr");
-    const before = (await row.boundingBox())!.y;
+    // Bring the row into view first: a click scrolls to its target, and that
+    // scroll is Playwright's, not the page moving the row.
+    await button.scrollIntoViewIfNeeded();
+    await expect(page.getByText(/loaded stock positions/)).toBeVisible();
+    const scrolled = () => page.locator("[data-hms-scroll]").evaluate((node) => node.scrollTop);
+    const before = { top: await scrolled(), y: (await row.boundingBox())!.y };
     await button.click();
     const pane = page.getByRole("region", { name: new RegExp(`${lotOf(first)} · TEST-QA$`) });
     await expect(pane).toBeVisible();
     await expect(pane.getByText("Closing stock", { exact: true })).toBeVisible();
     const list = (await row.boundingBox())!;
     expect((await pane.boundingBox())!.x).toBeGreaterThanOrEqual(list.x + list.width);
-    expect(Math.abs(list.y - before)).toBeLessThanOrEqual(2);
+    expect(await scrolled()).toBe(before.top);
+    test
+      .info()
+      .annotations.push({ type: "row shift", description: `${Math.round(list.y - before.y)}px` });
+    expect(Math.abs(list.y - before.y)).toBeLessThanOrEqual(2);
 
     await page.getByRole("button", { name: "Next position" }).click();
     const next = page.getByRole("region", { name: new RegExp(`${lotOf(second)} · TEST-QA$`) });

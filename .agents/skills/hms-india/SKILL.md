@@ -24,7 +24,9 @@ Route clinical identity/care/order work to
 [hms-india-clinical](../hms-india-clinical/SKILL.md), revenue/insurance work to
 [hms-india-revenue](../hms-india-revenue/SKILL.md), and pharmacy/supply/facility
 controls to [hms-india-regulated-operations](../hms-india-regulated-operations/SKILL.md).
-Reuse existing workforce and emergency references from the knowledge index.
+Reuse existing workforce and emergency references from the knowledge index. Route
+roles, departments, staff access, approvals and public/private sector work to
+[hms-organization-access](../hms-organization-access/SKILL.md).
 
 Before implementation, identify the single data owner, state transition, current
 actor/object authority, source version, retry/concurrency behavior and failure

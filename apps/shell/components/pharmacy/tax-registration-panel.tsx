@@ -20,6 +20,7 @@ import {
   type TaxScheme,
 } from "@helivanta/api";
 import { Field, FormSelectField, LoadMore, Panel, QueryState, useZodForm } from "@helivanta/ui";
+import { useReportState, type FormState } from "@/lib/use-list-detail";
 
 const registrationMessages = {
   format: "Enter the 15-character GSTIN.",
@@ -52,11 +53,14 @@ export function TaxRegistrationPanel({
   scope,
   outlet,
   today,
+  onStateChange,
 }: {
   scope: PharmacyScope;
   outlet: PharmacyOutlet;
   /** The outlet's own date: a registration cannot start before it. */
   today: string;
+  /** An unsaved registration holds the outlet open (#1303 E6). */
+  onStateChange?: FormState;
 }) {
   const scheme = taxScheme(outlet.country_code);
   const key = pharmacyKey(scope, "tax-registrations");
@@ -108,6 +112,7 @@ export function TaxRegistrationPanel({
         scheme={scheme}
         history={history.items}
         today={today}
+        onStateChange={onStateChange}
         submit={(values) =>
           apiFetch<PharmacyTaxRegistration>(`${pharmacyRoot(scope)}/tax-registrations`, {
             method: "POST",
@@ -174,12 +179,14 @@ function RegistrationForm({
   today,
   submit,
   invalidate,
+  onStateChange,
 }: {
   scheme: TaxScheme;
   history: PharmacyTaxRegistration[];
   today: string;
   submit: (values: Record<string, string>) => Promise<PharmacyTaxRegistration>;
   invalidate: unknown[];
+  onStateChange?: FormState;
 }) {
   const form = useZodForm(registrationForm(scheme, history), {
     jurisdiction_code: "",
@@ -197,6 +204,7 @@ function RegistrationForm({
     const { reason, ...rest } = values;
     record.mutate(reason ? { ...rest, reason } : rest);
   };
+  useReportState(onStateChange, form.formState.isDirty, record.isPending);
   return (
     <form noValidate onSubmit={form.handleSubmit(onSubmit)} className="mt-5 space-y-4">
       <div className="grid gap-4 sm:grid-cols-3">

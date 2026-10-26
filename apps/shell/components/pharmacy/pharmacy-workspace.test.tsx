@@ -120,6 +120,7 @@ function mockPharmacy(
           page([
             {
               id: outlet,
+              code: "TEST-MAIN",
               name: "TEST Main Outlet",
               timezone: "Asia/Kolkata",
               country_code: country,
@@ -127,6 +128,7 @@ function mockPharmacy(
             },
             {
               id: sibling,
+              code: "TEST-SISTER",
               name: "TEST Sister Outlet",
               timezone: "Asia/Tashkent",
               country_code: country,
@@ -262,9 +264,10 @@ it("says a missing grant is missing and points a grant manager to Setup", async 
   mockPharmacy("editor", 404, "IN", ["pharmacy.access.manage"]);
   renderWorkspace("catalogue");
   expect(await screen.findByText("You don't have access to this outlet yet")).toBeVisible();
+  // Straight to this outlet's pane, where the grant form is (#1303 E6).
   expect(screen.getByRole("link", { name: "Grant access in Setup" })).toHaveAttribute(
     "href",
-    "/pharmacy/setup",
+    `/pharmacy/setup?pharmacy=${pharmacy}&outlet=${outlet}&open=${outlet}`,
   );
   expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
 });
@@ -881,5 +884,126 @@ describe("the outlet is in the address", () => {
     await waitFor(() => expect(address().get("outlet")).toBe(sibling));
     for (const key of ["location", "product", "open", "at"]) expect(address().has(key)).toBe(false);
     expect(address().get("expiry")).toBe("due_30");
+  });
+});
+
+// #1303 E6: Outlets & access lists the pharmacy's outlets; one opens beside
+// the list with its details, its access and its tax registration.
+describe("Outlets & access", () => {
+  const adminFetch = (overrides: (url: string, init?: RequestInit) => Response | undefined) => {
+    const base = mockPharmacy("editor", 0, "IN", ["pharmacy.access.manage", "pharmacy.tax.manage"]);
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+      const one = /\/pharmacies\/[0-9a-f-]{36}\/outlets\/([0-9a-f-]{36})$/.exec(url);
+      if (one && (!init?.method || init.method === "GET")) {
+        const custom = overrides(url, init);
+        if (custom) return custom;
+        const found = [outlet, sibling].includes(one[1]);
+        return found
+          ? new Response(
+              JSON.stringify({
+                id: one[1],
+                pharmacy_id: pharmacy,
+                code: one[1] === outlet ? "TEST-MAIN" : "TEST-SISTER",
+                name: one[1] === outlet ? "TEST Main Outlet" : "TEST Sister Outlet",
+                country_code: "IN",
+                timezone: "Asia/Kolkata",
+                regulatory_status: "pending_review",
+              }),
+            )
+          : new Response(JSON.stringify({ error: "not_found", message: "x" }), { status: 404 });
+      }
+      return overrides(url, init) ?? base(url, init);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    return fetcher;
+  };
+
+  it("lists outlets; one opens with its details, access and tax registration", async () => {
+    adminFetch(() => undefined);
+    nav.search = `pharmacy=${pharmacy}&outlet=${outlet}&open=${sibling}`;
+    renderWorkspace("setup");
+    const pane = await screen.findByRole("region", { name: "Outlet TEST Sister Outlet" });
+    expect(await within(pane).findByRole("heading", { name: "TEST Sister Outlet" })).toBeVisible();
+    expect(within(pane).getByText("Asia/Kolkata")).toBeVisible();
+    expect(within(pane).getByRole("heading", { name: "Outlet access" })).toBeVisible();
+    expect(await within(pane).findByRole("heading", { name: "Tax registration" })).toBeVisible();
+    // The list is the outlet chooser here: the heading keeps only the pharmacy.
+    expect(screen.queryByLabelText("Outlet")).toBeNull();
+    expect(screen.getByLabelText("Pharmacy")).toBeVisible();
+  });
+
+  it("opening an outlet does not change the working outlet", async () => {
+    adminFetch(() => undefined);
+    nav.search = `pharmacy=${pharmacy}&outlet=${outlet}`;
+    const { user } = renderWorkspace("setup");
+    await user.click(await screen.findByRole("button", { name: "Open TEST-SISTER" }));
+    await screen.findByRole("region", { name: "Outlet TEST Sister Outlet" });
+    expect(address().get("outlet")).toBe(outlet);
+    expect(address().get("open")).toBe(sibling);
+    expect(
+      JSON.parse(
+        sessionStorage.getItem("helivanta:pharmacy:scope:11111111-1111-1111-1111-111111111111")!,
+      ).outletId,
+    ).toBe(outlet);
+  });
+
+  it("registers an outlet in the pane and opens it", async () => {
+    const created = "0199e000-0000-7000-8000-0000000000aa";
+    let put: string | undefined;
+    adminFetch((url, init) => {
+      if (init?.method === "PUT" && url.includes("/outlets/")) {
+        put = url.split("/").at(-1);
+        return new Response(JSON.stringify({ id: put }));
+      }
+      if (put && url.endsWith(`/outlets/${put}`))
+        return new Response(
+          JSON.stringify({
+            id: put,
+            pharmacy_id: pharmacy,
+            code: "TEST-NEW",
+            name: "TEST New Outlet",
+            country_code: "IN",
+            timezone: "Asia/Kolkata",
+            regulatory_status: "pending_review",
+          }),
+        );
+      return undefined;
+    });
+    void created;
+    nav.search = `pharmacy=${pharmacy}&outlet=${outlet}`;
+    const { user } = renderWorkspace("setup");
+    await user.click(await screen.findByRole("button", { name: "Register outlet" }));
+    const pane = await screen.findByRole("region", { name: "New outlet" });
+    await user.type(within(pane).getByLabelText("Outlet code"), "TEST-NEW");
+    await user.type(within(pane).getByLabelText("Outlet name"), "TEST New Outlet");
+    await user.click(within(pane).getByRole("button", { name: "Register outlet" }));
+    await waitFor(() => expect(address().get("open")).toBe(put));
+    expect(address().has("new")).toBe(false);
+    expect(await screen.findByRole("heading", { name: "TEST New Outlet" })).toBeVisible();
+  });
+
+  it("asks before Next discards an unsaved access grant", async () => {
+    adminFetch(() => undefined);
+    nav.search = `pharmacy=${pharmacy}&outlet=${outlet}`;
+    const { user } = renderWorkspace("setup");
+    await user.click(await screen.findByRole("button", { name: "Open TEST-MAIN" }));
+    await user.click(
+      await screen.findByLabelText("Grant my account pharmacy access to this outlet"),
+    );
+    await user.click(screen.getByRole("button", { name: "Next outlet" }));
+    expect(await screen.findByRole("dialog")).toHaveTextContent(
+      "Discard changes to TEST Main Outlet?",
+    );
+  });
+
+  it("says an outlet that is not found, or not ours, is not found", async () => {
+    adminFetch(() => undefined);
+    nav.search = `pharmacy=${pharmacy}&outlet=${outlet}&open=0199e000-0000-7000-8000-0000000000ff`;
+    const { user } = renderWorkspace("setup");
+    expect(
+      await screen.findByText("This record was not found, or you do not have access."),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close outlet" }));
+    expect(address().has("open")).toBe(false);
   });
 });

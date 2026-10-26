@@ -290,9 +290,17 @@ test("the page itself never scrolls, only the content area", async ({ page }) =>
 // pickers' sat below the content, unnamed.
 test("no pharmacy page shows an unnamed Load more", async ({ page }) => {
   await freshOutlet(page);
-  for (const path of ["stock", "receiving", "safety", "catalogue", "accounts", "setup"]) {
+  // Each page's own heading: what is there once it has loaded.
+  for (const [path, heading] of [
+    ["stock", "Stock register"],
+    ["receiving", "Quarantine receiving"],
+    ["safety", "Concerns recorded in the last 30 days"],
+    ["catalogue", "Product catalogue"],
+    ["accounts", "Bills & expenses"],
+    ["setup", /^Outlets at /],
+  ] as const) {
     await page.goto(`/pharmacy/${path}`);
-    await expect(page.getByText(/^Times are in /)).toBeVisible();
+    await expect(page.getByRole("heading", { name: heading, level: 3 })).toBeVisible();
     await expect(page.getByRole("button", { name: "Load more", exact: true })).toHaveCount(0);
   }
 });

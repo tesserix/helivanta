@@ -21,14 +21,15 @@ CREATE POLICY tenant_isolation ON practitioner_registration_reconciliations
  USING(hms_tenant_visible(tenant_id) AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND current_setting('app.practitioner_access',true)='true')
  WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND current_setting('app.practitioner_reconcile',true)='true' AND created_by=NULLIF(current_setting('app.actor_subject',true),''));
 CREATE FUNCTION practitioner_reconciliation_guard() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE registration practitioner_registrations; replacement practitioner_credential_reviews; adverse practitioner_credential_reviews; seal jsonb; evidence practitioner_credential_evidence; item text; previous text; author text; revision_author text;
+DECLARE registration practitioner_registrations; replacement practitioner_credential_reviews; adverse practitioner_credential_reviews; seal jsonb; evidence practitioner_credential_evidence; item text; previous text; author text; revision_author text; revision_version bigint;
 BEGIN
  IF TG_OP<>'INSERT' THEN RAISE EXCEPTION 'reconciliation is immutable' USING ERRCODE='23514'; END IF;
  IF current_setting('app.practitioner_reconcile',true) IS DISTINCT FROM 'true' OR NEW.created_by IS DISTINCT FROM NULLIF(current_setting('app.actor_subject',true),'') THEN RAISE EXCEPTION 'reconciliation authority required' USING ERRCODE='42501'; END IF;
  SELECT * INTO registration FROM practitioner_registrations WHERE tenant_id=NEW.tenant_id AND practitioner_id=NEW.practitioner_id AND id=NEW.registration_id FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'registration unavailable' USING ERRCODE='P0002'; END IF;
- SELECT created_by INTO revision_author FROM practitioner_registration_revisions WHERE tenant_id=NEW.tenant_id AND practitioner_id=NEW.practitioner_id AND registration_id=NEW.registration_id AND id=NEW.revision_id AND version=registration.version;
- IF NOT FOUND THEN RAISE EXCEPTION 'reconciliation revision changed' USING ERRCODE='23514',CONSTRAINT='registration_verification_revision'; END IF;
+ SELECT created_by,version INTO revision_author,revision_version FROM practitioner_registration_revisions WHERE tenant_id=NEW.tenant_id AND practitioner_id=NEW.practitioner_id AND registration_id=NEW.registration_id AND id=NEW.revision_id;
+ IF NOT FOUND THEN RAISE EXCEPTION 'revision unavailable' USING ERRCODE='P0002'; END IF;
+ IF revision_version<>registration.version THEN RAISE EXCEPTION 'reconciliation revision changed' USING ERRCODE='23514',CONSTRAINT='registration_verification_revision'; END IF;
  SELECT created_by INTO author FROM practitioner_records WHERE tenant_id=NEW.tenant_id AND id=NEW.practitioner_id;
  IF NEW.created_by IN (author,registration.created_by,revision_author) THEN RAISE EXCEPTION 'independent reconciler required' USING ERRCODE='23514',CONSTRAINT='registration_verification_independence'; END IF;
  SELECT * INTO replacement FROM practitioner_credential_reviews WHERE tenant_id=NEW.tenant_id AND practitioner_id=NEW.practitioner_id AND credential_kind='registration' AND credential_id=NEW.registration_id AND revision_id=NEW.revision_id AND id=NEW.active_review_id;

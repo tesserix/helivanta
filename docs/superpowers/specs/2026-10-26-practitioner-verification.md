@@ -208,3 +208,12 @@ Full practitioner race/coverage passed (140.778s, 84.7% statements); architectur
 tests passed (49.069s). Acceptance-tagged practitioner lint/vet, API/migrate
 builds, contractdocs generation/check/tests and secret/diff checks passed.
 These results are local only; source reconciliation is not active in production.
+
+Revision-scope regression: an unknown reconciliation revision initially returned
+409; the regression test reproduced it. The guard now first resolves the exact
+tenant/practitioner/registration revision (404 when absent), then checks current
+version (409 when stale). An older active source review cannot reconcile a newer
+adverse observation. Renewal blocks a new decision against the old revision but
+does not alter exact replay of an existing receipt. Focused tests passed (7.445s),
+the full practitioner race suite passed (129.497s), architecture tests passed
+(44.255s), and acceptance-tagged lint/contract consistency/diff checks passed.

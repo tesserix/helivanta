@@ -427,6 +427,11 @@ func TestRegistrationSourceReconciliationRetainsExplicitAdverseHistory(t *testin
 	require.Equal(t, 404, testutil.Do(s.router, "PUT", path, "foreign", body).Code)
 	missing := testutil.Do(s.router, "PUT", path, "reviewer", strings.Replace(body, active, uuid.Must(uuid.NewV7()).String(), 1))
 	require.Equal(t, 404, missing.Code, missing.Body.String())
+	missingRevision := testutil.Do(s.router, "PUT", path, "reviewer", strings.Replace(body, s.input.RevisionID, uuid.Must(uuid.NewV7()).String(), 1))
+	require.Equal(t, 404, missingRevision.Code, missingRevision.Body.String())
+	olderSource := testutil.Do(s.router, "PUT", path, "reviewer", strings.Replace(body, active, s.review, 1))
+	require.Equal(t, 409, olderSource.Code, olderSource.Body.String())
+	require.Contains(t, olderSource.Body.String(), "replacement_source_not_later")
 	reconciled := testutil.Do(s.router, "PUT", path, "reviewer", body)
 	require.Equal(t, 201, reconciled.Code, reconciled.Body.String())
 	replay := testutil.Do(s.router, "PUT", path, "reviewer", body)
@@ -456,6 +461,14 @@ func TestRegistrationSourceReconciliationRetainsExplicitAdverseHistory(t *testin
 	blocked = testutil.Do(s.router, "PUT", s.base+"/verifications/"+uuid.Must(uuid.NewV7()).String(), "reviewer", attempt)
 	require.Equal(t, 409, blocked.Code, blocked.Body.String())
 	require.Contains(t, blocked.Body.String(), "source_reviews_require_reconciliation")
+	renewed := testutil.Do(s.router, "PUT", root+"/revisions/"+uuid.Must(uuid.NewV7()).String(), "steward", `{"expected_version":1}`)
+	require.Equal(t, 201, renewed.Code, renewed.Body.String())
+	stale := testutil.Do(s.router, "PUT", root+"/source-reconciliations/"+uuid.Must(uuid.NewV7()).String(), "reviewer", body)
+	require.Equal(t, 409, stale.Code, stale.Body.String())
+	require.Contains(t, stale.Body.String(), "registration_revision_changed")
+	replay = testutil.Do(s.router, "PUT", path, "reviewer", body)
+	require.Equal(t, 200, replay.Code, replay.Body.String())
+	require.JSONEq(t, reconciled.Body.String(), replay.Body.String())
 }
 
 func TestRegistrationSourceReconciliationDependencyFailureRetainsNoPartialDecision(t *testing.T) {

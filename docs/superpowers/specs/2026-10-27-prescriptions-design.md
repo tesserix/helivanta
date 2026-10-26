@@ -50,7 +50,7 @@ prescribing can, but only if its checks actually run.
 | Encounter                                                             | MediCore visit: `patient_name`, optional `patient_id` (no FK), `department` OPD/IPD, `status` always `open`, no consult mode, no update route | `medicore/module.go:39-73`, `visits.go:35-40`                 |
 | Patient identity, age                                                 | `patients.id`, `dob`, `dob_estimated`                                                                                                         | `patientmaster/module.go:76-110`                              |
 | Weight                                                                | none                                                                                                                                          | —                                                             |
-| Allergies (with unknown ≠ no known allergy, IN-CL-08)                 | none anywhere                                                                                                                                 | —                                                             |
+| Allergies (with unknown ≠ no known allergy, IN-CL-08)                 | none anywhere                                                                                                                                 | #1373                                                         |
 | Drug master (molecule, strength, form, route, schedule, interactions) | none. Pharmacy's catalogue is per outlet, has no schedule, and is not a prescribing source (IN-PH-02)                                         | `pharmacy/catalogue.sql:62-85`; #476, #159 open (Sam123ben)   |
 | Prescriber authority                                                  | practitioner module exists but is **not registered**, has no link to an IAM subject, and its spec excludes prescribing                        | `bootstrap/modules.go:48-58`, `practitioner/records.sql:3-13` |
 | Schedule / telemedicine rules                                         | none                                                                                                                                          | #87 open                                                      |
@@ -117,14 +117,14 @@ prescribing can, but only if its checks actually run.
 
 Signing needs all of these. Each is its own issue and spec; this spec does not build them.
 
-| #   | Prerequisite                                                                                                            | Issue                                  | Owner                             |
-| --- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | --------------------------------- |
-| R1  | Encounter carries a resolved `patient_id`, consult mode (in-person / tele, first / follow-up) and an open/closed status | #80 (OPD)                              | unassigned                        |
-| R2  | Drug master: molecule, strength, form, route, schedule class, units, versioned revisions                                | #476                                   | Sam123ben                         |
-| R3  | Interaction, dose-range and cross-reactivity data from a named, licensed source                                         | #476                                   | Sam123ben — **source not chosen** |
-| R4  | Patient allergy list with "unknown" distinct from "no known allergy", and weight observations                           | to file                                | —                                 |
-| R5  | Practitioner module registered, practitioner ↔ IAM subject link, facility prescribing privilege                         | to file (continues practitioner specs) | —                                 |
-| R6  | Schedule and teleconsult eligibility verdict                                                                            | #87                                    | unassigned                        |
+| #   | Prerequisite                                                                                                            | Issue                  | Owner                             |
+| --- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------- | --------------------------------- |
+| R1  | Encounter carries a resolved `patient_id`, consult mode (in-person / tele, first / follow-up) and an open/closed status | #80 (OPD)              | unassigned                        |
+| R2  | Drug master: molecule, strength, form, route, schedule class, units, versioned revisions                                | #476                   | Sam123ben                         |
+| R3  | Interaction, dose-range and cross-reactivity data from a named, licensed source                                         | #476                   | Sam123ben — **source not chosen** |
+| R4  | Patient allergy list with "unknown" distinct from "no known allergy", and weight observations                           | #1373                  | unassigned                        |
+| R5  | Practitioner module registered, practitioner ↔ IAM subject link, facility prescribing privilege                         | #1374 (continues #474) | unassigned                        |
+| R6  | Schedule and teleconsult eligibility verdict                                                                            | #87                    | unassigned                        |
 
 ## Slices
 

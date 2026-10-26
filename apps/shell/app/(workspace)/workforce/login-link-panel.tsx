@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Field, LoadMore, formatDateTime, useZodForm } from "@helivanta/ui";
+import { Field, LoadMore, Panel, formatDateTime, useZodForm } from "@helivanta/ui";
 import {
   ApiError,
   LOGIN_LINK_STATUSES,
@@ -68,10 +68,7 @@ function LinkPanel({ hospital, staff, onClose, identity }: Props & { identity: I
   const links = records.data?.pages.flatMap((page) => page.data) ?? [];
   const current = links.some((link) => link.status === "pending" || link.status === "active");
   return (
-    <section
-      aria-labelledby="account-link-heading"
-      className="mt-6 rounded-2xl border bg-card p-6 shadow-sm"
-    >
+    <Panel aria-labelledby="account-link-heading" className="mt-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h3
@@ -117,7 +114,7 @@ function LinkPanel({ hospital, staff, onClose, identity }: Props & { identity: I
         <>
           {!links.length && <p>No account has been linked.</p>}
           {links.map((link) => (
-            <article key={link.id} className="my-4 space-y-2 rounded-xl border p-4">
+            <Panel as="article" key={link.id} className="my-4 space-y-2">
               <p className="break-all font-medium">{link.subject}</p>
               <p>
                 {LOGIN_LINK_STATUSES[link.status]} · Version {link.version}
@@ -166,7 +163,7 @@ function LinkPanel({ hospital, staff, onClose, identity }: Props & { identity: I
                   </Button>
                 )}
               </div>
-            </article>
+            </Panel>
           ))}
           <LoadMore
             hasMore={records.hasNextPage}
@@ -202,7 +199,7 @@ function LinkPanel({ hospital, staff, onClose, identity }: Props & { identity: I
           )}
         </>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -224,37 +221,39 @@ function ProposalForm({ scope, onClose }: { scope: LoginLinkScope; onClose: () =
     suppressErrorToast: true,
   });
   return (
-    <form
-      aria-label="Propose account link"
-      noValidate
-      className="mt-5 space-y-4 rounded-xl border p-4"
-      onSubmit={form.handleSubmit((value) => {
-        const command = submitted ?? value;
-        setSubmitted(command);
-        save.mutate(command);
-      })}
-    >
-      <Field id="link-subject" label="Account ID" error={form.formState.errors.subject?.message}>
-        <Input
-          id="link-subject"
-          autoComplete="off"
-          disabled={!!submitted}
-          {...form.register("subject")}
-        />
-      </Field>
-      <Field id="link-reason" label="Reason" error={form.formState.errors.reason?.message}>
-        <Input id="link-reason" disabled={!!submitted} {...form.register("reason")} />
-      </Field>
-      {save.isError && <p role="alert">{failure(save.error)}</p>}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? "Saving…" : save.isError ? "Retry same request" : "Submit proposal"}
-        </Button>
-        <Button type="button" variant="ghost" onClick={onClose} disabled={save.isPending}>
-          Close form
-        </Button>
-      </div>
-    </form>
+    <Panel className="mt-5">
+      <form
+        aria-label="Propose account link"
+        noValidate
+        className="space-y-4"
+        onSubmit={form.handleSubmit((value) => {
+          const command = submitted ?? value;
+          setSubmitted(command);
+          save.mutate(command);
+        })}
+      >
+        <Field id="link-subject" label="Account ID" error={form.formState.errors.subject?.message}>
+          <Input
+            id="link-subject"
+            autoComplete="off"
+            disabled={!!submitted}
+            {...form.register("subject")}
+          />
+        </Field>
+        <Field id="link-reason" label="Reason" error={form.formState.errors.reason?.message}>
+          <Input id="link-reason" disabled={!!submitted} {...form.register("reason")} />
+        </Field>
+        {save.isError && <p role="alert">{failure(save.error)}</p>}
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={save.isPending}>
+            {save.isPending ? "Saving…" : save.isError ? "Retry same request" : "Submit proposal"}
+          </Button>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={save.isPending}>
+            Close form
+          </Button>
+        </div>
+      </form>
+    </Panel>
   );
 }
 
@@ -277,32 +276,38 @@ function DecisionForm({
     { invalidate: [loginLinksKey(scope)], onSuccess: onClose, suppressErrorToast: true },
   );
   return (
-    <form
-      aria-label="Account link decision"
-      noValidate
-      className="mt-5 space-y-4 rounded-xl border p-4"
-      onSubmit={form.handleSubmit((value) => {
-        const command = submitted ?? { ...value, expected_version: link.version, decision };
-        setSubmitted(command);
-        save.mutate(command);
-      })}
-    >
-      <p>
-        {decision} account {link.subject} · Version {link.version}
-      </p>
-      <Field id="decision-reason" label="Reason" error={form.formState.errors.reason?.message}>
-        <Input id="decision-reason" disabled={!!submitted} {...form.register("reason")} />
-      </Field>
-      {save.isError && <p role="alert">{failure(save.error)}</p>}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? "Saving…" : save.isError ? "Retry same request" : `Confirm ${decision}`}
-        </Button>
-        <Button type="button" variant="ghost" onClick={onClose} disabled={save.isPending}>
-          Close form
-        </Button>
-      </div>
-    </form>
+    <Panel className="mt-5">
+      <form
+        aria-label="Account link decision"
+        noValidate
+        className="space-y-4"
+        onSubmit={form.handleSubmit((value) => {
+          const command = submitted ?? { ...value, expected_version: link.version, decision };
+          setSubmitted(command);
+          save.mutate(command);
+        })}
+      >
+        <p>
+          {decision} account {link.subject} · Version {link.version}
+        </p>
+        <Field id="decision-reason" label="Reason" error={form.formState.errors.reason?.message}>
+          <Input id="decision-reason" disabled={!!submitted} {...form.register("reason")} />
+        </Field>
+        {save.isError && <p role="alert">{failure(save.error)}</p>}
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={save.isPending}>
+            {save.isPending
+              ? "Saving…"
+              : save.isError
+                ? "Retry same request"
+                : `Confirm ${decision}`}
+          </Button>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={save.isPending}>
+            Close form
+          </Button>
+        </div>
+      </form>
+    </Panel>
   );
 }
 
@@ -319,7 +324,7 @@ function History({
 }) {
   const history = useLoginLinkHistory(scope, link.id, subject);
   return (
-    <section aria-label="Account link history" className="mt-5 rounded-xl border p-4">
+    <Panel aria-label="Account link history" className="mt-5">
       <h4 className="font-semibold">History for {link.subject}</h4>
       {history.isPending ? (
         <p role="status">Loading history…</p>
@@ -355,6 +360,6 @@ function History({
       <Button variant="ghost" onClick={onClose}>
         Close history
       </Button>
-    </section>
+    </Panel>
   );
 }

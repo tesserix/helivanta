@@ -144,7 +144,7 @@ test("moving between departments sends no session-activity requests", async ({ p
   page.on("request", (r) => {
     if (isActivity(r.method(), r.url())) count++;
   });
-  for (const name of ["PharmaConnect", "Lab", "MediCore", "PharmaConnect"]) {
+  for (const name of ["Pharmacy (PharmaConnect)", "Lab", "MediCore", "Pharmacy (PharmaConnect)"]) {
     await goByRail(page, name);
   }
   await page.waitForTimeout(1_000);
@@ -177,7 +177,7 @@ test("a page that is still loading keeps the chrome", async ({ page }) => {
   });
   await page
     .getByRole("navigation", { name: "Zones" })
-    .getByRole("link", { name: "PharmaConnect", exact: true })
+    .getByRole("link", { name: "Pharmacy (PharmaConnect)", exact: true })
     .click();
   await expect(page).toHaveURL(/\/pharmacy(\?|$)/);
   expect(await chromeMarker(page), "a loading page remounted the chrome").toBe("same-node");

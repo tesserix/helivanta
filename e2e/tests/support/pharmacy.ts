@@ -143,10 +143,9 @@ export async function expectList(
 
 // WCAG 2.5.3 Label in Name: a control's visible words are part of its
 // accessible name, so a voice-control user can say what they see (#1364).
-// The page's own content; a dropdown shows its value, not its label.
+// The whole page, chrome included (#1369); a dropdown shows its value, not its label.
 export async function expectLabelsInNames(page: Page) {
   const mismatched = await page
-    .locator("main")
     .locator("button[aria-label]:not([role=combobox]), a[aria-label]")
     .evaluateAll((els) =>
       els

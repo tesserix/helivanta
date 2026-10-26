@@ -409,6 +409,14 @@ export function activeZone(path: string): Zone {
 
 // The longest page href that `path` equals or sits under. No match marks no
 // page current: aria-current on the wrong link misleads a screen reader.
+// A rail link's accessible name (#1369, WCAG 2.5.3): it must hold the words
+// shown, the rail label collapsed and the full label expanded.
+export function railName(zone: Zone): string {
+  return zone.label.toLowerCase().includes(zone.railLabel.toLowerCase())
+    ? zone.label
+    : `${zone.railLabel} (${zone.label})`;
+}
+
 export function activePage(zone: Zone, path: string): ZonePage | undefined {
   return zone.pages
     .filter((page) => path === page.href || path.startsWith(page.href + "/"))

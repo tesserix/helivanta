@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { Button, Input } from "@tesserix/web";
 import { ShieldCheck } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { useListDetail, useReportState, type FormState } from "@/lib/use-list-detail";
 import { useStepBackWhenEmpty, useUrlPage } from "@/lib/use-url-page";
 import {
   ApiError,
@@ -30,7 +31,9 @@ import {
   type PharmacyScope,
 } from "@helivanta/api";
 import {
+  DetailHeader,
   Field,
+  ListDetail,
   LoadMore,
   PageTabs,
   Pager,
@@ -120,56 +123,108 @@ function RecentConcerns({
     { request: requestFor(scope) },
   );
   const emptied = useStepBackWhenEmpty(recent, url);
+  // A concern opens its batch (#1303 E5). Two concerns about one lot are one
+  // stop for Previous / Next: the batch is the record, not the concern.
+  const batches = [...new Set(recent.items.map((incident) => incident.batch_id))];
+  const pane = useListDetail({
+    rows: batches.map((id) => ({ id })),
+    name: () => "this batch",
+    fallbackName: "this batch",
+    newName: "this batch",
+    headingId: "recent-concerns-heading",
+  });
+  const { detail, paneRef, rowProps, openProps } = pane;
+  const record = detail.openId ? (
+    <BatchPane
+      key={detail.openId}
+      scope={scope}
+      timeZone={timeZone}
+      id={detail.openId}
+      pane={pane}
+    />
+  ) : null;
   return (
-    <Panel flush aria-label="Concerns recorded in the last 30 days">
-      {tabs}
-      <div className="p-5">
-        <h3 className="font-semibold">Concerns recorded in the last 30 days</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Every batch at this outlet, newest first. Open By batch to record a concern.
-        </p>
-        <div className="mt-4">
-          <QueryState
-            query={recent}
-            label="recent concerns"
-            empty={{ icon: ShieldCheck, title: "No concerns in the last 30 days" }}
-          >
-            {(rows) => (
-              <ul className="divide-y text-sm">
-                {rows.map((incident) => (
-                  <li key={incident.id} className="py-3">
-                    <p className="font-medium">
-                      {concernTypes.find((item) => item.value === incident.kind)?.label ??
-                        incident.kind}
-                    </p>
-                    <p className="mt-0.5 whitespace-pre-wrap break-words">{incident.reason}</p>
-                    <p className="mt-0.5 text-muted-foreground">
-                      Recorded{" "}
-                      <time dateTime={incident.recorded_at}>
-                        {formatZonedDateTime(incident.recorded_at, timeZone)}
-                      </time>{" "}
-                      by {incident.actor_subject}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </QueryState>
+    <div className="space-y-4" onClickCapture={pane.holdLinks}>
+      <Panel flush aria-label="Concerns recorded in the last 30 days">
+        {tabs}
+        <div className="p-5">
+          <h3 id="recent-concerns-heading" tabIndex={-1} className="font-semibold outline-none">
+            Concerns recorded in the last 30 days
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Every batch at this outlet, newest first. Open a concern to see its batch and record
+            another.
+          </p>
         </div>
-      </div>
-      {!recent.isPending && !emptied && (
-        <Pager
-          page={url.page}
-          pageSize={PAGE_SIZE}
-          offset={recent.offset}
-          shown={recent.items.length}
-          total={recent.total}
-          previousHref={url.previousHref}
-          nextHref={url.nextHref(recent.nextCursor)}
-          firstHref={url.first}
-        />
-      )}
-    </Panel>
+      </Panel>
+      <ListDetail
+        label="Batch safety"
+        backHref={detail.closeHref}
+        backLabel="Back to concerns"
+        detail={record && <div ref={paneRef}>{record}</div>}
+        list={
+          <Panel flush>
+            <div className="p-5">
+              <QueryState
+                query={recent}
+                label="recent concerns"
+                empty={{ icon: ShieldCheck, title: "No concerns in the last 30 days" }}
+              >
+                {(rows) => (
+                  <ul className="divide-y text-sm">
+                    {rows.map((incident) => {
+                      const kind =
+                        concernTypes.find((item) => item.value === incident.kind)?.label ??
+                        incident.kind;
+                      const recorded = formatZonedDateTime(incident.recorded_at, timeZone);
+                      return (
+                        <li
+                          key={incident.id}
+                          {...rowProps(incident.batch_id)}
+                          className={`flex flex-wrap items-start justify-between gap-3 py-3 ${incident.batch_id === detail.openId ? "bg-(--hms-accent-dim)" : ""}`}
+                        >
+                          <div className="min-w-0">
+                            <p className="font-medium">{kind}</p>
+                            <p className="mt-0.5 whitespace-pre-wrap break-words">
+                              {incident.reason}
+                            </p>
+                            <p className="mt-0.5 text-muted-foreground">
+                              Recorded <time dateTime={incident.recorded_at}>{recorded}</time> by{" "}
+                              {incident.actor_subject}
+                            </p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            {...openProps(incident.batch_id)}
+                            aria-label={`Open batch for ${kind} recorded ${recorded}`}
+                            onClick={() => pane.openRow(incident.batch_id)}
+                          >
+                            Open batch
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </QueryState>
+            </div>
+            {!recent.isPending && !emptied && (
+              <Pager
+                page={url.page}
+                pageSize={PAGE_SIZE}
+                offset={recent.offset}
+                shown={recent.items.length}
+                total={recent.total}
+                previousHref={url.previousHref}
+                nextHref={url.nextHref(recent.nextCursor)}
+                firstHref={url.first}
+              />
+            )}
+          </Panel>
+        }
+      />
+    </div>
   );
 }
 
@@ -185,7 +240,9 @@ function ScopedSafety({ scope, timeZone, tabs }: ZonedProps & { tabs: React.Reac
       {tabs}
       <div className="space-y-5 p-5">
         <header>
-          <h3 className="font-semibold">Batch safety concerns</h3>
+          <h3 id="batch-safety-heading" tabIndex={-1} className="font-semibold outline-none">
+            Batch safety concerns
+          </h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Record observed quality, packaging or temperature concerns for review. A suspected
             recall report does not verify a recall or release stock. All stock remains quarantined.
@@ -280,10 +337,11 @@ function SafetyCollections({
   );
 }
 
+// The outlet's batches as a list (#1303 E5), loaded 100 at a time; a batch
+// opens beside it with its history and the concern form.
 function SafetyBatchPicker({
   scope,
   timeZone,
-  canRecord,
   batches,
   products,
   locations,
@@ -293,61 +351,175 @@ function SafetyBatchPicker({
   products: Collection<PharmacyProduct>;
   locations: Collection<PharmacyLocation>;
 }) {
-  const [batchId, setBatch] = useState("none");
-  const selected = batches.items.find((batch) => batch.id === batchId);
+  const pane = useListDetail({
+    rows: batches.items.map((batch) => ({ id: batch.id, name: batch.lot_number })),
+    name: (row) => row.name,
+    fallbackName: "this batch",
+    newName: "this batch",
+    headingId: "batch-safety-heading",
+  });
+  const { detail, paneRef, rowProps, openProps } = pane;
+  const compact = pane.isOpen;
+  const record = detail.openId ? (
+    <BatchPane
+      key={detail.openId}
+      scope={scope}
+      timeZone={timeZone}
+      id={detail.openId}
+      pane={pane}
+    />
+  ) : null;
   return (
-    <>
-      <Field id="safety-batch" label="Safety concern batch">
-        <SelectControl
-          id="safety-batch"
-          value={batchId}
-          onValueChange={setBatch}
-          options={[
-            { value: "none", label: "Choose a batch" },
-            ...batches.items.map((batch) => {
-              const product = products.items.find((item) => item.id === batch.product_id);
-              return {
-                value: batch.id,
-                label: `${product ? `${product.sku} · ${product.brand_name}` : `Product ${batch.product_id}`} · ${batch.lot_number} · Expires ${batch.expires_on}`,
-              };
-            }),
-          ]}
-        />
-      </Field>
-      {(batches.hasMore || products.hasMore || locations.hasMore) && (
-        <div className="grid gap-3 sm:grid-cols-3">
-          {(
-            [
-              [batches, "Load more batches"],
-              [products, "Load more products"],
-              [locations, "Load more locations"],
-            ] as const
-          ).map(([list, label]) => (
-            <LoadMore
-              key={label}
-              label={label}
-              hasMore={list.hasMore}
-              isLoading={list.isFetchingMore}
-              onClick={list.loadMore}
-            />
-          ))}
-        </div>
-      )}
-      {selected ? (
-        <SelectedBatchSafety
-          key={selected.id}
-          scope={scope}
-          timeZone={timeZone}
-          batch={selected}
-          canRecord={canRecord}
-          locations={locations.items}
-        />
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          Choose a batch to view its safety history or record a concern.
-        </p>
-      )}
-    </>
+    <div onClickCapture={pane.holdLinks}>
+      <ListDetail
+        label={pane.openName ? `Batch ${pane.openName}` : "Batch safety"}
+        backHref={detail.closeHref}
+        backLabel="Back to batches"
+        detail={record && <div ref={paneRef}>{record}</div>}
+        list={
+          <div className="space-y-3">
+            <ul aria-label="Batches at this outlet" className="divide-y rounded-md border text-sm">
+              {batches.items.map((batch) => {
+                const product = products.items.find((item) => item.id === batch.product_id);
+                const label = product
+                  ? `${product.sku} · ${product.brand_name}`
+                  : `Product ${batch.product_id}`;
+                return (
+                  <li
+                    key={batch.id}
+                    {...rowProps(batch.id)}
+                    className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${batch.id === detail.openId ? "bg-(--hms-accent-dim)" : ""}`}
+                  >
+                    <div className="min-w-0">
+                      <p className="wrap-anywhere font-medium">{batch.lot_number}</p>
+                      <p className="mt-0.5 wrap-anywhere text-muted-foreground">{label}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Expires <time dateTime={batch.expires_on}>{batch.expires_on}</time>
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      {...openProps(batch.id)}
+                      aria-label={`Open lot ${batch.lot_number}`}
+                      onClick={() => pane.openRow(batch.id)}
+                    >
+                      {compact ? "View" : "Open"}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+            {(batches.hasMore || products.hasMore || locations.hasMore) && (
+              <div className="grid gap-3 @[560px]/main:grid-cols-3">
+                {(
+                  [
+                    [batches, "Load more batches"],
+                    [products, "Load more products"],
+                    [locations, "Load more locations"],
+                  ] as const
+                ).map(([list, label]) => (
+                  <LoadMore
+                    key={label}
+                    label={label}
+                    hasMore={list.hasMore}
+                    isLoading={list.isFetchingMore}
+                    onClick={list.loadMore}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+// The open batch, read by its id so a reload or a link reopens it, with its
+// safety history and the form. Its own reads share the list's cache keys, so
+// the Last 30 days tab can open it too. Another outlet's or tenant's batch is
+// the same 404 as a missing one (#1303 D3).
+function BatchPane({
+  scope,
+  timeZone,
+  id,
+  pane,
+}: ZonedProps & { id: string; pane: ReturnType<typeof useListDetail> }) {
+  const permissions = useApiQuery<{ tenant_id: string; data: string[] }>(
+    pharmacyKey(scope, "batch-safety", "permissions"),
+    "/iam/me/permissions",
+    { request: requestFor(scope), gcTime: 0, refetchOnWindowFocus: false },
+  );
+  const granted = permissions.data?.tenant_id === scope.tenantId ? permissions.data.data : [];
+  const canReadProducts = granted.includes("pharmacy.catalogue.read");
+  const batch = useApiQuery<PharmacyBatch>(
+    pharmacyKey(scope, "batch-safety", "batch", id),
+    `${pharmacyRoot(scope)}/stock/batches/${id}`,
+    { request: requestFor(scope), enabled: granted.includes("pharmacy.stock.read") },
+  );
+  const products = useApiPagedQuery<PharmacyProduct>(
+    pharmacyKey(scope, "batch-safety", "products"),
+    `${pharmacyRoot(scope)}/catalogue/products?limit=100`,
+    { request: requestFor(scope), enabled: canReadProducts },
+  );
+  const locations = useApiPagedQuery<PharmacyLocation>(
+    pharmacyKey(scope, "batch-safety", "locations"),
+    `${pharmacyRoot(scope)}/stock/locations?limit=100`,
+    { request: requestFor(scope), enabled: !!batch.data },
+  );
+  const row = batch.data;
+  const product = row && products.items.find((item) => item.id === row.product_id);
+  // Close is in the header whatever loaded: beside the list there is no back link.
+  const header = (
+    <DetailHeader
+      title={row ? `Lot ${row.lot_number}` : "Batch"}
+      subtitle={
+        row
+          ? `${product ? `${product.sku} · ${product.brand_name}` : `Product ${row.product_id}`} · Expires ${row.expires_on}`
+          : undefined
+      }
+      noun="batch"
+      previous={{ disabled: !pane.canStep(-1), onClick: () => pane.step(-1) }}
+      next={{ disabled: !pane.canStep(1), onClick: () => pane.step(1) }}
+      closeLabel="Close batch"
+      onClose={pane.close}
+    />
+  );
+  const body = permissions.isError ? (
+    <RequestFailure
+      message="Could not verify safety access. Previously loaded records are hidden."
+      retry={permissions.refetch}
+    />
+  ) : permissions.isPending ? (
+    <p role="status">Checking safety access…</p>
+  ) : !granted.includes("pharmacy.stock.read") ? (
+    <p role="alert">You do not have permission to view batch safety concerns.</p>
+  ) : batch.error instanceof ApiError && batch.error.status === 404 ? (
+    <p role="alert" className="text-sm">
+      This record was not found, or you do not have access.
+    </p>
+  ) : batch.isError ? (
+    <RequestFailure message="Could not load this batch." retry={batch.refetch} />
+  ) : !row || locations.isPending ? (
+    <p role="status">Loading batch…</p>
+  ) : locations.isError ? (
+    <RequestFailure message="Could not load safety locations." retry={locations.retry} />
+  ) : (
+    <SelectedBatchSafety
+      scope={scope}
+      timeZone={timeZone}
+      batch={row}
+      canRecord={granted.includes("pharmacy.stock.quarantine")}
+      locations={locations.items}
+      onStateChange={pane.formState("concern")}
+    />
+  );
+  return (
+    <Panel className="space-y-5">
+      {header}
+      {body}
+    </Panel>
   );
 }
 
@@ -357,10 +529,12 @@ function SelectedBatchSafety({
   batch,
   canRecord,
   locations,
+  onStateChange,
 }: ZonedProps & {
   batch: PharmacyBatch;
   canRecord: boolean;
   locations: PharmacyLocation[];
+  onStateChange?: FormState;
 }) {
   const focusHistory = useCallback((node: HTMLHeadingElement | null) => node?.focus(), []);
   const incidents = useApiPagedQuery<PharmacySafetyIncident>(
@@ -462,7 +636,13 @@ function SelectedBatchSafety({
         />
       </section>
       {canRecord ? (
-        <ConcernForm scope={scope} timeZone={timeZone} batchId={batch.id} locations={locations} />
+        <ConcernForm
+          scope={scope}
+          timeZone={timeZone}
+          batchId={batch.id}
+          locations={locations}
+          onStateChange={onStateChange}
+        />
       ) : (
         <p className="text-sm text-muted-foreground">
           You have read-only access to batch safety concerns.
@@ -477,7 +657,13 @@ function ConcernForm({
   timeZone,
   batchId,
   locations,
-}: ZonedProps & { batchId: string; locations: PharmacyLocation[] }) {
+  onStateChange,
+}: ZonedProps & {
+  batchId: string;
+  locations: PharmacyLocation[];
+  /** A concern is a permanent regulated record: an unsaved one holds the batch open (D5). */
+  onStateChange?: FormState;
+}) {
   const [identity, setIdentity] = useState(() => newPharmacyId());
   const [occurred, setOccurred] = useState(() =>
     zonedDateTimeInput(new Date().toISOString(), timeZone),
@@ -525,6 +711,7 @@ function ConcernForm({
       },
     });
   const kind = form.watch("kind");
+  useReportState(onStateChange, form.formState.isDirty, mutation.isPending);
   return (
     <Panel>
       <form

@@ -481,3 +481,45 @@ never been registered/deployed or published for consumers; production registrati
 must publish this complete reviewed contract rather than rely on earlier draft
 examples. The workflow ID includes the attempt. No existing published v1 consumer
 is migrated by this change.
+
+## Independent source-review receipts (local implementation; undeployed)
+
+The practitioner owner records manual council-source findings against the current
+exact registration revision. PUT `/practitioners/:practitioner/registrations/
+:registration/revisions/:revision/reviews/:review` takes a UUIDv7 receipt, accepted
+appointment ID/version, opaque review/source references, source checked time, a
+closed finding (`active`, `suspended`, `expired`, `not_found`, `unavailable`) and
+1–10 unique released evidence IDs from that revision. GET detail/history uses
+record-read permission and committed sensitive-read audit. Creation requires a
+separate review permission plus the exact currently accepted/time-bounded steward
+appointment. Administrative intake or role alone is insufficient.
+
+Lock order is registration, own appointment, then evidence in stable ID order.
+Database guards repeat head, authority and evidence-state checks; receipt, private
+evidence-generation/checksum snapshot, audit and opaque event commit atomically.
+The reviewer cannot be the identity/claim/revision/evidence submitter. Exact replay
+returns the immutable receipt after renewal or evidence revocation; changed intent
+conflicts. Corrections append another receipt, never mutate history. Contradictory
+source findings remain visible for future reconciliation, never last-write-wins.
+
+This records attributable source evidence, not an HPR fetch, issuer approval,
+qualification validation, credentialling or effective clinical authority. Intake
+remains unverified. Canonical verified-identifier ownership, issuer-specific
+normalization/freshness policy, practitioner-to-login conflict checks, conflicting
+review reconciliation and current/historical eligibility remain required before
+consumers can treat a finding as verified. In particular source unavailability is
+a separate finding rather than a fabricated positive or negative registry result.
+No source/legal rule is invented; IN-ID-07/08 and IN-CL-10 preserve separate audit,
+external linking and clinical privilege boundaries. The existing capacity envelope,
+8 KiB command bound and five-second transaction/two-second lock budget apply.
+An additive undeployed migration retains receipts across application rollback.
+
+Local review tests cover initial/replayed receipts, immutable history, released
+evidence snapshots, current accepted appointment and submitter independence,
+revoked/elapsed authority, wrong tenant/revision/permission, malformed/forged
+intent, concurrent replay and audit/outbox rollback. Renewal prevents new reviews
+of the old head while old receipts survive renewal and evidence revocation.
+Contradictory and unavailable source findings append rather than replace prior
+observations. Opaque review events omit finding/source references/checksums. All
+29 owner harness routes exercise stale-workspace rejection. These results do not
+establish canonical verified identity, qualified approval or deployed integration.

@@ -24,6 +24,7 @@ Ownership type is `independent`, `chain` or `hospital_owned`; a pharmacy can own
 | GET `/stock/locations`                   | `pharmacy.stock.read`      | Cursor list                                                                           |
 | PUT `/stock/batches/{id}`                | `pharmacy.stock.receive`   | Immutable manufacturer lot, confirmed full expiry date, original product revision     |
 | GET `/stock/batches`                     | `pharmacy.stock.read`      | Cursor list; optional `product_id`                                                    |
+| GET `/stock/batches/{id}`                | `pharmacy.stock.read`      | One lot of this outlet; another outlet's or tenant's is 404 (#1303)                   |
 | PUT `/stock/movements/{id}`              | `pharmacy.stock.receive`   | Positive receipt in base units                                                        |
 | PUT `/stock/corrections/{id}`            | `pharmacy.stock.correct`   | Attributable signed correction; cannot overdraw                                       |
 | GET `/stock/movements`                   | `pharmacy.stock.read`      | Cursor list; optional `location_id`, `batch_id`                                       |

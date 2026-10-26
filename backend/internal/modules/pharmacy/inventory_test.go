@@ -152,3 +152,29 @@ func TestBatchIdentityDatesAndStockedProductUnitsAreProtected(t *testing.T) {
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), `"expires_on":"2030-10-31"`)
 }
+
+// #1303 E5: a batch opens in the safety pane by its id, so a reload or a
+// link reopens it. Another outlet's or tenant's batch is the same 404 as a
+// missing one.
+func TestReadOneBatch(t *testing.T) {
+	r, _ := catalogueHarness(t)
+	grantCatalogue(t, r, "user-editor", "editor")
+	product, _, batch := stockFixture(t, r)
+	root := "/v1/pharmacy/pharmacies/" + pharmaOrganization + "/outlets/" + pharmaOutlet + "/stock/batches/"
+	w := do(r, "GET", root+batch, "editor", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	require.Equal(t, batch, got["id"])
+	require.Equal(t, product, got["product_id"])
+	require.Equal(t, "TEST-LOT", got["lot_number"])
+	require.Equal(t, "2030-10-31", got["expires_on"])
+
+	require.Equal(t, 404, do(r, "GET", root+uuid.Must(uuid.NewV7()).String(), "editor", "").Code)
+	require.Equal(t, 404, do(r, "GET", root+"not-a-batch", "editor", "").Code)
+	for _, token := range []string{"sibling", "foreign"} {
+		require.Equal(t, 404, do(r, "GET", root+batch, token, "").Code, token)
+	}
+	require.Equal(t, 403, do(r, "GET", root+batch, "denied", "").Code)
+	require.Equal(t, 401, do(r, "GET", root+batch, "unknown", "").Code)
+}

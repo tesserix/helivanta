@@ -1,7 +1,9 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
-import { renderWithProviders } from "@helivanta/api/testing";
+import userEvent from "@testing-library/user-event";
+import { renderWithProviders as render } from "@helivanta/api/testing";
+import { NavigationGuardProvider } from "@helivanta/ui";
 import { chooseOption } from "../../test/select";
 import { BatchSafety } from "./batch-safety";
 
@@ -25,13 +27,31 @@ const incident = {
   recorded_at: "2026-10-17T11:00:00.123456+05:30",
   actor_subject: "TEST-quality-reviewer",
 };
-// The batch picker lives on its tab; most tests here are about it.
-const nav = vi.hoisted(() => ({ search: "tab=batch" }));
-vi.mock("next/navigation", () => ({
-  usePathname: () => "/pharmacy/safety",
-  useSearchParams: () => new URLSearchParams(nav.search),
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+// The batch list lives on its tab; most tests here are about it. A live
+// address: the open batch is the URL (#1303 E5).
+const nav = vi.hoisted(() => ({
+  search: "tab=batch",
+  listeners: new Set<() => void>(),
 }));
+vi.mock("next/navigation", async () => {
+  const { useSyncExternalStore } = await import("react");
+  const subscribe = (fn: () => void) => {
+    nav.listeners.add(fn);
+    return () => nav.listeners.delete(fn);
+  };
+  const go = (href: string) => {
+    nav.search = href.split("?")[1] ?? "";
+    nav.listeners.forEach((fn) => fn());
+  };
+  return {
+    usePathname: () => "/pharmacy/safety",
+    useSearchParams: () => new URLSearchParams(useSyncExternalStore(subscribe, () => nav.search)),
+    useRouter: () => ({ replace: go, push: go }),
+  };
+});
+// The page guards an unsaved concern through the shell's provider.
+const renderWithProviders = (ui: React.ReactElement) =>
+  render(<NavigationGuardProvider>{ui}</NavigationGuardProvider>);
 afterEach(() => {
   nav.search = "tab=batch";
 });
@@ -71,6 +91,16 @@ function fixture(
             "pharmacy.stock.quarantine",
             "pharmacy.catalogue.read",
           ],
+        }),
+      );
+    // One batch, read by its id: a reload or a link reopens it (#1303 E5).
+    if (/\/stock\/batches\/[0-9a-f-]{36}$/.test(url))
+      return new Response(
+        JSON.stringify({
+          id: batchId,
+          product_id: productId,
+          lot_number: "TEST-LOT",
+          expires_on: "2030-10-31",
         }),
       );
     if (url.includes("/stock/batches"))
@@ -129,17 +159,13 @@ function fixture(
 }
 
 async function selectBatch(user: ReturnType<typeof renderWithProviders>["user"]) {
-  await chooseOption(
-    user,
-    await screen.findByRole("combobox", { name: "Safety concern batch" }),
-    /TEST-LOT/,
-  );
+  await user.click(await screen.findByRole("button", { name: "Open lot TEST-LOT" }));
 }
 
 it("requires an explicit batch and shows immutable concern history without suggesting clearance", async () => {
   const fetcher = fixture();
   const { user } = renderWithProviders(<BatchSafety scope={scope} />);
-  await screen.findByRole("combobox", { name: "Safety concern batch" });
+  await screen.findByRole("list", { name: "Batches at this outlet" });
   expect(fetcher.mock.calls.some(([url]) => url.includes("/stock/safety-incidents"))).toBe(false);
   await selectBatch(user);
   expect(await screen.findByText(incident.reason)).toBeVisible();
@@ -226,8 +252,8 @@ it("keeps authorized safety history usable if optional product details are unava
   const { user } = renderWithProviders(<BatchSafety scope={scope} />);
   await selectBatch(user);
   expect(await screen.findByText(incident.reason)).toBeVisible();
-  expect(screen.getByRole("combobox", { name: "Safety concern batch" })).toHaveTextContent(
-    productId,
+  expect(screen.getByRole("list", { name: "Batches at this outlet" })).toHaveTextContent(
+    `Product ${productId}`,
   );
   expect(screen.getByText(/product names are unavailable/i)).toBeVisible();
 });
@@ -424,12 +450,9 @@ it("clears selected batch and private draft if loading more batch options fails"
   await user.click(screen.getByRole("button", { name: "Load more batches" }));
   await screen.findByText(/could not load safety batch options/i);
   expect(screen.queryByText(incident.reason)).not.toBeInTheDocument();
-  expect(screen.queryByRole("combobox", { name: "Safety concern batch" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("list", { name: "Batches at this outlet" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Try again" }));
-  expect(await screen.findByRole("combobox", { name: "Safety concern batch" })).toHaveTextContent(
-    "Choose a batch",
-  );
-  await selectBatch(user);
+  // The batch is still the address's, so it reopens, without the hidden draft.
   await screen.findByText(incident.reason);
   expect(screen.getByLabelText("Reason and observed evidence")).toHaveValue("");
 });
@@ -443,9 +466,11 @@ it.each(["tenantId", "pharmacyId", "outletId"] as const)(
       return (
         <>
           <button
-            onClick={() =>
-              setCurrent({ ...scope, [field]: "0199e000-0000-7000-8000-000000000099" })
-            }
+            onClick={() => {
+              // As the workspace does (#1303 E8): another outlet closes the record.
+              nav.search = "tab=batch";
+              setCurrent({ ...scope, [field]: "0199e000-0000-7000-8000-000000000099" });
+            }}
           >
             Switch scope
           </button>
@@ -459,8 +484,8 @@ it.each(["tenantId", "pharmacyId", "outletId"] as const)(
     await user.type(screen.getByLabelText("Reason and observed evidence"), "TEST old scope draft");
     await user.click(screen.getByRole("button", { name: "Switch scope" }));
     await waitFor(() => expect(screen.queryByText(incident.reason)).not.toBeInTheDocument());
-    const selector = await screen.findByRole("combobox", { name: "Safety concern batch" });
-    expect(selector).toHaveTextContent("Choose a batch");
+    await screen.findByRole("list", { name: "Batches at this outlet" });
+    expect(screen.queryByRole("region", { name: "Batch TEST-LOT" })).toBeNull();
     expect(screen.queryByLabelText("Reason and observed evidence")).not.toBeInTheDocument();
     await selectBatch(user);
     await screen.findByText(incident.reason);
@@ -534,13 +559,10 @@ it("clears batch selection and draft when the configured outlet timezone changes
     "TEST old timezone draft",
   );
   await user.click(screen.getByRole("button", { name: "Change outlet timezone" }));
-  expect(await screen.findByRole("combobox", { name: "Safety concern batch" })).toHaveTextContent(
-    "Choose a batch",
-  );
-  expect(screen.queryByText(incident.reason)).not.toBeInTheDocument();
-  expect(screen.queryByLabelText("Reason and observed evidence")).not.toBeInTheDocument();
-  await selectBatch(user);
+  // The batch stays the address's; the record is read again in the new zone,
+  // and the old zone's draft is gone.
   expect(await screen.findByLabelText("Occurred at (Asia/Tashkent)")).toBeVisible();
+  expect(screen.queryByLabelText("Occurred at (Asia/Kolkata)")).not.toBeInTheDocument();
   expect(screen.getByLabelText("Reason and observed evidence")).toHaveValue("");
 });
 
@@ -599,5 +621,130 @@ describe("safety tabs", () => {
       "href",
       "/pharmacy/safety?tab=batch",
     );
+  });
+});
+
+// #1303 E5: a batch opens beside its list, from either tab, and the URL holds it.
+describe("a batch opens beside the list", () => {
+  const otherBatch = "0199e000-0000-7000-8000-00000000000d";
+  const third = "0199e000-0000-7000-8000-00000000000e";
+  it("reopens the batch in the address, read by its id", async () => {
+    nav.search = `tab=batch&open=${batchId}`;
+    const fetcher = fixture();
+    renderWithProviders(<BatchSafety scope={scope} />);
+    const pane = await screen.findByRole("region", { name: "Batch TEST-LOT" });
+    expect(await within(pane).findByText(incident.reason)).toBeVisible();
+    expect(
+      fetcher.mock.calls.some(([url]) => String(url).endsWith(`/stock/batches/${batchId}`)),
+    ).toBe(true);
+  });
+
+  it("says a batch that is not found is not found, and can be closed", async () => {
+    nav.search = `tab=batch&open=${otherBatch}`;
+    const base = fixture();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) =>
+        url.endsWith(`/stock/batches/${otherBatch}`)
+          ? new Response(JSON.stringify({ error: "not_found", message: "x" }), { status: 404 })
+          : base(url, init),
+      ),
+    );
+    const { user } = renderWithProviders(<BatchSafety scope={scope} />);
+    expect(
+      await screen.findByText("This record was not found, or you do not have access."),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Reason and observed evidence")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Close batch" }));
+    expect(new URLSearchParams(nav.search).has("open")).toBe(false);
+  });
+
+  it("asks before Next discards an unsaved concern", async () => {
+    fixture({
+      batches: () =>
+        new Response(
+          JSON.stringify(
+            page([
+              {
+                id: batchId,
+                product_id: productId,
+                lot_number: "TEST-LOT",
+                expires_on: "2030-10-31",
+              },
+              {
+                id: otherBatch,
+                product_id: productId,
+                lot_number: "TEST-LOT-2",
+                expires_on: "2031-01-31",
+              },
+            ]),
+          ),
+        ),
+    });
+    const { user } = renderWithProviders(<BatchSafety scope={scope} />);
+    await selectBatch(user);
+    await user.type(
+      await screen.findByLabelText("Reason and observed evidence"),
+      "TEST unsaved observation",
+    );
+    await user.click(screen.getByRole("button", { name: "Next batch" }));
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Discard changes to TEST-LOT?");
+    await user.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.getByLabelText("Reason and observed evidence")).toHaveValue(
+      "TEST unsaved observation",
+    );
+  });
+
+  it("steps over a second concern about the same lot on Last 30 days", async () => {
+    nav.search = "";
+    const concern = (id: string, batch: string) => ({ ...incident, id, batch_id: batch });
+    fixture({
+      recent: () =>
+        new Response(
+          JSON.stringify(
+            page([
+              concern("0199e000-0000-7000-8000-000000000101", batchId),
+              concern("0199e000-0000-7000-8000-000000000102", batchId),
+              concern("0199e000-0000-7000-8000-000000000103", third),
+            ]),
+          ),
+        ),
+    });
+    const { user } = renderWithProviders(<BatchSafety scope={scope} />);
+    const opens = await screen.findAllByRole("button", { name: /^Open batch for / });
+    await user.click(opens[0]);
+    await user.click(await screen.findByRole("button", { name: "Next batch" }));
+    expect(new URLSearchParams(nav.search).get("open")).toBe(third);
+    expect(screen.getByRole("button", { name: "Next batch" })).toBeDisabled();
+  });
+
+  it("closes the batch when the tab changes", async () => {
+    nav.search = `tab=batch&open=${batchId}`;
+    fixture();
+    renderWithProviders(<BatchSafety scope={scope} />);
+    await screen.findByRole("region", { name: "Batch TEST-LOT" });
+    expect(screen.getByRole("link", { name: "Last 30 days" })).toHaveAttribute(
+      "href",
+      "/pharmacy/safety?tab=recent",
+    );
+  });
+
+  // Review Important 1: the tabs sat outside the pane's link hold, so a
+  // half-typed concern went without a word.
+  it("asks before the Last 30 days tab discards an unsaved concern", async () => {
+    nav.search = `tab=batch&open=${batchId}`;
+    fixture();
+    const { user } = renderWithProviders(<BatchSafety scope={scope} />);
+    await user.type(
+      await screen.findByLabelText("Reason and observed evidence"),
+      "TEST unsaved observation",
+    );
+    fireEvent.click(screen.getByRole("link", { name: "Last 30 days" }));
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Discard changes to TEST-LOT?");
+    await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.getByLabelText("Reason and observed evidence")).toHaveValue(
+      "TEST unsaved observation",
+    );
+    expect(new URLSearchParams(nav.search).get("tab")).toBe("batch");
   });
 });

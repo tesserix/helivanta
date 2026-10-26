@@ -83,6 +83,7 @@ func inventoryRoutes(g *platform.Router, deps platform.Deps) {
 	s := g.Group("/pharmacies/:pharmacy/outlets/:outlet/stock")
 	s.PUT("/locations/:id", PermStockReceive, h.putLocation)
 	s.PUT("/batches/:id", PermStockReceive, h.putBatch)
+	s.GET("/batches/:id", PermStockRead, h.getBatch)
 	s.PUT("/movements/:id", PermStockReceive, h.putReceipt)
 	s.PUT("/corrections/:id", PermStockCorrect, h.putCorrection)
 	s.PUT("/safety-incidents/:id", PermStockQuarantine, h.putBatchSafetyIncident)
@@ -340,6 +341,28 @@ func (h *catalogueHandlers) listLocations(c *gin.Context, params pagination.Para
 		stockError(c, err)
 	}
 	return rows, nil
+}
+
+// getBatch reads one batch of this outlet, for the safety pane's reload and
+// links (#1303 E5). Another outlet's or tenant's batch is not found.
+func (h *catalogueHandlers) getBatch(c *gin.Context) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return
+	}
+	id, ok := catalogueID(c)
+	if !ok {
+		return
+	}
+	var row stockBatch
+	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
+		return tx.Select(batchColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&row).Error
+	})
+	if err != nil {
+		stockError(c, err)
+		return
+	}
+	respond.OK(c, row)
 }
 
 func (h *catalogueHandlers) listBatches(c *gin.Context, params pagination.Params) ([]stockBatch, error) {

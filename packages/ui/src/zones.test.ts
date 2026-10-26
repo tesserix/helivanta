@@ -250,6 +250,7 @@ describe("page width", () => {
     expect(full).toEqual([
       "/pharmacy/stock",
       "/pharmacy/receiving",
+      "/pharmacy/safety",
       "/pharmacy/catalogue",
       "/pharmacy/accounts",
     ]);

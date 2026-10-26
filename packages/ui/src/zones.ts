@@ -179,6 +179,7 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/safety",
         icon: ShieldAlert,
         permission: "pharmacy.stock.read",
+        width: "full",
       },
       {
         section: "Inventory",

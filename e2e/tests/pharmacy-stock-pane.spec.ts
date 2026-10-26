@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { api, expectList, freshOutlet, uuidv7 } from "./support/pharmacy";
+import { api, expectLabelsInNames, expectList, freshOutlet, uuidv7 } from "./support/pharmacy";
 
 // #1303 E3/E4: a stock position opens beside the register, and Receiving
 // shows the chosen lot beside its chooser. The URL names both, so a reload
@@ -77,6 +77,7 @@ for (const [label, size, rail] of [
     await button.click();
     const pane = page.getByRole("region", { name: new RegExp(`${lotOf(first)} · TEST-QA$`) });
     await expect(pane).toBeVisible();
+    await expectLabelsInNames(page);
     await expect(pane.getByText("Closing stock", { exact: true })).toBeVisible();
     const list = (await row.boundingBox())!;
     expect((await pane.boundingBox())!.x).toBeGreaterThanOrEqual(list.x + list.width);

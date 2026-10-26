@@ -62,8 +62,8 @@ describe("SessionRenewal", () => {
     setTimeoutSpy.mockRestore();
   });
 
-  // "/" and "/signup" are public pages a signed-out visitor reaches; renewing there would 401.
-  it.each(["/", "/signup", "/ambulance"])(
+  // Public pages a signed-out visitor reaches; renewing there would 401.
+  it.each(["/", "/workspace", "/signup", "/ambulance"])(
     "does not schedule a renewal on the public page %s",
     async (path) => {
       usePathname.mockReturnValue(path);

@@ -1,5 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import { addProduct, expectList, freshOutlet, newOutlet } from "./support/pharmacy";
+import {
+  addProduct,
+  expectLabelsInNames,
+  expectList,
+  freshOutlet,
+  newOutlet,
+} from "./support/pharmacy";
 
 // #1303 E2: a product opens beside the catalogue where main is at least
 // 840px wide, and alone below that. E8: the address carries the outlet, so
@@ -38,6 +44,7 @@ for (const [label, size, rail] of [
     await button.click();
     const pane = page.getByRole("region", { name: `Product ${brandOf(first, stamp)}` });
     await expect(pane).toBeVisible();
+    await expectLabelsInNames(page);
     // Side by side: the pane starts where the list ends, and the row stayed.
     const list = (await row.boundingBox())!;
     expect((await pane.boundingBox())!.x).toBeGreaterThanOrEqual(list.x + list.width);

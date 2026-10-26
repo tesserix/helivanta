@@ -325,7 +325,7 @@ func TestEveryPractitionerRouteRejectsStaleWorkspaceBeforeDomainWork(t *testing.
 			continue
 		}
 		path := route.Path
-		for _, param := range []string{":practitioner", ":registration", ":revision", ":appointment", ":file", ":revocation", ":retry", ":review", ":specialty", ":qualification"} {
+		for _, param := range []string{":practitioner", ":registration", ":revision", ":appointment", ":file", ":revocation", ":retry", ":review", ":specialty", ":qualification", ":retirement"} {
 			path = strings.ReplaceAll(path, param, uuid.Must(uuid.NewV7()).String())
 		}
 		req := httptest.NewRequest(route.Method, path, strings.NewReader(`{}`))
@@ -338,7 +338,7 @@ func TestEveryPractitionerRouteRejectsStaleWorkspaceBeforeDomainWork(t *testing.
 		require.Equal(t, "no-store", w.Header().Get("Cache-Control"))
 		checked++
 	}
-	require.Equal(t, 38, checked)
+	require.Equal(t, 40, checked)
 	require.Equal(t, before, countAudit())
 }
 

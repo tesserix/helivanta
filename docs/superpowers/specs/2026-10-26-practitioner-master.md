@@ -540,8 +540,8 @@ exact code and display name. Separate `practitioner.specialty.manage` controls
 curation, record-read controls authorized lookup. This is a controlled local
 vocabulary, not SNOMED/ABDM or a statutory specialty list. Choosing a catalogue
 entry asserts no recognized qualification or permitted practice. External terminology
-projection and catalogue retirement/replacement remain required before discovery
-activation. An arbitrary specialty string or another tenant's entry cannot be
+projection remains required before discovery activation. Local retirement and
+replacement now retain audited receipts, as described below. An arbitrary specialty string or another tenant's entry cannot be
 attached. Degree/awarding text is bounded to 150 UTF-8 bytes under the
 existing name validator, and year is nullable Gregorian 1–9999, no later than the
 server's current UTC year. Those are intake validation, not credential validity.
@@ -575,3 +575,36 @@ commands, unknown year/specialty, foreign specialty/owner and forced RLS without
 handler filters, qualification/catalogue immutability, audit rollback and empty
 collection read failure. All 38 owner harness routes reject stale workspace.
 This is neither professional qualification verification nor a clinical release.
+
+## Specialty retirement and replacement (local implementation; undeployed)
+
+Catalogue curation permission can record an immutable UUIDv7 retirement at
+`/practitioners/specialties/:specialty/retirements/:retirement`, with opaque
+review_reference and nullable same-tenant active replacement_id. One retirement
+per entry; no self replacement, cycle or reuse of a retired replacement. Source
+and replacement rows lock in stable ID order. Receipt and audit commit together;
+exact replay survives later replacement retirement, while changed intent conflicts.
+Detail/list entries expose active state, derived from retained retirement; they
+remain visible to authorized reads and never delete catalogue/qualification facts.
+
+New qualification/correction assertions cannot select retired entries. A database
+guard takes a share lock on the referenced entry so concurrent curation cannot
+retire it between validation and commit. Historical facts and retained command
+replay survive retirement; replacement is a curation suggestion, not an automatic
+rewrite or professional equivalence/authority assertion. A corrected fact must
+choose a currently active entry or explicitly record unknown specialty. Catalogue
+GET retirement receipt requires record-read and audit. The existing request,
+transaction, lock, isolation and capacity bounds apply. No external service or
+cache is added. Additive migration 0011 remains undeployed; rollback preserves
+receipts and must not reenable retired entries.
+
+Catalogue responses include nullable retirement_id/replacement_id alongside active;
+authorized callers can retrieve the retained receipt without searching audit logs.
+Lists retain retired entries and stable catalogue creation ordering. No automatic
+transitive replacement or historical qualification rewrite occurs. Local tests
+cover 12 concurrent replays, racing mutually opposed replacements with one rejected
+to prevent a cycle, wrong tenant/permission/replacement and malformed/self/changed
+intent, immutable retirement receipts and independent forced RLS, audit rollback
+and read failure, old qualification/retirement replay after later retirement, and
+a direct database attempt to bypass retired-specialty validation. All 40 owner
+routes reject stale workspace. Production/qualified-identity gates remain open.

@@ -52,6 +52,9 @@ var reviewsSchema string
 //go:embed qualifications.sql
 var qualificationsSchema string
 
+//go:embed specialty_retirement.sql
+var specialtyRetirementSchema string
+
 type Module struct{}
 
 func New() *Module           { return &Module{} }
@@ -60,11 +63,13 @@ func (*Module) Permissions() []authz.Grant {
 	return []authz.Grant{{Permission: PermSpecialtyManage}, {Permission: PermRegistrationReview}, {Permission: PermRecordManage}, {Permission: PermRecordRead}, {Permission: PermStewardManage}, {Permission: PermEvidenceManage}, {Permission: PermEvidenceRead}}
 }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_practitioner", SQL: recordsSchema}, {ID: "0002_practitioner", SQL: registrationsSchema}, {ID: "0003_practitioner", SQL: stewardsSchema}, {ID: "0004_practitioner", SQL: evidenceSchema}, {ID: "0005_practitioner", SQL: evidenceUploadSchema}, {ID: "0006_practitioner", SQL: evidenceProcessingSchema}, {ID: "0007_practitioner", SQL: evidenceReleaseSchema}, {ID: "0008_practitioner", SQL: evidenceRetrySchema}, {ID: "0009_practitioner", SQL: reviewsSchema}, {ID: "0010_practitioner", SQL: qualificationsSchema}}
+	return []tenantdb.Migration{{ID: "0001_practitioner", SQL: recordsSchema}, {ID: "0002_practitioner", SQL: registrationsSchema}, {ID: "0003_practitioner", SQL: stewardsSchema}, {ID: "0004_practitioner", SQL: evidenceSchema}, {ID: "0005_practitioner", SQL: evidenceUploadSchema}, {ID: "0006_practitioner", SQL: evidenceProcessingSchema}, {ID: "0007_practitioner", SQL: evidenceReleaseSchema}, {ID: "0008_practitioner", SQL: evidenceRetrySchema}, {ID: "0009_practitioner", SQL: reviewsSchema}, {ID: "0010_practitioner", SQL: qualificationsSchema}, {ID: "0011_practitioner", SQL: specialtyRetirementSchema}}
 }
 func (*Module) Routes(r *platform.Router, d platform.Deps) {
 	h := &handlers{db: d.DB, files: d.Documents, reauthorize: r.Reauthorize}
 	g := r.Group("/practitioners")
+	g.PUT("/specialties/:specialty/retirements/:retirement", PermSpecialtyManage, h.retireSpecialty)
+	g.GET("/specialties/:specialty/retirements/:retirement", PermRecordRead, h.getSpecialtyRetirement)
 	g.PUT("/specialties/:specialty", PermSpecialtyManage, h.putSpecialty)
 	g.GET("/specialties/:specialty", PermRecordRead, h.getSpecialty)
 	platform.ListRoute(g, "/specialties", PermRecordRead, h.listSpecialties)

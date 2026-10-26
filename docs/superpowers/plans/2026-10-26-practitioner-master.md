@@ -24,7 +24,8 @@ This plan does not close #39/#474/#77/#102 for a partial implementation.
       verified identity and conflicting-claim reconciliation remain unfinished.
       Reported qualifications now retain immutable correction history with a
       tenant-local controlled specialty catalogue and stable head pagination.
-      Independent qualification verification and catalogue retirement remain open.
+      Local catalogue retirement/replacement now preserves history and blocks new
+      retired references; independent qualification verification remains open.
       The module consumer dispatches committed scope
       to a receipt-checked Temporal execution in local acceptance tests. Production
       delivery/worker wiring and effective professional verification remain

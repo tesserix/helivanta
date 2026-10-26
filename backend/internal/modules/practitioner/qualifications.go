@@ -17,16 +17,19 @@ import (
 var specialtyCode = regexp.MustCompile(`^[a-z][a-z0-9.-]{0,63}$`)
 
 type specialty struct {
-	ID        uuid.UUID `json:"id"`
-	Code      string    `json:"code"`
-	Display   string    `json:"display"`
-	CreatedAt time.Time `json:"created_at"`
+	Active        bool      `json:"active" gorm:"->"`
+	RetirementID  *string   `json:"retirement_id" gorm:"->"`
+	ReplacementID *string   `json:"replacement_id" gorm:"->"`
+	ID            uuid.UUID `json:"id"`
+	Code          string    `json:"code"`
+	Display       string    `json:"display"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 func (s *specialty) AfterFind(*gorm.DB) error       { s.CreatedAt = s.CreatedAt.UTC(); return nil }
 func (s specialty) PageKey() (time.Time, uuid.UUID) { return s.CreatedAt, s.ID }
 func specialtyQuery(tx *gorm.DB, p authn.Principal) *gorm.DB {
-	return tx.Table("practitioner_specialties").Select("id,code,display,created_at").Where("tenant_id=?", p.TenantID)
+	return tx.Table("practitioner_specialties").Select("id,code,display,created_at,NOT EXISTS(SELECT 1 FROM practitioner_specialty_retirements r WHERE r.tenant_id=practitioner_specialties.tenant_id AND r.specialty_id=practitioner_specialties.id) AS active,(SELECT r.id::text FROM practitioner_specialty_retirements r WHERE r.tenant_id=practitioner_specialties.tenant_id AND r.specialty_id=practitioner_specialties.id) AS retirement_id,(SELECT r.replacement_id::text FROM practitioner_specialty_retirements r WHERE r.tenant_id=practitioner_specialties.tenant_id AND r.specialty_id=practitioner_specialties.id) AS replacement_id").Where("tenant_id=?", p.TenantID)
 }
 func (h *handlers) putSpecialty(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
@@ -270,6 +273,9 @@ func (h *handlers) qualificationCommand(c *gin.Context, correction bool) {
 			var catalog specialty
 			if err := specialtyQuery(tx, p).Where("id=?", *fields.SpecialtyID).Take(&catalog).Error; err != nil {
 				return err
+			}
+			if !catalog.Active {
+				return errIntentConflict
 			}
 		}
 		if err := tx.Exec("INSERT INTO practitioner_qualification_revisions(tenant_id,practitioner_id,qualification_id,id,expected_version,version,degree,awarding_body,completion_year,specialty_id,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?)", p.TenantID, owner, id, command, expected, expected+1, fields.Degree, fields.AwardingBody, fields.CompletionYear, fields.SpecialtyID, p.Subject).Error; err != nil {

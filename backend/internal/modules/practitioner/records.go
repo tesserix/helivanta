@@ -118,7 +118,7 @@ func failure(c *gin.Context, err error) {
 		respond.NotFound(c, "practitioner")
 	case errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.As(err, &pg) && (pg.Code == "55P03" || pg.Code == "57014"):
 		respond.Error(c, 503, "practitioner_unavailable", "Practitioner operation timed out; reconcile the retained command before retrying")
-	case errors.Is(err, errIntentConflict) || errors.As(err, &pg) && (pg.Code == "23505" || pg.Code == "23514" && (pg.ConstraintName == "practitioner_steward_acceptance" || pg.ConstraintName == "practitioner_evidence_limit" || pg.ConstraintName == "practitioner_evidence_upload" || pg.ConstraintName == "practitioner_evidence_revocation" || pg.ConstraintName == "practitioner_evidence_retry" || pg.ConstraintName == "practitioner_review_state")):
+	case errors.Is(err, errIntentConflict) || errors.As(err, &pg) && (pg.Code == "23505" || pg.Code == "23514" && (pg.ConstraintName == "practitioner_steward_acceptance" || pg.ConstraintName == "practitioner_evidence_limit" || pg.ConstraintName == "practitioner_evidence_upload" || pg.ConstraintName == "practitioner_evidence_revocation" || pg.ConstraintName == "practitioner_evidence_retry" || pg.ConstraintName == "practitioner_review_state" || pg.ConstraintName == "practitioner_specialty_retirement")):
 		respond.Error(c, 409, "practitioner_conflict", "This request conflicts with the retained practitioner state")
 	default:
 		respond.InternalErr(c, errors.New("practitioner storage operation unavailable"), "Practitioner operation unavailable")

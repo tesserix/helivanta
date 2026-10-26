@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Button, Input } from "@tesserix/web";
 import { ShieldCheck } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useListDetail, useReportState, type FormState } from "@/lib/use-list-detail";
 import { useStepBackWhenEmpty, useUrlPage } from "@/lib/use-url-page";
 import {
@@ -41,6 +41,8 @@ import {
   QueryState,
   RequestFailure,
   SelectControl,
+  isModifiedClick,
+  useConfirmLeave,
   useZodForm,
 } from "@helivanta/ui";
 
@@ -75,6 +77,18 @@ const TABS = { recent: "Last 30 days", batch: "By batch" } as const;
 type SafetyTab = keyof typeof TABS;
 
 export function BatchSafety({ scope, timeZone = "UTC" }: Props) {
+  const router = useRouter();
+  const leave = useConfirmLeave();
+  // The tabs sit above either tab's list, outside its pane's own link hold:
+  // a half-typed concern is a regulated record and must not go silently (D5).
+  // A modified click opens another tab and leaves this one as it is.
+  const holdTabs = (event: React.MouseEvent) => {
+    const link = (event.target as Element).closest("a");
+    const href = link?.getAttribute("href");
+    if (!href || isModifiedClick(event)) return;
+    event.preventDefault();
+    leave(() => router.push(href));
+  };
   // The tab is the URL (#576 slice 3 D3); anything else, the overview's
   // older ?recorded=30d link included, is the last 30 days.
   const tab: SafetyTab = useSearchParams().get("tab") === "batch" ? "batch" : "recent";
@@ -89,15 +103,17 @@ export function BatchSafety({ scope, timeZone = "UTC" }: Props) {
       </Panel>
     );
   const tabs = (
-    <PageTabs
-      label="Safety concerns"
-      current={tab}
-      tabs={(Object.keys(TABS) as SafetyTab[]).map((key) => ({
-        key,
-        label: TABS[key],
-        href: url.hrefFor({ tab: key }),
-      }))}
-    />
+    <div onClickCapture={holdTabs}>
+      <PageTabs
+        label="Safety concerns"
+        current={tab}
+        tabs={(Object.keys(TABS) as SafetyTab[]).map((key) => ({
+          key,
+          label: TABS[key],
+          href: url.hrefFor({ tab: key }),
+        }))}
+      />
+    </div>
   );
   const key = `${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}:${timeZone}`;
   return tab === "recent" ? (

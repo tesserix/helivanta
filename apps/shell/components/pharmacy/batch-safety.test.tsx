@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
+import userEvent from "@testing-library/user-event";
 import { renderWithProviders as render } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import { chooseOption } from "../../test/select";
@@ -726,5 +727,24 @@ describe("a batch opens beside the list", () => {
       "href",
       "/pharmacy/safety?tab=recent",
     );
+  });
+
+  // Review Important 1: the tabs sat outside the pane's link hold, so a
+  // half-typed concern went without a word.
+  it("asks before the Last 30 days tab discards an unsaved concern", async () => {
+    nav.search = `tab=batch&open=${batchId}`;
+    fixture();
+    const { user } = renderWithProviders(<BatchSafety scope={scope} />);
+    await user.type(
+      await screen.findByLabelText("Reason and observed evidence"),
+      "TEST unsaved observation",
+    );
+    fireEvent.click(screen.getByRole("link", { name: "Last 30 days" }));
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Discard changes to TEST-LOT?");
+    await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.getByLabelText("Reason and observed evidence")).toHaveValue(
+      "TEST unsaved observation",
+    );
+    expect(new URLSearchParams(nav.search).get("tab")).toBe("batch");
   });
 });

@@ -273,20 +273,20 @@ function DirectoryEmpty({ selected, setup }: { selected: boolean; setup: boolean
     </Panel>
   );
 }
-function NoOutletAccess({ setup, canGrant }: { setup: boolean; canGrant: boolean }) {
+// Setup never renders an outlet's pages (#1303 E6), so this is always another
+// page; a grant manager is linked straight to the outlet's own pane.
+function NoOutletAccess({ canGrant, scope }: { canGrant: boolean; scope: PharmacyScope }) {
   return (
     <Panel>
       <h3 className="font-semibold">You don't have access to this outlet yet</h3>
       <p className="mt-2 text-sm text-muted-foreground">
-        {!canGrant
-          ? "Ask your administrator to grant you access to this outlet."
-          : setup
-            ? "Grant yourself access with the form below."
-            : "Outlet access is granted per person, administrators included."}
+        {canGrant
+          ? "Outlet access is granted per person, administrators included."
+          : "Ask your administrator to grant you access to this outlet."}
       </p>
-      {canGrant && !setup && (
+      {canGrant && (
         <Link
-          href="/pharmacy/setup"
+          href={`/pharmacy/setup?${new URLSearchParams({ pharmacy: scope.pharmacyId, outlet: scope.outletId, open: scope.outletId })}`}
           className="mt-3 inline-flex text-sm font-medium text-(--hms-accent) hover:underline"
         >
           Grant access in Setup
@@ -317,7 +317,7 @@ function OutletPharmacy({
         <p role="status">Checking pharmacy access…</p>
       ) : access.error instanceof ApiError && access.error.status === 404 ? (
         // 404 is the server's settled "no grant here"; retrying cannot change it (#1285).
-        <NoOutletAccess setup={view === "setup"} canGrant={can("pharmacy.access.manage")} />
+        <NoOutletAccess canGrant={can("pharmacy.access.manage")} scope={scope} />
       ) : access.isError ? (
         <RequestFailure
           message="Could not check your access to this outlet. Try again in a moment."

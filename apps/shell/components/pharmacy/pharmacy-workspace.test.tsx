@@ -264,9 +264,10 @@ it("says a missing grant is missing and points a grant manager to Setup", async 
   mockPharmacy("editor", 404, "IN", ["pharmacy.access.manage"]);
   renderWorkspace("catalogue");
   expect(await screen.findByText("You don't have access to this outlet yet")).toBeVisible();
+  // Straight to this outlet's pane, where the grant form is (#1303 E6).
   expect(screen.getByRole("link", { name: "Grant access in Setup" })).toHaveAttribute(
     "href",
-    "/pharmacy/setup",
+    `/pharmacy/setup?pharmacy=${pharmacy}&outlet=${outlet}&open=${outlet}`,
   );
   expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
 });

@@ -37,7 +37,14 @@ export async function api(page: Page, method: string, path: string, body?: unkno
 // workspace's selected outlet, so counts and pages start from nothing.
 export async function freshOutlet(page: Page) {
   await login(page);
-  await page.goto("/pharmacy");
+  return newOutlet(page);
+}
+
+/** A new pharmacy and outlet, made this tab's working outlet; already signed in. */
+export async function newOutlet(page: Page) {
+  // Not a pharmacy page: one that is open resolves its outlet and saves it
+  // as the tab's working outlet (#1303 E8), and could overwrite this one.
+  await page.goto("/dashboard");
   const me = await api(page, "GET", "/iam/me/permissions");
   const stamp = Date.now().toString(36).toUpperCase();
   const pharmacyId = uuidv7();
@@ -104,4 +111,32 @@ export async function addBill(page: Page, outlet: string, reference: string, due
       },
     ],
   });
+}
+
+/**
+ * The address is a list at `path` with `params`, wherever its scope is: outlet
+ * pages also carry `pharmacy` and `outlet` (#1303 E8). `open` and `new` are
+ * absent unless `open` is asked for.
+ */
+export async function expectList(
+  page: Page,
+  path: string,
+  params: Record<string, string>,
+  { open = false }: { open?: boolean } = {},
+) {
+  await expect
+    .poll(
+      () => {
+        const url = new URL(page.url());
+        const search = url.searchParams;
+        return (
+          url.pathname === path &&
+          Object.entries(params).every(([key, value]) => search.get(key) === value) &&
+          search.has("open") === open &&
+          !search.has("new")
+        );
+      },
+      { message: `${path} with ${JSON.stringify(params)}${open ? " and a record open" : ""}` },
+    )
+    .toBe(true);
 }

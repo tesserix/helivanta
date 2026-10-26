@@ -10,7 +10,7 @@ Authentication accepts a Helivanta session bearer token or `helivanta_session` c
 
 Authorization resolves tenant permissions and then checks current tenant membership and declared route permission. `authz.Public` means no specific permission, **not** unauthenticated access. `authz.NoTenantMembership` still requires a valid session. Domain handlers additionally enforce hospital/outlet/premise/base/facility grants and object state. A tenant administrator is not automatically a patient registrar, pharmacy outlet operator or clinical reviewer.
 
-`X-Request-ID` is returned for correlation. Accepted incoming values match `[A-Za-z0-9_-]{1,128}`; otherwise a new ID is generated. The error body does not currently include this ID. Sensitive responses default to `Cache-Control: no-store`.
+`X-Request-ID` is returned for correlation. Accepted incoming values match `[A-Za-z0-9_-]{1,128}`; otherwise a new ID is generated. The error body does not currently include this ID. Global API retains one validated response ID instead of appending an upstream copy. An edge proxy can replace the supplied ID; use the returned ID for log correlation. Sensitive responses default to `Cache-Control: no-store`.
 
 Pharmacy, supply, MediConnect, patientmaster and privacy support the optional
 `X-Helivanta-Expected-Tenant` precondition. If supplied, it must be a single

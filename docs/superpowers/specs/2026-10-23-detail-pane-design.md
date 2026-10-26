@@ -121,12 +121,13 @@ Success:
    - Supplier bills becomes full width, with split / full page, the URL, the dirty guard,
      Previous / Next and focus. Its Inventory cost audit tab becomes full width only; it has
      no detail.
-2. **Product catalogue.** Split, two forms in the dirty guard, and the tax section. "Save and
-   next" for the Not-classified run follows if the user wants it.
-3. **Expiry & safety.** First check how concerns are reviewed. The specialist's assumption is
-   batch by batch.
+2. **The remaining pharmacy pages** (Product catalogue, Stock on hand, Receiving, Expiry &
+   safety, Outlets & access) follow in
+   [the all-pages spec](2026-10-24-detail-pane-all-pages-design.md), which replaces the
+   catalogue and safety slices first listed here.
 
-The Dispense queue and the Overview stay as they are: the counter flow is a different task.
+The Dispense queue, the Medication list and the Overview stay as they are: the counter flow is
+a different task.
 
 ## Not covered
 
@@ -155,3 +156,25 @@ The Dispense queue and the Overview stay as they are: the counter flow is a diff
 - **Accessibility:** the pane is a labelled region, the open row has `aria-current`, and
   `csp.spec.ts` and the existing axe checks pass.
 - **Measured while building:** the content area is 854px at 1366 with the rail expanded, the narrowest laptop case, so the threshold is 840px rather than the 860px first planned. It is 990px at 1366 collapsed and 1008px or more at 1440. The e2e test records each width.
+
+## Back-navigation readiness regression (#1347)
+
+Main CI exposed a phone Back request that left an unsaved payment without showing
+the discard dialog. A deterministic component test reproduces a related readiness
+gap: dispatching Back in the commit that first marks an editor dirty reaches the
+router before passive guard-registration effects run. The existing Playwright
+scenario remains unchanged and must pass before this regression is closed.
+
+The provider now keeps its history and before-unload subscriptions for its mounted
+lifetime and reads the current guard map when events arrive. Clean forms pass
+through. Guard registration and payment-form state reporting run during layout,
+so protection is committed before the browser can dispatch the next event. There
+is no dirty-dependent listener installation window or extra provider render just
+to install the listener. Restore and confirmed-discard flags remain owned by the
+same listener until it unmounts; a save in flight remains non-discardable.
+
+The new test changes editor state inside the existing provider, rather than
+remounting the test harness. It was observed failing against the original guard
+and passing with this implementation on Node 24. Local UI tests, supplier-account
+tests, lint, type checks and a production build are verification evidence only;
+complete browser E2E, deployment and signed-in live checks remain release gates.

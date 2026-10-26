@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { addBill, freshOutlet } from "./support/pharmacy";
+import { addBill, expectList, freshOutlet } from "./support/pharmacy";
 
 // #1303: a bill opens beside the list where main is at least 840px wide,
 // and alone below that. The layout follows main's width, so the rail
@@ -81,7 +81,7 @@ test.describe("on a phone", () => {
     await expect(page.getByRole("region", { name: `Bill TEST-PANE-${stamp}-1` })).toBeVisible();
     await expect(page.getByRole("table", { name: "Bills and expenses" })).toBeHidden();
     await page.goBack();
-    await expect(page).toHaveURL(/\/pharmacy\/accounts\?tab=all$/);
+    await expectList(page, "/pharmacy/accounts", { tab: "all" });
     await expect(page.getByRole("button", { name: `Open TEST-PANE-${stamp}-1` })).toBeVisible();
   });
 
@@ -102,7 +102,7 @@ test.describe("on a phone", () => {
 
     await page.goBack();
     await page.getByRole("dialog").getByRole("button", { name: "Discard" }).click();
-    await expect(page).toHaveURL(/\/pharmacy\/accounts\?tab=all$/);
+    await expectList(page, "/pharmacy/accounts", { tab: "all" });
     await expect(page.getByRole("region", { name: /^Bill / })).toHaveCount(0);
   });
 });
@@ -117,6 +117,6 @@ test("an unsaved payment asks before a rail link leaves the page", async ({ page
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText(`Discard changes to TEST-PANE-${stamp}-1?`);
   await dialog.getByRole("button", { name: "Keep editing" }).click();
-  await expect(page).toHaveURL(/\/pharmacy\/accounts\?tab=all&open=/);
+  await expectList(page, "/pharmacy/accounts", { tab: "all" }, { open: true });
   await expect(page.getByLabel("Paid by")).toHaveValue("TEST payer");
 });

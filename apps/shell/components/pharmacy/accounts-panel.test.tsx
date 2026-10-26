@@ -6,6 +6,8 @@ import { PharmacyWorkspace } from "./pharmacy-workspace";
 const pharmacy = "0199e000-0000-7000-8000-000000000010",
   outlet = "0199e000-0000-7000-8000-000000000001";
 const id = "0199e000-0000-7000-8000-000000000020";
+// Every outlet page's address carries where it is (#1303 E8).
+const scope = `pharmacy=${pharmacy}&outlet=${outlet}`;
 const page = (data: unknown[]) => ({
   data,
   page: { has_more: false, next_cursor: null, total: data.length, offset: 0 },
@@ -186,11 +188,11 @@ describe("bill tabs", () => {
     await screen.findByText("TEST-EXPENSE-001");
     expect(screen.getByRole("link", { name: "All bills" })).toHaveAttribute(
       "href",
-      "/pharmacy/accounts?tab=all",
+      `/pharmacy/accounts?tab=all&${scope}`,
     );
     expect(screen.getByRole("link", { name: "Inventory cost audit" })).toHaveAttribute(
       "href",
-      "/pharmacy/accounts?tab=audit",
+      `/pharmacy/accounts?tab=audit&${scope}`,
     );
     expect(screen.queryByRole("button", { name: "Show all bills" })).not.toBeInTheDocument();
   });
@@ -417,7 +419,7 @@ describe("bill detail pane", () => {
   });
 
   it("pushes when opening a bill and replaces when switching", async () => {
-    nav.search = "tab=all";
+    nav.search = `tab=all&${scope}`;
     mockDetail();
     const { user } = renderWithProviders(
       <NavigationGuardProvider>
@@ -429,7 +431,7 @@ describe("bill detail pane", () => {
     await user.click(screen.getByRole("button", { name: "Open TEST-EXPENSE-002" }));
     await screen.findByRole("region", { name: "Bill TEST-EXPENSE-002" });
     expect(nav.calls.map((c) => c.method)).toEqual(["push", "replace"]);
-    expect(nav.calls.at(-1)?.href).toBe(`/pharmacy/accounts?tab=all&open=${second}`);
+    expect(nav.calls.at(-1)?.href).toBe(`/pharmacy/accounts?tab=all&${scope}&open=${second}`);
     expect(
       screen.getByRole("button", { name: "Open TEST-EXPENSE-002" }).closest("tr"),
     ).toHaveAttribute("aria-current", "true");
@@ -512,7 +514,7 @@ describe("bill detail pane", () => {
     );
     await user.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(screen.getByLabelText("Paid by")).toHaveValue("TEST payer");
-    expect(nav.search).toBe(`tab=all&open=${id}`);
+    expect(nav.search).toBe(`tab=all&${scope}&open=${id}`);
   });
 
   it("opens a new bill in the pane with its first field focused", async () => {
@@ -525,7 +527,7 @@ describe("bill detail pane", () => {
     );
     await user.click(await screen.findByRole("button", { name: "Record bill or expense" }));
     const pane = await screen.findByRole("region", { name: "New supplier bill" });
-    expect(nav.search).toBe("tab=all&new=1");
+    expect(nav.search).toBe(`tab=all&${scope}&new=1`);
     await waitFor(() => expect(within(pane).getByLabelText("Payee name")).toHaveFocus());
   });
 
@@ -541,7 +543,7 @@ describe("bill detail pane", () => {
     await screen.findByRole("heading", { name: "TEST-EXPENSE-002" });
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("region", { name: /^Bill / })).toBeNull());
-    expect(nav.search).toBe("tab=all");
+    expect(nav.search).toBe(`tab=all&${scope}`);
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Open TEST-EXPENSE-002" })).toHaveFocus(),
     );
@@ -558,7 +560,7 @@ describe("bill detail pane", () => {
     await screen.findByRole("region", { name: "Bill TEST-EXPENSE-001" });
     expect(screen.getByRole("link", { name: "Overdue" })).toHaveAttribute(
       "href",
-      "/pharmacy/accounts?tab=overdue",
+      `/pharmacy/accounts?tab=overdue&${scope}`,
     );
   });
 });

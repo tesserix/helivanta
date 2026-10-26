@@ -311,10 +311,12 @@ it("pages concern history using the opaque cursor and required batch scope", asy
   const { user } = renderWithProviders(<BatchSafety scope={scope} />);
   await selectBatch(user);
   const history = await screen.findByRole("region", { name: "Safety history for TEST-LOT" });
-  await user.click(within(history).getByRole("button", { name: "Load more" }));
+  await user.click(within(history).getByRole("button", { name: "Load more concerns" }));
   expect(await screen.findByText(second.reason)).toBeVisible();
   expect(screen.getByText(incident.reason)).toBeVisible();
-  expect(within(history).queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
+  expect(
+    within(history).queryByRole("button", { name: "Load more concerns" }),
+  ).not.toBeInTheDocument();
   const call = fetcher.mock.calls.find(([url]) => url.includes("cursor="));
   const params = new URL(call![0], "http://localhost").searchParams;
   expect(params.get("cursor")).toBe("TEST/cursor+opaque=");
@@ -419,7 +421,7 @@ it("clears selected batch and private draft if loading more batch options fails"
   await selectBatch(user);
   await screen.findByText(incident.reason);
   await user.type(screen.getByLabelText("Reason and observed evidence"), "TEST hidden draft");
-  await user.click(screen.getByRole("button", { name: "Load more" }));
+  await user.click(screen.getByRole("button", { name: "Load more batches" }));
   await screen.findByText(/could not load safety batch options/i);
   expect(screen.queryByText(incident.reason)).not.toBeInTheDocument();
   expect(screen.queryByRole("combobox", { name: "Safety concern batch" })).not.toBeInTheDocument();

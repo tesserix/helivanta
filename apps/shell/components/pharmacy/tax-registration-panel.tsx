@@ -157,6 +157,7 @@ export function TaxRegistrationPanel({
         )}
       </QueryState>
       <LoadMore
+        label="Load more registrations"
         hasMore={history.hasMore}
         isLoading={history.isFetchingMore}
         onClick={history.loadMore}

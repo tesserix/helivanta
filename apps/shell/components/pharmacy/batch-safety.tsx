@@ -316,36 +316,21 @@ function SafetyBatchPicker({
       </Field>
       {(batches.hasMore || products.hasMore || locations.hasMore) && (
         <div className="grid gap-3 sm:grid-cols-3">
-          {batches.hasMore && (
-            <div>
-              <p className="text-xs text-muted-foreground">Batch options</p>
-              <LoadMore
-                hasMore={batches.hasMore}
-                isLoading={batches.isFetchingMore}
-                onClick={batches.loadMore}
-              />
-            </div>
-          )}
-          {products.hasMore && (
-            <div>
-              <p className="text-xs text-muted-foreground">Product details</p>
-              <LoadMore
-                hasMore={products.hasMore}
-                isLoading={products.isFetchingMore}
-                onClick={products.loadMore}
-              />
-            </div>
-          )}
-          {locations.hasMore && (
-            <div>
-              <p className="text-xs text-muted-foreground">Location options</p>
-              <LoadMore
-                hasMore={locations.hasMore}
-                isLoading={locations.isFetchingMore}
-                onClick={locations.loadMore}
-              />
-            </div>
-          )}
+          {(
+            [
+              [batches, "Load more batches"],
+              [products, "Load more products"],
+              [locations, "Load more locations"],
+            ] as const
+          ).map(([list, label]) => (
+            <LoadMore
+              key={label}
+              label={label}
+              hasMore={list.hasMore}
+              isLoading={list.isFetchingMore}
+              onClick={list.loadMore}
+            />
+          ))}
         </div>
       )}
       {selected ? (
@@ -470,6 +455,7 @@ function SelectedBatchSafety({
           </ul>
         )}
         <LoadMore
+          label="Load more concerns"
           hasMore={incidents.hasMore}
           isLoading={incidents.isFetchingMore}
           onClick={incidents.loadMore}

@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-const query = (list: Record<string, string>) =>
-  new URLSearchParams(Object.entries(list).filter(([, value]) => value !== ""));
+/**
+ * Where a page is, not what its list is: every link keeps them (#1303 E8),
+ * so a list's own links never move a shared link to another outlet.
+ */
+export const SCOPE_KEYS = ["pharmacy", "outlet"] as const;
 
 /**
  * The page, cursor and links of a URL-paged list (#1295 D5). `list` is every
@@ -15,6 +18,14 @@ const query = (list: Record<string, string>) =>
 export function useUrlPage(list: Record<string, string>) {
   const pathname = usePathname();
   const params = useSearchParams();
+  const query = (values: Record<string, string>) => {
+    const search = new URLSearchParams(Object.entries(values).filter(([, value]) => value !== ""));
+    for (const key of SCOPE_KEYS) {
+      const value = params.get(key);
+      if (value) search.set(key, value);
+    }
+    return search;
+  };
   const page = Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1);
   const cursor = page > 1 ? params.get("cursor") : null;
 

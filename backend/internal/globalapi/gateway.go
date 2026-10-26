@@ -124,6 +124,8 @@ func New(cfg Config) (http.Handler, error) {
 				p.Out.GetBody = nil
 			},
 			ModifyResponse: func(r *http.Response) error {
+				// Middleware owns the response ID; ReverseProxy appends copied headers.
+				r.Header.Del("X-Request-ID")
 				r.Header.Set("Cache-Control", "no-store")
 				if r.StatusCode >= http.StatusInternalServerError {
 					slog.WarnContext(r.Request.Context(), "global API upstream response failed", "product", product, "request_id", r.Request.Header.Get("X-Request-ID"), "status", r.StatusCode)

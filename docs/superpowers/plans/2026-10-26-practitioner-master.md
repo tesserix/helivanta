@@ -17,9 +17,9 @@ This plan does not close #39/#474/#77/#102 for a partial implementation.
       Storage naming and immutable, audited revision-bound evidence metadata intake
       and byte upload/quarantine with an atomic scan outbox are implemented locally.
       The scoped, exact-generation scanner/promotion processor is implemented and
-      tested locally, including bounded Temporal activity retries. Runtime workflow
-      dispatch, manual retry, private content reads and professional verification
-      remain required before runtime activation.
+      tested locally, including bounded Temporal activity retries, private content
+      release and retained revocation. Runtime workflow dispatch, manual retry and
+      professional verification remain required before runtime activation.
 - [ ] Complete reviewed facility/role/privilege ownership, current and historical
       checks, expiry workflows and reconciliation; preserve prior signed attribution.
 - [ ] Register the complete owner, publish reviewed contracts, regenerate inventory

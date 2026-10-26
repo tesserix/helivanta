@@ -104,8 +104,10 @@ func resourceID(c *gin.Context, key string) (uuid.UUID, bool) {
 func failure(c *gin.Context, err error) {
 	var pg *pgconn.PgError
 	switch {
+	case errors.Is(err, ErrEvidenceNotReady):
+		respond.Error(c, 409, "evidence_not_available", "Evidence content has not been released or is revoked")
 	case errors.Is(err, errEvidenceUnavailable):
-		respond.Error(c, 503, "evidence_unavailable", "Private evidence storage is unavailable; retry the same upload")
+		respond.Error(c, 503, "evidence_unavailable", "Private evidence storage is unavailable; retry the same operation")
 	case errors.Is(err, errStewardInvalid) || errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "practitioner_steward_nomination":
 		respond.Error(c, 400, "invalid_request", "Invalid steward appointment")
 	case errors.Is(err, errStewardIndependence):
@@ -114,7 +116,7 @@ func failure(c *gin.Context, err error) {
 		respond.NotFound(c, "practitioner")
 	case errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.As(err, &pg) && (pg.Code == "55P03" || pg.Code == "57014"):
 		respond.Error(c, 503, "practitioner_unavailable", "Practitioner operation timed out; reconcile the retained command before retrying")
-	case errors.Is(err, errIntentConflict) || errors.As(err, &pg) && (pg.Code == "23505" || pg.Code == "23514" && (pg.ConstraintName == "practitioner_steward_acceptance" || pg.ConstraintName == "practitioner_evidence_limit" || pg.ConstraintName == "practitioner_evidence_upload")):
+	case errors.Is(err, errIntentConflict) || errors.As(err, &pg) && (pg.Code == "23505" || pg.Code == "23514" && (pg.ConstraintName == "practitioner_steward_acceptance" || pg.ConstraintName == "practitioner_evidence_limit" || pg.ConstraintName == "practitioner_evidence_upload" || pg.ConstraintName == "practitioner_evidence_revocation")):
 		respond.Error(c, 409, "practitioner_conflict", "This request conflicts with the retained practitioner state")
 	default:
 		respond.InternalErr(c, errors.New("practitioner storage operation unavailable"), "Practitioner operation unavailable")

@@ -23,6 +23,7 @@ import (
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/attachments"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
@@ -39,10 +40,14 @@ type professionalEvidenceScenario struct {
 
 func newProfessionalEvidenceScenario(t *testing.T) professionalEvidenceScenario {
 	t.Helper()
+	return newProfessionalEvidenceScenarioWithAccess(t, nil)
+}
+func newProfessionalEvidenceScenarioWithAccess(t *testing.T, membership authz.MembershipChecker) professionalEvidenceScenario {
+	t.Helper()
 	cloud := testinfra.NewGCSProtocol(t)
 	files, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
 	require.NoError(t, err)
-	r, db, collection, _ := evidenceFixtureWithFiles(t, files)
+	r, db, collection, _ := evidenceFixtureWithAccess(t, files, membership)
 	var data bytes.Buffer
 	require.NoError(t, png.Encode(&data, image.NewRGBA(image.Rect(0, 0, 2, 2))))
 	file := uuid.Must(uuid.NewV7()).String()

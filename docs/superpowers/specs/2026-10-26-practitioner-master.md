@@ -245,9 +245,9 @@ for staff, organisation and practitioner scopes. Infected content, incomplete sc
 verdicts, missing scanners and unsupported types cannot mint promotion authority.
 Supported inspection remains passive PNG/JPEG only; PDF is not supported.
 
-This is storage support inside the undeployed draft. Durable processing,
-authorized evidence content reads and independent professional verification are
-still required. A clean malware scan never establishes a
+This is storage support inside the undeployed draft. Runtime processing activation
+and independent professional verification are still required. Local content reads
+are described below. A clean malware scan never establishes a
 qualification, council registration, HPR status or clinical privilege.
 
 Registration evidence intake binds the complete tenant/practitioner/registration/
@@ -317,9 +317,9 @@ retained. Storage uncertainty is 503 and never marks content available.
 
 Migration 0005 preserves original intent, dates and provenance, permits only
 upload reservation and the quarantine transition, and audits both. It is additive,
-forward-only and undeployed. No content-read route or successful scan state is
-exposed until the scoped processor, durable workflow and reauthorized release
-commit are implemented. Local tests cover exact upload/replay, mismatched bytes,
+forward-only and undeployed. Runtime registration remains gated on the complete
+owner, workflow and infrastructure checks; local processing and content APIs are
+described below. Local tests cover exact upload/replay, mismatched bytes,
 foreign tenant, evidence-only permissions, revocation/outage during the actual GCS
 protocol exchange, outbox rollback/recovery and upload expiry without sleeps.
 
@@ -383,3 +383,38 @@ assertion fail; the original implementation was restored and verified. This is
 not a live Temporal, consumer-dispatch, worker-deployment or private-content-read
 claim. Those gates, explicit manual retry and independent professional review
 remain unfinished before runtime activation.
+
+## Private content release and retained revocation
+
+GET at the evidence path plus `/content` requires evidence-read permission and
+current tenant membership. The exact available generation is loaded and audited,
+then fetched outside database locks. Size, checksum, generation and passive MIME
+must match the retained intent. The platform refreshes current authorization and
+the owner rechecks file state/provenance under its database lock; the final read
+audit commit is the release decision point. No bytes leave on an audit, storage,
+authorization or integrity failure, or when revocation occurred during storage
+I/O. Nonavailable content returns 409; unavailable/uncertain storage returns 503;
+invisible ownership returns 404. Success is a private, no-store attachment with
+an opaque generated filename, nosniff and restrictive CSP, never a public URL.
+
+PUT at the evidence path plus `/revocations/:revocation` requires evidence-manage
+permission. An immutable UUIDv7 decision and opaque `review_reference` revoke an
+available file; the reference is recorded, not asserted to be an externally
+validated case. The database retains the receipt and original bytes/provenance,
+audits the state change and commits one opaque lifecycle outbox event. Exact
+replay returns the original receipt; changed intent or another decision against
+an already revoked file conflicts. Wrong parent/tenant remains invisible. No
+physical deletion, licence suspension or professional verification is implied.
+The receipt cannot be changed/deleted, and a file cannot be marked revoked
+without its own retained receipt. Every command and disclosure uses the verified
+tenant plus exact practitioner/registration/revision/file tuple.
+
+Local acceptance tests cover successful private release and secure headers,
+separate evidence permissions, every stale-workspace route (25 total), pending
+content denial, actual storage callbacks revoking a file or tenant membership,
+authorization outages, initial/final read-audit failure, storage corruption and
+outage, concurrent retained revocation, rejected direct state mutation without a
+receipt, immutable receipt history, and audit/outbox rollback and recovery.
+Expiry tests prove that the upload window neither erases retained content nor
+prevents subsequent revocation. Migration 0007 is additive/forward-only and has
+been applied only to disposable databases; no file is physically deleted.

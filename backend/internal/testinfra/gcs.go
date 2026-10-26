@@ -74,6 +74,17 @@ func (p *GCSProtocol) AfterReleasedRead(fn func()) {
 	p.afterReleasedRead = fn
 }
 func (p *GCSProtocol) DenyReads(deny bool) { p.mu.Lock(); defer p.mu.Unlock(); p.denyReads = deny }
+func (p *GCSProtocol) CorruptReleased(data []byte) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for key, object := range p.objects {
+		if strings.HasPrefix(key, p.Released+"/") {
+			object.bytes = append([]byte(nil), data...)
+			p.objects[key] = object
+		}
+	}
+}
+
 func (p *GCSProtocol) CorruptQuarantine(data []byte) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

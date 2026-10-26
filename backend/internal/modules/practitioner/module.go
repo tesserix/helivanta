@@ -36,6 +36,9 @@ var evidenceUploadSchema string
 //go:embed evidence_processing.sql
 var evidenceProcessingSchema string
 
+//go:embed evidence_release.sql
+var evidenceReleaseSchema string
+
 type Module struct{}
 
 func New() *Module           { return &Module{} }
@@ -44,7 +47,7 @@ func (*Module) Permissions() []authz.Grant {
 	return []authz.Grant{{Permission: PermRecordManage}, {Permission: PermRecordRead}, {Permission: PermStewardManage}, {Permission: PermEvidenceManage}, {Permission: PermEvidenceRead}}
 }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_practitioner", SQL: recordsSchema}, {ID: "0002_practitioner", SQL: registrationsSchema}, {ID: "0003_practitioner", SQL: stewardsSchema}, {ID: "0004_practitioner", SQL: evidenceSchema}, {ID: "0005_practitioner", SQL: evidenceUploadSchema}, {ID: "0006_practitioner", SQL: evidenceProcessingSchema}}
+	return []tenantdb.Migration{{ID: "0001_practitioner", SQL: recordsSchema}, {ID: "0002_practitioner", SQL: registrationsSchema}, {ID: "0003_practitioner", SQL: stewardsSchema}, {ID: "0004_practitioner", SQL: evidenceSchema}, {ID: "0005_practitioner", SQL: evidenceUploadSchema}, {ID: "0006_practitioner", SQL: evidenceProcessingSchema}, {ID: "0007_practitioner", SQL: evidenceReleaseSchema}}
 }
 func (*Module) Routes(r *platform.Router, d platform.Deps) {
 	h := &handlers{db: d.DB, files: d.Documents, reauthorize: r.Reauthorize}
@@ -61,6 +64,8 @@ func (*Module) Routes(r *platform.Router, d platform.Deps) {
 	platform.ListRoute(g, "/my/steward-appointments/:appointment/history", authz.Public, h.ownStewardHistory)
 	g.GET("/my/steward-appointment", authz.Public, h.currentSteward)
 	g.PUT("/:practitioner/registrations/:registration/revisions/:revision/evidence/:file", PermEvidenceManage, h.putEvidence)
+	g.GET("/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/content", PermEvidenceRead, h.downloadEvidence)
+	g.PUT("/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/revocations/:revocation", PermEvidenceManage, h.revokeEvidence)
 	g.PUT("/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/content", PermEvidenceManage, h.uploadEvidence)
 	g.GET("/:practitioner/registrations/:registration/revisions/:revision/evidence/:file", PermEvidenceRead, h.getEvidence)
 	platform.ListRoute(g, "/:practitioner/registrations/:registration/revisions/:revision/evidence", PermEvidenceRead, h.listEvidence)

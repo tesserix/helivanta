@@ -304,3 +304,39 @@ test("no pharmacy page shows an unnamed Load more", async ({ page }) => {
     await expect(page.getByRole("button", { name: "Load more", exact: true })).toHaveCount(0);
   }
 });
+
+// #1366: every PharmaConnect page is one width, and its content fills it, so
+// moving between pages never makes the content jump.
+test("every pharmacy page's content fills one width", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  await freshOutlet(page);
+  const widths: Record<string, { page: number; widest: number }> = {};
+  for (const [path, loaded] of [
+    ["", page.getByTestId("overview-tiles")],
+    ["/dispense", page.getByRole("link", { name: "Waiting" })],
+    ["/medications", page.getByText("Formulary", { exact: true })],
+    ["/stock", page.getByRole("heading", { name: "Stock register" })],
+    ["/receiving", page.getByRole("heading", { name: "Quarantine receiving" })],
+    ["/safety", page.getByRole("heading", { name: "Concerns recorded in the last 30 days" })],
+    ["/catalogue", page.getByRole("heading", { name: "Product catalogue", level: 3 })],
+    ["/accounts", page.getByRole("heading", { name: "Bills & expenses" })],
+    ["/setup", page.getByRole("heading", { name: /^Outlets at / })],
+  ] as const) {
+    await page.goto(`/pharmacy${path}`);
+    await expect(loaded).toBeVisible();
+    // The page's blocks and the panels in them: one of them spans the page.
+    widths[path || "/"] = await page.locator("main > div").evaluate((content) => ({
+      page: Math.round(content.getBoundingClientRect().width),
+      widest: Math.max(
+        ...[...content.querySelectorAll(":scope > *, :scope > * > *")].map((el) =>
+          Math.round(el.getBoundingClientRect().width),
+        ),
+      ),
+    }));
+  }
+  const first = Object.values(widths)[0].page;
+  for (const [path, { page: width, widest }] of Object.entries(widths)) {
+    expect(width, `${path} content width`).toBe(first);
+    expect(widest, `${path} content fills its width`).toBe(width);
+  }
+});

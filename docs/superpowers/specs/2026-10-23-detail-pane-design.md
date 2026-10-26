@@ -100,6 +100,7 @@ Success:
   - "Save and record another" is not added: the user has not confirmed that bills arrive in
     batches. _(My call: add it once confirmed.)_
 - **D8 Full width is a page's declared choice.**
+  _Superseded by [zone width](2026-10-26-pharmacy-zone-width-design.md) (#1366): width is now declared per zone, and every PharmaConnect page is full width._
   - A page entry in `packages/ui/src/zones.ts` gains `width?: "full"`. The default is the
     current `max-w-6xl`. The shell already resolves the current page from `zones.ts` for its
     navigation, and applies the cap from there.

@@ -307,11 +307,14 @@ open on a hard load.
 
 ### List pages: width, the detail pane and unsaved edits (#1303)
 
-- **Width is a page's declared choice.** A `ZonePage` in `packages/ui/src/zones.ts` may set
-  `width: "full"`. The shell then drops the `max-w-6xl` cap for that page and stops at
-  1760px. Every other page keeps the cap. `main` is a size container (`@container/main`),
-  so a page lays out by the space it actually has: expanding the rail changes that without
-  changing the viewport.
+- **Width is a zone's declared choice (#1366).** A `Zone` in `packages/ui/src/zones.ts` may
+  set `width: "full"`; a `ZonePage` cannot, so a zone's pages never jump in width as you move
+  between them. The shell then drops the `max-w-6xl` cap on every page of that zone and stops
+  at 1760px. Other zones keep the cap. Inside a full-width zone, lists and panels fill the
+  width; only prose (about 70ch) and forms (about 640px) keep a reading limit.
+  `e2e/tests/navigation.spec.ts` checks every PharmaConnect page. `main` is a size container
+  (`@container/main`), so a page lays out by the space it actually has: expanding the rail
+  changes that without changing the viewport.
 - **An open record sits beside its list.** Use `ListDetail` from `@helivanta/ui`. It splits
   when main is at least 840px wide, and shows the record alone, with a back link, below
   that. It is one tree open or closed, so neither the list nor a half-typed form is

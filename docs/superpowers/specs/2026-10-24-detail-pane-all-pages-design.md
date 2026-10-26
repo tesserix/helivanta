@@ -40,7 +40,8 @@ Success:
 
 ## Decisions
 
-- **E0 Every page with a pane is `width: "full"` (my call).** That is all five pages above.
+- **E0 Every page with a pane is `width: "full"` (my call).**
+  _Superseded by [zone width](2026-10-26-pharmacy-zone-width-design.md) (#1366): width is now declared per zone, and every PharmaConnect page is full width._ That is all five pages above.
   Without it the split fits inside the 1150px cap and the right side stays empty, which is
   what the user asked to remove. D8's "settings and form-only pages keep the cap" still holds
   for pages with no pane. Outlets & access and Receiving are no longer form-only once they have

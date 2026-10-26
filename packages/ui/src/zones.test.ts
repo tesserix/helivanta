@@ -240,20 +240,12 @@ describe("zone icons and sections", () => {
   });
 });
 
-// #1303 D8: full width is a page's declared choice; every page with a
-// detail pane takes it (all-pages E0).
-describe("page width", () => {
-  it("declares full width only where a page has chosen it", () => {
-    const full = ZONES.flatMap((zone) => zone.pages)
-      .filter((page) => page.width === "full")
-      .map((page) => page.href);
-    expect(full).toEqual([
-      "/pharmacy/stock",
-      "/pharmacy/receiving",
-      "/pharmacy/safety",
-      "/pharmacy/catalogue",
-      "/pharmacy/accounts",
-      "/pharmacy/setup",
+// #1366: width is a zone's declared choice, so its pages never jump in width
+// as you move between them. A page cannot set its own (ZonePage has no width).
+describe("zone width", () => {
+  it("declares full width only for the zones that have chosen it", () => {
+    expect(ZONES.filter((zone) => zone.width === "full").map((zone) => zone.key)).toEqual([
+      "pharmacy",
     ]);
   });
 });

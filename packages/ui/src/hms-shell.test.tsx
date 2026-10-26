@@ -872,20 +872,22 @@ describe("expandable navigation", () => {
     expect(current[0]).toHaveAccessibleName("Operating bases & reports");
   });
 
-  // #1303 D8: a page that declares full width drops the cap; the others keep
-  // it. main is a size container, so lists lay out by the space they have.
-  it("drops the content cap only on a full-width page", () => {
-    seedCache(["pharmacy.catalogue.read", "pharmacy.accounts.read"]);
-    pathname.current = "/pharmacy/accounts";
-    const { unmount } = renderWithProviders(<HmsShell>content</HmsShell>);
-    const wrapper = screen.getByText("content");
-    expect(wrapper).toHaveAttribute("data-width", "full");
-    expect(wrapper.className).not.toContain("max-w-6xl");
-    expect(wrapper.closest("main")?.className).toContain("@container/main");
-    unmount();
+  // #1366: a zone that declares full width drops the cap on every page,
+  // the Overview too; other zones keep it. main is a size container, so
+  // lists lay out by the space they have.
+  it("drops the content cap on every page of a full-width zone, and only there", () => {
+    seedCache(["pharmacy.catalogue.read", "pharmacy.accounts.read", "patient.read"]);
+    for (const path of ["/pharmacy/accounts", "/pharmacy"]) {
+      pathname.current = path;
+      const { unmount } = renderWithProviders(<HmsShell>content</HmsShell>);
+      const wrapper = screen.getByText("content");
+      expect(wrapper).toHaveAttribute("data-width", "full");
+      expect(wrapper.className).not.toContain("max-w-6xl");
+      expect(wrapper.closest("main")?.className).toContain("@container/main");
+      unmount();
+    }
 
-    // The Overview has no detail pane, so it keeps the cap.
-    pathname.current = "/pharmacy";
+    pathname.current = "/patients";
     renderWithProviders(<HmsShell>content</HmsShell>);
     expect(screen.getByText("content")).toHaveAttribute("data-width", "capped");
     expect(screen.getByText("content").className).toContain("max-w-6xl");

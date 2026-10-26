@@ -49,10 +49,14 @@ func newProfessionalEvidenceScenarioWithAccess(t *testing.T, membership authz.Me
 }
 func newProfessionalEvidenceScenarioWithRuntime(t *testing.T, membership authz.MembershipChecker, workflows client.Client) professionalEvidenceScenario {
 	t.Helper()
+	return newCredentialEvidenceScenario(t, "registration", membership, workflows)
+}
+func newCredentialEvidenceScenario(t *testing.T, kind string, membership authz.MembershipChecker, workflows client.Client) professionalEvidenceScenario {
+	t.Helper()
 	cloud := testinfra.NewGCSProtocol(t)
 	files, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
 	require.NoError(t, err)
-	r, db, collection, _ := evidenceFixtureWithRuntime(t, files, membership, workflows)
+	r, db, collection, _ := credentialEvidenceFixture(t, kind, files, membership, workflows, practitioner.New())
 	var data bytes.Buffer
 	require.NoError(t, png.Encode(&data, image.NewRGBA(image.Rect(0, 0, 2, 2))))
 	file := uuid.Must(uuid.NewV7()).String()
@@ -64,14 +68,26 @@ func newProfessionalEvidenceScenarioWithRuntime(t *testing.T, membership authz.M
 	res := httptest.NewRecorder()
 	r.ServeHTTP(res, req)
 	require.Equal(t, 202, res.Code, res.Body.String())
+	worker := professionalEvidenceWorker(t, db)
+	segments := strings.Split(path, "/")
+	input := practitionercontract.EvidenceScanInput{TenantID: testutil.TenantA, PractitionerID: segments[3], RevisionID: segments[7], FileID: file, ScanAttempt: 1}
+	if kind == "registration" {
+		input.RegistrationID = segments[5]
+	} else {
+		input.QualificationID = segments[5]
+	}
+	return professionalEvidenceScenario{r, db, worker, cloud, files, input, path, data.Bytes()}
+}
+func professionalEvidenceWorker(t *testing.T, db *tenantdb.DB) *tenantdb.DB {
+	t.Helper()
 	var database string
 	require.NoError(t, db.WithSystem(t.Context(), func(tx *gorm.DB) error { return tx.Raw("SELECT current_database()").Scan(&database).Error }))
 	worker, err := tenantdb.OpenRuntime(t.Context(), testinfra.PractitionerEvidenceWorkerDSN(t, database))
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, worker.Close()) })
-	segments := strings.Split(path, "/")
-	return professionalEvidenceScenario{r, db, worker, cloud, files, practitionercontract.EvidenceScanInput{TenantID: testutil.TenantA, PractitionerID: segments[3], RegistrationID: segments[5], RevisionID: segments[7], FileID: file, ScanAttempt: 1}, path, data.Bytes()}
+	return worker
 }
+
 func TestProfessionalEvidenceProcessorCommitsOnlyGenerationBoundAuditedRelease(t *testing.T) {
 	s := newProfessionalEvidenceScenario(t)
 	scanner, err := attachments.NewClamAV(testinfra.ClamAVProtocol(t, "stream: OK\x00"), time.Second, attachments.MaxFileBytes)
@@ -117,7 +133,7 @@ func TestProfessionalEvidenceProcessorCommitsOnlyGenerationBoundAuditedRelease(t
 		require.NotContains(t, string(rows[0].Payload), "sha256")
 		require.NotContains(t, string(rows[0].Payload), "image/png")
 		var actor string
-		err := tx.Table("audit_events").Select("actor_subject").Where("resource_type='practitioner_registration_evidence' AND resource_id=? AND 'released_generation'=ANY(changed_fields)", s.input.FileID).Scan(&actor).Error
+		err := tx.Table("audit_events").Select("actor_subject").Where("resource_type='practitioner_credential_evidence' AND resource_id=? AND 'released_generation'=ANY(changed_fields)", s.input.FileID).Scan(&actor).Error
 		require.Equal(t, "service:practitioner-evidence-worker", actor)
 		return err
 	}))
@@ -125,8 +141,12 @@ func TestProfessionalEvidenceProcessorCommitsOnlyGenerationBoundAuditedRelease(t
 
 func workerEvidenceScope(t *testing.T, s professionalEvidenceScenario, fn func(*gorm.DB) error) error {
 	t.Helper()
+	kind, credential := "registration", s.input.RegistrationID
+	if s.input.QualificationID != "" {
+		kind, credential = "qualification", s.input.QualificationID
+	}
 	return s.worker.WithTenant(tenantdb.WithActor(t.Context(), "service:practitioner-evidence-worker"), s.input.TenantID, func(tx *gorm.DB) error {
-		if err := tx.Exec("SELECT set_config('app.practitioner_evidence_owner',?,true),set_config('app.practitioner_evidence_registration',?,true),set_config('app.practitioner_evidence_revision',?,true),set_config('app.practitioner_evidence_file',?,true),set_config('app.practitioner_evidence_attempt',?,true)", s.input.PractitionerID, s.input.RegistrationID, s.input.RevisionID, s.input.FileID, fmt.Sprint(s.input.ScanAttempt)).Error; err != nil {
+		if err := tx.Exec("SELECT set_config('app.practitioner_evidence_owner',?,true),set_config('app.practitioner_evidence_credential',?,true),set_config('app.practitioner_evidence_kind',?,true),set_config('app.practitioner_evidence_revision',?,true),set_config('app.practitioner_evidence_file',?,true),set_config('app.practitioner_evidence_attempt',?,true)", s.input.PractitionerID, credential, kind, s.input.RevisionID, s.input.FileID, fmt.Sprint(s.input.ScanAttempt)).Error; err != nil {
 			return err
 		}
 		return fn(tx)
@@ -145,13 +165,13 @@ func TestProfessionalEvidenceWorkerCannotEscapeFileScopeOrForgeOtherAuditAndOutb
 	p := cleanProfessionalEvidenceProcessor(t, s)
 	require.NoError(t, s.worker.WithTenant(t.Context(), s.input.TenantID, func(tx *gorm.DB) error {
 		var n int64
-		err := tx.Table("practitioner_registration_evidence").Count(&n).Error
+		err := tx.Table("practitioner_credential_evidence").Count(&n).Error
 		require.Zero(t, n)
 		return err
 	}))
 	require.NoError(t, workerEvidenceScope(t, s, func(tx *gorm.DB) error {
 		var n int64
-		err := tx.Table("practitioner_registration_evidence").Count(&n).Error
+		err := tx.Table("practitioner_credential_evidence").Count(&n).Error
 		require.EqualValues(t, 1, n)
 		return err
 	}))
@@ -167,12 +187,12 @@ func TestProfessionalEvidenceWorkerCannotEscapeFileScopeOrForgeOtherAuditAndOutb
 		require.NoError(t, workerEvidenceScope(t, wrong, func(tx *gorm.DB) error {
 			require.NoError(t, tx.Exec("SELECT set_config('app.practitioner_evidence_access','true',true),set_config('app.practitioner_evidence_manage','true',true)").Error)
 			var n int64
-			err := tx.Table("practitioner_registration_evidence").Count(&n).Error
+			err := tx.Table("practitioner_credential_evidence").Count(&n).Error
 			require.Zero(t, n)
 			return err
 		}))
 	}
-	for _, query := range []string{"SELECT given_name FROM practitioner_records", "SELECT registration_number FROM practitioner_registrations", "SELECT subject FROM practitioner_steward_appointments", "SELECT created_by FROM practitioner_registration_evidence", "SELECT payload FROM outbox_events"} {
+	for _, query := range []string{"SELECT given_name FROM practitioner_records", "SELECT registration_number FROM practitioner_registrations", "SELECT subject FROM practitioner_steward_appointments", "SELECT created_by FROM practitioner_credential_evidence", "SELECT payload FROM outbox_events"} {
 		err := workerEvidenceScope(t, s, func(tx *gorm.DB) error { return tx.Exec(query).Error })
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "permission denied")
@@ -181,7 +201,7 @@ func TestProfessionalEvidenceWorkerCannotEscapeFileScopeOrForgeOtherAuditAndOutb
 		if err := tx.Exec("SELECT set_config('app.actor_subject','user-steward',true),set_config('app.practitioner_evidence_access','true',true),set_config('app.practitioner_evidence_manage','true',true)").Error; err != nil {
 			return err
 		}
-		return tx.Exec("UPDATE practitioner_registration_evidence SET status='rejected',failure_code='malware_detected' WHERE tenant_id=? AND id=?", s.input.TenantID, s.input.FileID).Error
+		return tx.Exec("UPDATE practitioner_credential_evidence SET status='rejected',failure_code='malware_detected' WHERE tenant_id=? AND id=?", s.input.TenantID, s.input.FileID).Error
 	})
 	require.Error(t, forged)
 	require.Contains(t, forged.Error(), "scoped worker identity")
@@ -276,7 +296,7 @@ func TestProfessionalEvidenceCopyReceiptReconcilesWhenAuditOrOutboxCommitFails(t
 		t.Run(dependency, func(t *testing.T) {
 			s := newProfessionalEvidenceScenario(t)
 			p := cleanProfessionalEvidenceProcessor(t, s)
-			table, condition := "audit_events", "NEW.action='update' AND NEW.resource_type='practitioner_registration_evidence' AND 'released_generation'=ANY(NEW.changed_fields)"
+			table, condition := "audit_events", "NEW.action='update' AND NEW.resource_type='practitioner_credential_evidence' AND 'released_generation'=ANY(NEW.changed_fields)"
 			if dependency == "outbox" {
 				table = "outbox_events"
 				condition = "NEW.subject='" + practitionercontract.EvidenceChanged + "'"

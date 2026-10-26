@@ -143,7 +143,7 @@ func TestProfessionalRetryCannotAdvanceWithoutRetainedDecision(t *testing.T) {
 		if err := tx.Exec("SELECT set_config('app.actor_subject','user-steward',true),set_config('app.practitioner_evidence_access','true',true),set_config('app.practitioner_evidence_manage','true',true)").Error; err != nil {
 			return err
 		}
-		return tx.Exec("UPDATE practitioner_registration_evidence SET scan_attempt=2,status='scan_pending',failure_code=NULL WHERE tenant_id=? AND id=?", s.input.TenantID, s.input.FileID).Error
+		return tx.Exec("UPDATE practitioner_credential_evidence SET scan_attempt=2,status='scan_pending',failure_code=NULL WHERE tenant_id=? AND id=?", s.input.TenantID, s.input.FileID).Error
 	})
 	require.ErrorContains(t, err, "requires retained receipt")
 }
@@ -190,13 +190,13 @@ func TestProfessionalStaleWorkerDatabaseVerdictCannotChangeRetriedEvidence(t *te
 	body := fmt.Sprintf(`{"expected_attempt":1,"review_reference":"%s"}`, uuid.Must(uuid.NewV7()))
 	require.Equal(t, 201, testutil.Do(s.router, "PUT", s.path+"/scan-retries/"+uuid.Must(uuid.NewV7()).String(), "steward", body).Code)
 	err := workerEvidenceScope(t, s, func(tx *gorm.DB) error {
-		return tx.Exec("UPDATE practitioner_registration_evidence SET status='scan_error',failure_code='scanner_unavailable' WHERE tenant_id=? AND id=?", s.input.TenantID, s.input.FileID).Error
+		return tx.Exec("UPDATE practitioner_credential_evidence SET status='scan_error',failure_code='scanner_unavailable' WHERE tenant_id=? AND id=?", s.input.TenantID, s.input.FileID).Error
 	})
 	require.ErrorContains(t, err, "attempt is stale")
 	next := s
 	next.input.ScanAttempt = 2
 	err = workerEvidenceScope(t, next, func(tx *gorm.DB) error {
-		return tx.Exec("UPDATE practitioner_registration_evidence SET scan_attempt=3 WHERE tenant_id=? AND id=?", s.input.TenantID, s.input.FileID).Error
+		return tx.Exec("UPDATE practitioner_credential_evidence SET scan_attempt=3 WHERE tenant_id=? AND id=?", s.input.TenantID, s.input.FileID).Error
 	})
 	require.ErrorContains(t, err, "permission denied")
 	require.NoError(t, s.db.WithTenant(t.Context(), s.input.TenantID, func(tx *gorm.DB) error {
@@ -204,7 +204,7 @@ func TestProfessionalStaleWorkerDatabaseVerdictCannotChangeRetriedEvidence(t *te
 			return err
 		}
 		var attempt int64
-		err := tx.Table("practitioner_registration_evidence").Select("scan_attempt").Where("tenant_id=? AND id=?", s.input.TenantID, s.input.FileID).Scan(&attempt).Error
+		err := tx.Table("practitioner_credential_evidence").Select("scan_attempt").Where("tenant_id=? AND id=?", s.input.TenantID, s.input.FileID).Scan(&attempt).Error
 		require.EqualValues(t, 2, attempt)
 		return err
 	}))

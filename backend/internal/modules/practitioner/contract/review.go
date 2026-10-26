@@ -2,10 +2,13 @@ package contract
 
 const ReviewRecorded = "helivanta.in.practitioner.registration_review_recorded.v1"
 
-// ReviewRecordedData signals an authorized owner metadata refresh; findings stay private.
+// ReviewRecordedData has exactly one credential ID; source findings remain private.
 type ReviewRecordedData struct {
-	PractitionerID string `json:"practitioner_id"`
-	RegistrationID string `json:"registration_id"`
-	RevisionID     string `json:"revision_id"`
-	ReviewID       string `json:"review_id"`
+	PractitionerID  string `json:"practitioner_id"`
+	RegistrationID  string `json:"registration_id,omitempty"`
+	QualificationID string `json:"qualification_id,omitempty"`
+	RevisionID      string `json:"revision_id"`
+	ReviewID        string `json:"review_id"`
 }
+
+const QualificationReviewRecorded = "helivanta.in.practitioner.qualification_review_recorded.v1"

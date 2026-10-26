@@ -25,7 +25,7 @@ const EvidenceScanRequested = practitionercontract.EvidenceScanRequested
 
 var errEvidenceUnavailable = errors.New("private evidence storage unavailable")
 
-func lockedEvidence(tx *gorm.DB, p authn.Principal, parent evidenceParent, id uuid.UUID, row *registrationEvidence) error {
+func lockedEvidence(tx *gorm.DB, p authn.Principal, parent evidenceParent, id uuid.UUID, row *credentialEvidence) error {
 	return evidenceQuery(tx, p, parent).Clauses(clause.Locking{Strength: "UPDATE"}).Where("id=?", id).Take(row).Error
 }
 func (h *handlers) uploadEvidence(c *gin.Context) {
@@ -41,7 +41,7 @@ func (h *handlers) uploadEvidence(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 90*time.Second)
 	defer cancel()
 	c.Request = c.Request.WithContext(ctx)
-	var row registrationEvidence
+	var row credentialEvidence
 	err := h.transaction(ctx, p, false, func(tx *gorm.DB) error {
 		if e := evidenceAccess(tx, false); e != nil {
 			return e
@@ -85,7 +85,7 @@ func (h *handlers) uploadEvidence(c *gin.Context) {
 		if row.Status != "upload_pending" {
 			return evidenceAudit(tx, p, id)
 		}
-		result := tx.Exec("UPDATE practitioner_registration_evidence SET uploaded_at=COALESCE(uploaded_at,GREATEST(practitioner_registry_now(),created_at)) WHERE tenant_id=? AND id=? AND status='upload_pending' AND expires_at>practitioner_registry_now()", p.TenantID, id)
+		result := tx.Exec("UPDATE practitioner_credential_evidence SET uploaded_at=COALESCE(uploaded_at,GREATEST(practitioner_registry_now(),created_at)) WHERE tenant_id=? AND id=? AND status='upload_pending' AND expires_at>practitioner_registry_now()", p.TenantID, id)
 		if result.Error != nil {
 			return result.Error
 		}
@@ -132,14 +132,14 @@ func (h *handlers) uploadEvidence(c *gin.Context) {
 			}
 			return evidenceAudit(tx, p, id)
 		}
-		result := tx.Exec("UPDATE practitioner_registration_evidence SET status='scan_pending',source_generation=? WHERE tenant_id=? AND id=? AND status='upload_pending' AND expires_at>practitioner_registry_now()", receipt.Generation, p.TenantID, id)
+		result := tx.Exec("UPDATE practitioner_credential_evidence SET status='scan_pending',source_generation=? WHERE tenant_id=? AND id=? AND status='upload_pending' AND expires_at>practitioner_registry_now()", receipt.Generation, p.TenantID, id)
 		if result.Error != nil {
 			return result.Error
 		}
 		if result.RowsAffected != 1 {
 			return errIntentConflict
 		}
-		payload, e := json.Marshal(practitionercontract.EvidenceScanRequestedData{PractitionerID: parent.practitioner.String(), RegistrationID: parent.registration.String(), RevisionID: parent.revision.String(), FileID: id.String(), ScanAttempt: row.ScanAttempt})
+		payload, e := json.Marshal(evidenceScanData(evidenceScanInput(p.TenantID, parent, id, row.ScanAttempt)))
 		if e != nil {
 			return e
 		}

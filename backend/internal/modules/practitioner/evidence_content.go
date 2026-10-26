@@ -9,14 +9,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	practitionercontract "github.com/tesserix/helivanta/internal/modules/practitioner/contract"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"gorm.io/gorm"
 )
 
-func releasedEvidence(row registrationEvidence) bool {
+func releasedEvidence(row credentialEvidence) bool {
 	return row.Status == "available" && row.UploadedAt != nil && row.SourceGeneration != nil && row.ReleasedGeneration != nil && row.ScannedAt != nil
 }
 func (h *handlers) downloadEvidence(c *gin.Context) {
@@ -35,7 +34,7 @@ func (h *handlers) downloadEvidence(c *gin.Context) {
 	if !h.reauthorize(c, PermEvidenceRead) {
 		return
 	}
-	var row registrationEvidence
+	var row credentialEvidence
 	err := h.transaction(ctx, p, false, func(tx *gorm.DB) error {
 		if err := evidenceAccess(tx, false); err != nil {
 			return err
@@ -74,7 +73,7 @@ func (h *handlers) downloadEvidence(c *gin.Context) {
 		if err := evidenceAccess(tx, false); err != nil {
 			return err
 		}
-		var current registrationEvidence
+		var current credentialEvidence
 		if err := lockedEvidence(tx, p, parent, id, &current); err != nil {
 			return err
 		}
@@ -110,7 +109,7 @@ func (e *evidenceRevocation) AfterFind(*gorm.DB) error { e.CreatedAt = e.Created
 const evidenceRevocationColumns = "id,file_id,review_reference,status,created_at"
 
 func revocationQuery(tx *gorm.DB, p authn.Principal, parent evidenceParent, file, id uuid.UUID) *gorm.DB {
-	return tx.Table("practitioner_evidence_revocations").Select(evidenceRevocationColumns).Where("tenant_id=? AND practitioner_id=? AND registration_id=? AND revision_id=? AND file_id=? AND id=?", p.TenantID, parent.practitioner, parent.registration, parent.revision, file, id)
+	return tx.Table("practitioner_evidence_revocations").Select(evidenceRevocationColumns).Where("tenant_id=? AND practitioner_id=? AND credential_id=? AND credential_kind=? AND revision_id=? AND file_id=? AND id=?", p.TenantID, parent.practitioner, parent.credential, parent.kind, parent.revision, file, id)
 }
 func (h *handlers) revokeEvidence(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
@@ -150,7 +149,7 @@ func (h *handlers) revokeEvidence(c *gin.Context) {
 		if err := evidenceAccess(tx, true); err != nil {
 			return err
 		}
-		var row registrationEvidence
+		var row credentialEvidence
 		if err := lockedEvidence(tx, p, parent, file, &row); err != nil {
 			return err
 		}
@@ -167,10 +166,10 @@ func (h *handlers) revokeEvidence(c *gin.Context) {
 		if !releasedEvidence(row) {
 			return errIntentConflict
 		}
-		if err := tx.Exec("INSERT INTO practitioner_evidence_revocations(tenant_id,practitioner_id,registration_id,revision_id,file_id,id,review_reference,created_by) VALUES(?,?,?,?,?,?,?,?)", p.TenantID, parent.practitioner, parent.registration, parent.revision, file, id, reference, p.Subject).Error; err != nil {
+		if err := tx.Exec("INSERT INTO practitioner_evidence_revocations(tenant_id,practitioner_id,credential_id,credential_kind,revision_id,file_id,id,review_reference,created_by) VALUES(?,?,?,?,?,?,?,?,?)", p.TenantID, parent.practitioner, parent.credential, parent.kind, parent.revision, file, id, reference, p.Subject).Error; err != nil {
 			return err
 		}
-		if err := evidenceStateEvent(tx, practitionercontract.EvidenceScanInput{TenantID: p.TenantID, PractitionerID: parent.practitioner.String(), RegistrationID: parent.registration.String(), RevisionID: parent.revision.String(), FileID: file.String(), ScanAttempt: row.ScanAttempt}, "revoked"); err != nil {
+		if err := evidenceStateEvent(tx, evidenceScanInput(p.TenantID, parent, file, row.ScanAttempt), "revoked"); err != nil {
 			return err
 		}
 		if err := revocationQuery(tx, p, parent, file, id).Take(&receipt).Error; err != nil {

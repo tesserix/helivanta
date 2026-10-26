@@ -18,7 +18,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type registrationReview struct {
+type credentialReview struct {
 	ID                 uuid.UUID       `json:"id"`
 	RevisionID         uuid.UUID       `json:"revision_id"`
 	AppointmentID      uuid.UUID       `json:"appointment_id"`
@@ -32,22 +32,22 @@ type registrationReview struct {
 	CreatedAt          time.Time       `json:"created_at"`
 }
 
-func (r *registrationReview) AfterFind(*gorm.DB) error {
+func (r *credentialReview) AfterFind(*gorm.DB) error {
 	r.SourceCheckedAt = r.SourceCheckedAt.UTC()
 	r.CreatedAt = r.CreatedAt.UTC()
 	return nil
 }
-func (r registrationReview) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
+func (r credentialReview) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
 
 const reviewColumns = "id,revision_id,appointment_id,appointment_version,review_reference,source_reference,source_checked_at,finding,evidence_ids,reviewer,created_at"
 
 func reviewQuery(tx *gorm.DB, p authn.Principal, parent evidenceParent) *gorm.DB {
-	return tx.Table("practitioner_registration_reviews").Select(reviewColumns).Where("tenant_id=? AND practitioner_id=? AND registration_id=? AND revision_id=?", p.TenantID, parent.practitioner, parent.registration, parent.revision)
+	return tx.Table("practitioner_credential_reviews").Select(reviewColumns).Where("tenant_id=? AND practitioner_id=? AND credential_id=? AND credential_kind=? AND revision_id=?", p.TenantID, parent.practitioner, parent.credential, parent.kind, parent.revision)
 }
 func reviewAudit(tx *gorm.DB, p authn.Principal, id uuid.UUID) error {
-	return auditIDs(tx, p, "practitioner_registration_reviews", []uuid.UUID{id})
+	return auditIDs(tx, p, "practitioner_credential_reviews", []uuid.UUID{id})
 }
-func (h *handlers) putRegistrationReview(c *gin.Context) {
+func (h *handlers) putCredentialReview(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
 	p, parent, ok := evidenceScope(c)
 	if !ok {
@@ -77,7 +77,7 @@ func (h *handlers) putRegistrationReview(c *gin.Context) {
 	reference, rOK := canonicalStewardReference(in.ReviewReference)
 	source, sOK := canonicalStewardReference(in.SourceReference)
 	checked, tOK := stewardUntil(in.SourceCheckedAt)
-	validFinding := in.Finding == "active" || in.Finding == "suspended" || in.Finding == "expired" || in.Finding == "not_found" || in.Finding == "unavailable"
+	validFinding := in.Finding == "not_found" || in.Finding == "unavailable" || parent.kind == "registration" && (in.Finding == "active" || in.Finding == "suspended" || in.Finding == "expired") || parent.kind == "qualification" && (in.Finding == "confirmed" || in.Finding == "revoked")
 	if !aOK || !rOK || !sOK || !tOK || in.AppointmentVersion != 2 || !validFinding || len(in.EvidenceIDs) < 1 || len(in.EvidenceIDs) > 10 {
 		respond.Error(c, 400, "invalid_request", "Expected bounded source review evidence and accepted appointment")
 		return
@@ -94,10 +94,10 @@ func (h *handlers) putRegistrationReview(c *gin.Context) {
 		failure(c, err)
 		return
 	}
-	if !h.reauthorize(c, PermRegistrationReview) {
+	if !h.reauthorize(c, credentialReviewPermission(parent.kind)) {
 		return
 	}
-	var row registrationReview
+	var row credentialReview
 	created := false
 	err = h.transaction(c.Request.Context(), p, false, func(tx *gorm.DB) error {
 		if err := evidenceAccess(tx, false); err != nil {
@@ -106,8 +106,9 @@ func (h *handlers) putRegistrationReview(c *gin.Context) {
 		if err := tx.Exec("SELECT set_config('app.practitioner_review','true',true)").Error; err != nil {
 			return err
 		}
+		headTable, _, _ := credentialTables(parent.kind)
 		var head struct{ Version int64 }
-		if err := tx.Raw("SELECT version FROM practitioner_registrations WHERE tenant_id=? AND practitioner_id=? AND id=? FOR UPDATE", p.TenantID, parent.practitioner, parent.registration).Scan(&head).Error; err != nil {
+		if err := tx.Raw("SELECT version FROM "+headTable+" WHERE tenant_id=? AND practitioner_id=? AND id=? FOR UPDATE", p.TenantID, parent.practitioner, parent.credential).Scan(&head).Error; err != nil {
 			return err
 		}
 		if head.Version == 0 {
@@ -124,21 +125,29 @@ func (h *handlers) putRegistrationReview(c *gin.Context) {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
-		var revision registrationRevision
-		if err := readRevision(tx, p, parent.practitioner, parent.registration, parent.revision, &revision); err != nil {
-			return err
-		}
-		if revision.Version != head.Version {
-			return errIntentConflict
-		}
-		if err := tx.Exec("INSERT INTO practitioner_registration_reviews(tenant_id,practitioner_id,registration_id,revision_id,id,appointment_id,appointment_version,review_reference,source_reference,source_checked_at,finding,evidence_ids,reviewer) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", p.TenantID, parent.practitioner, parent.registration, parent.revision, id, appointment, in.AppointmentVersion, reference, source, checked, in.Finding, string(evidence), p.Subject).Error; err != nil {
-			return err
-		}
-		data, err := json.Marshal(practitionercontract.ReviewRecordedData{PractitionerID: parent.practitioner.String(), RegistrationID: parent.registration.String(), RevisionID: parent.revision.String(), ReviewID: id.String()})
+		version, err := credentialRevisionVersion(tx, p, parent)
 		if err != nil {
 			return err
 		}
-		if err := events.Enqueue(tx, practitionercontract.ReviewRecorded, events.Event{Type: practitionercontract.ReviewRecorded, Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
+		if version != head.Version {
+			return errIntentConflict
+		}
+		if err := tx.Exec("INSERT INTO practitioner_credential_reviews(tenant_id,practitioner_id,credential_id,credential_kind,revision_id,id,appointment_id,appointment_version,review_reference,source_reference,source_checked_at,finding,evidence_ids,reviewer) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", p.TenantID, parent.practitioner, parent.credential, parent.kind, parent.revision, id, appointment, in.AppointmentVersion, reference, source, checked, in.Finding, string(evidence), p.Subject).Error; err != nil {
+			return err
+		}
+		event := practitionercontract.ReviewRecordedData{PractitionerID: parent.practitioner.String(), RevisionID: parent.revision.String(), ReviewID: id.String()}
+		subject := practitionercontract.ReviewRecorded
+		if parent.kind == "registration" {
+			event.RegistrationID = parent.credential.String()
+		} else {
+			event.QualificationID = parent.credential.String()
+			subject = practitionercontract.QualificationReviewRecorded
+		}
+		data, err := json.Marshal(event)
+		if err != nil {
+			return err
+		}
+		if err := events.Enqueue(tx, subject, events.Event{Type: subject, Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
 			return err
 		}
 		created = true
@@ -154,7 +163,7 @@ func (h *handlers) putRegistrationReview(c *gin.Context) {
 		respond.OK(c, row)
 	}
 }
-func (h *handlers) getRegistrationReview(c *gin.Context) {
+func (h *handlers) getCredentialReview(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
 	p, parent, ok := evidenceScope(c)
 	if !ok {
@@ -164,7 +173,7 @@ func (h *handlers) getRegistrationReview(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var row registrationReview
+	var row credentialReview
 	err := h.transaction(c.Request.Context(), p, false, func(tx *gorm.DB) error {
 		if err := reviewQuery(tx, p, parent).Where("id=?", id).Take(&row).Error; err != nil {
 			return err
@@ -177,19 +186,19 @@ func (h *handlers) getRegistrationReview(c *gin.Context) {
 	}
 	respond.OK(c, row)
 }
-func (h *handlers) listRegistrationReviews(c *gin.Context, params pagination.Params) ([]registrationReview, error) {
+func (h *handlers) listCredentialReviews(c *gin.Context, params pagination.Params) ([]credentialReview, error) {
 	c.Header("Cache-Control", "no-store")
 	p, parent, ok := evidenceScope(c)
 	if !ok {
 		return nil, nil
 	}
-	var rows []registrationReview
+	var rows []credentialReview
 	err := h.transaction(c.Request.Context(), p, false, func(tx *gorm.DB) error {
-		var revision registrationRevision
-		if err := readRevision(tx, p, parent.practitioner, parent.registration, parent.revision, &revision); err != nil {
+		_, err := credentialRevisionVersion(tx, p, parent)
+		if err != nil {
 			return err
 		}
-		if err := revisionAudit(tx, p, parent.revision); err != nil {
+		if err := credentialRevisionAudit(tx, p, parent); err != nil {
 			return err
 		}
 		if err := tenantdb.ApplyKeyset(reviewQuery(tx, p, parent), params).Find(&rows).Error; err != nil {
@@ -199,7 +208,7 @@ func (h *handlers) listRegistrationReviews(c *gin.Context, params pagination.Par
 		for i, row := range rows {
 			ids[i] = row.ID
 		}
-		return auditIDs(tx, p, "practitioner_registration_reviews", ids)
+		return auditIDs(tx, p, "practitioner_credential_reviews", ids)
 	})
 	if err != nil {
 		failure(c, err)

@@ -23,7 +23,12 @@ func EvidenceWorkflowID(in practitionercontract.EvidenceScanInput) (string, erro
 	if !validEvidenceScanInput(in) {
 		return "", ErrEvidenceNotReady
 	}
-	return fmt.Sprintf("practitioner-evidence-%s-%s-%s-%s-%s-a%d", in.TenantID, in.PractitionerID, in.RegistrationID, in.RevisionID, in.FileID, in.ScanAttempt), nil
+	kind, credential, _ := scanCredential(in)
+	prefix := "practitioner-evidence"
+	if kind == "qualification" {
+		prefix = "practitioner-qualification-evidence"
+	}
+	return fmt.Sprintf("%s-%s-%s-%s-%s-%s-a%d", prefix, in.TenantID, in.PractitionerID, credential, in.RevisionID, in.FileID, in.ScanAttempt), nil
 }
 
 func evidenceEventInput(evt events.Event) (practitionercontract.EvidenceScanInput, error) {
@@ -39,7 +44,7 @@ func evidenceEventInput(evt events.Event) (practitionercontract.EvidenceScanInpu
 	if err := dec.Decode(new(any)); err != io.EOF {
 		return practitionercontract.EvidenceScanInput{}, errors.New("evidence scan payload invalid")
 	}
-	in := practitionercontract.EvidenceScanInput{TenantID: evt.TenantID, PractitionerID: data.PractitionerID, RegistrationID: data.RegistrationID, RevisionID: data.RevisionID, FileID: data.FileID, ScanAttempt: data.ScanAttempt}
+	in := practitionercontract.EvidenceScanInput{TenantID: evt.TenantID, PractitionerID: data.PractitionerID, RegistrationID: data.RegistrationID, QualificationID: data.QualificationID, RevisionID: data.RevisionID, FileID: data.FileID, ScanAttempt: data.ScanAttempt}
 	if !validEvidenceScanInput(in) {
 		return practitionercontract.EvidenceScanInput{}, errors.New("evidence scan scope invalid")
 	}

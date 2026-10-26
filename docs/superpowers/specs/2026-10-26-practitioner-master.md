@@ -608,3 +608,56 @@ intent, immutable retirement receipts and independent forced RLS, audit rollback
 and read failure, old qualification/retirement replay after later retirement, and
 a direct database attempt to bypass retired-specialty validation. All 40 owner
 routes reject stale workspace. Production/qualified-identity gates remain open.
+
+## Shared credential evidence and qualification review (local implementation; undeployed)
+
+One practitioner-owned credential evidence engine handles registration and
+qualification revisions. Row-preserving forward migration 0012 renames the existing private
+evidence/review tables to credential names without deleting rows, and adds an
+explicit immutable credential kind/ID. Conditional generated parents plus composite
+foreign keys bind each kind to its actual owning revision. Revocation/retry receipts
+carry the same kind. Existing registration wire scope remains registration_id;
+qualification scope uses qualification_id. Canonical scan inputs/events allow
+exactly one, and workflow IDs distinguish kinds. Legacy registration messages and
+retained workflow input remain compatible; no consumer may infer kind from an
+ambiguous/missing source ID. Old workers without the new kind scope fail closed.
+
+Qualification evidence uses the same metadata/upload/list/read/revoke/retry API
+suffixes beneath `/qualifications/:qualification/revisions/:revision`. It inherits
+byte, scanner, storage, audit, replay, independent tenant/object and stale-attempt
+guards; no second file master, duplicate scanner or fabricated registration is
+created. Storage keys include the unique tenant/file ID, so even equal client
+revision UUIDs across source kinds cannot alias an object.
+
+Qualification source reviews use a distinct qualification-review permission and
+current accepted reviewer appointment. They bind the current qualification head
+and released independent qualification evidence. Findings are confirmed/revoked/
+not_found/unavailable observations, separate from council active/suspended/expired
+findings. Receipts preserve exact source/evidence provenance; positive observations
+do not activate verified identity or clinical privilege. The canonical draft
+contract, worker RLS scope and opaque review event distinguish the two source kinds.
+All original release gates, capacity/request/transaction bounds and private-content
+controls remain. Neither migration nor worker role provisioning is deployed.
+
+Migration 0012 is not additive-only: it renames private tables/columns, replaces
+constraints with stronger kind-bound composite foreign keys, and refreshes worker
+RLS/functions. Original migrations 0001–0011 are unchanged. It has not been applied
+to a live tenant. First runtime activation must coordinate the matching API/worker
+code and kind-scoped role; old binaries must not be rolled back against the new
+owner schema without an explicit compatibility plan. The owner is still
+unregistered and has no production worker. A local upgrade test seeds an actual
+legacy registration evidence row under 0011, applies only 0012, verifies IDs,
+checksum/size/timestamps/window are identical and then uploads, scans and downloads
+its exact bytes with the updated worker identity. This proves that tested state,
+not a blanket production migration guarantee.
+
+Qualification HTTP regression checks metadata/upload, scan/release/download,
+source-specific independent review and permission separation, retry fencing,
+review retention across qualification correction/revocation, and equal source
+UUIDs in both kinds without disclosure. Valid registration event/input encoding
+and workflow IDs remain compatible; both source IDs or neither is invalid. Real
+JetStream/Temporal tests run committed dispatch, duplicate/collision receipt
+validation and terminal manual recovery for both kinds. All 50 owner harness
+routes reject stale workspace. Source-confirmed findings remain unverified
+professional facts until the separate effective-verification policies and
+reconciliation gates are implemented.

@@ -121,7 +121,7 @@ func TestRegistrationReviewRollsBackOnAuditOrOutboxFailureAndProtectsHistory(t *
 	for _, dependency := range []string{"audit", "outbox"} {
 		t.Run(dependency, func(t *testing.T) {
 			s, _, path, body := reviewScenario(t)
-			table, condition := "audit_events", "NEW.resource_type='practitioner_registration_reviews'"
+			table, condition := "audit_events", "NEW.resource_type='practitioner_credential_reviews'"
 			if dependency == "outbox" {
 				table = "outbox_events"
 				condition = "NEW.subject='helivanta.in.practitioner.registration_review_recorded.v1'"
@@ -133,7 +133,7 @@ func TestRegistrationReviewRollsBackOnAuditOrOutboxFailureAndProtectsHistory(t *
 			require.Equal(t, 404, testutil.Do(s.router, "GET", path, "reviewer", "").Code)
 			require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_review_recovery", SQL: "DROP TRIGGER reject_review ON " + table + ";"}}))
 			require.Equal(t, 201, testutil.Do(s.router, "PUT", path, "reviewer", body).Code)
-			for _, query := range []string{"UPDATE practitioner_registration_reviews SET finding='unavailable' WHERE tenant_id=? AND id=?", "DELETE FROM practitioner_registration_reviews WHERE tenant_id=? AND id=?"} {
+			for _, query := range []string{"UPDATE practitioner_credential_reviews SET finding='unavailable' WHERE tenant_id=? AND id=?", "DELETE FROM practitioner_credential_reviews WHERE tenant_id=? AND id=?"} {
 				err := s.db.WithTenant(t.Context(), s.input.TenantID, func(tx *gorm.DB) error {
 					if err := tx.Exec("SELECT set_config('app.actor_subject','user-reviewer',true),set_config('app.practitioner_access','true',true),set_config('app.practitioner_review','true',true)").Error; err != nil {
 						return err
@@ -142,7 +142,7 @@ func TestRegistrationReviewRollsBackOnAuditOrOutboxFailureAndProtectsHistory(t *
 				})
 				require.ErrorContains(t, err, "review is immutable")
 			}
-			require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_review_read_failure", SQL: "CREATE FUNCTION reject_review_read() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='read' AND NEW.resource_type='practitioner_registration_reviews' THEN RAISE EXCEPTION 'synthetic read outage'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_review_read BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION reject_review_read();"}}))
+			require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_review_read_failure", SQL: "CREATE FUNCTION reject_review_read() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='read' AND NEW.resource_type='practitioner_credential_reviews' THEN RAISE EXCEPTION 'synthetic read outage'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_review_read BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION reject_review_read();"}}))
 			read := testutil.Do(s.router, "GET", path, "reviewer", "")
 			require.Equal(t, 500, read.Code)
 			require.NotContains(t, read.Body.String(), "source_reference")

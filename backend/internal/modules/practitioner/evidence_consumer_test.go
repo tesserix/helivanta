@@ -56,6 +56,15 @@ func TestProfessionalEvidenceExecutionIdentityIncludesEveryScopeComponent(t *tes
 		_, err = practitioner.EvidenceWorkflowID(attempt)
 		require.Error(t, err)
 	}
+	qualified := in
+	qualified.QualificationID = qualified.RegistrationID
+	qualified.RegistrationID = ""
+	qualifiedID, err := practitioner.EvidenceWorkflowID(qualified)
+	require.NoError(t, err)
+	require.NotEqual(t, id, qualifiedID)
+	qualified.RegistrationID = in.RegistrationID
+	_, err = practitioner.EvidenceWorkflowID(qualified)
+	require.Error(t, err)
 	seen := map[string]bool{id: true}
 	for i := range 5 {
 		changed := in

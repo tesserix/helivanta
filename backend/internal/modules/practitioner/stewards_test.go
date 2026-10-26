@@ -312,7 +312,7 @@ func TestStewardDatabaseGuardsPreventAdminAcceptanceAndHistoryRewrites(t *testin
 }
 
 func TestEveryPractitionerRouteRejectsStaleWorkspaceBeforeDomainWork(t *testing.T) {
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"admin": testutil.TenantA}, Perms: map[string][]authz.Permission{"admin": {practitioner.PermStewardManage, practitioner.PermRecordManage, practitioner.PermRecordRead, practitioner.PermEvidenceManage, practitioner.PermEvidenceRead, practitioner.PermRegistrationReview, practitioner.PermSpecialtyManage}}, Modules: []platform.Module{practitioner.New()}})
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"admin": testutil.TenantA}, Perms: map[string][]authz.Permission{"admin": {practitioner.PermStewardManage, practitioner.PermRecordManage, practitioner.PermRecordRead, practitioner.PermEvidenceManage, practitioner.PermEvidenceRead, practitioner.PermRegistrationReview, practitioner.PermQualificationReview, practitioner.PermSpecialtyManage}}, Modules: []platform.Module{practitioner.New()}})
 	countAudit := func() int64 {
 		var n int64
 		require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error { return tx.Table("audit_events").Count(&n).Error }))
@@ -338,7 +338,7 @@ func TestEveryPractitionerRouteRejectsStaleWorkspaceBeforeDomainWork(t *testing.
 		require.Equal(t, "no-store", w.Header().Get("Cache-Control"))
 		checked++
 	}
-	require.Equal(t, 40, checked)
+	require.Equal(t, 50, checked)
 	require.Equal(t, before, countAudit())
 }
 

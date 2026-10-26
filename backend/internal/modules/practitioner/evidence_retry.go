@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	practitionercontract "github.com/tesserix/helivanta/internal/modules/practitioner/contract"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -27,7 +26,7 @@ type evidenceRetry struct {
 
 func (r *evidenceRetry) AfterFind(*gorm.DB) error { r.CreatedAt = r.CreatedAt.UTC(); return nil }
 func retryQuery(tx *gorm.DB, p authn.Principal, parent evidenceParent, file, id uuid.UUID) *gorm.DB {
-	return tx.Table("practitioner_evidence_retries").Select("id,file_id,expected_attempt,scan_attempt,review_reference,previous_failure,status,created_at").Where("tenant_id=? AND practitioner_id=? AND registration_id=? AND revision_id=? AND file_id=? AND id=?", p.TenantID, parent.practitioner, parent.registration, parent.revision, file, id)
+	return tx.Table("practitioner_evidence_retries").Select("id,file_id,expected_attempt,scan_attempt,review_reference,previous_failure,status,created_at").Where("tenant_id=? AND practitioner_id=? AND credential_id=? AND credential_kind=? AND revision_id=? AND file_id=? AND id=?", p.TenantID, parent.practitioner, parent.credential, parent.kind, parent.revision, file, id)
 }
 func (h *handlers) retryEvidence(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
@@ -68,7 +67,7 @@ func (h *handlers) retryEvidence(c *gin.Context) {
 		if err := evidenceAccess(tx, true); err != nil {
 			return err
 		}
-		var row registrationEvidence
+		var row credentialEvidence
 		if err := lockedEvidence(tx, p, parent, file, &row); err != nil {
 			return err
 		}
@@ -88,10 +87,10 @@ func (h *handlers) retryEvidence(c *gin.Context) {
 		if h.files == nil {
 			return errEvidenceUnavailable
 		}
-		if err := tx.Exec("INSERT INTO practitioner_evidence_retries(tenant_id,practitioner_id,registration_id,revision_id,file_id,id,expected_attempt,scan_attempt,review_reference,created_by) VALUES(?,?,?,?,?,?,?,?,?,?)", p.TenantID, parent.practitioner, parent.registration, parent.revision, file, id, in.ExpectedAttempt, in.ExpectedAttempt+1, reference, p.Subject).Error; err != nil {
+		if err := tx.Exec("INSERT INTO practitioner_evidence_retries(tenant_id,practitioner_id,credential_id,credential_kind,revision_id,file_id,id,expected_attempt,scan_attempt,review_reference,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?)", p.TenantID, parent.practitioner, parent.credential, parent.kind, parent.revision, file, id, in.ExpectedAttempt, in.ExpectedAttempt+1, reference, p.Subject).Error; err != nil {
 			return err
 		}
-		data, err := json.Marshal(practitionercontract.EvidenceScanRequestedData{PractitionerID: parent.practitioner.String(), RegistrationID: parent.registration.String(), RevisionID: parent.revision.String(), FileID: file.String(), ScanAttempt: in.ExpectedAttempt + 1})
+		data, err := json.Marshal(evidenceScanData(evidenceScanInput(p.TenantID, parent, file, in.ExpectedAttempt+1)))
 		if err != nil {
 			return err
 		}

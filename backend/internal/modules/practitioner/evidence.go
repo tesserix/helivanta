@@ -1,6 +1,7 @@
 package practitioner
 
 import (
+	"errors"
 	"regexp"
 	"strconv"
 	"time"
@@ -27,11 +28,14 @@ func (in evidenceInput) valid() bool {
 	return (in.ContentType == "image/png" || in.ContentType == "image/jpeg") && in.Size >= 1 && in.Size <= attachments.MaxFileBytes && evidenceDigest.MatchString(in.SHA256)
 }
 
-type registrationEvidence struct {
+type credentialEvidence struct {
 	ScanAttempt          int64      `json:"scan_attempt"`
 	ID                   uuid.UUID  `json:"id"`
 	PractitionerID       uuid.UUID  `json:"practitioner_id"`
-	RegistrationID       uuid.UUID  `json:"registration_id"`
+	CredentialID         uuid.UUID  `json:"-"`
+	CredentialKind       string     `json:"-"`
+	RegistrationID       *uuid.UUID `json:"registration_id,omitempty" gorm:"-"`
+	QualificationID      *uuid.UUID `json:"qualification_id,omitempty" gorm:"-"`
 	RevisionID           uuid.UUID  `json:"revision_id"`
 	ContentType          string     `json:"content_type"`
 	Size                 int64      `json:"size"`
@@ -49,8 +53,19 @@ type registrationEvidence struct {
 	ExpiresAt            time.Time  `json:"expires_at"`
 }
 
-func (registrationEvidence) TableName() string { return "practitioner_registration_evidence" }
-func (e *registrationEvidence) AfterFind(*gorm.DB) error {
+func (credentialEvidence) TableName() string { return "practitioner_credential_evidence" }
+func (e *credentialEvidence) AfterFind(*gorm.DB) error {
+	e.RegistrationID = nil
+	e.QualificationID = nil
+	switch e.CredentialKind {
+	case "registration":
+		e.RegistrationID = &e.CredentialID
+	case "qualification":
+		e.QualificationID = &e.CredentialID
+	default:
+		return errors.New("invalid credential evidence scope")
+	}
+
 	e.CreatedAt = e.CreatedAt.UTC()
 	e.ExpiresAt = e.ExpiresAt.UTC()
 	if e.ScannedAt != nil {
@@ -63,11 +78,14 @@ func (e *registrationEvidence) AfterFind(*gorm.DB) error {
 	}
 	return nil
 }
-func (e registrationEvidence) PageKey() (time.Time, uuid.UUID) { return e.CreatedAt, e.ID }
+func (e credentialEvidence) PageKey() (time.Time, uuid.UUID) { return e.CreatedAt, e.ID }
 
-const evidenceColumns = "scan_attempt,id,practitioner_id,registration_id,revision_id,content_type,size,sha256,status,created_at,expires_at,uploaded_at,source_generation,released_generation,engine_version,definition_version,definitions_updated_at,scanned_at,failure_code"
+const evidenceColumns = "scan_attempt,id,practitioner_id,credential_id,credential_kind,revision_id,content_type,size,sha256,status,created_at,expires_at,uploaded_at,source_generation,released_generation,engine_version,definition_version,definitions_updated_at,scanned_at,failure_code"
 
-type evidenceParent struct{ practitioner, registration, revision uuid.UUID }
+type evidenceParent struct {
+	practitioner, credential, revision uuid.UUID
+	kind                               string
+}
 
 func evidenceScope(c *gin.Context) (authn.Principal, evidenceParent, bool) {
 	p, _, ok := authn.ExpectedTenantPrincipal(c)
@@ -78,7 +96,11 @@ func evidenceScope(c *gin.Context) (authn.Principal, evidenceParent, bool) {
 	if !ok {
 		return p, evidenceParent{}, false
 	}
-	registration, ok := resourceID(c, "registration")
+	kind, param := "registration", "registration"
+	if c.Param("qualification") != "" {
+		kind, param = "qualification", "qualification"
+	}
+	credential, ok := resourceID(c, param)
 	if !ok {
 		return p, evidenceParent{}, false
 	}
@@ -86,16 +108,16 @@ func evidenceScope(c *gin.Context) (authn.Principal, evidenceParent, bool) {
 	if !ok {
 		return p, evidenceParent{}, false
 	}
-	return p, evidenceParent{owner, registration, revision}, true
+	return p, evidenceParent{owner, credential, revision, kind}, true
 }
 func evidenceQuery(tx *gorm.DB, p authn.Principal, parent evidenceParent) *gorm.DB {
-	return tx.Table("practitioner_registration_evidence").Select(evidenceColumns).Where("tenant_id=? AND practitioner_id=? AND registration_id=? AND revision_id=?", p.TenantID, parent.practitioner, parent.registration, parent.revision)
+	return tx.Table("practitioner_credential_evidence").Select(evidenceColumns).Where("tenant_id=? AND practitioner_id=? AND credential_id=? AND credential_kind=? AND revision_id=?", p.TenantID, parent.practitioner, parent.credential, parent.kind, parent.revision)
 }
 func evidenceAccess(tx *gorm.DB, manage bool) error {
 	return tx.Exec("SELECT set_config('app.practitioner_evidence_access','true',true),set_config('app.practitioner_evidence_manage',?,true)", strconv.FormatBool(manage)).Error
 }
 func evidenceAudit(tx *gorm.DB, p authn.Principal, id uuid.UUID) error {
-	return tx.Exec("INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES(?,?,'read','practitioner_registration_evidence',?)", p.TenantID, p.Subject, id).Error
+	return tx.Exec("INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES(?,?,'read','practitioner_credential_evidence',?)", p.TenantID, p.Subject, id).Error
 }
 func (h *handlers) putEvidence(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
@@ -115,17 +137,16 @@ func (h *handlers) putEvidence(c *gin.Context) {
 		respond.Error(c, 400, "invalid_request", "Expected bounded private registration evidence metadata")
 		return
 	}
-	var row registrationEvidence
+	var row credentialEvidence
 	created := false
 	err := h.transaction(c.Request.Context(), p, false, func(tx *gorm.DB) error {
 		if e := evidenceAccess(tx, true); e != nil {
 			return e
 		}
-		var revision registrationRevision
-		if e := readRevision(tx, p, parent.practitioner, parent.registration, parent.revision, &revision); e != nil {
+		if _, e := credentialRevisionVersion(tx, p, parent); e != nil {
 			return e
 		}
-		result := tx.Exec("INSERT INTO practitioner_registration_evidence(tenant_id,practitioner_id,registration_id,revision_id,id,content_type,size,sha256,created_by) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(tenant_id,id) DO NOTHING", p.TenantID, parent.practitioner, parent.registration, parent.revision, id, in.ContentType, in.Size, in.SHA256, p.Subject)
+		result := tx.Exec("INSERT INTO practitioner_credential_evidence(tenant_id,practitioner_id,credential_id,credential_kind,revision_id,id,content_type,size,sha256,created_by) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(tenant_id,id) DO NOTHING", p.TenantID, parent.practitioner, parent.credential, parent.kind, parent.revision, id, in.ContentType, in.Size, in.SHA256, p.Subject)
 		if result.Error != nil {
 			return result.Error
 		}
@@ -161,7 +182,7 @@ func (h *handlers) getEvidence(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var row registrationEvidence
+	var row credentialEvidence
 	err := h.transaction(c.Request.Context(), p, false, func(tx *gorm.DB) error {
 		if e := evidenceAccess(tx, false); e != nil {
 			return e
@@ -177,22 +198,21 @@ func (h *handlers) getEvidence(c *gin.Context) {
 	}
 	respond.OK(c, row)
 }
-func (h *handlers) listEvidence(c *gin.Context, params pagination.Params) ([]registrationEvidence, error) {
+func (h *handlers) listEvidence(c *gin.Context, params pagination.Params) ([]credentialEvidence, error) {
 	c.Header("Cache-Control", "no-store")
 	p, parent, ok := evidenceScope(c)
 	if !ok {
 		return nil, nil
 	}
-	var rows []registrationEvidence
+	var rows []credentialEvidence
 	err := h.transaction(c.Request.Context(), p, false, func(tx *gorm.DB) error {
 		if e := evidenceAccess(tx, false); e != nil {
 			return e
 		}
-		var revision registrationRevision
-		if e := readRevision(tx, p, parent.practitioner, parent.registration, parent.revision, &revision); e != nil {
+		if _, e := credentialRevisionVersion(tx, p, parent); e != nil {
 			return e
 		}
-		if e := revisionAudit(tx, p, parent.revision); e != nil {
+		if e := credentialRevisionAudit(tx, p, parent); e != nil {
 			return e
 		}
 		if e := tenantdb.ApplyKeyset(evidenceQuery(tx, p, parent), params).Find(&rows).Error; e != nil {
@@ -202,7 +222,7 @@ func (h *handlers) listEvidence(c *gin.Context, params pagination.Params) ([]reg
 		for i, row := range rows {
 			ids[i] = row.ID
 		}
-		return auditIDs(tx, p, "practitioner_registration_evidence", ids)
+		return auditIDs(tx, p, "practitioner_credential_evidence", ids)
 	})
 	if err != nil {
 		failure(c, err)

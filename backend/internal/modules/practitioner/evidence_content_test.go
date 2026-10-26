@@ -140,7 +140,7 @@ func TestProfessionalEvidenceContentBlocksReadAuditAndPostReadAuditFailures(t *t
 			require.NoError(t, err)
 			called := atomic.Bool{}
 			blockAudit := func() {
-				require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_content_read_audit_outage", SQL: `CREATE FUNCTION reject_content_read_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='read' AND NEW.resource_type='practitioner_registration_evidence' THEN RAISE EXCEPTION 'synthetic read audit unavailable'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_content_read_audit BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION reject_content_read_audit();`}}))
+				require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_content_read_audit_outage", SQL: `CREATE FUNCTION reject_content_read_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='read' AND NEW.resource_type='practitioner_credential_evidence' THEN RAISE EXCEPTION 'synthetic read audit unavailable'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_content_read_audit BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION reject_content_read_audit();`}}))
 			}
 			s.cloud.AfterReleasedRead(func() {
 				called.Store(true)
@@ -232,7 +232,7 @@ func TestProfessionalEvidenceCannotBeRevokedWithoutRetainedDecision(t *testing.T
 		if err := tx.Exec("SELECT set_config('app.actor_subject','user-steward',true),set_config('app.practitioner_evidence_access','true',true),set_config('app.practitioner_evidence_manage','true',true)").Error; err != nil {
 			return err
 		}
-		return tx.Exec("UPDATE practitioner_registration_evidence SET status='revoked' WHERE tenant_id=? AND id=?", s.input.TenantID, s.input.FileID).Error
+		return tx.Exec("UPDATE practitioner_credential_evidence SET status='revoked' WHERE tenant_id=? AND id=?", s.input.TenantID, s.input.FileID).Error
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "requires retained receipt")

@@ -25,7 +25,8 @@ This plan does not close #39/#474/#77/#102 for a partial implementation.
       Reported qualifications now retain immutable correction history with a
       tenant-local controlled specialty catalogue and stable head pagination.
       Local catalogue retirement/replacement now preserves history and blocks new
-      retired references; independent qualification verification remains open.
+      retired references; qualification evidence/source review now reuses the same scoped scan/release/
+      retry/revocation engine. Effective qualification verification remains open.
       The module consumer dispatches committed scope
       to a receipt-checked Temporal execution in local acceptance tests. Production
       delivery/worker wiring and effective professional verification remain

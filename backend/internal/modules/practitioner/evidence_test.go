@@ -59,7 +59,7 @@ func TestRegistrationEvidenceIntentBindsExactRevisionAndRetainsPrivateUnverified
 	require.Equal(t, 401, testutil.Do(r, "GET", path, "unknown", "").Code)
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		var n int64
-		if err := tx.Table("practitioner_registration_evidence").Count(&n).Error; err != nil {
+		if err := tx.Table("practitioner_credential_evidence").Count(&n).Error; err != nil {
 			return err
 		}
 		require.Zero(t, n, "tenant context alone must not disclose evidence")
@@ -82,11 +82,21 @@ func evidenceFixtureWithAccess(t *testing.T, files *attachments.GCS, membership 
 }
 func evidenceFixtureWithRuntime(t *testing.T, files *attachments.GCS, membership authz.MembershipChecker, workflows client.Client) (*gin.Engine, *tenantdb.DB, string, string) {
 	t.Helper()
-	perms := []authz.Permission{practitioner.PermRecordManage, practitioner.PermRecordRead, practitioner.PermEvidenceManage, practitioner.PermEvidenceRead, practitioner.PermStewardManage, practitioner.PermRegistrationReview, practitioner.PermSpecialtyManage}
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Workflows: workflows, ProductionOwner: true, Documents: files, Membership: membership, Tokens: map[string]string{"steward": testutil.TenantA, "foreign": testutil.TenantB, "evidence-only": testutil.TenantA, "reader": testutil.TenantA, "operator": testutil.TenantA, "reviewer": testutil.TenantA, "governor": testutil.TenantA}, Perms: map[string][]authz.Permission{"steward": perms, "foreign": perms, "evidence-only": {practitioner.PermEvidenceManage, practitioner.PermEvidenceRead}, "reader": {practitioner.PermEvidenceRead}, "operator": {practitioner.PermRecordRead, practitioner.PermRecordManage}, "governor": {practitioner.PermStewardManage}, "reviewer": {practitioner.PermRecordRead, practitioner.PermEvidenceRead, practitioner.PermRegistrationReview}}, Modules: []platform.Module{practitioner.New()}})
+	return credentialEvidenceFixture(t, "registration", files, membership, workflows, practitioner.New())
+}
+func credentialEvidenceFixture(t *testing.T, kind string, files *attachments.GCS, membership authz.MembershipChecker, workflows client.Client, module platform.Module) (*gin.Engine, *tenantdb.DB, string, string) {
+	t.Helper()
+	perms := []authz.Permission{practitioner.PermRecordManage, practitioner.PermRecordRead, practitioner.PermEvidenceManage, practitioner.PermEvidenceRead, practitioner.PermStewardManage, practitioner.PermRegistrationReview, practitioner.PermQualificationReview, practitioner.PermSpecialtyManage}
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Workflows: workflows, ProductionOwner: true, Documents: files, Membership: membership, Tokens: map[string]string{"steward": testutil.TenantA, "foreign": testutil.TenantB, "evidence-only": testutil.TenantA, "reader": testutil.TenantA, "operator": testutil.TenantA, "reviewer": testutil.TenantA, "governor": testutil.TenantA, "registration-reviewer": testutil.TenantA}, Perms: map[string][]authz.Permission{"steward": perms, "foreign": perms, "evidence-only": {practitioner.PermEvidenceManage, practitioner.PermEvidenceRead}, "reader": {practitioner.PermEvidenceRead}, "operator": {practitioner.PermRecordRead, practitioner.PermRecordManage}, "governor": {practitioner.PermStewardManage}, "registration-reviewer": {practitioner.PermRecordRead, practitioner.PermEvidenceRead, practitioner.PermRegistrationReview}, "reviewer": {practitioner.PermRecordRead, practitioner.PermEvidenceRead, practitioner.PermRegistrationReview, practitioner.PermQualificationReview}}, Modules: []platform.Module{module}})
 	owner := "/v1/practitioners/" + uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, 201, testutil.Do(r, "PUT", owner, "steward", `{"given_name":"Evidence","professional_type":"nurse"}`).Code)
 	id := uuid.Must(uuid.NewV7()).String()
+	if kind == "qualification" {
+		path := owner + "/qualifications/" + id
+		require.Equal(t, 201, testutil.Do(r, "PUT", path, "steward", `{"degree":"Synthetic degree","awarding_body":"Synthetic university"}`).Code)
+		return r, db, path + "/revisions/" + id + "/evidence", path
+	}
+	require.Equal(t, "registration", kind)
 	path := owner + "/registrations/" + id
 	require.Equal(t, 201, testutil.Do(r, "PUT", path, "steward", `{"council_system":"synthetic.council","registration_number":"QA-1"}`).Code)
 	return r, db, path + "/revisions/" + id + "/evidence", path
@@ -108,7 +118,7 @@ func TestEvidenceIntakeRejectsUntrustedMetadataAndWrongRevisionWithoutPersisting
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		require.NoError(t, tx.Exec("SELECT set_config('app.practitioner_evidence_access','true',true)").Error)
 		var n int64
-		err := tx.Table("practitioner_registration_evidence").Count(&n).Error
+		err := tx.Table("practitioner_credential_evidence").Count(&n).Error
 		require.Zero(t, n)
 		return err
 	}))
@@ -177,7 +187,7 @@ func TestEvidenceConcurrentQuotaRetainsReplayAndBoundedAuditedCollection(t *test
 	require.Equal(t, 404, testutil.Do(r, "GET", collection, "foreign", "").Code)
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		var n int64
-		err := tx.Table("audit_events").Where("resource_type='practitioner_registration_evidence' AND action='insert'").Count(&n).Error
+		err := tx.Table("audit_events").Where("resource_type='practitioner_credential_evidence' AND action='insert'").Count(&n).Error
 		require.EqualValues(t, 10, n)
 		return err
 	}))
@@ -191,7 +201,7 @@ func TestEvidenceAuditFailureBlocksPrivateReadsReplayAndEmptyCollections(t *test
 	revision := uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, 201, testutil.Do(r, "PUT", registration+"/revisions/"+revision, "steward", `{"expected_version":1}`).Code)
 	emptyCollection := registration + "/revisions/" + revision + "/evidence"
-	require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_evidence_audit_outage", SQL: `CREATE FUNCTION reject_evidence_read() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='read' AND NEW.resource_type IN ('practitioner_registration_evidence','practitioner_registration_revisions') THEN RAISE EXCEPTION 'synthetic evidence audit unavailable'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_evidence_read BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION reject_evidence_read();`}}))
+	require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_evidence_audit_outage", SQL: `CREATE FUNCTION reject_evidence_read() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='read' AND NEW.resource_type IN ('practitioner_credential_evidence','practitioner_registration_revisions') THEN RAISE EXCEPTION 'synthetic evidence audit unavailable'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_evidence_read BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION reject_evidence_read();`}}))
 	for _, request := range []struct{ method, path, body string }{{"GET", path, ""}, {"PUT", path, body}, {"GET", collection, ""}, {"GET", emptyCollection, ""}} {
 		got := testutil.Do(r, request.method, request.path, "steward", request.body)
 		require.Equal(t, 500, got.Code, got.Body.String())
@@ -207,7 +217,7 @@ func TestEvidenceDatabasePreventsReparentingVerdictsAndHistoryDeletion(t *testin
 	body := `{"content_type":"image/png","size":123,"sha256":"` + strings.Repeat("d", 64) + `"}`
 	created := testutil.Do(r, "PUT", path, "steward", body)
 	require.Equal(t, 201, created.Code, created.Body.String())
-	for _, sql := range []string{"UPDATE practitioner_registration_evidence SET size=size+1 WHERE id=?", "UPDATE practitioner_registration_evidence SET status='available' WHERE id=?", "UPDATE practitioner_registration_evidence SET expires_at=expires_at+interval '1 hour' WHERE id=?", "DELETE FROM practitioner_registration_evidence WHERE id=?"} {
+	for _, sql := range []string{"UPDATE practitioner_credential_evidence SET size=size+1 WHERE id=?", "UPDATE practitioner_credential_evidence SET status='available' WHERE id=?", "UPDATE practitioner_credential_evidence SET expires_at=expires_at+interval '1 hour' WHERE id=?", "DELETE FROM practitioner_credential_evidence WHERE id=?"} {
 		err := db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 			if e := tx.Exec("SELECT set_config('app.actor_subject','user-steward',true),set_config('app.practitioner_evidence_access','true',true),set_config('app.practitioner_evidence_manage','true',true)").Error; e != nil {
 				return e
@@ -253,7 +263,7 @@ func TestEvidenceReplaySerializesOneIntentAndRenewalCannotInheritIt(t *testing.T
 	retained := testutil.Do(r, "PUT", path, "steward", body)
 	require.Equal(t, 200, retained.Code)
 	require.JSONEq(t, original.Body.String(), retained.Body.String())
-	require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_evidence_write_audit_outage", SQL: `CREATE FUNCTION reject_evidence_write() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='insert' AND NEW.resource_type='practitioner_registration_evidence' THEN RAISE EXCEPTION 'synthetic evidence write audit unavailable'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_evidence_write BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION reject_evidence_write();`}}))
+	require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_evidence_write_audit_outage", SQL: `CREATE FUNCTION reject_evidence_write() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='insert' AND NEW.resource_type='practitioner_credential_evidence' THEN RAISE EXCEPTION 'synthetic evidence write audit unavailable'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_evidence_write BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION reject_evidence_write();`}}))
 	missing := collection + "/" + uuid.Must(uuid.NewV7()).String()
 	failed := testutil.Do(r, "PUT", missing, "steward", body)
 	require.Equal(t, 500, failed.Code)

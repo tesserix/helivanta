@@ -11,7 +11,8 @@ export const ProposalInputContract = z
       .string()
       .min(1)
       .max(200)
-      .regex(new RegExp("^[^\\s*#:\\u0000]+$", "u"), "Use a valid identifier.")
+      .regex(new RegExp("^[^\\s*#:]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     template_key: z.enum(["workforce.leave_reviewer.v1"]),
     reason: z
@@ -34,7 +35,8 @@ export const ScopeRequestContract = z
       .string()
       .min(1)
       .max(200)
-      .regex(new RegExp("^[^\\s*#:\\u0000]+$", "u"), "Use a valid identifier.")
+      .regex(new RegExp("^[^\\s*#:]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();

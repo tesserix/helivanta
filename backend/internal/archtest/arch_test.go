@@ -398,6 +398,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions.csv":        "explicit file export; refuses more than 1000 rows or 8 MiB before sending any attachment; normal JSON positions remain cursor-paginated",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id":     "one outlet-private product, with at most twenty composition ingredients",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id":          "one outlet-private manufacturer lot, no child records",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet":                            "one outlet the subject may see, no child records",
 	"GET /workforce/hospitals/:hospital/staff/:id/document-records":                 "one staff enrollment's bounded evidence choices: enrollment plus at most 20 credentials and 20 qualifications",
 	"GET /workforce/hospitals/:hospital/staff/:id/documents/:file/content":          "one authorized generation-pinned binary object, not a collection",
 	"GET /workforce/hospitals/:hospital/staff/:id/credentials":                      "one staff member's credential validity, bounded by enrollment's 20 credentials",

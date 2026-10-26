@@ -4,15 +4,11 @@ import { Suspense, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
-import { Button } from "@tesserix/web";
 import {
   ApiError,
-  apiFetch,
   countryProfile,
-  zonedDateTimeInput,
   useApiQuery,
   useApiPagedQuery,
-  useApiMutation,
   usePermissions,
   pharmacyKey,
   pharmacyRoot,
@@ -28,16 +24,15 @@ import {
   RequestFailure,
   SelectControl,
   useConfirmLeave,
-  useZodForm,
 } from "@helivanta/ui";
 import { CataloguePanel } from "./catalogue-panel";
 import { OverviewTiles, WaitingTile } from "./overview-tiles";
 import { AccountsPanel } from "./accounts-panel";
 import { StockPanel } from "./stock-panel";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
-import { TaxRegistrationPanel } from "./tax-registration-panel";
 import { StockRegister } from "./stock-register";
 import { BatchSafety } from "./batch-safety";
+import { OutletsSetup } from "./outlets-setup";
 
 type PharmacyIdentity = { subject: string; tenant_id: string };
 // The outlet-scoped pages (#1258 D2). Dispensing is tenant-wide and has its own pages.
@@ -180,7 +175,8 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
                 />
               </div>
             )}
-            {outlets.items.length > 0 && (
+            {/* On Outlets & access the list below is the outlet chooser (#1303 E6). */}
+            {outlets.items.length > 0 && view !== "setup" && (
               <div data-picker>
                 <Field id="pharmacy-outlet" label="Outlet">
                   <SelectControl
@@ -215,6 +211,13 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
         <p role="status">Loading pharmacies…</p>
       ) : !pharmacy ? (
         <DirectoryEmpty selected={!!selection.pharmacyId} setup={view === "setup"} />
+      ) : view === "setup" ? (
+        <OutletsSetup
+          tenantId={identity.tenant_id}
+          pharmacy={pharmacy}
+          subject={identity.subject}
+          outlets={outlets}
+        />
       ) : outlets.isError ? (
         <RequestFailure message="Could not load this pharmacy's outlets." retry={outlets.retry} />
       ) : outlets.isPending ? (
@@ -224,7 +227,6 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
           key={`${identity.tenant_id}:${pharmacy.id}:${outlet.id}:${outlet.timezone}`}
           outlet={outlet}
           scope={{ tenantId: identity.tenant_id, pharmacyId: pharmacy.id, outletId: outlet.id }}
-          subject={identity.subject}
           view={view}
         />
       ) : (
@@ -238,9 +240,14 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
           </p>
         </Panel>
       )}
-      {view === "setup" && can("pharmacy.access.manage") && (
-        <PharmacyRegistrySetup tenantId={identity.tenant_id} pharmacy={pharmacy} />
-      )}
+      {/* No pharmacy yet: register the first. With one, the setup page has its own. */}
+      {/* Only once the directory is known to be empty: mounted while it
+          loads, the form would be replaced, and anything typed lost. */}
+      {view === "setup" &&
+        !pharmacies.isPending &&
+        !pharmacies.isError &&
+        !pharmacy &&
+        can("pharmacy.access.manage") && <PharmacyRegistrySetup tenantId={identity.tenant_id} />}
     </>
   );
 }
@@ -291,12 +298,10 @@ function NoOutletAccess({ setup, canGrant }: { setup: boolean; canGrant: boolean
 function OutletPharmacy({
   outlet,
   scope,
-  subject,
   view,
 }: {
   outlet: PharmacyOutlet;
   scope: PharmacyScope;
-  subject: string;
   view: PharmacyView;
 }) {
   const { can } = usePermissions();
@@ -348,78 +353,6 @@ function OutletPharmacy({
           correctable={access.data?.level === "editor" && can("pharmacy.stock.correct")}
         />
       )}
-      {view === "setup" && can("pharmacy.access.manage") && (
-        <AccessSetup scope={scope} subject={subject} outletName={outlet.name} />
-      )}
-      {view === "setup" && can("pharmacy.tax.manage") && (
-        <TaxRegistrationPanel
-          scope={scope}
-          outlet={outlet}
-          today={zonedDateTimeInput(new Date().toISOString(), outlet.timezone).slice(0, 10)}
-        />
-      )}
     </>
-  );
-}
-const accessSchema = z.object({
-  confirmed: z.boolean().refine(Boolean, "Confirm the outlet before granting access."),
-});
-function AccessSetup({
-  scope,
-  subject,
-  outletName,
-}: {
-  scope: PharmacyScope;
-  subject: string;
-  outletName: string;
-}) {
-  const form = useZodForm(accessSchema, { confirmed: false });
-  const grant = useApiMutation(
-    () =>
-      apiFetch(`${pharmacyRoot(scope)}/access/${encodeURIComponent(subject)}`, {
-        method: "PUT",
-        body: JSON.stringify({ level: "editor" }),
-      }),
-    {
-      successToast: "Pharmacy access granted",
-      invalidate: [pharmacyKey(scope, "access")],
-      suppressErrorToast: true,
-    },
-  );
-  return (
-    <Panel className="mt-7">
-      <details>
-        <summary className="cursor-pointer text-sm font-medium">
-          Outlet access administration
-        </summary>
-        <form
-          noValidate
-          className="mt-4 space-y-4"
-          onSubmit={form.handleSubmit(() => grant.mutate())}
-        >
-          <p className="text-sm text-muted-foreground">
-            Grant your signed-in account catalogue and receiving access at {outletName}. This does
-            not approve medicines or confer hospital clinical access.
-          </p>
-          <label className="flex items-start gap-3 text-sm">
-            <input type="checkbox" className="mt-1" {...form.register("confirmed")} />
-            Grant my account pharmacy access to this outlet
-          </label>
-          {form.formState.errors.confirmed && (
-            <p role="alert" className="text-sm text-destructive">
-              {form.formState.errors.confirmed.message}
-            </p>
-          )}
-          {grant.isError && (
-            <p role="alert" className="text-sm text-destructive">
-              {grant.error.message}
-            </p>
-          )}
-          <Button type="submit" disabled={grant.isPending || !subject}>
-            Grant pharmacy access
-          </Button>
-        </form>
-      </details>
-    </Panel>
   );
 }

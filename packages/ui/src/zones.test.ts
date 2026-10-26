@@ -253,6 +253,7 @@ describe("page width", () => {
       "/pharmacy/safety",
       "/pharmacy/catalogue",
       "/pharmacy/accounts",
+      "/pharmacy/setup",
     ]);
   });
 });

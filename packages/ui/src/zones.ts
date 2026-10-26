@@ -203,6 +203,7 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/setup",
         icon: Store,
         permission: "pharmacy.access.manage",
+        width: "full",
       },
     ],
   },

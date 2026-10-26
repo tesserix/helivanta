@@ -24,6 +24,7 @@ import {
   SelectControl,
   useZodForm,
 } from "@helivanta/ui";
+import { useReportState, type FormState } from "@/lib/use-list-detail";
 export function PharmacyRegistrySetup({
   tenantId,
   pharmacy,
@@ -40,9 +41,9 @@ export function PharmacyRegistrySetup({
         Register independent, chain or hospital-owned pharmacies without a mandatory hospital. Each
         outlet needs its own access grant and regulatory review.
       </p>
-      <div className="mt-6 grid items-start gap-6 xl:grid-cols-2">
+      {/* Outlets register in the Outlets & access pane, beside their list (#1303 E6). */}
+      <div className="mt-6 max-w-2xl">
         <OrganizationForm tenantId={tenantId} />
-        {pharmacy && <OutletForm key={pharmacy.id} tenantId={tenantId} pharmacy={pharmacy} />}
       </div>
       {pharmacy && (
         <AffiliationForm
@@ -119,7 +120,18 @@ function OrganizationForm({ tenantId }: { tenantId: string }) {
     </Panel>
   );
 }
-function OutletForm({ tenantId, pharmacy }: { tenantId: string; pharmacy: PharmacyOrganization }) {
+export function OutletForm({
+  tenantId,
+  pharmacy,
+  onSaved,
+  onStateChange,
+}: {
+  tenantId: string;
+  pharmacy: PharmacyOrganization;
+  /** The registered outlet opens in the pane (#1303 E6). */
+  onSaved?: (id: string) => void;
+  onStateChange?: FormState;
+}) {
   const [id, setId] = useState(() => newPharmacyId());
   const form = useZodForm(pharmacyOutletInputSchema, {
     code: "",
@@ -137,12 +149,14 @@ function OutletForm({ tenantId, pharmacy }: { tenantId: string; pharmacy: Pharma
       successToast: "Outlet registered",
       invalidate: [["pharmacy", tenantId, pharmacy.id, "outlets"]],
       onSuccess: () => {
+        onSaved?.(id);
         setId(newPharmacyId());
         form.reset();
       },
       suppressErrorToast: true,
     },
   );
+  useReportState(onStateChange, form.formState.isDirty, save.isPending);
   return (
     <Panel>
       <form
@@ -150,7 +164,6 @@ function OutletForm({ tenantId, pharmacy }: { tenantId: string; pharmacy: Pharma
         className="space-y-4"
         onSubmit={form.handleSubmit((values) => save.mutate(values))}
       >
-        <h3 className="font-semibold">Register outlet at {pharmacy.name}</h3>
         {(
           [
             ["code", "Outlet code"],

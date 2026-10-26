@@ -118,6 +118,9 @@ func failure(c *gin.Context, err error) {
 		respond.NotFound(c, "practitioner")
 	case errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.As(err, &pg) && (pg.Code == "55P03" || pg.Code == "57014"):
 		respond.Error(c, 503, "practitioner_unavailable", "Practitioner operation timed out; reconcile the retained command before retrying")
+	case errors.As(err, &pg) && pg.Code == "23514" && verificationConstraintCode(pg.ConstraintName) != "":
+		code := verificationConstraintCode(pg.ConstraintName)
+		respond.Error(c, 409, code, "Registration attestation requirements are not satisfied")
 	case errors.Is(err, errPolicyIntent):
 		respond.Error(c, 409, "policy_intent_conflict", "Retained policy intent differs")
 	case errors.Is(err, errPolicyVersion) || errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "registration_policy_version":
@@ -226,4 +229,36 @@ func (h *handlers) transaction(ctx context.Context, p authn.Principal, manage bo
 		}
 		return fn(tx)
 	})
+}
+
+func verificationConstraintCode(name string) string {
+	switch name {
+	case "registration_verification_version":
+		return "verification_version_conflict"
+	case "registration_verification_target":
+		return "verification_target_changed"
+	case "registration_verification_revision":
+		return "registration_revision_changed"
+	case "registration_verification_independence":
+		return "independent_verifier_required"
+	case "registration_verification_policy":
+		return "verification_policy_not_current"
+	case "registration_verification_review":
+		return "matching_active_review_required"
+	case "registration_verification_conflict":
+		return "source_reviews_require_reconciliation"
+	case "registration_verification_evidence":
+		return "reviewed_evidence_not_current"
+	case "registration_verification_freshness":
+		return "source_verification_expired"
+	case "registration_verification_dates":
+		return "registration_issue_date_in_future"
+	case "registration_verification_expiry":
+		return "registration_expiry_not_supported"
+	case "registration_verification_normalization":
+		return "identifier_normalization_not_supported"
+	case "registration_identifier_conflict":
+		return "registration_identifier_conflict"
+	}
+	return ""
 }

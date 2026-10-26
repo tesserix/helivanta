@@ -26,6 +26,7 @@ CREATE TABLE practitioner_registration_policy_revisions (
  expected_version bigint NOT NULL CHECK(expected_version BETWEEN 0 AND 9007199254740990),
  version bigint NOT NULL CHECK(version=expected_version+1),
  max_source_age_seconds bigint NOT NULL CHECK(max_source_age_seconds BETWEEN 1 AND 31536000),
+ expiry_boundary text NOT NULL CHECK(expiry_boundary IN ('start_of_day','end_of_day')),
  date_rule text NOT NULL CHECK(date_rule IN ('date_required','allow_undated_with_attestation')),
  valid_until timestamptz NOT NULL CHECK(valid_until BETWEEN '0001-01-01T00:00:00Z' AND '9999-12-31T23:59:59.999999Z'),
  review_reference uuid NOT NULL CHECK(substring(review_reference::text,15,1)='7' AND substring(review_reference::text,20,1) IN ('8','9','a','b')),

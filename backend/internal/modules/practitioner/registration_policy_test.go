@@ -30,7 +30,7 @@ func newRegistrationPolicyScenario(t *testing.T) registrationPolicyScenario {
 	require.Equal(t, 201, testutil.Do(router, "PUT", "/v1/practitioners/steward-appointments/"+appointment, "steward", nomination).Code)
 	require.Equal(t, 200, testutil.Do(router, "POST", "/v1/practitioners/my/steward-appointments/"+appointment+"/accept", "reviewer", `{"expected_version":1}`).Code)
 	path := "/v1/practitioners/registration-policies/" + uuid.Must(uuid.NewV7()).String()
-	body := fmt.Sprintf(`{"source_system":"synthetic.council","normalization":"ascii_upper","expiry_time_zone":"Asia/Kolkata","max_source_age_seconds":86400,"date_rule":"date_required","valid_until":"2097-01-01T00:00:00Z","review_reference":"%s","appointment_id":"%s","appointment_version":2}`, uuid.Must(uuid.NewV7()), appointment)
+	body := fmt.Sprintf(`{"source_system":"synthetic.council","normalization":"ascii_upper","expiry_time_zone":"Asia/Kolkata","max_source_age_seconds":86400,"date_rule":"date_required","expiry_boundary":"end_of_day","valid_until":"2097-01-01T00:00:00Z","review_reference":"%s","appointment_id":"%s","appointment_version":2}`, uuid.Must(uuid.NewV7()), appointment)
 	return registrationPolicyScenario{router, db, path, body, appointment, strings.Split(parent, "/registrations/")[0]}
 }
 func TestRegistrationPolicyRetainsExplicitIssuerRulesAndAcceptedAuthority(t *testing.T) {
@@ -49,14 +49,14 @@ func TestRegistrationPolicyRetainsExplicitIssuerRulesAndAcceptedAuthority(t *tes
 }
 
 func policyEditionBody(s registrationPolicyScenario, expected int64, age int64) string {
-	return fmt.Sprintf(`{"expected_version":%d,"max_source_age_seconds":%d,"date_rule":"date_required","valid_until":"2097-01-01T00:00:00Z","review_reference":"%s","appointment_id":"%s","appointment_version":2}`, expected, age, "019a0000-0000-7000-8000-000000000001", s.appointment)
+	return fmt.Sprintf(`{"expected_version":%d,"max_source_age_seconds":%d,"date_rule":"date_required","expiry_boundary":"end_of_day","valid_until":"2097-01-01T00:00:00Z","review_reference":"%s","appointment_id":"%s","appointment_version":2}`, expected, age, "019a0000-0000-7000-8000-000000000001", s.appointment)
 }
 func TestRegistrationPolicyRejectsMissingExplicitRulesUnappointedActorsAndForeignScope(t *testing.T) {
 	s := newRegistrationPolicyScenario(t)
 	require.Equal(t, 403, testutil.Do(s.router, "PUT", s.path, "operator", s.body).Code)
 	require.Equal(t, 403, testutil.Do(s.router, "GET", s.path, "reader", "").Code)
 	require.Equal(t, 403, testutil.Do(s.router, "PUT", s.path, "steward", s.body).Code, "manage permission alone cannot use another person's appointment")
-	for _, bad := range []string{`null`, `[]`, `{}`, strings.Replace(s.body, `"ascii_upper"`, `"casefold"`, 1), strings.Replace(s.body, `"Asia/Kolkata"`, `"Local"`, 1), strings.Replace(s.body, `"Asia/Kolkata"`, `"Unknown/Zone"`, 1), strings.Replace(s.body, `"max_source_age_seconds":86400`, `"max_source_age_seconds":0`, 1), strings.Replace(s.body, `"max_source_age_seconds":86400`, `"max_source_age_seconds":31536001`, 1), strings.Replace(s.body, `"date_rule":"date_required"`, `"date_rule":""`, 1), strings.Replace(s.body, `"date_rule":"date_required",`, "", 1), strings.Replace(s.body, "2097-01-01", "2000-01-01", 1), strings.TrimSuffix(s.body, "}") + `,"tenant_id":"forged"}`, strings.TrimSuffix(s.body, "}") + `,"verified":true}`} {
+	for _, bad := range []string{`null`, `[]`, `{}`, strings.Replace(s.body, `"ascii_upper"`, `"casefold"`, 1), strings.Replace(s.body, `"Asia/Kolkata"`, `"Local"`, 1), strings.Replace(s.body, `"Asia/Kolkata"`, `"Unknown/Zone"`, 1), strings.Replace(s.body, `"max_source_age_seconds":86400`, `"max_source_age_seconds":0`, 1), strings.Replace(s.body, `"max_source_age_seconds":86400`, `"max_source_age_seconds":31536001`, 1), strings.Replace(s.body, `"date_rule":"date_required"`, `"date_rule":""`, 1), strings.Replace(s.body, `"date_rule":"date_required","expiry_boundary":"end_of_day",`, "", 1), strings.Replace(s.body, "2097-01-01", "2000-01-01", 1), strings.TrimSuffix(s.body, "}") + `,"tenant_id":"forged"}`, strings.TrimSuffix(s.body, "}") + `,"verified":true}`} {
 		got := testutil.Do(s.router, "PUT", s.path, "reviewer", bad)
 		require.Equal(t, 400, got.Code, got.Body.String())
 	}

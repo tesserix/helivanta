@@ -7,3 +7,13 @@ type RegistrationPolicyChangedData struct {
 	PolicyID string `json:"policy_id"`
 	Version  int64  `json:"version"`
 }
+
+const RegistrationVerificationChanged = "helivanta.in.practitioner.registration_verification_changed.v1"
+
+// RegistrationVerificationChangedData requests a fresh owner read, never an access grant.
+type RegistrationVerificationChangedData struct {
+	PractitionerID string `json:"practitioner_id"`
+	RegistrationID string `json:"registration_id"`
+	VerificationID string `json:"verification_id"`
+	Version        int64  `json:"version"`
+}

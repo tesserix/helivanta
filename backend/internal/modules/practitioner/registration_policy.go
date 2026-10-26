@@ -40,6 +40,7 @@ func (i RegistrationPolicyIdentity) valid() bool {
 type RegistrationPolicyParameters struct {
 	MaxSourceAgeSeconds int64     `json:"max_source_age_seconds"`
 	DateRule            string    `json:"date_rule"`
+	ExpiryBoundary      string    `json:"expiry_boundary"`
 	ValidUntil          time.Time `json:"valid_until"`
 	ReviewReference     uuid.UUID `json:"review_reference"`
 	AppointmentID       uuid.UUID `json:"appointment_id"`
@@ -48,6 +49,7 @@ type RegistrationPolicyParameters struct {
 type RegistrationPolicyInput struct {
 	MaxSourceAgeSeconds int64  `json:"max_source_age_seconds"`
 	DateRule            string `json:"date_rule"`
+	ExpiryBoundary      string `json:"expiry_boundary"`
 	ValidUntil          string `json:"valid_until"`
 	ReviewReference     string `json:"review_reference"`
 	AppointmentID       string `json:"appointment_id"`
@@ -58,11 +60,11 @@ func (in RegistrationPolicyInput) parse() (RegistrationPolicyParameters, bool) {
 	until, tOK := stewardUntil(in.ValidUntil)
 	reference, rOK := canonicalStewardReference(in.ReviewReference)
 	appointment, aOK := canonicalStewardReference(in.AppointmentID)
-	out := RegistrationPolicyParameters{in.MaxSourceAgeSeconds, in.DateRule, until, reference, appointment, in.AppointmentVersion}
-	return out, tOK && rOK && aOK && in.AppointmentVersion == 2 && in.MaxSourceAgeSeconds >= 1 && in.MaxSourceAgeSeconds <= 31536000 && (in.DateRule == "date_required" || in.DateRule == "allow_undated_with_attestation")
+	out := RegistrationPolicyParameters{MaxSourceAgeSeconds: in.MaxSourceAgeSeconds, DateRule: in.DateRule, ExpiryBoundary: in.ExpiryBoundary, ValidUntil: until, ReviewReference: reference, AppointmentID: appointment, AppointmentVersion: in.AppointmentVersion}
+	return out, tOK && rOK && aOK && in.AppointmentVersion == 2 && in.MaxSourceAgeSeconds >= 1 && in.MaxSourceAgeSeconds <= 31536000 && (in.DateRule == "date_required" || in.DateRule == "allow_undated_with_attestation") && (in.ExpiryBoundary == "start_of_day" || in.ExpiryBoundary == "end_of_day")
 }
 func (p RegistrationPolicyParameters) equals(other RegistrationPolicyParameters) bool {
-	return p.MaxSourceAgeSeconds == other.MaxSourceAgeSeconds && p.DateRule == other.DateRule && p.ValidUntil.Equal(other.ValidUntil) && p.ReviewReference == other.ReviewReference && p.AppointmentID == other.AppointmentID && p.AppointmentVersion == other.AppointmentVersion
+	return p.MaxSourceAgeSeconds == other.MaxSourceAgeSeconds && p.DateRule == other.DateRule && p.ExpiryBoundary == other.ExpiryBoundary && p.ValidUntil.Equal(other.ValidUntil) && p.ReviewReference == other.ReviewReference && p.AppointmentID == other.AppointmentID && p.AppointmentVersion == other.AppointmentVersion
 }
 
 type registrationPolicyRevision struct {
@@ -83,7 +85,7 @@ func (p *registrationPolicyRevision) AfterFind(*gorm.DB) error {
 }
 func (p registrationPolicyRevision) PageKey() (time.Time, uuid.UUID) { return p.CreatedAt, p.ID }
 func policyRevisionQuery(tx *gorm.DB, p authn.Principal, id uuid.UUID) *gorm.DB {
-	return tx.Table("(SELECT r.id,r.policy_id,r.version,r.expected_version,h.source_system,h.normalization,h.expiry_time_zone,r.max_source_age_seconds,r.date_rule,r.valid_until,r.review_reference,r.appointment_id,r.appointment_version,r.created_by AS authorized_by,r.created_at FROM practitioner_registration_policy_revisions r JOIN practitioner_registration_policies h ON h.tenant_id=r.tenant_id AND h.id=r.policy_id WHERE r.tenant_id=? AND r.policy_id=?) AS policy_editions", p.TenantID, id)
+	return tx.Table("(SELECT r.id,r.policy_id,r.version,r.expected_version,h.source_system,h.normalization,h.expiry_time_zone,r.max_source_age_seconds,r.date_rule,r.expiry_boundary,r.valid_until,r.review_reference,r.appointment_id,r.appointment_version,r.created_by AS authorized_by,r.created_at FROM practitioner_registration_policy_revisions r JOIN practitioner_registration_policies h ON h.tenant_id=r.tenant_id AND h.id=r.policy_id WHERE r.tenant_id=? AND r.policy_id=?) AS policy_editions", p.TenantID, id)
 }
 
 type registrationPolicyHead struct {
@@ -103,7 +105,7 @@ func (p *registrationPolicyHead) AfterFind(*gorm.DB) error {
 }
 func (p registrationPolicyHead) PageKey() (time.Time, uuid.UUID) { return p.CreatedAt, p.ID }
 func policyHeadQuery(tx *gorm.DB, p authn.Principal) *gorm.DB {
-	return tx.Table("(SELECT h.id,r.id AS revision_id,h.version,h.source_system,h.normalization,h.expiry_time_zone,r.max_source_age_seconds,r.date_rule,r.valid_until,r.review_reference,r.appointment_id,r.appointment_version,r.created_by AS authorized_by,h.created_at FROM practitioner_registration_policies h JOIN practitioner_registration_policy_revisions r ON r.tenant_id=h.tenant_id AND r.policy_id=h.id AND r.version=h.version WHERE h.tenant_id=?) AS policy_heads", p.TenantID)
+	return tx.Table("(SELECT h.id,r.id AS revision_id,h.version,h.source_system,h.normalization,h.expiry_time_zone,r.max_source_age_seconds,r.date_rule,r.expiry_boundary,r.valid_until,r.review_reference,r.appointment_id,r.appointment_version,r.created_by AS authorized_by,h.created_at FROM practitioner_registration_policies h JOIN practitioner_registration_policy_revisions r ON r.tenant_id=h.tenant_id AND r.policy_id=h.id AND r.version=h.version WHERE h.tenant_id=?) AS policy_heads", p.TenantID)
 }
 func (h *handlers) policyTransaction(ctx context.Context, p authn.Principal, manage bool, fn func(*gorm.DB) error) error {
 	return h.transaction(ctx, p, false, func(tx *gorm.DB) error {
@@ -216,7 +218,7 @@ func (h *handlers) registrationPolicyCommand(c *gin.Context, revision bool) {
 				return auditIDs(tx, p, "practitioner_registration_policy_revisions", []uuid.UUID{id})
 			}
 		}
-		if err := tx.Exec("INSERT INTO practitioner_registration_policy_revisions(tenant_id,policy_id,id,expected_version,version,max_source_age_seconds,date_rule,valid_until,review_reference,appointment_id,appointment_version,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", p.TenantID, id, command, expected, expected+1, parameters.MaxSourceAgeSeconds, parameters.DateRule, parameters.ValidUntil, parameters.ReviewReference, parameters.AppointmentID, parameters.AppointmentVersion, p.Subject).Error; err != nil {
+		if err := tx.Exec("INSERT INTO practitioner_registration_policy_revisions(tenant_id,policy_id,id,expected_version,version,max_source_age_seconds,date_rule,expiry_boundary,valid_until,review_reference,appointment_id,appointment_version,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", p.TenantID, id, command, expected, expected+1, parameters.MaxSourceAgeSeconds, parameters.DateRule, parameters.ExpiryBoundary, parameters.ValidUntil, parameters.ReviewReference, parameters.AppointmentID, parameters.AppointmentVersion, p.Subject).Error; err != nil {
 			return err
 		}
 		if revision {

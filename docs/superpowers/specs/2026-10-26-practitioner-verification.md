@@ -89,3 +89,50 @@ authorized owner read. No event is a permission grant. All 56 module harness rou
 reject stale workspace. Runtime bootstrap, effective decision/normalized identifier
 ownership, qualifications/HPR/facility privilege consumers, policy activation and
 production migration remain separate incomplete gates.
+
+## Organization-access boundary
+
+This work records administrative credential-data attestations. It creates no role,
+assignment, delegation, clinical privilege or workflow approval. IAM permissions
+must come from the shared authorization owner; current data-review appointments
+are existing provenance/qualification records and must not become an alternate
+IAM grant source. The existing appointment model needs ORG-AC-08 convergence
+before activation. ORG-D-* assignment/writer/workflow decisions remain open and
+are not settled here. Shared workflow publication and organization-specific role
+and approval templates remain activation gates (ORG-AC-01..04/07..10,
+ORG-WF-01..06). No public/private institution hierarchy is hard-coded.
+
+New attestation/revocation actions use current platform IAM checks and exact
+credential scope; they do not add caller eligibility via another private grant
+ledger. Claim submitters cannot attest their own credential facts. Consumers must
+never interpret a positive registry attestation or refresh event as a clinical
+permission. Clinical authority is explicitly not evaluated; current/historical
+clinical roles require the separate scoped IAM/workflow integration.
+
+Expiry interpretation also needs an explicit start-of-day or end-of-day boundary
+in the configured issuer calendar. Draft policy 0013 is unpublished/undeployed;
+its required expiry_boundary is added before publication, with no assumed legal
+cutoff. Undated facts require a separate explicit attestation when the configured
+policy permits them. The resulting trust ceiling is not a licence certificate.
+
+### Registration attestation validation (2026-10-26)
+
+The local handler/database harness now exercises immutable attestation and
+withdrawal receipts, canonical identifier conflict retention without person
+merges, concurrent exact replay, stale versions, independent reviewers,
+unauthorized tenant scope, evidence revocation, policy/revision/source changes,
+and audit/outbox rollback. Missing undated attestation and elapsed source age
+are rejected; the current projection becomes stale at the exact lease boundary.
+Administrative attestation always returns `clinical_authority: not_evaluated`.
+
+Validation: practitioner race suite passed (111.233s), architecture suite passed
+(37.095s), additional expiry-boundary tests passed (5.612s), practitioner vet and
+build passed, acceptance-tagged practitioner golangci-lint reported zero issues,
+contractdocs generation/check passed, and the practitioner secret scan found no
+leaks. These are local tests, not proof of deployed service integration.
+
+This remains a draft, inactive runtime implementation. Conflict reconciliation,
+ORG-AC-08 shared IAM/workflow convergence, identity/qualification/HPR and facility
+privilege integration, global/runtime wiring and deployment acceptance remain
+open. Migration 0014 is forward-only: receipt and identifier ownership history
+must be retained; rollback requires forward correction rather than deletion.

@@ -47,3 +47,32 @@
 .public-site {
   color-scheme: light;
 }
+
+/* Night-shift home page palette (#1354): signal colours mark the kind of exchange on the care board. */
+.home-night {
+  --night-canvas: #0c2a32;
+  --night-board: #0e2f38;
+  --night-surface: #11353f;
+  --night-hub: #0f323b;
+  --night-line: #285461;
+  --night-ink: #eef5f1;
+  --night-muted: #a3c0bc;
+  --night-care: #5ad1bd;
+  --night-care-hover: #7fdccb;
+  --night-stock: #f2b35e;
+  --night-oversight: #a9b6ff;
+  --foreground: var(--night-ink);
+  --muted-foreground: var(--night-muted);
+  --border: var(--night-line);
+  color-scheme: dark;
+}
+
+/* @tesserix/web's unlayered `* { border-color }` beats layered utilities; revert-layer restores them here. */
+@layer base {
+  :is(.public-site, .home-night) * {
+    border-color: var(--border);
+  }
+}
+:is(.public-site, .home-night) * {
+  border-color: revert-layer;
+}

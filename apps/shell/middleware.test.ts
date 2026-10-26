@@ -14,11 +14,11 @@ it("allows published branding before login but protects workspace settings", () 
   ).toBe(401);
 });
 
-it("serves the public homepage and signup without opening clinical routes", () => {
-  for (const path of ["/", "/signup"]) {
+it("serves the public homepage, workspace page and signup without opening clinical routes", () => {
+  for (const path of ["/", "/workspace", "/signup"]) {
     expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status).toBe(200);
   }
-  for (const path of ["/dashboard", "/medicore/opd", "/pharmacy", "/lab"]) {
+  for (const path of ["/dashboard", "/medicore/opd", "/pharmacy", "/lab", "/workspace/settings"]) {
     expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status).toBe(307);
   }
 });

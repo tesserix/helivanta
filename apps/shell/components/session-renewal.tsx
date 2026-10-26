@@ -27,6 +27,7 @@ import { AUTH_CALLBACK_PATH } from "@/lib/oidc";
 function isPublicPath(pathname: string): boolean {
   return (
     pathname === "/" ||
+    pathname === "/workspace" ||
     pathname === "/signup" ||
     pathname === "/ambulance" ||
     pathname.startsWith("/login") ||

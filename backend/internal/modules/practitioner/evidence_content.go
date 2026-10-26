@@ -170,7 +170,7 @@ func (h *handlers) revokeEvidence(c *gin.Context) {
 		if err := tx.Exec("INSERT INTO practitioner_evidence_revocations(tenant_id,practitioner_id,registration_id,revision_id,file_id,id,review_reference,created_by) VALUES(?,?,?,?,?,?,?,?)", p.TenantID, parent.practitioner, parent.registration, parent.revision, file, id, reference, p.Subject).Error; err != nil {
 			return err
 		}
-		if err := evidenceStateEvent(tx, practitionercontract.EvidenceScanInput{TenantID: p.TenantID, PractitionerID: parent.practitioner.String(), RegistrationID: parent.registration.String(), RevisionID: parent.revision.String(), FileID: file.String()}, "revoked"); err != nil {
+		if err := evidenceStateEvent(tx, practitionercontract.EvidenceScanInput{TenantID: p.TenantID, PractitionerID: parent.practitioner.String(), RegistrationID: parent.registration.String(), RevisionID: parent.revision.String(), FileID: file.String(), ScanAttempt: row.ScanAttempt}, "revoked"); err != nil {
 			return err
 		}
 		if err := revocationQuery(tx, p, parent, file, id).Take(&receipt).Error; err != nil {

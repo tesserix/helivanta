@@ -18,7 +18,7 @@ func TestProfessionalEvidenceDispatcherValidatesBeforeClaimAndRequiresTemporal(t
 	c := consumers[0]
 	require.Equal(t, "practitioner-evidence-scan", c.Name)
 	require.Equal(t, practitionercontract.EvidenceScanRequested, c.Subject)
-	data, err := json.Marshal(practitionercontract.EvidenceScanRequestedData{PractitionerID: uuid.Must(uuid.NewV7()).String(), RegistrationID: uuid.Must(uuid.NewV7()).String(), RevisionID: uuid.Must(uuid.NewV7()).String(), FileID: uuid.Must(uuid.NewV7()).String()})
+	data, err := json.Marshal(practitionercontract.EvidenceScanRequestedData{PractitionerID: uuid.Must(uuid.NewV7()).String(), RegistrationID: uuid.Must(uuid.NewV7()).String(), RevisionID: uuid.Must(uuid.NewV7()).String(), FileID: uuid.Must(uuid.NewV7()).String(), ScanAttempt: 1})
 	require.NoError(t, err)
 	event := events.Event{Type: c.Subject, Version: 1, TenantID: uuid.NewString(), Data: data}
 	require.NoError(t, c.Handle(t.Context(), nil, event))
@@ -43,9 +43,19 @@ func TestProfessionalEvidenceDispatcherValidatesBeforeClaimAndRequiresTemporal(t
 }
 
 func TestProfessionalEvidenceExecutionIdentityIncludesEveryScopeComponent(t *testing.T) {
-	in := practitionercontract.EvidenceScanInput{TenantID: uuid.NewString(), PractitionerID: uuid.Must(uuid.NewV7()).String(), RegistrationID: uuid.Must(uuid.NewV7()).String(), RevisionID: uuid.Must(uuid.NewV7()).String(), FileID: uuid.Must(uuid.NewV7()).String()}
+	in := practitionercontract.EvidenceScanInput{TenantID: uuid.NewString(), PractitionerID: uuid.Must(uuid.NewV7()).String(), RegistrationID: uuid.Must(uuid.NewV7()).String(), RevisionID: uuid.Must(uuid.NewV7()).String(), FileID: uuid.Must(uuid.NewV7()).String(), ScanAttempt: 1}
 	id, err := practitioner.EvidenceWorkflowID(in)
 	require.NoError(t, err)
+	attempt := in
+	attempt.ScanAttempt = 2
+	nextID, err := practitioner.EvidenceWorkflowID(attempt)
+	require.NoError(t, err)
+	require.NotEqual(t, id, nextID)
+	for _, invalid := range []int64{0, -1, 9007199254740992} {
+		attempt.ScanAttempt = invalid
+		_, err = practitioner.EvidenceWorkflowID(attempt)
+		require.Error(t, err)
+	}
 	seen := map[string]bool{id: true}
 	for i := range 5 {
 		changed := in

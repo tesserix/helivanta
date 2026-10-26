@@ -9,6 +9,7 @@ type EvidenceScanRequestedData struct {
 	RegistrationID string `json:"registration_id"`
 	RevisionID     string `json:"revision_id"`
 	FileID         string `json:"file_id"`
+	ScanAttempt    int64  `json:"scan_attempt"`
 }
 
 const EvidenceChanged = "helivanta.in.practitioner.evidence_changed.v1"
@@ -20,6 +21,7 @@ type EvidenceScanInput struct {
 	RegistrationID string `json:"registration_id"`
 	RevisionID     string `json:"revision_id"`
 	FileID         string `json:"file_id"`
+	ScanAttempt    int64  `json:"scan_attempt"`
 }
 
 // EvidenceChangedData carries lifecycle metadata without credential content.
@@ -28,5 +30,6 @@ type EvidenceChangedData struct {
 	RegistrationID string `json:"registration_id"`
 	RevisionID     string `json:"revision_id"`
 	FileID         string `json:"file_id"`
+	ScanAttempt    int64  `json:"scan_attempt"`
 	Status         string `json:"status"`
 }

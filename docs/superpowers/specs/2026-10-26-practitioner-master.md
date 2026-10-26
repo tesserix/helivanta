@@ -394,13 +394,13 @@ committed upload outbox through real JetStream delivery, process evidence with t
 and vendor protocol fixtures, download exact bytes, and confirm repeat delivery
 retains one run and one object copy, including two distinct processed delivery
 claims. A conflicting revision receipt is rejected without a copy. Production
-delivery configuration, worker provisioning/deployment, explicit retained manual retry
+delivery configuration, worker provisioning/deployment
 and independent professional review remain required before runtime activation.
 
 Run the real dispatch acceptance with an explicitly selected local Temporal server:
 
 ```sh
-HELIVANTA_TEST_TEMPORAL_ADDR=127.0.0.1:17233 go test -race -tags acceptance ./internal/modules/practitioner -run 'TestProfessional(CommittedScan|DispatcherRejects)' -count=1
+HELIVANTA_TEST_TEMPORAL_ADDR=127.0.0.1:17233 go test -race -tags acceptance ./internal/modules/practitioner -run 'TestProfessional(CommittedScan|DispatcherRejects|ManualRecovery)' -count=1
 ```
 
 The ordinary package suite does not run acceptance-tagged server tests.
@@ -439,3 +439,45 @@ receipt, immutable receipt history, and audit/outbox rollback and recovery.
 Expiry tests prove that the upload window neither erases retained content nor
 prevents subsequent revocation. Migration 0007 is additive/forward-only and has
 been applied only to disposable databases; no file is physically deleted.
+
+## Retained scan recovery (local implementation; undeployed)
+
+PUT the evidence path plus `/scan-retries/:retry` requires current evidence-manage
+permission and an immutable UUIDv7 command. The body contains `expected_attempt`
+and an opaque UUIDv7 `review_reference`. It accepts only a current `scan_error`
+from temporary storage/scanner failure; rejected, available, revoked and pending
+files cannot be restarted. The command receipt, next attempt, reset to pending,
+audit and scan outbox commit together. Exact replay returns the original queued
+receipt even after later processing; changed intent or a stale competing command
+conflicts. The receipt records the previous failure without copying private bytes.
+
+A retry may explicitly supersede a prior execution still backing off. Each event,
+workflow ID and worker input pins the attempt. Workers check it before I/O and
+again under the commit lock; stale success/failure returns `superseded` without
+changing current state. Database guards reject verdicts from a different attempt.
+This avoids making recovery depend on Temporal availability while preserving the
+existing five-attempt automatic retry cap per execution. It does not clear malware
+or integrity rejection, change generations, delete history or verify a professional.
+The existing capacity envelope applies; the body is bounded by the owner decoder,
+commands use the existing five-second transaction budget and no external call is
+made inside that transaction. Recovery uses the existing database/broker/Temporal
+services and adds no cloud service or cache. New migration 0008 is additive and
+undeployed; rollback must retain attempt counters and receipts.
+
+Local retry validation covers exact replay after later success, changed intent,
+wrong tenant/revision and permission, all 26 stale-workspace routes, 12 concurrent
+replays with one receipt/outbox, audit and outbox rollback/recovery, receipt
+immutability, database rejection of unreceipted advancement, stale worker verdicts,
+and old work superseded after copying. Malware-rejected and revoked files remain
+closed. SDK time-skipping proves recovery after five-attempt exhaustion. Real
+JetStream/Temporal acceptance proves a retained retry starts a new execution after
+a terminated prior execution, old delivery does not restart it, and exact content
+can be read after recovery. These are local vendor-protocol/storage fixtures, not
+production provisioning or approved professional verification.
+
+`scan_attempt` is now required in the canonical draft scan input/request and
+lifecycle data; it is also returned in private evidence metadata. This module has
+never been registered/deployed or published for consumers; production registration
+must publish this complete reviewed contract rather than rely on earlier draft
+examples. The workflow ID includes the attempt. No existing published v1 consumer
+is migrated by this change.

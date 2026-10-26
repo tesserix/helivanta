@@ -28,6 +28,7 @@ func (in evidenceInput) valid() bool {
 }
 
 type registrationEvidence struct {
+	ScanAttempt          int64      `json:"scan_attempt"`
 	ID                   uuid.UUID  `json:"id"`
 	PractitionerID       uuid.UUID  `json:"practitioner_id"`
 	RegistrationID       uuid.UUID  `json:"registration_id"`
@@ -64,7 +65,7 @@ func (e *registrationEvidence) AfterFind(*gorm.DB) error {
 }
 func (e registrationEvidence) PageKey() (time.Time, uuid.UUID) { return e.CreatedAt, e.ID }
 
-const evidenceColumns = "id,practitioner_id,registration_id,revision_id,content_type,size,sha256,status,created_at,expires_at,uploaded_at,source_generation,released_generation,engine_version,definition_version,definitions_updated_at,scanned_at,failure_code"
+const evidenceColumns = "scan_attempt,id,practitioner_id,registration_id,revision_id,content_type,size,sha256,status,created_at,expires_at,uploaded_at,source_generation,released_generation,engine_version,definition_version,definitions_updated_at,scanned_at,failure_code"
 
 type evidenceParent struct{ practitioner, registration, revision uuid.UUID }
 

@@ -70,7 +70,7 @@ func newProfessionalEvidenceScenarioWithRuntime(t *testing.T, membership authz.M
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, worker.Close()) })
 	segments := strings.Split(path, "/")
-	return professionalEvidenceScenario{r, db, worker, cloud, files, practitionercontract.EvidenceScanInput{TenantID: testutil.TenantA, PractitionerID: segments[3], RegistrationID: segments[5], RevisionID: segments[7], FileID: file}, path, data.Bytes()}
+	return professionalEvidenceScenario{r, db, worker, cloud, files, practitionercontract.EvidenceScanInput{TenantID: testutil.TenantA, PractitionerID: segments[3], RegistrationID: segments[5], RevisionID: segments[7], FileID: file, ScanAttempt: 1}, path, data.Bytes()}
 }
 func TestProfessionalEvidenceProcessorCommitsOnlyGenerationBoundAuditedRelease(t *testing.T) {
 	s := newProfessionalEvidenceScenario(t)
@@ -126,7 +126,7 @@ func TestProfessionalEvidenceProcessorCommitsOnlyGenerationBoundAuditedRelease(t
 func workerEvidenceScope(t *testing.T, s professionalEvidenceScenario, fn func(*gorm.DB) error) error {
 	t.Helper()
 	return s.worker.WithTenant(tenantdb.WithActor(t.Context(), "service:practitioner-evidence-worker"), s.input.TenantID, func(tx *gorm.DB) error {
-		if err := tx.Exec("SELECT set_config('app.practitioner_evidence_owner',?,true),set_config('app.practitioner_evidence_registration',?,true),set_config('app.practitioner_evidence_revision',?,true),set_config('app.practitioner_evidence_file',?,true)", s.input.PractitionerID, s.input.RegistrationID, s.input.RevisionID, s.input.FileID).Error; err != nil {
+		if err := tx.Exec("SELECT set_config('app.practitioner_evidence_owner',?,true),set_config('app.practitioner_evidence_registration',?,true),set_config('app.practitioner_evidence_revision',?,true),set_config('app.practitioner_evidence_file',?,true),set_config('app.practitioner_evidence_attempt',?,true)", s.input.PractitionerID, s.input.RegistrationID, s.input.RevisionID, s.input.FileID, fmt.Sprint(s.input.ScanAttempt)).Error; err != nil {
 			return err
 		}
 		return fn(tx)

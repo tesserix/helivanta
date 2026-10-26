@@ -18,9 +18,10 @@ This plan does not close #39/#474/#77/#102 for a partial implementation.
       and byte upload/quarantine with an atomic scan outbox are implemented locally.
       The scoped, exact-generation scanner/promotion processor is implemented and
       tested locally, including bounded Temporal activity retries, private content
-      release and retained revocation. The module consumer dispatches committed scope
+      release and retained revocation. Retained manual retry and attempt fencing recover exhausted executions locally.
+      The module consumer dispatches committed scope
       to a receipt-checked Temporal execution in local acceptance tests. Production
-      delivery/worker wiring, manual retry and professional verification remain
+      delivery/worker wiring and professional verification remain
       required before runtime activation.
 - [ ] Complete reviewed facility/role/privilege ownership, current and historical
       checks, expiry workflows and reconciliation; preserve prior signed attribution.

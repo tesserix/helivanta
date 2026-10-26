@@ -2,6 +2,7 @@ package practitioner_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -89,4 +90,41 @@ func TestProfessionalEvidenceWorkflowDoesNotRetryMalformedOrMissingObjects(t *te
 			require.NotContains(t, env.GetWorkflowError().Error(), "SELECT")
 		})
 	}
+}
+
+func TestProfessionalEvidenceManualRetryRecoversExhaustedWorkflowWithNewIdentity(t *testing.T) {
+	s := newProfessionalEvidenceScenario(t)
+	scanner, err := attachments.NewClamAV(testinfra.ClamAVProtocol(t, "stream: ERROR\x00"), time.Second, attachments.MaxFileBytes)
+	require.NoError(t, err)
+	p, err := practitioner.NewEvidenceProcessor(t.Context(), s.worker, s.files, scanner)
+	require.NoError(t, err)
+	var suite testsuite.WorkflowTestSuite
+	failed := suite.NewTestWorkflowEnvironment()
+	failed.RegisterActivityWithOptions(p.ProcessActivity, activity.RegisterOptions{Name: practitioner.EvidenceActivityName})
+	calls := 0
+	failed.SetOnActivityStartedListener(func(_ *activity.Info, _ context.Context, _ converter.EncodedValues) { calls++ })
+	failed.ExecuteWorkflow(practitioner.EvidenceWorkflow, s.input)
+	require.True(t, failed.IsWorkflowCompleted())
+	require.Error(t, failed.GetWorkflowError())
+	require.Equal(t, 5, calls)
+	require.Zero(t, s.cloud.CopyCount())
+	body := fmt.Sprintf(`{"expected_attempt":1,"review_reference":"%s"}`, uuid.Must(uuid.NewV7()))
+	result := testutil.Do(s.router, "PUT", s.path+"/scan-retries/"+uuid.Must(uuid.NewV7()).String(), "steward", body)
+	require.Equal(t, 201, result.Code, result.Body.String())
+	next := s.input
+	next.ScanAttempt = 2
+	firstID, err := practitioner.EvidenceWorkflowID(s.input)
+	require.NoError(t, err)
+	nextID, err := practitioner.EvidenceWorkflowID(next)
+	require.NoError(t, err)
+	require.NotEqual(t, firstID, nextID)
+	recovered := suite.NewTestWorkflowEnvironment()
+	recovered.RegisterActivityWithOptions(cleanProfessionalEvidenceProcessor(t, s).ProcessActivity, activity.RegisterOptions{Name: practitioner.EvidenceActivityName})
+	recovered.ExecuteWorkflow(practitioner.EvidenceWorkflow, next)
+	require.True(t, recovered.IsWorkflowCompleted())
+	require.NoError(t, recovered.GetWorkflowError())
+	var status string
+	require.NoError(t, recovered.GetWorkflowResult(&status))
+	require.Equal(t, "available", status)
+	require.Equal(t, 1, s.cloud.CopyCount())
 }

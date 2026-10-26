@@ -139,7 +139,7 @@ func (h *handlers) uploadEvidence(c *gin.Context) {
 		if result.RowsAffected != 1 {
 			return errIntentConflict
 		}
-		payload, e := json.Marshal(practitionercontract.EvidenceScanRequestedData{PractitionerID: parent.practitioner.String(), RegistrationID: parent.registration.String(), RevisionID: parent.revision.String(), FileID: id.String()})
+		payload, e := json.Marshal(practitionercontract.EvidenceScanRequestedData{PractitionerID: parent.practitioner.String(), RegistrationID: parent.registration.String(), RevisionID: parent.revision.String(), FileID: id.String(), ScanAttempt: row.ScanAttempt})
 		if e != nil {
 			return e
 		}

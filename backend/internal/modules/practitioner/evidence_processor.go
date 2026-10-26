@@ -44,6 +44,9 @@ func NewEvidenceProcessor(ctx context.Context, db *tenantdb.DB, files *attachmen
 	return &EvidenceProcessor{db, files, scanner}, nil
 }
 func validEvidenceScanInput(in practitionercontract.EvidenceScanInput) bool {
+	if in.ScanAttempt < 1 || in.ScanAttempt > 9007199254740991 {
+		return false
+	}
 	for i, value := range []string{in.TenantID, in.PractitionerID, in.RegistrationID, in.RevisionID, in.FileID} {
 		id, err := uuid.Parse(value)
 		if err != nil || id == uuid.Nil || id.String() != value || (i > 0 && (id.Variant() != uuid.RFC4122 || id.Version() != 7)) {
@@ -56,7 +59,7 @@ func (p *EvidenceProcessor) transaction(ctx context.Context, in practitionercont
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	return p.db.WithTenant(tenantdb.WithActor(ctx, evidenceWorkerActor), in.TenantID, func(tx *gorm.DB) error {
-		if err := tx.Exec("SELECT set_config('app.practitioner_evidence_owner',?,true),set_config('app.practitioner_evidence_registration',?,true),set_config('app.practitioner_evidence_revision',?,true),set_config('app.practitioner_evidence_file',?,true),set_config('lock_timeout','2s',true),set_config('statement_timeout','5s',true)", in.PractitionerID, in.RegistrationID, in.RevisionID, in.FileID).Error; err != nil {
+		if err := tx.Exec("SELECT set_config('app.practitioner_evidence_owner',?,true),set_config('app.practitioner_evidence_registration',?,true),set_config('app.practitioner_evidence_revision',?,true),set_config('app.practitioner_evidence_file',?,true),set_config('lock_timeout','2s',true),set_config('statement_timeout','5s',true),set_config('app.practitioner_evidence_attempt',?,true)", in.PractitionerID, in.RegistrationID, in.RevisionID, in.FileID, fmt.Sprint(in.ScanAttempt)).Error; err != nil {
 			return err
 		}
 		return fn(tx)
@@ -66,7 +69,7 @@ func processingEvidence(tx *gorm.DB, in practitionercontract.EvidenceScanInput, 
 	return lockedEvidence(tx, authn.Principal{TenantID: in.TenantID, Subject: evidenceWorkerActor}, evidenceParent{uuid.MustParse(in.PractitionerID), uuid.MustParse(in.RegistrationID), uuid.MustParse(in.RevisionID)}, uuid.MustParse(in.FileID), row)
 }
 func evidenceStateEvent(tx *gorm.DB, in practitionercontract.EvidenceScanInput, state string) error {
-	data, err := json.Marshal(practitionercontract.EvidenceChangedData{PractitionerID: in.PractitionerID, RegistrationID: in.RegistrationID, RevisionID: in.RevisionID, FileID: in.FileID, Status: state})
+	data, err := json.Marshal(practitionercontract.EvidenceChangedData{PractitionerID: in.PractitionerID, RegistrationID: in.RegistrationID, RevisionID: in.RevisionID, FileID: in.FileID, ScanAttempt: in.ScanAttempt, Status: state})
 	if err != nil {
 		return err
 	}
@@ -90,6 +93,9 @@ func (p *EvidenceProcessor) Process(ctx context.Context, in practitionercontract
 	})
 	if err != nil {
 		return "", fmt.Errorf("load professional evidence: %w", err)
+	}
+	if row.ScanAttempt != in.ScanAttempt {
+		return "superseded", nil
 	}
 	if row.Status == "available" || row.Status == "rejected" || row.Status == "revoked" {
 		return row.Status, nil
@@ -124,6 +130,10 @@ func (p *EvidenceProcessor) Process(ctx context.Context, in practitionercontract
 		if err := processingEvidence(tx, in, &current); err != nil {
 			return err
 		}
+		if current.ScanAttempt != in.ScanAttempt {
+			status = "superseded"
+			return nil
+		}
 		if !processableEvidence(current.Status) {
 			status = current.Status
 			return nil
@@ -131,7 +141,7 @@ func (p *EvidenceProcessor) Process(ctx context.Context, in practitionercontract
 		if current.SourceGeneration == nil || *current.SourceGeneration != release.SourceGeneration || current.Size != release.Object.Size || current.SHA256 != release.Object.SHA256 || current.ContentType != release.ContentType {
 			return ErrEvidenceIntegrity
 		}
-		result := tx.Exec("UPDATE practitioner_registration_evidence SET status='available',released_generation=?,engine_version=?,definition_version=?,definitions_updated_at=?,scanned_at=?,failure_code=NULL WHERE tenant_id=? AND id=? AND status IN ('scan_pending','scan_error') AND source_generation=?", release.Object.Generation, release.Scanner.EngineVersion, release.Scanner.DefinitionVersion, release.Scanner.DefinitionsUpdatedAt, release.ScannedAt, in.TenantID, in.FileID, release.SourceGeneration)
+		result := tx.Exec("UPDATE practitioner_registration_evidence SET status='available',released_generation=?,engine_version=?,definition_version=?,definitions_updated_at=?,scanned_at=?,failure_code=NULL WHERE tenant_id=? AND id=? AND status IN ('scan_pending','scan_error') AND scan_attempt=? AND source_generation=?", release.Object.Generation, release.Scanner.EngineVersion, release.Scanner.DefinitionVersion, release.Scanner.DefinitionsUpdatedAt, release.ScannedAt, in.TenantID, in.FileID, in.ScanAttempt, release.SourceGeneration)
 		if result.Error != nil {
 			return result.Error
 		}
@@ -157,13 +167,17 @@ func (p *EvidenceProcessor) failure(ctx context.Context, in practitionercontract
 			return err
 		}
 		status = current.Status
+		if current.ScanAttempt != in.ScanAttempt {
+			status = "superseded"
+			return nil
+		}
 		if !processableEvidence(current.Status) {
 			return nil
 		}
 		if current.Status == state && current.FailureCode != nil && *current.FailureCode == code {
 			return nil
 		}
-		result := tx.Exec("UPDATE practitioner_registration_evidence SET status=?,failure_code=? WHERE tenant_id=? AND id=? AND status IN ('scan_pending','scan_error')", state, code, in.TenantID, in.FileID)
+		result := tx.Exec("UPDATE practitioner_registration_evidence SET status=?,failure_code=? WHERE tenant_id=? AND id=? AND status IN ('scan_pending','scan_error') AND scan_attempt=?", state, code, in.TenantID, in.FileID, in.ScanAttempt)
 		if result.Error != nil {
 			return result.Error
 		}

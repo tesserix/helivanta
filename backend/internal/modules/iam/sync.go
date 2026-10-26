@@ -56,6 +56,8 @@ func (h *fgaSyncHandlers) revoke(ctx context.Context, _ *gorm.DB, evt events.Eve
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 	sync := &fgaSyncHandlers{authz: deps.Authz, reconcile: deps.Reconcile}
 	return []events.Consumer{
+		proposalScopeConsumer(deps),
+		assignmentProjectionConsumer(deps),
 		{Name: "iam-fga-sync", Subject: iamcontract.SubjectMemberGranted, Handle: sync.grant},
 		{Name: "iam-fga-sync-revoke", Subject: iamcontract.SubjectMemberRevoked, Handle: sync.revoke},
 	}

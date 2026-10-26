@@ -153,3 +153,62 @@ func TestDeclaredCarriesMethodAndPath(t *testing.T) {
 		Method: http.MethodPost, Path: "/v1/medicore/visits", Permission: "medicore.visit.create",
 	})
 }
+
+func TestScopedRouteDeclaresHospitalBoundary(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	root := platform.NewRouter(gin.New().Group("/v1"), alwaysMember{})
+	root.Group("/workforce/hospitals/:hospital").POSTScopedHospital("/decisions", "workforce.leave.approve", "hospital", func(*gin.Context) {})
+	declared := root.Declared()
+	require.Len(t, declared, 1)
+	require.Equal(t, "hospital", declared[0].ScopeKind)
+	require.Equal(t, "hospital", declared[0].ScopeParameter)
+	require.Equal(t, "/v1/workforce/hospitals/:hospital/decisions", declared[0].Path)
+	for _, permission := range []authz.Permission{"", authz.Public, authz.NoTenantMembership} {
+		require.Panics(t, func() { root.POSTScopedHospital("/:hospital/unsafe", permission, "hospital", func(*gin.Context) {}) })
+	}
+	require.Panics(t, func() {
+		root.POSTScopedHospital("/:hospital_extra/unsafe", "workforce.leave.approve", "hospital", func(*gin.Context) {})
+	})
+	require.Len(t, root.Declared(), 1, "failed registration must not leave a declaration behind")
+}
+
+func TestScopedRouteFailsClosedWithoutAuthority(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		member      authz.MembershipChecker
+		legacy      bool
+		initialized bool
+		status      int
+	}{
+		{"nonmember", neverMember{}, false, true, 403},
+		{"missing dependency", alwaysMember{}, false, true, 503},
+		{"legacy independent gate", alwaysMember{}, true, true, 200},
+		{"missing permission context", alwaysMember{}, false, false, 500},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			e := gin.New()
+			e.Use(func(c *gin.Context) {
+				c.Set("authn.principal", authn.Principal{Subject: "synthetic-reviewer", TenantID: "00000000-0000-0000-0000-000000000001"})
+				if tc.initialized {
+					set := authz.NewPermissionSet()
+					if tc.legacy {
+						set = authz.NewPermissionSet("workforce.leave.approve")
+					}
+					c.Set("authz.permissions", set)
+				}
+				c.Next()
+			})
+			r := platform.NewRouter(e.Group("/v1"), tc.member)
+			r.POSTScopedHospital("/hospitals/:hospital/decision", "workforce.leave.approve", "hospital", func(c *gin.Context) {
+				_, ok := authz.HospitalScopeGrant(c, "workforce.leave.approve", c.Param("hospital"))
+				require.False(t, ok)
+				require.True(t, authz.HospitalScopeUnavailable(c))
+				c.Status(200)
+			})
+			w := httptest.NewRecorder()
+			e.ServeHTTP(w, httptest.NewRequest("POST", "/v1/hospitals/00000000-0000-0000-0000-000000000002/decision", nil))
+			require.Equal(t, tc.status, w.Code)
+		})
+	}
+}

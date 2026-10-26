@@ -24,6 +24,8 @@ import (
 )
 
 type route struct {
+	ScopeKind      string           `json:"scope_kind,omitempty"`
+	ScopeParameter string           `json:"scope_parameter,omitempty"`
 	Method         string           `json:"method"`
 	Path           string           `json:"path"`
 	Permission     authz.Permission `json:"permission"`
@@ -107,7 +109,7 @@ func inventory() reference {
 			DirectedTables: append([]string{}, m.DirectedWriteTables()...), Migrations: migrations(m.Migrations()),
 			Routes: []route{}, Grants: []grant{}, Consumers: []subscription{}, Broadcasts: []string{}}
 		for _, d := range r.Declared() {
-			item.Routes = append(item.Routes, route{d.Method, d.Path, d.Permission, true, d.Permission != authz.NoTenantMembership, d.Paginated, d.Counted})
+			item.Routes = append(item.Routes, route{Method: d.Method, Path: d.Path, Permission: d.Permission, Authentication: true, Membership: d.Permission != authz.NoTenantMembership, Paginated: d.Paginated, Counted: d.Counted, ScopeKind: d.ScopeKind, ScopeParameter: d.ScopeParameter})
 		}
 		sort.Slice(item.Routes, func(i, j int) bool {
 			return item.Routes[i].Path+item.Routes[i].Method < item.Routes[j].Path+item.Routes[j].Method

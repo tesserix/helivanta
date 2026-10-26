@@ -355,6 +355,11 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 			p.TenantID, hospital, id, in.Staff.EmployeeCode, in.Staff.DisplayName, in.Staff.JobCategory, in.Staff.EmploymentStatus).Error; err != nil {
 			return err
 		}
+		if in.Staff.EmploymentStatus == "inactive" {
+			if err := h.revokeInactiveStaffLinks(tx, p, hospital, id); err != nil {
+				return err
+			}
+		}
 		if err := replaceEnrollmentRows(tx, p.TenantID, hospital, id, in); err != nil {
 			return err
 		}

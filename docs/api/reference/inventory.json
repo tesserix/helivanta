@@ -24,6 +24,60 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/iam/assignment-proposals/:id/decision",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/assignment-proposals/:id/decisions",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/assignment-proposals/:id/history",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/assignment-proposals/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/assignment-proposals/:id",
+          "permission": "iam.assignment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/iam/me/permissions",
           "permission": "no_tenant_membership",
@@ -111,11 +165,21 @@
           "roles": []
         },
         {
+          "permission": "iam.assignment.manage",
+          "roles": []
+        },
+        {
+          "permission": "iam.assignment.review",
+          "roles": []
+        },
+        {
           "permission": "iam.credential.revoke",
           "roles": []
         }
       ],
       "publishes": [
+        "helivanta.in.iam.assignment_scope_requested.v1",
+        "helivanta.in.iam.assignment_projection_requested.v1",
         "helivanta.in.iam.member_granted.v1",
         "helivanta.in.iam.member_revoked.v1",
         "helivanta.in.iam.credential_revoked.v1"
@@ -123,6 +187,16 @@
       "directed_subjects": [],
       "directed_write_tables": [],
       "consumers": [
+        {
+          "name": "iam-assignment-scope",
+          "subject": "helivanta.in.workforce.assignment_scope_verified.v1",
+          "after_commit": false
+        },
+        {
+          "name": "iam-assignment-projection",
+          "subject": "helivanta.in.iam.assignment_projection_requested.v1",
+          "after_commit": true
+        },
         {
           "name": "iam-fga-sync",
           "subject": "helivanta.in.iam.member_granted.v1",
@@ -178,6 +252,42 @@
         {
           "id": "0007_iam",
           "sql_sha256": "90fe9a43289656d134cca16438d3a6efe62a90a06f5cd97dca48f2d460174e3d",
+          "creates_tables": []
+        },
+        {
+          "id": "0008_iam_assignment_proposals",
+          "sql_sha256": "016b31ad6453f4be3008dec5ea677ce6eff5c7ef15e66dca845bcaef828ebd01",
+          "creates_tables": [
+            "iam_assignment_proposals",
+            "iam_assignment_proposal_history"
+          ]
+        },
+        {
+          "id": "0009_iam_assignment_decisions",
+          "sql_sha256": "175b9b23aabe093f11ab980a6aeeb771c5b41d03bab4d7844104a78d5c8d027e",
+          "creates_tables": [
+            "iam_assignment_decisions"
+          ]
+        },
+        {
+          "id": "0010_iam_assignment_projection",
+          "sql_sha256": "9c93873bdd6211a20c3b7b0d36f4eb2d7cbf3868aaa450956174400e175ebbfc",
+          "creates_tables": [
+            "iam_assignment_scope_epochs",
+            "iam_assignment_snapshots"
+          ]
+        },
+        {
+          "id": "0011_iam_assignment_membership",
+          "sql_sha256": "d46d066355e596bf47b2fb09e9f723bd1de5763454c3cb85ead0c2017ee7ea7f",
+          "creates_tables": [
+            "iam_subject_membership_epochs",
+            "iam_membership_revocations"
+          ]
+        },
+        {
+          "id": "0012_iam_assignment_activation",
+          "sql_sha256": "3b544879f7925534d014bafd9803d66c42ad7ea1a650f3b122298ef92e6d41a0",
           "creates_tables": []
         }
       ]
@@ -5296,6 +5406,42 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/decision",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/history",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link",
+          "permission": "workforce.login_links.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/login-links",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment/history",
           "permission": "public",
@@ -5360,6 +5506,14 @@
         }
       ],
       "grants": [
+        {
+          "permission": "workforce.login_links.manage",
+          "roles": []
+        },
+        {
+          "permission": "workforce.login_links.review",
+          "roles": []
+        },
         {
           "permission": "workforce.hospital.manage",
           "roles": []
@@ -5482,6 +5636,8 @@
         }
       ],
       "publishes": [
+        "helivanta.in.workforce.assignment_scope_verified.v1",
+        "helivanta.in.workforce.login_link_changed.v1",
         "helivanta.in.workforce.enrollment_changed.v1",
         "helivanta.in.workforce.master_changed.v1",
         "helivanta.in.workforce.shift_changed.v1",
@@ -5521,6 +5677,11 @@
       "directed_subjects": [],
       "directed_write_tables": [],
       "consumers": [
+        {
+          "name": "workforce-assignment-scope",
+          "subject": "helivanta.in.iam.assignment_scope_requested.v1",
+          "after_commit": false
+        },
         {
           "name": "workforce-document-scan",
           "subject": "helivanta.in.workforce.document_scan_requested.v1",
@@ -5838,6 +5999,14 @@
           "id": "0034_workforce_benefit_evidence",
           "sql_sha256": "a1fd8aa56498c81282d482586759190e2d015207a9cd9cebcc5a812849e1d645",
           "creates_tables": []
+        },
+        {
+          "id": "0035_workforce_login_links",
+          "sql_sha256": "07d7d3eb4acbb4ccedd4a8dc18d5188441adac77357dc6eb5757f3af1f9e5d2c",
+          "creates_tables": [
+            "workforce_login_links",
+            "workforce_login_link_history"
+          ]
         }
       ]
     },

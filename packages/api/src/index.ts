@@ -3,6 +3,8 @@ export * from "./enrollment";
 export * from "./documents";
 export * from "./document-queries";
 export * from "./credentials";
+export * from "./login-links";
+export * from "./login-link-queries";
 export * from "./benefits";
 export * from "./benefit-coverage-export";
 export * from "./tenant-transition";

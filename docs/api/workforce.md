@@ -2,6 +2,51 @@
 
 Implementation: `backend/internal/modules/workforce`. Design: [ADR 0009](../adr/0009-workforce-foundation.md). This is the hospital-local staff directory foundation, not a complete HR, payroll, practitioner credentialing or rostering system.
 
+## Reviewed account links (worktree implementation)
+
+Workforce owns the hospital-local binding and immutable review history; IAM owns
+login membership and application access. A link never grants a permission or
+clinical authority. This prerequisite for #1132/#1053 does not implement scoped
+IAM assignments or self-service leave. See the [binding design](../superpowers/specs/2026-10-27-staff-login-links.md).
+
+The base path is `/v1/workforce/hospitals/{hospital}/staff/{staff}/login-links`,
+reached by web clients through Global API. All operations require verified tenant
+membership and a current hospital manager grant. The existing tenant administrator
+has the two new administrative permissions; other system roles do not gain them.
+
+| Method and suffix | Permission | Behavior |
+| --- | --- | --- |
+| `PUT /{link}` | `workforce.login_links.manage` | UUIDv7 command ID; `{subject, reason}` proposes an active staff member's immutable account binding |
+| `POST /{link}/decision` | `.review` for approve/reject; `.manage` for withdraw/revoke | `{expected_version, decision, reason}`; independent review excludes proposer and target subject; withdrawal is proposer-only |
+| `GET /` | Either permission | Private, audited cursor page |
+| `GET /{link}/history` | Either permission | Immutable version history; private, audited cursor page |
+
+Bodies are limited to 8 KiB. Account subjects are opaque, case-sensitive strings
+of 1–200 characters, without whitespace, NUL or `*#:`; clients reject malformed
+subjects without trimming them. Reasons are required and limited to 500 characters.
+Generated models come from `contracts/workforce-login-links.json`. Lists use the
+platform default 50 / maximum 200 rows and return `Cache-Control: no-store`.
+The client sends `X-Helivanta-Expected-Tenant`; if supplied, exactly one value must
+match the verified tenant or the handler returns 404. It never selects a tenant.
+
+Statuses are pending, active, rejected, withdrawn and revoked. Only one pending
+or active link may exist per staff member or per subject within a hospital.
+Inactivation revokes pending/active links atomically, including through enrollment;
+reactivation does not restore them. Reusing a proposal ID with different content,
+conflicting bindings or stale decisions returns 409 `link_conflict`. Identical
+immediate decision retries preserve the committed version; proposal and approval
+retries still recheck candidate membership. A removed candidate returns 404 and an
+unavailable membership dependency returns 503 `identity_unavailable`. Refetch
+authorized history after an ambiguous outcome. Missing permissions return 403;
+foreign/missing objects return 404. The binding cannot authorize self-service.
+
+`helivanta.in.workforce.login_link_changed.v1` carries only `hospital_id`,
+`staff_id`, `link_id`, `version` and `status`. Account subjects, names and reasons
+stay behind protected reads. State, history, minimized audit and outbox commit
+together. The additive migration preserves records and blocks inactive staff with
+current links; older writers that omit revocation fail this guard after links exist.
+No live migration or deployment is established by this document.
+
 ## Authentication and scope
 
 Use an existing Helivanta session obtained through the Zitadel login flow. Every route checks the session and current OpenFGA tenant membership. The session's tenant is authoritative; request bodies cannot set tenant, actor or role. Unknown JSON properties are rejected. No route creates a tenant or a Zitadel identity.

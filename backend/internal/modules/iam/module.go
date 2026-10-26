@@ -89,13 +89,15 @@ func (m *Module) CheckerForTest() *RevocationChecker { return m.checker }
 // TestNewRegistryGivesIAMTheExactCheckerPassedIn exactly.
 func (m *Module) UserStateCheckerForTest() UserStateChecker { return m.userState }
 
-// Permissions declares iam.member.manage and iam.credential.revoke.
-// Neither lists a role: tenant_admin is implicit, and revoking a
+// Permissions declares administrative membership, proposal and credential actions.
+// None lists a role: tenant_admin is implicit, and revoking a
 // person's credentials platform-wide is not an authority any clinical
 // role should carry.
 func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
 		{Permission: PermMemberManage},
+		{Permission: PermAssignmentManage},
+		{Permission: PermAssignmentReview},
 		{Permission: PermCredentialRevoke},
 	}
 }
@@ -250,7 +252,7 @@ ALTER TABLE login_attempt
   ADD COLUMN IF NOT EXISTS stage text NOT NULL DEFAULT 'factor'
   CONSTRAINT login_attempt_stage_check CHECK (stage IN ('factor', 'password_change'));
 `,
-	}}
+	}, {ID: "0008_iam_assignment_proposals", SQL: assignmentProposalsSchema}, {ID: "0009_iam_assignment_decisions", SQL: assignmentDecisionsSchema}, {ID: "0010_iam_assignment_projection", SQL: assignmentProjectionSchema}, {ID: "0011_iam_assignment_membership", SQL: assignmentMembershipSchema}, {ID: "0012_iam_assignment_activation", SQL: assignmentActivationSchema}}
 }
 
 type role struct {
@@ -373,6 +375,9 @@ func (h *memberHandlers) revoke(c *gin.Context) {
 	}
 	subject, roleKey := c.Param("subject"), c.Param("role")
 	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.actor_subject',?,true)`, p.Subject).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("subject = ? AND role_key = ?", subject, roleKey).
 			Delete(&member{}).Error; err != nil {
 			return err
@@ -427,6 +432,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET("/roles", PermMemberManage, listRoles)
 
 	m.registerMe(g, deps)
+	m.registerAssignmentProposals(g, deps)
 
 	rev := &revocationHandlers{db: deps.DB, bus: deps.Bus, checker: m.checker, roles: deps.Roles}
 	// NoTenantMembership: a member whose membership was just revoked must
@@ -502,11 +508,11 @@ func (m *Module) registerRenewal(r *platform.Router, deps platform.Deps) {
 	auth.POST("/renew", authz.NoTenantMembership, h.renew)
 }
 
-// Publishes declares the three events iam emits: member_granted and
-// member_revoked drive the FGA sync consumers, credential_revoked is a
-// broadcast every replica hears (see Broadcasts below).
+// Publishes declares membership, assignment verification/projection and revocation events.
 func (m *Module) Publishes() []string {
 	return []string{
+		iamcontract.SubjectAssignmentScopeRequested,
+		iamcontract.SubjectAssignmentProjectionRequested,
 		iamcontract.SubjectMemberGranted,
 		iamcontract.SubjectMemberRevoked,
 		iamcontract.SubjectCredentialRevoked,

@@ -1,0 +1,219 @@
+{
+  "models": {
+    "ProposalInput": [
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "pattern": "^[^\\s*#:\\u0000]+$",
+        "binding": "required,max=200"
+      },
+      {
+        "name": "template_key",
+        "type": "string",
+        "enum": ["workforce.leave_reviewer.v1"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "binding": "required,max=500"
+      },
+      {
+        "name": "valid_from",
+        "type": "time"
+      },
+      {
+        "name": "expires_at",
+        "type": "time"
+      }
+    ],
+    "ScopeRequest": [
+      {
+        "name": "proposal_id",
+        "type": "uuid"
+      },
+      {
+        "name": "request_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "pattern": "^[^\\s*#:\\u0000]+$",
+        "binding": "required,max=200"
+      }
+    ],
+    "ScopeResult": [
+      {
+        "name": "proposal_id",
+        "type": "uuid"
+      },
+      {
+        "name": "request_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "eligible",
+        "type": "bool"
+      }
+    ],
+    "ProposalOutput": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "ProposalInput"
+      },
+      {
+        "name": "proposed_by",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending_scope",
+          "pending_review",
+          "scope_rejected",
+          "pending_decision_scope",
+          "approved_pending_activation",
+          "active",
+          "rejected",
+          "withdrawn"
+        ]
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "ProposalHistory": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending_scope",
+          "pending_review",
+          "scope_rejected",
+          "pending_decision_scope",
+          "approved_pending_activation",
+          "active",
+          "rejected",
+          "withdrawn"
+        ]
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "ProposalDecisionInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject", "withdraw"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      }
+    ],
+    "ProposalDecisionRecord": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "proposal_id",
+        "type": "uuid"
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject", "withdraw"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "result_version",
+        "type": "int64",
+        "min": 2
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "ProjectionRequest": [
+      {
+        "name": "proposal_id",
+        "type": "uuid"
+      }
+    ]
+  }
+}

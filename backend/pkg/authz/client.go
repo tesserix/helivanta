@@ -154,22 +154,9 @@ func smallestStoreID(stores []openfga.Store, name string) (id string, ok bool) {
 	return id, ok
 }
 
-// ensureModel writes modelJSON unless the store's latest model already
-// has the same type definitions.
-//
-// The previous implementation returned early whenever ANY model
-// existed, on the reasoning that the model is immutable in practice.
-// That stopped being true when the tenant type was added: every store
-// created before it would otherwise keep a model with no `member`
-// relation forever, and every membership check against such a store
-// fails — which locks out every user in every tenant. So this compares
-// rather than assumes.
-//
-// OpenFGA models are immutable and append-only: writing produces a new
-// model id rather than mutating the old one, so an upgrade never
-// invalidates tuples. Racing replicas may both write; both then re-read
-// and converge on the same latest id, exactly as ensureStore does for
-// the store id and for the same reason.
+// ensureModel writes the declared model unless the latest stored rules match.
+// Model versions are immutable; upgrading does not delete tuples, but obsolete
+// tuple shapes can lose authority under the new model.
 func (c *Client) ensureModel(ctx context.Context) error {
 	var desired fgaclient.ClientWriteAuthorizationModelRequest
 	if err := json.Unmarshal([]byte(modelJSON), &desired); err != nil {
@@ -182,7 +169,7 @@ func (c *Client) ensureModel(ctx context.Context) error {
 	}
 	if models := existing.GetAuthorizationModels(); len(models) > 0 {
 		// ReadAuthorizationModels returns newest first.
-		if sameTypeDefinitions(models[0].GetTypeDefinitions(), desired.TypeDefinitions) {
+		if sameAuthorizationModel(models[0], desired) {
 			return nil
 		}
 		slog.InfoContext(ctx, "authorization model differs from desired; writing a new version",
@@ -194,30 +181,56 @@ func (c *Client) ensureModel(ctx context.Context) error {
 	return nil
 }
 
-// sameTypeDefinitions compares two models by the set of type names and
-// each type's relation names.
-//
-// It deliberately does not compare the full rewrite trees. A structural
-// deep-compare of OpenFGA's generated types is brittle across SDK
-// versions, and being wrong in the "they differ" direction is cheap:
-// the model is re-written, which is idempotent in effect because
-// OpenFGA versions rather than mutates. Being wrong in the "they match"
-// direction is the expensive one, and adding a type or a relation —
-// the only changes this repo has ever made — always changes a name.
-func sameTypeDefinitions(existing, desired []openfga.TypeDefinition) bool {
-	shape := func(defs []openfga.TypeDefinition) map[string][]string {
-		out := make(map[string][]string, len(defs))
+// Compare complete rules and restrictions: matching relation names alone can
+// retain an obsolete allow rule. Type declaration order does not affect authority.
+func sameAuthorizationModel(existing openfga.AuthorizationModel, desired fgaclient.ClientWriteAuthorizationModelRequest) bool {
+	canonical := func(schema string, defs []openfga.TypeDefinition, conditions map[string]openfga.Condition) (any, error) {
+		out := make(map[string]openfga.TypeDefinition, len(defs))
 		for _, d := range defs {
-			rels := make([]string, 0, len(d.GetRelations()))
-			for name := range d.GetRelations() {
-				rels = append(rels, name)
-			}
-			sort.Strings(rels)
-			out[d.GetType()] = rels
+			out[d.GetType()] = d
 		}
-		return out
+		if len(out) != len(defs) {
+			return nil, errors.New("duplicate authorization model type")
+		}
+		raw, err := json.Marshal(map[string]any{"schema_version": schema, "type_definitions": out, "conditions": conditions})
+		if err != nil {
+			return nil, err
+		}
+		var value any
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return nil, err
+		}
+		normalizeModelDefaults(value)
+		return value, nil
 	}
-	return reflect.DeepEqual(shape(existing), shape(desired))
+	stored, storedErr := canonical(existing.SchemaVersion, existing.TypeDefinitions, existing.GetConditions())
+	wanted, wantedErr := canonical(desired.SchemaVersion, desired.TypeDefinitions, desired.GetConditions())
+	return storedErr == nil && wantedErr == nil && reflect.DeepEqual(stored, wanted)
+}
+
+// OpenFGA emits these empty defaults even when omitted on write. Empty `this`
+// and `wildcard` objects carry authority and must retain their presence.
+func normalizeModelDefaults(value any) {
+	switch value := value.(type) {
+	case map[string]any:
+		for key, child := range value {
+			normalizeModelDefaults(child)
+			switch key {
+			case "module", "condition", "object":
+				if text, ok := child.(string); ok && text == "" {
+					delete(value, key)
+				}
+			case "relations", "conditions", "metadata":
+				if fields, ok := child.(map[string]any); child == nil || (ok && len(fields) == 0) {
+					delete(value, key)
+				}
+			}
+		}
+	case []any:
+		for _, child := range value {
+			normalizeModelDefaults(child)
+		}
+	}
 }
 
 func (c *Client) Ping(ctx context.Context) error {

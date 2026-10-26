@@ -466,6 +466,7 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 
 | Method | Path | Permission | Cursor pagination | Page total |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/patients/:id/registration-reference` | `patient.read` | false | false |
 | GET | `/v1/patients/:id` | `patient.read` | false | false |
 | POST | `/v1/patients/clinical-consents/:consent/decide` | `public` | false | false |
 | POST | `/v1/patients/consent-authorities/:authority/revoke` | `patient.consent-authority.review` | false | false |

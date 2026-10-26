@@ -3145,6 +3145,15 @@
       "routes": [
         {
           "method": "GET",
+          "path": "/v1/patients/:id/registration-reference",
+          "permission": "patient.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/patients/:id",
           "permission": "patient.read",
           "authentication_required": true,

@@ -77,3 +77,23 @@ schema v2 in the existing clinical-consent ledger. It requires a current reviewe
 guardian authority and a capacity-specific approved notice; it does not reinterpret
 self v1, grant ordinary patient reads or authorize record release. See the
 [proxy declaration release gates](../mediconnect.md#proxy-clinical-sharing-declaration-work-in-progress).
+
+## Minimal registration reference
+
+`GET /v1/patients/{id}/registration-reference?hospital_id={hospital}` returns only
+`patient_id`, `hospital_id` and `record_access_authorized:false`. It is a current
+visibility read for a consumer resolving an owner reference, not record intake,
+encounter validation, a durable permission receipt or clinical disclosure.
+Existing `patient.read` and a current hospital grant are both required; the grant
+is held through the scoped read and committed patient-access audit. The response
+uses the data-only `patientmaster/contract.RegistrationReference` source and is
+`Cache-Control: no-store`. Consumers must independently authorize their own
+resource actions and recheck current dependencies before release.
+
+Exactly one canonical nonzero hospital selector and a canonical nonzero patient
+UUID are required; existing v4 patient IDs remain supported. Missing/foreign
+patient or hospital is 404, missing read permission is 403, expected-tenant
+mismatch is 409 and unavailable visibility/database/audit is 503
+`registration_reference_unavailable`. Errors contain no identifiers or database
+details. This route is implemented in the local development branch; deployment
+acceptance remains unfinished. It adds no new grant ledger, role or schema.

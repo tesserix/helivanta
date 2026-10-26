@@ -24,6 +24,7 @@ import (
 // an entry is therefore a diff a reviewer sees and must justify, not a
 // pattern match that can silently start admitting a new field.
 var eventPayloadPHIAllowlist = map[string]string{
+	"patientmaster.RegistrationReference.PatientID":       "exact known patient reference in authenticated hospital-scoped owner HTTP only, with committed read audit; never published as an event or used as record disclosure authority",
 	"mediconnect.ClaimCheckRequest.Relationship":          "exact relationship bound to patient/subject in workload-authenticated private owner HTTP only; never broadcast or logged",
 	"mediconnect.ClaimCheckRequest.Subject":               "exact owner-subject selection in workload-authenticated internal HTTP only; never published as an event",
 	"mediconnect.ClaimCheckRequest.PatientID":             "exact patient selection in workload-authenticated internal HTTP only; never published as an event",
@@ -41,6 +42,8 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"patientmaster.RegistrationReference.HospitalID":                        "opaque hospital scope binding on an authorized exact reference read; no hospital attributes or location",
+	"patientmaster.RegistrationReference.RecordAccessAuthorized":            "always false for this projection; expressly denies any inference of record-access authority",
 	"practitioner.EvidenceScanInput.ScanAttempt":                            "bounded internal processing attempt counter; no private attributes",
 	"practitioner.EvidenceScanRequestedData.ScanAttempt":                    "bounded internal processing attempt counter; no private attributes",
 	"practitioner.EvidenceChangedData.ScanAttempt":                          "bounded internal processing attempt counter; no private attributes",
@@ -557,6 +560,7 @@ func TestEventPayloadPHIFieldsAreAllowlisted(t *testing.T) {
 // thing a reviewer's eye lands on.
 func TestEventPayloadPHIAllowlistIsPinnedExactly(t *testing.T) {
 	require.Equal(t, map[string]string{
+		"patientmaster.RegistrationReference.PatientID":       "exact known patient reference in authenticated hospital-scoped owner HTTP only, with committed read audit; never published as an event or used as record disclosure authority",
 		"mediconnect.ClaimCheckRequest.Relationship":          "exact relationship bound to patient/subject in workload-authenticated private owner HTTP only; never broadcast or logged",
 		"mediconnect.ClaimCheckRequest.Subject":               "exact owner-subject selection in workload-authenticated internal HTTP only; never published as an event",
 		"mediconnect.ClaimCheckRequest.PatientID":             "exact patient selection in workload-authenticated internal HTTP only; never published as an event",

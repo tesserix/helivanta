@@ -339,7 +339,7 @@ function Bills({
                               data-open-row={b.id}
                               aria-label={`Open ${b.document_reference}`}
                             >
-                              View
+                              Open
                             </Button>
                           </td>
                         </tr>

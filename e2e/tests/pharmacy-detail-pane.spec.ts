@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { addBill, expectList, freshOutlet } from "./support/pharmacy";
+import { addBill, expectLabelsInNames, expectList, freshOutlet } from "./support/pharmacy";
 
 // #1303: a bill opens beside the list where main is at least 840px wide,
 // and alone below that. The layout follows main's width, so the rail
@@ -53,6 +53,7 @@ for (const [label, size, rail] of [
     await first.click();
     const pane = page.getByRole("region", { name: `Bill ${ref}` });
     await expect(pane).toBeVisible();
+    await expectLabelsInNames(page);
     // Side by side: the pane starts where the list ends.
     const list = (await page.getByRole("table", { name: "Bills and expenses" }).boundingBox())!;
     expect((await pane.boundingBox())!.x).toBeGreaterThanOrEqual(list.x + list.width);

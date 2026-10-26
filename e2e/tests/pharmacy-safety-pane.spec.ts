@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { api, expectList, freshOutlet, uuidv7 } from "./support/pharmacy";
+import { api, expectLabelsInNames, expectList, freshOutlet, uuidv7 } from "./support/pharmacy";
 
 // #1303 E5: a concern opens its batch beside the list, and two concerns about
 // one lot are one stop for Next. The URL holds the batch, so a reload keeps it.
@@ -59,6 +59,7 @@ test("a concern opens its batch beside the list, and Next skips its second conce
   await opens.first().click();
   const first = page.getByRole("heading", { name: `Lot TEST-SLOT-${stamp}-1` });
   await expect(first).toBeVisible();
+  await expectLabelsInNames(page);
   // The concern's own row, in the list (its text is in the pane too).
   const list = (await opens.first().locator("xpath=ancestor::li").boundingBox())!;
   const pane = (await page.getByRole("region", { name: "Batch safety" }).boundingBox())!;
@@ -70,6 +71,12 @@ test("a concern opens its batch beside the list, and Next skips its second conce
   await expect(page.getByRole("button", { name: "Next batch" })).toBeDisabled();
   await page.reload();
   await expect(second).toBeVisible();
+
+  // The batch tab's rows, with a batch open beside them.
+  await page.goto("/pharmacy/safety?tab=batch");
+  await page.getByRole("button", { name: `Open lot TEST-SLOT-${stamp}-1` }).click();
+  await expect(first).toBeVisible();
+  await expectLabelsInNames(page);
 });
 
 test.describe("on a phone", () => {

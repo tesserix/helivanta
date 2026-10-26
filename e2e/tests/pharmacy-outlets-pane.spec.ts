@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { api, expectList, freshOutlet, uuidv7 } from "./support/pharmacy";
+import { api, expectLabelsInNames, expectList, freshOutlet, uuidv7 } from "./support/pharmacy";
 
 // #1303 E6: Outlets & access lists the pharmacy's outlets, and one opens
 // beside the list with its details, its access and its tax registration.
@@ -25,6 +25,7 @@ for (const [label, size] of [
     await first.click();
     const pane = page.getByRole("region", { name: "Outlet TEST Overview Outlet" });
     await expect(pane.getByRole("heading", { name: "Outlet access" })).toBeVisible();
+    await expectLabelsInNames(page);
     await expect(pane.getByText("Asia/Kolkata")).toBeVisible();
     const list = (await row.boundingBox())!;
     expect((await pane.boundingBox())!.x).toBeGreaterThanOrEqual(list.x + list.width);

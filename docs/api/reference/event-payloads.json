@@ -987,6 +987,65 @@
       "type": "object"
     }
   },
+  "helivanta.in.pharmacy.sale_posted.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/events.go:77",
+    "go_type": "SalePostedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "invoice_number": {
+          "type": "string"
+        },
+        "lines": {
+          "items": {
+            "properties": {
+              "batch_id": {
+                "type": "string"
+              },
+              "product_id": {
+                "type": "string"
+              },
+              "quantity_units": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "product_id",
+              "batch_id",
+              "quantity_units"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "outlet_id": {
+          "type": "string"
+        },
+        "pharmacy_id": {
+          "type": "string"
+        },
+        "sale_id": {
+          "type": "string"
+        },
+        "total_minor": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "pharmacy_id",
+        "outlet_id",
+        "sale_id",
+        "invoice_number",
+        "currency",
+        "total_minor",
+        "lines"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.pharmacy.settlement_recorded.v1": {
     "source": "backend/internal/modules/pharmacy/contract/events.go:66",
     "go_type": "SettlementRecordedData",

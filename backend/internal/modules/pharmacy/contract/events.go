@@ -69,3 +69,24 @@ type SettlementRecordedData struct {
 	PayableID    string `json:"payable_id"`
 	SettlementID string `json:"settlement_id"`
 }
+
+// SubjectSalePosted identifies a posted counter sale invoice.
+const SubjectSalePosted = "helivanta.in.pharmacy.sale_posted.v1"
+
+// SalePostedData carries ids and totals, never the buyer or a prescription.
+type SalePostedData struct {
+	PharmacyID    string           `json:"pharmacy_id"`
+	OutletID      string           `json:"outlet_id"`
+	SaleID        string           `json:"sale_id"`
+	InvoiceNumber string           `json:"invoice_number"`
+	Currency      string           `json:"currency"`
+	TotalMinor    int64            `json:"total_minor"`
+	Lines         []SalePostedLine `json:"lines"`
+}
+
+// SalePostedLine is one allocated batch of a sale.
+type SalePostedLine struct {
+	ProductID     string `json:"product_id"`
+	BatchID       string `json:"batch_id"`
+	QuantityUnits int64  `json:"quantity_units"`
+}

@@ -2138,6 +2138,24 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile/:id",
+          "permission": "pharmacy.tax.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licence-status",
           "permission": "pharmacy.catalogue.read",
@@ -2180,6 +2198,51 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id",
+          "permission": "pharmacy.sale.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/availability",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/quote",
+          "permission": "pharmacy.sale.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
           "counted": false
         },
         {
@@ -2520,6 +2583,19 @@
           ]
         },
         {
+          "permission": "pharmacy.sale.create",
+          "roles": [
+            "pharmacist"
+          ]
+        },
+        {
+          "permission": "pharmacy.sale.read",
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
+        },
+        {
           "permission": "pharmacy.dispense.read",
           "roles": [
             "pharmacist",
@@ -2551,7 +2627,8 @@
         "helivanta.in.pharmacy.stock_movement_recorded.v1",
         "helivanta.in.pharmacy.payable_recorded.v1",
         "helivanta.in.pharmacy.settlement_recorded.v1",
-        "helivanta.in.pharmacy.batch_safety_recorded.v1"
+        "helivanta.in.pharmacy.batch_safety_recorded.v1",
+        "helivanta.in.pharmacy.sale_posted.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -2663,6 +2740,17 @@
           "sql_sha256": "842f06213a2915b6b33bb86b434ebbb8f6d81b518713081cd467d51d1c3ebc3f",
           "creates_tables": [
             "pharmacy_stock_releases"
+          ]
+        },
+        {
+          "id": "0015_pharmacy",
+          "sql_sha256": "b58ac2d188125ad46ca99fc1fa375206d8c64d1833dc6c6b93dfec4cf5e0ff5e",
+          "creates_tables": [
+            "pharmacy_outlet_invoice_profiles",
+            "pharmacy_invoice_series",
+            "pharmacy_sales",
+            "pharmacy_sale_lines",
+            "pharmacy_sale_tenders"
           ]
         }
       ]

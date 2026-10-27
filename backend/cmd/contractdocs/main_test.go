@@ -135,6 +135,10 @@ func TestEventSchemasCoverDeclaredSubjectsAndPreserveWireFields(t *testing.T) {
 	if !strings.Contains(string(policy.Properties["version_id"]), `"null"`) {
 		t.Fatal("nullable version_id changed")
 	}
+	sale := string(wire["helivanta.in.pharmacy.sale_posted.v1"].Schema.Properties["lines"])
+	if !strings.Contains(sale, `"type":"array"`) || !strings.Contains(sale, `"batch_id"`) {
+		t.Fatalf("sale lines are not an array of batches: %s", sale)
+	}
 }
 
 func TestReferenceIncludesSharedAuditAndPlatformMigrations(t *testing.T) {

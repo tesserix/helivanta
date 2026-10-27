@@ -62,7 +62,77 @@ Every location is either `quarantine` or `sellable`, fixed when it is created. R
 | `PUT …/stock/batches/{id}`      | Each new batch now carries the `mrp_minor` printed on the lot (exact paise, at least 1) and an optional `purchase_cost_minor`. A batch's MRP never changes. Batches received earlier have no MRP and can never be released                                                                                                                                                                                                                                                                                                                                                                                              |
 | `PUT …/stock/locations/{id}`    | Accepts an optional `stock_status: quarantine\|sellable`. The default is `quarantine`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `PUT …/stock/releases/{uuidv7}` | Moves `{batch_id, from_location_id, to_location_id, quantity_units, reason}`. Requires `pharmacy.stock.release`. It writes a negative movement from quarantine and a positive one into sellable, in one transaction, under the overdraft guard. It returns 409 `not_releasable` with the reason unless every check passes: the move is quarantine to sellable, the batch expires after the outlet's today, it has an MRP, it has no safety incident, the product is active and tax-classified, and the product has an approved schedule class other than X or NDPS. The release records the class it was released under |
-| `GET …/stock/balance`           | Reports the location's real `stock_status`. `dispensable_units` stays 0 until the sale slice computes availability                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `GET …/stock/balance`           | Reports the location's real `stock_status`. `dispensable_units` stays 0; what a sale can take is `GET …/sales/availability` (below)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+
+### Counter sale (#1386 B-1)
+
+An OTC sale at the counter: one command takes sellable stock earliest expiry first, prices it at the batch MRP, computes GST inside that price, and posts an invoice numbered in the outlet's gap-free series for the Indian financial year.
+
+| Route                                  | Behaviour                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PUT …/invoice-profile/{uuidv7}`       | Records `{legal_name, address, invoice_prefix}`, the seller details an invoice prints. The prefix is 1 to 4 capital letters or digits. Requires `pharmacy.tax.manage`. The latest profile is in force; invoices keep a snapshot                                                                                                                                          |
+| `GET …/invoice-profile`                | Returns `{profile}`, or `null` when none is recorded. Requires `pharmacy.sale.read`                                                                                                                                                                                                                                                                                      |
+| `GET …/sales/availability?product_id=` | Returns `{sellable_units, nearest_expiry}`, using the same predicate as allocation, `pharmacy_sellable_buckets`                                                                                                                                                                                                                                                          |
+| `POST …/sales/quote`                   | Prices `{lines}` exactly as a sale would, running the same checks, and returns `{currency, total_minor, taxable_minor, cgst_minor, sgst_minor, lines}` without posting anything. Requires `pharmacy.sale.create`. If stock moves before posting, the sale refuses tenders that no longer match                                                                           |
+| `PUT …/sales/{uuidv7}`                 | Posts `{lines: [{product_id, quantity_units}], tenders: [{kind: cash\|upi\|card, amount_minor, tendered_minor?, reference?}]}`. Requires `pharmacy.sale.create` and the outlet `editor` grant. Returns 201 with the invoice, or 200 for a replay of the same intent; a different intent is 409. Every refusal is 409 `not_sellable` with its reason, and nothing is kept |
+| `GET …/sales/{id}`, `GET …/sales`      | Return the invoice (seller snapshot, lines, tenders) and the paged list. Require `pharmacy.sale.read`                                                                                                                                                                                                                                                                    |
+
+**What a sale requires.** The outlet must have:
+
+- a reviewed **retail** drug licence valid today (wholesale does not count);
+- a GSTIN in force, registered in a state. A union territory, which levies UTGST, is refused
+  until that tax head is modelled;
+- an invoice profile.
+
+Each product must:
+
+- be active;
+- be priced in the outlet's currency;
+- be tax-classified on the sale date;
+- have an approved class `none` that is not NDPS.
+
+Schedule G, H and H1 are refused until prescription evidence exists (B-2). They are never sold as OTC. X and NDPS are refused until their controls exist.
+
+**Allocation and stock.**
+
+- A sale draws from sellable buckets whose batch has an MRP, expires after the outlet's date, and has no safety incident.
+- Buckets are used earliest expiry first. Each batch used becomes its own invoice line, up to 200 lines.
+- Short stock refuses the sale and names each short product.
+- Bucket locks are taken in one global order before balances are read, so two tills cannot sell the same last unit.
+
+**Pricing and GST.** Per line:
+
+- `amount = floor(mrp × units ÷ pack)`, so a line never exceeds MRP. The database checks it.
+- CGST and SGST are equal halves of the tax inside the amount, rounded half up.
+- The taxable value is the remainder.
+- The place of supply is the outlet's GSTIN state.
+- The total is the exact sum of the lines, with no round-off.
+- NPPA ceiling prices (#1371) are not checked, and the invoice reports `nppa_ceiling_checked: false`.
+
+**Tenders.**
+
+- At most one cash tender, carrying the amount handed over; change is computed from it.
+- UPI and card tenders carry a reference.
+- The tenders must sum to the total.
+
+**Database guarantees.**
+
+- The invoice number is `PREFIX/FY/N`, at most 16 characters. The series only steps by one, inside the sale's transaction.
+- Invoices, lines and tenders are immutable, and nothing can be added to a committed sale.
+- At commit, a deferred check proves the sale equals its lines, is paid by its tenders, and has one stock movement per line.
+- A `sale` movement must take exactly its line's units off a sellable location.
+- Each line is checked against its source: the batch is the product's and sellable on the
+  sale date, and its lot, expiry and MRP are the batch's. The class is the approved
+  declaration in force, OTC and not NDPS. So the never-above-MRP check compares against
+  the batch's own MRP.
+- A line that prices to nothing (a few units of a cheap pack) refuses the sale.
+- On the counter screen, a failure other than a refusal keeps the sale's id, so a retry
+  replays it and never posts a second invoice.
+
+**Events and scope.**
+
+- `sale_posted.v1` carries ids, the invoice number, currency, total, and each line's product, batch and units. It carries no buyer or prescription data.
+- B-1 records no customer details. Registered patients, walk-in buyers and prescription evidence are B-2; discounts are B-3.
 
 ## Integration requirements
 

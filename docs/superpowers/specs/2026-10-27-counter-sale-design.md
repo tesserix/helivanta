@@ -71,15 +71,18 @@ allowed to sell it. So this ships in three slices; each is correct on its own.
 
 ### Slice B: the sale
 
-- **B1 One command.** `PUT /pharmacy/outlets/:outlet/sales/:uuidv7` with:
-  - `{customer, prescription?, lines: [{product_id, quantity_units}], payments: [...]}`.
+- **B1 One command.** `PUT /pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:uuidv7` with:
+  - `{lines: [{product_id, quantity_units}], tenders: [...]}`, plus `customer` and
+    `prescription` from B-2.
+  - `POST …/sales/quote` prices the same lines without posting, so the cashier knows what to
+    collect.
 
   In one transaction it allocates, prices, taxes, posts the invoice and payment, decrements
   stock and enqueues events. The same intent replays; a different intent is 409.
 
 - **B2 FEFO allocation.** Lines are filled from sellable batches, earliest expiry first. A
-  batch is skipped if it expires on or before the outlet's local date, is recalled, or
-  belongs to a product no longer active. Several batches may fill one line, and each shows
+  batch is skipped if it expires on or before the outlet's local date, or is recalled (a safety incident).
+  A product that is not active refuses the whole sale, with its reason. Several batches may fill one line, and each shows
   as its own invoice line, because MRP and expiry differ by batch. Not enough stock is a
   409 listing what is short; nothing is partly sold. The existing bucket lock makes two
   tills unable to sell the same last unit.
@@ -96,16 +99,21 @@ allowed to sell it. So this ships in three slices; each is correct on its own.
     GST is MRP-inclusive: taxable value = price ÷ (1 + rate).
   - Place of supply for a counter sale is the outlet's state, so CGST and SGST are each half
     the rate.
-  - Rounding is per line to the paisa. The invoice total equals the sum of its lines, and
-    any round-off line is shown explicitly.
+  - Rounding is per line to the paisa. CGST and SGST on a line are equal: each is half the
+    line's tax, rounded half up, and the taxable value is the line amount less both.
+  - The invoice total is the exact sum of its lines, with no round-off. Rounding up to the
+    rupee would charge above MRP; rounding down is a discount. Either is a product decision
+    that has not been taken.
   - An unclassified product cannot be sold.
-- **B5 Prescription evidence, by the drug master class.**
+- **B5 Prescription evidence, by the class in force.**
   - `none` (OTC): none required.
   - `G` or `H`: prescriber name, registration number and council, the prescription date,
     and a prescription image (private file, scanned).
   - `H1`: the same, plus patient name and address, captured for the register (#1062).
   - `X` and NDPS: refused until #165 and #171 exist.
-  - A product with no drug master link sells only as OTC (decision 2).
+  - The class in force is the outlet's approved declaration (decision 2,
+    `pharmacy_product_schedule_in_force`). A product without one cannot be sold; it is never
+    treated as OTC.
   - Evidence missing means the sale is refused, never a warning.
 - **B6 Customer.** A registered patient is referenced by patientmaster id under the
   outlet's affiliation. Otherwise a walk-in is recorded: an optional name and phone, both
@@ -129,7 +137,7 @@ allowed to sell it. So this ships in three slices; each is correct on its own.
   | ------------------------ | ---------------------------------- |
   | `pharmacy.sale.create`   | pharmacist                         |
   | `pharmacy.sale.discount` | pharmacy manager (tenant-assigned) |
-  | `pharmacy.sale.read`     | pharmacist and accounts            |
+  | `pharmacy.sale.read`     | pharmacist and owner               |
 
   All of these also require the outlet grant, `editor` for selling. 404 across tenants and
   outlets.
@@ -142,6 +150,31 @@ allowed to sell it. So this ships in three slices; each is correct on its own.
   - an evidence panel, shown only when a line's class needs it;
   - tenders and change;
   - a printable invoice.
+
+#### Found in B-1 review (2026-10-28)
+
+- **Retail licence.** A counter sale needs a reviewed **retail** licence in force. A
+  wholesale-only licence does not license sales to consumers
+  (`pharmacy_outlet_retail_licence_in_force`).
+- **UTGST, open for tax review.** A union territory without a legislature levies UTGST, not
+  SGST. Until that tax head is modelled and reviewed, an outlet registered in a union
+  territory (jurisdiction kind `union_territory` in the country profile) is refused at the
+  counter, rather than invoiced under the wrong head.
+- **The database checks each line against its source.** The batch must be the product's and
+  sellable on the sale date. Its lot, expiry and MRP must be the batch's. The class must be
+  the product's approved declaration in force: OTC, and not NDPS.
+
+#### Slice B pull requests
+
+| PR  | Covers                                                                                  |
+| --- | --------------------------------------------------------------------------------------- |
+| B-1 | B1–B4, B7–B11 for `none` (OTC) products only; no customer data is recorded              |
+| B-2 | B5 and B6: prescription evidence (private scanned image), registered and walk-in buyers |
+| B-3 | Discounts under the outlet ceiling (decision 3)                                         |
+
+Until B-2, a product whose class in force is `G`, `H` or `H1` is refused at the counter with
+that reason; it is never sold without its evidence. Plan:
+`docs/superpowers/plans/2026-10-28-counter-sale-slice-b1.md`.
 
 ### Slice C: after the sale
 

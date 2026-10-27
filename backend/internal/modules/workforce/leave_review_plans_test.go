@@ -131,9 +131,6 @@ func TestLeaveReviewRetainedHistoryPlans(t *testing.T) {
 		code, out = h.file(person, uuid.NewString(), "clerk", full(types.duty, "2026-10-06", "2026-10-06"))
 		require.Equal(t, 200, code, out)
 	}
-	require.NoError(t, h.db.WithAdmin(t.Context(), func(tx *gorm.DB) error {
-		return tx.Exec("ANALYZE workforce_leave_requests; ANALYZE workforce_leave_request_days; ANALYZE workforce_leave_request_events; ANALYZE workforce_staff; ANALYZE workforce_login_links").Error
-	}))
 	mu.Lock()
 	recording = true
 	mu.Unlock()

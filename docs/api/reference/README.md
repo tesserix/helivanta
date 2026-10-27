@@ -354,6 +354,10 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id` | `pharmacy.catalogue.write` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/counted` | `pharmacy.catalogue.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products` | `pharmacy.catalogue.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licence-status` | `pharmacy.catalogue.read` | false | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/review` | `pharmacy.licence.review` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id` | `pharmacy.licence.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences` | `pharmacy.catalogue.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview` | `pharmacy.catalogue.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/balance` | `pharmacy.stock.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id` | `pharmacy.stock.read` | false | false |
@@ -400,6 +404,7 @@ Migration table declarations:
 - `0006_pharmacy`: `pharmacy_payables`, `pharmacy_payable_lines`, `pharmacy_settlements`.
 - `0007_pharmacy`: `pharmacy_batch_safety_incidents`.
 - `0009_pharmacy`: `pharmacy_outlet_tax_registrations`, `pharmacy_product_tax_classifications`.
+- `0012_pharmacy`: `pharmacy_outlet_licences`, `pharmacy_outlet_licence_reviews`.
 
 ## supply
 

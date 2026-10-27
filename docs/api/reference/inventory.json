@@ -2057,6 +2057,33 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/review",
+          "permission": "pharmacy.schedule.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration",
+          "permission": "pharmacy.schedule.declare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications",
           "permission": "pharmacy.catalogue.read",
@@ -2464,6 +2491,20 @@
           ]
         },
         {
+          "permission": "pharmacy.schedule.declare",
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.schedule.review",
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
+        },
+        {
           "permission": "pharmacy.dispense.read",
           "roles": [
             "pharmacist",
@@ -2592,6 +2633,14 @@
           "creates_tables": [
             "pharmacy_outlet_licences",
             "pharmacy_outlet_licence_reviews"
+          ]
+        },
+        {
+          "id": "0013_pharmacy",
+          "sql_sha256": "5bdf2ed4e5323096a6faf79514e3cb3867dc93cd1303c4c52266baa30ed9d7ab",
+          "creates_tables": [
+            "pharmacy_product_schedule_declarations",
+            "pharmacy_product_schedule_reviews"
           ]
         }
       ]

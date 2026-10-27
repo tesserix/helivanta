@@ -84,6 +84,7 @@ func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 	platform.ListRoute(s, "/catalogue/products/:id/revisions", PermCatalogueRead, h.listRevisions)
 	taxClassificationRoutes(s, h)
 	licenceRoutes(s, h)
+	scheduleRoutes(s, h)
 }
 
 func decodeCatalogue(c *gin.Context, in any) bool {

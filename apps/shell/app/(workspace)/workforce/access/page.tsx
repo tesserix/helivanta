@@ -64,9 +64,9 @@ function Assignments({ identity }: { identity: Identity }) {
   return (
     <Panel className="space-y-4">
       <p>
-        Staff enrolment and account linking do not grant access. The available assignment covers
-        leave review only; it does not grant hospital administration, payroll or clinical authority.
-        The product must also verify current staff and hospital access.
+        These reviewed assignments do not yet enable leave approval in Staff. Existing hospital
+        access is still required. Enrolment and account linking do not grant access, and the
+        leave-review template grants no hospital administration, payroll or clinical authority.
       </p>
       <p>
         Proposing and reviewing require current tenant administrator membership and a hospital

@@ -53,8 +53,8 @@ Department names, codes and sub-units are tenant data. Helivanta ships a catalog
 | Owner                  | Holds                                                                                             | Department reference used for                                      |
 | ---------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | Organization structure | Departments, sub-units, heads, cost centres, effective dates                                      | The single list every product reads                                |
-| Workforce (Staff)      | Staff records, postings to departments and sub-units, rosters, leave, credentials, payroll inputs | Who works where and when; proposals for access                     |
-| IAM                    | Login identities, staff links, role assignments and their scopes                                  | Assignment scope                                                   |
+| Workforce (Staff) | Staff records, reviewed hospital-local login links, postings, rosters, leave, credentials, payroll inputs | Who works where and when; proposals for access |
+| IAM | Login identities, tenant membership, role assignments and their scopes | Assignment scope |
 | MediCore               | Encounters, admissions, orders, notes, discharge                                                  | Treating department and unit; care-team reach                      |
 | PharmaConnect          | Outlets, stock, batches, dispensing, indents from wards                                           | Which department runs an outlet; which ward raised an indent       |
 | LabConnect             | Orders, specimens, results, sections                                                              | Ordering department; performing section                            |

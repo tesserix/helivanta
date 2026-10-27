@@ -57,6 +57,8 @@ One person often holds both: a professor who heads Medicine supervises the depar
 
 ## Role catalogue
 
+The deployed `staff_member` role establishes tenant membership only. It grants no business permission, hospital access or clinical authority, and is separate from a workforce job category or login link.
+
 The tables list the roles agents should expect and how each maps to Helivanta. Template keys are illustrative names for the proposed catalogue, not implemented roles; the 28 roles that exist today are listed in [`authz.go`](../../../backend/pkg/authz/authz.go). "Scope" is the narrowest unit the assignment normally names. Public and private titles for the same job are compared in [public and private sectors](../india/public-and-private-sectors.md#equivalent-titles).
 
 ### Governance and management

@@ -29,7 +29,7 @@ func (e leaveRequestEvent) PageKey() (time.Time, uuid.UUID) { return e.CreatedAt
 var errLeaveRequestConflict = errors.New("leave request id reused with different values")
 var errLeaveRequestVersion = errors.New("leave request changed")
 var errLeaveRequestState = errors.New("leave request is not in the expected state")
-var errLeaveSelfDecision = errors.New("leave requests are decided by someone other than the filer")
+var errLeaveSelfDecision = errors.New("leave requests must be decided by someone other than their filer or linked staff member")
 var errLeaveNotEntitled = errors.New("leave type is not available to the staff member")
 var errLeaveUnit = errors.New("leave type does not allow the unit")
 var errLeaveCrossYear = errors.New("leave request spans leave years")
@@ -499,6 +499,11 @@ func (h *handlers) transitionLeaveRequest(c *gin.Context, t leaveTransition, exp
 		if r.ID == uuid.Nil {
 			return gorm.ErrRecordNotFound
 		}
+		if t.separate {
+			if err := requireIndependentLeaveActor(tx, p, hospital, staffID, r.RequestedBySubject); err != nil {
+				return err
+			}
+		}
 		if r.Version == expected+1 && r.Status == t.to {
 			var replay bool
 			if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM workforce_leave_request_events WHERE tenant_id=? AND hospital_id=? AND request_id=? AND version=? AND actor_subject=? AND note=?)`, p.TenantID, hospital, id, r.Version, p.Subject, note).Scan(&replay).Error; err != nil {
@@ -515,9 +520,6 @@ func (h *handlers) transitionLeaveRequest(c *gin.Context, t leaveTransition, exp
 		}
 		if r.Status != t.from {
 			return errLeaveRequestState
-		}
-		if t.separate && r.RequestedBySubject == p.Subject {
-			return errLeaveSelfDecision
 		}
 		var closed bool
 		if err := tx.Raw(`SELECT closed FROM workforce_leave_years WHERE tenant_id=? AND hospital_id=? AND leave_year=?`, p.TenantID, hospital, r.LeaveYear).Scan(&closed).Error; err != nil {
@@ -721,7 +723,7 @@ func respondLeaveRequestError(c *gin.Context, err error) {
 	case errors.Is(err, errLeaveNoWorkingDay):
 		respond.Error(c, 400, "invalid_request", "Every date in the request is a holiday, so there is nothing to take leave from.")
 	case errors.Is(err, errLeaveSelfDecision):
-		respond.Forbidden(c, "Someone other than the person who filed the request must decide or revoke it.")
+		respond.Forbidden(c, "Someone other than the filer and the linked staff member must decide or revoke this request.")
 	case errors.Is(err, errLeaveProbationAccess):
 		respond.Forbidden(c, "This leave type is not open during probation, and confirming probation needs enrollment access.")
 	case errors.Is(err, errLeaveRequestConflict):

@@ -1,6 +1,6 @@
 # Staff Management workflow acceptance
 
-Current audit: 2026-10-27. Scope is every Staff navigation entry and its complete
+Current audit: 2026-10-28. Scope is every Staff navigation entry and its complete
 business workflows, including account provisioning/verification/offboarding,
 staff identity/background verification, protected photographs and identity-card
 issuance, supervision, review and payroll. This checklist records evidence, not readiness
@@ -125,8 +125,10 @@ Related existing trackers are #1035 (staff registry), #417 (staff accounts),
 #1053 (onboarding/access reconciliation) and #1105 (private evidence). #298 covers
 contractor background checks; it does not by itself cover verification of general
 hospital staff. Doctor-registration verification is also a separate clinical
-credentialing concern. The focused issue search returned no dedicated identity-card
-story; reconcile the new requirement with these trackers before implementation.
+credentialing concern. The initial focused search found no dedicated identity-card story;
+[#1399](https://github.com/tesserix/helivanta/issues/1399) now records the
+photo/card workflow and its related identity-review preconditions. The identity
+and background-review requirements above remain part of the directory scope.
 
 Initial source search found employee-code handling and the existing private-file
 and credential foundations, but no dedicated Staff identity/background/photo/card
@@ -605,3 +607,87 @@ The final-build independent reviewer repeat again showed no hospital directory
 access, no add/edit staff controls and no HR setup table/add control. This
 confirms the current fixture's denial, not every related role or a payroll/letter
 approval. Profile feature merge, deployment and full Staff acceptance remain open.
+
+## Research reconciliation and next implementation boundaries — 2026-10-28
+
+Reviewed the lifecycle and generated-document research, the October14 legacy HR
+policy note, organization authority/access/structure/workflow references and
+current issue criteria. These sources have different evidentiary roles: legacy
+observations establish fields/menu coverage; accepted ADRs establish design
+choices; source and tests establish implementation; actual synthetic UI evidence
+establishes only the exercised workflow. None activates statutory policy.
+
+The active candidate is #1403 at `36e60eba87a14c6889aa6ab4f0eb36ad3e307143`.
+Its local full backend race/coverage and thirty-task web gates passed, including
+actual old-editor/new-API and new-editor/old-API compatibility journeys. Remote
+web, E2E, security and image checks passed; remote Go coverage remains pending
+at this checkpoint. #1402 main CI and image publication both passed. This entry
+is a checkpoint, not approval to merge a failing/pending candidate or deploy it.
+
+### Remaining master consumers
+
+| Consumer                       | Verified source constraint                                                                                                                                                                                                                  | Required implementation/acceptance boundary                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Qualifications                 | Canonical qualification text is at most 150 characters; master names are at most 80. Private evidence resolves a qualification by its staff-scoped row ID in `documents.go`. Enrollment replacement currently deletes/reinserts child rows. | Add an optional typed revision pin through canonical generation, preserve existing child IDs and evidence anchors, derive selected labels on the server and retain historical pins. Older-editor omission must preserve pins by existing row ID; an omitted row is a separate removal with existing evidence-release consequences. Prove edit/removal/retry/foreign-row behavior and old/new editor compatibility before release. |
+| Emergency-contact relationship | Canonical field, Go validation and SQL CHECK are limited to 60 characters, while HR master names allow 80.                                                                                                                                  | Resolve the contract mismatch explicitly before connecting selections. Do not truncate or silently widen v1. Any constrained-selection proposal must explain what happens to valid 61–80-character master labels and test those boundaries. Existing historical free text must remain readable.                                                                                                                                   |
+| Document category              | `documentCategoryBindings` and `documentInput` use fixed evidence-purpose values, including qualification and identity evidence.                                                                                                            | Preserve the purpose enum and scanning/release authorization. Any additional configurable HR classification needs a separate contract and scope/version validation; it cannot replace the existing security category.                                                                                                                                                                                                             |
+
+These are proposed requirements, not implemented child references. Profile
+`profile_masters=v1` currently covers profile fields only; it does not negotiate
+new child fields. A child extension needs an explicit compatible response shape,
+server capability check and its own older-writer guard. Reusing the existing
+profile support marker would allow an intermediate binary to erase unknown pins.
+
+### Payroll, documents and lifecycle dependencies
+
+The generated-document research confirms that salary configuration and calculation
+previews do not establish payroll preparation/finalisation/correction (#1040).
+Payslip policy (#1041), offer/exit letters (#1107), and protected photo/card issue
+(#1399) remain open. Finalized immutable payroll inputs and independently reviewed
+results precede issued payslips. Hospital print branding needs an approved legal
+identity/address/signatory and immutable logo/template snapshot; tenant login
+branding is not that owner contract. Evaluate the Go renderer against rendered
+PDF pages, rupee glyphs, Indian-script shaping, long values, multi-page tables and
+extracted totals before selecting it. No renderer library or statutory default is
+selected by this checkpoint.
+
+The lifecycle research continues to distinguish security disablement, tenant
+membership, hospital employment, supervisory accountability, physical cards and
+clinical authority. Inactivating staff and revoking reviewed login links does not
+prove universal old-session/legacy-grant cutoff or final settlement. Rehire must
+not restore old grants/cards. ORG-D2, ORG-D5 and ORG-D6 remain open domain decisions;
+a feature must not settle them implicitly.
+
+### Release scope corrected from source and live discovery
+
+Read-only production checks found all six application Deployments ready 2/2 at
+`a8af648`: API, Global API, shell, document worker, emergency worker and
+supply-evidence worker. Kargo updates three Argo applications; the API chart owns
+all three workers and they share its image tag. Release approval and verification
+must therefore name six affected Deployments. ClamAV and OpenFGA are separate
+pinned dependencies. No production mutation occurred.
+
+The read-only ledger showed all twelve expected pending migrations unapplied:
+Drugmaster0003, MediCore0006, Pharmacy0012–0015 and Workforce0036–0041 (the last
+two depend on #1403). CNPG was healthy with two ready instances; the latest
+observed scheduled backup completed on October27 at18:00:25Z. The documented
+October13 restore does not verify that newer backup. PostgreSQL Argo warnings
+correspond to three obsolete seed Jobs requiring pruning; current desired seed
+Jobs succeeded. Keep any targeted cleanup separate from rollout approval and
+never enable broad database pruning to clear this warning.
+
+The exact release SHA, main CI/images, migration scope, authority and recovery
+conditions must be refreshed after the candidate merges. Production rollout and
+migrations need approval naming that concrete target under the repository's cloud
+rules. The prior #1385 approval does not approve this combined release. Private
+release history and current packet remain under the restricted evidence directory.
+No issue was closed or labelled end-to-end verified by this research review.
+
+### Profile feature merged
+
+#1403 merged after every CI check passed at the exact tested head `36e60eba`.
+The merge commit is `9d1d6d355ba5b96cc3e0bd4d1ca7c072b0d45ed7`; repository
+visibility was verified PUBLIC immediately before merge. Main CI and published
+images for this merge remain release gates. The earlier pending-check entries
+retain their checkpoint context. No production schema/application change or
+full Staff completion follows from the merge.

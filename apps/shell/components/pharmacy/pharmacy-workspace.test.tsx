@@ -1,5 +1,5 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider, useLeaveGuard } from "@helivanta/ui";
 import { chooseOption } from "../../test/select";
@@ -45,8 +45,7 @@ vi.mock("next/navigation", async (original) => {
   };
   const go = (method: "push" | "replace") => (href: string) => {
     nav.calls.push({ method, href });
-    nav.search = href.split("?")[1] ?? "";
-    nav.listeners.forEach((fn) => fn());
+    window.history[method === "push" ? "pushState" : "replaceState"](null, "", href);
   };
   return {
     ...(await original<typeof import("next/navigation")>()),
@@ -57,20 +56,31 @@ vi.mock("next/navigation", async (original) => {
 });
 const address = () => new URLSearchParams(nav.search);
 // A rail link: the same page, its address without any scope.
-const followRail = () =>
-  act(() => {
-    nav.search = "";
-    nav.listeners.forEach((fn) => fn());
-  });
-// Choosing an outlet asks first while a record is unsaved: the shell's guard.
-const renderWorkspace = (view: Parameters<typeof PharmacyWorkspace>[0]["view"]) =>
-  renderWithProviders(
+const followRail = () => act(() => window.history.pushState(null, "", "/pharmacy"));
+const renderWorkspace = (view: Parameters<typeof PharmacyWorkspace>[0]["view"]) => {
+  const current = new URL(window.location.href);
+  current.pathname = "/pharmacy";
+  current.search = nav.search;
+  window.history.replaceState(null, "", current);
+  return renderWithProviders(
     <NavigationGuardProvider>
       <PharmacyWorkspace view={view} />
     </NavigationGuardProvider>,
   );
-
+};
+beforeEach(() => {
+  for (const method of ["pushState", "replaceState"] as const) {
+    const original = window.history[method].bind(window.history);
+    vi.spyOn(window.history, method).mockImplementation((data, unused, url) => {
+      original(data, unused, url);
+      nav.search = new URL(window.location.href).search.slice(1);
+      nav.listeners.forEach((listener) => listener());
+    });
+  }
+  window.history.replaceState(null, "", "/pharmacy");
+});
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   sessionStorage.clear();
   nav.search = "";
@@ -801,7 +811,7 @@ describe("the outlet is in the address", () => {
     );
   });
 
-  it("writes the outlet it resolved into the address with a replace", async () => {
+  it("restores the resolved outlet address without starting a route transition", async () => {
     nav.search = "tab=all";
     mockPharmacy();
     renderWorkspace("catalogue");
@@ -809,7 +819,64 @@ describe("the outlet is in the address", () => {
     await waitFor(() => expect(address().get("outlet")).toBe(outlet));
     expect(address().get("pharmacy")).toBe(pharmacy);
     expect(address().get("tab")).toBe("all");
-    expect(nav.calls.every((call) => call.method === "replace")).toBe(true);
+    expect(nav.calls).toEqual([]);
+  });
+
+  it("does not let late scope restoration reclaim a different page", async () => {
+    nav.search = "tab=all";
+    const fetcher = mockPharmacy();
+    const original = fetcher.getMockImplementation()!;
+    let release!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fetcher.mockImplementation(async (url, init) => {
+      if (url.endsWith(`/pharmacies/${pharmacy}/outlets`)) await ready;
+      return original(url, init);
+    });
+    renderWorkspace("catalogue");
+    await screen.findByLabelText("Pharmacy");
+    act(() => History.prototype.replaceState.call(window.history, null, "", "/emergency"));
+    await act(async () => release());
+    await screen.findByText("TEST Counter capsule");
+    expect(window.location.pathname).toBe("/emergency");
+    expect(nav.calls).toEqual([]);
+    expect(
+      sessionStorage.getItem("helivanta:pharmacy:scope:11111111-1111-1111-1111-111111111111"),
+    ).toBeNull();
+  });
+
+  it("does not let late scope restoration overwrite a newer query", async () => {
+    nav.search = "tab=all";
+    const fetcher = mockPharmacy();
+    const original = fetcher.getMockImplementation()!;
+    let release!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fetcher.mockImplementation(async (url, init) => {
+      if (url.endsWith(`/pharmacies/${pharmacy}/outlets`)) await ready;
+      return original(url, init);
+    });
+    renderWorkspace("catalogue");
+    await screen.findByLabelText("Pharmacy");
+    act(() =>
+      History.prototype.replaceState.call(
+        window.history,
+        null,
+        "",
+        `/pharmacy?pharmacy=${pharmacy}&outlet=${sibling}&tab=overdue`,
+      ),
+    );
+    await act(async () => release());
+    await screen.findByText("TEST Counter capsule");
+    const current = new URL(window.location.href);
+    expect(current.searchParams.get("outlet")).toBe(sibling);
+    expect(current.searchParams.get("tab")).toBe("overdue");
+    expect(nav.calls).toEqual([]);
+    expect(
+      sessionStorage.getItem("helivanta:pharmacy:scope:11111111-1111-1111-1111-111111111111"),
+    ).toBeNull();
   });
 
   // Fail closed: an open record from one outlet is never looked up under another.

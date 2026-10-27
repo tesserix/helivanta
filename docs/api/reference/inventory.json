@@ -1061,6 +1061,69 @@
       "source": "backend/internal/modules/medicore/module.go",
       "routes": [
         {
+          "method": "DELETE",
+          "path": "/v1/medicore/hospitals/:hospital/access/:subject",
+          "permission": "medicore.access.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/access/:subject",
+          "permission": "medicore.access.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/access",
+          "permission": "medicore.visit.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/medicore/hospitals/:hospital/encounters/:id/transitions",
+          "permission": "medicore.visit.update",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/encounters/:id",
+          "permission": "medicore.visit.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/encounters/:id",
+          "permission": "medicore.visit.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/encounters",
+          "permission": "medicore.visit.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/medicore/insights",
           "permission": "medicore.visit.read",
@@ -1105,16 +1168,29 @@
         {
           "permission": "medicore.visit.update",
           "roles": [
+            "doctor",
             "nurse"
           ]
+        },
+        {
+          "permission": "medicore.access.manage",
+          "roles": []
         }
       ],
       "publishes": [
-        "helivanta.in.medicore.visit_created.v1"
+        "helivanta.in.medicore.visit_created.v1",
+        "helivanta.in.medicore.encounter_opened.v1",
+        "helivanta.in.medicore.encounter_status_changed.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
-      "consumers": [],
+      "consumers": [
+        {
+          "name": "medicore-patient-registered",
+          "subject": "helivanta.in.patientmaster.registered.v1",
+          "after_commit": false
+        }
+      ],
       "broadcasts": [],
       "migrations": [
         {
@@ -1138,6 +1214,15 @@
           "id": "0004_medicore",
           "sql_sha256": "4f3b477becb2cb3183e36b15d2f32e02bb0725b63096cae54f2d5454a3619370",
           "creates_tables": []
+        },
+        {
+          "id": "0005_medicore",
+          "sql_sha256": "649cc42b792da0363a1805b6f481fab1994c596362f246dae56ca49650ab3e27",
+          "creates_tables": [
+            "medicore_patients",
+            "medicore_hospital_access",
+            "medicore_encounter_transitions"
+          ]
         }
       ]
     },

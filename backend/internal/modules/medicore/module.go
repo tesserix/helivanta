@@ -4,7 +4,10 @@
 package medicore
 
 import (
+	_ "embed"
+
 	medicorecontract "github.com/tesserix/helivanta/internal/modules/medicore/contract"
+	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/insights"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -16,7 +19,13 @@ const (
 	PermVisitCreate authz.Permission = "medicore.visit.create"
 	PermVisitRead   authz.Permission = "medicore.visit.read"
 	PermVisitUpdate authz.Permission = "medicore.visit.update"
+	// PermAccessManage administers who may see a hospital's encounters
+	// (#80 E3); tenant admins only, so no one grants themselves access.
+	PermAccessManage authz.Permission = "medicore.access.manage"
 )
+
+//go:embed encounters.sql
+var encountersSchema string
 
 type Module struct{}
 
@@ -28,7 +37,8 @@ func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
 		{Permission: PermVisitCreate, Roles: []authz.Role{authz.RoleDoctor}},
 		{Permission: PermVisitRead, Roles: []authz.Role{authz.RoleDoctor, authz.RoleNurse}},
-		{Permission: PermVisitUpdate, Roles: []authz.Role{authz.RoleNurse}},
+		{Permission: PermVisitUpdate, Roles: []authz.Role{authz.RoleDoctor, authz.RoleNurse}},
+		{Permission: PermAccessManage},
 	}
 }
 
@@ -72,6 +82,10 @@ func (m *Module) Migrations() []tenantdb.Migration {
 		SQL: `
 			CREATE TRIGGER medicore_visits_audit AFTER INSERT OR UPDATE OR DELETE ON medicore_visits
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
+	}, {
+		// OPD encounters, their patient projection and hospital grants (#80).
+		ID:  "0005_medicore",
+		SQL: encountersSchema,
 	}}
 }
 
@@ -82,12 +96,21 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 
 	g.POST("/visits", PermVisitCreate, visits.create)
 	platform.ListRoute(g, "/visits", PermVisitRead, visits.list)
+
+	encounters := &encounterHandlers{db: deps.DB, bus: deps.Bus}
+	g.PUT("/hospitals/:hospital/access/:subject", PermAccessManage, encounters.grantAccess)
+	g.DELETE("/hospitals/:hospital/access/:subject", PermAccessManage, encounters.revokeAccess)
+	g.GET("/hospitals/:hospital/access", PermVisitRead, encounters.myAccess)
+	g.PUT("/hospitals/:hospital/encounters/:id", PermVisitCreate, encounters.open)
+	platform.ListRoute(g, "/hospitals/:hospital/encounters", PermVisitRead, encounters.list)
+	g.GET("/hospitals/:hospital/encounters/:id", PermVisitRead, encounters.get)
+	g.POST("/hospitals/:hospital/encounters/:id/transitions", PermVisitUpdate, encounters.transition)
 }
 
-// Publishes declares visit_created, the one event medicore emits.
-// pharmacy and lab each consume it via medicorecontract.
+// Publishes declares visit_created, which pharmacy and lab consume, and
+// the encounter events (#80 E6).
 func (m *Module) Publishes() []string {
-	return []string{medicorecontract.SubjectVisitCreated}
+	return []string{medicorecontract.SubjectVisitCreated, medicorecontract.SubjectEncounterOpened, medicorecontract.SubjectEncounterStatusChanged}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that
@@ -98,7 +121,11 @@ func (m *Module) DirectedSubjects() []string { return nil }
 // behalf of another tenant.
 func (m *Module) DirectedWriteTables() []string { return nil }
 
-func (m *Module) Consumers(deps platform.Deps) []events.Consumer { return nil }
+// Consumers keeps medicore's record of which hospital each patient is
+// registered at (#80 E2).
+func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
+	return []events.Consumer{{Name: "medicore-patient-registered", Subject: patientmastercontract.SubjectPatientRegistered, Handle: patientRegistered}}
+}
 
 // Broadcasts declares none: medicore has no per-replica cache to
 // invalidate.

@@ -177,6 +177,13 @@ Source: [backend/internal/modules/medicore/module.go](../../../backend/internal/
 
 | Method | Path | Permission | Cursor pagination | Page total |
 | --- | --- | --- | --- | --- |
+| DELETE | `/v1/medicore/hospitals/:hospital/access/:subject` | `medicore.access.manage` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/access/:subject` | `medicore.access.manage` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/access` | `medicore.visit.read` | false | false |
+| POST | `/v1/medicore/hospitals/:hospital/encounters/:id/transitions` | `medicore.visit.update` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/encounters/:id` | `medicore.visit.read` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/encounters/:id` | `medicore.visit.create` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/encounters` | `medicore.visit.read` | true | false |
 | GET | `/v1/medicore/insights` | `medicore.visit.read` | false | false |
 | GET | `/v1/medicore/visits` | `medicore.visit.read` | true | false |
 | POST | `/v1/medicore/visits` | `medicore.visit.create` | false | false |
@@ -184,14 +191,17 @@ Source: [backend/internal/modules/medicore/module.go](../../../backend/internal/
 Published subjects:
 
 - `helivanta.in.medicore.visit_created.v1`
+- `helivanta.in.medicore.encounter_opened.v1`
+- `helivanta.in.medicore.encounter_status_changed.v1`
 
 Subscriptions:
 
-None.
+- `medicore-patient-registered` ← `helivanta.in.patientmaster.registered.v1`; after-commit hook: false.
 
 Migration table declarations:
 
 - `0001_medicore`: `medicore_visits`.
+- `0005_medicore`: `medicore_patients`, `medicore_hospital_access`, `medicore_encounter_transitions`.
 
 ## mediconnect
 

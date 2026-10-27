@@ -406,23 +406,31 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	"iam.CredentialRevokedData.Subject":               "same iam subject identifier as MemberChangedData.Subject",
 	"iam.MemberChangedData.RoleKey":                   "a key into the fixed role registry (docs/standards/backend.md), not clinical or identifying data",
 
-	"medicore.VisitCreatedData.Department": "the ward/department the visit is opened in; operational routing metadata, not patient-identifying",
+	"medicore.VisitCreatedData.Department":           "the ward/department the visit is opened in; operational routing metadata, not patient-identifying",
+	"medicore.EncounterStatusChangedData.FromStatus": "a fixed encounter lifecycle state (arrived, in_consultation, closed, left_without_being_seen, cancelled); operational, no clinical content",
+	"medicore.EncounterStatusChangedData.ToStatus":   "a fixed encounter lifecycle state, as FromStatus",
+	"medicore.EncounterStatusChangedData.Version":    "monotonic encounter revision number; no patient data",
 
 	// Internally-minted row ids. Listed one by one rather than matched by
 	// an "ends in ID" rule: see the test's comment for why that rule was
 	// removed. The reason below is the thing being asserted — it is NOT
 	// true of every identifier, and an externally-issued one (Aadhaar,
 	// ABHA, an insurer member number) belongs in the PHI allowlist.
-	"medicore.VisitCreatedData.VisitID":              "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"medicore.VisitCreatedData.PatientID":            "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"patientmaster.PatientRegisteredData.HospitalID": "internally minted hospital scope for authorization; no name, address or external facility identifier",
-	"patientmaster.PatientRegisteredData.PatientID":  "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"lab.ResultReadyData.VisitID":                    "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"lab.ResultReadyData.OrderID":                    "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"pharmacy.DispenseRecordedData.VisitID":          "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"pharmacy.DispenseRecordedData.DispenseID":       "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"reference.PingedData.PingID":                    "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"reference.PingForwardedData.PingID":             "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"medicore.VisitCreatedData.VisitID":               "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"medicore.VisitCreatedData.PatientID":             "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"medicore.EncounterOpenedData.EncounterID":        "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"medicore.EncounterOpenedData.PatientID":          "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"medicore.EncounterStatusChangedData.EncounterID": "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"medicore.EncounterOpenedData.HospitalID":         "internally minted hospital scope for authorization; no name, address or external facility identifier",
+	"medicore.EncounterStatusChangedData.HospitalID":  "internally minted hospital scope for authorization; no name, address or external facility identifier",
+	"patientmaster.PatientRegisteredData.HospitalID":  "internally minted hospital scope for authorization; no name, address or external facility identifier",
+	"patientmaster.PatientRegisteredData.PatientID":   "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"lab.ResultReadyData.VisitID":                     "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"lab.ResultReadyData.OrderID":                     "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"pharmacy.DispenseRecordedData.VisitID":           "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"pharmacy.DispenseRecordedData.DispenseID":        "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"reference.PingedData.PingID":                     "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"reference.PingForwardedData.PingID":              "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
 
 	// reference is the module that proves the platform wiring end to end
 	// (issue #2); it deliberately exposes no tenant data (module.go's

@@ -48,6 +48,7 @@ export {
 export * from "./roster-config";
 export * from "./leave";
 
+export * from "./medicore";
 export * from "./pharmacy";
 export * from "./pharmacy-stock-export";
 export * from "./customer-time";

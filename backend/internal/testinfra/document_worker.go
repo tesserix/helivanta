@@ -69,3 +69,12 @@ func DrugApproverDSN(t *testing.T, database string) string {
 	u.RawQuery = url.Values{"sslmode": {"disable"}}.Encode()
 	return u.String()
 }
+
+// PharmacyEvidenceWorkerDSN connects only the scoped prescription-image fixture identity.
+func PharmacyEvidenceWorkerDSN(t *testing.T, database string) string {
+	t.Helper()
+	host, port := sharedPostgres(t)
+	u := url.URL{Scheme: "postgres", Host: net.JoinHostPort(host, port), Path: "/" + database, User: url.UserPassword("helivanta_pharmacy_evidence_worker", "helivanta_pharmacy_evidence_worker")}
+	u.RawQuery = url.Values{"sslmode": {"disable"}}.Encode()
+	return u.String()
+}

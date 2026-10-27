@@ -26,6 +26,9 @@ var scheduleClassSchema string
 //go:embed release.sql
 var releaseSchema string
 
+//go:embed prescriptions.sql
+var prescriptionsSchema string
+
 //go:embed sale.sql
 var saleSchema string
 
@@ -74,12 +77,16 @@ const (
 	// PermStockRelease moves stock from quarantine to sellable (#1386 A3).
 	PermStockRelease authz.Permission = "pharmacy.stock.release"
 	// Counter sale (#1386 B-1).
-	PermSaleCreate      authz.Permission = "pharmacy.sale.create"
-	PermSaleRead        authz.Permission = "pharmacy.sale.read"
-	PermDispenseRead    authz.Permission = "pharmacy.dispense.read"
-	PermDispenseFulfil  authz.Permission = "pharmacy.dispense.fulfil"
-	PermMedicationRead  authz.Permission = "pharmacy.medication.read"
-	PermMedicationWrite authz.Permission = "pharmacy.medication.write"
+	PermSaleCreate authz.Permission = "pharmacy.sale.create"
+	PermSaleRead   authz.Permission = "pharmacy.sale.read"
+	// Prescriptions are patient data: the pharmacist alone records and reads
+	// them (#1386 B-2a); the owner's work needs neither.
+	PermPrescriptionRecord authz.Permission = "pharmacy.prescription.record"
+	PermPrescriptionRead   authz.Permission = "pharmacy.prescription.read"
+	PermDispenseRead       authz.Permission = "pharmacy.dispense.read"
+	PermDispenseFulfil     authz.Permission = "pharmacy.dispense.fulfil"
+	PermMedicationRead     authz.Permission = "pharmacy.medication.read"
+	PermMedicationWrite    authz.Permission = "pharmacy.medication.write"
 )
 
 type Module struct{}
@@ -109,6 +116,8 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermStockRelease, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermSaleCreate, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermSaleRead, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner}},
+		{Permission: PermPrescriptionRecord, Roles: []authz.Role{authz.RolePharmacist}},
+		{Permission: PermPrescriptionRead, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermDispenseRead, Roles: []authz.Role{authz.RolePharmacist, authz.RoleDoctor}},
 		{Permission: PermDispenseFulfil, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermMedicationRead, Roles: []authz.Role{authz.RolePharmacist}},
@@ -171,7 +180,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 			CREATE TRIGGER pharmacy_dispenses_audit AFTER INSERT OR UPDATE OR DELETE ON pharmacy_dispenses
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
-	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}, {ID: "0010_pharmacy", SQL: dispenseListsSchema}, {ID: "0011_pharmacy", SQL: indiaOnlySchema}, {ID: "0012_pharmacy", SQL: licencesSchema}, {ID: "0013_pharmacy", SQL: scheduleClassSchema}, {ID: "0014_pharmacy", SQL: releaseSchema}, {ID: "0015_pharmacy", SQL: saleSchema}}
+	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}, {ID: "0010_pharmacy", SQL: dispenseListsSchema}, {ID: "0011_pharmacy", SQL: indiaOnlySchema}, {ID: "0012_pharmacy", SQL: licencesSchema}, {ID: "0013_pharmacy", SQL: scheduleClassSchema}, {ID: "0014_pharmacy", SQL: releaseSchema}, {ID: "0015_pharmacy", SQL: saleSchema}, {ID: "0016_pharmacy", SQL: prescriptionsSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {

@@ -23,6 +23,7 @@ CREATE ROLE helivanta_emergency_worker NOLOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT
 CREATE ROLE helivanta_document_worker LOGIN PASSWORD 'helivanta_document_worker' NOSUPERUSER NOBYPASSRLS;
 CREATE ROLE helivanta_practitioner_evidence_worker NOLOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT;
 CREATE ROLE helivanta_supply_evidence_worker LOGIN PASSWORD 'helivanta_supply_evidence_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
+CREATE ROLE helivanta_pharmacy_evidence_worker LOGIN PASSWORD 'helivanta_pharmacy_evidence_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
 -- Drug master release stewards (#476 D3): one stages, a different one decides.
 CREATE ROLE helivanta_drug_stager LOGIN PASSWORD 'helivanta_drug_stager' NOSUPERUSER NOBYPASSRLS NOINHERIT;
 CREATE ROLE helivanta_drug_approver LOGIN PASSWORD 'helivanta_drug_approver' NOSUPERUSER NOBYPASSRLS NOINHERIT;

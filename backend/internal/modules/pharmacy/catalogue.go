@@ -86,6 +86,7 @@ func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 	licenceRoutes(s, h)
 	scheduleRoutes(s, h)
 	saleRoutes(s, h)
+	prescriptionRoutes(s, h)
 }
 
 func decodeCatalogue(c *gin.Context, in any) bool {

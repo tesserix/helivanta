@@ -58,12 +58,12 @@ Read this before changing roles, permissions, staff access, departments, approva
 
 ## Current implementation
 
-Verified against source on 2026-10-26. These are the gaps the target model closes.
+Verified against source on 2026-10-27. These are the gaps the target model closes.
 
 - Role membership is tenant-wide. `iam_members` holds `tenant_id`, `subject` and `role_key` only: no scope, validity, grantor, reason or approval ([`iam/module.go:122`](../../../backend/internal/modules/iam/module.go)).
 - `tenant_admin` receives every declared permission, clinical ones included, because `GrantsFor` appends it to each grant ([`platform/reconcile.go:92`](../../../backend/internal/platform/reconcile.go)). [ADR-0008](../../adr/0008-multi-hospital-tenancy-and-sharing.md) says privileged tenant administrators get no clinical access automatically; the code and the accepted decision disagree.
-- The OpenFGA model has `user`, `role`, `perm` and `tenant` types only. There is no hospital, department, outlet or base type ([`authz/model.go`](../../../backend/pkg/authz/model.go)).
-- System roles are a fixed list of 28 keys ([`authz/authz.go:82`](../../../backend/pkg/authz/authz.go)). Custom roles are representable but not creatable.
+- The OpenFGA model includes versioned `scoped_assignment` and `scoped_permission` primitives alongside legacy tenant roles ([`authz/model.go`](../../../backend/pkg/authz/model.go)). IAM has reviewed hospital-scoped assignment proposals, membership generations, immutable snapshots, scope epochs, durable projection and a current-state authority provider. Workforce business routes have not opted into that authority; staff/link/object checks and target-bound RLS remain required. Department, outlet and base consumers are not implemented. Graph tuples alone are not application authority.
+- System roles are a fixed catalogue ([`authz/authz.go`](../../../backend/pkg/authz/authz.go)). `staff_member` establishes tenant membership with no declared business permissions. IAM must grant membership explicitly; enrollment or linking does not assign it. Custom roles are representable but not creatable.
 - Narrower scope lives in separate per-module grant tables, each with its own vocabulary:
 
   | Table                             | Levels or roles                                                                           | Source                                                     |
@@ -78,7 +78,7 @@ Verified against source on 2026-10-26. These are the gaps the target model close
 
   `supply_access_grants` is the most complete design and the closest to the target assignment record.
 
-- `workforce_staff` records `job_category` and `employment_status` but has no link to a login subject, and `workforce_staff_allowed()` checks only `workforce_hospital_access`. Marking a person inactive does not remove any access ([`workforce/schema.sql:44`](../../../backend/internal/modules/workforce/schema.sql)).
+- `workforce_staff` records job category and employment status; workforce also owns reviewed hospital-local `workforce_login_links`, immutable private history and inactivation revocation. `workforce_staff_allowed()` still checks legacy `workforce_hospital_access`. Inactivation revokes current links but does not yet revoke IAM assignments or legacy grants ([`workforce/schema.sql`](../../../backend/internal/modules/workforce/schema.sql), [`login_links.sql`](../../../backend/internal/modules/workforce/login_links.sql)).
 - No department entity exists. Issues #22, #287 and #616 each describe one; #429 depends on it.
 
 ## Open decisions

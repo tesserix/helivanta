@@ -338,6 +338,10 @@ var lintAllowlist = map[string]bool{
 	"drugmaster_formulation_ingredients": true,
 	"drugmaster_products":                true,
 	"drugmaster_product_versions":        true,
+	// MediCore's projection of the drug master's published molecules
+	// (#1373 A4): the same global reference data, read-only to requests;
+	// only the medicore-molecule-published consumer inserts.
+	"medicore_drug_molecules": true,
 }
 
 // LintRLS returns every table that is not properly tenant-isolated, each

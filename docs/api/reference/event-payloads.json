@@ -1,6 +1,6 @@
 {
   "helivanta.in.drugmaster.catalogue_published.v1": {
-    "source": "backend/internal/modules/drugmaster/contract/events.go:18",
+    "source": "backend/internal/modules/drugmaster/contract/events.go:31",
     "go_type": "CataloguePublishedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -28,7 +28,7 @@
     }
   },
   "helivanta.in.drugmaster.formulation_reclassified.v1": {
-    "source": "backend/internal/modules/drugmaster/contract/events.go:26",
+    "source": "backend/internal/modules/drugmaster/contract/events.go:39",
     "go_type": "FormulationReclassifiedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -67,8 +67,36 @@
       "type": "object"
     }
   },
+  "helivanta.in.drugmaster.molecule_published.v1": {
+    "source": "backend/internal/modules/drugmaster/contract/events.go:23",
+    "go_type": "MoleculePublishedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "atc_code": {
+          "type": "string"
+        },
+        "inn_name": {
+          "type": "string"
+        },
+        "molecule_id": {
+          "type": "string"
+        },
+        "release_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "molecule_id",
+        "inn_name",
+        "atc_code",
+        "release_id"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.drugmaster.product_status_changed.v1": {
-    "source": "backend/internal/modules/drugmaster/contract/events.go:37",
+    "source": "backend/internal/modules/drugmaster/contract/events.go:50",
     "go_type": "ProductStatusChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -551,6 +579,38 @@
       "type": "object"
     }
   },
+  "helivanta.in.medicore.allergy_changed.v1": {
+    "source": "backend/internal/modules/medicore/contract/events.go:75",
+    "go_type": "AllergyChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "hospital_id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "patient_id": {
+          "type": "string"
+        },
+        "record_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "patient_id",
+        "hospital_id",
+        "record_id",
+        "version",
+        "kind"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.medicore.encounter_opened.v1": {
     "source": "backend/internal/modules/medicore/contract/events.go:49",
     "go_type": "EncounterOpenedData",
@@ -631,6 +691,34 @@
         "patient_name",
         "department",
         "patient_id"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.medicore.weight_recorded.v1": {
+    "source": "backend/internal/modules/medicore/contract/events.go:89",
+    "go_type": "WeightRecordedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "entered_in_error": {
+          "type": "boolean"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "observation_id": {
+          "type": "string"
+        },
+        "patient_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "patient_id",
+        "hospital_id",
+        "observation_id",
+        "entered_in_error"
       ],
       "type": "object"
     }

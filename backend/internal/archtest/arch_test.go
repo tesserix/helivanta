@@ -345,6 +345,9 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /medicore/hospitals/:hospital/patients/:patient/allergies":             "one patient's allergy status and active entries; audited read",
+	"GET /medicore/hospitals/:hospital/patients/:patient/allergies/:id/history": "one allergy entry's versions; ended by its first correction",
+	"GET /medicore/hospitals/:hospital/patients/:patient/weights/latest":        "one weight observation",
 	"GET /drugmaster/search":                                                    "typeahead pick list capped at 20 best matches of shared reference data; no tenant or patient rows",
 	"GET /drugmaster/formulations/:id":                                          "one formulation version in force on one date",
 	"GET /drugmaster/products/:id":                                              "one product version in force today",

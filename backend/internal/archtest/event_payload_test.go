@@ -42,6 +42,15 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"medicore.AllergyChangedData.PatientID":                                 "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"medicore.AllergyChangedData.HospitalID":                                "internally minted hospital scope for authorization; no name, address or external facility identifier",
+	"medicore.AllergyChangedData.RecordID":                                  "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row; carries no substance, reaction or severity",
+	"medicore.AllergyChangedData.Version":                                   "row version counter; no clinical content",
+	"medicore.AllergyChangedData.Kind":                                      "entry or no_known_allergy: says which record changed, not what it says",
+	"medicore.WeightRecordedData.PatientID":                                 "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
+	"medicore.WeightRecordedData.HospitalID":                                "internally minted hospital scope for authorization; no name, address or external facility identifier",
+	"medicore.WeightRecordedData.ObservationID":                             "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row; the weight value never travels",
+	"medicore.WeightRecordedData.EnteredInError":                            "whether the referenced observation was marked wrong; no value",
 	"drugmaster.MoleculePublishedData.MoleculeID":                           "opaque catalogue molecule id; shared drug master reference data (#476): no patient, staff or tenant data",
 	"drugmaster.MoleculePublishedData.INNName":                              "international non-proprietary drug name; shared drug master reference data (#476): no patient, staff or tenant data",
 	"drugmaster.MoleculePublishedData.ATCCode":                              "WHO ATC classification code; shared drug master reference data (#476): no patient, staff or tenant data",

@@ -1109,6 +1109,7 @@
       ],
       "publishes": [
         "helivanta.in.drugmaster.catalogue_published.v1",
+        "helivanta.in.drugmaster.molecule_published.v1",
         "helivanta.in.drugmaster.formulation_reclassified.v1",
         "helivanta.in.drugmaster.product_status_changed.v1"
       ],
@@ -1133,6 +1134,11 @@
         {
           "id": "0002_drugmaster",
           "sql_sha256": "74750c8a921ef680aa472c4fbd437590c89b9782c95096ae63ca4759f91373e7",
+          "creates_tables": []
+        },
+        {
+          "id": "0003_drugmaster",
+          "sql_sha256": "aef9911fe57e4217d48f12594b108d34b947cbdb72cb8f6c448454494ff40aa1",
           "creates_tables": []
         }
       ]
@@ -1205,6 +1211,87 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id/corrections",
+          "permission": "medicore.allergy.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id/history",
+          "permission": "medicore.allergy.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id",
+          "permission": "medicore.allergy.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/allergies",
+          "permission": "medicore.allergy.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/no-known-allergy/:id",
+          "permission": "medicore.allergy.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/weights/:id/entered-in-error",
+          "permission": "medicore.observation.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/weights/:id",
+          "permission": "medicore.observation.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/weights/latest",
+          "permission": "medicore.observation.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/weights",
+          "permission": "medicore.observation.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/medicore/insights",
           "permission": "medicore.visit.read",
@@ -1256,12 +1343,42 @@
         {
           "permission": "medicore.access.manage",
           "roles": []
+        },
+        {
+          "permission": "medicore.allergy.read",
+          "roles": [
+            "doctor",
+            "nurse"
+          ]
+        },
+        {
+          "permission": "medicore.allergy.record",
+          "roles": [
+            "doctor",
+            "nurse"
+          ]
+        },
+        {
+          "permission": "medicore.observation.read",
+          "roles": [
+            "doctor",
+            "nurse"
+          ]
+        },
+        {
+          "permission": "medicore.observation.record",
+          "roles": [
+            "doctor",
+            "nurse"
+          ]
         }
       ],
       "publishes": [
         "helivanta.in.medicore.visit_created.v1",
         "helivanta.in.medicore.encounter_opened.v1",
-        "helivanta.in.medicore.encounter_status_changed.v1"
+        "helivanta.in.medicore.encounter_status_changed.v1",
+        "helivanta.in.medicore.allergy_changed.v1",
+        "helivanta.in.medicore.weight_recorded.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -1269,6 +1386,11 @@
         {
           "name": "medicore-patient-registered",
           "subject": "helivanta.in.patientmaster.registered.v1",
+          "after_commit": false
+        },
+        {
+          "name": "medicore-molecule-published",
+          "subject": "helivanta.in.drugmaster.molecule_published.v1",
           "after_commit": false
         }
       ],
@@ -1303,6 +1425,18 @@
             "medicore_patients",
             "medicore_hospital_access",
             "medicore_encounter_transitions"
+          ]
+        },
+        {
+          "id": "0006_medicore",
+          "sql_sha256": "0480c6ad64c3110b20289f52d0c48872923842945766831fcb3e82ccb0ee1173",
+          "creates_tables": [
+            "medicore_drug_molecules",
+            "medicore_allergy_entries",
+            "medicore_no_known_allergy",
+            "medicore_weight_observations",
+            "medicore_weight_errors",
+            "medicore_clinical_read_audit"
           ]
         }
       ]

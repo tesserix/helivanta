@@ -170,6 +170,7 @@ type HarnessOptions struct {
 	Workflows                   client.Client
 	ProductionOwner             bool
 	EmergencyDispatchEnabled    bool
+	AllergyRecordingEnabled     bool
 	OrganizationIdentity        *organizationidentity.Client
 	Documents                   *attachments.GCS
 	Transit                     *transit.Client
@@ -303,6 +304,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		PrivacyDeadlinesEnabled:     opts.PrivacyDeadlinesEnabled,
 		Workflows:                   opts.Workflows,
 		EmergencyDispatchEnabled:    opts.EmergencyDispatchEnabled,
+		AllergyRecordingEnabled:     opts.AllergyRecordingEnabled,
 		OrganizationIdentity:        opts.OrganizationIdentity,
 		Documents:                   opts.Documents,
 		Transit:                     opts.Transit,

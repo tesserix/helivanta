@@ -388,6 +388,7 @@ func run() error {
 		ProxyClinicalCaptureEnabled: cfg.ProxyClinicalCaptureEnabled,
 		CurrentClaims:               currentClaims,
 		EmergencyDispatchEnabled:    cfg.EmergencyDispatchEnabled,
+		AllergyRecordingEnabled:     cfg.AllergyRecordingEnabled,
 		EmergencyWorkflowsEnabled:   cfg.EmergencyWorkflowsEnabled,
 		PrivacyDeadlinesEnabled:     cfg.PrivacyDeadlinesEnabled,
 		OrganizationIdentity:        identityClient,

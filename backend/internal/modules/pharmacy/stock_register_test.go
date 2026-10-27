@@ -128,7 +128,7 @@ func TestStockRegisterPaginatesZeroPositionsAndUsesOutletLocalExpiry(t *testing.
 	cutoff := "2026-10-01T19:00:00Z"
 	for i, expiry := range []string{"2026-10-01", "2026-10-02"} {
 		batch := uuid.Must(uuid.NewV7()).String()
-		w = do(r, "PUT", root+"/batches/"+batch, "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":%q,"expires_on":%q}`, product, fmt.Sprintf("TEST-LOCAL-%d", i), expiry))
+		w = do(r, "PUT", root+"/batches/"+batch, "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":%q,"expires_on":%q,"mrp_minor":12500}`, product, fmt.Sprintf("TEST-LOCAL-%d", i), expiry))
 		require.Equal(t, 200, w.Code, w.Body.String())
 		require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 			if err := tx.Exec(`SELECT set_config('app.actor_subject','user-editor',true),set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {
@@ -210,7 +210,7 @@ func TestStockRegisterFiltersOnePositionByLot(t *testing.T) {
 	product, location, batch := stockFixture(t, r)
 	root := strings.TrimSuffix(strings.Split(productPath(""), "/catalogue")[0], "/") + "/stock"
 	other := uuid.Must(uuid.NewV7()).String()
-	w := do(r, "PUT", root+"/batches/"+other, "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT-OTHER","expires_on":"2031-01-31"}`, product))
+	w := do(r, "PUT", root+"/batches/"+other, "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT-OTHER","expires_on":"2031-01-31","mrp_minor":12500}`, product))
 	require.Equal(t, 200, w.Code, w.Body.String())
 	var last struct {
 		CreatedAt time.Time `json:"created_at"`

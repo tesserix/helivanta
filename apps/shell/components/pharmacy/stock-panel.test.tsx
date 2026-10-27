@@ -169,3 +169,110 @@ describe("Receiving shows the chosen lot beside the chooser (#1303 E4)", () => {
     expect(screen.queryByLabelText("Receipt / correction line reference")).toBeNull();
   });
 });
+
+describe("Release for sale (#1386 A3)", () => {
+  const shelf = "0199e000-0000-7000-8000-00000000000c";
+  function mockRelease(status = 200, message = "") {
+    const writes: { url: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "PUT") {
+          writes.push({ url, body: JSON.parse(String(init.body)) });
+          return new Response(
+            JSON.stringify(status === 200 ? { id: "r" } : { error: "not_releasable", message }),
+            { status },
+          );
+        }
+        if (url.includes("/stock/locations"))
+          return new Response(
+            JSON.stringify(
+              page([
+                {
+                  id: location,
+                  code: "TEST-Q",
+                  name: "TEST Quarantine",
+                  stock_status: "quarantine",
+                },
+                { id: shelf, code: "TEST-SHELF", name: "TEST Shelf", stock_status: "sellable" },
+              ]),
+            ),
+          );
+        if (url.includes("/catalogue/products"))
+          return new Response(
+            JSON.stringify(page([{ id: product, sku: "TEST-500", brand_name: "TEST capsule" }])),
+          );
+        if (url.includes("/stock/batches"))
+          return new Response(
+            JSON.stringify(
+              page([
+                {
+                  id: batch,
+                  product_id: product,
+                  lot_number: "TEST-LOT",
+                  expires_on: "2030-10-31",
+                  mrp_minor: 12500,
+                },
+              ]),
+            ),
+          );
+        if (url.includes("/stock/balance"))
+          return new Response(
+            JSON.stringify({ on_hand_units: 7, dispensable_units: 0, stock_status: "quarantine" }),
+          );
+        return new Response(JSON.stringify(page([])));
+      }),
+    );
+    return writes;
+  }
+  const renderRelease = (releasable: boolean) =>
+    renderWithProviders(
+      <NavigationGuardProvider>
+        <StockPanel scope={scope} writable correctable releasable={releasable} />
+      </NavigationGuardProvider>,
+    );
+
+  it("releases units of a quarantined lot to a sellable location", async () => {
+    nav.search = `location=${location}&product=${product}&open=${batch}`;
+    const writes = mockRelease();
+    const { user } = renderRelease(true);
+    await screen.findByRole("heading", { name: "Release for sale" });
+    await chooseOption(user, screen.getByLabelText("Sellable location"), /^TEST-SHELF/);
+    await user.clear(screen.getByLabelText("Units to release"));
+    await user.type(screen.getByLabelText("Units to release"), "5");
+    await user.type(screen.getByLabelText("Release reason"), "checked and shelved");
+    await user.click(screen.getByRole("button", { name: "Release for sale" }));
+    await vi.waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0].url).toContain("/stock/releases/");
+    expect(writes[0].body).toEqual({
+      to_location_id: shelf,
+      quantity_units: 5,
+      reason: "checked and shelved",
+      batch_id: batch,
+      from_location_id: location,
+    });
+  });
+
+  it("shows the server's reason when a lot cannot be released", async () => {
+    nav.search = `location=${location}&product=${product}&open=${batch}`;
+    mockRelease(409, "the product has no approved schedule class");
+    const { user } = renderRelease(true);
+    await screen.findByRole("heading", { name: "Release for sale" });
+    await chooseOption(user, screen.getByLabelText("Sellable location"), /^TEST-SHELF/);
+    await user.clear(screen.getByLabelText("Units to release"));
+    await user.type(screen.getByLabelText("Units to release"), "5");
+    await user.type(screen.getByLabelText("Release reason"), "checked");
+    await user.click(screen.getByRole("button", { name: "Release for sale" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "the product has no approved schedule class",
+    );
+  });
+
+  it("offers no release without the permission", async () => {
+    nav.search = `location=${location}&product=${product}&open=${batch}`;
+    mockRelease();
+    renderRelease(false);
+    await screen.findByText("Selected lot balance");
+    expect(screen.queryByRole("heading", { name: "Release for sale" })).toBeNull();
+  });
+});

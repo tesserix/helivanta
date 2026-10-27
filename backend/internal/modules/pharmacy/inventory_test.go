@@ -24,7 +24,7 @@ func TestQuarantineReceiptIsIdempotentAndBalanceIsNotDispensable(t *testing.T) {
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.JSONEq(t, w.Body.String(), do(r, "PUT", root+"/stock/locations/"+location, "editor", `{"code":"TEST-QUARANTINE","name":"TEST Receiving quarantine"}`).Body.String())
 	batch := uuid.Must(uuid.NewV7()).String()
-	batchBody := fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT-001","expires_on":"2030-10-31","manufactured_on":"2026-10-01"}`, product)
+	batchBody := fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT-001","expires_on":"2030-10-31","manufactured_on":"2026-10-01","mrp_minor":12500}`, product)
 	w = do(r, "PUT", root+"/stock/batches/"+batch, "editor", batchBody)
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.JSONEq(t, w.Body.String(), do(r, "PUT", root+"/stock/batches/"+batch, "editor", batchBody).Body.String())
@@ -58,7 +58,7 @@ func stockFixture(t *testing.T, r *gin.Engine) (product, location, batch string)
 	batch = uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, 200, do(r, "PUT", productPath(product), "editor", productBody(0, "TEST Quarantine product")).Code)
 	require.Equal(t, 200, do(r, "PUT", root+"/stock/locations/"+location, "editor", `{"code":"TEST-Q","name":"TEST Quarantine"}`).Code)
-	w := do(r, "PUT", root+"/stock/batches/"+batch, "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT","expires_on":"2030-10-31"}`, product))
+	w := do(r, "PUT", root+"/stock/batches/"+batch, "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT","expires_on":"2030-10-31","mrp_minor":12500}`, product))
 	require.Equal(t, 200, w.Code, w.Body.String())
 	return product, location, batch
 }
@@ -123,7 +123,7 @@ func TestBatchIdentityDatesAndStockedProductUnitsAreProtected(t *testing.T) {
 	grantCatalogue(t, r, "user-editor", "editor")
 	product, location, batch := stockFixture(t, r)
 	root := "/v1/pharmacy/pharmacies/" + pharmaOrganization + "/outlets/" + pharmaOutlet + "/stock"
-	body := fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT","expires_on":"2030-10-31"}`, product)
+	body := fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT","expires_on":"2030-10-31","mrp_minor":12500}`, product)
 	require.Equal(t, 200, do(r, "PUT", root+"/batches/"+batch, "editor", body).Code)
 	require.Equal(t, 409, do(r, "PUT", root+"/batches/"+batch, "editor", strings.Replace(body, "2030-10-31", "2030-11-30", 1)).Code)
 	require.Equal(t, 409, do(r, "PUT", root+"/batches/"+uuid.Must(uuid.NewV7()).String(), "editor", body).Code)

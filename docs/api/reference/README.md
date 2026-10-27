@@ -374,6 +374,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions.csv` | `pharmacy.stock.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions` | `pharmacy.stock.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/reconciliation` | `pharmacy.stock.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/releases/:id` | `pharmacy.stock.release` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/:id` | `pharmacy.stock.quarantine` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/recent` | `pharmacy.stock.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents` | `pharmacy.stock.read` | true | false |
@@ -409,6 +410,7 @@ Migration table declarations:
 - `0009_pharmacy`: `pharmacy_outlet_tax_registrations`, `pharmacy_product_tax_classifications`.
 - `0012_pharmacy`: `pharmacy_outlet_licences`, `pharmacy_outlet_licence_reviews`.
 - `0013_pharmacy`: `pharmacy_product_schedule_declarations`, `pharmacy_product_schedule_reviews`.
+- `0014_pharmacy`: `pharmacy_stock_releases`.
 
 ## supply
 

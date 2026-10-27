@@ -30,6 +30,7 @@ async function concerns(page: Page) {
       product_id: product,
       lot_number: `TEST-SLOT-${stamp}-${n}`,
       expires_on: `2031-0${n}-28`,
+      mrp_minor: 12500,
     });
     lots.push(batch);
   }

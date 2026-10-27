@@ -40,6 +40,7 @@ import {
 } from "@helivanta/ui";
 import { useListDetail, useReportState, type FormState } from "@/lib/use-list-detail";
 import { useUrlPage } from "@/lib/use-url-page";
+import { CurrencyAmountField } from "./currency-amount-field";
 
 const inputClass =
   "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -48,11 +49,14 @@ export function StockPanel({
   scope,
   writable,
   correctable,
+  releasable = false,
   timeZone = "UTC",
 }: {
   scope: PharmacyScope;
   writable: boolean;
   correctable: boolean;
+  /** May move this lot from quarantine to a sellable location (#1386 A3). */
+  releasable?: boolean;
   timeZone?: string;
 }) {
   const router = useRouter();
@@ -124,6 +128,8 @@ export function StockPanel({
           timeZone={timeZone}
           writable={writable}
           correctable={correctable}
+          releasable={releasable}
+          locations={locations.items}
           header={
             <DetailHeader
               title={title}
@@ -317,6 +323,7 @@ function LocationForm({
     code: "",
     name: "",
     storage_address: { zone_code: "", aisle_code: "", rack_code: "", shelf_code: "" },
+    stock_status: "quarantine",
   });
   const save = useApiMutation(
     (values: z.infer<typeof pharmacyLocationInputSchema>) =>
@@ -325,7 +332,7 @@ function LocationForm({
         body: JSON.stringify(values),
       }),
     {
-      successToast: "Quarantine location added",
+      successToast: "Location added",
       invalidate: [pharmacyKey(scope, "stock", "locations")],
       onSuccess: () => {
         setId(newPharmacyId());
@@ -337,9 +344,10 @@ function LocationForm({
   useReportState(onStateChange, form.formState.isDirty, save.isPending);
   return (
     <Panel>
-      <h3 className="mb-2 font-semibold">Add quarantine location</h3>
+      <h3 className="mb-2 font-semibold">Add stock location</h3>
       <p className="mb-5 text-sm text-muted-foreground">
-        Use a unique code. Stock in this location is unavailable for dispensing.
+        Use a unique code. Stock is received into quarantine and reaches a sellable location only
+        when a pharmacist releases it. A location&apos;s status cannot change later.
       </p>
       <form
         noValidate
@@ -352,6 +360,16 @@ function LocationForm({
         <Field id="location-name" label="Location name" error={form.formState.errors.name?.message}>
           <Input id="location-name" {...form.register("name")} />
         </Field>
+        <FormSelectField
+          control={form.control}
+          name="stock_status"
+          id="location-status"
+          label="Stock status"
+          options={[
+            { value: "quarantine", label: "Quarantine (receiving)" },
+            { value: "sellable", label: "Sellable (released stock)" },
+          ]}
+        />
         <fieldset className="space-y-4">
           <legend className="text-sm font-medium">Physical storage address (optional)</legend>
           <p className="text-sm text-muted-foreground">
@@ -388,7 +406,7 @@ function LocationForm({
           </p>
         )}
         <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? "Adding…" : "Add quarantine location"}
+          {save.isPending ? "Adding…" : "Add location"}
         </Button>
       </form>
     </Panel>
@@ -417,6 +435,8 @@ function BatchForm({
     lot_number: "",
     expires_on: "",
     manufactured_on: null,
+    mrp_minor: 0,
+    purchase_cost_minor: null,
   });
   const save = useApiMutation(
     (values: z.infer<typeof batchSchema>) =>
@@ -480,6 +500,28 @@ function BatchForm({
             />
           </Field>
         </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CurrencyAmountField
+            id="lot-mrp"
+            label="MRP printed on this lot (per pack)"
+            currency="INR"
+            initialMinor={0}
+            error={form.formState.errors.mrp_minor ? "Enter the printed MRP." : undefined}
+            onChange={(minor) =>
+              form.setValue("mrp_minor", minor, { shouldValidate: true, shouldDirty: true })
+            }
+          />
+          <CurrencyAmountField
+            id="lot-cost"
+            label="Purchase cost per pack (optional)"
+            currency="INR"
+            initialMinor={0}
+            error={form.formState.errors.purchase_cost_minor ? "Enter a valid amount." : undefined}
+            onChange={(minor) =>
+              form.setValue("purchase_cost_minor", minor > 0 ? minor : null, { shouldDirty: true })
+            }
+          />
+        </div>
         {save.isError && (
           <p role="alert" className="text-sm text-destructive">
             {save.error.message}
@@ -499,6 +541,8 @@ function StockBucket({
   batchId,
   writable,
   correctable,
+  releasable,
+  locations,
   timeZone,
   header,
   onStateChange,
@@ -508,6 +552,8 @@ function StockBucket({
   batchId: string;
   writable: boolean;
   correctable: boolean;
+  releasable: boolean;
+  locations: PharmacyLocation[];
   timeZone: string;
   /** The lot's title and Close (#1303 E4). */
   header: React.ReactNode;
@@ -554,14 +600,28 @@ function StockBucket({
             </div>
             <div>
               <dt className="text-sm text-muted-foreground">Stock status</dt>
-              <dd className="mt-2 inline-flex rounded-full bg-(--hms-amber-tint) px-3 py-1 text-sm font-medium text-(--hms-amber)">
-                Quarantine
-              </dd>
+              {balance.data?.stock_status === "sellable" ? (
+                <dd className="mt-2 inline-flex rounded-full bg-(--hms-sky-tint) px-3 py-1 text-sm font-medium text-(--hms-sky)">
+                  Sellable
+                </dd>
+              ) : (
+                <dd className="mt-2 inline-flex rounded-full bg-(--hms-amber-tint) px-3 py-1 text-sm font-medium text-(--hms-amber)">
+                  Quarantine
+                </dd>
+              )}
             </div>
           </dl>
         )}
       </div>
-      {(writable || correctable) && (
+      {releasable && balance.data?.stock_status === "quarantine" && (
+        <ReleaseForm
+          scope={scope}
+          batchId={batchId}
+          fromLocationId={locationId}
+          sellable={locations.filter((l) => l.stock_status === "sellable")}
+        />
+      )}
+      {(writable || correctable) && balance.data?.stock_status !== "sellable" && (
         <MovementForm
           scope={scope}
           locationId={locationId}
@@ -731,5 +791,103 @@ function MovementForm({
         onConfirm={() => save.mutate(form.getValues())}
       />
     </>
+  );
+}
+
+const releaseSchema = z.object({
+  to_location_id: z.string().min(1, "Choose a sellable location"),
+  quantity_units: z
+    .number({ message: "Enter a whole number of units" })
+    .int("Enter a whole number of units")
+    .min(1, "Release at least one unit"),
+  reason: z.string().trim().min(1, "Give a reason").max(500, "At most 500 characters"),
+});
+
+/**
+ * Moves units of this lot from quarantine to a sellable location (#1386 A3).
+ * The server checks expiry, MRP, safety, tax and schedule class and says
+ * which one refuses the lot.
+ */
+function ReleaseForm({
+  scope,
+  batchId,
+  fromLocationId,
+  sellable,
+}: {
+  scope: PharmacyScope;
+  batchId: string;
+  fromLocationId: string;
+  sellable: PharmacyLocation[];
+}) {
+  const [id, setId] = useState(() => newPharmacyId());
+  const form = useZodForm(releaseSchema, { to_location_id: "", quantity_units: 0, reason: "" });
+  const release = useApiMutation(
+    (values: z.infer<typeof releaseSchema>) =>
+      apiFetch(`${pharmacyRoot(scope)}/stock/releases/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ ...values, batch_id: batchId, from_location_id: fromLocationId }),
+      }),
+    {
+      successToast: "Stock released",
+      invalidate: [pharmacyKey(scope, "stock")],
+      onSuccess: () => {
+        setId(newPharmacyId());
+        form.reset({ to_location_id: "", quantity_units: 0, reason: "" });
+      },
+      suppressErrorToast: true,
+    },
+  );
+  return (
+    <form
+      noValidate
+      className="space-y-4 border-b p-6"
+      onSubmit={form.handleSubmit((values) => release.mutate(values))}
+    >
+      <h4 className="font-medium">Release for sale</h4>
+      {sellable.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Add a sellable location first; released stock moves there.
+        </p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <FormSelectField
+            control={form.control}
+            name="to_location_id"
+            id="release-to"
+            label="Sellable location"
+            options={sellable.map((l) => ({ value: l.id, label: `${l.code} · ${l.name}` }))}
+          />
+          <Field
+            id="release-quantity"
+            label="Units to release"
+            error={form.formState.errors.quantity_units?.message}
+          >
+            <Input
+              id="release-quantity"
+              type="number"
+              step="1"
+              {...form.register("quantity_units", { valueAsNumber: true })}
+            />
+          </Field>
+          <Field
+            id="release-reason"
+            label="Release reason"
+            error={form.formState.errors.reason?.message}
+          >
+            <Input id="release-reason" {...form.register("reason")} />
+          </Field>
+        </div>
+      )}
+      {release.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {release.error.message}
+        </p>
+      )}
+      {sellable.length > 0 && (
+        <Button type="submit" disabled={release.isPending}>
+          {release.isPending ? "Releasing…" : "Release for sale"}
+        </Button>
+      )}
+    </form>
   );
 }

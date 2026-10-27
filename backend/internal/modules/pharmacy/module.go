@@ -205,7 +205,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 
 // Publishes declares the module's clinical, catalogue, inventory and financial events.
 func (m *Module) Publishes() []string {
-	return []string{pharmacycontract.SubjectDispenseRecorded, pharmacycontract.SubjectCatalogueUpdated, pharmacycontract.SubjectStockMovementRecorded, pharmacycontract.SubjectPayableRecorded, pharmacycontract.SubjectSettlementRecorded, pharmacycontract.SubjectBatchSafetyRecorded, pharmacycontract.SubjectSalePosted}
+	return []string{pharmacycontract.SubjectDispenseRecorded, pharmacycontract.SubjectCatalogueUpdated, pharmacycontract.SubjectStockMovementRecorded, pharmacycontract.SubjectPayableRecorded, pharmacycontract.SubjectSettlementRecorded, pharmacycontract.SubjectBatchSafetyRecorded, pharmacycontract.SubjectSalePosted, pharmacycontract.SubjectPrescriptionImageScanRequested, pharmacycontract.SubjectPrescriptionImageChanged}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that

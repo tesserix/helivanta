@@ -17,6 +17,7 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
@@ -27,6 +28,7 @@ var prescriptionPerms = []authz.Permission{"pharmacy.catalogue.read", "pharmacy.
 type prescriptionWorld struct {
 	r     *gin.Engine
 	db    *tenantdb.DB
+	bus   *events.Bus
 	files *attachments.GCS
 }
 
@@ -35,7 +37,7 @@ type prescriptionWorld struct {
 func newPrescriptionWorld(t *testing.T, files *attachments.GCS) prescriptionWorld {
 	t.Helper()
 	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC) })
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"editor": testutil.TenantA, "pharmacist": testutil.TenantA, "viewer": testutil.TenantA, "owner": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
 			"editor":     prescriptionPerms,
@@ -50,7 +52,7 @@ func newPrescriptionWorld(t *testing.T, files *attachments.GCS) prescriptionWorl
 	grantCatalogue(t, r, "user-pharmacist", "editor")
 	grantCatalogue(t, r, "user-owner", "editor")
 	grantCatalogue(t, r, "user-viewer", "reader")
-	return prescriptionWorld{r: r, db: db, files: files}
+	return prescriptionWorld{r: r, db: db, bus: bus, files: files}
 }
 
 func prescriptionPath(suffix string) string { return licencePath("/prescriptions" + suffix) }

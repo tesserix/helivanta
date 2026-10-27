@@ -90,3 +90,34 @@ type SalePostedLine struct {
 	BatchID       string `json:"batch_id"`
 	QuantityUnits int64  `json:"quantity_units"`
 }
+
+// SubjectPrescriptionImageScanRequested asks the pharmacy evidence worker to scan
+// one uploaded prescription page (#1386 B-2a).
+const SubjectPrescriptionImageScanRequested = "helivanta.in.pharmacy.prescription_image_scan_requested.v1"
+
+// SubjectPrescriptionImageChanged records a page's scan outcome.
+const SubjectPrescriptionImageChanged = "helivanta.in.pharmacy.prescription_image_changed.v1"
+
+// PrescriptionImageScanRequestedData carries ids only, never prescriber or
+// patient details.
+type PrescriptionImageScanRequestedData struct {
+	OutletID       string `json:"outlet_id"`
+	PrescriptionID string `json:"prescription_id"`
+	FileID         string `json:"file_id"`
+	ScanAttempt    int64  `json:"scan_attempt"`
+}
+
+// PrescriptionImageScanInput is the worker's whole input, including the tenant.
+type PrescriptionImageScanInput struct {
+	TenantID       string `json:"tenant_id"`
+	OutletID       string `json:"outlet_id"`
+	PrescriptionID string `json:"prescription_id"`
+	FileID         string `json:"file_id"`
+	ScanAttempt    int64  `json:"scan_attempt"`
+}
+
+// PrescriptionImageChangedData adds the bounded lifecycle status.
+type PrescriptionImageChangedData struct {
+	PrescriptionImageScanRequestedData
+	Status string `json:"status"`
+}

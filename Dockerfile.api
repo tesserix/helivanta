@@ -99,6 +99,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -trimpath \
+    -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
+    -o /out/pharmacy-evidence-worker \
+    ./cmd/pharmacy-evidence-worker
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
     -ldflags "-s -w" \
     -o /out/emergency-retention \
     ./cmd/emergency-retention
@@ -131,6 +137,7 @@ COPY --from=builder /out/migrate /app/migrate
 COPY --from=builder /out/document-worker /app/document-worker
 COPY --from=builder /out/emergency-worker /app/emergency-worker
 COPY --from=builder /out/supply-evidence-worker /app/supply-evidence-worker
+COPY --from=builder /out/pharmacy-evidence-worker /app/pharmacy-evidence-worker
 COPY --from=builder /out/emergency-retention /app/emergency-retention
 COPY --from=builder /out/drugmaster-release /app/drugmaster-release
 

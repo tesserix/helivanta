@@ -89,7 +89,7 @@ Next.js shell with `@helivanta/api`.
    size and checksum, including after a worker restart that changes the generation.
 3. The upload body must match the intent: size, type, checksum and a passive image. A mismatch
    leaves nothing in quarantine.
-4. A reader with a `viewer` grant on outlet A gets 404, never 403, for outlet B's prescription
+4. A reader with a `reader` grant on outlet A gets 404, never 403, for outlet B's prescription
    and its images, and a pharmacy owner gets 403 on every route.
 5. A replayed intent with a changed filename, size or checksum is 409, and nothing is
    overwritten.

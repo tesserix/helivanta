@@ -33,3 +33,14 @@
       list with patient names read from the registry, status actions with a required reason for
       cancel / left without being seen. Vitest: list and move, reason, open under UUIDv7, no
       access, no permissions.
+
+### Final review fixes (fresh reviewer, Opus)
+
+- [x] Important 1: the page keeps one encounter id per open across retries — "retries an open under the same encounter id" RED→GREEN.
+- [x] Important 2: a PUT that loses the insert race replays the winner (`ON CONFLICT DO NOTHING` + intent checks) — `TestAnOpenThatLosesTheInsertRaceReplays` (race forced with a held, uncommitted row) RED (500) → GREEN.
+- [x] Important 3: guard assertions now require SQLSTATE 23514 and the guard's own message, on statements no other constraint rejects.
+- [x] Important 4: `TestLegacyVisitsStayLegacy` — legacy create still works; legacy rows 404 on hospital routes.
+- [x] Important 5: patient names cached 10 minutes (`staleTime`), "does not re-read a patient when the list is filtered" RED→GREEN; batched audited lookup filed as #1378.
+- [x] Important 6: a refused move reloads the list (`invalidateOnError`) — RED→GREEN.
+- [x] Minors fixed: transition history must match the locked encounter (23514); unknown `to` is 400; encounter constraints added `NOT VALID` then validated; reason toggle `aria-expanded` and disabled while saving.
+- Minors deferred: grants accept any subject string; insights totals include encounters from every hospital (aggregates only); a re-registration under the same patient id at another hospital is ignored rather than raised.

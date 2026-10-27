@@ -2,14 +2,19 @@ package medicore_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
@@ -187,21 +192,93 @@ func TestEncounterMovesAlongItsLifecycleOnly(t *testing.T) {
 	require.NotContains(t, do(r, "GET", encountersURL(hospitalA)+"?status=arrived", "nurse", "").Body.String(), id)
 	require.Equal(t, http.StatusBadRequest, do(r, "GET", encountersURL(hospitalA)+"?status=open", "nurse", "").Code)
 
-	// The database refuses any change that bypasses the transition path,
-	// and keeps the history (#80 E5).
+	// The database guard itself refuses any change that bypasses the
+	// transition path, and keeps the history (#80 E5). Each statement would
+	// pass every other constraint, so only the guard can be what stops it.
+	live := uuid.Must(uuid.NewV7()).String()
+	require.Equal(t, http.StatusCreated, do(r, "PUT", encountersURL(hospitalA)+"/"+live, "doc", openBody(patient, "in_person", "first")).Code)
+	require.Equal(t, http.StatusOK, do(r, "POST", encountersURL(hospitalA)+"/"+live+"/transitions", "doc", `{"to":"in_consultation","expected_version":1}`).Code)
 	actor := tenantdb.WithActor(ctx, "user-doc")
-	for _, sql := range []string{
-		`UPDATE medicore_visits SET status = 'arrived', version = 4 WHERE id = '` + id + `'`,
-		`UPDATE medicore_visits SET patient_id = gen_random_uuid() WHERE id = '` + id + `'`,
-		`DELETE FROM medicore_visits WHERE id = '` + id + `'`,
-		`DELETE FROM medicore_encounter_transitions WHERE encounter_id = '` + id + `'`,
+	for sql, message := range map[string]string{
+		`UPDATE medicore_visits SET status = 'closed', version = version + 1, closed_at = now() WHERE id = '` + live + `'`: "encounter changes only by an attributable transition",
+		`UPDATE medicore_visits SET consult_mode = 'teleconsultation' WHERE id = '` + live + `'`:                           "encounter changes only by an attributable transition",
+		`DELETE FROM medicore_visits WHERE id = '` + id + `'`:                                                              "encounter history is retained",
+		`DELETE FROM medicore_encounter_transitions WHERE encounter_id = '` + id + `'`:                                     "encounter history is retained",
+		// A history row for a move that never happened (review minor).
+		`INSERT INTO medicore_encounter_transitions (tenant_id, encounter_id, version, from_status, to_status, actor_subject)
+		 VALUES ('` + testutil.TenantA + `', '` + live + `', 3, 'arrived', 'in_consultation', 'user-doc')`: "transition does not match the encounter",
 	} {
 		err := db.WithTenant(actor, testutil.TenantA, func(tx *gorm.DB) error { return tx.Exec(sql).Error })
-		require.Error(t, err, sql)
+		var pgErr *pgconn.PgError
+		require.ErrorAs(t, err, &pgErr, sql)
+		require.Equal(t, "23514", pgErr.Code, sql)
+		require.Equal(t, message, pgErr.Message, sql)
 	}
 	var history []string
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Raw(`SELECT from_status || '>' || to_status || ':' || actor_subject FROM medicore_encounter_transitions WHERE encounter_id = ? ORDER BY version`, id).Scan(&history).Error
 	}))
 	require.Equal(t, []string{"arrived>in_consultation:user-nurse", "in_consultation>closed:user-doc"}, history)
+}
+
+// Two concurrent opens under one id: the one that loses the insert race
+// replays the winner instead of failing (review finding 2). The race is
+// forced, not hoped for: the winner's row is inserted and held uncommitted
+// while the request runs, so the request misses it on read and then waits
+// on its insert until the winner commits.
+func TestAnOpenThatLosesTheInsertRaceReplays(t *testing.T) {
+	r, db, ctx := encounterSetup(t)
+	patient := registered(t, db, ctx, testutil.TenantA, hospitalA)
+	id := uuid.Must(uuid.NewV7())
+	sum := sha256.Sum256([]byte(strings.Join([]string{hospitalA.String(), patient.String(), "in_person", "first"}, "|")))
+	inserted, release, committed := make(chan struct{}), make(chan struct{}), make(chan error, 1)
+	go func() {
+		committed <- db.WithTenant(tenantdb.WithActor(ctx, "user-doc"), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`INSERT INTO medicore_visits (id, tenant_id, hospital_id, patient_id, department, consult_mode, visit_type, status, version, created_by, intent_sha256)
+				VALUES (?, ?, ?, ?, 'OPD', 'in_person', 'first', 'arrived', 1, 'user-doc', ?)`, id, testutil.TenantA, hospitalA, patient, hex.EncodeToString(sum[:])).Error; err != nil {
+				close(inserted)
+				return err
+			}
+			close(inserted)
+			<-release
+			return nil
+		})
+	}()
+	<-inserted
+	response := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		response <- do(r, "PUT", encountersURL(hospitalA)+"/"+id.String(), "doc", openBody(patient, "in_person", "first"))
+	}()
+	time.Sleep(500 * time.Millisecond) // the request is now blocked on the winner's key
+	close(release)
+	require.NoError(t, <-committed)
+	w := <-response
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	require.Equal(t, id.String(), decodeEncounter(t, w.Body.Bytes()).ID)
+	require.Zero(t, outboxCount(t, db, ctx, "helivanta.in.medicore.encounter_opened.v1"), "the loser publishes nothing")
+}
+
+// Legacy visits stay creatable after the migration, never appear on hospital
+// routes and cannot be moved through them (spec Verification).
+func TestLegacyVisitsStayLegacy(t *testing.T) {
+	r, _, _ := encounterSetup(t)
+	w := do(r, "POST", "/v1/medicore/visits", "doc", `{"patient_name":"TEST Legacy","department":"IPD"}`)
+	require.Equal(t, http.StatusAccepted, w.Code, w.Body.String())
+	var created struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
+	require.Contains(t, do(r, "GET", "/v1/medicore/visits", "doc", "").Body.String(), "TEST Legacy")
+	require.NotContains(t, do(r, "GET", encountersURL(hospitalA), "doc", "").Body.String(), created.ID)
+	require.Equal(t, http.StatusNotFound, do(r, "GET", encountersURL(hospitalA)+"/"+created.ID, "doc", "").Code)
+	require.Equal(t, http.StatusNotFound, do(r, "POST", encountersURL(hospitalA)+"/"+created.ID+"/transitions", "doc", `{"to":"in_consultation","expected_version":1}`).Code)
+}
+
+// An unknown status is a bad request, not a conflict (review minor).
+func TestUnknownTransitionTargetIsABadRequest(t *testing.T) {
+	r, db, ctx := encounterSetup(t)
+	patient := registered(t, db, ctx, testutil.TenantA, hospitalA)
+	id := uuid.Must(uuid.NewV7()).String()
+	require.Equal(t, http.StatusCreated, do(r, "PUT", encountersURL(hospitalA)+"/"+id, "doc", openBody(patient, "in_person", "first")).Code)
+	require.Equal(t, http.StatusBadRequest, do(r, "POST", encountersURL(hospitalA)+"/"+id+"/transitions", "doc", `{"to":"discharged","expected_version":1}`).Code)
 }

@@ -160,11 +160,21 @@ func (h *encounterHandlers) open(c *gin.Context) {
 			ConsultMode: req.ConsultMode, VisitType: req.VisitType, Status: "arrived", Version: 1,
 			CreatedBy: p.Subject, IntentSHA256: digest,
 		}
-		if err := tx.Omit("created_at", "closed_at").Create(&row).Error; err != nil {
-			return err
+		// A concurrent open of the same id may commit first: the insert then
+		// does nothing and this request replays the winner, under the same
+		// intent checks, instead of failing.
+		insert := tx.Clauses(clause.OnConflict{DoNothing: true}).Omit("created_at", "closed_at").Create(&row)
+		if insert.Error != nil {
+			return insert.Error
 		}
 		if err := tx.Where("tenant_id = ? AND id = ?", p.TenantID, id).Take(&row).Error; err != nil {
 			return err
+		}
+		if insert.RowsAffected == 0 {
+			if row.HospitalID != hospital || row.IntentSHA256 != digest || row.CreatedBy != p.Subject {
+				return errIntentConflict
+			}
+			return nil
 		}
 		created = true
 		return publish(tx, p.TenantID, medicorecontract.SubjectEncounterOpened, "EncounterOpened", medicorecontract.EncounterOpenedData{
@@ -236,7 +246,7 @@ func findEncounter(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, raw strin
 }
 
 type transitionRequest struct {
-	To              string `json:"to" binding:"required"`
+	To              string `json:"to" binding:"required,oneof=arrived in_consultation closed left_without_being_seen cancelled"`
 	ExpectedVersion int    `json:"expected_version" binding:"required,min=1"`
 	Reason          string `json:"reason" binding:"max=500"`
 }

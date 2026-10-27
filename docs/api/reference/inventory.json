@@ -1107,7 +1107,7 @@
         },
         {
           "id": "0005_medicore",
-          "sql_sha256": "439429bbf4bd255d2e0c19abd767928b2c828cb141e901f3a322573352c26ec2",
+          "sql_sha256": "649cc42b792da0363a1805b6f481fab1994c596362f246dae56ca49650ab3e27",
           "creates_tables": [
             "medicore_patients",
             "medicore_hospital_access",

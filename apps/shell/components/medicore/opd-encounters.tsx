@@ -181,9 +181,13 @@ function HospitalEncounters({ hospital }: { hospital: Hospital }) {
 // The patient's name, read from the patient registry under the caller's own
 // grant there; the encounter carries only the patient's id.
 function PatientName({ hospital, id }: { hospital: Hospital; id: string }) {
+  // Each read is an audited disclosure, so a name is read once per page
+  // visit, not on every remount. shortcut: one request per row; a batched,
+  // audited name lookup in patientmaster is #1378.
   const patient = useApiQuery<PatientDetail>(
     ["patients", "detail", hospital.id, id],
     `/patients/${id}?hospital_id=${hospital.id}`,
+    { staleTime: 10 * 60_000, refetchOnWindowFocus: false },
   );
   if (patient.data)
     return (
@@ -212,6 +216,7 @@ function EncounterRow({ hospital, row }: { hospital: Hospital; row: Encounter })
     {
       successToast: "Encounter updated",
       invalidate: [["medicore", "encounters", hospital.id]],
+      invalidateOnError: true,
       onSuccess: () => {
         setReasonFor(null);
         reasonForm.reset({ reason: "" });
@@ -239,6 +244,8 @@ function EncounterRow({ hospital, row }: { hospital: Hospital; row: Encounter })
               key={to}
               variant="outline"
               size="sm"
+              aria-expanded={reasonFor === to}
+              disabled={move.isPending}
               onClick={() => setReasonFor(reasonFor === to ? null : to)}
             >
               {moveLabel[to]}
@@ -296,6 +303,9 @@ const openSchema = z.object({
 });
 
 function OpenEncounter({ hospital }: { hospital: Hospital }) {
+  // One id per encounter being opened, kept across retries, so a retry after
+  // a lost response replays it instead of opening a second one (#80 E4).
+  const [encounterId, setEncounterId] = useState(() => newEncounterId());
   const search = useZodForm(searchSchema, { query: "" });
   const [submitted, setSubmitted] = useState("");
   const patients = useApiPagedQuery<Patient>(
@@ -313,15 +323,17 @@ function OpenEncounter({ hospital }: { hospital: Hospital }) {
   });
   const open = useApiMutation(
     (values: z.infer<typeof openSchema>) =>
-      apiFetch<Encounter>(`/medicore/hospitals/${hospital.id}/encounters/${newEncounterId()}`, {
+      apiFetch<Encounter>(`/medicore/hospitals/${hospital.id}/encounters/${encounterId}`, {
         method: "PUT",
         body: JSON.stringify(values),
       }),
     {
       successToast: "Encounter opened",
       invalidate: [["medicore", "encounters", hospital.id]],
-      onSuccess: () =>
-        form.reset({ patient_id: "", consult_mode: "in_person", visit_type: "first" }),
+      onSuccess: () => {
+        form.reset({ patient_id: "", consult_mode: "in_person", visit_type: "first" });
+        setEncounterId(newEncounterId());
+      },
     },
   );
   return (

@@ -48,16 +48,21 @@ ALTER TABLE medicore_visits
  ADD COLUMN closed_at timestamptz,
  ADD COLUMN created_by text,
  ADD COLUMN intent_sha256 text CHECK(intent_sha256 IS NULL OR intent_sha256 ~ '^[0-9a-f]{64}$'),
- ADD CONSTRAINT medicore_visits_status CHECK(status IN ('open','arrived','in_consultation','closed','left_without_being_seen','cancelled')),
+ ADD CONSTRAINT medicore_visits_status CHECK(status IN ('open','arrived','in_consultation','closed','left_without_being_seen','cancelled')) NOT VALID,
  ADD CONSTRAINT medicore_visits_kind CHECK(
   (hospital_id IS NULL AND patient_name IS NOT NULL AND status='open')
   OR (hospital_id IS NOT NULL AND patient_name IS NULL AND patient_id IS NOT NULL AND consult_mode IS NOT NULL
       AND visit_type IS NOT NULL AND created_by IS NOT NULL AND intent_sha256 IS NOT NULL AND department='OPD'
-      AND status<>'open' AND (closed_at IS NOT NULL)=(status IN ('closed','left_without_being_seen','cancelled')))),
+      AND status<>'open' AND (closed_at IS NOT NULL)=(status IN ('closed','left_without_being_seen','cancelled')))) NOT VALID,
  -- MATCH SIMPLE skips legacy rows (no hospital); an encounter's patient must be
  -- registered at the encounter's hospital, by construction.
  ADD CONSTRAINT medicore_visits_patient FOREIGN KEY(tenant_id,patient_id,hospital_id)
-  REFERENCES medicore_patients(tenant_id,patient_id,hospital_id);
+  REFERENCES medicore_patients(tenant_id,patient_id,hospital_id) NOT VALID;
+-- Added NOT VALID, then validated: validation scans existing visits under a
+-- lock that does not block reads or writes of the table.
+ALTER TABLE medicore_visits VALIDATE CONSTRAINT medicore_visits_status;
+ALTER TABLE medicore_visits VALIDATE CONSTRAINT medicore_visits_kind;
+ALTER TABLE medicore_visits VALIDATE CONSTRAINT medicore_visits_patient;
 CREATE INDEX medicore_encounters_page ON medicore_visits(tenant_id,hospital_id,created_at DESC,id DESC) WHERE hospital_id IS NOT NULL;
 
 -- Every status change, append-only (#80 E5).
@@ -88,6 +93,12 @@ BEGIN
  END IF;
  IF NEW.to_status IN ('left_without_being_seen','cancelled') AND NEW.reason IS NULL THEN
   RAISE EXCEPTION 'this transition needs a reason' USING ERRCODE='23514';
+ END IF;
+ -- History only for a move the encounter is making now: it must be at
+ -- from_status and the version just before this one.
+ IF NOT EXISTS(SELECT 1 FROM medicore_visits v WHERE v.tenant_id=NEW.tenant_id AND v.id=NEW.encounter_id
+    AND v.hospital_id IS NOT NULL AND v.status=NEW.from_status AND v.version=NEW.version-1 FOR UPDATE) THEN
+  RAISE EXCEPTION 'transition does not match the encounter' USING ERRCODE='23514';
  END IF;
  RETURN NEW;
 END $$;

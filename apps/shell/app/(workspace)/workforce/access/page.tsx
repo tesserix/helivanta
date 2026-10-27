@@ -30,10 +30,7 @@ export default function StaffAccessPage() {
   const identity = useApiQuery<Identity>(["iam", "me", "permissions"], "/iam/me/permissions");
   return (
     <>
-      <PageHeading
-        title="Staff access"
-        description="Propose and independently review hospital-scoped assignments."
-      />
+      <PageHeading description="Propose and independently review hospital-scoped assignments." />
       {identity.isPending ? (
         <p role="status">Checking assignment access…</p>
       ) : identity.isError || !identity.data?.tenant_id || !identity.data.subject ? (

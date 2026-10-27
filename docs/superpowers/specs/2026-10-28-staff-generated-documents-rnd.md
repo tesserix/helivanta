@@ -164,3 +164,16 @@ Implementation must preserve this dependency order:
 
 This sequence records implementation dependencies; it activates no statutory
 policy, grants no access and does not close any of these three stories.
+
+### Branding source boundary
+
+Source review found published **tenant** branding in the Workspace owner
+(`backend/internal/modules/workspace/module.go`): display name, welcome text,
+logo URL, theme and login layout. Workforce's current hospital projection
+(`handlers.go`) contains ID, name, access level and creation time. Neither is
+proof of an approved hospital legal-name/address/signatory and immutable
+print-branding revision. Before generating final hospital documents, identify
+and contract that hospital-specific owner projection; do not substitute tenant
+login branding for a hospital's legal identity. Resolve approved logo bytes and
+their digest before rendering, under the external-resource restrictions above,
+and retain the exact approved snapshot for historical documents.

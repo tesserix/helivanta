@@ -226,21 +226,21 @@ this consumer alone.
 from the owner endpoints, then runs `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` with
 the corresponding application read contexts. The disposable PostgreSQL 16 fixture
 retains RLS, constraints, request days/events and attributed command transitions:
-100 staff, 100,000 cancelled requests, 100,000 day rows, 200,000 request events,
+100 historical staff plus the reviewer and seed staff, 100,000 cancelled requests, 100,000 day rows, 200,000 request events,
 1,000 withdrawn login-link proposals, one current reviewed link and 52 pending
 requests. The endpoint returns 50 queue items plus a two-item tail.
 
 | Query | SQL rows | Planning ms | Execution ms | Shared hits | Shared reads |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Hospital discovery | 1 | 0.241 | 0.220 | 6 | 0 |
-| Queue first page, including probe | 51 | 4.535 | 6.443 | 1,284 | 0 |
-| Queue continuation | 2 | 4.490 | 3.522 | 1,454 | 0 |
+| Hospital discovery | 1 | 0.173 | 0.150 | 6 | 0 |
+| Queue first page, including probe | 51 | 4.000 | 6.241 | 1,520 | 0 |
+| Queue continuation | 2 | 4.271 | 3.255 | 1,469 | 0 |
 
 Discovery used `workforce_login_links_review_discovery`; both queue pages used
 `workforce_leave_requests_review_queue`. The test checks these plans, returned
 row bounds and fewer than 5,000 shared hit/read blocks per query. Retained
 cancelled history was not scanned by the queue index. The race-enabled test
-passed in 397.88 seconds; fixture construction dominates that duration.
+passed in 397.02 seconds; fixture construction dominates that duration.
 
 Run explicitly from `backend/` with a reachable Docker engine:
 
@@ -256,3 +256,9 @@ scoped-authority implementation and real OpenFGA membership; it does not measure
 the full IAM guard or graph under load. Real signed-session authority integration
 and browser acceptance have separate evidence. Production migration rollout and
 fresh deployed browser verification remain open.
+
+The initial performance fixture explicitly refreshed table statistics with
+`WithAdmin`; the architecture suite correctly rejected that unallowlisted call.
+The call was removed, without weakening the rule. The measurements above are
+from the passing repeat with tenant-scoped fixture commands and ordinary database
+statistics only. The full architecture race suite then passed in 36.192 seconds.

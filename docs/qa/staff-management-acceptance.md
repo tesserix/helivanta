@@ -372,9 +372,39 @@ This green run does not establish the cause of the earlier intermittent failure.
 The explicit `workforce_perf` probe passed against 100,000 retained cancelled
 requests and 1,000 withdrawn account-link proposals with RLS and constraints
 active. Actual endpoint SQL used the discovery and pending-queue indexes;
-first/tail queue execution measured 6.443/3.522 ms and discovery 0.220 ms locally.
+first/tail queue execution measured 6.241/3.255 ms and discovery 0.150 ms locally.
 See the [consumer specification](../superpowers/specs/2026-10-27-scoped-leave-consumer.md#retained-history-owner-query-measurement--2026-10-28)
 for fixture, command, row/buffer bounds and measurement limits. This completes
 the local retained-history query-plan gate, not a production performance claim.
 Current-main integration, release review, named migration/rollout approval and
 deployed UI QA remain open, along with the wider Staff acceptance matrix.
+
+### Current-main integration validation — 2026-10-28
+
+Integrated `d138416` in the isolated Staff worktree, preserving unrelated changes
+in the original checkout. The combined web command below passed 30/30 tasks:
+1,031 shell tests, 385 API tests, 235 UI tests and 62 configuration tests.
+
+```sh
+API_URL=http://localhost:8199 \
+NEXT_PUBLIC_ZITADEL_ISSUER_URL=http://auth.tesserix.localhost:20080 \
+NEXT_PUBLIC_ZITADEL_CLIENT_ID=local-build-validation \
+mise exec node@24 -- pnpm turbo lint type-check test build format:check
+```
+
+From `backend/`, with the existing disposable Docker test engine:
+
+- `go test -race ./internal/modules/workforce ./internal/globalapi ./internal/modules/pharmacy ./internal/archtest ./cmd/contractdocs`: Workforce (350.089s), Global API (63.406s), Pharmacy (142.593s) and contractdocs (16.567s) passed. The architecture package failed on the new performance fixture's administrative statistics setup; no application behavior failed in these suites.
+- Removed that `WithAdmin` call; `go test -race ./internal/archtest` passed (36.192s). No allowlist exemption was added. The tagged retained-history repeat passed (397.02s).
+- `go vet ./internal/modules/workforce ./internal/modules/pharmacy ./internal/globalapi ./internal/archtest ./cmd/contractdocs` passed.
+- `golangci-lint run ./internal/modules/workforce/... ./internal/modules/pharmacy/... ./internal/globalapi/... ./internal/archtest/... ./cmd/contractdocs/...` passed with zero issues.
+- `go build -o /tmp/helivanta-staff-integrated-api ./cmd/api`, `go run ./cmd/contractdocs` and `go run ./cmd/contractdocs -check` passed.
+- Tagged Workforce `go vet` and `golangci-lint` passed after the fixture correction.
+- Node 24 `generate-pharmacy-contract.mjs --check` and `generate-workforce-leave.mjs --check` passed. `git diff --check` and staged redacted gitleaks passed.
+
+This is local integration evidence. The latest remote CI, merge, deployment and
+fresh deployed browser QA remain separate gates. Read-only release discovery
+still found application images at `a8af648`, healthy application replicas and a
+healthy two-instance CNPG cluster. The PostgreSQL Argo application separately
+reports degraded/out-of-sync seed jobs; that discrepancy is recorded for release
+review. No cloud mutation, migration or new production rollout was performed.

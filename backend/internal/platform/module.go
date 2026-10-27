@@ -57,7 +57,9 @@ type Deps struct {
 	PrivacyDeadlinesEnabled     bool
 	EmergencyDispatchEnabled    bool
 	// AllergyRecordingEnabled gates recording allergy entries (#1373).
-	AllergyRecordingEnabled   bool
+	AllergyRecordingEnabled bool
+	// PharmacyEvidenceEnabled admits prescription page uploads (#1386 B-2a, #1406).
+	PharmacyEvidenceEnabled   bool
 	EmergencyWorkflowsEnabled bool
 	Authz                     TupleWriter
 	Roles                     RoleLister

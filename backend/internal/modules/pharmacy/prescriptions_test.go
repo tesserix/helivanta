@@ -45,7 +45,7 @@ func newPrescriptionWorld(t *testing.T, files *attachments.GCS) prescriptionWorl
 			"viewer":     prescriptionPerms,
 			"owner":      {"pharmacy.catalogue.read", "pharmacy.sale.read", "pharmacy.stock.read"},
 			"foreign":    prescriptionPerms,
-		}, Modules: []platform.Module{pharmacy.New()}, Documents: files,
+		}, Modules: []platform.Module{pharmacy.New()}, Documents: files, PharmacyEvidenceEnabled: files != nil,
 	})
 	seedPharmacyOutlet(t, r)
 	grantCatalogue(t, r, "user-editor", "editor")

@@ -258,8 +258,7 @@ function PrescriptionPages({
       release();
     };
   }, []);
-  const run = useApiMutation(
-    async (operation: Operation) => {
+  const perform = async (operation: Operation) => {
       if (tenantTransitionPending())
         throw new Error("Wait for your workspace to finish switching.");
       const active = new AbortController();
@@ -287,9 +286,20 @@ function PrescriptionPages({
           urls.current.delete(url);
         }, 1500);
       }
-    },
-    { invalidate: [prescriptionImagesKey(scope, prescription.id)] },
+  };
+  const invalidate = [prescriptionImagesKey(scope, prescription.id)];
+  const upload = useApiMutation(() => perform({ kind: "upload" }), {
+    successToast: "Page added",
+    invalidate,
+  });
+  const retry = useApiMutation(
+    (image: PharmacyPrescriptionImage) => perform({ kind: "retry", image }),
+    { successToast: "Scan requested", invalidate },
   );
+  const open = useApiMutation((image: PharmacyPrescriptionImage) =>
+    perform({ kind: "download", image }),
+  );
+  const busy = upload.isPending || retry.isPending || open.isPending;
   const images = pages.data?.pages.flatMap((page) => page.data) ?? [];
   return (
     <Panel>
@@ -312,7 +322,7 @@ function PrescriptionPages({
         <form
           noValidate
           className="mt-4 space-y-3"
-          onSubmit={form.handleSubmit(() => run.mutate({ kind: "upload" }))}
+          onSubmit={form.handleSubmit(() => upload.mutate())}
         >
           <Field id="rx-page" label="Scanned page" error={form.formState.errors.file?.message}>
             <input
@@ -320,17 +330,17 @@ function PrescriptionPages({
               id="rx-page"
               type="file"
               accept="image/png,image/jpeg"
-              disabled={run.isPending}
+              disabled={busy}
               className="w-full min-w-0 rounded-md border p-2 text-sm"
               onChange={(event) => {
                 prepared.current = null;
-                run.reset();
+                upload.reset();
                 form.setValue("file", event.target.files?.[0] ?? null, { shouldValidate: true });
               }}
             />
           </Field>
-          <Button type="submit" disabled={run.isPending}>
-            {run.isPending ? "Uploading…" : "Add page"}
+          <Button type="submit" disabled={busy}>
+            {upload.isPending ? "Uploading…" : "Add page"}
           </Button>
         </form>
       )}
@@ -353,8 +363,8 @@ function PrescriptionPages({
               {image.status === "available" && (
                 <Button
                   variant="outline"
-                  disabled={run.isPending}
-                  onClick={() => run.mutate({ kind: "download", image })}
+                  disabled={busy}
+                  onClick={() => open.mutate(image)}
                 >
                   Open {image.filename}
                 </Button>
@@ -362,8 +372,8 @@ function PrescriptionPages({
               {canRecord && image.status === "scan_error" && (
                 <Button
                   variant="outline"
-                  disabled={run.isPending}
-                  onClick={() => run.mutate({ kind: "retry", image })}
+                  disabled={busy}
+                  onClick={() => retry.mutate(image)}
                 >
                   Try again
                 </Button>

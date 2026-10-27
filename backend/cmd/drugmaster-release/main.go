@@ -7,6 +7,7 @@
 //	drugmaster-release stage  -file release.json -by "Name"
 //	drugmaster-release decide -release <id> -file release.json -by "Name" -publish -reason "..."
 //	drugmaster-release decide -release <id> -by "Name" -reject -reason "..."
+//	drugmaster-release replay-molecules   (as the approver; outbox only)
 //
 // Publishing takes the file the approver reviewed and refuses a release
 // whose rows differ from it.
@@ -37,7 +38,7 @@ func main() {
 	}
 }
 
-var errUsage = errors.New("usage: drugmaster-release stage -file F -by NAME | decide -release ID -by NAME (-publish -file F | -reject) -reason TEXT")
+var errUsage = errors.New("usage: drugmaster-release stage -file F -by NAME | decide -release ID -by NAME (-publish -file F | -reject) -reason TEXT | replay-molecules")
 
 func run(ctx context.Context, args []string, dsn string, out io.Writer) error {
 	if len(args) == 0 {
@@ -95,6 +96,18 @@ func run(ctx context.Context, args []string, dsn string, out io.Writer) error {
 		}
 		defer func() { _ = db.Close() }()
 		return drugmaster.Decide(ctx, db, id, raw, *by, *publish, *reason)
+	case "replay-molecules":
+		db, err := tenantdb.OpenRuntime(ctx, dsn)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = db.Close() }()
+		n, err := drugmaster.ReplayMolecules(ctx, db)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintf(out, "re-announced %d molecules\n", n)
+		return err
 	}
 	return errUsage
 }

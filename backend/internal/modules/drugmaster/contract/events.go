@@ -14,6 +14,19 @@ const SubjectFormulationReclassified = "helivanta.in.drugmaster.formulation_recl
 // made recalled or discontinued, or returned to active.
 const SubjectProductStatusChanged = "helivanta.in.drugmaster.product_status_changed.v1"
 
+// SubjectMoleculePublished is published for each molecule a release
+// first publishes, and again by the replay command, so consumers that code
+// clinical facts against molecules know which exist (#1373 A4).
+const SubjectMoleculePublished = "helivanta.in.drugmaster.molecule_published.v1"
+
+// MoleculePublishedData is the v1 payload of SubjectMoleculePublished.
+type MoleculePublishedData struct {
+	MoleculeID string `json:"molecule_id"`
+	INNName    string `json:"inn_name"`
+	ATCCode    string `json:"atc_code"`
+	ReleaseID  string `json:"release_id"`
+}
+
 // CataloguePublishedData is the v1 payload of SubjectCataloguePublished.
 type CataloguePublishedData struct {
 	ReleaseID           string `json:"release_id"`

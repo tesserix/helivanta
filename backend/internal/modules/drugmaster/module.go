@@ -24,6 +24,9 @@ var schema string
 //go:embed read_policies.sql
 var readPolicies string
 
+//go:embed molecule_events.sql
+var moleculeEvents string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -35,7 +38,7 @@ func (m *Module) Permissions() []authz.Grant {
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_drugmaster", SQL: schema}, {ID: "0002_drugmaster", SQL: readPolicies}}
+	return []tenantdb.Migration{{ID: "0001_drugmaster", SQL: schema}, {ID: "0002_drugmaster", SQL: readPolicies}, {ID: "0003_drugmaster", SQL: moleculeEvents}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -50,7 +53,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 // Publishes declares the release events. They are written by
 // cmd/drugmaster-release as helivanta_drug_approver, not by a request.
 func (m *Module) Publishes() []string {
-	return []string{contract.SubjectCataloguePublished, contract.SubjectFormulationReclassified, contract.SubjectProductStatusChanged}
+	return []string{contract.SubjectCataloguePublished, contract.SubjectMoleculePublished, contract.SubjectFormulationReclassified, contract.SubjectProductStatusChanged}
 }
 
 // DirectedSubjects declares none: the catalogue's events carry no tenant.

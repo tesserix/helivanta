@@ -42,6 +42,10 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"drugmaster.MoleculePublishedData.MoleculeID":                           "opaque catalogue molecule id; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.MoleculePublishedData.INNName":                              "international non-proprietary drug name; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.MoleculePublishedData.ATCCode":                              "WHO ATC classification code; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.MoleculePublishedData.ReleaseID":                            "opaque id of the release that first published it; shared drug master reference data (#476): no patient, staff or tenant data",
 	"drugmaster.CataloguePublishedData.ReleaseID":                           "opaque id of a published catalogue release; shared drug master reference data (#476): no patient, staff or tenant data",
 	"drugmaster.CataloguePublishedData.Sequence":                            "publication order of releases; shared drug master reference data (#476): no patient, staff or tenant data",
 	"drugmaster.CataloguePublishedData.FormulationVersions":                 "count of formulation versions in the release; shared drug master reference data (#476): no patient, staff or tenant data",

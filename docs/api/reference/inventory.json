@@ -1129,6 +1129,11 @@
             "drugmaster_products",
             "drugmaster_product_versions"
           ]
+        },
+        {
+          "id": "0002_drugmaster",
+          "sql_sha256": "74750c8a921ef680aa472c4fbd437590c89b9782c95096ae63ca4759f91373e7",
+          "creates_tables": []
         }
       ]
     },

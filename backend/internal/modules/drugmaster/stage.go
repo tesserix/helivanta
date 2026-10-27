@@ -219,6 +219,7 @@ type formulationVersionRow struct {
 
 type ingredientRow struct {
 	VersionID     uuid.UUID `gorm:"column:version_id"`
+	ReleaseID     uuid.UUID `gorm:"column:release_id"`
 	Position      int       `gorm:"column:position"`
 	MoleculeID    uuid.UUID `gorm:"column:molecule_id"`
 	StrengthValue string    `gorm:"column:strength_value"`
@@ -307,7 +308,7 @@ func plan(release uuid.UUID, f ReleaseFile, c catalogue) (staged, error) {
 				v := x.PerValue.String()
 				per = &v
 			}
-			out.ingredients = append(out.ingredients, ingredientRow{version, i + 1, mid, x.StrengthValue.String(), x.StrengthUnit, per, x.PerUnit})
+			out.ingredients = append(out.ingredients, ingredientRow{version, release, i + 1, mid, x.StrengthValue.String(), x.StrengthUnit, per, x.PerUnit})
 		}
 	}
 	for _, p := range f.Products {

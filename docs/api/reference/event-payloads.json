@@ -403,6 +403,62 @@
       "type": "object"
     }
   },
+  "helivanta.in.medicore.encounter_opened.v1": {
+    "source": "backend/internal/modules/medicore/contract/events.go:49",
+    "go_type": "EncounterOpenedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "encounter_id": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "patient_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "encounter_id",
+        "hospital_id",
+        "patient_id"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.medicore.encounter_status_changed.v1": {
+    "source": "backend/internal/modules/medicore/contract/events.go:60",
+    "go_type": "EncounterStatusChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "encounter_id": {
+          "type": "string"
+        },
+        "from_status": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "to_status": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "encounter_id",
+        "hospital_id",
+        "from_status",
+        "to_status",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.medicore.visit_created.v1": {
     "source": "backend/internal/modules/medicore/contract/events.go:29",
     "go_type": "VisitCreatedData",

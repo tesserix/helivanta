@@ -365,6 +365,8 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /emergency/bases/:base/access":                                         "one current-subject base grant; no other subject or clinical information",
 	"GET /emergency/bases/:base/cases/:case":                                    "one audited base-scoped encrypted case; queue and timeline use cursor pagination",
 	"GET /workforce/hospitals/:hospital/insights":                               "one explicitly hospital-grant-checked snapshot, bounded to seven job categories and two employment statuses",
+	"GET /medicore/hospitals/:hospital/access":                                  "the caller's own grant at one hospital; no other subject or patient data",
+	"GET /medicore/hospitals/:hospital/encounters/:id":                          "one grant-checked encounter; the hospital's encounters use cursor pagination",
 	"GET /medicore/insights":                                                    "one aggregate response, maximum 366 calendar buckets and two clinical categories; no patient rows",
 	"GET /pharmacy/insights":                                                    "one aggregate response, maximum 366 calendar buckets and two dispense statuses; no patient rows",
 	"GET /lab/insights":                                                         "one aggregate response, maximum 366 calendar buckets and two order statuses; no patient rows",

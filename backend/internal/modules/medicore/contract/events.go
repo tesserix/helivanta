@@ -64,3 +64,31 @@ type EncounterStatusChangedData struct {
 	ToStatus    string `json:"to_status"`
 	Version     int    `json:"version"`
 }
+
+// SubjectAllergyChanged is published when an allergy entry is recorded or
+// corrected, or "no known allergy" is recorded (#1373 A11). References
+// only: no substance, reaction or severity; consumers re-read through an
+// authorised query.
+const SubjectAllergyChanged = "helivanta.in.medicore.allergy_changed.v1"
+
+// AllergyChangedData is the v1 payload of SubjectAllergyChanged.
+type AllergyChangedData struct {
+	PatientID  string `json:"patient_id"`
+	HospitalID string `json:"hospital_id"`
+	RecordID   string `json:"record_id"`
+	Version    int    `json:"version"`
+	// Kind is "entry" or "no_known_allergy".
+	Kind string `json:"kind"`
+}
+
+// SubjectWeightRecorded is published when a weight is recorded or marked
+// entered in error (#1373 A11). No value travels.
+const SubjectWeightRecorded = "helivanta.in.medicore.weight_recorded.v1"
+
+// WeightRecordedData is the v1 payload of SubjectWeightRecorded.
+type WeightRecordedData struct {
+	PatientID      string `json:"patient_id"`
+	HospitalID     string `json:"hospital_id"`
+	ObservationID  string `json:"observation_id"`
+	EnteredInError bool   `json:"entered_in_error"`
+}

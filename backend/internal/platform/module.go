@@ -55,9 +55,11 @@ type Deps struct {
 	ProxyClinicalCaptureEnabled bool
 	PrivacyDeadlinesEnabled     bool
 	EmergencyDispatchEnabled    bool
-	EmergencyWorkflowsEnabled   bool
-	Authz                       TupleWriter
-	Roles                       RoleLister
+	// AllergyRecordingEnabled gates recording allergy entries (#1373).
+	AllergyRecordingEnabled   bool
+	EmergencyWorkflowsEnabled bool
+	Authz                     TupleWriter
+	Roles                     RoleLister
 	// SessionSigner re-mints the Helivanta session for the one operation that
 	// must change a caller's identity rather than read it: switching
 	// hospitals (#838, spec D3). Post-cutover this is the ONLY way a

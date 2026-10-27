@@ -36,6 +36,28 @@ The current visit event includes `patient_name` and reaches lab/pharmacy pending
 
 The lab intake currently creates a pending default `CBC` order for every visit, and pharmacy creates a pending dispense task. These are scaffolded integration behavior, not clinician-authorized diagnostic orders or prescriptions. A real clinical ordering workflow must replace that automatic fanout with explicit authorized order intent before clinical reliance.
 
+### OPD encounters, allergies and weight
+
+The OPD encounters design (#80, `docs/superpowers/specs/2026-10-27-opd-encounter-design.md`) covers encounters under `/v1/medicore/hospitals/{hospital}/encounters`. Allergies and weight (#1373, [design](../../superpowers/specs/2026-10-27-allergies-and-weight-design.md)) are patient records under `/v1/medicore/hospitals/{hospital}/patients/{patient}/`.
+
+Each route requires:
+
+- the caller's MediCore grant at that hospital;
+- the patient registered there.
+
+Anything else returns 404.
+
+| Operation                                                                                                 | Contract                                                                                                                                                                                                                                                                                                                  |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET …/allergies`                                                                                         | `{status: unknown\|no_known_allergy\|allergies_recorded, no_known_allergy, entries, needs_coding, recording_enabled}`. `unknown` is what no record means; it is never stored and never shown as "none" (IN-CL-08). Audited read                                                                                           |
+| `PUT …/allergies/{uuidv7}`                                                                                | Records an entry. It is idempotent and returns 503 until the reaction and severity lists are clinically approved (`MEDICORE_ALLERGY_RECORDING_ENABLED`). A `drug_molecule` must be one the drug master published (422 otherwise). A `drug_unlisted` entry is accepted but `needs_coding`, which blocks prescribing checks |
+| `POST …/allergies/{id}/corrections`                                                                       | `{expected_version, status: resolved\|entered_in_error, reason}`. Adds a new version, keeping the original. A stale version returns 409                                                                                                                                                                                   |
+| `GET …/allergies/{id}/history`                                                                            | Every version of one entry. Audited                                                                                                                                                                                                                                                                                       |
+| `PUT …/no-known-allergy/{uuidv7}`                                                                         | A clinician's "asked, none known". Refused (409) while any allergy is active. A later entry outranks it, and a later resolution returns the status to `unknown`                                                                                                                                                           |
+| `PUT …/weights/{uuidv7}`, `POST …/weights/{id}/entered-in-error`, `GET …/weights`, `GET …/weights/latest` | Kilograms to three decimals, from kg or g. Each weight records when it was measured, how, and who recorded it. "Latest" skips entries in error and reports `age_days`. The recency a prescribing check requires is #87's rule                                                                                             |
+
+Events `allergy_changed.v1` and `weight_recorded.v1` carry ids only. MediCore learns published molecules from `drugmaster.molecule_published.v1` into the global, read-only `medicore_drug_molecules`.
+
 ## Target clinical contracts requiring review
 
 MediCore owns encounter state, clinician orders, signed notes/prescriptions, nursing, clinical discharge, theatre/day-care and hospital charge intent. Do not create patient tables in each product. Every downstream request needs the owning patient registration, encounter, ordering resource/version, hospital scope, purpose and authorized actor.

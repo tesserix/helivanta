@@ -96,6 +96,16 @@ func Decide(ctx context.Context, db *tenantdb.DB, release uuid.UUID, file []byte
 		}); err != nil {
 			return err
 		}
+		var molecules []contract.MoleculePublishedData
+		if err := tx.Raw(`SELECT id::text AS molecule_id, inn_name, COALESCE(atc_code,'') AS atc_code, release_id::text AS release_id
+			FROM drugmaster_molecules WHERE release_id=? ORDER BY inn_name`, release).Scan(&molecules).Error; err != nil {
+			return err
+		}
+		for _, m := range molecules {
+			if err := enqueue(tx, contract.SubjectMoleculePublished, m); err != nil {
+				return err
+			}
+		}
 		for _, r := range reclassified {
 			if err := enqueue(tx, contract.SubjectFormulationReclassified, r); err != nil {
 				return err
@@ -261,4 +271,26 @@ func statusChanges(tx *gorm.DB, release uuid.UUID) ([]contract.ProductStatusChan
 		WHERE n.release_id=? AND n.status IS DISTINCT FROM COALESCE(p.status,'active')
 		ORDER BY n.product_id`, release).Scan(&out).Error
 	return out, err
+}
+
+// ReplayMolecules re-announces every published molecule, for a consumer
+// that started after they were published (#1373 A4). It changes nothing
+// but the outbox. db must connect as helivanta_drug_approver.
+func ReplayMolecules(ctx context.Context, db *tenantdb.DB) (int, error) {
+	var molecules []contract.MoleculePublishedData
+	err := db.WithSystem(ctx, func(tx *gorm.DB) error {
+		// The same set publication announced: every molecule a published
+		// release introduced (review M8).
+		if err := tx.Raw(`SELECT m.id::text AS molecule_id, m.inn_name, COALESCE(m.atc_code,'') AS atc_code, m.release_id::text AS release_id
+			FROM drugmaster_molecules m JOIN drugmaster_releases r ON r.id=m.release_id WHERE r.status='published' ORDER BY m.inn_name`).Scan(&molecules).Error; err != nil {
+			return err
+		}
+		for _, m := range molecules {
+			if err := enqueue(tx, contract.SubjectMoleculePublished, m); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return len(molecules), err
 }

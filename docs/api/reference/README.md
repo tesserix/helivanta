@@ -185,6 +185,7 @@ Source: [backend/internal/modules/drugmaster/module.go](../../../backend/interna
 Published subjects:
 
 - `helivanta.in.drugmaster.catalogue_published.v1`
+- `helivanta.in.drugmaster.molecule_published.v1`
 - `helivanta.in.drugmaster.formulation_reclassified.v1`
 - `helivanta.in.drugmaster.product_status_changed.v1`
 
@@ -209,6 +210,16 @@ Source: [backend/internal/modules/medicore/module.go](../../../backend/internal/
 | GET | `/v1/medicore/hospitals/:hospital/encounters/:id` | `medicore.visit.read` | false | false |
 | PUT | `/v1/medicore/hospitals/:hospital/encounters/:id` | `medicore.visit.create` | false | false |
 | GET | `/v1/medicore/hospitals/:hospital/encounters` | `medicore.visit.read` | true | false |
+| POST | `/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id/corrections` | `medicore.allergy.record` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id/history` | `medicore.allergy.read` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id` | `medicore.allergy.record` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/patients/:patient/allergies` | `medicore.allergy.read` | false | false |
+| POST | `/v1/medicore/hospitals/:hospital/patients/:patient/no-known-allergy/:id/withdrawal` | `medicore.allergy.record` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/patients/:patient/no-known-allergy/:id` | `medicore.allergy.record` | false | false |
+| POST | `/v1/medicore/hospitals/:hospital/patients/:patient/weights/:id/entered-in-error` | `medicore.observation.record` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/patients/:patient/weights/:id` | `medicore.observation.record` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/patients/:patient/weights/latest` | `medicore.observation.read` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/patients/:patient/weights` | `medicore.observation.read` | true | false |
 | GET | `/v1/medicore/insights` | `medicore.visit.read` | false | false |
 | GET | `/v1/medicore/visits` | `medicore.visit.read` | true | false |
 | POST | `/v1/medicore/visits` | `medicore.visit.create` | false | false |
@@ -218,15 +229,19 @@ Published subjects:
 - `helivanta.in.medicore.visit_created.v1`
 - `helivanta.in.medicore.encounter_opened.v1`
 - `helivanta.in.medicore.encounter_status_changed.v1`
+- `helivanta.in.medicore.allergy_changed.v1`
+- `helivanta.in.medicore.weight_recorded.v1`
 
 Subscriptions:
 
 - `medicore-patient-registered` ← `helivanta.in.patientmaster.registered.v1`; after-commit hook: false.
+- `medicore-molecule-published` ← `helivanta.in.drugmaster.molecule_published.v1`; after-commit hook: false.
 
 Migration table declarations:
 
 - `0001_medicore`: `medicore_visits`.
 - `0005_medicore`: `medicore_patients`, `medicore_hospital_access`, `medicore_encounter_transitions`.
+- `0006_medicore`: `medicore_drug_molecules`, `medicore_allergy_entries`, `medicore_no_known_allergy`, `medicore_no_known_allergy_withdrawals`, `medicore_weight_observations`, `medicore_weight_errors`, `medicore_clinical_read_audit`.
 
 ## mediconnect
 

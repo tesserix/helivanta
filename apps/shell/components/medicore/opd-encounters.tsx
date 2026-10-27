@@ -29,6 +29,7 @@ import {
   SelectControl,
   useZodForm,
 } from "@helivanta/ui";
+import { PatientSafety } from "./patient-safety";
 
 const statusLabel: Record<EncounterStatus, string> = {
   arrived: "Arrived",
@@ -202,6 +203,8 @@ function PatientName({ hospital, id }: { hospital: Hospital; id: string }) {
 function EncounterRow({ hospital, row }: { hospital: Hospital; row: Encounter }) {
   const { can } = usePermissions();
   const [reasonFor, setReasonFor] = useState<EncounterStatus | null>(null);
+  const [safety, setSafety] = useState(false);
+  const clinical = can("medicore.allergy.read") || can("medicore.observation.read");
   const reasonForm = useZodForm(reasonSchema, { reason: "" });
   const move = useApiMutation(
     ({ to, reason }: { to: EncounterStatus; reason?: string }) =>
@@ -238,6 +241,16 @@ function EncounterRow({ hospital, row }: { hospital: Hospital; row: Encounter })
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">{statusLabel[row.status]}</Badge>
+        {clinical && (
+          <Button
+            variant="outline"
+            size="sm"
+            aria-expanded={safety}
+            onClick={() => setSafety(!safety)}
+          >
+            Patient safety
+          </Button>
+        )}
         {moves.map((to) =>
           needsReason.has(to) ? (
             <Button
@@ -263,6 +276,9 @@ function EncounterRow({ hospital, row }: { hospital: Hospital; row: Encounter })
           ),
         )}
       </div>
+      {safety && (
+        <PatientSafety hospital={hospital} patientId={row.patient_id} encounterId={row.id} />
+      )}
       {reasonFor && (
         <form
           noValidate

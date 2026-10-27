@@ -233,6 +233,11 @@ func TestStagedReleaseIsInvisibleUntilApproved(t *testing.T) {
 		"drugmaster_product_versions": 1}, s.appVisible(t))
 	events := s.await(t, contract.SubjectCataloguePublished, 1)
 	require.Empty(t, events[0].TenantID, "catalogue events belong to no tenant")
+	var molecule contract.MoleculePublishedData
+	require.NoError(t, json.Unmarshal(s.await(t, contract.SubjectMoleculePublished, 1)[0].Data, &molecule))
+	require.Equal(t, "Amoxicillin", molecule.INNName)
+	require.Equal(t, "J01CA04", molecule.ATCCode)
+	require.Equal(t, id.String(), molecule.ReleaseID)
 	require.Empty(t, s.events.of(contract.SubjectFormulationReclassified), "a first version reclassifies nothing")
 	var published contract.CataloguePublishedData
 	require.NoError(t, json.Unmarshal(events[0].Data, &published))
@@ -340,6 +345,7 @@ func TestReclassificationKeepsWhatApplied(t *testing.T) {
 	code, _ = s.get(t, "/formulations/"+formulation+"?at=2019-12-31")
 	require.Equal(t, http.StatusNotFound, code, "a date before the first version is never answered with today's rules")
 
+	require.Len(t, s.events.of(contract.SubjectMoleculePublished), 1, "a molecule already published is not announced again")
 	events := s.await(t, contract.SubjectFormulationReclassified, 1)
 	var r contract.FormulationReclassifiedData
 	require.NoError(t, json.Unmarshal(events[0].Data, &r))
@@ -416,6 +422,19 @@ func TestARejectedReleaseCanBeCorrectedAndRestaged(t *testing.T) {
 	s.publish(t, amoxicillin("v1-corrected", "2020-01-01", "H", "active"))
 	_, body := s.get(t, "/formulations/"+body0(t, s, "amox"))
 	require.Equal(t, "H", body["regulatory_class"])
+}
+
+// A consumer that started later gets every published molecule again.
+func TestReplayReannouncesPublishedMolecules(t *testing.T) {
+	s := newStack(t)
+	s.publish(t, amoxicillin("v1", "2020-01-01", "H", "active"))
+	s.await(t, contract.SubjectMoleculePublished, 1)
+	n, err := drugmaster.ReplayMolecules(t.Context(), s.approver)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	s.await(t, contract.SubjectMoleculePublished, 2)
+	_, err = drugmaster.ReplayMolecules(t.Context(), s.stager)
+	require.ErrorContains(t, err, "permission denied", "only the approver writes catalogue events")
 }
 
 // Review I1: what a rejected release got wrong (an ATC code, a pack's

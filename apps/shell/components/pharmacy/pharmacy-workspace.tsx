@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useEffect } from "react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import {
@@ -18,12 +17,14 @@ import {
 } from "@helivanta/api";
 import {
   Field,
+  GuardedLink as Link,
   LoadMore,
   PageHeading,
   Panel,
   RequestFailure,
   SelectControl,
   useConfirmLeave,
+  useNavigationPending,
 } from "@helivanta/ui";
 import { CataloguePanel } from "./catalogue-panel";
 import { OverviewTiles, WaitingTile } from "./overview-tiles";
@@ -95,6 +96,7 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
   const params = useSearchParams();
   const query = params.toString();
   const leave = useConfirmLeave();
+  const { pending: navigationPending, isPending: isNavigationPending } = useNavigationPending();
   // The address first, so a shared link opens the outlet it was copied from
   // (#1303 E8); then this tab's saved choice; then the first loaded.
   const inAddress = (key: string) => {
@@ -145,7 +147,7 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
   const pharmacyId = pharmacy?.id ?? "";
   const outletId = outlet?.id ?? "";
   useEffect(() => {
-    if (!pharmacyId || !outletId) return;
+    if (navigationPending || isNavigationPending() || !pharmacyId || !outletId) return;
     const current = new URL(window.location.href);
     if (current.pathname !== pathname || current.searchParams.toString() !== query) return;
     rememberPharmacySelection(storageKey, { pharmacyId, outletId });
@@ -157,7 +159,7 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
     current.searchParams.set("pharmacy", pharmacyId);
     current.searchParams.set("outlet", outletId);
     window.history.replaceState(null, "", `${current.pathname}${current.search}${current.hash}`);
-  }, [pharmacyId, outletId, pathname, query, storageKey]);
+  }, [pharmacyId, outletId, pathname, query, storageKey, navigationPending, isNavigationPending]);
   return (
     <>
       <PageHeading

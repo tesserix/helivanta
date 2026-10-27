@@ -9,6 +9,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useTransition,
   type AnchorHTMLAttributes,
   type MouseEvent,
   type ReactNode,
@@ -24,6 +25,8 @@ type GuardContext = {
   register: (id: string, guard: Guard | null) => void;
   confirm: (go: () => void) => void;
   dirty: () => boolean;
+  navigationPending: boolean;
+  isNavigationPending: () => boolean;
 };
 
 const Context = createContext<GuardContext | null>(null);
@@ -52,6 +55,17 @@ function backGuard(): BackGuard {
 export function NavigationGuardProvider({ children }: { children: ReactNode }) {
   const guards = useRef(new Map<string, Guard>());
   const [pending, setPending] = useState<{ name: string; go: () => void } | null>(null);
+  const [navigationPending, startNavigation] = useTransition();
+  // Effects can run after navigation starts but before its pending render commits.
+  const navigationInFlight = useRef(false);
+  useLayoutEffect(() => {
+    navigationInFlight.current = navigationPending;
+  }, [navigationPending]);
+  const transition = useCallback((go: () => void) => {
+    navigationInFlight.current = true;
+    startNavigation(go);
+  }, []);
+  const isNavigationPending = useCallback(() => navigationInFlight.current, []);
 
   const held = useCallback(
     () => [...guards.current.values()].find((guard) => guard.dirty || guard.saving),
@@ -68,10 +82,10 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
   const confirm = useCallback(
     (go: () => void) => {
       const guard = held();
-      if (!guard) go();
+      if (!guard) transition(go);
       else if (!guard.saving) setPending({ name: guard.name, go });
     },
-    [held],
+    [held, transition],
   );
 
   // Back cannot be cancelled, and the App Router moves on popstate too. The
@@ -124,8 +138,8 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
   }, [held]);
 
   const value = useMemo(
-    () => ({ register, confirm, dirty: () => !!held() }),
-    [register, confirm, held],
+    () => ({ register, confirm, dirty: () => !!held(), navigationPending, isNavigationPending }),
+    [register, confirm, held, navigationPending, isNavigationPending],
   );
 
   return (
@@ -141,7 +155,7 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
         onConfirm={() => {
           const go = pending?.go;
           setPending(null);
-          go?.();
+          if (go) transition(go);
         }}
       />
     </Context>
@@ -187,6 +201,11 @@ export function useConfirmLeave() {
   return useGuardContext().confirm;
 }
 
+export function useNavigationPending() {
+  const context = useGuardContext();
+  return { pending: context.navigationPending, isPending: context.isNavigationPending };
+}
+
 /** For shell links: holds a client-side move while a detail is unsaved. */
 export function useGuardedLinkClick() {
   const context = useContext(Context);
@@ -217,10 +236,17 @@ export function GuardedLink({
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 }) {
   const guard = useGuardedLinkClick();
+  const context = useContext(Context);
+  const router = useRouter();
   return (
     <Link
       {...anchor}
       href={href}
+      onNavigate={(event) => {
+        if (!context) return;
+        event.preventDefault();
+        context.confirm(() => router.push(href));
+      }}
       onClick={(event) => {
         guard(event, href);
         if (!event.defaultPrevented) onClick?.(event);

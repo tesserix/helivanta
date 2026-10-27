@@ -1,7 +1,7 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
-import { NavigationGuardProvider, useLeaveGuard } from "@helivanta/ui";
+import { NavigationGuardProvider, useConfirmLeave, useLeaveGuard } from "@helivanta/ui";
 import { chooseOption } from "../../test/select";
 import { PharmacyWorkspace } from "./pharmacy-workspace";
 
@@ -820,6 +820,45 @@ describe("the outlet is in the address", () => {
     expect(address().get("pharmacy")).toBe(pharmacy);
     expect(address().get("tab")).toBe("all");
     expect(nav.calls).toEqual([]);
+  });
+
+  it("waits for an approved pending move before restoring the outlet address", async () => {
+    nav.search = "tab=all";
+    window.history.replaceState(null, "", "/pharmacy?tab=all");
+    const fetcher = mockPharmacy();
+    const original = fetcher.getMockImplementation()!;
+    let releaseOutlets!: () => void;
+    const outletsReady = new Promise<void>((resolve) => {
+      releaseOutlets = resolve;
+    });
+    fetcher.mockImplementation(async (url, init) => {
+      if (url.endsWith(`/pharmacies/${pharmacy}/outlets`)) await outletsReady;
+      return original(url, init);
+    });
+    let finishMove!: () => void;
+    const moving = new Promise<void>((resolve) => {
+      finishMove = resolve;
+    });
+    function PendingMove() {
+      const leave = useConfirmLeave();
+      return <button onClick={() => leave(() => moving)}>Move to Lab</button>;
+    }
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="catalogue" />
+        <PendingMove />
+      </NavigationGuardProvider>,
+    );
+    await screen.findByLabelText("Pharmacy");
+    await user.click(screen.getByRole("button", { name: "Move to Lab" }));
+    await act(async () => releaseOutlets());
+    await screen.findByText("TEST Counter capsule");
+    expect(window.location.search).toBe("?tab=all");
+    expect(
+      sessionStorage.getItem("helivanta:pharmacy:scope:11111111-1111-1111-1111-111111111111"),
+    ).toBeNull();
+    await act(async () => finishMove());
+    await waitFor(() => expect(address().get("outlet")).toBe(outlet));
   });
 
   it("does not let late scope restoration reclaim a different page", async () => {

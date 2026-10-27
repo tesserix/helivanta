@@ -30,7 +30,7 @@ test("moving between OPD, PharmaConnect and Lab never reloads the page", async (
     page.evaluate(() => (window as unknown as { __navMarker?: string }).__navMarker ?? null);
 
   for (const [zone, url] of [
-    ["PharmaConnect", /\/pharmacy$/],
+    ["PharmaConnect", /\/pharmacy(?:\?|$)/],
     ["Lab", /\/lab$/],
     ["MediCore", /\/medicore\/opd$/],
   ] as const) {
@@ -54,11 +54,15 @@ test("every department URL still lands on its own page", async ({ page }) => {
     { path: "/medicore", lands: /\/medicore\/opd$/, current: "OPD" },
     { path: "/medicore/opd", lands: /\/medicore\/opd$/, current: "OPD" },
     { path: "/medicore/ipd", lands: /\/medicore\/ipd$/, current: "IPD" },
-    { path: "/pharmacy", lands: /\/pharmacy$/, current: "Overview" },
-    { path: "/pharmacy/dispense", lands: /\/pharmacy\/dispense$/, current: "Dispense queue" },
+    { path: "/pharmacy", lands: /\/pharmacy(?:\?|$)/, current: "Overview" },
+    {
+      path: "/pharmacy/dispense",
+      lands: /\/pharmacy\/dispense(?:\?|$)/,
+      current: "Dispense queue",
+    },
     {
       path: "/pharmacy/medications",
-      lands: /\/pharmacy\/medications$/,
+      lands: /\/pharmacy\/medications(?:\?|$)/,
       current: "Medication list",
     },
     { path: "/lab", lands: /\/lab$/, title: "Lab" },
@@ -104,9 +108,11 @@ async function goByRail(page: Page, name: string) {
     .getByRole("navigation", { name: "Zones" })
     .getByRole("link", { name, exact: true });
   const href = await link.getAttribute("href");
+  expect(href, "the rail link has no destination").not.toBeNull();
+  const target = new URL(href!, page.url());
   await link.click();
   await expect(page).toHaveURL(
-    new RegExp(`${(href ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
+    (url) => url.origin === target.origin && url.pathname === target.pathname,
   );
 }
 
@@ -127,6 +133,28 @@ test("the chrome is not remounted when moving between departments", async ({ pag
     await goByRail(page, name);
     expect(await chromeMarker(page), `moving to ${name} remounted the chrome`).toBe("same-node");
   }
+});
+
+test("remembered outlet scope survives rail navigation without remounting chrome", async ({
+  page,
+}) => {
+  const { outlet } = await freshOutlet(page);
+  const scope = outlet.match(/^\/pharmacy\/pharmacies\/([^/]+)\/outlets\/([^/]+)$/);
+  expect(scope, "the outlet fixture did not return its owner scope").not.toBeNull();
+  await page.goto("/medicore/opd");
+  await markChrome(page);
+  await goByRail(page, "Pharmacy (PharmaConnect)");
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === "/pharmacy" &&
+      url.searchParams.get("pharmacy") === scope![1] &&
+      url.searchParams.get("outlet") === scope![2],
+  );
+  expect(await chromeMarker(page), "restoring outlet scope remounted chrome").toBe("same-node");
+  await goByRail(page, "EmergencyConnect");
+  expect(await chromeMarker(page), "leaving the scoped pharmacy remounted chrome").toBe(
+    "same-node",
+  );
 });
 
 // #1092. Each remount used to create a new idle tracker, whose mount-time

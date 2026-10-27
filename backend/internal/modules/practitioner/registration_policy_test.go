@@ -126,22 +126,33 @@ func TestRegistrationPolicyEditionsRetainHistoryAndDoNotChangeIssuerIdentity(t *
 
 func TestRegistrationPolicyConcurrentReplayAndRevokedAppointment(t *testing.T) {
 	s := newRegistrationPolicyScenario(t)
-	codes := make(chan int, 12)
+	type response struct {
+		code int
+		body string
+	}
+	codes := make(chan response, 12)
+	start := make(chan struct{})
 	var wg sync.WaitGroup
 	for range 12 {
-		wg.Go(func() { codes <- testutil.Do(s.router, "PUT", s.path, "reviewer", s.body).Code })
+		wg.Go(func() {
+			<-start
+			got := testutil.Do(s.router, "PUT", s.path, "reviewer", s.body)
+			codes <- response{got.Code, got.Body.String()}
+		})
 	}
+	close(start)
 	wg.Wait()
 	close(codes)
 	created := 0
-	for code := range codes {
-		if code == 201 {
+	for got := range codes {
+		if got.code == 201 {
 			created++
 		} else {
-			require.Equal(t, 200, code)
+			require.Equal(t, 200, got.code, got.body)
 		}
 	}
 	require.Equal(t, 1, created)
+
 	revoke := fmt.Sprintf(`{"expected_version":2,"review_reference":"%s"}`, uuid.Must(uuid.NewV7()))
 	require.Equal(t, 200, testutil.Do(s.router, "POST", "/v1/practitioners/steward-appointments/"+s.appointment+"/revoke", "steward", revoke).Code)
 	denied := testutil.Do(s.router, "PUT", s.path+"/revisions/"+uuid.Must(uuid.NewV7()).String(), "reviewer", policyEditionBody(s, 1, 3600))

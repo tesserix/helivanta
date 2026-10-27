@@ -6654,6 +6654,11 @@
               ]
             }
           ]
+        },
+        {
+          "id": "0039_workforce_supervision",
+          "sql_sha256": "513297d11c47da7e97ec4266f51ea3881625601c4e9d710a59d35ede4a196922",
+          "creates_tables": []
         }
       ]
     },

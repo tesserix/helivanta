@@ -44,9 +44,9 @@ evidence is a starting point, not proof of the full live workflow.
 
 | Order | Area / route                                           | Workflow coverage required                                                                                                                                                                                                                                                                                                        | Current evidence / gaps                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | ----- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | Staff access `/workforce/access`                       | Identity creation and credential verification; tenant membership; reviewed staff/login binding; scoped assignment proposal, independent approve/reject, withdrawal, activation, expiry, revoke/renew; offboarding, reactivation, access removal and recovery                                                                      | **In progress.** PRs #1381/#1382/#1385 merged and deployed. Synthetic identity created via IdP UI; `staff_member` membership recorded through the live Staff Admin UI. Read-only verification confirms no hospital grant. Reviewer password-change handoff remains pending. Scoped Workforce consumer, usable reviewer queue, independent administrator provisioning/bootstrap and full negative/lifecycle QA remain open. #417/#1053/#1132/#434                                                                                                      |
-| 2     | Staff directory `/workforce`                           | Employee/consultant creation; proper staff/employee IDs; identity/background checks; protected photo and ID-card issuance; profile, contacts, qualifications, experience, credentials and private files; supervisory relationships; status changes, transfer, exit, reactivation; account linking, import/export and safe removal | Not yet fully verified in this audit. Preserve Workforce ownership and distinguish staff records from logins and clinical practitioners. #1035/#417/#617/#1105/#1107                                                                                                                                                                                                                                                                                                                                                                                  |
-| 3     | HR setup `/workforce/setup`                            | Every master type, code/name uniqueness, dependent references, versions/history, effective dates, activation/inactivation and referenced-record removal                                                                                                                                                                           | Not yet fully verified. Include organization/department ownership and posting/supervision dependencies; do not create a second department master. #1035/#22/#287/#616/#429                                                                                                                                                                                                                                                                                                                                                                            |
+| 1     | Staff access `/workforce/access`                       | Identity creation and credential verification; tenant membership; reviewed staff/login binding; scoped assignment proposal, independent approve/reject, withdrawal, activation, expiry, revoke/renew; offboarding, reactivation, access removal and recovery                                                                      | PRs #1381/#1382/#1385 deployed; #1393 merged after full CI and local independent-admin/reviewer QA. Production remains at a8af648: consumer migrations and deployed browser QA are open. Wider account/lifecycle coverage and the production reviewer password handoff remain open. #417/#1053/#1132/#434 |
+| 2     | Staff directory `/workforce`                           | Employee/consultant creation; proper staff/employee IDs; identity/background checks; protected photo and ID-card issuance; profile, contacts, qualifications, experience, credentials and private files; supervisory relationships; status changes, transfer, exit, reactivation; account linking, import/export and safe removal | Local admin profile editing, conditional validation, reload persistence, optional qualification removal and stale-tab recovery verified. A supervision cycle was reproduced and locally fixed with database/concurrency guards; release is pending. Identity/background/photo/cards, full lifecycle, related-role edit coverage and safe staff/account removal remain open. #1035/#417/#617/#1105/#1107 |
+| 3     | HR setup `/workforce/setup`                            | Every master type, code/name uniqueness, dependent references, versions/history, effective dates, activation/inactivation and referenced-record removal                                                                                                                                                                           | Local department creation, duplicate rejection, immutable code, retirement/reactivation/history and pinned enrollment revision verified. This covers one category; remaining categories, dependency combinations and scoped-role negatives remain open. #1035/#22/#287/#616/#429 |
 | 4     | Shifts `/workforce/shifts`                             | Day/night/overnight definitions, duration/break/grace/locum rules, changes/history, referenced shift inactivation and invalid timing                                                                                                                                                                                              | Not yet fully verified. #1036                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | 5     | Roster setup `/workforce/roster-setup`                 | Areas, groups, weekly templates, composition, applicability, version/effective-date rules and referenced-record removal                                                                                                                                                                                                           | Not yet fully verified. #1036                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | 6     | Roster policy `/workforce/roster-policy`               | Settings, staff/template assignments, effective dates, conflicts, history and inactive/transferred staff behavior                                                                                                                                                                                                                 | Not yet fully verified. #1036                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
@@ -62,7 +62,7 @@ evidence is a starting point, not proof of the full live workflow.
 | 16    | Credential reminders `/workforce/credential-reminders` | Reviewed reminder policy, durable scheduling, threshold delivery, duplicate/retry handling, acknowledgment and changed/expired credentials                                                                                                                                                                                        | Not yet fully verified against deployed workers and dependencies. #1108                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 17    | Payroll setup `/workforce/payroll-setup`               | Every head/structure, salary assignment, bank/tax identifiers and reveals, statutory/tax policies, declarations/evidence, independent decisions; attendance/OT inputs; payroll preparation, lock/process/correct, payslips, reports, exports and payment/ERP reconciliation                                                       | Not yet fully verified. Reconcile implemented configuration with missing payroll execution/appraisal/exit workflows; previews are not a posted payroll ledger. Activate jurisdictional policy only with current qualified review. #1040/#1041/#1042/#1107                                                                                                                                                                                                                                                                                             |
 | 18    | Benefits `/workforce/benefits`                         | Dependents, relationship/plan applicability, effective coverage, independent proposal decisions, overlap, evidence quarantine/release, expiry/revocation and protected exports                                                                                                                                                    | Not yet fully verified. Dependent enrollment must not create a patient identity automatically. #1106                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| 19    | Review leave `/workforce/leave-review`                 | Current scope discovery; bounded pending queue; protected detail; approve/reject; reject reasons; exact uncertain retry; stale/access/workspace states                                                                                                                                                                            | Implemented locally. Real gateway/RLS and nine UI scenarios pass. Browser, independent administrator setup, current-main integration and live two-person release acceptance remain open. #434/#1132/#1053                                                                                                                                                                                                                                                                                                                                             |
+| 19    | Review leave `/workforce/leave-review`                 | Current scope discovery; bounded pending queue; protected detail; approve/reject; reject reasons; exact uncertain retry; stale/access/workspace states                                                                                                                                                                            | Merged in #1393 after full CI. Local independent maker/checker/reviewer browser flow, gateway/RLS tests and retained-history plans passed. Production migration rollout and fresh deployed UI acceptance remain open. #434/#1132/#1053 |
 
 ## Disablement, suspension, resignation, termination and rehire
 
@@ -408,3 +408,86 @@ still found application images at `a8af648`, healthy application replicas and a
 healthy two-instance CNPG cluster. The PostgreSQL Argo application separately
 reports degraded/out-of-sync seed jobs; that discrepancy is recorded for release
 review. No cloud mutation, migration or new production rollout was performed.
+
+## Directory and department UI follow-up — 2026-10-28
+
+Using the existing synthetic administrator through ordinary local login:
+
+- Added an address, emergency contact, qualification and experience. Blank
+  conditional fields were rejected; an invalid international phone and an end
+  date before the start date were rejected without losing input. Valid synthetic
+  values saved and were read back after a page reload.
+- Two tabs edited the same enrollment. The newer designation saved; the stale
+  editor received the version conflict and retained its draft. Reload required
+  explicit discard and showed the saved value. Removing the synthetic
+  qualification persisted; address/contact/experience remained. Read-only SQL
+  confirmed those row counts and the saved designation/version.
+- Created a department, rejected a duplicate code while preserving input, edited
+  its name and retired it at revision 2. History retained active revision 1.
+  Reactivation produced revision 3; selected it in enrollment and saved. Retiring
+  it at revision 4 preserved the employee's pinned revision 3. An unrelated
+  enrollment edit still saved with the historical department reference intact.
+- Staff documents correctly reported unavailable local storage and disabled
+  upload. This is a dependency gap, not successful file/scanner/release QA.
+- An ordinary reviewer login after the API update showed no hospital directory
+  access or enrollment controls. This persona still has its pre-existing
+  pharmacist membership; it is not a pure Staff-member persona.
+
+### Supervision defect and local fix
+
+The UI accepted A reporting to B and then B reporting to A. Read-only SQL
+confirmed the cycle; it was repaired through the UI before local migration.
+The [supervision design](../superpowers/specs/2026-10-28-staff-supervision-cycles.md)
+records the database constraint, hospital-local serialization, snapshot-mode
+boundary, migration/rollback limits and failing-first evidence. No supervision
+link grants clinical or IAM authority.
+
+The first backend regression expected 409 and received 200. The first capacity
+probe also failed at 48 seconds; the actual owner plan showed repeated hospital
+scans. The bounded per-hop refinement passed without changing the budgets.
+An additional repeatable-read race initially committed both opposite links;
+unsupported snapshot writes now fail closed. Tests retain both regressions.
+
+Against the updated local API through Global API, the same UI cycle attempt
+returned a safe conflict, kept its draft editable, and left the saved reviewer
+supervisor empty at its existing version. Clearing the refused draft saved
+normally. The local fixture's unreleased function was refined from the canonical
+SQL in an owner transaction, without business-data SQL edits or disabling RLS.
+This development-only schema refinement does not establish a production rollout.
+
+Validation from `backend/`:
+
+- `go test -race ./internal/modules/workforce ./internal/globalapi ./internal/archtest ./cmd/contractdocs`: passed after the final isolation fix; Workforce 339.228s, Global API 41.551s, architecture 51.732s and contractdocs 8.943s.
+- Focused eight supervision cases passed, including indirect/concurrent/direct SQL, existing-cycle repair, lock contention, hospital isolation and stale repeatable-read snapshots (32.558s).
+- `go test -tags workforce_perf -race ./internal/modules/workforce -run '^TestSupervisionLongChainPlans$' -count=1 -v -timeout 10m`: passed. The final 2,000-person fixture measured owner SELECT 37.510 ms (9,995 shared hits, zero reads), guarded UPDATE 40.381 ms (39.837 ms trigger), and HTTP cycle refusal 98.091 ms. Full staff-key lookup and one-row-per-hop assertions passed under RLS. These are local evaluation measurements, not production percentiles.
+- `go vet -tags workforce_perf ./internal/modules/workforce`, `golangci-lint run --build-tags workforce_perf ./internal/modules/workforce/...` and the API build passed. Contractdocs generation/check passed after regenerating the new errors/migration. The canonical enrollment generator check passed after installing the new worktree's frozen dependencies offline.
+- Frontend source is unchanged; the parent merge passed all 30 web tasks and remote E2E. Actual browser checks above exercise the existing editor against the changed API. Final remote CI and a named production migration/rollout remain open.
+
+No broad Staff or organization story is closed by these cases. The other setup
+categories and remaining 19-area acceptance gaps stay open.
+
+### Supervision review follow-up — 2026-10-28
+
+Review found and reproduced a deferred-constraint authority-loss bypass in
+#1397. Four initial variants committed the cycle; the guard now locks current
+hospital manager authority and checks the canonical enrollment policy with
+three-valued SQL logic failing closed. Missing enrollment/tenant/hospital
+context, grant deletion and downgrade to reader all refuse and roll back. The
+updated focused suite passed (48.694s); the explicit directory-only supervisor
+compatibility test was also run. The capacity probe still passed (7.909s):
+40.285 ms owner SELECT, 34.656 ms guarded UPDATE and 125.567 ms HTTP refusal.
+
+The combined backend race command passed Workforce (335.198s), architecture
+(55.111s) and contractdocs (8.698s), but failed Global API's existing real-clock
+expiry-lock observation. The original failed log is retained. Without changing
+product code or weakening assertions, the exact integration test passed three
+repetitions (68.680s), and the full Global API package then passed (30.751s).
+This does not establish the intermittent failure's cause.
+
+CI `40548628104` for the earlier `a1252ea` head passed Go/web/scripts/secret
+checks but failed the cross-zone navigation E2E: Emergency was clicked while
+Pharmacy's resolved scope was being added to the address, and the page stayed in
+Pharmacy. The trace and error context are retained privately; investigation of
+its automatic address synchronization is separate from the supervision guard.
+No navigation assertion was relaxed and no broad issue is tagged complete.
+Remote CI and production release remain open gates.

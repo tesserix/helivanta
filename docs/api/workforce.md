@@ -145,6 +145,18 @@ Field definitions are shared through `contracts/workforce-enrollment.json` and `
 
 See [ADR 0015](../adr/0015-staff-enrollment.md), [editable diagram](../diagrams/staff-enrollment.drawio), and `scripts/verify-staff-enrollment.mjs` for repeatable designated-synthetic-tenant verification. This enrollment release does not complete payroll, rosters, leave, dependent benefits, jurisdiction-specific IDs, document quarantine/release integration, legacy import or all of #1035/#979.
 
+Enrollment supervisor links form an acyclic hospital-local reporting chain.
+The owner command serializes graph changes before staff locks; an additive
+PostgreSQL constraint also protects direct writes. A circular chain returns 409
+`supervisor_cycle` with no reporting-path disclosure, version change, success
+audit or outbox event. Clearing a supervisor can repair an invalid chain. A busy
+supervision lock returns 503 `supervision_busy`; retain the draft and retry after
+refresh. Unsupported snapshot isolation modes fail closed with 503
+`supervision_unavailable`; non-null supervisor writes require PostgreSQL
+read-committed semantics. Supervisor selection grants no access or clinical authority. Migration
+`0039_workforce_supervision` is unreleased; pre-rollout owner review must identify
+and correct existing cycles through attributable HR commands.
+
 ## Versioned HR setup
 
 Design: [ADR 0016](../adr/0016-versioned-hr-masters.md). Diagram: [editable draw.io](../diagrams/versioned-hr-masters.drawio).
